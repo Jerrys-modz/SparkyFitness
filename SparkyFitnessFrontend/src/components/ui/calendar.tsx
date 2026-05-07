@@ -8,6 +8,7 @@ import {
 import {
   DayPicker,
   getDefaultClassNames,
+  useDayPicker,
   type DayButton,
   type DropdownProps,
   type Locale,
@@ -205,14 +206,20 @@ function Calendar({
 }
 
 function CalendarDropdown({
+  className,
+  style,
   options,
   value,
   onChange,
   disabled,
   'aria-label': ariaLabel,
 }: DropdownProps) {
+  const { dayPickerProps } = useDayPicker();
+  const dir = dayPickerProps.dir;
+
   return (
     <Select
+      dir={dir === 'rtl' || dir === 'ltr' ? dir : undefined}
       value={String(value)}
       disabled={disabled}
       onValueChange={(nextValue) =>
@@ -223,7 +230,11 @@ function CalendarDropdown({
     >
       <SelectTrigger
         aria-label={ariaLabel}
-        className="h-8 w-auto gap-1 rounded-full border-0 bg-transparent px-2 py-0 font-medium shadow-none"
+        className={cn(
+          'h-8 w-auto gap-1 rounded-full border-0 bg-transparent px-2 py-0 font-medium shadow-none',
+          className
+        )}
+        style={style}
       >
         <SelectValue />
       </SelectTrigger>
