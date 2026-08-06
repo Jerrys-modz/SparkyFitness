@@ -8,6 +8,7 @@ import SwiftUI
 struct ActiveWorkoutView: View {
     let workout: WatchActiveWorkoutPayload
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var workoutSession: WorkoutSessionManager
 
     @State private var reps: Double = 0
     @State private var weight: Double = 0
@@ -22,6 +23,10 @@ struct ActiveWorkoutView: View {
                     .font(.system(size: 16, weight: .semibold))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
+
+                if let heartRate = workoutSession.heartRate {
+                    HeartRateBadge(bpm: heartRate)
+                }
 
                 if !workout.setDots.isEmpty {
                     SetDotRow(dots: workout.setDots)
@@ -123,6 +128,23 @@ struct ActiveWorkoutView: View {
     }
 }
 
+/// Live BPM from `WorkoutSessionManager`'s on-watch `HKWorkoutSession`. Only
+/// rendered once a sample has actually arrived — see the `if let` at the
+/// call site — so there's no "-- BPM" placeholder state to design for.
+private struct HeartRateBadge: View {
+    let bpm: Double
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "heart.fill")
+                .foregroundStyle(.red)
+                .font(.system(size: 12))
+            Text("\(Int(bpm.rounded())) BPM")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+        }
+    }
+}
+
 private struct SetDotRow: View {
     let dots: [WatchSetDot]
 
@@ -207,5 +229,6 @@ private struct NumericStepperRow: View {
         isFinished: false
     ))
     .environmentObject(WatchSessionManager.shared)
+    .environmentObject(WorkoutSessionManager())
 }
 #endif

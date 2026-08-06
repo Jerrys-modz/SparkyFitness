@@ -4,10 +4,13 @@ import {
   customMeasurementHandler,
   HEALTH_TYPE_HANDLERS,
   type HealthBatchContext,
+  type HealthEntryContext,
   type PreparedHealthEntry,
 } from '../services/healthDataHandlers.js';
 import measurementRepository from '../models/measurementRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
+import exerciseDb from '../models/exercise.js';
+import exerciseEntryDb from '../models/exerciseEntry.js';
 
 vi.mock('../models/measurementRepository.js', () => ({
   default: {
@@ -17,6 +20,22 @@ vi.mock('../models/measurementRepository.js', () => ({
 vi.mock('../models/waterContainerRepository.js', () => ({
   default: {
     getPrimaryWaterContainerByUserId: vi.fn(),
+  },
+}));
+vi.mock('../models/exercise.js', () => ({
+  default: {
+    findExerciseByNameAndUserId: vi.fn(),
+    createExercise: vi.fn(),
+  },
+}));
+vi.mock('../models/exerciseEntry.js', () => ({
+  default: {
+    createExerciseEntry: vi.fn(),
+  },
+}));
+vi.mock('../models/activityDetailsRepository.js', () => ({
+  default: {
+    createActivityDetail: vi.fn(),
   },
 }));
 
@@ -196,5 +215,83 @@ describe('waterHandler.handleBatch', () => {
       containerId: null,
       containerName: 'Default',
     });
+  });
+});
+
+describe('workoutHandler.handle', () => {
+  const workoutHandler = HEALTH_TYPE_HANDLERS['Workout'];
+  const ctx = {
+    userId: 'user-1',
+    actingUserId: 'actor-1',
+    parsedDate: '2026-08-06',
+  } as unknown as HealthEntryContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(exerciseDb.findExerciseByNameAndUserId).mockResolvedValue({
+      id: 'exercise-1',
+    });
+    vi.mocked(exerciseEntryDb.createExerciseEntry).mockImplementation(
+      async (_userId, entryData) => ({ id: 'entry-1', ...entryData })
+    );
+  });
+
+  // A workout started on the Apple Watch companion app runs its own
+  // HKWorkoutSession (targets/watch-app/WorkoutSessionManager.swift) and
+  // saves real heart rate to Apple Health; the phone's inbound HealthKit
+  // sync reads it back out via getStatistic (services/healthkit/index.ts)
+  // and must forward it here so it lands on the exercise entry.
+  it('forwards avg/max heart rate onto the created exercise entry', async () => {
+    const outcome = await workoutHandler.handle(
+      {
+        type: 'Workout',
+        source: 'HealthKit',
+        activityType: 'Traditional Strength Training',
+        caloriesBurned: 320,
+        distance: 0,
+        duration: 1800,
+        source_id: 'hk-workout-1',
+        avgHeartRate: 128.4,
+        maxHeartRate: 172,
+      },
+      ctx
+    );
+
+    expect(outcome.status).toBe('success');
+    expect(exerciseEntryDb.createExerciseEntry).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        avg_heart_rate: 128.4,
+        max_heart_rate: 172,
+      }),
+      'actor-1',
+      'HealthKit'
+    );
+  });
+
+  it('stores null heart rate fields for a workout with no heart rate samples', async () => {
+    const outcome = await workoutHandler.handle(
+      {
+        type: 'Workout',
+        source: 'HealthKit',
+        activityType: 'Running',
+        caloriesBurned: 400,
+        distance: 5,
+        duration: 1800,
+        source_id: 'hk-workout-2',
+      },
+      ctx
+    );
+
+    expect(outcome.status).toBe('success');
+    expect(exerciseEntryDb.createExerciseEntry).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        avg_heart_rate: null,
+        max_heart_rate: null,
+      }),
+      'actor-1',
+      'HealthKit'
+    );
   });
 });

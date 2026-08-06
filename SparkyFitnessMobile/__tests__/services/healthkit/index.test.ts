@@ -912,6 +912,70 @@ describe('readHealthRecords', () => {
         'HKQuantityTypeIdentifierDistanceCycling',
         'm'
       );
+      // count/min is the established unit for heart rate stats elsewhere in
+      // this file (see METRIC_STATS_CONFIG's HeartRate entry) — pinning it
+      // here too keeps a Watch workout's avg/max BPM unscaled.
+      expect(mockGetStatistic).toHaveBeenCalledWith(
+        'HKQuantityTypeIdentifierHeartRate',
+        'count/min'
+      );
+    });
+
+    test('picks up avg/max heart rate from getStatistic (e.g. a Watch workout)', async () => {
+      await initHealthConnect();
+
+      const mockGetStatistic = jest.fn().mockImplementation((identifier: string) => {
+        if (identifier === 'HKQuantityTypeIdentifierHeartRate') {
+          return Promise.resolve({
+            averageQuantity: { quantity: 128.4 },
+            maximumQuantity: { quantity: 172 },
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2024-01-15T08:00:00Z',
+          endDate: '2024-01-15T09:00:00Z',
+          workoutActivityType: 37,
+          duration: 3600,
+          getStatistic: mockGetStatistic,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      expect((result[0] as { avgHeartRate?: number }).avgHeartRate).toBe(128.4);
+      expect((result[0] as { maxHeartRate?: number }).maxHeartRate).toBe(172);
+    });
+
+    test('omits heart rate fields when getStatistic returns nothing for heart rate', async () => {
+      await initHealthConnect();
+
+      const mockGetStatistic = jest.fn().mockResolvedValue(undefined);
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2024-01-15T08:00:00Z',
+          endDate: '2024-01-15T09:00:00Z',
+          workoutActivityType: 37,
+          duration: 3600,
+          getStatistic: mockGetStatistic,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      expect((result[0] as { avgHeartRate?: number }).avgHeartRate).toBeUndefined();
+      expect((result[0] as { maxHeartRate?: number }).maxHeartRate).toBeUndefined();
     });
 
     test('falls back to direct properties when getStatistic fails', async () => {

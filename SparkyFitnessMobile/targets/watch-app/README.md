@@ -16,6 +16,14 @@ sandbox and never reaches a paired watch.
   becomes a `WatchCommand` sent to the phone, which drives the exact same
   `activeWorkoutStore` actions the phone UI and the workout Live Activity
   already use (see `src/components/WatchWorkoutBridge.tsx`).
+- **Live heart rate** — for the duration of a Sparky workout, the watch runs
+  its own `HKWorkoutSession` (`WorkoutSessionManager.swift`), the same
+  mechanism every watchOS workout app uses. This is deliberately *not* piped
+  through WatchConnectivity: the finished `HKWorkout` (with heart rate
+  statistics) saves to Apple Health directly, and the phone's existing
+  inbound HealthKit sync (`src/services/healthkit/`) reads it back out and
+  attaches `avg_heart_rate`/`max_heart_rate` to the resulting exercise entry
+  — see "Heart rate data flow" below.
 
 ## How data flows
 
@@ -36,6 +44,30 @@ phone.
 
 Keep `Models.swift` (this target) and `src/types/watchBridge.ts` in lockstep
 — they describe the same JSON on either end of the wire.
+
+## Heart rate data flow
+
+Separate from the WatchConnectivity bridge above — this path goes through
+Apple Health, not the phone-watch bridge:
+
+```
+activeWorkout mirrored non-nil (this target's WatchSessionManager.context)
+  -> SparkyFitnessWatchApp's .onAppear / .onChange
+  -> WorkoutSessionManager.syncToActiveState(true)
+  -> HKWorkoutSession + HKLiveWorkoutBuilder (this target)
+  -> live heart rate published for ActiveWorkoutView's heart rate badge
+  -> ...workout ends... -> builder.finishWorkout() saves an HKWorkout to Apple Health
+  -> phone's services/healthkit/index.ts handleWorkout() (existing inbound sync)
+  -> getStatistic('HKQuantityTypeIdentifierHeartRate', 'count/min')
+  -> services/healthkit/dataTransformation.ts (avgHeartRate/maxHeartRate on TransformedExerciseSession)
+  -> POST /api/health-data -> SparkyFitnessServer workoutHandler -> exercise_entries.avg_heart_rate/max_heart_rate
+```
+
+Requires the `NSHealthShareUsageDescription`/`NSHealthUpdateUsageDescription`
+keys in this target's `Info.plist` and the `com.apple.developer.healthkit`
+entitlement in `expo-target.config.js` — both already set up. The user grants
+HealthKit access on the watch the first time a workout starts there (a
+separate authorization from the phone app's own HealthKit permission).
 
 ## Building this target
 
@@ -72,3 +104,10 @@ main app) to run it. First-run checklist:
 - `logSet` always logs the phone's current cursor set — there's no
   per-exercise navigation on the watch because `activeWorkoutStore` itself
   doesn't expose one (see `ActiveWorkoutView.swift`'s doc comment).
+- Every workout session is tagged `HKWorkoutActivityType.traditionalStrengthTraining`
+  regardless of what's actually being done — Sparky doesn't yet mirror
+  per-exercise modality (weights vs. cardio) to the watch. See the comment in
+  `WorkoutSessionManager.beginSession()`.
+- The Watch Simulator has no real heart rate sensor. Use Xcode's Health app
+  debug menu (Features → Health → auto-generate/simulate heart rate data)
+  during a Simulator run, or a physical Apple Watch, to see live BPM.

@@ -796,6 +796,11 @@ const handleWorkout: RecordHandler = async (_identifier, startDate, endDate) => 
     let totalDistance = typeof workoutAny.totalDistance === 'object'
       ? (workoutAny.totalDistance?.quantity ?? 0)
       : (workoutAny.totalDistance ?? 0);
+    // Populated for workouts with heart rate samples — e.g. a Sparky workout
+    // run on the Watch companion app (see targets/watch-app/WorkoutSessionManager.swift),
+    // or any other Apple Watch workout that recorded heart rate.
+    let avgHeartRate: number | undefined;
+    let maxHeartRate: number | undefined;
 
     // Pin units explicitly on each getStatistic call. getAllStatistics returns
     // values in the user's HealthKit-preferred unit (often miles / kJ), but the
@@ -824,6 +829,13 @@ const handleWorkout: RecordHandler = async (_identifier, startDate, endDate) => 
           break;
         }
       }
+
+      const heartRateStats = await w.getStatistic(
+        'HKQuantityTypeIdentifierHeartRate',
+        'count/min',
+      );
+      avgHeartRate = heartRateStats?.averageQuantity?.quantity;
+      maxHeartRate = heartRateStats?.maximumQuantity?.quantity;
     } catch {
       // Stats fetch failed - keep using direct properties from workout
     }
@@ -835,6 +847,8 @@ const handleWorkout: RecordHandler = async (_identifier, startDate, endDate) => 
       duration: w.duration,
       totalEnergyBurned,
       totalDistance,
+      avgHeartRate,
+      maxHeartRate,
       uuid: (w as unknown as { uuid?: string }).uuid,
     };
     // Forward timezone metadata so the transform layer can attach it to output records

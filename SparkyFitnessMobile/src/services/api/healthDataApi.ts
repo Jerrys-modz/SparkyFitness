@@ -38,6 +38,8 @@ export interface HealthDataPayloadItem extends BaseHealthDataPayloadItem {
   duration?: number;
   caloriesBurned?: number;
   distance?: number;
+  avgHeartRate?: number;
+  maxHeartRate?: number;
   notes?: string;
   raw_data?: unknown;
   sets?: unknown[];

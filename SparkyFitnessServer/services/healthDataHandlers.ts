@@ -1176,6 +1176,8 @@ const workoutHandler: HealthTypeHandler = {
         duration,
         raw_data,
         source_id,
+        avgHeartRate,
+        maxHeartRate,
       } = entry;
       const exerciseName = activityType || `${source} Exercise`;
       let exercise = await exerciseDb.findExerciseByNameAndUserId(
@@ -1226,6 +1228,9 @@ const workoutHandler: HealthTypeHandler = {
           entry_date: ctx.parsedDate,
           notes: `Source: ${source}, Activity Type: ${activityType}`,
           distance: distance,
+          avg_heart_rate: avgHeartRate ?? null,
+          // Picked up generically via EXERCISE_ENTRY_TELEMETRY_COLUMNS.
+          max_heart_rate: maxHeartRate ?? null,
           sets, // Pass sets if present for mobile workout sync
           source_id: source_id || null,
         },

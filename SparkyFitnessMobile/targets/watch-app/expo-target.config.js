@@ -8,6 +8,14 @@ const { isDevVariant, DEV_BUNDLE_IDENTIFIER } = require('../../app.identifiers.j
  * Group — App Groups don't sync across a phone and its paired watch, they're
  * only shared within one device's sandbox.
  *
+ * HealthKit is separate from that bridge: the watch runs its own
+ * `HKWorkoutSession` (see `WorkoutSessionManager.swift`) for the duration of
+ * a Sparky workout so real heart rate gets sampled and the finished workout
+ * saves to Apple Health like any other Watch workout — the phone's existing
+ * HealthKit inbound sync then picks it up, no WatchConnectivity involved.
+ * The usage-description strings live in `Info.plist` (hand-written — see the
+ * comment there for why the plugin's auto-generated one isn't used).
+ *
  * @type {import('@bacons/apple-targets/app.plugin').ConfigFunction}
  */
 module.exports = () => {
@@ -21,6 +29,9 @@ module.exports = () => {
       : 'com.SparkyApps.SparkyFitnessMobile.watchkitapp',
     icon: '../../assets/icons/adaptiveicon.png',
     deploymentTarget: '10.0',
-    frameworks: ['WatchConnectivity'],
+    frameworks: ['WatchConnectivity', 'HealthKit'],
+    entitlements: {
+      'com.apple.developer.healthkit': true,
+    },
   };
 };
