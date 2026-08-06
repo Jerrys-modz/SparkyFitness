@@ -572,3 +572,29 @@ jest.mock('@gorhom/bottom-sheet', () => {
     BottomSheetBackdrop: () => null,
   };
 });
+
+// Mock sparky-watch-connectivity (local Expo module, iOS-only native code).
+// `virtual: true` because it's a workspace-local package that only exists
+// once `pnpm install` has linked `modules/sparky-watch-connectivity` — tests
+// shouldn't depend on that having run. Jest resolves `.ios.ts` by default
+// (see AGENTS.md), so `services/watchConnectivity.ios.ts` — and anything
+// that imports it, like `services/watchContext.ts` — pulls this mock in
+// even for suites that never mention watch sync directly.
+jest.mock(
+  'sparky-watch-connectivity',
+  () => ({
+    __esModule: true,
+    default: {
+      isSupported: jest.fn(() => false),
+      activate: jest.fn(),
+      updateContext: jest.fn(() => Promise.resolve()),
+      getReachability: jest.fn(() => ({
+        reachable: false,
+        paired: false,
+        watchAppInstalled: false,
+      })),
+      addListener: jest.fn(() => ({ remove: jest.fn() })),
+    },
+  }),
+  { virtual: true },
+);

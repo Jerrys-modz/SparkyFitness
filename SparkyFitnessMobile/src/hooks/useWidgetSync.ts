@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 import { CalorieWidgetBridge } from '../services/CalorieWidgetBridge';
 import { addLog } from '../services/LogService';
+import { setWatchToday } from '../services/watchContext';
 import type { DailySummary } from '../types/dailySummary';
 import { getTodayDate } from '../utils/dateUtils';
 
@@ -33,6 +34,24 @@ export function useWidgetSync(summary: DailySummary | undefined): void {
     const lastUpdated = Math.floor(Date.now() / 1000);
 
     if (Platform.OS === 'ios') {
+      // Independent of the ExtensionStorage writes below: the watch has no
+      // access to the phone's App Group (different device/sandbox), so its
+      // mirror travels over WatchConnectivity instead and shouldn't be
+      // skipped just because the on-device widget storage is unavailable.
+      if (balance) {
+        setWatchToday({
+          date,
+          food: balance.eaten,
+          burned: balance.burned,
+          goal: balance.goal,
+          remaining: balance.remaining,
+          progress: balance.goal > 0 ? Math.max(0, Math.min(1, balance.progress / 100)) : 0,
+          protein: summary.protein.consumed,
+          carbs: summary.carbs.consumed,
+          fat: summary.fat.consumed,
+        });
+      }
+
       try {
         if (!iosAppGroup) {
           addLog(
