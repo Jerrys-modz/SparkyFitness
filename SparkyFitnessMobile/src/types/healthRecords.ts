@@ -134,6 +134,10 @@ export interface TransformedExerciseSession extends RecordTimezoneMetadata {
   caloriesBurned?: number;
   /** Stored in kilometers to match exercise entry API/storage. */
   distance?: number;
+  /** BPM. Populated for workouts with heart rate samples (e.g. Apple Watch). */
+  avgHeartRate?: number;
+  /** BPM. Populated for workouts with heart rate samples (e.g. Apple Watch). */
+  maxHeartRate?: number;
   notes?: string;
   raw_data?: unknown;
   sets?: ExerciseSet[];

@@ -3,6 +3,7 @@ packages:
   - "SparkyFitnessFrontend"
   - "shared"
   - "SparkyFitnessMobile"
+  - "SparkyFitnessMobile/modules/*"
   - "SparkyFitnessServer"
   - "docs"
 

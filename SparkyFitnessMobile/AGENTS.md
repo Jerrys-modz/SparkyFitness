@@ -1,8 +1,8 @@
 # AGENTS.md
 
-*Last updated: 2026-08-03*
+*Last updated: 2026-08-06*
 
-SparkyFitness Mobile is a React Native 0.85 + Expo SDK 56 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
+SparkyFitness Mobile is a React Native 0.85 + Expo SDK 56 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, an Apple Watch companion app, the active workout HUD, and the Sparky AI chat.
 
 This is the package guide for `SparkyFitnessMobile/`. Work from this directory for mobile implementation and validation. If a task crosses into the backend, frontend, or `shared/`, read that package guide too before editing outside mobile.
 
@@ -90,8 +90,9 @@ npx expo prebuild --clean
 - `src/stores/` - Zustand stores, including the persisted active workout/rest timer store.
 - `src/utils/` - date helpers, unit conversion, food details, meal nutrition, nutrient display, workout/session helpers, fasting formatting, numeric input, concurrency, sync utilities, photo estimate error mapping, and rate limiting.
 - `src/constants/` - meal, exercise, fasting, and nutrient metadata.
-- JS bridges to native modules live in `src/services/` (`CalorieWidgetBridge.ts`, `ExactAlarmBridge.ts`); there is no `src/native/` directory.
-- `plugins/`, `targets/widget/`, `targets/android-widget/`, `targets/android-exact-alarm/` - Expo plugins and widget/native extension sources.
+- JS bridges to native modules live in `src/services/` (`CalorieWidgetBridge.ts`, `ExactAlarmBridge.ts`, `watchConnectivity.ts`/`.ios.ts`); there is no `src/native/` directory.
+- `plugins/`, `targets/widget/`, `targets/android-widget/`, `targets/android-exact-alarm/`, `targets/watch-app/` - Expo plugins and widget/native extension sources.
+- `modules/sparky-watch-connectivity/` - local Expo module (Swift, iOS-only) wrapping `WatchConnectivity`; a workspace package (`SparkyFitnessMobile/modules/*` in the root `pnpm-workspace.yaml`), linked via `autolinkingModuleResolution`, not directory scanning.
 
 ## React Query And Local State
 
@@ -242,6 +243,19 @@ npx expo prebuild --clean
 - `APP_VARIANT` selects dev vs production behavior; dev builds request extra Android Health Connect write permissions for local testing/seeding.
 - After editing `targets/`, native config plugins, app groups, permissions, or native bridge shape, run `npx expo prebuild --clean`.
 
+## Watch App And WatchConnectivity Bridge
+
+- `targets/watch-app/` is a standalone watchOS companion app (`@bacons/apple-targets` `type: "watch"`, embedded into the main app target). See `targets/watch-app/README.md` for the full data-flow diagram and Xcode setup — this target only builds on macOS.
+- The watch has no App Group access to the phone (App Groups are per-device, not per-account) — it mirrors state over **WatchConnectivity** instead, via `modules/sparky-watch-connectivity/` (local Expo module, Swift, iOS-only, `platforms: ["ios"]` in its `expo-module.config.json`).
+- `src/types/watchBridge.ts` is the wire contract (`WatchAppContext` phone → watch, `WatchCommand` watch → phone). Keep it in lockstep with `targets/watch-app/Models.swift`; the watch just `Codable`-decodes whatever JSON was last pushed.
+- `WCSession.updateApplicationContext` replaces the whole dictionary on every call — there's no OS-side merge. `src/services/watchContext.ts` is the single owner that assembles the full `WatchAppContext` (today snapshot, preset list, active-workout mirror, server-connected flag) and pushes it as one blob; do not call `WatchConnectivity.updateContext` directly from a hook or component — go through `setWatchToday`/`setWatchPresets`/`setWatchActiveWorkout`/`setWatchServerConnected`.
+- `src/services/watchConnectivity.ios.ts` / `watchConnectivity.ts` is the same iOS/stub platform-split pattern as `services/writeback.ios.ts` / `services/writeback.ts`; the Android file no-ops everything so callers never branch on `Platform.OS`.
+- `src/components/WatchWorkoutBridge.tsx` is the single headless bridge (mounted at the `App.tsx` root, gated `Platform.OS === 'ios'` so `useWorkoutPresets` doesn't fetch on Android): it pushes `activeWorkoutStore`/presets/connection state to the watch on change, and turns incoming `WatchCommand`s back into the *same* store actions the phone UI and the workout Live Activity's button intents already use (`updateSetField`+`completeSet`, `dismissRest`, `adjustRest`, `flushActiveWorkoutBeforeClear`+`clearWorkout`, and a headless variant of `useStartLiveWorkout`'s create-session-then-`startWorkout` flow for `startPreset`). The watch never grows its own copy of workout business logic.
+- `src/utils/watchWorkoutSnapshot.ts` holds the pure builders (`buildWatchActiveWorkoutPayload`, `buildWatchPresetSummaries`) — reuses `describeActiveSetAssumed` so the watch's target reps/weight match the phone's gray-placeholder resolution instead of a second, drifting implementation.
+- The watch shows one set at a time (Hevy-style) because `activeWorkoutStore` has no "jump to exercise" action to mirror — only a completion cursor. Don't add watch-side exercise navigation without adding the equivalent store action first.
+- Known v1 gap: watch-initiated starts are preset-only (no empty/ad-hoc start — that flow needs `ExerciseSearch`, which has no watch equivalent).
+- Live heart rate is **not** part of the WatchConnectivity bridge. `targets/watch-app/WorkoutSessionManager.swift` runs its own `HKWorkoutSession`/`HKLiveWorkoutBuilder` for the duration of a mirrored Sparky workout (started/ended from `SparkyFitnessWatchApp`'s `.onChange(of: session.context.activeWorkout?.sessionId)`), and the finished `HKWorkout` saves to Apple Health directly. The phone's existing inbound HealthKit sync picks it up from there: `services/healthkit/index.ts`'s `handleWorkout` fetches avg/max heart rate via `getStatistic('HKQuantityTypeIdentifierHeartRate', 'count/min')`, `services/healthkit/dataTransformation.ts` puts it on `TransformedExerciseSession.avgHeartRate`/`maxHeartRate`, and the server's `workoutHandler` (`SparkyFitnessServer/services/healthDataHandlers.ts`) forwards it to `exercise_entries.avg_heart_rate`/`max_heart_rate`. See `targets/watch-app/README.md`'s "Heart rate data flow" section for the full diagram.
+
 ## Shared Workspace Contracts
 
 - `@workspace/shared` lives at `../shared/` and is source-first in this workspace.
@@ -287,6 +301,7 @@ const androidService = require('../../src/services/healthConnectService.ts');
 - Food scan/photo changes: rerun food scan, food photo flow screens, AI settings/external food APIs, food photo intro, food photo utils, and haptics tests.
 - Settings/auth/networking changes: rerun onboarding, server settings, server config modal, auth hooks/services, storage, API client, raw fetch client tests, and proxy-header tests.
 - Widgets/HUD/tab/add-sheet changes: rerun `useWidgetSync`, active workout store, `AddSheet`, `CustomTabBar`, `ActiveWorkoutBar`, and error-boundary tests.
+- Watch bridge changes: rerun `watchWorkoutSnapshot`, `watchContext`, `watchConnectivity` (stub), `WatchWorkoutBridge`, `useWidgetSync`, and active workout store tests. Swift files under `targets/watch-app/` and `modules/sparky-watch-connectivity/ios/` aren't Jest-testable — verify those by reading, and note in the PR that Xcode verification is pending.
 
 ## Quick Routing
 
@@ -300,6 +315,7 @@ const androidService = require('../../src/services/healthConnectService.ts');
 - Measurements/hydration bug: inspect dashboard/diary/measurements screens, summaries/gauges, measurement/water/check-in hooks, API, date helpers, widget sync, writeback, and unit conversions.
 - Scan/photo bug: inspect food scan/search, `FoodPhotoFlow`, photo screens, AI setting hook/API, estimate hook/API, intro persistence, haptics, icon usage, and route params.
 - Widget/deep-link bug: inspect `useWidgetSync`, `CalorieWidgetBridge`, widget targets, widget plugins, `app.config.ts`, `app.identifiers.js`, `App.tsx`, and dashboard.
+- Watch app bug: inspect `WatchWorkoutBridge`, `watchContext.ts`, `watchConnectivity.ios.ts`/`.ts`, `watchWorkoutSnapshot.ts`, `types/watchBridge.ts`, `modules/sparky-watch-connectivity/`, and `targets/watch-app/`.
 - Settings/diagnostics bug: inspect settings screens, `SettingsRow`, haptics/theme/sounds/notification services, diagnostics services, `DevTools`, and screen error boundaries.
 
 ## Priority Rule

@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY SparkyFitnessServer/package.json SparkyFitnessServer/
 COPY SparkyFitnessFrontend/package.json SparkyFitnessFrontend/
 COPY SparkyFitnessMobile/package.json SparkyFitnessMobile/
+COPY SparkyFitnessMobile/modules/sparky-watch-connectivity/package.json SparkyFitnessMobile/modules/sparky-watch-connectivity/
 COPY shared/package.json shared/
 
 # Copy patch files referenced by pnpm.patchedDependencies in root package.json

@@ -492,6 +492,8 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
       ? tzMeta
       : { record_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
     const totalDistanceMeters = typeof rec.totalDistance === 'number' ? rec.totalDistance : 0;
+    const avgHeartRate = typeof rec.avgHeartRate === 'number' ? rec.avgHeartRate : undefined;
+    const maxHeartRate = typeof rec.maxHeartRate === 'number' ? rec.maxHeartRate : undefined;
 
     const exerciseSession: TransformedExerciseSession = {
       type: 'ExerciseSession',
@@ -506,6 +508,8 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
       title: activityTypeName,
       caloriesBurned: rec.totalEnergyBurned as number || 0,
       distance: parseFloat((totalDistanceMeters / 1000).toFixed(2)),
+      avgHeartRate,
+      maxHeartRate,
       notes: 'Source: HealthKit',
       raw_data: record,
       // duration_seconds instead of duration: servers without the seconds-based

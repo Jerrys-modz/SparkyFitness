@@ -424,6 +424,40 @@ describe('transformHealthRecords', () => {
 
       expect((result[0] as TransformedExerciseSession).sets).toEqual([{ set_number: 1, set_type: 'Working Set', duration_seconds: 0 }]);
     });
+
+    test('passes through avg/max heart rate when present (e.g. a Watch workout)', () => {
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 37,
+          duration: 3600,
+          avgHeartRate: 128.4,
+          maxHeartRate: 172,
+        },
+      ];
+      const result = transformHealthRecords(records, { recordType: 'Workout', unit: '', type: 'workout' });
+
+      const workoutResult = result[0] as TransformedExerciseSession;
+      expect(workoutResult.avgHeartRate).toBe(128.4);
+      expect(workoutResult.maxHeartRate).toBe(172);
+    });
+
+    test('omits heart rate fields when the record has none', () => {
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 37,
+          duration: 3600,
+        },
+      ];
+      const result = transformHealthRecords(records, { recordType: 'Workout', unit: '', type: 'workout' });
+
+      const workoutResult = result[0] as TransformedExerciseSession;
+      expect(workoutResult.avgHeartRate).toBeUndefined();
+      expect(workoutResult.maxHeartRate).toBeUndefined();
+    });
   });
 
   describe('date extraction', () => {

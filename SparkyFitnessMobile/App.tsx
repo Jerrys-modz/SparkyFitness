@@ -103,6 +103,7 @@ import ActiveWorkoutBar, {
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
+import WatchWorkoutBridge from './src/components/WatchWorkoutBridge';
 import { useNativeIOSTabsActive, useNativeIOSHeadersActive } from './src/services/nativeTabBarPreference';
 
 SplashScreen.preventAutoHideAsync();
@@ -725,6 +726,7 @@ function AppContent() {
         <ActiveWorkoutBar />
         <ActiveWorkoutKeepAwake />
         <MedicationReminderReconciler />
+        {Platform.OS === 'ios' && <WatchWorkoutBridge />}
         <SafeAreaToast />
       </SafeAreaProvider>
     </NavigationContainer>

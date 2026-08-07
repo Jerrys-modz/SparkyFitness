@@ -1,0 +1,104 @@
+name: iOS/watchOS Build Check
+
+# Compile-check only: builds the iOS app and its embedded watchOS companion
+# target for the Simulator on a macOS runner, with code signing disabled.
+# This catches Swift/Xcode errors (targets/, modules/sparky-watch-connectivity/,
+# Expo config plugins) that ubuntu-latest CI can never see, but it does not
+# produce a signed .ipa or anything installable on a real device/Watch.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "SparkyFitnessMobile/**"
+      - "shared/**"
+      - "!SparkyFitnessMobile/android/**"
+      - ".github/workflows/ios-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "SparkyFitnessMobile/**"
+      - "shared/**"
+      - "!SparkyFitnessMobile/android/**"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS + watchOS (Simulator, unsigned)
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prebuild iOS project (generates ios/, runs pod install)
+        working-directory: SparkyFitnessMobile
+        run: APP_VARIANT=production npx expo prebuild --platform ios
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            SparkyFitnessMobile/ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('SparkyFitnessMobile/ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Resolve workspace and scheme
+        id: xc
+        working-directory: SparkyFitnessMobile
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "::error::No .xcworkspace found under ios/ after prebuild"
+            exit 1
+          fi
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+
+          # Pick the first scheme that isn't a *Tests scheme (the main app
+          # scheme; the watch app target has no scheme of its own, it's
+          # embedded and builds as a dependency of the app scheme).
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json \
+            | node -e "
+              const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+              const schemes = data.workspace.schemes || [];
+              const main = schemes.find((s) => !/tests?$/i.test(s)) || schemes[0];
+              if (!main) { process.exit(1); }
+              process.stdout.write(main);
+            ")
+          if [ -z "$SCHEME" ]; then
+            echo "::error::Could not resolve a scheme from $WORKSPACE"
+            exit 1
+          fi
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Resolved workspace=$WORKSPACE scheme=$SCHEME"
+
+      - name: Build for iOS Simulator (unsigned; embeds watchOS app)
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace "${{ steps.xc.outputs.workspace }}" \
+            -scheme "${{ steps.xc.outputs.scheme }}" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | (command -v xcbeautify >/dev/null 2>&1 && xcbeautify || cat)

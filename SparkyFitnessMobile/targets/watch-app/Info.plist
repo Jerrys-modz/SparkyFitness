@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hand-written rather than left for @bacons/apple-targets to auto-generate:
+  the plugin only writes a default Info.plist when one doesn't already exist
+  (see with-widget.js's `if (!fs.existsSync(filePath))`), and its default for
+  type "watch" is an empty {} — this repo's widget target hand-writes its
+  Info.plist the same way, for its own custom key (APP_GROUP_IDENTIFIER).
+  HealthKit authorization requires these two usage-description keys or the
+  app crashes when WorkoutSessionManager calls requestAuthorization.
+-->
+<plist version="1.0">
+  <dict>
+    <key>NSHealthShareUsageDescription</key>
+    <string>SparkyFitness reads your heart rate during a workout to show it live on your wrist.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>SparkyFitness saves your workout — including heart rate — to Apple Health when you finish.</string>
+  </dict>
+</plist>

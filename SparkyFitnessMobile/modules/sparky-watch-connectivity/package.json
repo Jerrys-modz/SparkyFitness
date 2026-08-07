@@ -1,0 +1,9 @@
+{
+  "name": "sparky-watch-connectivity",
+  "version": "1.0.0",
+  "description": "Local Expo module bridging WatchConnectivity between the SparkyFitness iOS app and its watchOS companion app.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "MIT",
+  "private": true
+}
