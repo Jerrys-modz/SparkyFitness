@@ -119,9 +119,15 @@ hasUIChanges = .tsx/.jsx/.css files in components/screens/pages/
 
 #### `android.yml`
 
-**Purpose**: Android-specific builds and tests
+**Purpose**: Android APK / AAB builds
 
-**Triggers**: TBD (check workflow file for specific triggers)
+**Triggers**: Version tags (`v*`) and manual **Run workflow**
+
+**What it does**:
+
+- **Manual run**: builds a debug APK (`APP_VARIANT=dev`) and uploads it as the `sparkyfitness-debug` artifact. No signing secrets required; the package id differs from the Play Store app so both can be installed.
+- **Tag (`v*`)**: builds the signed production APK and AAB and attaches them to the GitHub Release. Requires `KEYSTORE_BASE64`, `RELEASE_KEY_ALIAS`, `RELEASE_STORE_PASSWORD`, and `RELEASE_KEY_PASSWORD`.
+
 
 ---
 

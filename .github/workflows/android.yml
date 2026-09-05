@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # Manual runs sideload next to the Play Store build. Tags stay production.
+      APP_VARIANT: ${{ github.event_name == 'workflow_dispatch' && 'dev' || 'production' }}
 
     steps:
       - name: Checkout repository
@@ -37,7 +40,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           cd SparkyFitnessMobile
-          APP_VARIANT=production npx expo prebuild --platform android
+          npx expo prebuild --platform android
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -56,17 +59,26 @@ jobs:
         run: |
           echo "sdk.dir=$ANDROID_HOME" > SparkyFitnessMobile/android/local.properties
 
+      - name: Build Debug APK
+        run: |
+          cd SparkyFitnessMobile/android
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload Debug APK
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkyfitness-debug
+          path: SparkyFitnessMobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Decode and setup keystore
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore
           echo "Keystore created at: $(pwd)/SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore"
           ls -la SparkyFitnessMobile/android/app/sparky-fitness-release-key.keystore
-
-      - name: Run Gradle to generate codegen (will fail but generates files)
-        run: |
-          cd SparkyFitnessMobile/android
-          ./gradlew :app:assembleDebug || true
 
       - name: Verify codegen was generated
         run: |
@@ -78,7 +90,7 @@ jobs:
           fi
 
       - name: Build Release APK
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           cd SparkyFitnessMobile/android
           ./gradlew :app:assembleRelease \
@@ -89,7 +101,7 @@ jobs:
             --stacktrace
 
       - name: Get APK path
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         id: apk
         run: |
           APK_PATH=$(find SparkyFitnessMobile/android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
@@ -97,7 +109,7 @@ jobs:
           echo "name=$(basename $APK_PATH)" >> $GITHUB_OUTPUT
 
       - name: Build Release AAB
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           cd SparkyFitnessMobile/android
           ./gradlew :app:bundleRelease \
@@ -108,7 +120,7 @@ jobs:
             --stacktrace
 
       - name: Get AAB path
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         id: aab
         run: |
           AAB_PATH=$(find SparkyFitnessMobile/android/app/build/outputs/bundle/release -name "*.aab" | head -n 1)
@@ -116,7 +128,7 @@ jobs:
           echo "name=$(basename $AAB_PATH)" >> $GITHUB_OUTPUT
 
       - name: Get version from package.json
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/')
         id: version
         run: |
           VERSION=$(node -p "require('./SparkyFitnessMobile/package.json').version")
