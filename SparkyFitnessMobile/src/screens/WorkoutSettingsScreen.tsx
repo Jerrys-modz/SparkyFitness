@@ -95,7 +95,7 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
           })}
           subtitle={t('workoutSettings.restSoundSubtitle', {
             defaultValue:
-              'Play a sound when the rest timer ends while the app is open.',
+              'Play a sound when the rest timer ends, including in the background.',
           })}
           subtitleNumberOfLines={0}
           rightAccessory={

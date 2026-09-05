@@ -116,7 +116,7 @@ describe('notifications service', () => {
       });
       await initNotifications();
       expect(mockSetChannel).toHaveBeenCalledWith(
-        'workout-timer',
+        'workout-timer-v2',
         expect.objectContaining({ name: 'Workout timer' })
       );
       await i18n.changeLanguage('pl');
@@ -149,9 +149,13 @@ describe('notifications service', () => {
       });
       await initNotifications();
       expect(mockSetChannel).toHaveBeenCalledWith(
-        'workout-timer',
+        'workout-timer-v2',
         expect.objectContaining({
           importance: Notifications.AndroidImportance.HIGH,
+          sound: 'default',
+          audioAttributes: expect.objectContaining({
+            usage: Notifications.AndroidAudioUsage.NOTIFICATION,
+          }),
         })
       );
     });
@@ -196,11 +200,39 @@ describe('notifications service', () => {
       ({
         request: { content: { categoryIdentifier } },
       }) as Notifications.Notification;
+    const setAppState = (state: string) => {
+      Object.defineProperty(AppState, 'currentState', {
+        get: () => state,
+        configurable: true,
+      });
+    };
 
-    it('mutes the rest ping sound while the rest chime is enabled', async () => {
+    beforeEach(() => {
+      setAppState('active');
+    });
+
+    it('mutes the rest ping sound while the rest chime is enabled in the foreground', async () => {
       const handler = await getHandler();
       const result = await handler(notificationWith('rest-complete'));
       expect(result.shouldPlaySound).toBe(false);
+      expect(result.shouldShowBanner).toBe(false);
+    });
+
+    it('plays the rest ping and shows a banner when the app is backgrounded', async () => {
+      setAppState('background');
+      const handler = await getHandler();
+      const result = await handler(notificationWith('rest-complete'));
+      expect(result.shouldPlaySound).toBe(true);
+      expect(result.shouldShowBanner).toBe(true);
+      expect(result.shouldShowList).toBe(true);
+    });
+
+    it('plays the rest ping when the app is inactive (lock screen)', async () => {
+      setAppState('inactive');
+      const handler = await getHandler();
+      const result = await handler(notificationWith('rest-complete'));
+      expect(result.shouldPlaySound).toBe(true);
+      expect(result.shouldShowBanner).toBe(true);
     });
 
     it('restores the rest ping sound when the chime is disabled', async () => {
@@ -266,11 +298,14 @@ describe('notifications service', () => {
           title: 'Rest complete',
           body: 'Bench Press',
           categoryIdentifier: 'rest-complete',
+          sound: true,
+          interruptionLevel: 'timeSensitive',
         }),
         trigger: expect.objectContaining({
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: 60,
-          channelId: 'workout-timer',
+          repeats: false,
+          channelId: 'workout-timer-v2',
         }),
       });
     });

@@ -1,4 +1,4 @@
-import { Alert, Linking, Platform } from 'react-native';
+import { Alert, AppState, Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
@@ -12,7 +12,10 @@ import {
   __resetAppPreferencesStoreForTests,
 } from '../stores/appPreferencesStore';
 
-const CHANNEL_ID = 'workout-timer';
+// v2: the original `workout-timer` channel was created without an explicit
+// sound. Android 8+ freezes channel sound after first create, so a new id is
+// required for the rest-complete ping to actually ring in the background.
+const CHANNEL_ID = 'workout-timer-v2';
 const FASTING_CHANNEL_ID = 'fasting';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
@@ -53,6 +56,15 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       ),
       importance: Notifications.AndroidImportance.HIGH,
       enableVibrate: true,
+      sound: 'default',
+      audioAttributes: {
+        usage: Notifications.AndroidAudioUsage.NOTIFICATION,
+        contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+        flags: {
+          enforceAudibility: true,
+          requestHardwareAudioVideoSynchronization: false,
+        },
+      },
     });
     await Notifications.setNotificationChannelAsync(FASTING_CHANNEL_ID, {
       name: notificationCopy('notifications.channels.fasting', 'Fasting'),
@@ -170,14 +182,16 @@ export async function initNotifications(): Promise<void> {
       handleNotification: async (notification) => {
         const category = notification.request.content.categoryIdentifier;
         const isMedReminder = category === MEDICATION_REMINDER_CATEGORY;
-        // While the in-app chime owns the foreground rest cue, the rest ping's
-        // notification sound is muted so the two never double up; turning the
-        // chime off restores it.
+        const isRestComplete = category === REST_COMPLETE_CATEGORY;
+        const appActive = AppState.currentState === 'active';
+        // The in-app chime is foreground-only (expo-audio). Mute the OS ping
+        // only while that chime can actually play, otherwise a background or
+        // lock-screen rest-complete is a silent banner (#2269).
         const restPingMuted =
-          category === REST_COMPLETE_CATEGORY && isRestTimerSoundEnabled();
+          isRestComplete && isRestTimerSoundEnabled() && appActive;
         return {
-          shouldShowBanner: isMedReminder,
-          shouldShowList: isMedReminder,
+          shouldShowBanner: isMedReminder || (isRestComplete && !appActive),
+          shouldShowList: isMedReminder || (isRestComplete && !appActive),
           shouldPlaySound: !restPingMuted,
           shouldSetBadge: false,
         };
@@ -350,11 +364,16 @@ export async function scheduleRestNotification(
           notificationCopy('notifications.rest.title', 'Rest complete'),
         body: content?.body ?? exerciseName,
         sound: true,
+        // Locked-phone / Focus delivery still lights the screen and can play
+        // a sound. Falls back to `active` if the time-sensitive capability
+        // is not on the provisioning profile.
+        interruptionLevel: 'timeSensitive',
         categoryIdentifier: REST_COMPLETE_CATEGORY,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds,
+        repeats: false,
         channelId: CHANNEL_ID,
       },
     });

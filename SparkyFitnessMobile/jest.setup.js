@@ -166,6 +166,8 @@ jest.mock('expo-notifications', () => {
       remove: jest.fn(),
     })),
     AndroidImportance: { HIGH: 4, DEFAULT: 3, LOW: 2, MIN: 1, NONE: 0 },
+    AndroidAudioUsage: { NOTIFICATION: 5 },
+    AndroidAudioContentType: { SONIFICATION: 4 },
     SchedulableTriggerInputTypes: {
       CALENDAR: 'calendar',
       DAILY: 'daily',
