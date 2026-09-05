@@ -302,11 +302,13 @@ export function calculateMealNutrition(entries: FoodEntry[]): MealNutrition {
 
 export function getMealPercentage(
   mealName: string,
-  goals?: DailyGoals
+  goals?: DailyGoals,
+  options?: { allowLegacy?: boolean }
 ): number {
   if (!goals) return 0;
 
   const key = mealName.toLowerCase();
+  const allowLegacy = options?.allowLegacy !== false;
 
   if (goals.custom_meal_percentages) {
     if (key in goals.custom_meal_percentages) {
@@ -320,6 +322,8 @@ export function getMealPercentage(
     }
   }
 
+  if (!allowLegacy) return 0;
+
   const legacyKey = `${key}_percentage` as keyof DailyGoals;
   if (legacyKey in goals && typeof goals[legacyKey] === 'number') {
     return (goals[legacyKey] as number) ?? 0;
@@ -331,4 +335,30 @@ export function getMealPercentage(
   }
 
   return 0;
+}
+
+/**
+ * Calorie target for a meal group. System types may fall back to the legacy
+ * `breakfast_percentage` / `lunch_percentage` / … fields. Custom and
+ * historical groups only use `custom_meal_percentages`, so a custom type
+ * named "breakfast" never inherits the system Breakfast target.
+ */
+export function getMealTargetCalories(
+  mealName: string,
+  {
+    isSystem,
+    goals,
+    calorieGoal,
+  }: {
+    isSystem: boolean;
+    goals?: DailyGoals | null;
+    calorieGoal?: number | null;
+  }
+): number {
+  if (!goals || !calorieGoal) return 0;
+  const percentage = getMealPercentage(mealName, goals, {
+    allowLegacy: isSystem,
+  });
+  if (percentage <= 0) return 0;
+  return Math.round((calorieGoal * percentage) / 100);
 }

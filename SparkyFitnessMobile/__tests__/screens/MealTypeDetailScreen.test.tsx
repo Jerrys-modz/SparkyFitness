@@ -111,9 +111,21 @@ jest.mock('../../src/components/FoodNutritionSummary', () => {
   const { Text, View } = require('react-native');
   return {
     __esModule: true,
-    default: ({ name }: { name?: string }) => (
+    default: ({
+      name,
+      brand,
+      calorieGoal,
+    }: {
+      name?: string;
+      brand?: string;
+      calorieGoal?: number;
+    }) => (
       <View testID="nutrition-summary">
         <Text>{name}</Text>
+        {brand ? <Text>{brand}</Text> : null}
+        {calorieGoal != null && calorieGoal > 0 ? (
+          <Text testID="calorie-goal">{`goal:${calorieGoal}`}</Text>
+        ) : null}
       </View>
     ),
   };
@@ -182,13 +194,16 @@ const entry = (
   meal_type: string
 ): FoodEntry => ({ id, meal_type_id, meal_type }) as FoodEntry;
 
-const setSummary = (foodEntries: FoodEntry[]) => {
+const setSummary = (
+  foodEntries: FoodEntry[],
+  extras?: { goals?: unknown; calorieGoal?: number }
+) => {
   mockUseDailySummary.mockReturnValue({
     summary: {
       foodEntries,
       exerciseEntries: [],
-      goals: null,
-      calorieGoal: 0,
+      goals: extras?.goals ?? null,
+      calorieGoal: extras?.calorieGoal ?? 0,
     },
     isLoading: false,
     isError: false,
@@ -312,5 +327,50 @@ describe('MealTypeDetailScreen', () => {
       date: '2026-01-01',
       mealTypeId: undefined,
     });
+  });
+
+  it('shows the calorie target for a custom meal from custom_meal_percentages', () => {
+    setSummary([entry('1', 'custom-pw', 'Pre-Workout')], {
+      goals: { custom_meal_percentages: { 'pre-workout': 15 } },
+      calorieGoal: 2000,
+    });
+    const view = renderScreen({
+      date: '2026-01-01',
+      mealTypeId: 'custom-pw',
+      mealType: 'Pre-Workout',
+    });
+
+    expect(view.getByTestId('calorie-goal').props.children).toBe('goal:300');
+    expect(view.getByText(/Target: 300 kcal/)).toBeTruthy();
+  });
+
+  it('does not show a calorie target for a custom meal named after a system type', () => {
+    setSummary([entry('1', 'custom-d', 'dinner')], {
+      goals: { dinner_percentage: 30 },
+      calorieGoal: 2000,
+    });
+    const view = renderScreen({
+      date: '2026-01-01',
+      mealTypeId: 'custom-d',
+      mealType: 'dinner',
+    });
+
+    expect(view.queryByTestId('calorie-goal')).toBeNull();
+    expect(view.queryByText(/Target:/)).toBeNull();
+  });
+
+  it('shows the calorie target for a system meal from legacy percentages', () => {
+    setSummary([entry('2', 'sys-b', 'breakfast')], {
+      goals: { breakfast_percentage: 25 },
+      calorieGoal: 2000,
+    });
+    const view = renderScreen({
+      date: '2026-01-01',
+      mealTypeId: 'sys-b',
+      mealType: 'breakfast',
+    });
+
+    expect(view.getByTestId('calorie-goal').props.children).toBe('goal:500');
+    expect(view.getByText(/Target: 500 kcal/)).toBeTruthy();
   });
 });

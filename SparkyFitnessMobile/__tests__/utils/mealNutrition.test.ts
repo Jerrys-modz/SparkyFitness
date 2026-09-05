@@ -4,6 +4,7 @@ import {
   getMealGroupLabel,
   getMealTypeDisplayLabel,
   getMealPercentage,
+  getMealTargetCalories,
   groupFoodEntriesByMealType,
   filterFoodEntriesByMealTypeId,
   calculateEntryNutrition,
@@ -462,6 +463,97 @@ describe('getMealPercentage', () => {
 
   it('returns 0 when there are no goals', () => {
     expect(getMealPercentage('breakfast', undefined)).toBe(0);
+  });
+
+  it('skips legacy system fields when allowLegacy is false', () => {
+    const goals: DailyGoals = {
+      breakfast_percentage: 25,
+      custom_meal_percentages: { 'morning snacks': 20 },
+    } as DailyGoals;
+    expect(getMealPercentage('breakfast', goals, { allowLegacy: false })).toBe(
+      0
+    );
+    expect(
+      getMealPercentage('Morning Snacks', goals, { allowLegacy: false })
+    ).toBe(20);
+  });
+});
+
+describe('getMealTargetCalories', () => {
+  it('uses legacy percentages for system meal types', () => {
+    expect(
+      getMealTargetCalories('breakfast', {
+        isSystem: true,
+        goals: { breakfast_percentage: 25 } as DailyGoals,
+        calorieGoal: 2000,
+      })
+    ).toBe(500);
+  });
+
+  it('uses custom_meal_percentages for custom meal types', () => {
+    expect(
+      getMealTargetCalories('Morning Snacks', {
+        isSystem: false,
+        goals: {
+          custom_meal_percentages: { 'morning snacks': 20 },
+        } as DailyGoals,
+        calorieGoal: 2000,
+      })
+    ).toBe(400);
+  });
+
+  it('does not let a custom type named breakfast inherit the system target', () => {
+    expect(
+      getMealTargetCalories('breakfast', {
+        isSystem: false,
+        goals: { breakfast_percentage: 25 } as DailyGoals,
+        calorieGoal: 2000,
+      })
+    ).toBe(0);
+  });
+
+  it('uses custom_meal_percentages even when a custom type shares a system name', () => {
+    expect(
+      getMealTargetCalories('breakfast', {
+        isSystem: false,
+        goals: {
+          breakfast_percentage: 25,
+          custom_meal_percentages: { breakfast: 10 },
+        } as DailyGoals,
+        calorieGoal: 2000,
+      })
+    ).toBe(200);
+  });
+
+  it('returns 0 for historical groups without a custom percentage', () => {
+    expect(
+      getMealTargetCalories('deleted meal', {
+        isSystem: false,
+        goals: {
+          breakfast_percentage: 25,
+          custom_meal_percentages: { 'morning snacks': 20 },
+        } as DailyGoals,
+        calorieGoal: 2000,
+      })
+    ).toBe(0);
+  });
+
+  it('returns 0 when goals or calorie goal are missing', () => {
+    const goals = { breakfast_percentage: 25 } as DailyGoals;
+    expect(
+      getMealTargetCalories('breakfast', {
+        isSystem: true,
+        goals: null,
+        calorieGoal: 2000,
+      })
+    ).toBe(0);
+    expect(
+      getMealTargetCalories('breakfast', {
+        isSystem: true,
+        goals,
+        calorieGoal: 0,
+      })
+    ).toBe(0);
   });
 });
 

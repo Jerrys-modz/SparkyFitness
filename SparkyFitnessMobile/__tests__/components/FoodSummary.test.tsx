@@ -196,6 +196,23 @@ describe('FoodSummary', () => {
     expect(queryByText(/\/ \d+/)).toBeNull();
   });
 
+  it('a custom meal type shows its own custom_meal_percentages target', () => {
+    const goals = {
+      breakfast_percentage: 25,
+      custom_meal_percentages: { 'pre-workout': 15 },
+    } as DailyGoals;
+    const { getByText } = render(
+      <FoodSummary
+        foodEntries={[entry('e4', 'custom-pw', 'Pre-Workout')]}
+        mealTypes={mealTypes}
+        goals={goals}
+        calorieGoal={2000}
+      />
+    );
+    // 15% of 2000 = 300 Cal target for the custom meal.
+    expect(getByText(/\/ 300/)).toBeTruthy();
+  });
+
   it('a historical (unresolved) group never inherits target calories', () => {
     const goals = { breakfast_percentage: 25 } as DailyGoals;
     const { queryByText } = render(
