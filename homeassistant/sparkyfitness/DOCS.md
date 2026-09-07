@@ -51,6 +51,8 @@ on time.
 
 ## Configuration
 
+These map to the add-on **Configuration** tab in Home Assistant.
+
 | Option | Meaning |
 | --- | --- |
 | Public URL | CORS / Better Auth origin. Must match the URL in your browser and in the mobile app. |
@@ -59,11 +61,20 @@ on time.
 | Admin email | If set, that user is granted admin on server start. |
 | Log level | `ERROR` (default), `WARN`, `INFO`, or `DEBUG`. |
 | Extra trusted origins | Comma-separated extra origins (another LAN hostname, a reverse proxy URL). |
+| Allow private-network AI URLs | Let non-admin users point custom AI providers at LAN IPs. |
+| Public API docs | Expose Swagger without login. |
+| Force email login | Fail-safe so OIDC cannot lock you out. |
+| Disable email login | Hide password login (use with OIDC). |
+| **Enable Garmin** | Starts the Garmin Connect microservice in this add-on. Link Garmin from SparkyFitness **Settings → External providers** after it is up. |
+| Garmin China region | Use garmin.cn. |
+| Email host / port / TLS / user / password / from | SMTP for password resets. Leave blank to disable mail. |
+| Extra environment variables | Any other `SPARKY_FITNESS_*` / `GARMIN_*` / proxy var from the [environment variables list](https://codewithcj.github.io/SparkyFitness/install/environment-variables). Example name `SPARKY_FITNESS_OIDC_ISSUER_URL`. |
 
 Database passwords and encryption keys are **generated on first start** and
 stored in the add-on `/data` volume (`secrets.env`). Do not delete that
 volume. Changing generated secrets after the first start will lock you out
-of encrypted data and 2FA.
+of encrypted data and 2FA. You can override them via Extra environment
+variables if you really need to.
 
 LAN CORS is enabled automatically (`ALLOW_PRIVATE_NETWORK_CORS`), so a
 phone on `http://192.168.x.x:3004` works even when Public URL is
@@ -98,7 +109,9 @@ Tested design target: HAOS on Raspberry Pi 5 (aarch64) and amd64. The
 add-on needs roughly 1 GB RAM free on top of Home Assistant. 32-bit ARM
 (armv7) is not supported — those images are not published.
 
-Garmin Connect sync is **not** bundled (same as the default Compose file).
+Garmin Connect sync is optional: turn on **Enable Garmin** in the
+Configuration tab. First add-on install is slower because the Garmin Python
+dependencies are built into the image.
 
 ## Alternative: Portainer
 

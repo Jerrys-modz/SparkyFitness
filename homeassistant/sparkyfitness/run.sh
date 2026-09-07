@@ -46,6 +46,18 @@ DISABLE_SIGNUP=$(opt disable_signup "false")
 ADMIN_EMAIL=$(opt admin_email "")
 LOG_LEVEL=$(opt log_level "ERROR")
 EXTRA_ORIGINS=$(opt extra_trusted_origins "")
+ALLOW_PRIVATE_AI=$(opt allow_private_network_ai "false")
+PUBLIC_API_DOCS=$(opt public_api_docs "false")
+FORCE_EMAIL_LOGIN=$(opt force_email_login "true")
+DISABLE_EMAIL_LOGIN=$(opt disable_email_login "false")
+ENABLE_GARMIN=$(opt enable_garmin "false")
+GARMIN_CHINA=$(opt garmin_china "false")
+EMAIL_HOST=$(opt email_host "")
+EMAIL_PORT=$(opt email_port "587")
+EMAIL_SECURE=$(opt email_secure "false")
+EMAIL_USER=$(opt email_user "")
+EMAIL_PASS=$(opt email_pass "")
+EMAIL_FROM=$(opt email_from "")
 
 mkdir -p "${PGDATA}" "${UPLOADS_DIR}" "${BACKUP_DIR}" "${SOCKET_DIR}"
 chmod 700 "${PGDATA}" || true
@@ -87,13 +99,33 @@ export \
   SPARKY_FITNESS_CUSTOM_BACKUP_DIRECTORY="${BACKUP_DIR}" \
   SPARKY_FITNESS_SERVER_HOST=127.0.0.1 \
   SPARKY_FITNESS_SERVER_PORT=3010 \
+  SPARKY_FITNESS_PUBLIC_API_DOCS="${PUBLIC_API_DOCS}" \
+  SPARKY_FITNESS_FORCE_EMAIL_LOGIN="${FORCE_EMAIL_LOGIN}" \
+  SPARKY_FITNESS_DISABLE_EMAIL_LOGIN="${DISABLE_EMAIL_LOGIN}" \
+  SPARKY_FITNESS_EMAIL_HOST="${EMAIL_HOST}" \
+  SPARKY_FITNESS_EMAIL_PORT="${EMAIL_PORT}" \
+  SPARKY_FITNESS_EMAIL_SECURE="${EMAIL_SECURE}" \
+  SPARKY_FITNESS_EMAIL_USER="${EMAIL_USER}" \
+  SPARKY_FITNESS_EMAIL_PASS="${EMAIL_PASS}" \
+  SPARKY_FITNESS_EMAIL_FROM="${EMAIL_FROM}" \
   ALLOW_PRIVATE_NETWORK_CORS=true \
+  ALLOW_PRIVATE_NETWORK_AI="${ALLOW_PRIVATE_AI}" \
   NODE_ENV=production \
   TZ="${TIMEZONE}" \
   NGINX_LISTEN_PORT="${NGINX_LISTEN_PORT:-80}" \
   NGINX_RATE_LIMIT="${NGINX_RATE_LIMIT:-5r/s}" \
   NGINX_ACCESS_LOG="${NGINX_ACCESS_LOG:-/dev/stdout}" \
   NGINX_ERROR_LOG="${NGINX_ERROR_LOG:-/dev/stderr}"
+
+# Any extra SPARKY_FITNESS_* / GARMIN_* (or other) vars from the Configuration
+# tab. Applied last so they can override the fields above.
+eval "$(
+  jq -r '
+    (.env_vars // [])[]
+    | select(.name | test("^[A-Z][A-Z0-9_]*$"))
+    | "export \(.name)=\(.value | @sh)"
+  ' "${OPTIONS_FILE}"
+)"
 
 if [ -n "${TIMEZONE}" ] && [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
   ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
@@ -154,6 +186,21 @@ if [ "${DB_EXISTS}" != "1" ]; then
     -c "CREATE DATABASE ${SPARKY_FITNESS_DB_NAME}"
 fi
 
+if [ "${ENABLE_GARMIN}" = "true" ]; then
+  if [ ! -f /opt/garmin/main.py ]; then
+    die "Garmin is enabled but /opt/garmin/main.py is missing from the add-on image"
+  fi
+  export GARMIN_SERVICE_PORT=8000
+  export GARMIN_SERVICE_IS_CN="${GARMIN_CHINA}"
+  export GARMIN_MICROSERVICE_URL="http://127.0.0.1:8000"
+  log "Starting Garmin microservice"
+  cd /opt/garmin
+  python3 main.py &
+  GARMIN_PID=$!
+else
+  GARMIN_PID=""
+fi
+
 log "Starting SparkyFitness server"
 cd /app/SparkyFitnessServer
 ./node_modules/.bin/tsx index.ts &
@@ -182,6 +229,9 @@ cleanup() {
   log "Stopping SparkyFitness"
   if [ -n "${NGINX_PID:-}" ]; then
     kill "${NGINX_PID}" 2>/dev/null || true
+  fi
+  if [ -n "${GARMIN_PID:-}" ]; then
+    kill "${GARMIN_PID}" 2>/dev/null || true
   fi
   if [ -n "${SERVER_PID:-}" ]; then
     kill "${SERVER_PID}" 2>/dev/null || true

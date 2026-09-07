@@ -18,5 +18,44 @@ configuration:
   extra_trusted_origins:
     name: Extra trusted origins
     description: Comma-separated extra CORS origins (another hostname or reverse-proxy URL)
+  allow_private_network_ai:
+    name: Allow private-network AI URLs
+    description: Let non-admin users point custom AI providers at LAN addresses (SSRF risk; single-tenant only)
+  public_api_docs:
+    name: Public API docs
+    description: Expose Swagger at /api/api-docs without logging in
+  force_email_login:
+    name: Force email login
+    description: Keep email/password login enabled even if OIDC is misconfigured
+  disable_email_login:
+    name: Disable email login
+    description: Hide email/password on the login page (use with OIDC)
+  enable_garmin:
+    name: Enable Garmin
+    description: Start the Garmin Connect microservice in this add-on (link your account in SparkyFitness after it is up)
+  garmin_china:
+    name: Garmin China region
+    description: Use Garmin Connect China (garmin.cn) instead of the global service
+  email_host:
+    name: Email host
+    description: SMTP hostname for password resets and notifications
+  email_port:
+    name: Email port
+    description: SMTP port (587 STARTTLS or 465 SSL)
+  email_secure:
+    name: Email implicit TLS
+    description: Set true for port 465; false for 587 STARTTLS
+  email_user:
+    name: Email username
+    description: SMTP username
+  email_pass:
+    name: Email password
+    description: SMTP password
+  email_from:
+    name: Email from address
+    description: From address for outbound mail
+  env_vars:
+    name: Extra environment variables
+    description: Any other SparkyFitness env var (OIDC, proxies, rate limits, …). Name must be UPPER_SNAKE_CASE.
 network:
   80/tcp: Web interface (host port 3004 by default)

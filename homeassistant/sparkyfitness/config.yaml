@@ -1,5 +1,5 @@
 name: SparkyFitness
-version: "1.0.0"
+version: "1.1.0"
 slug: sparkyfitness
 description: Self-hosted fitness tracker (nutrition, workouts, measurements) with PostgreSQL bundled.
 url: https://github.com/CodeWithCJ/SparkyFitness/tree/main/homeassistant/sparkyfitness
@@ -24,6 +24,19 @@ options:
   admin_email: ""
   log_level: ERROR
   extra_trusted_origins: ""
+  allow_private_network_ai: false
+  public_api_docs: false
+  force_email_login: true
+  disable_email_login: false
+  enable_garmin: false
+  garmin_china: false
+  email_host: ""
+  email_port: 587
+  email_secure: false
+  email_user: ""
+  email_pass: ""
+  email_from: ""
+  env_vars: []
 schema:
   frontend_url: str
   timezone: str
@@ -31,3 +44,18 @@ schema:
   admin_email: str
   log_level: list(ERROR|WARN|INFO|DEBUG)
   extra_trusted_origins: str
+  allow_private_network_ai: bool
+  public_api_docs: bool
+  force_email_login: bool
+  disable_email_login: bool
+  enable_garmin: bool
+  garmin_china: bool
+  email_host: str
+  email_port: port
+  email_secure: bool
+  email_user: str
+  email_pass: password
+  email_from: str
+  env_vars:
+    - name: match(^[A-Z][A-Z0-9_]*$)
+      value: str
