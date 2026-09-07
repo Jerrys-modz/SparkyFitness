@@ -1,0 +1,33 @@
+name: SparkyFitness
+version: "1.0.0"
+slug: sparkyfitness
+description: Self-hosted fitness tracker (nutrition, workouts, measurements) with PostgreSQL bundled.
+url: https://github.com/CodeWithCJ/SparkyFitness/tree/main/homeassistant/sparkyfitness
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+timeout: 300
+webui: http://[HOST]:[PORT:80]
+watchdog: http://[HOST]:[PORT:80]/addon-health
+panel_icon: mdi:dumbbell
+ports:
+  80/tcp: 3004
+ports_description:
+  80/tcp: SparkyFitness web UI (use this URL in the mobile app)
+options:
+  frontend_url: http://homeassistant.local:3004
+  timezone: Etc/UTC
+  disable_signup: false
+  admin_email: ""
+  log_level: ERROR
+  extra_trusted_origins: ""
+schema:
+  frontend_url: str
+  timezone: str
+  disable_signup: bool
+  admin_email: str
+  log_level: list(ERROR|WARN|INFO|DEBUG)
+  extra_trusted_origins: str

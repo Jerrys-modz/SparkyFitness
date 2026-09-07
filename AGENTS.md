@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-08-22*
+*Last updated: 2026-09-07*
 
 This is the repo-root monorepo guide for SparkyFitness. Use it to choose the right package, understand shared repo-level rules, and find the next guide to read.
 
@@ -38,6 +38,7 @@ For `docs/` and `SparkyFitnessGarmin/`, there is no package-level `AGENTS.md`. `
 - `docs/` - Nuxt / Docus docs site.
 - `SparkyFitnessGarmin/` - standalone Python integration service outside the current `pnpm` workspace.
 - `docker/`, `helm/`, `.github/` - infra and deployment assets.
+- `homeassistant/` - Home Assistant OS add-on (`sparkyfitness/`) plus root `repository.yaml` so HAOS can add this git repo as an add-on store.
 - `db_schema_backup.sql` - repo-root schema snapshot kept in sync by CI (`.github/workflows/schema-backup.yml`); never hand-edit or regenerate locally.
 - `docker/.env.example` - tracked env template commonly copied to repo-root `.env`.
 

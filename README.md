@@ -141,7 +141,7 @@ docker compose pull && docker compose up -d
 # Access application at http://localhost:8080
 ```
 
-_Note: For other self-hosted installation methods, refer to the documentation at [https://codewithcj.github.io/SparkyFitness/](https://codewithcj.github.io/SparkyFitness/)._
+_Note: For other self-hosted installation methods (Home Assistant OS, Portainer, Kubernetes, and more), refer to the documentation at [https://codewithcj.github.io/SparkyFitness/](https://codewithcj.github.io/SparkyFitness/)._
 
 ### 2. Cloud (for non-technical users)
 

@@ -1,0 +1,22 @@
+---
+configuration:
+  frontend_url:
+    name: Public URL
+    description: URL you (and the mobile app) use to open SparkyFitness, including the port. Example http://homeassistant.local:3004
+  timezone:
+    name: Timezone
+    description: TZ database name such as America/New_York or Europe/Brussels
+  disable_signup:
+    name: Disable signup
+    description: Block new registrations after you have created your account
+  admin_email:
+    name: Admin email
+    description: If set, this user is granted admin privileges on startup
+  log_level:
+    name: Log level
+    description: Server log verbosity
+  extra_trusted_origins:
+    name: Extra trusted origins
+    description: Comma-separated extra CORS origins (another hostname or reverse-proxy URL)
+network:
+  80/tcp: Web interface (host port 3004 by default)
