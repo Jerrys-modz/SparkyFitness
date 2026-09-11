@@ -1,4 +1,8 @@
-import { compareByEntryTime, earliestEntryTime } from '@workspace/shared';
+import {
+  compareByEntryTime,
+  earliestEntryTime,
+  estimateExerciseWaterLossMl,
+} from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import type { PoolClient } from 'pg';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
@@ -6,6 +10,25 @@ import format from 'pg-format';
 import { log } from '../config/logging.js';
 import exerciseRepository from './exercise.js';
 import activityDetailsRepository from './activityDetailsRepository.js';
+
+/**
+ * Water loss for a newly created exercise entry. A source-provided value
+ * (Garmin's Connect API reports its own measured `waterEstimated` per
+ * activity) always wins; otherwise fall back to the calorie-based estimate
+ * so `add_exercise_water_to_goal` has something to add for manually logged
+ * and non-Garmin-synced exercise too, instead of only ever adjusting the
+ * goal for Garmin syncs.
+ */
+function resolveWaterEstimated(
+  waterEstimated: number | string | null | undefined,
+  caloriesBurned: number | string | null | undefined
+): number | null {
+  if (waterEstimated !== undefined && waterEstimated !== null) {
+    return Number(waterEstimated);
+  }
+  const estimated = estimateExerciseWaterLossMl(caloriesBurned);
+  return estimated > 0 ? estimated : null;
+}
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -801,7 +824,10 @@ async function _createExerciseEntryWithClient(
         exercisePresetEntryId, // New parameter
         entryData.sort_order || 0,
         entryData.steps || null,
-        entryData.water_estimated || null,
+        resolveWaterEstimated(
+          entryData.water_estimated,
+          entryData.calories_burned
+        ),
         entryData.superset_group ?? null,
         entryData.entry_time ?? null,
         snapshot.modality,

@@ -125,6 +125,7 @@ export * from "./utils/timezone.ts";
 export * from "./utils/calendar.ts";
 export * from "./utils/entryTime.ts";
 export * from "./utils/hydrationExample.ts";
+export * from "./utils/hydrationEstimate.ts";
 export * from "./utils/calorieCalculations.ts";
 export * from "./utils/servingSizeConversions.ts";
 export * from "./utils/nutrientMatching.ts";
