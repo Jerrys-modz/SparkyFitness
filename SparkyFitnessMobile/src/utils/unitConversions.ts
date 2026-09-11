@@ -2,6 +2,7 @@
  * Unit conversion utilities.
  * All server-side storage is in metric (kg, cm).
  */
+import { formatLocalizedNumber } from '../localization';
 
 const LBS_TO_KG = 0.45359237;
 const KG_TO_LBS = 1 / LBS_TO_KG;
@@ -144,10 +145,53 @@ export const WATER_UNIT_LABELS: Record<string, string> = {
   liter: 'L',
 };
 
+const ML_PER_FLUID_OUNCE = 29.5735;
+const ML_PER_LITER = 1000;
+
+/**
+ * Water is stored in millilitres server-side; every surface that shows it converts to the
+ * user's `water_display_unit` at its own edge. An unrecognised unit falls back to ml so a
+ * new server-side unit renders a plausible number instead of nothing.
+ */
+export function volumeFromMl(milliliters: number, unit: string): number {
+  switch (unit) {
+    case 'oz':
+      return milliliters / ML_PER_FLUID_OUNCE;
+    case 'liter':
+      return milliliters / ML_PER_LITER;
+    default:
+      return milliliters;
+  }
+}
+
+/** Decimal places a volume is shown to, per unit — ml is whole, oz one place, litres two. */
+function volumeDecimalsForUnit(unit: string): number {
+  if (unit === 'oz') return 1;
+  if (unit === 'liter') return 2;
+
+  return 0;
+}
+
+/** A converted volume as display text in the app locale. */
+export function formatVolumeForUnit(value: number, unit: string): string {
+  // formatLocalizedNumber keeps thousands grouping and the app locale's
+  // decimal separator; maximumFractionDigits alone strips trailing zeros.
+  return formatLocalizedNumber(value, {
+    maximumFractionDigits: volumeDecimalsForUnit(unit),
+  });
+}
+
 /** Volume per serving, accounting for servings_per_container. */
 export function getServingVolume(container: {
   volume: number;
   servings_per_container?: number | null;
-}): number {
+  linked_food_id?: string | null;
+}): number | null {
+  // A container linked to a food carries volume 0 on purpose: its amount lives
+  // on the food, and a volume there would mean "the glass holds more than the
+  // food". Dividing that by servings yields 0, which the gauge then reported as
+  // "0 ml per container" with a +/- that appeared to add nothing. Null says
+  // "not measured in millilitres" so callers can describe the press instead.
+  if (container.linked_food_id) return null;
   return container.volume / (container.servings_per_container || 1);
 }
