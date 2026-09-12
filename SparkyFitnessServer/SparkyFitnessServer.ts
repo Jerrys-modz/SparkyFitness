@@ -206,6 +206,33 @@ app.use(
     );
   })
 );
+// OAuth/OIDC discovery probes must 404, not 401.
+//
+// This server authenticates with API keys and session cookies; it is not an
+// OAuth authorization server. When an MCP client's first request is rejected it
+// follows the spec and probes for OAuth metadata. Falling through to
+// `authenticate` answered those probes with 401, which reads as "OAuth exists,
+// keep negotiating", so the client retried discovery in a loop (and then failed
+// Dynamic Client Registration with a 404 anyway). A 404 says "no OAuth here",
+// and the client falls back to the bearer token it was configured with.
+//
+// Registered before the /mcp mount and the global `authenticate` so it beats
+// both. Deliberately an explicit list rather than all of `/.well-known/*`, so
+// an ACME http-01 challenge served through this app is untouched.
+const OAUTH_DISCOVERY_PATHS = new Set([
+  '/.well-known/openid-configuration',
+  '/.well-known/oauth-authorization-server',
+  '/.well-known/oauth-protected-resource',
+]);
+app.use((req, res, next) => {
+  // Strip an optional /mcp prefix: clients probe both the origin root and the
+  // MCP mount point, and Express has not applied the mount prefix yet here.
+  const path = req.path.startsWith('/mcp/')
+    ? req.path.slice('/mcp'.length)
+    : req.path;
+  if (!OAUTH_DISCOVERY_PATHS.has(path)) return next();
+  res.status(404).json({ error: 'not_found' });
+});
 // External MCP endpoint — a self-contained chain mounted top-level (not /api)
 // to skip the /api/auth interceptor and cache-control middleware. It sits
 // before the global 50mb parser so its route-local 1mb parser wins (the global
@@ -262,13 +289,28 @@ app.use(async (req, res, next) => {
       return next();
     }
 
+    // In demo mode the credential backend stays loaded so the one-click demo
+    // login (an in-process auth.api.signInEmail call) keeps working, so the
+    // public password routes have to be closed here instead. The body matches
+    // Better Auth's own EMAIL_PASSWORD_DISABLED response byte for byte, so a
+    // client cannot tell which layer refused it.
+    if (
+      process.env.SPARKY_FITNESS_DISABLE_EMAIL_LOGIN === 'true' &&
+      (req.path.startsWith('/api/auth/sign-in/email') ||
+        req.path.startsWith('/api/auth/sign-up/email'))
+    ) {
+      return res.status(400).json({
+        message: 'Email and password is not enabled',
+        code: 'EMAIL_PASSWORD_DISABLED',
+      });
+    }
+
     if (isDemoMode()) {
       // Prefix matches throughout: exact equality misses trailing-slash and
       // sub-path variants that Better Auth still routes.
       const restrictedAuthPrefixes = [
         '/api/auth/two-factor',
         '/api/auth/passkey',
-        '/api/auth/api-key', // minting a key would outlive the daily reset
         '/api/auth/change-password',
         '/api/auth/set-password',
         '/api/auth/change-email',
@@ -278,6 +320,16 @@ app.use(async (req, res, next) => {
       const isRestrictedAuthPath = restrictedAuthPrefixes.some(
         (prefix) => req.path === prefix || req.path.startsWith(prefix + '/')
       );
+
+      // API keys are read-only for the sandbox rather than invisible: minting
+      // one would outlive the daily reset, but listing the account's own keys
+      // gives away nothing (Better Auth returns the key itself only at
+      // creation) and blocking the read just makes the settings screen throw.
+      const isApiKeyPath =
+        req.path === '/api/auth/api-key' ||
+        req.path.startsWith('/api/auth/api-key/');
+      const isRestrictedApiKeyPath =
+        isApiKeyPath && req.method.toUpperCase() !== 'GET';
 
       // Password-recovery endpoints are unauthenticated, so there is no session
       // to match on — identify the account from the request itself, or the demo
@@ -316,7 +368,7 @@ app.use(async (req, res, next) => {
         });
       }
 
-      if (isRestrictedAuthPath) {
+      if (isRestrictedAuthPath || isRestrictedApiKeyPath) {
         try {
           const { auth } = authModule;
           const session = await auth.api.getSession({
