@@ -1529,6 +1529,9 @@ describe('log_external_food', () => {
       vitamin_c: null,
       calcium: null,
       iron: null,
+      caffeine_mg: null,
+      alcohol_g: null,
+      abv_percent: null,
       glycemic_index: null,
       // food_variants.source has a CHECK constraint (manual|ai_estimate|
       // imported); passing the provider name here rolled back the whole insert
@@ -2053,10 +2056,47 @@ describe('create_food', () => {
       vitamin_c: null,
       calcium: null,
       iron: null,
+      caffeine_mg: null,
+      alcohol_g: null,
       glycemic_index: 'Low',
       is_quick_food: false,
     });
     expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
+  });
+
+  // #2115/#1958/#1925: caffeine_mg and alcohol_g were added as first-class
+  // food_variants columns, but this tool never grew a parameter for either,
+  // so Sparky could not create a drink with caffeine or alcohol content.
+  it('passes caffeine_mg and alcohol_g through to createFood', async () => {
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Espresso',
+      brand: null,
+      default_variant: {
+        id: VARIANT_ID,
+        serving_size: 1,
+        serving_unit: 'shot',
+        calories: 3,
+      },
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'create_food',
+        food_name: 'Espresso',
+        calories: 3,
+        protein: 0.1,
+        carbs: 0.5,
+        fat: 0.2,
+        caffeine_mg: 63,
+      },
+      opts
+    );
+
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ caffeine_mg: 63, alcohol_g: null })
+    );
   });
 
   it('defaults non-count units to 100 and auto-logs when meal_type is given', async () => {
@@ -3287,6 +3327,48 @@ describe('update_food_variant', () => {
       'user-1'
     );
     expect(foodCoreService.updateFoodEntriesSnapshot).not.toHaveBeenCalled();
+  });
+
+  // #2115/#1958/#1925: caffeine_mg and alcohol_g were added as first-class
+  // food_variants columns, but this tool's field map was never updated, so
+  // asking Sparky to add caffeine (or alcohol) to an existing drink silently
+  // had no field to write it to.
+  it('updates caffeine_mg and alcohol_g on an existing variant', async () => {
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+    });
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Cold Brew',
+      user_id: 'user-1',
+    });
+    vi.mocked(foodRepository.updateFoodVariant).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+      calories: 5,
+      serving_size: 355,
+      serving_unit: 'ml',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'update_food_variant',
+        variant_id: VARIANT_ID,
+        caffeine_mg: 200,
+        alcohol_g: 0,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ Food variant updated for "Cold Brew" (5 kcal per 355ml).'
+    );
+    expect(foodRepository.updateFoodVariant).toHaveBeenCalledWith(
+      VARIANT_ID,
+      { caffeine_mg: 200, alcohol_g: 0 },
+      'user-1'
+    );
   });
 
   it('refreshes diary snapshots when update_existing_entries is true', async () => {

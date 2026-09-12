@@ -107,6 +107,8 @@ describe('published (flat) chatbot tool schemas', () => {
         'vitamin_c',
         'calcium',
         'iron',
+        'caffeine_mg',
+        'alcohol_g',
         'gi',
         'entry_id',
         'entry_type',
