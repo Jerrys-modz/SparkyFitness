@@ -267,6 +267,8 @@ describe('published (flat) chatbot tool schemas', () => {
         'vitamin_c',
         'calcium',
         'iron',
+        'caffeine_mg',
+        'alcohol_g',
         'custom_nutrients',
       ],
       actions: ['get_goals', 'set_goals', 'list_goal_timeline'],
