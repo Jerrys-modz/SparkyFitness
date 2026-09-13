@@ -1,0 +1,2710 @@
+import { tool } from 'ai';
+import { z } from 'zod';
+import { addDays, todayInZone } from '@workspace/shared';
+import { log } from '../../config/logging.js';
+import foodCoreService from '../../services/foodCoreService.js';
+import foodEntryService from '../../services/foodEntryService.js';
+import mealService from '../../services/mealService.js';
+import preferenceService from '../../services/preferenceService.js';
+import measurementService from '../../services/measurementService.js';
+import {
+  searchProviderFoods,
+  type ProviderType,
+} from '../../services/externalFoodSearchService.js';
+import { VALID_PROVIDER_TYPES } from '../../constants/foodProviders.js';
+import foodRepository from '../../models/foodRepository.js';
+import foodEntryMealRepository from '../../models/foodEntryMealRepository.js';
+import mealTypeRepository from '../../models/mealType.js';
+import measurementRepository from '../../models/measurementRepository.js';
+import reportRepository from '../../models/reportRepository.js';
+import externalProviderRepository from '../../models/externalProviderRepository.js';
+import { ERRORS, formatZodError } from './errors.js';
+import {
+  compactRecord,
+  dayString,
+  formatConfirmation,
+  formatJsonResult,
+  formatList,
+} from './formatting.js';
+import {
+  normalizePagination,
+  buildPaginatedResult,
+  type PaginatedResult,
+} from './pagination.js';
+import { convertEnergy } from './unitConversion.js';
+import {
+  manageFoodSchema,
+  manageFoodInput,
+  type ManageFoodInput,
+} from './schemas/food.js';
+import { optionalDateSchema, uuidSchema } from './schemas/common.js';
+import { normalizeActionArgs, normalizeDayKeywords } from './dates.js';
+import {
+  normalizeServingUnit,
+  reconcileEntryUnitToVariant,
+} from '../../utils/foodUtils.js';
+
+const VALID_ACTIONS = [
+  'search_food',
+  'lookup_food_nutrition',
+  'list_meal_types',
+  'log_food',
+  'log_external_food',
+  'create_food',
+  'search_meal',
+  'log_meal',
+  'list_diary',
+  'delete_entry',
+  'delete_food',
+  'update_entry',
+  'update_food_variant',
+  'copy_from_yesterday',
+  'save_as_meal_template',
+  'log_water',
+  'get_nutritional_summary',
+  'get_water_history',
+];
+
+// Provider types the no-provider cascade may search (exercise/health
+// providers are excluded). Derived from VALID_PROVIDER_TYPES.
+const FOOD_PROVIDER_TYPES = [...VALID_PROVIDER_TYPES];
+
+// Units where an omitted create_food quantity defaults to 1 instead of 100.
+const COUNT_BASED_UNITS = [
+  'serving',
+  'piece',
+  'slice',
+  'portion',
+  'unit',
+  'can',
+  'bottle',
+  'item',
+  'pack',
+];
+
+// Window for tool-layer exact-name matching over the server's substring
+// search. An exact match could fall outside it only when more than this many
+// foods contain the searched name as a substring.
+const NAME_RESOLUTION_WINDOW = 500;
+
+// Optional inputs and nullable DB columns are treated alike: absent.
+function isSet<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+// Serving units that signal a data-entry error rather than a real food
+// serving (a food portion measured in milli/microgram is almost always
+// mislabeled branded data). Variants using them are demoted when picking the
+// one to show/log.
+const IMPLAUSIBLE_SERVING_UNITS = new Set(['mg', 'mcg', 'µg', 'ug']);
+
+// Picks the variant to surface for an external provider match. Providers
+// (USDA especially) sometimes mark a nonsensical variant as default — e.g. a
+// "28 mg" serving on a branded item — so prefer a variant with a plausible
+// serving unit and positive size, keeping the provider's default only as a
+// tiebreak within the sane set.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pickBestVariant(food: any) {
+  const variants: any[] = (
+    food?.variants?.length ? food.variants : [food?.default_variant]
+  ).filter(Boolean);
+  if (variants.length === 0) return food?.default_variant ?? null;
+  const isPlausible = (v: any) =>
+    Number(v.serving_size) > 0 &&
+    !IMPLAUSIBLE_SERVING_UNITS.has(String(v.serving_unit || '').toLowerCase());
+  const pool = variants.filter(isPlausible);
+  const chosen = pool.length > 0 ? pool : variants;
+  return chosen.find((v) => v.is_default) ?? chosen[0];
+}
+
+// Re-ranks external provider matches so generic/whole foods win over branded
+// products. Providers return branded items ("EGG (SNICKERS)", "BANANA
+// (BETTER'N PEANUT BUTTER)") ahead of the plain whole food a user almost
+// always means, and small models just take the first result. Stable within
+// each tier so the provider's own relevance order is otherwise preserved.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rankProviderMatches(foods: any[], query: string): any[] {
+  const q = query.trim().toLowerCase();
+  const qStem = q.replace(/s$/, '');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const score = (f: any): number => {
+    const name = String(f?.name ?? '').toLowerCase();
+    const branded = Boolean(f?.brand && String(f.brand).trim());
+    const firstSegment = name.split(',')[0].trim();
+    let s = branded ? 0 : 100; // whole foods first
+    if (firstSegment === q || firstSegment === qStem) s += 20;
+    else if (firstSegment.startsWith(qStem)) s += 10;
+    else if (name.includes(q)) s += 5;
+    return s;
+  };
+  return foods
+    .map((f, i) => ({ f, i, s: score(f) }))
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .map((x) => x.f);
+}
+
+// Provider nutrition values arrive as strings or numbers; absent/blank/NaN
+// all normalize to null so createFood stores them as empty, not 0.
+function toNutrientNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return isNaN(n) ? null : n;
+}
+
+// Placeholder values for corrective retry examples (see
+// formatActionParseError). Date-like fields resolve to today at call time.
+const FIELD_EXAMPLE_VALUES: Record<string, unknown> = {
+  food_name: 'banana',
+  meal_type: 'breakfast',
+  quantity: 1,
+  unit: 'serving',
+  amount_ml: 250,
+  calories: 100,
+  protein: 1,
+  carbs: 20,
+  fat: 0.5,
+  search_type: 'broad',
+  meal_name: 'My Meal',
+  entry_type: 'food_entry',
+  entry_id: '<entry UUID from list_diary>',
+  food_id: '<internal food UUID>',
+  meal_id: '<meal UUID from search_meal>',
+};
+
+function unionOptionForAction(action: string) {
+  return manageFoodSchema.options.find(
+    (o) => o.shape.action.safeParse(action).success
+  );
+}
+
+// Renders a failed per-action parse as a corrective error: the field problems
+// plus a complete retry example built from the model's own valid args and
+// placeholders for missing required fields. Small local models recover from a
+// copyable example far more often than from a bare Zod trace.
+function formatActionParseError(
+  action: string,
+  error: z.ZodError,
+  args: Record<string, unknown>,
+  tz: string
+): string {
+  const option = unionOptionForAction(action);
+  if (!option) {
+    return ERRORS.INVALID_ACTION(action, VALID_ACTIONS);
+  }
+  const example: Record<string, unknown> = { action };
+  for (const [key, fieldSchema] of Object.entries(option.shape)) {
+    if (key === 'action') continue;
+    const schema = fieldSchema as z.ZodType;
+    const provided = args[key];
+    if (provided !== undefined && schema.safeParse(provided).success) {
+      example[key] = provided;
+    } else if (!schema.safeParse(undefined).success) {
+      // Required and missing/invalid: fill with a placeholder.
+      example[key] = key.includes('date')
+        ? todayInZone(tz)
+        : (FIELD_EXAMPLE_VALUES[key] ?? `<${key}>`);
+    }
+  }
+  const issues = error.issues
+    .map((i) =>
+      i.path.length > 0 ? `${i.path.join('.')}: ${i.message}` : i.message
+    )
+    .join('; ');
+  return ERRORS.VALIDATION(
+    `${action} call was invalid — ${issues}. Retry sparky_manage_food with all required fields, for example: ${JSON.stringify(example)}`
+  );
+}
+
+function normalizeFoodUnit(unit: unknown): string {
+  const normalized = String(unit ?? '')
+    .trim()
+    .toLowerCase();
+  const aliases: Record<string, string> = {
+    gram: 'g',
+    grams: 'g',
+    gr: 'g',
+    milliliter: 'ml',
+    milliliters: 'ml',
+    millilitre: 'ml',
+    millilitres: 'ml',
+    liter: 'l',
+    liters: 'l',
+    litre: 'l',
+    litres: 'l',
+    serving: 'serving',
+    servings: 'serving',
+    piece: 'piece',
+    pieces: 'piece',
+    slice: 'slice',
+    slices: 'slice',
+    portion: 'portion',
+    portions: 'portion',
+    unit: 'unit',
+    units: 'unit',
+    can: 'can',
+    cans: 'can',
+    bottle: 'bottle',
+    bottles: 'bottle',
+    item: 'item',
+    items: 'item',
+    pack: 'pack',
+    packs: 'pack',
+    cup: 'cup',
+    cups: 'cup',
+    tablespoon: 'tbsp',
+    tablespoons: 'tbsp',
+    teaspoon: 'tsp',
+    teaspoons: 'tsp',
+  };
+  return aliases[normalized] ?? normalized;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dedupeVariantsById(variants: any[]) {
+  const seen = new Set<string>();
+  return variants.filter((variant) => {
+    if (!variant?.id) return true;
+    if (seen.has(variant.id)) return false;
+    seen.add(variant.id);
+    return true;
+  });
+}
+
+function resolveQuantityForVariantUnit(args: {
+  requestedQuantity: number;
+  requestedUnit: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  variant: any;
+}): { quantity: number; unit: string } | null {
+  if (!args.variant) {
+    return null;
+  }
+
+  const requestedUnit = normalizeFoodUnit(args.requestedUnit);
+  const variantUnit = normalizeFoodUnit(args.variant.serving_unit);
+  if (requestedUnit && requestedUnit === variantUnit) {
+    return {
+      quantity: args.requestedQuantity,
+      unit: args.variant.serving_unit,
+    };
+  }
+
+  return null;
+}
+
+async function resolveFoodLogVariantAndQuantity(args: {
+  userId: string;
+  foodId: string;
+  variantId?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  foodRow?: any;
+  quantity: number;
+  unit?: string;
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let explicitVariant: any | undefined;
+  if (args.variantId) {
+    explicitVariant = await foodRepository.getFoodVariantById(
+      args.variantId,
+      args.userId
+    );
+  }
+
+  const food =
+    args.foodRow ??
+    (await foodRepository.getFoodById(args.foodId, args.userId));
+  const defaultVariant = food?.default_variant;
+  const variantsFromDb = await foodRepository.getFoodVariantsByFoodId(
+    args.foodId,
+    args.userId
+  );
+  const candidates = dedupeVariantsById(
+    [
+      explicitVariant,
+      defaultVariant,
+      ...(Array.isArray(variantsFromDb) ? variantsFromDb : []),
+    ].filter(Boolean)
+  );
+
+  const requestedUnit = args.unit;
+  let matchingVariant: any | undefined;
+  if (requestedUnit) {
+    matchingVariant = candidates.find((variant) =>
+      resolveQuantityForVariantUnit({
+        requestedQuantity: args.quantity,
+        requestedUnit,
+        variant,
+      })
+    );
+  }
+
+  const variant = explicitVariant ?? matchingVariant ?? defaultVariant;
+  const unitToResolve = requestedUnit || variant?.serving_unit || 'serving';
+  const resolved = resolveQuantityForVariantUnit({
+    requestedQuantity: args.quantity,
+    requestedUnit: unitToResolve,
+    variant,
+  });
+
+  if (!variant?.id || !resolved) {
+    return {
+      ok: false as const,
+      message: `Cannot safely log ${args.quantity} ${requestedUnit || 'serving'} for this food because no matching serving variant is available.`,
+    };
+  }
+
+  return {
+    ok: true as const,
+    variantId: variant.id,
+    quantity: resolved.quantity,
+    unit: resolved.unit,
+  };
+}
+
+// MCP's date-range defaults: a single `date` overrides start/end; otherwise
+// the range defaults to today (user timezone) / the start date.
+function foodDateRange(
+  query: {
+    date?: string;
+    start_date?: string;
+    end_date?: string;
+  },
+  tz: string
+): { startDate: string; endDate: string } {
+  const today = todayInZone(tz);
+  const date = query.date || undefined;
+  const startDate = date || query.start_date || today;
+  const endDate = date || query.end_date || startDate;
+  return { startDate, endDate };
+}
+
+// The variant column set MCP's food search exposed; the server's
+// default_variant JSON is projected down to it.
+function projectVariant(foodId: string, v: any) {
+  const result: Record<string, any> = {
+    id: v.id,
+    food_id: foodId,
+    serving_size: v.serving_size,
+    serving_unit: v.serving_unit,
+    calories: v.calories,
+    protein: v.protein,
+    carbs: v.carbs,
+    fat: v.fat,
+  };
+
+  const optionalFields = [
+    'saturated_fat',
+    'polyunsaturated_fat',
+    'monounsaturated_fat',
+    'trans_fat',
+    'cholesterol',
+    'sodium',
+    'potassium',
+    'dietary_fiber',
+    'sugars',
+    'vitamin_a',
+    'vitamin_c',
+    'calcium',
+    'iron',
+    'glycemic_index',
+  ];
+
+  for (const field of optionalFields) {
+    const val = v[field];
+    if (
+      val !== undefined &&
+      val !== null &&
+      val !== 0 &&
+      val !== '0' &&
+      val !== 'None'
+    ) {
+      result[field] = val;
+    }
+  }
+
+  return result;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function projectFoodItem(row: any) {
+  return {
+    id: row.id,
+    name: row.name,
+    brand: row.brand || undefined,
+    variants: row.default_variant?.id
+      ? [projectVariant(row.id, row.default_variant)]
+      : [],
+  };
+}
+
+// `user_id` is the authenticated caller on every row; never useful in output.
+const CATALOG_FOOD_DROP = ['user_id'] as const;
+const VARIANT_DROP = ['user_id'] as const;
+// food_entries internal surrogate keys with no model use. `id` (for
+// edit/delete), `food_id` (for food lookups / re-logging), and meal_type_id
+// (for custom-meal round trips) are kept.
+const DIARY_ENTRY_DROP = [
+  'variant_id',
+  'meal_plan_template_id',
+  'food_entry_meal_id',
+] as const;
+// food_entry_meals (SELECT fem.*) audit/ownership/internal columns.
+const DIARY_MEAL_DROP = [
+  'user_id',
+  'created_at',
+  'updated_at',
+  'created_by_user_id',
+  'updated_by_user_id',
+  'meal_template_id',
+  'legacy_serving_unit_math',
+] as const;
+
+interface ResolvedMealType {
+  id: string;
+  name: string;
+}
+
+async function resolveMealType(
+  userId: string,
+  mealTypeId?: string,
+  mealType?: string
+): Promise<ResolvedMealType | null> {
+  if (mealTypeId) {
+    const resolved = await mealTypeRepository.getMealTypeById(
+      mealTypeId,
+      userId
+    );
+    return resolved ? { id: resolved.id, name: resolved.name } : null;
+  }
+  if (!mealType) {
+    return null;
+  }
+  // For built-in meal types (by name), resolve to actual ID. The legacy
+  // fallback must only match system defaults (user_id IS NULL): custom types
+  // are selected exclusively via meal_type_id, and a custom type may share a
+  // name with a system default (uniqueness is per (name, user_id)).
+  const mealTypes = await mealTypeRepository.getAllMealTypes(userId);
+  const normalizedName = mealType.trim().toLowerCase();
+  const resolved = mealTypes.find(
+    (type: { id: string; name: string; user_id: string | null }) =>
+      type.user_id === null && type.name.trim().toLowerCase() === normalizedName
+  );
+  return resolved ? { id: resolved.id, name: resolved.name } : null;
+}
+
+// Resolves a diary food entry from a food name the way log_food resolves
+// foods: small local models reliably repeat a name they just read in the
+// diary but cannot chain a list_diary call into extracting an entry UUID
+// (see #2101 — they invent placeholder ids or fabricate success instead).
+// Ambiguity is returned as data, not guessed at: the model gets the
+// candidates with their ids and can retry with entry_id.
+// The diary projection fields the resolver reads (see getFoodEntriesByDate's
+// SELECT in models/foodEntry.ts — food_name is the entry's snapshot column).
+interface DiaryEntryNameRow {
+  id: string;
+  food_name?: string | null;
+  meal_type?: string | null;
+  meal_type_id?: string | null;
+  quantity?: number | string | null;
+  unit?: string | null;
+}
+
+interface ResolveEntryByNameArgs {
+  foodName: string;
+  entryDate?: string;
+  mealType?: string;
+  mealTypeId?: string;
+}
+
+async function resolveFoodEntryByName(
+  userId: string,
+  tz: string,
+  { foodName, entryDate, mealType, mealTypeId }: ResolveEntryByNameArgs,
+  narrowByMealType: boolean
+): Promise<{ ok: true; entryId: string } | { ok: false; message: string }> {
+  const date = entryDate || todayInZone(tz);
+  const rows: DiaryEntryNameRow[] = await foodEntryService.getFoodEntriesByDate(
+    userId,
+    userId,
+    date
+  );
+  const wanted = foodName.trim().toLowerCase();
+  let matches = rows.filter(
+    (row) => (row.food_name ?? '').trim().toLowerCase() === wanted
+  );
+  if (narrowByMealType && (mealTypeId || mealType)) {
+    const resolvedMealType = await resolveMealType(
+      userId,
+      mealTypeId,
+      mealType
+    );
+    if (!resolvedMealType) {
+      return {
+        ok: false,
+        message: `Meal type "${mealTypeId ?? mealType}" was not found or is not available to this user.`,
+      };
+    }
+    matches = matches.filter((row) => row.meal_type_id === resolvedMealType.id);
+  }
+  if (matches.length === 1) {
+    return { ok: true, entryId: matches[0].id };
+  }
+  if (matches.length === 0) {
+    const names = [...new Set(rows.map((row) => row.food_name ?? ''))]
+      .filter(Boolean)
+      .join(', ');
+    return {
+      ok: false,
+      message: `No entry named "${foodName}" in the diary for ${date}.${names ? ` That day has: ${names}.` : ''} Use list_diary to inspect the day, then retry.`,
+    };
+  }
+  const candidates = matches
+    .map(
+      (row) =>
+        `- ${row.meal_type ?? 'unknown meal'}: ${row.quantity} ${row.unit} (ID: ${row.id})`
+    )
+    .join('\n');
+  return {
+    ok: false,
+    message: `"${foodName}" matches ${matches.length} entries on ${date}:\n${candidates}\nRetry with the entry_id of the one you mean.`,
+  };
+}
+// Full food_entries dumps (`SELECT fe.*`, used by recent-entries and food-usage)
+// add audit/ownership columns on top of the diary projection's surrogate keys.
+const FULL_ENTRY_DROP: readonly string[] = [
+  ...DIARY_ENTRY_DROP,
+  'user_id',
+  'created_at',
+  'updated_at',
+  'created_by_user_id',
+  'updated_by_user_id',
+];
+
+// Catalog row for the JSON helpers: the server's default_variant JSON is
+// folded into MCP's `variants` array shape, both compacted.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function projectCatalogFood(row: any) {
+  const { default_variant: defaultVariant, ...rest } = row;
+  return {
+    ...compactRecord(rest, CATALOG_FOOD_DROP),
+    variants: defaultVariant?.id
+      ? [compactRecord(defaultVariant, VARIANT_DROP)]
+      : [],
+  };
+}
+
+// Internal food search mirroring MCP's searchFood: "broad" is a substring
+// match, "exact" a case-insensitive name-equality filter applied in the tool
+// layer over the server's substring search.
+async function searchFoodInternal(
+  userId: string,
+  foodName: string,
+  searchType: 'exact' | 'broad',
+  limitArg?: number,
+  offsetArg?: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<PaginatedResult<any>> {
+  const { limit, offset } = normalizePagination(limitArg, offsetArg);
+  if (searchType === 'exact') {
+    const rows = await foodRepository.getFoodsWithPagination(
+      foodName,
+      null,
+      userId,
+      NAME_RESOLUTION_WINDOW,
+      0,
+      null
+    );
+    const matches = rows.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (r: any) => String(r.name).toLowerCase() === foodName.toLowerCase()
+    );
+    return buildPaginatedResult(
+      matches.slice(offset, offset + limit).map(projectFoodItem),
+      matches.length,
+      offset
+    );
+  }
+  const [rows, totalCount] = await Promise.all([
+    foodRepository.getFoodsWithPagination(
+      foodName,
+      null,
+      userId,
+      limit,
+      offset,
+      null
+    ),
+    foodRepository.countFoods(foodName, null, userId),
+  ]);
+  return buildPaginatedResult(rows.map(projectFoodItem), totalCount, offset);
+}
+
+// Case-insensitive exact name lookup (MCP's `name ILIKE $1` without
+// wildcards). Returns the raw catalog row including default_variant.
+async function findFoodByExactName(userId: string, name: string) {
+  const rows = await foodRepository.getFoodsWithPagination(
+    name,
+    null,
+    userId,
+    NAME_RESOLUTION_WINDOW,
+    0,
+    null
+  );
+  return rows.find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (r: any) => String(r.name).toLowerCase() === name.toLowerCase()
+  );
+}
+
+// Per-day nutrition totals with the user's energy-unit conversion applied —
+// MCP's getNutritionalSummary row shape (fiber/sugar aliases included).
+// Shared with the report tools.
+export async function getNutritionalSummaryRows(
+  userId: string,
+  startDate: string,
+  endDate: string
+) {
+  const prefs = await preferenceService.getUserPreferences(userId, userId);
+  const energyUnit = (prefs?.energy_unit as string) || 'kcal';
+  const rows = await reportRepository.getDailyNutritionTotalsRange(
+    userId,
+    startDate,
+    endDate
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((row: any) => {
+    const calories = Number(row.calories || 0);
+    return {
+      entry_date: dayString(row.entry_date),
+      calories:
+        energyUnit === 'kJ' ? convertEnergy(calories, 'kcal', 'kJ') : calories,
+      protein: Number(row.protein || 0),
+      carbs: Number(row.carbs || 0),
+      fat: Number(row.fat || 0),
+      saturated_fat: Number(row.saturated_fat || 0),
+      polyunsaturated_fat: Number(row.polyunsaturated_fat || 0),
+      monounsaturated_fat: Number(row.monounsaturated_fat || 0),
+      trans_fat: Number(row.trans_fat || 0),
+      cholesterol: Number(row.cholesterol || 0),
+      sodium: Number(row.sodium || 0),
+      potassium: Number(row.potassium || 0),
+      fiber: Number(row.fiber || 0),
+      sugar: Number(row.sugar || 0),
+      vitamin_a: Number(row.vitamin_a || 0),
+      vitamin_c: Number(row.vitamin_c || 0),
+      calcium: Number(row.calcium || 0),
+      iron: Number(row.iron || 0),
+      energy_unit: energyUnit,
+    };
+  });
+}
+
+// Per-day water totals converted into the user's display unit — MCP's
+// getWaterHistory row shape. Shared with the report tools.
+export async function getWaterHistoryRows(
+  userId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const prefs = await preferenceService.getUserPreferences(userId, userId);
+  const waterUnit = (prefs?.water_display_unit as string) || 'ml';
+  const rows = await measurementRepository.getWaterTotalsByDateRange(
+    userId,
+    startDate,
+    endDate
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((row: any) => {
+    const ml = Number(row.total_ml || 0);
+    return {
+      entry_date: dayString(row.entry_date),
+      amount: waterUnit === 'oz' ? Math.round((ml / 29.5735) * 10) / 10 : ml,
+      unit: waterUnit,
+    };
+  });
+}
+
+/**
+ * Cascade lookup for food nutrition: internal DB, then the user's active
+ * configured external providers (sort_order first), then free OpenFoodFacts.
+ * `source: 'ai_estimate'` with a null food signals the AI-estimation fallback.
+ */
+async function lookupFoodNutrition(
+  userId: string,
+  foodName: string,
+  providerType?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ source: string; food: any | null; alternatives?: any[] }> {
+  // Internal DB search (unless another provider was explicitly requested)
+  if (!providerType || providerType === 'internal') {
+    const internalExact = await searchFoodInternal(userId, foodName, 'exact');
+    if (internalExact.data.length > 0) {
+      return {
+        source: 'internal',
+        food: internalExact.data[0],
+        alternatives: internalExact.data.slice(1),
+      };
+    }
+    const internalBroad = await searchFoodInternal(userId, foodName, 'broad');
+    if (internalBroad.data.length > 0) {
+      return {
+        source: 'internal',
+        food: internalBroad.data[0],
+        alternatives: internalBroad.data.slice(1),
+      };
+    }
+    // "internal" explicitly requested and not found: stop here
+    if (providerType === 'internal') {
+      return { source: 'internal', food: null };
+    }
+  }
+
+  let targetProviders: {
+    id?: string;
+    provider_type: string;
+    provider_name: string;
+  }[] = [];
+
+  if (providerType) {
+    if (providerType === 'openfoodfacts') {
+      targetProviders.push({
+        provider_type: 'openfoodfacts',
+        provider_name: 'OpenFoodFacts',
+      });
+    } else {
+      const rows = await externalProviderRepository.getActiveProvidersByTypes(
+        userId,
+        [providerType]
+      );
+      if (rows.length > 0) {
+        targetProviders.push(rows[0]);
+      } else {
+        // Explicitly requested but unconfigured: the per-provider search
+        // below fails (no credentials) and the cascade falls through to the
+        // AI-estimate response — MCP behavior, pinned by test.
+        targetProviders.push({
+          provider_type: providerType,
+          provider_name: providerType,
+        });
+      }
+    }
+  } else {
+    targetProviders =
+      await externalProviderRepository.getActiveProvidersByTypes(
+        userId,
+        FOOD_PROVIDER_TYPES
+      );
+    if (!targetProviders.some((p) => p.provider_type === 'openfoodfacts')) {
+      targetProviders.push({
+        provider_type: 'openfoodfacts',
+        provider_name: 'OpenFoodFacts',
+      });
+    }
+    // Honour the user's chosen default food provider. Without this the cascade
+    // order comes from sort_order, which is NULL for most installs and falls
+    // back to created_at DESC — so the most recently added provider silently
+    // won every lookup and the setting the user picked in the UI did nothing.
+    const defaultProviderId = (
+      await preferenceService.getUserPreferences(userId, userId)
+    )?.default_food_data_provider_id;
+    if (defaultProviderId) {
+      const defaultIndex = targetProviders.findIndex(
+        (p) => p.id === defaultProviderId
+      );
+      if (defaultIndex > 0) {
+        const [preferred] = targetProviders.splice(defaultIndex, 1);
+        targetProviders.unshift(preferred);
+      }
+    }
+  }
+
+  for (const provider of targetProviders) {
+    try {
+      log(
+        'debug',
+        `[Food Tool] Lookup cascade querying provider: ${provider.provider_name} (${provider.provider_type})`
+      );
+      const result = await searchProviderFoods(
+        userId,
+        provider.provider_type as ProviderType,
+        foodName,
+        { providerId: provider.id }
+      );
+      if (result.foods.length > 0) {
+        const ranked = rankProviderMatches(result.foods, foodName);
+        return {
+          source: provider.provider_type,
+          food: ranked[0],
+          alternatives: ranked.slice(1),
+        };
+      }
+    } catch (error) {
+      log(
+        'warn',
+        `[Food Tool] Lookup cascade provider ${provider.provider_name} failed:`,
+        error
+      );
+    }
+  }
+
+  return { source: 'ai_estimate', food: null };
+}
+
+// Standalone domain tools.
+const foodDateRangeSchema = z.object({
+  date: optionalDateSchema,
+  start_date: optionalDateSchema,
+  end_date: optionalDateSchema,
+});
+
+const foodPaginationSchema = z.object({
+  limit: z.number().int().min(1).max(500).optional(),
+  offset: z.number().int().min(0).optional(),
+});
+
+const listFoodsSchema = foodPaginationSchema.extend({
+  search: z.string().optional(),
+});
+
+const getFoodDetailsSchema = z.object({
+  food_id: z.string().min(1),
+});
+
+const searchFoodsSchema = foodPaginationSchema.extend({
+  query: z.string().min(1),
+});
+
+const recentFoodEntriesSchema = z.object({
+  limit: z.number().int().min(1).max(200).optional(),
+});
+
+const foodUsageSchema = foodDateRangeSchema.merge(foodPaginationSchema).extend({
+  food_id: z.string().min(1),
+});
+
+export function buildFoodTools(userId: string, tz: string) {
+  return {
+    sparky_manage_food: tool({
+      description: `Nutrition tracking: search food, log meals, create foods, manage diary.
+
+Actions:
+- search_food(food_name, search_type:"exact"|"broad", limit?, offset?)
+- lookup_food_nutrition(food_name, provider_type?) — AI MUST call this cascade lookup first before creating or estimating a food. Bypasses regular cascade to search specific provider (e.g. openfoodfacts, usda, yazio) if provider_type given.
+- list_meal_types() — lists the user's built-in and custom meal types with IDs, names, and sort order.
+- log_food(quantity, meal_type_id?|meal_type?, food_name?|food_id?, unit?, entry_date?, variant_id?) — use meal_type_id for custom meal types; the legacy meal_type fallback accepts "breakfast"|"lunch"|"dinner"|"snacks". meal_type_id takes precedence when both are supplied. Provide food_name or food_id (an internal food UUID, never a lookup result's External ID); unit defaults to the food's serving unit, entry_date defaults to today. Works only for foods already in the database (source='internal').
+- log_external_food(food_name, meal_type_id?|meal_type?, quantity?, unit?, entry_date?, external_id?, provider_type?) — PREFERRED way to log an external lookup_food_nutrition match (usda/openfoodfacts/...): the server re-fetches the provider result, saves it with full nutrition, and logs it in one call. quantity is in servings and defaults to 1.
+- create_food(food_name, calories, protein, carbs, fat, brand?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, saturated_fat?, fiber?, sugar?, sodium?, ...) — MANDATORY: You must run lookup_food_nutrition first. Call only when lookup returns source='ai_estimate' (no match anywhere) or for custom/homemade foods, using AI-estimated values; for external lookup matches use log_external_food instead. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Populate as many micro-nutrients, GI classification, and brand ('Homemade' or 'Traditional' if generic) as possible rather than just core macros.
+- search_meal(meal_name)
+- log_meal(meal_type_id?|meal_type?, entry_date, meal_id?, meal_name?, quantity?)
+- list_diary(entry_date?)
+- delete_entry(entry_id?|food_name?, entry_type?, entry_date?, meal_type?|meal_type_id?) — deletes one diary entry. Provide entry_id when you have it; otherwise food_name is resolved against the diary for entry_date (defaults to today), with meal_type narrowing when the same food appears in several meals. Ambiguous names return the candidates with their ids instead of deleting.
+- delete_food(food_id?|food_name?) — deletes food + variants + all diary entries referencing it
+- update_entry(entry_id?|food_name?, entry_type?, entry_date?, quantity?, unit?, meal_type_id?, meal_type?) — changes quantity/unit and/or moves the entry to another meal type (meal_type/meal_type_id is the NEW meal). Provide entry_id when you have it; otherwise food_name is resolved against the diary for entry_date (defaults to today). Ambiguous names return the candidates with their ids instead of updating.
+- update_food_variant(food_id?|variant_id?, serving_size?, serving_unit?, calories?, protein?, carbs?, fat?, saturated_fat?, fiber?, sugar?, sodium?, ..., update_existing_entries?) — updates an existing food variant without deleting the food. Defaults to leaving existing diary entries unchanged.
+- copy_from_yesterday(target_date?, source_date?, meal_type_id?|meal_type?)
+- save_as_meal_template(entry_date, meal_type_id?|meal_type?, meal_name, description?) — REQUIRES EXPLICIT action field. Saves diary entries for a given date and meal type as a reusable meal template.
+- log_water(amount_ml, entry_date)
+- get_nutritional_summary(start_date, end_date) — returns macro breakdown for a range of dates
+- get_water_history(start_date?, end_date?)`,
+      inputSchema: manageFoodInput,
+      execute: async (rawArgs) => {
+        const normalized = normalizeActionArgs(
+          rawArgs,
+          tz,
+          VALID_ACTIONS,
+          (args) => {
+            // entry_id is an unambiguous identifier of an operation on an
+            // existing diary row. It must win over any incidental food_name /
+            // meal_name / external_id / date fields: list_diary naturally
+            // returns entry_id + entry_type together with food_name or
+            // meal_name, and letting a log/lookup action claim those fields
+            // would make the salvage logic drop entry_id and run a different
+            // data-writing operation.
+            if (
+              args.entry_id &&
+              (args.quantity !== undefined ||
+                args.unit ||
+                args.meal_type ||
+                args.meal_type_id)
+            ) {
+              return 'update_entry';
+            }
+            if (args.entry_id && args.entry_type) {
+              return 'delete_entry';
+            }
+            if (args.amount_ml) {
+              return 'log_water';
+            }
+            if (args.external_id) {
+              return 'log_external_food';
+            }
+            if (
+              args.food_name &&
+              (args.calories !== undefined || args.protein !== undefined)
+            ) {
+              return 'create_food';
+            }
+            if (
+              (args.food_name || args.food_id) &&
+              (args.meal_type || args.meal_type_id)
+            ) {
+              if (
+                args.food_name?.toLowerCase() === 'water' ||
+                args.unit === 'ml'
+              ) {
+                return 'log_water';
+              }
+              return 'log_food';
+            }
+            if (args.food_name) {
+              return 'lookup_food_nutrition';
+            }
+            // log_meal must be checked before copy_from_yesterday: small
+            // models often file a logging date under target_date/source_date,
+            // and the salvage logic remaps those to entry_date for logging
+            // actions. A meal_name or meal_id combined with any date (or a
+            // type selector) is a log intent — inferring copy first would
+            // silently drop meal_name/meal_id and run a different
+            // data-writing operation instead of a validation error when the
+            // type selector is missing.
+            if (args.meal_id) {
+              return 'log_meal';
+            }
+            if (
+              args.meal_name &&
+              (args.meal_type ||
+                args.meal_type_id ||
+                args.entry_date ||
+                args.target_date ||
+                args.source_date)
+            ) {
+              return 'log_meal';
+            }
+            if (args.meal_name) {
+              return 'search_meal';
+            }
+            // Entry/food-targeted operations win over an incidental date
+            // field: a model may add target_date/source_date to an
+            // update/delete call, and the salvage logic would otherwise strip
+            // the id fields and run a full-day copy instead.
+            if (args.food_id) {
+              return 'delete_food';
+            }
+            if (args.target_date || args.source_date) {
+              return 'copy_from_yesterday';
+            }
+            if (args.meal_type || args.meal_type_id) {
+              return 'log_meal';
+            }
+            if (args.start_date || args.end_date) {
+              return 'get_nutritional_summary';
+            }
+            if (args.entry_date) {
+              return 'list_diary';
+            }
+            return 'list_diary'; // fallback
+          }
+        ) as Record<string, any>;
+
+        // Models routinely paste a lookup result's provider "External ID"
+        // into food_id, which must be an internal UUID. When the food_name is
+        // also present, drop the bad id and resolve by name (log_food's
+        // normal path); otherwise return a chat-visible correction instead of
+        // letting the strict union emit a bare "Must be a valid UUID".
+        if (
+          typeof normalized.food_id === 'string' &&
+          !uuidSchema.safeParse(normalized.food_id).success
+        ) {
+          if (normalized.food_name) {
+            log(
+              'info',
+              `[foodTools] Ignoring non-UUID food_id '${normalized.food_id}' (likely a provider External ID); resolving by food_name`
+            );
+            delete normalized.food_id;
+          } else {
+            return ERRORS.VALIDATION(
+              `food_id '${normalized.food_id}' is not an internal food UUID — External IDs from lookup_food_nutrition results cannot be logged directly. Retry with log_external_food, passing the food_name (and optionally external_id '${normalized.food_id}') plus quantity and meal_type.`
+            );
+          }
+        }
+
+        // Same trap for variant_id; dropping it falls back to the default
+        // variant, which is what the model wanted anyway.
+        if (
+          typeof normalized.variant_id === 'string' &&
+          !uuidSchema.safeParse(normalized.variant_id).success
+        ) {
+          log(
+            'info',
+            `[foodTools] Ignoring non-UUID variant_id '${normalized.variant_id}'; using the default variant`
+          );
+          delete normalized.variant_id;
+        }
+        const loggingActions = [
+          'log_food',
+          'log_external_food',
+          'create_food',
+          'log_meal',
+          'log_water',
+          'save_as_meal_template',
+        ];
+        // Small-model salvage: a date supplied under the wrong key on a
+        // logging action (source_date/target_date belong to
+        // copy_from_yesterday) becomes entry_date instead of an
+        // unrecognized-key failure.
+        if (loggingActions.includes(normalized.action)) {
+          const misfiled = normalized.source_date || normalized.target_date;
+          if (misfiled && !normalized.entry_date) {
+            normalized.entry_date = misfiled;
+            log(
+              'info',
+              `[foodTools] Remapped misfiled date '${misfiled}' to entry_date for ${normalized.action}`
+            );
+          }
+          delete normalized.source_date;
+          delete normalized.target_date;
+        }
+        // Default missing entry_date to today's date string for logging actions
+        if (
+          normalized.entry_date === undefined &&
+          loggingActions.includes(normalized.action)
+        ) {
+          normalized.entry_date = todayInZone(tz);
+        }
+
+        let parsed = manageFoodSchema.safeParse(normalized);
+        if (!parsed.success) {
+          // Small-model salvage: drop keys the action doesn't accept (models
+          // bleed fields across actions) and re-parse once.
+          const badKeys = parsed.error.issues.flatMap((i) =>
+            i.code === 'unrecognized_keys' ? i.keys : []
+          );
+          if (badKeys.length > 0) {
+            for (const key of badKeys) delete normalized[key];
+            log(
+              'info',
+              `[foodTools] Dropped unrecognized keys for ${normalized.action}: ${badKeys.join(', ')}`
+            );
+            parsed = manageFoodSchema.safeParse(normalized);
+          }
+        }
+        if (!parsed.success) {
+          return formatActionParseError(
+            String(normalized.action),
+            parsed.error,
+            normalized,
+            tz
+          );
+        }
+        const args: ManageFoodInput = parsed.data;
+        const optionalMealFields = args as {
+          meal_type_id?: string;
+          meal_type?: string;
+          quantity?: number;
+          unit?: string;
+        };
+        const mealTypeRequiredActions = [
+          'log_food',
+          'log_external_food',
+          'log_meal',
+          'save_as_meal_template',
+        ];
+        if (
+          mealTypeRequiredActions.includes(args.action) &&
+          !optionalMealFields.meal_type_id &&
+          !optionalMealFields.meal_type
+        ) {
+          return ERRORS.MISSING_PARAMS(['meal_type_id (or meal_type)']);
+        }
+        if (
+          args.action === 'update_entry' &&
+          optionalMealFields.quantity === undefined &&
+          optionalMealFields.unit === undefined &&
+          !optionalMealFields.meal_type_id &&
+          !optionalMealFields.meal_type
+        ) {
+          return ERRORS.VALIDATION(
+            'update_entry requires quantity, unit, meal_type_id, or meal_type'
+          );
+        }
+        try {
+          switch (args.action) {
+            case 'search_food': {
+              const result = await searchFoodInternal(
+                userId,
+                args.food_name,
+                args.search_type,
+                args.limit,
+                args.offset
+              );
+              return formatList(
+                result.data,
+                `Food Search: "${args.food_name}" (${args.search_type})`,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (f: any) => {
+                  const v = f.variants[0];
+                  let text = `**${f.name}**`;
+                  if (f.brand) text += ` (${f.brand})`;
+                  if (v) {
+                    text += `\n  ${v.serving_size}${v.serving_unit}: ${v.calories} kcal | P: ${v.protein}g | C: ${v.carbs}g | F: ${v.fat}g`;
+                  }
+                  text += `\n  ID: ${f.id}`;
+                  if (v) text += ` | Variant: ${v.id}`;
+                  return text;
+                },
+                {
+                  total_count: result.total_count,
+                  has_more: result.has_more,
+                  next_offset: result.next_offset,
+                }
+              );
+            }
+
+            case 'list_meal_types': {
+              const mealTypes =
+                await mealTypeRepository.getAllMealTypes(userId);
+              return formatJsonResult(
+                mealTypes
+                  .filter(
+                    (mealType: { is_visible: boolean }) =>
+                      mealType.is_visible !== false
+                  )
+                  .map(
+                    (mealType: {
+                      id: string;
+                      name: string;
+                      sort_order: number;
+                    }) => ({
+                      id: mealType.id,
+                      name: mealType.name,
+                      sort_order: mealType.sort_order,
+                    })
+                  )
+              );
+            }
+
+            case 'lookup_food_nutrition': {
+              const result = await lookupFoodNutrition(
+                userId,
+                args.food_name,
+                args.provider_type
+              );
+
+              if (result.source === 'ai_estimate') {
+                return `No matches found in internal DB or configured external databases/OpenFoodFacts for "${args.food_name}". You may estimate the nutrition using AI and save it using create_food.`;
+              }
+              if (!result.food) {
+                // MCP quirk: an explicit provider_type='internal' miss
+                // crashed its renderer on the null food and surfaced as a
+                // DB error — ported as-is.
+                return ERRORS.DB_ERROR();
+              }
+
+              const f = result.food;
+              let text = `### Found match in **${result.source}**:\n`;
+              text += `**${f.name}**`;
+              if (f.brand) text += ` (${f.brand})`;
+
+              if (result.source === 'internal') {
+                const dbVariants = await foodRepository.getFoodVariantsByFoodId(
+                  f.id,
+                  userId
+                );
+                if (Array.isArray(dbVariants)) {
+                  f.variants = dbVariants;
+                }
+              }
+
+              const v =
+                result.source === 'internal'
+                  ? f.default_variant || f.variants?.[0]
+                  : pickBestVariant(f);
+              if (v) {
+                text += `\n  Serving Size: ${v.serving_size} ${v.serving_unit}`;
+                text += `\n  Energy: ${v.calories ?? v.energy ?? 0} kcal`;
+                text += `\n  Macros: Protein: ${v.protein}g | Carbs: ${v.carbs}g | Fat: ${v.fat}g`;
+                if (
+                  isSet(v.saturated_fat) ||
+                  isSet(v.dietary_fiber) ||
+                  isSet(v.sugars) ||
+                  isSet(v.sodium)
+                ) {
+                  text += `\n  Details: Fiber: ${v.dietary_fiber ?? 0}g | Sugar: ${v.sugars ?? 0}g | Sodium: ${v.sodium ?? 0}mg | SatFat: ${v.saturated_fat ?? 0}g`;
+                }
+
+                const plausibleVariants = (f.variants || []).filter(
+                  (vOpt: any) =>
+                    vOpt &&
+                    Number(vOpt.serving_size) > 0 &&
+                    !IMPLAUSIBLE_SERVING_UNITS.has(
+                      String(vOpt.serving_unit || '').toLowerCase()
+                    )
+                );
+                if (plausibleVariants.length > 0) {
+                  const units = plausibleVariants
+                    .map(
+                      (vOpt: any) => `${vOpt.serving_size} ${vOpt.serving_unit}`
+                    )
+                    .join(', ');
+                  text += `\n  Available Serving Units: ${units}`;
+                } else {
+                  text += `\n  Available Serving Units: ${v.serving_size} ${v.serving_unit}`;
+                }
+
+                // Internal hits carry a usable food UUID; surface it so the
+                // model can call log_food(food_id) directly.
+                if (result.source === 'internal' && f.id) {
+                  text += `\n  ID: ${f.id}`;
+                }
+                if (f.provider_external_id) {
+                  text += `\n  External ID: ${f.provider_external_id}`;
+                }
+              }
+
+              if (result.alternatives && result.alternatives.length > 0) {
+                text += '\n\n**Other Alternatives found:**';
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                result.alternatives.slice(0, 5).forEach((alt: any) => {
+                  const altV =
+                    result.source === 'internal'
+                      ? alt.default_variant || alt.variants?.[0]
+                      : pickBestVariant(alt);
+                  text += `\n- **${alt.name}**`;
+                  if (alt.brand) text += ` (${alt.brand})`;
+                  if (altV) {
+                    text += ` (${altV.serving_size}${altV.serving_unit}: ${altV.calories ?? altV.energy ?? 0} kcal)`;
+                  }
+                });
+              }
+
+              // External-provider results are not yet in the user's food
+              // database, and their External ID is not a food_id. The hint is
+              // a literal, filled-in example call: small local models copy an
+              // example far more reliably than they carry the food name and
+              // nutrition values across turns into their own call.
+              if (result.source !== 'internal') {
+                const exampleCall = JSON.stringify({
+                  action: 'log_external_food',
+                  food_name: f.name,
+                  ...(f.provider_external_id
+                    ? { external_id: String(f.provider_external_id) }
+                    : {}),
+                  quantity: 1,
+                  meal_type: '<breakfast|lunch|dinner|snacks>',
+                });
+                text += `\n\nNote: this external result is not saved in the food database yet. To save and log it in one step, call sparky_manage_food with: ${exampleCall} (adjust quantity and meal_type). Do NOT pass the External ID as food_id.`;
+              }
+
+              return text;
+            }
+
+            case 'log_food': {
+              const mealType = await resolveMealType(
+                userId,
+                args.meal_type_id,
+                args.meal_type
+              );
+              if (!mealType) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              let foodId = args.food_id;
+              const variantId = args.variant_id;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              let foodRow: any;
+              if (!foodId) {
+                if (!args.food_name) {
+                  return ERRORS.MISSING_PARAMS(['food_name (or food_id)']);
+                }
+                foodRow = await findFoodByExactName(userId, args.food_name);
+                if (!foodRow) {
+                  return ERRORS.VALIDATION(
+                    `Food "${args.food_name}" not found in the database. Call lookup_food_nutrition first to search external providers, for example: {"action":"lookup_food_nutrition","food_name":"${args.food_name}"}. If it returns an external match, log it with log_external_food; otherwise call create_food with estimated macros.`
+                  );
+                }
+                foodId = foodRow.id;
+              }
+
+              if (!foodId) {
+                return ERRORS.VALIDATION('Food ID could not be resolved.');
+              }
+
+              const resolvedLog = await resolveFoodLogVariantAndQuantity({
+                userId,
+                foodId,
+                variantId,
+                foodRow,
+                quantity: args.quantity,
+                unit: args.unit,
+              });
+              if (!resolvedLog.ok) {
+                return ERRORS.VALIDATION(resolvedLog.message);
+              }
+
+              const entryDate = args.entry_date || todayInZone(tz);
+              const entry = await foodEntryService.createFoodEntry(
+                userId,
+                userId,
+                {
+                  user_id: userId,
+                  food_id: foodId,
+                  variant_id: resolvedLog.variantId,
+                  entry_date: entryDate,
+                  quantity: resolvedLog.quantity,
+                  unit: resolvedLog.unit,
+                  meal_type_id: mealType.id,
+                  entry_time: args.entry_time,
+                }
+              );
+              return formatConfirmation(
+                `Logged "${entry.food_name}" (${resolvedLog.quantity} ${resolvedLog.unit}) for ${mealType.name} on ${entryDate}.`
+              );
+            }
+
+            case 'log_external_food': {
+              const mealType = await resolveMealType(
+                userId,
+                args.meal_type_id,
+                args.meal_type
+              );
+              if (!mealType) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              const entryDate = args.entry_date || todayInZone(tz);
+              const quantity = args.quantity ?? 1;
+              const result = await lookupFoodNutrition(
+                userId,
+                args.food_name,
+                args.provider_type
+              );
+              if (result.source === 'ai_estimate' || !result.food) {
+                // Preserve the caller's meal selector in the retry example: a
+                // custom meal_type_id must not be silently replaced with the
+                // lunch fallback (that is exactly the kind of category
+                // substitution issue #1959 is about).
+                const mealSelector = args.meal_type_id
+                  ? { meal_type_id: args.meal_type_id }
+                  : { meal_type: args.meal_type ?? 'lunch' };
+                const exampleCall = JSON.stringify({
+                  action: 'create_food',
+                  food_name: args.food_name,
+                  calories: 300,
+                  protein: 15,
+                  carbs: 40,
+                  fat: 5,
+                  ...mealSelector,
+                  entry_date: entryDate,
+                });
+                return ERRORS.VALIDATION(
+                  `No external match found for "${args.food_name}". Please estimate the nutrition yourself and call create_food (include meal_type_id (or meal_type) and entry_date to save and log in one step), for example: ${exampleCall}`
+                );
+              }
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const candidates: any[] = [
+                result.food,
+                ...(result.alternatives ?? []),
+              ];
+              const match =
+                (args.external_id &&
+                  candidates.find(
+                    (c) =>
+                      String(c.provider_external_id ?? '') ===
+                      String(args.external_id)
+                  )) ||
+                result.food;
+
+              if (result.source === 'internal') {
+                // Already saved: log it directly against the existing food.
+                const variants = await foodRepository.getFoodVariantsByFoodId(
+                  match.id,
+                  userId
+                );
+                let chosenVariant: any =
+                  match.default_variant ||
+                  match.variants?.[0] ||
+                  (Array.isArray(variants) ? variants[0] : undefined);
+                if (args.unit && Array.isArray(variants)) {
+                  const normalizedReqUnit = normalizeServingUnit(args.unit);
+                  const matchedVariant = variants.find(
+                    (v: any) =>
+                      normalizeServingUnit(v.serving_unit) === normalizedReqUnit
+                  );
+                  if (matchedVariant) {
+                    chosenVariant = matchedVariant;
+                  }
+                }
+                // Keep the stored entry's unit aligned with the variant's own
+                // serving_unit so the diary math does not read a whole-serving
+                // count as a gram/ml amount.
+                const logged = reconcileEntryUnitToVariant(
+                  quantity,
+                  args.unit,
+                  chosenVariant
+                );
+                const entry = await foodEntryService.createFoodEntry(
+                  userId,
+                  userId,
+                  {
+                    user_id: userId,
+                    food_id: match.id,
+                    variant_id: chosenVariant?.id,
+                    entry_date: entryDate,
+                    quantity: logged.quantity,
+                    unit: logged.unit,
+                    meal_type_id: mealType.id,
+                    entry_time: args.entry_time,
+                  }
+                );
+                return formatConfirmation(
+                  `"${entry.food_name}" was already in the food database — logged ${logged.quantity} ${logged.unit} for ${mealType.name} on ${entryDate}.`
+                );
+              }
+
+              const v = pickBestVariant(match);
+              if (!v) {
+                return ERRORS.VALIDATION(
+                  `Provider result for "${match.name}" has no nutrition data. Use create_food with estimated nutrition values instead.`
+                );
+              }
+              const food = await foodCoreService.createFood(userId, {
+                user_id: userId,
+                name: match.name,
+                brand: match.brand || null,
+                serving_size: toNutrientNumber(v.serving_size) ?? 100,
+                serving_unit: v.serving_unit || 'g',
+                calories: toNutrientNumber(v.calories ?? v.energy) ?? 0,
+                protein: toNutrientNumber(v.protein) ?? 0,
+                carbs: toNutrientNumber(v.carbs) ?? 0,
+                fat: toNutrientNumber(v.fat) ?? 0,
+                saturated_fat: toNutrientNumber(v.saturated_fat),
+                polyunsaturated_fat: toNutrientNumber(v.polyunsaturated_fat),
+                monounsaturated_fat: toNutrientNumber(v.monounsaturated_fat),
+                trans_fat: toNutrientNumber(v.trans_fat),
+                cholesterol: toNutrientNumber(v.cholesterol),
+                sodium: toNutrientNumber(v.sodium),
+                potassium: toNutrientNumber(v.potassium),
+                dietary_fiber: toNutrientNumber(v.dietary_fiber),
+                sugars: toNutrientNumber(v.sugars),
+                vitamin_a: toNutrientNumber(v.vitamin_a),
+                vitamin_c: toNutrientNumber(v.vitamin_c),
+                calcium: toNutrientNumber(v.calcium),
+                iron: toNutrientNumber(v.iron),
+                glycemic_index: v.glycemic_index || null,
+                // food_variants.source is constrained to manual|ai_estimate|
+                // imported — the provider name ('usda', 'openfoodfacts', …)
+                // violates the CHECK and rolls the whole insert back. The
+                // provider identity belongs on the food, not the variant's
+                // source. Matches services/healthDataHandlers.ts.
+                source: 'imported',
+                provider_type: result.source,
+                provider_external_id: match.provider_external_id ?? null,
+                // Carry the provider photo across like the web import does.
+                // createFood funnels this through resolveImageInput and
+                // localizes it after commit, so a food logged through the
+                // assistant gets the same image as one added from the UI.
+                image_url: match.image_url ?? null,
+                image_source_url: match.image_source_url ?? null,
+              });
+
+              // Create the other variants returned by the provider
+              const otherVariants = (match.variants || []).filter(
+                (varOpt: any) =>
+                  varOpt !== v &&
+                  (varOpt.serving_size !== v.serving_size ||
+                    varOpt.serving_unit !== v.serving_unit)
+              );
+              let createdVariants: any[] = [];
+              if (otherVariants.length > 0) {
+                const variantsToSave = otherVariants.map((varOpt: any) => ({
+                  food_id: food.id,
+                  serving_size: toNutrientNumber(varOpt.serving_size) ?? 100,
+                  serving_unit: varOpt.serving_unit || 'g',
+                  calories:
+                    toNutrientNumber(varOpt.calories ?? varOpt.energy) ?? 0,
+                  protein: toNutrientNumber(varOpt.protein) ?? 0,
+                  carbs: toNutrientNumber(varOpt.carbs) ?? 0,
+                  fat: toNutrientNumber(varOpt.fat) ?? 0,
+                  saturated_fat: toNutrientNumber(varOpt.saturated_fat),
+                  polyunsaturated_fat: toNutrientNumber(
+                    varOpt.polyunsaturated_fat
+                  ),
+                  monounsaturated_fat: toNutrientNumber(
+                    varOpt.monounsaturated_fat
+                  ),
+                  trans_fat: toNutrientNumber(varOpt.trans_fat),
+                  cholesterol: toNutrientNumber(varOpt.cholesterol),
+                  sodium: toNutrientNumber(varOpt.sodium),
+                  potassium: toNutrientNumber(varOpt.potassium),
+                  dietary_fiber: toNutrientNumber(varOpt.dietary_fiber),
+                  sugars: toNutrientNumber(varOpt.sugars),
+                  vitamin_a: toNutrientNumber(varOpt.vitamin_a),
+                  vitamin_c: toNutrientNumber(varOpt.vitamin_c),
+                  calcium: toNutrientNumber(varOpt.calcium),
+                  iron: toNutrientNumber(varOpt.iron),
+                  glycemic_index: varOpt.glycemic_index || null,
+                  is_default: false,
+                  // Same CHECK constraint as the default variant above: the
+                  // provider name is not a valid source. This insert is
+                  // best-effort (failures are only warned about), so the bad
+                  // value silently cost the food every alternative serving unit
+                  // the provider returned — including the count units ("1
+                  // fruit", "1 slice") whose absence forces a gram
+                  // clarification at log time.
+                  source: 'imported',
+                }));
+                try {
+                  createdVariants =
+                    await foodCoreService.bulkCreateFoodVariants(
+                      userId,
+                      variantsToSave
+                    );
+                } catch (err) {
+                  log(
+                    'warn',
+                    '[Food Tool] Failed to bulk save alternative variants:',
+                    err
+                  );
+                }
+              }
+
+              const dv = food.default_variant;
+              let variantId = dv?.id;
+              let chosenVariant: any = dv;
+
+              if (args.unit) {
+                const normalizedReqUnit = normalizeServingUnit(args.unit);
+                const matchedAlt = createdVariants.find(
+                  (cv: any) =>
+                    normalizeServingUnit(cv.serving_unit) === normalizedReqUnit
+                );
+                if (matchedAlt) {
+                  variantId = matchedAlt.id;
+                  chosenVariant = matchedAlt;
+                } else if (
+                  dv &&
+                  normalizeServingUnit(dv.serving_unit) === normalizedReqUnit
+                ) {
+                  variantId = dv.id;
+                  chosenVariant = dv;
+                }
+              }
+
+              // Align the stored entry's unit with the chosen variant's own
+              // serving_unit. Newly imported foods are usually gram/ml denominated,
+              // so logging a bare "serving" count here made the diary math treat
+              // "1 serving" as "1 gram".
+              const logged = reconcileEntryUnitToVariant(
+                quantity,
+                args.unit,
+                chosenVariant
+              );
+
+              await foodEntryService.createFoodEntry(userId, userId, {
+                user_id: userId,
+                food_id: food.id,
+                variant_id: variantId,
+                entry_date: entryDate,
+                quantity: logged.quantity,
+                unit: logged.unit,
+                meal_type_id: mealType.id,
+                entry_time: args.entry_time,
+              });
+              return formatConfirmation(
+                `Saved "${food.name}" from ${result.source} (${dv?.calories || 0} kcal per ${dv?.serving_size || 100}${dv?.serving_unit || 'g'}) and logged ${logged.quantity} ${logged.unit} to ${mealType.name} on ${entryDate}.`
+              );
+            }
+
+            case 'create_food': {
+              const rawUnit = args.unit || 'serving';
+              // A unit that already encodes a count ("4 pieces", "2 cups") must be
+              // split into a numeric serving_size and a bare unit. Stored verbatim it
+              // becomes serving_size=1, serving_unit="4 pieces" — which then renders as
+              // the nonsense "14 pieces" (serving_size concatenated with serving_unit)
+              // and scales wrong. Peel a leading positive number off as a multiplier.
+              const countPrefix = /^\s*(\d+(?:\.\d+)?)\s+(\S.*)$/.exec(rawUnit);
+              const hasPositivePrefix =
+                countPrefix !== null && Number(countPrefix[1]) > 0;
+              const unitMultiplier = hasPositivePrefix
+                ? Number(countPrefix![1])
+                : 1;
+              const targetUnit = countPrefix ? countPrefix[2].trim() : rawUnit;
+              const isCountUnit = COUNT_BASED_UNITS.includes(
+                targetUnit.toLowerCase()
+              );
+              // A numeric prefix already states the serving size ("250 ml" is one
+              // 250 ml serving), so the implicit base is 1 — not the 100 default
+              // used for bare mass/volume units, which would store 25,000 ml.
+              const targetQuantity =
+                (args.quantity ||
+                  (hasPositivePrefix || isCountUnit ? 1 : 100)) *
+                unitMultiplier;
+              const mealType =
+                args.meal_type_id || args.meal_type
+                  ? await resolveMealType(
+                      userId,
+                      args.meal_type_id,
+                      args.meal_type
+                    )
+                  : undefined;
+              if (mealType === null) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              // The `|| null` on optional fields is MCP's storage quirk
+              // (an explicit 0 is stored as null), ported as-is.
+              const food = await foodCoreService.createFood(userId, {
+                user_id: userId,
+                name: args.food_name,
+                brand: args.brand || null,
+                serving_size: targetQuantity,
+                serving_unit: targetUnit,
+                calories: args.calories,
+                protein: args.protein,
+                carbs: args.carbs,
+                fat: args.fat,
+                saturated_fat: args.saturated_fat || null,
+                polyunsaturated_fat: args.polyunsaturated_fat || null,
+                monounsaturated_fat: args.monounsaturated_fat || null,
+                trans_fat: args.trans_fat || null,
+                cholesterol: args.cholesterol || null,
+                sodium: args.sodium || null,
+                potassium: args.potassium || null,
+                dietary_fiber: args.fiber || null,
+                sugars: args.sugar || null,
+                vitamin_a: args.vitamin_a || null,
+                vitamin_c: args.vitamin_c || null,
+                calcium: args.calcium || null,
+                iron: args.iron || null,
+                glycemic_index: args.gi || null,
+              });
+              const v = food.default_variant;
+              let msg = `Food "${food.name}" created with ${v?.calories || 0} kcal per ${v?.serving_size || 100}${v?.serving_unit || 'g'}.`;
+              if (mealType) {
+                const entryDate = args.entry_date || todayInZone(tz);
+                await foodEntryService.createFoodEntry(userId, userId, {
+                  user_id: userId,
+                  food_id: food.id,
+                  variant_id: v?.id,
+                  entry_date: entryDate,
+                  quantity: targetQuantity,
+                  unit: targetUnit,
+                  meal_type_id: mealType.id,
+                  entry_time: args.entry_time,
+                });
+                msg += ` Also logged to ${mealType.name} for ${entryDate}.`;
+              }
+              return formatConfirmation(msg);
+            }
+
+            case 'search_meal': {
+              const meals = await mealService.searchMeals(
+                userId,
+                args.meal_name
+              );
+              return formatList(
+                meals,
+                `Meal Search: "${args.meal_name}"`,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (m: any) => {
+                  let text = `**${m.name}**`;
+                  if (m.description) text += ` — ${m.description}`;
+                  text += `\n  Foods: ${m.foods.length} items`;
+                  if (m.foods.length > 0) {
+                    text += ` (${m.foods
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      .map((f: any) =>
+                        f.item_type === 'meal'
+                          ? `[meal] ${f.child_meal_name || f.food_name}`
+                          : f.food_name
+                      )
+                      .join(', ')})`;
+                  }
+                  text += `\n  ID: ${m.id}`;
+                  return text;
+                }
+              );
+            }
+
+            case 'log_meal': {
+              const mealType = await resolveMealType(
+                userId,
+                args.meal_type_id,
+                args.meal_type
+              );
+              if (!mealType) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              if (!args.meal_id && !args.meal_name) {
+                return ERRORS.VALIDATION(
+                  'Either meal_id or meal_name must be provided'
+                );
+              }
+              let mealId = args.meal_id;
+              let mealName = args.meal_name || '';
+              if (!mealId && args.meal_name) {
+                // Exact-insensitive name match over the server's substring
+                // search (MCP's `name ILIKE $1 LIMIT 1`).
+                const meals = await mealService.searchMeals(
+                  userId,
+                  args.meal_name
+                );
+                const name = args.meal_name.toLowerCase();
+                const match = meals.find(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (m: any) => String(m.name).toLowerCase() === name
+                );
+                if (!match) {
+                  return ERRORS.VALIDATION(
+                    `Meal "${args.meal_name}" not found.`
+                  );
+                }
+                mealId = match.id;
+                // Meal rows carry arbitrary selected columns, so narrow the
+                // name before assigning it to a string.
+                mealName = typeof match.name === 'string' ? match.name : '';
+              } else if (mealId) {
+                try {
+                  const meal = await mealService.getMealById(userId, mealId);
+                  mealName = meal.name;
+                } catch (error) {
+                  if (
+                    error instanceof Error &&
+                    error.message.includes('not found')
+                  ) {
+                    return ERRORS.VALIDATION(
+                      `Meal with ID "${mealId}" not found.`
+                    );
+                  }
+                  throw error;
+                }
+              }
+              await foodEntryService.createFoodEntryMeal(userId, userId, {
+                user_id: userId,
+                meal_template_id: mealId,
+                meal_type_id: mealType.id,
+                entry_date: args.entry_date,
+                name: mealName,
+                quantity: args.quantity || 1,
+                unit: args.unit || 'serving',
+                _clientMealModelVersion: 2,
+              });
+              return formatConfirmation(
+                `Meal "${mealName}" logged for ${mealType.name} on ${args.entry_date}.`
+              );
+            }
+
+            case 'list_diary': {
+              const date = args.entry_date || todayInZone(tz);
+              const prefs = await preferenceService.getUserPreferences(
+                userId,
+                userId
+              );
+              const eUnit = (prefs?.energy_unit as string) || 'kcal';
+              const foodRows = await foodEntryService.getFoodEntriesByDate(
+                userId,
+                userId,
+                date
+              );
+              const mealRows =
+                await foodEntryMealRepository.getFoodEntryMealsByDate(
+                  userId,
+                  date
+                );
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const foodEntries = foodRows.map((row: any) => {
+                const servingSize = Number(row.serving_size) || 1;
+                const servingUnit = (
+                  row.serving_unit || 'serving'
+                ).toLowerCase();
+                const unit = (row.unit || 'serving').toLowerCase();
+                const quantity = Number(row.quantity);
+
+                // Unit-compatibility multiplier: "serving" or a unit other
+                // than the variant's is treated as absolute servings.
+                const multiplier =
+                  unit === 'serving' || unit !== servingUnit
+                    ? quantity
+                    : quantity / servingSize;
+
+                const scale = (val: unknown) => {
+                  const n = Number(val);
+                  return isNaN(n) ? 0 : Math.round(n * multiplier * 10) / 10;
+                };
+
+                const scaledCalories = scale(row.calories);
+                const displayCalories =
+                  eUnit === 'kJ'
+                    ? convertEnergy(scaledCalories, 'kcal', 'kJ')
+                    : scaledCalories;
+
+                return {
+                  id: row.id,
+                  food_name: row.food_name,
+                  quantity,
+                  unit: row.unit || 'g',
+                  meal_type: row.meal_type ? String(row.meal_type) : 'snacks',
+                  meal_type_id: row.meal_type_id
+                    ? String(row.meal_type_id)
+                    : undefined,
+                  entry_type: 'food_entry' as const,
+                  nutritional_values: isSet(row.calories)
+                    ? {
+                        calories: Math.round(displayCalories),
+                        protein: scale(row.protein),
+                        carbs: scale(row.carbs),
+                        fat: scale(row.fat),
+                      }
+                    : undefined,
+                };
+              });
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const mealEntries = mealRows.map((row: any) => ({
+                id: row.id,
+                meal_name: row.name,
+                quantity: Number(row.quantity),
+                meal_type: row.meal_type ? String(row.meal_type) : 'snacks',
+                meal_type_id: row.meal_type_id
+                  ? String(row.meal_type_id)
+                  : undefined,
+                entry_type: 'food_entry_meal' as const,
+              }));
+
+              const allEntries = [...foodEntries, ...mealEntries];
+              const dateLabel = args.entry_date || 'Today';
+              let text = `# Food Diary: ${dateLabel}\n\n`;
+
+              if (allEntries.length === 0) {
+                text += 'No entries found for this date.';
+              } else {
+                const grouped: Record<string, typeof allEntries> = {};
+                for (const entry of allEntries) {
+                  const mt = entry.meal_type || 'other';
+                  if (!grouped[mt]) grouped[mt] = [];
+                  grouped[mt].push(entry);
+                }
+
+                let totalEnergy = 0;
+                for (const [mealType, entries] of Object.entries(grouped)) {
+                  text += `## ${mealType.charAt(0).toUpperCase() + mealType.slice(1)}\n`;
+                  for (const entry of entries) {
+                    if (entry.entry_type === 'food_entry') {
+                      text += `- **${entry.food_name}** — ${entry.quantity} ${entry.unit}`;
+                      if (entry.nutritional_values?.calories) {
+                        text += ` (${entry.nutritional_values.calories} ${eUnit})`;
+                        totalEnergy += entry.nutritional_values.calories;
+                      }
+                      text += `\n  ID: ${entry.id} | Type: food_entry`;
+                      if (entry.meal_type_id) {
+                        text += ` | Meal type: ${entry.meal_type} (${entry.meal_type_id})`;
+                      }
+                      text += '\n';
+                    } else {
+                      text += `- **${entry.meal_name}** (meal template) — ${entry.quantity}x`;
+                      text += `\n  ID: ${entry.id} | Type: food_entry_meal`;
+                      if (entry.meal_type_id) {
+                        text += ` | Meal type: ${entry.meal_type} (${entry.meal_type_id})`;
+                      }
+                      text += '\n';
+                    }
+                  }
+                  text += '\n';
+                }
+
+                if (totalEnergy > 0) {
+                  text += `---\n**Total Energy:** ${totalEnergy} ${eUnit}`;
+                }
+              }
+
+              return text;
+            }
+
+            case 'delete_entry': {
+              let entryId = args.entry_id;
+              let entryType = args.entry_type;
+              if (!entryId) {
+                if (!args.food_name) {
+                  return ERRORS.MISSING_PARAMS(['entry_id or food_name']);
+                }
+                const resolved = await resolveFoodEntryByName(
+                  userId,
+                  tz,
+                  {
+                    foodName: args.food_name,
+                    entryDate: args.entry_date,
+                    mealType: args.meal_type,
+                    mealTypeId: args.meal_type_id,
+                  },
+                  true
+                );
+                if (!resolved.ok) {
+                  return ERRORS.VALIDATION(resolved.message);
+                }
+                entryId = resolved.entryId;
+                entryType = 'food_entry';
+              }
+              try {
+                if ((entryType ?? 'food_entry') === 'food_entry') {
+                  await foodEntryService.deleteFoodEntry(userId, entryId);
+                } else {
+                  await foodEntryService.deleteFoodEntryMeal(userId, entryId);
+                }
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  error.message.includes('not found')
+                ) {
+                  return ERRORS.NOT_FOUND('Entry', entryId);
+                }
+                throw error;
+              }
+              return formatConfirmation('Entry deleted.');
+            }
+
+            case 'delete_food': {
+              if (!args.food_id && !args.food_name) {
+                return ERRORS.VALIDATION(
+                  'Either food_id or food_name must be provided'
+                );
+              }
+              let foodId = args.food_id;
+              let name = args.food_name;
+              if (!foodId) {
+                const row = await findFoodByExactName(
+                  userId,
+                  args.food_name ?? ''
+                );
+                if (!row) {
+                  return ERRORS.VALIDATION(
+                    `Food "${args.food_name}" not found.`
+                  );
+                }
+                foodId = row.id;
+                name = row.name;
+              } else {
+                const row = await foodRepository.getFoodById(foodId, userId);
+                if (!row) {
+                  return ERRORS.NOT_FOUND(
+                    'Food',
+                    args.food_id || args.food_name || 'unknown'
+                  );
+                }
+                name = row.name;
+              }
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              let result: any;
+              try {
+                result = await foodCoreService.deleteFood(
+                  userId,
+                  String(foodId),
+                  true
+                );
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  (error.message.includes('not found') ||
+                    error.message.includes('Forbidden'))
+                ) {
+                  return ERRORS.NOT_FOUND(
+                    'Food',
+                    args.food_id || args.food_name || 'unknown'
+                  );
+                }
+                throw error;
+              }
+              if (result.status === 'hidden') {
+                // Named drift: other users still reference this food, so the
+                // server hides it instead of deleting (MCP hit an FK
+                // violation here and returned a DB error).
+                return formatConfirmation(
+                  `Food "${name}" hidden (marked as quick food). Existing references remain.`
+                );
+              }
+              return formatConfirmation(
+                `Food "${name}" deleted (including variants and diary entries).`
+              );
+            }
+
+            case 'update_entry': {
+              // Name resolution never narrows by meal_type here: for updates
+              // the meal selector is the TARGET the entry moves to, not a
+              // filter on the source.
+              let entryId = args.entry_id;
+              let entryType = args.entry_type ?? 'food_entry';
+              if (!entryId) {
+                if (!args.food_name) {
+                  return ERRORS.MISSING_PARAMS(['entry_id or food_name']);
+                }
+                const resolved = await resolveFoodEntryByName(
+                  userId,
+                  tz,
+                  { foodName: args.food_name, entryDate: args.entry_date },
+                  false
+                );
+                if (!resolved.ok) {
+                  return ERRORS.VALIDATION(resolved.message);
+                }
+                entryId = resolved.entryId;
+                entryType = 'food_entry';
+              }
+              const mealType =
+                args.meal_type_id || args.meal_type
+                  ? await resolveMealType(
+                      userId,
+                      args.meal_type_id,
+                      args.meal_type
+                    )
+                  : undefined;
+              if (mealType === null) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              const mealTypeUpdate = mealType
+                ? { meal_type_id: mealType.id }
+                : {};
+              let quantityChanged = args.quantity !== undefined;
+              let unitChanged = args.unit !== undefined;
+              // For a food_entry the type is written whenever a selector is
+              // present; for a food_entry_meal it is refined below against the
+              // container's current meal_type_id so unchanged categories are
+              // not reported as changed.
+              let mealTypeChanged = mealType !== undefined;
+              try {
+                if (entryType === 'food_entry') {
+                  await foodEntryService.updateFoodEntry(
+                    userId,
+                    userId,
+                    entryId,
+                    {
+                      quantity: args.quantity,
+                      unit: args.unit,
+                      ...mealTypeUpdate,
+                    }
+                  );
+                } else {
+                  // Lightweight parent read (no components) to decide whether
+                  // the quantity/unit actually change. A redundant quantity or
+                  // unit copied from list_diary (or a plain no-op) must never
+                  // trigger the destructive delete-and-rebuild path — only a
+                  // real quantity/unit change does.
+                  const existingMeta =
+                    await foodEntryService.getFoodEntryMealMeta(
+                      userId,
+                      entryId
+                    );
+                  if (!existingMeta) {
+                    return ERRORS.NOT_FOUND('Entry', entryId);
+                  }
+                  quantityChanged =
+                    args.quantity !== undefined &&
+                    Number(args.quantity) !== Number(existingMeta.quantity);
+                  unitChanged =
+                    args.unit !== undefined && args.unit !== existingMeta.unit;
+                  mealTypeChanged =
+                    mealType !== undefined &&
+                    mealType.id !== existingMeta.meal_type_id;
+
+                  if (!quantityChanged && !unitChanged) {
+                    // No effective quantity/unit change: either a metadata-only
+                    // category move, or a genuine no-op.
+                    if (mealTypeChanged) {
+                      if (!mealType) {
+                        return ERRORS.VALIDATION(
+                          'Meal type could not be resolved.'
+                        );
+                      }
+                      await foodEntryService.moveFoodEntryMealToMealType(
+                        userId,
+                        userId,
+                        entryId,
+                        mealType.id
+                      );
+                      return formatConfirmation(
+                        `Entry updated: meal type to ${mealType.name}.`
+                      );
+                    }
+                    return formatConfirmation(
+                      'Entry already has the requested values.'
+                    );
+                  }
+
+                  // Real quantity/unit change: round-trip the template link and
+                  // component foods so the server's edit path rescales
+                  // components instead of detaching them.
+                  const existing =
+                    await foodEntryService.getFoodEntryMealWithComponents(
+                      userId,
+                      entryId
+                    );
+                  if (!existing) {
+                    return ERRORS.NOT_FOUND('Entry', entryId);
+                  }
+                  await foodEntryService.updateFoodEntryMeal(
+                    userId,
+                    userId,
+                    entryId,
+                    {
+                      meal_template_id: existing.meal_template_id,
+                      entry_date: dayString(existing.entry_date),
+                      quantity: args.quantity ?? existing.quantity,
+                      unit: args.unit ?? existing.unit,
+                      ...mealTypeUpdate,
+                      foods: existing.foods,
+                    }
+                  );
+                }
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  error.message.includes('not found')
+                ) {
+                  return ERRORS.NOT_FOUND('Entry', entryId);
+                }
+                throw error;
+              }
+              const updates = [
+                quantityChanged ? `quantity to ${args.quantity}` : '',
+                unitChanged ? `unit to ${args.unit}` : '',
+                mealTypeChanged ? `meal type to ${mealType?.name}` : '',
+              ].filter(Boolean);
+              if (quantityChanged && unitChanged && !mealTypeChanged) {
+                return formatConfirmation(
+                  `Entry updated to ${args.quantity} ${args.unit}.`
+                );
+              }
+              return formatConfirmation(
+                `Entry updated: ${updates.join(', ')}.`
+              );
+            }
+
+            case 'update_food_variant': {
+              if (!args.food_id && !args.variant_id) {
+                // MCP quirk: this guard threw a plain error whose message
+                // does not contain 'not found', so it surfaced as a DB
+                // error — ported as-is.
+                return ERRORS.DB_ERROR();
+              }
+              let variantId = args.variant_id;
+              if (!variantId) {
+                // The guard above ensures one of the two is set, but narrow
+                // explicitly so the repository keeps its non-null contract.
+                if (!args.food_id) {
+                  return ERRORS.DB_ERROR();
+                }
+                const food = await foodRepository.getFoodById(
+                  args.food_id,
+                  userId
+                );
+                if (
+                  !food ||
+                  food.user_id !== userId ||
+                  !food.default_variant?.id
+                ) {
+                  return ERRORS.VALIDATION(
+                    `Default variant for food_id "${args.food_id}" not found or not editable.`
+                  );
+                }
+                variantId = food.default_variant.id;
+              }
+              const variant = await foodRepository.getFoodVariantById(
+                variantId,
+                userId
+              );
+              const parentFood = variant
+                ? await foodRepository.getFoodById(variant.food_id, userId)
+                : null;
+              if (!variant || !parentFood || parentFood.user_id !== userId) {
+                return ERRORS.VALIDATION(
+                  `Food variant "${variantId}" not found or not editable.`
+                );
+              }
+              if (args.food_id && variant.food_id !== args.food_id) {
+                // MCP quirk: "does not belong" threw and surfaced as a DB
+                // error — ported as-is.
+                return ERRORS.DB_ERROR();
+              }
+
+              const updates: Record<string, unknown> = {};
+              const fieldMap: Record<string, string> = {
+                serving_size: 'serving_size',
+                serving_unit: 'serving_unit',
+                calories: 'calories',
+                protein: 'protein',
+                carbs: 'carbs',
+                fat: 'fat',
+                saturated_fat: 'saturated_fat',
+                polyunsaturated_fat: 'polyunsaturated_fat',
+                monounsaturated_fat: 'monounsaturated_fat',
+                trans_fat: 'trans_fat',
+                cholesterol: 'cholesterol',
+                sodium: 'sodium',
+                potassium: 'potassium',
+                fiber: 'dietary_fiber',
+                sugar: 'sugars',
+                vitamin_a: 'vitamin_a',
+                vitamin_c: 'vitamin_c',
+                calcium: 'calcium',
+                iron: 'iron',
+                gi: 'glycemic_index',
+              };
+              for (const [inputField, dbField] of Object.entries(fieldMap)) {
+                const value = (args as Record<string, unknown>)[inputField];
+                if (value !== undefined) {
+                  updates[dbField] = value;
+                }
+              }
+              if (Object.keys(updates).length === 0) {
+                // MCP quirk: "at least one field" threw and surfaced as a
+                // DB error — ported as-is.
+                return ERRORS.DB_ERROR();
+              }
+
+              const updated = await foodRepository.updateFoodVariant(
+                variantId,
+                updates,
+                userId
+              );
+              if (args.update_existing_entries) {
+                await foodCoreService.updateFoodEntriesSnapshot(
+                  userId,
+                  String(variant.food_id),
+                  String(variantId)
+                );
+              }
+              return formatConfirmation(
+                `Food variant updated for "${parentFood.name}" (${updated.calories ?? 0} kcal per ${updated.serving_size ?? '?'}${updated.serving_unit ?? ''}).`
+              );
+            }
+
+            case 'copy_from_yesterday': {
+              // MCP's defaults: target falls back to today, source to
+              // yesterday-of-today (not yesterday-of-target).
+              const targetDate = args.target_date || todayInZone(tz);
+              const sourceDate =
+                args.source_date || addDays(todayInZone(tz), -1);
+              const mealType =
+                args.meal_type_id || args.meal_type
+                  ? await resolveMealType(
+                      userId,
+                      args.meal_type_id,
+                      args.meal_type
+                    )
+                  : undefined;
+              if (mealType === null) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              const copied = mealType
+                ? await foodEntryService.copyFoodEntries(
+                    userId,
+                    userId,
+                    sourceDate,
+                    mealType.id,
+                    targetDate,
+                    mealType.id
+                  )
+                : await foodEntryService.copyAllFoodEntries(
+                    userId,
+                    userId,
+                    sourceDate,
+                    targetDate
+                  );
+              if (copied.length === 0) {
+                return formatConfirmation(
+                  'No entries found to copy from the source date.'
+                );
+              }
+              return formatConfirmation(
+                `Copied ${copied.length} entries to ${targetDate}.`
+              );
+            }
+
+            case 'save_as_meal_template': {
+              const mealType =
+                args.meal_type_id || args.meal_type
+                  ? await resolveMealType(
+                      userId,
+                      args.meal_type_id,
+                      args.meal_type
+                    )
+                  : undefined;
+              if (!mealType) {
+                return ERRORS.VALIDATION(
+                  `Meal type "${args.meal_type_id ?? args.meal_type}" was not found or is not available to this user.`
+                );
+              }
+              const meal = await mealService.createMealFromDiaryEntries(
+                userId,
+                args.entry_date,
+                mealType.id,
+                args.meal_name,
+                args.description ?? null
+              );
+              // createMealFromDiaryEntries returns the meal without its
+              // foods; re-fetch for the item count.
+              const saved = await mealService.getMealById(userId, meal.id);
+              return formatConfirmation(
+                `Meal template "${meal.name}" saved with ${saved.foods.length} food items.`
+              );
+            }
+
+            case 'log_water': {
+              await measurementService.logWaterIntakeAmount(
+                userId,
+                userId,
+                args.entry_date,
+                args.amount_ml
+              );
+              return formatConfirmation(
+                `Logged ${args.amount_ml}ml water for ${args.entry_date}.`
+              );
+            }
+
+            case 'get_nutritional_summary': {
+              const summary = await getNutritionalSummaryRows(
+                userId,
+                args.start_date,
+                args.end_date
+              );
+              const eUnit =
+                summary.length > 0 ? summary[0].energy_unit : 'kcal';
+              return formatList(
+                summary,
+                `Nutritional Summary (${args.start_date} to ${args.end_date})`,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (s: any) => {
+                  let text = `**${s.entry_date}**:\n`;
+                  text += `  Macros: ${s.calories} ${eUnit} | P: ${s.protein}g | C: ${s.carbs}g | F: ${s.fat}g\n`;
+                  text += `  Fiber: ${s.fiber}g | Sugar: ${s.sugar}g | Sodium: ${s.sodium}mg\n`;
+                  if (s.saturated_fat || s.cholesterol || s.potassium) {
+                    text += `  Other: SatFat: ${s.saturated_fat}g | Chol: ${s.cholesterol}mg | Potas: ${s.potassium}mg`;
+                  }
+                  return text;
+                }
+              );
+            }
+
+            case 'get_water_history': {
+              const history = await getWaterHistoryRows(
+                userId,
+                args.start_date,
+                args.end_date
+              );
+              return formatList(
+                history,
+                'Water Intake History',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (h: any) => `**${h.entry_date}**: ${h.amount} ${h.unit}`
+              );
+            }
+
+            default:
+              return ERRORS.INVALID_ACTION(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                String((args as any).action),
+                VALID_ACTIONS
+              );
+          }
+        } catch (error) {
+          log('error', '[Food Tool] Error:', error);
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.VALIDATION(error.message);
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_list_foods: tool({
+      description:
+        'Returns a paginated food catalog for the authenticated user, including variants.',
+      inputSchema: listFoodsSchema,
+      execute: async (rawArgs) => {
+        const parsed = listFoodsSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const { limit, offset } = normalizePagination(
+            parsed.data.limit,
+            parsed.data.offset
+          );
+          const search = parsed.data.search?.trim() || undefined;
+          const [rows, totalCount] = await Promise.all([
+            foodRepository.getFoodsWithPagination(
+              search,
+              null,
+              userId,
+              limit,
+              offset,
+              null
+            ),
+            foodRepository.countFoods(search, null, userId),
+          ]);
+          const data = buildPaginatedResult(
+            rows.map(projectCatalogFood),
+            totalCount,
+            offset
+          );
+          return formatJsonResult(data);
+        } catch (error) {
+          log('error', '[Food Tool] sparky_list_foods error:', error);
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND('Food', 'unknown');
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_get_food_details: tool({
+      description:
+        'Returns full details for one food by food_id, including available variants.',
+      inputSchema: getFoodDetailsSchema,
+      execute: async (rawArgs) => {
+        const parsed = getFoodDetailsSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const food = await foodCoreService.getFoodById(
+            userId,
+            parsed.data.food_id
+          );
+          const variants = await foodRepository.getFoodVariantsByFoodId(
+            parsed.data.food_id,
+            userId
+          );
+          const { default_variant: _defaultVariant, ...rest } = food;
+          const data = {
+            ...compactRecord(rest, CATALOG_FOOD_DROP),
+            variants: variants.map((v: Record<string, unknown>) =>
+              compactRecord(v, VARIANT_DROP)
+            ),
+          };
+          return formatJsonResult(data);
+        } catch (error) {
+          log('error', '[Food Tool] sparky_get_food_details error:', error);
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND('Food', parsed.data.food_id);
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_search_foods: tool({
+      description: 'Searches foods by name for the authenticated user.',
+      inputSchema: searchFoodsSchema,
+      execute: async (rawArgs) => {
+        const parsed = searchFoodsSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const { limit, offset } = normalizePagination(
+            parsed.data.limit,
+            parsed.data.offset
+          );
+          const [rows, totalCount] = await Promise.all([
+            foodRepository.getFoodsWithPagination(
+              parsed.data.query,
+              null,
+              userId,
+              limit,
+              offset,
+              null
+            ),
+            foodRepository.countFoods(parsed.data.query, null, userId),
+          ]);
+          const data = buildPaginatedResult(
+            rows.map(projectCatalogFood),
+            totalCount,
+            offset
+          );
+          return formatJsonResult(data);
+        } catch (error) {
+          log('error', '[Food Tool] sparky_search_foods error:', error);
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND('Food', parsed.data.query);
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_get_food_diary: tool({
+      description:
+        'Returns entry-level food diary data for a specific date or date range.',
+      inputSchema: foodDateRangeSchema,
+      execute: async (rawArgs) => {
+        const parsed = foodDateRangeSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const { startDate, endDate } = foodDateRange(parsed.data, tz);
+          const foodEntries = await foodEntryService.getFoodEntriesByDateRange(
+            userId,
+            userId,
+            startDate,
+            endDate
+          );
+          const mealEntries =
+            await foodEntryMealRepository.getFoodEntryMealsByDateRange(
+              userId,
+              startDate,
+              endDate
+            );
+          const data = {
+            start_date: startDate,
+            end_date: endDate,
+            food_entries: foodEntries.map((e: Record<string, unknown>) =>
+              compactRecord(e, DIARY_ENTRY_DROP)
+            ),
+            meal_entries: mealEntries.map((m: Record<string, unknown>) =>
+              compactRecord(m, DIARY_MEAL_DROP)
+            ),
+          };
+          return formatJsonResult(data);
+        } catch (error) {
+          log('error', '[Food Tool] sparky_get_food_diary error:', error);
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND(
+              'Food diary',
+              parsed.data.date || parsed.data.start_date || 'unknown'
+            );
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_get_nutrition_summary: tool({
+      description:
+        'Returns nutrition summary rows for a specific date or date range.',
+      inputSchema: foodDateRangeSchema,
+      execute: async (rawArgs) => {
+        const parsed = foodDateRangeSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const { startDate, endDate } = foodDateRange(parsed.data, tz);
+          const data = await getNutritionalSummaryRows(
+            userId,
+            startDate,
+            endDate
+          );
+          return formatJsonResult(data);
+        } catch (error) {
+          log(
+            'error',
+            '[Food Tool] sparky_get_nutrition_summary error:',
+            error
+          );
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND(
+              'Nutrition summary',
+              parsed.data.date || parsed.data.start_date || 'unknown'
+            );
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_get_recent_food_entries: tool({
+      description:
+        'Returns recent entry-level food diary rows for the authenticated user.',
+      inputSchema: recentFoodEntriesSchema,
+      execute: async (rawArgs) => {
+        const parsed = recentFoodEntriesSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const limit = Math.min(Math.max(parsed.data.limit ?? 50, 1), 200);
+          const rows = await foodRepository.getRecentFoodEntries(userId, limit);
+          const data = rows.map((r: Record<string, unknown>) =>
+            compactRecord(r, FULL_ENTRY_DROP)
+          );
+          return formatJsonResult(data);
+        } catch (error) {
+          log(
+            'error',
+            '[Food Tool] sparky_get_recent_food_entries error:',
+            error
+          );
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND('Food entries', 'recent');
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+
+    sparky_get_food_usage: tool({
+      description: 'Shows where a specific food_id was used in the diary.',
+      inputSchema: foodUsageSchema,
+      execute: async (rawArgs) => {
+        const parsed = foodUsageSchema.safeParse(
+          normalizeDayKeywords(rawArgs, tz)
+        );
+        if (!parsed.success) {
+          return formatZodError(parsed.error);
+        }
+        try {
+          const { food_id, ...query } = parsed.data;
+          const { startDate, endDate } = foodDateRange(query, tz);
+          const { limit, offset } = normalizePagination(
+            query.limit,
+            query.offset
+          );
+          const { rows, totalCount } = await foodRepository.getFoodUsage(
+            userId,
+            food_id,
+            startDate,
+            endDate,
+            limit,
+            offset
+          );
+          const data = buildPaginatedResult(
+            rows.map((r: Record<string, unknown>) =>
+              compactRecord(r, FULL_ENTRY_DROP)
+            ),
+            totalCount,
+            offset
+          );
+          return formatJsonResult(data);
+        } catch (error) {
+          log('error', '[Food Tool] sparky_get_food_usage error:', error);
+          if (error instanceof Error && error.message.includes('not found')) {
+            return ERRORS.NOT_FOUND('Food', parsed.data.food_id);
+          }
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+  };
+}

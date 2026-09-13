@@ -1,0 +1,1565 @@
+import { vi, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  dispatchAiRequest,
+  toStrictJsonSchema,
+  type DispatchRequest,
+  type JsonSchemaNode,
+  type ProviderConfig,
+} from '../ai/providerDispatch.js';
+import { OutboundUrlBlockedError } from '../utils/outboundUrlPolicy.js';
+import convert from 'heic-convert';
+
+// Fixed "JPEG" bytes returned by the mocked transcoder. Declared via vi.hoisted
+// so the hoisted vi.mock('heic-convert') factory below can reference it.
+const { TRANSCODED_JPEG_BYTES } = vi.hoisted(() => ({
+  TRANSCODED_JPEG_BYTES: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+}));
+const convertMock = vi.mocked(convert);
+const TRANSCODED_JPEG_B64 = Buffer.from(TRANSCODED_JPEG_BYTES).toString(
+  'base64'
+);
+
+// Real magic-byte prefixes for the format sniffer. A JPEG starts FF D8 FF; a
+// HEIC file is an ISO-BMFF `ftyp` box (offset 4) whose brand (offset 8) is a
+// HEIF brand ('heic' here).
+const REAL_JPEG_B64 = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
+]).toString('base64');
+const REAL_HEIC_B64 = Buffer.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63,
+]).toString('base64');
+// Same HEIC container but with an UPPERCASE 'HEIC' brand, to exercise the
+// case-insensitive brand check.
+const REAL_HEIC_UPPER_B64 = Buffer.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x48, 0x45, 0x49, 0x43,
+]).toString('base64');
+
+// Mock the undici Agent so the Ollama path never constructs a real agent.
+// (global.fetch is mocked per-test; the dispatcher option is ignored by it.)
+vi.mock('undici', () => {
+  // Regular function (not arrow) so it is constructable via `new Agent(...)`.
+  const Agent = vi.fn(function () {
+    return { destroy: vi.fn() };
+  });
+  const buildConnector = vi.fn(() => vi.fn());
+  return { default: { Agent, buildConnector }, Agent, buildConnector };
+});
+
+// Mock heic-convert so tests don't need real HEIC bytes. Default: succeed,
+// returning fixed "JPEG" bytes. Individual tests override with mockRejected* to
+// exercise the transcode-failure fallback.
+vi.mock('heic-convert', () => ({
+  default: vi.fn(async () => TRANSCODED_JPEG_BYTES),
+}));
+
+const SCHEMA: JsonSchemaNode = {
+  type: 'object',
+  properties: {
+    answer: { type: 'string' },
+    nested: {
+      type: 'object',
+      properties: { x: { type: 'number' } },
+      required: ['x'],
+    },
+  },
+  required: ['answer', 'nested'],
+  propertyOrdering: ['answer', 'nested'],
+  additionalProperties: false,
+};
+
+const SAMPLE = { answer: 'hello', nested: { x: 1 } };
+const SCHEMA_NAME = 'my_schema';
+const IMG = { base64: 'aW1nMQ==', mimeType: 'image/jpeg' };
+
+function makeProvider(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
+  return {
+    service_type: 'openai',
+    api_key: 'sk-test',
+    model_name: 'gpt-4o-mini',
+    ...overrides,
+  };
+}
+
+function baseRequest(
+  overrides: Partial<DispatchRequest> = {}
+): DispatchRequest {
+  return {
+    provider: makeProvider(),
+    prompt: 'Do the thing.',
+    jsonSchema: SCHEMA,
+    schemaName: SCHEMA_NAME,
+    ...overrides,
+  };
+}
+
+type FetchMock = ReturnType<typeof vi.fn>;
+
+function mockFetch(
+  jsonBody: unknown,
+  init: { ok?: boolean; status?: number } = {}
+): FetchMock {
+  const m = vi.fn().mockResolvedValue({
+    ok: init.ok ?? true,
+    status: init.status ?? 200,
+    text: async () => (typeof jsonBody === 'string' ? jsonBody : ''),
+    json: async () => jsonBody,
+  });
+  global.fetch = m as typeof global.fetch;
+  return m;
+}
+
+function googleBody(payload: unknown) {
+  return { candidates: [{ content: { parts: [{ text: payload }] } }] };
+}
+function openAiBody(payload: unknown, extra: Record<string, unknown> = {}) {
+  return {
+    choices: [
+      { finish_reason: 'stop', message: { content: payload, ...extra } },
+    ],
+  };
+}
+function anthropicToolBody(payload: unknown, name = SCHEMA_NAME) {
+  return {
+    stop_reason: 'tool_use',
+    content: [{ type: 'tool_use', name, input: payload }],
+  };
+}
+function ollamaBody(payload: unknown) {
+  return { message: { content: payload } };
+}
+
+function captured(m: FetchMock): {
+  url: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+} {
+  const call = m.mock.calls[0];
+  const init = call[1] as { headers: Record<string, string>; body: string };
+  return {
+    url: call[0] as string,
+    headers: init.headers,
+    body: JSON.parse(init.body) as Record<string, unknown>,
+  };
+}
+
+const originalFetch = global.fetch;
+const PRIVATE_NETWORK_POLICY = {
+  allowPrivateNetwork: true,
+  reason: 'admin' as const,
+};
+afterEach(() => {
+  global.fetch = originalFetch;
+});
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('dispatchAiRequest — preconditions', () => {
+  it('returns unsupported_provider for an unknown service_type', async () => {
+    const m = vi.fn();
+    global.fetch = m as typeof global.fetch;
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'cohere' }) })
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('unsupported_provider');
+    expect(m).not.toHaveBeenCalled();
+  });
+
+  it.each(['openai', 'google', 'anthropic', 'groq'])(
+    'returns api_key_missing for %s without an api_key',
+    async (serviceType) => {
+      const m = vi.fn();
+      global.fetch = m as typeof global.fetch;
+      const result = await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({
+            service_type: serviceType,
+            api_key: undefined,
+          }),
+        })
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.category).toBe('api_key_missing');
+      expect(m).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does NOT require an api_key for ollama', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(m).toHaveBeenCalled();
+  });
+
+  it('blocks localhost custom URLs by default', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+      })
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('private_network_forbidden');
+    expect(m).not.toHaveBeenCalled();
+  });
+
+  it('maps wrapped connector policy failures to private_network_forbidden', async () => {
+    const blocked = new OutboundUrlBlockedError(
+      'AI service URL resolves to a private address.'
+    );
+    const m = vi
+      .fn()
+      .mockRejectedValue(new TypeError('fetch failed', { cause: blocked }));
+    global.fetch = m as typeof global.fetch;
+
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'custom',
+          custom_url: 'https://llm.example.com/v1',
+        }),
+      })
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      category: 'private_network_forbidden',
+      status: 403,
+      detail: blocked.message,
+    });
+  });
+
+  // Regression: a stored URL fetch could never use (malformed, credentials) is a
+  // provider-config failure, not a policy denial — even under a trusted policy it
+  // must not masquerade as private_network_forbidden (whose client copy tells the
+  // user to ask an admin about private-network access).
+  it('reports a shape-invalid custom_url as upstream_error, not private_network_forbidden', async () => {
+    const m = vi.fn();
+    global.fetch = m as typeof global.fetch;
+
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'custom',
+          custom_url: 'http://user:pass@llm.example.com/v1',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.category).toBe('upstream_error');
+      expect(result.detail).toContain('credentials');
+    }
+    expect(m).not.toHaveBeenCalled();
+  });
+
+  // Regression: keyless local servers (LM Studio, llama.cpp) must work on the
+  // dispatch path the same way they already do on the chat path. Previously a
+  // blank key hard-failed here with api_key_missing while chat tolerated it,
+  // so chat worked but photo/label-scan/unit-conversion silently failed.
+  it.each(['openai_compatible', 'custom'])(
+    'does NOT require an api_key for %s and sends a no-key bearer',
+    async (serviceType) => {
+      const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+      const result = await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({
+            service_type: serviceType,
+            api_key: undefined,
+            custom_url: 'https://example.local/v1',
+          }),
+        })
+      );
+      expect(result.ok).toBe(true);
+      expect(m).toHaveBeenCalled();
+      const { headers } = captured(m);
+      expect(headers.Authorization).toBe('Bearer no-key');
+    }
+  );
+
+  it.each(['ollama', 'openai_compatible', 'custom'])(
+    'returns custom_url_missing for %s with a blank custom_url',
+    async (serviceType) => {
+      const m = vi.fn();
+      global.fetch = m as typeof global.fetch;
+      const result = await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({
+            service_type: serviceType,
+            api_key: serviceType === 'ollama' ? undefined : 'sk-test',
+            custom_url: '   ',
+          }),
+        })
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.category).toBe('custom_url_missing');
+      expect(m).not.toHaveBeenCalled();
+    }
+  );
+
+  it('transcodes HEIC to JPEG and dispatches it', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [{ base64: 'aGVsbG8=', mimeType: 'image/heic' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).toHaveBeenCalledOnce();
+    // The upstream request must carry the re-encoded JPEG, not the HEIC bytes.
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image') as {
+      source: { media_type: string; data: string };
+    };
+    expect(imagePart.source.media_type).toBe('image/jpeg');
+    expect(imagePart.source.data).toBe(TRANSCODED_JPEG_B64);
+  });
+
+  it('passes a JPEG mislabeled as HEIC straight through without transcoding (sniffs the bytes)', async () => {
+    // Android's photo picker hands the app decoded JPEG bytes but labels them
+    // image/heic; the server must trust the bytes, not the label.
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [{ base64: REAL_JPEG_B64, mimeType: 'image/heic' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).not.toHaveBeenCalled();
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image') as {
+      source: { media_type: string; data: string };
+    };
+    expect(imagePart.source.media_type).toBe('image/jpeg');
+    expect(imagePart.source.data).toBe(REAL_JPEG_B64);
+  });
+
+  it('transcodes when the bytes are really HEIC even if the client mislabels the mime', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [{ base64: REAL_HEIC_B64, mimeType: 'image/jpeg' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).toHaveBeenCalledOnce();
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image') as {
+      source: { media_type: string; data: string };
+    };
+    expect(imagePart.source.media_type).toBe('image/jpeg');
+    expect(imagePart.source.data).toBe(TRANSCODED_JPEG_B64);
+  });
+
+  it('fails loud (no bypass) when a real HEIC mislabeled as JPEG fails to transcode', async () => {
+    // Regression: a genuine HEIC sent as image/jpeg that cannot be decoded must
+    // NOT fall through to the provider with its jpeg label; the mime is
+    // corrected to the sniffed HEIC so the unsupported_media check catches it.
+    convertMock.mockRejectedValueOnce(new Error('decode failed'));
+    const m = vi.fn();
+    global.fetch = m as typeof global.fetch;
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'anthropic' }),
+        images: [{ base64: REAL_HEIC_B64, mimeType: 'image/jpeg' }],
+      })
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('unsupported_media');
+    expect(m).not.toHaveBeenCalled();
+  });
+
+  it('detects HEIC with an uppercase ftyp brand (case-insensitive)', async () => {
+    mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [{ base64: REAL_HEIC_UPPER_B64, mimeType: 'image/jpeg' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not crash on a malformed image entry (non-string base64)', async () => {
+    mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [{ base64: 123 as unknown as string, mimeType: 'image/jpeg' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('normalizes uppercase/whitespace HEIC mime types before the transcode check', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [{ base64: 'aGVsbG8=', mimeType: '  IMAGE/HEIC  ' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).toHaveBeenCalledOnce();
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image') as {
+      source: { media_type: string };
+    };
+    expect(imagePart.source.media_type).toBe('image/jpeg');
+  });
+
+  it('does not crash when an image mime type is missing (non-string)', async () => {
+    mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        // Untyped external JSON (api-fitness/MCP) can omit mimeType; the
+        // normalizer must tolerate it instead of throwing on .trim().
+        images: [
+          { base64: 'aGVsbG8=', mimeType: undefined as unknown as string },
+        ],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to unsupported_media when HEIC transcoding fails', async () => {
+    convertMock.mockRejectedValueOnce(new Error('not a valid HEIC file'));
+    const m = vi.fn();
+    global.fetch = m as typeof global.fetch;
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'anthropic' }),
+        images: [{ base64: 'bm90LWhlaWM=', mimeType: 'image/heif' }],
+      })
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('unsupported_media');
+    // Failed transcode must not ship bytes upstream.
+    expect(m).not.toHaveBeenCalled();
+  });
+
+  it('also transcodes HEIC for google (we convert uniformly, no provider gate)', async () => {
+    const m = mockFetch(googleBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+        images: [{ base64: 'aGVsbG8=', mimeType: 'image/heic' }],
+      })
+    );
+    expect(result.ok).toBe(true);
+    expect(convertMock).toHaveBeenCalledOnce();
+    // Gemini also receives the re-encoded JPEG, not the original HEIC bytes.
+    const { body } = captured(m);
+    const parts = (
+      body.contents as Array<{ parts: Array<Record<string, unknown>> }>
+    )[0].parts;
+    const imagePart = parts.find((p) => p.inline_data !== undefined) as {
+      inline_data: { mime_type: string; data: string };
+    };
+    expect(imagePart.inline_data.mime_type).toBe('image/jpeg');
+    expect(imagePart.inline_data.data).toBe(TRANSCODED_JPEG_B64);
+  });
+});
+
+describe('dispatchAiRequest — text-only structured request shapes', () => {
+  it('openai sends strict json_schema with a strict-transformed schema', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(baseRequest());
+    const { url, headers, body } = captured(m);
+    expect(url).toBe('https://api.openai.com/v1/chat/completions');
+    expect(headers.Authorization).toBe('Bearer sk-test');
+    const rf = body.response_format as {
+      type: string;
+      json_schema: { name: string; strict: boolean; schema: JsonSchemaNode };
+    };
+    expect(rf.type).toBe('json_schema');
+    expect(rf.json_schema.name).toBe(SCHEMA_NAME);
+    expect(rf.json_schema.strict).toBe(true);
+    // Strict transform: additionalProperties:false everywhere, propertyOrdering gone.
+    expect(rf.json_schema.schema.additionalProperties).toBe(false);
+    expect(rf.json_schema.schema.properties?.nested?.additionalProperties).toBe(
+      false
+    );
+    expect(rf.json_schema.schema.propertyOrdering).toBeUndefined();
+    // Text-only: content is a plain string, not an array of blocks.
+    const messages = body.messages as Array<{ content: unknown }>;
+    expect(typeof messages[0].content).toBe('string');
+    expect(body.provider).toBeUndefined();
+  });
+
+  it('groq mirrors openai strict json_schema but without provider.require_parameters', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'groq' }) })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.groq.com/openai/v1/chat/completions');
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(body.provider).toBeUndefined();
+  });
+
+  it('xai routes to api.x.ai and mirrors openai strict json_schema without provider.require_parameters', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'xai' }) })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.x.ai/v1/chat/completions');
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(body.provider).toBeUndefined();
+  });
+
+  it('meta routes to api.meta.ai and uses json_object fallback (not strict schema)', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'meta',
+          api_key: 'meta-key',
+          model_name: 'muse-spark-1.1',
+        }),
+      })
+    );
+    const { url, headers, body } = captured(m);
+    expect(url).toBe('https://api.meta.ai/v1/chat/completions');
+    expect(headers['Authorization']).toBe('Bearer meta-key');
+    expect(body.model).toBe('muse-spark-1.1');
+    // Muse Spark mandates extended thinking, which Anthropic-style forced
+    // tool_choice forbids; kept OUT of STRICT_SCHEMA_PROVIDERS so it uses the
+    // json_object fallback with the schema embedded in the prompt instead.
+    expect((body.response_format as { type: string }).type).toBe('json_object');
+    const messages = body.messages as Array<{ content: string }>;
+    expect(messages[0].content).toContain('JSON Schema');
+  });
+
+  it('openrouter sends strict json_schema, provider.require_parameters, and attribution headers', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'openrouter' }) })
+    );
+    const { url, headers, body } = captured(m);
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(headers['HTTP-Referer']).toBe('https://sparky-fitness.com');
+    expect(headers['X-Title']).toBe('Sparky Fitness');
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(body.provider).toEqual({ require_parameters: true });
+  });
+
+  it('mistral mirrors openai strict json_schema but without provider.require_parameters', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'mistral' }) })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.mistral.ai/v1/chat/completions');
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(body.provider).toBeUndefined();
+    // Strict mode carries the schema; the prompt stays clean.
+    const messages = body.messages as Array<{ content: string }>;
+    expect(messages[0].content).toBe('Do the thing.');
+  });
+
+  it('openai_compatible appends /chat/completions to custom_url and uses json_object with the schema embedded in the prompt', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://example.local/v1',
+        }),
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://example.local/v1/chat/completions');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    // json_object mode does not carry the schema, so the prompt must.
+    const messages = body.messages as Array<{ content: string }>;
+    expect(messages[0].content).toContain('Do the thing.');
+    expect(messages[0].content).toContain(
+      JSON.stringify(toStrictJsonSchema(SCHEMA))
+    );
+  });
+
+  it('custom uses the user-supplied URL as-is and json_object with the schema embedded in the prompt', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'custom',
+          custom_url: 'https://example.local/api/foo',
+        }),
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://example.local/api/foo');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    const messages = body.messages as Array<{ content: string }>;
+    expect(messages[0].content).toContain(
+      JSON.stringify(toStrictJsonSchema(SCHEMA))
+    );
+  });
+
+  it('gemini sends responseMimeType + responseSchema with additionalProperties stripped, propertyOrdering kept', async () => {
+    const m = mockFetch(googleBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+      })
+    );
+    const { url, headers, body } = captured(m);
+    expect(url).toContain(
+      'https://generativelanguage.googleapis.com/v1beta/models/'
+    );
+    // Key travels in the header, not the URL.
+    expect(url).not.toContain('key=');
+    expect(headers['x-goog-api-key']).toBe('gem-key');
+    const gc = body.generationConfig as {
+      responseMimeType: string;
+      responseSchema: JsonSchemaNode;
+    };
+    expect(gc.responseMimeType).toBe('application/json');
+    expect(gc.responseSchema.additionalProperties).toBeUndefined();
+    expect(gc.responseSchema.propertyOrdering).toEqual(['answer', 'nested']);
+  });
+
+  it('anthropic forces a tool_use call with a strict input_schema', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+      })
+    );
+    const { url, headers, body } = captured(m);
+    expect(url).toBe('https://api.anthropic.com/v1/messages');
+    expect(headers['x-api-key']).toBe('anth-key');
+    expect(headers['anthropic-version']).toBe('2023-06-01');
+    expect(body.max_tokens).toBeGreaterThanOrEqual(2048);
+    expect(body.tool_choice).toEqual({ type: 'tool', name: SCHEMA_NAME });
+    const tools = body.tools as Array<{
+      name: string;
+      strict: boolean;
+      input_schema: JsonSchemaNode;
+    }>;
+    expect(tools).toHaveLength(1);
+    expect(tools[0].name).toBe(SCHEMA_NAME);
+    expect(tools[0].strict).toBe(true);
+    expect(tools[0].input_schema.additionalProperties).toBe(false);
+    expect(tools[0].input_schema.properties?.nested?.additionalProperties).toBe(
+      false
+    );
+  });
+
+  it('ollama sends the raw schema as format on /api/chat with no auth header', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+    const { url, headers, body } = captured(m);
+    expect(url).toBe('http://localhost:11434/api/chat');
+    expect(headers.Authorization).toBeUndefined();
+    expect(body.stream).toBe(false);
+    expect(body.format).toEqual(SCHEMA);
+  });
+});
+
+describe('dispatchAiRequest — vision request shapes', () => {
+  it('gemini sends inline_data parts followed by the prompt text', async () => {
+    const m = mockFetch(googleBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+        images: [IMG],
+      })
+    );
+    const { body } = captured(m);
+    const parts = (
+      body.contents as Array<{ parts: Array<Record<string, unknown>> }>
+    )[0].parts;
+    const imagePart = parts.find((p) => p.inline_data !== undefined) as {
+      inline_data: { mime_type: string; data: string };
+    };
+    expect(imagePart.inline_data.data).toBe(IMG.base64);
+    expect(imagePart.inline_data.mime_type).toBe(IMG.mimeType);
+    expect(typeof parts[parts.length - 1].text).toBe('string');
+  });
+
+  it('openai sends a data-URI image_url content part', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(baseRequest({ images: [IMG] }));
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image_url') as {
+      image_url: { url: string };
+    };
+    expect(imagePart.image_url.url).toBe(
+      `data:${IMG.mimeType};base64,${IMG.base64}`
+    );
+  });
+
+  it('json_object fallback embeds the schema in the text part alongside images', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://example.local/v1',
+        }),
+        images: [IMG],
+      })
+    );
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const textPart = content.find((p) => p.type === 'text') as {
+      text: string;
+    };
+    expect(textPart.text).toContain('Do the thing.');
+    expect(textPart.text).toContain(JSON.stringify(toStrictJsonSchema(SCHEMA)));
+  });
+
+  it('anthropic sends a base64 image source block', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        images: [IMG],
+      })
+    );
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image') as {
+      source: { type: string; media_type: string; data: string };
+    };
+    expect(imagePart.source.type).toBe('base64');
+    expect(imagePart.source.media_type).toBe(IMG.mimeType);
+    expect(imagePart.source.data).toBe(IMG.base64);
+  });
+
+  it('ollama puts base64 images on the message images[] array', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        images: [IMG],
+      })
+    );
+    const { body } = captured(m);
+    const message = (
+      body.messages as Array<{ images?: string[]; content: string }>
+    )[0];
+    expect(message.images).toEqual([IMG.base64]);
+    expect(message.content).toBe('Do the thing.');
+  });
+});
+
+describe('dispatchAiRequest — extraction & success', () => {
+  it('google happy path returns parsed json', async () => {
+    mockFetch(googleBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+      })
+    );
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+  });
+
+  it('openai happy path returns parsed json', async () => {
+    mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+  });
+
+  it('ollama happy path returns parsed json', async () => {
+    mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+  });
+
+  it('plain-text request (no schema, no parseJson) returns text with json null', async () => {
+    mockFetch(openAiBody('just some prose'));
+    const result = await dispatchAiRequest(
+      baseRequest({ jsonSchema: undefined, schemaName: undefined })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.text).toBe('just some prose');
+      expect(result.json).toBeNull();
+    }
+  });
+
+  it('parseJson populates json from unstructured text', async () => {
+    mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+      })
+    );
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+  });
+});
+
+describe('dispatchAiRequest — anthropic tool_use extraction', () => {
+  const anthropicReq = (body: unknown) => {
+    mockFetch(body);
+    return dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+      })
+    );
+  };
+
+  it('returns the tool_use input object directly (not a re-parsed string)', async () => {
+    const result = await anthropicReq(anthropicToolBody(SAMPLE));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.json).toEqual(SAMPLE);
+      expect(typeof result.json).toBe('object');
+      // text is the stringification of the object payload.
+      expect(result.text).toBe(JSON.stringify(SAMPLE));
+    }
+  });
+
+  it('maps stop_reason refusal → refused', async () => {
+    const result = await anthropicReq({ stop_reason: 'refusal', content: [] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('refused');
+  });
+
+  it('maps stop_reason max_tokens → truncated', async () => {
+    const result = await anthropicReq({
+      stop_reason: 'max_tokens',
+      content: [
+        { type: 'tool_use', name: SCHEMA_NAME, input: { partial: true } },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('truncated');
+  });
+
+  it('maps stop_reason end_turn (no tool call) → no_content', async () => {
+    const result = await anthropicReq({
+      stop_reason: 'end_turn',
+      content: [{ type: 'text', text: 'I cannot help with that.' }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('no_content');
+  });
+
+  it('maps a malformed tool_use block → upstream_error', async () => {
+    const result = await anthropicReq({
+      stop_reason: 'tool_use',
+      content: [
+        { type: 'tool_use', name: SCHEMA_NAME, input: 'not-an-object' },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('upstream_error');
+  });
+
+  it('extracts plain text when no schema is requested (label-scan style)', async () => {
+    mockFetch({ content: [{ type: 'text', text: JSON.stringify(SAMPLE) }] });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+      })
+    );
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+  });
+});
+
+describe('dispatchAiRequest — error categories', () => {
+  it('non-2xx → upstream_error with status', async () => {
+    mockFetch('internal error', { ok: false, status: 500 });
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.category).toBe('upstream_error');
+      expect(result.status).toBe(500);
+    }
+  });
+
+  it('non-JSON success body → upstream_error', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+      json: async () => {
+        throw new Error('not json');
+      },
+    }) as typeof global.fetch;
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('upstream_error');
+  });
+
+  it.each(['TimeoutError', 'AbortError'])(
+    'fetch rejecting with %s → timeout',
+    async (errorName) => {
+      const err = new Error('aborted');
+      err.name = errorName;
+      global.fetch = vi.fn().mockRejectedValue(err) as typeof global.fetch;
+      const result = await dispatchAiRequest(baseRequest());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.category).toBe('timeout');
+    }
+  );
+
+  it('generic fetch rejection → upstream_error', async () => {
+    global.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error('network down')) as typeof global.fetch;
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('upstream_error');
+  });
+
+  it('openai message.refusal → refused', async () => {
+    mockFetch(openAiBody('', { refusal: "I can't help with that" }));
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('refused');
+  });
+
+  it('openai finish_reason content_filter → refused', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+      json: async () => ({
+        choices: [
+          { finish_reason: 'content_filter', message: { content: '' } },
+        ],
+      }),
+    }) as typeof global.fetch;
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('refused');
+  });
+
+  it('openai finish_reason length → truncated', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+      json: async () => ({
+        choices: [
+          { finish_reason: 'length', message: { content: '{"answer":' } },
+        ],
+      }),
+    }) as typeof global.fetch;
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('truncated');
+  });
+
+  it('empty content → no_content', async () => {
+    mockFetch(openAiBody(''));
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('no_content');
+  });
+
+  it('invalid JSON when JSON requested → parse_error', async () => {
+    mockFetch(openAiBody('this is not json'));
+    const result = await dispatchAiRequest(baseRequest());
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('parse_error');
+  });
+});
+
+describe('dispatchAiRequest — ollama undici timeout handling', () => {
+  it.each(['HeadersTimeoutError', 'BodyTimeoutError'])(
+    'ollama fetch rejecting with %s → timeout',
+    async (errorName) => {
+      const err = new Error('ollama timed out');
+      err.name = errorName;
+      global.fetch = vi.fn().mockRejectedValue(err) as typeof global.fetch;
+      const result = await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({
+            service_type: 'ollama',
+            api_key: undefined,
+            custom_url: 'http://localhost:11434',
+          }),
+          networkPolicy: PRIVATE_NETWORK_POLICY,
+        })
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.category).toBe('timeout');
+    }
+  );
+
+  it('generic ollama fetch rejection → upstream_error', async () => {
+    global.fetch = vi
+      .fn()
+      .mockRejectedValue(
+        new Error('connection refused')
+      ) as typeof global.fetch;
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.category).toBe('upstream_error');
+  });
+});
+
+describe('dispatchAiRequest — fence stripping', () => {
+  it('strips ```json fences before parsing under parseJson', async () => {
+    const fenced = `\`\`\`json\n${JSON.stringify(SAMPLE)}\n\`\`\``;
+    mockFetch(openAiBody(fenced));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+      })
+    );
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+    if (result.ok) {
+      // text preserves the raw (still-fenced) extracted string.
+      expect(result.text).toBe(fenced);
+    }
+  });
+});
+
+describe('dispatchAiRequest — MIME normalization', () => {
+  it("rewrites 'image/jpg' to 'image/jpeg' in the anthropic media_type", async () => {
+    const m = mockFetch({
+      content: [{ type: 'text', text: JSON.stringify(SAMPLE) }],
+    });
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+        images: [{ base64: 'aW1n', mimeType: 'image/jpg' }],
+      })
+    );
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image') as {
+      source: { media_type: string };
+    };
+    expect(imagePart.source.media_type).toBe('image/jpeg');
+  });
+
+  it("rewrites 'image/jpg' to 'image/jpeg' in the openai data-URI", async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+        images: [{ base64: 'aW1n', mimeType: 'image/jpg' }],
+      })
+    );
+    const { body } = captured(m);
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const imagePart = content.find((p) => p.type === 'image_url') as {
+      image_url: { url: string };
+    };
+    expect(imagePart.image_url.url).toBe('data:image/jpeg;base64,aW1n');
+  });
+});
+
+describe('dispatchAiRequest — model defaulting', () => {
+  it('uses the user-configured model_name when present', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ model_name: 'gpt-4.1' }) })
+    );
+    expect(captured(m).body.model).toBe('gpt-4.1');
+  });
+
+  it('falls back to the vision default when images are present and model_name is unset', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ model_name: undefined }),
+        images: [IMG],
+      })
+    );
+    // openai vision default
+    expect(captured(m).body.model).toBe('gpt-4.1-mini');
+  });
+
+  it('falls back to the text default when no images and model_name is unset', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ model_name: undefined }) })
+    );
+    // openai text default
+    expect(captured(m).body.model).toBe('gpt-4o-mini');
+  });
+
+  it('ollama vision falls back to llava', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          model_name: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        images: [IMG],
+      })
+    );
+    expect(captured(m).body.model).toBe('llava');
+  });
+
+  // Shared default: getDefaultModel also feeds normal, food-options, and
+  // streaming chat (chatService), so this pins the value where it's consumed.
+  it('ollama text falls back to llama3.2', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          model_name: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+    expect(captured(m).body.model).toBe('llama3.2');
+  });
+});
+
+describe('dispatchAiRequest — temperature', () => {
+  // `temperature: 0` is the load-bearing case for every family: a truthy guard
+  // instead of `!== undefined` would silently drop it.
+  it('openai-family sends temperature 0 in the body', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(baseRequest({ temperature: 0 }));
+    expect(captured(m).body.temperature).toBe(0);
+  });
+
+  it('openai-family sends a non-zero temperature in the body', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(baseRequest({ temperature: 0.2 }));
+    expect(captured(m).body.temperature).toBe(0.2);
+  });
+
+  it('openai-family omits temperature when unset', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(baseRequest());
+    expect(captured(m).body.temperature).toBeUndefined();
+  });
+
+  it('google sends generationConfig.temperature 0 alongside the schema config', async () => {
+    const m = mockFetch(googleBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+        temperature: 0,
+      })
+    );
+    const gc = captured(m).body.generationConfig as {
+      temperature: number;
+      responseMimeType: string;
+    };
+    expect(gc.temperature).toBe(0);
+    expect(gc.responseMimeType).toBe('application/json');
+  });
+
+  it('google sends a temperature-only generationConfig without schema/parseJson', async () => {
+    const m = mockFetch(googleBody('just some prose'));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+        jsonSchema: undefined,
+        schemaName: undefined,
+        temperature: 0,
+      })
+    );
+    expect(captured(m).body.generationConfig).toEqual({ temperature: 0 });
+  });
+
+  it('google omits generationConfig entirely for plain-text requests without temperature', async () => {
+    const m = mockFetch(googleBody('just some prose'));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'google', api_key: 'gem-key' }),
+        jsonSchema: undefined,
+        schemaName: undefined,
+      })
+    );
+    expect(captured(m).body.generationConfig).toBeUndefined();
+  });
+
+  it('anthropic sends temperature 0 in the body', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+        temperature: 0,
+      })
+    );
+    expect(captured(m).body.temperature).toBe(0);
+  });
+
+  it('anthropic omits temperature when unset', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+      })
+    );
+    expect(captured(m).body.temperature).toBeUndefined();
+  });
+
+  it('ollama sends temperature 0 via options', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        temperature: 0,
+      })
+    );
+    expect(captured(m).body.options).toEqual({ num_ctx: 8192, temperature: 0 });
+  });
+
+  it('ollama sends default options when temperature is unset', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+      })
+    );
+    expect(captured(m).body.options).toEqual({ num_ctx: 8192 });
+  });
+});
+
+describe('dispatchAiRequest — 429 rate-limit retry', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('retries after a 429 and succeeds on the second attempt', async () => {
+    let calls = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          text: async () => 'Rate limit exceeded',
+          json: async () => ({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        json: async () => openAiBody(JSON.stringify(SAMPLE)),
+      });
+    }) as typeof global.fetch;
+
+    const promise = dispatchAiRequest(baseRequest());
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('parses "retry in Xs" from the error body and uses it as the sleep delay', async () => {
+    let calls = 0;
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+
+    global.fetch = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          text: async () => 'Please retry in 11.69562819s',
+          json: async () => ({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        json: async () => openAiBody(JSON.stringify(SAMPLE)),
+      });
+    }) as typeof global.fetch;
+
+    const promise = dispatchAiRequest(baseRequest());
+    await vi.runAllTimersAsync();
+    await promise;
+
+    // Math.ceil(11.69562819 * 1000) + 500 = 12196
+    const sleepCall = setTimeoutSpy.mock.calls.find(
+      ([, ms]) => typeof ms === 'number' && (ms as number) >= 12000
+    );
+    expect(sleepCall).toBeDefined();
+  });
+
+  it('falls back to exponential backoff when no retry hint is in the body', async () => {
+    let calls = 0;
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+
+    global.fetch = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          text: async () => 'Too Many Requests',
+          json: async () => ({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        json: async () => openAiBody(JSON.stringify(SAMPLE)),
+      });
+    }) as typeof global.fetch;
+
+    const promise = dispatchAiRequest(baseRequest());
+    await vi.runAllTimersAsync();
+    await promise;
+
+    // First backoff: INITIAL_BACKOFF_MS * 2^0 = 2000
+    const sleepCall = setTimeoutSpy.mock.calls.find(([, ms]) => ms === 2000);
+    expect(sleepCall).toBeDefined();
+  });
+
+  it('returns upstream_error after exhausting all retries', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: async () => 'Quota exceeded',
+      json: async () => ({}),
+    }) as typeof global.fetch;
+
+    const promise = dispatchAiRequest(baseRequest());
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.category).toBe('upstream_error');
+      expect(result.status).toBe(429);
+    }
+    // 1 initial + MAX_FETCH_RETRIES(3) retries = 4 total calls
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      4
+    );
+  });
+});
+
+describe('toStrictJsonSchema', () => {
+  it('adds additionalProperties:false to every object node and strips propertyOrdering', () => {
+    const strict = toStrictJsonSchema(SCHEMA);
+    expect(strict.additionalProperties).toBe(false);
+    expect(strict.properties?.nested?.additionalProperties).toBe(false);
+    expect(strict.propertyOrdering).toBeUndefined();
+  });
+
+  it('does not mutate the source schema', () => {
+    const before = JSON.stringify(SCHEMA);
+    toStrictJsonSchema(SCHEMA);
+    expect(JSON.stringify(SCHEMA)).toBe(before);
+  });
+});
+
+describe('anthropic max_tokens headroom', () => {
+  // On Claude Opus 5 and Sonnet 5, omitting `thinking` runs adaptive thinking
+  // by default and max_tokens caps thinking *and* the visible response
+  // together. The old 2048 ceiling left a forced tool call at risk of being
+  // truncated, surfacing as stop_reason 'max_tokens'.
+  it('requests enough tokens to survive adaptive thinking plus a tool call', async () => {
+    const m = mockFetch(anthropicToolBody(SAMPLE));
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'anthropic',
+          api_key: 'anth-key',
+        }),
+      })
+    );
+    expect(result.ok).toBe(true);
+    const { body } = captured(m);
+    expect(body.max_tokens).toBe(8192);
+  });
+});
+
+describe('anthropic temperature compatibility', () => {
+  // Claude Opus 4.7+ reject `temperature` with a 400; Sonnet 5 rejects
+  // non-default values. Forwarding it fails the request outright.
+  it.each(['claude-opus-5', 'claude-opus-4-8', 'claude-sonnet-5'])(
+    'omits temperature for %s',
+    async (model) => {
+      const m = mockFetch(anthropicToolBody(SAMPLE));
+      const result = await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({
+            service_type: 'anthropic',
+            api_key: 'anth-key',
+            model_name: model,
+          }),
+          temperature: 0.7,
+        })
+      );
+      expect(result.ok).toBe(true);
+      expect(captured(m).body).not.toHaveProperty('temperature');
+    }
+  );
+
+  it.each(['claude-sonnet-4-6', 'claude-haiku-4-5'])(
+    'still sends temperature for %s',
+    async (model) => {
+      const m = mockFetch(anthropicToolBody(SAMPLE));
+      await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({
+            service_type: 'anthropic',
+            api_key: 'anth-key',
+            model_name: model,
+          }),
+          temperature: 0.7,
+        })
+      );
+      expect(captured(m).body.temperature).toBe(0.7);
+    }
+  );
+});

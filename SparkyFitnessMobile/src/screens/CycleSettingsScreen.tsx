@@ -1,0 +1,330 @@
+import React, { useCallback } from 'react';
+import { View, ScrollView, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
+
+import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
+import StatusView from '../components/StatusView';
+import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import { useCycleSettings } from '../hooks/useCycleSettings';
+import { useDiscreetMode } from '../hooks/useDiscreetMode';
+import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
+import { addLog } from '../services/LogService';
+import { useScreenHeader } from '../hooks/useScreenHeader';
+import type { RootStackScreenProps } from '../types/navigation';
+import BottomSheetPicker from '../components/BottomSheetPicker';
+import StepperInput, { useStepperDraft } from '../components/StepperInput';
+import Switch from '../components/ui/Switch';
+import { CYCLE_SETTING_LIMITS } from '../utils/cycleDisplayUtils';
+
+import {
+  BIRTH_CONTROL_METHODS,
+  CYCLE_CONDITIONS,
+  CYCLE_DEFAULTS,
+  type CycleMode,
+} from '@workspace/shared';
+import { getExport } from '../services/api/cycleApi';
+
+type CycleSettingsScreenProps = RootStackScreenProps<'CycleSettings'>;
+
+const MODE_OPTIONS = [
+  { value: 'standard', label: 'Standard Cycle' },
+  { value: 'ttc', label: 'Trying to Conceive' },
+  { value: 'pregnant', label: 'Pregnancy Tracking' },
+  { value: 'postpartum', label: 'Postpartum' },
+  { value: 'menopause', label: 'Menopause-aware' },
+];
+
+const BC_OPTIONS = BIRTH_CONTROL_METHODS.map((m) => ({
+  value: m.value,
+  label: m.displayName,
+}));
+
+const TERMINOLOGY_OPTIONS = [
+  { value: 'default', label: 'Default' },
+  { value: 'neutral', label: 'Gender-Neutral' },
+];
+
+const CycleSettingsScreen: React.FC<CycleSettingsScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
+  const usesNativeHeader = useNativeIOSHeadersActive();
+
+  const {
+    settings,
+    isLoading,
+    updateSettings,
+  } = useCycleSettings();
+
+  const handleToggleEnabled = useCallback((value: boolean) => {
+    updateSettings({ enabled: value, mark_onboarded: value ? true : undefined });
+  }, [updateSettings]);
+
+  const handleModeChange = useCallback((value: string) => {
+    updateSettings({ mode: value as CycleMode });
+  }, [updateSettings]);
+
+  const handleBcChange = useCallback((value: string) => {
+    updateSettings({ birth_control_method: value });
+  }, [updateSettings]);
+
+  const handleToggleCondition = useCallback((condition: string, active: boolean) => {
+    if (!settings) return;
+    const conditions = [...(settings.conditions || [])];
+    if (active) {
+      if (!conditions.includes(condition)) {
+        conditions.push(condition);
+      }
+    } else {
+      const idx = conditions.indexOf(condition);
+      if (idx >= 0) {
+        conditions.splice(idx, 1);
+      }
+    }
+    updateSettings({ conditions });
+  }, [settings, updateSettings]);
+
+  const handleToggleFertileWindow = useCallback((value: boolean) => {
+    updateSettings({ show_fertile_window: value });
+  }, [updateSettings]);
+
+  const handleToggleDiscreetMode = useCallback((value: boolean) => {
+    updateSettings({ discreet_mode: value });
+  }, [updateSettings]);
+
+  const handleTerminologyChange = useCallback((value: string) => {
+    updateSettings({ terminology: value as 'default' | 'neutral' });
+  }, [updateSettings]);
+
+  const handleResetOnboarding = useCallback(() => {
+    Alert.alert(
+      'Reset Onboarding',
+      'Are you sure you want to reset your cycle onboarding? This will clear your setup progress, but your logged cycle days will remain intact.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            updateSettings({ reset_onboarding: true });
+            Toast.show({ type: 'success', text1: 'Onboarding reset completed.' });
+          },
+        },
+      ]
+    );
+  }, [updateSettings]);
+
+  const handleExportData = useCallback(async () => {
+    try {
+      Toast.show({ type: 'info', text1: 'Preparing Export', text2: 'Generating JSON export file...' });
+      const data = await getExport();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `sparky-womens-health-${timestamp}.json`;
+      const file = new File(Paths.cache, fileName);
+      
+      file.create();
+      file.write(JSON.stringify(data, null, 2));
+
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/json',
+        UTI: 'public.json',
+      });
+      file.delete();
+    } catch (error) {
+      addLog(`Failed to export cycle data: ${error}`, 'ERROR');
+      Toast.show({ type: 'error', text1: 'Export Failed', text2: 'Could not export cycle data.' });
+    }
+  }, []);
+
+  const cycleLengthVal = settings?.avg_cycle_length_override || CYCLE_DEFAULTS.cycleLength;
+  const periodLengthVal = settings?.avg_period_length_override || CYCLE_DEFAULTS.periodLength;
+  const lutealLengthVal = settings?.luteal_phase_length || CYCLE_DEFAULTS.lutealLength;
+
+  const cycleLengthProps = useStepperDraft({
+    value: cycleLengthVal,
+    ...CYCLE_SETTING_LIMITS.cycleLength,
+    onCommit: (value) => updateSettings({ avg_cycle_length_override: value }),
+    onClear: () => updateSettings({ avg_cycle_length_override: null }),
+  });
+
+  const periodLengthProps = useStepperDraft({
+    value: periodLengthVal,
+    ...CYCLE_SETTING_LIMITS.periodLength,
+    onCommit: (value) => updateSettings({ avg_period_length_override: value }),
+    onClear: () => updateSettings({ avg_period_length_override: null }),
+  });
+
+  const lutealLengthProps = useStepperDraft({
+    value: lutealLengthVal,
+    ...CYCLE_SETTING_LIMITS.lutealLength,
+    onCommit: (value) => updateSettings({ luteal_phase_length: value }),
+  });
+
+  const { discreetMode } = useDiscreetMode();
+  const headerTitle = discreetMode ? 'Wellness Settings' : 'Cycle & Pregnancy';
+
+  const header = useScreenHeader({
+    title: headerTitle,
+    nativeTitle: headerTitle,
+    left: { kind: 'back' },
+  });
+
+  if (isLoading || !settings) {
+    return <StatusView loading className="bg-background" />;
+  }
+
+  return (
+    <View
+      className="flex-1 bg-background"
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+    >
+      {header}
+      <ScrollView
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: 16,
+          paddingBottom: insets.bottom + 80 + activeWorkoutBarPadding,
+        }}
+        contentInsetAdjustmentBehavior={usesNativeHeader ? 'automatic' : 'never'}
+      >
+        <SettingsRowGroup>
+          <SettingsRow
+            title="Enable Cycle & Pregnancy Tracking"
+            subtitle="Turn on logging, predictions, and history"
+            rightAccessory={
+              <Switch
+                value={settings.enabled}
+                onValueChange={handleToggleEnabled}
+              />
+            }
+          />
+        </SettingsRowGroup>
+
+        {settings.enabled && (
+          <>
+            <SettingsRowGroup title="Feature Configuration">
+              <SettingsRow
+                title="Tracking Mode"
+                rightAccessory={
+                  <BottomSheetPicker
+                    value={settings.mode}
+                    options={MODE_OPTIONS}
+                    onSelect={handleModeChange}
+                    title="Select Mode"
+                    containerStyle={{ flex: 1, maxWidth: 200 }}
+                  />
+                }
+              />
+              <SettingsRow
+                title="Birth Control Method"
+                rightAccessory={
+                  <BottomSheetPicker
+                    value={settings.birth_control_method}
+                    options={BC_OPTIONS}
+                    onSelect={handleBcChange}
+                    title="Select Method"
+                    containerStyle={{ flex: 1, maxWidth: 200 }}
+                  />
+                }
+              />
+            </SettingsRowGroup>
+
+            <SettingsRowGroup title="Cycle Calculations Overrides">
+              <SettingsRow
+                title="Average Cycle Length"
+                subtitle={settings.avg_cycle_length_override ? 'Custom override' : 'Default/History'}
+                rightAccessory={
+                  <StepperInput {...cycleLengthProps} keyboardType="number-pad" />
+                }
+              />
+              <SettingsRow
+                title="Average Period Length"
+                subtitle={settings.avg_period_length_override ? 'Custom override' : 'Default/History'}
+                rightAccessory={
+                  <StepperInput {...periodLengthProps} keyboardType="number-pad" />
+                }
+              />
+              <SettingsRow
+                title="Luteal Phase Length"
+                subtitle="Days post-ovulation (default 14)"
+                rightAccessory={
+                  <StepperInput {...lutealLengthProps} keyboardType="number-pad" />
+                }
+              />
+            </SettingsRowGroup>
+
+            <SettingsRowGroup
+              title="Conditions"
+              subtitle="Select applicable conditions to personalize your tracking."
+            >
+              {CYCLE_CONDITIONS.map((cond) => (
+                <SettingsRow
+                  key={cond.value}
+                  title={cond.displayName}
+                  rightAccessory={
+                    <Switch
+                      value={settings.conditions?.includes(cond.value) || false}
+                      onValueChange={(val) => handleToggleCondition(cond.value, val)}
+                    />
+                  }
+                />
+              ))}
+            </SettingsRowGroup>
+
+            <SettingsRowGroup title="Display Options">
+              <SettingsRow
+                title="Show Fertile Window"
+                subtitle="Highlight fertile days on calendar"
+                rightAccessory={
+                  <Switch
+                    value={settings.show_fertile_window}
+                    onValueChange={handleToggleFertileWindow}
+                  />
+                }
+              />
+              <SettingsRow
+                title="Discreet Mode"
+                subtitle='Hides "Cycle" or "Pregnancy" labels in UI'
+                rightAccessory={
+                  <Switch
+                    value={settings.discreet_mode}
+                    onValueChange={handleToggleDiscreetMode}
+                  />
+                }
+              />
+              <SettingsRow
+                title="Terminology"
+                rightAccessory={
+                  <BottomSheetPicker
+                    value={settings.terminology}
+                    options={TERMINOLOGY_OPTIONS}
+                    onSelect={handleTerminologyChange}
+                    title="Select Terminology"
+                    containerStyle={{ flex: 1, maxWidth: 200 }}
+                  />
+                }
+              />
+            </SettingsRowGroup>
+
+            <SettingsRowGroup title="Actions">
+              <SettingsRow
+                title="Export Cycle & Pregnancy Data"
+                subtitle="Download JSON data export"
+                onPress={handleExportData}
+              />
+              <SettingsRow
+                title="Reset Onboarding Wizard"
+                subtitle="Restart setup walkthrough"
+                onPress={handleResetOnboarding}
+              />
+            </SettingsRowGroup>
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+};
+
+export default CycleSettingsScreen;

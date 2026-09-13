@@ -1,0 +1,173 @@
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (_key: string, defaultValue?: string) => defaultValue,
+  }),
+  initReactI18next: {
+    type: '3rdParty',
+    init: jest.fn(),
+  },
+}));
+
+jest.mock('@/contexts/PreferencesContext', () => ({
+  usePreferences: () => ({
+    energyUnit: 'kcal',
+    convertEnergy: (value: number) => value,
+  }),
+}));
+
+const defaultProps = {
+  previewResult: {
+    target: 2194,
+    baselineTdee: 2194,
+    appliedDeficit: 0,
+    rmr: 1800,
+    isBelowRmr: false,
+    isBelowAbsoluteFloor: false,
+    absoluteFloorValue: 1500,
+    finalTarget: 2194,
+    insufficientHistory: false,
+    projectedWeeklyChangeKg: 0,
+    projectedWeeklyChangePercent: 0,
+    isGainGoal: false,
+    safetyZone: 'green' as const,
+    wasClampedToFloor: false,
+    clampedFloorSource: null,
+    maxFeasibleDeficitPercent: null,
+  },
+  adaptiveTdeeData: {
+    tdee: 2194,
+    isFallback: false,
+    daysOfData: 35,
+    avgIntake: 2300,
+    weightTrend: -0.2,
+    confidence: 'HIGH' as const,
+  },
+  bmrAlgorithm: 'Mifflin-St Jeor',
+  bodyFatAlgorithm: 'US Navy',
+  displayWeight: 84.5,
+  displayHeight: 180,
+  displayAge: 35,
+  displayGender: 'male' as const,
+  goalMode: 'maintain',
+  goalModeCalculationMethod: 'adaptive',
+  goalModeCustomPercentage: 0,
+  calorieGoalAdjustmentMode: 'dynamic',
+  rawManualGoal: 2000,
+  adjustedManualGoal: 2000,
+  activityMultiplier: 1.2,
+};
+
+describe('CalorieTargetBreakdown baseline label', () => {
+  it('labels the baseline as the adaptive TDEE under the adaptive method with sufficient data', () => {
+    render(<CalorieTargetBreakdown {...defaultProps} />);
+    expect(
+      screen.getByText('Adaptive TDEE (Expenditure):')
+    ).toBeInTheDocument();
+  });
+
+  it('labels the baseline as an estimate under the adaptive method with insufficient history', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        previewResult={{
+          ...defaultProps.previewResult,
+          baselineTdee: 2160,
+          finalTarget: 2160,
+          insufficientHistory: true,
+        }}
+        adaptiveTdeeData={{
+          tdee: 0,
+          isFallback: true,
+          fallbackReason: 'Insufficient weight entries (need at least 2)',
+          daysOfData: 3,
+        }}
+      />
+    );
+    expect(screen.getByText('Estimated TDEE:')).toBeInTheDocument();
+  });
+
+  it('labels the baseline as the adaptive goal under the manual method with the adaptive adjustment mode', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        goalModeCalculationMethod="manual"
+        calorieGoalAdjustmentMode="adaptive"
+        adjustedManualGoal={2194}
+      />
+    );
+    expect(screen.getByText('Baseline (Adaptive Goal):')).toBeInTheDocument();
+  });
+
+  it('labels the baseline as the manual goal under the manual method', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        goalModeCalculationMethod="manual"
+        calorieGoalAdjustmentMode="dynamic"
+      />
+    );
+    expect(screen.getByText('Baseline (Manual Goal):')).toBeInTheDocument();
+  });
+});
+
+describe('CalorieTargetBreakdown goal adjustment line', () => {
+  // appliedDeficit and the adjustment percentage are both signed, so rendering
+  // them raw double-printed the sign for gain modes ("Deficit (--10%) = --200").
+  const gainProps = {
+    ...defaultProps,
+    goalMode: 'lean_bulk',
+    previewResult: {
+      ...defaultProps.previewResult,
+      appliedDeficit: -219,
+      finalTarget: 2413,
+      isGainGoal: true,
+    },
+  };
+
+  it('labels a gain mode as a surplus with a single + sign', () => {
+    render(<CalorieTargetBreakdown {...gainProps} />);
+    expect(screen.getByText('Goal Surplus:')).toBeInTheDocument();
+    expect(
+      screen.getByText(/lean_bulk Surplus \(\+10%\) = \+219 kcal/)
+    ).toBeInTheDocument();
+  });
+
+  it('never double-prints a sign for a gain mode', () => {
+    const { container } = render(<CalorieTargetBreakdown {...gainProps} />);
+    expect(container.textContent).not.toMatch(/--|\+-|-\+/);
+  });
+
+  it('labels a manual surplus as a surplus', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...gainProps}
+        goalMode="manual"
+        goalModeCustomPercentage={15}
+      />
+    );
+    expect(screen.getByText('Goal Surplus:')).toBeInTheDocument();
+    expect(screen.getByText(/manual Surplus \(\+15%\)/)).toBeInTheDocument();
+  });
+
+  it('still labels a deficit mode as a deficit', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        goalMode="cut"
+        previewResult={{
+          ...defaultProps.previewResult,
+          appliedDeficit: 329,
+          finalTarget: 1865,
+        }}
+      />
+    );
+    expect(screen.getByText('Goal Deficit:')).toBeInTheDocument();
+    expect(
+      screen.getByText(/cut Deficit \(-15%\) = -329 kcal/)
+    ).toBeInTheDocument();
+  });
+});
