@@ -2687,7 +2687,7 @@ describe('delete_food', () => {
     );
   });
 
-  it('resolves by name and force-deletes', async () => {
+  it('resolves by name and deletes while preserving diary entries', async () => {
     vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
       eggsRow,
     ]);

@@ -237,9 +237,15 @@ async function updateUserEmail(userId: string, newEmail: string) {
       'UPDATE "user" SET email = $1, email_verified = false, updated_at = now() WHERE id = $2',
       [newEmail, userId]
     );
+    // account_id deliberately keeps the user id and is NOT rewritten to the new
+    // email. Better Auth resolves the credential row with
+    // `providerId === 'credential' && accountId === user.id`, so writing the
+    // email here would make password sign-in fail with "User not found"
+    // immediately after a user changes their address. Only `updated_at` moves;
+    // the address itself lives on the "user" row updated above.
     await client.query(
       'UPDATE "account" SET account_id = $1, updated_at = now() WHERE user_id = $2 AND provider_id = \'credential\'',
-      [newEmail, userId]
+      [userId, userId]
     );
     await client.query('COMMIT');
     return true;

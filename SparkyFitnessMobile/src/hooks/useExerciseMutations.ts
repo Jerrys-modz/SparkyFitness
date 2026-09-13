@@ -391,7 +391,7 @@ export function useDeleteExerciseEntry({
 
 interface UseDeleteExerciseLibraryOptions {
   exerciseId: string;
-  onSuccess?: () => void;
+  onSuccess?: (result?: { message?: string; status?: string }) => void;
 }
 
 /** One row of the delete ActionSheet. */
@@ -428,7 +428,7 @@ export function useDeleteExerciseLibrary({
           }),
         });
       }
-      onSuccess?.();
+      onSuccess?.(result);
     },
     onError: (error) => {
       const message = isAuthzError(error)

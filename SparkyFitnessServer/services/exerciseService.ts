@@ -860,35 +860,25 @@ async function deleteExercise(
       };
     }
 
-    // Order matters: remove this user's entries first, while exercise_id still
-    // points at the row. After the delete below they are unreachable by
-    // exercise_id, because the foreign key nulls them out.
-    let deletedEntries = 0;
-    if (mode === 'delete_with_history') {
-      deletedEntries = await exerciseDb.deleteExerciseEntriesForUser(
-        exerciseId,
-        authenticatedUserId
-      );
-    }
-
     const today = await resolveTemplateStartDay(
       authenticatedUserId,
       currentClientDate
     );
-    const success = await exerciseDb.deleteExerciseAndDependencies(
+    const deleteResult = await exerciseDb.deleteExerciseAndDependencies(
       exerciseId,
       authenticatedUserId,
-      today
+      today,
+      { deleteHistory: mode === 'delete_with_history' }
     );
-    if (!success) {
+    if (!deleteResult.success) {
       throw new Error('Exercise not found or not authorized to delete.');
     }
 
     return mode === 'delete_with_history'
       ? {
-          message: `Exercise deleted along with ${deletedEntries} of your diary entries.`,
+          message: `Exercise deleted along with ${deleteResult.deletedEntries} of your diary entries.`,
           status: 'deleted_with_history',
-          deletedEntries,
+          deletedEntries: deleteResult.deletedEntries,
         }
       : {
           message:

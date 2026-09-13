@@ -22,9 +22,6 @@ import { expoSsoCookieRelay } from './utils/expoSsoCookieRelay.js';
 import { passkey } from '@better-auth/passkey';
 import { isDemoMode } from './middleware/demoGuardMiddleware.js';
 
-// bcryptjs v3 returns a promise when the callback is omitted, so no promisify.
-const hashAsync = bcrypt.hash;
-const compareAsync = bcrypt.compare;
 const { Pool } = pg;
 /**
  * Gathers and cleans origins from environment variables.
@@ -137,14 +134,17 @@ async function syncTrustedProviders() {
     const rows = await oidcProviderRepository.getOidcProviders();
     const ssoOrigins = new Set<string>();
     for (const row of rows ?? []) {
+      // getOidcProviders() renames the columns on the way out: the issuer is
+      // `issuer_url` and the endpoints are camelCase. Reading the raw column
+      // names here would silently collect nothing but the discovery origin,
+      // which only happens to work while every endpoint shares one host.
       for (const candidate of [
-        row?.issuer,
-        row?.discovery_endpoint,
+        row?.issuer_url,
         row?.discoveryEndpoint,
-        row?.authorization_endpoint,
-        row?.token_endpoint,
-        row?.userinfo_endpoint,
-        row?.jwks_endpoint,
+        row?.authorizationEndpoint,
+        row?.tokenEndpoint,
+        row?.userInfoEndpoint,
+        row?.jwksEndpoint,
       ]) {
         const origin = originOf(candidate);
         if (origin) ssoOrigins.add(origin);
@@ -152,7 +152,8 @@ async function syncTrustedProviders() {
     }
     dynamicTrustedSsoOrigins.length = 0;
     dynamicTrustedSsoOrigins.push(...ssoOrigins);
-    console.log(
+    log(
+      'info',
       '[AUTH] Synced trusted SSO provider origins:',
       dynamicTrustedSsoOrigins
     );
@@ -330,8 +331,8 @@ const auth = betterAuth({
     },
     password: {
       // Use bcrypt for compatibility with existing hashes
-      hash: (password) => hashAsync(password, 10),
-      verify: ({ password, hash }) => compareAsync(password, hash),
+      hash: (password) => bcrypt.hash(password, 10),
+      verify: ({ password, hash }) => bcrypt.compare(password, hash),
     },
   },
   // Session configuration

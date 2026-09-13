@@ -442,27 +442,17 @@ async function deleteFood(
       };
     }
 
-    // Order matters: remove this user's entries first, while food_id still
-    // points at the row. After the delete below they are unreachable by
-    // food_id, because the foreign key nulls them out.
-    let deletedEntries = 0;
-    if (mode === 'delete_with_history') {
-      deletedEntries = await foodRepository.deleteFoodEntriesForUser(
-        foodId,
-        authenticatedUserId
-      );
-    }
-
     const today = await resolveTemplateStartDay(
       authenticatedUserId,
       currentClientDate
     );
-    const success = await foodRepository.deleteFoodAndDependencies(
+    const deleteResult = await foodRepository.deleteFoodAndDependencies(
       foodId,
       authenticatedUserId,
-      today
+      today,
+      { deleteHistory: mode === 'delete_with_history' }
     );
-    if (!success) {
+    if (!deleteResult.success) {
       throw new Error('Food not found or not authorized to delete.');
     }
 
@@ -478,9 +468,9 @@ async function deleteFood(
 
     return mode === 'delete_with_history'
       ? {
-          message: `Food deleted along with ${deletedEntries} of your diary entries.`,
+          message: `Food deleted along with ${deleteResult.deletedEntries} of your diary entries.`,
           status: 'deleted_with_history',
-          deletedEntries,
+          deletedEntries: deleteResult.deletedEntries,
         }
       : {
           message:
