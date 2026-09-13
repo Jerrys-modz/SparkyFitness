@@ -77,9 +77,14 @@ function formatExercise(exercise: LiftohistoryExportExercise): string[] {
     }
   }
 
-  // Partition warmup sets vs completed sets if marked
-  const warmupSets = exercise.sets.filter((s) => s.setType === 'warmup');
-  const workingSets = exercise.sets.filter((s) => s.setType !== 'warmup');
+  // Partition warmup sets vs completed sets if marked (normalizing setType like 'Warm-up', 'warmup', 'warm-up')
+  const isWarmup = (type?: string | null) => {
+    if (!type) return false;
+    const t = type.trim().toLowerCase();
+    return t === 'warmup' || t === 'warm-up';
+  };
+  const warmupSets = exercise.sets.filter((s) => isWarmup(s.setType));
+  const workingSets = exercise.sets.filter((s) => !isWarmup(s.setType));
 
   // If there are only warmup sets, treat them as working sets
   const primarySets = workingSets.length > 0 ? workingSets : warmupSets;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
 import { exportWorkoutsToLiftosaur } from '../integrations/liftosaur/liftosaurWorkoutExportService.js';
-import { getSystemClient } from '../db/poolManager.js';
+import { getClient } from '../db/poolManager.js';
 
 vi.mock('axios');
 vi.mock('../db/poolManager.js');
@@ -18,7 +18,7 @@ describe('liftosaurWorkoutExportService', () => {
       query: vi.fn(),
       release: vi.fn(),
     };
-    vi.mocked(getSystemClient).mockResolvedValue(mockClient);
+    vi.mocked(getClient).mockResolvedValue(mockClient);
   });
 
   it('queries non-Liftosaur workouts, attaches sets, and posts serialized history', async () => {

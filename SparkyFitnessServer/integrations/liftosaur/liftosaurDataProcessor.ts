@@ -11,6 +11,7 @@ import activityDetailsRepository from '../../models/activityDetailsRepository.js
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepository.js';
 import { log } from '../../config/logging.js';
+import { getClient } from '../../db/poolManager.js';
 import {
   instantToDay,
   instantHourMinute,
@@ -44,7 +45,7 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Process a list of parsed Liftosaur workouts into SparkyFitness entries.
+ * Process a list of parsed Liftosaur workouts into SparkyFitness entries atomically.
  */
 async function processLiftosaurWorkouts(
   userId: string,
@@ -56,50 +57,90 @@ async function processLiftosaurWorkouts(
     'info',
     `Processing ${workouts.length} Liftosaur workouts for user ${userId}...`
   );
-  // Mirror the Garmin/Hevy re-sync model: clear any existing Liftosaur sessions
-  // and exercise entries in the synced date range before rebuilding so re-syncs
-  // are idempotent. Preset templates (workout_presets) are reused by name.
-  if (workouts.length > 0) {
-    const entryDates = workouts.map((w) => instantToDay(new Date(w.date), timezone));
-    const startDate = entryDates.reduce((a, b) => (a < b ? a : b));
-    const endDate = entryDates.reduce((a, b) => (a > b ? a : b));
-    try {
-      await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDate(
-        userId,
-        startDate,
-        endDate,
-        LIFTOSAUR_SOURCE
-      );
-      await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDate(
-        userId,
-        startDate,
-        endDate,
-        LIFTOSAUR_SOURCE
-      );
-    } catch (error) {
-      log(
-        'error',
-        `Failed to clear existing Liftosaur data before re-sync for user ${userId}: ${errorMessage(error)}`
-      );
-    }
-  }
 
-  // Paginated fetches can overlap at page boundaries; process each workout id
-  // exactly once so a second pass doesn't create an empty orphan session.
-  const seenWorkoutIds = new Set<number>();
-  for (const workout of workouts) {
-    if (seenWorkoutIds.has(workout.id)) {
-      log('debug', `Skipping duplicate Liftosaur workout ${workout.id}`);
-      continue;
+  let client: any = null;
+  try {
+    client = await getClient(userId, createdByUserId);
+  } catch {
+    client = null;
+  }
+  const hasTx = client && typeof client.query === 'function';
+
+  try {
+    if (hasTx) {
+      await client.query('BEGIN');
     }
-    seenWorkoutIds.add(workout.id);
-    try {
-      await processSingleWorkout(userId, createdByUserId, workout, timezone);
-    } catch (error) {
-      log(
-        'error',
-        `Failed to process Liftosaur workout ${workout.id}: ${errorMessage(error)}`
-      );
+
+    // Mirror the Garmin/Hevy re-sync model: clear any existing Liftosaur sessions
+    // and exercise entries in the synced date range before rebuilding so re-syncs
+    // are idempotent. Preset templates (workout_presets) are reused by name.
+    if (workouts.length > 0) {
+      const entryDates = workouts.map((w) => instantToDay(new Date(w.date), timezone));
+      const startDate = entryDates.reduce((a, b) => (a < b ? a : b));
+      const endDate = entryDates.reduce((a, b) => (a > b ? a : b));
+
+      if (hasTx && exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient) {
+        await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient(
+          client,
+          userId,
+          startDate,
+          endDate,
+          LIFTOSAUR_SOURCE
+        );
+      } else {
+        await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDate(
+          userId,
+          startDate,
+          endDate,
+          LIFTOSAUR_SOURCE
+        );
+      }
+
+      if (hasTx && exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient) {
+        await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient(
+          client,
+          userId,
+          startDate,
+          endDate,
+          LIFTOSAUR_SOURCE
+        );
+      } else {
+        await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDate(
+          userId,
+          startDate,
+          endDate,
+          LIFTOSAUR_SOURCE
+        );
+      }
+    }
+
+    // Paginated fetches can overlap at page boundaries; process each workout id
+    // exactly once so a second pass doesn't create an empty orphan session.
+    const seenWorkoutIds = new Set<number>();
+    for (const workout of workouts) {
+      if (seenWorkoutIds.has(workout.id)) {
+        log('debug', `Skipping duplicate Liftosaur workout ${workout.id}`);
+        continue;
+      }
+      seenWorkoutIds.add(workout.id);
+      await processSingleWorkout(userId, createdByUserId, workout, timezone, client);
+    }
+
+    if (hasTx) {
+      await client.query('COMMIT');
+    }
+  } catch (error) {
+    if (hasTx) {
+      await client.query('ROLLBACK');
+    }
+    log(
+      'error',
+      `Failed to process Liftosaur workouts for user ${userId}: ${errorMessage(error)}`
+    );
+    throw error;
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
     }
   }
 }
@@ -111,7 +152,8 @@ async function processSingleWorkout(
   userId: string,
   createdByUserId: string,
   workout: LiftohistoryWorkout,
-  timezone = 'UTC'
+  timezone = 'UTC',
+  client?: any
 ) {
   const startTime = new Date(workout.date);
   const entryDate = instantToDay(startTime, timezone);
@@ -143,21 +185,30 @@ async function processSingleWorkout(
     );
   }
 
+  const presetPayload = {
+    user_id: userId,
+    workout_preset_id: workoutPreset.id,
+    name: workoutTitle,
+    description: `Logged session of ${workoutTitle}`,
+    entry_date: entryDate,
+    created_by_user_id: createdByUserId,
+    notes: `Liftosaur Workout Session: ${workoutTitle}`,
+    source: LIFTOSAUR_SOURCE,
+  };
+
   const presetEntry: PresetEntryRow =
-    await exercisePresetEntryRepository.createExercisePresetEntry(
-      userId,
-      {
-        user_id: userId,
-        workout_preset_id: workoutPreset.id,
-        name: workoutTitle,
-        description: `Logged session of ${workoutTitle}`,
-        entry_date: entryDate,
-        created_by_user_id: createdByUserId,
-        notes: `Liftosaur Workout Session: ${workoutTitle}`,
-        source: LIFTOSAUR_SOURCE,
-      },
-      createdByUserId
-    );
+    client && exercisePresetEntryRepository.createExercisePresetEntryWithClient
+      ? await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
+          client,
+          userId,
+          presetPayload,
+          createdByUserId
+        )
+      : await exercisePresetEntryRepository.createExercisePresetEntry(
+          userId,
+          presetPayload,
+          createdByUserId
+        );
 
   const workoutDurationMinutes = workout.durationSeconds
     ? Math.round(workout.durationSeconds / 60)
@@ -252,14 +303,26 @@ async function processSingleWorkout(
 
     // 4. Create the exercise entry, linked to the session (preset entry) so it
     //    groups under the workout instead of standing alone.
-    const entry: ExerciseEntryRow | null =
-      await exerciseEntryRepository.createExerciseEntry(
+    let entry: ExerciseEntryRow | null = null;
+    if (client && exerciseEntryRepository._createExerciseEntryWithClient) {
+      const created = await exerciseEntryRepository._createExerciseEntryWithClient(
+        client,
         userId,
         entryData,
         createdByUserId,
         LIFTOSAUR_SOURCE,
         presetEntry.id
       );
+      entry = created?.entry ?? created ?? null;
+    } else {
+      entry = await exerciseEntryRepository.createExerciseEntry(
+        userId,
+        entryData,
+        createdByUserId,
+        LIFTOSAUR_SOURCE,
+        presetEntry.id
+      );
+    }
 
     // 5. Populate the reusable preset template with this exercise. Reuses the
     //    existing exercise row when present and skips if it already has sets,
@@ -286,7 +349,7 @@ async function processSingleWorkout(
     //    visible/editable in the Advanced section of the entry.
     if (entry?.id) {
       try {
-        await activityDetailsRepository.createActivityDetail(userId, {
+        const detailPayload = {
           exercise_entry_id: entry.id,
           provider_name: LIFTOSAUR_SOURCE,
           detail_type: 'full_activity_data',
@@ -307,7 +370,18 @@ async function processSingleWorkout(
           },
           created_by_user_id: createdByUserId,
           updated_by_user_id: createdByUserId,
-        });
+        };
+        if (client && activityDetailsRepository._createActivityDetailWithClient) {
+          await activityDetailsRepository._createActivityDetailWithClient(
+            client,
+            detailPayload
+          );
+        } else {
+          await activityDetailsRepository.createActivityDetail(
+            userId,
+            detailPayload
+          );
+        }
       } catch (error) {
         log(
           'error',

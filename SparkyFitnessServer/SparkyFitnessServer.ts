@@ -1043,8 +1043,8 @@ const scheduleLiftosaurSyncs = async () => {
             await liftosaurService.syncLiftosaurData(
               provider.user_id,
               provider.user_id,
-              undefined,
-              undefined
+              false,
+              provider.id
             );
           } catch (error) {
             console.error(

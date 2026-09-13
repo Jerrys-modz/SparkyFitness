@@ -4,7 +4,7 @@
  * translates them into the Liftohistory format, and posts them to Liftosaur v1 REST API.
  */
 import axios from 'axios';
-import { getSystemClient } from '../../db/poolManager.js';
+import { getClient } from '../../db/poolManager.js';
 import { log } from '../../config/logging.js';
 import { localDateTimeToUtc, instantToDay } from '@workspace/shared';
 import { serializeLiftohistory } from './liftohistorySerializer.js';
@@ -60,6 +60,7 @@ async function postWorkoutToLiftosaur(
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
+        timeout: 10000,
       }
     );
     return true;
@@ -79,11 +80,11 @@ export async function exportWorkoutsToLiftosaur(
   startDate?: string | null,
   endDate?: string | null
 ): Promise<number> {
-  const client = await getSystemClient();
+  const client = await getClient(userId);
   let exportedCount = 0;
 
   try {
-    // 1. Fetch eligible exercise entries excluding Liftosaur-originated rows
+    // 1. Fetch eligible exercise entries excluding Liftosaur-originated rows and already exported rows
     const query = `
       SELECT ee.id, ee.user_id, ee.exercise_name, ee.entry_date, ee.entry_time,
              ee.duration_minutes, ee.notes, ee.source, ee.exercise_preset_entry_id,
@@ -92,6 +93,7 @@ export async function exportWorkoutsToLiftosaur(
       LEFT JOIN exercise_preset_entries epe ON epe.id = ee.exercise_preset_entry_id
       WHERE ee.user_id = $1
         AND (ee.source IS NULL OR LOWER(ee.source) != 'liftosaur')
+        AND (ee.notes IS NULL OR ee.notes NOT LIKE '%[liftosaur_exported]%')
         AND ($2::date IS NULL OR ee.entry_date >= $2)
         AND ($3::date IS NULL OR ee.entry_date <= $3)
       ORDER BY ee.entry_date ASC, ee.entry_time ASC NULLS LAST, ee.sort_order ASC, ee.created_at ASC
@@ -184,12 +186,16 @@ export async function exportWorkoutsToLiftosaur(
 
       if (exportExercises.length > 0) {
         const programName = firstEntry.preset_name || 'SparkyFitness Workout';
+        const sessionNotes = firstEntry.notes
+          ? firstEntry.notes.replace(/\[liftosaur_exported\]/g, '').trim()
+          : undefined;
+
         const exportWorkout: LiftohistoryExportWorkout = {
           date: sessionUtcInstant.toISOString(),
           programName,
           dayName: firstEntry.preset_name ? firstEntry.preset_name : 'Workout',
           durationSeconds: totalDurationMinutes > 0 ? totalDurationMinutes * 60 : undefined,
-          notes: firstEntry.notes || undefined,
+          notes: sessionNotes || undefined,
           exercises: exportExercises,
         };
 
@@ -197,6 +203,19 @@ export async function exportWorkoutsToLiftosaur(
         const posted = await postWorkoutToLiftosaur(apiKey, serializedText);
         if (posted) {
           exportedCount += 1;
+          const entryIds = entries.map((e) => e.id);
+          if (entryIds.length > 0) {
+            await client.query(
+              `UPDATE exercise_entries
+               SET notes = CASE
+                 WHEN notes IS NULL OR notes = '' THEN '[liftosaur_exported]'
+                 ELSE notes || ' [liftosaur_exported]'
+               END,
+               updated_at = NOW()
+               WHERE id = ANY($1::uuid[])`,
+              [entryIds]
+            );
+          }
         }
       }
     }

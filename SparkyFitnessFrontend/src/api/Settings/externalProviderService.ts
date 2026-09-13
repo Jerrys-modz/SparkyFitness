@@ -474,8 +474,14 @@ export interface LiftosaurStatusResponse {
   lastSyncAt: string | null;
 }
 
-export const fetchLiftosaurStatus = async (): Promise<LiftosaurStatusResponse> => {
-  return apiCall('/integrations/liftosaur/status');
+export const fetchLiftosaurStatus = async (
+  providerId?: string
+): Promise<LiftosaurStatusResponse> => {
+  return apiCall(
+    providerId
+      ? `/integrations/liftosaur/status?providerId=${encodeURIComponent(providerId)}`
+      : '/integrations/liftosaur/status'
+  );
 };
 
 export const handleDisconnectLiftosaur = async (providerId?: string) => {
@@ -567,7 +573,7 @@ export const getEnrichedProviders = async (): Promise<
             break;
           }
           case 'liftosaur': {
-            const status = await fetchLiftosaurStatus();
+            const status = await fetchLiftosaurStatus(provider.id);
             enriched.liftosaur_connect_status = status.connected
               ? 'connected'
               : 'disconnected';

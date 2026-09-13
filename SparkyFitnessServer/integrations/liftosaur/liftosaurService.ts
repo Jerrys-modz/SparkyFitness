@@ -13,7 +13,7 @@ import { decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
 import { logRawResponse } from '../../utils/diagnosticLogger.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
-import { dayToUtcRange } from '@workspace/shared';
+import { dayToUtcRange, instantToDay } from '@workspace/shared';
 import { parseLiftohistory } from './liftohistoryParser.js';
 import liftosaurDataProcessor from './liftosaurDataProcessor.js';
 import {
@@ -131,6 +131,7 @@ async function getHistoryPage(
         ...(params.cursor !== undefined ? { cursor: params.cursor } : {}),
         limit: HISTORY_PAGE_SIZE,
       },
+      timeout: 10000,
     });
     logRawResponse('liftosaur', `raw_history_page${params.cursor ?? ''}`, response.data);
     return response.data.data ?? { records: [], hasMore: false };
@@ -271,6 +272,10 @@ async function syncLiftosaurData(
     log('error', `[liftosaurService] Error importing measurements for user ${userId}: ${errorMessage(mErr)}`);
   }
 
+  const exportStartDate =
+    startDate ?? (fullSync ? undefined : instantToDay(new Date(cutoffMs), tz));
+  const exportEndDate = endDate;
+
   // 3. Export non-Liftosaur workouts to Liftosaur
   let workoutsExported = 0;
   try {
@@ -278,8 +283,8 @@ async function syncLiftosaurData(
       userId,
       apiKey,
       tz,
-      startDate,
-      endDate
+      exportStartDate,
+      exportEndDate
     );
     log('info', `[liftosaurService] Exported ${workoutsExported} workouts for user ${userId}.`);
   } catch (wErr) {
@@ -293,8 +298,8 @@ async function syncLiftosaurData(
       userId,
       apiKey,
       tz,
-      startDate,
-      endDate
+      exportStartDate,
+      exportEndDate
     );
     log('info', `[liftosaurService] Exported ${measurementsExported} measurements for user ${userId}.`);
   } catch (mExpErr) {
@@ -339,16 +344,23 @@ async function syncLiftosaurData(
 /**
  * Connection status for a user's Liftosaur provider.
  */
-async function getStatus(userId: string): Promise<LiftosaurProviderStatus> {
+async function getStatus(
+  userId: string,
+  providerId?: string
+): Promise<LiftosaurProviderStatus> {
   const client = await getSystemClient();
   try {
-    const result = (await client.query(
-      `SELECT is_active, last_sync_at
+    let query = `SELECT is_active, last_sync_at
        FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = 'liftosaur'
-       ORDER BY is_active DESC, created_at DESC LIMIT 1`,
-      [userId]
-    )) as { rows: ProviderRow[] };
+       WHERE user_id = $1 AND provider_type = 'liftosaur'`;
+    const params: string[] = [userId];
+    if (providerId) {
+      query += ' AND id = $2';
+      params.push(providerId);
+    } else {
+      query += ' ORDER BY is_active DESC, created_at DESC LIMIT 1';
+    }
+    const result = (await client.query(query, params)) as { rows: ProviderRow[] };
     const row = result.rows[0];
     if (!row) {
       return { connected: false, lastSyncAt: null };

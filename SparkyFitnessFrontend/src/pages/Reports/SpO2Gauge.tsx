@@ -1,4 +1,4 @@
-import { getSpO2StatusInfo } from '@/utils/reportUtil';
+import { getSpO2Status } from '@/utils/reportUtil';
 import { useTranslation } from 'react-i18next';
 
 interface SpO2GaugeProps {
@@ -9,7 +9,8 @@ interface SpO2GaugeProps {
 
 const SpO2Gauge = ({ value, size = 160, strokeWidth = 12 }: SpO2GaugeProps) => {
   const { t } = useTranslation();
-  const { status, color, description } = getSpO2StatusInfo(value);
+  const { statusKey, statusDefault, color } = getSpO2Status(value);
+  const statusLabel = t(statusKey, statusDefault);
 
   // SVG calculations
   const radius = (size - strokeWidth) / 2;
@@ -47,7 +48,10 @@ const SpO2Gauge = ({ value, size = 160, strokeWidth = 12 }: SpO2GaugeProps) => {
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         className="transform"
+        role="img"
+        aria-label={`SpO2: ${value.toFixed(0)}% - ${statusLabel}`}
       >
+        <title>{`SpO2: ${value.toFixed(0)}% - ${statusLabel}`}</title>
         {/* Background gradient arc segments */}
         {segments.map((segment, index) => {
           const segmentLength = (segment.end - segment.start) * arcLength;
@@ -110,10 +114,7 @@ const SpO2Gauge = ({ value, size = 160, strokeWidth = 12 }: SpO2GaugeProps) => {
       {/* Status text */}
       <div className="text-center mt-2">
         <p className="font-semibold text-lg" style={{ color }}>
-          {t(`reports.spo2Status.${status.toLowerCase()}`, status)}
-        </p>
-        <p className="text-sm text-muted-foreground max-w-[200px]">
-          {t(`reports.spo2Description.${status.toLowerCase()}`, description)}
+          {statusLabel}
         </p>
       </div>
     </div>

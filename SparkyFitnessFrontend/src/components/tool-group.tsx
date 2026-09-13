@@ -33,7 +33,7 @@ const toolGroupVariants = cva('aui-tool-group-root group/tool-group w-full', {
 
 export type ToolGroupRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
-  'open' | 'onOpenChange'
+  'open' | 'onOpenChange' | 'ref'
 > &
   VariantProps<typeof toolGroupVariants> & {
     open?: boolean;
@@ -48,6 +48,7 @@ function ToolGroupRoot({
   onOpenChange: controlledOnOpenChange,
   defaultOpen = false,
   children,
+  style,
   ...props
 }: ToolGroupRootProps) {
   const collapsibleRef = useRef<HTMLDivElement>(null);
@@ -72,7 +73,6 @@ function ToolGroupRoot({
 
   return (
     <Collapsible
-      ref={collapsibleRef}
       data-slot="tool-group-root"
       data-variant={variant ?? 'outline'}
       open={isOpen}
@@ -82,12 +82,14 @@ function ToolGroupRoot({
         'group/tool-group-root',
         className
       )}
+      {...props}
       style={
         {
           '--animation-duration': `${ANIMATION_DURATION}ms`,
+          ...style,
         } as React.CSSProperties
       }
-      {...props}
+      ref={collapsibleRef}
     >
       {children}
     </Collapsible>

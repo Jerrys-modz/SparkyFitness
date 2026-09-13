@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncHevyData, syncLiftosaurData } from '@/api/Integrations/integrations';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
@@ -13,11 +13,13 @@ import {
 } from '@/api/Settings/externalProviderService';
 import { DataProvider } from '@/types/settings';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
+import { externalProviderKeys } from '@/hooks/Settings/useExternalProviderSettings';
 
 export const useSyncAllMutation = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
   const invalidateSyncData = useDiaryInvalidation();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (providers: DataProvider[]) => {
@@ -66,6 +68,9 @@ export const useSyncAllMutation = () => {
               break;
             case 'liftosaur':
               await syncLiftosaurData(false, provider.id);
+              queryClient.invalidateQueries({
+                queryKey: externalProviderKeys.lists(),
+              });
               break;
           }
           successCount++;

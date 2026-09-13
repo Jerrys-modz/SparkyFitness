@@ -352,9 +352,12 @@ export async function exportMeasurementsToLiftosaur(
       )) as Array<{
         date: string | Date;
         value: string | number;
+        source?: string | null;
       }>;
 
       for (const entry of entries) {
+        if (entry.source && entry.source.toLowerCase() === 'liftosaur') continue;
+
         const dayStr =
           entry.date instanceof Date
             ? instantToDay(entry.date, tz)

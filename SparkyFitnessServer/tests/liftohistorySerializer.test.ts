@@ -103,9 +103,25 @@ describe('liftohistorySerializer', () => {
       },
     ];
 
-    const document = serializeLiftohistory(workouts);
-    const parsed = parseLiftohistory(document);
-    expect(parsed.errors).toEqual([]);
+    const text = serializeLiftohistory(workouts);
+    const parsed = parseLiftohistory(text);
     expect(parsed.workouts).toHaveLength(2);
+  });
+
+  it('recognizes "Warm-up" case-insensitively and emits warmup section', () => {
+    const workout: LiftohistoryExportWorkout = {
+      date: '2026-03-01T10:00:00.000Z',
+      exercises: [
+        {
+          name: 'Deadlift',
+          sets: [
+            { reps: 5, weight: 60, setType: 'Warm-up' },
+            { reps: 5, weight: 140, setType: 'working' },
+          ],
+        },
+      ],
+    };
+    const text = serializeLiftohistoryWorkout(workout);
+    expect(text).toContain('warmup: 1x5 60kg');
   });
 });

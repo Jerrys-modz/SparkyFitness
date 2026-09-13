@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import liftosaurService, {
   liftosaurErrorReason,
 } from '../integrations/liftosaur/liftosaurService.js';
@@ -6,6 +7,47 @@ import { log } from '../config/logging.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+const calendarDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+  .refine((val) => {
+    const [year, month, day] = val.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
+  }, 'Invalid calendar date');
+
+const syncBodySchema = z
+  .object({
+    providerId: z.string().uuid('Invalid provider ID format').optional(),
+    startDate: calendarDateSchema.nullable().optional(),
+    endDate: calendarDateSchema.nullable().optional(),
+    fullSync: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return data.startDate <= data.endDate;
+      }
+      return true;
+    },
+    {
+      message: 'startDate must be before or equal to endDate',
+      path: ['endDate'],
+    }
+  );
+
+const disconnectBodySchema = z.object({
+  providerId: z.string().uuid('Invalid provider ID format').optional(),
+});
+
+const statusQuerySchema = z.object({
+  providerId: z.string().uuid('Invalid provider ID format').optional(),
+});
 
 /**
  * @swagger
@@ -16,15 +58,20 @@ const router = express.Router();
  */
 router.post('/sync', authMiddleware.authenticate, async (req, res) => {
   try {
+    const parsed = syncBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: 'Invalid request body',
+        error: parsed.error.issues[0]?.message || 'Validation failed',
+        details: parsed.error.flatten(),
+      });
+    }
+
     const userId = req.userId as string;
     const createdByUserId = userId;
-    const { providerId, startDate, endDate } = req.body as {
-      providerId?: string;
-      startDate?: string | null;
-      endDate?: string | null;
-    };
+    const { providerId, startDate, endDate } = parsed.data;
     const fullSync =
-      req.query.fullSync === 'true' || (req.body as { fullSync?: boolean }).fullSync === true;
+      req.query.fullSync === 'true' || parsed.data.fullSync === true;
     log(
       'info',
       `[liftosaurRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
@@ -71,8 +118,18 @@ router.post('/sync', authMiddleware.authenticate, async (req, res) => {
  */
 router.get('/status', authMiddleware.authenticate, async (req, res) => {
   try {
+    const parsed = statusQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: 'Invalid query parameters',
+        error: parsed.error.issues[0]?.message || 'Validation failed',
+        details: parsed.error.flatten(),
+      });
+    }
+
     const userId = req.userId as string;
-    const status = await liftosaurService.getStatus(userId);
+    const { providerId } = parsed.data;
+    const status = await liftosaurService.getStatus(userId, providerId);
     res.status(200).json(status);
   } catch (error) {
     log('error', `Error getting Liftosaur status: ${errorMessage(error)}`);
@@ -92,8 +149,17 @@ router.get('/status', authMiddleware.authenticate, async (req, res) => {
  */
 router.post('/disconnect', authMiddleware.authenticate, async (req, res) => {
   try {
+    const parsed = disconnectBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: 'Invalid request body',
+        error: parsed.error.issues[0]?.message || 'Validation failed',
+        details: parsed.error.flatten(),
+      });
+    }
+
     const userId = req.userId as string;
-    const { providerId } = req.body as { providerId?: string };
+    const { providerId } = parsed.data;
     const disconnected = await liftosaurService.disconnect(userId, providerId);
     if (!disconnected) {
       return res.status(404).json({ message: 'Liftosaur provider not found.' });

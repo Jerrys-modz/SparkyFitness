@@ -44,6 +44,7 @@ export default function CycleAlerts({ alerts, onAction }: CycleAlertsProps) {
               </div>
               {onAction && (
                 <button
+                  type="button"
                   onClick={() => onAction(alert.key)}
                   className="text-xs font-semibold text-primary hover:underline hover:text-primary/80 transition"
                 >
