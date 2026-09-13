@@ -1001,14 +1001,55 @@ async function deleteFoodEntriesForUser(
 async function deleteFoodAndDependencies(
   foodId: string,
   userId: string,
-  today?: string
-) {
+  today?: string,
+  options: { deleteHistory?: boolean } = {}
+): Promise<{ success: boolean; deletedEntries: number }> {
   const client = await getClient(userId);
   try {
     await client.query('BEGIN');
 
-    // 0. Delete future food entries generated from meal plan templates for this food
-    if (today) {
+    let deletedEntries = 0;
+
+    if (options.deleteHistory) {
+      // Delete all diary entries for this user referencing this food
+      const entryMealsResult = await client.query(
+        `
+        SELECT DISTINCT food_entry_meal_id
+        FROM food_entries
+        WHERE food_id = $1 
+          AND user_id = $2 
+          AND food_entry_meal_id IS NOT NULL
+      `,
+        [foodId, userId]
+      );
+      const entryMealIds = entryMealsResult.rows.map(
+        (r: { food_entry_meal_id: string }) => r.food_entry_meal_id
+      );
+
+      const entriesResult = await client.query(
+        'DELETE FROM food_entries WHERE food_id = $1 AND user_id = $2',
+        [foodId, userId]
+      );
+      deletedEntries = entriesResult.rowCount ?? 0;
+
+      if (entryMealIds.length > 0) {
+        await client.query(
+          `
+          DELETE FROM food_entry_meals fem
+          WHERE fem.id = ANY($1::uuid[])
+            AND NOT EXISTS (
+              SELECT 1 FROM food_entries fe WHERE fe.food_entry_meal_id = fem.id
+            )
+        `,
+          [entryMealIds]
+        );
+      }
+      log(
+        'info',
+        `Deleted ${deletedEntries} food entries for food ${foodId} by user ${userId}`
+      );
+    } else if (today) {
+      // 0. Delete future food entries generated from meal plan templates for this food
       const entryMealsResult = await client.query(
         `
         SELECT DISTINCT food_entry_meal_id
@@ -1095,14 +1136,14 @@ async function deleteFoodAndDependencies(
       foodId,
     ]);
     log('info', `Deleted food variants for food ${foodId}`);
-    // 6. Finally, delete the food itself
+    // 5. Finally, delete the food itself
     const result = await client.query(
       'DELETE FROM foods WHERE id = $1 AND user_id = $2 RETURNING id',
       [foodId, userId]
     );
     log('info', `Deleted food ${foodId} by user ${userId}`);
     await client.query('COMMIT');
-    return result.rowCount > 0;
+    return { success: (result.rowCount ?? 0) > 0, deletedEntries };
   } catch (error) {
     await client.query('ROLLBACK');
     log(

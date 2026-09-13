@@ -1016,14 +1016,59 @@ async function deleteExerciseEntriesForUser(
 async function deleteExerciseAndDependencies(
   exerciseId: string,
   userId: string,
-  today?: string
-) {
+  today?: string,
+  options: { deleteHistory?: boolean } = {}
+): Promise<{ success: boolean; deletedEntries: number }> {
   const client = await getClient(userId);
   try {
     await client.query('BEGIN');
 
-    // 0. Delete future exercise entries generated from workout plans for this exercise
-    if (today) {
+    let deletedEntries = 0;
+
+    if (options.deleteHistory) {
+      // Delete all diary entries for this user referencing this exercise
+      const presetEntriesResult = await client.query(
+        `
+        SELECT DISTINCT exercise_preset_entry_id
+        FROM exercise_entries
+        WHERE exercise_id = $1
+          AND user_id = $2
+          AND exercise_preset_entry_id IS NOT NULL
+      `,
+        [exerciseId, userId]
+      );
+      const presetEntryIds = presetEntriesResult.rows
+        .map(
+          (r: { exercise_preset_entry_id: number | string }) =>
+            r.exercise_preset_entry_id
+        )
+        .filter(Boolean);
+
+      const entriesResult = await client.query(
+        'DELETE FROM exercise_entries WHERE exercise_id = $1 AND user_id = $2',
+        [exerciseId, userId]
+      );
+      deletedEntries = entriesResult.rowCount ?? 0;
+
+      if (presetEntryIds.length > 0) {
+        await client.query(
+          `
+          DELETE FROM exercise_preset_entries
+          WHERE id = ANY($1::int[])
+            AND user_id = $2
+            AND NOT EXISTS (
+              SELECT 1 FROM exercise_entries WHERE exercise_preset_entry_id = exercise_preset_entries.id
+            )
+        `,
+          [presetEntryIds, userId]
+        );
+      }
+      log(
+        'info',
+        `Deleted ${deletedEntries} exercise entries for exercise ${exerciseId} by user ${userId}`
+      );
+    } else if (today) {
+      // 0. Delete future exercise entries generated from workout plans for this exercise
       const presetEntriesResult = await client.query(
         `
         SELECT DISTINCT exercise_preset_entry_id
@@ -1103,7 +1148,7 @@ async function deleteExerciseAndDependencies(
     );
     log('info', `Deleted exercise ${exerciseId} by user ${userId}`);
     await client.query('COMMIT');
-    return (result.rowCount ?? 0) > 0;
+    return { success: (result.rowCount ?? 0) > 0, deletedEntries };
   } catch (error) {
     await client.query('ROLLBACK');
     log(

@@ -106,7 +106,10 @@ describe('deleting a library exercise', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(exerciseDb.getExerciseOwnerId).mockResolvedValue(USER);
-    vi.mocked(exerciseDb.deleteExerciseAndDependencies).mockResolvedValue(true);
+    vi.mocked(exerciseDb.deleteExerciseAndDependencies).mockResolvedValue({
+      success: true,
+      deletedEntries: 0,
+    });
     vi.mocked(exerciseDb.deleteExerciseEntriesForUser).mockResolvedValue(7);
     vi.mocked(exerciseDb.getExerciseDeletionImpact).mockResolvedValue(
       exerciseImpact(0)
@@ -135,27 +138,19 @@ describe('deleting a library exercise', () => {
     expect(exerciseDb.deleteExerciseAndDependencies).toHaveBeenCalledWith(
       EXERCISE,
       USER,
-      '2026-09-12'
+      '2026-09-12',
+      { deleteHistory: false }
     );
     // The whole point: entries survive on their snapshot, with the foreign key
     // nulling their exercise_id.
     expect(exerciseDb.deleteExerciseEntriesForUser).not.toHaveBeenCalled();
   });
 
-  it('delete_with_history removes this user entries before the library row', async () => {
-    const order: string[] = [];
-    vi.mocked(exerciseDb.deleteExerciseEntriesForUser).mockImplementation(
-      async () => {
-        order.push('entries');
-        return 7;
-      }
-    );
-    vi.mocked(exerciseDb.deleteExerciseAndDependencies).mockImplementation(
-      async () => {
-        order.push('library');
-        return true;
-      }
-    );
+  it('delete_with_history removes this user entries atomically with the library row', async () => {
+    vi.mocked(exerciseDb.deleteExerciseAndDependencies).mockResolvedValue({
+      success: true,
+      deletedEntries: 7,
+    });
 
     const result = await exerciseService.deleteExercise(
       USER,
@@ -164,18 +159,13 @@ describe('deleting a library exercise', () => {
     );
 
     expect(result.status).toBe('deleted_with_history');
-    expect(exerciseDb.deleteExerciseEntriesForUser).toHaveBeenCalledWith(
-      EXERCISE,
-      USER
-    );
+    expect(result.deletedEntries).toBe(7);
     expect(exerciseDb.deleteExerciseAndDependencies).toHaveBeenCalledWith(
       EXERCISE,
       USER,
-      '2026-09-12'
+      '2026-09-12',
+      { deleteHistory: true }
     );
-    // Order matters: after the library row goes, the entries' exercise_id is
-    // null and they can no longer be found by it.
-    expect(order).toEqual(['entries', 'library']);
   });
 
   it('refuses to delete when another user still references it', async () => {
@@ -205,6 +195,12 @@ describe('deleting a library exercise', () => {
     await exerciseService.deleteExercise(USER, EXERCISE);
 
     expect(exerciseDb.deleteExerciseEntriesForUser).not.toHaveBeenCalled();
+    expect(exerciseDb.deleteExerciseAndDependencies).toHaveBeenCalledWith(
+      EXERCISE,
+      USER,
+      '2026-09-12',
+      { deleteHistory: false }
+    );
   });
 });
 
@@ -212,7 +208,10 @@ describe('deleting a library food', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(foodRepository.getFoodOwnerId).mockResolvedValue(USER);
-    vi.mocked(foodRepository.deleteFoodAndDependencies).mockResolvedValue(true);
+    vi.mocked(foodRepository.deleteFoodAndDependencies).mockResolvedValue({
+      success: true,
+      deletedEntries: 0,
+    });
     vi.mocked(foodRepository.deleteFoodEntriesForUser).mockResolvedValue(5);
     vi.mocked(foodRepository.getFoodDeletionImpact).mockResolvedValue(
       foodImpact(0)
@@ -227,6 +226,7 @@ describe('deleting a library food', () => {
       is_quick_food: true,
     });
     expect(foodRepository.deleteFoodAndDependencies).not.toHaveBeenCalled();
+    expect(foodRepository.deleteFoodEntriesForUser).not.toHaveBeenCalled();
   });
 
   it('delete removes the library row but never the diary entries', async () => {
@@ -236,7 +236,8 @@ describe('deleting a library food', () => {
     expect(foodRepository.deleteFoodAndDependencies).toHaveBeenCalledWith(
       FOOD,
       USER,
-      '2026-09-12'
+      '2026-09-12',
+      { deleteHistory: false }
     );
     expect(foodRepository.deleteFoodEntriesForUser).not.toHaveBeenCalled();
   });
@@ -251,6 +252,11 @@ describe('deleting a library food', () => {
   });
 
   it('delete_with_history removes this user entries and then the images', async () => {
+    vi.mocked(foodRepository.deleteFoodAndDependencies).mockResolvedValue({
+      success: true,
+      deletedEntries: 5,
+    });
+
     const result = await foodCoreService.deleteFood(
       USER,
       FOOD,
@@ -258,9 +264,12 @@ describe('deleting a library food', () => {
     );
 
     expect(result.status).toBe('deleted_with_history');
-    expect(foodRepository.deleteFoodEntriesForUser).toHaveBeenCalledWith(
+    expect(result.deletedEntries).toBe(5);
+    expect(foodRepository.deleteFoodAndDependencies).toHaveBeenCalledWith(
       FOOD,
-      USER
+      USER,
+      '2026-09-12',
+      { deleteHistory: true }
     );
     // Safe only here: other users were ruled out above, and this user's own
     // entries are gone, so nothing points at the files any more.

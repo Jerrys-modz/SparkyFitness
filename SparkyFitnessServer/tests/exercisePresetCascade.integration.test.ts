@@ -44,6 +44,7 @@ describe('exercise delete preset and future plan cascade integration test', () =
   let presetId: number;
   let templateId: number;
   let assignmentId: number;
+  const pastDate = '2026-09-10';
   const today = '2026-09-12';
   const futureDate = '2026-09-15';
 
@@ -52,7 +53,10 @@ describe('exercise delete preset and future plan cascade integration test', () =
     if (!canRun) return;
 
     adminClient = await getSystemClient();
-    if (!adminClient) return;
+    if (!adminClient) {
+      canRun = false;
+      return;
+    }
 
     // 1. Create test user
     const userRes = await adminClient.query(
@@ -113,7 +117,14 @@ describe('exercise delete preset and future plan cascade integration test', () =
     );
     assignmentId = assignmentRes.rows[0].id;
 
-    // 6. Create today's diary entry (past/current log to preserve)
+    // 6a. Create past diary entry generated from workout plan (past plan history to preserve)
+    await adminClient.query(
+      `INSERT INTO exercise_entries (user_id, exercise_id, exercise_name, entry_date, duration_minutes, calories_burned, workout_plan_assignment_id, created_at, updated_at)
+       VALUES ($1, $2, 'Integration Test Dumbbell Press', $3, 30, 150, $4, NOW(), NOW())`,
+      [userId, exerciseId, pastDate, assignmentId]
+    );
+
+    // 6b. Create today's diary entry (current log to preserve)
     await adminClient.query(
       `INSERT INTO exercise_entries (user_id, exercise_id, exercise_name, entry_date, duration_minutes, calories_burned, created_at, updated_at)
        VALUES ($1, $2, 'Integration Test Dumbbell Press', $3, 30, 150, NOW(), NOW())`,
@@ -136,8 +147,11 @@ describe('exercise delete preset and future plan cascade integration test', () =
     await endPool();
   });
 
-  it('deleting exercise removes it from presets, cleans up future plan entries, and preserves today diary', async () => {
-    if (!canRun) return;
+  it('deleting exercise removes it from presets, cleans up future plan entries, and preserves past and today diary', async (ctx) => {
+    if (!canRun) {
+      ctx.skip();
+      return;
+    }
 
     // Verify initial state: preset has 1 exercise
     const initialPreset = await workoutPresetRepository.getWorkoutPresetById(
@@ -147,12 +161,12 @@ describe('exercise delete preset and future plan cascade integration test', () =
     expect(initialPreset?.exercises?.length).toBe(1);
 
     // Execute deleteExerciseAndDependencies with today date
-    const success = await exerciseDb.deleteExerciseAndDependencies(
+    const deleteRes = await exerciseDb.deleteExerciseAndDependencies(
       exerciseId,
       userId,
       today
     );
-    expect(success).toBe(true);
+    expect(deleteRes.success).toBe(true);
 
     // 1. Verify preset exercises cascaded: preset now has 0 exercises
     const updatedPreset = await workoutPresetRepository.getWorkoutPresetById(
@@ -168,7 +182,18 @@ describe('exercise delete preset and future plan cascade integration test', () =
     );
     expect(parseInt(assignmentsRes.rows[0].count, 10)).toBe(0);
 
-    // 3. Verify today diary entry is preserved with exercise_id set to NULL
+    // 3a. Verify past planned diary entry is preserved with exercise_id set to NULL
+    const pastEntryRes = await adminClient!.query(
+      'SELECT id, exercise_id, exercise_name FROM exercise_entries WHERE user_id = $1 AND entry_date = $2',
+      [userId, pastDate]
+    );
+    expect(pastEntryRes.rows.length).toBe(1);
+    expect(pastEntryRes.rows[0].exercise_id).toBeNull();
+    expect(pastEntryRes.rows[0].exercise_name).toBe(
+      'Integration Test Dumbbell Press'
+    );
+
+    // 3b. Verify today diary entry is preserved with exercise_id set to NULL
     const todayEntryRes = await adminClient!.query(
       'SELECT id, exercise_id, exercise_name FROM exercise_entries WHERE user_id = $1 AND entry_date = $2',
       [userId, today]
@@ -187,8 +212,11 @@ describe('exercise delete preset and future plan cascade integration test', () =
     expect(futureEntryRes.rows.length).toBe(0);
   });
 
-  it('force delete (delete_with_history) removes exercise from presets, workout plans, and all diary entries', async () => {
-    if (!canRun) return;
+  it('force delete (delete_with_history) removes exercise from presets, workout plans, and all diary entries', async (ctx) => {
+    if (!canRun) {
+      ctx.skip();
+      return;
+    }
 
     // Create another exercise for force delete test
     const exRes = await adminClient!.query(

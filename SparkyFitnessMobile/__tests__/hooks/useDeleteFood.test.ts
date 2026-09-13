@@ -4,9 +4,12 @@ import Toast from 'react-native-toast-message';
 import { useDeleteFood } from '../../src/hooks/useDeleteFood';
 import { deleteFood } from '../../src/services/api/foodsApi';
 import {
+  dailySummaryRootQueryKey,
   favoritesQueryKey,
   foodVariantsQueryKey,
   foodsQueryKey,
+  mealPlansQueryKey,
+  mealsQueryKey,
 } from '../../src/hooks/queryKeys';
 import {
   createTestQueryClient,
@@ -197,6 +200,15 @@ describe('useDeleteFood', () => {
     // separate favorites cache must refetch or it lingers in the Favorites section.
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: favoritesQueryKey,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: mealsQueryKey,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: mealPlansQueryKey,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: dailySummaryRootQueryKey,
     });
 
     invalidateSpy.mockRestore();

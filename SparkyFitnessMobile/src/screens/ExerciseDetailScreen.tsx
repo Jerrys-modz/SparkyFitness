@@ -223,13 +223,15 @@ const ExerciseDetailScreen: React.FC<ExerciseDetailScreenProps> = ({
   const { buildDeleteOptions, isPending: isDeletePending } =
     useDeleteExerciseLibrary({
       exerciseId: exercise.id,
-      onSuccess: () => {
-        Toast.show({
-          type: 'success',
-          text1: t('exerciseDetail.deleted', {
-            defaultValue: 'Exercise deleted',
-          }),
-        });
+      onSuccess: (result) => {
+        if (result?.status !== 'hidden') {
+          Toast.show({
+            type: 'success',
+            text1: t('exerciseDetail.deleted', {
+              defaultValue: 'Exercise deleted',
+            }),
+          });
+        }
         navigation.goBack();
       },
     });
