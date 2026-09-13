@@ -27,9 +27,9 @@ packageExtensions:
 
 overrides:
   side-channel: "1.0.6"
-  tailwindcss: "4.2.1"
+  tailwindcss: "4.3.3"
   assistant-cloud: "0.2.0"
-  zustand: "5.0.14"
+  zustand: "5.0.15"
   # 7.1 turns on the React Compiler rule set (set-state-in-effect, refs,
   # immutability). Both apps lint with --max-warnings 0, so adopting it is a
   # refactor, not an upgrade. Pinned until that work is scheduled.
