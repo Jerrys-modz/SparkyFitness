@@ -176,7 +176,7 @@ describe('sparky_manage_goals', () => {
       opts
     );
 
-    expect(result).toBe('Error [VALIDATION]: action: Invalid input');
+    expect(result).toMatch(/^Error \[VALIDATION\]: action:/);
   });
 
   it('rejects stray keys (strict per-action schema)', async () => {

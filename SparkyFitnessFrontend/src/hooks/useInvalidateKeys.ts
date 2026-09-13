@@ -98,6 +98,20 @@ export const useDailyProgressInvalidation = () => {
   }, [queryClient]);
 };
 
+export const useExerciseInvalidation = () => {
+  const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
+    queryClient.invalidateQueries({ queryKey: presetKeys.all });
+    queryClient.invalidateQueries({ queryKey: ['workoutPlanTemplates'] });
+    queryClient.invalidateQueries({ queryKey: exerciseEntryKeys.all });
+    queryClient.invalidateQueries({ queryKey: dailyProgressKeys.all });
+    queryClient.invalidateQueries({ queryKey: diaryReportKeys.all });
+    queryClient.invalidateQueries({ queryKey: reportKeys.all });
+  }, [queryClient]);
+};
+
 export const useAiConfigInvalidation = () => {
   const queryClient = useQueryClient();
 

@@ -274,6 +274,8 @@ npx expo prebuild --clean
 - Keep `YYYY-MM-DD` values as calendar-day strings until a database or external API boundary requires UTC instants.
 - For day-string logic, prefer shared timezone helpers such as `isDayString`, `addDays`, `compareDays`, `localDateToDay`, `todayInZone`, `instantToDay`, `dayToUtcRange`, and `dayRangeToUtcRange`.
 - Mobile API contract changes usually require matching server and often web checks. Food photo, shared schemas, nutrition, meal copy, and auth changes are common cross-package surfaces.
+- **Library Deletes & Cache Invalidation:** Library mutations for exercises (`useExerciseMutations.ts`) and foods (`useFoodMutations.ts`) must invalidate all dependent caches: library search, count, details, workout presets, and daily diary summaries (`dailySummaryRootQueryKey`).
+- **Snapshot Preservation & Preset Seeding:** `mode: 'delete'` preserves logged workouts/meals using snapshots (`exercise_id` / `food_id` set to `null`). When creating/saving a preset from a logged session (`useWorkoutPresetForm.ts`), entries with null `exercise_id` are automatically dropped while valid exercises carry over. Empty presets are guarded against starting or logging.
 
 ## Server API Orientation
 

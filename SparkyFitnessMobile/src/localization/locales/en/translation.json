@@ -2871,7 +2871,8 @@
     "deleting": "Deleting...",
     "deleteExercise": "Delete Exercise",
     "makePrivate": "Make private",
-    "shareWithPublic": "Share with public"
+    "shareWithPublic": "Share with public",
+    "deleteSheetTitle": "Delete exercise"
   },
   "mealTypeSettings": {
     "reorder": "Reorder {{name}}",
@@ -3468,7 +3469,8 @@
     "barcode": "Barcode",
     "logFood": "Log Food",
     "deleteFood": "Delete Food",
-    "notes": "Notes"
+    "notes": "Notes",
+    "deleteSheetTitle": "Delete food"
   },
   "foodEntryView": {
     "saveChanges": "Save food entry changes",
@@ -3710,7 +3712,21 @@
       "deleteActivityTitle": "Delete Activity?",
       "deleteActivityMessage": "This activity will be permanently removed.",
       "deleteExerciseTitle": "Delete Exercise?",
-      "deleteExerciseMessage": "This exercise will be removed from your library. Past logged sessions are preserved."
+      "deleteExerciseMessage": "This exercise will be removed from your library. Past logged sessions are preserved.",
+      "deleteWithHistoryTitle": "Delete workouts too?",
+      "deleteWithHistoryMessage": "This also permanently deletes your logged workouts for this exercise. This cannot be undone."
+    },
+    "hidden": {
+      "title": "Exercise hidden",
+      "usedByOthers": "It is used by other people, so it was hidden instead of deleted. Their history is unaffected."
+    },
+    "options": {
+      "hide": "Hide from search",
+      "hideDescription": "Keeps everything as it is. The exercise just stops showing up when you search.",
+      "delete": "Delete",
+      "deleteDescription": "Removes it from your library, presets and plans. Your logged workouts are kept.",
+      "deleteWithHistory": "Delete including history",
+      "deleteWithHistoryDescription": "Also permanently deletes your logged workouts for this exercise."
     }
   },
   "foodPhotoEstimate": {
@@ -4368,7 +4384,21 @@
   "foodDelete": {
     "failed": "Failed to delete food",
     "title": "Delete Food",
-    "message": "Are you sure you want to delete this food? Existing logged entries will stay unchanged."
+    "message": "Are you sure you want to delete this food? Existing logged entries will stay unchanged.",
+    "hidden": {
+      "title": "Food hidden",
+      "usedByOthers": "It is used by other people, so it was hidden instead of deleted. Their history is unaffected."
+    },
+    "confirmWithHistoryTitle": "Delete entries too?",
+    "confirmWithHistoryMessage": "This also permanently deletes your logged diary entries for this food. This cannot be undone.",
+    "options": {
+      "hide": "Hide from search",
+      "hideDescription": "Keeps everything as it is. The food just stops showing up when you search.",
+      "delete": "Delete",
+      "deleteDescription": "Removes it from your library, meals and meal plans. Your logged entries are kept.",
+      "deleteWithHistory": "Delete including history",
+      "deleteWithHistoryDescription": "Also permanently deletes your logged diary entries for this food."
+    }
   },
   "exerciseEditing": {
     "removeTitle": "Remove Exercise?",

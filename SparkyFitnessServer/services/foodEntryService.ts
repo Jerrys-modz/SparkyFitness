@@ -789,23 +789,19 @@ async function updateFoodEntry(
     }
     const foodIdToUse = existingEntry.food_id;
     const variantIdToUse = entryData.variant_id || existingEntry.variant_id;
+    const food = foodIdToUse
+      ? await foodRepository.getFoodById(foodIdToUse, authenticatedUserId)
+      : null;
+    const variant =
+      food && variantIdToUse
+        ? await foodRepository.getFoodVariantById(
+            variantIdToUse,
+            authenticatedUserId
+          )
+        : null;
+
     let newSnapshotData;
-    if (foodIdToUse) {
-      // Variant changed — rebuild snapshot from the new food/variant
-      const food = await foodRepository.getFoodById(
-        foodIdToUse,
-        authenticatedUserId
-      );
-      if (!food) {
-        throw new Error('Food not found for snapshotting.');
-      }
-      const variant = await foodRepository.getFoodVariantById(
-        variantIdToUse,
-        authenticatedUserId
-      );
-      if (!variant) {
-        throw new Error('Food variant not found for snapshotting.');
-      }
+    if (food && variant) {
       newSnapshotData = {
         food_name: food.name,
         brand_name: food.brand,
@@ -835,7 +831,7 @@ async function updateFoodEntry(
         custom_nutrients: sanitizeCustomNutrients(variant.custom_nutrients),
       };
     } else {
-      // No variant change or no linked food — preserve existing entry's snapshot
+      // No linked food, or food/variant deleted — preserve existing entry's snapshot
       newSnapshotData = {
         food_name: existingEntry.food_name,
         brand_name: existingEntry.brand_name,
