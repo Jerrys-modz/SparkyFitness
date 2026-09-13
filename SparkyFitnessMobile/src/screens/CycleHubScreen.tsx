@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,10 +31,16 @@ import { useCyclePredictionData } from '../hooks/useCyclePredictionData';
 type CycleHubScreenProps = RootStackScreenProps<'CycleHub'>;
 
 const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
 
-  const { mode, enabled, isLoading: isModeLoading, onboardedAt } = useCycleMode();
+  const {
+    mode,
+    enabled,
+    isLoading: isModeLoading,
+    onboardedAt,
+  } = useCycleMode();
   const { settings, isLoading: isSettingsLoading } = useCycleSettings();
   const { discreetMode } = useDiscreetMode();
 
@@ -52,27 +59,39 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
   // Tabs State. The middle segment is mode-specific: cycle/TTC gets Trends,
   // pregnancy gets Tools; a middle-tab selection left over from the other mode
   // falls back to Overview.
-  const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'tools' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'trends' | 'tools' | 'history'
+  >('overview');
   const middleTab =
     mode === 'pregnant'
-      ? ({ key: 'tools', label: 'Tools' } as const)
-      : ({ key: 'trends', label: 'Trends' } as const);
+      ? ({
+          key: 'tools',
+          label: t('cycleHub.tools', { defaultValue: 'Tools' }),
+        } as const)
+      : ({
+          key: 'trends',
+          label: t('cycleHub.trends', { defaultValue: 'Trends' }),
+        } as const);
   const currentTab =
-    (activeTab === 'trends' || activeTab === 'tools') && activeTab !== middleTab.key
+    (activeTab === 'trends' || activeTab === 'tools') &&
+    activeTab !== middleTab.key
       ? 'overview'
       : activeTab;
 
   // Queries. Logs feed the History calendar, so the range follows the month
   // it is showing, padded to cover the adjacent-month days the grid renders.
   const { cycles, isLoading: isHistoryLoading } = useCycleHistory();
-  const [visibleMonth, setVisibleMonth] = useState(() => selectedDate.slice(0, 7));
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    selectedDate.slice(0, 7)
+  );
   const monthStart = `${visibleMonth}-01`;
   const { logs, isLoading: isLogsLoading } = useCycleLogsRange({
     startDate: useMemo(() => addDays(monthStart, -7), [monthStart]),
     endDate: useMemo(() => addDays(monthStart, 45), [monthStart]),
   });
 
-  const isLoading = isModeLoading || isSettingsLoading || isHistoryLoading || isLogsLoading;
+  const isLoading =
+    isModeLoading || isSettingsLoading || isHistoryLoading || isLogsLoading;
 
   // 2. Shared Cycle Prediction Hook
   const sharedPrediction = useCyclePredictionData(selectedDate);
@@ -101,15 +120,25 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
 
   // 5. Alerts
   const alerts = useMemo(() => {
-    if (!settings || !sharedPrediction?.prediction || !sharedPrediction.prediction.cycles || sharedPrediction.prediction.cycles.length === 0) return [];
+    if (
+      !settings ||
+      !sharedPrediction?.prediction ||
+      !sharedPrediction.prediction.cycles ||
+      sharedPrediction.prediction.cycles.length === 0
+    )
+      return [];
     return buildCycleAlerts(selectedDate, sharedPrediction.prediction, []);
   }, [selectedDate, sharedPrediction, settings]);
 
   const activeSegmentLabel = useMemo(() => {
-    return getPhaseDisplayName(dayStats.phase, discreetMode);
-  }, [dayStats, discreetMode]);
+    return getPhaseDisplayName(dayStats.phase, discreetMode, t);
+  }, [dayStats, discreetMode, t]);
 
-  const hubTitle = discreetMode ? 'Wellness' : mode === 'pregnant' ? 'Pregnancy Hub' : 'Cycle Hub';
+  const hubTitle = discreetMode
+    ? t('cycleHub.wellness', { defaultValue: 'Wellness' })
+    : mode === 'pregnant'
+      ? t('cycleHub.pregnancyHub', { defaultValue: 'Pregnancy Hub' })
+      : t('cycleHub.cycleHub', { defaultValue: 'Cycle Hub' });
 
   const header = useScreenHeader({
     title: hubTitle,
@@ -120,8 +149,9 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
       ionicon: 'add-outline',
       sfSymbol: 'plus',
       role: 'primary',
-      accessibilityLabel: 'Log Entry',
-      onPress: () => navigation.navigate('CycleLogModal', { date: selectedDate }),
+      accessibilityLabel: t('cycleHub.logEntry', { defaultValue: 'Log Entry' }),
+      onPress: () =>
+        navigation.navigate('CycleLogModal', { date: selectedDate }),
     },
   });
 
@@ -140,9 +170,15 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
       <View className="px-4 py-2 bg-background z-10 border-b border-border-subtle">
         <SegmentedControl
           segments={[
-            { key: 'overview', label: 'Overview' },
+            {
+              key: 'overview',
+              label: t('cycleHub.overview', { defaultValue: 'Overview' }),
+            },
             middleTab,
-            { key: 'history', label: 'History' },
+            {
+              key: 'history',
+              label: t('cycleHub.history', { defaultValue: 'History' }),
+            },
           ]}
           activeKey={currentTab}
           onSelect={setActiveTab}
@@ -173,14 +209,35 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
                     fertileEndDay={ringMarkers.fertileEndDay}
                     ovulationDay={ringMarkers.ovulationDay}
                     centerLabel={activeSegmentLabel}
-                    centerValue={dayStats.cycleDay !== null ? `Day ${dayStats.cycleDay}` : '—'}
-                    centerSub={discreetMode ? undefined : `${cycleStats.avgCycleLength} day cycle`}
+                    centerValue={
+                      dayStats.cycleDay !== null
+                        ? t('cycleHub.ring.day', {
+                            defaultValue: 'Day {{day}}',
+                            day: dayStats.cycleDay,
+                          })
+                        : '—'
+                    }
+                    centerSub={
+                      discreetMode
+                        ? undefined
+                        : t('cycleHub.ring.dayCycle', {
+                            defaultValue: '{{count}}-day cycle',
+                            count: cycleStats.avgCycleLength,
+                          })
+                    }
                   />
                 </View>
 
                 {/* Cycle Alerts */}
                 {alerts.length > 0 && (
-                  <CycleAlerts alerts={alerts.map((a) => ({ key: a.key, severity: a.severity, message: a.message }))} />
+                  <CycleAlerts
+                    alerts={alerts.map((a) => ({
+                      key: a.key,
+                      severity: a.severity,
+                      message: a.message,
+                      params: a.params,
+                    }))}
+                  />
                 )}
 
                 {/* TTC: fertility summary */}
@@ -206,7 +263,9 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
           <View className="gap-6">
             <CycleCalendarGrid
               initialDate={selectedDate}
-              onDayPress={(date) => navigation.navigate('CycleLogModal', { date })}
+              onDayPress={(date) =>
+                navigation.navigate('CycleLogModal', { date })
+              }
               cycles={cycles}
               logs={logs}
               settings={settings}

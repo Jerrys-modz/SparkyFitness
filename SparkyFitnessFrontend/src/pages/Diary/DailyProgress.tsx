@@ -23,7 +23,6 @@ import {
 
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug } from '@/utils/logging';
-import { computeExerciseCredited } from '@/utils/calorieCalculations';
 
 import {
   useDailyExerciseStats,
@@ -42,11 +41,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import { useMostRecentMeasurement } from '@/hooks/CheckIn/useCheckIn';
 import {
+  ACTIVITY_MULTIPLIERS,
   calculateAge,
   computeCalorieTarget,
+  isAdaptiveTdeeMature,
+  ADAPTIVE_TDEE_GOAL_MIN_DAYS,
   calculateBmr,
+  computeExerciseCredited,
+  normalizeCalorieGoalAdjustmentMode,
+  resolveCalorieSafetyFloor,
+  DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
 } from '@workspace/shared';
-import { ACTIVITY_MULTIPLIERS } from '@/utils/calorieCalculations';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
 
@@ -55,7 +60,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
   const navigate = useNavigate();
   const {
     loggingLevel,
-    calorieGoalAdjustmentMode,
+    calorieGoalAdjustmentMode: storedCalorieGoalAdjustmentMode,
     energyUnit,
     convertEnergy,
     weightUnit,
@@ -64,9 +69,18 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     goalMode,
     goalModeCalculationMethod,
     goalModeCustomPercentage,
+    calorieSafetyFloorMode,
+    calorieSafetyFloorValue,
     activityLevel,
     timezone,
   } = usePreferences();
+
+  // `smart` computes identically to `tdee` server-side and arrives with a populated
+  // `tdeeProjection`, but it has no UI of its own — so the untranslated value fell
+  // through the `=== 'tdee'` check below and hid the Daily Burn panel entirely.
+  const calorieGoalAdjustmentMode = normalizeCalorieGoalAdjustmentMode(
+    storedCalorieGoalAdjustmentMode
+  );
 
   const { user } = useAuth();
   const { data: userProfile } = useProfileQuery(user?.id);
@@ -152,8 +166,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
   const netCalories = calorieBalance.net;
 
   const projectedBurn = tdeeProjection?.projectedBurn ?? 0;
-  const sparkyfitnessBurned = tdeeProjection?.baselineBurn ?? 0;
-  const tdeeAdjustment = tdeeProjection?.adjustment ?? 0;
+  const projectedTarget = tdeeProjection?.targetCalories ?? goalCalories;
 
   const caloriesRemaining = calorieBalance.remaining;
   const calorieProgress = calorieBalance.progress;
@@ -184,13 +197,46 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
       convertEnergy(exerciseCredited, 'kcal', energyUnit)
     ),
     projectedBurn: Math.round(convertEnergy(projectedBurn, 'kcal', energyUnit)),
-    sparkyfitnessBurned: Math.round(
-      convertEnergy(sparkyfitnessBurned, 'kcal', energyUnit)
-    ),
-    tdeeAdjustment: Math.round(
-      convertEnergy(tdeeAdjustment, 'kcal', energyUnit)
+    projectedTarget: Math.round(
+      convertEnergy(projectedTarget, 'kcal', energyUnit)
     ),
   };
+
+  const calorieGoalPref = goalTypePreferences?.['calories'];
+  const isTargetBand =
+    calorieGoalPref?.goalType === 'target' &&
+    calorieGoalPref.targetMin !== undefined &&
+    calorieGoalPref.targetMin !== null &&
+    calorieGoalPref.targetMax !== undefined &&
+    calorieGoalPref.targetMax !== null;
+
+  const targetMinConverted =
+    isTargetBand && calorieGoalPref?.targetMin != null
+      ? Math.round(convertEnergy(calorieGoalPref.targetMin, 'kcal', energyUnit))
+      : undefined;
+
+  const targetMaxConverted =
+    isTargetBand && calorieGoalPref?.targetMax != null
+      ? Math.round(convertEnergy(calorieGoalPref.targetMax, 'kcal', energyUnit))
+      : undefined;
+
+  // When a calorie target range is set, the upper bound (targetMax) serves as the budget ceiling.
+  const effectiveTargetGoal = isTargetBand ? targetMaxConverted! : display.goal;
+  const exerciseBonus = Math.max(
+    0,
+    display.remaining - (display.goal - display.eaten)
+  );
+  const effectiveRemaining = isTargetBand
+    ? Math.round(effectiveTargetGoal - display.eaten + exerciseBonus)
+    : display.remaining;
+  const effectiveProgress =
+    isTargetBand && effectiveTargetGoal > 0
+      ? Math.max(
+          0,
+          ((effectiveTargetGoal - effectiveRemaining) / effectiveTargetGoal) *
+            100
+        )
+      : calorieProgress;
 
   const displayWeight = weightData?.weight || 70;
   const displayHeight = heightData?.height || 170;
@@ -214,10 +260,25 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
 
   let adjustedManualGoal = rawManualGoal;
   if (calorieGoalAdjustmentMode === 'adaptive' && adaptiveTdeeData && bmr > 0) {
-    adjustedManualGoal = Math.max(
-      1200,
-      Math.round(adaptiveTdeeData.tdee + calorieGoalOffset)
+    // Mirrors goalService: hold the estimated baseline until the measured estimate
+    // is settled, so the diary matches the goal the server actually saves.
+    const adaptiveBaseline = isAdaptiveTdeeMature(
+      adaptiveTdeeData.tdee,
+      adaptiveTdeeData.isFallback,
+      adaptiveTdeeData.daysOfData
+    )
+      ? adaptiveTdeeData.tdee
+      : Math.round(bmr * activityMultiplier);
+    const adaptiveGoal = Math.round(adaptiveBaseline + calorieGoalOffset);
+    const adaptiveGoalFloor = resolveCalorieSafetyFloor(
+      calorieSafetyFloorMode,
+      calorieSafetyFloorValue,
+      DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR
     );
+    adjustedManualGoal =
+      adaptiveGoalFloor === null
+        ? adaptiveGoal
+        : Math.max(adaptiveGoalFloor, adaptiveGoal);
   }
 
   const previewResult = computeCalorieTarget({
@@ -239,6 +300,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     bmrAlgorithm,
     currentGoalCalories: adjustedManualGoal,
     calculateBmrFn: calculateBmr,
+    calorieSafetyFloorMode,
+    calorieSafetyFloorValue,
+    measuredBmr: bmrSource === 'measured' ? bmr : undefined,
   });
 
   debug(loggingLevel, 'DailyProgress: Calculated values', {
@@ -270,8 +334,8 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
       return `Goal target will use fallback BMR (${fallbackVal} ${unitStr}) due to: ${adaptiveTdeeData.fallbackReason}`;
     }
 
-    if (daysOfCalorieLogs < 14) {
-      return `Goal target will use fallback BMR (${fallbackVal} ${unitStr}) until 14 days of calorie logs are reached (currently ${daysOfCalorieLogs}/14 days logged).`;
+    if (daysOfCalorieLogs < ADAPTIVE_TDEE_GOAL_MIN_DAYS) {
+      return `Goal target will use fallback BMR (${fallbackVal} ${unitStr}) until ${ADAPTIVE_TDEE_GOAL_MIN_DAYS} days of calorie logs are reached (currently ${daysOfCalorieLogs}/${ADAPTIVE_TDEE_GOAL_MIN_DAYS} days logged).`;
     }
 
     return '';
@@ -293,8 +357,8 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
         <div className="space-y-4">
           {/* Energy Circle */}
           <EnergyCircle
-            remaining={display.remaining}
-            progress={calorieProgress}
+            remaining={effectiveRemaining}
+            progress={effectiveProgress}
             unit={energyUnit}
             targetBand={
               goalTypePreferences?.['calories']?.goalType === 'target' &&
@@ -323,14 +387,14 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
           {/* Energy Breakdown */}
           <div className="grid grid-cols-3 gap-2 text-center text-sm">
             {/* Eaten */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-center text-lg font-bold text-green-600">
-                <Utensils className="w-4 h-4 mr-1" />
-                {display.eaten}
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center justify-center text-lg font-bold text-green-600 whitespace-nowrap">
+                <Utensils className="w-4 h-4 mr-1 shrink-0" />
+                <span>{display.eaten}</span>
               </div>
-              <div className="text-xs text-gray-500">
-                {t('exercise.dailyProgress.eaten', 'eaten')}{' '}
-                {getEnergyUnitString(energyUnit)}
+              <div className="text-xs text-gray-500 whitespace-nowrap">
+                {getEnergyUnitString(energyUnit)}{' '}
+                {t('exercise.dailyProgress.eaten', 'eaten')}
               </div>
             </div>
 
@@ -338,14 +402,14 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="space-y-1 cursor-help">
-                    <div className="flex items-center justify-center text-lg font-bold text-orange-600">
-                      <Flame className="w-4 h-4 mr-1" />
-                      {display.burnedTotal}
+                  <div className="space-y-1 cursor-help min-w-0">
+                    <div className="flex items-center justify-center text-lg font-bold text-orange-600 whitespace-nowrap">
+                      <Flame className="w-4 h-4 mr-1 shrink-0" />
+                      <span>{display.burnedTotal}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {t('exercise.dailyProgress.burned', 'burned')}{' '}
-                      {getEnergyUnitString(energyUnit)}
+                    <div className="text-xs text-gray-500 whitespace-nowrap">
+                      {getEnergyUnitString(energyUnit)}{' '}
+                      {t('exercise.dailyProgress.burned', 'burned')}
                     </div>
                   </div>
                 </TooltipTrigger>
@@ -407,8 +471,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                           energyUnit: getEnergyUnitString(energyUnit),
                         }
                       )}
-                      {bmrSource === 'external' &&
-                        ` (${t('exercise.dailyProgress.bmrSourceExternal', 'Health App')})`}
+                      {bmrSource === 'measured'
+                        ? ` (${t('exercise.dailyProgress.bmrSourceMeasured', 'Measured')})`
+                        : ` (${t('exercise.dailyProgress.bmrSourceAlgorithm', 'Algorithm')})`}
                     </p>
                   )}
 
@@ -427,14 +492,22 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
             </TooltipProvider>
 
             {/* Goal */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-center text-lg font-bold dark:text-slate-400 text-gray-900">
-                <Flag className="w-4 h-4 mr-1" />
-                {display.goal}
+            <div className="space-y-1 min-w-0">
+              <div
+                className={`flex items-center justify-center font-bold dark:text-slate-400 text-gray-900 whitespace-nowrap ${
+                  isTargetBand ? 'text-[14px] sm:text-[15px]' : 'text-lg'
+                }`}
+              >
+                <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 shrink-0" />
+                <span>
+                  {isTargetBand
+                    ? `${targetMinConverted}–${targetMaxConverted}`
+                    : display.goal}
+                </span>
               </div>
-              <div className="text-xs dark:text-slate-400 text-gray-500">
-                {t('exercise.dailyProgress.goal', 'goal')}{' '}
-                {getEnergyUnitString(energyUnit)}
+              <div className="text-xs dark:text-slate-400 text-gray-500 whitespace-nowrap">
+                {getEnergyUnitString(energyUnit)}{' '}
+                {t('exercise.dailyProgress.goal', 'goal')}
               </div>
             </div>
           </div>
@@ -500,8 +573,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
                       energyUnit: getEnergyUnitString(energyUnit),
                     }
                   )}
-                  {bmrSource === 'external' &&
-                    ` (${t('exercise.dailyProgress.bmrSourceExternal', 'Health App')})`}
+                  {bmrSource === 'measured'
+                    ? ` (${t('exercise.dailyProgress.bmrSourceMeasured', 'Measured')})`
+                    : ` (${t('exercise.dailyProgress.bmrSourceAlgorithm', 'Algorithm')})`}
                 </div>
               )}
             </div>
@@ -627,7 +701,8 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               )}
 
               {!adaptiveTdeeData.isFallback &&
-                (adaptiveTdeeData.daysOfData ?? 0) < 14 && (
+                (adaptiveTdeeData.daysOfData ?? 0) <
+                  ADAPTIVE_TDEE_GOAL_MIN_DAYS && (
                   <div className="flex items-start gap-1 mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800">
                     <Info className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                     <span className="text-[10px] text-blue-700 dark:text-blue-300">
@@ -639,20 +714,18 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
           )}
 
           {calorieGoalAdjustmentMode === 'tdee' && tdeeProjection ? (
-            /* TDEE mode: MFP-style Expected / Actual / Adjustment */
+            /* Device Projection: the projected burn is the TDEE baseline, and
+                Goal Mode is applied directly to it. */
             <div className="p-3 bg-orange-50 dark:bg-slate-700 rounded-lg space-y-1">
               <div className="flex items-center gap-1 mb-2">
                 <Activity className="w-3 h-3 text-orange-400 shrink-0" />
                 <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
-                  {t('exercise.dailyProgress.dailyBurn', 'Daily Burn')}
+                  {t('exercise.dailyProgress.dailyBurn', 'Device Projection')}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500 dark:text-slate-400">
-                  {t(
-                    'exercise.dailyProgress.projectedBurn',
-                    'Projected (Full Day)'
-                  )}
+                  {t('exercise.dailyProgress.projectedBurn', 'Projected TDEE')}
                 </span>
                 <span className="font-semibold text-gray-800 dark:text-slate-200">
                   {display.projectedBurn} {getEnergyUnitString(energyUnit)}
@@ -661,29 +734,29 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500 dark:text-slate-400">
                   {t(
-                    'exercise.dailyProgress.sparkyfitnessBurned',
-                    'SparkyFitness Burned'
+                    'exercise.dailyProgress.goalModeTarget',
+                    'Goal Mode Target'
                   )}
                 </span>
                 <span className="font-semibold text-orange-600">
-                  {display.sparkyfitnessBurned}{' '}
-                  {getEnergyUnitString(energyUnit)}
+                  {display.projectedTarget} {getEnergyUnitString(energyUnit)}
                 </span>
               </div>
-              <div className="border-t border-orange-200 dark:border-slate-600 pt-1 flex justify-between text-xs">
-                <span className="text-gray-500 dark:text-slate-400">
-                  {t('exercise.dailyProgress.adjustment', 'Adjustment')}
-                </span>
-                <span
-                  className={`font-bold ${
-                    tdeeAdjustment >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {tdeeAdjustment >= 0 ? '+' : ''}
-                  {display.tdeeAdjustment} {getEnergyUnitString(energyUnit)}
-                </span>
+              <div className="border-t border-orange-200 dark:border-slate-600 pt-1 text-[10px] text-gray-500 dark:text-slate-400">
+                {tdeeProjection.source === 'health_connect_total'
+                  ? t(
+                      'exercise.dailyProgress.healthConnectProjectionSource',
+                      'Health Connect total calories'
+                    )
+                  : tdeeProjection.source === 'active_plus_bmr'
+                    ? t(
+                        'exercise.dailyProgress.fallbackProjectionSource',
+                        'BMR + active calories fallback'
+                      )
+                    : t(
+                        'exercise.dailyProgress.legacyProjectionSource',
+                        'Device projection'
+                      )}
               </div>
             </div>
           ) : (
@@ -719,9 +792,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               <span>
                 {t('exercise.dailyProgress.dailyProgress', 'Daily Progress')}
               </span>
-              <span>{Math.round(calorieProgress)}%</span>
+              <span>{Math.round(effectiveProgress)}%</span>
             </div>
-            <Progress value={calorieProgress} className="h-2" />
+            <Progress value={effectiveProgress} className="h-2" />
           </div>
 
           {/* Calorie Math Breakdown Dropdown */}

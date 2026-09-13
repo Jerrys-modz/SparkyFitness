@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ExerciseSessionResponse } from '@workspace/shared';
+import { EMPTY_SUPPLEMENT_TOTALS } from '@workspace/shared';
 import { getDailySummary } from '../services/dailySummaryService.js';
 import goalService from '../services/goalService.js';
 import foodEntryService from '../services/foodEntryService.js';
@@ -8,6 +9,7 @@ import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import foodRepository from '../models/foodMisc.js';
+import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import bmrService from '../services/bmrService.js';
 
 vi.mock('../services/goalService.js', () => ({
@@ -51,6 +53,10 @@ vi.mock('../models/foodMisc.js', () => ({
   default: {
     getDailySupplementTotals: vi.fn(),
   },
+}));
+
+vi.mock('../models/genericHealthRepository.js', () => ({
+  getHealthConnectTotalCaloriesByDateRange: vi.fn(),
 }));
 
 vi.mock('../services/bmrService.js', () => ({
@@ -125,12 +131,16 @@ describe('dailySummaryService', () => {
       },
     ]);
     vi.mocked(foodRepository.getDailySupplementTotals).mockResolvedValue({
+      ...EMPTY_SUPPLEMENT_TOTALS,
       calories: 0,
       protein: 0,
       carbs: 0,
       fat: 0,
       dietary_fiber: 0,
     });
+    vi.mocked(
+      genericHealthRepository.getHealthConnectTotalCaloriesByDateRange
+    ).mockResolvedValue([]);
     vi.mocked(getExerciseEntriesByDateV2).mockResolvedValue([
       activeCaloriesSession,
     ]);
@@ -212,7 +222,21 @@ describe('dailySummaryService', () => {
     expect(result.calorieBalance.exerciseSource).toBe('active');
   });
 
-  test('returns the TDEE projection used for remaining calories', async () => {
+  test('uses Health Connect total burn as the Goal Mode TDEE baseline', async () => {
+    vi.mocked(
+      genericHealthRepository.getHealthConnectTotalCaloriesByDateRange
+    ).mockResolvedValue([{ entry_date: date, total_calories: 1200 }]);
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      bmr_algorithm: 'Mifflin-St Jeor',
+      activity_level: 'not_much',
+      calorie_goal_adjustment_mode: 'tdee',
+      include_bmr_in_net_calories: false,
+      tdee_allow_negative_adjustment: false,
+      timezone: 'UTC',
+      goal_mode: 'manual',
+      goal_mode_custom_percentage: -10,
+    });
+
     const result = await getDailySummary({
       actorUserId,
       targetUserId,
@@ -223,9 +247,46 @@ describe('dailySummaryService', () => {
     expect(result.calorieBalance.tdeeProjection).toEqual({
       projectedBurn: 2400,
       baselineBurn: 2160,
-      adjustment: 240,
+      adjustment: 160,
+      targetCalories: 2160,
+      source: 'health_connect_total',
     });
-    expect(result.calorieBalance.remaining).toBe(1740);
+    expect(result.calorieBalance.goal).toBe(2160);
+    expect(result.calorieBalance.remaining).toBe(1660);
+    expect(
+      genericHealthRepository.getHealthConnectTotalCaloriesByDateRange
+    ).toHaveBeenCalledWith(targetUserId, actorUserId, date, date);
+  });
+
+  test('projects a stale view from the Health Connect capture time', async () => {
+    vi.setSystemTime(new Date('2024-06-15T20:00:00Z'));
+    vi.mocked(
+      genericHealthRepository.getHealthConnectTotalCaloriesByDateRange
+    ).mockResolvedValue([
+      {
+        entry_date: date,
+        total_calories: 1200,
+        captured_at: new Date('2024-06-15T12:00:00Z'),
+      },
+    ]);
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      bmr_algorithm: 'Mifflin-St Jeor',
+      activity_level: 'not_much',
+      calorie_goal_adjustment_mode: 'tdee',
+      include_bmr_in_net_calories: false,
+      tdee_allow_negative_adjustment: false,
+      timezone: 'UTC',
+      goal_mode: 'maintain',
+    });
+
+    const result = await getDailySummary({
+      actorUserId,
+      targetUserId,
+      date,
+      includeCheckin: true,
+    });
+
+    expect(result.calorieBalance.tdeeProjection?.projectedBurn).toBe(2400);
   });
 
   test('returns null projection outside TDEE-style modes', async () => {
@@ -335,25 +396,34 @@ describe('dailySummaryService', () => {
 
   describe('external BMR override', () => {
     // Use dynamic mode so calorieBalance.bmr reflects the resolved BMR directly
-    // without TDEE projection math in the way.
-    const dynamicPrefs = (extra: Record<string, unknown> = {}) => ({
-      bmr_algorithm: 'Mifflin-St Jeor',
-      activity_level: 'not_much',
-      calorie_goal_adjustment_mode: 'dynamic',
-      exercise_calorie_percentage: 100,
-      include_bmr_in_net_calories: false,
-      tdee_allow_negative_adjustment: false,
-      timezone: 'UTC',
-      ...extra,
+    beforeEach(() => {
+      // The override is opt-in, so these cases enable it explicitly.
+      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+        bmr_algorithm: 'Mifflin-St Jeor',
+        activity_level: 'not_much',
+        calorie_goal_adjustment_mode: 'tdee',
+        exercise_calorie_percentage: 100,
+        include_bmr_in_net_calories: false,
+        tdee_allow_negative_adjustment: false,
+        use_external_bmr: true,
+        timezone: 'UTC',
+      });
     });
 
-    test('overrides formula BMR with the synced value for the day', async () => {
-      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(
-        dynamicPrefs({ use_external_bmr: true })
-      );
-      vi.mocked(measurementRepository.getExternalBmrForDate).mockResolvedValue(
-        1500
-      );
+    test('ignores the measured value when the opt-in is off', async () => {
+      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+        bmr_algorithm: 'Mifflin-St Jeor',
+        activity_level: 'not_much',
+        calorie_goal_adjustment_mode: 'tdee',
+        exercise_calorie_percentage: 100,
+        include_bmr_in_net_calories: false,
+        tdee_allow_negative_adjustment: false,
+        use_external_bmr: false,
+        timezone: 'UTC',
+      });
+      vi.mocked(
+        measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
+      ).mockResolvedValue({ weight: 80, height: 180, bmr: 1500 } as never);
 
       const result = await getDailySummary({
         actorUserId,
@@ -362,17 +432,30 @@ describe('dailySummaryService', () => {
         includeCheckin: true,
       });
 
-      // Formula BMR is mocked at 1800; the synced value (1500) must win.
+      expect(result.calorieBalance.bmr).toBe(1800);
+      expect(result.calorieBalance.bmrSource).toBe('formula');
+    });
+
+    test('overrides formula BMR with the check-in measured value', async () => {
+      vi.mocked(
+        measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
+      ).mockResolvedValue({ weight: 80, height: 180, bmr: 1500 } as never);
+
+      const result = await getDailySummary({
+        actorUserId,
+        targetUserId,
+        date,
+        includeCheckin: true,
+      });
+
       expect(result.calorieBalance.bmr).toBe(1500);
+      expect(result.calorieBalance.bmrSource).toBe('measured');
     });
 
-    test('falls back to formula when no synced value exists for the day', async () => {
-      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(
-        dynamicPrefs({ use_external_bmr: true })
-      );
-      vi.mocked(measurementRepository.getExternalBmrForDate).mockResolvedValue(
-        null
-      );
+    test('falls back to formula when no measured BMR exists on check-in', async () => {
+      vi.mocked(
+        measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
+      ).mockResolvedValue({ weight: 80, height: 180, bmr: null } as never);
 
       const result = await getDailySummary({
         actorUserId,
@@ -382,68 +465,7 @@ describe('dailySummaryService', () => {
       });
 
       expect(result.calorieBalance.bmr).toBe(1800);
-    });
-
-    test('ignores synced value when the toggle is off', async () => {
-      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(
-        dynamicPrefs({ use_external_bmr: false })
-      );
-      // Even if a value were returned, it must be ignored (and not even read).
-      vi.mocked(measurementRepository.getExternalBmrForDate).mockResolvedValue(
-        1500
-      );
-
-      const result = await getDailySummary({
-        actorUserId,
-        targetUserId,
-        date,
-        includeCheckin: true,
-      });
-
-      expect(result.calorieBalance.bmr).toBe(1800);
-      expect(
-        measurementRepository.getExternalBmrForDate
-      ).not.toHaveBeenCalled();
-    });
-
-    test('falls back to formula for out-of-bounds synced values', async () => {
-      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(
-        dynamicPrefs({ use_external_bmr: true })
-      );
-      vi.mocked(measurementRepository.getExternalBmrForDate).mockResolvedValue(
-        200
-      ); // below the 600 floor
-
-      const result = await getDailySummary({
-        actorUserId,
-        targetUserId,
-        date,
-        includeCheckin: true,
-      });
-
-      expect(result.calorieBalance.bmr).toBe(1800);
-    });
-
-    test('does not read or apply the override when includeCheckin is false', async () => {
-      vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(
-        dynamicPrefs({ use_external_bmr: true })
-      );
-      vi.mocked(measurementRepository.getExternalBmrForDate).mockResolvedValue(
-        1500
-      );
-
-      const result = await getDailySummary({
-        actorUserId,
-        targetUserId,
-        date,
-        includeCheckin: false,
-      });
-
-      // includeCheckin is the permission gate; the override must not bypass it.
-      expect(
-        measurementRepository.getExternalBmrForDate
-      ).not.toHaveBeenCalled();
-      expect(result.calorieBalance.bmr).toBe(1800);
+      expect(result.calorieBalance.bmrSource).toBe('formula');
     });
   });
 
@@ -527,6 +549,7 @@ describe('dailySummaryService supplement calories', () => {
     vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue(null);
     vi.mocked(bmrService.calculateBmr).mockReturnValue(0);
     vi.mocked(foodRepository.getDailySupplementTotals).mockResolvedValue({
+      ...EMPTY_SUPPLEMENT_TOTALS,
       calories: 0,
       protein: 0,
       carbs: 0,
@@ -549,6 +572,7 @@ describe('dailySummaryService supplement calories', () => {
 
   test('adds logged supplement calories to eaten', async () => {
     vi.mocked(foodRepository.getDailySupplementTotals).mockResolvedValue({
+      ...EMPTY_SUPPLEMENT_TOTALS,
       calories: 15,
       protein: 0,
       carbs: 0,
@@ -571,6 +595,7 @@ describe('dailySummaryService supplement calories', () => {
     const withoutSupplements = (await run()).calorieBalance.remaining;
 
     vi.mocked(foodRepository.getDailySupplementTotals).mockResolvedValue({
+      ...EMPTY_SUPPLEMENT_TOTALS,
       calories: 15,
       protein: 0,
       carbs: 0,
@@ -584,6 +609,7 @@ describe('dailySummaryService supplement calories', () => {
 
   test('returns the supplement totals separately, so the Diary can show what they were', async () => {
     const totals = {
+      ...EMPTY_SUPPLEMENT_TOTALS,
       calories: 15,
       protein: 0,
       carbs: 0,
@@ -616,5 +642,24 @@ describe('dailySummaryService supplement calories', () => {
 
     expect(summary.calorieBalance.eaten).toBe(500);
     expect(summary.supplementTotals.calories).toBe(0);
+  });
+
+  test('degraded path does not hand out the shared empty constant', async () => {
+    vi.mocked(foodRepository.getDailySupplementTotals).mockRejectedValue(
+      new Error('supplement totals unavailable')
+    );
+
+    const first = await run();
+    // A caller folding into what it was given must not reach the constant behind it,
+    // which every later degraded response would otherwise carry.
+    first.supplementTotals.calories = 999;
+    first.supplementTotals.custom_nutrients.Magnesium = 400;
+
+    const second = await run();
+
+    expect(second.supplementTotals.calories).toBe(0);
+    expect(second.supplementTotals.custom_nutrients).toEqual({});
+    expect(EMPTY_SUPPLEMENT_TOTALS.calories).toBe(0);
+    expect(EMPTY_SUPPLEMENT_TOTALS.custom_nutrients).toEqual({});
   });
 });

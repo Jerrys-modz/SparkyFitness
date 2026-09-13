@@ -8,8 +8,13 @@ import { useUpdateFoodEntryMeal } from '../../src/hooks/useUpdateFoodEntryMeal';
 import { useDeleteFoodEntryMeal } from '../../src/hooks/useDeleteFoodEntryMeal';
 import { useMealTypes } from '../../src/hooks';
 import { consumePendingMealIngredientSelection } from '../../src/services/mealBuilderSelection';
-import type { FoodEntryMeal, FoodEntryMealFood } from '../../src/types/foodEntryMeals';
+import type {
+  FoodEntryMeal,
+  FoodEntryMealFood,
+} from '../../src/types/foodEntryMeals';
 import type { MealIngredientDraft } from '../../src/types/meals';
+import type { RootStackScreenProps } from '../../src/types/navigation';
+import i18n, { initializeI18n } from '../../src/localization/i18n';
 
 let focusCallback: (() => void) | undefined;
 const mockUseFocusEffect = jest.fn();
@@ -19,7 +24,7 @@ const mockNavigation = {
   navigate: jest.fn(),
   push: jest.fn(),
   setParams: jest.fn(),
-} as any;
+} as unknown as RootStackScreenProps<'EditLoggedMeal'>['navigation'];
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -48,7 +53,12 @@ jest.mock('../../src/hooks/useDeleteFoodEntryMeal', () => ({
 
 jest.mock('../../src/hooks', () => ({
   useMealTypes: jest.fn(),
-  usePreferences: jest.fn(() => ({ preferences: undefined, isLoading: false, isError: false, refetch: jest.fn() })),
+  usePreferences: jest.fn(() => ({
+    preferences: undefined,
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
+  })),
   useSetFoodEntryMealImages: jest.fn(() => ({
     setImages: jest.fn(),
     setImagesAsync: jest.fn().mockResolvedValue(undefined),
@@ -125,6 +135,25 @@ jest.mock('../../src/components/FormInput', () => {
   };
 });
 
+// The FormInput mock above hardcodes one testID, so any second FormInput on
+// the screen would collide with the meal-name field. The notes editor has its
+// own behaviour and its own coverage; this suite only cares that the screen
+// forwards a note into the save payload.
+jest.mock('../../src/components/MarkdownNotesField', () => {
+  const React = require('react');
+  const { TextInput } = require('react-native');
+  return {
+    __esModule: true,
+    default: (props: any) => (
+      <TextInput
+        testID="meal-notes-input"
+        value={props.value}
+        onChangeText={props.onCommit}
+      />
+    ),
+  };
+});
+
 jest.mock('../../src/components/StepperInput', () => {
   const React = require('react');
   const { TextInput } = require('react-native');
@@ -153,7 +182,11 @@ jest.mock('../../src/components/BottomSheetPicker', () => {
           selectedOption: options.find((o: any) => o.value === value),
         })}
         {options.map((opt: any) => (
-          <Pressable key={opt.value} onPress={() => onSelect(opt.value)} testID={`mealtype-${opt.value}`}>
+          <Pressable
+            key={opt.value}
+            onPress={() => onSelect(opt.value)}
+            testID={`mealtype-${opt.value}`}
+          >
             <Text>{opt.label}</Text>
           </Pressable>
         ))}
@@ -186,13 +219,21 @@ jest.mock('../../src/components/TimeSheet', () => {
   };
 });
 
-const mockUseFoodEntryMealDetails = useFoodEntryMealDetails as jest.MockedFunction<typeof useFoodEntryMealDetails>;
-const mockUseUpdateFoodEntryMeal = useUpdateFoodEntryMeal as jest.MockedFunction<typeof useUpdateFoodEntryMeal>;
-const mockUseDeleteFoodEntryMeal = useDeleteFoodEntryMeal as jest.MockedFunction<typeof useDeleteFoodEntryMeal>;
-const mockUseMealTypes = useMealTypes as jest.MockedFunction<typeof useMealTypes>;
-const mockConsume = consumePendingMealIngredientSelection as jest.MockedFunction<
-  typeof consumePendingMealIngredientSelection
+const mockUseFoodEntryMealDetails =
+  useFoodEntryMealDetails as jest.MockedFunction<
+    typeof useFoodEntryMealDetails
+  >;
+const mockUseUpdateFoodEntryMeal =
+  useUpdateFoodEntryMeal as jest.MockedFunction<typeof useUpdateFoodEntryMeal>;
+const mockUseDeleteFoodEntryMeal =
+  useDeleteFoodEntryMeal as jest.MockedFunction<typeof useDeleteFoodEntryMeal>;
+const mockUseMealTypes = useMealTypes as jest.MockedFunction<
+  typeof useMealTypes
 >;
+const mockConsume =
+  consumePendingMealIngredientSelection as jest.MockedFunction<
+    typeof consumePendingMealIngredientSelection
+  >;
 
 const insets = { top: 0, bottom: 0, left: 0, right: 0 };
 const frame = { x: 0, y: 0, width: 390, height: 844 };
@@ -243,7 +284,9 @@ const baseMeal: FoodEntryMeal = {
   fat: 5,
 };
 
-const buildIngredient = (overrides: Partial<MealIngredientDraft> = {}): MealIngredientDraft => ({
+const buildIngredient = (
+  overrides: Partial<MealIngredientDraft> = {}
+): MealIngredientDraft => ({
   food_id: 'food-9',
   variant_id: 'var-9',
   quantity: 50,
@@ -275,7 +318,9 @@ describe('EditLoggedMealScreen', () => {
       refetch: jest.fn(),
     } as any);
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await initializeI18n('en');
+    await i18n.changeLanguage('en');
     jest.clearAllMocks();
     focusCallback = undefined;
     mockUseFocusEffect.mockImplementation((callback: () => void) => {
@@ -296,7 +341,12 @@ describe('EditLoggedMealScreen', () => {
     });
     mockUseMealTypes.mockReturnValue({
       mealTypes: [
-        { id: 'mt-breakfast', name: 'breakfast', is_visible: true, sort_order: 1 },
+        {
+          id: 'mt-breakfast',
+          name: 'breakfast',
+          is_visible: true,
+          sort_order: 1,
+        },
         { id: 'mt-lunch', name: 'lunch', is_visible: true, sort_order: 2 },
       ] as any,
       defaultMealTypeId: 'mt-breakfast',
@@ -310,15 +360,24 @@ describe('EditLoggedMealScreen', () => {
       <SafeAreaProvider initialMetrics={{ insets, frame }}>
         <EditLoggedMealScreen
           navigation={navigation}
-          route={{ key: 'k', name: 'EditLoggedMeal', params: { foodEntryMealId: 'fem-1' } } as any}
+          route={
+            {
+              key: 'k',
+              name: 'EditLoggedMeal',
+              params: { foodEntryMealId: 'fem-1' },
+            } as RootStackScreenProps<'EditLoggedMeal'>['route']
+          }
         />
-      </SafeAreaProvider>,
+      </SafeAreaProvider>
     );
 
   it('saves merged payload (name, meal_type, meal_type_id, foods) on Save', () => {
     const screen = renderScreen();
 
-    fireEvent.changeText(screen.getByTestId('meal-name-input'), 'Updated Meal Name');
+    fireEvent.changeText(
+      screen.getByTestId('meal-name-input'),
+      'Updated Meal Name'
+    );
     fireEvent.changeText(screen.getByTestId('quantity-input'), '2');
     fireEvent.press(screen.getByTestId('mealtype-mt-lunch'));
 
@@ -343,6 +402,23 @@ describe('EditLoggedMealScreen', () => {
     expect(payload.foods[0]).not.toHaveProperty('brand');
   });
 
+  it('updates the selected system meal type when the mounted screen changes languages', async () => {
+    await i18n.changeLanguage('pl');
+    const screen = renderScreen();
+
+    expect(screen.getAllByText('Śniadanie')).not.toHaveLength(0);
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+    expect(screen.getAllByText('Breakfast')).not.toHaveLength(0);
+
+    await act(async () => {
+      await i18n.changeLanguage('pl');
+    });
+    expect(screen.getAllByText('Śniadanie')).not.toHaveLength(0);
+  });
+
   it('scales component food quantities client-side when meal has no template', () => {
     mockMeal({ ...baseMeal, meal_template_id: null });
 
@@ -354,6 +430,40 @@ describe('EditLoggedMealScreen', () => {
     expect(payload.meal_template_id).toBeNull();
     expect(payload.quantity).toBe(2);
     expect(payload.foods[0].quantity).toBe(200);
+  });
+
+  // An entry whose template was deleted keeps its snapshotted yield, and the
+  // server still scales it by quantity / entry_total_servings. Treating it as
+  // unscaled (the old meal_template_id check) sent client-scaled quantities
+  // into a server that scales again, doubling the portion.
+  it('sends base quantities for an orphaned meal that kept its snapshot', () => {
+    mockMeal({
+      ...baseMeal,
+      meal_template_id: null,
+      entry_total_servings: 2,
+    });
+
+    const screen = renderScreen();
+    fireEvent.changeText(screen.getByTestId('quantity-input'), '2');
+    pressAction(screen, navigation, 'Save');
+
+    const payload = mockUpdateMeal.mock.calls[0][0];
+    expect(payload.quantity).toBe(2);
+    expect(payload.entry_total_servings).toBe(2);
+    // Base, not 200: the server applies the multiplier on write.
+    expect(payload.foods[0].quantity).toBe(100);
+  });
+
+  it('scales an orphaned snapshotted meal to the consumed total on the card', () => {
+    mockMeal({
+      ...baseMeal,
+      meal_template_id: null,
+      entry_total_servings: 2,
+    });
+
+    const screen = renderScreen();
+    // Foods sum to 165 base cal; meal.calories is the consumed total.
+    expect(screen.getByText('200 calories')).toBeTruthy();
   });
 
   it('confirms deletion when the Delete Meal button is pressed', () => {
@@ -368,10 +478,28 @@ describe('EditLoggedMealScreen', () => {
     expect(mockUpdateMeal).not.toHaveBeenCalled();
   });
 
+  it('enables Save for a note-only change', () => {
+    // `dirty` did not include the note, so editing only the note left Save
+    // disabled and the edit could not be saved at all.
+    const screen = renderScreen();
+
+    fireEvent.changeText(
+      screen.getByTestId('meal-notes-input'),
+      'reheated at work'
+    );
+    pressAction(screen, navigation, 'Save');
+
+    expect(mockUpdateMeal).toHaveBeenCalledWith(
+      expect.objectContaining({ notes: 'reheated at work' })
+    );
+  });
+
   it('opens the meal-builder picker when Add Food is pressed', () => {
     const screen = renderScreen();
     fireEvent.press(screen.getByText('Add Food'));
-    expect(navigation.push).toHaveBeenCalledWith('FoodSearch', { pickerMode: 'meal-builder' });
+    expect(navigation.push).toHaveBeenCalledWith('FoodSearch', {
+      pickerMode: 'meal-builder',
+    });
   });
 
   it('appends a food picked via the meal builder to the saved payload', () => {
@@ -389,7 +517,12 @@ describe('EditLoggedMealScreen', () => {
     const payload = mockUpdateMeal.mock.calls[0][0];
     expect(payload.foods).toHaveLength(2);
     expect(payload.foods[1]).toEqual(
-      expect.objectContaining({ food_id: 'food-9', variant_id: 'var-9', quantity: 50, unit: 'g' }),
+      expect.objectContaining({
+        food_id: 'food-9',
+        variant_id: 'var-9',
+        quantity: 50,
+        unit: 'g',
+      })
     );
   });
 
@@ -398,7 +531,11 @@ describe('EditLoggedMealScreen', () => {
     fireEvent.press(screen.getByTestId('edit-Chicken'));
     expect(navigation.navigate).toHaveBeenCalledWith(
       'FoodEntryAdd',
-      expect.objectContaining({ pickerMode: 'meal-builder', ingredientIndex: 0, returnDepth: 1 }),
+      expect.objectContaining({
+        pickerMode: 'meal-builder',
+        ingredientIndex: 0,
+        returnDepth: 1,
+      })
     );
   });
 
@@ -408,7 +545,12 @@ describe('EditLoggedMealScreen', () => {
     const screen = renderScreen();
 
     mockConsume.mockReturnValueOnce({
-      ingredient: buildIngredient({ food_id: 'food-1', variant_id: 'var-1', food_name: 'Chicken', quantity: 250 }),
+      ingredient: buildIngredient({
+        food_id: 'food-1',
+        variant_id: 'var-1',
+        food_name: 'Chicken',
+        quantity: 250,
+      }),
       ingredientIndex: 0,
     });
     act(() => {
@@ -430,7 +572,9 @@ describe('EditLoggedMealScreen', () => {
     const screen = renderScreen();
     fireEvent.changeText(screen.getByTestId('quantity-input'), '2');
 
-    mockConsume.mockReturnValueOnce({ ingredient: buildIngredient({ quantity: 100 }) });
+    mockConsume.mockReturnValueOnce({
+      ingredient: buildIngredient({ quantity: 100 }),
+    });
     act(() => {
       focusCallback?.();
     });
@@ -438,7 +582,9 @@ describe('EditLoggedMealScreen', () => {
     pressAction(screen, navigation, 'Save');
 
     const payload = mockUpdateMeal.mock.calls[0][0];
-    expect(payload.foods[1]).toEqual(expect.objectContaining({ food_id: 'food-9', quantity: 100 }));
+    expect(payload.foods[1]).toEqual(
+      expect.objectContaining({ food_id: 'food-9', quantity: 100 })
+    );
   });
 
   it('stages removal of a non-last ingredient until Save (no immediate delete)', () => {

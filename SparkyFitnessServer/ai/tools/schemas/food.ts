@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NOTES_MAX_LENGTH } from '@workspace/shared';
 import {
   dateSchema,
   optionalDateSchema,
@@ -11,6 +12,21 @@ import {
   giIndexEnum,
   paginationSchema,
 } from './common.js';
+
+// Freeform markdown note on a food or meal template. Shared by the strict
+// union members and the flat published input schema so both carry the same
+// bound as the editors on web and mobile.
+const notesSchema = z.string().max(NOTES_MAX_LENGTH).optional();
+
+// Mirrors the web/mobile "Quick Add" checkbox (foods.is_quick_food). Shared by
+// the strict create_food union member and the flat published input schema so
+// both carry the same opt-in-only wording.
+const quickFoodSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    'Quick Add: log this food to the diary without adding it to the user\'s reusable food list (hidden from food search, favorites, and recents). Set true ONLY when the user explicitly asks for it — "quick add", "don\'t save this to my foods", "just log it". Defaults to false. Requires meal_type_id (or meal_type) in the same call. It only skips saving a NEW food: on log_food, and on log_external_food when the food is already in the list, the existing food stays visible and the reply says Quick Add was not applied.'
+  );
 
 const searchFoodSchema = z
   .object({
@@ -89,6 +105,7 @@ const logFoodSchema = z
       .describe('Meal type UUID, including custom meal types'),
     entry_date: optionalDateSchema,
     entry_time: optionalEntryTimeSchema,
+    is_quick_food: quickFoodSchema,
   })
   .strict();
 
@@ -137,6 +154,7 @@ const logExternalFoodSchema = z
       .describe('Meal type UUID, including custom meal types'),
     entry_date: optionalDateSchema,
     entry_time: optionalEntryTimeSchema,
+    is_quick_food: quickFoodSchema,
   })
   .strict();
 
@@ -149,6 +167,9 @@ const createFoodSchema = z
       ),
     food_name: z.string().min(1).max(200).describe('Name of the new food item'),
     brand: z.string().max(200).optional().describe('Brand name of the food'),
+    notes: notesSchema.describe(
+      'Optional markdown reference note about this food — preparation, how the user orders it, or a recipe. Only set it when the user actually supplied such detail; never invent one.'
+    ),
     calories: z.coerce.number().min(0).describe('Calories (kcal)'),
     protein: z.coerce.number().min(0).describe('Protein (g)'),
     carbs: z.coerce.number().min(0).describe('Carbohydrates (g)'),
@@ -269,6 +290,7 @@ const createFoodSchema = z
       'Optional: Date for automatic log (YYYY-MM-DD)'
     ),
     entry_time: optionalEntryTimeSchema,
+    is_quick_food: quickFoodSchema,
   })
   .strict();
 
@@ -562,6 +584,30 @@ const saveAsMealTemplateSchema = z
       .max(1000)
       .optional()
       .describe('Description for the meal template'),
+    notes: notesSchema.describe(
+      'Optional markdown reference note for the meal template, e.g. a recipe. Only set it when the user actually supplied one.'
+    ),
+  })
+  .strict();
+
+const setFoodNotesSchema = z
+  .object({
+    action: z.literal('set_food_notes'),
+    food_id: uuidSchema
+      .optional()
+      .describe('UUID of the food whose note is being set'),
+    food_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name of the food (alternative to food_id)'),
+    notes: z
+      .string()
+      .max(NOTES_MAX_LENGTH)
+      .describe(
+        'The markdown note to store; pass an empty string to clear it. Replaces any existing note outright, so include the parts the user wants to keep.'
+      ),
   })
   .strict();
 
@@ -618,6 +664,7 @@ export const manageFoodSchema = z.discriminatedUnion('action', [
   logMealSchema,
   listDiarySchema,
   deleteEntrySchema,
+  setFoodNotesSchema,
   deleteFoodSchema,
   updateEntrySchema,
   updateFoodVariantSchema,
@@ -649,6 +696,7 @@ export const manageFoodInput = z.object({
       'delete_entry',
       'delete_food',
       'update_entry',
+      'set_food_notes',
       'update_food_variant',
       'copy_from_yesterday',
       'save_as_meal_template',
@@ -733,6 +781,7 @@ export const manageFoodInput = z.object({
     ),
   entry_date: dateSchema.optional().describe('Date for the entry (YYYY-MM-DD)'),
   entry_time: optionalEntryTimeSchema,
+  is_quick_food: quickFoodSchema,
   meal_id: uuidSchema.optional().describe('Meal template UUID'),
   meal_name: z
     .string()
@@ -812,6 +861,9 @@ export const manageFoodInput = z.object({
     .max(1000)
     .optional()
     .describe('Description (for save_as_meal_template)'),
+  notes: notesSchema.describe(
+    'Markdown reference note (for create_food / save_as_meal_template / set_food_notes; empty string clears it)'
+  ),
   // copy_from_yesterday
   target_date: optionalDateSchema.describe('Target date (defaults to today)'),
   source_date: optionalDateSchema.describe(

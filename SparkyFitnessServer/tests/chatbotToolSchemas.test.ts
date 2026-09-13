@@ -84,6 +84,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'meal_type_id',
         'entry_date',
         'entry_time',
+        'is_quick_food',
         'meal_id',
         'meal_name',
         'search_type',
@@ -110,6 +111,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'entry_id',
         'entry_type',
         'description',
+        'notes',
         'target_date',
         'source_date',
         'amount_ml',
@@ -130,6 +132,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'delete_entry',
         'delete_food',
         'update_entry',
+        'set_food_notes',
         'update_food_variant',
         'copy_from_yesterday',
         'save_as_meal_template',
@@ -360,7 +363,13 @@ describe('published (flat) chatbot tool schemas', () => {
     {
       name: 'AnalyzeFoodImageSchema',
       schema: AnalyzeFoodImageSchema,
-      properties: ['image_url'],
+      properties: [
+        'image_url',
+        'description',
+        'total_weight',
+        'meal_type',
+        'entry_date',
+      ],
     },
     {
       name: 'ScanLabelSchema',

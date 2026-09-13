@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
@@ -23,14 +24,19 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
   testID = 'verified-badge',
   style,
 }) => {
-  const caloriesColor = String(useCSSVariable('--color-calories') || FALLBACK_CALORIES_COLOR);
+  const { t } = useTranslation();
+  const caloriesColor = String(
+    useCSSVariable('--color-calories') || FALLBACK_CALORIES_COLOR
+  );
   const badgeSize = SIZE_MAP[size];
 
   return (
     <View
       testID={testID}
       accessibilityRole="image"
-      accessibilityLabel="Verified food"
+      accessibilityLabel={t('foodSearch.accessibility.verifiedFood', {
+        defaultValue: 'Verified food',
+      })}
       style={style}
     >
       <Icon

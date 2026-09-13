@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Text, Pressable, TouchableOpacity } from 'react-native';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
@@ -25,19 +26,24 @@ export const DeleteRowAction: React.FC<{
   disabled?: boolean;
   className?: string;
   accessibilityLabel?: string;
-}> = ({ onPress, disabled, className = '', accessibilityLabel }) => (
-  <TouchableOpacity
-    className={`bg-bg-danger justify-center items-center ${className}`}
-    style={{ width: DELETE_ACTION_WIDTH }}
-    onPress={onPress}
-    activeOpacity={0.7}
-    disabled={disabled}
-    accessibilityRole="button"
-    accessibilityLabel={accessibilityLabel}
-  >
-    <Text className="text-text-danger font-semibold text-sm">Delete</Text>
-  </TouchableOpacity>
-);
+}> = ({ onPress, disabled, className = '', accessibilityLabel }) => {
+  const { t } = useTranslation();
+  return (
+    <TouchableOpacity
+      className={`bg-bg-danger justify-center items-center ${className}`}
+      style={{ width: DELETE_ACTION_WIDTH }}
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
+      <Text className="text-text-danger font-semibold text-sm">
+        {t('common.delete', { defaultValue: 'Delete' })}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 /**
  * Generic swipe-to-delete wrapper for list rows whose only action is removal,
@@ -50,16 +56,21 @@ const SwipeableDeleteRow: React.FC<SwipeableDeleteRowProps> = ({
   className = '',
   children,
 }) => {
+  const { t } = useTranslation();
   const swipeableRef = useRef<SwipeableMethods | null>(null);
 
   const handleDeletePress = () => {
     Alert.alert(
-      `Delete ${title}?`,
+      t('common.deleteItemTitle', { defaultValue: 'Delete {{title}}?', title }),
       undefined,
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => swipeableRef.current?.close() },
         {
-          text: 'Delete',
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+          onPress: () => swipeableRef.current?.close(),
+        },
+        {
+          text: t('common.delete', { defaultValue: 'Delete' }),
           style: 'destructive',
           onPress: () => {
             swipeableRef.current?.close();
@@ -69,19 +80,25 @@ const SwipeableDeleteRow: React.FC<SwipeableDeleteRowProps> = ({
       ],
       // Android lets the user dismiss by tapping outside; close the row so it
       // does not stay stuck in the swiped-open state.
-      { cancelable: true, onDismiss: () => swipeableRef.current?.close() },
+      { cancelable: true, onDismiss: () => swipeableRef.current?.close() }
     );
   };
 
   // The menu itself is the confirmation, so Delete fires onConfirmDelete directly.
   const handleLongPress = () => {
     Alert.alert(title, undefined, [
-      { text: 'Delete', style: 'destructive', onPress: onConfirmDelete },
-      { text: 'Cancel', style: 'cancel' },
+      {
+        text: t('common.delete', { defaultValue: 'Delete' }),
+        style: 'destructive',
+        onPress: onConfirmDelete,
+      },
+      { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
     ]);
   };
 
-  const renderRightActions = () => <DeleteRowAction onPress={handleDeletePress} />;
+  const renderRightActions = () => (
+    <DeleteRowAction onPress={handleDeletePress} />
+  );
 
   return (
     <ReanimatedSwipeable
@@ -90,7 +107,10 @@ const SwipeableDeleteRow: React.FC<SwipeableDeleteRowProps> = ({
       overshootRight={false}
       rightThreshold={40}
     >
-      <Pressable onLongPress={handleLongPress} className={`bg-surface ${className}`}>
+      <Pressable
+        onLongPress={handleLongPress}
+        className={`bg-surface ${className}`}
+      >
         {children}
       </Pressable>
     </ReanimatedSwipeable>

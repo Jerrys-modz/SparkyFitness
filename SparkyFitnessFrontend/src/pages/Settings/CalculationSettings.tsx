@@ -57,7 +57,12 @@ import { useDiaryGoals } from '@/hooks/Diary/useFoodEntries';
 import { useMostRecentMeasurement } from '@/hooks/CheckIn/useCheckIn';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
 import {
+  getBmrAlgorithmLabel,
+  getBodyFatAlgorithmLabel,
+} from '@/utils/calculationLabels';
+import {
   computeCalorieTarget,
+  isAdaptiveTdeeMature,
   todayInZone,
   ACTIVITY_MULTIPLIERS,
   getGoalModeAdjustment,
@@ -66,7 +71,38 @@ import {
   GoalModeCalculationMethod,
   calculateBmr,
   calculateAge,
+  CalorieGoalAdjustmentMode,
+  CalorieSafetyFloorMode,
+  MIN_CALORIE_SAFETY_FLOOR,
+  MAX_CALORIE_SAFETY_FLOOR,
+  resolveCalorieSafetyFloor,
+  DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+  shouldShowCalorieSafetyWarning,
+  normalizeCalorieGoalAdjustmentMode,
+  ADAPTIVE_TDEE_GOAL_MIN_DAYS,
 } from '@workspace/shared';
+
+/**
+ * This screen offers radio items for five of the six adjustment modes. `smart` has no
+ * item of its own and behaves identically to `tdee` in `computeCaloriesRemaining`, so it
+ * is presented as `tdee` rather than leaving the RadioGroup with nothing selected and the
+ * explanation falling through to the `fixed` copy. Mirrors the same normalisation mobile
+ * already does in CalorieSettingsScreen.
+ */
+const SELECTABLE_MODES = [
+  'adaptive',
+  'dynamic',
+  'fixed',
+  'percentage',
+  'tdee',
+] as const satisfies readonly CalorieGoalAdjustmentMode[];
+
+const isCalorieGoalAdjustmentMode = (
+  value: string
+): value is CalorieGoalAdjustmentMode =>
+  (SELECTABLE_MODES as readonly string[]).includes(value);
+
+const toSelectableMode = normalizeCalorieGoalAdjustmentMode;
 
 const CalculationSettings = () => {
   const { t } = useTranslation();
@@ -77,6 +113,7 @@ const CalculationSettings = () => {
     bmrAlgorithm: contextBmrAlgorithm,
     bodyFatAlgorithm: contextBodyFatAlgorithm,
     includeBmrInNetCalories: contextIncludeBmrInNetCalories,
+    useExternalBmr: contextUseExternalBmr,
     showNetCarbs: contextShowNetCarbs,
     fatBreakdownAlgorithm: contextFatBreakdownAlgorithm,
     mineralCalculationAlgorithm: contextMineralCalculationAlgorithm,
@@ -91,6 +128,8 @@ const CalculationSettings = () => {
     goalMode: contextGoalMode,
     goalModeCalculationMethod: contextGoalModeCalculationMethod,
     goalModeCustomPercentage: contextGoalModeCustomPercentage,
+    calorieSafetyFloorMode: contextCalorieSafetyFloorMode,
+    calorieSafetyFloorValue: contextCalorieSafetyFloorValue,
     weightUnit,
     timezone,
     convertWeight,
@@ -100,9 +139,10 @@ const CalculationSettings = () => {
   } = usePreferences();
 
   const invalidateDailyProgress = useDailyProgressInvalidation();
-  const [calorieGoalAdjustmentMode, setCalorieGoalAdjustmentMode] = useState<
-    'dynamic' | 'fixed' | 'percentage' | 'tdee' | 'adaptive'
-  >(contextCalorieGoalAdjustmentMode || 'dynamic');
+  const [calorieGoalAdjustmentMode, setCalorieGoalAdjustmentMode] =
+    useState<CalorieGoalAdjustmentMode>(
+      toSelectableMode(contextCalorieGoalAdjustmentMode)
+    );
   const [exerciseCaloriePercentage, setExerciseCaloriePercentage] =
     useState<number>(contextExerciseCaloriePercentage ?? 100);
   const [tdeeAllowNegativeAdjustment, setTdeeAllowNegativeAdjustment] =
@@ -123,6 +163,27 @@ const CalculationSettings = () => {
   const [customPercentageInput, setCustomPercentageInput] = useState<string>(
     String(contextGoalModeCustomPercentage ?? 0)
   );
+  const [calorieSafetyFloorMode, setCalorieSafetyFloorMode] =
+    useState<CalorieSafetyFloorMode>(
+      contextCalorieSafetyFloorMode ?? 'standard'
+    );
+  const [calorieSafetyFloorValue, setCalorieSafetyFloorValue] =
+    useState<number>(
+      contextCalorieSafetyFloorValue ?? DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR
+    );
+  const [calorieSafetyFloorInput, setCalorieSafetyFloorInput] =
+    useState<string>(
+      String(
+        Math.round(
+          convertEnergy(
+            contextCalorieSafetyFloorValue ??
+              DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+            'kcal',
+            energyUnit
+          )
+        )
+      )
+    );
 
   const [bmrAlgorithm, setBmrAlgorithm] = useState<BmrAlgorithm>(
     contextBmrAlgorithm || BmrAlgorithm.MIFFLIN_ST_JEOR
@@ -133,6 +194,7 @@ const CalculationSettings = () => {
   const [includeBmrInNetCalories, setIncludeBmrInNetCalories] = useState(
     contextIncludeBmrInNetCalories || false
   );
+  const [useExternalBmr, setUseExternalBmr] = useState(contextUseExternalBmr);
   const [showNetCarbs, setShowNetCarbs] = useState(
     contextShowNetCarbs || false
   );
@@ -173,6 +235,9 @@ const CalculationSettings = () => {
     if (contextIncludeBmrInNetCalories !== undefined) {
       setIncludeBmrInNetCalories(contextIncludeBmrInNetCalories);
     }
+    if (contextUseExternalBmr !== undefined) {
+      setUseExternalBmr(contextUseExternalBmr);
+    }
     if (contextShowNetCarbs !== undefined) {
       setShowNetCarbs(contextShowNetCarbs);
     }
@@ -192,7 +257,9 @@ const CalculationSettings = () => {
       setAddedSugarAlgorithm(contextAddedSugarAlgorithm);
     }
     if (contextCalorieGoalAdjustmentMode) {
-      setCalorieGoalAdjustmentMode(contextCalorieGoalAdjustmentMode);
+      setCalorieGoalAdjustmentMode(
+        toSelectableMode(contextCalorieGoalAdjustmentMode)
+      );
     }
     if (contextExerciseCaloriePercentage !== undefined) {
       setExerciseCaloriePercentage(contextExerciseCaloriePercentage);
@@ -213,6 +280,19 @@ const CalculationSettings = () => {
       setGoalModeCustomPercentage(contextGoalModeCustomPercentage);
       setCustomPercentageInput(String(contextGoalModeCustomPercentage));
     }
+    if (contextCalorieSafetyFloorMode !== undefined) {
+      setCalorieSafetyFloorMode(contextCalorieSafetyFloorMode);
+    }
+    if (contextCalorieSafetyFloorValue !== undefined) {
+      setCalorieSafetyFloorValue(contextCalorieSafetyFloorValue);
+      setCalorieSafetyFloorInput(
+        String(
+          Math.round(
+            convertEnergy(contextCalorieSafetyFloorValue, 'kcal', energyUnit)
+          )
+        )
+      );
+    }
     // Since preferences are loaded by the PreferencesProvider at a higher level,
     // we can assume they are available by the time this component renders.
     // Set isLoading to false after initial render with context values.
@@ -221,6 +301,7 @@ const CalculationSettings = () => {
     contextBmrAlgorithm,
     contextBodyFatAlgorithm,
     contextIncludeBmrInNetCalories,
+    contextUseExternalBmr,
     contextShowNetCarbs,
     contextFatBreakdownAlgorithm,
     contextMineralCalculationAlgorithm,
@@ -234,6 +315,10 @@ const CalculationSettings = () => {
     contextGoalMode,
     contextGoalModeCalculationMethod,
     contextGoalModeCustomPercentage,
+    contextCalorieSafetyFloorMode,
+    contextCalorieSafetyFloorValue,
+    convertEnergy,
+    energyUnit,
   ]);
 
   const handleSave = async () => {
@@ -243,6 +328,7 @@ const CalculationSettings = () => {
         bmrAlgorithm,
         bodyFatAlgorithm,
         includeBmrInNetCalories,
+        useExternalBmr,
         showNetCarbs,
         energyUnit, // Ensure energyUnit is included in saving
         fatBreakdownAlgorithm: fatBreakdownAlgorithm,
@@ -257,6 +343,8 @@ const CalculationSettings = () => {
         goalMode: goalMode,
         goalModeCalculationMethod: goalModeCalculationMethod,
         goalModeCustomPercentage: goalModeCustomPercentage,
+        calorieSafetyFloorMode,
+        calorieSafetyFloorValue,
       });
       invalidateDiary();
       invalidateDailyProgress();
@@ -306,7 +394,12 @@ const CalculationSettings = () => {
   };
 
   // Live Preview Math
-  const { bmr, weight: weightKg, height: heightCm } = useCalculatedBMR();
+  const {
+    bmr,
+    measuredBmr,
+    weight: weightKg,
+    height: heightCm,
+  } = useCalculatedBMR({ bmrAlgorithm, useExternalBmr });
   const todayStr = todayInZone(timezone || 'UTC');
   const { data: adaptiveTdeeData } = useAdaptiveTdee(todayStr);
   const { data: goalsData } = useDiaryGoals(todayStr, false);
@@ -339,10 +432,25 @@ const CalculationSettings = () => {
       : Math.round(bmr > 0 ? bmr * activityMultiplier : 2000);
 
   if (calorieGoalAdjustmentMode === 'adaptive' && adaptiveTdeeData && bmr > 0) {
-    currentGoalBase = Math.max(
-      1200,
-      Math.round((adaptiveTdeeData.tdee ?? 0) + calorieGoalOffset)
+    // Mirrors goalService: hold the estimated baseline until the measured estimate
+    // is settled, so this preview matches the goal the server actually saves.
+    const adaptiveBaseline = isAdaptiveTdeeMature(
+      adaptiveTdeeData.tdee,
+      adaptiveTdeeData.isFallback,
+      adaptiveTdeeData.daysOfData
+    )
+      ? adaptiveTdeeData.tdee
+      : Math.round(bmr * activityMultiplier);
+    const adaptiveGoal = Math.round(adaptiveBaseline + calorieGoalOffset);
+    const adaptiveGoalFloor = resolveCalorieSafetyFloor(
+      calorieSafetyFloorMode,
+      calorieSafetyFloorValue,
+      DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR
     );
+    currentGoalBase =
+      adaptiveGoalFloor === null
+        ? adaptiveGoal
+        : Math.max(adaptiveGoalFloor, adaptiveGoal);
   }
 
   const previewResult = computeCalorieTarget({
@@ -364,18 +472,38 @@ const CalculationSettings = () => {
     bmrAlgorithm,
     currentGoalCalories: currentGoalBase,
     calculateBmrFn: calculateBmr,
+    calorieSafetyFloorMode,
+    calorieSafetyFloorValue,
+    measuredBmr,
   });
+
+  // The safety floor clamps silently, so a goal mode that cannot be reached at
+  // this activity level renders identically to one that can — at None (x1.0) every
+  // deficit mode returns the same target. Surface the ceiling in the picker so the
+  // choice is informed rather than explained after the override. The ceiling depends
+  // only on the baseline and the floor, so it is the same for every mode.
+  const deficitCeilingPercent = previewResult.maxFeasibleDeficitPercent;
+  const isGoalModeUnreachable = (mode: GoalMode) =>
+    deficitCeilingPercent != null &&
+    getGoalModeAdjustment(mode, goalModeCustomPercentage) * 100 >
+      deficitCeilingPercent + 1e-9;
+  const goalModeSuffix = (mode: GoalMode) =>
+    isGoalModeUnreachable(mode)
+      ? ` — ${t('settings.goalMode.modeUnreachableSuffix', 'not reachable')}`
+      : '';
 
   const deficitPct = getGoalModeAdjustment(goalMode, goalModeCustomPercentage);
 
   // Measured adaptive TDEE, shown only when the same sufficiency test used by
   // computeCalorieTarget passes; constant across goal modes and methods.
-  const measuredAdaptiveTdee =
-    adaptiveTdeeData?.isFallback === false &&
-    adaptiveTdeeData.tdee != null &&
-    (adaptiveTdeeData.daysOfData ?? 0) >= 14
-      ? adaptiveTdeeData.tdee
-      : null;
+  const reportedAdaptiveTdee = adaptiveTdeeData?.tdee;
+  const measuredAdaptiveTdee = isAdaptiveTdeeMature(
+    reportedAdaptiveTdee,
+    adaptiveTdeeData?.isFallback,
+    adaptiveTdeeData?.daysOfData
+  )
+    ? reportedAdaptiveTdee
+    : null;
 
   let baselineLabel: string;
   if (goalModeCalculationMethod === 'adaptive') {
@@ -564,7 +692,7 @@ const CalculationSettings = () => {
             <SelectContent>
               {Object.values(BmrAlgorithm).map((alg) => (
                 <SelectItem key={alg} value={alg}>
-                  {alg}
+                  {getBmrAlgorithmLabel(t, alg)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -598,7 +726,7 @@ const CalculationSettings = () => {
             <SelectContent>
               {Object.values(BodyFatAlgorithm).map((alg) => (
                 <SelectItem key={alg} value={alg}>
-                  {alg}
+                  {getBodyFatAlgorithmLabel(t, alg)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -634,6 +762,31 @@ const CalculationSettings = () => {
             {t(
               'calculationSettings.includeBmrInNetCaloriesHint',
               'When enabled, your BMR will be subtracted from your daily net calorie total.'
+            )}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="use-external-bmr"
+          checked={useExternalBmr}
+          onCheckedChange={(checked) => setUseExternalBmr(Boolean(checked))}
+        />
+        <div className="grid gap-1.5 leading-none">
+          <Label
+            htmlFor="use-external-bmr"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+          >
+            {t(
+              'calculationSettings.useExternalBmr',
+              'Use measured BMR from check-ins and synced devices'
+            )}
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'calculationSettings.useExternalBmrHint',
+              'Off by default — your chosen formula is always used until you turn this on. When enabled, a BMR recorded on a check-in or synced from a smart scale or health provider replaces the formula for that day, provided it is physiologically plausible for you. Some devices report BMR as a running daily total rather than a rate, which is why this is opt-in.'
             )}
           </p>
         </div>
@@ -705,9 +858,14 @@ const CalculationSettings = () => {
         </Label>
         <RadioGroup
           value={calorieGoalAdjustmentMode}
-          onValueChange={(
-            value: 'dynamic' | 'fixed' | 'percentage' | 'tdee' | 'adaptive'
-          ) => setCalorieGoalAdjustmentMode(value)}
+          // RadioGroup's contract is `(value: string) => void`; annotating the
+          // parameter as the narrower union would be unsound. Narrow explicitly and
+          // ignore anything that is not a mode.
+          onValueChange={(value: string) => {
+            if (isCalorieGoalAdjustmentMode(value)) {
+              setCalorieGoalAdjustmentMode(value);
+            }
+          }}
           className="flex flex-col space-y-2 mb-4"
         >
           <div className="flex items-center space-x-2">
@@ -812,7 +970,7 @@ const CalculationSettings = () => {
               </span>{' '}
               {t(
                 'settings.calorieGoalAdjustment.tdeeGoalDescription',
-                'Like MyFitnessPal with Apple Watch. SparkyFitness projects your full-day burn by extrapolating your current device data to midnight. The adjustment = projection − TDEE.'
+                'Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.'
               )}
             </Label>
           </div>
@@ -877,29 +1035,37 @@ const CalculationSettings = () => {
                   💡{' '}
                   {t(
                     'settings.calorieGoalAdjustment.adaptiveActivityHint',
-                    'In Adaptive mode, this setting acts as a fallback until you have enough tracking data.'
+                    'In Adaptive mode this is the fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±500 kcal of BMR × this multiplier, so a level set too low can hold a genuinely higher expenditure down.'
                   )}
                 </p>
               )}
               {calorieGoalAdjustmentMode === 'tdee' && (
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="tdee-allow-negative"
-                    checked={tdeeAllowNegativeAdjustment}
-                    onCheckedChange={(checked) =>
-                      setTdeeAllowNegativeAdjustment(Boolean(checked))
-                    }
-                  />
-                  <Label
-                    htmlFor="tdee-allow-negative"
-                    className="text-sm cursor-pointer"
-                  >
+                <>
+                  <p className="text-sm text-muted-foreground italic mt-[-4px]">
                     {t(
-                      'settings.calorieGoalAdjustment.allowNegativeAdjustment',
-                      'Allow negative adjustment (penalise for burning less than TDEE)'
+                      'settings.calorieGoalAdjustment.tdeeActivityHint',
+                      'Activity level is only used by the BMR + active calories fallback when a device total is unavailable.'
                     )}
-                  </Label>
-                </div>
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="tdee-allow-negative"
+                      checked={tdeeAllowNegativeAdjustment}
+                      onCheckedChange={(checked) =>
+                        setTdeeAllowNegativeAdjustment(Boolean(checked))
+                      }
+                    />
+                    <Label
+                      htmlFor="tdee-allow-negative"
+                      className="text-sm cursor-pointer"
+                    >
+                      {t(
+                        'settings.calorieGoalAdjustment.allowNegativeAdjustment',
+                        'Allow the fallback projection to lower the target'
+                      )}
+                    </Label>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -930,15 +1096,20 @@ const CalculationSettings = () => {
                   )}
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  {includeBmrInNetCalories
+                  {calorieGoalAdjustmentMode === 'tdee'
                     ? t(
-                        'settings.calculationExplanation.burnedBmr',
-                        'Activity + BMR (Your base metabolism)'
+                        'settings.calculationExplanation.burnedTdee',
+                        'Health Connect total calories (BMR + active calories fallback)'
                       )
-                    : t(
-                        'settings.calculationExplanation.burnedActivity',
-                        'Activity (Exercise & Steps only)'
-                      )}
+                    : includeBmrInNetCalories
+                      ? t(
+                          'settings.calculationExplanation.burnedBmr',
+                          'Activity + BMR (Your base metabolism)'
+                        )
+                      : t(
+                          'settings.calculationExplanation.burnedActivity',
+                          'Activity (Exercise & Steps only)'
+                        )}
                 </p>
               </div>
             </div>
@@ -986,7 +1157,7 @@ const CalculationSettings = () => {
                       : calorieGoalAdjustmentMode === 'tdee'
                         ? t(
                             'settings.calculationExplanation.remainingTdee',
-                            'Daily Goal − Eaten + (Projected Full Day − TDEE)'
+                            'Projected TDEE × Goal Mode − Eaten'
                           )
                         : calorieGoalAdjustmentMode === 'adaptive'
                           ? t(
@@ -1016,7 +1187,7 @@ const CalculationSettings = () => {
                 : calorieGoalAdjustmentMode === 'tdee'
                   ? t(
                       'settings.calculationExplanation.tdeeFootnote',
-                      '* Projection converges with actual at midnight. Requires BMR to be calculable and a device syncing steps or active calories.'
+                      '* Enable Total Calories in Health Connect sync. The projection converges with the device total at midnight; BMR plus active calories is used as a fallback.'
                     )
                   : calorieGoalAdjustmentMode === 'adaptive'
                     ? t(
@@ -1040,6 +1211,14 @@ const CalculationSettings = () => {
           {t(
             'settings.goalMode.subtitle',
             'Adjust your daily calorie target based on your body composition goal.'
+          )}
+          {calorieGoalAdjustmentMode === 'tdee' && (
+            <span className="block mt-1">
+              {t(
+                'settings.goalMode.deviceProjectionHint',
+                'In Device Projection mode, this percentage is applied directly to the projected device TDEE.'
+              )}
+            </span>
           )}
         </p>
 
@@ -1066,12 +1245,15 @@ const CalculationSettings = () => {
                     'settings.goalMode.modeRecomp',
                     'Body Recomposition (-10%)'
                   )}
+                  {goalModeSuffix('recomp')}
                 </SelectItem>
                 <SelectItem value="cut">
                   {t('settings.goalMode.modeCut', 'Cut (-15%)')}
+                  {goalModeSuffix('cut')}
                 </SelectItem>
                 <SelectItem value="high_cut">
                   {t('settings.goalMode.modeHighCut', 'High Cut (-20%)')}
+                  {goalModeSuffix('high_cut')}
                 </SelectItem>
                 <SelectItem value="lean_bulk">
                   {t('settings.goalMode.modeLeanBulk', 'Lean Bulk (+10%)')}
@@ -1084,6 +1266,25 @@ const CalculationSettings = () => {
                 </SelectItem>
               </SelectContent>
             </Select>
+            {deficitCeilingPercent != null && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {/* Name the lever that actually sets the ceiling. Activity level
+                    only feeds the baseline while history is insufficient; once
+                    adaptive is calibrated the baseline is measured expenditure
+                    and the setting no longer enters the calculation. */}
+                {previewResult.insufficientHistory
+                  ? t(
+                      'settings.goalMode.deficitCeilingHintEstimated',
+                      'At your current activity level the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.',
+                      { percent: deficitCeilingPercent.toFixed(0) }
+                    )
+                  : t(
+                      'settings.goalMode.deficitCeilingHintMeasured',
+                      'Based on your measured TDEE, the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.',
+                      { percent: deficitCeilingPercent.toFixed(0) }
+                    )}
+              </p>
+            )}
           </div>
 
           <div>
@@ -1173,9 +1374,120 @@ const CalculationSettings = () => {
                 'settings.goalMode.customPercentageHint',
                 'Positive adds calories (surplus), negative cuts them (deficit).'
               )}
+              {isGoalModeUnreachable('manual') && (
+                <span className="block text-amber-600 dark:text-amber-400">
+                  {t(
+                    'settings.goalMode.customPercentageUnreachable',
+                    'Deeper than the ~{{percent}}% your safety floor allows; the target will be raised to that floor.',
+                    { percent: deficitCeilingPercent!.toFixed(0) }
+                  )}
+                </span>
+              )}
             </span>
           </div>
         )}
+
+        <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="calorie-safety-floor-mode">
+                {t(
+                  'settings.goalMode.safetyFloorModeLabel',
+                  'Adaptive Safety Floor'
+                )}
+              </Label>
+              <Select
+                value={calorieSafetyFloorMode}
+                onValueChange={(value: CalorieSafetyFloorMode) =>
+                  setCalorieSafetyFloorMode(value)
+                }
+              >
+                <SelectTrigger id="calorie-safety-floor-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">
+                    {t(
+                      'settings.goalMode.safetyFloorStandard',
+                      'Standard (RMR / clinical minimum)'
+                    )}
+                  </SelectItem>
+                  <SelectItem value="custom">
+                    {t('settings.goalMode.safetyFloorCustom', 'Custom minimum')}
+                  </SelectItem>
+                  <SelectItem value="disabled">
+                    {t('settings.goalMode.safetyFloorDisabled', 'Disabled')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {calorieSafetyFloorMode === 'custom' && (
+              <div>
+                <Label htmlFor="calorie-safety-floor-value">
+                  {t(
+                    'settings.goalMode.safetyFloorValueLabel',
+                    'Custom minimum'
+                  )}{' '}
+                  ({getEnergyUnitString(energyUnit)})
+                </Label>
+                <Input
+                  id="calorie-safety-floor-value"
+                  type="number"
+                  step="1"
+                  min={Math.round(
+                    convertEnergy(MIN_CALORIE_SAFETY_FLOOR, 'kcal', energyUnit)
+                  )}
+                  max={Math.round(
+                    convertEnergy(MAX_CALORIE_SAFETY_FLOOR, 'kcal', energyUnit)
+                  )}
+                  value={calorieSafetyFloorInput}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    setCalorieSafetyFloorInput(raw);
+                    if (raw.trim() === '') return;
+                    const parsed = Number(raw);
+                    if (!Number.isFinite(parsed)) return;
+                    setCalorieSafetyFloorValue(
+                      Math.round(convertEnergy(parsed, energyUnit, 'kcal'))
+                    );
+                  }}
+                  onBlur={() => {
+                    const clamped = Math.min(
+                      MAX_CALORIE_SAFETY_FLOOR,
+                      Math.max(
+                        MIN_CALORIE_SAFETY_FLOOR,
+                        calorieSafetyFloorValue
+                      )
+                    );
+                    setCalorieSafetyFloorValue(clamped);
+                    setCalorieSafetyFloorInput(
+                      String(
+                        Math.round(convertEnergy(clamped, 'kcal', energyUnit))
+                      )
+                    );
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {calorieSafetyFloorMode === 'standard'
+              ? t(
+                  'settings.goalMode.safetyFloorStandardHint',
+                  'Uses the higher of your estimated RMR and the clinical minimum (1,200 kcal for females, 1,500 kcal for males).'
+                )
+              : calorieSafetyFloorMode === 'custom'
+                ? t(
+                    'settings.goalMode.safetyFloorCustomHint',
+                    'Replaces the standard floor with your chosen minimum. Health recommendations remain visible.'
+                  )
+                : t(
+                    'settings.goalMode.safetyFloorDisabledHint',
+                    'Stops automatic target clamping. Health warnings remain visible; consider medical guidance for very low targets.'
+                  )}
+          </p>
+        </div>
 
         {/* Live Preview & Diagnostics Callouts */}
         <div className="space-y-3">
@@ -1183,6 +1495,16 @@ const CalculationSettings = () => {
           <div className="p-4 bg-muted/50 dark:bg-muted/30 border border-border rounded-xl space-y-2">
             <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               {t('settings.goalMode.livePreview', 'Live Preview Calculation')}
+            </p>
+            {/* Adaptive TDEE is computed on the server from the *saved*
+                preferences, so an unsaved edit cannot move it or anything derived
+                from it. BMR and body fat are worked out here and do update as you
+                type, which makes the split invisible without saying so. */}
+            <p className="text-xs text-muted-foreground italic">
+              {t(
+                'settings.goalMode.livePreviewSavedNote',
+                'BMR and body fat update as you change settings. Expenditure is calculated on the server from your saved settings, so it and the final target only change after you save.'
+              )}
             </p>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-sm">
               <div>
@@ -1252,7 +1574,10 @@ const CalculationSettings = () => {
               <div className="hidden md:block text-muted-foreground">→</div>
               <div>
                 <span className="text-muted-foreground">
-                  Daily Calorie Target:
+                  {t(
+                    'settings.goalMode.dailyCalorieTarget',
+                    'Daily Calorie Target:'
+                  )}
                 </span>{' '}
                 <span className="font-bold text-base text-primary">
                   {Math.round(
@@ -1305,10 +1630,14 @@ const CalculationSettings = () => {
                       Math.abs(previewResult.projectedWeeklyChangeKg)
                     )}
                   </span>
-                  <span className="text-muted-foreground">/ week</span>
+                  <span className="text-muted-foreground">
+                    {t('settings.goalMode.perWeek', '/ week')}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Rate:</span>
+                  <span className="text-muted-foreground">
+                    {t('settings.goalMode.rate', 'Rate:')}
+                  </span>
                   <span
                     className={`font-semibold px-2 py-0.5 rounded-full text-xs ${
                       previewResult.safetyZone === 'green'
@@ -1318,8 +1647,11 @@ const CalculationSettings = () => {
                           : 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300'
                     }`}
                   >
-                    {previewResult.projectedWeeklyChangePercent.toFixed(2)}% of
-                    body weight / week
+                    {t('settings.goalMode.bodyWeightRate', {
+                      defaultValue: '{{percent}}% of body weight / week',
+                      percent:
+                        previewResult.projectedWeeklyChangePercent.toFixed(2),
+                    })}
                   </span>
                 </div>
               </div>
@@ -1347,6 +1679,7 @@ const CalculationSettings = () => {
                 rawManualGoal={rawManualGoal}
                 adjustedManualGoal={currentGoalBase}
                 activityMultiplier={activityMultiplier}
+                bmrSource={measuredBmr != null ? 'measured' : undefined}
               />
             </div>
           </div>
@@ -1368,10 +1701,11 @@ const CalculationSettings = () => {
                   <p className="mt-2 text-sm opacity-80 border-t border-current/20 pt-2 flex items-start gap-1">
                     <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <span>
-                      Note: This target is currently based on an estimated
-                      activity level. After 14+ days of weight and calorie data,
-                      SparkyFitness will calculate a more personalized adaptive
-                      TDEE.
+                      {t('settings.goalMode.estimatedTargetNote', {
+                        defaultValue:
+                          'Note: This target is currently based on an estimated activity level. After {{required}}+ days of weight and calorie data, SparkyFitness will calculate a more personalized adaptive TDEE.',
+                        required: ADAPTIVE_TDEE_GOAL_MIN_DAYS,
+                      })}
                     </span>
                   </p>
                 )}
@@ -1379,44 +1713,55 @@ const CalculationSettings = () => {
           )}
 
           {/* Warning callouts */}
-          {goalMode !== 'maintain' &&
-            goalModeCalculationMethod === 'manual' &&
-            previewResult.isBelowRmr &&
-            !previewResult.isBelowAbsoluteFloor && (
+          {shouldShowCalorieSafetyWarning(goalMode) &&
+            previewResult.finalTarget < previewResult.rmr &&
+            previewResult.finalTarget >= previewResult.absoluteFloorValue && (
               <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl flex gap-3 text-sm text-amber-800 dark:text-amber-300">
                 <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-semibold">
-                    Safety Alert: Calorie target below minimum metabolism
+                    {t(
+                      'settings.goalMode.minimumMetabolismWarningTitle',
+                      'Safety Alert: Calorie target below minimum metabolism'
+                    )}
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-400/80 leading-relaxed">
-                    Your calorie target is below your estimated minimum
-                    metabolism (RMR). This may not be sustainable long-term.
-                    Consider selecting a less aggressive Goal Mode or switching
-                    to the Adaptive method.
+                    {t(
+                      'settings.goalMode.minimumMetabolismWarningText',
+                      'Your calorie target is below your estimated minimum metabolism (RMR). This may not be sustainable long-term. Consider selecting a less aggressive Goal Mode or enabling a Standard or Custom safety floor.'
+                    )}
                   </p>
                 </div>
               </div>
             )}
 
           {/* Absolute Floor Danger Callout */}
-          {goalMode !== 'maintain' &&
-            goalModeCalculationMethod === 'manual' &&
-            previewResult.isBelowAbsoluteFloor && (
+          {shouldShowCalorieSafetyWarning(goalMode) &&
+            previewResult.finalTarget < previewResult.absoluteFloorValue && (
               <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl flex gap-3 text-sm text-red-800 dark:text-red-300">
                 <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-semibold">
-                    Critical Health Alert: Calorie target below absolute floor
+                    {t(
+                      'settings.goalMode.absoluteFloorWarningTitle',
+                      'Critical Health Alert: Calorie target below absolute floor'
+                    )}
                   </p>
                   <p className="text-sm text-red-700 dark:text-red-400/80 leading-relaxed">
-                    Your calorie target is below the clinical absolute safety
-                    floor of{' '}
-                    {energyUnit === 'kcal'
-                      ? `${previewResult.absoluteFloorValue} kcal`
-                      : `${Math.round(convertEnergy(previewResult.absoluteFloorValue, 'kcal', 'kJ'))} kJ`}
-                    /day. Deficits below this level are generally not
-                    recommended without direct medical supervision.
+                    {t('settings.goalMode.absoluteFloorWarningText', {
+                      defaultValue:
+                        'Your calorie target is below the clinical absolute safety floor of {{floor}}/day. Deficits below this level are generally not recommended without direct medical supervision.',
+                      floor:
+                        energyUnit === 'kcal'
+                          ? `${previewResult.absoluteFloorValue} kcal`
+                          : `${Math.round(
+                              convertEnergy(
+                                previewResult.absoluteFloorValue,
+                                'kcal',
+                                'kJ'
+                              )
+                            )} kJ`,
+                    })}
                   </p>
                 </div>
               </div>
@@ -1434,35 +1779,62 @@ const CalculationSettings = () => {
                   )}
                 </p>
                 <p className="text-sm text-amber-700 dark:text-amber-400/80 leading-relaxed">
-                  The deficit you selected works out to{' '}
-                  {Math.round(
-                    convertEnergy(previewResult.target, 'kcal', energyUnit)
-                  )}{' '}
-                  {getEnergyUnitString(energyUnit)}, which is below your{' '}
-                  {previewResult.clampedFloorSource === 'rmr'
-                    ? 'estimated resting metabolism (RMR)'
-                    : 'absolute safety floor'}{' '}
-                  of{' '}
-                  {Math.round(
-                    convertEnergy(previewResult.finalTarget, 'kcal', energyUnit)
-                  )}{' '}
-                  {getEnergyUnitString(energyUnit)}, so your target has been
-                  raised to that minimum.
+                  {t('settings.goalMode.clampExplanation', {
+                    defaultValue:
+                      'The deficit you selected works out to {{target}} {{unit}}, which is below your {{floorDescription}} of {{floor}} {{unit}}, so your target has been raised to that minimum.',
+                    target: Math.round(
+                      convertEnergy(previewResult.target, 'kcal', energyUnit)
+                    ),
+                    unit: getEnergyUnitString(energyUnit),
+                    floorDescription:
+                      previewResult.clampedFloorSource === 'rmr'
+                        ? t(
+                            'settings.goalMode.estimatedRmrDescription',
+                            'estimated resting metabolism (RMR)'
+                          )
+                        : previewResult.clampedFloorSource === 'custom'
+                          ? t(
+                              'settings.calorieBreakdown.customFloorDescription',
+                              'configured custom safety floor'
+                            )
+                          : t(
+                              'settings.goalMode.absoluteFloorDescription',
+                              'absolute safety floor'
+                            ),
+                    floor: Math.round(
+                      convertEnergy(
+                        previewResult.finalTarget,
+                        'kcal',
+                        energyUnit
+                      )
+                    ),
+                  })}
                   {previewResult.maxFeasibleDeficitPercent != null && (
                     <>
                       {' '}
-                      The largest deficit that fits above your minimum is about{' '}
-                      <span className="font-semibold">
-                        {previewResult.maxFeasibleDeficitPercent.toFixed(0)}%
-                      </span>
-                      . To lose faster than that, raise your expenditure through
-                      activity rather than cutting intake further.
+                      {t('settings.goalMode.largestFeasibleDeficit', {
+                        defaultValue:
+                          'The largest deficit that fits above your minimum is about {{percent}}%',
+                        percent:
+                          previewResult.maxFeasibleDeficitPercent.toFixed(0),
+                      })}
+                      {previewResult.insufficientHistory
+                        ? t(
+                            'settings.goalMode.clampAdviceEstimated',
+                            '. To lose faster than that, raise your expenditure through activity, or check that your Activity Level is not understated — it sets this ceiling until you have enough history for a measured baseline.'
+                          )
+                        : t(
+                            'settings.goalMode.clampAdviceMeasured',
+                            '. To lose faster than that, raise your actual expenditure rather than cutting intake further; your baseline is measured, so the Activity Level setting no longer affects it.'
+                          )}
                     </>
                   )}
                 </p>
                 <p className="text-sm text-amber-700/80 dark:text-amber-400/70 leading-relaxed">
-                  The Manual calculation method does not apply this floor — it
-                  warns instead of overriding.
+                  {t(
+                    'settings.goalMode.manualFloorWarning',
+                    'The Manual calculation method does not apply this floor — it warns instead of overriding.'
+                  )}
                 </p>
               </div>
             </div>
@@ -1475,23 +1847,32 @@ const CalculationSettings = () => {
               <div className="space-y-1">
                 {previewResult.isGainGoal ? (
                   <>
-                    <p className="font-semibold">Unsafe Weight Gain Rate</p>
+                    <p className="font-semibold">
+                      {t(
+                        'settings.goalMode.unsafeGainTitle',
+                        'Unsafe Weight Gain Rate'
+                      )}
+                    </p>
                     <p className="text-sm text-red-700 dark:text-red-400/80 leading-relaxed">
-                      Gaining more than 0.5% of body weight per week means most
-                      of the added weight will be fat rather than muscle. A
-                      slower surplus builds a similar amount of muscle with far
-                      less fat gain.
+                      {t(
+                        'settings.goalMode.unsafeGainText',
+                        'Gaining more than 0.5% of body weight per week means most of the added weight will be fat rather than muscle. A slower surplus builds a similar amount of muscle with far less fat gain.'
+                      )}
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="font-semibold">Unsafe Weight Loss Rate</p>
+                    <p className="font-semibold">
+                      {t(
+                        'settings.goalMode.unsafeLossTitle',
+                        'Unsafe Weight Loss Rate'
+                      )}
+                    </p>
                     <p className="text-sm text-red-700 dark:text-red-400/80 leading-relaxed">
-                      Losing more than 1.5% of body weight per week is
-                      considered excessive. This rate dramatically increases
-                      risks of severe muscle loss, lethargy, hormonal
-                      imbalances, and nutritional deficiencies. Please choose a
-                      less aggressive goal mode.
+                      {t(
+                        'settings.goalMode.unsafeLossText',
+                        'Losing more than 1.5% of body weight per week is considered excessive. This rate dramatically increases risks of severe muscle loss, lethargy, hormonal imbalances, and nutritional deficiencies. Please choose a less aggressive goal mode.'
+                      )}
                     </p>
                   </>
                 )}
@@ -1512,14 +1893,25 @@ const CalculationSettings = () => {
                     )}
                   </p>
                   <p className="text-sm text-blue-700/90 dark:text-blue-400/80 leading-relaxed">
-                    Sparky's Adaptive TDEE engine requires at least 14 days of
-                    consistent tracking to calculate your metabolism accurately
-                    (currently using fallback estimates). To speed up
-                    calibration:
+                    {t('settings.goalMode.calibrationDescription', {
+                      defaultValue:
+                        "Sparky's Adaptive TDEE engine requires at least {{required}} days of consistent tracking to calculate your metabolism accurately (currently using fallback estimates). To speed up calibration:",
+                      required: ADAPTIVE_TDEE_GOAL_MIN_DAYS,
+                    })}
                   </p>
                   <ul className="list-disc pl-4 text-sm text-blue-700/80 dark:text-blue-400/70 space-y-0.5 mt-1">
-                    <li>Log weight at least 3-4 times per week.</li>
-                    <li>Log food intake daily (&gt;200 kcal/day).</li>
+                    <li>
+                      {t(
+                        'settings.goalMode.calibrationWeightTip',
+                        'Log weight at least 3-4 times per week.'
+                      )}
+                    </li>
+                    <li>
+                      {t(
+                        'settings.goalMode.calibrationFoodTip',
+                        'Log food intake daily (>200 kcal/day).'
+                      )}
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -1530,12 +1922,18 @@ const CalculationSettings = () => {
       {/* Nutrient Calculation Algorithms */}
       <div className="border-t pt-4 mt-4">
         <h3 className="text-lg font-semibold mb-4">
-          Nutrient Calculation Algorithms
+          {t(
+            'settings.nutrientAlgorithms.title',
+            'Nutrient Calculation Algorithms'
+          )}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fat-breakdown-algorithm">
-              Fat Breakdown Algorithm
+              {t(
+                'settings.nutrientAlgorithms.fatTitle',
+                'Fat Breakdown Algorithm'
+              )}
             </Label>
             <Select
               value={fatBreakdownAlgorithm}
@@ -1544,25 +1942,38 @@ const CalculationSettings = () => {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Fat Breakdown Algorithm" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.nutrientAlgorithms.selectFat',
+                    'Select Fat Breakdown Algorithm'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {Object.values(FatBreakdownAlgorithm).map((alg) => (
                   <SelectItem key={alg} value={alg}>
-                    {FatBreakdownAlgorithmLabels[alg]}
+                    {t(
+                      `settings.nutrientAlgorithms.labels.${alg}`,
+                      FatBreakdownAlgorithmLabels[alg]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              How to distribute dietary fat into saturated, poly, mono, and
-              trans fats.
+              {t(
+                'settings.nutrientAlgorithms.fatHint',
+                'How to distribute dietary fat into saturated, poly, mono, and trans fats.'
+              )}
             </p>
           </div>
 
           <div>
             <Label htmlFor="mineral-calculation-algorithm">
-              Mineral Calculation Algorithm
+              {t(
+                'settings.nutrientAlgorithms.mineralTitle',
+                'Mineral Calculation Algorithm'
+              )}
             </Label>
             <Select
               value={mineralCalculationAlgorithm}
@@ -1571,25 +1982,38 @@ const CalculationSettings = () => {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Mineral Algorithm" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.nutrientAlgorithms.selectMineral',
+                    'Select Mineral Algorithm'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {Object.values(MineralCalculationAlgorithm).map((alg) => (
                   <SelectItem key={alg} value={alg}>
-                    {MineralCalculationAlgorithmLabels[alg]}
+                    {t(
+                      `settings.nutrientAlgorithms.labels.${alg}`,
+                      MineralCalculationAlgorithmLabels[alg]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              Algorithm for calculating sodium, potassium, calcium, iron, and
-              cholesterol targets.
+              {t(
+                'settings.nutrientAlgorithms.mineralHint',
+                'Algorithm for calculating sodium, potassium, calcium, iron, and cholesterol targets.'
+              )}
             </p>
           </div>
 
           <div>
             <Label htmlFor="vitamin-calculation-algorithm">
-              Vitamin Calculation Algorithm
+              {t(
+                'settings.nutrientAlgorithms.vitaminTitle',
+                'Vitamin Calculation Algorithm'
+              )}
             </Label>
             <Select
               value={vitaminCalculationAlgorithm}
@@ -1598,24 +2022,38 @@ const CalculationSettings = () => {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Vitamin Algorithm" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.nutrientAlgorithms.selectVitamin',
+                    'Select Vitamin Algorithm'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {Object.values(VitaminCalculationAlgorithm).map((alg) => (
                   <SelectItem key={alg} value={alg}>
-                    {VitaminCalculationAlgorithmLabels[alg]}
+                    {t(
+                      `settings.nutrientAlgorithms.labels.${alg}`,
+                      VitaminCalculationAlgorithmLabels[alg]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              Algorithm for calculating Vitamin A and C targets.
+              {t(
+                'settings.nutrientAlgorithms.vitaminHint',
+                'Algorithm for calculating Vitamin A and C targets.'
+              )}
             </p>
           </div>
 
           <div>
             <Label htmlFor="sugar-calculation-algorithm">
-              Sugar Calculation Algorithm
+              {t(
+                'settings.nutrientAlgorithms.sugarTitle',
+                'Sugar Calculation Algorithm'
+              )}
             </Label>
             <Select
               value={sugarCalculationAlgorithm}
@@ -1624,23 +2062,39 @@ const CalculationSettings = () => {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Sugar Algorithm" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.nutrientAlgorithms.selectSugar',
+                    'Select Sugar Algorithm'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {Object.values(SugarCalculationAlgorithm).map((alg) => (
                   <SelectItem key={alg} value={alg}>
-                    {SugarCalculationAlgorithmLabels[alg]}
+                    {t(
+                      `settings.nutrientAlgorithms.labels.${alg}`,
+                      SugarCalculationAlgorithmLabels[alg]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              Maximum sugar intake as a percentage of total calories.
+              {t(
+                'settings.nutrientAlgorithms.sugarHint',
+                'Maximum sugar intake as a percentage of total calories.'
+              )}
             </p>
           </div>
 
           <div>
-            <Label htmlFor="added-sugar-algorithm">Added Sugar Algorithm</Label>
+            <Label htmlFor="added-sugar-algorithm">
+              {t(
+                'settings.nutrientAlgorithms.addedSugarTitle',
+                'Added Sugar Algorithm'
+              )}
+            </Label>
             <Select
               value={addedSugarAlgorithm}
               onValueChange={(value: AddedSugarAlgorithm) =>
@@ -1648,24 +2102,35 @@ const CalculationSettings = () => {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Added Sugar Algorithm" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.nutrientAlgorithms.selectAddedSugar',
+                    'Select Added Sugar Algorithm'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {Object.values(AddedSugarAlgorithm).map((alg) => (
                   <SelectItem key={alg} value={alg}>
-                    {AddedSugarAlgorithmLabels[alg]}
+                    {t(
+                      `settings.nutrientAlgorithms.labels.${alg}`,
+                      AddedSugarAlgorithmLabels[alg]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              Recommended limit for a custom "Added Sugars" nutrient tracked as
-              a maximum goal (WHO or AHA guidelines).
+              {t(
+                'settings.nutrientAlgorithms.addedSugarHint',
+                'Recommended limit for a custom "Added Sugars" nutrient tracked as a maximum goal (WHO or AHA guidelines).'
+              )}
             </p>
-            <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-              Requires a custom nutrient named "Added Sugar(s)" (Settings →
-              Custom Nutrients), set to a Maximum goal direction — this
-              algorithm has no effect until one exists.
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {t(
+                'settings.nutrientAlgorithms.addedSugarRequirement',
+                'Requires a custom nutrient named "Added Sugar(s)" (Settings → Custom Nutrients), set to a Maximum goal direction — this algorithm has no effect until one exists.'
+              )}
             </p>
           </div>
         </div>

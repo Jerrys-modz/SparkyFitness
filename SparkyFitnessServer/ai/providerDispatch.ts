@@ -16,6 +16,12 @@ import {
   requiresUserSuppliedAiUrl,
   type AiNetworkPolicy,
 } from '../utils/outboundUrlPolicy.js';
+import {
+  describeRejectedParam,
+  detectRejectedParam,
+  recordRejectedParam,
+  supportsTemperature,
+} from './modelCapabilities.js';
 
 const { Agent } = undici;
 
@@ -34,7 +40,6 @@ export interface ProviderConfig {
   api_key?: string;
   model_name?: string;
   custom_url?: string;
-  timeout?: number;
 }
 
 export interface DispatchImage {
@@ -67,7 +72,7 @@ export interface DispatchRequest {
   parseJson?: boolean;
   /** Forwarded to every provider family; omitted from the request body when unset. */
   temperature?: number;
-  /** Default 90_000; Ollama default 120_000 (or `provider.timeout`). */
+  /** Default 90_000; Ollama default 300_000. */
   timeoutMs?: number;
 }
 
@@ -94,7 +99,16 @@ export type DispatchResult =
     };
 
 const DEFAULT_TIMEOUT_MS = 90_000;
-const OLLAMA_DEFAULT_TIMEOUT_MS = 120_000;
+// Ollama is nearly always a local server, where the first request after an idle
+// period pays a cold start: loading a multi-billion-parameter model into VRAM
+// can take minutes on modest hardware, before inference begins. 120s was short
+// enough to fail that load outright. Matches CHAT_REQUEST_TIMEOUT_MS in
+// chatService.ts, so the dispatch path is no longer the stricter of the two.
+const OLLAMA_DEFAULT_TIMEOUT_MS = 5 * 60_000;
+// Ask Ollama to hold the model in memory well past its 5-minute default, so
+// only the first request in a session pays the cold start rather than every
+// request that follows a short pause.
+const OLLAMA_KEEP_ALIVE = '30m';
 // On Claude Opus 5 and Sonnet 5, omitting the `thinking` parameter runs
 // adaptive thinking by default, and max_tokens caps thinking *and* the visible
 // response together. At 2048 with a forced tool call, reasoning could consume
@@ -105,16 +119,6 @@ const OLLAMA_DEFAULT_TIMEOUT_MS = 120_000;
 const ANTHROPIC_MAX_TOKENS = 8192;
 const ANTHROPIC_VERSION = '2023-06-01';
 
-// Claude Opus 4.7 and later reject `temperature` outright with a 400, and
-// Sonnet 5 rejects non-default values. Sending it to those models fails the
-// request before any work happens, so it is dropped rather than forwarded.
-// Older models (Sonnet 4.6, Haiku 4.5, and earlier) still honor it.
-const ANTHROPIC_MODELS_REJECTING_TEMPERATURE =
-  /^claude-(opus-(4-7|4-8|5)|sonnet-5|fable-5|mythos-5)/;
-
-function anthropicAcceptsTemperature(model: string): boolean {
-  return !ANTHROPIC_MODELS_REJECTING_TEMPERATURE.test(model);
-}
 const DEFAULT_SCHEMA_NAME = 'structured_output';
 const MAX_DETAIL_BODY_CHARS = 500;
 
@@ -566,7 +570,7 @@ function buildAnthropicRequest(ctx: BuildContext): BuiltRequest {
     max_tokens: ANTHROPIC_MAX_TOKENS,
     messages: [{ role: 'user', content }],
   };
-  if (ctx.temperature !== undefined && anthropicAcceptsTemperature(ctx.model)) {
+  if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;
   }
   if (ctx.jsonSchema) {
@@ -592,9 +596,12 @@ function buildAnthropicRequest(ctx: BuildContext): BuiltRequest {
 }
 
 function buildOllamaRequest(ctx: BuildContext): BuiltRequest {
+  const prompt = ctx.jsonSchema
+    ? `${ctx.prompt}\n\nRespond with a single JSON object that conforms to this JSON Schema:\n${JSON.stringify(toStrictJsonSchema(ctx.jsonSchema))}`
+    : ctx.prompt;
   const message: Record<string, unknown> = {
     role: 'user',
-    content: ctx.prompt,
+    content: prompt,
   };
   if (ctx.images.length > 0) {
     message.images = ctx.images.map((img) => img.base64);
@@ -603,17 +610,24 @@ function buildOllamaRequest(ctx: BuildContext): BuiltRequest {
     model: ctx.model,
     messages: [message],
     stream: false,
+    keep_alive: OLLAMA_KEEP_ALIVE,
     options: {
       num_ctx: 8192, // Enforce 8k context window support
       ...(ctx.temperature !== undefined && { temperature: ctx.temperature }),
     },
   };
   if (ctx.jsonSchema) {
-    body.format = ctx.jsonSchema;
+    body.format = 'json';
+  }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (ctx.provider.api_key) {
+    headers['Authorization'] = `Bearer ${ctx.provider.api_key}`;
   }
   return {
     url: `${ctx.provider.custom_url}/api/chat`,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body,
   };
 }
@@ -805,9 +819,14 @@ function extractResponse(
   }
 }
 
-type HttpOutcome = { data: unknown } | { error: DispatchResult };
+// `rawBody` carries the provider's untruncated error body for callers that
+// need to interpret it (parameter-rejection detection). It stays internal —
+// `DispatchResult` is unchanged, so nothing extra reaches the API surface.
+type DispatchFailure = Extract<DispatchResult, { ok: false }>;
+type HttpOutcome =
+  { data: unknown } | { error: DispatchFailure; rawBody?: string };
 
-function timeoutError(): DispatchResult {
+function timeoutError(): DispatchFailure {
   return {
     ok: false,
     category: 'timeout',
@@ -823,15 +842,22 @@ async function readResponse(response: Response): Promise<HttpOutcome> {
     } catch {
       // best-effort; body stays empty
     }
+    // A 400 naming a request parameter is otherwise surfaced as raw JSON the
+    // user has to decode; say it in a sentence instead.
+    const rejected = describeRejectedParam(response.status, body);
+    const detail = rejected
+      ? `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`
+      : `AI service returned status ${response.status}${
+          body ? `: ${truncateBody(body)}` : ''
+        }`;
     return {
       error: {
         ok: false,
         category: 'upstream_error',
         status: response.status,
-        detail: `AI service returned status ${response.status}${
-          body ? `: ${truncateBody(body)}` : ''
-        }`,
+        detail,
       },
+      rawBody: body,
     };
   }
   try {
@@ -969,7 +995,7 @@ async function performOllama(
 function resolveTimeout(req: DispatchRequest, family: ProviderFamily): number {
   if (typeof req.timeoutMs === 'number') return req.timeoutMs;
   if (family === 'ollama') {
-    return req.provider.timeout ?? OLLAMA_DEFAULT_TIMEOUT_MS;
+    return OLLAMA_DEFAULT_TIMEOUT_MS;
   }
   return DEFAULT_TIMEOUT_MS;
 }
@@ -1076,25 +1102,47 @@ export async function dispatchAiRequest(
       : getDefaultModel(serviceType));
 
   const toolName = schemaName ?? DEFAULT_SCHEMA_NAME;
-  const built = buildRequest(
-    family,
-    {
-      provider,
-      model,
-      prompt,
-      images,
-      jsonSchema,
-      toolName,
-      temperature: req.temperature,
-    },
-    Boolean(parseJson)
-  );
+
+  // One central gate for every family: known-rejecting models (and any model
+  // that has already rejected it once at runtime) never see `temperature`, so
+  // each builder's `!== undefined` guard does the rest.
+  const buildCtx = (temperature: number | undefined) => ({
+    provider,
+    model,
+    prompt,
+    images,
+    jsonSchema,
+    toolName,
+    temperature,
+  });
+  const temperature = supportsTemperature(serviceType, model)
+    ? req.temperature
+    : undefined;
+  let built = buildRequest(family, buildCtx(temperature), Boolean(parseJson));
 
   const timeoutMs = resolveTimeout(req, family);
-  const outcome =
+  const send = () =>
     family === 'ollama'
-      ? await performOllama(built, timeoutMs, networkPolicy)
-      : await performFetch(built, timeoutMs, networkPolicy);
+      ? performOllama(built, timeoutMs, networkPolicy)
+      : performFetch(built, timeoutMs, networkPolicy);
+
+  let outcome = await send();
+
+  // Self-heal: if the provider rejected a sampling parameter we sent, drop it,
+  // remember the rejection, and retry exactly once. This is what lets a model
+  // family we have never heard of work on first use. Bounded to a single extra
+  // attempt, and independent of the 429 backoff loop inside performFetch.
+  if ('error' in outcome && temperature !== undefined && outcome.rawBody) {
+    const rejected = detectRejectedParam(
+      outcome.error.status ?? 0,
+      outcome.rawBody
+    );
+    if (rejected === 'temperature') {
+      recordRejectedParam(serviceType, model, rejected);
+      built = buildRequest(family, buildCtx(undefined), Boolean(parseJson));
+      outcome = await send();
+    }
+  }
 
   if ('error' in outcome) {
     return outcome.error;

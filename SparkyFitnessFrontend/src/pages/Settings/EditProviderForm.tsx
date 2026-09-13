@@ -38,6 +38,9 @@ export const EditProviderForm = ({
 }: EditProviderFormProps) => {
   const { t } = useTranslation();
   const { data: providerTypes } = useExternalProviderTypesQuery();
+  // Fatsecret shares the credential fields with Nutritionix, but its dashboard
+  // issues OAuth 2.0 Client ID / Client Secret rather than an App ID / App Key.
+  const isFatsecret = editData.provider_type === 'fatsecret';
   return (
     <form
       onSubmit={(e) => {
@@ -99,12 +102,13 @@ export const EditProviderForm = ({
       {editData.provider_type === 'openfoodfacts' && (
         <>
           <div>
-            <Label>
+            <Label htmlFor="edit-openfoodfacts-base-url">
               {t(
                 'settings.foodExerciseDataProviders.openFoodFacts.baseUrlLabel'
               )}
             </Label>
             <Input
+              id="edit-openfoodfacts-base-url"
               type="text"
               value={editData.base_url || ''}
               onChange={(e) =>
@@ -115,14 +119,21 @@ export const EditProviderForm = ({
               }
               placeholder="https://world.openfoodfacts.org"
               autoComplete="off"
+              aria-describedby="edit-openfoodfacts-base-url-help"
             />
           </div>
-          <p className="text-sm text-muted-foreground col-span-2">
+          <p
+            id="edit-openfoodfacts-base-url-help"
+            className="text-sm text-muted-foreground col-span-2"
+          >
             {t('settings.foodExerciseDataProviders.openFoodFacts.baseUrlHelp')}
           </p>
           <div>
-            <Label>Open Food Facts Username (Optional)</Label>
+            <Label htmlFor="edit-openfoodfacts-username">
+              Open Food Facts Username (Optional)
+            </Label>
             <Input
+              id="edit-openfoodfacts-username"
               type="text"
               value={editData.app_id || ''}
               onChange={(e) =>
@@ -133,11 +144,15 @@ export const EditProviderForm = ({
               }
               placeholder="(leave blank to keep existing)"
               autoComplete="username"
+              aria-describedby="edit-openfoodfacts-credential-help"
             />
           </div>
           <div>
-            <Label>Open Food Facts Password (Optional)</Label>
+            <Label htmlFor="edit-openfoodfacts-password">
+              Open Food Facts Password (Optional)
+            </Label>
             <Input
+              id="edit-openfoodfacts-password"
               type="password"
               value={editData.app_key || ''}
               onChange={(e) =>
@@ -148,15 +163,19 @@ export const EditProviderForm = ({
               }
               placeholder="•••••••• (leave blank to keep existing)"
               autoComplete="current-password"
+              aria-describedby="edit-openfoodfacts-credential-help"
             />
           </div>
-          <p className="text-sm text-muted-foreground col-span-2">
-            Username and password for Open Food Facts are optional. If you have
-            an account, adding these credentials allows Sparky to make
-            authenticated requests, which can help reduce rate limiting during
-            busy periods. If you want to keep the existing credentials, simply
-            leave the fields blank. Note that credentials cannot be combined
-            with publicly sharing this provider row.
+          <p
+            id="edit-openfoodfacts-credential-help"
+            className="text-sm text-muted-foreground col-span-2"
+          >
+            {t(
+              'settings.foodExerciseDataProviders.openFoodFacts.credentialContributionHelp'
+            )}{' '}
+            {t(
+              'settings.foodExerciseDataProviders.openFoodFacts.credentialKeepExistingHelp'
+            )}
           </p>
           <p className="text-sm text-muted-foreground col-span-2">
             Open Food Facts is a community-driven database that supports
@@ -235,7 +254,7 @@ export const EditProviderForm = ({
         editData.provider_type === 'fatsecret') && (
         <>
           <div>
-            <Label>App ID</Label>
+            <Label>{isFatsecret ? 'Client ID' : 'App ID'}</Label>
             <Input
               type="text"
               value={editData.app_id || ''}
@@ -245,12 +264,12 @@ export const EditProviderForm = ({
                   app_id: e.target.value,
                 }))
               }
-              placeholder="Enter App ID"
+              placeholder={isFatsecret ? 'Enter Client ID' : 'Enter App ID'}
               autoComplete="off"
             />
           </div>
           <div>
-            <Label>App Key</Label>
+            <Label>{isFatsecret ? 'Client Secret' : 'App Key'}</Label>
             <Input
               type="password"
               value={editData.app_key || ''}
@@ -260,15 +279,17 @@ export const EditProviderForm = ({
                   app_key: e.target.value,
                 }))
               }
-              placeholder="Enter App Key"
+              placeholder={
+                isFatsecret ? 'Enter Client Secret' : 'Enter App Key'
+              }
               autoComplete="off"
             />
           </div>
           {editData.provider_type === 'fatsecret' && (
             <p className="text-sm text-muted-foreground col-span-2">
-              Note: For Fatsecret, you need to set up **your public IP**
-              whitelisting in your Fatsecret developer account. This process can
-              take up to 24 hours.
+              Note: For Fatsecret, you need to set up{' '}
+              <strong>your public IP</strong> whitelisting in your Fatsecret
+              developer account. This process can take up to 24 hours.
             </p>
           )}
         </>
@@ -384,7 +405,7 @@ export const EditProviderForm = ({
       )}
       {editData.provider_type === 'fatsecret' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your App ID and App Key from the{' '}
+          Get your Client ID and Client Secret from the{' '}
           <a
             href="https://platform.fatsecret.com/my-account/dashboard"
             target="_blank"
@@ -393,7 +414,8 @@ export const EditProviderForm = ({
           >
             Fatsecret Platform Dashboard
           </a>
-          .
+          , under <strong>REST API OAuth 2.0 Credentials</strong> (not the OAuth
+          1.0 Consumer Key/Secret).
         </p>
       )}
       {editData.provider_type === 'usda' && (

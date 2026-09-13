@@ -16,7 +16,11 @@ import {
   todayInZone,
   CALORIE_CALCULATION_CONSTANTS,
   computeCalorieTarget,
+  isAdaptiveTdeeMature,
+  resolveCalorieSafetyFloor,
+  DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
   ACTIVITY_MULTIPLIERS,
+  isUsableMeasuredBmr,
 } from '@workspace/shared';
 import customNutrientService from './customNutrientService.js';
 import { DEFAULT_GOALS } from '../constants/goals.js';
@@ -175,6 +179,26 @@ async function getUserGoalsForRange(
     return found ? parseFloat(String(found[field])) : null;
   };
 
+  // Same lookup, without carry-forward. Used for measured BMR, which is only valid
+  // on the day it was recorded — carrying it forward would keep a stale reading
+  // driving the goal long after syncing stopped (issue #2395).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getMeasurementFieldOnDate = (dateStr: string, field: string) => {
+    const found = allMeasurements.find((m: any) => {
+      const mDateStr =
+        m.entry_date instanceof Date
+          ? localDateToDay(m.entry_date)
+          : String(m.entry_date).slice(0, 10);
+      return (
+        mDateStr === dateStr &&
+        m[field] !== null &&
+        m[field] !== undefined &&
+        m[field] !== ''
+      );
+    });
+    return found ? parseFloat(String(found[field])) : null;
+  };
+
   while (!isAfter(cursor, end)) {
     const dateStr = format(cursor, 'yyyy-MM-dd');
     let goals = explicitByDate[dateStr] ?? null;
@@ -207,6 +231,7 @@ async function getUserGoalsForRange(
         userPreferences?.goal_mode_custom_percentage ?? 0;
       const activityLevel = userPreferences?.activity_level || 'not_much';
       const bmrAlgorithm = userPreferences?.bmr_algorithm || 'Mifflin-St Jeor';
+      const gender = (userProfile?.gender || 'male') as 'male' | 'female';
 
       const weightKg =
         getMeasurementFieldForDate(dateStr, 'weight') ||
@@ -216,14 +241,15 @@ async function getUserGoalsForRange(
         CALORIE_CALCULATION_CONSTANTS.DEFAULT_HEIGHT_CM;
       const bodyFat =
         getMeasurementFieldForDate(dateStr, 'body_fat_percentage') || undefined;
+      // Exact date, not carry-forward: a measured BMR only counts on its own day.
+      const measuredBmr = getMeasurementFieldOnDate(dateStr, 'bmr');
 
-      let bmr = 0;
+      let formulaBmr = 0;
       if (userProfile && userPreferences) {
         const tz = userPreferences.timezone || 'UTC';
         const age = userAge(userProfile.date_of_birth ?? '', tz) ?? 30;
-        const gender = userProfile.gender || 'male';
         try {
-          bmr = bmrService.calculateBmr(
+          formulaBmr = bmrService.calculateBmr(
             bmrAlgorithm,
             weightKg,
             heightCm,
@@ -238,6 +264,14 @@ async function getUserGoalsForRange(
           );
         }
       }
+      // The measured value is checked against the formula estimate when one could
+      // be computed, and on the absolute bounds alone when it could not — a failed
+      // or impossible formula must not discard an otherwise good reading.
+      const bmr =
+        userPreferences?.use_external_bmr &&
+        isUsableMeasuredBmr(measuredBmr, formulaBmr || null)
+          ? (measuredBmr as number)
+          : formulaBmr;
 
       // Mirror DashboardService exactly: use user's actual activity multiplier, not hardcoded
       const activityMultiplier = ACTIVITY_MULTIPLIERS[activityLevel] || 1.2;
@@ -273,12 +307,29 @@ async function getUserGoalsForRange(
         }
       }
 
-      // Apply adaptive TDEE base adjustment — mirrors DashboardService
+      // Apply adaptive TDEE base adjustment.
       if (adjustmentMode === 'adaptive' && adaptiveTdeeData && bmr > 0) {
-        goalCalories = Math.max(
-          1200,
-          Math.round(adaptiveTdeeData.tdee + calorieGoalOffset)
+        // Hold the estimated baseline until the measured estimate is settled, the
+        // same test computeCalorieTarget applies below. Without it this path
+        // budgeted against a raw 7-day estimate that the settings preview was
+        // still rejecting, so the goal and the preview disagreed.
+        const adaptiveBaseline = isAdaptiveTdeeMature(
+          adaptiveTdeeData.tdee,
+          adaptiveTdeeData.isFallback,
+          adaptiveTdeeData.daysOfData
+        )
+          ? adaptiveTdeeData.tdee
+          : Math.round(bmr * activityMultiplier);
+        const adaptiveGoal = Math.round(adaptiveBaseline + calorieGoalOffset);
+        const adaptiveGoalFloor = resolveCalorieSafetyFloor(
+          userPreferences?.calorie_safety_floor_mode,
+          userPreferences?.calorie_safety_floor_value,
+          DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR
         );
+        goalCalories =
+          adaptiveGoalFloor === null
+            ? adaptiveGoal
+            : Math.max(adaptiveGoalFloor, adaptiveGoal);
       }
 
       // Apply goal mode deficit AND baseline replacement.
@@ -290,8 +341,6 @@ async function getUserGoalsForRange(
         const age = userProfile
           ? (userAge(userProfile.date_of_birth ?? '', tz) ?? 30)
           : 30;
-        const gender = (userProfile?.gender || 'male') as 'male' | 'female';
-
         const targetResult = computeCalorieTarget({
           goalMode,
           calculationMethod: goalModeCalculationMethod,
@@ -313,6 +362,18 @@ async function getUserGoalsForRange(
           bmrAlgorithm,
           currentGoalCalories: goalCalories,
           calculateBmrFn: bmrService.calculateBmr,
+          calorieSafetyFloorMode:
+            userPreferences?.calorie_safety_floor_mode || 'standard',
+          calorieSafetyFloorValue:
+            userPreferences?.calorie_safety_floor_value ||
+            DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+          // computeCalorieTarget re-validates this against its own formula estimate
+          // before letting it become the RMR safety floor.
+          measuredBmr:
+            userPreferences?.use_external_bmr &&
+            isUsableMeasuredBmr(measuredBmr, formulaBmr || null)
+              ? measuredBmr
+              : undefined,
         });
         goalCalories = targetResult.finalTarget;
       }
@@ -419,6 +480,8 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       p_vitamin_c,
       p_calcium,
       p_iron,
+      p_caffeine_mg,
+      p_alcohol_g,
       p_target_exercise_calories_burned,
       p_target_exercise_duration_minutes,
       p_protein_percentage,
@@ -533,6 +596,8 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       vitamin_c: cleanNumber(p_vitamin_c),
       calcium: cleanNumber(p_calcium),
       iron: cleanNumber(p_iron),
+      caffeine_mg: cleanNumber(p_caffeine_mg),
+      alcohol_g: cleanNumber(p_alcohol_g),
       target_exercise_calories_burned: cleanNumber(
         p_target_exercise_calories_burned
       ),

@@ -4,11 +4,18 @@ import type {
 } from '../types/foodUnitVariants';
 import { formatFoodFormNumber } from './foodDetails';
 import { parseDecimalInput } from './numericInput';
+import {
+  localizeFoodUnit,
+  localizeFoodUnitGroup,
+} from './foodUnitLocalization';
 import { FOOD_FORM_UNIT_GROUPS } from '@workspace/shared';
+import type { TFunction } from 'i18next';
 
 export interface FoodFormData {
   name: string;
   brand: string;
+  /** Markdown reference note. Non-numeric, so it stays out of NUMERIC_FOOD_FORM_FIELDS. */
+  notes: string;
   servingSize: string;
   servingUnit: string;
   calories: string;
@@ -26,6 +33,9 @@ export interface FoodFormData {
   iron: string;
   vitaminA: string;
   vitaminC: string;
+  caffeineMg: string;
+  waterMl: string;
+  alcoholG: string;
 }
 
 export type NumericFoodFormField =
@@ -44,7 +54,10 @@ export type NumericFoodFormField =
   | 'calcium'
   | 'iron'
   | 'vitaminA'
-  | 'vitaminC';
+  | 'vitaminC'
+  | 'caffeineMg'
+  | 'waterMl'
+  | 'alcoholG';
 
 export const NUMERIC_FOOD_FORM_FIELDS: NumericFoodFormField[] = [
   'servingSize',
@@ -63,16 +76,32 @@ export const NUMERIC_FOOD_FORM_FIELDS: NumericFoodFormField[] = [
   'iron',
   'vitaminA',
   'vitaminC',
+  'caffeineMg',
+  'waterMl',
+  'alcoholG',
 ];
 
 export const NUMERIC_FOOD_FORM_FIELD_SET = new Set<keyof FoodFormData>(
-  NUMERIC_FOOD_FORM_FIELDS,
+  NUMERIC_FOOD_FORM_FIELDS
 );
 
-export const SERVING_UNIT_SECTIONS = FOOD_FORM_UNIT_GROUPS.map((group) => ({
-  title: group.label,
-  options: group.units.map((unit) => ({ label: unit, value: unit })),
-}));
+/**
+ * Localized unit sections for the serving-unit picker. Group titles and
+ * unit labels follow the active app locale via the controlled-food-unit
+ * mapping; the raw canonical `value` (used for selection, conversion, storage)
+ * is preserved unchanged. Unknown/custom units fall back to their literal.
+ */
+export function makeServingUnitSections(
+  t: TFunction
+): { title: string; options: { label: string; value: string }[] }[] {
+  return FOOD_FORM_UNIT_GROUPS.map((group) => ({
+    title: localizeFoodUnitGroup(group.label, t),
+    options: group.units.map((unit) => ({
+      label: localizeFoodUnit(unit, t),
+      value: unit,
+    })),
+  }));
+}
 
 export const NUTRITION_FIELDS: (keyof FoodFormData)[] = [
   'calories',
@@ -90,11 +119,15 @@ export const NUTRITION_FIELDS: (keyof FoodFormData)[] = [
   'iron',
   'vitaminA',
   'vitaminC',
+  'caffeineMg',
+  'waterMl',
+  'alcoholG',
 ];
 
 const EMPTY_FORM: FoodFormData = {
   name: '',
   brand: '',
+  notes: '',
   servingSize: '',
   servingUnit: '',
   calories: '',
@@ -112,17 +145,20 @@ const EMPTY_FORM: FoodFormData = {
   iron: '',
   vitaminA: '',
   vitaminC: '',
+  caffeineMg: '',
+  waterMl: '',
+  alcoholG: '',
 };
 
 export const FORM_DRAFT_UNIT_ID = '__food-form-draft-unit__';
 
 export function buildDisplayFormState(
-  initialValues?: Partial<FoodFormData>,
+  initialValues?: Partial<FoodFormData>
 ): FoodFormData {
   const merged = { ...EMPTY_FORM, ...initialValues };
   const formatInitialNumericValue = (
     rawValue: string | undefined,
-    kind: 'servingSize' | 'calories' | 'nutrient',
+    kind: 'servingSize' | 'calories' | 'nutrient'
   ) => {
     const parsedValue = parseDecimalInput(rawValue ?? '');
     return Number.isFinite(parsedValue)
@@ -134,7 +170,7 @@ export function buildDisplayFormState(
     ...merged,
     servingSize: formatInitialNumericValue(
       initialValues?.servingSize,
-      'servingSize',
+      'servingSize'
     ),
     calories: formatInitialNumericValue(initialValues?.calories, 'calories'),
     protein: formatInitialNumericValue(initialValues?.protein, 'nutrient'),
@@ -143,7 +179,7 @@ export function buildDisplayFormState(
     fiber: formatInitialNumericValue(initialValues?.fiber, 'nutrient'),
     saturatedFat: formatInitialNumericValue(
       initialValues?.saturatedFat,
-      'nutrient',
+      'nutrient'
     ),
     transFat: formatInitialNumericValue(initialValues?.transFat, 'nutrient'),
     sodium: formatInitialNumericValue(initialValues?.sodium, 'nutrient'),
@@ -151,17 +187,23 @@ export function buildDisplayFormState(
     potassium: formatInitialNumericValue(initialValues?.potassium, 'nutrient'),
     cholesterol: formatInitialNumericValue(
       initialValues?.cholesterol,
-      'nutrient',
+      'nutrient'
     ),
     calcium: formatInitialNumericValue(initialValues?.calcium, 'nutrient'),
     iron: formatInitialNumericValue(initialValues?.iron, 'nutrient'),
     vitaminA: formatInitialNumericValue(initialValues?.vitaminA, 'nutrient'),
     vitaminC: formatInitialNumericValue(initialValues?.vitaminC, 'nutrient'),
+    caffeineMg: formatInitialNumericValue(
+      initialValues?.caffeineMg,
+      'nutrient'
+    ),
+    waterMl: formatInitialNumericValue(initialValues?.waterMl, 'nutrient'),
+    alcoholG: formatInitialNumericValue(initialValues?.alcoholG, 'nutrient'),
   };
 }
 
 export function buildPreciseNumericValues(
-  initialValues?: Partial<FoodFormData>,
+  initialValues?: Partial<FoodFormData>
 ): Partial<Record<NumericFoodFormField, number>> {
   const preciseValues: Partial<Record<NumericFoodFormField, number>> = {};
 
@@ -182,7 +224,7 @@ export function toPreciseFormString(value: number | undefined): string {
 }
 
 export function normalizeSelectedUnitSelection(
-  selection?: FoodUnitSelectionResult | null,
+  selection?: FoodUnitSelectionResult | null
 ): FoodUnitSelectionResult | null {
   if (!selection) return null;
   if (selection.kind === 'existing' || selection.variant.id) {
@@ -200,7 +242,7 @@ export function normalizeSelectedUnitSelection(
 
 export function applyVariantToFormState(
   previous: FoodFormData,
-  variant: FoodUnitVariant,
+  variant: FoodUnitVariant
 ): FoodFormData {
   return {
     ...previous,
@@ -221,12 +263,15 @@ export function applyVariantToFormState(
     iron: formatFoodFormNumber(variant.iron, 'nutrient'),
     vitaminA: formatFoodFormNumber(variant.vitamin_a, 'nutrient'),
     vitaminC: formatFoodFormNumber(variant.vitamin_c, 'nutrient'),
+    caffeineMg: formatFoodFormNumber(variant.caffeine_mg, 'nutrient'),
+    waterMl: formatFoodFormNumber(variant.water_ml, 'nutrient'),
+    alcoholG: formatFoodFormNumber(variant.alcohol_g, 'nutrient'),
   };
 }
 
 export function applyVariantUnitToFormState(
   previous: FoodFormData,
-  variant: FoodUnitVariant,
+  variant: FoodUnitVariant
 ): FoodFormData {
   return {
     ...previous,
@@ -237,7 +282,7 @@ export function applyVariantUnitToFormState(
 export function applyCompatibleDraftToFormState(
   previous: FoodFormData,
   variant: FoodUnitVariant,
-  scaledVariant: FoodUnitVariant,
+  scaledVariant: FoodUnitVariant
 ): FoodFormData {
   return {
     ...previous,
@@ -257,11 +302,14 @@ export function applyCompatibleDraftToFormState(
     iron: formatFoodFormNumber(scaledVariant.iron, 'nutrient'),
     vitaminA: formatFoodFormNumber(scaledVariant.vitamin_a, 'nutrient'),
     vitaminC: formatFoodFormNumber(scaledVariant.vitamin_c, 'nutrient'),
+    caffeineMg: formatFoodFormNumber(scaledVariant.caffeine_mg, 'nutrient'),
+    waterMl: formatFoodFormNumber(scaledVariant.water_ml, 'nutrient'),
+    alcoholG: formatFoodFormNumber(scaledVariant.alcohol_g, 'nutrient'),
   };
 }
 
 export function buildPreciseNumericValuesFromVariant(
-  variant: FoodUnitVariant,
+  variant: FoodUnitVariant
 ): Partial<Record<NumericFoodFormField, number>> {
   return buildPreciseNumericValues({
     servingSize: toPreciseFormString(variant.serving_size),
@@ -280,6 +328,9 @@ export function buildPreciseNumericValuesFromVariant(
     iron: toPreciseFormString(variant.iron),
     vitaminA: toPreciseFormString(variant.vitamin_a),
     vitaminC: toPreciseFormString(variant.vitamin_c),
+    caffeineMg: toPreciseFormString(variant.caffeine_mg),
+    waterMl: toPreciseFormString(variant.water_ml),
+    alcoholG: toPreciseFormString(variant.alcohol_g),
   });
 }
 
@@ -289,7 +340,7 @@ export function isPositiveNumber(value: number): boolean {
 
 export function scaleCompatibleDraftVariant(
   variant: FoodUnitVariant,
-  servingSize: number,
+  servingSize: number
 ): FoodUnitVariant {
   const ratio =
     variant.serving_size > 0 && Number.isFinite(servingSize)
@@ -312,6 +363,11 @@ export function scaleCompatibleDraftVariant(
     iron: (variant.iron ?? 0) * ratio,
     vitamin_a: (variant.vitamin_a ?? 0) * ratio,
     vitamin_c: (variant.vitamin_c ?? 0) * ratio,
+    caffeine_mg: (variant.caffeine_mg ?? 0) * ratio,
+    water_ml: (variant.water_ml ?? 0) * ratio,
+    alcohol_g: (variant.alcohol_g ?? 0) * ratio,
+    // Not scaled: a concentration, not an amount (see the type comment).
+    abv_percent: variant.abv_percent,
     dietary_fiber: (variant.dietary_fiber ?? 0) * ratio,
     polyunsaturated_fat: (variant.polyunsaturated_fat ?? 0) * ratio,
     monounsaturated_fat: (variant.monounsaturated_fat ?? 0) * ratio,
@@ -320,14 +376,14 @@ export function scaleCompatibleDraftVariant(
       Object.entries(variant.custom_nutrients || {}).map(([key, value]) => [
         key,
         (Number(value) || 0) * ratio,
-      ]),
+      ])
     ),
   };
 }
 
 export function getScaledVariantNumericValue(
   field: Exclude<NumericFoodFormField, 'servingSize'>,
-  variant: FoodUnitVariant,
+  variant: FoodUnitVariant
 ): number {
   switch (field) {
     case 'calories':
@@ -360,6 +416,12 @@ export function getScaledVariantNumericValue(
       return variant.vitamin_a ?? 0;
     case 'vitaminC':
       return variant.vitamin_c ?? 0;
+    case 'caffeineMg':
+      return variant.caffeine_mg ?? 0;
+    case 'waterMl':
+      return variant.water_ml ?? 0;
+    case 'alcoholG':
+      return variant.alcohol_g ?? 0;
   }
 }
 

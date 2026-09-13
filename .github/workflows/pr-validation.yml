@@ -2,12 +2,21 @@ name: PR Checks
 
 on:
   pull_request_target:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened, ready_for_review, converted_to_draft]
+  pull_request_review:
+    types: [submitted, dismissed]
+  pull_request_review_comment:
+    types: [created, deleted]
+  workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
   issues: write
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}-${{ github.event_name == 'pull_request_target' && 'write' || 'read' }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -15,17 +24,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Review events default to the PR merge ref; policy must come from the base instead.
+      - name: Check out policy rules
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+
       - name: Validate and Label PR
         uses: actions/github-script@v7
         with:
           script: |
-            const title = context.payload.pull_request.title;
-            const body  = context.payload.pull_request.body || '';
+            // Exemptions and checkbox matching are shared with pr-license-enforcement.yml so the
+            // two workflows can never disagree about who is enforced.
+            const policy = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-policy.cjs`);
 
-            const { data: files } = await github.rest.pulls.listFiles({
+            // Review events from forks have read-only tokens, even with write permissions above.
+            const canWrite = context.eventName === 'pull_request_target';
+            const pr     = context.payload.pull_request;
+            const title  = pr.title;
+            const body   = pr.body || '';
+            const isDraft = pr.draft === true;
+
+            const { LICENSE_LABEL, LICENSE_ITEM } = policy;
+            const GRACE_DAYS = Math.round(policy.GRACE_MS / (24 * 60 * 60 * 1000));
+
+            // Bots (our own schema-backup / nix / translation-sync PRs and any future
+            // automation), maintainers, and same-repo automation branches.
+            const exemption = policy.getExemption(pr);
+            const licenseExempt = exemption.exempt;
+
+            // Bot-authored / automation-branch PRs are not held to the contributor checklist at
+            // all. A human collaborator is exempt from the license box but still ticks the rest.
+            const isAutomation = policy.isAutomation(pr);
+
+            // paginate: the unpaginated call caps at 30 files, which silently mis-detects
+            // change areas on large PRs and would restore the wrong checklist items.
+            const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
+              pull_number: pr.number,
+              per_page: 100,
             });
 
             const changedFiles = files.map(f => f.filename);
@@ -35,20 +74,31 @@ jobs:
             const hasBackendChanges  = changedFiles.some(f => f.startsWith('SparkyFitnessServer/'));
             const hasMobileChanges   = changedFiles.some(f => f.startsWith('SparkyFitnessMobile/'));
 
+            // Every non-English translation file is owned by Weblate and arrives
+            // through the sync workflow.
             const localesRoot = 'SparkyFitnessFrontend/public/locales/';
+            const mobileLocalesRoot = 'SparkyFitnessMobile/src/localization/locales/';
+            const mobileNativeSurfaces = [
+              /^SparkyFitnessMobile\/locales\/(?!en\.json$)[^/]+\.json$/,
+              /^SparkyFitnessMobile\/targets\/android-widget\/res\/values-[^/]+\/widget_strings\.xml$/,
+              /^SparkyFitnessMobile\/targets\/widget\/(?!en\.lproj\/)[^/]+\.lproj\/Localizable\.strings$/,
+            ];
             const nonEnLocaleFiles = changedFiles.filter(f =>
-              f.startsWith(localesRoot) && !f.startsWith(`${localesRoot}en/`)
+              (f.startsWith(localesRoot) && !f.startsWith(`${localesRoot}en/`)) ||
+              (f.startsWith(mobileLocalesRoot) && !f.startsWith(`${mobileLocalesRoot}en/`)) ||
+              mobileNativeSurfaces.some(re => re.test(f))
             );
             const hasEnTranslationChange = changedFiles.some(f =>
-              f === `${localesRoot}en/translation.json`
+              f === `${localesRoot}en/translation.json` ||
+              f === `${mobileLocalesRoot}en/translation.json`
             );
             const hasSQLChanges = changedFiles.some(f => f.includes('rls_policies.sql'));
 
             // ---- Checkbox helpers ----
-            // Matches "- [x] **<str>**" or "- [X] **<str>**", regardless of surrounding whitespace
-            const escapeRegex = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const checked = str =>
-              new RegExp(`-\\s*\\[[xX]\\]\\s*\\*\\*${escapeRegex(str)}`, 'i').test(body);
+            // checked: "- [x] **<str>". present: same line ticked or not — a missing box means the
+            // template was deleted and we add it back; an unticked box is the contributor's job.
+            const checked = str => policy.isChecked(body, str);
+            const present = str => policy.isPresent(body, str);
 
             // ---- PR Type detection ----
             const isIssue      = /-\s*\[[xX]\]\s*Issue/i.test(body);
@@ -67,13 +117,89 @@ jobs:
             if (hasBackendChanges)  toAdd.push('backend');
             if (hasMobileChanges)   toAdd.push('mobile');
 
-            if (toAdd.length > 0) {
+            if (canWrite && toAdd.length > 0) {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
+                issue_number: pr.number,
                 labels: toAdd,
               });
+            }
+
+            // ---- Restore deleted template checklist items ----
+            // Contributors often replace the whole template with their own summary, which removes
+            // the mandatory checkboxes entirely. Add back only the items this PR actually needs,
+            // appended after whatever they wrote so nothing of theirs is lost.
+            const checklistItems = [
+              {
+                label: LICENSE_ITEM,
+                required: true,
+                text: policy.LICENSE_ITEM_TEXT,
+              },
+              {
+                label: '[MANDATORY for new feature] Alignment',
+                required: isNewFeature,
+                text: '**[MANDATORY for new feature] Alignment**: I have raised a GitHub issue and it was reviewed/approved by maintainers or it was approved on Discord.',
+              },
+              {
+                label: '[MANDATORY for Frontend changes] Quality',
+                required: hasFrontendChanges,
+                text: '**[MANDATORY for Frontend changes] Quality**: I have run `pnpm run validate` and it passes.',
+              },
+              {
+                label: '[MANDATORY for Backend changes] Code Quality',
+                required: hasBackendChanges,
+                text: '**[MANDATORY for Backend changes] Code Quality**: I have run typecheck, lint, and tests. New files use TypeScript, new endpoints have Zod schemas, and new endpoints include tests.',
+              },
+              {
+                label: '[MANDATORY for Backend changes] Database Security',
+                required: hasSQLChanges,
+                text: '**[MANDATORY for Backend changes] Database Security**: I have updated `rls_policies.sql` for any new user-specific tables.',
+              },
+              {
+                label: '[MANDATORY for UI changes] Screenshots',
+                required: hasFrontendChanges || hasMobileChanges,
+                text: '**[MANDATORY for UI changes] Screenshots**: I have attached Before/After screenshots below.',
+              },
+              {
+                label: '[MANDATORY for Mobile changes] Tested on device or emulator',
+                required: hasMobileChanges,
+                text: '**[MANDATORY for Mobile changes] Tested on device or emulator**: I have verified the changes work on iOS or Android.',
+              },
+            ];
+
+            const missingItems = checklistItems.filter(i => i.required && !present(i.label));
+
+            // Never rewrite the description of an exempt PR: those are our own bot-authored
+            // PRs (schema sync, nix hashes, translations) and maintainer PRs, and injecting a
+            // checklist into them is noise at best.
+            //
+            // The sender guard is belt-and-braces: GitHub does not emit workflow-triggering
+            // events for GITHUB_TOKEN actions, so our own edit below cannot re-enter here.
+            const senderIsSelf = context.payload.sender?.login === 'github-actions[bot]';
+
+            if (canWrite && missingItems.length > 0 && !licenseExempt && !senderIsSelf) {
+              const restored = [
+                '<!-- restored-checklist -->',
+                '---',
+                '## ✅ Required Checklist (restored automatically)',
+                '',
+                '> The mandatory checklist from our PR template is missing from this description, so it',
+                '> has been added back below. **Please tick each box and do not delete this section** —',
+                '> these checked boxes are how we record your agreement. Edit the description in place;',
+                '> no new commit is needed.',
+                '',
+                ...missingItems.map(i => `- [ ] ${i.text}`),
+              ].join('\n');
+
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: `${body.trimEnd()}\n\n${restored}\n`,
+              });
+
+              core.notice(`Restored ${missingItems.length} missing checklist item(s) to the PR description.`);
             }
 
             // ---- Validation ----
@@ -81,7 +207,13 @@ jobs:
             const warnings = [];
 
             // Mandatory for all PRs
-            if (!checked('[MANDATORY - ALL] Integrity & License')) {
+            const licenseAgreed = checked(LICENSE_ITEM);
+
+            // Drafts are still told what is missing, but the clock only starts once the PR is
+            // marked ready for review (hence the `ready_for_review` trigger above).
+            const licenseCountdown = !licenseAgreed && !licenseExempt && !isDraft;
+
+            if (!licenseAgreed && !licenseExempt) {
               errors.push('**[MANDATORY]** Check the "Integrity & License" checkbox.');
             }
 
@@ -96,12 +228,10 @@ jobs:
             }
             if (nonEnLocaleFiles.length > 0) {
               errors.push(
-                `**[MANDATORY]** Only the \`en\` translation file may be modified. ` +
+                `**[MANDATORY]** Only the \`en\` translation files may be modified. ` +
+                `Every other language is owned by Weblate and arrives through the sync workflow. ` +
                 `Remove changes to: ${nonEnLocaleFiles.map(f => '`' + f + '`').join(', ')}.`
               );
-            }
-            if (hasEnTranslationChange && !checked('[MANDATORY for Frontend changes] Translations')) {
-              errors.push('**[MANDATORY for Frontend changes]** You modified `en/translation.json`. Check the "Translations" checkbox.');
             }
 
             // Backend
@@ -130,6 +260,63 @@ jobs:
               }
             }
 
+            // ---- Unresolved Review Conversations Check ----
+            let unresolvedThreads = [];
+            if (!isDraft && !isAutomation) {
+              try {
+                let hasNextPage = true;
+                let cursor = null;
+
+                while (hasNextPage) {
+                  const query = `
+                    query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+                      repository(owner: $owner, name: $repo) {
+                        pullRequest(number: $number) {
+                          reviewThreads(first: 100, after: $cursor) {
+                            pageInfo {
+                              hasNextPage
+                              endCursor
+                            }
+                            nodes {
+                              id
+                              isResolved
+                              isOutdated
+                            }
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const result = await github.graphql(query, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    number: pr.number,
+                    cursor,
+                  });
+
+                  const threadsData = result?.repository?.pullRequest?.reviewThreads;
+                  const nodes = threadsData?.nodes || [];
+                  for (const node of nodes) {
+                    if (!node.isResolved) {
+                      unresolvedThreads.push(node);
+                    }
+                  }
+
+                  hasNextPage = Boolean(threadsData?.pageInfo?.hasNextPage);
+                  cursor = threadsData?.pageInfo?.endCursor;
+                }
+              } catch (err) {
+                core.warning(`Could not fetch review threads: ${err.message}`);
+              }
+
+              if (unresolvedThreads.length > 0) {
+                errors.push(
+                  `**[Review Conversations]** There are ${unresolvedThreads.length} unresolved review conversation(s). ` +
+                  'Please address the feedback, make any necessary fixes, and click **"Resolve conversation"** (or reply if it is a false positive) in GitHub.'
+                );
+              }
+            }
+
             // ---- Warnings ----
             if (!isIssue && !isNewFeature && !isRefactor && !isDocs) {
               warnings.push('Please select a PR type (Issue, New Feature, Refactor, or Documentation).');
@@ -145,8 +332,85 @@ jobs:
               warnings.push('Please link a related GitHub issue (`Linked Issue: Closes #123`).');
             }
 
+            // ---- License countdown label ----
+            // Adding the label starts the 7-day clock; pr-license-enforcement.yml reads the `labeled`
+            // event timestamp. Ticking the box removes the label here and cancels the countdown.
+            if (canWrite && licenseCountdown) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: LICENSE_LABEL,
+                  color: policy.LICENSE_LABEL_COLOR,
+                  description: policy.LICENSE_LABEL_DESCRIPTION,
+                });
+              } catch (error) {
+                if (error.status === 422) {
+                  await github.rest.issues.updateLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: LICENSE_LABEL,
+                    color: policy.LICENSE_LABEL_COLOR,
+                    description: policy.LICENSE_LABEL_DESCRIPTION,
+                  });
+                } else {
+                  throw error;
+                }
+              }
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: [LICENSE_LABEL],
+              });
+            } else if (canWrite) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: LICENSE_LABEL,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }
+
+            // ---- Our own automation is not held to the contributor checklist ----
+            // sync-translations.yml rewrites non-English locale files by design, schema-backup.yml
+            // opens a PR with no template, and no bot can tick a checkbox. Keep the change
+            // detection for the record, drop the required actions so these never show a red X.
+            if (isAutomation && (errors.length > 0 || warnings.length > 0)) {
+              core.info(
+                `Automation PR (${exemption.reason}): suppressing ` +
+                `${errors.length} error(s) and ${warnings.length} warning(s).`
+              );
+              errors.length = 0;
+              warnings.length = 0;
+            }
+
             // ---- Build summary ----
             let message = '## PR Validation Results\n\n';
+
+            if (licenseCountdown) {
+              message +=
+                '> [!NOTE]\n' +
+                `> ⏳ **Reminder:** In order for us to review and accept this PR, please complete the mandatory questionnaire checkboxes (Integrity & License, etc.) in the PR description. ` +
+                (canWrite
+                  ? `If any mandatory checkboxes were removed, they have been automatically added back to the bottom of your description for your convenience — just tick the boxes and this check will pass. `
+                  : 'Restore any missing checkboxes from the PR template and tick them in the description. ') +
+                `PRs with incomplete mandatory items are automatically closed after ${GRACE_DAYS} days, and can be reopened at any time once completed.\n\n`;
+            } else if (isDraft && !licenseAgreed && !licenseExempt) {
+              message +=
+                '> [!NOTE]\n' +
+                `> This is a draft, so the license countdown has not started. The ` +
+                `**${LICENSE_ITEM}** checkbox must be ticked before you mark it ready for review.\n\n`;
+            } else if (isAutomation) {
+              message += `> [!NOTE]\n> Automation PR (${exemption.reason}) — contributor checklist not applied.\n\n`;
+            } else if (licenseExempt) {
+              message += `> [!NOTE]\n> License check skipped: ${exemption.reason}.\n\n`;
+            }
 
             message += '### Change Detection\n';
             if (hasFrontendChanges)      message += '- 🖥️ Frontend changes detected\n';
@@ -159,6 +423,14 @@ jobs:
               message += '- ℹ️ No tracked directory changes detected\n';
             }
             message += '\n';
+
+            if (unresolvedThreads.length > 0) {
+              message += `### 💬 Unresolved Review Conversations (${unresolvedThreads.length})\n\n`;
+              message += '> [!NOTE]\n' +
+                `> There are **${unresolvedThreads.length} unresolved review conversation(s)** on this PR. ` +
+                'GitHub requires all review comments from CodeRabbit and reviewers to be marked as resolved before merging. ' +
+                'Once addressed (or verified as false positives), please click **"Resolve conversation"** on each comment in the Conversations tab above.\n\n';
+            }
 
             if (errors.length > 0) {
               message += `### ❌ Required Actions (${errors.length})\n\n`;
@@ -178,12 +450,20 @@ jobs:
 
             await core.summary.addRaw(message).write();
 
+            if (errors.length > 0) {
+              core.setFailed(
+                `PR validation failed with ${errors.length} required action(s). See the job summary for details.`
+              );
+            }
+
+            if (!canWrite) return;
+
             // ---- Upsert comment ----
             const botTag = '<!-- pr-validation-bot -->';
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
+              issue_number: pr.number,
             });
 
             const existing = comments.find(c =>
@@ -203,13 +483,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
+                issue_number: pr.number,
                 body: commentBody,
               });
-            }
-
-            if (errors.length > 0) {
-              core.setFailed(
-                `PR validation failed with ${errors.length} required action(s). See the PR comment for details.`
-              );
             }

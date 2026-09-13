@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { DailyExerciseEntry, NutritionData } from '@/types/reports';
+import { NutritionData } from '@/types/reports';
 import { ExpandedGoals } from '@/types/goals';
 import type { UserCustomNutrient } from '@/types/customNutrient';
 import { CENTRAL_NUTRIENT_CONFIG } from '@/constants/nutrients';
@@ -10,6 +10,7 @@ import {
   formatNutrientValue,
   withNetCarbsSubstitution,
 } from '@/utils/nutrientUtils';
+import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
 import {
   AreaChart,
   Area,
@@ -21,17 +22,26 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
-import { parseISO, format } from 'date-fns';
+import { format } from 'date-fns';
 import { TrendingUp, BarChart3, ChevronDown } from 'lucide-react';
 import { getEnergyUnitString } from '@/utils/nutritionCalculations';
 import {
   calculateSmartYAxisDomain,
+  createDateTickFormatter,
+  createTimeSyncMethod,
   excludeIncompleteDay,
   getChartConfig,
+  getTimeXAxisProps,
+  prepareTimeChartData,
+  REPORTS_CHART_SYNC_ID,
 } from '@/utils/chartUtils';
-import { calculateAverage } from '@/utils/reportUtil';
+import {
+  calculateAverage,
+  effectiveCalorieGoal as calorieBudgetFor,
+} from '@/utils/reportUtil';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -39,19 +49,26 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import type { DailyCalorieBalanceRow } from '@workspace/shared';
 
 interface NutritionPeriodSummaryProps {
   nutritionData: NutritionData[];
   customNutrients: UserCustomNutrient[];
   goals?: Record<string, ExpandedGoals>;
-  exerciseEntries?: DailyExerciseEntry[];
+  /**
+   * Server-computed calorie balance per date, from `GET /daily-summary/range`.
+   *
+   * Only the calories series uses it. Undefined while loading, or when the viewer lacks
+   * diary permission on a shared account -- both fall back to the raw goal.
+   */
+  calorieBalanceByDate?: Record<string, DailyCalorieBalanceRow>;
 }
 
 const NutritionPeriodSummary = ({
   nutritionData,
   customNutrients,
   goals,
-  exerciseEntries,
+  calorieBalanceByDate,
 }: NutritionPeriodSummaryProps) => {
   const { t } = useTranslation();
   const {
@@ -59,8 +76,7 @@ const NutritionPeriodSummary = ({
     energyUnit,
     convertEnergy,
     showNetCarbs,
-    calorieGoalAdjustmentMode,
-    exerciseCaloriePercentage,
+    chartScaleMode,
   } = usePreferences();
   const effectiveNutritionData = useMemo(
     () => withNetCarbsSubstitution(nutritionData, showNetCarbs),
@@ -73,9 +89,14 @@ const NutritionPeriodSummary = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const primaryNutrient = selectedNutrients[0] || 'calories';
 
-  const formatDateForChart = (dateStr: string) => {
-    return formatDateInUserTimezone(parseISO(dateStr), 'MMM dd');
-  };
+  const { data: goalTypePreferences } = useNutrientGoalPreferences();
+
+  const formatDateForChart = useMemo(
+    () => createDateTickFormatter(formatDateInUserTimezone),
+    [formatDateInUserTimezone]
+  );
+
+  const syncMethod = useMemo(() => createTimeSyncMethod(), []);
 
   const allNutritionOptions = useMemo(() => {
     const getStringColor = (str: string) => {
@@ -152,113 +173,200 @@ const NutritionPeriodSummary = ({
       : effectiveNutritionData;
   }, [effectiveNutritionData, config.excludeIncompleteDay]);
 
-  const exerciseBurnByDate = useMemo(() => {
-    const map: Record<string, number> = {};
-    (exerciseEntries || []).forEach((entry) => {
-      const date =
-        typeof entry.entry_date === 'string'
-          ? entry.entry_date.slice(0, 10)
-          : format(entry.entry_date, 'yyyy-MM-dd');
-      map[date] = (map[date] || 0) + (Number(entry.calories_burned) || 0);
-    });
-    return map;
-  }, [exerciseEntries]);
+  // `dayEaten` is this component's own unrounded total, so `dayEaten - budget` resolves
+  // to exactly `-remaining` and the cumulative series carries no rounding residue.
+  const effectiveCalorieGoal = useCallback(
+    (date: string, dayEaten: number): number | undefined =>
+      calorieBudgetFor(calorieBalanceByDate?.[date], dayEaten),
+    [calorieBalanceByDate]
+  );
 
   // Calculate KPIs and prepare cumulative chart data using the same filtered dataset
-  const { totalEaten, totalGoal, validDaysCount, cumulativeData, netBalance } =
-    useMemo(() => {
-      const result = filteredNutritionData.reduce(
-        (acc, point) => {
-          const dayGoals = goals?.[point.date];
+  const {
+    totalEaten,
+    totalGoal,
+    totalGoalMin,
+    totalGoalMax,
+    validDaysCount,
+    daysInTargetRange,
+    cumulativeData,
+    netBalance,
+  } = useMemo(() => {
+    const result = filteredNutritionData.reduce(
+      (acc, point) => {
+        const dayGoals = goals?.[point.date];
 
-          // Calculate variance for ALL selected nutrients (except sodium)
-          const variances: Record<string, number> = {};
-          selectedNutrients.forEach((nutKey) => {
-            // Skip cumulative calculation for sodium
-            if (nutKey === 'sodium') return;
+        // Calculate variance for ALL selected nutrients (except sodium)
+        const variances: Record<string, number> = {};
+        selectedNutrients.forEach((nutKey) => {
+          // Skip cumulative calculation for sodium
+          if (nutKey === 'sodium') return;
 
-            let dayGoal: number | undefined;
-            const isCustom = customNutrients.some((cn) => cn.name === nutKey);
-            if (dayGoals) {
-              if (isCustom) {
-                const goalVal =
-                  (dayGoals as Record<string, unknown>)[nutKey] ??
-                  dayGoals.custom_nutrients?.[nutKey];
-                if (typeof goalVal === 'number') dayGoal = goalVal;
-              } else {
-                const goalVal = (dayGoals as Record<string, unknown>)[nutKey];
-                if (typeof goalVal === 'number') dayGoal = goalVal;
-              }
+          let dayGoal: number | undefined;
+          const isCustom = customNutrients.some((cn) => cn.name === nutKey);
+          if (dayGoals) {
+            if (isCustom) {
+              const goalVal =
+                (dayGoals as Record<string, unknown>)[nutKey] ??
+                dayGoals.custom_nutrients?.[nutKey];
+              if (typeof goalVal === 'number') dayGoal = goalVal;
+            } else {
+              const goalVal = (dayGoals as Record<string, unknown>)[nutKey];
+              if (typeof goalVal === 'number') dayGoal = goalVal;
             }
+          }
 
-            const dayEatenRaw = point[nutKey as keyof NutritionData];
-            const dayEaten = typeof dayEatenRaw === 'number' ? dayEatenRaw : 0;
+          const dayEatenRaw = point[nutKey as keyof NutritionData];
+          const dayEaten = typeof dayEatenRaw === 'number' ? dayEatenRaw : 0;
 
-            // For calories, adjust base goal according to user's calorieGoalAdjustmentMode
-            let exerciseBurn = 0;
-            if (nutKey === 'calories') {
-              const rawExerciseBurn = exerciseBurnByDate[point.date] || 0;
-              if (calorieGoalAdjustmentMode === 'dynamic') {
-                exerciseBurn = rawExerciseBurn;
-              } else if (calorieGoalAdjustmentMode === 'percentage') {
-                exerciseBurn =
-                  rawExerciseBurn * ((exerciseCaloriePercentage ?? 100) / 100);
-              } else {
-                exerciseBurn = 0;
-              }
-            }
-            const effectiveDayGoal =
-              dayGoal !== undefined ? dayGoal + exerciseBurn : undefined;
+          // Calories come from the server-computed balance; every other nutrient
+          // keeps its plain stored goal.
+          const effectiveDayGoal =
+            nutKey === 'calories'
+              ? (effectiveCalorieGoal(point.date, dayEaten) ?? dayGoal)
+              : dayGoal;
 
-            // Allow goal to be 0 (e.g. 0g sugar target)
-            if (effectiveDayGoal !== undefined) {
-              const variance = dayEaten - effectiveDayGoal;
-              acc.running[nutKey] = (acc.running[nutKey] || 0) + variance;
+          const pref = goalTypePreferences?.[nutKey];
+          const isTarget =
+            pref?.goalType === 'target' &&
+            pref.targetMin != null &&
+            pref.targetMax != null;
 
+          if (isTarget) {
+            const minVal = pref.targetMin!;
+            const maxVal = pref.targetMax!;
+            let variance: number;
+            if (dayEaten >= minVal && dayEaten <= maxVal) {
+              variance = 0;
               if (nutKey === primaryNutrient) {
-                acc.tGoal += effectiveDayGoal;
-                acc.tEaten += dayEaten;
-                acc.vDays += 1;
+                acc.inRangeDays += 1;
               }
+            } else if (dayEaten > maxVal) {
+              variance = dayEaten - maxVal;
+            } else {
+              variance = dayEaten - minVal;
             }
-            variances[`${nutKey}_cumulative`] = acc.running[nutKey] || 0;
-          });
 
-          acc.data.push({
-            date: point.date,
-            ...variances,
-          });
+            acc.running[nutKey] = (acc.running[nutKey] || 0) + variance;
 
-          return acc;
-        },
-        {
-          tEaten: 0,
-          tGoal: 0,
-          vDays: 0,
-          running: {} as Record<string, number>,
-          data: [] as Array<Record<string, string | number>>,
-        }
-      );
+            if (nutKey === primaryNutrient) {
+              acc.tGoalMin += minVal;
+              acc.tGoalMax += maxVal;
+              acc.tEaten += dayEaten;
+              acc.vDays += 1;
+            }
+          } else if (effectiveDayGoal !== undefined) {
+            const variance = dayEaten - effectiveDayGoal;
+            acc.running[nutKey] = (acc.running[nutKey] || 0) + variance;
 
-      return {
-        totalEaten: result.tEaten,
-        totalGoal: result.tGoal,
-        validDaysCount: result.vDays,
-        cumulativeData: result.data,
-        netBalance: result.running[primaryNutrient] || 0,
-      };
-    }, [
-      filteredNutritionData,
-      goals,
-      primaryNutrient,
-      selectedNutrients,
-      customNutrients,
-      exerciseBurnByDate,
-      calorieGoalAdjustmentMode,
-      exerciseCaloriePercentage,
-    ]);
+            if (nutKey === primaryNutrient) {
+              acc.tGoal += effectiveDayGoal;
+              acc.tEaten += dayEaten;
+              acc.vDays += 1;
+            }
+          }
+          variances[`${nutKey}_cumulative`] = acc.running[nutKey] || 0;
+        });
+
+        acc.data.push({
+          date: point.date,
+          ...variances,
+        });
+
+        return acc;
+      },
+      {
+        tEaten: 0,
+        tGoal: 0,
+        tGoalMin: 0,
+        tGoalMax: 0,
+        vDays: 0,
+        inRangeDays: 0,
+        running: {} as Record<string, number>,
+        data: [] as Array<Record<string, string | number>>,
+      }
+    );
+
+    return {
+      totalEaten: result.tEaten,
+      totalGoal: result.tGoal,
+      totalGoalMin: result.tGoalMin,
+      totalGoalMax: result.tGoalMax,
+      validDaysCount: result.vDays,
+      daysInTargetRange: result.inRangeDays,
+      cumulativeData: prepareTimeChartData(result.data, chartScaleMode),
+      netBalance: result.running[primaryNutrient] || 0,
+    };
+  }, [
+    chartScaleMode,
+    filteredNutritionData,
+    goals,
+    primaryNutrient,
+    selectedNutrients,
+    customNutrients,
+    effectiveCalorieGoal,
+    goalTypePreferences,
+  ]);
 
   const averageVariance = validDaysCount > 0 ? netBalance / validDaysCount : 0;
+
+  /**
+   * Length of the report window, taken from the balance map.
+   *
+   * `/daily-summary/range` emits a row for every calendar day it was asked for, whereas
+   * `nutritionData` only carries days that have entries. The difference is the number of
+   * untracked days, and it is worth naming: these totals are sums over *logged* days, so
+   * a reader reconciling them against the Diary by hand — which is how #2094 was
+   * reported — would otherwise be adding days this card never counted.
+   */
+  const windowDayCount = useMemo(
+    () =>
+      calorieBalanceByDate
+        ? Object.keys(calorieBalanceByDate).length
+        : undefined,
+    [calorieBalanceByDate]
+  );
+
+  /**
+   * Why the totals cover fewer days than the window, which is not always the same reason.
+   *
+   * `validDaysCount` counts days that contributed to the totals, and a day only
+   * contributes when the *primary* nutrient resolved a goal. So a day can be missing
+   * because nothing was logged, or because it was logged and simply has no goal for the
+   * selected nutrient — and for `sodium` the reduce skips every day, making the count
+   * zero outright. Attributing all of those to "nothing logged" is wrong for a caption
+   * whose whole purpose is telling a hand-reconciling reader which days were added.
+   *
+   * For calories — the case #2094 is about — `effectiveCalorieGoal` resolves whenever a
+   * balance row exists, and the range endpoint emits one per calendar day, so the only
+   * possible cause really is an unlogged day.
+   */
+  const loggedDayCount = filteredNutritionData.length;
+  const totalDayCount = windowDayCount ?? loggedDayCount;
+  const excludedForMissingGoal = loggedDayCount > validDaysCount;
+  const excludedAsUntracked = totalDayCount > loggedDayCount;
+  const primaryNutrientLabel = selectedOption?.label ?? primaryNutrient;
+
+  const coverageMessage = !excludedForMissingGoal
+    ? excludedAsUntracked
+      ? t(
+          'reports.daysCountedPartial',
+          'Counted {{counted}} of {{total}} days — days with nothing logged are excluded',
+          { counted: validDaysCount, total: totalDayCount }
+        )
+      : t('reports.daysCounted', 'Counted {{counted}} days', {
+          counted: validDaysCount,
+        })
+    : // Covers the both-causes case too, so it never names a reason that does not apply.
+      t(
+        'reports.daysCountedNoGoal',
+        'Counted {{counted}} of {{total}} days — days without a {{nutrient}} goal, or with nothing logged, are excluded',
+        {
+          counted: validDaysCount,
+          total: totalDayCount,
+          nutrient: primaryNutrientLabel,
+        }
+      );
 
   const getDisplayValue = (val: number) => {
     if (primaryNutrient === 'calories') {
@@ -267,10 +375,18 @@ const NutritionPeriodSummary = ({
     return formatNutrientValue(primaryNutrient, val, customNutrients);
   };
 
+  const primaryPref = goalTypePreferences?.[primaryNutrient];
+  const isPrimaryTarget =
+    primaryPref?.goalType === 'target' &&
+    primaryPref.targetMin != null &&
+    primaryPref.targetMax != null;
+
   const displayTotalEaten = getDisplayValue(totalEaten);
-  const displayTotalGoal = getDisplayValue(totalGoal);
-  const displayNetBalance = getDisplayValue(netBalance);
-  const displayAvgVariance = getDisplayValue(averageVariance);
+  const displayTotalGoal = isPrimaryTarget
+    ? `${getDisplayValue(totalGoalMin)}–${getDisplayValue(totalGoalMax)}`
+    : getDisplayValue(totalGoal);
+  const displayNetBalance = getDisplayValue(Math.abs(netBalance));
+  const displayAvgVariance = getDisplayValue(Math.abs(averageVariance));
 
   const unitStr =
     primaryNutrient === 'calories'
@@ -284,7 +400,7 @@ const NutritionPeriodSummary = ({
     selectedNutrients.some((n) => n !== 'sodium');
 
   const dailyChartData = useMemo(() => {
-    return filteredNutritionData.map((point) => {
+    const rows = filteredNutritionData.map((point) => {
       const dayGoals = goals?.[point.date];
       const newPoint: Record<string, string | number> = {
         date: point.date,
@@ -310,33 +426,36 @@ const NutritionPeriodSummary = ({
         const dayEaten = typeof dayEatenRaw === 'number' ? dayEatenRaw : 0;
 
         newPoint[nutKey] = dayEaten;
-        if (dayGoal !== undefined) {
-          let exerciseBurn = 0;
-          if (nutKey === 'calories') {
-            const rawExerciseBurn = exerciseBurnByDate[point.date] || 0;
-            if (calorieGoalAdjustmentMode === 'dynamic') {
-              exerciseBurn = rawExerciseBurn;
-            } else if (calorieGoalAdjustmentMode === 'percentage') {
-              exerciseBurn =
-                rawExerciseBurn * ((exerciseCaloriePercentage ?? 100) / 100);
-            } else {
-              exerciseBurn = 0;
-            }
-          }
-          newPoint[`${nutKey}_goal`] = dayGoal + exerciseBurn;
+        const effectiveDayGoal =
+          nutKey === 'calories'
+            ? (effectiveCalorieGoal(point.date, dayEaten) ?? dayGoal)
+            : dayGoal;
+
+        const pref = goalTypePreferences?.[nutKey];
+        const isTarget =
+          pref?.goalType === 'target' &&
+          pref.targetMin != null &&
+          pref.targetMax != null;
+
+        if (isTarget) {
+          newPoint[`${nutKey}_target_min`] = pref.targetMin!;
+          newPoint[`${nutKey}_target_max`] = pref.targetMax!;
+        } else if (effectiveDayGoal !== undefined) {
+          newPoint[`${nutKey}_goal`] = effectiveDayGoal;
         }
       });
 
       return newPoint;
     });
+    return prepareTimeChartData(rows, chartScaleMode);
   }, [
+    chartScaleMode,
     filteredNutritionData,
     goals,
     selectedNutrients,
     customNutrients,
-    exerciseBurnByDate,
-    calorieGoalAdjustmentMode,
-    exerciseCaloriePercentage,
+    effectiveCalorieGoal,
+    goalTypePreferences,
   ]);
 
   const yAxisDomain = calculateSmartYAxisDomain(
@@ -345,6 +464,11 @@ const NutritionPeriodSummary = ({
     {
       marginPercent: config.marginPercent,
       minRangeThreshold: config.minRangeThreshold,
+      additionalKeys: [
+        `${primaryNutrient}_target_min`,
+        `${primaryNutrient}_target_max`,
+        `${primaryNutrient}_goal`,
+      ],
     }
   );
 
@@ -378,7 +502,7 @@ const NutritionPeriodSummary = ({
                   <span>{opt.label}</span>
                   {opt.key === primaryNutrient && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      (Primary)
+                      ({t('reports.primary', 'Primary')})
                     </span>
                   )}
                 </div>
@@ -402,7 +526,7 @@ const NutritionPeriodSummary = ({
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {netBalance > 0 ? '+' : ''}
+                {netBalance > 0 ? '+' : netBalance < 0 ? '-' : ''}
                 {displayNetBalance} {unitStr}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -413,6 +537,22 @@ const NutritionPeriodSummary = ({
                 {t('reports.totalGoal', 'Total Goal')}: {displayTotalGoal}{' '}
                 {unitStr}
               </p>
+              {isPrimaryTarget && validDaysCount > 0 && (
+                <p className="text-xs text-green-600 dark:text-green-400 font-medium mt-0.5">
+                  {t(
+                    'reports.daysInTargetRange',
+                    '{{inRange}} of {{total}} days in target range ({{percent}}%)',
+                    {
+                      inRange: daysInTargetRange,
+                      total: validDaysCount,
+                      percent: Math.round(
+                        (daysInTargetRange / validDaysCount) * 100
+                      ),
+                    }
+                  )}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">{coverageMessage}</p>
             </CardContent>
           </Card>
 
@@ -425,14 +565,19 @@ const NutritionPeriodSummary = ({
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {averageVariance > 0 ? '+' : ''}
+                {averageVariance > 0 ? '+' : averageVariance < 0 ? '-' : ''}
                 {displayAvgVariance} {unitStr}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t(
-                  'reports.avgVarianceDescription',
-                  'Average deviation from goal per day'
-                )}
+                {isPrimaryTarget
+                  ? t(
+                      'reports.avgVarianceTargetRangeDescription',
+                      'Average deviation outside target range per day'
+                    )
+                  : t(
+                      'reports.avgVarianceDescription',
+                      'Average deviation from goal per day'
+                    )}
               </p>
             </CardContent>
           </Card>
@@ -469,13 +614,16 @@ const NutritionPeriodSummary = ({
                     >
                       <LineChart
                         data={dailyChartData}
-                        syncId="nutrition-charts"
+                        syncId={REPORTS_CHART_SYNC_ID}
+                        syncMethod={syncMethod}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
-                          dataKey="date"
+                          {...getTimeXAxisProps({
+                            chartScaleMode,
+                            formatDate: formatDateInUserTimezone,
+                          })}
                           fontSize={10}
-                          tickFormatter={formatDateForChart}
                           tickCount={
                             isMaximized
                               ? Math.max(dailyChartData.length, 10)
@@ -499,9 +647,7 @@ const NutritionPeriodSummary = ({
                           }}
                         />
                         <Tooltip
-                          labelFormatter={(value) =>
-                            formatDateForChart(value as string)
-                          }
+                          labelFormatter={(value) => formatDateForChart(value)}
                           formatter={(
                             value:
                               | string
@@ -519,10 +665,21 @@ const NutritionPeriodSummary = ({
 
                             // Determine which nutrient this value belongs to for proper formatting
                             const nutrientKey = name as string;
-                            const isGoal = nutrientKey.endsWith('_goal');
-                            const baseKey = isGoal
-                              ? nutrientKey.replace('_goal', '')
-                              : nutrientKey;
+                            const isTargetMin =
+                              nutrientKey.endsWith('_target_min');
+                            const isTargetMax =
+                              nutrientKey.endsWith('_target_max');
+                            const isGoal =
+                              nutrientKey.endsWith('_goal') ||
+                              isTargetMin ||
+                              isTargetMax;
+                            const baseKey = isTargetMin
+                              ? nutrientKey.replace('_target_min', '')
+                              : isTargetMax
+                                ? nutrientKey.replace('_target_max', '')
+                                : isGoal
+                                  ? nutrientKey.replace('_goal', '')
+                                  : nutrientKey;
                             const opt = allNutritionOptions.find(
                               (o) => o.key === baseKey
                             );
@@ -540,17 +697,40 @@ const NutritionPeriodSummary = ({
 
                             return [
                               `${formattedValue} ${opt?.unit || ''}`,
-                              isGoal ? `${opt?.label} Goal` : opt?.label,
+                              isTargetMin
+                                ? `${opt?.label} Lower Target`
+                                : isTargetMax
+                                  ? `${opt?.label} Upper Target`
+                                  : isGoal
+                                    ? `${opt?.label} Goal`
+                                    : opt?.label,
                             ];
                           }}
                           contentStyle={{
                             backgroundColor: 'hsl(var(--background))',
                           }}
                         />
+                        {isPrimaryTarget &&
+                          primaryPref.targetMin != null &&
+                          primaryPref.targetMax != null && (
+                            <ReferenceArea
+                              y1={primaryPref.targetMin}
+                              y2={primaryPref.targetMax}
+                              fill={selectedOption?.chartColor || '#8884d8'}
+                              fillOpacity={0.08}
+                              strokeOpacity={0}
+                            />
+                          )}
                         {selectedNutrients.map((nutKey) => {
                           const opt = allNutritionOptions.find(
                             (o) => o.key === nutKey
                           );
+                          const pref = goalTypePreferences?.[nutKey];
+                          const isTarget =
+                            pref?.goalType === 'target' &&
+                            pref.targetMin != null &&
+                            pref.targetMax != null;
+
                           return (
                             <React.Fragment key={nutKey}>
                               <Line
@@ -564,7 +744,31 @@ const NutritionPeriodSummary = ({
                                 isAnimationActive={false}
                                 name={nutKey}
                               />
-                              {nutKey === primaryNutrient && (
+                              {nutKey === primaryNutrient && isTarget && (
+                                <>
+                                  <Line
+                                    type="monotone"
+                                    dataKey={`${nutKey}_target_min`}
+                                    stroke={opt?.chartColor || '#8884d8'}
+                                    strokeWidth={1.5}
+                                    strokeDasharray="5 5"
+                                    dot={false}
+                                    isAnimationActive={false}
+                                    name={`${nutKey}_target_min`}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey={`${nutKey}_target_max`}
+                                    stroke={opt?.chartColor || '#8884d8'}
+                                    strokeWidth={1.5}
+                                    strokeDasharray="5 5"
+                                    dot={false}
+                                    isAnimationActive={false}
+                                    name={`${nutKey}_target_max`}
+                                  />
+                                </>
+                              )}
+                              {nutKey === primaryNutrient && !isTarget && (
                                 <Line
                                   type="monotone"
                                   dataKey={`${nutKey}_goal`}
@@ -612,7 +816,11 @@ const NutritionPeriodSummary = ({
                     minHeight={0}
                     debounce={100}
                   >
-                    <AreaChart data={cumulativeData} syncId="nutrition-charts">
+                    <AreaChart
+                      data={cumulativeData}
+                      syncId={REPORTS_CHART_SYNC_ID}
+                      syncMethod={syncMethod}
+                    >
                       <defs>
                         <linearGradient
                           id="colorNutrient"
@@ -635,9 +843,11 @@ const NutritionPeriodSummary = ({
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis
-                        dataKey="date"
+                        {...getTimeXAxisProps({
+                          chartScaleMode,
+                          formatDate: formatDateInUserTimezone,
+                        })}
                         fontSize={10}
-                        tickFormatter={formatDateForChart}
                         tickCount={
                           isMaximized
                             ? Math.max(cumulativeData.length, 10)
@@ -651,9 +861,7 @@ const NutritionPeriodSummary = ({
                         }}
                       />
                       <Tooltip
-                        labelFormatter={(value) =>
-                          formatDateForChart(value as string)
-                        }
+                        labelFormatter={(value) => formatDateForChart(value)}
                         formatter={(
                           value:
                             | string
@@ -692,7 +900,12 @@ const NutritionPeriodSummary = ({
 
                           return [
                             `${numValue > 0 ? '+' : ''}${formattedValue} ${opt?.unit || ''}`,
-                            isCumulative ? `${opt?.label} Balance` : opt?.label,
+                            isCumulative
+                              ? t('reports.nutrientBalance', {
+                                  defaultValue: '{{nutrient}} Balance',
+                                  nutrient: opt?.label || '',
+                                })
+                              : opt?.label,
                           ];
                         }}
                         contentStyle={{

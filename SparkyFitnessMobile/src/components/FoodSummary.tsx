@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, Pressable } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import type { FoodEntry } from '../types/foodEntries';
@@ -23,7 +24,11 @@ interface FoodSummaryProps {
   calorieGoal?: number;
   onAddFood?: () => void;
   onAdjustServing?: (entry: FoodEntry) => void;
-  onPressMealType?: (mealTypeId: string | null, mealTypeName: string, entries: FoodEntry[]) => void;
+  onPressMealType?: (
+    mealTypeId: string | null,
+    mealTypeName: string,
+    entries: FoodEntry[]
+  ) => void;
 }
 
 interface MealSectionProps {
@@ -31,19 +36,30 @@ interface MealSectionProps {
   goals?: DailyGoals;
   calorieGoal?: number;
   onAdjustServing?: (entry: FoodEntry) => void;
-  onPressMealType?: (mealTypeId: string | null, mealTypeName: string, entries: FoodEntry[]) => void;
+  onPressMealType?: (
+    mealTypeId: string | null,
+    mealTypeName: string,
+    entries: FoodEntry[]
+  ) => void;
 }
 
-const EmptyState: React.FC<{ onAddFood?: () => void }> = ({ onAddFood }) => (
-  <Pressable
-    onPress={onAddFood}
-    accessibilityRole="button"
-    accessibilityLabel="Tap to add food"
-    className="bg-surface rounded-xl p-4 mb-2 shadow-sm items-center py-6"
-  >
-    <Text className="text-text-muted text-base">Tap to add food</Text>
-  </Pressable>
-);
+const EmptyState: React.FC<{ onAddFood?: () => void }> = ({ onAddFood }) => {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      onPress={onAddFood}
+      accessibilityRole="button"
+      accessibilityLabel={t('foodSummary.tapToAddFood', {
+        defaultValue: 'Tap to add food',
+      })}
+      className="bg-surface rounded-xl p-4 mb-2 shadow-sm items-center py-6"
+    >
+      <Text className="text-text-muted text-base">
+        {t('foodSummary.tapToAddFood', { defaultValue: 'Tap to add food' })}
+      </Text>
+    </Pressable>
+  );
+};
 
 const MealSection: React.FC<MealSectionProps> = ({
   group,
@@ -52,9 +68,10 @@ const MealSection: React.FC<MealSectionProps> = ({
   onAdjustServing,
   onPressMealType,
 }) => {
+  const { t } = useTranslation();
   const accentPrimary = useCSSVariable('--color-accent-primary') as string;
 
-  const label = getMealGroupLabel(group);
+  const label = getMealGroupLabel(group, t);
   // Single canonical MEAL_CONFIG lookup (read once, reuse both fields). A
   // custom category named "breakfast" still gets the neutral icon, never the
   // system one — ownership is decided by isSystem, not by the name.
@@ -76,12 +93,15 @@ const MealSection: React.FC<MealSectionProps> = ({
   const headerContent = (
     <>
       <Icon name={icon} size={18} color={accentPrimary} />
-      <Text className="text-base font-bold text-text-secondary flex-1">{label}</Text>
+      <Text className="text-base font-bold text-text-secondary flex-1">
+        {label}
+      </Text>
       {(totalCalories > 0 || targetCalories > 0) && (
         <View className="bg-accent-primary/5 rounded-full px-2.5 py-0.5">
           <Text className="text-xs text-accent-primary font-semibold">
             {totalCalories}
-            {targetCalories > 0 ? ` / ${targetCalories}` : ''} Cal
+            {targetCalories > 0 ? ` / ${targetCalories}` : ''}{' '}
+            {t('foodSummary.caloriesUnit', { defaultValue: 'Cal' })}
           </Text>
         </View>
       )}
@@ -95,10 +115,15 @@ const MealSection: React.FC<MealSectionProps> = ({
     <View className="bg-surface rounded-xl p-4 overflow-hidden shadow-sm">
       {onPressMealType ? (
         <Pressable
-          onPress={() => onPressMealType(group.mealTypeId, group.name, group.entries)}
+          onPress={() =>
+            onPressMealType(group.mealTypeId, group.name, group.entries)
+          }
           className="flex-row gap-2 mb-3 items-center"
           accessibilityRole="button"
-          accessibilityLabel={`${label} nutrition breakdown`}
+          accessibilityLabel={t('foodSummary.nutritionBreakdown', {
+            defaultValue: '{{label}} nutrition breakdown',
+            label,
+          })}
         >
           {headerContent}
         </Pressable>

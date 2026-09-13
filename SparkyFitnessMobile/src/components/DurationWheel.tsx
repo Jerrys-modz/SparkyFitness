@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
-import WheelPicker, { type PickerOption as WheelPickerOption } from './ui/wheel-picker';
+import WheelPicker, {
+  type PickerOption as WheelPickerOption,
+} from './ui/wheel-picker';
 import { useCSSVariable } from 'uniwind';
 
 interface DurationWheelProps {
@@ -20,7 +23,12 @@ const SEC_LOOP = 10;
 const SEC_TOTAL = 60 * SEC_LOOP; // 600
 const SEC_MID_OFFSET = Math.floor(SEC_LOOP / 2) * 60; // 300
 
-function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelProps) {
+function DurationWheel({
+  valueSec,
+  onChangeSec,
+  maxSec = 900,
+}: DurationWheelProps) {
+  const { t } = useTranslation();
   const [textPrimary, borderSubtle] = useCSSVariable([
     '--color-text-primary',
     '--color-border-subtle',
@@ -37,7 +45,7 @@ function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelPro
         value: i,
         text: String(i).padStart(2, '0'),
       })),
-    [maxMinutes],
+    [maxMinutes]
   );
 
   // Each item has a unique numeric `value` (its index) so WheelPicker's
@@ -48,7 +56,7 @@ function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelPro
         value: i,
         text: String(i % 60).padStart(2, '0'),
       })),
-    [],
+    []
   );
 
   // Raw seconds-wheel index (0..SEC_TOTAL-1), kept in local state instead of
@@ -58,7 +66,9 @@ function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelPro
   // repetition boundary (e.g. index 359 "59" -> 360 "00"). We only reconcile
   // this index below when valueSec changes for a reason other than our own
   // handleSecondChange call.
-  const [secondsIndex, setSecondsIndex] = useState(() => SEC_MID_OFFSET + currentSec);
+  const [secondsIndex, setSecondsIndex] = useState(
+    () => SEC_MID_OFFSET + currentSec
+  );
   const [lastEmittedSec, setLastEmittedSec] = useState(currentSec);
 
   // valueSec changes are reflected in the same commit rather than triggering an extra render.
@@ -72,12 +82,12 @@ function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelPro
 
   const indicatorStyle = useMemo(
     () => ({ backgroundColor: borderSubtle, borderRadius: 8 }),
-    [borderSubtle],
+    [borderSubtle]
   );
 
   const textStyle = useMemo(
     () => ({ color: textPrimary, fontSize: 22, fontWeight: '500' as const }),
-    [textPrimary],
+    [textPrimary]
   );
 
   const handleMinuteChange = (v: number | string) => {
@@ -102,11 +112,11 @@ function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelPro
     <View style={{ height: ITEM_HEIGHT * 5 + 22 }}>
       <View className="flex-row items-center justify-center mb-1">
         <Text className="flex-1 text-center text-xs font-semibold uppercase text-text-muted">
-          Minutes
+          {t('duration.minutes', { defaultValue: 'Minutes' })}
         </Text>
         <View style={{ width: 18 }} />
         <Text className="flex-1 text-center text-xs font-semibold uppercase text-text-muted">
-          Seconds
+          {t('duration.seconds', { defaultValue: 'Seconds' })}
         </Text>
       </View>
 
@@ -125,7 +135,12 @@ function DurationWheel({ valueSec, onChangeSec, maxSec = 900 }: DurationWheelPro
 
         <Text
           className="text-text-primary"
-          style={{ fontSize: 26, fontWeight: '300', marginHorizontal: 4, marginBottom: 2 }}
+          style={{
+            fontSize: 26,
+            fontWeight: '300',
+            marginHorizontal: 4,
+            marginBottom: 2,
+          }}
         >
           :
         </Text>

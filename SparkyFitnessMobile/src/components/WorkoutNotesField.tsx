@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import FormInput from './FormInput';
 
@@ -29,10 +30,15 @@ interface WorkoutNotesFieldProps {
 function WorkoutNotesField({
   value,
   onCommit,
-  label = 'Notes',
-  placeholder = 'Add a note…',
+  label,
+  placeholder,
   accessibilityLabel,
 }: WorkoutNotesFieldProps) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('workout.notes', { defaultValue: 'Notes' });
+  const resolvedPlaceholder =
+    placeholder ??
+    t('workout.addNotePlaceholder', { defaultValue: 'Add a note…' });
   const seeded = value ?? '';
   const [draft, setDraft] = useState(seeded);
   const [prevSeeded, setPrevSeeded] = useState(seeded);
@@ -57,22 +63,28 @@ function WorkoutNotesField({
   // re-seeds the draft to match, so it won't be re-applied here.
   useEffect(() => {
     return () => {
-      const { draft: pending, seeded: committed, onCommit: commit } = latest.current;
+      const {
+        draft: pending,
+        seeded: committed,
+        onCommit: commit,
+      } = latest.current;
       if (pending !== committed) commit(pending);
     };
   }, []);
 
   return (
     <View>
-      {label ? (
-        <Text className="text-xs font-semibold uppercase text-text-muted mb-1">{label}</Text>
+      {resolvedLabel ? (
+        <Text className="text-xs font-semibold uppercase text-text-muted mb-1">
+          {resolvedLabel}
+        </Text>
       ) : null}
       <FormInput
         value={draft}
         onChangeText={setDraft}
         onBlur={() => onCommit(draft)}
-        placeholder={placeholder}
-        accessibilityLabel={accessibilityLabel ?? label}
+        placeholder={resolvedPlaceholder}
+        accessibilityLabel={accessibilityLabel ?? resolvedLabel}
         multiline
         style={{ minHeight: 64, textAlignVertical: 'top' }}
       />

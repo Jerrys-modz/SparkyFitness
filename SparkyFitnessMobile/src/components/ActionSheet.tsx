@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BackHandler,
   Platform,
@@ -56,6 +63,7 @@ interface ActionSheetProps {
  */
 const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
   ({ title, items, onBack, onDismiss }, ref) => {
+    const { t } = useTranslation();
     const modalRef = useRef<BottomSheetModal>(null);
     const isDismissingRef = useRef(false);
     const isOpenRef = useRef(false);
@@ -110,10 +118,11 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
       modalRef.current?.dismiss();
     }, [clearScheduledPresent]);
 
-    useImperativeHandle(ref, () => ({ present: presentSheet, dismiss: dismissSheet }), [
-      presentSheet,
-      dismissSheet,
-    ]);
+    useImperativeHandle(
+      ref,
+      () => ({ present: presentSheet, dismiss: dismissSheet }),
+      [presentSheet, dismissSheet]
+    );
 
     useEffect(() => {
       const modal = modalRef.current;
@@ -127,10 +136,13 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
       if (!isOpen || Platform.OS !== 'android') return;
       // Registered while open (after any screen handlers), so the sheet wins
       // Back and the press can't fall through and pop the screen.
-      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        dismissSheet();
-        return true;
-      });
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          dismissSheet();
+          return true;
+        }
+      );
       return () => subscription.remove();
     }, [isOpen, dismissSheet]);
 
@@ -152,7 +164,7 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
           setIsOpen(true);
         }
       },
-      [clearScheduledPresent],
+      [clearScheduledPresent]
     );
 
     const handleDismiss = useCallback(() => {
@@ -216,7 +228,7 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
                 onPress={onBack}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 accessibilityRole="button"
-                accessibilityLabel="Back"
+                accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
                 className="absolute left-2 top-0 bottom-0 justify-center px-2"
               >
                 <Icon name="chevron-back" size={20} color={accentPrimary} />
@@ -226,7 +238,10 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
           {sections.map((section, sectionIndex) => (
             <React.Fragment key={section[0].key}>
               {sectionIndex > 0 && (
-                <View testID="action-sheet-group-spacer" className="h-3 bg-background" />
+                <View
+                  testID="action-sheet-group-spacer"
+                  className="h-3 bg-background"
+                />
               )}
               {section.map((item) => (
                 <Pressable
@@ -240,7 +255,9 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
                 >
                   <Text
                     className={`text-base font-medium ${
-                      item.destructive ? 'text-text-danger-subtle' : 'text-text-primary'
+                      item.destructive
+                        ? 'text-text-danger-subtle'
+                        : 'text-text-primary'
                     }`}
                   >
                     {item.label}
@@ -252,7 +269,7 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
         </BottomSheetScrollView>
       </BottomSheetModal>
     );
-  },
+  }
 );
 
 ActionSheet.displayName = 'ActionSheet';

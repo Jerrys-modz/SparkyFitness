@@ -212,21 +212,53 @@ export const getProviderCategory = (
 };
 
 /**
- * Resolve the food-search provider to select. Precedence: an explicit manual
- * choice, then the user's persisted default, then the first available option.
- * Every returned id is validated against the rendered option list (active
+ * Sentinel provider id for the aggregated "All Providers" food search. It is
+ * not a real provider, so it must be defined alongside the resolver below that
+ * has to let it through; a second copy in the consuming component is how the
+ * two drifted apart in the first place.
+ */
+export const ALL_PROVIDERS_VALUE = '__all__';
+
+/**
+ * Resolve the food-search provider to select. Precedence: the aggregated
+ * "All Providers" sentinel, then an explicit manual choice, then the user's
+ * persisted "All Providers" default, then their persisted single-provider
+ * default, then the first available option.
+ * Every returned real id is validated against the rendered option list (active
  * food-category providers); a manual pick or persisted default that points at a
  * now-inactive/non-food provider is ignored rather than returned, since an id
  * with no matching SelectItem makes the dropdown render blank.
+ *
+ * allProvidersDefault is a required parameter rather than an optional one so
+ * that a new call site cannot silently omit it and get single-provider
+ * behaviour for a user who asked for the aggregated default.
  */
 export const resolveFoodProviderId = (
   manualProviderId: string | null,
   defaultFoodDataProviderId: string | null,
-  foodProviderOptions: { id: string }[]
+  foodProviderOptions: { id: string }[],
+  allProvidersDefault: boolean
 ): string | null => {
   const optionIds = foodProviderOptions.map((o) => o.id);
+  // The sentinel has a rendered SelectItem but no matching provider id, so it
+  // has to bypass the option-list validation below or the dropdown snaps back
+  // to a single provider and the aggregated search never runs.
+  if (manualProviderId === ALL_PROVIDERS_VALUE) {
+    return manualProviderId;
+  }
   if (manualProviderId && optionIds.includes(manualProviderId)) {
     return manualProviderId;
+  }
+  // Persisted aggregated default. It lives in its own boolean preference rather
+  // than in default_food_data_provider_id, which is a uuid column and cannot
+  // hold the sentinel. The length check mirrors the dropdown, which only offers
+  // "All Providers" above one provider: below that the option is not rendered,
+  // so returning the sentinel would strand the Select on a value with no
+  // SelectItem. Falling through instead degrades to the single provider without
+  // touching the stored preference, so re-activating a provider restores the
+  // aggregated default rather than silently losing it.
+  if (allProvidersDefault && foodProviderOptions.length > 1) {
+    return ALL_PROVIDERS_VALUE;
   }
   if (
     defaultFoodDataProviderId &&
@@ -235,4 +267,35 @@ export const resolveFoodProviderId = (
     return defaultFoodDataProviderId;
   }
   return foodProviderOptions[0]?.id ?? null;
+};
+
+/**
+ * Value for the Default Food Data Provider picker in settings.
+ *
+ * Kept next to resolveFoodProviderId because the two have to agree: that one
+ * decides which provider a search actually runs against, and this one decides
+ * what settings claims the default is. They diverged once, and settings showed
+ * a blank trigger while search was quietly using the first active provider.
+ *
+ * A stored provider that is no longer active therefore resolves to the first
+ * active one rather than to the placeholder. An unset default stays empty, so
+ * the placeholder keeps meaning "nothing chosen" rather than "the thing you
+ * chose is gone".
+ */
+export const resolveSettingsFoodProviderValue = (
+  defaultFoodDataProviderId: string | null,
+  foodProviderOptions: { id: string }[],
+  allProvidersDefault: boolean
+): string => {
+  // Mirrors the dropdown, which only offers "All Providers" above one provider.
+  if (allProvidersDefault && foodProviderOptions.length > 1) {
+    return ALL_PROVIDERS_VALUE;
+  }
+  if (!defaultFoodDataProviderId) {
+    return '';
+  }
+  const stored = foodProviderOptions.find(
+    (p) => p.id === defaultFoodDataProviderId
+  );
+  return stored?.id ?? foodProviderOptions[0]?.id ?? '';
 };

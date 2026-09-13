@@ -1,3 +1,9 @@
+import type {
+  CalorieSafetyFloorMode,
+  GoalMode,
+  GoalModeCalculationMethod,
+} from '@workspace/shared';
+
 export interface UserPreferences {
   bmr_algorithm?: string;
   body_fat_algorithm?: string;
@@ -7,6 +13,10 @@ export interface UserPreferences {
   sugar_calculation_algorithm?: string;
   default_food_data_provider_id?: string;
   default_barcode_provider_id?: string;
+  /** When on, food search defaults to the aggregated "All Providers" mode. Held
+   *  separately from default_food_data_provider_id, a uuid column that cannot
+   *  store the sentinel, so the single-provider choice survives turning it off. */
+  food_search_all_providers_default?: boolean;
 
   default_weight_unit?: 'kg' | 'lbs' | 'st_lbs';
   default_distance_unit?: 'km' | 'miles';
@@ -21,15 +31,22 @@ export interface UserPreferences {
   use_external_bmr?: boolean;
   show_net_carbs?: boolean;
   calorie_goal_adjustment_mode?: string;
+  goal_mode?: GoalMode;
+  goal_mode_calculation_method?: GoalModeCalculationMethod;
+  goal_mode_custom_percentage?: number;
   auto_scale_open_food_facts_imports?: boolean;
   auto_scale_online_imports?: boolean;
   barcode_fallback_open_food_facts?: boolean;
   exercise_calorie_percentage?: number;
   activity_level?: string;
   tdee_allow_negative_adjustment?: boolean;
+  calorie_safety_floor_mode?: CalorieSafetyFloorMode;
+  calorie_safety_floor_value?: number;
   auto_clear_history?: string;
   logging_level?: string;
   timezone?: string | null;
+  /** Clock display preference: 'HH:mm' (24-hour), 'h:mm A'/'h:mm a' (12-hour). */
+  time_format?: 'HH:mm' | 'h:mm A' | 'h:mm a';
   item_display_limit?: number;
   language?: string;
   first_day_of_week?: number;

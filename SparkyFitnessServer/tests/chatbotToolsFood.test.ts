@@ -18,6 +18,7 @@ vi.mock('../services/foodCoreService', () => ({
   default: {
     createFood: vi.fn(),
     getFoodById: vi.fn(),
+    updateFood: vi.fn(),
     deleteFood: vi.fn(),
     updateFoodEntriesSnapshot: vi.fn(),
     bulkCreateFoodVariants: vi.fn(),
@@ -779,6 +780,38 @@ describe('lookup_food_nutrition', () => {
 });
 
 describe('log_food', () => {
+  // Regression: logFoodSchema is strict, so is_quick_food used to be stripped
+  // before the handler ran and the request vanished without a word. log_food
+  // only ever logs a food that is already saved, so the flag must be reported
+  // as not applied — never used to hide the existing food.
+  it('reports Quick Add as not applied instead of dropping it', async () => {
+    vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
+      eggsRow,
+    ]);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Eggs',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_name: 'Eggs',
+        quantity: 2,
+        meal_type: 'breakfast',
+        entry_date: '2026-06-10',
+        is_quick_food: true,
+      },
+      opts
+    );
+
+    expect(result).toContain(
+      'Quick Add was not applied because this food is already in your food list.'
+    );
+    expect(foodCoreService.createFood).not.toHaveBeenCalled();
+    expect(foodEntryService.createFoodEntry).toHaveBeenCalled();
+  });
+
   it('reports the legacy meal_type name when resolution fails', async () => {
     vi.mocked(mealTypeRepository.getAllMealTypes).mockResolvedValue([]);
 
@@ -1505,6 +1538,7 @@ describe('log_external_food', () => {
       provider_external_id: '171688',
       image_url: null,
       image_source_url: null,
+      is_quick_food: false,
     });
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
       'user-1',
@@ -1685,6 +1719,75 @@ describe('log_external_food', () => {
     );
   });
 
+  // Regression: is_quick_food was originally wired only into create_food, but
+  // the tool description steers every provider match here instead — so "quick
+  // add my green tea" saved a permanent library food.
+  it('marks a Quick Add external food hidden', async () => {
+    mockUsdaLookup([usdaApple]);
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Apple',
+      default_variant: {
+        id: VARIANT_ID,
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 52,
+      },
+    });
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Apple',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_external_food',
+        food_name: 'Apple',
+        external_id: '171688',
+        quantity: 2,
+        meal_type: 'breakfast',
+        entry_date: '2026-06-10',
+        is_quick_food: true,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ Saved "Apple" from usda (52 kcal per 100g) and logged 200 g to Breakfast on 2026-06-10. Saved as Quick Add — hidden from your food list and search.'
+    );
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ is_quick_food: true })
+    );
+  });
+
+  it('does not hide a food that is already in the library when Quick Add is asked for', async () => {
+    vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
+      eggsRow,
+    ]);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Eggs',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_external_food',
+        food_name: 'Eggs',
+        quantity: 2,
+        meal_type: 'breakfast',
+        entry_date: '2026-06-10',
+        is_quick_food: true,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ "Eggs" was already in the food database — logged 200 g for Breakfast on 2026-06-10. Quick Add was not applied because this food is already in your food list.'
+    );
+    expect(foodCoreService.createFood).not.toHaveBeenCalled();
+  });
+
   it('logs directly without creating a food when the lookup resolves internally', async () => {
     vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
       eggsRow,
@@ -1734,6 +1837,28 @@ describe('log_external_food', () => {
     );
     expect(foodCoreService.createFood).not.toHaveBeenCalled();
     expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
+  });
+
+  // Regression: the retry example is what the model copies verbatim. Dropping
+  // is_quick_food here saved a visible food after the user asked not to.
+  it('carries Quick Add into the create_food fallback suggestion', async () => {
+    mockUsdaLookup([]);
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_external_food',
+        food_name: 'dragonfruit smoothie',
+        meal_type: 'snacks',
+        entry_date: '2026-06-10',
+        is_quick_food: true,
+      },
+      opts
+    );
+
+    expect(result).toContain('"is_quick_food":true');
+    expect(result).toBe(
+      'Error [VALIDATION]: No external match found for "dragonfruit smoothie". Please estimate the nutrition yourself and call create_food (include meal_type_id (or meal_type) and entry_date to save and log in one step), for example: {"action":"create_food","food_name":"dragonfruit smoothie","calories":300,"protein":15,"carbs":40,"fat":5,"meal_type":"snacks","entry_date":"2026-06-10","is_quick_food":true}'
+    );
   });
 
   // Regression: a custom meal_type_id must survive into the retry example so
@@ -1908,6 +2033,7 @@ describe('create_food', () => {
       user_id: 'user-1',
       name: 'Protein Bar',
       brand: 'BrandX',
+      notes: null,
       serving_size: 1,
       serving_unit: 'serving',
       calories: 220,
@@ -1928,6 +2054,7 @@ describe('create_food', () => {
       calcium: null,
       iron: null,
       glycemic_index: 'Low',
+      is_quick_food: false,
     });
     expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
   });
@@ -1982,6 +2109,104 @@ describe('create_food', () => {
         unit: 'g',
         meal_type_id: 'lunch-id',
       }
+    );
+  });
+
+  it('marks a Quick Add food hidden and logs it in the same call', async () => {
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Tasting Menu',
+      brand: null,
+      default_variant: {
+        id: VARIANT_ID,
+        serving_size: 1,
+        serving_unit: 'serving',
+        calories: 1200,
+      },
+    });
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'create_food',
+        food_name: 'Tasting Menu',
+        calories: 1200,
+        protein: 45,
+        carbs: 90,
+        fat: 70,
+        meal_type: 'dinner',
+        entry_date: '2026-06-10',
+        is_quick_food: true,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ Food "Tasting Menu" created with 1200 kcal per 1serving. Also logged to Dinner for 2026-06-10. Saved as Quick Add — hidden from your food list and search.'
+    );
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ is_quick_food: true })
+    );
+    expect(foodEntryService.createFoodEntry).toHaveBeenCalled();
+  });
+
+  it('rejects a Quick Add food that would never be logged', async () => {
+    // Hidden from every discovery query and absent from the diary, such a food
+    // would be unreachable, so the call is refused before anything is written.
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'create_food',
+        food_name: 'Tasting Menu',
+        calories: 1200,
+        protein: 45,
+        carbs: 90,
+        fat: 70,
+        is_quick_food: true,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      'Error [VALIDATION]: Quick Add foods are hidden from the food list and search, so they must be logged in the same call. Add meal_type_id (or meal_type) to this create_food call, or drop is_quick_food to save it to the food list.'
+    );
+    expect(foodCoreService.createFood).not.toHaveBeenCalled();
+    expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
+  });
+
+  it('keeps an explicit is_quick_food:false out of the confirmation', async () => {
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Oats',
+      brand: null,
+      default_variant: {
+        id: VARIANT_ID,
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 380,
+      },
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'create_food',
+        food_name: 'Oats',
+        calories: 380,
+        protein: 13,
+        carbs: 67,
+        fat: 7,
+        unit: 'g',
+        is_quick_food: false,
+      },
+      opts
+    );
+
+    expect(result).toBe('✅ Food "Oats" created with 380 kcal per 100g.');
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ is_quick_food: false })
     );
   });
 });
@@ -3542,6 +3767,13 @@ describe('save_as_meal_template', () => {
       '2026-06-10',
       MEAL_TYPE_ID,
       'My Second Breakfast',
+      null,
+      false,
+      null,
+      1,
+      1,
+      1,
+      'serving',
       null
     );
     expect(foodEntryService.createFoodEntryMeal).not.toHaveBeenCalled();
@@ -3575,6 +3807,13 @@ describe('save_as_meal_template', () => {
       '2026-06-10',
       'lunch-id',
       'My Lunch',
+      null,
+      false,
+      null,
+      1,
+      1,
+      1,
+      'serving',
       null
     );
   });
@@ -3614,6 +3853,13 @@ describe('save_as_meal_template', () => {
       '2026-06-10',
       MEAL_TYPE_ID,
       'My Second Breakfast',
+      null,
+      false,
+      null,
+      1,
+      1,
+      1,
+      'serving',
       null
     );
   });
@@ -3879,6 +4125,27 @@ describe('sparky_list_foods', () => {
 });
 
 describe('sparky_get_food_details', () => {
+  it('returns a long note in full, not a preview', async () => {
+    // set_food_notes replaces the note outright, so an append means reading it
+    // back first. Returning a truncated preview here would write the note back
+    // with its tail cut off.
+    const longNote = 'a'.repeat(1200);
+    vi.mocked(foodCoreService.getFoodById).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Eggs',
+      notes: longNote,
+      default_variant: { id: VARIANT_ID },
+    });
+    vi.mocked(foodRepository.getFoodVariantsByFoodId).mockResolvedValue([]);
+
+    const result = await tools.sparky_get_food_details.execute!(
+      { food_id: FOOD_ID },
+      opts
+    );
+
+    expect(JSON.parse(result as string).notes).toBe(longNote);
+  });
+
   it('returns the food with all variants', async () => {
     vi.mocked(foodCoreService.getFoodById).mockResolvedValue({
       id: FOOD_ID,
@@ -4164,5 +4431,78 @@ describe('sparky_get_food_usage', () => {
       20,
       0
     );
+  });
+});
+
+describe('sparky_manage_food set_food_notes', () => {
+  const FOOD_UUID = '11111111-2222-4333-8444-555555555555';
+
+  it('stores a note on a food found by name', async () => {
+    vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
+      { id: FOOD_UUID, name: 'Chipotle bowl' },
+    ] as never);
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'set_food_notes',
+        food_name: 'Chipotle bowl',
+        notes: '**White rice**, double chicken',
+      },
+      opts
+    );
+
+    expect(foodCoreService.updateFood).toHaveBeenCalledWith(
+      'user-1',
+      FOOD_UUID,
+      { notes: '**White rice**, double chicken' }
+    );
+    expect(result).toBe('Saved the note on Chipotle bowl.');
+  });
+
+  it('clears the note when passed an empty string', async () => {
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_UUID,
+      name: 'Chipotle bowl',
+    } as never);
+
+    const result = await tools.sparky_manage_food.execute!(
+      // Null cannot be used: the tool layer strips null arguments before
+      // validation, so an empty string is the clear signal.
+      { action: 'set_food_notes', food_id: FOOD_UUID, notes: '' },
+      opts
+    );
+
+    expect(foodCoreService.updateFood).toHaveBeenCalledWith(
+      'user-1',
+      FOOD_UUID,
+      { notes: '' }
+    );
+    expect(result).toBe('Cleared the note on Chipotle bowl.');
+  });
+
+  it('refuses a food the user does not own', async () => {
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_UUID,
+      name: 'Shared food',
+    } as never);
+    vi.mocked(foodCoreService.updateFood).mockRejectedValue(
+      new Error('Forbidden: You do not own this food.')
+    );
+
+    const result = await tools.sparky_manage_food.execute!(
+      { action: 'set_food_notes', food_id: FOOD_UUID, notes: 'mine now' },
+      opts
+    );
+
+    expect(result).toContain('FORBIDDEN');
+  });
+
+  it('requires a food to act on', async () => {
+    const result = await tools.sparky_manage_food.execute!(
+      { action: 'set_food_notes', notes: 'orphan' },
+      opts
+    );
+
+    expect(result).toContain('food_id or food_name');
   });
 });

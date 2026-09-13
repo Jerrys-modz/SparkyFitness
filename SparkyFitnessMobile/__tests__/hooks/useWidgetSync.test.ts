@@ -68,8 +68,7 @@ const androidSetSnapshot = CalorieWidgetBridge.setCalorieSnapshot as jest.Mock;
 const androidReload = CalorieWidgetBridge.reloadWidget as jest.Mock;
 const androidSetMacroSnapshot =
   CalorieWidgetBridge.setMacroSnapshot as jest.Mock;
-const androidReloadMacro =
-  CalorieWidgetBridge.reloadMacroWidget as jest.Mock;
+const androidReloadMacro = CalorieWidgetBridge.reloadMacroWidget as jest.Mock;
 
 const flushWidgetPush = async () => {
   await Promise.resolve();
@@ -132,12 +131,12 @@ describe('useWidgetSync', () => {
   it('writes both snapshots and reloads both widgets when calorieBalance + macros present', () => {
     renderHook(() => useWidgetSync(makeSummary()));
 
-    const keys = setMock.mock.calls.map(call => call[0]);
+    const keys = setMock.mock.calls.map((call) => call[0]);
     expect(keys).toContain('calorieSnapshot');
     expect(keys).toContain('macroSnapshot');
 
     const macroCall = setMock.mock.calls.find(
-      call => call[0] === 'macroSnapshot',
+      (call) => call[0] === 'macroSnapshot'
     );
     expect(macroCall?.[1]).toMatchObject({
       protein: 92,
@@ -146,9 +145,9 @@ describe('useWidgetSync', () => {
       calories: 1540,
     });
 
-    const reloadedKinds = reloadMock.mock.calls.map(call => call[0]);
+    const reloadedKinds = reloadMock.mock.calls.map((call) => call[0]);
     expect(reloadedKinds).toEqual(
-      expect.arrayContaining(['widget', 'macroWidget']),
+      expect.arrayContaining(['widget', 'macroWidget'])
     );
     expect(reloadedKinds).toHaveLength(2);
     expect(mockAddLog).not.toHaveBeenCalled();
@@ -160,10 +159,10 @@ describe('useWidgetSync', () => {
     });
     renderHook(() => useWidgetSync(summary));
 
-    const keys = setMock.mock.calls.map(call => call[0]);
+    const keys = setMock.mock.calls.map((call) => call[0]);
     expect(keys).toEqual(['macroSnapshot']);
 
-    const reloadedKinds = reloadMock.mock.calls.map(call => call[0]);
+    const reloadedKinds = reloadMock.mock.calls.map((call) => call[0]);
     expect(reloadedKinds).toEqual(['macroWidget']);
     expect(mockAddLog).not.toHaveBeenCalled();
   });
@@ -210,8 +209,41 @@ describe('useWidgetSync', () => {
       fat: 55,
       calories: 1540,
       remaining: 460,
+      // The widget's per-macro bars need each goal to show real progress; without
+      // them it can only compare macros against each other, which barely moves
+      // across the day (#2228).
+      proteinGoal: 150,
+      carbsGoal: 200,
+      fatGoal: 65,
     });
     expect(androidReloadMacro).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-pushes the macro snapshot when only a macro goal changes', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    const { rerender } = renderHook(({ summary }) => useWidgetSync(summary), {
+      initialProps: { summary: makeSummary() },
+    });
+    await flushWidgetPush();
+    expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(1);
+
+    // Consumption is identical, so a snapshot keyed only on consumed grams
+    // would dedupe this away and leave the bars rendering against a stale goal.
+    rerender({
+      summary: makeSummary({ protein: { consumed: 92, goal: 180 } }),
+    });
+    await flushWidgetPush();
+
+    expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(2);
+    const latest = JSON.parse(
+      androidSetMacroSnapshot.mock.calls[1][0] as string
+    );
+    expect(latest).toMatchObject({ protein: 92, proteinGoal: 180 });
+    expect(androidReloadMacro).toHaveBeenCalledTimes(2);
   });
 
   it('skips Android pushes when only non-rendered summary fields change', async () => {
@@ -282,7 +314,7 @@ describe('useWidgetSync', () => {
     expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(2);
     expect(androidReloadMacro).toHaveBeenCalledTimes(2);
     const macroPayload = JSON.parse(
-      androidSetMacroSnapshot.mock.calls[1][0] as string,
+      androidSetMacroSnapshot.mock.calls[1][0] as string
     );
     expect(macroPayload).toMatchObject({
       remaining: 400,
@@ -316,7 +348,7 @@ describe('useWidgetSync', () => {
     expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(2);
     expect(androidReloadMacro).toHaveBeenCalledTimes(2);
     const payload = JSON.parse(
-      androidSetMacroSnapshot.mock.calls[1][0] as string,
+      androidSetMacroSnapshot.mock.calls[1][0] as string
     );
     expect(payload).toMatchObject({
       calories: 1600,
@@ -362,7 +394,7 @@ describe('useWidgetSync', () => {
     expect(androidReloadMacro).toHaveBeenCalledTimes(1);
     expect(mockAddLog).toHaveBeenCalledWith(
       expect.stringContaining('Android calorie widget push failed'),
-      'ERROR',
+      'ERROR'
     );
   });
 
@@ -389,7 +421,7 @@ describe('useWidgetSync', () => {
     expect(androidReloadMacro).toHaveBeenCalledTimes(1);
     expect(mockAddLog).toHaveBeenCalledWith(
       expect.stringContaining('Android macro widget push failed'),
-      'ERROR',
+      'ERROR'
     );
   });
 });

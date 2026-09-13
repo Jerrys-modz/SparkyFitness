@@ -2,6 +2,11 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  CHART_SCALE_MODES,
+  MAX_CALORIE_SAFETY_FLOOR,
+  MIN_CALORIE_SAFETY_FLOOR,
+} from '@workspace/shared';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const swaggerScanPaths = [
@@ -1060,6 +1065,13 @@ const options = {
             muscle_mass_kg: { type: 'number', nullable: true },
             bone_mass_kg: { type: 'number', nullable: true },
             body_water_percentage: { type: 'number', nullable: true },
+            bmr: {
+              type: 'number',
+              nullable: true,
+              minimum: 300,
+              maximum: 10000,
+              description: 'Basal Metabolic Rate in kcal',
+            },
             created_at: { type: 'string', format: 'date-time' },
             updated_at: { type: 'string', format: 'date-time' },
           },
@@ -1154,6 +1166,30 @@ const options = {
             timezone: { type: 'string' },
             unit_system: { type: 'string', enum: ['metric', 'imperial'] },
             meal_calorie_distribution: { type: 'object' },
+            calorie_safety_floor_mode: {
+              type: 'string',
+              enum: ['standard', 'custom', 'disabled'],
+              description:
+                'Controls adaptive calorie-target clamping. Standard uses the recommended RMR/clinical floor, custom uses calorie_safety_floor_value, and disabled only reports health warnings.',
+            },
+            calorie_safety_floor_value: {
+              type: 'integer',
+              minimum: MIN_CALORIE_SAFETY_FLOOR,
+              maximum: MAX_CALORIE_SAFETY_FLOOR,
+              description:
+                'Custom calorie safety floor in kcal/day. Used when calorie_safety_floor_mode is custom.',
+            },
+            chart_scale_mode: {
+              type: 'string',
+              enum: [...CHART_SCALE_MODES],
+              description:
+                'Date-axis layout for report charts. Time spaces points by elapsed time so gaps stay visible; point spaces entries evenly.',
+            },
+            food_search_all_providers_default: {
+              type: 'boolean',
+              description:
+                'When true, food search defaults to the aggregated "All Providers" mode rather than a single provider. Held separately from default_food_data_provider_id, which is a uuid and cannot store the aggregated sentinel, so the single-provider choice survives turning this off. Ignored while fewer than two food providers are active.',
+            },
           },
         },
         OnboardingStatus: {
@@ -1324,6 +1360,166 @@ const options = {
                 type: 'number',
               },
               description: 'Aggregated custom nutrients values',
+            },
+          },
+        },
+        ExercisePersonalRecordItem: {
+          type: 'object',
+          description:
+            'One best effort. sportGroup is the record boundary — efforts compete only within the same group, so a hike and a walk contend for the same walk record — while sport classifies the winning activity itself.',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Stable id in the form pr-<sportGroup>-<standard>.',
+            },
+            category: {
+              type: 'string',
+              description: 'Legacy alias of sport, retained for older clients.',
+            },
+            sport: {
+              type: 'string',
+              enum: [
+                'running',
+                'cycling',
+                'walking',
+                'hiking',
+                'swimming',
+                'rowing',
+                'fitness_equipment',
+                'strength',
+                'other',
+              ],
+              description:
+                'Canonical sport of the winning activity, named after the ANT+/FIT SDK sport enum. Descriptive only — it does not define which efforts competed for this record. Absent on servers predating per-sport records.',
+            },
+            sportGroup: {
+              type: 'string',
+              enum: ['run', 'ride', 'walk', 'swim', 'other'],
+              description:
+                'The record boundary: one record is kept per (sportGroup, distanceStandard) pair, and hiking folds into walk. Group by this field to render the matrix.',
+            },
+            sportConfidence: {
+              type: 'string',
+              enum: ['declared', 'inferred'],
+              description:
+                "declared when the sport came from the provider's own enum, inferred when it was derived from notes or the activity name.",
+            },
+            distanceStandard: {
+              type: 'string',
+              enum: [
+                '1k',
+                '1mi',
+                '5k',
+                '10k',
+                '15k',
+                'half_marathon',
+                'marathon',
+                'custom',
+              ],
+              description: 'Milestone distance band this record belongs to.',
+            },
+            label: {
+              type: 'string',
+              description: 'Display label, e.g. "Half Marathon (21.1 km)".',
+            },
+            bestTimeSeconds: { type: 'number' },
+            formattedTime: {
+              type: 'string',
+              description: 'e.g. "1:42:15".',
+            },
+            avgPaceSecondsPerKm: { type: 'number' },
+            formattedPace: {
+              type: 'string',
+              description: 'e.g. "4:50 /km" or "7:47 /mi".',
+            },
+            activityId: { type: 'string' },
+            activityName: { type: 'string' },
+            achievedAt: {
+              type: 'string',
+              description: 'Calendar day the record was set (YYYY-MM-DD).',
+            },
+          },
+        },
+        ExercisePRMatrixResponse: {
+          type: 'object',
+          properties: {
+            cardioPRs: {
+              type: 'array',
+              description:
+                'One entry per (sportGroup, distance standard) pair, ordered by sport group then distance.',
+              items: {
+                $ref: '#/components/schemas/ExercisePersonalRecordItem',
+              },
+            },
+            strength1RMs: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  exerciseName: { type: 'string' },
+                  estimatedOneRMKg: { type: 'number' },
+                  weightKg: { type: 'number' },
+                  reps: { type: 'number' },
+                  achievedAt: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        MatchedCourseGroup: {
+          type: 'object',
+          description:
+            'A repeated route, grouped by activity name, with its recent runs of that course.',
+          properties: {
+            courseId: { type: 'string' },
+            courseName: { type: 'string' },
+            category: {
+              type: 'string',
+              description: 'Raw entry category as stored.',
+            },
+            sport: {
+              type: 'string',
+              enum: [
+                'running',
+                'cycling',
+                'walking',
+                'hiking',
+                'swimming',
+                'rowing',
+                'fitness_equipment',
+                'strength',
+                'other',
+              ],
+              description:
+                'Sport derived from the course name and category. Absent on servers predating per-sport records.',
+            },
+            totalDistanceMeters: { type: 'number' },
+            avgDistanceFormatted: { type: 'number' },
+            activityCount: { type: 'number' },
+            bestTimeSeconds: { type: 'number' },
+            bestPaceFormatted: { type: 'string' },
+            recentActivities: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  activityId: { type: 'string' },
+                  activityName: { type: 'string' },
+                  entryDate: { type: 'string' },
+                  durationMinutes: { type: 'number' },
+                  avgPaceFormatted: { type: 'string' },
+                  avgHeartRate: { type: 'number', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        MatchedCoursesResponse: {
+          type: 'object',
+          properties: {
+            courses: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/MatchedCourseGroup' },
             },
           },
         },

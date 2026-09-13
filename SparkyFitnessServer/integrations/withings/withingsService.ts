@@ -4,42 +4,91 @@ import { encrypt, decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
 import withingsDataProcessor from './withingsDataProcessor.js';
 import { logRawResponse } from '../../utils/diagnosticLogger.js';
-// Helper function to interpolate parameters into a SQL query for logging
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function interpolateQuery(sql: any, params: any) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return sql.replace(/\$([0-9]+)/g, (match: any, p1: any) => {
-    const index = parseInt(p1, 10) - 1;
-    if (params[index] === undefined) {
-      return match; // Return original placeholder if param is missing
-    }
-    // Handle different types for proper SQL representation
-    if (typeof params[index] === 'string') {
-      return `'${params[index].replace(/'/g, "''")}'`; // Escape single quotes
-    }
-    if (params[index] instanceof Date) {
-      return `'${params[index].toISOString()}'`;
-    }
-    return params[index];
-  });
-}
+import { claimOAuthState, persistOAuthState } from '../../utils/oauthState.js';
 const WITHINGS_API_BASE_URL = 'https://wbsapi.withings.net';
 const WITHINGS_ACCOUNT_BASE_URL = 'https://account.withings.com';
+interface WithingsTokenBody {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: string | number;
+  scope?: string;
+  userid?: string | number;
+}
+
+interface WithingsTokenEnvelope {
+  status?: number | string;
+  error?: string;
+  body?: Partial<WithingsTokenBody>;
+}
+
+// A rejected response can still carry a live access_token (for example when only
+// the refresh_token is missing), so failures are described by status and error
+// alone. The raw payload must never reach the logs.
+function describeWithingsFailure(
+  data: WithingsTokenEnvelope | undefined
+): string {
+  const status = data?.status === undefined ? 'absent' : String(data.status);
+  return `status ${status}${data?.error ? `: ${data.error}` : ''}`;
+}
+
+// Withings wraps every response as { status, body } and only status 0 is success.
+// Their docs do not specify whether an error response omits `body` or sends an
+// empty one, so a truthy-body check alone is not a safe guard: check the status
+// and the token fields before anything is encrypted or persisted. encrypt()
+// returns nulls rather than throwing on a missing token, so an unguarded refresh
+// would overwrite the stored refresh token with NULL and disconnect the user.
+function parseWithingsTokenResponse(
+  data: WithingsTokenEnvelope | undefined,
+  context: string
+): WithingsTokenBody {
+  const failure = describeWithingsFailure(data);
+  if (data?.status !== undefined && Number(data.status) !== 0) {
+    log('error', `Withings ${context} error: ${failure}.`);
+    throw new Error(`Withings ${context} failed with ${failure}.`);
+  }
+  if (!data || !data.body) {
+    log(
+      'error',
+      `Withings ${context} error: invalid response structure (${failure}).`
+    );
+    throw new Error(`Invalid Withings API response structure (${context}).`);
+  }
+  const { access_token, refresh_token } = data.body;
+  if (!access_token || !refresh_token) {
+    log(
+      'error',
+      `Withings ${context} error: response contained no usable tokens (${failure}).`
+    );
+    throw new Error(
+      `Missing access_token or refresh_token in Withings ${context} response.`
+    );
+  }
+  return { ...data.body, access_token, refresh_token };
+}
+
+// Withings expects token requests as form-encoded POST bodies on the v2/oauth2 endpoint.
+async function requestWithingsToken(params: Record<string, string>) {
+  return axios.post(
+    `${WITHINGS_API_BASE_URL}/v2/oauth2`,
+    new URLSearchParams({ action: 'requesttoken', ...params }),
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    }
+  );
+}
 // Function to construct the Withings authorization URL
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getAuthorizationUrl(userId: any) {
+async function getAuthorizationUrl(userId: string) {
   const client = await getSystemClient();
   try {
-    const result = await client.query(
-      `SELECT encrypted_app_id, app_id_iv, app_id_tag
-             FROM external_data_providers
-             WHERE user_id = $1 AND provider_type = 'withings'`,
-      [userId]
-    );
-    if (result.rows.length === 0) {
-      throw new Error('Withings client credentials not found for user.');
-    }
-    const { encrypted_app_id, app_id_iv, app_id_tag } = result.rows[0];
+    // Issuing the state and reading the client credentials is one statement, so
+    // the client_id in this URL always belongs to the row holding the nonce.
+    const { state, encrypted_app_id, app_id_iv, app_id_tag } =
+      await persistOAuthState(client, {
+        userId,
+        providerType: 'withings',
+      });
     const clientId = await decrypt(
       encrypted_app_id,
       app_id_iv,
@@ -47,37 +96,36 @@ async function getAuthorizationUrl(userId: any) {
       ENCRYPTION_KEY
     );
     const scope = 'user.info,user.metrics,user.activity,user.sleepevents'; // Define required scopes
-    const state = userId; // Use the userId as the state to identify the user on callback
-    // Store state in session or database to validate on callback
     return `${WITHINGS_ACCOUNT_BASE_URL}/oauth2_user/authorize2?response_type=code&client_id=${clientId}&scope=${scope}&redirect_uri=${process.env.SPARKY_FITNESS_FRONTEND_URL}/withings/callback&state=${state}`;
   } finally {
     client.release();
   }
 }
-// Function to exchange authorization code for access and refresh tokens
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function exchangeCodeForTokens(userId: any, code: any, redirectUri: any) {
+// Function to exchange authorization code for access and refresh tokens.
+// `userId` is deliberately absent from this signature: the owner is recovered
+// from the claimed state row, so no caller can name the row that gets written.
+async function exchangeCodeForTokens(
+  state: unknown,
+  code: string,
+  redirectUri: string,
+  actorUserId: string
+) {
   const client = await getSystemClient();
   try {
-    // Validate state parameter (implementation depends on where state is stored)
-    // For example, retrieve from session and compare
-    const providerResult = await client.query(
-      `SELECT encrypted_app_id, app_id_iv, app_id_tag, encrypted_app_key, app_key_iv, app_key_tag
-             FROM external_data_providers
-             WHERE user_id = $1 AND provider_type = 'withings'`,
-      [userId]
-    );
-    if (providerResult.rows.length === 0) {
-      throw new Error('Withings client credentials not found for user.');
-    }
     const {
+      id: providerRowId,
+      user_id: ownerUserId,
       encrypted_app_id,
       app_id_iv,
       app_id_tag,
       encrypted_app_key,
       app_key_iv,
       app_key_tag,
-    } = providerResult.rows[0];
+    } = await claimOAuthState(client, {
+      state,
+      providerType: 'withings',
+      actorUserId,
+    });
     const clientId = await decrypt(
       encrypted_app_id,
       app_id_iv,
@@ -90,40 +138,24 @@ async function exchangeCodeForTokens(userId: any, code: any, redirectUri: any) {
       app_key_tag,
       ENCRYPTION_KEY
     );
-    const response = await axios.post(
-      `${WITHINGS_API_BASE_URL}/v2/oauth2`,
-      null,
-      {
-        params: {
-          action: 'requesttoken',
-          grant_type: 'authorization_code',
-          client_id: clientId,
-          client_secret: clientSecret,
-          code: code,
-          redirect_uri: redirectUri,
-        },
-      }
-    );
-    if (!response.data || !response.data.body) {
-      log(
-        'error',
-        'Withings requesttoken error: Invalid response structure.',
-        JSON.stringify(response.data)
-      );
-      throw new Error('Invalid Withings API response structure.');
+    if (!clientId || !clientSecret) {
+      throw new Error('Withings client ID or client secret is missing.');
     }
+
+    const response = await requestWithingsToken({
+      grant_type: 'authorization_code',
+      client_id: clientId,
+      client_secret: clientSecret,
+      code: code,
+      redirect_uri: redirectUri,
+    });
     const { access_token, refresh_token, expires_in, scope, userid } =
-      response.data.body;
-    if (!access_token || !refresh_token) {
-      throw new Error(
-        'Missing access_token or refresh_token in Withings API response.'
-      );
-    }
+      parseWithingsTokenResponse(response.data, 'requesttoken');
     // Encrypt tokens
     const encryptedAccessToken = await encrypt(access_token, ENCRYPTION_KEY);
     const encryptedRefreshToken = await encrypt(refresh_token, ENCRYPTION_KEY);
     // Validate expires_in
-    let validExpiresIn = parseInt(expires_in, 10);
+    let validExpiresIn = parseInt(String(expires_in), 10);
     if (isNaN(validExpiresIn) || validExpiresIn <= 0) {
       log(
         'warn',
@@ -142,49 +174,32 @@ async function exchangeCodeForTokens(userId: any, code: any, redirectUri: any) {
       scope,
       new Date(Date.now() + validExpiresIn * 1000),
       userid,
-      userId,
+      providerRowId,
     ];
-    log(
-      'info',
-      'Attempting to update database with payload:',
-      JSON.stringify(
-        {
-          encrypted_access_token: encryptedAccessToken.encryptedText,
-          scope: scope,
-          expires_in: expires_in,
-          external_user_id: userid,
-          user_id: userId,
-        },
-        null,
-        2
-      )
-    );
     try {
+      // Keyed on the claimed row's primary key: `provider_type` carries no
+      // uniqueness constraint, so a user_id predicate could fan out across rows.
+      // `oauth_state = NULL` is redundant after the claim, but states the invariant.
       const updateQuery = `UPDATE external_data_providers
                 SET encrypted_access_token = $1, access_token_iv = $2, access_token_tag = $3,
                     encrypted_refresh_token = $4, refresh_token_iv = $5, refresh_token_tag = $6,
-                    scope = $7, token_expires_at = $8, external_user_id = $9, is_active = TRUE, updated_at = NOW()
-                WHERE user_id = $10 AND provider_type = 'withings'`;
-      log('info', `Executing SQL query: ${updateQuery}`);
-      log('info', `With payload: ${JSON.stringify(updatePayload)}`);
-      log(
-        'info',
-        `Interpolated SQL query: ${interpolateQuery(updateQuery, updatePayload)}`
-      );
+                    scope = $7, token_expires_at = $8, external_user_id = $9,
+                    oauth_state = NULL, is_active = TRUE, updated_at = NOW()
+                WHERE id = $10`;
       const dbResult = await client.query(updateQuery, updatePayload);
       log(
         'info',
-        `Database update result for user ${userId}: ${dbResult.rowCount} rows updated.`
+        `Database update result for user ${ownerUserId}: ${dbResult.rowCount} rows updated.`
       );
     } catch (dbError) {
       log(
         'error',
-        `FATAL: Database update failed for user ${userId}:`,
+        `FATAL: Database update failed for user ${ownerUserId}:`,
         dbError
       );
       throw dbError; // Re-throw to ensure the outer catch block handles it
     }
-    return { success: true, userId: userid };
+    return { success: true, userId: userid, ownerUserId };
   } catch (error) {
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
     log('error', `Error exchanging Withings code for tokens: ${error.message}`);
@@ -239,37 +254,25 @@ async function refreshAccessToken(userId: any) {
       refresh_token_tag,
       ENCRYPTION_KEY
     );
-    const response = await axios.post(
-      `${WITHINGS_API_BASE_URL}/v2/oauth2`,
-      null,
-      {
-        params: {
-          action: 'requesttoken',
-          grant_type: 'refresh_token',
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: refreshToken,
-        },
-      }
-    );
-    if (!response.data || !response.data.body) {
-      log(
-        'error',
-        'Withings refresh access token error: Invalid response structure.',
-        JSON.stringify(response.data)
-      );
+    if (!clientId || !clientSecret || !refreshToken) {
       throw new Error(
-        'Invalid Withings API response structure during token refresh.'
+        'Withings client ID, client secret, or refresh token is missing.'
       );
     }
+    const response = await requestWithingsToken({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    });
     const {
       access_token,
       refresh_token: newRefreshToken,
       expires_in,
       scope,
-    } = response.data.body;
+    } = parseWithingsTokenResponse(response.data, 'token refresh');
     // Validate expires_in
-    let validExpiresIn = parseInt(expires_in, 10);
+    let validExpiresIn = parseInt(String(expires_in), 10);
     if (isNaN(validExpiresIn) || validExpiresIn <= 0) {
       log(
         'warn',

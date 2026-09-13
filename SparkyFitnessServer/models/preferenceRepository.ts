@@ -1,4 +1,82 @@
 import { getClient } from '../db/poolManager.js';
+
+export interface OpenFoodFactsContributionPreferences {
+  enabled: boolean;
+  productLanguage: string;
+  backfillPending: boolean;
+}
+
+interface OpenFoodFactsPreferenceRow {
+  auto_contribute_openfoodfacts: boolean;
+  openfoodfacts_product_language: string;
+  openfoodfacts_backfill_pending: boolean;
+}
+
+function mapOpenFoodFactsPreferences(
+  row?: OpenFoodFactsPreferenceRow
+): OpenFoodFactsContributionPreferences {
+  return {
+    enabled: row?.auto_contribute_openfoodfacts ?? false,
+    productLanguage: row?.openfoodfacts_product_language ?? 'en',
+    backfillPending: row?.openfoodfacts_backfill_pending ?? false,
+  };
+}
+
+async function getOpenFoodFactsContributionPreferences(
+  userId: string
+): Promise<OpenFoodFactsContributionPreferences> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT auto_contribute_openfoodfacts,
+              openfoodfacts_product_language,
+              openfoodfacts_backfill_pending
+         FROM user_preferences
+        WHERE user_id = $1`,
+      [userId]
+    );
+    return mapOpenFoodFactsPreferences(
+      result.rows[0] as OpenFoodFactsPreferenceRow | undefined
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function setOpenFoodFactsContributionPreferences(
+  userId: string,
+  input: {
+    enabled: boolean;
+    productLanguage: string;
+  }
+): Promise<OpenFoodFactsContributionPreferences> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `INSERT INTO user_preferences (
+         user_id,
+         auto_contribute_openfoodfacts,
+         openfoodfacts_product_language,
+         created_at,
+         updated_at
+       ) VALUES ($1, $2, $3, now(), now())
+       ON CONFLICT (user_id) DO UPDATE SET
+         auto_contribute_openfoodfacts = EXCLUDED.auto_contribute_openfoodfacts,
+         openfoodfacts_product_language = EXCLUDED.openfoodfacts_product_language,
+         updated_at = now()
+       RETURNING auto_contribute_openfoodfacts,
+                 openfoodfacts_product_language,
+                 openfoodfacts_backfill_pending`,
+      [userId, input.enabled, input.productLanguage]
+    );
+    return mapOpenFoodFactsPreferences(
+      result.rows[0] as OpenFoodFactsPreferenceRow | undefined
+    );
+  } finally {
+    client.release();
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function updateUserPreferences(userId: any, preferenceData: any) {
   const client = await getClient(userId); // User-specific operation
@@ -33,6 +111,12 @@ async function updateUserPreferences(userId: any, preferenceData: any) {
         auto_scale_online_imports = COALESCE($25, auto_scale_online_imports),
         first_day_of_week = COALESCE($29, first_day_of_week),
         barcode_fallback_open_food_facts = COALESCE($30, barcode_fallback_open_food_facts),
+        food_search_all_providers_default = COALESCE($47, food_search_all_providers_default),
+        add_food_water_to_intake = COALESCE($48, add_food_water_to_intake),
+        standard_drink_grams = COALESCE($49, standard_drink_grams),
+        weekly_alcohol_limit_g = COALESCE($50, weekly_alcohol_limit_g),
+        caffeine_half_life_hours = COALESCE($51, caffeine_half_life_hours),
+        target_bedtime = COALESCE($52, target_bedtime),
         show_net_carbs = COALESCE($31, show_net_carbs),
         ai_assisted_conversions = COALESCE($32, ai_assisted_conversions),
         goal_mode = COALESCE($33, goal_mode),
@@ -45,6 +129,9 @@ async function updateUserPreferences(userId: any, preferenceData: any) {
         active_vision_ai_service_id = CASE WHEN $42 THEN $41 ELSE active_vision_ai_service_id END,
         measurement_decimal_places = COALESCE($40, measurement_decimal_places),
         added_sugar_algorithm = COALESCE($43, added_sugar_algorithm),
+        calorie_safety_floor_mode = COALESCE($45, calorie_safety_floor_mode),
+        calorie_safety_floor_value = COALESCE($46, calorie_safety_floor_value),
+        chart_scale_mode = COALESCE($53, chart_scale_mode),
         updated_at = now()
       WHERE user_id = $28
       RETURNING *`,
@@ -93,6 +180,15 @@ async function updateUserPreferences(userId: any, preferenceData: any) {
         'active_vision_ai_service_id' in preferenceData,
         preferenceData.added_sugar_algorithm,
         preferenceData.time_format,
+        preferenceData.calorie_safety_floor_mode,
+        preferenceData.calorie_safety_floor_value,
+        preferenceData.food_search_all_providers_default,
+        preferenceData.add_food_water_to_intake,
+        preferenceData.standard_drink_grams,
+        preferenceData.weekly_alcohol_limit_g,
+        preferenceData.caffeine_half_life_hours,
+        preferenceData.target_bedtime,
+        preferenceData.chart_scale_mode,
       ]
     );
     return result.rows[0];
@@ -168,6 +264,7 @@ async function upsertUserPreferences(preferenceData: any) {
        auto_scale_open_food_facts_imports, exercise_calorie_percentage, activity_level,
        tdee_allow_negative_adjustment, auto_scale_online_imports, default_barcode_provider_id,
        first_day_of_week, barcode_fallback_open_food_facts,
+       food_search_all_providers_default,
        show_net_carbs,
        ai_assisted_conversions,
        goal_mode,
@@ -179,6 +276,14 @@ async function upsertUserPreferences(preferenceData: any) {
        measurement_decimal_places,
        active_vision_ai_service_id,
        added_sugar_algorithm,
+       calorie_safety_floor_mode,
+       calorie_safety_floor_value,
+       add_food_water_to_intake,
+       standard_drink_grams,
+       weekly_alcohol_limit_g,
+       caffeine_half_life_hours,
+       target_bedtime,
+       chart_scale_mode,
        created_at, updated_at
      ) VALUES (
        $1, COALESCE($2, 'yyyy-MM-dd'), COALESCE($44, 'HH:mm'), COALESCE($3, 'lbs'), COALESCE($4, 'in'), COALESCE($5, 'km'),
@@ -193,6 +298,7 @@ async function upsertUserPreferences(preferenceData: any) {
        $27,
        COALESCE($29, 0),
        COALESCE($30, true),
+       COALESCE($47, false),
        COALESCE($31, false),
        COALESCE($32, true),
        COALESCE($33, 'maintain'),
@@ -204,6 +310,18 @@ async function upsertUserPreferences(preferenceData: any) {
        COALESCE($40, 0),
        $41,
        COALESCE($43, 'WHO_IDEAL'),
+       COALESCE($45, 'standard'),
+       COALESCE($46, 1200),
+       COALESCE($48, false),
+       COALESCE($49, 14.00),
+       $50,
+       COALESCE($51, 5.0),
+       -- Both the parameter and the literal are untyped here, so Postgres infers
+       -- text and refuses to assign it to a time-typed column. The
+       -- UPDATE arms above take their type from the column being assigned, which
+       -- is why only this INSERT arm failed.
+       COALESCE($52::time without time zone, '22:30'),
+       COALESCE($53, 'time'),
        now(), now()
      )
      ON CONFLICT (user_id) DO UPDATE SET
@@ -246,7 +364,21 @@ async function upsertUserPreferences(preferenceData: any) {
        active_vision_ai_service_id = CASE WHEN $42 THEN EXCLUDED.active_vision_ai_service_id ELSE user_preferences.active_vision_ai_service_id END,
        measurement_decimal_places = COALESCE(EXCLUDED.measurement_decimal_places, user_preferences.measurement_decimal_places),
        added_sugar_algorithm = COALESCE(EXCLUDED.added_sugar_algorithm, user_preferences.added_sugar_algorithm),
+       calorie_safety_floor_mode = COALESCE($45, user_preferences.calorie_safety_floor_mode),
+       calorie_safety_floor_value = COALESCE($46, user_preferences.calorie_safety_floor_value),
+       -- Read $47 directly rather than EXCLUDED: the VALUES clause defaults it to
+       -- false for a fresh insert, so EXCLUDED is never NULL and an upsert that
+       -- omits the field would clobber a stored true back to false. Same shape
+       -- as time_format below.
+       food_search_all_providers_default = COALESCE($47, user_preferences.food_search_all_providers_default),
+       add_food_water_to_intake = COALESCE($48, user_preferences.add_food_water_to_intake),
+       standard_drink_grams = COALESCE($49, user_preferences.standard_drink_grams),
+       weekly_alcohol_limit_g = COALESCE(EXCLUDED.weekly_alcohol_limit_g, user_preferences.weekly_alcohol_limit_g),
+       caffeine_half_life_hours = COALESCE($51, user_preferences.caffeine_half_life_hours),
+       target_bedtime = COALESCE($52, user_preferences.target_bedtime),
        time_format = COALESCE($44, user_preferences.time_format),
+       -- Read $53 directly rather than EXCLUDED, for the same reason as $47.
+       chart_scale_mode = COALESCE($53, user_preferences.chart_scale_mode),
        updated_at = now()
      RETURNING *`,
       [
@@ -294,6 +426,15 @@ async function upsertUserPreferences(preferenceData: any) {
         'active_vision_ai_service_id' in preferenceData,
         preferenceData.added_sugar_algorithm,
         preferenceData.time_format,
+        preferenceData.calorie_safety_floor_mode,
+        preferenceData.calorie_safety_floor_value,
+        preferenceData.food_search_all_providers_default,
+        preferenceData.add_food_water_to_intake,
+        preferenceData.standard_drink_grams,
+        preferenceData.weekly_alcohol_limit_g,
+        preferenceData.caffeine_half_life_hours,
+        preferenceData.target_bedtime,
+        preferenceData.chart_scale_mode,
       ]
     );
     return result.rows[0];
@@ -306,10 +447,14 @@ export { deleteUserPreferences };
 export { getUserPreferences };
 export { bootstrapUserTimezoneIfUnset };
 export { upsertUserPreferences };
+export { getOpenFoodFactsContributionPreferences };
+export { setOpenFoodFactsContributionPreferences };
 export default {
   updateUserPreferences,
   deleteUserPreferences,
   getUserPreferences,
   bootstrapUserTimezoneIfUnset,
   upsertUserPreferences,
+  getOpenFoodFactsContributionPreferences,
+  setOpenFoodFactsContributionPreferences,
 };

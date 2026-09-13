@@ -12,6 +12,7 @@ import {
   ensureNotificationPermission,
   fireRestCompleteCue,
   initNotifications,
+  registerLocalizedNotificationPresentation,
   maybePromptForExactAlarmPermission,
   scheduleFastGoalNotification,
   scheduleRestNotification,
@@ -21,6 +22,7 @@ import {
 import { ExactAlarmBridge } from '../../src/services/ExactAlarmBridge';
 import { __resetSoundsForTests } from '../../src/services/sounds';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
+import i18n, { initializeI18n } from '../../src/localization/i18n';
 
 jest.mock('../../src/services/ExactAlarmBridge', () => ({
   ExactAlarmBridge: {
@@ -33,44 +35,57 @@ jest.mock('../../src/services/ExactAlarmBridge', () => ({
 const mockGetPerms = Notifications.getPermissionsAsync as jest.MockedFunction<
   typeof Notifications.getPermissionsAsync
 >;
-const mockRequestPerms = Notifications.requestPermissionsAsync as jest.MockedFunction<
-  typeof Notifications.requestPermissionsAsync
->;
-const mockSchedule = Notifications.scheduleNotificationAsync as jest.MockedFunction<
-  typeof Notifications.scheduleNotificationAsync
->;
-const mockCancel = Notifications.cancelScheduledNotificationAsync as jest.MockedFunction<
-  typeof Notifications.cancelScheduledNotificationAsync
->;
-const mockCancelAll = Notifications.cancelAllScheduledNotificationsAsync as jest.MockedFunction<
-  typeof Notifications.cancelAllScheduledNotificationsAsync
->;
-const mockSetHandler = Notifications.setNotificationHandler as jest.MockedFunction<
-  typeof Notifications.setNotificationHandler
->;
-const mockSetChannel = Notifications.setNotificationChannelAsync as jest.MockedFunction<
-  typeof Notifications.setNotificationChannelAsync
->;
-const mockSetCategory = Notifications.setNotificationCategoryAsync as jest.MockedFunction<
-  typeof Notifications.setNotificationCategoryAsync
->;
-const mockGetAllScheduled = Notifications.getAllScheduledNotificationsAsync as jest.MockedFunction<
-  typeof Notifications.getAllScheduledNotificationsAsync
->;
-const mockGetPresented = Notifications.getPresentedNotificationsAsync as jest.MockedFunction<
-  typeof Notifications.getPresentedNotificationsAsync
->;
-const mockDismiss = Notifications.dismissNotificationAsync as jest.MockedFunction<
-  typeof Notifications.dismissNotificationAsync
->;
+const mockRequestPerms =
+  Notifications.requestPermissionsAsync as jest.MockedFunction<
+    typeof Notifications.requestPermissionsAsync
+  >;
+const mockSchedule =
+  Notifications.scheduleNotificationAsync as jest.MockedFunction<
+    typeof Notifications.scheduleNotificationAsync
+  >;
+const mockCancel =
+  Notifications.cancelScheduledNotificationAsync as jest.MockedFunction<
+    typeof Notifications.cancelScheduledNotificationAsync
+  >;
+const mockCancelAll =
+  Notifications.cancelAllScheduledNotificationsAsync as jest.MockedFunction<
+    typeof Notifications.cancelAllScheduledNotificationsAsync
+  >;
+const mockSetHandler =
+  Notifications.setNotificationHandler as jest.MockedFunction<
+    typeof Notifications.setNotificationHandler
+  >;
+const mockSetChannel =
+  Notifications.setNotificationChannelAsync as jest.MockedFunction<
+    typeof Notifications.setNotificationChannelAsync
+  >;
+const mockSetCategory =
+  Notifications.setNotificationCategoryAsync as jest.MockedFunction<
+    typeof Notifications.setNotificationCategoryAsync
+  >;
+const mockGetAllScheduled =
+  Notifications.getAllScheduledNotificationsAsync as jest.MockedFunction<
+    typeof Notifications.getAllScheduledNotificationsAsync
+  >;
+const mockGetPresented =
+  Notifications.getPresentedNotificationsAsync as jest.MockedFunction<
+    typeof Notifications.getPresentedNotificationsAsync
+  >;
+const mockDismiss =
+  Notifications.dismissNotificationAsync as jest.MockedFunction<
+    typeof Notifications.dismissNotificationAsync
+  >;
 const mockToastShow = Toast.show as jest.MockedFunction<typeof Toast.show>;
 
 describe('notifications service', () => {
   beforeEach(async () => {
+    await initializeI18n('en');
     await AsyncStorage.clear();
     __resetNotificationStateForTests();
     mockGetPerms.mockReset().mockResolvedValue({ status: 'granted' } as any);
-    mockRequestPerms.mockReset().mockResolvedValue({ status: 'granted' } as any);
+    mockRequestPerms
+      .mockReset()
+      .mockResolvedValue({ status: 'granted' } as any);
     mockSchedule.mockReset().mockResolvedValue('notif-id' as any);
     mockCancel.mockReset().mockResolvedValue(undefined as any);
     mockCancelAll.mockReset().mockResolvedValue(undefined as any);
@@ -81,7 +96,10 @@ describe('notifications service', () => {
     mockGetPresented.mockReset().mockResolvedValue([]);
     mockDismiss.mockReset().mockResolvedValue(undefined as any);
     mockToastShow.mockClear();
-    Object.defineProperty(Platform, 'OS', { get: () => 'ios', configurable: true });
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'ios',
+      configurable: true,
+    });
   });
 
   describe('initNotifications', () => {
@@ -91,25 +109,64 @@ describe('notifications service', () => {
       expect(mockSetHandler).toHaveBeenCalledTimes(1);
     });
 
+    it('registers localized Android presentation in the current language', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'android',
+        configurable: true,
+      });
+      await initNotifications();
+      expect(mockSetChannel).toHaveBeenCalledWith(
+        'workout-timer',
+        expect.objectContaining({ name: 'Workout timer' })
+      );
+      await i18n.changeLanguage('pl');
+      await registerLocalizedNotificationPresentation();
+      expect(mockSetChannel).toHaveBeenLastCalledWith(
+        'medication-reminders',
+        expect.objectContaining({ name: 'Przypomnienia o lekach' })
+      );
+      expect(mockSetCategory).toHaveBeenLastCalledWith(
+        'medication-reminder',
+        expect.arrayContaining([
+          expect.objectContaining({
+            identifier: 'medication-taken',
+            buttonTitle: 'Oznacz jako przyjęty',
+          }),
+        ])
+      );
+      await i18n.changeLanguage('en');
+      await registerLocalizedNotificationPresentation();
+      expect(mockSetChannel).toHaveBeenLastCalledWith(
+        'medication-reminders',
+        expect.objectContaining({ name: 'Medication reminders' })
+      );
+    });
+
     it('creates Android channel with HIGH importance', async () => {
-      Object.defineProperty(Platform, 'OS', { get: () => 'android', configurable: true });
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'android',
+        configurable: true,
+      });
       await initNotifications();
       expect(mockSetChannel).toHaveBeenCalledWith(
         'workout-timer',
         expect.objectContaining({
           importance: Notifications.AndroidImportance.HIGH,
-        }),
+        })
       );
     });
 
     it('creates a dedicated fasting Android channel', async () => {
-      Object.defineProperty(Platform, 'OS', { get: () => 'android', configurable: true });
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'android',
+        configurable: true,
+      });
       await initNotifications();
       expect(mockSetChannel).toHaveBeenCalledWith(
         'fasting',
         expect.objectContaining({
           importance: Notifications.AndroidImportance.HIGH,
-        }),
+        })
       );
     });
 
@@ -136,7 +193,9 @@ describe('notifications service', () => {
       return mockSetHandler.mock.calls[0][0].handleNotification;
     };
     const notificationWith = (categoryIdentifier: string | null) =>
-      ({ request: { content: { categoryIdentifier } } }) as Notifications.Notification;
+      ({
+        request: { content: { categoryIdentifier } },
+      }) as Notifications.Notification;
 
     it('mutes the rest ping sound while the rest chime is enabled', async () => {
       const handler = await getHandler();
@@ -153,7 +212,9 @@ describe('notifications service', () => {
 
     it('keeps sound for non-rest notifications regardless of the chime preference', async () => {
       const handler = await getHandler();
-      const medReminder = await handler(notificationWith('medication-reminder'));
+      const medReminder = await handler(
+        notificationWith('medication-reminder')
+      );
       expect(medReminder.shouldPlaySound).toBe(true);
       const uncategorized = await handler(notificationWith(null));
       expect(uncategorized.shouldPlaySound).toBe(true);
@@ -216,8 +277,18 @@ describe('notifications service', () => {
 
     it('sweeps stale delivered rest pings, leaving other notifications alone', async () => {
       mockGetPresented.mockResolvedValue([
-        { request: { identifier: 'old-rest', content: { categoryIdentifier: 'rest-complete' } } },
-        { request: { identifier: 'fasting-1', content: { categoryIdentifier: null } } },
+        {
+          request: {
+            identifier: 'old-rest',
+            content: { categoryIdentifier: 'rest-complete' },
+          },
+        },
+        {
+          request: {
+            identifier: 'fasting-1',
+            content: { categoryIdentifier: null },
+          },
+        },
       ] as any);
       await scheduleRestNotification('Bench Press', 60);
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -284,7 +355,9 @@ describe('notifications service', () => {
 
     it('swallows errors', async () => {
       mockDismiss.mockRejectedValue(new Error('boom'));
-      await expect(dismissDeliveredNotification('n-1')).resolves.toBeUndefined();
+      await expect(
+        dismissDeliveredNotification('n-1')
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -292,7 +365,9 @@ describe('notifications service', () => {
     const mockHaptic = Haptics.notificationAsync as jest.MockedFunction<
       typeof Haptics.notificationAsync
     >;
-    const mockCreatePlayer = createAudioPlayer as jest.MockedFunction<typeof createAudioPlayer>;
+    const mockCreatePlayer = createAudioPlayer as jest.MockedFunction<
+      typeof createAudioPlayer
+    >;
 
     beforeEach(() => {
       mockHaptic.mockClear();
@@ -307,7 +382,9 @@ describe('notifications service', () => {
     it('calls Haptics.notificationAsync with Success feedback type', () => {
       fireRestCompleteCue();
       expect(mockHaptic).toHaveBeenCalledTimes(1);
-      expect(mockHaptic).toHaveBeenCalledWith(Haptics.NotificationFeedbackType.Success);
+      expect(mockHaptic).toHaveBeenCalledWith(
+        Haptics.NotificationFeedbackType.Success
+      );
     });
 
     it('plays the rest chime when the preference is enabled', async () => {
@@ -336,7 +413,9 @@ describe('notifications service', () => {
   describe('notifications-enabled toggle', () => {
     it('updates the in-memory value when toggled', async () => {
       await setNotificationsEnabled(false);
-      expect(useAppPreferencesStore.getState().notificationsEnabled).toBe(false);
+      expect(useAppPreferencesStore.getState().notificationsEnabled).toBe(
+        false
+      );
 
       await setNotificationsEnabled(true);
       expect(useAppPreferencesStore.getState().notificationsEnabled).toBe(true);
@@ -383,27 +462,41 @@ describe('notifications service', () => {
     });
 
     it('skips scheduling a fast-goal notification when the fasting toggle is off', async () => {
-      useAppPreferencesStore.getState().setFastingGoalNotificationsEnabled(false);
+      useAppPreferencesStore
+        .getState()
+        .setFastingGoalNotificationsEnabled(false);
       const target = new Date(Date.now() + 60 * 60 * 1000).toISOString();
       expect(await scheduleFastGoalNotification(target)).toBeNull();
       expect(mockSchedule).not.toHaveBeenCalled();
     });
 
     it('still schedules a rest notification when only the fasting toggle is off', async () => {
-      useAppPreferencesStore.getState().setFastingGoalNotificationsEnabled(false);
-      expect(await scheduleRestNotification('Bench Press', 60)).toBe('notif-id');
+      useAppPreferencesStore
+        .getState()
+        .setFastingGoalNotificationsEnabled(false);
+      expect(await scheduleRestNotification('Bench Press', 60)).toBe(
+        'notif-id'
+      );
     });
 
     it('cancels only pending rest pings when the rest-timer toggle is turned off', async () => {
       mockGetAllScheduled.mockResolvedValue([
-        { identifier: 'rest-1', content: { categoryIdentifier: 'rest-complete' } },
-        { identifier: 'med-1', content: { categoryIdentifier: 'medication-reminder' } },
+        {
+          identifier: 'rest-1',
+          content: { categoryIdentifier: 'rest-complete' },
+        },
+        {
+          identifier: 'med-1',
+          content: { categoryIdentifier: 'medication-reminder' },
+        },
         { identifier: 'fast-1', content: {} },
       ] as any);
 
       await setRestTimerNotificationsEnabled(false);
 
-      expect(useAppPreferencesStore.getState().restTimerNotificationsEnabled).toBe(false);
+      expect(
+        useAppPreferencesStore.getState().restTimerNotificationsEnabled
+      ).toBe(false);
       expect(mockCancel).toHaveBeenCalledTimes(1);
       expect(mockCancel).toHaveBeenCalledWith('rest-1');
       expect(mockCancelAll).not.toHaveBeenCalled();
@@ -411,7 +504,9 @@ describe('notifications service', () => {
 
     it('does not cancel anything when the rest-timer toggle is turned on', async () => {
       await setRestTimerNotificationsEnabled(true);
-      expect(useAppPreferencesStore.getState().restTimerNotificationsEnabled).toBe(true);
+      expect(
+        useAppPreferencesStore.getState().restTimerNotificationsEnabled
+      ).toBe(true);
       expect(mockGetAllScheduled).not.toHaveBeenCalled();
       expect(mockCancel).not.toHaveBeenCalled();
     });

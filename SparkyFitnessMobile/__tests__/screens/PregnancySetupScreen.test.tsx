@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import Toast from 'react-native-toast-message';
 import PregnancySetupScreen from '../../src/screens/PregnancySetupScreen';
+import { queryProviderForPreferences } from './helpers/preferencesQueryTestUtil';
 import { getTodayDate, addDays } from '../../src/utils/dateUtils';
 
 jest.mock('../../src/components/Icon', () => {
@@ -38,7 +39,12 @@ const navigation = { goBack: jest.fn(), navigate: jest.fn() } as any;
 
 function renderScreen(pregnancy?: any) {
   const route = { params: pregnancy ? { pregnancy } : undefined } as any;
-  return render(<PregnancySetupScreen navigation={navigation} route={route} />);
+  const { Wrapper } = queryProviderForPreferences({ first_day_of_week: 0 });
+  return render(
+    <Wrapper>
+      <PregnancySetupScreen navigation={navigation} route={route} />
+    </Wrapper>
+  );
 }
 
 describe('PregnancySetupScreen', () => {
@@ -60,7 +66,7 @@ describe('PregnancySetupScreen', () => {
 
     await waitFor(() => {
       expect(Toast.show).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'error', text1: 'Check the dates' }),
+        expect.objectContaining({ type: 'error', text1: 'Check the dates' })
       );
     });
     expect(mockCreateAsync).not.toHaveBeenCalled();
@@ -81,7 +87,7 @@ describe('PregnancySetupScreen', () => {
           due_date_basis: 'manual',
           due_date: dueDate,
           status: 'active',
-        }),
+        })
       );
     });
     expect(mockUpdateAsync).not.toHaveBeenCalled();
@@ -103,7 +109,7 @@ describe('PregnancySetupScreen', () => {
 
     await waitFor(() => {
       expect(mockUpdateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'preg-1' }),
+        expect.objectContaining({ id: 'preg-1' })
       );
     });
     expect(mockCreateAsync).not.toHaveBeenCalled();

@@ -13,7 +13,10 @@ jest.mock('react-native-toast-message', () => ({
 
 jest.mock('../../src/components/BottomSheetPicker', () => {
   const { View } = require('react-native');
-  return { __esModule: true, default: () => <View testID="bottom-sheet-picker" /> };
+  return {
+    __esModule: true,
+    default: () => <View testID="bottom-sheet-picker" />,
+  };
 });
 
 jest.mock('../../src/components/CalendarSheet', () => {
@@ -81,7 +84,7 @@ function renderScreen() {
     ...render(
       <QueryClientProvider client={queryClient}>
         <CycleOnboardingScreen navigation={mockNavigation} route={mockRoute} />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     ),
   };
 }
@@ -94,10 +97,10 @@ function renderScreen() {
 function stepIntoPregnancyDates(screen: ReturnType<typeof renderScreen>) {
   const { getByText, UNSAFE_getAllByType } = screen;
   fireEvent.press(getByText('Pregnancy Tracking'));
-  fireEvent.press(getByText('Next Step'));
+  fireEvent.press(getByText('Next'));
   const CalendarSheet = require('../../src/components/CalendarSheet').default;
   const formSheet = UNSAFE_getAllByType(CalendarSheet).find(
-    (sheet) => sheet.props.selectedDate === addDays(getTodayDate(), 280),
+    (sheet) => sheet.props.selectedDate === addDays(getTodayDate(), 280)
   );
   expect(formSheet).toBeTruthy();
   return formSheet!;
@@ -105,8 +108,8 @@ function stepIntoPregnancyDates(screen: ReturnType<typeof renderScreen>) {
 
 function completeSetup(screen: ReturnType<typeof renderScreen>) {
   const { getByText } = screen;
-  fireEvent.press(getByText('Next Step'));
-  fireEvent.press(getByText('Next Step'));
+  fireEvent.press(getByText('Next'));
+  fireEvent.press(getByText('Next'));
   fireEvent.press(getByText('Accept & Initialize Profile'));
 }
 
@@ -119,7 +122,7 @@ describe('CycleOnboardingScreen', () => {
     const { getByText } = renderScreen();
     expect(getByText('What is your tracking goal?')).toBeTruthy();
     expect(getByText('Standard Menstrual Cycle')).toBeTruthy();
-    expect(getByText('Next Step')).toBeTruthy();
+    expect(getByText('Next')).toBeTruthy();
   });
 
   it('creates a pregnancy from a directly entered due date', async () => {
@@ -137,7 +140,7 @@ describe('CycleOnboardingScreen', () => {
           due_date_basis: 'manual',
           lmp_date: null,
           conception_date: null,
-        }),
+        })
       );
     });
   });
@@ -146,7 +149,8 @@ describe('CycleOnboardingScreen', () => {
     const screen = renderScreen();
     const formSheet = stepIntoPregnancyDates(screen);
 
-    const BottomSheetPicker = require('../../src/components/BottomSheetPicker').default;
+    const BottomSheetPicker =
+      require('../../src/components/BottomSheetPicker').default;
     const basisPicker = screen.UNSAFE_getByType(BottomSheetPicker);
     act(() => basisPicker.props.onSelect('lmp'));
 
@@ -160,7 +164,7 @@ describe('CycleOnboardingScreen', () => {
           due_date: eddFromLmp(lmpDate),
           due_date_basis: 'lmp',
           lmp_date: lmpDate,
-        }),
+        })
       );
     });
   });
@@ -174,7 +178,7 @@ describe('CycleOnboardingScreen', () => {
 
     await waitFor(() => {
       expect(Toast.show).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'error', text1: 'Check the dates' }),
+        expect.objectContaining({ type: 'error', text1: 'Check the dates' })
       );
     });
     expect(mockCreatePregnancyAsync).not.toHaveBeenCalled();

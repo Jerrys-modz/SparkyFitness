@@ -14,11 +14,16 @@ import ZoomableChart from '@/components/ZoomableChart';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { info } from '@/utils/logging';
-import { parseISO, format } from 'date-fns';
+import { format } from 'date-fns';
 import {
   calculateSmartYAxisDomain,
+  createDateTickFormatter,
+  createTimeSyncMethod,
   excludeIncompleteDay,
   getChartConfig,
+  getTimeXAxisProps,
+  prepareTimeChartData,
+  REPORTS_CHART_SYNC_ID,
 } from '@/utils/chartUtils';
 import type { UserCustomNutrient } from '@/types/customNutrient';
 import { CENTRAL_NUTRIENT_CONFIG } from '@/constants/nutrients';
@@ -27,19 +32,28 @@ import {
   withNetCarbsSubstitution,
 } from '@/utils/nutrientUtils';
 import { NutritionData } from '@/types/reports';
-import { calculateAverage } from '@/utils/reportUtil';
+import { calculateAverage, effectiveCalorieGoal } from '@/utils/reportUtil';
 import { ExpandedGoals } from '@/types/goals';
+import type { DailyCalorieBalanceRow } from '@workspace/shared';
 
 interface NutritionChartsGridProps {
   nutritionData: NutritionData[];
   customNutrients: UserCustomNutrient[];
   goals?: Record<string, ExpandedGoals>;
+  /**
+   * Server-computed calorie balance per date. Only the calories chart uses it, and only
+   * to draw its goal line -- without it this grid would show the bare stored goal while
+   * the summary above it shows the exercise-adjusted one, i.e. two different
+   * "Calories Goal" values on the same screen.
+   */
+  calorieBalanceByDate?: Record<string, DailyCalorieBalanceRow>;
 }
 
 const NutritionChartsGrid = ({
   nutritionData,
   customNutrients,
   goals,
+  calorieBalanceByDate,
 }: NutritionChartsGridProps) => {
   const { t } = useTranslation();
   const {
@@ -49,6 +63,7 @@ const NutritionChartsGrid = ({
     energyUnit,
     convertEnergy,
     showNetCarbs,
+    chartScaleMode,
   } = usePreferences(); // Destructure formatDateInUserTimezone, energyUnit, convertEnergy
   const effectiveNutritionData = useMemo(
     () => withNetCarbsSubstitution(nutritionData, showNetCarbs),
@@ -62,9 +77,12 @@ const NutritionChartsGrid = ({
 
   info(loggingLevel, 'NutritionChartsGrid: Rendering component.');
 
-  const formatDateForChart = (dateStr: string) => {
-    return formatDateInUserTimezone(parseISO(dateStr), 'MMM dd');
-  };
+  const formatDateForChart = useMemo(
+    () => createDateTickFormatter(formatDateInUserTimezone),
+    [formatDateInUserTimezone]
+  );
+
+  const syncMethod = useMemo(() => createTimeSyncMethod(), []);
 
   // Helper function to prepare chart data with optional incomplete day exclusion
   const prepareChartData = (data: NutritionData[], chartKey: string) => {
@@ -73,25 +91,45 @@ const NutritionChartsGrid = ({
       ? excludeIncompleteDay(data, format(new Date(), 'yyyy-MM-dd'))
       : data;
 
-    // Merge goal value per date if goals is a map
-    if (goals && typeof goals === 'object' && !('calories' in goals)) {
+    // The calorie budget is derived from the balance, which does not depend on the
+    // stored goals map — so it must be resolved OUTSIDE the guard below. Keeping it
+    // inside meant that while `goalData` was still loading (its loading state is not
+    // part of the page's render gate) this grid drew no calorie goal line at all while
+    // NutritionPeriodSummary drew one, showing two different things on one screen.
+    const goalsIsMap =
+      goals && typeof goals === 'object' && !('calories' in goals);
+    const storedGoals = goalsIsMap
+      ? (goals as Record<string, ExpandedGoals>)
+      : undefined;
+
+    if (goalsIsMap || chartKey === 'calories') {
       result = result.map((point) => {
-        const goalValue = (goals as Record<string, ExpandedGoals>)[
-          point.date
-        ]?.[chartKey as keyof ExpandedGoals];
+        const goalValue =
+          chartKey === 'calories'
+            ? // Same identity, and the same unrounded `eaten`, as
+              // NutritionPeriodSummary — so both charts draw one goal line.
+              (effectiveCalorieGoal(
+                calorieBalanceByDate?.[point.date],
+                point.calories
+              ) ?? storedGoals?.[point.date]?.[chartKey as keyof ExpandedGoals])
+            : storedGoals?.[point.date]?.[chartKey as keyof ExpandedGoals];
         return goalValue !== undefined
           ? { ...point, [`${chartKey}_goal`]: goalValue }
           : point;
       }) as NutritionData[];
     }
 
-    return result;
+    return prepareTimeChartData(result, chartScaleMode);
   };
 
-  // Helper function to get smart Y-axis domain for nutrition metrics
-  const getYAxisDomain = (data: NutritionData[], dataKey: string) => {
+  // Takes the rows the chart is already drawing rather than rebuilding them:
+  // this used to call prepareChartData a second time for every chart on every
+  // render, which now also means a second sort.
+  const getYAxisDomain = (
+    chartData: ReturnType<typeof prepareChartData>,
+    dataKey: string
+  ) => {
     const config = getChartConfig(dataKey);
-    const chartData = prepareChartData(data, dataKey);
     return calculateSmartYAxisDomain(chartData, dataKey, {
       marginPercent: config.marginPercent,
       minRangeThreshold: config.minRangeThreshold,
@@ -99,16 +137,23 @@ const NutritionChartsGrid = ({
   };
 
   const allNutritionCharts = useMemo(() => {
-    // Standard nutrients - use centralized chartColor
-    const charts = Object.values(CENTRAL_NUTRIENT_CONFIG).map((n) => ({
-      key: n.id,
-      label:
-        n.id === 'carbs' && showNetCarbs
-          ? t('nutrition.netCarbs', 'Net Carbs')
-          : t(n.label, n.defaultLabel),
-      color: n.chartColor, // Use centralized chartColor
-      unit: n.id === 'calories' ? energyUnit : n.unit,
-    }));
+    // Standard nutrients - use centralized chartColor.
+    // water_ml is excluded: these charts are fed by getDailyNutritionTotalsRange,
+    // whose RANGE_COLS deliberately omit it (design-decisions correction 3), so a
+    // "Water Content" chart here would plot a field the data never carries and
+    // render flat zero next to the real figure. Hydration has its own chart
+    // (HydrationTrendChart, #2348) fed by the water ledger plus the food arm.
+    const charts = Object.values(CENTRAL_NUTRIENT_CONFIG)
+      .filter((n) => n.id !== 'water_ml')
+      .map((n) => ({
+        key: n.id,
+        label:
+          n.id === 'carbs' && showNetCarbs
+            ? t('nutrition.netCarbs', 'Net Carbs')
+            : t(n.label, n.defaultLabel),
+        color: n.chartColor, // Use centralized chartColor
+        unit: n.id === 'calories' ? energyUnit : n.unit,
+      }));
 
     // Generate deterministic color from string for custom nutrients
     const getStringColor = (str: string) => {
@@ -164,7 +209,7 @@ const NutritionChartsGrid = ({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
       {visibleCharts.map((chart) => {
         const chartData = prepareChartData(effectiveNutritionData, chart.key);
-        const yAxisDomain = getYAxisDomain(effectiveNutritionData, chart.key);
+        const yAxisDomain = getYAxisDomain(chartData, chart.key);
         const average = calculateAverage(chartData, chart.key);
         // The split is shown as a SHARE, not a second and third average. The question
         // behind it is "how much of this comes from a pill", which is a proportion;
@@ -232,12 +277,18 @@ const NutritionChartsGrid = ({
                       minHeight={0}
                       debounce={100}
                     >
-                      <LineChart data={chartData} syncId="nutrition-charts">
+                      <LineChart
+                        data={chartData}
+                        syncId={REPORTS_CHART_SYNC_ID}
+                        syncMethod={syncMethod}
+                      >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
-                          dataKey="date"
+                          {...getTimeXAxisProps({
+                            chartScaleMode,
+                            formatDate: formatDateInUserTimezone,
+                          })}
                           fontSize={10}
-                          tickFormatter={formatDateForChart} // Apply formatter
                           tickCount={
                             isMaximized
                               ? Math.max(chartData.length, 10)
@@ -261,9 +312,7 @@ const NutritionChartsGrid = ({
                           }}
                         />
                         <Tooltip
-                          labelFormatter={(value) =>
-                            formatDateForChart(value as string)
-                          } // Apply formatter
+                          labelFormatter={(value) => formatDateForChart(value)} // Apply formatter
                           formatter={(
                             value:
                               | string

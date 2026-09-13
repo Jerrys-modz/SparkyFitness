@@ -51,7 +51,12 @@ export function useStepperDraft({
     if (text !== '' && !/^\d+$/.test(text)) return;
     setDraft(text);
     const parsed = parseInt(text, 10);
-    if (!Number.isNaN(parsed) && parsed >= min && parsed <= max && parsed !== value) {
+    if (
+      !Number.isNaN(parsed) &&
+      parsed >= min &&
+      parsed <= max &&
+      parsed !== value
+    ) {
       onCommit(parsed);
     }
   };
@@ -100,6 +105,12 @@ interface StepperInputProps {
   inputProps?: Partial<TextInputProps>;
   /** Ref forwarded to the underlying text input for imperative focus control */
   inputRef?: React.Ref<TextInput>;
+  /** Accessibility labels for the decrement, input, and increment controls. */
+  accessibilityLabels?: {
+    decrement?: string;
+    input?: string;
+    increment?: string;
+  };
   /** Compact size for inline use in set rows */
   compact?: boolean;
 }
@@ -118,6 +129,7 @@ function StepperInput({
   InputComponent = TextInput,
   inputProps,
   inputRef,
+  accessibilityLabels,
   compact = false,
 }: StepperInputProps) {
   const [accentColor, borderSubtle] = useCSSVariable([
@@ -132,7 +144,11 @@ function StepperInput({
   const fontSize = compact ? 16 : 20;
 
   const borderColor = isFocused ? accentColor : borderSubtle;
-  const { onFocus: externalOnFocus, onBlur: externalOnBlur, ...restInputProps } = inputProps ?? {};
+  const {
+    onFocus: externalOnFocus,
+    onBlur: externalOnBlur,
+    ...restInputProps
+  } = inputProps ?? {};
 
   return (
     <View
@@ -141,9 +157,16 @@ function StepperInput({
     >
       <TouchableOpacity
         onPress={onDecrement}
-        style={{ width: size, height: size, borderRightWidth: 1, borderRightColor: borderColor }}
+        style={{
+          width: size,
+          height: size,
+          borderRightWidth: 1,
+          borderRightColor: borderColor,
+        }}
         className="items-center justify-center"
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabels?.decrement}
       >
         <Icon name="remove" size={iconSize} color={accentColor} />
       </TouchableOpacity>
@@ -164,14 +187,28 @@ function StepperInput({
         placeholder={placeholder}
         selectTextOnFocus={selectTextOnFocus}
         className="text-text-primary text-base text-center"
-        style={{ width: inputWidth, height: size, fontSize, lineHeight: fontSize + 2, padding: 0 }}
+        style={{
+          width: inputWidth,
+          height: size,
+          fontSize,
+          lineHeight: fontSize + 2,
+          padding: 0,
+        }}
+        accessibilityLabel={accessibilityLabels?.input}
         {...restInputProps}
       />
       <TouchableOpacity
         onPress={onIncrement}
-        style={{ width: size, height: size, borderLeftWidth: 1, borderLeftColor: borderColor }}
+        style={{
+          width: size,
+          height: size,
+          borderLeftWidth: 1,
+          borderLeftColor: borderColor,
+        }}
         className="items-center justify-center"
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabels?.increment}
       >
         <Icon name="add" size={iconSize} color={accentColor} />
       </TouchableOpacity>

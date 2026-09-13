@@ -21,8 +21,21 @@ jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: jest.fn(() => 0),
 }));
 
-const mockUseExercisesLibrary = useExercisesLibrary as jest.MockedFunction<typeof useExercisesLibrary>;
-const mockUseServerConnection = useServerConnection as jest.MockedFunction<typeof useServerConnection>;
+// The row thumbnail's hook calls useFocusEffect, which needs a navigation
+// context this screen's tests don't mount. Mocked the same way
+// ExerciseSearchScreen's tests do.
+jest.mock('../../src/hooks/useExerciseImageSource', () => ({
+  useExerciseImageSource: jest.fn(() => ({
+    getImageSource: jest.fn((path: string) => ({ uri: path, headers: {} })),
+  })),
+}));
+
+const mockUseExercisesLibrary = useExercisesLibrary as jest.MockedFunction<
+  typeof useExercisesLibrary
+>;
+const mockUseServerConnection = useServerConnection as jest.MockedFunction<
+  typeof useServerConnection
+>;
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -37,7 +50,11 @@ jest.mock('@react-navigation/native', () => ({
 const insets = { top: 0, bottom: 0, left: 0, right: 0 };
 const frame = { x: 0, y: 0, width: 390, height: 844 };
 
-function createExercise(id: string, name: string, category: string | null = 'strength'): Exercise {
+function createExercise(
+  id: string,
+  name: string,
+  category: string | null = 'strength'
+): Exercise {
   return {
     id,
     name,
@@ -54,7 +71,9 @@ function createExercise(id: string, name: string, category: string | null = 'str
 
 type LibraryHookReturn = ReturnType<typeof useExercisesLibrary>;
 
-const buildHookReturn = (overrides: Partial<LibraryHookReturn> = {}): LibraryHookReturn => ({
+const buildHookReturn = (
+  overrides: Partial<LibraryHookReturn> = {}
+): LibraryHookReturn => ({
   exercises: [],
   isLoading: false,
   isSearching: false,
@@ -85,7 +104,7 @@ describe('ExercisesLibraryScreen', () => {
         <SafeAreaProvider initialMetrics={{ insets, frame }}>
           <ExercisesLibraryScreen navigation={navigation} route={route} />
         </SafeAreaProvider>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
   };
 
@@ -109,7 +128,7 @@ describe('ExercisesLibraryScreen', () => {
           createExercise('ex-1', 'Bench Press'),
           createExercise('ex-2', 'Squat'),
         ],
-      }),
+      })
     );
 
     const screen = renderScreen();
@@ -122,7 +141,7 @@ describe('ExercisesLibraryScreen', () => {
       'ExerciseDetail',
       expect.objectContaining({
         item: expect.objectContaining({ id: 'ex-1', name: 'Bench Press' }),
-      }),
+      })
     );
   });
 
@@ -130,10 +149,15 @@ describe('ExercisesLibraryScreen', () => {
     const screen = renderScreen();
 
     await act(async () => {
-      fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'sq');
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search exercises...'),
+        'sq'
+      );
     });
 
-    expect(mockUseExercisesLibrary).toHaveBeenLastCalledWith('sq', { enabled: true });
+    expect(mockUseExercisesLibrary).toHaveBeenLastCalledWith('sq', {
+      enabled: true,
+    });
   });
 
   it('persists an ownership filter chosen from the header menu and filters the list', async () => {
@@ -141,9 +165,12 @@ describe('ExercisesLibraryScreen', () => {
       buildHookReturn({
         exercises: [
           createExercise('ex-1', 'Bench Press'),
-          { ...createExercise('ex-2', 'Community Squat'), sharedWithPublic: true } as Exercise,
+          {
+            ...createExercise('ex-2', 'Community Squat'),
+            sharedWithPublic: true,
+          } as Exercise,
         ],
-      }),
+      })
     );
 
     const screen = renderScreen();
@@ -151,7 +178,9 @@ describe('ExercisesLibraryScreen', () => {
 
     pressHeaderMenuAction(navigation, 'Public');
 
-    expect(useAppPreferencesStore.getState().exercisesLibraryOwnershipFilter).toBe('public');
+    expect(
+      useAppPreferencesStore.getState().exercisesLibraryOwnershipFilter
+    ).toBe('public');
     expect(screen.getByText('Community Squat')).toBeTruthy();
     expect(screen.queryByText('Bench Press')).toBeNull();
   });
@@ -169,13 +198,15 @@ describe('ExercisesLibraryScreen', () => {
 
     expect(screen.getByText('No server configured')).toBeTruthy();
     fireEvent.press(screen.getByText('Go to Settings'));
-    expect(navigation.navigate).toHaveBeenCalledWith('Tabs', { screen: 'Settings' });
+    expect(navigation.navigate).toHaveBeenCalledWith('Tabs', {
+      screen: 'Settings',
+    });
   });
 
   it('renders an error state with a working Retry button', () => {
     const refetch = jest.fn();
     mockUseExercisesLibrary.mockReturnValue(
-      buildHookReturn({ isError: true, refetch }),
+      buildHookReturn({ isError: true, refetch })
     );
 
     const screen = renderScreen();

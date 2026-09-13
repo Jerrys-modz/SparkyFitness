@@ -16,7 +16,9 @@ import {
   type AppleIcon,
 } from 'react-native-bottom-tabs';
 import { withErrorBoundary } from './ScreenErrorBoundary';
-import ActiveWorkoutBar, { setActiveWorkoutBarTabBarHeight } from './ActiveWorkoutBar';
+import ActiveWorkoutBar, {
+  setActiveWorkoutBarTabBarHeight,
+} from './ActiveWorkoutBar';
 import CustomTabBar from './CustomTabBar';
 import WhatsNewBanner, {
   WhatsNewBannerContent,
@@ -25,9 +27,15 @@ import WhatsNewBanner, {
 import { AnnouncementModal } from './AnnouncementModal';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import { useTranslation } from 'react-i18next';
 
-export const NON_ADD_TABS = ['Dashboard', 'Diary', 'Library', 'Settings'] as const;
-export type NonAddTabName = typeof NON_ADD_TABS[number];
+export const NON_ADD_TABS = [
+  'Dashboard',
+  'Diary',
+  'Library',
+  'Settings',
+] as const;
+export type NonAddTabName = (typeof NON_ADD_TABS)[number];
 const ADD_TAB_ICON: AppleIcon = { sfSymbol: 'plus' };
 
 type TabTrackingProps = {
@@ -39,7 +47,11 @@ function resolveColor(value: string, fallback: string) {
   return value && value !== 'unset' ? value : fallback;
 }
 
-const AddRedirectScreen = ({ getLastActiveTab }: { getLastActiveTab: () => NonAddTabName }) => {
+const AddRedirectScreen = ({
+  getLastActiveTab,
+}: {
+  getLastActiveTab: () => NonAddTabName;
+}) => {
   const navigation = useNavigation();
 
   useFocusEffect(
@@ -49,7 +61,7 @@ const AddRedirectScreen = ({ getLastActiveTab }: { getLastActiveTab: () => NonAd
       });
 
       return () => cancelAnimationFrame(frame);
-    }, [getLastActiveTab, navigation]),
+    }, [getLastActiveTab, navigation])
   );
 
   return null;
@@ -116,11 +128,12 @@ function NativeTabsBannerOverlay() {
 }
 
 function DashboardStackScreen() {
+  const { t } = useTranslation();
   const { defaultColor } = useHeaderActionColors();
   const textPrimary = useCSSVariable('--color-text-primary') as string;
   const screenOptions = React.useMemo(
     () => createIOSNativeHeaderOptions(defaultColor, textPrimary),
-    [defaultColor, textPrimary],
+    [defaultColor, textPrimary]
   );
 
   return (
@@ -130,8 +143,10 @@ function DashboardStackScreen() {
           name="DashboardRoot"
           component={SafeDashboard as React.ComponentType}
           options={{
-            title: 'Dashboard',
-            headerBackTitle: 'Dashboard',
+            title: t('navigation.dashboard', { defaultValue: 'Dashboard' }),
+            headerBackTitle: t('navigation.dashboard', {
+              defaultValue: 'Dashboard',
+            }),
           }}
         />
       </DashboardStack.Navigator>
@@ -141,11 +156,12 @@ function DashboardStackScreen() {
 }
 
 function DiaryStackScreen() {
+  const { t } = useTranslation();
   const { defaultColor } = useHeaderActionColors();
   const textPrimary = useCSSVariable('--color-text-primary') as string;
   const screenOptions = React.useMemo(
     () => createIOSNativeHeaderOptions(defaultColor, textPrimary),
-    [defaultColor, textPrimary],
+    [defaultColor, textPrimary]
   );
 
   return (
@@ -155,8 +171,8 @@ function DiaryStackScreen() {
           name="DiaryRoot"
           component={SafeDiary as React.ComponentType}
           options={{
-            title: 'Diary',
-            headerBackTitle: 'Diary',
+            title: t('navigation.diary', { defaultValue: 'Diary' }),
+            headerBackTitle: t('navigation.diary', { defaultValue: 'Diary' }),
           }}
         />
       </DiaryStack.Navigator>
@@ -166,17 +182,27 @@ function DiaryStackScreen() {
 }
 
 function LibraryStackScreen() {
+  const { t } = useTranslation();
   const { defaultColor } = useHeaderActionColors();
   const textPrimary = useCSSVariable('--color-text-primary') as string;
   const screenOptions = React.useMemo(
     () => createIOSNativeHeaderOptions(defaultColor, textPrimary),
-    [defaultColor, textPrimary],
+    [defaultColor, textPrimary]
   );
 
   return (
     <View className="flex-1">
       <LibraryStack.Navigator screenOptions={screenOptions}>
-        <LibraryStack.Screen name="LibraryRoot" component={SafeLibrary as React.ComponentType} options={{ title: 'Library', headerBackTitle: 'Library' }} />
+        <LibraryStack.Screen
+          name="LibraryRoot"
+          component={SafeLibrary as React.ComponentType}
+          options={{
+            title: t('navigation.library', { defaultValue: 'Library' }),
+            headerBackTitle: t('navigation.library', {
+              defaultValue: 'Library',
+            }),
+          }}
+        />
       </LibraryStack.Navigator>
       <NativeTabsBannerOverlay />
     </View>
@@ -184,17 +210,27 @@ function LibraryStackScreen() {
 }
 
 function SettingsStackScreen() {
+  const { t } = useTranslation();
   const { defaultColor } = useHeaderActionColors();
   const textPrimary = useCSSVariable('--color-text-primary') as string;
   const screenOptions = React.useMemo(
     () => createIOSNativeHeaderOptions(defaultColor, textPrimary),
-    [defaultColor, textPrimary],
+    [defaultColor, textPrimary]
   );
 
   return (
     <View className="flex-1">
       <SettingsStack.Navigator screenOptions={screenOptions}>
-        <SettingsStack.Screen name="SettingsRoot" component={SafeSettings as React.ComponentType} options={{ title: 'Settings', headerBackTitle: 'Settings' }} />
+        <SettingsStack.Screen
+          name="SettingsRoot"
+          component={SafeSettings as React.ComponentType}
+          options={{
+            title: t('navigation.settings', { defaultValue: 'Settings' }),
+            headerBackTitle: t('navigation.settings', {
+              defaultValue: 'Settings',
+            }),
+          }}
+        />
       </SettingsStack.Navigator>
       <NativeTabsBannerOverlay />
     </View>
@@ -206,82 +242,92 @@ export function NativeTabsLayout({
   rememberActiveTab,
   getLastActiveTab,
 }: { onAddPress?: () => void } & TabTrackingProps) {
+  const { t } = useTranslation();
   const [primary, tabActive, tabInactive] = useCSSVariable([
     '--color-accent-primary',
     '--color-tab-active',
     '--color-tab-inactive',
   ]) as [string, string, string];
-  const activeTintColor = resolveColor(tabActive, resolveColor(primary, '#0A84FF'));
+  const activeTintColor = resolveColor(
+    tabActive,
+    resolveColor(primary, '#0A84FF')
+  );
   const inactiveTintColor = resolveColor(tabInactive, '#8E8E93');
   const whatsNewState = useWhatsNewBannerState();
 
   return (
     <NativeTabsOverlayContext.Provider value={whatsNewState}>
       <NativeTab.Navigator
-          // Start on the last active tab so toggling the Liquid Glass tab bar —
-          // which swaps and remounts this navigator — keeps the user on the tab
-          // they came from. Defaults to Dashboard on a cold start.
-          initialRouteName={getLastActiveTab()}
-          tabBarActiveTintColor={activeTintColor}
-          tabBarInactiveTintColor={inactiveTintColor}
-          screenListeners={{
-            state: (event) => {
-              const state = event.data?.state;
-              if (!state?.routes) return;
-              const route = state.routes[state.index ?? 0];
-              if (route) rememberActiveTab(route.name);
+        // Start on the last active tab so toggling the Liquid Glass tab bar —
+        // which swaps and remounts this navigator — keeps the user on the tab
+        // they came from. Defaults to Dashboard on a cold start.
+        initialRouteName={getLastActiveTab()}
+        tabBarActiveTintColor={activeTintColor}
+        tabBarInactiveTintColor={inactiveTintColor}
+        screenListeners={{
+          state: (event) => {
+            const state = event.data?.state;
+            if (!state?.routes) return;
+            const route = state.routes[state.index ?? 0];
+            if (route) rememberActiveTab(route.name);
+          },
+        }}
+      >
+        <NativeTab.Screen
+          name="Dashboard"
+          component={DashboardStackScreen}
+          options={{
+            tabBarLabel: t('navigation.dashboard', {
+              defaultValue: 'Dashboard',
+            }),
+            tabBarIcon: () =>
+              ({ sfSymbol: 'square.grid.2x2.fill' }) as unknown as AppleIcon,
+          }}
+        />
+        <NativeTab.Screen
+          name="Diary"
+          component={DiaryStackScreen}
+          options={{
+            tabBarLabel: t('navigation.diary', { defaultValue: 'Diary' }),
+            tabBarIcon: () =>
+              ({ sfSymbol: 'book.fill' }) as unknown as AppleIcon,
+          }}
+        />
+        <NativeTab.Screen
+          name="Add"
+          options={{
+            tabBarLabel: t('navigation.add', { defaultValue: 'Add' }),
+            tabBarIcon: () => ADD_TAB_ICON,
+            role: 'search',
+            preventsDefault: true,
+          }}
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              onAddPress?.();
             },
           }}
         >
-          <NativeTab.Screen
-            name="Dashboard"
-            component={DashboardStackScreen}
-            options={{
-              tabBarLabel: 'Dashboard',
-              tabBarIcon: () => ({ sfSymbol: 'square.grid.2x2.fill' } as unknown as AppleIcon),
-            }}
-          />
-          <NativeTab.Screen
-            name="Diary"
-            component={DiaryStackScreen}
-            options={{
-              tabBarLabel: 'Diary',
-              tabBarIcon: () => ({ sfSymbol: 'book.fill' } as unknown as AppleIcon),
-            }}
-          />
-          <NativeTab.Screen
-            name="Add"
-            options={{
-              tabBarLabel: 'Add',
-              tabBarIcon: () => ADD_TAB_ICON,
-              role: 'search',
-              preventsDefault: true,
-            }}
-            listeners={{
-              tabPress: (e) => {
-                e.preventDefault();
-                onAddPress?.();
-              },
-            }}
-          >
-            {() => <AddRedirectScreen getLastActiveTab={getLastActiveTab} />}
-          </NativeTab.Screen>
-          <NativeTab.Screen
-            name="Library"
-            component={LibraryStackScreen}
-            options={{
-              tabBarLabel: 'Library',
-              tabBarIcon: () => ({ sfSymbol: 'books.vertical.fill' } as unknown as AppleIcon),
-            }}
-          />
-          <NativeTab.Screen
-            name="Settings"
-            component={SettingsStackScreen}
-            options={{
-              tabBarLabel: 'Settings',
-              tabBarIcon: () => ({ sfSymbol: 'gearshape.fill' } as unknown as AppleIcon),
-            }}
-          />
+          {() => <AddRedirectScreen getLastActiveTab={getLastActiveTab} />}
+        </NativeTab.Screen>
+        <NativeTab.Screen
+          name="Library"
+          component={LibraryStackScreen}
+          options={{
+            tabBarLabel: t('navigation.library', { defaultValue: 'Library' }),
+            tabBarIcon: () =>
+              ({ sfSymbol: 'books.vertical.fill' }) as unknown as AppleIcon,
+          }}
+        />
+        <NativeTab.Screen
+          name="Settings"
+          component={SettingsStackScreen}
+          options={{
+            tabBarLabel: t('navigation.settings', { defaultValue: 'Settings' }),
+            tabBarIcon: () =>
+              ({ sfSymbol: 'gearshape.fill' }) as unknown as AppleIcon,
+          }}
+        />
       </NativeTab.Navigator>
     </NativeTabsOverlayContext.Provider>
   );
@@ -292,6 +338,7 @@ export function FallbackTabsLayout({
   rememberActiveTab,
   getLastActiveTab,
 }: { onAddPress?: () => void } & TabTrackingProps) {
+  const { t } = useTranslation();
   // The AddSheet is rendered in App.tsx with proper props
   return (
     <FallbackTab.Navigator
@@ -318,10 +365,34 @@ export function FallbackTabsLayout({
         </View>
       )}
     >
-      <FallbackTab.Screen name="Dashboard" component={SafeDashboard} />
-      <FallbackTab.Screen name="Diary" component={SafeDiary} />
+      <FallbackTab.Screen
+        name="Dashboard"
+        component={SafeDashboard}
+        options={{
+          tabBarLabel: t('navigation.dashboard', { defaultValue: 'Dashboard' }),
+          tabBarAccessibilityLabel: t('navigation.dashboard', {
+            defaultValue: 'Dashboard',
+          }),
+        }}
+      />
+      <FallbackTab.Screen
+        name="Diary"
+        component={SafeDiary}
+        options={{
+          tabBarLabel: t('navigation.diary', { defaultValue: 'Diary' }),
+          tabBarAccessibilityLabel: t('navigation.diary', {
+            defaultValue: 'Diary',
+          }),
+        }}
+      />
       <FallbackTab.Screen
         name="Add"
+        options={{
+          tabBarLabel: t('navigation.add', { defaultValue: 'Add' }),
+          tabBarAccessibilityLabel: t('navigation.add', {
+            defaultValue: 'Add',
+          }),
+        }}
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
@@ -331,8 +402,26 @@ export function FallbackTabsLayout({
       >
         {() => <AddRedirectScreen getLastActiveTab={getLastActiveTab} />}
       </FallbackTab.Screen>
-      <FallbackTab.Screen name="Library" component={SafeLibrary} />
-      <FallbackTab.Screen name="Settings" component={SafeSettings} />
+      <FallbackTab.Screen
+        name="Library"
+        component={SafeLibrary}
+        options={{
+          tabBarLabel: t('navigation.library', { defaultValue: 'Library' }),
+          tabBarAccessibilityLabel: t('navigation.library', {
+            defaultValue: 'Library',
+          }),
+        }}
+      />
+      <FallbackTab.Screen
+        name="Settings"
+        component={SafeSettings}
+        options={{
+          tabBarLabel: t('navigation.settings', { defaultValue: 'Settings' }),
+          tabBarAccessibilityLabel: t('navigation.settings', {
+            defaultValue: 'Settings',
+          }),
+        }}
+      />
     </FallbackTab.Navigator>
   );
 }

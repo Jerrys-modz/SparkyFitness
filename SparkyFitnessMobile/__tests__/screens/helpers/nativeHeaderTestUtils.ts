@@ -1,4 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native';
+import { DUPLICATE_PRESS_WINDOW_MS } from '../../../src/utils/duplicatePress';
 
 type HeaderMenuItem = {
   type?: string;
@@ -26,10 +27,47 @@ type HeaderItem = {
  * emulating (jest-expo runs both the ios and android projects).
  */
 
-function collectHeaderItems(navigation: { setOptions?: unknown }): HeaderItem[] {
+/**
+ * Header `kind: 'primary'` (Save) actions carry a synchronous duplicate-press
+ * guard: two presses inside DUPLICATE_PRESS_WINDOW_MS count as one, which is
+ * what stops a burst of taps replayed off a blocked JS thread from writing the
+ * same entry several times (#2191).
+ *
+ * Tests press in immediate succession, compressing to zero what is always
+ * seconds of real user time — reading an error toast, fixing a field, then
+ * pressing Save again. Call this between two scripted presses of the same
+ * action so the guard sees them as the separate deliberate presses they stand
+ * for. The guard's own behaviour is covered directly in
+ * `__tests__/hooks/useScreenHeaderDuplicatePress.test.tsx`; do not use this to
+ * paper over a real double-fire.
+ */
+let pressClockOffsetMs = 0;
+
+export function skipDuplicatePressWindow(): void {
+  pressClockOffsetMs += DUPLICATE_PRESS_WINDOW_MS + 1;
+  if (!jest.isMockFunction(Date.now)) {
+    const realNow = Date.now.bind(Date);
+    jest
+      .spyOn(Date, 'now')
+      .mockImplementation(() => realNow() + pressClockOffsetMs);
+  }
+}
+
+// Restored per test so a shifted clock never leaks into a sibling test that
+// asserts on dates. Registered here rather than in each importing file so the
+// helper cannot be used without its cleanup.
+afterEach(() => {
+  if (jest.isMockFunction(Date.now)) {
+    (Date.now as unknown as jest.SpyInstance).mockRestore();
+  }
+  pressClockOffsetMs = 0;
+});
+
+function collectHeaderItems(navigation: {
+  setOptions?: unknown;
+}): HeaderItem[] {
   const setOptions = navigation?.setOptions as
-    | { mock?: { calls: unknown[][] } }
-    | undefined;
+    { mock?: { calls: unknown[][] } } | undefined;
   const calls = setOptions?.mock?.calls ?? [];
   const items: HeaderItem[] = [];
   for (const call of calls) {
@@ -59,7 +97,7 @@ function collectHeaderItems(navigation: { setOptions?: unknown }): HeaderItem[] 
 
 export function findHeaderItem(
   navigation: { setOptions?: unknown },
-  label: string,
+  label: string
 ): HeaderItem | undefined {
   const items = collectHeaderItems(navigation);
   // Last write wins — return the most recently configured matching item.
@@ -68,7 +106,7 @@ export function findHeaderItem(
 
 function flattenMenuItems(items: HeaderMenuItem[]): HeaderMenuItem[] {
   return items.flatMap((item) =>
-    item.items ? [item, ...flattenMenuItems(item.items)] : [item],
+    item.items ? [item, ...flattenMenuItems(item.items)] : [item]
   );
 }
 
@@ -78,13 +116,13 @@ function flattenMenuItems(items: HeaderMenuItem[]): HeaderMenuItem[] {
  */
 export function findHeaderMenuAction(
   navigation: { setOptions?: unknown },
-  label: string,
+  label: string
 ): HeaderMenuItem | undefined {
   const items = collectHeaderItems(navigation);
   for (const item of [...items].reverse()) {
     if (!item.menu) continue;
     const match = flattenMenuItems(item.menu.items).find(
-      (action) => action.label === label && typeof action.onPress === 'function',
+      (action) => action.label === label && typeof action.onPress === 'function'
     );
     if (match) return match;
   }
@@ -94,12 +132,12 @@ export function findHeaderMenuAction(
 /** Press an action inside a native header menu item, wrapped in act(). */
 export function pressHeaderMenuAction(
   navigation: { setOptions?: unknown },
-  label: string,
+  label: string
 ): void {
   const action = findHeaderMenuAction(navigation, label);
   if (!action?.onPress) {
     throw new Error(
-      `pressHeaderMenuAction: no native header menu action labelled "${label}" was found`,
+      `pressHeaderMenuAction: no native header menu action labelled "${label}" was found`
     );
   }
   act(() => {
@@ -109,7 +147,7 @@ export function pressHeaderMenuAction(
 
 export function findHeaderItemByAccessibilityLabel(
   navigation: { setOptions?: unknown },
-  accessibilityLabel: string,
+  accessibilityLabel: string
 ): HeaderItem | undefined {
   const items = collectHeaderItems(navigation);
   return [...items]
@@ -125,7 +163,7 @@ export function findHeaderItemByAccessibilityLabel(
 export function pressAction(
   screen: { queryByText: (text: string) => unknown },
   navigation: { setOptions?: unknown },
-  label: string,
+  label: string
 ): void {
   const headerItem = findHeaderItem(navigation, label);
   if (headerItem?.onPress) {
@@ -143,7 +181,7 @@ export function pressAction(
     return;
   }
   throw new Error(
-    `pressAction: no native header item or inline element labelled "${label}" was found`,
+    `pressAction: no native header item or inline element labelled "${label}" was found`
   );
 }
 
@@ -154,13 +192,13 @@ export function pressAction(
 export function expectActionPresent(
   screen: { queryByText: (text: string) => unknown },
   navigation: { setOptions?: unknown },
-  label: string,
+  label: string
 ): void {
   const headerItem = findHeaderItem(navigation, label);
   const inline = screen.queryByText(label);
   if (!headerItem && !inline) {
     throw new Error(
-      `expectActionPresent: action "${label}" not found in native header or inline`,
+      `expectActionPresent: action "${label}" not found in native header or inline`
     );
   }
 }
@@ -173,11 +211,11 @@ export function expectActionPresent(
 export function pressActionByAccessibilityLabel(
   screen: { queryByLabelText: (text: string | RegExp) => unknown },
   navigation: { setOptions?: unknown },
-  accessibilityLabel: string,
+  accessibilityLabel: string
 ): void {
   const headerItem = findHeaderItemByAccessibilityLabel(
     navigation,
-    accessibilityLabel,
+    accessibilityLabel
   );
   if (headerItem?.onPress) {
     act(() => {
@@ -191,6 +229,6 @@ export function pressActionByAccessibilityLabel(
     return;
   }
   throw new Error(
-    `pressActionByAccessibilityLabel: no native header item or inline element with accessibility label "${accessibilityLabel}" was found`,
+    `pressActionByAccessibilityLabel: no native header item or inline element with accessibility label "${accessibilityLabel}" was found`
   );
 }

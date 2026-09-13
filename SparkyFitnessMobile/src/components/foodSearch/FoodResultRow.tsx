@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Icon from '../Icon';
 import ShareStatusBadge from '../ShareStatusBadge';
@@ -28,7 +29,12 @@ const FoodResultRow: React.FC<FoodResultRowProps> = ({
   favoriteGold,
   onSelect,
 }) => {
-  const status = deriveShareStatus(item.user_id, item.shared_with_public, profileId);
+  const { t } = useTranslation();
+  const status = deriveShareStatus(
+    item.user_id,
+    item.shared_with_public,
+    profileId
+  );
   const getImageSource = useFoodImageSourceContext();
   const openLightbox = useOpenLightbox();
   const images = usableFoodImages(item.images);
@@ -59,7 +65,9 @@ const FoodResultRow: React.FC<FoodResultRowProps> = ({
             <Text className="text-text-primary text-base font-medium flex-shrink">
               {item.name}
             </Text>
-            {item.provider_verified ? <VerifiedBadge size="sm" style={{ marginTop: 2 }} /> : null}
+            {item.provider_verified ? (
+              <VerifiedBadge size="sm" style={{ marginTop: 2 }} />
+            ) : null}
             <ShareStatusBadge status={status} style={{ marginTop: 3 }} />
             {isFavorite && (
               <Icon
@@ -67,20 +75,29 @@ const FoodResultRow: React.FC<FoodResultRowProps> = ({
                 size={16}
                 color={favoriteGold}
                 style={{ marginTop: 3 }}
-                accessibilityLabel="Favorite"
+                accessibilityLabel={t('foodSearch.accessibility.favorite', {
+                  defaultValue: 'Favorite',
+                })}
               />
             )}
           </View>
           {item.brand ? (
-            <Text className="text-text-secondary text-sm mt-0.5">{item.brand}</Text>
+            <Text className="text-text-secondary text-sm mt-0.5">
+              {item.brand}
+            </Text>
           ) : null}
         </View>
         <View className="items-end">
           <Text className="text-text-primary text-base font-semibold">
-            {item.default_variant.calories} cal
+            {Math.round(item.default_variant.calories)}{' '}
+            {t('foodSearch.labels.caloriesUnit', { defaultValue: 'cal' })}
           </Text>
           <Text className="text-text-secondary text-xs">
-            {`${item.default_variant.serving_size} ${formatServingUnit(item.default_variant.serving_unit)}`}
+            {/* i18n-audit-ignore-next-line hardcoded-ui-text -- quantity and unit are literal data values. */}
+            <>
+              {item.default_variant.serving_size}{' '}
+              {formatServingUnit(item.default_variant.serving_unit)}
+            </>
           </Text>
         </View>
       </TouchableOpacity>

@@ -35,6 +35,15 @@ export const MedicationNutrientsSchema = z
     vitamin_c: nutrientValue.optional(),
     calcium: nutrientValue.optional(),
     iron: nutrientValue.optional(),
+    // Kept in step with the food_variants nutrient columns. The micronutrient
+    // catalog offers Caffeine against fixedField caffeine_mg and the caffeine
+    // kinetics query already reads nutrients_snapshot->>'caffeine_mg' off a
+    // supplement, but this strict schema rejected the field -- so a
+    // caffeinated supplement could be picked in the UI and never saved, and
+    // the dose arm that reads it could never have any rows.
+    caffeine_mg: nutrientValue.optional(),
+    water_ml: nutrientValue.optional(),
+    alcohol_g: nutrientValue.optional(),
     custom_nutrients: z.record(z.string(), nutrientValue).optional(),
   })
   .strict();
@@ -93,7 +102,10 @@ export const CreateScheduleBodySchema = z
     day_of_month: z.number().int().min(1).max(31).nullable().optional(),
     cycle_on_days: optionalNullableInt,
     cycle_off_days: optionalNullableInt,
-    with_meal: z.enum(['before', 'with', 'after']).nullable().optional(),
+    with_meal: z
+      .enum(['before', 'with', 'after', 'away_from_meals'])
+      .nullable()
+      .optional(),
     prn_reason: optionalNullableString,
     prn_max_per_day: optionalNullableInt,
     start_date: optionalDateString,

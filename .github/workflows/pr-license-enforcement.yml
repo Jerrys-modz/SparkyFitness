@@ -1,0 +1,244 @@
+name: PR License Enforcement
+
+# `pull_request_target` in pr-validation.yml only fires on PR activity, so an abandoned PR never
+# emits another event. This timer sweeps every open PR and closes the ones that never recorded a
+# license agreement.
+#
+# Exemptions (bots, maintainers, automation branches) live in .github/scripts/pr-policy.cjs so this
+# workflow and pr-validation.yml can never disagree about who is enforced.
+
+on:
+  schedule:
+    - cron: '0 * * * *' # hourly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-license-enforcement
+  cancel-in-progress: false
+
+jobs:
+  enforce:
+    name: Close PRs without a license agreement
+    runs-on: ubuntu-latest
+
+    steps:
+      # Scheduled runs always check out the default branch, so this is repo-owned code.
+      - name: Check out policy rules
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Sweep open PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const policy = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-policy.cjs`);
+
+            const { LICENSE_LABEL, LICENSE_ITEM, LICENSE_ITEM_TEXT, GRACE_MS } = policy;
+            const BOT_TAG = '<!-- license-enforcement-bot -->';
+            const GRACE_DAYS = Math.round(GRACE_MS / (24 * 60 * 60 * 1000));
+
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            const addLabel = pr => github.rest.issues.addLabels({
+              owner, repo, issue_number: pr.number, labels: [LICENSE_LABEL],
+            });
+
+            const dropLabel = async pr => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner, repo, issue_number: pr.number, name: LICENSE_LABEL,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            try {
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: LICENSE_LABEL,
+                color: policy.LICENSE_LABEL_COLOR,
+                description: policy.LICENSE_LABEL_DESCRIPTION,
+              });
+            } catch (error) {
+              if (error.status === 422) {
+                await github.rest.issues.updateLabel({
+                  owner,
+                  repo,
+                  name: LICENSE_LABEL,
+                  color: policy.LICENSE_LABEL_COLOR,
+                  description: policy.LICENSE_LABEL_DESCRIPTION,
+                });
+              } else {
+                throw error;
+              }
+            }
+
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const warned   = [];
+            const closed   = [];
+            const cleared  = [];
+            const exempted = [];
+            const drafts   = [];
+
+            for (const pr of pulls) {
+              const author   = pr.user?.login ?? '';
+              const hasLabel = pr.labels.some(l => l.name === LICENSE_LABEL);
+
+              // ---- Exempt: our own automation and maintainers ----
+              // Never label, never warn, never close. Clear a stale label if one is present.
+              const exemption = policy.getExemption(pr);
+              if (exemption.exempt) {
+                if (hasLabel) { await dropLabel(pr); cleared.push(pr.number); }
+                exempted.push(`#${pr.number} (${exemption.reason})`);
+                continue;
+              }
+
+              // ---- Draft: pause the countdown ----
+              // Dropping the label stops the clock. pr-validation.yml re-applies it on
+              // `ready_for_review`, which starts a fresh grace period rather than resuming an
+              // expired one.
+              if (pr.draft) {
+                if (hasLabel) { await dropLabel(pr); cleared.push(pr.number); }
+                drafts.push(pr.number);
+                continue;
+              }
+
+              // ---- Agreement recorded: cancel any countdown ----
+              if (policy.isChecked(pr.body, LICENSE_ITEM)) {
+                if (hasLabel) { await dropLabel(pr); cleared.push(pr.number); }
+                continue;
+              }
+
+              // ---- No agreement: make sure the contributor has actually been told ----
+              // The grace period runs from the moment we explain the problem, never from a
+              // silently applied label. If no warning comment exists yet (label applied by
+              // pr-validation.yml, or predating this workflow), post one and restart the clock.
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: pr.number, per_page: 100,
+              });
+              const alreadyWarned = comments.some(c => (c.body ?? '').includes(BOT_TAG));
+
+              if (!alreadyWarned) {
+                if (hasLabel) await dropLabel(pr);
+                await addLabel(pr); // fresh `labeled` event = clock starts now
+                const deadline = new Date(Date.now() + GRACE_MS)
+                  .toISOString().replace('T', ' ').slice(0, 16);
+
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: [
+                    BOT_TAG,
+                    `Hi @${author}! Thank you for opening this pull request.`,
+                    '',
+                    'In order for us to review and accept this PR, please complete the mandatory checklist checkboxes in the PR description.',
+                    '',
+                    'If any mandatory checkboxes were removed or omitted, they have been automatically added back to the bottom of your PR description for your convenience. Please make sure the required items (Integrity & License, etc.) are ticked:',
+                    '',
+                    '```markdown',
+                    `- [x] ${LICENSE_ITEM_TEXT}`,
+                    '```',
+                    '',
+                    '**How to resolve this:**',
+                    '1. Click **Edit** on your PR description above.',
+                    '2. Tick the mandatory checkbox(es).',
+                    '3. Click **Update comment** (no new commit needed).',
+                    '',
+                    `⏳ *PRs with incomplete mandatory items are automatically closed after ${GRACE_DAYS} days (\`${deadline} UTC\`). Once completed, you are welcome to reopen at any time!*`,
+                  ].join('\n'),
+                });
+
+                warned.push(pr.number);
+                continue;
+              }
+
+              // ---- Warned already: has the grace period lapsed? ----
+              const events = await github.paginate(github.rest.issues.listEvents, {
+                owner, repo, issue_number: pr.number, per_page: 100,
+              });
+
+              const labeledAt = events
+                .filter(e => e.event === 'labeled' && e.label?.name === LICENSE_LABEL)
+                .map(e => new Date(e.created_at).getTime())
+                .sort((a, b) => b - a)[0];
+
+              // Label present but no readable event. Re-apply it so there IS a timestamp, and
+              // grant a full grace period rather than closing on unknown timing.
+              if (!labeledAt) {
+                core.warning(`PR #${pr.number}: no 'labeled' event found for ${LICENSE_LABEL}; restarting the clock.`);
+                await dropLabel(pr);
+                await addLabel(pr);
+                continue;
+              }
+
+              const elapsed = Date.now() - labeledAt;
+              if (elapsed < GRACE_MS) {
+                const daysLeft = Math.ceil((GRACE_MS - elapsed) / (24 * 60 * 60 * 1000));
+                const hoursLeft = Math.ceil((GRACE_MS - elapsed) / (60 * 60 * 1000));
+                const timeLeftStr = daysLeft > 1 ? `${daysLeft}d` : `${hoursLeft}h`;
+                core.info(`PR #${pr.number}: ${timeLeftStr} left before auto-close.`);
+                continue;
+              }
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: [
+                  BOT_TAG,
+                  `Hi @${author}, thank you for your contribution!`,
+                  '',
+                  `We are closing this pull request for now because the mandatory questionnaire checkboxes were not completed within ${GRACE_DAYS} days.`,
+                  '',
+                  'In order for us to review and accept pull requests, all mandatory questionnaire checkboxes (Integrity & License, etc.) in the PR description must be completed.',
+                  '',
+                  '**You are welcome to reopen this PR at any time!** Your work and discussion history are completely preserved. Whenever you are ready to continue:',
+                  '',
+                  '1. Edit your PR description above to check the mandatory box(es):',
+                  '',
+                  '   ```markdown',
+                  `- [x] ${LICENSE_ITEM_TEXT}`,
+                  '   ```',
+                  '',
+                  '2. Click **Reopen pull request** (or leave a comment here and a maintainer will reopen it for you).',
+                ].join('\n'),
+              });
+
+              await github.rest.pulls.update({
+                owner, repo, pull_number: pr.number, state: 'closed',
+              });
+
+              closed.push(pr.number);
+            }
+
+            const list = arr => (arr.length ? ` — ${arr.map(n => (typeof n === 'number' ? '#' + n : n)).join(', ')}` : '');
+
+            const summary = [
+              '## PR License Enforcement',
+              '',
+              `- Open PRs scanned: **${pulls.length}**`,
+              `- Exempt (bots / maintainers / automation branches): **${exempted.length}**${list(exempted)}`,
+              `- Drafts skipped (countdown paused): **${drafts.length}**${list(drafts)}`,
+              `- Warned, countdown started: **${warned.length}**${list(warned)}`,
+              `- Closed after ${GRACE_DAYS} days: **${closed.length}**${list(closed)}`,
+              `- Label cleared: **${cleared.length}**${list(cleared)}`,
+            ].join('\n');
+
+            await core.summary.addRaw(summary).write();
+            core.info(summary);

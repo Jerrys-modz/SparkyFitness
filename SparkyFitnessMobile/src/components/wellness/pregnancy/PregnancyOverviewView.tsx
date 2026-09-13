@@ -1,9 +1,13 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCSSVariable } from 'uniwind';
-import { useCurrentPregnancy, usePregnancyOverview } from '../../../hooks/usePregnancy';
+import {
+  useCurrentPregnancy,
+  usePregnancyOverview,
+} from '../../../hooks/usePregnancy';
 import WeekBanner from './WeekBanner';
 import BabyGrowthView from './BabyGrowthView';
 import WeeklyChecklist from './WeeklyChecklist';
@@ -26,13 +30,20 @@ interface PregnancyOverviewViewProps {
  * segments. Both sections share the pregnancy/overview queries and the
  * setup prompt shown when no active pregnancy exists.
  */
-const PregnancyOverviewView: React.FC<PregnancyOverviewViewProps> = ({ section }) => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+const PregnancyOverviewView: React.FC<PregnancyOverviewViewProps> = ({
+  section,
+}) => {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { t } = useTranslation();
   const [accentColor] = useCSSVariable(['--color-accent-primary']) as [string];
 
   const { pregnancy, isLoading: isPregnancyLoading } = useCurrentPregnancy();
   const hasActive = !!pregnancy && pregnancy.status === 'active';
-  const { overview, isLoading: isOverviewLoading } = usePregnancyOverview(undefined, hasActive);
+  const { overview, isLoading: isOverviewLoading } = usePregnancyOverview(
+    undefined,
+    hasActive
+  );
 
   if (isPregnancyLoading) {
     return (
@@ -45,12 +56,22 @@ const PregnancyOverviewView: React.FC<PregnancyOverviewViewProps> = ({ section }
   if (!hasActive) {
     return (
       <View className="bg-surface rounded-xl p-6 shadow-sm gap-4 items-center">
-        <Text className="text-text-primary text-base font-semibold">Set up your pregnancy</Text>
-        <Text className="text-text-secondary text-sm text-center">
-          Add your due date to track baby&apos;s growth week by week and keep a bump photo journal.
+        <Text className="text-text-primary text-base font-semibold">
+          {t('pregnancy.prompt.title', {
+            defaultValue: 'Set up your pregnancy',
+          })}
         </Text>
-        <Button variant="primary" onPress={() => navigation.navigate('PregnancySetup')}>
-          Get Started
+        <Text className="text-text-secondary text-sm text-center">
+          {t('pregnancy.prompt.message', {
+            defaultValue:
+              "Add your due date to track baby's growth week by week and keep a bump photo journal.",
+          })}
+        </Text>
+        <Button
+          variant="primary"
+          onPress={() => navigation.navigate('PregnancySetup')}
+        >
+          {t('pregnancy.prompt.getStarted', { defaultValue: 'Get Started' })}
         </Button>
       </View>
     );
@@ -66,7 +87,10 @@ const PregnancyOverviewView: React.FC<PregnancyOverviewViewProps> = ({ section }
             <ActivityIndicator color={accentColor} />
           </View>
         ) : (
-          <BumpPhotoJournal pregnancyId={pregnancy.id} currentWeek={gestationalAge.week} />
+          <BumpPhotoJournal
+            pregnancyId={pregnancy.id}
+            currentWeek={gestationalAge.week}
+          />
         )}
 
         <FoodMedSafetySearch />
@@ -89,7 +113,10 @@ const PregnancyOverviewView: React.FC<PregnancyOverviewViewProps> = ({ section }
           />
           <BabyGrowthView week={gestationalAge.week} />
           {pregnancy?.id && (
-            <WeeklyChecklist pregnancyId={pregnancy.id} currentWeek={gestationalAge.week} />
+            <WeeklyChecklist
+              pregnancyId={pregnancy.id}
+              currentWeek={gestationalAge.week}
+            />
           )}
         </>
       )}

@@ -41,7 +41,12 @@ vi.mock('../integrations/swissfood/swissFoodService.js', () => ({
 }));
 
 import externalProviderService from '../services/externalProviderService.js';
-import { resolveOpenFoodFactsProviderId } from '../services/externalFoodSearchService.js';
+import preferenceService from '../services/preferenceService.js';
+import { searchOpenFoodFacts } from '../integrations/openfoodfacts/openFoodFactsService.js';
+import {
+  resolveOpenFoodFactsProviderId,
+  searchProviderFoods,
+} from '../services/externalFoodSearchService.js';
 
 const mockGetDetails = vi.mocked(
   externalProviderService.getExternalDataProviderDetails
@@ -68,10 +73,23 @@ describe('resolveOpenFoodFactsProviderId', () => {
       base_url: 'http://sparkyfitness-foodfacts:8080',
     });
 
-    const id = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
+    const provider = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
 
-    expect(id).toBe(PROVIDER_ID);
+    expect(provider).toEqual({ id: PROVIDER_ID, scope: 'personal' });
     expect(mockGetActiveId).not.toHaveBeenCalled();
+  });
+
+  it('marks an explicit public provider as global', async () => {
+    // @ts-expect-error test doubles only need the fields the code under test reads
+    mockGetDetails.mockResolvedValue({
+      is_active: true,
+      is_public: true,
+      provider_type: 'openfoodfacts',
+    });
+
+    const provider = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
+
+    expect(provider).toEqual({ id: PROVIDER_ID, scope: 'global' });
   });
 
   it('rejects an explicit providerId that is inactive', async () => {
@@ -81,9 +99,9 @@ describe('resolveOpenFoodFactsProviderId', () => {
       provider_type: 'openfoodfacts',
     });
 
-    const id = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
+    const provider = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
 
-    expect(id).toBe(null);
+    expect(provider).toBe(null);
   });
 
   it('rejects an explicit providerId of the wrong provider type', async () => {
@@ -93,17 +111,62 @@ describe('resolveOpenFoodFactsProviderId', () => {
       provider_type: 'fatsecret',
     });
 
-    const id = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
+    const provider = await resolveOpenFoodFactsProviderId(USER_ID, PROVIDER_ID);
 
-    expect(id).toBe(null);
+    expect(provider).toBe(null);
   });
 
   it('falls back to getActiveOpenFoodFactsProviderId when no providerId is given', async () => {
     mockGetActiveId.mockResolvedValue('active-id');
 
-    const id = await resolveOpenFoodFactsProviderId(USER_ID, undefined);
+    const provider = await resolveOpenFoodFactsProviderId(USER_ID, undefined);
 
-    expect(id).toBe('active-id');
+    expect(provider).toEqual({ id: 'active-id', scope: 'personal' });
     expect(mockGetDetails).not.toHaveBeenCalled();
+  });
+});
+
+describe('searchProviderFoods OpenFoodFacts pagination', () => {
+  it('forwards the requested page size to the OpenFoodFacts search adapter', async () => {
+    // @ts-expect-error test doubles only need the fields the code under test reads
+    mockGetDetails.mockResolvedValue({
+      is_active: true,
+      is_public: true,
+      provider_type: 'openfoodfacts',
+    });
+    vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+      language: 'de',
+    });
+    vi.mocked(searchOpenFoodFacts).mockResolvedValue({
+      products: [
+        {
+          code: '80051428',
+          product_name: 'Nutella',
+          brands: 'Ferrero',
+          nutriments: {},
+        },
+      ],
+      pagination: {
+        page: 3,
+        pageSize: 7,
+        totalCount: 15,
+        hasMore: false,
+      },
+    });
+    await searchProviderFoods(USER_ID, 'openfoodfacts', 'nutella', {
+      page: 3,
+      pageSize: 7,
+      providerId: PROVIDER_ID,
+    });
+
+    expect(searchOpenFoodFacts).toHaveBeenCalledWith(
+      'nutella',
+      3,
+      'de',
+      USER_ID,
+      PROVIDER_ID,
+      7,
+      'global'
+    );
   });
 });

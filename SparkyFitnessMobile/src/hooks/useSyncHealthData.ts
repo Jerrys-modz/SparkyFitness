@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { syncHealthData as healthConnectSyncData } from '../services/healthConnectService';
 import { markSyncInFlight } from '../services/autoSyncCoordinator';
 import { saveLastSyncedTime } from '../services/storage';
@@ -19,25 +20,37 @@ export function useSyncHealthData(options?: {
   onError?: (error: Error) => void;
 }) {
   const { showToasts = true, onSuccess, onError } = options ?? {};
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ timeRange, healthMetricStates }: SyncHealthDataParams) => {
+    mutationFn: async ({
+      timeRange,
+      healthMetricStates,
+    }: SyncHealthDataParams) => {
       const syncDone = markSyncInFlight();
       try {
-        const result = await healthConnectSyncData(timeRange, healthMetricStates);
+        const result = await healthConnectSyncData(
+          timeRange,
+          healthMetricStates
+        );
         if (result.success) {
           // Only read errors block the cursor; server-rejected records
           // (uploadErrors) are logged and reported but never re-synced.
           const hadSyncErrors = result.syncErrors.length > 0;
-          const newSyncedTime = hadSyncErrors ? null : await saveLastSyncedTime();
+          const newSyncedTime = hadSyncErrors
+            ? null
+            : await saveLastSyncedTime();
           return {
             lastSyncedTime: newSyncedTime,
             syncErrors: result.syncErrors,
             uploadErrors: result.uploadErrors ?? [],
           };
         }
-        throw new Error(result.error || 'Unknown sync error');
+        throw new Error(
+          result.error ||
+            t('syncHealth.unknownError', { defaultValue: 'Unknown sync error' })
+        );
       } finally {
         syncDone();
       }
@@ -46,7 +59,9 @@ export function useSyncHealthData(options?: {
       if (showToasts) {
         Toast.show({
           type: 'info',
-          text1: 'Syncing health data…',
+          text1: t('syncHealth.syncing', {
+            defaultValue: 'Syncing health data…',
+          }),
           visibilityTime: 2000,
         });
       }
@@ -58,25 +73,45 @@ export function useSyncHealthData(options?: {
         if (data.syncErrors.length > 0 || data.uploadErrors.length > 0) {
           const details = [
             data.syncErrors.length > 0
-              ? `${data.syncErrors.length} metric(s) could not be read. They will retry next sync.`
+              ? t('syncHealth.readErrors', {
+                  defaultValue:
+                    '{{count}} metrics could not be read. They will retry next sync.',
+                  defaultValue_one:
+                    '{{count}} metric could not be read. It will retry next sync.',
+                  defaultValue_other:
+                    '{{count}} metrics could not be read. They will retry next sync.',
+                  count: data.syncErrors.length,
+                })
               : null,
             data.uploadErrors.length > 0
-              ? `${data.uploadErrors.length} record(s) were rejected by the server. See logs.`
+              ? t('syncHealth.uploadErrors', {
+                  defaultValue:
+                    '{{count}} records were rejected by the server. See logs.',
+                  defaultValue_one:
+                    '{{count}} record was rejected by the server. See logs.',
+                  defaultValue_other:
+                    '{{count}} records were rejected by the server. See logs.',
+                  count: data.uploadErrors.length,
+                })
               : null,
           ]
             .filter(Boolean)
             .join(' ');
           Toast.show({
             type: 'info',
-            text1: 'Sync incomplete',
+            text1: t('syncHealth.incomplete', {
+              defaultValue: 'Sync incomplete',
+            }),
             text2: details,
             visibilityTime: 4000,
           });
         } else {
           Toast.show({
             type: 'success',
-            text1: 'Sync complete',
-            text2: 'Health data synced successfully.',
+            text1: t('syncHealth.complete', { defaultValue: 'Sync complete' }),
+            text2: t('syncHealth.success', {
+              defaultValue: 'Health data synced successfully.',
+            }),
             visibilityTime: 3000,
           });
         }
@@ -90,8 +125,11 @@ export function useSyncHealthData(options?: {
       if (showToasts) {
         Toast.show({
           type: 'error',
-          text1: 'Sync Error',
-          text2: error.message,
+          text1: t('syncHealth.error', { defaultValue: 'Sync Error' }),
+          text2: t('syncHealth.errorDetails', {
+            defaultValue: 'The health data sync failed: {{message}}',
+            message: error.message,
+          }),
           visibilityTime: 4000,
         });
       }

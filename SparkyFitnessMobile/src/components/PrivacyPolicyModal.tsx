@@ -1,16 +1,13 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  Linking,
-} from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { View, Text, Modal, Linking } from 'react-native';
 import Button from './ui/Button';
 import { addLog } from '../services/LogService';
 import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
 
-const PRIVACY_POLICY_URL = 'https://codewithcj.github.io/SparkyFitness/privacy_policy';
+const PRIVACY_POLICY_URL =
+  'https://codewithcj.github.io/SparkyFitness/privacy_policy';
 
 interface PrivacyPolicyModalProps {
   visible: boolean;
@@ -22,6 +19,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
   onClose,
 }) => {
   const primary = useCSSVariable('--color-accent-primary') as string;
+  const { t } = useTranslation();
 
   const handleOpenPrivacyPolicy = async () => {
     try {
@@ -47,18 +45,24 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
           <View className="items-center mb-5">
             <Icon name="shield-checkmark" size={48} color={primary} />
             <Text className="text-[22px] font-bold mt-3 text-center text-text-primary">
-              Privacy Policy
+              {t('privacyPolicy.title', { defaultValue: 'Privacy Policy' })}
             </Text>
           </View>
 
           {/* Content */}
           <View className="mb-6">
             <Text className="text-base leading-6 text-center mb-4 text-text-primary">
-              This app does not collect, store, or sell your personal data.
+              {t('privacyPolicy.noData', {
+                defaultValue:
+                  'This app does not collect, store, or sell your personal data.',
+              })}
             </Text>
 
             <Text className="text-base leading-6 text-center mb-4 text-text-primary">
-              All HealthKit data stays on your device and is transmitted only to your own server.
+              {t('privacyPolicy.healthData', {
+                defaultValue:
+                  'All HealthKit data stays on your device and is transmitted only to your own server.',
+              })}
             </Text>
 
             <Button
@@ -67,7 +71,9 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
               className="py-0 px-0"
               textClassName="text-base leading-6 text-center underline"
             >
-              Learn more in our Privacy Policy.
+              {t('privacyPolicy.learnMore', {
+                defaultValue: 'Learn more in our Privacy Policy.',
+              })}
             </Button>
           </View>
 
@@ -77,7 +83,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
             onPress={onClose}
             textClassName="text-[17px]"
           >
-            Close
+            {t('common.close', { defaultValue: 'Close' })}
           </Button>
         </View>
       </View>

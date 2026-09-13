@@ -4,7 +4,10 @@ import {
   useExerciseImageSource,
   useImagePairAspectMatch,
 } from '../../src/hooks/useExerciseImageSource';
-import { getActiveServerConfig, proxyHeadersToRecord } from '../../src/services/storage';
+import {
+  getActiveServerConfig,
+  proxyHeadersToRecord,
+} from '../../src/services/storage';
 
 jest.mock('../../src/services/storage', () => ({
   getActiveServerConfig: jest.fn(),
@@ -63,7 +66,9 @@ describe('useExerciseImageSource', () => {
 
     await act(async () => {});
 
-    const source = result.current.getImageSource('https://cdn.example.com/image.jpg');
+    const source = result.current.getImageSource(
+      'https://cdn.example.com/image.jpg'
+    );
     expect(source).toEqual({
       uri: 'https://cdn.example.com/image.jpg',
       headers: {},
@@ -81,7 +86,9 @@ describe('useExerciseImageSource', () => {
 
     await act(async () => {});
 
-    const source = result.current.getImageSource('http://example.com/image.jpg');
+    const source = result.current.getImageSource(
+      'http://example.com/image.jpg'
+    );
     expect(source).toEqual({
       uri: 'http://example.com/image.jpg',
       headers: {},
@@ -104,6 +111,30 @@ describe('useExerciseImageSource', () => {
     const source = result.current.getImageSource('bench-press.jpg');
     expect(source).toEqual({
       uri: 'https://example.com/api/uploads/exercises/bench-press.jpg',
+      headers: { 'X-Custom': 'test' },
+    });
+  });
+
+  it('does not double-prefix an already server-rooted path', async () => {
+    // CSV imports persist downloadImage's return value verbatim, so the stored
+    // value already carries `/uploads/exercises/`.
+    mockGetActiveServerConfig.mockResolvedValue({
+      id: 'test',
+      url: 'https://example.com/',
+      apiKey: 'key',
+      proxyHeaders: [{ key: 'X-Custom', value: 'test' }],
+    });
+    mockProxyHeadersToRecord.mockReturnValue({ 'X-Custom': 'test' });
+
+    const { result } = renderHook(() => useExerciseImageSource());
+
+    await act(async () => {});
+
+    const source = result.current.getImageSource(
+      '/uploads/exercises/Bench_Press/0_ab12cd34.jpg'
+    );
+    expect(source).toEqual({
+      uri: 'https://example.com/api/uploads/exercises/Bench_Press/0_ab12cd34.jpg',
       headers: { 'X-Custom': 'test' },
     });
   });
@@ -192,7 +223,7 @@ describe('useImagePairAspectMatch', () => {
 
     const { result, rerender } = renderHook(
       (sources: typeof pair) => useImagePairAspectMatch(sources),
-      { initialProps: pair },
+      { initialProps: pair }
     );
 
     await waitFor(() => expect(result.current).toBe(true));

@@ -94,7 +94,7 @@ describe('LogService', () => {
       const logs = await getLogs(0, 30, 'all');
 
       expect(logs).toHaveLength(2);
-      expect(logs.map(l => l.status)).toEqual(['WARNING', 'ERROR']);
+      expect(logs.map((l) => l.status)).toEqual(['WARNING', 'ERROR']);
     });
 
     test('log entries have correct structure', async () => {
@@ -325,9 +325,9 @@ describe('LogService', () => {
       await addLog('Will be requeued');
 
       // Make setItem fail once so flushBuffer's catch path restores entries
-      jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(
-        new Error('simulated storage failure')
-      );
+      jest
+        .spyOn(AsyncStorage, 'setItem')
+        .mockRejectedValueOnce(new Error('simulated storage failure'));
 
       // Start a flush that will fail and requeue entries into writeBuffer
       const flushDone = _flushBuffer();
@@ -338,6 +338,45 @@ describe('LogService', () => {
 
       const logs = await getLogs(0, 30, 'all');
       expect(logs).toEqual([]);
+    });
+  });
+
+  describe('flush cost (#2191)', () => {
+    /**
+     * A burst of sync errors used to flush every 20 entries, and every flush
+     * re-read and re-parsed the whole ~240 KB log store on the JS thread. The
+     * store is now mirrored in memory, so storage is read at most once.
+     */
+    test('a long burst of logs reads the store at most once', async () => {
+      await setCaptureLevel('all');
+      const getItem = AsyncStorage.getItem as unknown as jest.Mock;
+      getItem.mockClear();
+
+      for (let i = 0; i < 200; i++) {
+        await addLog(`burst ${i}`, 'ERROR');
+      }
+      await _flushBuffer();
+
+      const logKeyReads = getItem.mock.calls.filter(
+        ([key]) => key === 'app_logs'
+      );
+      expect(logKeyReads.length).toBeLessThanOrEqual(1);
+    });
+
+    test('the burst is still persisted and readable, newest first', async () => {
+      await setCaptureLevel('all');
+
+      for (let i = 0; i < 60; i++) {
+        await addLog(`burst ${i}`, 'ERROR');
+      }
+      await _flushBuffer();
+
+      const logs = await getLogs(0, 3);
+      expect(logs.map((l) => l.message)).toEqual([
+        'burst 59',
+        'burst 58',
+        'burst 57',
+      ]);
     });
   });
 
@@ -357,7 +396,12 @@ describe('LogService', () => {
     });
 
     test('accepts all valid thresholds', async () => {
-      const levels: LogThreshold[] = ['all', 'no_debug', 'warnings_errors', 'errors_only'];
+      const levels: LogThreshold[] = [
+        'all',
+        'no_debug',
+        'warnings_errors',
+        'errors_only',
+      ];
 
       for (const lvl of levels) {
         await setCaptureLevel(lvl);
@@ -411,7 +455,12 @@ describe('LogService', () => {
     });
 
     test('accepts all valid thresholds', async () => {
-      const filters: LogThreshold[] = ['all', 'no_debug', 'warnings_errors', 'errors_only'];
+      const filters: LogThreshold[] = [
+        'all',
+        'no_debug',
+        'warnings_errors',
+        'errors_only',
+      ];
 
       for (const f of filters) {
         await setViewFilter(f);
@@ -465,12 +514,18 @@ describe('LogService', () => {
         getViewFilter(),
       ]);
 
-      expect(results).toEqual(['warnings_errors', 'warnings_errors', 'warnings_errors']);
+      expect(results).toEqual([
+        'warnings_errors',
+        'warnings_errors',
+        'warnings_errors',
+      ]);
 
       // Legacy key must be cleaned up.
       expect(await AsyncStorage.getItem('log_filter')).toBeNull();
       // Migrated value is persisted to the new key.
-      expect(await AsyncStorage.getItem('log_view_filter')).toBe('warnings_errors');
+      expect(await AsyncStorage.getItem('log_view_filter')).toBe(
+        'warnings_errors'
+      );
     });
   });
 
@@ -499,7 +554,7 @@ describe('LogService', () => {
       // Direct write of mixed-validity payload to simulate corruption.
       await AsyncStorage.setItem(
         'log_view_selected_statuses',
-        JSON.stringify(['INFO', 'BOGUS', 'ERROR']),
+        JSON.stringify(['INFO', 'BOGUS', 'ERROR'])
       );
 
       const statuses = await getViewSelectedStatuses();
@@ -538,13 +593,16 @@ describe('LogService', () => {
         ['no_debug', ['ERROR', 'WARNING', 'INFO']],
         ['warnings_errors', ['ERROR', 'WARNING']],
         ['errors_only', ['ERROR']],
-      ])('translates persisted "%s" threshold into chip selection', async (threshold, expected) => {
-        await setViewFilter(threshold);
-        _resetForTesting();
+      ])(
+        'translates persisted "%s" threshold into chip selection',
+        async (threshold, expected) => {
+          await setViewFilter(threshold);
+          _resetForTesting();
 
-        const statuses = await getViewSelectedStatuses();
-        expect(statuses).toEqual(expected);
-      });
+          const statuses = await getViewSelectedStatuses();
+          expect(statuses).toEqual(expected);
+        }
+      );
 
       test('prefers stored chip selection over legacy threshold', async () => {
         await setViewFilter('errors_only');
@@ -696,9 +754,27 @@ describe('LogService', () => {
     test('migrates old log entries with level field to new format', async () => {
       // Simulate old format log entries directly in storage
       const oldLogs = [
-        { timestamp: new Date().toISOString(), message: 'Debug log', level: 'debug', status: 'INFO', details: [] },
-        { timestamp: new Date().toISOString(), message: 'Success log', level: 'info', status: 'SUCCESS', details: [] },
-        { timestamp: new Date().toISOString(), message: 'Error log', level: 'error', status: 'ERROR', details: [] },
+        {
+          timestamp: new Date().toISOString(),
+          message: 'Debug log',
+          level: 'debug',
+          status: 'INFO',
+          details: [],
+        },
+        {
+          timestamp: new Date().toISOString(),
+          message: 'Success log',
+          level: 'info',
+          status: 'SUCCESS',
+          details: [],
+        },
+        {
+          timestamp: new Date().toISOString(),
+          message: 'Error log',
+          level: 'error',
+          status: 'ERROR',
+          details: [],
+        },
       ];
       await AsyncStorage.setItem('app_logs', JSON.stringify(oldLogs));
 
@@ -716,7 +792,12 @@ describe('LogService', () => {
 
     test('migrates SUCCESS-only entries (no legacy level field) to INFO on read', async () => {
       const entries = [
-        { timestamp: new Date().toISOString(), message: 'SUCCESS only', status: 'SUCCESS', details: [] },
+        {
+          timestamp: new Date().toISOString(),
+          message: 'SUCCESS only',
+          status: 'SUCCESS',
+          details: [],
+        },
       ];
       await AsyncStorage.setItem('app_logs', JSON.stringify(entries));
 
@@ -735,7 +816,9 @@ describe('LogService', () => {
       // Old key should be deleted
       expect(await AsyncStorage.getItem('log_filter')).toBeNull();
       // New key should have the migrated value
-      expect(await AsyncStorage.getItem('log_view_filter')).toBe('warnings_errors');
+      expect(await AsyncStorage.getItem('log_view_filter')).toBe(
+        'warnings_errors'
+      );
     });
 
     test('migrates old log_level key to log_view_filter (not capture)', async () => {
@@ -812,7 +895,14 @@ describe('LogService', () => {
 
     test('flush merges with existing entries in storage', async () => {
       // Pre-populate storage with an existing entry
-      const existing = [{ timestamp: '2024-01-01T00:00:00.000Z', message: 'Existing', status: 'INFO', details: [] }];
+      const existing = [
+        {
+          timestamp: '2024-01-01T00:00:00.000Z',
+          message: 'Existing',
+          status: 'INFO',
+          details: [],
+        },
+      ];
       await AsyncStorage.setItem('app_logs', JSON.stringify(existing));
 
       await addLog('New entry');
@@ -874,5 +964,37 @@ describe('LogService', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0].message).toBe('Entry during flush');
     });
+  });
+});
+
+describe('LogService flush failure (PR #2218 review)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    _resetForTesting();
+    await AsyncStorage.clear();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('a failed write does not leave the mirror ahead of storage', async () => {
+    await setCaptureLevel('all');
+    const setItem = AsyncStorage.setItem as unknown as jest.Mock;
+
+    await addLog('first', 'ERROR');
+    setItem.mockRejectedValueOnce(new Error('disk full'));
+    await _flushBuffer();
+
+    // The failed flush requeues its entries. If the mirror had already been
+    // updated, the retry would merge them into a copy that already held them
+    // and persist duplicates.
+    setItem.mockClear();
+    await _flushBuffer();
+
+    const logs = await getLogs(0, 50);
+    expect(logs.filter((l) => l.message === 'first')).toHaveLength(1);
   });
 });

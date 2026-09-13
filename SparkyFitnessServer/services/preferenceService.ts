@@ -4,6 +4,12 @@ import {
   isValidTimeZone,
   SUPPORTED_TIME_FORMATS,
   MAX_GOAL_MODE_PERCENTAGE,
+  CALORIE_SAFETY_FLOOR_MODES,
+  MIN_CALORIE_SAFETY_FLOOR,
+  MAX_CALORIE_SAFETY_FLOOR,
+  DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+  CHART_SCALE_MODES,
+  DEFAULT_CHART_SCALE_MODE,
   type UserPreferencesMutator,
 } from '@workspace/shared';
 
@@ -13,6 +19,15 @@ type GoalModePreferenceInput = Partial<
     UserPreferencesMutator,
     'goal_mode' | 'goal_mode_calculation_method' | 'goal_mode_custom_percentage'
   >
+>;
+type CalorieSafetyFloorPreferenceInput = Partial<
+  Pick<
+    UserPreferencesMutator,
+    'calorie_safety_floor_mode' | 'calorie_safety_floor_value'
+  >
+>;
+type ChartScaleModePreferenceInput = Partial<
+  Pick<UserPreferencesMutator, 'chart_scale_mode'>
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function validateTimezone(preferenceData: any) {
@@ -90,12 +105,65 @@ async function validateGoalMode(preferenceData: GoalModePreferenceInput) {
     }
   }
 }
+async function validateCalorieSafetyFloor(
+  preferenceData: CalorieSafetyFloorPreferenceInput
+) {
+  if (
+    preferenceData.calorie_safety_floor_mode !== undefined &&
+    !(CALORIE_SAFETY_FLOOR_MODES as readonly string[]).includes(
+      preferenceData.calorie_safety_floor_mode
+    )
+  ) {
+    throw Object.assign(
+      new Error(
+        `Invalid calorie_safety_floor_mode: '${preferenceData.calorie_safety_floor_mode}'. Must be one of: ${CALORIE_SAFETY_FLOOR_MODES.join(', ')}.`
+      ),
+      { status: 400 }
+    );
+  }
+  if (preferenceData.calorie_safety_floor_value !== undefined) {
+    const value = preferenceData.calorie_safety_floor_value;
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < MIN_CALORIE_SAFETY_FLOOR ||
+      value > MAX_CALORIE_SAFETY_FLOOR
+    ) {
+      throw Object.assign(
+        new Error(
+          `Invalid calorie_safety_floor_value: '${preferenceData.calorie_safety_floor_value}'. Must be an integer between ${MIN_CALORIE_SAFETY_FLOOR} and ${MAX_CALORIE_SAFETY_FLOOR}.`
+        ),
+        { status: 400 }
+      );
+    }
+  }
+}
+async function validateChartScaleMode(
+  preferenceData: ChartScaleModePreferenceInput
+) {
+  if (
+    preferenceData.chart_scale_mode !== undefined &&
+    !(CHART_SCALE_MODES as readonly string[]).includes(
+      preferenceData.chart_scale_mode
+    )
+  ) {
+    throw Object.assign(
+      new Error(
+        `Invalid chart_scale_mode: '${preferenceData.chart_scale_mode}'. Must be one of: ${CHART_SCALE_MODES.join(', ')}.`
+      ),
+      { status: 400 }
+    );
+  }
+}
 function getDefaultPreferences() {
   return {
     calorie_goal_adjustment_mode: 'dynamic',
     show_net_carbs: false,
     timezone: null,
     time_format: 'h:mm A',
+    calorie_safety_floor_mode: 'standard',
+    calorie_safety_floor_value: DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+    chart_scale_mode: DEFAULT_CHART_SCALE_MODE,
   };
 }
 async function updateUserPreferences(
@@ -110,6 +178,8 @@ async function updateUserPreferences(
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
+    await validateCalorieSafetyFloor(preferenceData);
+    await validateChartScaleMode(preferenceData);
     const updatedPreferences = await preferenceRepository.updateUserPreferences(
       targetUserId,
       preferenceData
@@ -213,6 +283,8 @@ async function upsertUserPreferences(
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
+    await validateCalorieSafetyFloor(preferenceData);
+    await validateChartScaleMode(preferenceData);
     preferenceData.user_id = authenticatedUserId; // Ensure user_id is set from authenticated user
     // Provide a default for calorie_goal_adjustment_mode if it's not present
     if (!preferenceData.calorie_goal_adjustment_mode) {

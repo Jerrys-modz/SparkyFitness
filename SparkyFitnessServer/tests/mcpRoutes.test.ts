@@ -26,6 +26,11 @@ vi.mock('../utils/timezoneLoader', () => ({
 vi.mock('../services/goalService', () => ({
   default: { getUserGoals: vi.fn() },
 }));
+vi.mock('../services/nutrientGoalPreferenceService', () => ({
+  default: {
+    getEffectiveGoalTypes: vi.fn().mockResolvedValue({}),
+  },
+}));
 // Dev tools read the app-pool snapshot and a system client; mock the pool layer
 // so the suite stays DB-free. getPoolStats returns a fixed snapshot we assert on.
 const poolMocks = vi.hoisted(() => {
@@ -145,7 +150,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const tools = res.body.result.tools;
-    expect(tools).toHaveLength(36);
+    expect(tools).toHaveLength(50);
     expect(tools.map((t: { name: string }) => t.name).sort()).toEqual(
       EXPECTED_TOOL_NAMES
     );
@@ -173,7 +178,10 @@ describe('POST /mcp', () => {
     expect(res.status).toBe(200);
     // Same text the chatbotToolsGoals golden test asserts for this case.
     expect(res.body.result.content).toEqual([
-      { type: 'text', text: JSON.stringify({ calories: 2000 }) },
+      {
+        type: 'text',
+        text: JSON.stringify({ calories: 2000, goal_directions: {} }),
+      },
     ]);
     // Scoped to the authenticated user; tz resolved to UTC for the today default.
     expect(goalService.getUserGoals).toHaveBeenCalledWith(
@@ -203,7 +211,10 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.result.content).toEqual([
-      { type: 'text', text: JSON.stringify({ calories: 2000 }) },
+      {
+        type: 'text',
+        text: JSON.stringify({ calories: 2000, goal_directions: {} }),
+      },
     ]);
     expect(goalService.getUserGoals).toHaveBeenCalledWith(
       TEST_USER,
@@ -388,7 +399,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
-    expect(res.body.result.tools).toHaveLength(36);
+    expect(res.body.result.tools).toHaveLength(50);
     for (const devTool of DEV_TOOL_NAMES) {
       expect(names).not.toContain(devTool);
     }
@@ -406,7 +417,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
-    expect(res.body.result.tools).toHaveLength(41);
+    expect(res.body.result.tools).toHaveLength(55);
     for (const devTool of DEV_TOOL_NAMES) {
       expect(names).toContain(devTool);
     }
@@ -424,7 +435,7 @@ describe('POST /mcp', () => {
 
     expect(res.status).toBe(200);
     const names = res.body.result.tools.map((t: { name: string }) => t.name);
-    expect(res.body.result.tools).toHaveLength(36);
+    expect(res.body.result.tools).toHaveLength(50);
     for (const devTool of DEV_TOOL_NAMES) {
       expect(names).not.toContain(devTool);
     }

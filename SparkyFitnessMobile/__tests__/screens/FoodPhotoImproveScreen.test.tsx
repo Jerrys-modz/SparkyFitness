@@ -1,9 +1,10 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import FoodPhotoImproveScreen from '../../src/screens/FoodPhotoImproveScreen';
 import { useEstimateFoodPhoto } from '../../src/hooks/useEstimateFoodPhoto';
+import i18n, { initializeI18n } from '../../src/localization/i18n';
 
 jest.mock('../../src/hooks/useEstimateFoodPhoto', () => ({
   useEstimateFoodPhoto: jest.fn(),
@@ -70,9 +71,12 @@ describe('FoodPhotoImproveScreen', () => {
       <SafeAreaProvider initialMetrics={{ insets, frame }}>
         <FoodPhotoImproveScreen
           navigation={navigation}
-          route={{ ...baseRoute, params: { ...baseRoute.params, ...overrides } }}
+          route={{
+            ...baseRoute,
+            params: { ...baseRoute.params, ...overrides },
+          }}
         />
-      </SafeAreaProvider>,
+      </SafeAreaProvider>
     );
 
   it('rejects negative weight', async () => {
@@ -86,7 +90,7 @@ describe('FoodPhotoImproveScreen', () => {
         expect.objectContaining({
           type: 'error',
           text1: 'Invalid weight',
-        }),
+        })
       );
     });
     expect(mockMutate).not.toHaveBeenCalled();
@@ -108,7 +112,7 @@ describe('FoodPhotoImproveScreen', () => {
         description: undefined,
         totalWeight: undefined,
         weightUnit: undefined,
-      }),
+      })
     );
     expect(input.signal).toBeInstanceOf(AbortSignal);
   });
@@ -119,7 +123,7 @@ describe('FoodPhotoImproveScreen', () => {
     fireEvent.changeText(screen.getByPlaceholderText('e.g. 350'), '250');
     fireEvent.changeText(
       screen.getByPlaceholderText(/salmon with lemon/),
-      'yogurt and berries',
+      'yogurt and berries'
     );
     fireEvent.press(screen.getByText('Generate estimate'));
 
@@ -133,7 +137,7 @@ describe('FoodPhotoImproveScreen', () => {
         description: 'yogurt and berries',
         totalWeight: 250,
         weightUnit: 'g',
-      }),
+      })
     );
     expect(input.signal).toBeInstanceOf(AbortSignal);
   });
@@ -157,11 +161,14 @@ describe('FoodPhotoImproveScreen', () => {
   it('Cancel aborts the in-flight request and suppresses the error toast', async () => {
     const resetFn = jest.fn();
     let pending = false;
-    mockUseEstimate.mockImplementation(() => ({
-      mutate: mockMutate,
-      isPending: pending,
-      reset: resetFn,
-    }) as any);
+    mockUseEstimate.mockImplementation(
+      () =>
+        ({
+          mutate: mockMutate,
+          isPending: pending,
+          reset: resetFn,
+        }) as any
+    );
 
     pending = false;
     const screen = renderScreen();
@@ -181,7 +188,7 @@ describe('FoodPhotoImproveScreen', () => {
           navigation={navigation}
           route={baseRoute as any}
         />
-      </SafeAreaProvider>,
+      </SafeAreaProvider>
     );
 
     fireEvent.press(screen.getByText('Cancel'));
@@ -192,5 +199,59 @@ describe('FoodPhotoImproveScreen', () => {
     callbacks.onError({ code: 'UPSTREAM_ERROR', message: 'aborted' });
     expect(Toast.show).not.toHaveBeenCalled();
     expect(navigation.navigate).not.toHaveBeenCalled();
+  });
+
+  // Regression: the descriptionHint subject must use i18next count pluralization
+  // (subjectLabel_one/few/many/other) instead of a manual ternary. PL requires
+  // one/few/many/other; verify against the real PL catalog, not just defaultValue.
+  describe('descriptionHint subjectLabel pluralization (real catalogs)', () => {
+    beforeEach(async () => {
+      await act(async () => {
+        await initializeI18n('pl');
+        await i18n.changeLanguage('pl');
+      });
+    });
+
+    afterAll(async () => {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    });
+
+    it('PL: 1 zdjęcie (one)', () => {
+      expect(i18n.t('foodPhotoImprove.subjectLabel', { count: 1 })).toBe(
+        'zdjęcie'
+      );
+    });
+
+    it('PL: 2 zdjęcia (few)', () => {
+      expect(i18n.t('foodPhotoImprove.subjectLabel', { count: 2 })).toBe(
+        'zdjęcia'
+      );
+    });
+
+    it('PL: 3 zdjęcia (few)', () => {
+      expect(i18n.t('foodPhotoImprove.subjectLabel', { count: 3 })).toBe(
+        'zdjęcia'
+      );
+    });
+
+    it('PL: 5 zdjęć (many)', () => {
+      expect(i18n.t('foodPhotoImprove.subjectLabel', { count: 5 })).toBe(
+        'zdjęć'
+      );
+    });
+
+    it('PL: 12 zdjęć (many)', () => {
+      expect(i18n.t('foodPhotoImprove.subjectLabel', { count: 12 })).toBe(
+        'zdjęć'
+      );
+    });
+
+    it('PL: 22 zdjęcia (few)', () => {
+      expect(i18n.t('foodPhotoImprove.subjectLabel', { count: 22 })).toBe(
+        'zdjęcia'
+      );
+    });
   });
 });

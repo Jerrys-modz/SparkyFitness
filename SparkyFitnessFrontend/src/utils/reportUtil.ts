@@ -23,6 +23,33 @@ import {
   CustomMeasurementsResponse,
 } from '@workspace/shared';
 import { CustomCategoriesResponse } from '@workspace/shared';
+import type { DailyCalorieBalanceRow } from '@workspace/shared';
+
+/**
+ * The day's real calorie budget from a server-computed balance row.
+ *
+ * `eaten + remaining` is the identity that reconciles the server's "remaining" with the
+ * Reports charts' "goal" framing. In dynamic mode it expands to `goal + exercise + bmr`,
+ * but it generalises to every adjustment mode without the caller knowing which is active
+ * -- which is the point: the browser must not re-derive this. See issue #2094.
+ *
+ * Shared because two Reports surfaces draw a calorie goal line and they have to agree.
+ *
+ * `eatenCalories` is the caller's own unrounded total for the day, and passing it makes
+ * the charts' `eaten - budget` land on exactly `-remaining`. The balance row carries a
+ * rounded `eaten`, so pairing it with an unrounded chart value left up to 0.5 kcal of
+ * daily residue that the cumulative series then accumulated -- around 90 kcal of drift
+ * across a year-long report, in a chart whose entire job is reconciling with the Diary.
+ * Both values come from the same nutrition query, so preferring the caller's costs
+ * nothing; it also means an entry logged between the two fetches moves the budget line
+ * rather than manufacturing a variance. Omit it and the row's own rounded figure is
+ * used, which is still correct to within that 0.5 kcal.
+ */
+export const effectiveCalorieGoal = (
+  balance: DailyCalorieBalanceRow | undefined,
+  eatenCalories?: number
+): number | undefined =>
+  balance ? (eatenCalories ?? balance.eaten) + balance.remaining : undefined;
 
 interface StressDataPoint {
   time: string;
@@ -47,6 +74,9 @@ interface NutrientTotals {
   vitamin_c?: number;
   calcium?: number;
   iron?: number;
+  caffeine_mg?: number;
+  water_ml?: number;
+  alcohol_g?: number;
   [key: string]: number | undefined;
 }
 
@@ -243,42 +273,6 @@ export const getSpO2Status = (
   }
 };
 
-export const getSpO2StatusInfo = (
-  value: number
-): { status: string; color: string; description: string } => {
-  if (value < 70) {
-    return {
-      status: 'Critical',
-      color: '#ef4444',
-      description: 'Dangerously low oxygen levels. Seek medical attention.',
-    };
-  } else if (value < 80) {
-    return {
-      status: 'Low',
-      color: '#f97316',
-      description: 'Below normal oxygen levels. Monitor closely.',
-    };
-  } else if (value < 90) {
-    return {
-      status: 'Moderate',
-      color: '#eab308',
-      description: 'Slightly below optimal levels.',
-    };
-  } else if (value < 95) {
-    return {
-      status: 'Normal',
-      color: '#22c55e',
-      description: 'Healthy oxygen saturation levels.',
-    };
-  } else {
-    return {
-      status: 'Excellent',
-      color: '#22c55e',
-      description: 'Optimal oxygen saturation.',
-    };
-  }
-};
-
 // Get color for a specific SpO2 value (for bar chart)
 
 export const getSpO2Color = (value: number): string => {
@@ -368,6 +362,12 @@ export const exportFoodDiary = async ({
       i18n.t('reports.foodDiaryExportHeaders.vitaminC', 'Vitamin C (mg)'),
       i18n.t('reports.foodDiaryExportHeaders.calcium', 'Calcium (mg)'),
       i18n.t('reports.foodDiaryExportHeaders.iron', 'Iron (mg)'),
+      i18n.t('reports.foodDiaryExportHeaders.caffeine', 'Caffeine (mg)'),
+      i18n.t(
+        'reports.foodDiaryExportHeaders.waterContent',
+        'Water Content (ml)'
+      ),
+      i18n.t('reports.foodDiaryExportHeaders.alcohol', 'Alcohol (g)'),
       ...customNutrients.map(
         (nutrient) => `${nutrient.name} (${nutrient.unit})`
       ),
@@ -392,8 +392,7 @@ export const exportFoodDiary = async ({
       return entries.reduce(
         (total, entry) => {
           const customSource = entry.custom_nutrients as
-            | Record<string, number>
-            | undefined;
+            Record<string, number> | undefined;
 
           const customNutrientTotals = customNutrients.reduce(
             (acc: Record<string, number>, nutrient) => {
@@ -433,6 +432,9 @@ export const exportFoodDiary = async ({
             vitamin_c: total.vitamin_c + Number(entry.vitamin_c || 0),
             calcium: total.calcium + Number(entry.calcium || 0),
             iron: total.iron + Number(entry.iron || 0),
+            caffeine_mg: total.caffeine_mg + Number(entry.caffeine_mg || 0),
+            water_ml: total.water_ml + Number(entry.water_ml || 0),
+            alcohol_g: total.alcohol_g + Number(entry.alcohol_g || 0),
             ...customNutrientTotals,
           };
         },
@@ -454,6 +456,9 @@ export const exportFoodDiary = async ({
           vitamin_c: 0,
           calcium: 0,
           iron: 0,
+          caffeine_mg: 0,
+          water_ml: 0,
+          alcohol_g: 0,
           ...customNutrients.reduce(
             (acc, nutrient) => ({ ...acc, [nutrient.name]: 0 }),
             {}
@@ -497,10 +502,12 @@ export const exportFoodDiary = async ({
           const vitaminC = Number(entry.vitamin_c || 0);
           const calcium = Number(entry.calcium || 0);
           const iron = Number(entry.iron || 0);
+          const caffeineMg = Number(entry.caffeine_mg || 0);
+          const waterMl = Number(entry.water_ml || 0);
+          const alcoholG = Number(entry.alcohol_g || 0);
 
           const customSource = entry.custom_nutrients as
-            | Record<string, number>
-            | undefined;
+            Record<string, number> | undefined;
 
           csvRows.push([
             formatDateInUserTimezone(entry.entry_date, 'MMM dd, yyyy'), // Format date for display
@@ -529,6 +536,9 @@ export const exportFoodDiary = async ({
             vitaminC.toFixed(2), // mg
             calcium.toFixed(2), // mg
             iron.toFixed(2), // mg
+            caffeineMg.toFixed(2), // mg
+            waterMl.toFixed(2), // ml
+            alcoholG.toFixed(2), // g
             ...customNutrients.map((nutrient) => {
               const val = Number(
                 entry[nutrient.name] ?? customSource?.[nutrient.name] ?? 0
@@ -570,6 +580,9 @@ export const exportFoodDiary = async ({
           (totals.vitamin_c ?? 0).toFixed(2),
           (totals.calcium ?? 0).toFixed(2),
           (totals.iron ?? 0).toFixed(2),
+          (totals.caffeine_mg ?? 0).toFixed(2),
+          (totals.water_ml ?? 0).toFixed(2),
+          (totals.alcohol_g ?? 0).toFixed(2),
           ...customNutrients.map((nutrient) =>
             (totals[nutrient.name] ?? 0).toFixed(1)
           ),

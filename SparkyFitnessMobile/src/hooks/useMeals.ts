@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import type { ImageUploadArgs } from '../utils/pickerImages';
 import {
@@ -23,7 +24,11 @@ import {
   topMealsQueryKeyRoot,
 } from './queryKeys';
 import type { QueryClient } from '@tanstack/react-query';
-import type { CreateMealPayload, Meal, UpdateMealPayload } from '../types/meals';
+import type {
+  CreateMealPayload,
+  Meal,
+  UpdateMealPayload,
+} from '../types/meals';
 
 // Stable reference for the "no data yet" case. A fresh `[]` on every render
 // would break memoization for consumers (e.g. the landing-list useMemo in
@@ -37,8 +42,14 @@ const EMPTY_MEALS: Meal[] = [];
  * leaves the landing internally inconsistent.
  */
 export function invalidateMealUsageCaches(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: recentMealsQueryKeyRoot, refetchType: 'all' });
-  queryClient.invalidateQueries({ queryKey: topMealsQueryKeyRoot, refetchType: 'all' });
+  queryClient.invalidateQueries({
+    queryKey: recentMealsQueryKeyRoot,
+    refetchType: 'all',
+  });
+  queryClient.invalidateQueries({
+    queryKey: topMealsQueryKeyRoot,
+    refetchType: 'all',
+  });
 }
 
 function invalidateMealCaches(queryClient: QueryClient, mealId?: string) {
@@ -73,7 +84,10 @@ export function useMeals(options?: { enabled?: boolean }) {
   };
 }
 
-export function useRecentMeals(options?: { enabled?: boolean; limit?: number }) {
+export function useRecentMeals(options?: {
+  enabled?: boolean;
+  limit?: number;
+}) {
   const { enabled = true, limit = 3 } = options ?? {};
 
   const query = useQuery({
@@ -111,7 +125,7 @@ export function useTopMeals(options?: { enabled?: boolean; limit?: number }) {
 
 export function useMeal(
   mealId: string | undefined,
-  options?: { enabled?: boolean; initialMeal?: Meal },
+  options?: { enabled?: boolean; initialMeal?: Meal }
 ) {
   const { enabled = true, initialMeal } = options ?? {};
 
@@ -144,6 +158,7 @@ type UpdateMealVariables = {
 };
 
 export function useCreateMeal() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -155,8 +170,10 @@ export function useCreateMeal() {
     onError: () => {
       Toast.show({
         type: 'error',
-        text1: 'Failed to create meal',
-        text2: 'Please try again.',
+        text1: t('mealMutations.createFailed', {
+          defaultValue: 'Failed to create meal',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
       });
     },
   });
@@ -172,7 +189,11 @@ export function useCreateMeal() {
   };
 }
 
-export function useUpdateMeal(options?: { mealId?: string; onSuccess?: (meal: Meal) => void }) {
+export function useUpdateMeal(options?: {
+  mealId?: string;
+  onSuccess?: (meal: Meal) => void;
+}) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { mealId, onSuccess } = options ?? {};
 
@@ -190,8 +211,10 @@ export function useUpdateMeal(options?: { mealId?: string; onSuccess?: (meal: Me
     onError: () => {
       Toast.show({
         type: 'error',
-        text1: 'Failed to update meal',
-        text2: 'Please try again.',
+        text1: t('mealMutations.updateFailed', {
+          defaultValue: 'Failed to update meal',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
       });
     },
   });
@@ -205,7 +228,11 @@ export function useUpdateMeal(options?: { mealId?: string; onSuccess?: (meal: Me
   };
 }
 
-export function useDeleteMeal(options: { mealId?: string; onSuccess?: () => void }) {
+export function useDeleteMeal(options: {
+  mealId?: string;
+  onSuccess?: () => void;
+}) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { mealId, onSuccess } = options;
 
@@ -223,8 +250,10 @@ export function useDeleteMeal(options: { mealId?: string; onSuccess?: () => void
     onError: () => {
       Toast.show({
         type: 'error',
-        text1: 'Failed to delete meal',
-        text2: 'Please try again.',
+        text1: t('mealMutations.deleteFailed', {
+          defaultValue: 'Failed to delete meal',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
       });
     },
   });
@@ -232,23 +261,50 @@ export function useDeleteMeal(options: { mealId?: string; onSuccess?: () => void
   const confirmAndDelete = async () => {
     if (!mealId) return;
 
-    let hasUsage = false;
+    let usage: {
+      usedByCurrentUser: boolean;
+      usedByOtherUsers: boolean;
+    } | null = null;
     try {
-      const impact = await fetchMealDeletionImpact(mealId);
-      hasUsage = impact.usedByCurrentUser || impact.usedByOtherUsers;
+      usage = await fetchMealDeletionImpact(mealId);
     } catch {
-      hasUsage = false;
+      Alert.alert(
+        t('mealMutations.deleteVerificationFailedTitle', {
+          defaultValue: 'Unable to verify deletion',
+        }),
+        t('mealMutations.deleteVerificationFailedMessage', {
+          defaultValue:
+            'We could not verify whether this meal is used elsewhere. Try again before deleting it.',
+        }),
+        [{ text: t('common.ok', { defaultValue: 'OK' }), style: 'cancel' }]
+      );
+      return;
     }
 
+    const hasUsage = usage.usedByCurrentUser || usage.usedByOtherUsers;
+
     Alert.alert(
-      'Delete Meal',
+      t('mealMutations.deleteTitle', { defaultValue: 'Delete Meal' }),
       hasUsage
-        ? 'Delete this meal from your library? Logged diary entries will stay unchanged, but related meal plans may be affected.'
-        : 'Delete this meal from your library? Logged diary entries will stay unchanged.',
+        ? t('mealMutations.deleteWithUsage', {
+            defaultValue:
+              'Delete this meal from your library? Logged diary entries will stay unchanged, but related meal plans may be affected.',
+          })
+        : t('mealMutations.deleteWithoutUsage', {
+            defaultValue:
+              'Delete this meal from your library? Logged diary entries will stay unchanged.',
+          }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => mutation.mutate() },
-      ],
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+        {
+          text: t('common.delete', { defaultValue: 'Delete' }),
+          style: 'destructive',
+          onPress: () => mutation.mutate(),
+        },
+      ]
     );
   };
 

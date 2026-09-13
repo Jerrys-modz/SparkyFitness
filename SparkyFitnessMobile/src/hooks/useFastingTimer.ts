@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { computeFastTimerValues, type FastTimerValues } from '../utils/fasting';
 
 export type { FastTimerValues } from '../utils/fasting';
@@ -13,8 +14,9 @@ export type { FastTimerValues } from '../utils/fasting';
 export function useFastingTimer(
   startTime: string | null | undefined,
   targetEndTime: string | null | undefined,
-  active: boolean,
+  active: boolean
 ): FastTimerValues {
+  const { t } = useTranslation();
   const [, setTick] = useState(0);
 
   useFocusEffect(
@@ -22,7 +24,7 @@ export function useFastingTimer(
       if (!active || !startTime) return;
       const id = setInterval(() => setTick((t) => t + 1), 1000);
       return () => clearInterval(id);
-    }, [active, startTime]),
+    }, [active, startTime])
   );
 
   // Read `Date.now()` fresh at render time (see the note in this file's header);
@@ -32,7 +34,7 @@ export function useFastingTimer(
   // When idle (no fast) the consuming component ignores these values; fall back
   // to a zero-elapsed result rather than computing from the epoch.
   if (!startTime) {
-    return computeFastTimerValues(new Date(now).toISOString(), null, now);
+    return computeFastTimerValues(new Date(now).toISOString(), null, now, t);
   }
-  return computeFastTimerValues(startTime, targetEndTime, now);
+  return computeFastTimerValues(startTime, targetEndTime, now, t);
 }

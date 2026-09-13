@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
-import { getActiveServerConfig, proxyHeadersToRecord } from '../services/storage';
+import {
+  getActiveServerConfig,
+  proxyHeadersToRecord,
+} from '../services/storage';
 import { normalizeUrl } from '../services/api/apiClient';
 import type { ServerConfig } from '../services/storage';
 
@@ -15,7 +18,7 @@ export function useExerciseImageSource() {
   useFocusEffect(
     useCallback(() => {
       getActiveServerConfig().then(setConfig);
-    }, []),
+    }, [])
   );
 
   // Cache resolved sources by image path so the same path yields a
@@ -42,6 +45,14 @@ export function useExerciseImageSource() {
       // Absolute URLs (external sources) — use directly
       if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         source = { uri: imagePath, headers: {} };
+      } else if (imagePath.startsWith('/') && config) {
+        // Already server-rooted: the CSV importers persist downloadImage's
+        // return value (`/uploads/exercises/...`) verbatim, so appending it to
+        // the prefix below yields `/api/uploads/exercises//uploads/...`.
+        source = {
+          uri: `${normalizeUrl(config.url)}/api${imagePath}`,
+          headers: proxyHeadersToRecord(config.proxyHeaders),
+        };
       } else if (!config) {
         // Don't cache until config resolves, so the path resolves once ready.
         return null;
@@ -55,7 +66,7 @@ export function useExerciseImageSource() {
       cacheRef.current.set(imagePath, source);
       return source;
     },
-    [config],
+    [config]
   );
 
   return { getImageSource };
@@ -74,7 +85,7 @@ const PAIR_ASPECT_TOLERANCE = 0.1;
  * modes over it. Ignores arrays that are not exactly a pair.
  */
 export function useImagePairAspectMatch(
-  sources: readonly ImageSource[],
+  sources: readonly ImageSource[]
 ): boolean | undefined {
   const [match, setMatch] = useState<boolean | undefined>(undefined);
 
@@ -97,10 +108,10 @@ export function useImagePairAspectMatch(
     Promise.allSettled(sources.map((source) => Image.loadAsync(source))).then(
       (results) => {
         const refs = results.map((result) =>
-          result.status === 'fulfilled' ? result.value : null,
+          result.status === 'fulfilled' ? result.value : null
         );
         const [a, b] = refs.map((ref) =>
-          ref && ref.height > 0 ? ref.width / ref.height : 0,
+          ref && ref.height > 0 ? ref.width / ref.height : 0
         );
         if (!cancelled && a > 0 && b > 0) {
           setMatch(Math.abs(a - b) / Math.max(a, b) <= PAIR_ASPECT_TOLERANCE);
@@ -108,7 +119,7 @@ export function useImagePairAspectMatch(
         // ImageRefs pin the decoded bitmaps in native memory; only the
         // dimensions are needed here.
         for (const ref of refs) ref?.release();
-      },
+      }
     );
 
     return () => {

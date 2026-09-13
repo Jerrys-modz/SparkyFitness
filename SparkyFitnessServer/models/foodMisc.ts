@@ -1,5 +1,15 @@
 import { getClient, getSystemClient } from '../db/poolManager.js';
+import { FOOD_VARIANT_NUTRIENT_FIELDS } from '@workspace/shared';
+import type { FoodVariantNutrientField } from '@workspace/shared';
 import type { FoodEntrySnapshot } from '../types/nutrition.js';
+import {
+  supplementScanWhere,
+  supplementFixedAgg,
+  supplementCountable,
+  supplementFixedSubquery,
+  supplementCustomUnion,
+  supplementCustomTotals,
+} from './supplementSql.js';
 
 const DEFAULT_VARIANT_JSON_SQL = `
   json_build_object(
@@ -23,6 +33,10 @@ const DEFAULT_VARIANT_JSON_SQL = `
     'vitamin_c', fv.vitamin_c,
     'calcium', fv.calcium,
     'iron', fv.iron,
+    'caffeine_mg', fv.caffeine_mg,
+    'water_ml', fv.water_ml,
+    'alcohol_g', fv.alcohol_g,
+    'abv_percent', fv.abv_percent,
     'is_default', fv.is_default,
     'glycemic_index', fv.glycemic_index,
     'custom_nutrients', fv.custom_nutrients,
@@ -218,28 +232,6 @@ async function removeFoodFavorite(userId: string, foodId: string) {
     client.release();
   }
 }
-// A logged supplement contributes its per-dose snapshot, scaled by the dose count taken
-// (GREATEST-clamped so a non-positive value can't subtract). These fragments let the diary
-// daily-summary aggregations count supplements exactly the way the report already does, so
-// they show against goals. userExpr/dateExpr are the SQL expressions to correlate on: bind
-// params ($1/$2) for the single-date query, or the grouped columns (fe.user_id/fe.entry_date)
-// for the per-date query.
-function supplementFixed(
-  key: string,
-  userExpr: string,
-  dateExpr: string
-): string {
-  return `COALESCE((SELECT SUM(public.sf_try_numeric(me.nutrients_snapshot->>'${key}') * GREATEST(COALESCE(me.dose_amount_snapshot, 1), 0)) FROM medication_entries me WHERE me.user_id = ${userExpr} AND me.entry_date = ${dateExpr} AND me.status IN ('taken', 'prn_taken') AND me.nutrients_snapshot IS NOT NULL), 0)`;
-}
-function supplementCustomUnion(userExpr: string, dateExpr: string): string {
-  return `
-                UNION ALL
-                SELECT key, public.sf_try_numeric(value) * GREATEST(COALESCE(me2.dose_amount_snapshot, 1), 0) AS scaled
-                FROM medication_entries me2
-                CROSS JOIN LATERAL jsonb_each_text(me2.nutrients_snapshot->'custom_nutrients')
-                WHERE me2.user_id = ${userExpr} AND me2.entry_date = ${dateExpr} AND me2.status IN ('taken', 'prn_taken') AND me2.nutrients_snapshot IS NOT NULL`;
-}
-
 /**
  * The supplement arm of a day's intake, on its own.
  *
@@ -249,28 +241,62 @@ function supplementCustomUnion(userExpr: string, dateExpr: string): string {
  * and once to show as its own line, so what is displayed still reconciles against the
  * food rows the user can see.
  *
- * Fields are exactly the set `supplementFixed` is applied to elsewhere. Returns zeros
+ * Fields are `FOOD_VARIANT_NUTRIENT_FIELDS`, the same list `reportRepository` applies
+ * `supplementFixedSubquery` to for the range query and the same fixed fields the Diary's summary
+ * card can render. This selected only the five macro fields until #2145, which is how a
+ * supplement's calcium reached Reports but not the Diary card beside it. Returns zeros
  * rather than nulls on a day with no supplements, so callers can add unconditionally.
+ *
+ * Custom nutrients come back alongside them, aggregated by name. Most micronutrients are
+ * custom: only six catalog entries have a fixed column, so magnesium, vitamin D, zinc and
+ * the B vitamins reach the client through `custom_nutrients` or not at all. This endpoint
+ * carried none of them until #2145; `getDailyNutritionSummary` already unions them into
+ * its food totals, but the Diary does not call that.
+ *
+ * Unlike the callers that add a supplement total onto a food SUM, this one has no food arm
+ * to correlate against, so the seventeen fields are summed in a single pass over the day's
+ * doses rather than as seventeen scalar subqueries that each rescan the same rows. The
+ * outer COALESCE is what the per-subquery COALESCE used to do: with no GROUP BY the inner
+ * aggregate still yields exactly one row on a day with no doses, but a row of NULLs.
  */
 async function getDailySupplementTotals(userId: string, date: string) {
   const client = await getClient(userId);
   try {
+    const sums = FOOD_VARIANT_NUTRIENT_FIELDS.map(
+      (field) => `${supplementFixedAgg(field, 'me')} AS ${field}`
+    ).join(',\n          ');
+    const selects = FOOD_VARIANT_NUTRIENT_FIELDS.map(
+      (field) => `COALESCE(supplement_fixed.${field}, 0) AS ${field}`
+    ).join(',\n        ');
     const result = await client.query(
       `SELECT
-        ${supplementFixed('calories', '$1', '$2')} AS calories,
-        ${supplementFixed('protein', '$1', '$2')} AS protein,
-        ${supplementFixed('carbs', '$1', '$2')} AS carbs,
-        ${supplementFixed('fat', '$1', '$2')} AS fat,
-        ${supplementFixed('dietary_fiber', '$1', '$2')} AS dietary_fiber`,
+        ${selects},
+        ${supplementCustomTotals('$1', '$2')} AS custom_nutrients
+      FROM (
+        SELECT
+          ${sums}
+        FROM medication_entries me
+        WHERE ${supplementScanWhere('me', '$1', '$2')}
+      ) supplement_fixed`,
       [userId, date]
     );
     const row = result.rows[0] ?? {};
+    const customRow = (row.custom_nutrients ?? {}) as Record<string, unknown>;
     return {
-      calories: Number(row.calories) || 0,
-      protein: Number(row.protein) || 0,
-      carbs: Number(row.carbs) || 0,
-      fat: Number(row.fat) || 0,
-      dietary_fiber: Number(row.dietary_fiber) || 0,
+      ...(Object.fromEntries(
+        FOOD_VARIANT_NUTRIENT_FIELDS.map((field) => [
+          field,
+          Number(row[field]) || 0,
+        ])
+      ) as Record<FoodVariantNutrientField, number>),
+      // A key whose every contribution failed `sf_try_numeric` sums to NULL and arrives as
+      // JSON null, so these are coerced the same way the fixed columns are.
+      custom_nutrients: Object.fromEntries(
+        Object.entries(customRow).map(([name, value]) => [
+          name,
+          Number(value) || 0,
+        ])
+      ),
     };
   } finally {
     client.release();
@@ -282,11 +308,11 @@ async function getDailyNutritionSummary(userId: string, date: string) {
   try {
     const result = await client.query(
       `SELECT
-        COALESCE(SUM(fe.calories * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('calories', '$1', '$2')} AS total_calories,
-        COALESCE(SUM(fe.protein * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('protein', '$1', '$2')} AS total_protein,
-        COALESCE(SUM(fe.carbs * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('carbs', '$1', '$2')} AS total_carbs,
-        COALESCE(SUM(fe.fat * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('fat', '$1', '$2')} AS total_fat,
-        COALESCE(SUM(fe.dietary_fiber * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('dietary_fiber', '$1', '$2')} AS total_dietary_fiber,
+        COALESCE(SUM(fe.calories * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('calories', '$1', '$2')} AS total_calories,
+        COALESCE(SUM(fe.protein * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('protein', '$1', '$2')} AS total_protein,
+        COALESCE(SUM(fe.carbs * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('carbs', '$1', '$2')} AS total_carbs,
+        COALESCE(SUM(fe.fat * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('fat', '$1', '$2')} AS total_fat,
+        COALESCE(SUM(fe.dietary_fiber * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('dietary_fiber', '$1', '$2')} AS total_dietary_fiber,
         COALESCE(
           (
             SELECT jsonb_object_agg(key, value)
@@ -326,11 +352,11 @@ async function getDailyNutritionSummariesByDates(
     const result = await client.query(
       `SELECT
         d.entry_date,
-        COALESCE(SUM(fe.calories * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('calories', 'd.user_id', 'd.entry_date')} AS total_calories,
-        COALESCE(SUM(fe.protein * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('protein', 'd.user_id', 'd.entry_date')} AS total_protein,
-        COALESCE(SUM(fe.carbs * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('carbs', 'd.user_id', 'd.entry_date')} AS total_carbs,
-        COALESCE(SUM(fe.fat * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('fat', 'd.user_id', 'd.entry_date')} AS total_fat,
-        COALESCE(SUM(fe.dietary_fiber * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixed('dietary_fiber', 'd.user_id', 'd.entry_date')} AS total_dietary_fiber,
+        COALESCE(SUM(fe.calories * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('calories', 'd.user_id', 'd.entry_date')} AS total_calories,
+        COALESCE(SUM(fe.protein * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('protein', 'd.user_id', 'd.entry_date')} AS total_protein,
+        COALESCE(SUM(fe.carbs * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('carbs', 'd.user_id', 'd.entry_date')} AS total_carbs,
+        COALESCE(SUM(fe.fat * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('fat', 'd.user_id', 'd.entry_date')} AS total_fat,
+        COALESCE(SUM(fe.dietary_fiber * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery('dietary_fiber', 'd.user_id', 'd.entry_date')} AS total_dietary_fiber,
         COALESCE(
           (
             SELECT jsonb_object_agg(key, value)
@@ -352,16 +378,77 @@ async function getDailyNutritionSummariesByDates(
            FROM food_entries
           WHERE user_id = $1 AND entry_date = ANY($2::date[])
          UNION
-         SELECT DISTINCT user_id, entry_date
-           FROM medication_entries
-          WHERE user_id = $1 AND entry_date = ANY($2::date[])
-            AND status IN ('taken', 'prn_taken')
-            AND nutrients_snapshot IS NOT NULL
+         SELECT DISTINCT me.user_id, me.entry_date
+           FROM medication_entries me
+          WHERE me.user_id = $1 AND me.entry_date = ANY($2::date[])
+            AND ${supplementCountable('me')}
        ) d
        LEFT JOIN food_entries fe
               ON fe.user_id = d.user_id AND fe.entry_date = d.entry_date
        GROUP BY d.user_id, d.entry_date`,
       [userId, dates]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+// The double-counting rule (#1557/#2115): a food_entries row contributes
+// food-derived water iff no water_intake_entries row references it via
+// food_entry_id -- that link means the drink was already logged (and
+// counted) as a ledger row by the container->food feature. water_ml on the
+// entry wins over the volume fallback; sf_volume_unit_to_ml returns NULL for
+// non-volume units (and for the food vocabulary's weight 'oz'), which
+// COALESCE then floors to 0.
+// 0 means "unknown", the same as every other nutrient column: food_variants
+// .water_ml carries DEFAULT 0 like its neighbours, and the food form saves a
+// blank field as 0, so a user has no way to record a deliberate zero. Treating
+// 0 as "this drink holds no water" would therefore have suppressed the volume
+// fallback for every food nobody had explicitly filled in -- which is nearly
+// all of them -- taking sf_volume_unit_to_ml and the 'fl oz' unit with it.
+// This also matches the container path, which already falls back on
+// water_ml <= 0 (see upsertWaterIntake in services/measurementService.ts).
+const FOOD_DERIVED_WATER_EXPR = `COALESCE(
+  NULLIF(fe.water_ml, 0) * fe.quantity / NULLIF(fe.serving_size, 0),
+  fe.quantity * sf_volume_unit_to_ml(fe.unit),
+  0
+)`;
+
+async function getFoodDerivedWaterMlForDate(userId: string, date: string) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT COALESCE(SUM(${FOOD_DERIVED_WATER_EXPR}), 0) AS food_ml
+       FROM food_entries fe
+       WHERE fe.user_id = $1 AND fe.entry_date = $2
+         AND NOT EXISTS (
+           SELECT 1 FROM water_intake_entries wie WHERE wie.food_entry_id = fe.id
+         )`,
+      [userId, date]
+    );
+    return Number(result.rows[0]?.food_ml || 0);
+  } finally {
+    client.release();
+  }
+}
+
+async function getFoodDerivedWaterMlByDateRange(
+  userId: string,
+  startDate: string,
+  endDate: string
+) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT fe.entry_date, COALESCE(SUM(${FOOD_DERIVED_WATER_EXPR}), 0) AS food_ml
+       FROM food_entries fe
+       WHERE fe.user_id = $1 AND fe.entry_date BETWEEN $2 AND $3
+         AND NOT EXISTS (
+           SELECT 1 FROM water_intake_entries wie WHERE wie.food_entry_id = fe.id
+         )
+       GROUP BY fe.entry_date`,
+      [userId, startDate, endDate]
     );
     return result.rows;
   } finally {
@@ -478,11 +565,14 @@ async function updateFoodEntriesSnapshot(
           calcium = $20,
           iron = $21,
           glycemic_index = $22,
-          custom_nutrients = $23
+          custom_nutrients = $23,
+          caffeine_mg = $24,
+          water_ml = $25,
+          alcohol_g = $26
           -- The user picked "nutrition only", so the photo column is left out
           -- of the statement and every entry keeps the photo it shows today.
-          ${syncImages ? ', images = $27::jsonb' : ''}
-       WHERE user_id = $24 AND food_id = $25 AND variant_id = $26
+          ${syncImages ? ', images = $30::jsonb' : ''}
+       WHERE user_id = $27 AND food_id = $28 AND variant_id = $29
        RETURNING id`,
       [
         newSnapshotData.food_name,
@@ -508,11 +598,14 @@ async function updateFoodEntriesSnapshot(
         newSnapshotData.iron,
         newSnapshotData.glycemic_index,
         newSnapshotData.custom_nutrients || {},
+        newSnapshotData.caffeine_mg,
+        newSnapshotData.water_ml,
+        newSnapshotData.alcohol_g,
         userId,
         foodId,
         variantId,
         // Postgres rejects a bind with more parameters than the statement
-        // references, so $27 is only supplied when the SET clause uses it.
+        // references, so $30 is only supplied when the SET clause uses it.
         ...(syncImages ? [JSON.stringify(newSnapshotData.images ?? [])] : []),
       ]
     );
@@ -548,6 +641,105 @@ async function clearUserIgnoredUpdate(userId: string, variantId: string) {
     client.release();
   }
 }
+export interface RawCaffeineDose {
+  source: 'food' | 'supplement';
+  entry_date: string;
+  entry_time: string | null;
+  meal_default_time: string | null;
+  taken_at: Date | string | null;
+  caffeine_mg: number;
+  name: string;
+}
+
+async function getCaffeineDosesForWindow(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<RawCaffeineDose[]> {
+  const client = await getClient(userId);
+  try {
+    const foodSql = `
+      SELECT 
+        'food' AS source,
+        fe.entry_date::text AS entry_date,
+        fe.entry_time::text AS entry_time,
+        COALESCE(umv.default_time, mt.default_time)::text AS meal_default_time,
+        NULL::timestamp AS taken_at,
+        (fe.caffeine_mg * fe.quantity / NULLIF(fe.serving_size, 0))::numeric AS caffeine_mg,
+        COALESCE(fe.food_name, 'Food') AS name
+      FROM food_entries fe
+      LEFT JOIN meal_types mt ON mt.id = fe.meal_type_id
+      -- The user's own meal times live in user_meal_visibilities; meal_types
+      -- carries the system default, which is NULL for the built-in meals.
+      -- Reading only the base table anchored every untimed entry at noon even
+      -- for a user who had set Snacks to 16:00, as getAllMealTypes already
+      -- COALESCEs these two.
+      LEFT JOIN user_meal_visibilities umv
+        ON umv.meal_type_id = fe.meal_type_id AND umv.user_id = $1
+      WHERE fe.user_id = $1
+        AND fe.entry_date >= $2
+        AND fe.entry_date <= $3
+        AND fe.caffeine_mg IS NOT NULL
+        AND fe.caffeine_mg > 0
+        AND fe.quantity > 0
+    `;
+    const suppSql = `
+      SELECT
+        'supplement' AS source,
+        me.entry_date::text AS entry_date,
+        NULL::text AS entry_time,
+        NULL::text AS meal_default_time,
+        me.taken_at,
+        (public.sf_try_numeric(me.nutrients_snapshot->>'caffeine_mg') * GREATEST(COALESCE(me.dose_amount_snapshot, 1), 0))::numeric AS caffeine_mg,
+        COALESCE(me.med_name_snapshot, 'Supplement') AS name
+      FROM medication_entries me
+      WHERE me.user_id = $1
+        AND me.entry_date >= $2
+        AND me.entry_date <= $3
+        AND me.status IN ('taken', 'prn_taken')
+        AND me.nutrients_snapshot IS NOT NULL
+        AND public.sf_try_numeric(me.nutrients_snapshot->>'caffeine_mg') > 0
+    `;
+
+    const combinedSql = `
+      SELECT * FROM (${foodSql} UNION ALL ${suppSql}) AS combined_doses
+      ORDER BY entry_date ASC, COALESCE(entry_time, meal_default_time, '12:00') ASC
+    `;
+
+    const result = await client.query(combinedSql, [
+      userId,
+      startDate,
+      endDate,
+    ]);
+    return result.rows.map(
+      (r: {
+        source: 'food' | 'supplement';
+        entry_date: string;
+        entry_time: string | null;
+        meal_default_time: string | null;
+        taken_at: Date | string | null;
+        caffeine_mg: string | number;
+        name: string;
+      }) => ({
+        source: r.source,
+        entry_date:
+          typeof r.entry_date === 'string' && r.entry_date.includes('T')
+            ? r.entry_date.split('T')[0]
+            : String(r.entry_date),
+        entry_time: r.entry_time ? String(r.entry_time).slice(0, 5) : null,
+        meal_default_time: r.meal_default_time
+          ? String(r.meal_default_time).slice(0, 5)
+          : null,
+        taken_at: r.taken_at,
+        caffeine_mg: Number(r.caffeine_mg) || 0,
+        name: r.name,
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
 export { getFoodDataProviderById };
 export { getRecentFoods };
 export { getTopFoods };
@@ -557,6 +749,9 @@ export { getDailySupplementTotals };
 export { getFoodsNeedingReview };
 export { updateFoodEntriesSnapshot };
 export { clearUserIgnoredUpdate };
+export { getFoodDerivedWaterMlForDate };
+export { getFoodDerivedWaterMlByDateRange };
+export { getCaffeineDosesForWindow };
 export default {
   getFoodDataProviderById,
   getRecentFoods,
@@ -570,4 +765,7 @@ export default {
   getFoodsNeedingReview,
   updateFoodEntriesSnapshot,
   clearUserIgnoredUpdate,
+  getFoodDerivedWaterMlForDate,
+  getFoodDerivedWaterMlByDateRange,
+  getCaffeineDosesForWindow,
 };

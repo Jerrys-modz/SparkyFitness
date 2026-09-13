@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useCSSVariable } from 'uniwind';
 import type { ToolCallMessagePart } from '@assistant-ui/react-native';
@@ -27,7 +34,32 @@ function deriveStatus(part: ToolCallMessagePart): ToolStatus {
 
 const MONO_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
+function getLocalizedToolLabel(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  labelKey: string | undefined,
+  defaultLabel: string
+): string {
+  switch (labelKey) {
+    case 'chat.tools.food':
+      return t('chat.tools.food', { defaultValue: 'Food' });
+    case 'chat.tools.exercise':
+      return t('chat.tools.exercise', { defaultValue: 'Exercise' });
+    case 'chat.tools.checkin':
+      return t('chat.tools.checkin', { defaultValue: 'Check-in' });
+    case 'chat.tools.goals':
+      return t('chat.tools.goals', { defaultValue: 'Goals' });
+    case 'chat.tools.lookedUp':
+      return t('chat.tools.lookedUp', {
+        defaultValue: 'Looked up {{name}}',
+        name: defaultLabel,
+      });
+    default:
+      return defaultLabel;
+  }
+}
+
 export default function ToolCallCard({ part }: { part: ToolCallMessagePart }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [muted, iconSuccess, iconDanger, secondary] = useCSSVariable([
     '--color-text-muted',
@@ -37,7 +69,8 @@ export default function ToolCallCard({ part }: { part: ToolCallMessagePart }) {
   ]) as [string, string, string, string];
 
   const status = deriveStatus(part);
-  const { label, icon } = getToolDisplay(part.toolName);
+  const { labelKey, defaultLabel, icon } = getToolDisplay(part.toolName);
+  const label = getLocalizedToolLabel(t, labelKey, defaultLabel);
   const hasResult = part.result !== undefined;
   const resultIsString = typeof part.result === 'string';
 
@@ -54,7 +87,10 @@ export default function ToolCallCard({ part }: { part: ToolCallMessagePart }) {
         />
       )}
       <Icon name={icon} size={16} color={muted} />
-      <Text className="flex-1 text-text-primary text-sm font-medium" numberOfLines={1}>
+      <Text
+        className="flex-1 text-text-primary text-sm font-medium"
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </>
@@ -76,7 +112,11 @@ export default function ToolCallCard({ part }: { part: ToolCallMessagePart }) {
             className="flex-row items-center gap-2 px-3 py-2"
           >
             {header}
-            <Icon name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color={muted} />
+            <Icon
+              name={expanded ? 'chevron-down' : 'chevron-forward'}
+              size={16}
+              color={muted}
+            />
           </Pressable>
 
           {expanded && (
@@ -92,13 +132,19 @@ export default function ToolCallCard({ part }: { part: ToolCallMessagePart }) {
                     streaming={false}
                   />
                 ) : (
-                  <Text className="text-text-secondary text-xs" style={{ fontFamily: MONO_FONT }}>
+                  <Text
+                    className="text-text-secondary text-xs"
+                    style={{ fontFamily: MONO_FONT }}
+                  >
                     {JSON.stringify(part.result, null, 2)}
                   </Text>
                 )
               ) : (
                 // No result yet (running) — show the streamed args, mirroring the web fallback.
-                <Text className="text-text-muted text-xs" style={{ fontFamily: MONO_FONT }}>
+                <Text
+                  className="text-text-muted text-xs"
+                  style={{ fontFamily: MONO_FONT }}
+                >
                   {part.argsText}
                 </Text>
               )}

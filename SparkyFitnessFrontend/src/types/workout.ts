@@ -27,6 +27,7 @@ export interface WorkoutPresetExercise {
   sets: WorkoutPresetSet[];
   category?: string;
   modality?: ExerciseModality | null; // Populated from backend join
+  superset_group?: number | null;
 }
 
 export interface WorkoutPreset {
@@ -91,18 +92,14 @@ export interface ExerciseToLog extends Exercise {
 
 // The combined type for an exercise block
 export type SortableExerciseItemData =
-  | WorkoutPresetExercise
-  | WorkoutPlanAssignment
-  | ExerciseEntryResponse;
+  WorkoutPresetExercise | WorkoutPlanAssignment | ExerciseEntryResponse;
 
 // The combined type for a single set
 export type SortableSetData =
-  | ExerciseEntrySetRequest
-  | ExerciseEntrySetResponse;
+  ExerciseEntrySetRequest | ExerciseEntrySetResponse;
 
 // The combined type for presets list (used for labels)
 export type PresetMetadata = WorkoutPreset | PresetSessionResponse;
 
 export type SetFieldKey =
-  | keyof ExerciseEntrySetResponse
-  | keyof ExerciseEntrySetRequest;
+  keyof ExerciseEntrySetResponse | keyof ExerciseEntrySetRequest;

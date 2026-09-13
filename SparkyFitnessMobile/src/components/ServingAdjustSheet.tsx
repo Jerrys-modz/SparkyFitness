@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { View, Text } from 'react-native';
 import Button from './ui/Button';
@@ -23,7 +24,11 @@ interface ServingAdjustSheetProps {
   onViewEntry?: (entry: FoodEntry) => void;
 }
 
-const ServingAdjustSheet = forwardRef<ServingAdjustSheetRef, ServingAdjustSheetProps>(({ onViewEntry }, ref) => {
+const ServingAdjustSheet = forwardRef<
+  ServingAdjustSheetRef,
+  ServingAdjustSheetProps
+>(({ onViewEntry }, ref) => {
+  const { t } = useTranslation();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const [entry, setEntry] = useState<FoodEntry | null>(null);
   const [quantityText, setQuantityText] = useState('0');
@@ -33,9 +38,10 @@ const ServingAdjustSheet = forwardRef<ServingAdjustSheetRef, ServingAdjustSheetP
   ]) as [string, string];
 
   const quantity = parseDecimalInput(quantityText) || 0;
-  const totalCalories = entry && entry.serving_size > 0
-    ? Math.round(entry.calories * quantity / entry.serving_size)
-    : 0;
+  const totalCalories =
+    entry && entry.serving_size > 0
+      ? Math.round((entry.calories * quantity) / entry.serving_size)
+      : 0;
 
   const { updateEntry, isPending, invalidateCache } = useUpdateFoodEntry({
     entryId: entry?.id ?? '',
@@ -113,11 +119,17 @@ const ServingAdjustSheet = forwardRef<ServingAdjustSheetRef, ServingAdjustSheetP
           <>
             {/* Header */}
             <View className="items-center mb-5">
-              <Text className="text-text-primary text-lg font-semibold text-center" numberOfLines={2}>
-                {entry.food_name || 'Unknown food'}
+              <Text
+                className="text-text-primary text-lg font-semibold text-center"
+                numberOfLines={2}
+              >
+                {entry.food_name ||
+                  t('foodRow.unknownFood', { defaultValue: 'Unknown food' })}
               </Text>
               <Text className="text-text-secondary text-sm mt-1">
-                {entry.serving_size} {formatServingUnit(entry.unit)} = {entry.calories} Cal
+                {entry.serving_size} {formatServingUnit(entry.unit)} ={' '}
+                {entry.calories}{' '}
+                {t('nutrition.caloriesUnit', { defaultValue: 'Cal' })}
               </Text>
             </View>
 
@@ -132,14 +144,17 @@ const ServingAdjustSheet = forwardRef<ServingAdjustSheetRef, ServingAdjustSheetP
                   onIncrement={() => adjustQuantity(1)}
                   InputComponent={BottomSheetTextInput}
                 />
-                <Text className="text-text-secondary text-lg ml-3">{formatServingUnit(entry.unit)}</Text>
+                <Text className="text-text-secondary text-lg ml-3">
+                  {formatServingUnit(entry.unit)}
+                </Text>
               </View>
             </View>
 
             {/* Calories */}
             <View className="items-center mb-6">
               <Text className="text-text-primary text-2xl font-semibold">
-                {totalCalories} Cal
+                {totalCalories}{' '}
+                {t('nutrition.caloriesUnit', { defaultValue: 'Cal' })}
               </Text>
             </View>
 
@@ -163,7 +178,9 @@ const ServingAdjustSheet = forwardRef<ServingAdjustSheetRef, ServingAdjustSheetP
               onPress={handleDone}
               disabled={isPending || quantity <= 0}
             >
-              {isPending ? 'Saving...' : 'Done'}
+              {isPending
+                ? t('common.saving', { defaultValue: 'Saving…' })
+                : t('common.done', { defaultValue: 'Done' })}
             </Button>
           </>
         )}

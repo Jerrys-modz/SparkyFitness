@@ -4,6 +4,14 @@ import {
   searchOpenFoodFacts,
   searchOpenFoodFactsByBarcodeFields,
 } from '../integrations/openfoodfacts/openFoodFactsService.js';
+
+vi.mock('../services/openFoodFactsProductReadRateLimitService.js', () => ({
+  OPENFOODFACTS_INTERACTIVE_PRODUCT_READ_MAX_WAIT_MS: 5_250,
+  withOpenFoodFactsProductReadPermit: vi.fn(
+    (operation: () => Promise<unknown>) => operation()
+  ),
+}));
+
 global.fetch = vi.fn();
 describe('OpenFoodFacts Language Handling', () => {
   beforeEach(() => {
@@ -41,21 +49,19 @@ describe('OpenFoodFacts Language Handling', () => {
     });
   });
   describe('API Request URL generation', () => {
-    it('should include product_name_${language} in the fields for search', async () => {
+    it('should include product_name_${language} in the Search-a-licious fields', async () => {
       // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
       fetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ products: [], count: 0 }),
+        json: () =>
+          Promise.resolve({ hits: [], page: 1, page_size: 20, count: 0 }),
       });
       await searchOpenFoodFacts('spaghetti', 1, 'fr');
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('product_name_fr'),
-        expect.any(Object)
-      );
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('product_name_en'),
-        expect.any(Object)
-      );
+      // @ts-expect-error TS(2339): Property 'mock' does not exist on type '{ (input: ... Remove this comment to see the full error message
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.fields).toContain('product_name_fr');
+      expect(body.fields).toContain('product_name_en');
+      expect(body.langs).toEqual(['fr', 'en']);
     });
     it('should include product_name_${language} in the fields for barcode lookup', async () => {
       // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message

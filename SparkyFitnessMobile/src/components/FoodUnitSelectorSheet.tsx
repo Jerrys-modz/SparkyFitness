@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Platform,
   StyleSheet,
@@ -19,18 +26,22 @@ import {
   canAutoConvertToUnit,
   useUnitConversion,
 } from '../hooks/useUnitConversion';
+import { localizeAiConfidenceLevel } from '../utils/foodPhotoEstimate';
+import {
+  localizeFoodUnit,
+  localizeFoodUnitGroup,
+} from '../utils/foodUnitLocalization';
 import {
   CONFIDENCE_TONES,
   FOOD_FORM_UNIT_GROUPS,
-  OVERALL_CONFIDENCE_LABELS,
   type AiConfidence,
   type ConfidenceTone,
 } from '@workspace/shared';
 
 const STANDARD_UNIT_KEYS = new Set(
   FOOD_FORM_UNIT_GROUPS.flatMap((group) =>
-    group.units.map((unit) => unit.trim().toLowerCase()),
-  ),
+    group.units.map((unit) => unit.trim().toLowerCase())
+  )
 );
 
 // `cups`/`lbs` are aliases of `cup`/`lb` kept in the shared unit list for
@@ -60,11 +71,14 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
   variants,
   selectedVariantId,
   selectedSelection,
-  title = 'Select Unit',
+  title,
   renderTrigger,
   onSelect,
 }) => {
+  const { t } = useTranslation();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const resolvedTitle =
+    title ?? t('foodForm.selectUnit', { defaultValue: 'Select Unit' });
   const isDismissingRef = useRef(false);
   const isOpenRef = useRef(false);
   const isPresentingRef = useRef(false);
@@ -102,7 +116,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       warning: warningIcon,
       error: dangerIcon,
     }),
-    [dangerIcon, successIcon, warningIcon],
+    [dangerIcon, successIcon, warningIcon]
   );
 
   const selectedVariant = useMemo(
@@ -110,7 +124,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       variants.find((variant) => variant.id === selectedVariantId) ??
       variants[0] ??
       null,
-    [selectedVariantId, variants],
+    [selectedVariantId, variants]
   );
 
   const { convertibleUnits, buildConvertedVariant, buildManualVariant } =
@@ -122,9 +136,9 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
   const selectedUnitKey = useMemo(
     () =>
       normalizeUnitKey(
-        selectedSelection?.variant.serving_unit ?? selectedVariant?.serving_unit,
+        selectedSelection?.variant.serving_unit ?? selectedVariant?.serving_unit
       ),
-    [selectedSelection, selectedVariant],
+    [selectedSelection, selectedVariant]
   );
 
   const savedStandardUnits = useMemo(
@@ -132,12 +146,12 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       variants
         .map((variant) => normalizeUnitKey(variant.serving_unit))
         .filter((unit) => STANDARD_UNIT_KEYS.has(unit)),
-    [variants],
+    [variants]
   );
 
   const groupedUnits = useMemo(() => {
     const availableUnits = new Set(
-      convertibleUnits.map((unit) => unit.toLowerCase()),
+      convertibleUnits.map((unit) => unit.toLowerCase())
     );
     savedStandardUnits.forEach((unit) => {
       availableUnits.add(unit);
@@ -146,16 +160,14 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       availableUnits.add(selectedUnitKey);
     }
 
-    return FOOD_FORM_UNIT_GROUPS
-      .map((group) => ({
-        label: group.label,
-        units: group.units.filter(
-          (unit) =>
-            availableUnits.has(unit.toLowerCase()) &&
-            !UNIT_ALIASES_TO_HIDE.has(unit.toLowerCase()),
-        ),
-      }))
-      .filter((group) => group.units.length > 0);
+    return FOOD_FORM_UNIT_GROUPS.map((group) => ({
+      label: group.label,
+      units: group.units.filter(
+        (unit) =>
+          availableUnits.has(unit.toLowerCase()) &&
+          !UNIT_ALIASES_TO_HIDE.has(unit.toLowerCase())
+      ),
+    })).filter((group) => group.units.length > 0);
   }, [convertibleUnits, savedStandardUnits, selectedUnitKey]);
 
   const renderBackdrop = useSheetBackdrop();
@@ -168,7 +180,11 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
   }, []);
 
   const handleOpen = useCallback(() => {
-    if (isDismissingRef.current || isOpenRef.current || isPresentingRef.current) {
+    if (
+      isDismissingRef.current ||
+      isOpenRef.current ||
+      isPresentingRef.current
+    ) {
       return;
     }
 
@@ -210,14 +226,16 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       } catch {
         Toast.show({
           type: 'error',
-          text1: 'Could not update that unit',
-          text2: 'Please try again.',
+          text1: t('foodUnit.updateFailed', {
+            defaultValue: 'Could not update that unit',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
         });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [dismissSheet, onSelect],
+    [dismissSheet, onSelect, t]
   );
 
   /**
@@ -233,8 +251,10 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       if (!manualVariant) {
         Toast.show({
           type: 'error',
-          text1: 'Could not update that unit',
-          text2: 'Please try again.',
+          text1: t('foodUnit.updateFailed', {
+            defaultValue: 'Could not update that unit',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
         });
         return;
       }
@@ -249,14 +269,16 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       } catch {
         Toast.show({
           type: 'error',
-          text1: 'Could not update that unit',
-          text2: 'Please try again.',
+          text1: t('foodUnit.updateFailed', {
+            defaultValue: 'Could not update that unit',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
         });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [buildManualVariant, dismissSheet, onSelect],
+    [buildManualVariant, dismissSheet, onSelect, t]
   );
 
   const handleUnitPress = useCallback(
@@ -265,7 +287,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       const matchedVariant = variants.find(
         (variant) =>
           Boolean(variant.id) &&
-          normalizeUnitKey(variant.serving_unit) === normalizedTarget,
+          normalizeUnitKey(variant.serving_unit) === normalizedTarget
       );
       if (matchedVariant) {
         await handleExistingVariantPress(matchedVariant);
@@ -283,8 +305,10 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
         } catch {
           Toast.show({
             type: 'error',
-            text1: 'Could not update that unit',
-            text2: 'Please try again.',
+            text1: t('foodUnit.updateFailed', {
+              defaultValue: 'Could not update that unit',
+            }),
+            text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
           });
         } finally {
           setIsSubmitting(false);
@@ -304,7 +328,8 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       onSelect,
       submitManualDraft,
       variants,
-    ],
+      t,
+    ]
   );
 
   const customSavedVariants = useMemo(
@@ -313,7 +338,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
         const normalizedUnit = normalizeUnitKey(variant.serving_unit);
         return Boolean(variant.id) && !STANDARD_UNIT_KEYS.has(normalizedUnit);
       }),
-    [variants],
+    [variants]
   );
 
   const buildSelectedRowStyle = useCallback(
@@ -321,12 +346,14 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       borderColor: isSelected && !isDarkMode ? borderStrong : borderSubtle,
       borderTopWidth: isSelected && !isDarkMode ? StyleSheet.hairlineWidth : 0,
       borderBottomWidth:
-        isSelected && !isDarkMode ? StyleSheet.hairlineWidth : StyleSheet.hairlineWidth,
+        isSelected && !isDarkMode
+          ? StyleSheet.hairlineWidth
+          : StyleSheet.hairlineWidth,
       backgroundColor: isSelected ? raisedBg : 'transparent',
       paddingHorizontal: 16,
       paddingVertical: 14,
     }),
-    [borderStrong, borderSubtle, isDarkMode, raisedBg],
+    [borderStrong, borderSubtle, isDarkMode, raisedBg]
   );
 
   const renderCustomVariantRow = (variant: FoodUnitVariant) => {
@@ -336,12 +363,17 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
     // the dropdown surfaces the indicator.
     const isAiSourced =
       variant.source === 'ai_estimate' && Boolean(variant.food_id);
-    const aiConfidence = variant.ai_confidence as AiConfidence | null | undefined;
+    const aiConfidence = variant.ai_confidence as
+      AiConfidence | null | undefined;
     const aiTone = aiConfidence ? CONFIDENCE_TONES[aiConfidence] : null;
     const aiSparkleColor = aiTone ? aiSparkleColorByTone[aiTone] : textMuted;
-    const aiAccessibilityLabel = aiConfidence
-      ? `AI estimate (${OVERALL_CONFIDENCE_LABELS[aiConfidence]} confidence)`
-      : 'AI estimate';
+    const aiConfidenceLabel = localizeAiConfidenceLevel(t, aiConfidence);
+    const aiAccessibilityLabel = aiConfidenceLabel
+      ? t('foodUnit.aiEstimateWithConfidence', {
+          defaultValue: 'AI estimate ({{confidence}} confidence)',
+          confidence: aiConfidenceLabel,
+        })
+      : t('foodUnit.aiEstimate', { defaultValue: 'AI estimate' });
 
     return (
       <TouchableOpacity
@@ -359,7 +391,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
           <Text
             className={`text-base text-text-primary ${isSelected ? 'font-semibold' : ''}`}
           >
-            {variant.serving_unit}
+            {localizeFoodUnit(variant.serving_unit, t)}
           </Text>
           {isAiSourced && aiConfidence ? (
             <View accessible accessibilityLabel={aiAccessibilityLabel}>
@@ -381,7 +413,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
       variants.find(
         (variant) =>
           Boolean(variant.id) &&
-          normalizeUnitKey(variant.serving_unit) === normalizeUnitKey(unit),
+          normalizeUnitKey(variant.serving_unit) === normalizeUnitKey(unit)
       ) ?? null;
     // Only show the AI sparkle when the matched variant is persisted (food_id
     // present). In-form drafts wait for the food to be saved/updated.
@@ -396,9 +428,16 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
     const matchedAiSparkleColor = matchedAiTone
       ? aiSparkleColorByTone[matchedAiTone]
       : textMuted;
-    const matchedAiAccessibilityLabel = matchedAiConfidence
-      ? `AI estimate (${OVERALL_CONFIDENCE_LABELS[matchedAiConfidence]} confidence)`
-      : 'AI estimate';
+    const matchedAiConfidenceLabel = localizeAiConfidenceLevel(
+      t,
+      matchedAiConfidence
+    );
+    const matchedAiAccessibilityLabel = matchedAiConfidenceLabel
+      ? t('foodUnit.aiEstimateWithConfidence', {
+          defaultValue: 'AI estimate ({{confidence}} confidence)',
+          confidence: matchedAiConfidenceLabel,
+        })
+      : t('foodUnit.aiEstimate', { defaultValue: 'AI estimate' });
     const compatible = canAutoConvertToUnit(variants, selectedVariant, unit);
     const isSelected = selectedUnitKey === normalizeUnitKey(unit);
 
@@ -417,7 +456,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
         <Text
           className={`text-base text-text-primary ${isSelected ? 'font-semibold' : ''}`}
         >
-          {unit}
+          {localizeFoodUnit(unit, t)}
         </Text>
         {matchedAiConfidence ? (
           <View accessible accessibilityLabel={matchedAiAccessibilityLabel}>
@@ -458,7 +497,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
         <View className="flex-1">
           <View className="px-4 py-4 border-b border-border-subtle">
             <Text className="text-lg font-semibold text-center text-text-primary">
-              {title}
+              {resolvedTitle}
             </Text>
           </View>
 
@@ -467,7 +506,9 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
               <>
                 <View className="px-4 py-2 bg-surface">
                   <Text className="text-xs font-semibold uppercase text-text-muted">
-                    Saved Custom Units
+                    {t('foodUnit.savedCustomUnits', {
+                      defaultValue: 'Saved Custom Units',
+                    })}
                   </Text>
                 </View>
                 {customSavedVariants.map(renderCustomVariantRow)}
@@ -478,7 +519,7 @@ const FoodUnitSelectorSheet: React.FC<FoodUnitSelectorSheetProps> = ({
               <React.Fragment key={group.label}>
                 <View className="px-4 py-2 bg-surface">
                   <Text className="text-xs font-semibold uppercase text-text-muted">
-                    {group.label}
+                    {localizeFoodUnitGroup(group.label, t)}
                   </Text>
                 </View>
                 {group.units.map(renderUnitRow)}

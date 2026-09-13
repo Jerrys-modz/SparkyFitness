@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, {
@@ -24,11 +25,17 @@ function Dot({ color, delay }: { color: string; delay: number }) {
       delay,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: DOT_DURATION, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0, { duration: DOT_DURATION, easing: Easing.inOut(Easing.quad) }),
+          withTiming(1, {
+            duration: DOT_DURATION,
+            easing: Easing.inOut(Easing.quad),
+          }),
+          withTiming(0, {
+            duration: DOT_DURATION,
+            easing: Easing.inOut(Easing.quad),
+          })
         ),
-        -1,
-      ),
+        -1
+      )
     );
   }, [progress, delay]);
 
@@ -39,7 +46,10 @@ function Dot({ color, delay }: { color: string; delay: number }) {
 
   return (
     <Animated.View
-      style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }, style]}
+      style={[
+        { width: 6, height: 6, borderRadius: 3, backgroundColor: color },
+        style,
+      ]}
     />
   );
 }
@@ -49,13 +59,16 @@ function Dot({ color, delay }: { color: string; delay: number }) {
  * Sparky is responding but hasn't streamed any visible content yet.
  */
 export default function TypingIndicator() {
+  const { t } = useTranslation();
   const muted = useCSSVariable('--color-text-muted') as string;
 
   return (
     <View
       className="flex-row items-center gap-1"
       style={{ height: 20 }}
-      accessibilityLabel="Sparky is typing"
+      accessibilityLabel={t('chat.typing', {
+        defaultValue: 'Sparky is typing',
+      })}
     >
       {Array.from({ length: DOT_COUNT }).map((_, i) => (
         <Dot key={i} color={muted} delay={i * DOT_STAGGER} />

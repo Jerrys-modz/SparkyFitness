@@ -1,4 +1,5 @@
 import express, { RequestHandler } from 'express';
+import openFoodFactsContributionRoutes from './openFoodFactsContributionRoutes.js';
 import {
   BarcodeResponseSchema,
   NormalizedFoodSchema,
@@ -42,6 +43,7 @@ import {
 const router = express.Router();
 
 router.use(checkPermissionMiddleware('diary'));
+router.use(openFoodFactsContributionRoutes);
 
 function nullToUndefined<T>(value: T | null | undefined): T | undefined {
   return value === null ? undefined : value;
@@ -81,14 +83,20 @@ function normalizeFoodVariantForResponse(variant: unknown): unknown {
     vitamin_c: nullToUndefined(record.vitamin_c as number | null | undefined),
     calcium: nullToUndefined(record.calcium as number | null | undefined),
     iron: nullToUndefined(record.iron as number | null | undefined),
+    caffeine_mg: nullToUndefined(
+      record.caffeine_mg as number | null | undefined
+    ),
+    water_ml: nullToUndefined(record.water_ml as number | null | undefined),
+    alcohol_g: nullToUndefined(record.alcohol_g as number | null | undefined),
+    abv_percent: nullToUndefined(
+      record.abv_percent as number | null | undefined
+    ),
     glycemic_index: nullToUndefined(
       record.glycemic_index as string | null | undefined
     ),
     custom_nutrients: nullToUndefined(
       record.custom_nutrients as
-        | Record<string, string | number>
-        | null
-        | undefined
+        Record<string, string | number> | null | undefined
     ),
     source: nullToUndefined(
       record.source as 'manual' | 'ai_estimate' | 'imported' | null | undefined
@@ -221,8 +229,22 @@ const searchHandler: RequestHandler<{ providerType: string }> = async (
     return;
   }
 
-  const page = Number(req.query.page) || 1;
-  const pageSize = Number(req.query.pageSize) || 20;
+  const page = req.query.page === undefined ? 1 : Number(req.query.page);
+  const pageSize =
+    req.query.pageSize === undefined ? 20 : Number(req.query.pageSize);
+  if (
+    !Number.isInteger(page) ||
+    page < 1 ||
+    !Number.isInteger(pageSize) ||
+    pageSize < 1 ||
+    pageSize > 100
+  ) {
+    res.status(400).json({
+      error:
+        'Invalid pagination parameters: page must be a positive integer and pageSize must be an integer from 1 to 100',
+    });
+    return;
+  }
   const providerId = req.query.providerId as string | undefined;
   const autoScale = ((req.query.autoScale as string) ?? 'true') !== 'false';
 
@@ -301,7 +323,7 @@ const detailHandler: RequestHandler<{
 
     switch (providerType) {
       case 'openfoodfacts': {
-        const offProviderId = await resolveOpenFoodFactsProviderId(
+        const offProvider = await resolveOpenFoodFactsProviderId(
           req.authenticatedUserId,
           providerId
         );
@@ -310,8 +332,9 @@ const detailHandler: RequestHandler<{
           undefined,
           language,
 
-          offProviderId ? req.authenticatedUserId : undefined,
-          offProviderId || undefined
+          offProvider ? req.authenticatedUserId : undefined,
+          offProvider?.id,
+          offProvider?.scope ?? 'personal'
         );
         if (data.status === 1 && data.product) {
           food = mapOpenFoodFactsProduct(data.product, { language });

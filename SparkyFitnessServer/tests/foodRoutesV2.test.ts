@@ -88,9 +88,9 @@ vi.mock('../services/foodIntegrationService.js', () => ({
 const app = express();
 app.use(express.json());
 app.use((req, res, next) => {
-  req.userId = 'user-123';
-
-  req.authenticatedUserId = 'user-123';
+  req.userId = req.header('x-test-active-user-id') || 'user-123';
+  req.authenticatedUserId =
+    req.header('x-test-authenticated-user-id') || 'user-123';
   next();
 });
 app.use('/v2/foods', foodRoutesV2);
@@ -172,6 +172,17 @@ describe('GET /v2/foods/barcode/:barcode', () => {
     expect(res.body.food.default_variant).not.toHaveProperty(
       'custom_nutrients'
     );
+  });
+});
+
+describe('removed manual Open Food Facts contribution endpoints', () => {
+  it.each([
+    '/v2/foods/food-123/openfoodfacts/contribution',
+    '/v2/foods/openfoodfacts/contributions',
+  ])('does not expose POST %s', async (path) => {
+    const response = await request(app).post(path).send({});
+
+    expect(response.status).toBe(404);
   });
 });
 
@@ -307,6 +318,23 @@ describe('GET /v2/foods/search/:providerType', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.body).toEqual({ error: 'Missing query parameter' });
+    expect(searchProviderFoods).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['page', '0'],
+    ['page', '-1'],
+    ['page', '1.5'],
+    ['pageSize', '0'],
+    ['pageSize', '1.5'],
+    ['pageSize', '101'],
+  ])('rejects invalid %s=%s pagination', async (parameter, value) => {
+    const res = await request(app).get(
+      `/v2/foods/search/usda?query=apple&${parameter}=${value}`
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/pagination/i);
     expect(searchProviderFoods).not.toHaveBeenCalled();
   });
 

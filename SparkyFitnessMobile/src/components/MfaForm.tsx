@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import Button from './ui/Button';
@@ -111,6 +112,7 @@ const MfaForm: React.FC<MfaFormProps> = ({
   onUseApiKey,
   textMuted,
 }) => {
+  const { t } = useTranslation();
   const showCodeInput = mfaMethod === 'totp' || emailOtpSent;
 
   return (
@@ -118,10 +120,18 @@ const MfaForm: React.FC<MfaFormProps> = ({
       {/* MFA Method Toggle */}
       {mfaFactors.mfaTotpEnabled && mfaFactors.mfaEmailEnabled && (
         <View className="flex-row mb-4 rounded-lg overflow-hidden border border-border-subtle">
-          {([
-            { method: 'totp' as const, label: 'Authenticator App' },
-            { method: 'email' as const, label: 'Email Code' },
-          ]).map(({ method, label }) => (
+          {[
+            {
+              method: 'totp' as const,
+              label: t('auth.authenticatorApp', {
+                defaultValue: 'Authenticator App',
+              }),
+            },
+            {
+              method: 'email' as const,
+              label: t('auth.emailCode', { defaultValue: 'Email Code' }),
+            },
+          ].map(({ method, label }) => (
             <TouchableOpacity
               key={method}
               className={`flex-1 py-2.5 items-center ${
@@ -145,16 +155,27 @@ const MfaForm: React.FC<MfaFormProps> = ({
       {/* MFA Instructions */}
       <Text className="text-sm text-text-secondary mb-3 text-center">
         {mfaMethod === 'totp'
-          ? 'Enter the code from your authenticator app.'
+          ? t('auth.enterAuthenticatorCode', {
+              defaultValue: 'Enter the code from your authenticator app.',
+            })
           : emailOtpSent
-            ? 'Enter the code sent to your email.'
-            : 'Tap the button below to receive a verification code by email.'}
+            ? t('auth.enterEmailCode', {
+                defaultValue: 'Enter the code sent to your email.',
+              })
+            : t('auth.requestEmailCode', {
+                defaultValue:
+                  'Tap the button below to receive a verification code by email.',
+              })}
       </Text>
 
       {/* Send Email OTP Button */}
       {mfaMethod === 'email' && !emailOtpSent && (
         <View className="mb-3">
-          <PrimaryButton label="Send Code" onPress={onSendEmailOtp} loading={loading} />
+          <PrimaryButton
+            label={t('auth.sendCode', { defaultValue: 'Send Code' })}
+            onPress={onSendEmailOtp}
+            loading={loading}
+          />
         </View>
       )}
 
@@ -167,7 +188,9 @@ const MfaForm: React.FC<MfaFormProps> = ({
               placeholder="000000"
               placeholderTextColor={textMuted}
               value={mfaCode}
-              onChangeText={(text) => onMfaCodeChange(text.replace(/[^0-9]/g, '').slice(0, 6))}
+              onChangeText={(text) =>
+                onMfaCodeChange(text.replace(/[^0-9]/g, '').slice(0, 6))
+              }
               keyboardType="number-pad"
               maxLength={6}
               autoFocus
@@ -177,7 +200,7 @@ const MfaForm: React.FC<MfaFormProps> = ({
           <ErrorBanner message={error} />
 
           <PrimaryButton
-            label="Verify"
+            label={t('auth.verify', { defaultValue: 'Verify' })}
             onPress={onVerify}
             loading={loading}
             disabled={loading || mfaCode.length < 6}
@@ -186,7 +209,9 @@ const MfaForm: React.FC<MfaFormProps> = ({
       )}
 
       {/* Error (shown when email OTP not yet sent) */}
-      {mfaMethod === 'email' && !emailOtpSent && <ErrorBanner message={error} />}
+      {mfaMethod === 'email' && !emailOtpSent && (
+        <ErrorBanner message={error} />
+      )}
 
       {/* Resend email code */}
       {mfaMethod === 'email' && emailOtpSent && (
@@ -197,7 +222,7 @@ const MfaForm: React.FC<MfaFormProps> = ({
           className="mt-2 py-3"
           textClassName="text-sm"
         >
-          Resend Code
+          {t('auth.resendCode', { defaultValue: 'Resend Code' })}
         </Button>
       )}
 
@@ -208,7 +233,7 @@ const MfaForm: React.FC<MfaFormProps> = ({
         className="mt-2 py-3"
         textClassName="text-base text-text-muted"
       >
-        Back
+        {t('common.back', { defaultValue: 'Back' })}
       </Button>
 
       {onUseApiKey && (
@@ -218,7 +243,7 @@ const MfaForm: React.FC<MfaFormProps> = ({
           className="py-2"
           textClassName="text-sm"
         >
-          Use API Key Instead
+          {t('auth.useApiKeyInstead', { defaultValue: 'Use API Key Instead' })}
         </Button>
       )}
     </>

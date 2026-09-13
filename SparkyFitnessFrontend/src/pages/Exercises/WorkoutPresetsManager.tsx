@@ -15,13 +15,13 @@ import {
   Edit,
   Trash2,
   CalendarPlus,
-  Loader2,
   Layers,
   Dumbbell,
   CheckSquare,
   Play,
   X,
   MoreHorizontal,
+  CopyPlus,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -56,6 +56,9 @@ import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 
+// Matches workout_presets.name VARCHAR(255) in the database.
+const MAX_PRESET_NAME_LENGTH = 255;
+
 const WorkoutPresetsManager = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -71,19 +74,32 @@ const WorkoutPresetsManager = () => {
   const [selectedPreset, setSelectedPreset] = useState<WorkoutPreset | null>(
     null
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { data, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage } =
-    useWorkoutPresets(user?.id);
+  const { data, isLoading, isFetching } = useWorkoutPresets(
+    user?.id,
+    currentPage,
+    itemsPerPage
+  );
 
   const { mutateAsync: createPreset } = useCreateWorkoutPresetMutation();
   const { mutateAsync: updatePreset } = useUpdateWorkoutPresetMutation();
   const { mutateAsync: deletePreset } = useDeleteWorkoutPresetMutation();
   const { mutateAsync: logWorkoutPreset } = useLogWorkoutPresetMutation();
 
-  const presets = React.useMemo(
-    () => data?.pages.flatMap((page) => page.presets) ?? [],
-    [data]
-  );
+  const presets = React.useMemo(() => data?.presets ?? [], [data]);
+  const totalPresets = data?.total ?? 0;
+  const totalPages = Math.ceil(totalPresets / itemsPerPage);
+
+  // Deleting every preset on the last page (or shrinking the page size) can
+  // leave the request pointing past the end of the list, which would render an
+  // empty table next to a stale page number. Fall back to the last real page.
+  React.useEffect(() => {
+    if (data && totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [data, totalPages, currentPage]);
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -131,6 +147,51 @@ const WorkoutPresetsManager = () => {
     await createPreset({ ...newPresetData, user_id: user.id });
     setIsAddPresetDialogOpen(false);
   };
+
+  const handleDuplicatePreset = React.useCallback(
+    async (preset: WorkoutPreset) => {
+      if (!user?.id) return;
+      // The server always inserts fresh rows for exercises/sets on create and
+      // ignores any incoming id (see workoutPresetRepository.createWorkoutPreset),
+      // so the original's exercises/sets can be sent as-is. Defaults to
+      // private regardless of the source's visibility — duplicating someone
+      // else's public preset shouldn't silently re-share it under this user.
+      // sort_order is the one field that can't be sent as-is: the read
+      // queries never select wpe.sort_order, so preset.exercises[].sort_order
+      // is always undefined here and every duplicated row would insert with
+      // the same value, relying on id-ASC as a display-order tiebreak.
+      // preset.exercises already arrives in display order (server sorts by
+      // sort_order then id), so the array index is the real sort_order.
+      // workout_presets.name is VARCHAR(255) with no client-side length cap on
+      // creation, so a max-length preset name must be truncated here to leave
+      // room for the localized suffix — otherwise the duplicate insert fails.
+      const suffixOnly = t('workoutPresetsManager.duplicateNameSuffix', {
+        name: '',
+      });
+      const availableNameLength = Math.max(
+        0,
+        MAX_PRESET_NAME_LENGTH - suffixOnly.length
+      );
+      const truncatedName =
+        preset.name.length > availableNameLength
+          ? preset.name.slice(0, availableNameLength)
+          : preset.name;
+
+      await createPreset({
+        user_id: user.id,
+        name: t('workoutPresetsManager.duplicateNameSuffix', {
+          name: truncatedName,
+        }),
+        description: preset.description,
+        is_public: false,
+        exercises: preset.exercises.map((exercise, index) => ({
+          ...exercise,
+          sort_order: index,
+        })),
+      });
+    },
+    [createPreset, user?.id, t]
+  );
 
   const handleUpdatePreset = async (
     presetId: string,
@@ -305,6 +366,10 @@ const WorkoutPresetsManager = () => {
                   <CalendarPlus className="mr-2 h-4 w-4" />
                   {t('workoutPresetsManager.logToDiary', 'Log to Diary')}
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDuplicatePreset(preset)}>
+                  <CopyPlus className="mr-2 h-4 w-4" />
+                  {t('workoutPresetsManager.duplicate', 'Duplicate')}
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!isOwned}
                   onClick={() => {
@@ -335,6 +400,7 @@ const WorkoutPresetsManager = () => {
       user?.id,
       weightUnit,
       handleLogPresetToDiary,
+      handleDuplicatePreset,
       handleDeletePreset,
       handleStartWorkoutPlayback,
     ]
@@ -431,28 +497,22 @@ const WorkoutPresetsManager = () => {
                 isEditMode ? columns : columns.filter((c) => c.id !== 'select')
               }
               data={presets}
-              isLoading={isLoading}
+              isLoading={isLoading || isFetching}
+              manualPagination
+              pageCount={totalPages}
+              pagination={{
+                pageIndex: currentPage - 1,
+                pageSize: itemsPerPage,
+              }}
+              onPaginationChange={(pageIndex, pageSize) => {
+                if (pageSize !== itemsPerPage) {
+                  setItemsPerPage(pageSize);
+                  setCurrentPage(1);
+                } else {
+                  setCurrentPage(pageIndex + 1);
+                }
+              }}
             />
-          )}
-
-          {hasNextPage && (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  fetchNextPage();
-                  clearSelection();
-                }}
-                disabled={isFetchingNextPage}
-                className="text-gray-500"
-              >
-                {isFetchingNextPage ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t('workoutPresetsManager.loadMore', 'Load more')
-                )}
-              </Button>
-            </div>
           )}
         </CardContent>
       </Card>

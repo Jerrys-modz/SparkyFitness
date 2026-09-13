@@ -1,7 +1,12 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import CycleCalendarGrid from '../../../src/components/wellness/CycleCalendarGrid';
-import type { SharedCycle, SharedCycleDailyLog, SharedCycleSettings } from '@workspace/shared';
+import { queryProviderForPreferences } from '../../screens/helpers/preferencesQueryTestUtil';
+import type {
+  SharedCycle,
+  SharedCycleDailyLog,
+  SharedCycleSettings,
+} from '@workspace/shared';
 
 const baseSettings: SharedCycleSettings = {
   enabled: true,
@@ -41,16 +46,20 @@ const logs: SharedCycleDailyLog[] = [
   },
 ];
 
-const renderGrid = (settings: SharedCycleSettings) =>
-  render(
-    <CycleCalendarGrid
-      initialDate="2026-08-05"
-      onDayPress={jest.fn()}
-      cycles={cycles}
-      logs={logs}
-      settings={settings}
-    />,
+const renderGrid = (settings: SharedCycleSettings) => {
+  const { Wrapper } = queryProviderForPreferences({ first_day_of_week: 0 });
+  return render(
+    <Wrapper>
+      <CycleCalendarGrid
+        initialDate="2026-08-05"
+        onDayPress={jest.fn()}
+        cycles={cycles}
+        logs={logs}
+        settings={settings}
+      />
+    </Wrapper>
   );
+};
 
 describe('CycleCalendarGrid', () => {
   it('reports the visible month on mount and after navigation', () => {
@@ -64,6 +73,7 @@ describe('CycleCalendarGrid', () => {
         settings={baseSettings}
         onMonthChange={onMonthChange}
       />,
+      { wrapper: queryProviderForPreferences({ first_day_of_week: 0 }).Wrapper }
     );
 
     expect(onMonthChange).toHaveBeenCalledWith('2026-08');
@@ -87,13 +97,16 @@ describe('CycleCalendarGrid', () => {
   it.each(['pregnant', 'postpartum', 'menopause'] as const)(
     'suppresses all predictions but keeps logged period days in %s mode',
     (mode) => {
-      const { getByTestId, queryAllByTestId } = renderGrid({ ...baseSettings, mode });
+      const { getByTestId, queryAllByTestId } = renderGrid({
+        ...baseSettings,
+        mode,
+      });
 
       expect(queryAllByTestId(/-predicted-period$/)).toHaveLength(0);
       expect(queryAllByTestId(/-fertile$/)).toHaveLength(0);
       expect(queryAllByTestId(/-ovulation$/)).toHaveLength(0);
       expect(getByTestId('cycle-day-2026-08-02-period')).toBeTruthy();
-    },
+    }
   );
 
   it('keeps predicted periods when only the fertile window is hidden', () => {

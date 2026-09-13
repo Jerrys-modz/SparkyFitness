@@ -1,12 +1,19 @@
 import React, { useMemo, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
-import { CartesianChart, Line } from 'victory-native';
+import { CartesianChart } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
-import { makeChartFont, formatXLabel7d, formatXLabel30d90d, formatTooltipDate } from './charts/chartFormatting';
-import type {
-  WeightDataPoint,
-  StepsRange,
-} from '../hooks/useMeasurementsRange';
+import { formatLocalizedNumber } from '../localization/i18n';
+import {
+  makeChartFont,
+  CHART_LABEL_FONT_SIZE,
+  formatXLabel7d,
+  formatXLabel30d90d,
+  formatTooltipDate,
+} from './charts/chartFormatting';
+import LineSeriesMark from './charts/LineSeriesMark';
+import type { WeightDataPoint } from '../hooks/useMeasurementsRange';
+import type { HealthTrendDateRange } from '../types/healthTrends';
 import ChartTouchOverlay, {
   ChartLayoutReporter,
   EMPTY_CHART_TOUCH_LAYOUT,
@@ -18,27 +25,43 @@ type WeightLineChartProps = {
   data: WeightDataPoint[];
   isLoading: boolean;
   isError: boolean;
-  range: StepsRange;
+  range: HealthTrendDateRange;
   unit: string;
 };
 
-const X_TICK_COUNT: Record<StepsRange, number> = {
+const X_TICK_COUNT: Record<HealthTrendDateRange, number> = {
   '7d': 7,
   '30d': 6,
   '90d': 5,
 };
 
-const font = makeChartFont(12);
+const font = makeChartFont(CHART_LABEL_FONT_SIZE);
 
-const formatTooltipWeight = (weight: number): string => weight.toFixed(2);
-
-const DEFAULT_TOOLTIP = 'Press the line for details';
+const DEFAULT_TOOLTIP = '';
 
 const WeightTooltip: React.FC<{ text: string }> = ({ text }) => (
   <View className="h-6 justify-center mt-3 mb-1">
     <Text className="text-text-secondary text-sm text-center">{text}</Text>
   </View>
 );
+
+/**
+ * Builds the tooltip copy from the semantically selected data point. The weight
+ * value, unit, and date are derived from the current application locale on
+ * every render, so an already-visible tooltip can never retain stale copy after
+ * a language switch.
+ */
+export const buildWeightTooltipText = (
+  point: { weight: number; day: string } | undefined,
+  unit: string
+): string => {
+  if (!point) return DEFAULT_TOOLTIP;
+  const formattedWeight = formatLocalizedNumber(point.weight, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${formattedWeight} ${unit} · ${formatTooltipDate(point.day)}`;
+};
 
 const WeightLineChart: React.FC<WeightLineChartProps> = ({
   data,
@@ -47,21 +70,22 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
   range,
   unit,
 }) => {
+  const { t } = useTranslation();
   const [accentColor, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-text-muted',
   ]) as [string, string];
-  const [tooltipText, setTooltipText] = useState(DEFAULT_TOOLTIP);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [touchLayout, setTouchLayout] = useState<ChartTouchLayout>(
-    EMPTY_CHART_TOUCH_LAYOUT,
+    EMPTY_CHART_TOUCH_LAYOUT
   );
 
   const hasData = useMemo(() => data.length > 0, [data]);
 
   const formatXLabel = range === '7d' ? formatXLabel7d : formatXLabel30d90d;
 
-  // Clear a lingering tooltip when the dataset, range, or unit changes. Done
-  // during render (instead of in an effect) so the tooltip is already reset on
+  // Reset a lingering selection when the dataset, range, or unit changes. Done
+  // during render (instead of in an effect) so the tooltip is already cleared on
   // the first render after the data changes.
   const [tooltipResetKey, setTooltipResetKey] = useState({ data, range, unit });
   if (
@@ -70,12 +94,17 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
     tooltipResetKey.unit !== unit
   ) {
     setTooltipResetKey({ data, range, unit });
-    setTooltipText(DEFAULT_TOOLTIP);
+    setSelectedIndex(null);
   }
+
+  // Derive the presentation text from the selected point on every render, so
+  // an already-visible tooltip reflects the current app language immediately.
+  const selectedPoint = selectedIndex != null ? data[selectedIndex] : undefined;
+  const tooltipText = buildWeightTooltipText(selectedPoint, unit);
 
   const handleTouchLayoutChange = useCallback(
     (nextLayout: ChartTouchLayout) => {
-      setTouchLayout(currentLayout => {
+      setTouchLayout((currentLayout) => {
         const currentSignature = createChartTouchLayoutSignature(currentLayout);
         const nextSignature = createChartTouchLayoutSignature(nextLayout);
 
@@ -86,7 +115,7 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
         return nextLayout;
       });
     },
-    [],
+    []
   );
 
   const handleSelectPoint = useCallback(
@@ -97,39 +126,43 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
         return;
       }
 
-      setTooltipText(
-        `${formatTooltipWeight(point.weight)} ${unit} · ${formatTooltipDate(
-          point.day,
-        )}`,
-      );
+      setSelectedIndex(index);
     },
-    [data, unit],
+    [data]
   );
 
   const handleClearSelection = useCallback(() => {
-    setTooltipText(DEFAULT_TOOLTIP);
+    setSelectedIndex(null);
   }, []);
-
-  if (!hasData && !isLoading && !isError) {
-    return null;
-  }
 
   return (
     <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
       <Text className="text-text-primary text-lg font-semibold mb-2">
-        Weight
+        {t('charts.weight.title', { defaultValue: 'Weight' })}
       </Text>
 
       <WeightTooltip text={tooltipText} />
 
       {isLoading ? (
         <View className="h-50 justify-center items-center">
-          <Text className="text-text-muted text-sm">Loading...</Text>
+          <Text className="text-text-muted text-sm">
+            {t('common.loading', { defaultValue: 'Loading...' })}
+          </Text>
         </View>
       ) : isError ? (
         <View className="h-50 justify-center items-center">
           <Text className="text-text-muted text-sm">
-            Failed to load weight data
+            {t('charts.weight.loadFailed', {
+              defaultValue: 'Failed to load weight data',
+            })}
+          </Text>
+        </View>
+      ) : !hasData ? (
+        <View className="h-50 justify-center items-center">
+          <Text className="text-text-muted text-sm">
+            {t('charts.weight.empty', {
+              defaultValue: 'No weight data for this period',
+            })}
           </Text>
         </View>
       ) : (
@@ -160,7 +193,7 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
                   points={points.weight}
                   onChange={handleTouchLayoutChange}
                 />
-                <Line
+                <LineSeriesMark
                   points={points.weight}
                   color={accentColor}
                   strokeWidth={2}

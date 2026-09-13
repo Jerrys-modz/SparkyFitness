@@ -7,6 +7,8 @@ import { useActiveUser } from '@/contexts/ActiveUserContext';
 import ZoomableChart from '@/components/ZoomableChart';
 import ReportsControls from '@/pages/Reports/ReportsControls';
 import NutritionPeriodSummary from '@/pages/Reports/NutritionPeriodSummary';
+import { WeeklyAlcoholCard } from '@/pages/Reports/WeeklyAlcoholCard';
+import HydrationTrendChart from '@/pages/Reports/HydrationTrendChart';
 import NutritionChartsGrid from '@/pages/Reports/NutritionChartsGrid';
 import WidgetGrid from '@/components/widgets/WidgetGrid';
 import {
@@ -28,6 +30,7 @@ import MoodChart from '@/pages/Reports/MoodChart';
 import { useCustomNutrients } from '@/hooks/Foods/useCustomNutrients';
 import { useMoodEntries } from '@/hooks/CheckIn/useMood';
 import {
+  useCalorieBalanceRange,
   useExerciseDashboardData,
   useRawStressData,
   useReportsData,
@@ -127,6 +130,11 @@ const Reports = () => {
     activeUserId
   );
 
+  // Folded into `loading` below so the calorie chart never paints raw goals first and
+  // then jumps once the balance lands.
+  const { data: calorieBalanceByDate, isLoading: calorieBalanceLoading } =
+    useCalorieBalanceRange(startDate, endDate, activeUserId);
+
   // Der globale Ladezustand
   const loading =
     !startDate ||
@@ -136,7 +144,8 @@ const Reports = () => {
     stressLoading ||
     dashboardLoading ||
     fastingLoading ||
-    reportsLoading;
+    reportsLoading ||
+    calorieBalanceLoading;
 
   const {
     nutritionData = [],
@@ -195,17 +204,28 @@ const Reports = () => {
         return (
           <div className="space-y-12">
             <ChartErrorBoundary>
+              <WeeklyAlcoholCard date={endDate} userId={activeUserId} />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary>
+              <HydrationTrendChart
+                startDate={startDate}
+                endDate={endDate}
+                userId={activeUserId}
+              />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary>
               <NutritionPeriodSummary
                 nutritionData={nutritionData}
                 customNutrients={customNutrients}
                 goals={goalData}
-                exerciseEntries={exerciseEntries}
+                calorieBalanceByDate={calorieBalanceByDate}
               />
             </ChartErrorBoundary>
             <ChartErrorBoundary>
               <NutritionChartsGrid
                 nutritionData={nutritionData}
                 customNutrients={customNutrients}
+                calorieBalanceByDate={calorieBalanceByDate}
                 goals={goalData}
               />
             </ChartErrorBoundary>
