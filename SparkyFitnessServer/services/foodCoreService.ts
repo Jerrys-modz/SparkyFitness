@@ -19,6 +19,7 @@ import {
   mapFatSecretFood,
 } from '../integrations/fatsecret/fatsecretService.js';
 import { searchYazioByBarcode } from '../integrations/yazio/yazioService.js';
+import { sanitizeBoolean } from '../models/food.js';
 import type {
   BulkImportFoodData,
   FoodInput,
@@ -30,6 +31,7 @@ import {
   removeEntityImageDir,
 } from '../middleware/imageUpload.js';
 import { resolveImageInput, toImageArray } from '../utils/imageLocalizer.js';
+import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import { alcoholGramsForServing } from '@workspace/shared';
 
 /** A food row as returned by the repository. */
@@ -38,6 +40,8 @@ interface FoodRow {
   provider_type?: string | null;
   provider_external_id?: string | null;
   provider_verified?: boolean | null;
+  /** True for a hidden food (a `hide` delete, or a quick add). */
+  is_quick_food?: boolean | null;
   [column: string]: unknown;
 }
 
@@ -139,6 +143,21 @@ async function refreshExistingExternalFoodMetadata(
     toImageArray(existingFood.images).length === 0
   ) {
     metadata.images = incomingImages;
+  }
+
+  // Re-importing or re-saving a food the user had hidden puts it back in the
+  // library. Without this, `hide` was a permanent tombstone: the dedup lookups
+  // above still match the hidden row, so the import returned it unchanged and
+  // the food stayed invisible in search with no way to get it back. The same
+  // applies to a row left behind by a quick-add.
+  //
+  // Skipped when the incoming save is itself a quick add -- that is an explicit
+  // "log this once, do not keep it" and must not be promoted to a library food.
+  if (
+    sanitizeBoolean(existingFood.is_quick_food) === true &&
+    sanitizeBoolean(foodData.is_quick_food) !== true
+  ) {
+    metadata.is_quick_food = false;
   }
 
   if (Object.keys(metadata).length === 0) {
@@ -330,14 +349,36 @@ async function updateFood(
   }
 }
 
+/**
+ * Delete modes offered to the user. Mirrors the exercise side exactly -- the
+ * caller says what it wants and this function either honours it or refuses.
+ *
+ * - `hide`: the food stops appearing in search. Nothing else changes, so every
+ *   diary entry, meal and meal plan keeps working as before.
+ * - `delete`: the library row goes. Meals and meal plans lose it, but diary
+ *   entries survive on their own snapshot with a null food_id.
+ * - `delete_with_history`: a `delete`, plus this user's own diary entries.
+ *
+ * In every mode another user's diary is left alone.
+ */
+type FoodDeleteMode = 'hide' | 'delete' | 'delete_with_history';
+const FOOD_DELETE_MODES: FoodDeleteMode[] = [
+  'hide',
+  'delete',
+  'delete_with_history',
+];
+function isFoodDeleteMode(value: unknown): value is FoodDeleteMode {
+  return FOOD_DELETE_MODES.includes(value as FoodDeleteMode);
+}
 async function deleteFood(
   authenticatedUserId: string,
   foodId: string,
-  forceDelete = false
+  mode: FoodDeleteMode = 'delete',
+  currentClientDate?: string
 ) {
   log(
     'info',
-    `deleteFood: Attempting to delete food ${foodId} by user ${authenticatedUserId}. Force delete: ${forceDelete}`
+    `deleteFood: Attempting to ${mode} food ${foodId} by user ${authenticatedUserId}.`
   );
   try {
     const foodOwnerId = await foodRepository.getFoodOwnerId(
@@ -360,6 +401,18 @@ async function deleteFood(
         'Forbidden: You do not have permission to delete this food.'
       );
     }
+
+    if (mode === 'hide') {
+      await foodRepository.updateFood(foodId, foodOwnerId, {
+        is_quick_food: true,
+      });
+      return {
+        message:
+          'Food hidden. It no longer appears in search; existing diary entries, meals and meal plans are unchanged.',
+        status: 'hidden',
+      };
+    }
+
     const deletionImpact = await foodRepository.getFoodDeletionImpact(
       foodId,
       authenticatedUserId
@@ -368,98 +421,72 @@ async function deleteFood(
       'info',
       `deleteFood: Deletion impact for food ${foodId}: ${JSON.stringify(deletionImpact)}`
     );
-    const {
-      foodEntriesCount,
-      mealFoodsCount,
-      mealPlansCount,
-      mealPlanTemplateAssignmentsCount,
-      otherUserReferences,
-    } = deletionImpact;
-    const totalReferences =
-      foodEntriesCount +
-      mealFoodsCount +
-      mealPlansCount +
-      mealPlanTemplateAssignmentsCount;
-    // Scenario 1: No references at all
-    if (totalReferences === 0) {
+
+    // meal_foods, meal_plans, meal_plan_template_assignments and food_favorites
+    // all cascade from the library row for EVERY user, not just this one. Diary
+    // entries would survive, but another user's meals and meal plans would
+    // silently lose the food -- so when anyone else still references it, hiding
+    // is the only honest option.
+    if (deletionImpact.otherUserReferences > 0) {
       log(
         'info',
-        `deleteFood: Food ${foodId} has no references. Performing hard delete.`
-      );
-      const success = await foodRepository.deleteFoodAndDependencies(
-        foodId,
-        authenticatedUserId
-      );
-      if (!success) {
-        throw new Error('Food not found or not authorized to delete.');
-      }
-      // The row is gone; drop its uploaded images too.
-      await removeEntityImageDir('foods', foodId);
-      return { message: 'Food deleted permanently.', status: 'deleted' };
-    }
-    // Scenario 2: References only by the current user
-    if (otherUserReferences === 0) {
-      if (forceDelete) {
-        log(
-          'info',
-          `deleteFood: Food ${foodId} has references only by current user. Force deleting.`
-        );
-        const success = await foodRepository.deleteFoodAndDependencies(
-          foodId,
-          authenticatedUserId
-        );
-        if (!success) {
-          throw new Error('Food not found or not authorized to delete.');
-        }
-        // The row is gone; drop its uploaded images too.
-        await removeEntityImageDir('foods', foodId);
-        return {
-          message: 'Food and all its references deleted permanently.',
-          status: 'force_deleted',
-        };
-      } else {
-        log(
-          'info',
-          `deleteFood: Food ${foodId} has references only by current user. Hiding as quick food.`
-        );
-        await foodRepository.updateFood(foodId, foodOwnerId, {
-          is_quick_food: true,
-        });
-        return {
-          message:
-            'Food hidden (marked as quick food). Existing references remain.',
-          status: 'hidden',
-        };
-      }
-    }
-    // Scenario 3: References by other users
-    if (otherUserReferences > 0) {
-      log(
-        'info',
-        `deleteFood: Food ${foodId} has references by other users. Hiding as quick food.`
+        `deleteFood: Food ${foodId} is referenced by other users. Hiding instead of deleting.`
       );
       await foodRepository.updateFood(foodId, foodOwnerId, {
         is_quick_food: true,
       });
       return {
         message:
-          'Food hidden (marked as quick food). Existing references remain.',
+          'Food is used by other users, so it was hidden rather than deleted. Their history, meals and meal plans are unaffected.',
         status: 'hidden',
       };
     }
-    // Fallback for any unhandled cases (should not be reached)
-    log(
-      'warn',
-      `deleteFood: Unhandled deletion scenario for food ${foodId}. Hiding as quick food.`
+
+    // Order matters: remove this user's entries first, while food_id still
+    // points at the row. After the delete below they are unreachable by
+    // food_id, because the foreign key nulls them out.
+    let deletedEntries = 0;
+    if (mode === 'delete_with_history') {
+      deletedEntries = await foodRepository.deleteFoodEntriesForUser(
+        foodId,
+        authenticatedUserId
+      );
+    }
+
+    const today = await resolveTemplateStartDay(
+      authenticatedUserId,
+      currentClientDate
     );
-    await foodRepository.updateFood(foodId, foodOwnerId, {
-      is_quick_food: true,
-    });
-    return {
-      message:
-        'Food hidden (marked as quick food). Existing references remain.',
-      status: 'hidden',
-    };
+    const success = await foodRepository.deleteFoodAndDependencies(
+      foodId,
+      authenticatedUserId,
+      today
+    );
+    if (!success) {
+      throw new Error('Food not found or not authorized to delete.');
+    }
+
+    // food_entries.images holds paths into uploads/foods/<foodId>/, so the image
+    // directory can only go once nothing points at it any more. A plain
+    // `delete` deliberately leaves preserved entries behind, so removing the
+    // directory there would blank the picture on every one of them. Only
+    // delete_with_history clears the last references -- other users were
+    // already ruled out above -- which is the one case where it is safe.
+    if (mode === 'delete_with_history') {
+      await removeEntityImageDir('foods', foodId);
+    }
+
+    return mode === 'delete_with_history'
+      ? {
+          message: `Food deleted along with ${deletedEntries} of your diary entries.`,
+          status: 'deleted_with_history',
+          deletedEntries,
+        }
+      : {
+          message:
+            'Food deleted. Your logged entries are preserved in the diary.',
+          status: 'deleted',
+        };
   } catch (error) {
     log(
       'error',
@@ -1239,6 +1266,8 @@ export { createFood };
 export { getFoodById };
 export { updateFood };
 export { deleteFood };
+export { isFoodDeleteMode };
+export type { FoodDeleteMode };
 export { getFoodsWithPagination };
 export { getFoodVariantById };
 export { createFoodVariant };
@@ -1262,6 +1291,7 @@ export default {
   getFoodById,
   updateFood,
   deleteFood,
+  isFoodDeleteMode,
   getFoodsWithPagination,
   getFoodVariantById,
   createFoodVariant,

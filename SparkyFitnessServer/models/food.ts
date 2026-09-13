@@ -961,17 +961,100 @@ async function getFoodDeletionImpact(
     systemClient.release();
   }
 }
-async function deleteFoodAndDependencies(foodId: string, userId: string) {
+/**
+ * Deletes only the current user's diary entries for a food. Backs the
+ * `delete_with_history` mode alone -- a plain delete leaves the diary intact.
+ *
+ * Scoped to `user_id` on purpose: under family sharing another user may have
+ * logged the same food, and their history is never ours to remove.
+ */
+async function deleteFoodEntriesForUser(
+  foodId: string,
+  userId: string
+): Promise<number> {
   const client = await getClient(userId);
   try {
-    await client.query('BEGIN');
-    // 1. Delete food entries referencing this food for the current user
-    await client.query(
+    const result = await client.query(
       'DELETE FROM food_entries WHERE food_id = $1 AND user_id = $2',
       [foodId, userId]
     );
-    log('info', `Deleted food entries for food ${foodId} by user ${userId}`);
-    // 2. Delete meal_foods referencing this food for meals owned by the current user
+    log(
+      'info',
+      `Deleted ${result.rowCount} food entries for food ${foodId} by user ${userId}`
+    );
+    return result.rowCount ?? 0;
+  } finally {
+    client.release();
+  }
+}
+/**
+ * Removes a food from the library along with the *composition* rows that point
+ * at it (meals, meal plans, meal plan templates, variants).
+ *
+ * Deliberately does NOT touch food_entries. Since
+ * 20260912150000_preserve_data_on_user_and_library_deletes.sql the entry's
+ * food_id is ON DELETE SET NULL, and an entry carries its own snapshot
+ * (food_name, brand_name, serving size, full nutrition), so diary history
+ * survives the library row. Deleting entries here would pre-empt that rule and
+ * destroy history -- including other users' history.
+ */
+async function deleteFoodAndDependencies(
+  foodId: string,
+  userId: string,
+  today?: string
+) {
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+
+    // 0. Delete future food entries generated from meal plan templates for this food
+    if (today) {
+      const entryMealsResult = await client.query(
+        `
+        SELECT DISTINCT food_entry_meal_id
+        FROM food_entries
+        WHERE food_id = $1 
+          AND user_id = $2 
+          AND entry_date >= $3 
+          AND meal_plan_template_id IS NOT NULL 
+          AND food_entry_meal_id IS NOT NULL
+      `,
+        [foodId, userId, today]
+      );
+      const entryMealIds = entryMealsResult.rows.map(
+        (r: { food_entry_meal_id: string }) => r.food_entry_meal_id
+      );
+
+      await client.query(
+        `
+        DELETE FROM food_entries
+        WHERE food_id = $1
+          AND user_id = $2
+          AND entry_date >= $3
+          AND meal_plan_template_id IS NOT NULL
+      `,
+        [foodId, userId, today]
+      );
+
+      if (entryMealIds.length > 0) {
+        await client.query(
+          `
+          DELETE FROM food_entry_meals fem
+          WHERE fem.id = ANY($1::uuid[])
+            AND NOT EXISTS (
+              SELECT 1 FROM food_entries fe WHERE fe.food_entry_meal_id = fem.id
+            )
+        `,
+          [entryMealIds]
+        );
+      }
+      log(
+        'info',
+        `Deleted future planned food entries for food ${foodId} starting from ${today}`
+      );
+    }
+
+    // 1. Delete meal_foods referencing this food for meals owned by the current user
     await client.query(
       `
       DELETE FROM meal_foods mf
@@ -986,13 +1069,13 @@ async function deleteFoodAndDependencies(foodId: string, userId: string) {
       'info',
       `Deleted meal foods for food ${foodId} in meals by user ${userId}`
     );
-    // 3. Delete meal_plans referencing this food for the current user
+    // 2. Delete meal_plans referencing this food for the current user
     await client.query(
       'DELETE FROM meal_plans WHERE food_id = $1 AND user_id = $2',
       [foodId, userId]
     );
     log('info', `Deleted meal plans for food ${foodId} by user ${userId}`);
-    // 4. Delete meal_plan_template_assignments referencing this food for templates owned by the current user
+    // 3. Delete meal_plan_template_assignments referencing this food for templates owned by the current user
     await client.query(
       `
       DELETE FROM meal_plan_template_assignments mpta
@@ -1007,7 +1090,7 @@ async function deleteFoodAndDependencies(foodId: string, userId: string) {
       'info',
       `Deleted meal plan template assignments for food ${foodId} in templates by user ${userId}`
     );
-    // 5. Delete food variants associated with this food
+    // 4. Delete food variants associated with this food
     await client.query('DELETE FROM food_variants WHERE food_id = $1', [
       foodId,
     ]);
@@ -1541,7 +1624,12 @@ async function findFoodByProviderExternalId(
   const client = await getClient(userId);
   try {
     const result = await client.query(
-      `SELECT f.id, f.name, f.brand, f.barcode, f.is_custom, f.user_id, f.shared_with_public, f.provider_external_id, f.provider_type, f.provider_verified, f.images, f.notes,
+      // Deliberately NOT filtered by is_quick_food, unlike the discovery
+      // queries: this is a dedup lookup, and skipping a hidden row would insert
+      // a duplicate alongside it. The caller is responsible for un-hiding what
+      // it reuses -- see refreshExistingExternalFoodMetadata. is_quick_food is
+      // selected so it can make that decision.
+      `SELECT f.id, f.name, f.brand, f.barcode, f.is_custom, f.user_id, f.shared_with_public, f.provider_external_id, f.provider_type, f.provider_verified, f.images, f.notes, f.is_quick_food,
               fv.id AS default_variant_id, fv.serving_size, fv.serving_unit,
               ${DEFAULT_VARIANT_JSON_SQL}
        FROM foods f
@@ -1651,6 +1739,7 @@ export type { BulkImportFoodData };
 export { getFoodsNeedingReview };
 export { clearUserIgnoredUpdate };
 export { deleteFoodAndDependencies };
+export { deleteFoodEntriesForUser };
 export default {
   createFoodWithClient,
   findFoodMatchCandidates,
@@ -1674,4 +1763,5 @@ export default {
   getFoodsNeedingReview,
   clearUserIgnoredUpdate,
   deleteFoodAndDependencies,
+  deleteFoodEntriesForUser,
 };

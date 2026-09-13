@@ -273,6 +273,7 @@ Before adding a feature or changing auth/permission behavior, read:
 ## Working Rules
 
 - Match the existing service/repository/middleware layering instead of introducing parallel abstractions
+- **Library Deletes vs Diary Snapshots:** `exercise_entries` and `food_entries` are snapshot-backed (`exercise_id` / `food_id` are `ON DELETE SET NULL`). `deleteExercise` and `deleteFood` (`mode: 'delete'`) must never delete past or today's diary entries; they cascade from templates/presets, clean up future scheduled plan entries (`entry_date >= today AND workout_plan_assignment_id IS NOT NULL`), and clean up empty parent preset entries. Only explicit `delete_with_history` (force delete) deletes diary entries for that user. If an item is referenced by others (`otherUserReferences > 0`), the delete must fall back to `hide` (`is_quick_exercise` / `is_quick_food`).
 - If your change adds a new domain, route family, or table, update this file's Snapshot, Source Map, and Quick Routing sections (and the `Last updated` date) in the same change
 - If you add persisted or user-visible data, think through migration, RLS, permissions, tests, API docs, and downstream client contracts together
 - Validate shared-contract changes from the affected consumers, not just from this package

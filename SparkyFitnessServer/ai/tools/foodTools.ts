@@ -1986,10 +1986,13 @@ Actions:
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               let result: any;
               try {
+                // 'delete' deliberately, never 'delete_with_history': the
+                // assistant removes the food from the library, it does not get
+                // to destroy logged history on a casual "delete this food".
                 result = await foodCoreService.deleteFood(
                   userId,
                   String(foodId),
-                  true
+                  'delete'
                 );
               } catch (error) {
                 if (
@@ -2013,7 +2016,7 @@ Actions:
                 );
               }
               return formatConfirmation(
-                `Food "${name}" deleted (including variants and diary entries).`
+                `Food "${name}" deleted (including variants). Your logged diary entries are preserved.`
               );
             }
 

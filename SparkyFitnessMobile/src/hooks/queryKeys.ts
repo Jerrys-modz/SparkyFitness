@@ -190,6 +190,12 @@ export const exerciseStatsQueryKey = (
 export const exerciseDetailQueryKey = (exerciseId: string) =>
   ['exerciseDetail', exerciseId] as const;
 
+export const foodDeletionImpactQueryKey = (foodId: string) =>
+  ['foodDeletionImpact', foodId] as const;
+
+export const exerciseDeletionImpactQueryKey = (exerciseId: string) =>
+  ['exerciseDeletionImpact', exerciseId] as const;
+
 export const suggestedExercisesQueryKey = ['suggestedExercises'] as const;
 
 export const exerciseSearchQueryKey = (searchTerm: string) =>
