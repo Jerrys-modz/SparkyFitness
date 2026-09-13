@@ -26,6 +26,9 @@ const providerFieldLabels: Record<string, Record<string, string>> = {
     yazio_client_id: 'YAZIO Client ID',
     yazio_client_secret: 'YAZIO Client Secret',
   },
+  liftosaur: {
+    app_key: 'Liftosaur API Key',
+  },
 };
 
 // Per-type credential-shape exceptions consumed by
@@ -43,6 +46,7 @@ const PROVIDERS_WITHOUT_APP_ID = [
   'norish',
   'free-exercise-db',
   'wger',
+  'liftosaur',
 ];
 const OAUTH_TOKEN_PROVIDERS = [
   'googlehealth',

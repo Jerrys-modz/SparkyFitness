@@ -82,6 +82,7 @@ export const ProviderSpecificFields = ({
     'strava',
     'polar',
     'hevy',
+    'liftosaur',
   ].includes(provider.provider_type || '');
 
   const providerDashboard =
@@ -157,7 +158,9 @@ export const ProviderSpecificFields = ({
               ? 'Client Secret'
               : provider.provider_type === 'yazio'
                 ? 'YAZIO Password'
-                : 'API Key / App Key'}
+                : provider.provider_type === 'liftosaur'
+                  ? 'Liftosaur API Key'
+                  : 'API Key / App Key'}
           </Label>
           <Input
             id="new_app_key"
@@ -166,7 +169,11 @@ export const ProviderSpecificFields = ({
             onChange={(e) =>
               setProvider((prev) => ({ ...prev, app_key: e.target.value }))
             }
-            placeholder="Enter Key"
+            placeholder={
+              provider.provider_type === 'liftosaur'
+                ? 'Enter Liftosaur API Key (lftsk_...)'
+                : 'Enter Key'
+            }
             autoComplete="off"
           />
         </div>

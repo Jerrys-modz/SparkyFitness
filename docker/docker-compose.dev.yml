@@ -19,7 +19,7 @@ services:
     networks:
       - sparkyfitness-network
     ports:
-      - "5432:5432"
+      - "${SPARKY_FITNESS_DB_PORT:-5434}:5432"
 
   sparkyfitness-server:
     build:
@@ -31,7 +31,7 @@ services:
     environment:
       # --- Database Connection ---
       SPARKY_FITNESS_DB_HOST: ${SPARKY_FITNESS_DB_HOST:-sparkyfitness-db}
-      SPARKY_FITNESS_DB_PORT: ${SPARKY_FITNESS_DB_PORT:-5432}
+      SPARKY_FITNESS_DB_PORT: 5432
       SPARKY_FITNESS_DB_NAME: ${SPARKY_FITNESS_DB_NAME:?Variable is required and must be set}
       SPARKY_FITNESS_DB_USER: ${SPARKY_FITNESS_DB_USER:-sparky}
       SPARKY_FITNESS_DB_PASSWORD: ${SPARKY_FITNESS_DB_PASSWORD:-}
@@ -104,7 +104,7 @@ services:
       SPARKY_FITNESS_SERVER_PORT: 3010
       VITE_BACKEND_HOST: sparkyfitness-server
     ports:
-      - "8080:8080" # Map host port 8080 to vite port 8080
+      - "${SPARKY_FITNESS_FRONTEND_PORT:-3004}:8080" # Map host port 3004 to vite port 8080
     volumes:
       - ../SparkyFitnessFrontend:/app/SparkyFitnessFrontend:z # mount directory for auto refresh
       - /app/SparkyFitnessFrontend/node_modules # prevent node modules override in container
