@@ -176,7 +176,9 @@ describe('sparky_manage_goals', () => {
       opts
     );
 
-    expect(result).toBe('Error [VALIDATION]: action: Invalid input');
+    expect(result).toBe(
+      "Error [VALIDATION]: action: Invalid discriminator value. Expected 'get_goals' | 'set_goals' | 'list_goal_timeline'"
+    );
   });
 
   it('rejects stray keys (strict per-action schema)', async () => {

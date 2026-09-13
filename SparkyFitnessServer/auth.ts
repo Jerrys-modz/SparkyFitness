@@ -3,7 +3,6 @@ import { APIError } from 'better-auth/api';
 import pg from 'pg';
 import { log } from './config/logging.js';
 import bcrypt from 'bcryptjs';
-import { promisify } from 'util';
 import { syncUserGroups } from './utils/oidcGroupSync.js';
 import userRepository from './models/userRepository.js';
 import { resolveTwoFactorDisableUserUpdate } from './utils/twoFactorState.js';
@@ -23,8 +22,9 @@ import { expoSsoCookieRelay } from './utils/expoSsoCookieRelay.js';
 import { passkey } from '@better-auth/passkey';
 import { isDemoMode } from './middleware/demoGuardMiddleware.js';
 
-const hashAsync = promisify(bcrypt.hash);
-const compareAsync = promisify(bcrypt.compare);
+// bcryptjs v3 returns a promise when the callback is omitted, so no promisify.
+const hashAsync = bcrypt.hash;
+const compareAsync = bcrypt.compare;
 const { Pool } = pg;
 /**
  * Gathers and cleans origins from environment variables.

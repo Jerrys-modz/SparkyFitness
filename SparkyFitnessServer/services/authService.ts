@@ -1,5 +1,4 @@
 import bcrypt from 'bcryptjs';
-import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import userRepository from '../models/userRepository.js';
 import familyAccessRepository from '../models/familyAccessRepository.js';
@@ -7,8 +6,9 @@ import { log } from '../config/logging.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import adminActivityLogRepository from '../models/adminActivityLogRepository.js';
 
-const hashAsync = promisify(bcrypt.hash);
-const compareAsync = promisify(bcrypt.compare);
+// bcryptjs v3 returns a promise when the callback is omitted, so no promisify.
+const hashAsync = bcrypt.hash;
+const compareAsync = bcrypt.compare;
 /**
  * Gets consistent user data by ID.
  * Used internally by various app services.

@@ -19,9 +19,35 @@ packageExtensions:
       "metro": "*"
       "metro-cache": "*"
 
+overrides:
+  side-channel: "1.0.6"
+  tailwindcss: "4.2.1"
+  assistant-cloud: "0.1.33"
+  zustand: "5.0.14"
+  # 7.1 turns on the React Compiler rule set (set-state-in-effect, refs,
+  # immutability). Both apps lint with --max-warnings 0, so adopting it is a
+  # refactor, not an upgrade. Pinned until that work is scheduled.
+  eslint-plugin-react-hooks: "7.0.1"
+
 onlyBuiltDependencies:
+  - "@scarf/scarf"
+  - "@shopify/react-native-skia"
+  - "@swc/core"
+  - "@parcel/watcher"
+  - bcrypt
+  - sharp
   - esbuild
   - unrs-resolver
+  - vue-demi
+
+supportedArchitectures:
+  os:
+    - current
+    - linux
+  cpu:
+    - current
+    - x64
+    - arm64
 
 minimumReleaseAge: 4320
 
