@@ -30,9 +30,8 @@
 
 # SparkyFitness
 
-A self-hosted, privacy-first alternative to MyFitnessPal. Track nutrition, exercise, body metrics, and health data while keeping full control of your data.
+A self-hosted, privacy-first alternative to MyFitnessPal, Flo, Hevy, Shotsy & more. Track nutrition, exercise, body metrics, and health data while keeping full control of your data.
 <img width="1280" height="600" alt="image" src="https://github.com/user-attachments/assets/67a5fb86-cc98-42ce-aa1e-ded7c57647c9" />
-
 
 
 SparkyFitness is a self-hosted fitness tracking platform made up of:
