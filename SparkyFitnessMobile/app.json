@@ -15,7 +15,6 @@
           "background": true
         }
       ],
-      "expo-health-connect",
       [
         "expo-build-properties",
         {
