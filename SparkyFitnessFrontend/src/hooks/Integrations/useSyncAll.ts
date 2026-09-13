@@ -13,7 +13,7 @@ import {
 } from '@/api/Settings/externalProviderService';
 import { DataProvider } from '@/types/settings';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
-import { externalProviderKeys } from '@/hooks/Settings/useExternalProviderSettings';
+import { externalProviderKeys } from '@/api/keys/settings';
 
 export const useSyncAllMutation = () => {
   const { toast } = useToast();

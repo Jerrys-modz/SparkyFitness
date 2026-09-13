@@ -1,9 +1,8 @@
-﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 import {
   exportWorkoutsToLiftosaur,
   getValidatedLiftosaurBaseUrl,
-  DEFAULT_LIFTOSAUR_API_BASE_URL,
 } from '../integrations/liftosaur/liftosaurWorkoutExportService.js';
 import { getClient } from '../db/poolManager.js';
 

@@ -47,6 +47,11 @@ describe('liftosaurRoutes', () => {
         processedCount: 5,
         parsedCount: 5,
         skippedCount: 0,
+        workoutsImported: 5,
+        workoutsExported: 0,
+        measurementsImported: 0,
+        measurementsExported: 0,
+        source: 'live_api',
       });
 
       const response = await request(app)
@@ -149,8 +154,6 @@ describe('liftosaurRoutes', () => {
     it('returns 200 with valid providerId query parameter', async () => {
       vi.mocked(liftosaurService.getStatus).mockResolvedValue({
         connected: true,
-        providerId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        isActive: true,
         lastSyncAt: null,
       });
 

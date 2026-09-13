@@ -111,6 +111,7 @@ async function getMeasurementPage(
         limit: 200,
         ...(cursor !== undefined ? { cursor } : {}),
       },
+      timeout: 10000,
     }
   );
   return response.data?.data ?? { key, category: '', values: [], hasMore: false };
@@ -205,7 +206,7 @@ async function sendMeasurementToLiftosaur(
     await axios.post(
       `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
       { value, timestamp: timestampMs },
-      { headers }
+      { headers, timeout: 10000 }
     );
     return true;
   } catch (err) {
@@ -216,7 +217,7 @@ async function sendMeasurementToLiftosaur(
         await axios.put(
           `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}/${timestampMs}`,
           { value },
-          { headers }
+          { headers, timeout: 10000 }
         );
         return true;
       } catch (putErr) {
