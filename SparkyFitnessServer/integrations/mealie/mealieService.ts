@@ -1,5 +1,4 @@
 import { log } from '../../config/logging.js';
-// Using native fetch (standard in Node 22+)
 
 interface MealieNutrition {
   calories?: string | number;

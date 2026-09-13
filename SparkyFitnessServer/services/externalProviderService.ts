@@ -16,6 +16,59 @@ import {
   evaluateOpenFoodFactsProviderCredentials,
   OPEN_FOOD_FACTS_PROVIDER_TYPE,
 } from './openFoodFactsProviderCredentials.js';
+import {
+  assertOutboundUrlShapeAndLiteralAllowed,
+  deriveFoodProviderNetworkPolicy,
+  isOutboundUrlBlockedError,
+  OutboundUrlShapeError,
+} from '../utils/outboundUrlPolicy.js';
+import { resolveIsAdmin } from '../utils/adminCheck.js';
+
+// Provider types whose stored base_url is fetched server-side, making it an
+// SSRF surface. Their base_url is validated against the food-provider network
+// policy at save time.
+const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
+  'mealie',
+  'tandoor',
+  'norish',
+]);
+
+// Reject a private/internal base_url for the self-hosted recipe providers.
+// Admins may point at a private/LAN address (a single-user self-host is an
+// admin, so no config is needed); a non-admin on a multi-user server is
+// blocked unless the operator sets ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true.
+// Reuses the same guard the AI-service URLs use, but surfaces a food-specific
+// message so the user isn't told about "AI service URL".
+async function validateFoodProviderBaseUrl(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  providerType: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  baseUrl: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authenticatedUserId: any
+) {
+  if (!BASE_URL_FETCHING_PROVIDER_TYPES.has(providerType)) return;
+  if (baseUrl === undefined || baseUrl === null || baseUrl === '') return;
+  const isAdmin = await resolveIsAdmin(null, authenticatedUserId);
+  try {
+    assertOutboundUrlShapeAndLiteralAllowed(
+      baseUrl,
+      deriveFoodProviderNetworkPolicy(isAdmin)
+    );
+  } catch (error) {
+    if (isOutboundUrlBlockedError(error)) {
+      throw badRequest(
+        'Provider base URL resolves to a private or internal address. Only admins can use a local/self-hosted address by default; to allow all users, set ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true in your server environment configuration.'
+      );
+    }
+    if (error instanceof OutboundUrlShapeError) {
+      throw badRequest(
+        'Provider base URL is invalid: it must be a well-formed http(s) URL without embedded credentials.'
+      );
+    }
+    throw error;
+  }
+}
 
 // Build a 400-tagged Error for user-input validation failures so the
 // centralized errorHandler surfaces them as client errors instead of the
@@ -279,6 +332,11 @@ async function createExternalDataProvider(
   try {
     providerData.user_id = authenticatedUserId;
     providerData.is_public = false; // Regular users cannot create global public providers
+    await validateFoodProviderBaseUrl(
+      providerData.provider_type,
+      providerData.base_url,
+      authenticatedUserId
+    );
     const openFoodFactsCredentials = evaluateOpenFoodFactsProviderCredentials(
       undefined,
       providerData
@@ -335,6 +393,15 @@ async function updateExternalDataProvider(
     // we need to invalidate the OFF session cache after the update.
     const existingProvider =
       await externalProviderRepository.getExternalDataProviderById(providerId);
+
+    // Validate against the effective (post-update) provider type and base_url so
+    // switching a provider to mealie/tandoor/norish, or repointing its base_url,
+    // is guarded the same as a fresh create.
+    await validateFoodProviderBaseUrl(
+      updateData.provider_type ?? existingProvider?.provider_type,
+      updateData.base_url ?? existingProvider?.base_url,
+      authenticatedUserId
+    );
 
     const openFoodFactsCredentials = evaluateOpenFoodFactsProviderCredentials(
       existingProvider,

@@ -293,6 +293,14 @@ router.get('/profiles', authenticate, async (req, res, next) => {
  */
 router.put('/profiles', authenticate, async (req, res, next) => {
   try {
+    // A non-JSON content-type leaves req.body undefined, which previously threw
+    // a raw destructuring TypeError (500) that leaked internal field names.
+    // Reject it as a clean 400 instead.
+    if (!req.body || typeof req.body !== 'object') {
+      return res
+        .status(400)
+        .json({ error: 'Request body must be a JSON object.' });
+    }
     // Profile updates should apply to the active user context
     const updatedProfile = await authService.updateUserProfile(
       req.userId,

@@ -796,8 +796,7 @@ router.put(
       }
       if (
         // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error.message ===
-        'Exercise entry not found or not authorized to update.'
+        error.message.startsWith('Exercise entry not found')
       ) {
         // @ts-expect-error TS(2571): Object is of type 'unknown'.
         return res.status(404).json({ error: error.message });
@@ -951,7 +950,7 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     }
     if (
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      error.message === 'Exercise entry not found or not authorized to delete.'
+      error.message.startsWith('Exercise entry not found')
     ) {
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
       return res.status(404).json({ error: error.message });
