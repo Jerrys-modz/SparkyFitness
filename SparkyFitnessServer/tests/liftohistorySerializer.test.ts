@@ -124,4 +124,35 @@ describe('liftohistorySerializer', () => {
     const text = serializeLiftohistoryWorkout(workout);
     expect(text).toContain('warmup: 1x5 60kg');
   });
+
+  it('serializes exercises with only warmup sets under warmup: section and preserves classification on round-trip', () => {
+    const workout: LiftohistoryExportWorkout = {
+      date: '2026-03-01T10:00:00.000Z',
+      exercises: [
+        {
+          name: 'Squat',
+          sets: [
+            { reps: 10, weight: 20, weightUnit: 'kg', setType: 'warmup' },
+            { reps: 10, weight: 20, weightUnit: 'kg', setType: 'warmup' },
+            { reps: 5, weight: 60, weightUnit: 'kg', setType: 'warmup' },
+          ],
+        },
+      ],
+    };
+
+    const text = serializeLiftohistoryWorkout(workout);
+    expect(text).toContain('  Squat / warmup: 2x10 20kg, 1x5 60kg');
+
+    const parsed = parseLiftohistory(text);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.workouts).toHaveLength(1);
+    const exercise = parsed.workouts[0]!.exercises[0]!;
+    expect(exercise.name).toBe('Squat');
+    expect(exercise.completedSets).toHaveLength(0);
+    expect(exercise.warmupSets).toHaveLength(3);
+    expect(exercise.warmupSets[0]!.reps).toBe(10);
+    expect(exercise.warmupSets[0]!.weightValue).toBe(20);
+    expect(exercise.warmupSets[2]!.reps).toBe(5);
+    expect(exercise.warmupSets[2]!.weightValue).toBe(60);
+  });
 });

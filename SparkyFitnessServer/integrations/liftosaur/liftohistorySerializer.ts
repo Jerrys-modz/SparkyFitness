@@ -86,15 +86,22 @@ function formatExercise(exercise: LiftohistoryExportExercise): string[] {
   const warmupSets = exercise.sets.filter((s) => isWarmup(s.setType));
   const workingSets = exercise.sets.filter((s) => !isWarmup(s.setType));
 
-  // If there are only warmup sets, treat them as working sets
-  const primarySets = workingSets.length > 0 ? workingSets : warmupSets;
-  const secondaryWarmups = workingSets.length > 0 ? warmupSets : [];
-
   const sections: string[] = [exercise.name];
-  sections.push(compressSets(primarySets));
 
-  if (secondaryWarmups.length > 0) {
-    sections.push(`warmup: ${compressSets(secondaryWarmups)}`);
+  // If working sets exist, emit them as primary completed sets.
+  if (workingSets.length > 0) {
+    sections.push(compressSets(workingSets));
+  }
+
+  // Emit warmup sets under 'warmup: ' so they retain warmup classification when parsed back,
+  // even if the exercise contains only warmup sets and no working sets.
+  if (warmupSets.length > 0) {
+    sections.push(`warmup: ${compressSets(warmupSets)}`);
+  }
+
+  // Fallback for exercises with sets that were not marked as either
+  if (workingSets.length === 0 && warmupSets.length === 0 && exercise.sets.length > 0) {
+    sections.push(compressSets(exercise.sets));
   }
 
   lines.push(`  ${sections.join(' / ')}`);
