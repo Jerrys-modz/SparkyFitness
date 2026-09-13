@@ -16,6 +16,7 @@ import {
   demoUploadGuard,
 } from '../middleware/demoGuardMiddleware.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
+import { isValidUuid } from '../utils/uuidUtils.js';
 import { fileURLToPath } from 'url';
 import { isEntryTimeString } from '@workspace/shared';
 const __filename = fileURLToPath(import.meta.url);
@@ -865,6 +866,14 @@ router.get('/progress/:exerciseId', authenticate, async (req, res, next) => {
   const { startDate, endDate } = req.query;
   if (!exerciseId) {
     return res.status(400).json({ error: 'Exercise ID is required.' });
+  }
+  if (!isValidUuid(exerciseId)) {
+    // A caller can end up here with the literal path segment "null" — e.g. a
+    // client deriving its exercise list from exercise_entries, whose
+    // exercise_id is nullable by design for library-deleted exercises. Reject
+    // it as a normal 400 rather than letting an invalid-UUID error from the
+    // database surface as an unhandled 500.
+    return res.status(400).json({ error: 'Invalid exercise ID.' });
   }
   if (!startDate || !endDate) {
     return res.status(400).json({
