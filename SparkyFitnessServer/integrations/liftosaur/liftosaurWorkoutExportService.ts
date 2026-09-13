@@ -1,8 +1,4 @@
-/**
- * Liftosaur Workout Export Service.
- * Identifies eligible non-Liftosaur workouts in SparkyFitness within the sync window,
- * translates them into the Liftohistory format, and posts them to Liftosaur v1 REST API.
- */
+import crypto from 'node:crypto';
 import axios from 'axios';
 import { getClient } from '../../db/poolManager.js';
 import { log } from '../../config/logging.js';
@@ -14,8 +10,54 @@ import {
   LiftohistoryExportSet,
 } from './liftosaurTypes.js';
 
-const LIFTOSAUR_API_BASE_URL =
-  process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL || 'https://www.liftosaur.com';
+/** Default secure base URL for Liftosaur API */
+export const DEFAULT_LIFTOSAUR_API_BASE_URL = 'https://www.liftosaur.com';
+
+/**
+ * Validates and resolves the Liftosaur API base URL.
+ *
+ * Security Guarantee:
+ * Strictly enforces HTTPS protocol for any configured override
+ * (SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL) to guarantee that user API keys
+ * and sensitive workout/health data are never transmitted over unencrypted HTTP.
+ *
+ * Localhost exception:
+ * 'http://localhost' and 'http://127.0.0.1' are permitted solely in non-production
+ * environments (test/development) to support local test mock servers.
+ *
+ * @throws Error if the configured URL is invalid or uses an insecure non-HTTPS scheme.
+ */
+export function getValidatedLiftosaurBaseUrl(): string {
+  const configured = process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL;
+  if (!configured || configured.trim() === '') {
+    return DEFAULT_LIFTOSAUR_API_BASE_URL;
+  }
+
+  const trimmed = configured.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch (err) {
+    throw new Error(
+      `Invalid SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL: '${trimmed}'. Must be a valid URL.`
+    );
+  }
+
+  const isLocalhost =
+    parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  const isTestOrDev =
+    process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
+
+  if (parsed.protocol !== 'https:') {
+    if (!isLocalhost || !isTestOrDev) {
+      throw new Error(
+        `Insecure Liftosaur API base URL rejected: '${trimmed}'. HTTPS is strictly required to protect API credentials.`
+      );
+    }
+  }
+
+  return trimmed.replace(/\/+$/, '');
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -45,20 +87,34 @@ interface ExerciseSetRow {
 }
 
 /**
- * Post a serialized workout text to Liftosaur API.
+ * Posts a serialized workout document to the Liftosaur REST API v1.
+ *
+ * Security and Reliability:
+ * 1. Validates the endpoint protocol via getValidatedLiftosaurBaseUrl() before sending.
+ * 2. Attaches an Idempotency-Key header carrying the unique export claim ID so network
+ *    timeouts or gateway retries cannot duplicate workouts in Liftosaur.
+ * 3. Enforces a 10-second timeout to avoid unbounded connection hangs.
+ *
+ * @param apiKey The user's decrypted Liftosaur API key.
+ * @param workoutText Serialized Liftohistory workout document.
+ * @param claimId Unique claim identifier used as the provider idempotency key.
+ * @returns true if accepted by Liftosaur; false if rejected or failed.
  */
 async function postWorkoutToLiftosaur(
   apiKey: string,
-  workoutText: string
+  workoutText: string,
+  claimId: string
 ): Promise<boolean> {
   try {
+    const baseUrl = getValidatedLiftosaurBaseUrl();
     await axios.post(
-      `${LIFTOSAUR_API_BASE_URL}/api/v1/history`,
+      `${baseUrl}/api/v1/history`,
       { text: workoutText },
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'Idempotency-Key': claimId,
         },
         timeout: 10000,
       }
@@ -84,7 +140,8 @@ export async function exportWorkoutsToLiftosaur(
   let exportedCount = 0;
 
   try {
-    // 1. Fetch eligible exercise entries excluding Liftosaur-originated rows and already exported rows
+    // 1. Fetch eligible exercise entries excluding Liftosaur-originated rows and already exported rows.
+    // Also ignores in-progress export claims unless they have exceeded the 15-minute lease timeout.
     const query = `
       SELECT ee.id, ee.user_id, ee.exercise_name, ee.entry_date, ee.entry_time,
              ee.duration_minutes, ee.notes, ee.source, ee.exercise_preset_entry_id,
@@ -93,7 +150,12 @@ export async function exportWorkoutsToLiftosaur(
       LEFT JOIN exercise_preset_entries epe ON epe.id = ee.exercise_preset_entry_id
       WHERE ee.user_id = $1
         AND (ee.source IS NULL OR LOWER(ee.source) != 'liftosaur')
-        AND (ee.notes IS NULL OR ee.notes NOT LIKE '%[liftosaur_exported]%')
+        AND (
+          ee.notes IS NULL OR (
+            ee.notes NOT LIKE '%[liftosaur_exported%'
+            AND (ee.notes NOT LIKE '%[liftosaur_exporting%' OR ee.updated_at < NOW() - INTERVAL '15 minutes')
+          )
+        )
         AND ($2::date IS NULL OR ee.entry_date >= $2)
         AND ($3::date IS NULL OR ee.entry_date <= $3)
       ORDER BY ee.entry_date ASC, ee.entry_time ASC NULLS LAST, ee.sort_order ASC, ee.created_at ASC
@@ -126,7 +188,7 @@ export async function exportWorkoutsToLiftosaur(
       sessionMap.get(sessionKey)!.push(row);
     }
 
-    // 3. For each session, fetch sets and construct export workout
+    // 3. For each session, fetch sets, obtain a durable claim, and construct export workout
     for (const [, entries] of sessionMap.entries()) {
       if (entries.length === 0) continue;
 
@@ -186,8 +248,12 @@ export async function exportWorkoutsToLiftosaur(
 
       if (exportExercises.length > 0) {
         const programName = firstEntry.preset_name || 'SparkyFitness Workout';
+        // Clean any existing internal metadata tags from user-facing notes before exporting
         const sessionNotes = firstEntry.notes
-          ? firstEntry.notes.replace(/\[liftosaur_exported\]/g, '').trim()
+          ? firstEntry.notes
+              .replace(/\[liftosaur_exported(?::[^\]]+)?\]/g, '')
+              .replace(/\[liftosaur_exporting(?::[^\]]+)?\]/g, '')
+              .trim()
           : undefined;
 
         const exportWorkout: LiftohistoryExportWorkout = {
@@ -199,23 +265,74 @@ export async function exportWorkoutsToLiftosaur(
           exercises: exportExercises,
         };
 
-        const serializedText = serializeLiftohistory(exportWorkout);
-        const posted = await postWorkoutToLiftosaur(apiKey, serializedText);
-        if (posted) {
-          exportedCount += 1;
-          const entryIds = entries.map((e) => e.id);
-          if (entryIds.length > 0) {
+        const entryIds = entries.map((e) => e.id);
+        const claimId = crypto.randomUUID();
+
+        // 3a. Atomically acquire a durable, uniquely keyed export claim in the database.
+        // This acts as a distributed lock preventing concurrent cron workers or manual
+        // sync triggers from simultaneously exporting the same workout session.
+        const claimRes = (await client.query(
+          `UPDATE exercise_entries
+           SET notes = CASE
+             WHEN notes IS NULL OR notes = '' THEN '[liftosaur_exporting:' || $1 || ']'
+             WHEN notes LIKE '%[liftosaur_exporting%' THEN regexp_replace(notes, '\\[liftosaur_exporting:[^\\]]+\\]', '[liftosaur_exporting:' || $1 || ']')
+             ELSE notes || ' [liftosaur_exporting:' || $1 || ']'
+           END,
+           updated_at = NOW()
+           WHERE id = ANY($2::uuid[])
+             AND (
+               notes IS NULL OR (
+                 notes NOT LIKE '%[liftosaur_exported%'
+                 AND (notes NOT LIKE '%[liftosaur_exporting%' OR updated_at < NOW() - INTERVAL '15 minutes')
+               )
+             )
+           RETURNING id`,
+          [claimId, entryIds]
+        )) as { rows: { id: string }[] };
+
+        // If another process claimed any entry in this session, skip to prevent double posting.
+        if (claimRes.rows.length !== entryIds.length) {
+          log(
+            'debug',
+            `[liftosaurWorkoutExport] Session entries partially or fully claimed by another worker. Skipping.`
+          );
+          // Roll back partial claim if only a subset was updated
+          if (claimRes.rows.length > 0) {
+            const partialIds = claimRes.rows.map((r) => r.id);
             await client.query(
               `UPDATE exercise_entries
-               SET notes = CASE
-                 WHEN notes IS NULL OR notes = '' THEN '[liftosaur_exported]'
-                 ELSE notes || ' [liftosaur_exported]'
-               END,
-               updated_at = NOW()
+               SET notes = NULLIF(TRIM(regexp_replace(notes, '\\[liftosaur_exporting:[^\\]]+\\]', '')), ''),
+                   updated_at = NOW()
                WHERE id = ANY($1::uuid[])`,
-              [entryIds]
+              [partialIds]
             );
           }
+          continue;
+        }
+
+        // 3b. Dispatch the workout to Liftosaur API using the claimId as idempotency key
+        const serializedText = serializeLiftohistory(exportWorkout);
+        const posted = await postWorkoutToLiftosaur(apiKey, serializedText, claimId);
+
+        if (posted) {
+          exportedCount += 1;
+          // 3c. Finalize durable claim to permanent exported status
+          await client.query(
+            `UPDATE exercise_entries
+             SET notes = regexp_replace(notes, '\\[liftosaur_exporting:[^\\]]+\\]', '[liftosaur_exported:' || $1 || ']'),
+                 updated_at = NOW()
+             WHERE id = ANY($2::uuid[])`,
+            [claimId, entryIds]
+          );
+        } else {
+          // 3d. Release the claim on network/server failure so subsequent syncs can retry
+          await client.query(
+            `UPDATE exercise_entries
+             SET notes = NULLIF(TRIM(regexp_replace(notes, '\\[liftosaur_exporting:[^\\]]+\\]', '')), ''),
+                 updated_at = NOW()
+             WHERE id = ANY($1::uuid[])`,
+            [entryIds]
+          );
         }
       }
     }

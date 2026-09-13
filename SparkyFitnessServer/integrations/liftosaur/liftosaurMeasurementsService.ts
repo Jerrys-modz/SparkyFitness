@@ -12,9 +12,7 @@ import {
   LiftosaurApiEnvelope,
   LiftosaurMeasurementResponseData,
 } from './liftosaurTypes.js';
-
-const LIFTOSAUR_API_BASE_URL =
-  process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL || 'https://www.liftosaur.com';
+import { getValidatedLiftosaurBaseUrl } from './liftosaurWorkoutExportService.js';
 
 const LB_TO_KG = 0.45359237;
 const IN_TO_CM = 2.54;
@@ -106,7 +104,7 @@ async function getMeasurementPage(
   cursor?: number
 ): Promise<LiftosaurMeasurementResponseData> {
   const response = await axios.get<LiftosaurApiEnvelope<LiftosaurMeasurementResponseData>>(
-    `${LIFTOSAUR_API_BASE_URL}/api/v1/measurements/${encodeURIComponent(key)}`,
+    `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
     {
       headers: { Authorization: `Bearer ${apiKey}` },
       params: {
@@ -205,7 +203,7 @@ async function sendMeasurementToLiftosaur(
   const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
   try {
     await axios.post(
-      `${LIFTOSAUR_API_BASE_URL}/api/v1/measurements/${encodeURIComponent(key)}`,
+      `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
       { value, timestamp: timestampMs },
       { headers }
     );
@@ -216,7 +214,7 @@ async function sendMeasurementToLiftosaur(
       // Measurement already exists at timestamp; update it
       try {
         await axios.put(
-          `${LIFTOSAUR_API_BASE_URL}/api/v1/measurements/${encodeURIComponent(key)}/${timestampMs}`,
+          `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}/${timestampMs}`,
           { value },
           { headers }
         );

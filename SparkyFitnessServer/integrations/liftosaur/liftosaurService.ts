@@ -26,10 +26,11 @@ import {
   importMeasurementsFromLiftosaur,
   exportMeasurementsToLiftosaur,
 } from './liftosaurMeasurementsService.js';
-import { exportWorkoutsToLiftosaur } from './liftosaurWorkoutExportService.js';
+import {
+  exportWorkoutsToLiftosaur,
+  getValidatedLiftosaurBaseUrl,
+} from './liftosaurWorkoutExportService.js';
 
-const LIFTOSAUR_API_BASE_URL =
-  process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL || 'https://www.liftosaur.com';
 const HISTORY_PAGE_SIZE = 200; // Liftosaur API cap
 
 interface ProviderRow {
@@ -123,7 +124,7 @@ async function getHistoryPage(
   try {
     const response = await axios.get<
       LiftosaurApiEnvelope<LiftosaurHistoryResponseData>
-    >(`${LIFTOSAUR_API_BASE_URL}/api/v1/history`, {
+    >(`${getValidatedLiftosaurBaseUrl()}/api/v1/history`, {
       headers: { Authorization: `Bearer ${apiKey}` },
       params: {
         ...(params.startDate ? { startDate: params.startDate } : {}),

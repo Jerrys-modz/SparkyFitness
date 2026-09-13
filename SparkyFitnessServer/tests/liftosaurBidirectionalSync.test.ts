@@ -27,6 +27,7 @@ vi.mock('../integrations/liftosaur/liftosaurMeasurementsService.js', () => ({
 }));
 vi.mock('../integrations/liftosaur/liftosaurWorkoutExportService.js', () => ({
   exportWorkoutsToLiftosaur: vi.fn().mockResolvedValue(2),
+  getValidatedLiftosaurBaseUrl: vi.fn().mockReturnValue('https://www.liftosaur.com'),
   default: {
     exportWorkoutsToLiftosaur: vi.fn().mockResolvedValue(2),
   },
