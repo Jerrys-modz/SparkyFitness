@@ -853,7 +853,7 @@ router.put(
  *                   value:
  *                     type: number
  *       400:
- *         description: Exercise ID, start date, or end date is missing.
+ *         description: Exercise ID is missing or not a valid UUID, or start date/end date is missing.
  *       403:
  *         description: User does not have permission to access this resource.
  *       404:

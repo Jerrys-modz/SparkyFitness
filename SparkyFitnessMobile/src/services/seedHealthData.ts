@@ -1180,6 +1180,18 @@ const getWritePermissions = (): PermissionRequest[] => {
 // permissions came back — individual record insertions fail gracefully for the rest.
 const requestWritePermissions = async (): Promise<boolean> => {
   try {
+    // On a fresh launch nothing has called initialize() yet, and the native
+    // requestPermission() throws "Health Connect client is not initialized"
+    // rather than initializing itself — same reason seedRichWorkout/
+    // seedRichStrengthWorkout below call this first.
+    const initialized = await initHealthConnect();
+    if (!initialized) {
+      addLog(
+        '[SeedHealthData] Health Connect is not available on this device.',
+        'ERROR'
+      );
+      return false;
+    }
     const permissionsToRequest = getWritePermissions();
     const existing = await loadAllEnabledPermissions();
     const permissions = await requestPermission([
@@ -1243,6 +1255,15 @@ export const seedHistoricalSteps = async (): Promise<SeedResult> => {
   );
 
   try {
+    const initialized = await initHealthConnect();
+    if (!initialized) {
+      return {
+        success: false,
+        recordsInserted: 0,
+        error: 'Health Connect is not available on this device.',
+      };
+    }
+
     // Request Steps write permission, unioned with everything already enabled.
     try {
       await requestHealthPermissions([
