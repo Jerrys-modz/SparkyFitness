@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "set-version": "pnpm -w run set-version",
-    "start": "nodemon SparkyFitnessServer.ts",
+    "start": "nodemon",
     "test:migrations": "tsx tests/migrate.script.ts",
     "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
     "typecheck": "tsc --noEmit",
