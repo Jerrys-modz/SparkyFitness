@@ -53,6 +53,7 @@ import BulkDeleteDialog from '@/components/BulkDeleteDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/DataTable';
 import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
+import { type DataTableFeatures } from '@/components/ui/dataTableFeatures';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 
@@ -211,6 +212,17 @@ const WorkoutPresetsManager = () => {
 
   const handleLogPresetToDiary = React.useCallback(
     async (preset: WorkoutPreset) => {
+      if (!preset.exercises || preset.exercises.length === 0) {
+        toast({
+          title: t('common.error', 'Error'),
+          description: t(
+            'workoutPresetsManager.emptyPresetError',
+            'Cannot log a workout preset with no exercises.'
+          ),
+          variant: 'destructive',
+        });
+        return;
+      }
       try {
         const today = formatDateToYYYYMMDD(new Date());
         await logWorkoutPreset({ presetId: preset.id, date: today });
@@ -235,6 +247,17 @@ const WorkoutPresetsManager = () => {
 
   const handleStartWorkoutPlayback = React.useCallback(
     (preset: WorkoutPreset) => {
+      if (!preset.exercises || preset.exercises.length === 0) {
+        toast({
+          title: t('common.error', 'Error'),
+          description: t(
+            'workoutPresetsManager.emptyPresetError',
+            'Cannot start a workout preset with no exercises.'
+          ),
+          variant: 'destructive',
+        });
+        return;
+      }
       const today = formatDateToYYYYMMDD(new Date());
       const routeState = createWorkoutPlaybackRouteState(
         preset,
@@ -246,10 +269,10 @@ const WorkoutPresetsManager = () => {
         state: routeState,
       });
     },
-    [location.pathname, location.search, navigate]
+    [location.pathname, location.search, navigate, t]
   );
 
-  const columns = React.useMemo<ColumnDef<WorkoutPreset>[]>(
+  const columns = React.useMemo<ColumnDef<DataTableFeatures, WorkoutPreset>[]>(
     () => [
       {
         id: 'select',
