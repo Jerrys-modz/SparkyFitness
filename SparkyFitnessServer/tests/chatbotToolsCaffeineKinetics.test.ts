@@ -2,16 +2,21 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import { todayInZone } from '@workspace/shared';
 import { buildCaffeineKineticsTools } from '../ai/tools/caffeineKineticsTools.js';
 import { getActiveCaffeineKinetics } from '../services/caffeineKineticsService.js';
+import goalService from '../services/goalService.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
 vi.mock('../services/caffeineKineticsService.js', () => ({
   getActiveCaffeineKinetics: vi.fn(),
+}));
+vi.mock('../services/goalService.js', () => ({
+  default: { getUserGoals: vi.fn() },
 }));
 vi.mock('../config/logging.js', () => ({
   log: vi.fn(),
 }));
 
 const svc = { getActiveCaffeineKinetics: vi.mocked(getActiveCaffeineKinetics) };
+const goals = { getUserGoals: vi.mocked(goalService.getUserGoals) };
 
 const opts = toolOpts;
 const DB_ERROR_TEXT =
@@ -33,8 +38,9 @@ const KINETICS_RESULT = {
 };
 
 // The service response as it reaches the model: bedtime_at dropped (redundant
-// with target_bedtime, which is already local) and each dose's raw UTC `at`
-// replaced with a local date + time.
+// with target_bedtime, which is already local), each dose's raw UTC `at`
+// replaced with a local date + time, and the day's logged total plus goal
+// (none set, here) appended.
 const EXPECTED_CHAT_RESULT = {
   half_life_hours: 5,
   target_bedtime: '22:30',
@@ -47,12 +53,15 @@ const EXPECTED_CHAT_RESULT = {
   threshold_mg: 100,
   has_estimated_times: false,
   doses: [{ mg: 95, name: 'Coffee', date: '2026-02-01', time: '14:00' }],
+  total_mg_for_date: 95,
+  daily_goal_mg: null,
 };
 
 let tools: ReturnType<typeof buildCaffeineKineticsTools>;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  goals.getUserGoals.mockResolvedValue({ caffeine_mg: null });
   tools = buildCaffeineKineticsTools('user-1', 'UTC');
 });
 
@@ -75,6 +84,12 @@ describe('sparky_get_caffeine_kinetics', () => {
       date: '2026-02-01',
       doseMg: undefined,
     });
+    expect(goals.getUserGoals).toHaveBeenCalledWith(
+      'user-1',
+      '2026-02-01',
+      undefined,
+      true
+    );
   });
 
   // Regression: the service returns doses[].at (and bedtime_at) as raw UTC
@@ -128,6 +143,36 @@ describe('sparky_get_caffeine_kinetics', () => {
       { mg: 95, name: 'Late coffee', date: '2026-01-31', time: '23:50' },
       { mg: 100, name: 'Morning shake', date: '2026-02-01', time: '08:00' },
     ]);
+    // total_mg_for_date sums only the requested date's doses, not the whole
+    // lookback window -- the prior-day dose still counts toward "active now"
+    // math but must not inflate the day's own logged total.
+    expect(parsed.total_mg_for_date).toBe(100);
+  });
+
+  // Regression: latest_safe_dose_time/cutoff_state only ever answered
+  // "would a dose clear by bedtime" -- a sleep question with no idea of the
+  // user's daily caffeine goal. The model then framed a cutoff time as an
+  // invitation for "another boost" even when the user had already logged
+  // more than their goal for the day. daily_goal_mg (and the day's own
+  // total, not the multi-day lookback sum) let the model catch that.
+  it("includes the day's logged total and the user's caffeine goal", async () => {
+    svc.getActiveCaffeineKinetics.mockResolvedValue({
+      ...KINETICS_RESULT,
+      doses: [
+        { at: '2026-02-01T11:53:00.000Z', mg: 144, name: 'Dunkin Zero' },
+        { at: '2026-02-01T12:11:00.000Z', mg: 100, name: 'Protein Shake' },
+      ],
+    });
+    goals.getUserGoals.mockResolvedValue({ caffeine_mg: 200 });
+
+    const result = await tools.sparky_get_caffeine_kinetics.execute!(
+      { action: 'active_caffeine', date: '2026-02-01' },
+      opts
+    );
+
+    const parsed = JSON.parse(result as string);
+    expect(parsed.total_mg_for_date).toBe(244);
+    expect(parsed.daily_goal_mg).toBe(200);
   });
 
   it('passes a custom dose_mg through for the cutoff calculation', async () => {
@@ -150,11 +195,21 @@ describe('sparky_get_caffeine_kinetics', () => {
 
     const result = await tools.sparky_get_caffeine_kinetics.execute!({}, opts);
 
-    expect(result).toBe(JSON.stringify(EXPECTED_CHAT_RESULT));
+    // The mocked dose is fixed at 2026-02-01, which is not "today" here, so
+    // total_mg_for_date is correctly 0 rather than the dose's 95mg.
+    expect(result).toBe(
+      JSON.stringify({ ...EXPECTED_CHAT_RESULT, total_mg_for_date: 0 })
+    );
     expect(svc.getActiveCaffeineKinetics).toHaveBeenCalledWith('user-1', {
       date: today,
       doseMg: undefined,
     });
+    expect(goals.getUserGoals).toHaveBeenCalledWith(
+      'user-1',
+      today,
+      undefined,
+      true
+    );
   });
 
   it('rejects malformed dates', async () => {
