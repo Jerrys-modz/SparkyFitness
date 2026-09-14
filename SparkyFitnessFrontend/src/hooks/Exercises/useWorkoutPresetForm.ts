@@ -119,6 +119,11 @@ export function useWorkoutPresetForm({
           ],
           category: exercise.category ?? '',
           modality,
+          progression_mode: 'rep_goal',
+          rep_goal: null,
+          increment_type: 'weight',
+          increment_value: 5,
+          equipment_brand: null,
         };
         setExercises((prev) => [...prev, newExercise]);
       }
@@ -193,6 +198,21 @@ export function useWorkoutPresetForm({
             }),
           };
         })
+      );
+    },
+    []
+  );
+
+  const handleExerciseFieldChange = useCallback(
+    (
+      exerciseIndex: number,
+      field: keyof WorkoutPresetExercise,
+      value: WorkoutPresetExercise[keyof WorkoutPresetExercise]
+    ) => {
+      setExercises((prev) =>
+        prev.map((exercise, eIndex) =>
+          eIndex === exerciseIndex ? { ...exercise, [field]: value } : exercise
+        )
       );
     },
     []
@@ -415,6 +435,7 @@ export function useWorkoutPresetForm({
     handleRemoveExercise,
     handleDuplicateExercise,
     handleSetChange,
+    handleExerciseFieldChange,
     handleAddSet,
     handleDuplicateSet,
     handleRemoveSet,

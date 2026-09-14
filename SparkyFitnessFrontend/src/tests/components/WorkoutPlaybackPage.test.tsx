@@ -40,6 +40,15 @@ jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
   }),
 }));
 
+jest.mock('@/api/Exercises/exerciseService', () => ({
+  getExerciseStats: jest.fn(
+    () =>
+      new Promise(() => {
+        /* Session-start stats are unit-tested via applyProgressionToPlaybackExercise. */
+      })
+  ),
+}));
+
 const presetFixture: WorkoutPreset = {
   id: 'preset-1',
   user_id: 'user-1',

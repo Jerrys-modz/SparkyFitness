@@ -20,6 +20,11 @@ export const workoutPresetExercisesSchema = z.object({
   updated_at: z.date().nullable(),
   sort_order: z.number().nullable(),
   superset_group: z.number().nullable(),
+  progression_mode: z.string().nullable(),
+  rep_goal: z.number().nullable(),
+  increment_type: z.string().nullable(),
+  increment_value: z.number().nullable(),
+  equipment_brand: z.string().nullable(),
 });
 
 export const workoutPresetExercisesInitializerSchema = z.object({
@@ -31,6 +36,11 @@ export const workoutPresetExercisesInitializerSchema = z.object({
   updated_at: z.date().optional().nullable(),
   sort_order: z.number().optional().nullable(),
   superset_group: z.number().optional().nullable(),
+  progression_mode: z.string().optional().nullable(),
+  rep_goal: z.number().optional().nullable(),
+  increment_type: z.string().optional().nullable(),
+  increment_value: z.number().optional().nullable(),
+  equipment_brand: z.string().optional().nullable(),
 });
 
 export const workoutPresetExercisesMutatorSchema = z.object({
@@ -42,6 +52,11 @@ export const workoutPresetExercisesMutatorSchema = z.object({
   updated_at: z.date().optional().nullable(),
   sort_order: z.number().optional().nullable(),
   superset_group: z.number().optional().nullable(),
+  progression_mode: z.string().optional().nullable(),
+  rep_goal: z.number().optional().nullable(),
+  increment_type: z.string().optional().nullable(),
+  increment_value: z.number().optional().nullable(),
+  equipment_brand: z.string().optional().nullable(),
 });
 
 export type WorkoutPresetExercises = z.infer<

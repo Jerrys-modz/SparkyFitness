@@ -17,6 +17,7 @@ import { useStartLiveWorkout } from '../../src/hooks/useStartLiveWorkout';
 import {
   buildPresetStartExercisesPayload,
   buildSingleExerciseStartPayload,
+  extractProgressionByExerciseId,
 } from '../../src/utils/workoutSession';
 import type { Exercise } from '../../src/types/exercise';
 import type { WorkoutPreset } from '../../src/types/workoutPresets';
@@ -245,6 +246,7 @@ describe('PresetSearchScreen', () => {
       name: 'Push Day',
       exercises: buildPresetStartExercisesPayload(preset),
       sourcePresetId: 7,
+      progressionByExerciseId: extractProgressionByExerciseId(preset),
     });
     expect(navigation.navigate).not.toHaveBeenCalled();
   });

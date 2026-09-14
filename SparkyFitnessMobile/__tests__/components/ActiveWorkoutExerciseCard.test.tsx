@@ -93,10 +93,14 @@ jest.mock('../../src/hooks/useExerciseStats', () => ({
 jest.mock('../../src/stores/activeWorkoutStore', () => {
   const capturePrBaseline = jest.fn();
   const capturePreviousSessionSets = jest.fn();
+  const captureProgressionOverlay = jest.fn();
   const storeState = {
     capturePrBaseline,
     capturePreviousSessionSets,
+    captureProgressionOverlay,
     plannedSetValues: {},
+    progressionByExerciseId: {},
+    progressionOverlay: {},
   };
   return {
     __esModule: true,
@@ -104,6 +108,7 @@ jest.mock('../../src/stores/activeWorkoutStore', () => {
       selector(storeState),
     __capturePrBaseline: capturePrBaseline,
     __capturePreviousSessionSets: capturePreviousSessionSets,
+    __captureProgressionOverlay: captureProgressionOverlay,
   };
 });
 

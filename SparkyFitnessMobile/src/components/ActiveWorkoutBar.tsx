@@ -29,6 +29,7 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useRestCountdown } from '../hooks/useRestCountdown';
 import {
   describeActiveSetAssumed,
+  flattenProgressionOverlay,
   formatRestCountdown,
   formatSetLoad,
   normalizeWeightUnit,
@@ -331,6 +332,7 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
     (s) => s.previousSessionSets
   );
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
+  const progressionOverlay = useActiveWorkoutStore((s) => s.progressionOverlay);
   const { state: restState, remainingMs, progress } = useRestCountdown();
   const queryClient = useQueryClient();
   const { preferences } = usePreferences();
@@ -472,7 +474,8 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
     activeSession,
     activeSetId,
     previousSessionSets,
-    plannedSetValues
+    plannedSetValues,
+    flattenProgressionOverlay(progressionOverlay)
   );
   const activeSetLabel =
     activeSetDescription == null

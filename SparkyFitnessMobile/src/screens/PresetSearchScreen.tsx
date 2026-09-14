@@ -40,6 +40,7 @@ import {
   CATEGORY_ICON_MAP,
   buildPresetStartExercisesPayload,
   buildSingleExerciseStartPayload,
+  extractProgressionByExerciseId,
 } from '../utils/workoutSession';
 import type { Exercise } from '../types/exercise';
 import type { WorkoutPreset } from '../types/workoutPresets';
@@ -130,6 +131,7 @@ const PresetSearchScreen: React.FC<PresetSearchScreenProps> = ({
         name: preset.name,
         exercises: buildPresetStartExercisesPayload(preset),
         sourcePresetId: preset.id,
+        progressionByExerciseId: extractProgressionByExerciseId(preset),
       });
     },
     [startLiveWorkout]

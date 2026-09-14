@@ -1,5 +1,37 @@
 import { z } from "zod";
 import { exerciseModalitySchema } from "./Exercises.api.zod.ts";
+import {
+  progressionIncrementTypeSchema,
+  progressionModeSchema,
+} from "../../types/progression.ts";
+
+const progressionFields = {
+  progression_mode: progressionModeSchema.nullable().optional(),
+  rep_goal: z.number().int().positive().nullable().optional(),
+  increment_type: progressionIncrementTypeSchema.nullable().optional(),
+  increment_value: z.number().positive().nullable().optional(),
+  equipment_brand: z.string().max(100).nullable().optional(),
+};
+
+function refineRepIncrement(
+  value: {
+    increment_type?: "weight" | "reps" | null;
+    increment_value?: number | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (
+    value.increment_type === "reps" &&
+    value.increment_value != null &&
+    !Number.isInteger(value.increment_value)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["increment_value"],
+      message: "Rep increments must be a whole number",
+    });
+  }
+}
 
 // --- Response contracts ---
 //
@@ -34,6 +66,7 @@ export const workoutPresetExerciseResponseSchema = z.object({
   category: z.string().nullable(),
   modality: exerciseModalitySchema.optional(),
   superset_group: z.number().int().nullable(),
+  ...progressionFields,
   sets: z.array(workoutPresetSetResponseSchema),
 });
 
@@ -75,14 +108,17 @@ export const workoutPresetSetRequestSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
-export const workoutPresetExerciseRequestSchema = z.object({
-  /** UUID, or an external source id resolved server-side (free-exercise-db). */
-  exercise_id: z.string().min(1),
-  image_url: z.string().nullable().optional(),
-  sort_order: z.number().int().min(0).optional(),
-  superset_group: z.number().int().nullable().optional(),
-  sets: z.array(workoutPresetSetRequestSchema).optional(),
-});
+export const workoutPresetExerciseRequestSchema = z
+  .object({
+    /** UUID, or an external source id resolved server-side (free-exercise-db). */
+    exercise_id: z.string().min(1),
+    image_url: z.string().nullable().optional(),
+    sort_order: z.number().int().min(0).optional(),
+    superset_group: z.number().int().nullable().optional(),
+    ...progressionFields,
+    sets: z.array(workoutPresetSetRequestSchema).optional(),
+  })
+  .superRefine(refineRepIncrement);
 
 export const workoutPresetCreateRequestSchema = z.object({
   // Ownership comes from the authenticated request (req.userId), never the

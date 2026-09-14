@@ -7,7 +7,10 @@ import WorkoutPresetDetailScreen from '../../src/screens/WorkoutPresetDetailScre
 import { usePreferences, useCreateWorkoutPreset } from '../../src/hooks';
 import { useStartLiveWorkout } from '../../src/hooks/useStartLiveWorkout';
 import { loadActiveDraft } from '../../src/services/workoutDraftService';
-import { buildPresetStartExercisesPayload } from '../../src/utils/workoutSession';
+import {
+  buildPresetStartExercisesPayload,
+  extractProgressionByExerciseId,
+} from '../../src/utils/workoutSession';
 import {
   useAppPreferencesStore,
   __resetAppPreferencesStoreForTests,
@@ -252,6 +255,7 @@ describe('WorkoutPresetDetailScreen', () => {
       name: 'Push Day',
       exercises: buildPresetStartExercisesPayload(preset),
       sourcePresetId: 7,
+      progressionByExerciseId: extractProgressionByExerciseId(preset),
     });
     expect(navigation.navigate).not.toHaveBeenCalled();
   });

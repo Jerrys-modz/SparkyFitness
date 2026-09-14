@@ -374,6 +374,11 @@ describe('presetFormReducer', () => {
             image_url: 'img.png',
             exercise_name: 'Squat',
             category: 'legs',
+            progression_mode: 'step_load',
+            rep_goal: 8,
+            increment_type: 'reps',
+            increment_value: 1,
+            equipment_brand: 'Rogue',
             sets: [
               {
                 id: 'ps1',
@@ -425,6 +430,11 @@ describe('presetFormReducer', () => {
         exerciseName: 'Squat',
         exerciseCategory: 'legs',
         images: ['img.png'],
+        progressionMode: 'step_load',
+        repGoal: 8,
+        incrementType: 'reps',
+        incrementValue: 1,
+        equipmentBrand: 'Rogue',
       });
       expect(next.exercises[0].sets[0]).toMatchObject({
         clientId: 's1',

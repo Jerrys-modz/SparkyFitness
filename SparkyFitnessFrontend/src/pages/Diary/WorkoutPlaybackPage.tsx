@@ -22,6 +22,7 @@ import {
   setWorkoutPlaybackPointer,
   setWorkoutPlaybackRestTimer,
   toggleWorkoutSetCompletion,
+  applyProgressionToPlaybackDraft,
   type WorkoutPlaybackRouteState,
   type WorkoutPlaybackDraft,
   type WorkoutSetPointer,
@@ -29,6 +30,7 @@ import {
 } from '@/utils/workoutPlayback';
 import { formatSecondsClock } from '@/utils/timeFormatters';
 import { localDateTimeToUtc } from '@workspace/shared';
+import { getExerciseStats } from '@/api/Exercises/exerciseService';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
@@ -189,6 +191,57 @@ const WorkoutPlaybackPage = () => {
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+
+  // Session-start suggestions: fetch last-session stats once per draft and
+  // rewrite incomplete working sets. Skip exercises the user already logged
+  // (resumed drafts) so completed history is never overwritten.
+  useEffect(() => {
+    if (!draft) {
+      return;
+    }
+    const pending = draft.exercises.filter(
+      (exercise) =>
+        !exercise.progression_applied &&
+        !exercise.sets.some((set) => set.completed)
+    );
+    if (pending.length === 0) {
+      return;
+    }
+
+    const presetId = Number(draft.preset_id);
+    let cancelled = false;
+
+    void (async () => {
+      const results = await Promise.all(
+        pending.map(async (exercise) => {
+          try {
+            const stats = await getExerciseStats(exercise.exercise_id, {
+              presetId: Number.isFinite(presetId) ? presetId : undefined,
+            });
+            return [exercise.exercise_id, stats] as const;
+          } catch {
+            return [exercise.exercise_id, null] as const;
+          }
+        })
+      );
+      if (cancelled) {
+        return;
+      }
+      const statsByExerciseId = new Map(results);
+      setDraft((current) => {
+        if (!current) {
+          return current;
+        }
+        return applyProgressionToPlaybackDraft(current, statsByExerciseId);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Identity of this playback session, not every set tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.preset_id, draft?.started_at]);
 
   // Combined interval for both rest timer and elapsed time
   // Only update draft when timer expires; remaining time derives from target_end_timestamp_ms

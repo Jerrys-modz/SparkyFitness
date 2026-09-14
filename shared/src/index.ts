@@ -136,6 +136,9 @@ export * from "./utils/activitySport.ts";
 export * from "./utils/foodEntryCopyFingerprint.ts";
 export * from "./utils/foodPhotoEstimateMath.ts";
 export * from "./utils/foodPhotoIngredientDraft.ts";
+export * from "./types/progression.ts";
+export * from "./utils/progressionEngine.ts";
+
 export * from "./ai/unitConversion.ts";
 export * from "./ai/confidenceLabels.ts";
 export * from "./medications/contracts.ts";

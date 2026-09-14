@@ -3,6 +3,7 @@ import type {
   ExerciseEntrySetRequest,
   ExerciseEntrySetResponse,
   ExerciseModality,
+  ExerciseProgressionConfig,
   ExerciseRecentSessionSet,
   EntryExerciseSnapshotResponse,
   ExerciseSessionResponse,
@@ -12,6 +13,7 @@ import type {
 import {
   isCardioModality,
   isExerciseModality,
+  progressionConfigFromPresetExercise,
   resolveExerciseModality,
   setsDurationMinutes,
 } from '@workspace/shared';
@@ -850,7 +852,8 @@ type AssumableSet = Pick<
 export function resolveAssumedSetValues(
   sets: readonly AssumableSet[],
   previousSets: readonly ExerciseRecentSessionSet[] | undefined,
-  plannedBySetId?: Record<string, AssumedSetValues>
+  plannedBySetId?: Record<string, AssumedSetValues>,
+  overlayBySetId?: Record<string, AssumedSetValues>
 ): AssumedSetValues[] {
   const lastEffective = {
     warmup: {
@@ -870,15 +873,26 @@ export function resolveAssumedSetValues(
     const tier = set.set_type === 'warmup' ? 'warmup' : 'working';
     const previous = previousSets?.[index];
     const planned = plannedBySetId?.[String(set.id)];
+    const overlay = overlayBySetId?.[String(set.id)];
     const assumed: AssumedSetValues = {
-      weight: previous?.weight ?? planned?.weight ?? lastEffective[tier].weight,
-      reps: previous?.reps ?? planned?.reps ?? lastEffective[tier].reps,
+      weight:
+        overlay?.weight ??
+        previous?.weight ??
+        planned?.weight ??
+        lastEffective[tier].weight,
+      reps:
+        overlay?.reps ??
+        previous?.reps ??
+        planned?.reps ??
+        lastEffective[tier].reps,
       duration:
+        overlay?.duration ??
         previous?.duration ??
         planned?.duration ??
         lastEffective[tier].duration ??
         null,
       distance:
+        overlay?.distance ??
         previous?.distance ??
         planned?.distance ??
         lastEffective[tier].distance ??
@@ -902,7 +916,8 @@ export function describeActiveSetAssumed(
   session: PresetSessionResponse | null,
   setId: string | null,
   previousSetsByExerciseId: Record<string, ExerciseRecentSessionSet[]>,
-  plannedBySetId: Record<string, AssumedSetValues>
+  plannedBySetId: Record<string, AssumedSetValues>,
+  overlayBySetId?: Record<string, AssumedSetValues>
 ): ActiveSetDescription | null {
   const desc = describeActiveSet(session, setId);
   if (desc == null || session == null) return desc;
@@ -918,7 +933,8 @@ export function describeActiveSetAssumed(
     const assumed = resolveAssumedSetValues(
       exercise.sets,
       historyForExercise(previousSetsByExerciseId, exercise.exercise_id),
-      plannedBySetId
+      plannedBySetId,
+      overlayBySetId
     )[setIndex];
     // Only the fields the modality renders are backfilled, so a duration set
     // can't inherit legacy reps and a weighted set can't inherit a duration.
@@ -1620,6 +1636,35 @@ export function buildPresetStartExercisesPayload(
 }
 
 /**
+ * Preset overload settings keyed by library exercise id. Captured at live
+ * start because the created session does not round-trip these columns.
+ */
+export function extractProgressionByExerciseId(
+  preset: WorkoutPreset
+): Record<string, ExerciseProgressionConfig> {
+  const out: Record<string, ExerciseProgressionConfig> = {};
+  for (const exercise of preset.exercises) {
+    out[exercise.exercise_id] = progressionConfigFromPresetExercise(exercise);
+  }
+  return out;
+}
+
+/**
+ * Flatten per-exercise overlay maps into the set-id lookup
+ * {@link resolveAssumedSetValues} consumes.
+ */
+export function flattenProgressionOverlay(
+  overlay: Record<string, Record<string, AssumedSetValues>> | undefined
+): Record<string, AssumedSetValues> | undefined {
+  if (!overlay) return undefined;
+  const out: Record<string, AssumedSetValues> = {};
+  for (const bySet of Object.values(overlay)) {
+    Object.assign(out, bySet);
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
  * Planned weight/reps per exercise/set position from a live-start payload,
  * captured before {@link stripPlannedSetValues} empties the create request.
  * The store keys these to the created session's set ids (same order) so
@@ -1924,6 +1969,11 @@ export function buildPresetExercisesPayload(
         image_url: exercise.images[0] ?? null,
         sort_order: index,
         superset_group: exercise.supersetGroup ?? null,
+        progression_mode: exercise.progressionMode ?? 'rep_goal',
+        rep_goal: exercise.repGoal ?? null,
+        increment_type: exercise.incrementType ?? 'weight',
+        increment_value: exercise.incrementValue ?? 5,
+        equipment_brand: exercise.equipmentBrand ?? null,
         sets: exercise.sets.map((set, setIndex) => {
           const weight = parseDecimalInput(set.weight);
           const reps = parseInt(set.reps, 10);

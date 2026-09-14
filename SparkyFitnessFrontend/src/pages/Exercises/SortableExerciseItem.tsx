@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   GripVertical,
   Plus,
@@ -34,6 +36,7 @@ import { SortableSetItem } from './SortableWorkoutSet';
 import { CardioLog } from './CardioLog';
 import type {
   WorkoutPreset,
+  WorkoutPresetExercise,
   SetFieldKey,
   SortableSetData,
   SortableExerciseItemData,
@@ -45,6 +48,7 @@ import {
 import { SetColumnHeaders } from './SetHeader';
 import { toSetTableModality } from '@/constants/exercises';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { kgToLbs, lbsToKg } from '@/utils/unitConversions';
 
 type PresetMetadata = WorkoutPreset | PresetSessionResponse;
 
@@ -71,6 +75,11 @@ interface SortableExerciseItemProps {
     oldIndex: number,
     newIndex: number
   ) => void;
+  onExerciseFieldChange?: (
+    exerciseIndex: number,
+    field: string,
+    value: string | number | null
+  ) => void;
   weightUnit: string;
   workoutPresets?: PresetMetadata[];
   simplified?: boolean;
@@ -88,6 +97,7 @@ export const SortableExerciseItem = ({
   onReplaceExercise,
   onDuplicateExercise,
   onReorderSets,
+  onExerciseFieldChange,
   weightUnit,
   workoutPresets,
   simplified = false,
@@ -95,6 +105,17 @@ export const SortableExerciseItem = ({
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
   const { distanceUnit } = usePreferences();
+  const presetExercise = simplified ? (ex as WorkoutPresetExercise) : null;
+  const progressionMode = presetExercise?.progression_mode ?? 'rep_goal';
+  const incrementType =
+    progressionMode === 'step_load'
+      ? 'reps'
+      : (presetExercise?.increment_type ?? 'weight');
+  const incrementIsWeight = incrementType === 'weight';
+  const incrementDisplay =
+    incrementIsWeight && weightUnit === 'lbs'
+      ? kgToLbs(Number(presetExercise?.increment_value ?? 5))
+      : Number(presetExercise?.increment_value ?? 5);
 
   const sortableId = ex.id?.toString() || `ex-${exerciseIndex}`;
 
@@ -295,6 +316,174 @@ export const SortableExerciseItem = ({
           </Button>
         </div>
       </div>
+
+      {simplified && isExpanded && !isCardio && onExerciseFieldChange && (
+        <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 items-end">
+            <div>
+              <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                {t('workoutPresetForm.progressionMode', 'Progression')}
+              </Label>
+              <select
+                className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
+                value={progressionMode}
+                onChange={(e) => {
+                  const mode = e.target.value as
+                    'rep_goal' | 'fixed' | 'step_load' | 'manual';
+                  onExerciseFieldChange(
+                    exerciseIndex,
+                    'progression_mode',
+                    mode
+                  );
+                  if (mode === 'step_load') {
+                    onExerciseFieldChange(
+                      exerciseIndex,
+                      'increment_type',
+                      'reps'
+                    );
+                  }
+                }}
+              >
+                <option value="rep_goal">
+                  {t('workoutPresetForm.progressionRepGoal', 'Total rep goal')}
+                </option>
+                <option value="fixed">
+                  {t(
+                    'workoutPresetForm.progressionFixed',
+                    'Fixed per-set target'
+                  )}
+                </option>
+                <option value="step_load">
+                  {t(
+                    'workoutPresetForm.progressionStepLoad',
+                    'Step-load (reps)'
+                  )}
+                </option>
+                <option value="manual">
+                  {t('workoutPresetForm.progressionManual', 'Manual')}
+                </option>
+              </select>
+            </div>
+            {progressionMode !== 'manual' && (
+              <div>
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                  {progressionMode === 'rep_goal'
+                    ? t('workoutPresetForm.repGoalTotal', 'Rep goal (total)')
+                    : t('workoutPresetForm.repGoalPerSet', 'Reps per set')}
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  className="h-8 text-xs bg-background"
+                  placeholder={
+                    progressionMode === 'rep_goal' ? 'e.g. 24' : 'e.g. 8'
+                  }
+                  value={presetExercise?.rep_goal ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    onExerciseFieldChange(
+                      exerciseIndex,
+                      'rep_goal',
+                      raw === '' ? null : parseInt(raw, 10)
+                    );
+                  }}
+                />
+              </div>
+            )}
+            {progressionMode !== 'manual' &&
+              progressionMode !== 'step_load' && (
+                <div>
+                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                    {t('workoutPresetForm.incrementType', 'Increment')}
+                  </Label>
+                  <select
+                    className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
+                    value={incrementType}
+                    onChange={(e) =>
+                      onExerciseFieldChange(
+                        exerciseIndex,
+                        'increment_type',
+                        e.target.value as 'weight' | 'reps'
+                      )
+                    }
+                  >
+                    <option value="weight">
+                      {t('workoutPresetForm.incrementWeight', 'Weight')} (
+                      {weightUnit})
+                    </option>
+                    <option value="reps">
+                      {t('workoutPresetForm.incrementReps', 'Reps')}
+                    </option>
+                  </select>
+                </div>
+              )}
+            {progressionMode !== 'manual' && (
+              <div>
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                  {incrementIsWeight
+                    ? t(
+                        'workoutPresetForm.incrementAmountWeight',
+                        `Increment (${weightUnit})`
+                      )
+                    : t(
+                        'workoutPresetForm.incrementAmountReps',
+                        'Increment (reps)'
+                      )}
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  className="h-8 text-xs bg-background"
+                  placeholder="+5"
+                  value={
+                    Number.isFinite(incrementDisplay) ? incrementDisplay : ''
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      onExerciseFieldChange(
+                        exerciseIndex,
+                        'increment_value',
+                        5
+                      );
+                      return;
+                    }
+                    const n = Number(raw);
+                    onExerciseFieldChange(
+                      exerciseIndex,
+                      'increment_value',
+                      incrementIsWeight && weightUnit === 'lbs' ? lbsToKg(n) : n
+                    );
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          <div>
+            <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+              {t('workoutPresetForm.equipmentBrand', 'Equipment (optional)')}
+            </Label>
+            <Input
+              type="text"
+              className="h-8 text-xs bg-background"
+              maxLength={100}
+              placeholder={t(
+                'workoutPresetForm.equipmentBrandPlaceholder',
+                'e.g. Hammer Strength'
+              )}
+              value={presetExercise?.equipment_brand ?? ''}
+              onChange={(e) =>
+                onExerciseFieldChange(
+                  exerciseIndex,
+                  'equipment_brand',
+                  e.target.value === '' ? null : e.target.value
+                )
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {isExpanded && isCardio && (
         <CardioLog

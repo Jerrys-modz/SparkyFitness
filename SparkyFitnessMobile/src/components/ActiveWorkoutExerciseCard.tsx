@@ -45,9 +45,16 @@ import {
   resolveAssumedSetValues,
   resolveSnapshotModality,
   setTypeLetter,
+  type AssumedSetValues,
   type WorkoutCardExercise,
   type WorkoutCardSet,
 } from '../utils/workoutSession';
+import {
+  applyProgressionToSets,
+  evaluateProgression,
+  isWarmupSetType,
+  lastPerformanceFromRecentSession,
+} from '@workspace/shared';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import type {
   ActiveSetPatch,
@@ -341,16 +348,30 @@ function ActiveWorkoutExerciseCard({
   // same sources completion adoption uses in the store, so the gray value a
   // row shows is exactly what logging it would record.
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
+  const progressionByExerciseId =
+    useActiveWorkoutStore((s) => s.progressionByExerciseId) ?? {};
+  const progressionOverlay =
+    useActiveWorkoutStore((s) => s.progressionOverlay) ?? {};
   const assumedSetValues = useMemo(
     () =>
       isLive
         ? resolveAssumedSetValues(
             exercise.sets,
             previousSessionSets,
-            plannedSetValues
+            plannedSetValues,
+            exercise.exercise_id
+              ? progressionOverlay[exercise.exercise_id]
+              : undefined
           )
         : null,
-    [isLive, exercise.sets, previousSessionSets, plannedSetValues]
+    [
+      isLive,
+      exercise.sets,
+      exercise.exercise_id,
+      previousSessionSets,
+      plannedSetValues,
+      progressionOverlay,
+    ]
   );
 
   // Capture the historical PR baseline once per exercise. The store no-ops
@@ -359,6 +380,9 @@ function ActiveWorkoutExerciseCard({
   const capturePrBaseline = useActiveWorkoutStore((s) => s.capturePrBaseline);
   const capturePreviousSessionSets = useActiveWorkoutStore(
     (s) => s.capturePreviousSessionSets
+  );
+  const captureProgressionOverlay = useActiveWorkoutStore(
+    (s) => s.captureProgressionOverlay
   );
   useEffect(() => {
     // Wait for the query to resolve (data is null/undefined while loading). A
@@ -378,12 +402,50 @@ function ActiveWorkoutExerciseCard({
       exercise.exercise_id,
       stats.recentSessions?.[0]?.sets ?? []
     );
+
+    const config = exercise.exercise_id
+      ? progressionByExerciseId[exercise.exercise_id]
+      : undefined;
+    if (!config || !exercise.exercise_id) return;
+    const evaluation = evaluateProgression(
+      config,
+      lastPerformanceFromRecentSession(stats.recentSessions?.[0])
+    );
+    if (!evaluation.goalAchieved) {
+      captureProgressionOverlay(exercise.exercise_id, {});
+      return;
+    }
+    const next = applyProgressionToSets(
+      exercise.sets.map((set) => ({
+        set_type: set.set_type,
+        reps: set.reps,
+        weight: set.weight,
+      })),
+      config,
+      evaluation
+    );
+    const assumedBySetId: Record<string, AssumedSetValues> = {};
+    next.forEach((set, index) => {
+      const id = exercise.sets[index]?.id;
+      if (id == null || isWarmupSetType(set.set_type)) return;
+      if (set.weight == null && set.reps == null) return;
+      assumedBySetId[String(id)] = {
+        weight: set.weight,
+        reps: set.reps,
+        duration: null,
+        distance: null,
+      };
+    });
+    captureProgressionOverlay(exercise.exercise_id, assumedBySetId);
   }, [
     isLive,
     stats,
     exercise.exercise_id,
+    exercise.sets,
+    progressionByExerciseId,
     capturePrBaseline,
     capturePreviousSessionSets,
+    captureProgressionOverlay,
   ]);
 
   // The best set to show on the "Best" line: the historical best, or — once a

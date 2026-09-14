@@ -6,7 +6,10 @@ import Toast from 'react-native-toast-message';
 import { useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { PresetSessionExerciseRequest } from '@workspace/shared';
+import type {
+  ExerciseProgressionConfig,
+  PresetSessionExerciseRequest,
+} from '@workspace/shared';
 import { useCreateWorkout } from './useExerciseMutations';
 import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import { serverConnectionQueryKey } from './queryKeys';
@@ -39,6 +42,8 @@ interface StartLiveWorkoutArgs {
    * flow can offer to update the preset. Omit for empty starts.
    */
   sourcePresetId?: number;
+  /** Preset overload settings, keyed by library exercise id. */
+  progressionByExerciseId?: Record<string, ExerciseProgressionConfig>;
 }
 
 /**
@@ -112,7 +117,12 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
   // guard has cleared. Split out so the "Workout in progress" prompt can
   // clear the in-progress session and then call straight through.
   const runStart = useCallback(
-    async ({ name, exercises, sourcePresetId }: StartLiveWorkoutArgs) => {
+    async ({
+      name,
+      exercises,
+      sourcePresetId,
+      progressionByExerciseId,
+    }: StartLiveWorkoutArgs) => {
       if (exercises.length === 0) {
         Toast.show({
           type: 'error',
@@ -164,6 +174,7 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           plannedSetValues,
           sourcePresetId,
           sourceServerConfigId,
+          progressionByExerciseId,
         });
         if (navigation.isFocused()) {
           navigation.replace('ActiveWorkout');

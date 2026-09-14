@@ -1,9 +1,14 @@
 import {
+  applyProgressionToSets,
   instantHourMinute,
+  lastPerformanceFromRecentSession,
+  progressionConfigFromPresetExercise,
+  evaluateProgression,
   resolveExerciseModality,
   setsDurationMinutes,
   type CreatePresetSessionRequest,
   type ExerciseModality,
+  type ExerciseStatsResponse,
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 
@@ -37,6 +42,13 @@ export interface WorkoutPlaybackExerciseDraft {
   started_at?: string | null;
   ended_at?: string | null;
   sets: WorkoutPlaybackSetDraft[];
+  progression_mode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
+  rep_goal?: number | null;
+  increment_type?: 'weight' | 'reps' | null;
+  increment_value?: number | null;
+  equipment_brand?: string | null;
+  /** True once session-start suggestions have been merged into this exercise. */
+  progression_applied?: boolean;
 }
 
 export interface WorkoutPlaybackDraft {
@@ -314,6 +326,12 @@ export function createWorkoutPlaybackDraftFromPreset(
       notes: null,
       started_at: null,
       ended_at: null,
+      progression_mode: exercise.progression_mode ?? 'rep_goal',
+      rep_goal: exercise.rep_goal ?? null,
+      increment_type: exercise.increment_type ?? 'weight',
+      increment_value: exercise.increment_value ?? 5,
+      equipment_brand: exercise.equipment_brand ?? null,
+      progression_applied: false,
       sets: exercise.sets.map((set, setIndex) => ({
         set_number: set.set_number ?? setIndex + 1,
         set_type: set.set_type ?? 'Working Set',
@@ -356,6 +374,77 @@ export function createWorkoutPlaybackDraftFromPreset(
   );
 
   return draft;
+}
+
+function shouldApplyPlaybackProgression(
+  exercise: WorkoutPlaybackExerciseDraft
+): boolean {
+  if (exercise.progression_applied) {
+    return false;
+  }
+  if (exercise.sets.some((set) => set.completed)) {
+    return false;
+  }
+  const modality = exercise.modality;
+  if (modality === 'duration' || modality === 'duration_distance') {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Merge last-session suggestions into a playback exercise. No-op (but marked
+ * applied) when the user already logged a set, the exercise is cardio, or
+ * the goal was not hit — the stored template stays in the draft.
+ */
+export function applyProgressionToPlaybackExercise(
+  exercise: WorkoutPlaybackExerciseDraft,
+  stats?: Pick<ExerciseStatsResponse, 'recentSessions'> | null
+): WorkoutPlaybackExerciseDraft {
+  if (!shouldApplyPlaybackProgression(exercise)) {
+    return exercise.progression_applied
+      ? exercise
+      : { ...exercise, progression_applied: true };
+  }
+
+  const config = progressionConfigFromPresetExercise({
+    progression_mode: exercise.progression_mode,
+    rep_goal: exercise.rep_goal,
+    increment_type: exercise.increment_type,
+    increment_value: exercise.increment_value,
+    equipment_brand: exercise.equipment_brand,
+    sets: exercise.sets,
+  });
+  const last = lastPerformanceFromRecentSession(
+    stats?.recentSessions?.[0] ?? null
+  );
+  const evaluation = evaluateProgression(config, last);
+  return {
+    ...exercise,
+    sets: applyProgressionToSets(exercise.sets, config, evaluation),
+    progression_applied: true,
+  };
+}
+
+export function applyProgressionToPlaybackDraft(
+  draft: WorkoutPlaybackDraft,
+  statsByExerciseId: ReadonlyMap<
+    string,
+    Pick<ExerciseStatsResponse, 'recentSessions'> | null
+  >
+): WorkoutPlaybackDraft {
+  let changed = false;
+  const exercises = draft.exercises.map((exercise) => {
+    const next = applyProgressionToPlaybackExercise(
+      exercise,
+      statsByExerciseId.get(exercise.exercise_id)
+    );
+    if (next !== exercise) {
+      changed = true;
+    }
+    return next;
+  });
+  return changed ? { ...draft, exercises } : draft;
 }
 
 export function createWorkoutPlaybackRouteState(

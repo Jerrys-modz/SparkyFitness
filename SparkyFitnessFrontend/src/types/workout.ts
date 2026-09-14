@@ -28,6 +28,11 @@ export interface WorkoutPresetExercise {
   category?: string;
   modality?: ExerciseModality | null; // Populated from backend join
   superset_group?: number | null;
+  progression_mode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
+  rep_goal?: number | null;
+  increment_type?: 'weight' | 'reps' | null;
+  increment_value?: number | null;
+  equipment_brand?: string | null;
 }
 
 export interface WorkoutPreset {

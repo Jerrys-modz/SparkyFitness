@@ -8,6 +8,7 @@ import type {
   ExerciseEntryResponse,
   ExerciseEntrySetResponse,
   ExerciseModality,
+  ExerciseProgressionConfig,
   ExerciseRecentSessionSet,
   ExerciseSnapshotResponse,
   PresetSessionResponse,
@@ -28,6 +29,7 @@ import {
   resolveAssumedSetValues,
   resolveSnapshotModality,
   seedPrFromSession,
+  flattenProgressionOverlay,
   supersetSessionExercises,
   ungroupSessionExercise,
 } from '../utils/workoutSession';
@@ -198,6 +200,20 @@ export interface ActiveWorkoutState {
    */
   sourcePresetId: number | null;
   sourceServerConfigId: string | null;
+  /**
+   * Overload config captured at live start from the source preset, keyed by
+   * library exercise id. The created session does not round-trip these
+   * columns (`presetSessionExerciseRequestSchema` is strict). Persisted so a
+   * cold-start resume can still overlay suggestions after stats resolve.
+   */
+  progressionByExerciseId: Record<string, ExerciseProgressionConfig>;
+  /**
+   * Suggested placeholder values keyed by exercise id then set id. An
+   * exercise key being present means evaluation already ran (even if the
+   * inner map is empty — miss / first session / manual). Persisted with the
+   * rest of the placeholder sources.
+   */
+  progressionOverlay: Record<string, Record<string, AssumedSetValues>>;
 
   startWorkout: (
     session: PresetSessionResponse,
@@ -206,6 +222,7 @@ export interface ActiveWorkoutState {
       plannedSetValues?: AssumedSetValues[][];
       sourcePresetId?: number;
       sourceServerConfigId?: string;
+      progressionByExerciseId?: Record<string, ExerciseProgressionConfig>;
     }
   ) => void;
   startWorkoutAtSet: (session: PresetSessionResponse, setId: string) => void;
@@ -229,6 +246,15 @@ export interface ActiveWorkoutState {
   capturePreviousSessionSets: (
     exerciseId: string | null,
     sets: ExerciseRecentSessionSet[]
+  ) => void;
+  /**
+   * Capture per-set progression placeholders for an exercise, once. Same
+   * gating as {@link capturePrBaseline}. Pass `{}` when evaluation ran but
+   * produced no overlay (goal missed, first session, manual).
+   */
+  captureProgressionOverlay: (
+    exerciseId: string | null,
+    assumedBySetId: Record<string, AssumedSetValues>
   ) => void;
   clearWorkout: () => void;
   /**
@@ -404,6 +430,8 @@ const initialData: Pick<
   | 'previousSessionSets'
   | 'sourcePresetId'
   | 'sourceServerConfigId'
+  | 'progressionByExerciseId'
+  | 'progressionOverlay'
 > = {
   sessionId: null,
   session: null,
@@ -422,6 +450,8 @@ const initialData: Pick<
   previousSessionSets: {},
   sourcePresetId: null,
   sourceServerConfigId: null,
+  progressionByExerciseId: {},
+  progressionOverlay: {},
 };
 
 /**
@@ -664,7 +694,10 @@ function adoptAssumedSetValues(
   const assumed = resolveAssumedSetValues(
     exercise.sets,
     historyForExercise(state.previousSessionSets, exercise.exercise_id),
-    state.plannedSetValues
+    state.plannedSetValues,
+    exercise.exercise_id
+      ? state.progressionOverlay[exercise.exercise_id]
+      : undefined
   )[setIndex];
   const patch: ActiveSetPatch = cardio
     ? {
@@ -857,13 +890,14 @@ export function buildRestNotificationContent(
 ): { title: string; body: string } {
   // Assumed-aware so an upcoming set with empty fields still announces its
   // placeholder rep target, matching what the row shows grayed-in.
-  const { previousSessionSets, plannedSetValues } =
+  const { previousSessionSets, plannedSetValues, progressionOverlay } =
     useActiveWorkoutStore.getState();
   const desc = describeActiveSetAssumed(
     session,
     setId,
     previousSessionSets,
-    plannedSetValues
+    plannedSetValues,
+    flattenProgressionOverlay(progressionOverlay)
   );
   if (desc != null) {
     const name = desc.exerciseName ?? fallbackExerciseName;
@@ -1030,6 +1064,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           previousSessionSets: {},
           sourcePresetId: opts?.sourcePresetId ?? null,
           sourceServerConfigId: opts?.sourceServerConfigId ?? null,
+          progressionByExerciseId: opts?.progressionByExerciseId ?? {},
+          progressionOverlay: {},
         });
       },
 
@@ -1078,6 +1114,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           // prompt on finish.
           sourcePresetId: null,
           sourceServerConfigId: null,
+          progressionByExerciseId: {},
+          progressionOverlay: {},
         });
       },
 
@@ -1107,6 +1145,19 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           previousSessionSets: {
             ...state.previousSessionSets,
             [exerciseId]: sets,
+          },
+        });
+      },
+
+      captureProgressionOverlay: (exerciseId, assumedBySetId) => {
+        const state = get();
+        if (exerciseId == null) return;
+        if (state.sessionId == null) return;
+        if (exerciseId in state.progressionOverlay) return;
+        set({
+          progressionOverlay: {
+            ...state.progressionOverlay,
+            [exerciseId]: assumedBySetId,
           },
         });
       },
@@ -1969,7 +2020,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         sessionId: state.sessionId,
@@ -1994,6 +2045,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // The preset link feeds the finish prompt; survives a cold start.
         sourcePresetId: state.sourcePresetId,
         sourceServerConfigId: state.sourceServerConfigId,
+        progressionByExerciseId: state.progressionByExerciseId,
+        progressionOverlay: state.progressionOverlay,
       }),
       migrate: (persistedState, version) => {
         // v4 changed `completedSetIds` values from `true` to epoch-ms tap
@@ -2007,7 +2060,15 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         if (version < 5) {
           return { ...initialData } as ActiveWorkoutState;
         }
-        return persistedState as ActiveWorkoutState;
+        const state = persistedState as ActiveWorkoutState;
+        if (version < 6) {
+          return {
+            ...state,
+            progressionByExerciseId: {},
+            progressionOverlay: {},
+          };
+        }
+        return state;
       },
       merge: (persisted, current) => {
         const merged = {

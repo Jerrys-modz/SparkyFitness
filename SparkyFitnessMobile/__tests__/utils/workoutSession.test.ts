@@ -1709,6 +1709,29 @@ describe('workoutSession', () => {
       expect(payload[0].sets[0].reps).toBe(10);
     });
 
+    it('round-trips progression fields so a mobile save does not reset them', () => {
+      const payload = buildPresetExercisesPayload(
+        [
+          makeDraftExercise({
+            progressionMode: 'fixed',
+            repGoal: 8,
+            incrementType: 'weight',
+            incrementValue: 2.5,
+            equipmentBrand: 'Rogue',
+            sets: [{ clientId: 's1', weight: '50', reps: '8' }],
+          }),
+        ],
+        'kg'
+      );
+      expect(payload[0]).toMatchObject({
+        progression_mode: 'fixed',
+        rep_goal: 8,
+        increment_type: 'weight',
+        increment_value: 2.5,
+        equipment_brand: 'Rogue',
+      });
+    });
+
     it('preserves reps of 0 (not collapsed to null)', () => {
       const payload = buildPresetExercisesPayload(
         [
@@ -3846,6 +3869,20 @@ describe('workoutSession', () => {
           { weight: 100, reps: 6, duration: null, distance: null },
           { weight: 95, reps: 6, duration: null, distance: null },
         ]);
+      });
+
+      it('lets a progression overlay beat last-session values on working sets', () => {
+        const result = resolveAssumedSetValues(
+          [makeSet(1), makeSet(2)],
+          [prev(100, 8), prev(100, 8)],
+          undefined,
+          {
+            '1': { weight: 105, reps: 8, duration: null, distance: null },
+            '2': { weight: 105, reps: 8, duration: null, distance: null },
+          }
+        );
+        expect(result.map((row) => row.weight)).toEqual([105, 105]);
+        expect(result.map((row) => row.reps)).toEqual([8, 8]);
       });
 
       it('keeps sets with history pinned to their own previous values, whatever is typed above', () => {

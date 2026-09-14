@@ -269,3 +269,16 @@ export const getBodyMapSvg = async (): Promise<string> => {
   }
   return response.text();
 };
+
+export const getExerciseStats = async (
+  exerciseId: string,
+  options?: { excludePresetEntryId?: string; presetId?: number | string }
+): Promise<import('@workspace/shared').ExerciseStatsResponse> => {
+  return apiCall(`/v2/exercises/${encodeURIComponent(exerciseId)}/stats`, {
+    method: 'GET',
+    params: {
+      excludePresetEntryId: options?.excludePresetEntryId,
+      presetId: options?.presetId,
+    },
+  });
+};

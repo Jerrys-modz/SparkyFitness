@@ -6,6 +6,7 @@ import {
   completeCurrentWorkoutSet,
   createWorkoutPlaybackDraftFromPreset,
   createWorkoutPlaybackRouteState,
+  applyProgressionToPlaybackExercise,
   getCurrentWorkoutSetPointer,
   getWorkoutPlaybackStats,
   getWorkoutPlaybackRestRemainingSeconds,
@@ -373,5 +374,92 @@ describe('workoutPlayback utils', () => {
       setIndex: 2,
     });
     expect(nextDraft.exercises[0]?.sets).toHaveLength(2);
+  });
+
+  it('copies progression fields onto the playback draft as incomplete', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      {
+        ...createPresetFixture(),
+        exercises: [
+          {
+            exercise_id: 'exercise-1',
+            exercise_name: 'Bench Press',
+            progression_mode: 'fixed',
+            rep_goal: 8,
+            increment_type: 'weight',
+            increment_value: 2.5,
+            sets: [
+              { set_number: 1, set_type: 'Working Set', reps: 8, weight: 80 },
+              { set_number: 2, set_type: 'Working Set', reps: 8, weight: 80 },
+            ],
+          },
+        ],
+      } as unknown as WorkoutPreset,
+      '2026-04-27'
+    );
+
+    expect(draft.exercises[0]?.progression_mode).toBe('fixed');
+    expect(draft.exercises[0]?.rep_goal).toBe(8);
+    expect(draft.exercises[0]?.increment_value).toBe(2.5);
+    expect(draft.exercises[0]?.progression_applied).toBe(false);
+  });
+
+  it('rewrites working-set weight when last session hit the goal', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      {
+        ...createPresetFixture(),
+        exercises: [
+          {
+            exercise_id: 'exercise-1',
+            exercise_name: 'Bench Press',
+            progression_mode: 'rep_goal',
+            rep_goal: 24,
+            increment_type: 'weight',
+            increment_value: 5,
+            sets: [
+              { set_number: 1, set_type: 'Working Set', reps: 8, weight: 80 },
+              { set_number: 2, set_type: 'Working Set', reps: 8, weight: 80 },
+              { set_number: 3, set_type: 'Working Set', reps: 8, weight: 80 },
+            ],
+          },
+        ],
+      } as unknown as WorkoutPreset,
+      '2026-04-27'
+    );
+    const next = applyProgressionToPlaybackExercise(draft.exercises[0]!, {
+      recentSessions: [
+        {
+          entryDate: '2026-04-20',
+          sets: [
+            { setNumber: 1, setType: 'Working Set', weight: 80, reps: 8 },
+            { setNumber: 2, setType: 'Working Set', weight: 80, reps: 8 },
+            { setNumber: 3, setType: 'Working Set', weight: 80, reps: 8 },
+          ],
+        },
+      ],
+    });
+
+    expect(next.sets.map((set) => set.weight)).toEqual([85, 85, 85]);
+    expect(next.progression_applied).toBe(true);
+  });
+
+  it('does not overwrite a playback exercise that already has a completed set', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    draft.exercises[0]!.sets[0]!.completed = true;
+    const next = applyProgressionToPlaybackExercise(draft.exercises[0]!, {
+      recentSessions: [
+        {
+          entryDate: '2026-04-20',
+          sets: [
+            { setNumber: 1, setType: 'Working Set', weight: 80, reps: 12 },
+          ],
+        },
+      ],
+    });
+    expect(next.sets[0]?.weight).toBe(80);
+    expect(next.progression_applied).toBe(true);
   });
 });

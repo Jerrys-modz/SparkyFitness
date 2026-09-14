@@ -26,6 +26,7 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import {
   buildPresetStartExercisesPayload,
+  extractProgressionByExerciseId,
   makeSparseExercise,
   presetExerciseToCardExercise,
 } from '../utils/workoutSession';
@@ -194,6 +195,7 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
       name: preset.name,
       exercises: buildPresetStartExercisesPayload(preset),
       sourcePresetId: preset.id,
+      progressionByExerciseId: extractProgressionByExerciseId(preset),
     });
   }, [startLiveWorkout, preset]);
 

@@ -58,6 +58,11 @@ export interface WorkoutDraftExercise {
   notes?: string | null;
   /** Superset group id; edited via the form lists' grouping actions. */
   supersetGroup?: number | null;
+  progressionMode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
+  repGoal?: number | null;
+  incrementType?: 'weight' | 'reps' | null;
+  incrementValue?: number | null;
+  equipmentBrand?: string | null;
   /**
    * Present only when editing an existing session — not persisted to drafts.
    * Entry-shaped, so its `id` is null once the library exercise is deleted.
