@@ -8,7 +8,15 @@ packages:
 
 minimumReleaseAge: 4320
 
-minimumReleaseAgeExclude: []
+# Temporary. `pnpm deploy --legacy` (docker/Dockerfile.backend, release-assets.yml)
+# ignores the shared lockfile and re-resolves the whole workspace from the
+# registry, so minimumReleaseAge is re-applied to versions the lockfile already
+# pins. Both of these published 2026-09-11 and blocked the release and Docker
+# builds. Drop these entries once they age past minimumReleaseAge, or once the
+# deploy step stops using --legacy.
+minimumReleaseAgeExclude:
+  - "expo-network"
+  - "@assistant-ui/react-markdown"
 
 onlyBuiltDependencies:
   - "@scarf/scarf"
