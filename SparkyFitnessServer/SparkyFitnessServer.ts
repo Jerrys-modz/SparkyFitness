@@ -1080,11 +1080,28 @@ const scheduleHevySyncs = async () => {
       log('error', '[DEMO] Demo auto-purge check failed:', err);
     }
   }
-  const server = app.listen(PORT, () => {
-    console.log(`DEBUG: Server started and listening on port ${PORT}`);
-    log('info', `SparkyFitnessServer listening on port ${PORT}`);
-    console.log('View API documentation at: /api/api-docs/swagger');
+  const server = app.listen(PORT);
+  // A binding failure (EADDRINUSE, EACCES) arrives as the server's 'error'
+  // event, not as a rejection of this chain. Left unhandled it terminates the
+  // process before the catch below can drain the pools, so bridge the two
+  // events into the promise. Both listeners are removed once one fires: a
+  // lingering 'error' listener would swallow later runtime errors that should
+  // still surface.
+  await new Promise<void>((resolve, reject) => {
+    const onListening = () => {
+      server.removeListener('error', onError);
+      resolve();
+    };
+    const onError = (error: Error) => {
+      server.removeListener('listening', onListening);
+      reject(error);
+    };
+    server.once('listening', onListening);
+    server.once('error', onError);
   });
+  console.log(`DEBUG: Server started and listening on port ${PORT}`);
+  log('info', `SparkyFitnessServer listening on port ${PORT}`);
+  console.log('View API documentation at: /api/api-docs/swagger');
   // Fix for reverse proxies using HTTP keepalive (e.g. Traefik, Caddy)
   server.keepAliveTimeout = 181000; // Must be > proxy's idle timeout (nginx=75s, traefik=default 180s)
   server.headersTimeout = 182000; // Must be slightly > keepAliveTimeout

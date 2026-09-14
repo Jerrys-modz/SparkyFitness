@@ -101,6 +101,16 @@ describe('Boot order: migrations run before any application module loads', () =>
       "await import('./utils/dbMigrations.js')"
     );
 
+    // indexOf() returns -1 for a missing token, and -1 is less than any real
+    // position -- so the ordering checks below would still pass if one of these
+    // steps were deleted outright. Assert presence first.
+    expect(dotenvAt, 'index.ts must call dotenv.config()').toBeGreaterThan(-1);
+    expect(secretsAt, 'index.ts must call loadSecrets()').toBeGreaterThan(-1);
+    expect(
+      preflightAt,
+      'index.ts must call runPreflightChecks()'
+    ).toBeGreaterThan(-1);
+
     expect(dotenvAt).toBeLessThan(migrationsAt);
     expect(secretsAt).toBeLessThan(migrationsAt);
     expect(
@@ -125,6 +135,22 @@ describe('Boot order: migrations run before any application module loads', () =>
       serverSource,
       'startup failure must call process.exit, not just set process.exitCode'
     ).not.toContain('process.exitCode = 1');
-    expect(serverSource).toContain('Failed to start server:');
+
+    // Scope the assertion to the startup catch. A file-wide search for
+    // process.exit(1) would also match the shutdown-timeout handler, so this
+    // test would stay green if the startup catch stopped exiting altogether.
+    const startupCatchAt = serverSource.indexOf('})().catch(');
+    expect(
+      startupCatchAt,
+      'the startup chain must end in a catch block'
+    ).toBeGreaterThan(-1);
+
+    const startupCatch = serverSource.slice(startupCatchAt);
+    expect(startupCatch, 'the startup catch must log the failure').toContain(
+      'Failed to start server:'
+    );
+    expect(startupCatch, 'the startup catch must exit the process').toContain(
+      'process.exit(1)'
+    );
   });
 });
