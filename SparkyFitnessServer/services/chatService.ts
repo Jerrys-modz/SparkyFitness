@@ -1158,15 +1158,33 @@ function mapMessagePart(part: ChatMessagePart): ProcessedMessagePart {
         part.mediaType?.startsWith('image/') ||
         part.url?.startsWith('data:image/')))
   ) {
-    // Handle both base64 data URLs and remote URLs
     const url = part.image_url?.url || part.image || part.url || '';
-    const mediaType =
+    if (!url) {
+      return { type: 'text' as const, text: '' };
+    }
+    let mediaType =
       part.mediaType ||
       part.mimeType ||
       (url.startsWith('data:')
         ? url.split(';')[0].replace('data:', '')
-        : 'image/jpeg');
-    return { type: 'file' as const, data: url, mediaType };
+        : undefined);
+
+    if (!mediaType && typeof url === 'string') {
+      const cleanUrl = url.split('?')[0].split('#')[0].toLowerCase();
+      if (cleanUrl.endsWith('.png')) mediaType = 'image/png';
+      else if (cleanUrl.endsWith('.webp')) mediaType = 'image/webp';
+      else if (cleanUrl.endsWith('.gif')) mediaType = 'image/gif';
+      else if (cleanUrl.endsWith('.jpg') || cleanUrl.endsWith('.jpeg'))
+        mediaType = 'image/jpeg';
+      else if (cleanUrl.endsWith('.avif')) mediaType = 'image/avif';
+      else if (cleanUrl.endsWith('.svg')) mediaType = 'image/svg+xml';
+      else mediaType = 'image/jpeg';
+    }
+    return {
+      type: 'file' as const,
+      data: url,
+      mediaType: mediaType || 'image/jpeg',
+    };
   }
   // Fallback: treat unknown parts as text
   return { type: 'text' as const, text: String(part.text || '') };

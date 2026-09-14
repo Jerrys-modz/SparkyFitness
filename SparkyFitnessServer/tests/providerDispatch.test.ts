@@ -1742,3 +1742,27 @@ describe('anthropic temperature compatibility', () => {
     }
   );
 });
+
+describe('JSON extraction with multiple balanced candidates', () => {
+  it('extracts the intended JSON result when preceded by commentary objects', async () => {
+    mockFetch({
+      choices: [
+        {
+          message: {
+            content:
+              'Note: {"field":"x"}. Result: {"answer":"ok","nested":{"x":2}}',
+          },
+        },
+      ],
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        parseJson: true,
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.json).toEqual({ answer: 'ok', nested: { x: 2 } });
+    }
+  });
+});

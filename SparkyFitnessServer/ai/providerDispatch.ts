@@ -1014,6 +1014,77 @@ function resolveTimeout(req: DispatchRequest, family: ProviderFamily): number {
   return DEFAULT_TIMEOUT_MS;
 }
 
+export function extractJsonCandidate(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Continue to balanced extraction
+  }
+
+  const candidates: unknown[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '{' || char === '[') {
+      const openChar = char;
+      const closeChar = char === '{' ? '}' : ']';
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+
+      for (let j = i; j < text.length; j++) {
+        const c = text[j];
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (c === '\\') {
+          escape = true;
+          continue;
+        }
+        if (c === '"') {
+          inString = !inString;
+          continue;
+        }
+        if (!inString) {
+          if (c === openChar) {
+            depth++;
+          } else if (c === closeChar) {
+            depth--;
+            if (depth === 0) {
+              const snippet = text.slice(i, j + 1);
+              try {
+                const parsed = JSON.parse(snippet);
+                candidates.push(parsed);
+                i = j;
+              } catch {
+                // Ignore invalid candidate
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (candidates.length > 0) {
+    return candidates[candidates.length - 1];
+  }
+
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+  }
+  const firstBracket = text.indexOf('[');
+  const lastBracket = text.lastIndexOf(']');
+  if (firstBracket !== -1 && lastBracket > firstBracket) {
+    return JSON.parse(text.slice(firstBracket, lastBracket + 1));
+  }
+
+  throw new Error('No JSON structure found');
+}
+
 /**
  * Dispatch a single request to a user-configured AI provider and return a
  * normalized result. Attempts any `service_type` it has a builder for and
@@ -1192,24 +1263,7 @@ export async function dispatchAiRequest(
 
   try {
     const cleaned = stripCodeFences(extracted.text);
-    let json: unknown;
-    try {
-      json = JSON.parse(cleaned);
-    } catch {
-      const firstBrace = cleaned.indexOf('{');
-      const lastBrace = cleaned.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        json = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
-      } else {
-        const firstBracket = cleaned.indexOf('[');
-        const lastBracket = cleaned.lastIndexOf(']');
-        if (firstBracket !== -1 && lastBracket > firstBracket) {
-          json = JSON.parse(cleaned.slice(firstBracket, lastBracket + 1));
-        } else {
-          throw new Error('No JSON structure found');
-        }
-      }
-    }
+    const json = extractJsonCandidate(cleaned);
     return { ok: true, text: extracted.text, json };
   } catch {
     return {
@@ -1223,4 +1277,5 @@ export async function dispatchAiRequest(
 export default {
   dispatchAiRequest,
   toStrictJsonSchema,
+  extractJsonCandidate,
 };
