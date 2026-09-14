@@ -6,6 +6,7 @@ import {
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import { getActiveCaffeineKinetics } from '../../services/caffeineKineticsService.js';
+import goalService from '../../services/goalService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatJsonResult } from './formatting.js';
 import { normalizeActionArgs } from './dates.js';
@@ -43,19 +44,35 @@ interface CaffeineKineticsForChat extends Omit<
     name?: string;
     is_estimated?: boolean;
   }>;
+  // The service only ever answers "would a dose clear by bedtime" -- a sleep
+  // question, orthogonal to the user's daily caffeine ceiling. Without these
+  // two, the model reported a "safe to take more" cutoff time even once the
+  // user was already over their own goal for the day, which read as
+  // nonsensical: a dose can clear by bedtime and still not belong in the
+  // day's budget.
+  total_mg_for_date: number;
+  daily_goal_mg: number | null;
 }
 
 function toLocalDisplayTimes(
   data: CaffeineActiveResponse,
-  tz: string
+  tz: string,
+  date: string,
+  dailyGoalMg: number | null
 ): CaffeineKineticsForChat {
   const { doses, bedtime_at: _bedtimeAt, ...rest } = data;
+  const localDoses = doses.map(({ at, ...doseRest }) => {
+    const [doseDate, doseTime] = utcToLocalDateTimeInput(at, tz).split('T');
+    return { ...doseRest, date: doseDate ?? '', time: doseTime ?? '' };
+  });
+  const totalMgForDate = localDoses
+    .filter((dose) => dose.date === date)
+    .reduce((sum, dose) => sum + dose.mg, 0);
   return {
     ...rest,
-    doses: doses.map(({ at, ...doseRest }) => {
-      const [date, time] = utcToLocalDateTimeInput(at, tz).split('T');
-      return { ...doseRest, date: date ?? '', time: time ?? '' };
-    }),
+    doses: localDoses,
+    total_mg_for_date: totalMgForDate,
+    daily_goal_mg: dailyGoalMg,
   };
 }
 
@@ -63,7 +80,7 @@ export function buildCaffeineKineticsTools(userId: string, tz: string) {
   return {
     sparky_get_caffeine_kinetics: tool({
       description:
-        "Estimates the user's active caffeine right now and at their target bedtime, from their logged caffeine intake plus their personal half-life and target-bedtime preferences (caffeine_half_life_hours, target_bedtime). Also reports the latest time a dose of a given size could still be taken and clear by bedtime. Defaults to today. Read-only. Every date/time in the result (doses[].date/time, latest_safe_dose_time, target_bedtime) is already in the user's local timezone — use them exactly as given, do not attempt to convert or recompute one yourself. doses can include entries from up to 2 days before the requested date (still-active caffeine from earlier carries into the estimate) — always state each dose's date (or 'yesterday'/'today' relative to the requested date) when listing them, never assume every dose happened today.",
+        "Estimates the user's active caffeine right now and at their target bedtime, from their logged caffeine intake plus their personal half-life and target-bedtime preferences (caffeine_half_life_hours, target_bedtime). Also reports the latest time a dose of a given size could still be taken and clear by bedtime. Defaults to today. Read-only. Every date/time in the result (doses[].date/time, latest_safe_dose_time, target_bedtime) is already in the user's local timezone — use them exactly as given, do not attempt to convert or recompute one yourself. doses can include entries from up to 2 days before the requested date (still-active caffeine from earlier carries into the estimate) — always state each dose's date (or 'yesterday'/'today' relative to the requested date) when listing them, never assume every dose happened today. latest_safe_dose_time/cutoff_state answer ONLY whether a dose would clear circulation by bedtime — a completely separate question from the daily caffeine goal. Compare total_mg_for_date against daily_goal_mg (null if the user has no goal set) before suggesting the user could take more today: if total_mg_for_date already meets or exceeds daily_goal_mg, say so and do not frame the cutoff time as an invitation for another dose that day, even though it would still clear by bedtime.",
       inputSchema: caffeineKineticsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -81,11 +98,28 @@ export function buildCaffeineKineticsTools(userId: string, tz: string) {
           switch (args.action) {
             case 'active_caffeine': {
               const date = args.date ?? todayInZone(tz);
-              const data = await getActiveCaffeineKinetics(userId, {
-                date,
-                doseMg: args.dose_mg,
-              });
-              return formatJsonResult(toLocalDisplayTimes(data, tz));
+              const [data, goals] = await Promise.all([
+                getActiveCaffeineKinetics(userId, {
+                  date,
+                  doseMg: args.dose_mg,
+                }),
+                goalService.getUserGoals(
+                  userId,
+                  date,
+                  undefined,
+                  true
+                ) as Promise<Record<string, unknown>>,
+              ]);
+              const rawGoal = goals.caffeine_mg;
+              const dailyGoalMg =
+                rawGoal !== null &&
+                rawGoal !== undefined &&
+                Number.isFinite(Number(rawGoal))
+                  ? Number(rawGoal)
+                  : null;
+              return formatJsonResult(
+                toLocalDisplayTimes(data, tz, date, dailyGoalMg)
+              );
             }
             default:
               return ERRORS.INVALID_ACTION(
