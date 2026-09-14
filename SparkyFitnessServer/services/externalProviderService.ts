@@ -23,7 +23,7 @@ import {
   isOutboundUrlBlockedError,
   OutboundUrlShapeError,
 } from '../utils/outboundUrlPolicy.js';
-import { resolveIsAdmin } from '../utils/adminCheck.js';
+import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 
 // Provider types whose stored base_url is fetched server-side, making it an
 // SSRF surface. Their base_url is validated against the food-provider network
@@ -61,7 +61,7 @@ async function validateFoodProviderBaseUrl(
   ) {
     normalized = `https://${normalized}`;
   }
-  const isAdmin = await resolveIsAdmin(null, authenticatedUserId);
+  const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
   const policy = deriveFoodProviderNetworkPolicy(isAdmin);
   try {
     const url = assertOutboundUrlShapeAndLiteralAllowed(normalized, policy);

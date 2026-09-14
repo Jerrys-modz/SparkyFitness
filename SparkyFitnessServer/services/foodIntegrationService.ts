@@ -9,7 +9,7 @@ import {
 import MealieService from '../integrations/mealie/mealieService.js';
 import TandoorService from '../integrations/tandoor/tandoorService.js';
 import NorishService from '../integrations/norish/norishService.js';
-import { resolveIsAdmin } from '../utils/adminCheck.js';
+import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import { deriveFoodProviderNetworkPolicy } from '../utils/outboundUrlPolicy.js';
 
 // Non-admins get a guarded outbound fetch (blocks redirect-to-internal and
@@ -17,7 +17,7 @@ import { deriveFoodProviderNetworkPolicy } from '../utils/outboundUrlPolicy.js';
 // from the acting user so it reflects their current role.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function foodProviderPolicyFor(userId: any) {
-  return deriveFoodProviderNetworkPolicy(await resolveIsAdmin(null, userId));
+  return deriveFoodProviderNetworkPolicy(await resolveIsAdminByUserId(userId));
 }
 
 async function searchFatSecretFoods(
