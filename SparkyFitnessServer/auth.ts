@@ -3,7 +3,6 @@ import { APIError } from 'better-auth/api';
 import pg from 'pg';
 import { log } from './config/logging.js';
 import bcrypt from 'bcryptjs';
-import { promisify } from 'util';
 import { syncUserGroups } from './utils/oidcGroupSync.js';
 import userRepository from './models/userRepository.js';
 import { resolveTwoFactorDisableUserUpdate } from './utils/twoFactorState.js';
@@ -23,8 +22,6 @@ import { expoSsoCookieRelay } from './utils/expoSsoCookieRelay.js';
 import { passkey } from '@better-auth/passkey';
 import { isDemoMode } from './middleware/demoGuardMiddleware.js';
 
-const hashAsync = promisify(bcrypt.hash);
-const compareAsync = promisify(bcrypt.compare);
 const { Pool } = pg;
 /**
  * Gathers and cleans origins from environment variables.
@@ -334,8 +331,8 @@ const auth = betterAuth({
     },
     password: {
       // Use bcrypt for compatibility with existing hashes
-      hash: (password) => hashAsync(password, 10),
-      verify: ({ password, hash }) => compareAsync(password, hash),
+      hash: (password) => bcrypt.hash(password, 10),
+      verify: ({ password, hash }) => bcrypt.compare(password, hash),
     },
   },
   // Session configuration

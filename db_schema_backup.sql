@@ -3512,7 +3512,8 @@ CREATE TABLE public.session (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     ip_address text,
     user_agent text,
-    user_id uuid NOT NULL
+    user_id uuid NOT NULL,
+    impersonated_by uuid
 );
 
 
@@ -3663,7 +3664,7 @@ CREATE TABLE public.sso_provider (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     provider_id text NOT NULL,
     issuer text NOT NULL,
-    client_id text NOT NULL,
+    client_id text,
     client_secret text,
     discovery_endpoint text,
     authorization_endpoint text,
@@ -3675,7 +3676,10 @@ CREATE TABLE public.sso_provider (
     domain text DEFAULT 'default.internal'::text NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    oidc_config jsonb
+    oidc_config jsonb,
+    saml_config text,
+    user_id uuid,
+    organization_id text
 );
 
 
@@ -3713,7 +3717,10 @@ CREATE TABLE public.two_factor (
     secret text,
     backup_codes text,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    verified boolean DEFAULT true NOT NULL,
+    failed_verification_count integer DEFAULT 0 NOT NULL,
+    locked_until timestamp with time zone
 );
 
 
@@ -8199,6 +8206,14 @@ ALTER TABLE ONLY public.profiles
 
 
 --
+-- Name: session session_impersonated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.session
+    ADD CONSTRAINT session_impersonated_by_fkey FOREIGN KEY (impersonated_by) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
 -- Name: session session_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8276,6 +8291,14 @@ ALTER TABLE ONLY public.sleep_need_calculations
 
 ALTER TABLE ONLY public.sparky_chat_history
     ADD CONSTRAINT sparky_chat_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: sso_provider sso_provider_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sso_provider
+    ADD CONSTRAINT sso_provider_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
