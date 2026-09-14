@@ -49,7 +49,8 @@ interface CaffeineKineticsForChat extends Omit<
   // two, the model reported a "safe to take more" cutoff time even once the
   // user was already over their own goal for the day, which read as
   // nonsensical: a dose can clear by bedtime and still not belong in the
-  // day's budget.
+  // day's budget. Null only if the goal fetch failed; a missing goals row
+  // is 400 (DEFAULT_GOALS.caffeine_mg), not null.
   total_mg_for_date: number;
   daily_goal_mg: number | null;
 }
@@ -80,7 +81,7 @@ export function buildCaffeineKineticsTools(userId: string, tz: string) {
   return {
     sparky_get_caffeine_kinetics: tool({
       description:
-        "Estimates the user's active caffeine right now and at their target bedtime, from their logged caffeine intake plus their personal half-life and target-bedtime preferences (caffeine_half_life_hours, target_bedtime). Also reports the latest time a dose of a given size could still be taken and clear by bedtime. Defaults to today. Read-only. Every date/time in the result (doses[].date/time, latest_safe_dose_time, target_bedtime) is already in the user's local timezone — use them exactly as given, do not attempt to convert or recompute one yourself. doses can include entries from up to 2 days before the requested date (still-active caffeine from earlier carries into the estimate) — always state each dose's date (or 'yesterday'/'today' relative to the requested date) when listing them, never assume every dose happened today. latest_safe_dose_time/cutoff_state answer ONLY whether a dose would clear circulation by bedtime — a completely separate question from the daily caffeine goal. Compare total_mg_for_date against daily_goal_mg (null if the user has no goal set) before suggesting the user could take more today: if total_mg_for_date already meets or exceeds daily_goal_mg, say so and do not frame the cutoff time as an invitation for another dose that day, even though it would still clear by bedtime.",
+        "Estimates the user's active caffeine right now and at their target bedtime, from their logged caffeine intake plus their personal half-life and target-bedtime preferences (caffeine_half_life_hours, target_bedtime). Also reports the latest time a dose of a given size could still be taken and clear by bedtime. Defaults to today. Read-only. Every date/time in the result (doses[].date/time, latest_safe_dose_time, target_bedtime) is already in the user's local timezone — use them exactly as given, do not attempt to convert or recompute one yourself. doses can include entries from up to 2 days before the requested date (still-active caffeine from earlier carries into the estimate) — always state each dose's date (or 'yesterday'/'today' relative to the requested date) when listing them, never assume every dose happened today. latest_safe_dose_time/cutoff_state answer ONLY whether a dose would clear circulation by bedtime — a completely separate question from the daily caffeine goal. Compare total_mg_for_date against daily_goal_mg before suggesting the user could take more today: if total_mg_for_date already meets or exceeds daily_goal_mg, say so and do not frame the cutoff time as an invitation for another dose that day, even though it would still clear by bedtime. daily_goal_mg is the user's caffeine goal for the date (the same value sparky_manage_goals returns). A user with no personal goals row still receives 400 — the default FDA daily ceiling — so treat 400 as a real ceiling, not as 'no goal'. daily_goal_mg is null only if the goal could not be loaded; then skip the budget comparison and still answer the bedtime question.",
       inputSchema: caffeineKineticsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -98,19 +99,27 @@ export function buildCaffeineKineticsTools(userId: string, tz: string) {
           switch (args.action) {
             case 'active_caffeine': {
               const date = args.date ?? todayInZone(tz);
+              // Goals are advisory for the model, not required for the
+              // bedtime estimate. Keep them off the kinetics failure path
+              // so a goals outage still returns active_mg / cutoff_state
+              // with daily_goal_mg: null.
               const [data, goals] = await Promise.all([
                 getActiveCaffeineKinetics(userId, {
                   date,
                   doseMg: args.dose_mg,
                 }),
-                goalService.getUserGoals(
-                  userId,
-                  date,
-                  undefined,
-                  true
-                ) as Promise<Record<string, unknown>>,
+                goalService
+                  .getUserGoals(userId, date, undefined, true)
+                  .catch((error) => {
+                    log(
+                      'warn',
+                      '[Caffeine Kinetics Tool] Failed to load daily caffeine goal:',
+                      error
+                    );
+                    return null;
+                  }) as Promise<Record<string, unknown> | null>,
               ]);
-              const rawGoal = goals.caffeine_mg;
+              const rawGoal = goals?.caffeine_mg;
               const dailyGoalMg =
                 rawGoal !== null &&
                 rawGoal !== undefined &&

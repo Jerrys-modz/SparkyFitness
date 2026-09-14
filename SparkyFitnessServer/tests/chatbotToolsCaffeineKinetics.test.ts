@@ -233,4 +233,21 @@ describe('sparky_get_caffeine_kinetics', () => {
 
     expect(result).toBe(DB_ERROR_TEXT);
   });
+
+  // Regression: the goal fetch used to share Promise.all with kinetics, so
+  // a goals outage turned the whole bedtime estimate into DB_ERROR even
+  // though daily_goal_mg is only advisory. Degrade to null and still
+  // return the kinetics payload.
+  it('degrades daily_goal_mg to null when the goals fetch fails', async () => {
+    svc.getActiveCaffeineKinetics.mockResolvedValue(KINETICS_RESULT);
+    goals.getUserGoals.mockRejectedValue(new Error('goals down'));
+
+    const result = await tools.sparky_get_caffeine_kinetics.execute!(
+      { action: 'active_caffeine', date: '2026-02-01' },
+      opts
+    );
+
+    expect(result).toBe(JSON.stringify(EXPECTED_CHAT_RESULT));
+    expect(svc.getActiveCaffeineKinetics).toHaveBeenCalled();
+  });
 });
