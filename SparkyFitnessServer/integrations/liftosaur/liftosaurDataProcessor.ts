@@ -12,6 +12,7 @@ import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepository.js';
 import { log } from '../../config/logging.js';
 import { getClient } from '../../db/poolManager.js';
+import type { PoolClient } from 'pg';
 import {
   instantToDay,
   instantHourMinute,
@@ -58,7 +59,7 @@ async function processLiftosaurWorkouts(
     `Processing ${workouts.length} Liftosaur workouts for user ${userId}...`
   );
 
-  let client: any = null;
+  let client: PoolClient | null;
   try {
     client = await getClient(userId, createdByUserId);
   } catch {
@@ -303,7 +304,7 @@ async function processSingleWorkout(
 
     // 4. Create the exercise entry, linked to the session (preset entry) so it
     //    groups under the workout instead of standing alone.
-    let entry: ExerciseEntryRow | null = null;
+    let entry: ExerciseEntryRow | null;
     if (client && exerciseEntryRepository._createExerciseEntryWithClient) {
       const created = await exerciseEntryRepository._createExerciseEntryWithClient(
         client,

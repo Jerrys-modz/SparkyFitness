@@ -39,7 +39,8 @@ export function getValidatedLiftosaurBaseUrl(): string {
     parsed = new URL(trimmed);
   } catch (err) {
     throw new Error(
-      `Invalid SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL: '${trimmed}'. Must be a valid URL.`
+      `Invalid SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL: '${trimmed}'. Must be a valid URL.`,
+      { cause: err }
     );
   }
 
@@ -294,7 +295,7 @@ export async function exportWorkoutsToLiftosaur(
         if (claimRes.rows.length !== entryIds.length) {
           log(
             'debug',
-            `[liftosaurWorkoutExport] Session entries partially or fully claimed by another worker. Skipping.`
+            '[liftosaurWorkoutExport] Session entries partially or fully claimed by another worker. Skipping.'
           );
           // Roll back partial claim if only a subset was updated
           if (claimRes.rows.length > 0) {

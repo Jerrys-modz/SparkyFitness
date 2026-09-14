@@ -7,6 +7,7 @@ import {
   linkStravaAccount,
   syncHevyData,
   syncLiftosaurData,
+  LiftosaurSyncResult,
   loginGarmin,
   GarminLoginPayload,
 } from '@/api/Integrations/integrations';
@@ -215,7 +216,7 @@ export const useSyncLiftosaurMutation = () => {
       endDate,
     }: SyncLiftosaurVariables) =>
       syncLiftosaurData(fullSync, providerId, startDate, endDate),
-    onSuccess: (data: any) => {
+    onSuccess: (data: LiftosaurSyncResult) => {
       queryClient.invalidateQueries({
         queryKey: externalProviderKeys.lists(),
       });

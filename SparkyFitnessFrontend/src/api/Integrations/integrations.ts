@@ -67,12 +67,21 @@ export const syncHevyData = async (
   });
 };
 
+export interface LiftosaurSyncResult {
+  message?: string;
+  workoutsImported?: number;
+  workoutsExported?: number;
+  measurementsImported?: number;
+  measurementsExported?: number;
+  processedCount?: number;
+}
+
 export const syncLiftosaurData = async (
   fullSync: boolean = false,
   providerId?: string,
   startDate?: string,
   endDate?: string
-): Promise<void> => {
+): Promise<LiftosaurSyncResult> => {
   return apiCall(
     `/integrations/liftosaur/sync${fullSync ? '?fullSync=true' : ''}`,
     {
