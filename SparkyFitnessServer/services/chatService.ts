@@ -51,9 +51,10 @@ interface ChatMessagePart {
 }
 
 interface ProcessedMessagePart {
-  type: 'text' | 'image';
+  type: 'text' | 'file';
   text?: string;
-  image?: string;
+  data?: string | Uint8Array | URL;
+  mediaType?: string;
 }
 
 interface ChatMessage {
@@ -852,7 +853,7 @@ function stripHistoricalImages(messages: LlmMessage[]): LlmMessage[] {
     if (index === lastUserIndex || !Array.isArray(msg.content)) {
       return msg;
     }
-    const withoutImages = msg.content.filter((part) => part.type !== 'image');
+    const withoutImages = msg.content.filter((part) => part.type !== 'file');
     if (withoutImages.length === msg.content.length) {
       return msg;
     }
@@ -895,7 +896,7 @@ function estimateMessageTokens(
   let total = PER_MESSAGE_OVERHEAD;
   for (const part of content) {
     total +=
-      part.type === 'image'
+      part.type === 'file'
         ? IMAGE_TOKEN_ESTIMATE
         : Math.ceil((part.text?.length ?? 0) / CHARS_PER_TOKEN);
   }
@@ -1159,7 +1160,13 @@ function mapMessagePart(part: ChatMessagePart): ProcessedMessagePart {
   ) {
     // Handle both base64 data URLs and remote URLs
     const url = part.image_url?.url || part.image || part.url || '';
-    return { type: 'image' as const, image: url };
+    const mediaType =
+      part.mediaType ||
+      part.mimeType ||
+      (url.startsWith('data:')
+        ? url.split(';')[0].replace('data:', '')
+        : 'image/jpeg');
+    return { type: 'file' as const, data: url, mediaType };
   }
   // Fallback: treat unknown parts as text
   return { type: 'text' as const, text: String(part.text || '') };
@@ -1180,7 +1187,7 @@ function toCoreMessages(messages: ChatMessage[]): LlmMessage[] {
         .map(mapMessagePart)
         .filter(
           (p) =>
-            p.type === 'image' ||
+            p.type === 'file' ||
             (p.type === 'text' && p.text && p.text.trim() !== '')
         );
       if (parts.length > 0) {
