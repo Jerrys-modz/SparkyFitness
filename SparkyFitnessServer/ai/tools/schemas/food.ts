@@ -265,6 +265,20 @@ const createFoodSchema = z
       .describe(
         'Iron (% Daily Value). MANDATORY: Estimate and populate based on typical food composition; do not default to 0/empty.'
       ),
+    caffeine_mg: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe(
+        'Caffeine (mg) per serving_size. MANDATORY: Estimate and populate for coffee, tea, soda, energy drinks, and chocolate; do not default to 0/empty.'
+      ),
+    alcohol_g: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe(
+        'Alcohol / pure ethanol (g) per serving_size. MANDATORY: Estimate and populate for beer, wine, and spirits. Informational only — calories already include ethanol calories, so this is never added to the calorie total.'
+      ),
     gi: giIndexEnum
       .optional()
       .describe(
@@ -528,6 +542,18 @@ const updateFoodVariantSchema = z
       .min(0)
       .optional()
       .describe('Updated iron (% Daily Value)'),
+    caffeine_mg: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe('Updated caffeine (mg) per serving_size'),
+    alcohol_g: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe(
+        'Updated alcohol / pure ethanol (g) per serving_size. Informational only — never added to calories.'
+      ),
     gi: giIndexEnum
       .optional()
       .describe('Updated Glycemic Index classification'),
@@ -852,6 +878,20 @@ export const manageFoodInput = z.object({
   vitamin_c: z.coerce.number().min(0).optional().describe('Vitamin C (% DV)'),
   calcium: z.coerce.number().min(0).optional().describe('Calcium (% DV)'),
   iron: z.coerce.number().min(0).optional().describe('Iron (% DV)'),
+  caffeine_mg: z.coerce
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'Caffeine (mg) — for create_food/update_food_variant, per serving_size'
+    ),
+  alcohol_g: z.coerce
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'Alcohol / pure ethanol (g) — for create_food/update_food_variant, per serving_size. Informational only, never added to calories.'
+    ),
   gi: giIndexEnum.optional().describe('Glycemic index classification'),
   // entry / diary management
   entry_id: uuidSchema.optional().describe('Diary entry UUID'),
