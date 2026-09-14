@@ -43,6 +43,8 @@ const GOAL_SNAPSHOT_FIELDS = [
   'vitamin_c',
   'calcium',
   'iron',
+  'caffeine_mg',
+  'alcohol_g',
 ] as const;
 
 // Adjusted goals come from the goal-mode calculation and can carry float noise

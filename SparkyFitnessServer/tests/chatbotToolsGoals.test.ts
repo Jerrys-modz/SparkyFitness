@@ -385,6 +385,29 @@ describe('sparky_get_goal_snapshot', () => {
     );
   });
 
+  // #2115/#1958/#1925: this tool projects the server's goal object down to
+  // its own hand-enumerated column set (GOAL_SNAPSHOT_FIELDS), separate from
+  // sparky_manage_goals' get_goals action, so it needed the same caffeine_mg
+  // and alcohol_g addition independently.
+  it('includes caffeine_mg and alcohol_g when set', async () => {
+    vi.mocked(goalService.getUserGoals).mockResolvedValue({
+      calories: 2000,
+      caffeine_mg: 300,
+      alcohol_g: 20,
+    });
+
+    const result = await tools.sparky_get_goal_snapshot.execute!({}, opts);
+
+    expect(result).toBe(
+      JSON.stringify({
+        calories: 2000,
+        caffeine_mg: 300,
+        alcohol_g: 20,
+        goal_directions: {},
+      })
+    );
+  });
+
   it('includes custom goal_directions from nutrientGoalPreferenceService', async () => {
     vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: 2000 });
     vi.mocked(
