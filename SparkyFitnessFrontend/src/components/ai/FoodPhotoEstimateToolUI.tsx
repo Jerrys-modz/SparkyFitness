@@ -79,8 +79,8 @@ function cleanMealName(summary?: string | null): string {
     }
   }
   const words = s.split(/\s+/);
-  if (words.length > 6) {
-    s = words.slice(0, 5).join(' ');
+  if (words.length > 4) {
+    s = words.slice(0, 4).join(' ');
   }
   s = s.replace(/[,;:\s-]+$/, '').trim();
   if (s.length > 0) {

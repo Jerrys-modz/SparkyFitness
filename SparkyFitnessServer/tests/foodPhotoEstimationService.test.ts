@@ -607,9 +607,7 @@ describe('estimateFoodPhotoNutrition', () => {
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.estimate.meal_summary).toBe(
-          'Creamy chicken and pasta dish'
-        );
+        expect(result.estimate.meal_summary).toBe('Creamy chicken and pasta');
       }
     });
   });

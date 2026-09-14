@@ -585,10 +585,10 @@ export function cleanMealSummary(summary?: string | null): string {
     }
   }
 
-  // If still too long (> 50 chars), limit word count to ~5-6 words
+  // Limit word count to at most 4 words
   const words = s.split(/\s+/);
-  if (words.length > 6) {
-    s = words.slice(0, 5).join(' ');
+  if (words.length > 4) {
+    s = words.slice(0, 4).join(' ');
   }
 
   // Remove any trailing commas or punctuation
