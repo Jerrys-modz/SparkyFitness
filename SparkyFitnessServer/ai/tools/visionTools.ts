@@ -336,7 +336,7 @@ export function buildVisionTools(
           // this changes nothing about what it reads.
           estimateSink?.set(result.estimate);
           return {
-            text: `🔬 Food Image Analysis Result:\n\n${renderFoodPhotoEstimate(result.estimate)}`,
+            text: `🔬 Food Image Analysis Result:\n\n${renderFoodPhotoEstimate(result.estimate)}\n\n[Note: The interactive meal card is now displayed to the user. Summarize the detected meal and finish your response. Do NOT call sparky_analyze_food_image again in this turn.]`,
             estimate: result.estimate,
             meal_type: parsed.data.meal_type,
             entry_date: parsed.data.entry_date,
