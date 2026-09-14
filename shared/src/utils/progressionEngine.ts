@@ -263,8 +263,8 @@ export function evaluateProgression(
 export interface ProgressableSet {
   set_type?: string | null;
   setType?: string | null;
-  reps: number | null;
-  weight: number | null;
+  reps?: number | null;
+  weight?: number | null;
 }
 
 /**

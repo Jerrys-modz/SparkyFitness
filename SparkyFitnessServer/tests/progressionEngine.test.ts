@@ -11,6 +11,7 @@ import {
 
 describe('Progression Engine', () => {
   const standardWeightConfig: ExerciseProgressionConfig = {
+    progressionMode: 'rep_goal',
     targetSets: 3,
     repGoal: 24,
     incrementType: 'weight',
@@ -19,6 +20,7 @@ describe('Progression Engine', () => {
   };
 
   const standardRepConfig: ExerciseProgressionConfig = {
+    progressionMode: 'rep_goal',
     targetSets: 3,
     repGoal: 24,
     incrementType: 'reps',
@@ -90,6 +92,7 @@ describe('Progression Engine', () => {
 
   it('handles custom decimal increments', () => {
     const decimalConfig: ExerciseProgressionConfig = {
+      progressionMode: 'rep_goal',
       targetSets: 3,
       repGoal: 45,
       incrementType: 'weight',

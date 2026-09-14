@@ -77,8 +77,8 @@ interface SortableExerciseItemProps {
   ) => void;
   onExerciseFieldChange?: (
     exerciseIndex: number,
-    field: string,
-    value: string | number | null
+    field: keyof WorkoutPresetExercise,
+    value: WorkoutPresetExercise[keyof WorkoutPresetExercise]
   ) => void;
   weightUnit: string;
   workoutPresets?: PresetMetadata[];

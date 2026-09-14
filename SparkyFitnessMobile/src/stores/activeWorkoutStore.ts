@@ -665,7 +665,10 @@ function locateSet(
 function adoptAssumedSetValues(
   state: Pick<
     ActiveWorkoutState,
-    'session' | 'previousSessionSets' | 'plannedSetValues'
+    | 'session'
+    | 'previousSessionSets'
+    | 'plannedSetValues'
+    | 'progressionOverlay'
   >,
   setId: string
 ): PresetSessionResponse | null {
