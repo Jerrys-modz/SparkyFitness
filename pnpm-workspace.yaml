@@ -6,17 +6,25 @@ packages:
   - "SparkyFitnessServer"
   - "docs"
 
+# Required by `pnpm deploy` (docker/Dockerfile.backend, release-assets.yml).
+# Without it, deploy falls back to --legacy, which ignores this lockfile and
+# re-resolves the whole workspace from the registry - that both re-applies
+# minimumReleaseAge to already-pinned versions (breaking builds whenever a
+# tilde-ranged dep like expo-* publishes) and ships images built from an
+# untested dependency tree. With injection, deploy installs straight from the
+# lockfile and copies workspace packages in, so the output is self-contained.
+# Must be workspace-wide: per-package dependenciesMeta.injected is NOT enough,
+# deploy rejects it with ERR_PNPM_DEPLOY_NONINJECTED_WORKSPACE.
+injectWorkspacePackages: true
+
 minimumReleaseAge: 4320
 
-# Temporary. `pnpm deploy --legacy` (docker/Dockerfile.backend, release-assets.yml)
-# ignores the shared lockfile and re-resolves the whole workspace from the
-# registry, so minimumReleaseAge is re-applied to versions the lockfile already
-# pins. Both of these published 2026-09-11 and blocked the release and Docker
-# builds. Drop these entries once they age past minimumReleaseAge, or once the
-# deploy step stops using --legacy.
 minimumReleaseAgeExclude:
-  - "expo-network"
-  - "@assistant-ui/react-markdown"
+  - "assistant-cloud"
+  - "@assistant-ui/*"
+  - "expo"
+  - "expo-*"
+  - "@expo/*"
 
 onlyBuiltDependencies:
   - "@scarf/scarf"
@@ -30,6 +38,10 @@ onlyBuiltDependencies:
   - vue-demi
 
 overrides:
+  "@babel/core": "7.29.0"
+  react: "19.2.3"
+  react-dom: "19.2.3"
+  "@expo/dom-webview": "57.0.1"
   assistant-cloud: "0.2.0"
   # vite's and tsx's own esbuild dependency both resolve to 0.28.2, whose
   # published @esbuild/linux-x64 binary reports "0.27.4" to its own
