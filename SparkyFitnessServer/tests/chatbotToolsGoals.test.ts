@@ -144,6 +144,58 @@ describe('sparky_manage_goals', () => {
     });
   });
 
+  // #2115/#1958/#1925: caffeine_mg and alcohol_g were added as first-class
+  // user_goals columns, but this tool never grew parameters for either, so
+  // Sparky could not set a caffeine or alcohol goal on request.
+  it('set_goals persists caffeine_mg and alcohol_g', async () => {
+    vi.mocked(goalService.manageGoalTimeline).mockResolvedValue({
+      message: 'ok',
+    });
+    vi.mocked(goalService.getUserGoals).mockResolvedValue({
+      calories: 2000,
+      protein: 150,
+      carbs: 250,
+      fat: 67,
+      water_goal_ml: 2000,
+    });
+
+    const result = await tools.sparky_manage_goals.execute!(
+      {
+        action: 'set_goals',
+        start_date: '2026-06-15',
+        caffeine_mg: 300,
+        alcohol_g: 20,
+      },
+      opts
+    );
+
+    expect(result).toBe('✅ Goals set successfully starting from 2026-06-15.');
+    expect(goalService.manageGoalTimeline).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ p_caffeine_mg: 300, p_alcohol_g: 20 })
+    );
+  });
+
+  it('get_goals renders caffeine_mg and alcohol_g when set', async () => {
+    vi.mocked(goalService.getUserGoals).mockResolvedValue({
+      calories: 2000,
+      protein: 150,
+      carbs: 250,
+      fat: 67,
+      water_goal_ml: 2000,
+      caffeine_mg: 300,
+      alcohol_g: 20,
+    });
+
+    const result = await tools.sparky_manage_goals.execute!(
+      { action: 'get_goals', target_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toContain('- **Caffeine:** 300 mg\n');
+    expect(result).toContain('- **Alcohol:** 20 g\n');
+  });
+
   it('set_goals without start_date defaults to today', async () => {
     vi.mocked(goalService.manageGoalTimeline).mockResolvedValue({
       message: 'ok',
