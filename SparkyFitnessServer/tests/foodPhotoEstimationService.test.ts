@@ -544,6 +544,39 @@ describe('estimateFoodPhotoNutrition', () => {
       }
     });
 
+    it('normalizes string assumptions from local models into an array', async () => {
+      mockGetVisionSetting.mockResolvedValue(
+        makeSetting({ service_type: 'openai_compatible' })
+      );
+      mockGetBackendSetting.mockResolvedValue(
+        makeServiceDetail({
+          service_type: 'openai_compatible',
+          custom_url: 'https://example.local/v1',
+        })
+      );
+      const stringAssumptionsShape: Record<string, unknown> = {
+        ...sampleEstimate,
+        items: [
+          {
+            ...sampleEstimate.items[0],
+            assumptions: 'Assumed grilled with 1 tsp of oil',
+          },
+        ],
+      };
+      mockFetch(openAiBody(stringAssumptionsShape));
+      const result = await estimateFoodPhotoNutrition({
+        base64Image: TEST_BASE64,
+        mimeType: TEST_MIME,
+        userId: TEST_USER_ID,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.estimate.items[0].assumptions).toEqual([
+          'Assumed grilled with 1 tsp of oil',
+        ]);
+      }
+    });
+
     it('returns PARSE_ERROR when the payload cannot be repaired', async () => {
       mockGetVisionSetting.mockResolvedValue(makeSetting());
       mockGetBackendSetting.mockResolvedValue(makeServiceDetail());

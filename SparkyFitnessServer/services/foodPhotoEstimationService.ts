@@ -383,6 +383,26 @@ function resolveImages(input: EstimateFoodPhotoNutritionInput): PhotoImage[] {
 function ensureTotals(obj: Record<string, unknown>): Record<string, unknown> {
   if (Array.isArray(obj.items)) {
     const items = obj.items as Array<Record<string, unknown>>;
+    for (const item of items) {
+      if (typeof item === 'object' && item !== null) {
+        if (typeof item.assumptions === 'string') {
+          item.assumptions = item.assumptions.trim()
+            ? [item.assumptions.trim()]
+            : [];
+        } else if (!Array.isArray(item.assumptions)) {
+          item.assumptions = [];
+        }
+        if (!item.item_confidence) {
+          item.item_confidence = 'medium';
+        }
+        if (item.portion_description === undefined) {
+          item.portion_description = '';
+        }
+        if (item.preparation === undefined) {
+          item.preparation = '';
+        }
+      }
+    }
     if (!obj.totals || typeof obj.totals !== 'object') {
       let calories = 0;
       let protein = 0;
