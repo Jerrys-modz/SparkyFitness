@@ -458,7 +458,7 @@ const updateFoodVariantSchema = z
     food_id: uuidSchema
       .optional()
       .describe(
-        'Food UUID. Used to find the default variant when variant_id is not provided.'
+        'Food UUID from search_food. Required unless variant_id is provided. Do not call update_food_variant with only nutrient fields.'
       ),
     variant_id: uuidSchema
       .optional()
@@ -764,9 +764,14 @@ export const manageFoodInput = z.object({
     .string()
     .optional()
     .describe(
-      'Internal food UUID — alternative to food_name. NOT the External ID from lookup_food_nutrition results.'
+      'Internal food UUID — alternative to food_name. NOT the External ID from lookup_food_nutrition results. For update_food_variant, required: run search_food first and pass this id (no food_name fallback).'
     ),
-  variant_id: z.string().optional().describe('Food variant UUID'),
+  variant_id: z
+    .string()
+    .optional()
+    .describe(
+      'Food variant UUID. For update_food_variant, an alternative to food_id; one of the two is required.'
+    ),
   external_id: z
     .string()
     .max(100)
