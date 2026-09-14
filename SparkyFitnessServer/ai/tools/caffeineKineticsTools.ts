@@ -24,14 +24,21 @@ const VALID_ACTIONS = [...CAFFEINE_KINETICS_ACTIONS];
 // (it isn't told the offset, and doing UTC arithmetic in prose is exactly
 // the kind of thing models get wrong, which is what produced the wrong
 // times reported back to the user). Replace every instant with the same
-// local HH:MM the web UI already renders via toLocaleTimeString(), so the
-// model only ever echoes an already-correct string.
+// local date/time the web UI already renders via toLocaleTimeString().
+//
+// The lookback window is 48h (up to 2 calendar days before the requested
+// date — see getActiveCaffeineKinetics), specifically so a dose from late
+// yesterday that is still circulating counts toward "active now". A time
+// alone reads as "today" by default, so a dose from yesterday evening
+// looked like it was logged this morning; each dose carries its own local
+// `date` precisely so a multi-day list can be read unambiguously.
 interface CaffeineKineticsForChat extends Omit<
   CaffeineActiveResponse,
   'doses' | 'bedtime_at'
 > {
   doses: Array<{
-    at_local: string;
+    date: string;
+    time: string;
     mg: number;
     name?: string;
     is_estimated?: boolean;
@@ -45,10 +52,10 @@ function toLocalDisplayTimes(
   const { doses, bedtime_at: _bedtimeAt, ...rest } = data;
   return {
     ...rest,
-    doses: doses.map(({ at, ...doseRest }) => ({
-      ...doseRest,
-      at_local: utcToLocalDateTimeInput(at, tz).split('T')[1] ?? '',
-    })),
+    doses: doses.map(({ at, ...doseRest }) => {
+      const [date, time] = utcToLocalDateTimeInput(at, tz).split('T');
+      return { ...doseRest, date: date ?? '', time: time ?? '' };
+    }),
   };
 }
 
@@ -56,7 +63,7 @@ export function buildCaffeineKineticsTools(userId: string, tz: string) {
   return {
     sparky_get_caffeine_kinetics: tool({
       description:
-        "Estimates the user's active caffeine right now and at their target bedtime, from their logged caffeine intake plus their personal half-life and target-bedtime preferences (caffeine_half_life_hours, target_bedtime). Also reports the latest time a dose of a given size could still be taken and clear by bedtime. Defaults to today. Read-only. Every time in the result (doses[].at_local, latest_safe_dose_time, target_bedtime) is already in the user's local time as HH:MM — use it exactly as given. Do not attempt to convert or recompute a time yourself.",
+        "Estimates the user's active caffeine right now and at their target bedtime, from their logged caffeine intake plus their personal half-life and target-bedtime preferences (caffeine_half_life_hours, target_bedtime). Also reports the latest time a dose of a given size could still be taken and clear by bedtime. Defaults to today. Read-only. Every date/time in the result (doses[].date/time, latest_safe_dose_time, target_bedtime) is already in the user's local timezone — use them exactly as given, do not attempt to convert or recompute one yourself. doses can include entries from up to 2 days before the requested date (still-active caffeine from earlier carries into the estimate) — always state each dose's date (or 'yesterday'/'today' relative to the requested date) when listing them, never assume every dose happened today.",
       inputSchema: caffeineKineticsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(

@@ -34,7 +34,7 @@ const KINETICS_RESULT = {
 
 // The service response as it reaches the model: bedtime_at dropped (redundant
 // with target_bedtime, which is already local) and each dose's raw UTC `at`
-// replaced with at_local.
+// replaced with a local date + time.
 const EXPECTED_CHAT_RESULT = {
   half_life_hours: 5,
   target_bedtime: '22:30',
@@ -46,7 +46,7 @@ const EXPECTED_CHAT_RESULT = {
   cutoff_dose_mg: 200,
   threshold_mg: 100,
   has_estimated_times: false,
-  doses: [{ mg: 95, name: 'Coffee', at_local: '14:00' }],
+  doses: [{ mg: 95, name: 'Coffee', date: '2026-02-01', time: '14:00' }],
 };
 
 let tools: ReturnType<typeof buildCaffeineKineticsTools>;
@@ -80,13 +80,14 @@ describe('sparky_get_caffeine_kinetics', () => {
   // Regression: the service returns doses[].at (and bedtime_at) as raw UTC
   // instants for its own timezone-agnostic math. Handing that straight to a
   // model made it guess at a local time itself -- and get it wrong -- since
-  // it has no reliable way to apply the user's offset. at_local must reflect
-  // the tool's own tz, not the UTC digits of the instant.
-  it("converts each dose's time to the tool's timezone, not the raw UTC hour", async () => {
+  // it has no reliable way to apply the user's offset. date/time must
+  // reflect the tool's own tz, not the raw UTC digits of the instant.
+  it("converts each dose's date and time to the tool's timezone, not the raw UTC hour", async () => {
     svc.getActiveCaffeineKinetics.mockResolvedValue({
       ...KINETICS_RESULT,
-      // 14:00 UTC is 09:00 in America/New_York (UTC-5 in February).
-      doses: [{ at: '2026-02-01T14:00:00.000Z', mg: 95, name: 'Coffee' }],
+      // 2026-02-01T02:00 UTC is 2026-01-31 21:00 in America/New_York
+      // (UTC-5 in February): a case that crosses a calendar day too.
+      doses: [{ at: '2026-02-01T02:00:00.000Z', mg: 95, name: 'Coffee' }],
     });
     const nyTools = buildCaffeineKineticsTools('user-1', 'America/New_York');
 
@@ -97,10 +98,36 @@ describe('sparky_get_caffeine_kinetics', () => {
 
     const parsed = JSON.parse(result as string);
     expect(parsed.doses).toEqual([
-      { mg: 95, name: 'Coffee', at_local: '09:00' },
+      { mg: 95, name: 'Coffee', date: '2026-01-31', time: '21:00' },
     ]);
     expect(parsed.at).toBeUndefined();
     expect(parsed.bedtime_at).toBeUndefined();
+  });
+
+  // Regression: the 48h lookback window can return a dose from a day before
+  // the requested one (still-active caffeine carries over), and a bare time
+  // with no date read as "today" for all of them -- confusing when one was
+  // actually logged yesterday. Each dose must carry its own date so a
+  // multi-day list is unambiguous.
+  it('labels a dose from the prior day with its own date, not the requested date', async () => {
+    svc.getActiveCaffeineKinetics.mockResolvedValue({
+      ...KINETICS_RESULT,
+      doses: [
+        { at: '2026-01-31T23:50:00.000Z', mg: 95, name: 'Late coffee' },
+        { at: '2026-02-01T08:00:00.000Z', mg: 100, name: 'Morning shake' },
+      ],
+    });
+
+    const result = await tools.sparky_get_caffeine_kinetics.execute!(
+      { action: 'active_caffeine', date: '2026-02-01' },
+      opts
+    );
+
+    const parsed = JSON.parse(result as string);
+    expect(parsed.doses).toEqual([
+      { mg: 95, name: 'Late coffee', date: '2026-01-31', time: '23:50' },
+      { mg: 100, name: 'Morning shake', date: '2026-02-01', time: '08:00' },
+    ]);
   });
 
   it('passes a custom dose_mg through for the cutoff calculation', async () => {
