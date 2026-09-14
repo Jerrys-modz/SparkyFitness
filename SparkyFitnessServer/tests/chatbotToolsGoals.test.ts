@@ -176,6 +176,43 @@ describe('sparky_manage_goals', () => {
     );
   });
 
+  it('infers set_goals when action is omitted and only caffeine_mg or alcohol_g is sent', async () => {
+    vi.mocked(goalService.manageGoalTimeline).mockResolvedValue({
+      message: 'ok',
+    });
+    vi.mocked(goalService.getUserGoals).mockResolvedValue({
+      calories: 2000,
+      protein: 150,
+      carbs: 250,
+      fat: 67,
+      water_goal_ml: 2000,
+    });
+
+    const caffeineOnly = await tools.sparky_manage_goals.execute!(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { caffeine_mg: 300 } as any,
+      opts
+    );
+    expect(caffeineOnly).toMatch(/^✅ Goals set successfully/);
+    expect(goalService.manageGoalTimeline).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ p_caffeine_mg: 300 })
+    );
+
+    vi.mocked(goalService.manageGoalTimeline).mockClear();
+
+    const alcoholOnly = await tools.sparky_manage_goals.execute!(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { alcohol_g: 20 } as any,
+      opts
+    );
+    expect(alcoholOnly).toMatch(/^✅ Goals set successfully/);
+    expect(goalService.manageGoalTimeline).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ p_alcohol_g: 20 })
+    );
+  });
+
   it('get_goals renders caffeine_mg and alcohol_g when set', async () => {
     vi.mocked(goalService.getUserGoals).mockResolvedValue({
       calories: 2000,

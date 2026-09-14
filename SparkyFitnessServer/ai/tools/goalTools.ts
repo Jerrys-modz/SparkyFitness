@@ -84,7 +84,9 @@ Actions:
               args.fat !== undefined ||
               args.water_goal_ml !== undefined ||
               args.weight !== undefined ||
-              args.start_date !== undefined
+              args.start_date !== undefined ||
+              args.caffeine_mg !== undefined ||
+              args.alcohol_g !== undefined
             ) {
               return 'set_goals';
             }
