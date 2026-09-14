@@ -1672,6 +1672,7 @@ describe('log_external_food', () => {
       iron: null,
       caffeine_mg: null,
       alcohol_g: null,
+      water_ml: null,
       abv_percent: null,
       glycemic_index: null,
       // food_variants.source has a CHECK constraint (manual|ai_estimate|
@@ -2199,6 +2200,7 @@ describe('create_food', () => {
       iron: null,
       caffeine_mg: null,
       alcohol_g: null,
+      water_ml: null,
       glycemic_index: 'Low',
       is_quick_food: false,
     });
@@ -2237,6 +2239,41 @@ describe('create_food', () => {
     expect(foodCoreService.createFood).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ caffeine_mg: 63, alcohol_g: null })
+    );
+  });
+
+  // water_ml is a real food_variants column (the same hydration/nutrition
+  // link PR) but was never wired into this tool either, for the same reason
+  // caffeine_mg and alcohol_g weren't.
+  it('passes water_ml through to createFood', async () => {
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Watermelon',
+      brand: null,
+      default_variant: {
+        id: VARIANT_ID,
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 30,
+      },
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'create_food',
+        food_name: 'Watermelon',
+        calories: 30,
+        protein: 0.6,
+        carbs: 8,
+        fat: 0.2,
+        water_ml: 91,
+      },
+      opts
+    );
+
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ water_ml: 91 })
     );
   });
 
@@ -3508,6 +3545,43 @@ describe('update_food_variant', () => {
     expect(foodRepository.updateFoodVariant).toHaveBeenCalledWith(
       VARIANT_ID,
       { caffeine_mg: 200, alcohol_g: 0 },
+      'user-1'
+    );
+  });
+
+  it('updates water_ml on an existing variant', async () => {
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+    });
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Watermelon',
+      user_id: 'user-1',
+    });
+    vi.mocked(foodRepository.updateFoodVariant).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+      calories: 30,
+      serving_size: 100,
+      serving_unit: 'g',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'update_food_variant',
+        variant_id: VARIANT_ID,
+        water_ml: 91,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ Food variant updated for "Watermelon" (30 kcal per 100g).'
+    );
+    expect(foodRepository.updateFoodVariant).toHaveBeenCalledWith(
+      VARIANT_ID,
+      { water_ml: 91 },
       'user-1'
     );
   });

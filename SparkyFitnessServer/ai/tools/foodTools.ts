@@ -822,14 +822,14 @@ Actions:
 - list_meal_types() — lists the user's built-in and custom meal types with IDs, names, and sort order.
 - log_food(quantity, meal_type_id?|meal_type?, food_name?|food_id?, unit?, entry_date?, variant_id?) — use meal_type_id for custom meal types; the legacy meal_type fallback accepts "breakfast"|"lunch"|"dinner"|"snacks". meal_type_id takes precedence when both are supplied. Provide food_name or food_id (an internal food UUID, never a lookup result's External ID); unit defaults to the food's serving unit, entry_date defaults to today. Works only for foods already in the database (source='internal').
 - log_external_food(food_name, meal_type_id?|meal_type?, quantity?, unit?, entry_date?, external_id?, provider_type?, is_quick_food?) — PREFERRED way to log an external lookup_food_nutrition match (usda/openfoodfacts/...): the server re-fetches the provider result, saves it with full nutrition, and logs it in one call. quantity is in servings and defaults to 1. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list.
-- create_food(food_name, calories, protein, carbs, fat, brand?, notes?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, is_quick_food?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, ...) — MANDATORY: You must run lookup_food_nutrition first. Call only when lookup returns source='ai_estimate' (no match anywhere) or for custom/homemade foods, using AI-estimated values; for external lookup matches use log_external_food instead. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Populate as many micro-nutrients, GI classification, and brand ('Homemade' or 'Traditional' if generic) as possible rather than just core macros. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list; it then requires meal_type_id (or meal_type) in the same call. Pass notes only when the user gave reference detail worth keeping on the food itself — how they order or prepare it, or a recipe; it is markdown, it is not a nutrition field, and you must never invent one.
+- create_food(food_name, calories, protein, carbs, fat, brand?, notes?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, is_quick_food?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, water_ml?, ...) — MANDATORY: You must run lookup_food_nutrition first. Call only when lookup returns source='ai_estimate' (no match anywhere) or for custom/homemade foods, using AI-estimated values; for external lookup matches use log_external_food instead. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Populate as many micro-nutrients, GI classification, and brand ('Homemade' or 'Traditional' if generic) as possible rather than just core macros. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list; it then requires meal_type_id (or meal_type) in the same call. Pass notes only when the user gave reference detail worth keeping on the food itself — how they order or prepare it, or a recipe; it is markdown, it is not a nutrition field, and you must never invent one.
 - search_meal(meal_name)
 - log_meal(meal_type_id?|meal_type?, entry_date, meal_id?, meal_name?, quantity?)
 - list_diary(entry_date?)
 - delete_entry(entry_id?|food_name?, entry_type?, entry_date?, meal_type?|meal_type_id?) — deletes one diary entry. Provide entry_id when you have it; otherwise food_name is resolved against the diary for entry_date (defaults to today), with meal_type narrowing when the same food appears in several meals. Ambiguous names return the candidates with their ids instead of deleting.
 - delete_food(food_id?|food_name?) — deletes food + variants from library; logged diary entries are preserved
 - update_entry(entry_id?|food_name?, entry_type?, entry_date?, quantity?, unit?, meal_type_id?, meal_type?) — changes quantity/unit and/or moves the entry to another meal type (meal_type/meal_type_id is the NEW meal). Provide entry_id when you have it; otherwise food_name is resolved against the diary for entry_date (defaults to today). Ambiguous names return the candidates with their ids instead of updating.
-- update_food_variant(food_id?|variant_id?, serving_size?, serving_unit?, calories?, protein?, carbs?, fat?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, ..., update_existing_entries?) — updates an existing food variant without deleting the food. Use this to add or change a drink's caffeine_mg or alcohol_g without recreating it. Defaults to leaving existing diary entries unchanged.
+- update_food_variant(food_id?|variant_id?, serving_size?, serving_unit?, calories?, protein?, carbs?, fat?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, water_ml?, ..., update_existing_entries?) — updates an existing food variant without deleting the food. Use this to add or change a drink's caffeine_mg, alcohol_g, or water_ml without recreating it. Defaults to leaving existing diary entries unchanged.
 - copy_from_yesterday(target_date?, source_date?, meal_type_id?|meal_type?)
 - set_food_notes(food_id?|food_name?, notes) — Sets the markdown reference note on a saved food (how the user orders or prepares it, a recipe). Pass an empty string to clear it. It REPLACES the existing note, so when the user is adding to one, read the food first and send the merged text. Owner-only: it fails on someone else's shared or public food. Never write a note the user did not ask for.
 - save_as_meal_template(entry_date, meal_type_id?|meal_type?, meal_name, description?, notes?) — REQUIRES EXPLICIT action field. Saves diary entries for a given date and meal type as a reusable meal template. notes is an optional markdown reference note (e.g. a recipe) and is only set when the user supplied one.
@@ -1446,6 +1446,7 @@ Actions:
                 iron: toNutrientNumber(v.iron),
                 caffeine_mg: toNutrientNumber(v.caffeine_mg),
                 alcohol_g: toNutrientNumber(v.alcohol_g),
+                water_ml: toNutrientNumber(v.water_ml),
                 abv_percent: toNutrientNumber(v.abv_percent),
                 glycemic_index: v.glycemic_index || null,
                 // food_variants.source is constrained to manual|ai_estimate|
@@ -1507,6 +1508,7 @@ Actions:
                   iron: toNutrientNumber(varOpt.iron),
                   caffeine_mg: toNutrientNumber(varOpt.caffeine_mg),
                   alcohol_g: toNutrientNumber(varOpt.alcohol_g),
+                  water_ml: toNutrientNumber(varOpt.water_ml),
                   abv_percent: toNutrientNumber(varOpt.abv_percent),
                   glycemic_index: varOpt.glycemic_index || null,
                   is_default: false,
@@ -1662,6 +1664,7 @@ Actions:
                 iron: args.iron || null,
                 caffeine_mg: args.caffeine_mg || null,
                 alcohol_g: args.alcohol_g || null,
+                water_ml: args.water_ml || null,
                 glycemic_index: args.gi || null,
                 // Not `|| null`: that quirk is for numerics, and it would turn
                 // an explicit false into null.
@@ -2311,6 +2314,7 @@ Actions:
                 iron: 'iron',
                 caffeine_mg: 'caffeine_mg',
                 alcohol_g: 'alcohol_g',
+                water_ml: 'water_ml',
                 gi: 'glycemic_index',
               };
               for (const [inputField, dbField] of Object.entries(fieldMap)) {
