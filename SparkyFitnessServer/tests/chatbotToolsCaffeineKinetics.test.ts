@@ -2,6 +2,7 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import { todayInZone } from '@workspace/shared';
 import { buildCaffeineKineticsTools } from '../ai/tools/caffeineKineticsTools.js';
 import { getActiveCaffeineKinetics } from '../services/caffeineKineticsService.js';
+import { toolOpts } from './helpers/toolExecutionOptions.js';
 
 vi.mock('../services/caffeineKineticsService.js', () => ({
   getActiveCaffeineKinetics: vi.fn(),
@@ -12,7 +13,7 @@ vi.mock('../config/logging.js', () => ({
 
 const svc = { getActiveCaffeineKinetics: vi.mocked(getActiveCaffeineKinetics) };
 
-const opts = { toolCallId: 'tc-1', messages: [] };
+const opts = toolOpts;
 const DB_ERROR_TEXT =
   'Error [DB_ERROR]: A database error occurred.\n\nSuggestion: Do NOT retry the same call — it will fail the same way. Tell the user what failed and stop.';
 
