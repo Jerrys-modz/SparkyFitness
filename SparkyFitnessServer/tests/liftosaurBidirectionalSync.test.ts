@@ -27,7 +27,9 @@ vi.mock('../integrations/liftosaur/liftosaurMeasurementsService.js', () => ({
 }));
 vi.mock('../integrations/liftosaur/liftosaurWorkoutExportService.js', () => ({
   exportWorkoutsToLiftosaur: vi.fn().mockResolvedValue(2),
-  getValidatedLiftosaurBaseUrl: vi.fn().mockReturnValue('https://www.liftosaur.com'),
+  getValidatedLiftosaurBaseUrl: vi
+    .fn()
+    .mockReturnValue('https://www.liftosaur.com'),
   default: {
     exportWorkoutsToLiftosaur: vi.fn().mockResolvedValue(2),
   },
@@ -85,10 +87,18 @@ describe('liftosaurBidirectionalSync', () => {
     expect(result.measurementsExported).toBe(4);
     expect(result.processedCount).toBe(10); // 1 + 2 + 3 + 4
 
-    expect(liftosaurDataProcessor.processLiftosaurWorkouts).toHaveBeenCalledTimes(1);
-    expect(measurementsService.importMeasurementsFromLiftosaur).toHaveBeenCalledTimes(1);
-    expect(workoutExportService.exportWorkoutsToLiftosaur).toHaveBeenCalledTimes(1);
-    expect(measurementsService.exportMeasurementsToLiftosaur).toHaveBeenCalledTimes(1);
+    expect(
+      liftosaurDataProcessor.processLiftosaurWorkouts
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      measurementsService.importMeasurementsFromLiftosaur
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      workoutExportService.exportWorkoutsToLiftosaur
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      measurementsService.exportMeasurementsToLiftosaur
+    ).toHaveBeenCalledTimes(1);
 
     // Verify last_sync_at update
     expect(mockClient.query).toHaveBeenCalledWith(

@@ -30,16 +30,57 @@ interface MeasurementKeyDef {
 
 const SUPPORTED_KEYS: MeasurementKeyDef[] = [
   { key: 'weight', category: 'check_in', field: 'weight', unit: 'kg' },
-  { key: 'bodyfat', category: 'check_in', field: 'body_fat_percentage', unit: '%' },
+  {
+    key: 'bodyfat',
+    category: 'check_in',
+    field: 'body_fat_percentage',
+    unit: '%',
+  },
   { key: 'neck', category: 'check_in', field: 'neck', unit: 'cm' },
   { key: 'waist', category: 'check_in', field: 'waist', unit: 'cm' },
   { key: 'hips', category: 'check_in', field: 'hips', unit: 'cm' },
-  { key: 'chest', category: 'custom', field: 'Chest', unit: 'cm', customCategoryName: 'Chest' },
-  { key: 'shoulders', category: 'custom', field: 'Shoulders', unit: 'cm', customCategoryName: 'Shoulders' },
-  { key: 'biceps_right', category: 'custom', field: 'Biceps', unit: 'cm', customCategoryName: 'Biceps' },
-  { key: 'calves_right', category: 'custom', field: 'Calves', unit: 'cm', customCategoryName: 'Calves' },
-  { key: 'thigh_right', category: 'custom', field: 'Thighs', unit: 'cm', customCategoryName: 'Thighs' },
-  { key: 'forearm_right', category: 'custom', field: 'Forearms', unit: 'cm', customCategoryName: 'Forearms' },
+  {
+    key: 'chest',
+    category: 'custom',
+    field: 'Chest',
+    unit: 'cm',
+    customCategoryName: 'Chest',
+  },
+  {
+    key: 'shoulders',
+    category: 'custom',
+    field: 'Shoulders',
+    unit: 'cm',
+    customCategoryName: 'Shoulders',
+  },
+  {
+    key: 'biceps_right',
+    category: 'custom',
+    field: 'Biceps',
+    unit: 'cm',
+    customCategoryName: 'Biceps',
+  },
+  {
+    key: 'calves_right',
+    category: 'custom',
+    field: 'Calves',
+    unit: 'cm',
+    customCategoryName: 'Calves',
+  },
+  {
+    key: 'thigh_right',
+    category: 'custom',
+    field: 'Thighs',
+    unit: 'cm',
+    customCategoryName: 'Thighs',
+  },
+  {
+    key: 'forearm_right',
+    category: 'custom',
+    field: 'Forearms',
+    unit: 'cm',
+    customCategoryName: 'Forearms',
+  },
 ];
 
 function errorMessage(error: unknown): string {
@@ -103,7 +144,9 @@ async function getMeasurementPage(
   key: string,
   cursor?: number
 ): Promise<LiftosaurMeasurementResponseData> {
-  const response = await axios.get<LiftosaurApiEnvelope<LiftosaurMeasurementResponseData>>(
+  const response = await axios.get<
+    LiftosaurApiEnvelope<LiftosaurMeasurementResponseData>
+  >(
     `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
     {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -114,7 +157,9 @@ async function getMeasurementPage(
       timeout: 10000,
     }
   );
-  return response.data?.data ?? { key, category: '', values: [], hasMore: false };
+  return (
+    response.data?.data ?? { key, category: '', values: [], hasMore: false }
+  );
 }
 
 /**
@@ -178,15 +223,25 @@ export async function importMeasurementsFromLiftosaur(
     } catch (err: unknown) {
       const axiosErr = err as AxiosError;
       // If a key doesn't exist or is empty on Liftosaur, skip without failing the whole sync
-      if (axiosErr?.response?.status === 400 || axiosErr?.response?.status === 404) {
+      if (
+        axiosErr?.response?.status === 400 ||
+        axiosErr?.response?.status === 404
+      ) {
         continue;
       }
-      log('warn', `[liftosaurMeasurements] Error importing key ${def.key}: ${errorMessage(err)}`);
+      log(
+        'warn',
+        `[liftosaurMeasurements] Error importing key ${def.key}: ${errorMessage(err)}`
+      );
     }
   }
 
   if (healthDataToProcess.length > 0) {
-    await measurementService.processHealthData(healthDataToProcess, userId, createdByUserId);
+    await measurementService.processHealthData(
+      healthDataToProcess,
+      userId,
+      createdByUserId
+    );
   }
 
   return healthDataToProcess.length;
@@ -201,7 +256,10 @@ async function sendMeasurementToLiftosaur(
   value: string,
   timestampMs: number
 ): Promise<boolean> {
-  const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
   try {
     await axios.post(
       `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
@@ -221,11 +279,17 @@ async function sendMeasurementToLiftosaur(
         );
         return true;
       } catch (putErr) {
-        log('warn', `[liftosaurMeasurements] Failed to PUT measurement ${key} at ${timestampMs}: ${errorMessage(putErr)}`);
+        log(
+          'warn',
+          `[liftosaurMeasurements] Failed to PUT measurement ${key} at ${timestampMs}: ${errorMessage(putErr)}`
+        );
         return false;
       }
     }
-    log('warn', `[liftosaurMeasurements] Failed to POST measurement ${key}: ${errorMessage(err)}`);
+    log(
+      'warn',
+      `[liftosaurMeasurements] Failed to POST measurement ${key}: ${errorMessage(err)}`
+    );
     return false;
   }
 }
@@ -244,19 +308,20 @@ export async function exportMeasurementsToLiftosaur(
 
   // 1. Export Check-In Measurements (weight, body_fat_percentage, neck, waist, hips)
   try {
-    const checkIns = (await measurementService.getCheckInMeasurementsByDateRange(
-      userId,
-      userId,
-      startDate || null,
-      endDate || null
-    )) as Array<{
-      entry_date: string | Date;
-      weight?: number | null;
-      body_fat_percentage?: number | null;
-      neck?: number | null;
-      waist?: number | null;
-      hips?: number | null;
-    }>;
+    const checkIns =
+      (await measurementService.getCheckInMeasurementsByDateRange(
+        userId,
+        userId,
+        startDate || null,
+        endDate || null
+      )) as Array<{
+        entry_date: string | Date;
+        weight?: number | null;
+        body_fat_percentage?: number | null;
+        neck?: number | null;
+        waist?: number | null;
+        hips?: number | null;
+      }>;
 
     for (const row of checkIns) {
       const dayStr =
@@ -264,7 +329,9 @@ export async function exportMeasurementsToLiftosaur(
           ? instantToDay(row.entry_date, tz)
           : String(row.entry_date).slice(0, 10);
 
-      const timestampMs = new Date(localDateTimeToUtc(`${dayStr}T12:00:00`, tz)).getTime();
+      const timestampMs = new Date(
+        localDateTimeToUtc(`${dayStr}T12:00:00`, tz)
+      ).getTime();
       if (isNaN(timestampMs)) continue;
 
       if (row.weight && Number(row.weight) > 0) {
@@ -318,12 +385,17 @@ export async function exportMeasurementsToLiftosaur(
       }
     }
   } catch (err) {
-    log('error', `[liftosaurMeasurements] Error exporting check-ins: ${errorMessage(err)}`);
+    log(
+      'error',
+      `[liftosaurMeasurements] Error exporting check-ins: ${errorMessage(err)}`
+    );
   }
 
   // 2. Export Custom Measurements for circumferences (Chest, Shoulders, Biceps, etc.)
   try {
-    const categories = (await measurementRepository.getCustomCategories(userId)) as Array<{
+    const categories = (await measurementRepository.getCustomCategories(
+      userId
+    )) as Array<{
       id: string;
       name: string;
     }>;
@@ -342,26 +414,30 @@ export async function exportMeasurementsToLiftosaur(
       const liftosaurKey = customKeyMap[lowerName];
       if (!liftosaurKey) continue;
 
-      const entries = (await measurementService.getCustomMeasurementsByDateRange(
-        userId,
-        userId,
-        cat.id,
-        startDate || null,
-        endDate || null
-      )) as Array<{
-        date: string | Date;
-        value: string | number;
-        source?: string | null;
-      }>;
+      const entries =
+        (await measurementService.getCustomMeasurementsByDateRange(
+          userId,
+          userId,
+          cat.id,
+          startDate || null,
+          endDate || null
+        )) as Array<{
+          date: string | Date;
+          value: string | number;
+          source?: string | null;
+        }>;
 
       for (const entry of entries) {
-        if (entry.source && entry.source.toLowerCase() === 'liftosaur') continue;
+        if (entry.source && entry.source.toLowerCase() === 'liftosaur')
+          continue;
 
         const dayStr =
           entry.date instanceof Date
             ? instantToDay(entry.date, tz)
             : String(entry.date).slice(0, 10);
-        const timestampMs = new Date(localDateTimeToUtc(`${dayStr}T12:00:00`, tz)).getTime();
+        const timestampMs = new Date(
+          localDateTimeToUtc(`${dayStr}T12:00:00`, tz)
+        ).getTime();
         const numVal = parseFloat(String(entry.value));
         if (isNaN(timestampMs) || isNaN(numVal) || numVal <= 0) continue;
 
@@ -375,7 +451,10 @@ export async function exportMeasurementsToLiftosaur(
       }
     }
   } catch (err) {
-    log('error', `[liftosaurMeasurements] Error exporting custom measurements: ${errorMessage(err)}`);
+    log(
+      'error',
+      `[liftosaurMeasurements] Error exporting custom measurements: ${errorMessage(err)}`
+    );
   }
 
   return exportedCount;

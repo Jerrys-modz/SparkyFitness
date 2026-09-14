@@ -87,7 +87,10 @@ router.post('/sync', authMiddleware.authenticate, async (req, res) => {
     res.status(200).json(result);
   } catch (error) {
     const { status, code } = liftosaurErrorReason(error);
-    log('error', `Error initiating manual Liftosaur sync: ${errorMessage(error)}`);
+    log(
+      'error',
+      `Error initiating manual Liftosaur sync: ${errorMessage(error)}`
+    );
     if (status === 401) {
       return res.status(401).json({
         message:

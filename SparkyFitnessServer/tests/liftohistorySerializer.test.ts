@@ -20,9 +20,27 @@ describe('liftohistorySerializer', () => {
           notes: 'Felt strong on top set',
           sets: [
             { reps: 5, weight: 60, weightUnit: 'kg', setType: 'warmup' },
-            { reps: 5, weight: 100, weightUnit: 'kg', rpe: 8, setType: 'working' },
-            { reps: 5, weight: 100, weightUnit: 'kg', rpe: 8, setType: 'working' },
-            { reps: 5, weight: 100, weightUnit: 'kg', rpe: 8.5, setType: 'working' },
+            {
+              reps: 5,
+              weight: 100,
+              weightUnit: 'kg',
+              rpe: 8,
+              setType: 'working',
+            },
+            {
+              reps: 5,
+              weight: 100,
+              weightUnit: 'kg',
+              rpe: 8,
+              setType: 'working',
+            },
+            {
+              reps: 5,
+              weight: 100,
+              weightUnit: 'kg',
+              rpe: 8.5,
+              setType: 'working',
+            },
           ],
         },
         {
@@ -42,7 +60,9 @@ describe('liftohistorySerializer', () => {
       '2026-03-01T10:00:00Z / program: "Push Pull Legs" / dayName: "Push A" / duration: 3600s / exercises: {'
     );
     expect(text).toContain('  // Felt strong on top set');
-    expect(text).toContain('  Bench Press / 2x5 100kg @8, 1x5 100kg @8.5 / warmup: 1x5 60kg');
+    expect(text).toContain(
+      '  Bench Press / 2x5 100kg @8, 1x5 100kg @8.5 / warmup: 1x5 60kg'
+    );
     expect(text).toContain('  Incline Dumbbell Press / 3x10 32kg');
     expect(text.endsWith('}')).toBe(true);
 

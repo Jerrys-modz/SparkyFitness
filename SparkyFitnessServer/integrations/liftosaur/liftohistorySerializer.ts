@@ -100,7 +100,11 @@ function formatExercise(exercise: LiftohistoryExportExercise): string[] {
   }
 
   // Fallback for exercises with sets that were not marked as either
-  if (workingSets.length === 0 && warmupSets.length === 0 && exercise.sets.length > 0) {
+  if (
+    workingSets.length === 0 &&
+    warmupSets.length === 0 &&
+    exercise.sets.length > 0
+  ) {
     sections.push(compressSets(exercise.sets));
   }
 
@@ -111,7 +115,9 @@ function formatExercise(exercise: LiftohistoryExportExercise): string[] {
 /**
  * Serialize one workout into Liftohistory text.
  */
-export function serializeLiftohistoryWorkout(workout: LiftohistoryExportWorkout): string {
+export function serializeLiftohistoryWorkout(
+  workout: LiftohistoryExportWorkout
+): string {
   const lines: string[] = [];
 
   if (workout.notes && workout.notes.trim() !== '') {

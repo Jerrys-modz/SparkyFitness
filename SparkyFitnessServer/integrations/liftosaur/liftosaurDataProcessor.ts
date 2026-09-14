@@ -13,10 +13,7 @@ import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepos
 import { log } from '../../config/logging.js';
 import { getClient } from '../../db/poolManager.js';
 import type { PoolClient } from 'pg';
-import {
-  instantToDay,
-  instantHourMinute,
-} from '@workspace/shared';
+import { instantToDay, instantHourMinute } from '@workspace/shared';
 import {
   LiftohistoryExercise,
   LiftohistorySet,
@@ -65,10 +62,10 @@ async function processLiftosaurWorkouts(
   } catch {
     client = null;
   }
-  const hasTx = client && typeof client.query === 'function';
+  const hasTx = client !== null && typeof client.query === 'function';
 
   try {
-    if (hasTx) {
+    if (hasTx && client !== null) {
       await client.query('BEGIN');
     }
 
@@ -76,11 +73,17 @@ async function processLiftosaurWorkouts(
     // and exercise entries in the synced date range before rebuilding so re-syncs
     // are idempotent. Preset templates (workout_presets) are reused by name.
     if (workouts.length > 0) {
-      const entryDates = workouts.map((w) => instantToDay(new Date(w.date), timezone));
+      const entryDates = workouts.map((w) =>
+        instantToDay(new Date(w.date), timezone)
+      );
       const startDate = entryDates.reduce((a, b) => (a < b ? a : b));
       const endDate = entryDates.reduce((a, b) => (a > b ? a : b));
 
-      if (hasTx && exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient) {
+      if (
+        hasTx &&
+        client !== null &&
+        exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient
+      ) {
         await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient(
           client,
           userId,
@@ -97,7 +100,11 @@ async function processLiftosaurWorkouts(
         );
       }
 
-      if (hasTx && exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient) {
+      if (
+        hasTx &&
+        client !== null &&
+        exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient
+      ) {
         await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient(
           client,
           userId,
@@ -124,14 +131,20 @@ async function processLiftosaurWorkouts(
         continue;
       }
       seenWorkoutIds.add(workout.id);
-      await processSingleWorkout(userId, createdByUserId, workout, timezone, client);
+      await processSingleWorkout(
+        userId,
+        createdByUserId,
+        workout,
+        timezone,
+        client
+      );
     }
 
-    if (hasTx) {
+    if (hasTx && client !== null) {
       await client.query('COMMIT');
     }
   } catch (error) {
-    if (hasTx) {
+    if (hasTx && client !== null) {
       await client.query('ROLLBACK');
     }
     log(
@@ -161,7 +174,8 @@ async function processSingleWorkout(
   const { hour, minute } = instantHourMinute(startTime, timezone);
   const entryTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
-  const workoutTitle = workout.programName ?? workout.dayName ?? 'Adhoc Workout';
+  const workoutTitle =
+    workout.programName ?? workout.dayName ?? 'Adhoc Workout';
   log(
     'debug',
     `Processing Liftosaur workout: ${workoutTitle} (${workout.date})`
@@ -306,14 +320,15 @@ async function processSingleWorkout(
     //    groups under the workout instead of standing alone.
     let entry: ExerciseEntryRow | null;
     if (client && exerciseEntryRepository._createExerciseEntryWithClient) {
-      const created = await exerciseEntryRepository._createExerciseEntryWithClient(
-        client,
-        userId,
-        entryData,
-        createdByUserId,
-        LIFTOSAUR_SOURCE,
-        presetEntry.id
-      );
+      const created =
+        await exerciseEntryRepository._createExerciseEntryWithClient(
+          client,
+          userId,
+          entryData,
+          createdByUserId,
+          LIFTOSAUR_SOURCE,
+          presetEntry.id
+        );
       entry = created?.entry ?? created ?? null;
     } else {
       entry = await exerciseEntryRepository.createExerciseEntry(
@@ -372,7 +387,10 @@ async function processSingleWorkout(
           created_by_user_id: createdByUserId,
           updated_by_user_id: createdByUserId,
         };
-        if (client && activityDetailsRepository._createActivityDetailWithClient) {
+        if (
+          client &&
+          activityDetailsRepository._createActivityDetailWithClient
+        ) {
           await activityDetailsRepository._createActivityDetailWithClient(
             client,
             detailPayload

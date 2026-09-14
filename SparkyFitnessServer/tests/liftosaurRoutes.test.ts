@@ -146,7 +146,9 @@ describe('liftosaurRoutes', () => {
         .send({});
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toContain('Liftosaur account needs an active subscription');
+      expect(response.body.message).toContain(
+        'Liftosaur account needs an active subscription'
+      );
     });
   });
 
@@ -157,8 +159,9 @@ describe('liftosaurRoutes', () => {
         lastSyncAt: null,
       });
 
-      const response = await request(app)
-        .get('/integrations/liftosaur/status?providerId=a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+      const response = await request(app).get(
+        '/integrations/liftosaur/status?providerId=a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+      );
 
       expect(response.status).toBe(200);
       expect(response.body.connected).toBe(true);
@@ -169,8 +172,9 @@ describe('liftosaurRoutes', () => {
     });
 
     it('returns 400 when providerId query parameter is invalid UUID', async () => {
-      const response = await request(app)
-        .get('/integrations/liftosaur/status?providerId=bad-uuid');
+      const response = await request(app).get(
+        '/integrations/liftosaur/status?providerId=bad-uuid'
+      );
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('Invalid query parameters');

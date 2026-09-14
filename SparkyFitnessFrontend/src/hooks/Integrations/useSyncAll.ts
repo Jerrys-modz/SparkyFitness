@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { syncHevyData, syncLiftosaurData } from '@/api/Integrations/integrations';
+import {
+  syncHevyData,
+  syncLiftosaurData,
+} from '@/api/Integrations/integrations';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { MANUAL_SYNC_PROVIDERS } from '@/constants/integrationConstants';

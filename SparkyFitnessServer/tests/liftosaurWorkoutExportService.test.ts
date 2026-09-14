@@ -41,18 +41,26 @@ describe('liftosaurWorkoutExportService', () => {
     });
 
     it('accepts a valid secure HTTPS override URL and trims trailing slashes', () => {
-      process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL = 'https://custom.api.liftosaur.com/api///';
-      expect(getValidatedLiftosaurBaseUrl()).toBe('https://custom.api.liftosaur.com/api');
+      process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL =
+        'https://custom.api.liftosaur.com/api///';
+      expect(getValidatedLiftosaurBaseUrl()).toBe(
+        'https://custom.api.liftosaur.com/api'
+      );
     });
 
     it('rejects an insecure HTTP override URL to prevent transmitting API keys over plaintext HTTP', () => {
-      process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL = 'http://insecure.liftosaur.com';
-      expect(() => getValidatedLiftosaurBaseUrl()).toThrow(/Insecure Liftosaur API base URL rejected/);
+      process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL =
+        'http://insecure.liftosaur.com';
+      expect(() => getValidatedLiftosaurBaseUrl()).toThrow(
+        /Insecure Liftosaur API base URL rejected/
+      );
     });
 
     it('rejects an invalid URL format', () => {
       process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL = 'not_a_valid_url';
-      expect(() => getValidatedLiftosaurBaseUrl()).toThrow(/Invalid SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL/);
+      expect(() => getValidatedLiftosaurBaseUrl()).toThrow(
+        /Invalid SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL/
+      );
     });
   });
 
@@ -124,14 +132,20 @@ describe('liftosaurWorkoutExportService', () => {
         }
 
         // Claim acquisition UPDATE ... RETURNING id
-        if (sql.includes('UPDATE exercise_entries') && sql.includes('RETURNING id')) {
+        if (
+          sql.includes('UPDATE exercise_entries') &&
+          sql.includes('RETURNING id')
+        ) {
           return Promise.resolve({
             rows: [{ id: 'entry-1' }, { id: 'entry-2' }],
           });
         }
 
         // Finalization UPDATE
-        if (sql.includes('UPDATE exercise_entries') && sql.includes('[liftosaur_exported:')) {
+        if (
+          sql.includes('UPDATE exercise_entries') &&
+          sql.includes('[liftosaur_exported:')
+        ) {
           return Promise.resolve({ rowCount: 2 });
         }
 
@@ -190,13 +204,29 @@ describe('liftosaurWorkoutExportService', () => {
         }
         if (sql.includes('FROM exercise_entry_sets')) {
           return Promise.resolve({
-            rows: [{ set_number: 1, set_type: 'working', reps: 5, weight: 120, rpe: 8, duration: null, notes: null }],
+            rows: [
+              {
+                set_number: 1,
+                set_type: 'working',
+                reps: 5,
+                weight: 120,
+                rpe: 8,
+                duration: null,
+                notes: null,
+              },
+            ],
           });
         }
-        if (sql.includes('UPDATE exercise_entries') && sql.includes('RETURNING id')) {
+        if (
+          sql.includes('UPDATE exercise_entries') &&
+          sql.includes('RETURNING id')
+        ) {
           return Promise.resolve({ rows: [{ id: 'entry-1' }] });
         }
-        if (sql.includes('UPDATE exercise_entries') && sql.includes('regexp_replace(notes, ')) {
+        if (
+          sql.includes('UPDATE exercise_entries') &&
+          sql.includes('regexp_replace(notes, ')
+        ) {
           releasedClaim = true;
           return Promise.resolve({ rowCount: 1 });
         }
@@ -205,7 +235,11 @@ describe('liftosaurWorkoutExportService', () => {
 
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Network error'));
 
-      const exported = await exportWorkoutsToLiftosaur('user-1', 'test-key', 'UTC');
+      const exported = await exportWorkoutsToLiftosaur(
+        'user-1',
+        'test-key',
+        'UTC'
+      );
       expect(exported).toBe(0);
       expect(releasedClaim).toBe(true);
     });
@@ -232,17 +266,34 @@ describe('liftosaurWorkoutExportService', () => {
         }
         if (sql.includes('FROM exercise_entry_sets')) {
           return Promise.resolve({
-            rows: [{ set_number: 1, set_type: 'working', reps: 5, weight: 120, rpe: 8, duration: null, notes: null }],
+            rows: [
+              {
+                set_number: 1,
+                set_type: 'working',
+                reps: 5,
+                weight: 120,
+                rpe: 8,
+                duration: null,
+                notes: null,
+              },
+            ],
           });
         }
         // Claim UPDATE returns 0 rows (locked by concurrent worker)
-        if (sql.includes('UPDATE exercise_entries') && sql.includes('RETURNING id')) {
+        if (
+          sql.includes('UPDATE exercise_entries') &&
+          sql.includes('RETURNING id')
+        ) {
           return Promise.resolve({ rows: [] });
         }
         return Promise.resolve({ rows: [] });
       });
 
-      const exported = await exportWorkoutsToLiftosaur('user-1', 'test-key', 'UTC');
+      const exported = await exportWorkoutsToLiftosaur(
+        'user-1',
+        'test-key',
+        'UTC'
+      );
       expect(exported).toBe(0);
       expect(axios.post).not.toHaveBeenCalled();
     });
@@ -250,7 +301,11 @@ describe('liftosaurWorkoutExportService', () => {
     it('returns 0 when there are no eligible entries', async () => {
       mockClient.query.mockResolvedValueOnce({ rows: [] });
 
-      const exported = await exportWorkoutsToLiftosaur('user-1', 'test-key', 'UTC');
+      const exported = await exportWorkoutsToLiftosaur(
+        'user-1',
+        'test-key',
+        'UTC'
+      );
       expect(exported).toBe(0);
       expect(axios.post).not.toHaveBeenCalled();
     });

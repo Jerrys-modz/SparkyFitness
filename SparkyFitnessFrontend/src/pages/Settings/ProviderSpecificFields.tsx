@@ -583,7 +583,9 @@ export const ProviderSpecificFields = ({
         </p>
       )}
 
-      {['hevy', 'polar', 'liftosaur'].includes(provider.provider_type || '') && (
+      {['hevy', 'polar', 'liftosaur'].includes(
+        provider.provider_type || ''
+      ) && (
         <div className="flex items-center space-x-2 col-span-2">
           <Switch
             id="full_sync_on_connect"

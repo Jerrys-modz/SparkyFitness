@@ -134,7 +134,11 @@ async function getHistoryPage(
       },
       timeout: 10000,
     });
-    logRawResponse('liftosaur', `raw_history_page${params.cursor ?? ''}`, response.data);
+    logRawResponse(
+      'liftosaur',
+      `raw_history_page${params.cursor ?? ''}`,
+      response.data
+    );
     return response.data.data ?? { records: [], hasMore: false };
   } catch (error) {
     log(
@@ -181,7 +185,8 @@ async function syncLiftosaurData(
     `Starting Liftosaur ${fullSync ? 'FULL' : 'INCREMENTAL'} synchronization for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}...`
   );
 
-  const resolvedProviderId = providerId ?? (await getLiftosaurProviderId(userId));
+  const resolvedProviderId =
+    providerId ?? (await getLiftosaurProviderId(userId));
   if (!resolvedProviderId) {
     throw new Error('Liftosaur provider not found.');
   }
@@ -238,14 +243,15 @@ async function syncLiftosaurData(
     // Records come back newest-first; in incremental mode (no explicit date
     // range) stop once the newest workout on this page predates the window.
     const withinWindow =
-      fullSync ||
-      startInstant !== undefined ||
-      newestWorkoutDate >= cutoffMs;
+      fullSync || startInstant !== undefined || newestWorkoutDate >= cutoffMs;
     hasMore = !!page.hasMore && withinWindow;
     cursor = page.nextCursor;
   }
 
-  log('debug', `[liftosaurService] Parsed ${allWorkouts.length} workouts for user ${userId}.`);
+  log(
+    'debug',
+    `[liftosaurService] Parsed ${allWorkouts.length} workouts for user ${userId}.`
+  );
   if (allWorkouts.length > 0) {
     await liftosaurDataProcessor.processLiftosaurWorkouts(
       userId,
@@ -268,9 +274,15 @@ async function syncLiftosaurData(
       tz,
       cutoffMs
     );
-    log('info', `[liftosaurService] Imported ${measurementsImported} measurement records for user ${userId}.`);
+    log(
+      'info',
+      `[liftosaurService] Imported ${measurementsImported} measurement records for user ${userId}.`
+    );
   } catch (mErr) {
-    log('error', `[liftosaurService] Error importing measurements for user ${userId}: ${errorMessage(mErr)}`);
+    log(
+      'error',
+      `[liftosaurService] Error importing measurements for user ${userId}: ${errorMessage(mErr)}`
+    );
   }
 
   const exportStartDate =
@@ -287,9 +299,15 @@ async function syncLiftosaurData(
       exportStartDate,
       exportEndDate
     );
-    log('info', `[liftosaurService] Exported ${workoutsExported} workouts for user ${userId}.`);
+    log(
+      'info',
+      `[liftosaurService] Exported ${workoutsExported} workouts for user ${userId}.`
+    );
   } catch (wErr) {
-    log('error', `[liftosaurService] Error exporting workouts for user ${userId}: ${errorMessage(wErr)}`);
+    log(
+      'error',
+      `[liftosaurService] Error exporting workouts for user ${userId}: ${errorMessage(wErr)}`
+    );
   }
 
   // 4. Export SparkyFitness measurements to Liftosaur
@@ -302,9 +320,15 @@ async function syncLiftosaurData(
       exportStartDate,
       exportEndDate
     );
-    log('info', `[liftosaurService] Exported ${measurementsExported} measurements for user ${userId}.`);
+    log(
+      'info',
+      `[liftosaurService] Exported ${measurementsExported} measurements for user ${userId}.`
+    );
   } catch (mExpErr) {
-    log('error', `[liftosaurService] Error exporting measurements for user ${userId}: ${errorMessage(mExpErr)}`);
+    log(
+      'error',
+      `[liftosaurService] Error exporting measurements for user ${userId}: ${errorMessage(mExpErr)}`
+    );
   }
 
   const client = await getSystemClient();
@@ -361,7 +385,9 @@ async function getStatus(
     } else {
       query += ' ORDER BY is_active DESC, created_at DESC LIMIT 1';
     }
-    const result = (await client.query(query, params)) as { rows: ProviderRow[] };
+    const result = (await client.query(query, params)) as {
+      rows: ProviderRow[];
+    };
     const row = result.rows[0];
     if (!row) {
       return { connected: false, lastSyncAt: null };
@@ -380,10 +406,14 @@ async function getStatus(
  * deactivating the provider row (the stored key is retained so a later
  * reconnect can re-enable it without re-entering credentials).
  */
-async function disconnect(userId: string, providerId?: string): Promise<boolean> {
+async function disconnect(
+  userId: string,
+  providerId?: string
+): Promise<boolean> {
   const client = await getSystemClient();
   try {
-    const resolvedProviderId = providerId ?? (await getLiftosaurProviderId(userId));
+    const resolvedProviderId =
+      providerId ?? (await getLiftosaurProviderId(userId));
     if (!resolvedProviderId) {
       return false;
     }

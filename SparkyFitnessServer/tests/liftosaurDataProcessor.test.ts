@@ -136,9 +136,8 @@ describe('processLiftosaurWorkouts', () => {
     const workouts = parseSampleWorkouts();
     await processLiftosaurWorkouts(UID, CID, workouts);
 
-    const createCalls = vi.mocked(
-      exerciseEntryRepository.createExerciseEntry
-    ).mock.calls;
+    const createCalls = vi.mocked(exerciseEntryRepository.createExerciseEntry)
+      .mock.calls;
     expect(createCalls).toHaveLength(2);
 
     // Squat: 1 warmup set + 3 working sets with 120s timer.
@@ -189,9 +188,8 @@ describe('processLiftosaurWorkouts', () => {
     const workouts = parseLiftohistory(text).workouts;
     await processLiftosaurWorkouts(UID, CID, workouts);
 
-    const createCalls = vi.mocked(
-      exerciseEntryRepository.createExerciseEntry
-    ).mock.calls;
+    const createCalls = vi.mocked(exerciseEntryRepository.createExerciseEntry)
+      .mock.calls;
     expect(createCalls[0]![1]).toMatchObject({ duration_minutes: 60 });
     expect(createCalls[1]![1]).toMatchObject({ duration_minutes: 0 });
   });
@@ -203,9 +201,8 @@ describe('processLiftosaurWorkouts', () => {
     expect(
       activityDetailsRepository.createActivityDetail
     ).toHaveBeenCalledTimes(2);
-    const detailCall = vi.mocked(
-      activityDetailsRepository.createActivityDetail
-    ).mock.calls[0]!;
+    const detailCall = vi.mocked(activityDetailsRepository.createActivityDetail)
+      .mock.calls[0]!;
     expect(detailCall[1]).toMatchObject({
       exercise_entry_id: 'entry-1',
       provider_name: 'Liftosaur',
@@ -223,8 +220,8 @@ describe('processLiftosaurWorkouts', () => {
     const workouts = [...parseSampleWorkouts(), ...parseSampleWorkouts()];
     await processLiftosaurWorkouts(UID, CID, workouts);
 
-    expect(
-      exerciseEntryRepository.createExerciseEntry
-    ).toHaveBeenCalledTimes(2);
+    expect(exerciseEntryRepository.createExerciseEntry).toHaveBeenCalledTimes(
+      2
+    );
   });
 });

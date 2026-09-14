@@ -169,7 +169,11 @@ describe('parseLiftohistory', () => {
     expect(result.errors).toEqual([]);
     const sets = result.workouts[0]!.exercises[0]!.completedSets;
     expect(sets).toHaveLength(3);
-    expect(sets[0]).toMatchObject({ reps: 10, weightValue: 60, label: 'no straps' });
+    expect(sets[0]).toMatchObject({
+      reps: 10,
+      weightValue: 60,
+      label: 'no straps',
+    });
   });
 
   it('collects errors and still returns salvageable records', () => {
@@ -183,8 +187,12 @@ describe('parseLiftohistory', () => {
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.workouts).toHaveLength(1);
     // The malformed set is reported but the rest of the record survives.
-    expect(result.errors.some((e) => e.message.includes('Could not parse set'))).toBe(true);
-    expect(result.errors.some((e) => e.message.includes('closing "}"'))).toBe(true);
+    expect(
+      result.errors.some((e) => e.message.includes('Could not parse set'))
+    ).toBe(true);
+    expect(result.errors.some((e) => e.message.includes('closing "}"'))).toBe(
+      true
+    );
   });
 
   it('reports an invalid date', () => {
@@ -192,7 +200,9 @@ describe('parseLiftohistory', () => {
       '2026-99-99 10:00:00 +00:00 / exercises: {\n  Squat / 3x5 100kg\n}'
     );
     expect(result.workouts).toHaveLength(0);
-    expect(result.errors.some((e) => e.message.includes('Invalid date'))).toBe(true);
+    expect(result.errors.some((e) => e.message.includes('Invalid date'))).toBe(
+      true
+    );
   });
 
   it('handles empty documents', () => {

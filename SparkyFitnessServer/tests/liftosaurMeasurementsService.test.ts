@@ -95,8 +95,16 @@ describe('liftosaurMeasurementsService', () => {
       expect(count).toBe(2);
       expect(measurementService.processHealthData).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ type: 'weight', value: 80, source: 'Liftosaur' }),
-          expect.objectContaining({ type: 'body_fat_percentage', value: 15, source: 'Liftosaur' }),
+          expect.objectContaining({
+            type: 'weight',
+            value: 80,
+            source: 'Liftosaur',
+          }),
+          expect.objectContaining({
+            type: 'body_fat_percentage',
+            value: 15,
+            source: 'Liftosaur',
+          }),
         ]),
         'user-1',
         'user-1'
@@ -117,10 +125,12 @@ describe('liftosaurMeasurementsService', () => {
         },
       ];
 
-      vi.mocked(measurementService.getCheckInMeasurementsByDateRange).mockResolvedValue(
-        mockedCheckIns as any
+      vi.mocked(
+        measurementService.getCheckInMeasurementsByDateRange
+      ).mockResolvedValue(mockedCheckIns as any);
+      vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue(
+        []
       );
-      vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue([]);
 
       const mockedPost = vi.mocked(axios.post);
       mockedPost.mockResolvedValue({ status: 201 } as any);

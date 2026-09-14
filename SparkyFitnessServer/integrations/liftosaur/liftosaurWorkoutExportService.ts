@@ -122,7 +122,10 @@ async function postWorkoutToLiftosaur(
     );
     return true;
   } catch (err) {
-    log('error', `[liftosaurWorkoutExport] Failed to post workout to Liftosaur: ${errorMessage(err)}`);
+    log(
+      'error',
+      `[liftosaurWorkoutExport] Failed to post workout to Liftosaur: ${errorMessage(err)}`
+    );
     return false;
   }
 }
@@ -230,7 +233,8 @@ export async function exportWorkoutsToLiftosaur(
               weight: set.weight !== null ? Number(set.weight) : null,
               weightUnit: 'kg',
               rpe: set.rpe !== null ? Number(set.rpe) : null,
-              durationSeconds: set.duration !== null ? Number(set.duration) : null,
+              durationSeconds:
+                set.duration !== null ? Number(set.duration) : null,
               setType: set.set_type ? set.set_type.toLowerCase() : null,
               notes: set.notes,
             });
@@ -261,7 +265,8 @@ export async function exportWorkoutsToLiftosaur(
           date: sessionUtcInstant.toISOString(),
           programName,
           dayName: firstEntry.preset_name ? firstEntry.preset_name : 'Workout',
-          durationSeconds: totalDurationMinutes > 0 ? totalDurationMinutes * 60 : undefined,
+          durationSeconds:
+            totalDurationMinutes > 0 ? totalDurationMinutes * 60 : undefined,
           notes: sessionNotes || undefined,
           exercises: exportExercises,
         };
@@ -313,7 +318,11 @@ export async function exportWorkoutsToLiftosaur(
 
         // 3b. Dispatch the workout to Liftosaur API using the claimId as idempotency key
         const serializedText = serializeLiftohistory(exportWorkout);
-        const posted = await postWorkoutToLiftosaur(apiKey, serializedText, claimId);
+        const posted = await postWorkoutToLiftosaur(
+          apiKey,
+          serializedText,
+          claimId
+        );
 
         if (posted) {
           exportedCount += 1;
@@ -338,7 +347,10 @@ export async function exportWorkoutsToLiftosaur(
       }
     }
   } catch (err) {
-    log('error', `[liftosaurWorkoutExport] Error exporting workouts: ${errorMessage(err)}`);
+    log(
+      'error',
+      `[liftosaurWorkoutExport] Error exporting workouts: ${errorMessage(err)}`
+    );
   } finally {
     client.release();
   }
