@@ -109,6 +109,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'iron',
         'caffeine_mg',
         'alcohol_g',
+        'water_ml',
         'gi',
         'entry_id',
         'entry_type',

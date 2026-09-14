@@ -279,6 +279,13 @@ const createFoodSchema = z
       .describe(
         'Alcohol / pure ethanol (g) per serving_size. MANDATORY: Estimate and populate for beer, wine, and spirits. Informational only — calories already include ethanol calories, so this is never added to the calorie total.'
       ),
+    water_ml: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe(
+        "Water content (ml) per serving_size. Only set this for a solid or count-based food with meaningful water content — fruit, vegetables, soup, yogurt. Skip it when the food is already logged in a volume unit (ml, l, fl oz): the app credits that logged volume as water automatically, so setting this too would double it. Never guess for foods where water content isn't meaningful (bread, chips, meat)."
+      ),
     gi: giIndexEnum
       .optional()
       .describe(
@@ -553,6 +560,13 @@ const updateFoodVariantSchema = z
       .optional()
       .describe(
         'Updated alcohol / pure ethanol (g) per serving_size. Informational only — never added to calories.'
+      ),
+    water_ml: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe(
+        'Updated water content (ml) per serving_size. Skip when the food is logged in a volume unit (ml, l, fl oz) — that logged volume is already credited as water automatically.'
       ),
     gi: giIndexEnum
       .optional()
@@ -891,6 +905,13 @@ export const manageFoodInput = z.object({
     .optional()
     .describe(
       'Alcohol / pure ethanol (g) — for create_food/update_food_variant, per serving_size. Informational only, never added to calories.'
+    ),
+  water_ml: z.coerce
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'Water content (ml) — for create_food/update_food_variant, per serving_size. Skip when the food is logged in a volume unit (ml, l, fl oz); that logged volume is already credited as water automatically.'
     ),
   gi: giIndexEnum.optional().describe('Glycemic index classification'),
   // entry / diary management
