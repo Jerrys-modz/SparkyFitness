@@ -19,6 +19,7 @@ import {
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
   deriveFoodProviderNetworkPolicy,
+  resolveHostnameForOutboundConnection,
   isOutboundUrlBlockedError,
   OutboundUrlShapeError,
 } from '../utils/outboundUrlPolicy.js';
@@ -49,12 +50,27 @@ async function validateFoodProviderBaseUrl(
 ) {
   if (!BASE_URL_FETCHING_PROVIDER_TYPES.has(providerType)) return;
   if (baseUrl === undefined || baseUrl === null || baseUrl === '') return;
+  // The provider services accept a scheme-less base_url and default it to
+  // https:// (e.g. "mealie.example.com"). Normalize the same way before
+  // validating so a bare host/IP isn't rejected as a malformed URL.
+  let normalized = String(baseUrl).trim();
+  if (
+    normalized &&
+    !normalized.startsWith('http://') &&
+    !normalized.startsWith('https://')
+  ) {
+    normalized = `https://${normalized}`;
+  }
   const isAdmin = await resolveIsAdmin(null, authenticatedUserId);
+  const policy = deriveFoodProviderNetworkPolicy(isAdmin);
   try {
-    assertOutboundUrlShapeAndLiteralAllowed(
-      baseUrl,
-      deriveFoodProviderNetworkPolicy(isAdmin)
-    );
+    const url = assertOutboundUrlShapeAndLiteralAllowed(normalized, policy);
+    // Resolve the hostname too, not just literal-IP shape: a non-admin could
+    // otherwise point at a hostname whose A record is a private/internal
+    // address (e.g. 10.0.0.1, 169.254.169.254). For admins the policy allows
+    // private, so this returns without a DNS block and split-horizon
+    // (public + LAN) hostnames keep working.
+    await resolveHostnameForOutboundConnection(url.hostname, policy);
   } catch (error) {
     if (isOutboundUrlBlockedError(error)) {
       throw badRequest(

@@ -286,6 +286,8 @@ router.get('/profiles', authenticate, async (req, res, next) => {
  *     responses:
  *       200:
  *         description: Profile updated successfully.
+ *       400:
+ *         description: Request body is missing or is not a JSON object.
  *       403:
  *         description: User is not authorized to update this profile.
  *       404:
