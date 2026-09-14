@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { addDays, todayInZone } from '@workspace/shared';
+import { addDays, prefillEntryTime, todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import foodCoreService from '../../services/foodCoreService.js';
 import foodEntryService from '../../services/foodEntryService.js';
@@ -432,6 +432,7 @@ const DIARY_MEAL_DROP = [
 interface ResolvedMealType {
   id: string;
   name: string;
+  default_time: string | null;
 }
 
 async function resolveMealType(
@@ -444,7 +445,13 @@ async function resolveMealType(
       mealTypeId,
       userId
     );
-    return resolved ? { id: resolved.id, name: resolved.name } : null;
+    return resolved
+      ? {
+          id: resolved.id,
+          name: resolved.name,
+          default_time: resolved.default_time ?? null,
+        }
+      : null;
   }
   if (!mealType) {
     return null;
@@ -456,10 +463,43 @@ async function resolveMealType(
   const mealTypes = await mealTypeRepository.getAllMealTypes(userId);
   const normalizedName = mealType.trim().toLowerCase();
   const resolved = mealTypes.find(
-    (type: { id: string; name: string; user_id: string | null }) =>
+    (type: {
+      id: string;
+      name: string;
+      user_id: string | null;
+      default_time?: string | null;
+    }) =>
       type.user_id === null && type.name.trim().toLowerCase() === normalizedName
   );
-  return resolved ? { id: resolved.id, name: resolved.name } : null;
+  return resolved
+    ? {
+        id: resolved.id,
+        name: resolved.name,
+        default_time: resolved.default_time ?? null,
+      }
+    : null;
+}
+
+// Fills in a diary entry's time of day when the model didn't state one,
+// mirroring the web/mobile prefill (shared prefillEntryTime): "now" in the
+// user's timezone when logging for today, otherwise the meal's own default
+// time, otherwise left unset. Without this, every chat-logged food landed
+// with a NULL entry_time, which the caffeine kinetics estimate then had to
+// guess at (falling back to the meal's default time or noon) instead of
+// using the time the dose was actually taken.
+function resolveEntryTime(
+  explicit: string | undefined,
+  mealType: ResolvedMealType,
+  entryDate: string,
+  tz: string
+): string | undefined {
+  if (explicit) return explicit;
+  const prefilled = prefillEntryTime({
+    defaultTime: mealType.default_time,
+    isToday: entryDate === todayInZone(tz),
+    tz,
+  });
+  return prefilled || undefined;
 }
 
 // Resolves a diary food entry from a food name the way log_food resolves
@@ -1244,7 +1284,12 @@ Actions:
                   quantity: resolvedLog.quantity,
                   unit: resolvedLog.unit,
                   meal_type_id: mealType.id,
-                  entry_time: args.entry_time,
+                  entry_time: resolveEntryTime(
+                    args.entry_time,
+                    mealType,
+                    entryDate,
+                    tz
+                  ),
                 }
               );
               let loggedMsg = `Logged "${entry.food_name}" (${resolvedLog.quantity} ${resolvedLog.unit}) for ${mealType.name} on ${entryDate}.`;
@@ -1352,7 +1397,12 @@ Actions:
                     quantity: logged.quantity,
                     unit: logged.unit,
                     meal_type_id: mealType.id,
-                    entry_time: args.entry_time,
+                    entry_time: resolveEntryTime(
+                      args.entry_time,
+                      mealType,
+                      entryDate,
+                      tz
+                    ),
                   }
                 );
                 let existingMsg = `"${entry.food_name}" was already in the food database — logged ${logged.quantity} ${logged.unit} for ${mealType.name} on ${entryDate}.`;
@@ -1524,7 +1574,12 @@ Actions:
                 quantity: logged.quantity,
                 unit: logged.unit,
                 meal_type_id: mealType.id,
-                entry_time: args.entry_time,
+                entry_time: resolveEntryTime(
+                  args.entry_time,
+                  mealType,
+                  entryDate,
+                  tz
+                ),
               });
               let savedMsg = `Saved "${food.name}" from ${result.source} (${dv?.calories || 0} kcal per ${dv?.serving_size || 100}${dv?.serving_unit || 'g'}) and logged ${logged.quantity} ${logged.unit} to ${mealType.name} on ${entryDate}.`;
               if (args.is_quick_food) {
@@ -1624,7 +1679,12 @@ Actions:
                   quantity: targetQuantity,
                   unit: targetUnit,
                   meal_type_id: mealType.id,
-                  entry_time: args.entry_time,
+                  entry_time: resolveEntryTime(
+                    args.entry_time,
+                    mealType,
+                    entryDate,
+                    tz
+                  ),
                 });
                 msg += ` Also logged to ${mealType.name} for ${entryDate}.`;
               }

@@ -1346,6 +1346,146 @@ describe('log_food', () => {
   });
 });
 
+// A chat-logged food with no entry_time landed as NULL, which the caffeine
+// kinetics estimate (services/caffeineKineticsService.ts) then had to guess
+// at -- the meal's default time, or noon -- instead of the time the dose was
+// actually taken. log_food, log_external_food, and create_food all route
+// through resolveEntryTime, which mirrors the web/mobile prefill: "now" when
+// logging for today, otherwise the meal's own default_time, otherwise unset.
+describe('entry_time defaults when the model omits one', () => {
+  it("log_food defaults to 'now' in the user's timezone when logging for today", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T14:32:00Z'));
+    try {
+      vi.mocked(mealTypeRepository.getMealTypeById).mockResolvedValue({
+        id: MEAL_TYPE_ID,
+        name: 'Lunch',
+        default_time: null,
+      });
+      vi.mocked(foodRepository.getFoodById).mockResolvedValue(eggsRow);
+      vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+        id: ENTRY_ID,
+        food_name: 'Eggs',
+      });
+
+      await tools.sparky_manage_food.execute!(
+        {
+          action: 'log_food',
+          food_id: FOOD_ID,
+          quantity: 1,
+          meal_type_id: MEAL_TYPE_ID,
+          // No entry_date -> defaults to today, no entry_time.
+        },
+        opts
+      );
+
+      expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
+        'user-1',
+        'user-1',
+        expect.objectContaining({ entry_time: '14:32' })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('log_food falls back to the meal default_time for a non-today date', async () => {
+    vi.mocked(mealTypeRepository.getMealTypeById).mockResolvedValue({
+      id: MEAL_TYPE_ID,
+      name: 'Lunch',
+      default_time: '12:30:00',
+    });
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue(eggsRow);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Eggs',
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_id: FOOD_ID,
+        quantity: 1,
+        meal_type_id: MEAL_TYPE_ID,
+        entry_date: '2026-01-01',
+      },
+      opts
+    );
+
+    expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      expect.objectContaining({ entry_time: '12:30' })
+    );
+  });
+
+  it('log_food leaves entry_time unset for a non-today date with no meal default_time', async () => {
+    vi.mocked(mealTypeRepository.getMealTypeById).mockResolvedValue({
+      id: MEAL_TYPE_ID,
+      name: 'Lunch',
+      default_time: null,
+    });
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue(eggsRow);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Eggs',
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_id: FOOD_ID,
+        quantity: 1,
+        meal_type_id: MEAL_TYPE_ID,
+        entry_date: '2026-01-01',
+      },
+      opts
+    );
+
+    expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      expect.objectContaining({ entry_time: undefined })
+    );
+  });
+
+  it('an explicit entry_time always wins, even when logging for today', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T14:32:00Z'));
+    try {
+      vi.mocked(mealTypeRepository.getMealTypeById).mockResolvedValue({
+        id: MEAL_TYPE_ID,
+        name: 'Lunch',
+        default_time: null,
+      });
+      vi.mocked(foodRepository.getFoodById).mockResolvedValue(eggsRow);
+      vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+        id: ENTRY_ID,
+        food_name: 'Eggs',
+      });
+
+      await tools.sparky_manage_food.execute!(
+        {
+          action: 'log_food',
+          food_id: FOOD_ID,
+          quantity: 1,
+          meal_type_id: MEAL_TYPE_ID,
+          entry_time: '08:15',
+        },
+        opts
+      );
+
+      expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
+        'user-1',
+        'user-1',
+        expect.objectContaining({ entry_time: '08:15' })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('log_external_food', () => {
   const usdaApple = {
     name: 'Apple',
