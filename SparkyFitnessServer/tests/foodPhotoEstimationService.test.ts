@@ -590,5 +590,27 @@ describe('estimateFoodPhotoNutrition', () => {
       expect(result.success).toBe(false);
       if (!result.success) expect(result.code).toBe('PARSE_ERROR');
     });
+
+    it('cleans up verbose narrative meal summaries into concise dish names', async () => {
+      mockGetVisionSetting.mockResolvedValue(makeSetting());
+      mockGetBackendSetting.mockResolvedValue(makeServiceDetail());
+      const verboseShape: Record<string, unknown> = {
+        ...sampleEstimate,
+        meal_summary:
+          'A creamy chicken and pasta dish, featuring penne pasta mixed with chunks of cooked chicken in a thick, creamy white sauce, garnished with fresh herbs. The dish appears seasoned and rich',
+      };
+      mockFetch(googleBody(verboseShape));
+      const result = await estimateFoodPhotoNutrition({
+        base64Image: TEST_BASE64,
+        mimeType: TEST_MIME,
+        userId: TEST_USER_ID,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.estimate.meal_summary).toBe(
+          'Creamy chicken and pasta dish'
+        );
+      }
+    });
   });
 });

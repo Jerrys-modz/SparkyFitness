@@ -393,7 +393,8 @@ Only call this when the user explicitly asks to log the plate in a message AFTER
               meal_type: args.meal_type,
               meal_type_id: null,
               name: mealName,
-              description: captured.estimate.confidence_reason || null,
+              description: null,
+              notes: captured.estimate.confidence_reason || null,
               items,
               // The chat flow logs the analysed plate as one serving, all of it
               // eaten. Splitting a dish into servings is done on the review
