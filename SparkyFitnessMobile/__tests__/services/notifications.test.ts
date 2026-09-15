@@ -16,6 +16,7 @@ import {
   maybePromptForExactAlarmPermission,
   scheduleFastGoalNotification,
   scheduleRestNotification,
+  scheduleWaterReminderNotifications,
   setNotificationsEnabled,
   setRestTimerNotificationsEnabled,
 } from '../../src/services/notifications';
@@ -167,6 +168,18 @@ describe('notifications service', () => {
         expect.objectContaining({
           importance: Notifications.AndroidImportance.HIGH,
         })
+      );
+    });
+
+    it('creates a dedicated hydration Android channel', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'android',
+        configurable: true,
+      });
+      await initNotifications();
+      expect(mockSetChannel).toHaveBeenCalledWith(
+        'hydration',
+        expect.objectContaining({ name: 'Hydration reminders' })
       );
     });
 
@@ -343,6 +356,73 @@ describe('notifications service', () => {
 
     it('returns null on an invalid date string', async () => {
       expect(await scheduleFastGoalNotification('not-a-date')).toBeNull();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleWaterReminderNotifications', () => {
+    const inHours = (hours: number) =>
+      new Date(Date.now() + hours * 60 * 60 * 1000);
+
+    beforeEach(() => {
+      useAppPreferencesStore.getState().setWaterReminderEnabled(true);
+    });
+
+    it('schedules each future time as a DATE notification on the hydration channel', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('water-1' as any)
+        .mockResolvedValueOnce('water-2' as any);
+
+      const ids = await scheduleWaterReminderNotifications([
+        inHours(1),
+        inHours(3),
+      ]);
+
+      expect(ids).toEqual(['water-1', 'water-2']);
+      expect(mockSchedule).toHaveBeenCalledTimes(2);
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          title: 'Time to hydrate',
+          body: "You haven't logged any water in a while.",
+        }),
+        trigger: expect.objectContaining({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          channelId: 'hydration',
+        }),
+      });
+    });
+
+    it('skips times that are already in the past', async () => {
+      const ids = await scheduleWaterReminderNotifications([
+        new Date(Date.now() - 60 * 1000),
+        inHours(1),
+      ]);
+      expect(ids).toEqual(['notif-id']);
+      expect(mockSchedule).toHaveBeenCalledTimes(1);
+    });
+
+    it('schedules nothing while the water reminder toggle is off', async () => {
+      useAppPreferencesStore.getState().setWaterReminderEnabled(false);
+      expect(await scheduleWaterReminderNotifications([inHours(1)])).toEqual(
+        []
+      );
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('schedules nothing while the master notifications toggle is off', async () => {
+      useAppPreferencesStore.getState().setNotificationsEnabled(false);
+      expect(await scheduleWaterReminderNotifications([inHours(1)])).toEqual(
+        []
+      );
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('never prompts and schedules nothing without OS permission', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'undetermined' } as any);
+      expect(await scheduleWaterReminderNotifications([inHours(1)])).toEqual(
+        []
+      );
+      expect(mockRequestPerms).not.toHaveBeenCalled();
       expect(mockSchedule).not.toHaveBeenCalled();
     });
   });

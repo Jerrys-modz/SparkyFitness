@@ -207,7 +207,8 @@
     "channels": {
       "medicationReminders": "Medication reminders",
       "workoutTimer": "Workout timer",
-      "fasting": "Fasting"
+      "fasting": "Fasting",
+      "hydration": "Hydration reminders"
     },
     "actions": {
       "completeSet": "Complete Set",
@@ -235,6 +236,10 @@
     "fasting": {
       "title": "Fasting goal reached",
       "body": "You've hit your fasting goal. Great work!"
+    },
+    "hydration": {
+      "title": "Time to hydrate",
+      "body": "You haven't logged any water in a while."
     }
   },
   "activeWorkout": {
