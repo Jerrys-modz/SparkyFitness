@@ -1678,49 +1678,48 @@ export function buildPresetExercisesPayload(
   weightUnit: 'kg' | 'lbs',
   distanceUnit: 'km' | 'miles' = 'km'
 ): WorkoutPresetExercisePayload[] {
-// Preset exercises with zero sets are valid on the server and render as
-    // "No sets" in the detail view. Do NOT filter them out – saving an unrelated
-    // edit would silently delete the user's zero-set rows from the preset.
-    //
-    // An exercise with no library id IS dropped, though, and that is a different
-    // case: workout_preset_exercises.exercise_id still cascades from the library
-    // row, so a deleted exercise cannot live in a template at all. Keeping it
-    // would mean writing a row the database immediately rejects.
-    return exercises
-      .filter(
-        (exercise): exercise is WorkoutDraftExercise & { exerciseId: string } =>
-          exercise.exerciseId != null
-      )
-      .map((exercise, index) => {
-        const modality = resolveSnapshotModality({
-          modality: exercise.exerciseModality,
-          category: exercise.exerciseCategory,
-        });
-        return {
-          exercise_id: exercise.exerciseId,
-          image_url: exercise.images[0] ?? null,
-          sort_order: index,
-          superset_group: exercise.supersetGroup ?? null,
-          progression_mode: exercise.progressionMode ?? 'rep_goal',
-          rep_goal: exercise.repGoal ?? null,
-          increment_type: exercise.incrementType ?? 'weight',
-          increment_value: exercise.incrementValue ?? 5,
-          equipment_brand: exercise.equipmentBrand ?? null,
-          sets: exercise.sets.map((set, setIndex) => {
-            const weight = parseDecimalInput(set.weight);
-            const reps = parseInt(set.reps, 10);
-            const distance = parseDecimalInput(set.distance ?? '');
-            return {
-              set_number: setIndex + 1,
-              set_type: set.setType ?? 'normal',
-              reps: isNaN(reps) ? null : reps,
-              weight: isNaN(weight) ? null : weightToKg(weight, weightUnit),
-              // Modality-gated like the live builders: a session's junk duration
-              // on a weights exercise must not become preset structure, and
-              // distance is only meaningful on cardio sets.
-              duration: isDurationModality(modality)
-                ? (set.duration ?? null)
-                : null,
+  // Preset exercises with zero sets are valid on the server and render as
+  // "No sets" in the detail view. Do NOT filter them out – saving an unrelated
+  // edit would silently delete the user's zero-set rows from the preset.
+  //
+  // An exercise with no library id IS dropped, though, and that is a different
+  // case: workout_preset_exercises.exercise_id still cascades from the library
+  // row, so a deleted exercise cannot live in a template at all. Keeping it
+  // would mean writing a row the database immediately rejects.
+  return exercises
+    .filter(
+      (exercise): exercise is WorkoutDraftExercise & { exerciseId: string } =>
+        exercise.exerciseId != null
+    )
+    .map((exercise, index) => {
+      const modality = resolveSnapshotModality({
+        modality: exercise.exerciseModality,
+        category: exercise.exerciseCategory,
+      });
+      return {
+        exercise_id: exercise.exerciseId,
+        image_url: exercise.images[0] ?? null,
+        sort_order: index,
+        superset_group: exercise.supersetGroup ?? null,
+        progression_mode: exercise.progressionMode ?? 'rep_goal',
+        rep_goal: exercise.repGoal ?? null,
+        increment_type: exercise.incrementType ?? 'weight',
+        increment_value: exercise.incrementValue ?? 5,
+        equipment_brand: exercise.equipmentBrand ?? null,
+        sets: exercise.sets.map((set, setIndex) => {
+          const weight = parseDecimalInput(set.weight);
+          const reps = parseInt(set.reps, 10);
+          const distance = parseDecimalInput(set.distance ?? '');
+          return {
+            set_number: setIndex + 1,
+            set_type: set.setType ?? 'normal',
+            reps: isNaN(reps) ? null : reps,
+            weight: isNaN(weight) ? null : weightToKg(weight, weightUnit),
+            // Modality-gated like the live builders: a session's junk duration
+            // on a weights exercise must not become preset structure, and
+            // distance is only meaningful on cardio sets.
+            duration: isDurationModality(modality)
+              ? (set.duration ?? null)
               : null,
             distance:
               isCardioModality(modality) && !isNaN(distance)

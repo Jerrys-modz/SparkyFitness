@@ -1,7 +1,4 @@
-import type {
-  ExerciseModality,
-  ExerciseSnapshotResponse,
-} from '@workspace/shared';
+import type { ExerciseModality } from '@workspace/shared';
 
 export type DraftSetType = 'warmup' | 'normal' | 'drop' | 'failure' | string;
 
@@ -50,7 +47,7 @@ export interface WorkoutDraftExercise {
   notes?: string | null;
   /** Superset group id; edited via the form lists' grouping actions. */
   supersetGroup?: number | null;
-/**
+  /**
    * Present only when editing an existing session - not persisted to drafts.
    * Entry-shaped, so its `id` is null once the library exercise is deleted.
    */

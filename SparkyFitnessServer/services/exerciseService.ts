@@ -1930,8 +1930,8 @@ async function createGroupedWorkoutSession(
     } = sessionData;
     let presetEntry: any;
     let exerciseDefinitions: any;
-    let childEntrySource = source;
-    let preserveLegacyPresetDurationFallback = false;
+    const childEntrySource = source;
+    const preserveLegacyPresetDurationFallback = false;
 
     if (workout_preset_id !== undefined && workout_preset_id !== null) {
       const workoutPreset = await workoutPresetRepository.getWorkoutPresetById(
