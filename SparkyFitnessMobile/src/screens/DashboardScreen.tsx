@@ -33,6 +33,7 @@ import DateNavigator from '../components/DateNavigator';
 import ExerciseProgressCard from '../components/ExerciseProgressCard';
 import FastingCard from '../components/FastingCard';
 import FastingGoalReconciler from '../components/FastingGoalReconciler';
+import HydrationReminderReconciler from '../components/HydrationReminderReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
@@ -707,6 +708,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             to `selectedDate`. Visibility is a local app setting toggled from
             Dashboard Settings. */}
         <FastingGoalReconciler />
+        <HydrationReminderReconciler />
         {fastingCardVisible && <FastingCard navigation={navigation} />}
         {cycleCardVisible && <CycleCard navigation={navigation} />}
 
