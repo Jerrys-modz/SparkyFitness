@@ -241,7 +241,7 @@ app.use((req, res, next) => {
 app.use(
   '/mcp',
   requestLogger({ logCompletion: true }),
-  express.json({ limit: isDemoMode() ? '2mb' : '50mb' }),
+  express.json({ limit: isDemoMode() ? '1mb' : '50mb' }),
   cookieParser(),
   authenticate,
   // /mcp mounts ahead of the global route table, so it needs the demo guard
@@ -254,7 +254,7 @@ app.use(
 // takes a much lower cap: the routes that need the headroom (image analysis,
 // uploads, FIT import) are blocked for the demo account anyway, and a 50mb
 // parse per request is a cheap way for an anonymous visitor to burn memory.
-app.use(express.json({ limit: isDemoMode() ? '2mb' : '50mb' }));
+app.use(express.json({ limit: isDemoMode() ? '1mb' : '50mb' }));
 app.use(cookieParser());
 // --- Better Auth Mounting Logic (Moved to after migrations) ---
 let syncTrustedProviders: typeof authModule.syncTrustedProviders | undefined;
