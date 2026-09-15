@@ -534,6 +534,7 @@ describe('transformHealthRecords', () => {
           duration: 3600,
           totalEnergyBurned: 500,
           totalDistance: 5000,
+          totalSteps: 6234,
         },
       ];
       const result = transformHealthRecords(records, {
@@ -545,6 +546,7 @@ describe('transformHealthRecords', () => {
       const exerciseResult = result[0] as TransformedExerciseSession;
       expect(exerciseResult.caloriesBurned).toBe(500);
       expect(exerciseResult.distance).toBe(5);
+      expect(exerciseResult.steps).toBe(6234);
       expect(exerciseResult.type).toBe('ExerciseSession');
       expect(exerciseResult.source).toBe('HealthKit');
     });
@@ -1176,6 +1178,18 @@ describe('mapDietarySample (dietary reverse mapper)', () => {
         unit: 'mcg',
       })
     ).toEqual({ column: 'vitamin_a', value: 120 });
+  });
+
+  // #1958: caffeine is mapped generically off DIETARY_HK_MAP like every other
+  // mg-stored micro above (mapDietarySample is the inbound Food-correlation reader).
+  test('maps caffeine in mg to the mg-stored column unchanged', () => {
+    expect(
+      mapDietarySample({
+        quantityType: 'HKQuantityTypeIdentifierDietaryCaffeine',
+        quantity: 90,
+        unit: 'mg',
+      })
+    ).toEqual({ column: 'caffeine_mg', value: 90 });
   });
 
   test('returns null for an unknown unit (never guesses a conversion)', () => {

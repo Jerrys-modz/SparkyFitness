@@ -19,6 +19,7 @@ interface ServingFields {
 interface CreateMealData {
   name: string;
   description?: string | null;
+  notes?: string | null;
   is_public?: boolean;
   serving_size?: unknown;
   serving_unit?: string;
@@ -40,6 +41,7 @@ interface CreateMealData {
 interface UpdateMealData {
   name?: string;
   description?: string | null;
+  notes?: string | null;
   is_public?: boolean;
   serving_size?: unknown;
   serving_unit?: string;
@@ -278,6 +280,9 @@ const RESOLVED_NUTRIENT_KEYS = [
   'vitamin_c',
   'calcium',
   'iron',
+  'caffeine_mg',
+  'water_ml',
+  'alcohol_g',
 ] as const;
 
 interface ResolvedChildSnapshot {
@@ -971,7 +976,8 @@ async function createMealFromDiaryEntries(
   quantityScale = 1,
   totalServings = 1,
   servingSize = 1,
-  servingUnit = 'serving'
+  servingUnit = 'serving',
+  notes: string | null = null
 ) {
   try {
     // 1. Retrieve food entries for the specified date and meal type
@@ -1051,6 +1057,9 @@ async function createMealFromDiaryEntries(
         vitamin_c: entry.vitamin_c,
         calcium: entry.calcium,
         iron: entry.iron,
+        caffeine_mg: entry.caffeine_mg,
+        water_ml: entry.water_ml,
+        alcohol_g: entry.alcohol_g,
         glycemic_index: entry.glycemic_index,
         custom_nutrients: entry.custom_nutrients || {},
       });
@@ -1065,6 +1074,7 @@ async function createMealFromDiaryEntries(
       user_id: userId,
       name: mealName || defaultMealName,
       description: description,
+      notes: notes,
       is_public: isPublic,
       // A template-backed logged meal scales its components by
       // consumed_quantity / (serving_size * total_servings). With the defaults

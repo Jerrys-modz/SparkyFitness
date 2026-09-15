@@ -32,7 +32,8 @@ export interface WorkoutDraftExercise {
   clientId: string;
   /** Populated only when the exercise row originated from an existing server session. */
   serverId?: string;
-  exerciseId: string;
+  /** Null when editing a session whose library exercise has since been deleted. */
+  exerciseId: string | null;
   exerciseName: string;
   /** Absent/null on pre-modality servers; resolve via `resolveSnapshotModality`. */
   exerciseCategory?: string | null;
@@ -49,8 +50,11 @@ export interface WorkoutDraftExercise {
   notes?: string | null;
   /** Superset group id; edited via the form lists' grouping actions. */
   supersetGroup?: number | null;
-  /** Present only when editing an existing session — not persisted to drafts. */
-  snapshot?: ExerciseSnapshotResponse | null;
+/**
+   * Present only when editing an existing session - not persisted to drafts.
+   * Entry-shaped, so its `id` is null once the library exercise is deleted.
+   */
+  snapshot?: import('@workspace/shared').EntryExerciseSnapshotResponse | null;
 
   // Progression & Equipment Fields
   progressionMode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;

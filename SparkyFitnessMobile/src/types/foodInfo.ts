@@ -51,6 +51,12 @@ export const EXTRA_NUTRIENT_FIELDS = [
   { key: 'vitaminA', label: 'Vitamin A', unit: 'mcg', additional: true },
   // i18n-audit-ignore-next-line hardcoded-ui-text -- canonical English metadata; rendered labels are localized at presentation.
   { key: 'vitaminC', label: 'Vitamin C', unit: 'mg', additional: true },
+  // i18n-audit-ignore-next-line hardcoded-ui-text -- canonical English metadata; rendered labels are localized at presentation.
+  { key: 'caffeineMg', label: 'Caffeine', unit: 'mg', additional: true },
+  // i18n-audit-ignore-next-line hardcoded-ui-text -- canonical English metadata; rendered labels are localized at presentation.
+  { key: 'waterMl', label: 'Water Content', unit: 'ml', additional: true },
+  // i18n-audit-ignore-next-line hardcoded-ui-text -- canonical English metadata; rendered labels are localized at presentation.
+  { key: 'alcoholG', label: 'Alcohol', unit: 'g', additional: true },
 ] as const;
 
 type ExtraNutrientKey = (typeof EXTRA_NUTRIENT_FIELDS)[number]['key'];
@@ -124,6 +130,11 @@ export interface FoodInfoItem {
   name: string;
   brand: string | null;
   barcode?: string | null;
+  /**
+   * Owner-authored markdown reference note. Only local foods have one;
+   * provider results and meals arrive without it.
+   */
+  notes?: string | null;
   provider_type?: string;
   provider_external_id?: string;
   is_custom?: boolean;
@@ -147,6 +158,9 @@ export interface FoodInfoItem {
   cholesterol?: number;
   vitaminA?: number;
   vitaminC?: number;
+  caffeineMg?: number;
+  waterMl?: number;
+  alcoholG?: number;
   customNutrients?: Record<string, string | number> | null;
   variantId?: string;
   externalVariants?: ExternalFoodVariant[];
@@ -179,6 +193,7 @@ export const foodItemToFoodInfo = (
   name: item.name,
   brand: item.brand,
   barcode: item.barcode ?? null,
+  notes: item.notes ?? null,
   userId: item.user_id,
   sharedWithPublic: item.shared_with_public,
   provider_type: item.provider_type ?? undefined,
@@ -201,6 +216,9 @@ export const foodItemToFoodInfo = (
   cholesterol: item.default_variant.cholesterol,
   vitaminA: item.default_variant.vitamin_a,
   vitaminC: item.default_variant.vitamin_c,
+  caffeineMg: item.default_variant.caffeine_mg,
+  waterMl: item.default_variant.water_ml,
+  alcoholG: item.default_variant.alcohol_g,
   customNutrients: item.default_variant.custom_nutrients ?? null,
   variantId: item.default_variant.id,
   images: item.images ?? null,
@@ -236,6 +254,9 @@ export const externalFoodItemToFoodInfo = (
   cholesterol: item.cholesterol,
   vitaminA: item.vitamin_a,
   vitaminC: item.vitamin_c,
+  caffeineMg: item.caffeine_mg,
+  waterMl: item.water_ml,
+  alcoholG: item.alcohol_g,
   externalVariants: item.variants,
   provider_verified: item.provider_verified,
   images: item.images ?? null,
@@ -328,6 +349,15 @@ export const mealToFoodInfo = (meal: Meal): FoodInfoItem => {
     vitaminC: hasField('vitamin_c')
       ? Math.round(mealNutrientPerServing(meal, 'vitamin_c'))
       : undefined,
+    caffeineMg: hasField('caffeine_mg')
+      ? Math.round(mealNutrientPerServing(meal, 'caffeine_mg'))
+      : undefined,
+    waterMl: hasField('water_ml')
+      ? Math.round(mealNutrientPerServing(meal, 'water_ml'))
+      : undefined,
+    alcoholG: hasField('alcohol_g')
+      ? Math.round(mealNutrientPerServing(meal, 'alcohol_g'))
+      : undefined,
     mealTotalServings: totalServings,
     images: meal.images ?? null,
     source: 'meal',
@@ -361,6 +391,9 @@ export const mealIngredientDraftToFoodInfo = (
     potassium: toOptionalFiniteNumber(ingredient.potassium),
     calcium: toOptionalFiniteNumber(ingredient.calcium),
     iron: toOptionalFiniteNumber(ingredient.iron),
+    caffeineMg: toOptionalFiniteNumber(ingredient.caffeine_mg),
+    waterMl: toOptionalFiniteNumber(ingredient.water_ml),
+    alcoholG: toOptionalFiniteNumber(ingredient.alcohol_g),
     cholesterol: toOptionalFiniteNumber(ingredient.cholesterol),
     vitaminA: toOptionalFiniteNumber(ingredient.vitamin_a),
     vitaminC: toOptionalFiniteNumber(ingredient.vitamin_c),

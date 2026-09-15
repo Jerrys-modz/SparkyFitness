@@ -1,75 +1,84 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
+import { hasSupplementNutrition } from '@workspace/shared';
 import React, {
-  useState,
   useCallback,
-  useRef,
-  useMemo,
   useEffect,
   useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
 } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  Pressable,
-} from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCSSVariable } from 'uniwind';
-import { hasSupplementNutrition } from '@workspace/shared';
-import { useQueryClient } from '@tanstack/react-query';
-import Icon from '../components/Icon';
+import { formatLocalizedNumber } from '../localization';
 import {
-  useServerConnection,
-  useDailySummary,
-  usePreferences,
-  useMeasurements,
-  useWaterIntakeMutation,
-  useMeasurementsRange,
-  useWidgetSync,
-  useCustomNutrients,
-  useNutrientDisplayPreferences,
-  fastingRootQueryKey,
-  medicationsRootQueryKey,
-} from '../hooks';
-import type { StepsRange } from '../hooks';
-import CalorieRingCard from '../components/CalorieRingCard';
-import MacroCard from '../components/MacroCard';
-import DateNavigator from '../components/DateNavigator';
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCSSVariable } from 'uniwind';
+import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
+import CalorieRingCard from '../components/CalorieRingCard';
+import CycleCard from '../components/CycleCard';
+import DateNavigator from '../components/DateNavigator';
+import ExerciseProgressCard from '../components/ExerciseProgressCard';
+import FastingCard from '../components/FastingCard';
+import FastingGoalReconciler from '../components/FastingGoalReconciler';
+import HealthTrendsPager from '../components/HealthTrendsPager';
+import HydrationGauge from '../components/HydrationGauge';
+import CaffeineCard from '../components/CaffeineCard';
+import Icon from '../components/Icon';
+import MacroCard from '../components/MacroCard';
+import MedicationsCard from '../components/MedicationsCard';
+import ProgressPhotosCard from '../components/ProgressPhotosCard';
+import SegmentedControl, { type Segment } from '../components/SegmentedControl';
+import StatusView from '../components/StatusView';
+import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
+import {
+  fastingRootQueryKey,
+  medicationsRootQueryKey,
+  useCustomNutrients,
+  useDailySummary,
+  useCaffeineKinetics,
+  useHealthTrends,
+  useMeasurements,
+  useNutrientDisplayPreferences,
+  usePreferences,
+  useServerConnection,
+  useWaterIntakeMutation,
+  useWidgetSync,
+} from '../hooks';
+import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
+import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
+import type { HealthTrendDateRange } from '../types/healthTrends';
+import {
+  resolveHealthTrendOrder,
+  selectVisibleHealthTrends,
+} from '../utils/healthTrendPreferences';
+import type { RootStackParamList, TabParamList } from '../types/navigation';
+import { formatDateLabel } from '../utils/dateUtils';
 import {
   setNativeHeaderDatePickerOptions,
   type NativeHeaderDatePickerNavigation,
 } from '../utils/nativeHeaderDatePicker';
-import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
-import { weightFromKg } from '../utils/unitConversions';
 import { getNetCarbsValue } from '../utils/nutrientUtils';
-import { formatDateLabel } from '../utils/dateUtils';
-import HydrationGauge from '../components/HydrationGauge';
-import SegmentedControl, { type Segment } from '../components/SegmentedControl';
-import HealthTrendsPager from '../components/HealthTrendsPager';
-import ExerciseProgressCard from '../components/ExerciseProgressCard';
-import StatusView from '../components/StatusView';
-import FastingCard from '../components/FastingCard';
-import CycleCard from '../components/CycleCard';
-import FastingGoalReconciler from '../components/FastingGoalReconciler';
-import MedicationsCard from '../components/MedicationsCard';
-import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import type { CompositeScreenProps } from '@react-navigation/native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList, TabParamList } from '../types/navigation';
-import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
-import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import { weightFromKg } from '../utils/unitConversions';
 
 const RANGE_SEGMENTS = (
   t: (key: string, options: { defaultValue: string }) => string
-): Segment<StepsRange>[] => [
+): Segment<HealthTrendDateRange>[] => [
   { key: '7d', label: t('ranges.7d', { defaultValue: '7d' }) },
   { key: '30d', label: t('ranges.30d', { defaultValue: '30d' }) },
   { key: '90d', label: t('ranges.90d', { defaultValue: '90d' }) },
@@ -92,7 +101,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const goToNextDay = useDiaryDateStore((s) => s.goToNextDay);
   const goToToday = useDiaryDateStore((s) => s.goToToday);
   const syncTodayRollover = useDiaryDateStore((s) => s.syncTodayRollover);
-  const [stepsRange, setStepsRange] = useState<StepsRange>('7d');
+  const [trendsRange, setTrendsRange] = useState<HealthTrendDateRange>('7d');
   const scrollViewRef = useRef<ScrollView>(null);
   const calendarRef = useRef<CalendarSheetRef>(null);
 
@@ -113,7 +122,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       }
     });
   }, [navigation, goToToday]);
-  const openCalendar = useCallback(() => calendarRef.current?.present(), []);
+  // The photo-day markers are fetched on first calendar open rather than at
+  // mount: a user who never opens the picker should not pay a request for it.
+  const [calendarOpened, setCalendarOpened] = useState(false);
+  const { dates: photoDates } = useCheckInPhotoDates(calendarOpened);
+  const openCalendar = useCallback(() => {
+    setCalendarOpened(true);
+    calendarRef.current?.present();
+  }, []);
   const handleCalendarSelect = useCallback(
     (date: string) => setSelectedDate(date),
     [setSelectedDate]
@@ -184,6 +200,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     servingVolume,
     isContainersLoaded,
     containers: waterContainers,
+    quickAddPresets: waterQuickAddPresets,
+    logPreset: logWaterPreset,
     activeContainer: activeWaterContainer,
     selectContainer: selectWaterContainer,
   } = useWaterIntakeMutation({
@@ -191,15 +209,55 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     enabled: isConnected,
   });
 
-  const {
-    stepsData,
-    weightData: rawWeightData,
-    isLoading: isStepsLoading,
-    isError: isStepsError,
-    refetch: refetchSteps,
-  } = useMeasurementsRange({
-    range: stepsRange,
+  // A linked container has no volume of its own, so state what one press logs
+  // in the linked variant's own unit instead of a millilitre figure it does
+  // not have.
+  const linkedPressLabel = useMemo(() => {
+    if (!activeWaterContainer?.linked_food_id) return undefined;
+    const quantity = Number(activeWaterContainer.linked_quantity ?? 1);
+    const unit = activeWaterContainer.linked_variant_serving_unit || '';
+    const name = activeWaterContainer.linked_food_name || '';
+    if (!unit || !Number.isFinite(quantity) || quantity <= 0) return name;
+    const amount = `${formatLocalizedNumber(quantity, { maximumFractionDigits: 2 })} ${unit}`;
+    return name ? `${amount} \u00b7 ${name}` : amount;
+  }, [activeWaterContainer]);
+
+  // Each preset states what one tap logs, in the linked drink's own unit --
+  // the same phrasing the selected container uses above it.
+  const quickAddOptions = useMemo(
+    () =>
+      waterQuickAddPresets.map((preset) => {
+        const quantity = Number(preset.linked_quantity ?? 1);
+        const unit = preset.linked_variant_serving_unit || '';
+        return {
+          id: preset.id,
+          name: preset.linked_food_name || preset.name,
+          pressLabel:
+            unit && Number.isFinite(quantity) && quantity > 0
+              ? `${formatLocalizedNumber(quantity, { maximumFractionDigits: 2 })} ${unit}`
+              : undefined,
+        };
+      }),
+    [waterQuickAddPresets]
+  );
+
+  const healthTrendOrder = useAppPreferencesStore((s) => s.healthTrendOrder);
+  const hiddenHealthTrends = useAppPreferencesStore(
+    (s) => s.hiddenHealthTrends
+  );
+  const visibleTrends = useMemo(
+    () =>
+      selectVisibleHealthTrends(
+        resolveHealthTrendOrder(healthTrendOrder),
+        hiddenHealthTrends
+      ),
+    [healthTrendOrder, hiddenHealthTrends]
+  );
+
+  const { refetch: refetchTrends, ...trends } = useHealthTrends({
+    range: trendsRange,
     enabled: isConnected,
+    activeTrends: visibleTrends,
   });
 
   const { customNutrients, refetch: refetchCustomNutrients } =
@@ -209,16 +267,23 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
   useWidgetSync(summary);
 
+  // The hydration card and the hydration trend must agree on the unit, so both read it
+  // from here rather than each resolving the fallback chain themselves.
+  const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
+
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.
   const weightUnit: 'kg' | 'lbs' =
     (preferences?.default_weight_unit ?? 'kg') === 'kg' ? 'kg' : 'lbs';
-  const weightData = useMemo(() => {
-    if (weightUnit === 'kg') return rawWeightData;
-    return rawWeightData.map((p) => ({
-      ...p,
-      weight: weightFromKg(p.weight, weightUnit),
-    }));
-  }, [rawWeightData, weightUnit]);
+  const weightSeries = useMemo(() => {
+    if (weightUnit === 'kg') return trends.weight;
+    return {
+      ...trends.weight,
+      data: trends.weight.data.map((p) => ({
+        ...p,
+        weight: weightFromKg(p.weight, weightUnit),
+      })),
+    };
+  }, [trends.weight, weightUnit]);
 
   // CSS variable macro colors are theme-aware (lower saturation than hardcoded hex)
   const [
@@ -247,9 +312,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const hydrationCardVisible = useAppPreferencesStore(
     (s) => s.hydrationCardVisible
   );
+  const caffeineCardVisible = useAppPreferencesStore(
+    (s) => s.caffeineCardVisible
+  );
+  const {
+    kinetics: caffeineKinetics,
+    nowMs: caffeineNowMs,
+    isLoading: isCaffeineLoading,
+  } = useCaffeineKinetics(selectedDate, caffeineCardVisible);
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
+  );
+  const progressPhotosCardVisible = useAppPreferencesStore(
+    (s) => s.progressPhotosCardVisible
   );
 
   useLayoutEffect(() => {
@@ -268,7 +344,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       refetch(),
       refetchPreferences(),
       refetchMeasurements(),
-      refetchSteps(),
+      refetchTrends(),
       refetchCustomNutrients(),
       refetchNutrientPrefs(),
       // FastingCard owns its own queries; nudge them on pull-to-refresh.
@@ -281,7 +357,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     refetch,
     refetchPreferences,
     refetchMeasurements,
-    refetchSteps,
+    refetchTrends,
     refetchCustomNutrients,
     refetchNutrientPrefs,
     queryClient,
@@ -589,14 +665,38 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           <HydrationGauge
             consumed={summary.waterConsumed}
             goal={summary.waterGoal}
-            unit={waterUnit || preferences?.water_display_unit || 'ml'}
+            fromFoodMl={summary.waterFromFood}
+            unit={waterDisplayUnit}
             containerVolume={servingVolume}
+            linkedPressLabel={linkedPressLabel}
+            onConfigure={
+              isContainersLoaded && !activeWaterContainer
+                ? () => navigation.navigate('WaterContainers')
+                : undefined
+            }
             onIncrement={isContainersLoaded ? incrementWater : undefined}
             onDecrement={isContainersLoaded ? decrementWater : undefined}
             disableDecrement={summary.waterConsumed <= 0}
             containers={waterContainers}
             activeContainerId={activeWaterContainer?.id}
             onSelectContainer={selectWaterContainer}
+            quickAddPresets={quickAddOptions}
+            onQuickAdd={
+              isContainersLoaded
+                ? (id: number) => logWaterPreset(id)
+                : undefined
+            }
+          />
+        )}
+
+        {/* Active caffeine, like hydration, is a local visibility setting. The
+            card returns null on a day with no caffeine, so the toggle only
+            decides whether it may appear at all. */}
+        {caffeineCardVisible && (
+          <CaffeineCard
+            kinetics={caffeineKinetics}
+            nowMs={caffeineNowMs}
+            isLoading={isCaffeineLoading}
           />
         )}
 
@@ -612,22 +712,32 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
         {medicationsCardVisible && <MedicationsCard navigation={navigation} />}
 
+        {progressPhotosCardVisible && (
+          <ProgressPhotosCard navigation={navigation} date={selectedDate} />
+        )}
+
         <Text className="text-text-primary text-xl font-bold mb-2">
           {t('dashboard.healthTrends', { defaultValue: 'Health Trends' })}
         </Text>
-        <SegmentedControl
-          segments={RANGE_SEGMENTS(t)}
-          activeKey={stepsRange}
-          onSelect={setStepsRange}
-        />
+        {/* With every graph hidden the pager shows a card explaining that, and a range
+            control over it would only change a window nothing is plotted in. */}
+        {visibleTrends.length > 0 && (
+          <SegmentedControl
+            segments={RANGE_SEGMENTS(t)}
+            activeKey={trendsRange}
+            onSelect={setTrendsRange}
+          />
+        )}
 
         <HealthTrendsPager
-          stepsData={stepsData}
-          weightData={weightData}
-          isLoading={isStepsLoading}
-          isError={isStepsError}
-          range={stepsRange}
+          steps={trends.steps}
+          weight={weightSeries}
+          sleep={trends.sleep}
+          hydration={trends.hydration}
+          range={trendsRange}
           weightUnit={weightUnit}
+          waterUnit={waterDisplayUnit}
+          visibleTrends={visibleTrends}
           activePage={chartPage}
           onPageSelected={setChartPage}
         />
@@ -645,6 +755,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           ref={calendarRef}
           selectedDate={selectedDate}
           onSelectDate={handleCalendarSelect}
+          markedDates={photoDates}
         />
       </>
     );
@@ -668,6 +779,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         ref={calendarRef}
         selectedDate={selectedDate}
         onSelectDate={handleCalendarSelect}
+        markedDates={photoDates}
       />
     </View>
   );

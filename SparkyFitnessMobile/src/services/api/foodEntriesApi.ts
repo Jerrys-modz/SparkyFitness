@@ -11,6 +11,8 @@ export interface CreateFoodEntryPayload {
   unit: string;
   entry_date: string;
   entry_time?: string | null;
+  /** Per-occurrence markdown note; never derived from the food's own note. */
+  notes?: string | null;
   // Linked food entry
   food_id?: string;
   variant_id?: string;
@@ -31,6 +33,9 @@ export interface CreateFoodEntryPayload {
   potassium?: number;
   calcium?: number;
   iron?: number;
+  caffeine_mg?: number;
+  water_ml?: number;
+  alcohol_g?: number;
   cholesterol?: number;
   vitamin_a?: number;
   vitamin_c?: number;
@@ -61,6 +66,8 @@ export interface UpdateFoodEntryPayload {
   variant_id?: string;
   entry_date?: string;
   entry_time?: string | null;
+  /** Omit to leave the stored note alone; send null to clear it. */
+  notes?: string | null;
   // Nutrition snapshot overrides (server applies to entry snapshot)
   food_name?: string;
   brand_name?: string;
@@ -78,6 +85,9 @@ export interface UpdateFoodEntryPayload {
   potassium?: number;
   calcium?: number;
   iron?: number;
+  caffeine_mg?: number;
+  water_ml?: number;
+  alcohol_g?: number;
   cholesterol?: number;
   vitamin_a?: number;
   vitamin_c?: number;

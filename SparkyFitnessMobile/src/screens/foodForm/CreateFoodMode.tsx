@@ -10,6 +10,7 @@ import Icon from '../../components/Icon';
 import StepperInput from '../../components/StepperInput';
 import FoodForm, { type FoodFormData } from '../../components/FoodForm';
 import FoodImagePicker from '../../components/FoodImagePicker';
+import { usableFoodImages } from '../../utils/foodImages';
 import { splitPickerImages, type PickerImage } from '../../utils/pickerImages';
 import BottomSheetPicker from '../../components/BottomSheetPicker';
 import CalendarSheet, {
@@ -252,6 +253,18 @@ export function CreateFoodMode({
   const pendingEquivalentSaveRef = useRef<((foodId: string) => void) | null>(
     null
   );
+
+  // Only already-saved photos can be embedded in a note: a staged file exists
+  // solely on the device until the food is saved, so it has no path to link to.
+  const savedNoteImages = useMemo(
+    () =>
+      usableFoodImages(
+        pickerImages
+          .filter((image) => image.kind === 'saved')
+          .map((image) => image.path)
+      ),
+    [pickerImages]
+  );
   const {
     addEntry,
     isPending: isAddPending,
@@ -318,6 +331,7 @@ export function CreateFoodMode({
     const saveFoodPayload = {
       name: data.name,
       brand: data.brand || null,
+      notes: (data.notes ?? '').trim() || null,
       serving_size: parseDecimalInput(data.servingSize) || 0,
       serving_unit: data.servingUnit || 'serving',
       calories: parseDecimalInput(data.calories) || 0,
@@ -335,6 +349,9 @@ export function CreateFoodMode({
       cholesterol: parseOptional(data.cholesterol),
       vitamin_a: parseOptional(data.vitaminA),
       vitamin_c: parseOptional(data.vitaminC),
+      caffeine_mg: parseOptional(data.caffeineMg),
+      water_ml: parseOptional(data.waterMl),
+      alcohol_g: parseOptional(data.alcoholG),
       is_custom: true,
       is_quick_food: isLogEntryMode ? !saveToDatabase : false,
       is_default: true,
@@ -378,6 +395,9 @@ export function CreateFoodMode({
             cholesterol: groupNutrition.cholesterol,
             vitamin_a: groupNutrition.vitamin_a,
             vitamin_c: groupNutrition.vitamin_c,
+            caffeine_mg: groupNutrition.caffeine_mg,
+            water_ml: groupNutrition.water_ml,
+            alcohol_g: groupNutrition.alcohol_g,
           })
         )
       ).catch(() => {
@@ -533,6 +553,8 @@ export function CreateFoodMode({
         submitRequestRef={submitRequestRef}
         isSubmitting={isSubmitting}
         initialValues={initialFood}
+        showNotes
+        noteImages={savedNoteImages}
         submitLabel={primaryLabel}
         hideSubmitButton={usesNativeHeader}
         headerChildren={

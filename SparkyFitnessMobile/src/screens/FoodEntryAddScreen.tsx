@@ -22,6 +22,9 @@ import { useCSSVariable } from 'uniwind';
 import { useQuery } from '@tanstack/react-query';
 import Icon from '../components/Icon';
 import StepperInput from '../components/StepperInput';
+import MarkdownNotesField from '../components/MarkdownNotesField';
+import { NoteMarkdown } from '../components/NoteMarkdown';
+import { usableFoodImages } from '../utils/foodImages';
 import BottomSheetPicker from '../components/BottomSheetPicker';
 import {
   FoodNutritionHeader,
@@ -34,6 +37,7 @@ import {
   buildMealPlanMealAssignment,
   setPendingMealPlanSelection,
 } from '../services/mealPlanSelection';
+import { setPendingContainerLinkSelection } from '../services/waterContainerLinkSelection';
 import { CreateFoodEntryPayload } from '../services/api/foodEntriesApi';
 import { addDays, getTodayDate, getDeviceTimezone } from '../utils/dateUtils';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -121,6 +125,9 @@ const NUTRITION_FIELDS = [
   'potassium',
   'calcium',
   'iron',
+  'caffeineMg',
+  'waterMl',
+  'alcoholG',
   'cholesterol',
   'vitaminA',
   'vitaminC',
@@ -207,7 +214,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   const ingredientIndex = route.params?.ingredientIndex;
   const isMealBuilderMode = pickerMode === 'meal-builder';
   const isMealPlanMode = pickerMode === 'meal-plan';
-  const isSelectionMode = isMealBuilderMode || isMealPlanMode;
+  const isContainerLinkMode = pickerMode === 'container-link';
+  const isSelectionMode =
+    isMealBuilderMode || isMealPlanMode || isContainerLinkMode;
   const mealPlanTarget = route.params?.mealPlanTarget;
   const [selectedDate, setSelectedDateState] = useState(
     initialDate ?? useDiaryDateStore.getState().selectedDate
@@ -236,6 +245,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       return {
         name: item.name,
         brand: item.brand ?? '',
+        // A meal ingredient carries a nutrition snapshot, not a note; the note
+        // belongs to the food and to the diary entry, not to this row.
+        notes: '',
         servingSize: item.servingSize != null ? String(item.servingSize) : '',
         servingUnit: item.servingUnit,
         calories: item.calories != null ? String(item.calories) : '',
@@ -253,6 +265,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
         iron: toFormString(item.iron),
         vitaminA: toFormString(item.vitaminA),
         vitaminC: toFormString(item.vitaminC),
+        caffeineMg: toFormString(item.caffeineMg),
+        waterMl: toFormString(item.waterMl),
+        alcoholG: toFormString(item.alcoholG),
       };
     }
   );
@@ -272,6 +287,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   const selectedMealType = mealTypes.find((mt) => mt.id === effectiveMealId);
 
   const [entryTime, setEntryTime] = useState('');
+  // The note for THIS diary entry. The food's own note is shown read-only
+  // beside it and is never copied in.
+  const [entryNotes, setEntryNotes] = useState('');
   const entryTimeTouched = useRef(false);
   useEffect(() => {
     if (entryTimeTouched.current) return;
@@ -539,6 +557,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       potassium: parseOptional(adjustedValues.potassium),
       calcium: parseOptional(adjustedValues.calcium),
       iron: parseOptional(adjustedValues.iron),
+      caffeineMg: parseOptional(adjustedValues.caffeineMg),
+      waterMl: parseOptional(adjustedValues.waterMl),
+      alcoholG: parseOptional(adjustedValues.alcoholG),
       cholesterol: parseOptional(adjustedValues.cholesterol),
       vitaminA: parseOptional(adjustedValues.vitaminA),
       vitaminC: parseOptional(adjustedValues.vitaminC),
@@ -574,6 +595,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       vitamin_c: displayValues.vitaminC,
       calcium: displayValues.calcium,
       iron: displayValues.iron,
+      caffeine_mg: displayValues.caffeineMg,
+      water_ml: displayValues.waterMl,
+      alcohol_g: displayValues.alcoholG,
     };
   }, [displayValues, selectedVariantOverride]);
 
@@ -829,6 +853,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       potassium: saveFoodSourceValues.potassium,
       calcium: saveFoodSourceValues.calcium,
       iron: saveFoodSourceValues.iron,
+      caffeine_mg: saveFoodSourceValues.caffeineMg,
+      water_ml: saveFoodSourceValues.waterMl,
+      alcohol_g: saveFoodSourceValues.alcoholG,
       cholesterol: saveFoodSourceValues.cholesterol,
       vitamin_a: saveFoodSourceValues.vitaminA,
       vitamin_c: saveFoodSourceValues.vitaminC,
@@ -864,6 +891,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       unit: displayValues.servingUnit,
       entry_date: selectedDate,
       entry_time: entryTime || null,
+      notes: entryNotes.trim() || null,
     };
 
     switch (activeItem.source) {
@@ -891,6 +919,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
             potassium: displayValues.potassium,
             calcium: displayValues.calcium,
             iron: displayValues.iron,
+            caffeine_mg: displayValues.caffeineMg,
+            water_ml: displayValues.waterMl,
+            alcohol_g: displayValues.alcoholG,
             cholesterol: displayValues.cholesterol,
             vitamin_a: displayValues.vitaminA,
             vitamin_c: displayValues.vitaminC,
@@ -924,6 +955,10 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       entry_date: selectedDate,
       entry_time: entryTime || null,
       name: item.name,
+      // The note field is shown for meals too, so it has to travel with the
+      // meal payload — this builder is used instead of buildFoodEntryPayload
+      // when the item is a meal.
+      notes: entryNotes.trim() || null,
       quantity,
       unit: displayValues.servingUnit,
     };
@@ -958,6 +993,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
                 potassium: displayValues.potassium,
                 calcium: displayValues.calcium,
                 iron: displayValues.iron,
+                caffeine_mg: displayValues.caffeineMg,
+                water_ml: displayValues.waterMl,
+                alcohol_g: displayValues.alcoholG,
                 cholesterol: displayValues.cholesterol,
                 vitamin_a: displayValues.vitaminA,
                 vitamin_c: displayValues.vitaminC,
@@ -1006,6 +1044,20 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
     });
 
   const finishFoodSelection = (ingredient: MealIngredientDraft) => {
+    if (isContainerLinkMode) {
+      if (ingredient.food_id && ingredient.variant_id) {
+        setPendingContainerLinkSelection({
+          foodId: ingredient.food_id,
+          variantId: ingredient.variant_id,
+          foodName: ingredient.food_name ?? '',
+          // The quantity picked here is what one press of the container logs,
+          // so it has to travel back with the food rather than reset to 1.
+          quantity: ingredient.quantity,
+        });
+      }
+      navigation.dispatch(StackActions.pop(returnDepth));
+      return;
+    }
     if (isMealPlanMode && mealPlanTarget) {
       setPendingMealPlanSelection({
         ...(mealPlanTarget.assignmentIndex === undefined
@@ -1300,6 +1352,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
       potassium: displayValues.potassium,
       calcium: displayValues.calcium,
       iron: displayValues.iron,
+      caffeine_mg: displayValues.caffeineMg,
+      water_ml: displayValues.waterMl,
+      alcohol_g: displayValues.alcoholG,
       cholesterol: displayValues.cholesterol,
       vitamin_a: displayValues.vitaminA,
       vitamin_c: displayValues.vitaminC,
@@ -1336,6 +1391,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
         potassium: toFormString(displayValues.potassium),
         calcium: toFormString(displayValues.calcium),
         iron: toFormString(displayValues.iron),
+        caffeineMg: toFormString(displayValues.caffeineMg),
+        waterMl: toFormString(displayValues.waterMl),
+        alcoholG: toFormString(displayValues.alcoholG),
         cholesterol: toFormString(displayValues.cholesterol),
         vitaminA: toFormString(displayValues.vitaminA),
         vitaminC: toFormString(displayValues.vitaminC),
@@ -1742,6 +1800,46 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
           showNetCarbs={showNetCarbs}
           customNutrients={selectedCustomNutrients}
         />
+
+        {/*
+          Notes sit below the nutrient breakdown on purpose: the numbers are
+          what this screen is opened to check, and a long recipe above them
+          would push them off-screen.
+        */}
+        {!isSelectionMode ? (
+          <>
+            {activeItem.notes ? (
+              <View className="mt-3">
+                <Text className="text-xs font-semibold uppercase text-text-muted mb-1">
+                  {t('foodEntryAdd.labels.aboutThisFood', {
+                    defaultValue: 'About this food',
+                  })}
+                </Text>
+                <View className="rounded-lg border border-border-subtle bg-raised px-3 py-2">
+                  <NoteMarkdown
+                    text={activeItem.notes}
+                    fontSize={14}
+                    images={usableFoodImages(activeItem.images)}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            <View className="mt-3">
+              <MarkdownNotesField
+                images={usableFoodImages(activeItem.images)}
+                value={entryNotes}
+                onCommit={setEntryNotes}
+                label={t('foodEntryAdd.labels.entryNotes', {
+                  defaultValue: 'Note for this entry',
+                })}
+                placeholder={t('foodEntryAdd.labels.entryNotesPlaceholder', {
+                  defaultValue: 'Anything specific about this time you ate it',
+                })}
+              />
+            </View>
+          </>
+        ) : null}
       </ScrollView>
 
       {/* Sticky footer */}

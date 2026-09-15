@@ -32,8 +32,11 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
+import MarkdownNotesField from '../components/MarkdownNotesField';
+import { NoteMarkdown } from '../components/NoteMarkdown';
 import { toHourMinute } from '@workspace/shared';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
+import { usableFoodImages } from '../utils/foodImages';
 import { normalizeDate, formatDateLabel } from '../utils/dateUtils';
 import { getLocalizedMealLabel } from '../constants/meals';
 import {
@@ -108,6 +111,9 @@ const foodEntryToUnitVariant = (entry: FoodEntry): FoodUnitVariant => ({
   vitamin_c: entry.vitamin_c,
   calcium: entry.calcium,
   iron: entry.iron,
+  caffeine_mg: entry.caffeine_mg,
+  water_ml: entry.water_ml,
+  alcohol_g: entry.alcohol_g,
   glycemic_index: entry.glycemic_index,
   custom_nutrients: entry.custom_nutrients ?? null,
 });
@@ -127,6 +133,9 @@ const entryToDisplayValues = (entry: FoodEntry) => ({
   potassium: entry.potassium,
   calcium: entry.calcium,
   iron: entry.iron,
+  caffeineMg: entry.caffeine_mg,
+  waterMl: entry.water_ml,
+  alcoholG: entry.alcohol_g,
   cholesterol: entry.cholesterol,
   vitaminA: entry.vitamin_a,
   vitaminC: entry.vitamin_c,
@@ -187,6 +196,8 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
     isEditing: boolean;
     selectedDate: string;
     entryTime: string;
+    /** Per-occurrence note draft; independent of the food's own note. */
+    entryNotes: string;
     selectedMealId: string | undefined;
     selectedVariantId: string | undefined;
     quantityText: string;
@@ -202,6 +213,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
     isEditing: false,
     selectedDate: initialDate,
     entryTime: initialEntryTime,
+    entryNotes: entry.notes ?? '',
     selectedMealId: entry.meal_type_id,
     selectedVariantId: entry.variant_id,
     quantityText: String(entry.quantity),
@@ -213,6 +225,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
     isEditing,
     selectedDate,
     entryTime,
+    entryNotes,
     selectedMealId,
     selectedVariantId,
     quantityText,
@@ -368,6 +381,9 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
           potassium: variant.potassium,
           calcium: variant.calcium,
           iron: variant.iron,
+          caffeineMg: variant.caffeine_mg,
+          waterMl: variant.water_ml,
+          alcoholG: variant.alcohol_g,
           cholesterol: variant.cholesterol,
           vitaminA: variant.vitamin_a,
           vitaminC: variant.vitamin_c,
@@ -472,6 +488,9 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
       potassium: parseOptional(adjustedValues.potassium),
       calcium: parseOptional(adjustedValues.calcium),
       iron: parseOptional(adjustedValues.iron),
+      caffeineMg: parseOptional(adjustedValues.caffeineMg),
+      waterMl: parseOptional(adjustedValues.waterMl),
+      alcoholG: parseOptional(adjustedValues.alcoholG),
       cholesterol: parseOptional(adjustedValues.cholesterol),
       vitaminA: parseOptional(adjustedValues.vitaminA),
       vitaminC: parseOptional(adjustedValues.vitaminC),
@@ -663,6 +682,9 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
       potassium: displayValues.potassium,
       calcium: displayValues.calcium,
       iron: displayValues.iron,
+      caffeine_mg: displayValues.caffeineMg,
+      water_ml: displayValues.waterMl,
+      alcohol_g: displayValues.alcoholG,
       cholesterol: displayValues.cholesterol,
       vitamin_a: displayValues.vitaminA,
       vitamin_c: displayValues.vitaminC,
@@ -697,6 +719,9 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
         potassium: toFormString(displayValues.potassium),
         calcium: toFormString(displayValues.calcium),
         iron: toFormString(displayValues.iron),
+        caffeineMg: toFormString(displayValues.caffeineMg),
+        waterMl: toFormString(displayValues.waterMl),
+        alcoholG: toFormString(displayValues.alcoholG),
         cholesterol: toFormString(displayValues.cholesterol),
         vitaminA: toFormString(displayValues.vitaminA),
         vitaminC: toFormString(displayValues.vitaminC),
@@ -729,6 +754,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
         isEditing: false,
         selectedDate: normalizeDate(mergedEntry.entry_date),
         entryTime: toHourMinute(mergedEntry.entry_time) || '',
+        entryNotes: mergedEntry.notes ?? '',
         selectedMealId: mergedEntry.meal_type_id,
         selectedVariantId: mergedEntry.variant_id,
         quantityText: String(mergedEntry.quantity),
@@ -745,6 +771,11 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
       payload.unit = displayValues.servingUnit;
     if ((entryTime || null) !== (toHourMinute(entry.entry_time) || null)) {
       payload.entry_time = entryTime || null;
+    }
+    // Key presence is the update signal: send `notes` only when it changed, so
+    // an unrelated edit can never wipe the note.
+    if (entryNotes.trim() !== (entry.notes ?? '').trim()) {
+      payload.notes = entryNotes.trim() || null;
     }
     if (selectedVariantId !== entry.variant_id) {
       payload.variant_id = selectedVariantId;
@@ -772,6 +803,9 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
       payload.potassium = displayValues.potassium;
       payload.calcium = displayValues.calcium;
       payload.iron = displayValues.iron;
+      payload.caffeine_mg = displayValues.caffeineMg;
+      payload.water_ml = displayValues.waterMl;
+      payload.alcohol_g = displayValues.alcoholG;
       payload.cholesterol = displayValues.cholesterol;
       payload.vitamin_a = displayValues.vitaminA;
       payload.vitamin_c = displayValues.vitaminC;
@@ -906,6 +940,13 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
         return t('nutrients.calcium', { defaultValue: 'Calcium' });
       case 'Iron':
         return t('nutrients.iron', { defaultValue: 'Iron' });
+      // Labels come from EXTRA_NUTRIENT_FIELDS, which now surfaces these three.
+      case 'Caffeine':
+        return t('nutrients.caffeine', { defaultValue: 'Caffeine' });
+      case 'Water Content':
+        return t('nutrients.waterContent', { defaultValue: 'Water Content' });
+      case 'Alcohol':
+        return t('nutrients.alcohol', { defaultValue: 'Alcohol' });
       case 'Vitamin A':
         return t('nutrients.vitaminA', { defaultValue: 'Vitamin A' });
       case 'Vitamin C':
@@ -1461,6 +1502,40 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
                 t('common.none', { defaultValue: 'None' })}
             </Text>
           )}
+        </Animated.View>
+
+        <Animated.View layout={LinearTransition.duration(300)} className="mt-3">
+          {isEditing ? (
+            <MarkdownNotesField
+              images={[
+                ...usableFoodImages(entry.images),
+                ...usableFoodImages(entry.food_images),
+              ]}
+              value={entryNotes}
+              onCommit={(text) => updateEdit({ entryNotes: text })}
+              label={t('foodEntryView.entryNotes', {
+                defaultValue: 'Note for this entry',
+              })}
+            />
+          ) : entry.notes ? (
+            <>
+              <Text className="text-xs font-semibold uppercase text-text-muted mb-1">
+                {t('foodEntryView.entryNotes', {
+                  defaultValue: 'Note for this entry',
+                })}
+              </Text>
+              <View className="rounded-lg border border-border-subtle bg-raised px-3 py-2">
+                <NoteMarkdown
+                  text={entry.notes}
+                  fontSize={14}
+                  images={[
+                    ...usableFoodImages(entry.images),
+                    ...usableFoodImages(entry.food_images),
+                  ]}
+                />
+              </View>
+            </>
+          ) : null}
         </Animated.View>
 
         <Animated.View layout={LinearTransition.duration(300)}>

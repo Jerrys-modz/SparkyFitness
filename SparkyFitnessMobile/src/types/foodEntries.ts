@@ -14,6 +14,8 @@ export interface FoodEntry {
   meal_type_id?: string;
   quantity: number;
   unit: string;
+  /** Per-occurrence markdown note; independent of the food's own note. */
+  notes?: string | null;
   variant_id?: string;
   food_name?: string;
   brand_name?: string;
@@ -41,6 +43,9 @@ export interface FoodEntry {
   vitamin_c?: number;
   calcium?: number;
   iron?: number;
+  caffeine_mg?: number;
+  water_ml?: number;
+  alcohol_g?: number;
   glycemic_index?: string;
   custom_nutrients?: Record<string, string | number>;
 

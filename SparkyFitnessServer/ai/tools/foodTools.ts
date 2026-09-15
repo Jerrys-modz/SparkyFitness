@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { addDays, todayInZone } from '@workspace/shared';
+import { addDays, prefillEntryTime, todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import foodCoreService from '../../services/foodCoreService.js';
 import foodEntryService from '../../services/foodEntryService.js';
@@ -18,6 +18,7 @@ import {
   pickBestVariant,
   IMPLAUSIBLE_SERVING_UNITS,
 } from '../../services/foodProviderLookupService.js';
+import { cleanMealSummary } from '../../services/foodPhotoEstimationService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import {
   compactRecord,
@@ -32,6 +33,7 @@ import {
   type PaginatedResult,
 } from './pagination.js';
 import { convertEnergy } from './unitConversion.js';
+import { truncateNote } from './truncation.js';
 import {
   manageFoodSchema,
   manageFoodInput,
@@ -425,11 +427,13 @@ const DIARY_MEAL_DROP = [
   'updated_by_user_id',
   'meal_template_id',
   'legacy_serving_unit_math',
+  'entry_total_servings',
 ] as const;
 
 interface ResolvedMealType {
   id: string;
   name: string;
+  default_time: string | null;
 }
 
 async function resolveMealType(
@@ -442,7 +446,13 @@ async function resolveMealType(
       mealTypeId,
       userId
     );
-    return resolved ? { id: resolved.id, name: resolved.name } : null;
+    return resolved
+      ? {
+          id: resolved.id,
+          name: resolved.name,
+          default_time: resolved.default_time ?? null,
+        }
+      : null;
   }
   if (!mealType) {
     return null;
@@ -454,10 +464,43 @@ async function resolveMealType(
   const mealTypes = await mealTypeRepository.getAllMealTypes(userId);
   const normalizedName = mealType.trim().toLowerCase();
   const resolved = mealTypes.find(
-    (type: { id: string; name: string; user_id: string | null }) =>
+    (type: {
+      id: string;
+      name: string;
+      user_id: string | null;
+      default_time?: string | null;
+    }) =>
       type.user_id === null && type.name.trim().toLowerCase() === normalizedName
   );
-  return resolved ? { id: resolved.id, name: resolved.name } : null;
+  return resolved
+    ? {
+        id: resolved.id,
+        name: resolved.name,
+        default_time: resolved.default_time ?? null,
+      }
+    : null;
+}
+
+// Fills in a diary entry's time of day when the model didn't state one,
+// mirroring the web/mobile prefill (shared prefillEntryTime): "now" in the
+// user's timezone when logging for today, otherwise the meal's own default
+// time, otherwise left unset. Without this, every chat-logged food landed
+// with a NULL entry_time, which the caffeine kinetics estimate then had to
+// guess at (falling back to the meal's default time or noon) instead of
+// using the time the dose was actually taken.
+function resolveEntryTime(
+  explicit: string | undefined,
+  mealType: ResolvedMealType,
+  entryDate: string,
+  tz: string
+): string | undefined {
+  if (explicit) return explicit;
+  const prefilled = prefillEntryTime({
+    defaultTime: mealType.default_time,
+    isToday: entryDate === todayInZone(tz),
+    tz,
+  });
+  return prefilled || undefined;
 }
 
 // Resolves a diary food entry from a food name the way log_food resolves
@@ -553,8 +596,13 @@ const FULL_ENTRY_DROP: readonly string[] = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function projectCatalogFood(row: any) {
   const { default_variant: defaultVariant, ...rest } = row;
+  const compacted = compactRecord(rest, CATALOG_FOOD_DROP);
+  // A user's note can be as long as the whole response budget; preview it so
+  // one recipe cannot crowd out the other foods in a list.
+  const notePreview = truncateNote(compacted.notes);
+  if (notePreview) compacted.notes = notePreview;
   return {
-    ...compactRecord(rest, CATALOG_FOOD_DROP),
+    ...compacted,
     variants: defaultVariant?.id
       ? [compactRecord(defaultVariant, VARIANT_DROP)]
       : [],
@@ -775,16 +823,17 @@ Actions:
 - list_meal_types() — lists the user's built-in and custom meal types with IDs, names, and sort order.
 - log_food(quantity, meal_type_id?|meal_type?, food_name?|food_id?, unit?, entry_date?, variant_id?) — use meal_type_id for custom meal types; the legacy meal_type fallback accepts "breakfast"|"lunch"|"dinner"|"snacks". meal_type_id takes precedence when both are supplied. Provide food_name or food_id (an internal food UUID, never a lookup result's External ID); unit defaults to the food's serving unit, entry_date defaults to today. Works only for foods already in the database (source='internal').
 - log_external_food(food_name, meal_type_id?|meal_type?, quantity?, unit?, entry_date?, external_id?, provider_type?, is_quick_food?) — PREFERRED way to log an external lookup_food_nutrition match (usda/openfoodfacts/...): the server re-fetches the provider result, saves it with full nutrition, and logs it in one call. quantity is in servings and defaults to 1. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list.
-- create_food(food_name, calories, protein, carbs, fat, brand?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, is_quick_food?, saturated_fat?, fiber?, sugar?, sodium?, ...) — MANDATORY: You must run lookup_food_nutrition first. Call only when lookup returns source='ai_estimate' (no match anywhere) or for custom/homemade foods, using AI-estimated values; for external lookup matches use log_external_food instead. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Populate as many micro-nutrients, GI classification, and brand ('Homemade' or 'Traditional' if generic) as possible rather than just core macros. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list; it then requires meal_type_id (or meal_type) in the same call.
+- create_food(food_name, calories, protein, carbs, fat, brand?, notes?, quantity?, unit?, meal_type_id?, meal_type?, entry_date?, is_quick_food?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, water_ml?, ...) — MANDATORY: You must run lookup_food_nutrition first. Call only when lookup returns source='ai_estimate' (no match anywhere) or for custom/homemade foods, using AI-estimated values; for external lookup matches use log_external_food instead. Include meal_type_id (or legacy meal_type) + entry_date to also log the food in the same call. Populate as many micro-nutrients, GI classification, and brand ('Homemade' or 'Traditional' if generic) as possible rather than just core macros. Set is_quick_food:true ONLY when the user explicitly asks to quick-add the food or not save it to their food list; it then requires meal_type_id (or meal_type) in the same call. Pass notes only when the user gave reference detail worth keeping on the food itself — how they order or prepare it, or a recipe; it is markdown, it is not a nutrition field, and you must never invent one.
 - search_meal(meal_name)
 - log_meal(meal_type_id?|meal_type?, entry_date, meal_id?, meal_name?, quantity?)
 - list_diary(entry_date?)
 - delete_entry(entry_id?|food_name?, entry_type?, entry_date?, meal_type?|meal_type_id?) — deletes one diary entry. Provide entry_id when you have it; otherwise food_name is resolved against the diary for entry_date (defaults to today), with meal_type narrowing when the same food appears in several meals. Ambiguous names return the candidates with their ids instead of deleting.
-- delete_food(food_id?|food_name?) — deletes food + variants + all diary entries referencing it
+- delete_food(food_id?|food_name?) — deletes food + variants from library; logged diary entries are preserved
 - update_entry(entry_id?|food_name?, entry_type?, entry_date?, quantity?, unit?, meal_type_id?, meal_type?) — changes quantity/unit and/or moves the entry to another meal type (meal_type/meal_type_id is the NEW meal). Provide entry_id when you have it; otherwise food_name is resolved against the diary for entry_date (defaults to today). Ambiguous names return the candidates with their ids instead of updating.
-- update_food_variant(food_id?|variant_id?, serving_size?, serving_unit?, calories?, protein?, carbs?, fat?, saturated_fat?, fiber?, sugar?, sodium?, ..., update_existing_entries?) — updates an existing food variant without deleting the food. Defaults to leaving existing diary entries unchanged.
+- update_food_variant(food_id|variant_id, serving_size?, serving_unit?, calories?, protein?, carbs?, fat?, saturated_fat?, fiber?, sugar?, sodium?, caffeine_mg?, alcohol_g?, water_ml?, ..., update_existing_entries?) — updates an existing food variant without deleting the food. Use this to add or change a drink's caffeine_mg, alcohol_g, or water_ml without recreating it. food_id (or variant_id) is mandatory: run search_food first and pass the resulting food_id. Do not call this with only nutrient fields — it cannot resolve a name. Defaults to leaving existing diary entries unchanged.
 - copy_from_yesterday(target_date?, source_date?, meal_type_id?|meal_type?)
-- save_as_meal_template(entry_date, meal_type_id?|meal_type?, meal_name, description?) — REQUIRES EXPLICIT action field. Saves diary entries for a given date and meal type as a reusable meal template.
+- set_food_notes(food_id?|food_name?, notes) — Sets the markdown reference note on a saved food (how the user orders or prepares it, a recipe). Pass an empty string to clear it. It REPLACES the existing note, so when the user is adding to one, read the food first and send the merged text. Owner-only: it fails on someone else's shared or public food. Never write a note the user did not ask for.
+- save_as_meal_template(entry_date, meal_type_id?|meal_type?, meal_name, description?, notes?) — REQUIRES EXPLICIT action field. Saves diary entries for a given date and meal type as a reusable meal template. notes is an optional markdown reference note (e.g. a recipe) and is only set when the user supplied one.
 - log_water(amount_ml, entry_date)
 - get_nutritional_summary(start_date, end_date) — returns macro breakdown for a range of dates
 - get_water_history(start_date?, end_date?)`,
@@ -1236,7 +1285,12 @@ Actions:
                   quantity: resolvedLog.quantity,
                   unit: resolvedLog.unit,
                   meal_type_id: mealType.id,
-                  entry_time: args.entry_time,
+                  entry_time: resolveEntryTime(
+                    args.entry_time,
+                    mealType,
+                    entryDate,
+                    tz
+                  ),
                 }
               );
               let loggedMsg = `Logged "${entry.food_name}" (${resolvedLog.quantity} ${resolvedLog.unit}) for ${mealType.name} on ${entryDate}.`;
@@ -1344,7 +1398,12 @@ Actions:
                     quantity: logged.quantity,
                     unit: logged.unit,
                     meal_type_id: mealType.id,
-                    entry_time: args.entry_time,
+                    entry_time: resolveEntryTime(
+                      args.entry_time,
+                      mealType,
+                      entryDate,
+                      tz
+                    ),
                   }
                 );
                 let existingMsg = `"${entry.food_name}" was already in the food database — logged ${logged.quantity} ${logged.unit} for ${mealType.name} on ${entryDate}.`;
@@ -1386,6 +1445,10 @@ Actions:
                 vitamin_c: toNutrientNumber(v.vitamin_c),
                 calcium: toNutrientNumber(v.calcium),
                 iron: toNutrientNumber(v.iron),
+                caffeine_mg: toNutrientNumber(v.caffeine_mg),
+                alcohol_g: toNutrientNumber(v.alcohol_g),
+                water_ml: toNutrientNumber(v.water_ml),
+                abv_percent: toNutrientNumber(v.abv_percent),
                 glycemic_index: v.glycemic_index || null,
                 // food_variants.source is constrained to manual|ai_estimate|
                 // imported — the provider name ('usda', 'openfoodfacts', …)
@@ -1444,6 +1507,10 @@ Actions:
                   vitamin_c: toNutrientNumber(varOpt.vitamin_c),
                   calcium: toNutrientNumber(varOpt.calcium),
                   iron: toNutrientNumber(varOpt.iron),
+                  caffeine_mg: toNutrientNumber(varOpt.caffeine_mg),
+                  alcohol_g: toNutrientNumber(varOpt.alcohol_g),
+                  water_ml: toNutrientNumber(varOpt.water_ml),
+                  abv_percent: toNutrientNumber(varOpt.abv_percent),
                   glycemic_index: varOpt.glycemic_index || null,
                   is_default: false,
                   // Same CHECK constraint as the default variant above: the
@@ -1510,7 +1577,12 @@ Actions:
                 quantity: logged.quantity,
                 unit: logged.unit,
                 meal_type_id: mealType.id,
-                entry_time: args.entry_time,
+                entry_time: resolveEntryTime(
+                  args.entry_time,
+                  mealType,
+                  entryDate,
+                  tz
+                ),
               });
               let savedMsg = `Saved "${food.name}" from ${result.source} (${dv?.calories || 0} kcal per ${dv?.serving_size || 100}${dv?.serving_unit || 'g'}) and logged ${logged.quantity} ${logged.unit} to ${mealType.name} on ${entryDate}.`;
               if (args.is_quick_food) {
@@ -1567,10 +1639,18 @@ Actions:
               }
               // The `|| null` on optional fields is MCP's storage quirk
               // (an explicit 0 is stored as null), ported as-is.
+              const rawFoodName = args.food_name?.trim() || 'Food';
+              const isNameTooLong =
+                rawFoodName.length > 50 || /[.!?\n]/.test(rawFoodName);
+              const cleanedName = isNameTooLong
+                ? cleanMealSummary(rawFoodName)
+                : rawFoodName;
+              const notes = args.notes || (isNameTooLong ? rawFoodName : null);
               const food = await foodCoreService.createFood(userId, {
                 user_id: userId,
-                name: args.food_name,
+                name: cleanedName,
                 brand: args.brand || null,
+                notes,
                 serving_size: targetQuantity,
                 serving_unit: targetUnit,
                 calories: args.calories,
@@ -1590,6 +1670,9 @@ Actions:
                 vitamin_c: args.vitamin_c || null,
                 calcium: args.calcium || null,
                 iron: args.iron || null,
+                caffeine_mg: args.caffeine_mg || null,
+                alcohol_g: args.alcohol_g || null,
+                water_ml: args.water_ml || null,
                 glycemic_index: args.gi || null,
                 // Not `|| null`: that quirk is for numerics, and it would turn
                 // an explicit false into null.
@@ -1607,7 +1690,12 @@ Actions:
                   quantity: targetQuantity,
                   unit: targetUnit,
                   meal_type_id: mealType.id,
-                  entry_time: args.entry_time,
+                  entry_time: resolveEntryTime(
+                    args.entry_time,
+                    mealType,
+                    entryDate,
+                    tz
+                  ),
                 });
                 msg += ` Also logged to ${mealType.name} for ${entryDate}.`;
               }
@@ -1886,6 +1974,64 @@ Actions:
               return formatConfirmation('Entry deleted.');
             }
 
+            case 'set_food_notes': {
+              if (!args.food_id && !args.food_name) {
+                return ERRORS.VALIDATION(
+                  'Either food_id or food_name must be provided'
+                );
+              }
+              let notesFoodId = args.food_id;
+              let notesFoodName = args.food_name;
+              if (!notesFoodId) {
+                const row = await findFoodByExactName(
+                  userId,
+                  args.food_name ?? ''
+                );
+                if (!row) {
+                  return ERRORS.VALIDATION(
+                    `Food "${args.food_name}" not found.`
+                  );
+                }
+                notesFoodId = row.id;
+                notesFoodName = row.name;
+              } else {
+                const row = await foodRepository.getFoodById(
+                  notesFoodId,
+                  userId
+                );
+                if (!row) {
+                  return ERRORS.NOT_FOUND(
+                    'Food',
+                    args.food_id || args.food_name || 'unknown'
+                  );
+                }
+                notesFoodName = row.name;
+              }
+              try {
+                // The service rejects a food the user does not own, so a
+                // shared or public food cannot be edited through here.
+                // sanitizeNotes turns an empty string into NULL, which is how
+                // clearing is expressed: the tool layer strips null arguments
+                // before validation, so null can never reach here.
+                await foodCoreService.updateFood(userId, notesFoodId!, {
+                  notes: args.notes ?? '',
+                });
+              } catch (err) {
+                // updateFood throws Forbidden for a food the user does not
+                // own, which is a normal outcome for a shared or public food.
+                const message =
+                  err instanceof Error ? err.message : String(err);
+                return message.toLowerCase().includes('forbidden')
+                  ? ERRORS.FORBIDDEN(
+                      `You can only edit notes on your own foods (${notesFoodName}).`
+                    )
+                  : ERRORS.DB_ERROR(err);
+              }
+              return args.notes?.trim()
+                ? `Saved the note on ${notesFoodName}.`
+                : `Cleared the note on ${notesFoodName}.`;
+            }
+
             case 'delete_food': {
               if (!args.food_id && !args.food_name) {
                 return ERRORS.VALIDATION(
@@ -1919,10 +2065,13 @@ Actions:
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               let result: any;
               try {
+                // 'delete' deliberately, never 'delete_with_history': the
+                // assistant removes the food from the library, it does not get
+                // to destroy logged history on a casual "delete this food".
                 result = await foodCoreService.deleteFood(
                   userId,
                   String(foodId),
-                  true
+                  'delete'
                 );
               } catch (error) {
                 if (
@@ -1946,7 +2095,7 @@ Actions:
                 );
               }
               return formatConfirmation(
-                `Food "${name}" deleted (including variants and diary entries).`
+                `Food "${name}" deleted (including variants). Your logged diary entries are preserved.`
               );
             }
 
@@ -2171,6 +2320,9 @@ Actions:
                 vitamin_c: 'vitamin_c',
                 calcium: 'calcium',
                 iron: 'iron',
+                caffeine_mg: 'caffeine_mg',
+                alcohol_g: 'alcohol_g',
+                water_ml: 'water_ml',
                 gi: 'glycemic_index',
               };
               for (const [inputField, dbField] of Object.entries(fieldMap)) {
@@ -2265,7 +2417,14 @@ Actions:
                 args.entry_date,
                 mealType.id,
                 args.meal_name,
-                args.description ?? null
+                args.description ?? null,
+                false,
+                null,
+                1,
+                1,
+                1,
+                'serving',
+                args.notes ?? null
               );
               // createMealFromDiaryEntries returns the meal without its
               // foods; re-fetch for the item count.
@@ -2407,8 +2566,13 @@ Actions:
             userId
           );
           const { default_variant: _defaultVariant, ...rest } = food;
+          const compacted = compactRecord(rest, CATALOG_FOOD_DROP);
+          // The note is returned in full here, unlike the catalog listings.
+          // set_food_notes replaces the stored note outright, so appending to
+          // one means reading it first — and reading a truncated preview would
+          // write back a note with its tail cut off.
           const data = {
-            ...compactRecord(rest, CATALOG_FOOD_DROP),
+            ...compacted,
             variants: variants.map((v: Record<string, unknown>) =>
               compactRecord(v, VARIANT_DROP)
             ),

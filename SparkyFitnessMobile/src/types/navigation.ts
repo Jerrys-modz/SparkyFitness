@@ -7,27 +7,34 @@ import type {
   PresetSessionResponse,
   SharedPregnancy,
 } from '@workspace/shared';
-import type { FoodInfoItem } from './foodInfo';
-import type { FoodEntry } from './foodEntries';
 import type { FoodFormData } from '../components/FoodForm';
+import type { SaveFoodPayload } from '../services/api/foodsApi';
+import type { CompletedSetMap, PrSetMap } from '../stores/activeWorkoutStore';
+import type { MealTypeKey } from '../utils/mealNutrition';
+import type { AssumedSetValues } from '../utils/workoutSession';
+import type { PhotoType } from './checkInPhotos';
 import type { Exercise } from './exercise';
-import type { Meal, MealIngredientDraft } from './meals';
-import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
+import type { FamilyDiaryUser } from './familyDiary';
+import type { FoodEntry } from './foodEntries';
 import type { FoodEntryMeal } from './foodEntryMeals';
+import type { FoodInfoItem } from './foodInfo';
 import type {
   EquivalentUnit,
   FoodUnitSelectionResult,
   FoodUnitVariant,
 } from './foodUnitVariants';
+import type { Meal, MealIngredientDraft } from './meals';
+import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
-import type { MealTypeKey } from '../utils/mealNutrition';
-import type { SaveFoodPayload } from '../services/api/foodsApi';
-import type { CompletedSetMap, PrSetMap } from '../stores/activeWorkoutStore';
-import type { AssumedSetValues } from '../utils/workoutSession';
-import type { FamilyDiaryUser } from './familyDiary';
 
 export type FoodPickerMode =
-  'log-entry' | 'meal-builder' | 'meal-plan' | 'library';
+  | 'log-entry'
+  | 'meal-builder'
+  | 'meal-plan'
+  | 'library'
+  // #2115: pick a food+variant to link a water container to, without
+  // logging a diary entry. See services/waterContainerLinkSelection.ts.
+  | 'container-link';
 
 export type TabParamList = {
   Dashboard: undefined;
@@ -66,6 +73,9 @@ export type RootStackParamList = {
   MealsLibrary: undefined;
   MealPlans: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
+  // #2115, Phase 12: mobile-only water-container CRUD.
+  WaterContainers: undefined;
+  WaterContainerEdit: { containerId?: number } | undefined;
   ExercisesLibrary: undefined;
   WorkoutPresetsLibrary: undefined;
   WorkoutPresetDetail: { preset: WorkoutPreset; updatedPreset?: WorkoutPreset };
@@ -275,15 +285,27 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;
   Sync: undefined;
   ImportHistory: undefined;
   MeasurementsAdd: { date?: string } | undefined;
+  /**
+   * Progress photos: one day's three angles with their management, over a
+   * timeline of every check-in photo with that day's weight. `date` picks the
+   * day the screen opens on.
+   */
+  ProgressPhotos: { date?: string } | undefined;
+  /** Side-by-side comparison of two days for one angle. */
+  ProgressPhotoCompare: { angle?: PhotoType } | undefined;
+  /** Cross-fading time-lapse of every photo for one angle, oldest to newest. */
+  ProgressPhotoTimelapse: { angle?: PhotoType } | undefined;
   CalorieSettings: undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
   DashboardSettings: undefined;
+  HealthTrendsSettings: undefined;
   DiarySettings: undefined;
   WorkoutSettings: undefined;
   ServerSettings: undefined;
@@ -358,6 +380,7 @@ export type FoodPhotoFlowParamList = {
         /** Meal name for the ad-hoc food_entry_meals parent. */
         mealName: string;
         description?: string;
+        notes?: string;
         ingredients: FoodPhotoLogItem[];
         /** Also save the plate as a reusable meal template. */
         saveAsMeal: boolean;

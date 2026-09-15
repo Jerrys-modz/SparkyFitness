@@ -7,6 +7,8 @@ import Toast from 'react-native-toast-message';
 import Icon from '../components/Icon';
 import Button from '../components/ui/Button';
 import FoodNutritionSummary from '../components/FoodNutritionSummary';
+import { NoteMarkdown } from '../components/NoteMarkdown';
+import { usableFoodImages } from '../utils/foodImages';
 import SegmentedControl from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
@@ -46,6 +48,9 @@ type MealFoodNumericField = keyof Pick<
   | 'potassium'
   | 'calcium'
   | 'iron'
+  | 'caffeine_mg'
+  | 'water_ml'
+  | 'alcohol_g'
   | 'cholesterol'
   | 'vitamin_a'
   | 'vitamin_c'
@@ -103,6 +108,9 @@ function buildMealDisplayValues(
     potassium: optionalField('potassium'),
     calcium: optionalField('calcium'),
     iron: optionalField('iron'),
+    caffeineMg: optionalField('caffeine_mg'),
+    waterMl: optionalField('water_ml'),
+    alcoholG: optionalField('alcohol_g'),
     cholesterol: optionalField('cholesterol'),
     vitaminA: optionalField('vitamin_a'),
     vitaminC: optionalField('vitamin_c'),
@@ -482,6 +490,21 @@ const MealDetailScreen: React.FC<MealDetailScreenProps> = ({
             return <View key={food.id}>{row}</View>;
           })}
         </View>
+
+        {/* After the ingredients: the nutrition and the food list are what this
+            screen is opened to check. */}
+        {meal.notes ? (
+          <View className="bg-surface rounded-xl p-4 shadow-sm">
+            <Text className="text-text-secondary text-sm mb-2">
+              {t('mealDetail.notes', { defaultValue: 'Notes' })}
+            </Text>
+            <NoteMarkdown
+              text={meal.notes}
+              fontSize={14}
+              images={usableFoodImages(meal.images)}
+            />
+          </View>
+        ) : null}
 
         <Button
           variant="primary"

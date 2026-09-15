@@ -80,6 +80,15 @@ export const exerciseSnapshotResponseSchema = z
   })
   .strict();
 
+/**
+ * The snapshot as it appears on a diary entry, where the library row may be
+ * gone. Same fields as the base snapshot, but `id` can be null: the base schema
+ * keeps a required id because it is also used for live library and search
+ * results, where one always exists.
+ */
+export const entryExerciseSnapshotResponseSchema =
+  exerciseSnapshotResponseSchema.extend({ id: z.string().nullable() });
+
 /** A single set within an exercise entry */
 export const exerciseEntrySetResponseSchema = z
   .object({
@@ -137,27 +146,37 @@ export const exerciseEntrySetRequestSchema = z
   })
   .strict();
 
-export const presetSessionExerciseRequestSchema = z.object({
-  exercise_id: z.string().min(1),
-  sort_order: z.number().int().min(0).optional(),
-  duration_minutes: z.number().min(0).optional(),
-  calories_burned: z.number().min(0).optional(),
-  notes: z.string().nullable().optional(),
-  superset_group: z.number().int().nullable().optional(),
-  // Progression & Equipment Fields
-  progression_mode: z
-    .enum(["rep_goal", "fixed", "step_load", "manual"])
-    .nullable()
-    .optional(),
-  rep_goal: z.number().int().positive().nullable().optional(),
-  increment_type: z.enum(["weight", "reps"]).nullable().optional(),
-  increment_value: z.number().positive().nullable().optional(),
-  equipment_brand: z.string().nullable().optional(),
-  sets: z.array(exerciseEntrySetRequestSchema).optional(),
-});
+export const presetSessionExerciseRequestSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    // Null when the library exercise this entry was logged from has since been
+    // deleted (20260912150000_preserve_data_on_user_and_library_deletes.sql).
+    // The entry stands on its own snapshot, so re-saving the workout it belongs
+    // to has to be able to send it back. Creating a *new* entry still requires a
+    // real exercise -- see createExerciseEntryRequestSchema.
+    exercise_id: z.string().uuid().nullable(),
+    sort_order: z.number().int().min(0).default(0),
+    duration_minutes: z.number().min(0).default(0),
+    // Manual per-exercise override; when omitted the server recomputes
+    // calories from duration and sets.
+    calories_burned: z.number().min(0).optional(),
+    notes: z.string().nullable().optional(),
+    superset_group: z.number().int().nullable().optional(),
+    // Progression & Equipment Fields
+    progression_mode: z
+      .enum(["rep_goal", "fixed", "step_load", "manual"])
+      .nullable()
+      .optional(),
+    rep_goal: z.number().int().positive().nullable().optional(),
+    increment_type: z.enum(["weight", "reps"]).nullable().optional(),
+    increment_value: z.number().positive().nullable().optional(),
+    equipment_brand: z.string().nullable().optional(),
+    sets: z.array(exerciseEntrySetRequestSchema).default([]),
+    entry_time: timeStringSchema.nullish(),
+  })
+  .strict();
 
 export const createPresetSessionExerciseRequestSchema = presetSessionExerciseRequestSchema;
-
 export const createPresetSessionRequestSchema = z
   .object({
     workout_preset_id: z.number().int().nullable().optional(),
@@ -290,7 +309,10 @@ export const updateExerciseEntryRequestSchema = createExerciseEntryRequestSchema
 export const exerciseEntryResponseSchema = z
   .object({
     id: z.string(),
-    exercise_id: z.string(),
+    // Nulled rather than cascaded when the library exercise is deleted
+    // (20260912150000_preserve_data_on_user_and_library_deletes.sql), so the
+    // entry outlives it. Parsing a preserved entry would throw otherwise.
+    exercise_id: z.string().nullable(),
     duration_minutes: z.number(),
     calories_burned: z.number(),
     entry_date: z.string().nullable(),
@@ -303,7 +325,10 @@ export const exerciseEntryResponseSchema = z
     exercise_preset_entry_id: z.string().nullable().optional(),
     created_at: z.string().nullable().optional(),
     sets: z.array(exerciseEntrySetResponseSchema),
-    exercise_snapshot: exerciseSnapshotResponseSchema.nullable(),
+    // Entry snapshots outlive the library row they were copied from, so their
+    // id can be null. The base schema keeps a required id because it is also
+    // used for live library and search results, where one always exists.
+    exercise_snapshot: entryExerciseSnapshotResponseSchema.nullable(),
     activity_details: z.array(activityDetailResponseSchema),
     steps: z.number().nullable().optional(),
     category: z.string().nullable().optional(),
@@ -498,6 +523,9 @@ export type ExerciseHistoryQuery = z.infer<typeof exerciseHistoryQuerySchema>;
 export type ExerciseStatsQuery = z.infer<typeof exerciseStatsQuerySchema>;
 export type ExerciseSnapshotResponse = z.infer<
   typeof exerciseSnapshotResponseSchema
+>;
+export type EntryExerciseSnapshotResponse = z.infer<
+  typeof entryExerciseSnapshotResponseSchema
 >;
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
