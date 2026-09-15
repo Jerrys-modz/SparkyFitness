@@ -64,6 +64,9 @@ interface ResolvedVariantRow {
   vitamin_c: number | string | null;
   calcium: number | string | null;
   iron: number | string | null;
+  caffeine_mg: number | string | null;
+  water_ml: number | string | null;
+  alcohol_g: number | string | null;
   glycemic_index: string | null;
   custom_nutrients: Record<string, unknown> | null;
 }
@@ -90,7 +93,8 @@ async function loadExistingVariants(
        fv.saturated_fat, fv.polyunsaturated_fat, fv.monounsaturated_fat,
        fv.trans_fat, fv.cholesterol, fv.sodium, fv.potassium,
        fv.dietary_fiber, fv.sugars, fv.vitamin_a, fv.vitamin_c,
-       fv.calcium, fv.iron, fv.glycemic_index, fv.custom_nutrients
+       fv.calcium, fv.iron, fv.caffeine_mg, fv.water_ml, fv.alcohol_g,
+       fv.glycemic_index, fv.custom_nutrients
      FROM food_variants fv
      JOIN foods f ON f.id = fv.food_id
      WHERE fv.id = ANY($1::uuid[])`,
@@ -215,7 +219,15 @@ async function createPhotoLoggedMeal(
           entry_date: payload.entry_date,
           entry_time: payload.entry_time,
           name: payload.name,
-          description: payload.description,
+          description:
+            payload.description && payload.description.length <= 60
+              ? payload.description
+              : null,
+          notes:
+            payload.notes ??
+            (payload.description && payload.description.length > 60
+              ? payload.description
+              : null),
           // Ad-hoc logged meals do not scale their components by the parent
           // quantity (only template-backed ones do), so the real amounts live
           // on each component. The parent quantity is what was eaten purely so

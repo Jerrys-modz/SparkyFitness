@@ -30,6 +30,7 @@ import {
   Copy,
   Trash2,
   Star,
+  Globe2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -62,6 +63,7 @@ import {
   RowSelectionState,
   CellContext,
 } from '@tanstack/react-table';
+import { type DataTableFeatures } from '@/components/ui/dataTableFeatures';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   getNutrientMetadata,
@@ -78,11 +80,17 @@ import { usableFoodImages } from '@/utils/foodImages';
 import { MarkdownView } from '@/components/ui/MarkdownView';
 import { useImageLightbox } from '@/hooks/Foods/useImageLightbox';
 import ImageLightbox from '@/components/FoodSearch/ImageLightbox';
+import { useOpenFoodFactsContributionAvailability } from '@/hooks/Foods/useOpenFoodFactsContribution';
+import { isOpenFoodFactsContributionCandidate } from '@/utils/openFoodFactsContribution';
+import OpenFoodFactsContributionDialog from './OpenFoodFactsContributionDialog';
 
 const FoodDatabaseManager = () => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [viewingFood, setViewingFood] = useState<Food | null>(null);
+  const [contributionFood, setContributionFood] = useState<Food | null>(null);
+  const { available: contributionsAvailable, userId: contributionUserId } =
+    useOpenFoodFactsContributionAvailability();
   const { data: customNutrients = [] } = useCustomNutrients();
 
   // Favorites: a star INDICATOR on favorited rows (a dedicated column on desktop,
@@ -173,8 +181,11 @@ const FoodDatabaseManager = () => {
   const handleBulkDeleteConfirm = async () => {
     try {
       await Promise.all(
+        // 'delete', never 'delete_with_history': a bulk tidy-up of the library
+        // must not quietly destroy logged entries. This used to force-delete
+        // every selected food with no warning at all.
         Array.from(selectedIds).map((id) =>
-          deleteFood({ foodId: id, force: true })
+          deleteFood({ foodId: id, mode: 'delete' })
         )
       );
     } catch (err) {
@@ -220,7 +231,7 @@ const FoodDatabaseManager = () => {
   // One viewer for the whole table; the clicked row supplies its own images.
   const { lightboxProps, openLightbox } = useImageLightbox();
 
-  const columns = useMemo<ColumnDef<Food>[]>(
+  const columns = useMemo<ColumnDef<DataTableFeatures, Food>[]>(
     () => [
       {
         id: 'select',
@@ -363,7 +374,7 @@ const FoodDatabaseManager = () => {
               ] as number) || 0
             );
           },
-          cell: (info: CellContext<Food, unknown>) => (
+          cell: (info: CellContext<DataTableFeatures, Food, unknown>) => (
             <div className="text-center">
               <span className={`font-medium ${meta.color}`}>
                 {formatNutrientValue(
@@ -417,6 +428,19 @@ const FoodDatabaseManager = () => {
                   <Copy className="mr-2 h-4 w-4" />
                   {t('foodDatabaseManager.duplicateFood', 'Duplicate food')}
                 </DropdownMenuItem>
+                {contributionsAvailable &&
+                  isOpenFoodFactsContributionCandidate(
+                    food,
+                    contributionUserId
+                  ) && (
+                    <DropdownMenuItem onClick={() => setContributionFood(food)}>
+                      <Globe2 className="mr-2 h-4 w-4" />
+                      {t(
+                        'openFoodFactsContribution.title',
+                        'Contribute to Open Food Facts'
+                      )}
+                    </DropdownMenuItem>
+                  )}
                 <DropdownMenuItem
                   onClick={() =>
                     toggleFavorite({
@@ -496,6 +520,8 @@ const FoodDatabaseManager = () => {
       favoriteFoodIds,
       toggleFavorite,
       openLightbox,
+      contributionsAvailable,
+      contributionUserId,
     ]
   );
 
@@ -688,6 +714,10 @@ const FoodDatabaseManager = () => {
         onOpenChange={setShowBulkDeleteDialog}
         selectedCount={selectedCount}
         entityName={t('foodDatabaseManager.foods', 'foods')}
+        description={t('foodDatabaseManager.bulkDeleteDescription', {
+          count: selectedCount,
+          defaultValue: `Remove these ${selectedCount} foods from your library and from any meals and meal plans. Entries you have already logged are kept in your diary.`,
+        })}
         onConfirm={handleBulkDeleteConfirm}
       />
 
@@ -888,6 +918,13 @@ const FoodDatabaseManager = () => {
         </DialogContent>
       </Dialog>
       <ImageLightbox {...lightboxProps} />
+      {contributionFood && (
+        <OpenFoodFactsContributionDialog
+          open
+          food={contributionFood}
+          onOpenChange={(open) => !open && setContributionFood(null)}
+        />
+      )}
     </div>
   );
 };

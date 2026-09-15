@@ -2,6 +2,7 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import { buildVisionTools } from '../ai/tools/visionTools.js';
 import foodPhotoEstimationService from '../services/foodPhotoEstimationService.js';
 import labelScanService from '../services/labelScanService.js';
+import { toolOpts } from './helpers/toolExecutionOptions.js';
 
 vi.mock('../services/foodPhotoEstimationService', () => ({
   default: {
@@ -17,7 +18,7 @@ vi.mock('../config/logging', () => ({
   log: vi.fn(),
 }));
 
-const opts = { toolCallId: 'tc-1', messages: [] };
+const opts = toolOpts;
 
 // A syntactically valid base64 JPEG prefix.
 const JPEG_BASE64 = '/9j/4AAQSkZJRgABAQAAAQ==';
@@ -131,7 +132,8 @@ describe('sparky_analyze_food_image', () => {
         'Total (~350g): 510 kcal | P: 30g | C: 57g | F: 16g | Fiber: 1g | Sugar: 0g\n' +
         '\n' +
         'To improve this estimate, the user could clarify:\n' +
-        '- Was the chicken cooked with oil or butter?'
+        '- Was the chicken cooked with oil or butter?\n\n' +
+        '[Note: The interactive meal card is now displayed to the user. Summarize the detected meal and finish your response. Do NOT call sparky_analyze_food_image again in this turn.]'
     );
     expect(
       foodPhotoEstimationService.estimateFoodPhotoNutrition
@@ -168,7 +170,8 @@ describe('sparky_analyze_food_image', () => {
         '\n' +
         'Total (~350g): 510 kcal | P: 30g | C: 57g | F: 16g | Fiber: 1g | Sugar: 0g\n' +
         '\n' +
-        'Weight reconciliation: Distributed 350g across items.'
+        'Weight reconciliation: Distributed 350g across items.\n\n' +
+        '[Note: The interactive meal card is now displayed to the user. Summarize the detected meal and finish your response. Do NOT call sparky_analyze_food_image again in this turn.]'
     );
     expect(
       foodPhotoEstimationService.estimateFoodPhotoNutrition
