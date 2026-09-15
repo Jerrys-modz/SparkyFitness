@@ -241,7 +241,7 @@ app.use((req, res, next) => {
 app.use(
   '/mcp',
   requestLogger({ logCompletion: true }),
-  express.json({ limit: '50mb' }),
+  express.json({ limit: isDemoMode() ? '1mb' : '50mb' }),
   cookieParser(),
   authenticate,
   // /mcp mounts ahead of the global route table, so it needs the demo guard
@@ -250,8 +250,11 @@ app.use(
   mcpRoutes
 );
 // Middleware to parse JSON bodies for all incoming requests
-// 50mb limit to accommodate image uploads, food photo scans, and label scans.
-app.use(express.json({ limit: '50mb' }));
+// Increased limit to 50mb to accommodate image uploads. A public demo instance
+// takes a much lower cap: the routes that need the headroom (image analysis,
+// uploads, FIT import) are blocked for the demo account anyway, and a 50mb
+// parse per request is a cheap way for an anonymous visitor to burn memory.
+app.use(express.json({ limit: isDemoMode() ? '1mb' : '50mb' }));
 app.use(cookieParser());
 // --- Better Auth Mounting Logic (Moved to after migrations) ---
 let syncTrustedProviders: typeof authModule.syncTrustedProviders | undefined;
