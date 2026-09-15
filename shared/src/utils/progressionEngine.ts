@@ -98,10 +98,7 @@ export function evaluateProgression(
   repDifference = totalRepsAchieved - effectiveRepGoal;
 
   if (goalAchieved) {
-    if (
-      config.incrementType === "weight" &&
-      config.progressionMode !== "step_load"
-    ) {
+    if (config.incrementType === "weight") {
       const newWeight = lastPerformance.baseWeight + config.incrementValue;
       return {
         goalAchieved: true,

@@ -45,17 +45,6 @@ export interface WorkoutPlaybackSetDraft extends WorkoutPresetSet {
   completed_at: string | null;
 }
 
-export interface WorkoutPlaybackExerciseDraft {
-  exercise_id: string;
-  exercise_name: string;
-  modality?: ExerciseModality;
-  image_url?: string;
-  notes: string | null;
-  started_at?: string | null;
-  ended_at?: string | null;
-  sets: WorkoutPlaybackSetDraft[];
-}
-
 export interface WorkoutPlaybackDraft {
   version: 1;
   preset_id: string;

@@ -1,4 +1,3 @@
-import { getClient } from '../db/poolManager.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
@@ -25,18 +24,7 @@ async function createWorkoutPreset(userId: any, presetData: any) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getWorkoutPresets(userId: any, page = 1, limit = 10) {
-  const client = await getClient(userId);
-  try {
-    const result = await workoutPresetRepository.getWorkoutPresets(
-      userId,
-      page,
-      limit
-    );
-
-    return result;
-  } finally {
-    client.release();
-  }
+  return await workoutPresetRepository.getWorkoutPresets(userId, page, limit);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +39,11 @@ async function getWorkoutPresetById(userId: any, presetId: any) {
   return preset;
 }
 
+/**
+ * Updates a workout preset.
+ * Verifies explicit ownership first: while PostgreSQL RLS allows users to view
+ * public or family presets, only the owning author is permitted to mutate preset blueprints.
+ */
 async function updateWorkoutPreset(
   userId: any,
   presetId: any,

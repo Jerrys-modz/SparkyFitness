@@ -176,15 +176,19 @@ export const presetSessionExerciseRequestSchema = z
   })
   .strict();
 
-export const createPresetSessionExerciseRequestSchema = presetSessionExerciseRequestSchema;
+// A workout session can be started in two ways:
+// 1. From a stored preset blueprint (workout_preset_id provided; exercises optional)
+// 2. As a freeform workout (no workout_preset_id; non-empty name and at least one exercise required)
+// Both sources can also be provided together (e.g. client starts from a preset with client-supplied sets).
 export const createPresetSessionRequestSchema = z
   .object({
     workout_preset_id: z.number().int().nullable().optional(),
-    entry_date: dateStringSchema, // <-- Restored dateStringSchema for CI!
+    entry_date: dateStringSchema,
     name: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
-    source: z.string().default('manual'),    exercises: z.array(presetSessionExerciseRequestSchema).optional(),
+    source: z.string().default("manual"),
+    exercises: z.array(presetSessionExerciseRequestSchema).optional(),
     workoutPlanAssignmentId: z.number().int().nullable().optional(),
   })
   .strict()
@@ -192,6 +196,17 @@ export const createPresetSessionRequestSchema = z
     const hasPresetId =
       data.workout_preset_id !== undefined && data.workout_preset_id !== null;
     const hasExercises = data.exercises !== undefined;
+
+    // Freeform workouts require a non-empty name
+    if (!hasPresetId) {
+      if (!data.name || data.name.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Name is required when creating a freeform workout",
+          path: ["name"],
+        });
+      }
+    }
 
     if (hasPresetId && !hasExercises) {
       return;
@@ -206,7 +221,6 @@ export const createPresetSessionRequestSchema = z
       });
     }
   });
-
 export const updatePresetSessionRequestSchema = z
   .object({
     name: z.string().min(1).optional(),

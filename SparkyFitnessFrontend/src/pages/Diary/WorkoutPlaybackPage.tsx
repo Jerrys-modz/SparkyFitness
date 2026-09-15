@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { apiCall } from '@/api/api';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
@@ -38,6 +39,11 @@ import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 
+function isWarmup(setType?: string | null): boolean {
+  if (!setType) return false;
+  const lower = setType.toLowerCase();
+  return lower === 'warmup' || lower.includes('warm');
+}
 function weightFromKg(weightKg: number, unit: string): number {
   if (!weightKg || weightKg <= 0) return 0;
   return unit === 'lbs' || unit === 'st_lbs'
@@ -158,12 +164,17 @@ const WorkoutPlaybackPage = () => {
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
-
   // Auto-evaluate progression overload for uncompleted exercises on load
   const progressionCheckedRef = useRef(false);
   useEffect(() => {
     if (!draft || progressionCheckedRef.current) return;
     progressionCheckedRef.current = true;
+
+    const isWarmup = (setType?: string | null): boolean => {
+      if (!setType) return false;
+      const lower = setType.toLowerCase();
+      return lower === 'warmup' || lower.includes('warm');
+    };
 
     const evaluateDraftProgression = async () => {
       let hasChanges = false;
@@ -172,27 +183,38 @@ const WorkoutPlaybackPage = () => {
           if (exercise.sets.some((s) => s.completed)) return exercise;
 
           try {
-            const response = await window.fetch(
-              `/api/exercises/${exercise.exercise_id}/stats`
+            // Use v2 endpoint with credentials via apiCall
+            const response = await apiCall(
+              `/api/v2/exercises/${exercise.exercise_id}/stats`
             );
 
             if (!response.ok) return exercise;
             const stats = await response.json();
-            const previousSessionSets = stats?.recentSessions?.[0]?.sets;
+            const allPreviousSets = stats?.recentSessions?.[0]?.sets ?? [];
 
-            if (previousSessionSets && previousSessionSets.length > 0) {
-              const rawKg = previousSessionSets[0].weight
-                ? Number(previousSessionSets[0].weight)
+            // Exclude warmup sets from prior session to establish true working baseline
+            const workingPreviousSets = allPreviousSets.filter(
+              (s: {
+                set_type?: string | null;
+                reps?: number | null;
+                weight?: number | null;
+              }) => !isWarmup(s.set_type)
+            );
+
+            if (workingPreviousSets.length > 0) {
+              const firstWorking = workingPreviousSets[0];
+              const rawKg = firstWorking.weight
+                ? Number(firstWorking.weight)
                 : 0;
               const baseWeightInDisplayUnit =
                 rawKg > 0 ? weightFromKg(rawKg, weightUnit) : 0;
 
               const lastPerf: LastExercisePerformance = {
                 baseWeight: baseWeightInDisplayUnit,
-                sets: previousSessionSets.map(
+                sets: workingPreviousSets.map(
                   (
                     s: {
-                      set_number: number;
+                      set_number?: number;
                       reps: number | null;
                       weight: number | null;
                     },
@@ -217,10 +239,17 @@ const WorkoutPlaybackPage = () => {
               const incrementType =
                 exercise.increment_type === 'reps' ? 'reps' : 'weight';
 
+              // Only count working sets towards targetSets (exclude warmups)
+              const workingCurrentSets = exercise.sets.filter(
+                (s) => !isWarmup(s.set_type)
+              );
+              const targetSets = workingCurrentSets.length || 3;
+              const effectiveRepGoal = exercise.rep_goal ?? targetSets * 8;
+
               const config: ExerciseProgressionConfig = {
                 progressionMode,
-                targetSets: exercise.sets.length || 5,
-                repGoal: exercise.rep_goal ?? 75,
+                targetSets,
+                repGoal: effectiveRepGoal,
                 incrementType,
                 incrementValue: Number(exercise.increment_value) || 2.5,
                 equipmentBrand: exercise.equipment_brand ?? undefined,
@@ -229,7 +258,7 @@ const WorkoutPlaybackPage = () => {
               const progression = evaluateProgression(config, lastPerf);
 
               if (progression.goalAchieved) {
-                // Case A: Weight Progression -> Store in KG so database/session payload remains standardized
+                // Case A: Weight Progression -> Only update working sets (preserve warmups)
                 if (
                   config.incrementType === 'weight' &&
                   baseWeightInDisplayUnit > 0
@@ -241,31 +270,34 @@ const WorkoutPlaybackPage = () => {
                   );
                   return {
                     ...exercise,
-                    sets: exercise.sets.map((s) => ({
-                      ...s,
-                      weight: targetKg,
-                    })),
+                    sets: exercise.sets.map((s) =>
+                      isWarmup(s.set_type) ? s : { ...s, weight: targetKg }
+                    ),
                   };
                 }
 
-                // Case B: Rep Progression (Hyperextensions, Step-load) -> Update reps
+                // Case B: Rep Progression -> Only update working sets (preserve warmups)
                 if (
                   config.incrementType === 'reps' ||
-                  exercise.progression_mode === 'step_load'
+                  progressionMode === 'step_load'
                 ) {
                   hasChanges = true;
-                  const numSets = exercise.sets.length || 5;
+                  const numSets = workingCurrentSets.length || 3;
                   const baseReps = Math.floor(
                     progression.suggestedRepGoal / numSets
                   );
                   const remainder = progression.suggestedRepGoal % numSets;
+                  let workingSetCounter = 0;
 
                   return {
                     ...exercise,
-                    sets: exercise.sets.map((s, idx) => ({
-                      ...s,
-                      reps: baseReps + (idx < remainder ? 1 : 0),
-                    })),
+                    sets: exercise.sets.map((s) => {
+                      if (isWarmup(s.set_type)) return s;
+                      const setReps =
+                        baseReps + (workingSetCounter < remainder ? 1 : 0);
+                      workingSetCounter++;
+                      return { ...s, reps: setReps };
+                    }),
                   };
                 }
               }
@@ -310,7 +342,6 @@ const WorkoutPlaybackPage = () => {
     routeState?.draft,
     routeState?.returnTo,
   ]);
-
   // Debounce draft saves to avoid excessive localStorage writes on timer ticks
   useEffect(() => {
     if (!draft) {

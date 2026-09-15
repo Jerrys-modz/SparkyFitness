@@ -49,6 +49,7 @@ import {
   formatDurationSeconds,
   formatVolume,
   getExerciseVolumeKg,
+  isWarmupSetType,
   isDurationModality,
   rendersCardioEffortForm,
   resolveAssumedSetValues,
@@ -347,8 +348,10 @@ function ActiveWorkoutExerciseCard({
   const progressionResult = useMemo(() => {
     if (!exercise.rep_goal && exercise.progression_mode !== 'fixed')
       return null;
-    // Count only working sets (exclude warmups)
-    const workingSets = exercise.sets.filter((s) => s.set_type !== 'warmup');
+    // Count only working sets (exclude warmups) using the canonical isWarmupSetType helper
+    const workingSets = exercise.sets.filter(
+      (s) => !isWarmupSetType(s.set_type)
+    );
     const targetSets = workingSets.length || 3;
 
     const config: ExerciseProgressionConfig = {
@@ -360,13 +363,12 @@ function ActiveWorkoutExerciseCard({
       equipmentBrand: exercise.equipment_brand ?? null,
     };
 
-    // Count only working sets (exclude warmups)
-    // Supports both API snake_case (set_type) and client camelCase (setType)
+    // Filter out warmup sets from previous session history
     const workingPreviousSets = (previousSessionSets || []).filter((s) => {
       const setType =
         (s as { set_type?: string | null; setType?: string | null }).set_type ??
         s.setType;
-      return setType !== 'warmup';
+      return !isWarmupSetType(setType);
     });
     const firstWorking = workingPreviousSets[0];
 
@@ -384,7 +386,6 @@ function ActiveWorkoutExerciseCard({
           }
         : null;
 
-    return evaluateProgression(config, lastPerformance);
     return evaluateProgression(config, lastPerformance);
   }, [
     exercise.rep_goal,

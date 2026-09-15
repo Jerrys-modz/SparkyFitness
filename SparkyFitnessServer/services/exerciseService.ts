@@ -1968,21 +1968,33 @@ async function createGroupedWorkoutSession(
       const rawExercises =
         exercises !== undefined ? exercises : workoutPreset.exercises || [];
 
+      const consumedPresetIndices = new Set<number>();
       exerciseDefinitions = rawExercises.map((ex: any) => {
-        const presetEx = workoutPreset.exercises?.find(
-          (p: any) => p.exercise_id === ex.exercise_id
-        );
+        let presetEx: any = null;
+        if (workoutPreset.exercises) {
+          const matchedIndex = workoutPreset.exercises.findIndex(
+            (p: any, idx: number) =>
+              !consumedPresetIndices.has(idx) &&
+              p.exercise_id === ex.exercise_id
+          );
+          if (matchedIndex !== -1) {
+            consumedPresetIndices.add(matchedIndex);
+            presetEx = workoutPreset.exercises[matchedIndex];
+          }
+        }
 
         return {
           ...ex,
-          rep_goal: presetEx?.rep_goal ?? ex.rep_goal ?? null,
-          increment_type: presetEx?.increment_type ?? ex.increment_type ?? null,
+          // Client payload wins so mid-workout edits are preserved, falling back to preset
+          rep_goal: ex.rep_goal ?? presetEx?.rep_goal ?? null,
+          increment_type:
+            ex.increment_type ?? presetEx?.increment_type ?? 'weight',
           increment_value:
-            presetEx?.increment_value ?? ex.increment_value ?? null,
+            ex.increment_value ?? presetEx?.increment_value ?? 5.0,
           equipment_brand:
-            presetEx?.equipment_brand ?? ex.equipment_brand ?? null,
+            ex.equipment_brand ?? presetEx?.equipment_brand ?? null,
           progression_mode:
-            presetEx?.progression_mode ?? ex.progression_mode ?? null,
+            ex.progression_mode ?? presetEx?.progression_mode ?? 'rep_goal',
         };
       });
     } else {
