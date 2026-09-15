@@ -332,6 +332,39 @@ describe('waterHandler.handleBatch', () => {
       ]
     );
   });
+
+  it('rejects blank and whitespace-only water values with an error', async () => {
+    const singleOutcome = await waterHandler.handle(
+      { value: '   ', type: 'water' },
+      {
+        userId: 'user-1',
+        actingUserId: 'actor-1',
+        parsedDate: '2026-08-03',
+      } as unknown as HealthEntryContext
+    );
+    expect(singleOutcome).toEqual({
+      status: 'error',
+      error: 'Invalid value for water. Must be a valid number.',
+    });
+
+    const batchOutcomes = await waterHandler.handleBatch!(
+      [
+        prepared({ value: '', source: 'garmin' }),
+        prepared({ value: '   ', source: 'garmin' }),
+      ],
+      ctx
+    );
+    expect(batchOutcomes).toEqual([
+      {
+        status: 'error',
+        error: 'Invalid value for water. Must be a valid number.',
+      },
+      {
+        status: 'error',
+        error: 'Invalid value for water. Must be a valid number.',
+      },
+    ]);
+  });
 });
 
 describe('bmrHandler.handleBatch', () => {

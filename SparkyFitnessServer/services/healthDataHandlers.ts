@@ -805,6 +805,16 @@ const stepsHandler: HealthTypeHandler = {
 const waterHandler: HealthTypeHandler = {
   async handle(entry, ctx) {
     const { source = 'manual' } = entry;
+    if (
+      entry.value === null ||
+      entry.value === undefined ||
+      String(entry.value).trim() === ''
+    ) {
+      return {
+        status: 'error',
+        error: 'Invalid value for water. Must be a valid number.',
+      };
+    }
     const waterValue = Number(entry.value);
     if (!Number.isFinite(waterValue) || isNaN(waterValue)) {
       return {
@@ -842,6 +852,17 @@ const waterHandler: HealthTypeHandler = {
     for (let i = 0; i < entries.length; i++) {
       const item = entries[i];
       const source = (item.entry.source as string) || 'manual';
+      if (
+        item.entry.value === null ||
+        item.entry.value === undefined ||
+        String(item.entry.value).trim() === ''
+      ) {
+        outcomes[i] = {
+          status: 'error',
+          error: 'Invalid value for water. Must be a valid number.',
+        };
+        continue;
+      }
       const waterValue = Number(item.entry.value);
       if (!Number.isFinite(waterValue) || isNaN(waterValue)) {
         outcomes[i] = {
