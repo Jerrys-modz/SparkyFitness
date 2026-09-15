@@ -92,7 +92,7 @@ export function isValidReminderWindow(start: string, end: string): boolean {
 }
 
 export function latestLoggedAt(
-  entries: ReadonlyArray<{ logged_at: string }> | undefined
+  entries: readonly { logged_at: string }[] | undefined
 ): Date | null {
   let latestMs: number | null = null;
   for (const entry of entries ?? []) {
