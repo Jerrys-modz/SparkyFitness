@@ -90,7 +90,17 @@ const SUPERSET_COLORS: Record<
     label: 'SUPERSET D',
   },
 };
-
+export type WorkoutSetField =
+  | 'id'
+  | 'notes'
+  | 'distance'
+  | 'set_number'
+  | 'set_type'
+  | 'reps'
+  | 'weight'
+  | 'duration'
+  | 'rest_time'
+  | 'rpe';
 interface SortableExerciseItemProps {
   ex: SortableExerciseItemData & {
     progression_mode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
@@ -103,12 +113,14 @@ interface SortableExerciseItemProps {
   };
   exerciseIndex: number;
   onRemoveExercise: (index: number) => void;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   onSetChange: (
     exerciseIndex: number,
     setIndex: number,
     field: any,
     value: any
   ) => void;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   onDuplicateSet: (exerciseIndex: number, setIndex: number) => void;
   onRemoveSet: (exerciseIndex: number, setIndex: number) => void;
   onAddSet?: (exerciseIndex: number) => void;
@@ -236,10 +248,9 @@ export const SortableExerciseItem = ({
     val: 'rep_goal' | 'fixed' | 'step_load' | 'manual'
   ) => {
     setProgressionMode(val);
-    ex.progression_mode = val;
     if (val === 'step_load') {
       setIncrementType('reps');
-      ex.increment_type = 'reps';
+      onExerciseFieldChange?.(exerciseIndex, 'increment_type', 'reps');
     }
     onExerciseFieldChange?.(exerciseIndex, 'progression_mode', val);
   };
@@ -247,48 +258,40 @@ export const SortableExerciseItem = ({
   const handleRepGoalChange = (text: string) => {
     setRepGoal(text);
     const num = text ? parseInt(text, 10) : null;
-    ex.rep_goal = isNaN(num as number) ? null : num;
-    onExerciseFieldChange?.(exerciseIndex, 'rep_goal', ex.rep_goal);
+    const cleanNum = isNaN(num as number) ? null : num;
+    onExerciseFieldChange?.(exerciseIndex, 'rep_goal', cleanNum);
   };
 
   const handleIncrementTypeChange = (type: 'weight' | 'reps') => {
     setIncrementType(type);
-    ex.increment_type = type;
     onExerciseFieldChange?.(exerciseIndex, 'increment_type', type);
   };
 
   const handleIncrementValueChange = (text: string) => {
     setIncrementValue(text);
     const num = text ? parseFloat(text) : 5;
-    ex.increment_value = isNaN(num) ? 5 : num;
-    onExerciseFieldChange?.(
-      exerciseIndex,
-      'increment_value',
-      ex.increment_value
-    );
+    const cleanNum = isNaN(num) ? 5 : num;
+    onExerciseFieldChange?.(exerciseIndex, 'increment_value', cleanNum);
   };
 
   const handleEquipmentChange = (text: string) => {
     setEquipmentBrand(text);
-    ex.equipment_brand = text.trim() || null;
     onExerciseFieldChange?.(
       exerciseIndex,
       'equipment_brand',
-      ex.equipment_brand
+      text.trim() || null
     );
   };
 
   const handleSupersetChange = (val: string) => {
     const groupNum = val === 'none' ? null : parseInt(val, 10);
     setSupersetGroup(groupNum);
-    ex.superset_group = groupNum;
     onExerciseFieldChange?.(exerciseIndex, 'superset_group', groupNum);
   };
 
   const handleNotesChange = (text: string) => {
     setNotes(text);
-    ex.notes = text.trim() || null;
-    onExerciseFieldChange?.(exerciseIndex, 'notes', ex.notes);
+    onExerciseFieldChange?.(exerciseIndex, 'notes', text.trim() || null);
   };
 
   const sensors = useSensors(
@@ -446,168 +449,152 @@ export const SortableExerciseItem = ({
       </div>
 
       {/* Per-Exercise Progression, Superset & Notes Settings Bar */}
-      {!isWorkoutPreset && !isCardio && isExpanded && (
-        <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-2.5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 items-end">
-            <div>
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
-                Progression Mode
-              </Label>
-              <select
-                className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
-                value={progressionMode}
-                onChange={(e) =>
-                  handleModeChange(
-                    e.target.value as
-                      'rep_goal' | 'fixed' | 'step_load' | 'manual'
-                  )
-                }
-              >
-                <option value="rep_goal">Total Rep Goal</option>
-                <option value="fixed">Fixed Target</option>
-                <option value="step_load">Step-Load (Reps Only)</option>
-                <option value="manual">Manual (No Overload)</option>
-              </select>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase">
-                  Progression Mode
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => setIsGuideOpen(true)}
-                  className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded"
-                  title="Progression & Overload Guide"
-                >
-                  <Info className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <select
-                className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
-                value={progressionMode}
-                onChange={(e) =>
-                  handleModeChange(
-                    e.target.value as
-                      'rep_goal' | 'fixed' | 'step_load' | 'manual'
-                  )
-                }
-              >
-                <option value="rep_goal">Total Rep Goal</option>
-                <option value="fixed">Fixed Target</option>
-                <option value="step_load">Step-Load (Reps Only)</option>
-                <option value="manual">Manual (No Overload)</option>
-              </select>
-            </div>
-            {/* Rep Goal Input: Only for rep_goal & step_load */}
-            {(progressionMode === 'rep_goal' ||
-              progressionMode === 'step_load') && (
+      {!isWorkoutPreset &&
+        !isCardio &&
+        modality !== 'duration' &&
+        isExpanded && (
+          <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 items-end">
               <div>
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
-                  <Trophy className="h-3 w-3 text-primary" />
-                  Rep Goal (Total)
-                </Label>
-                <Input
-                  type="number"
-                  className="h-8 text-xs bg-background"
-                  placeholder="e.g. 24"
-                  value={repGoal}
-                  onChange={(e) => handleRepGoalChange(e.target.value)}
-                />
-              </div>
-            )}
-
-            {/* Increment Type: Only for overload modes */}
-            {progressionMode !== 'manual' &&
-              progressionMode !== 'step_load' && (
-                <div>
-                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
-                    Increment Type
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase">
+                    Progression Mode
                   </Label>
-                  <select
-                    className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground disabled:opacity-50"
-                    value={incrementType}
-                    onChange={(e) =>
-                      handleIncrementTypeChange(
-                        e.target.value as 'weight' | 'reps'
-                      )
-                    }
+                  <button
+                    type="button"
+                    onClick={() => setIsGuideOpen(true)}
+                    className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded"
+                    title="Progression & Overload Guide"
                   >
-                    <option value="weight">Weight ({weightUnit})</option>
-                    <option value="reps">Reps</option>
-                  </select>
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <select
+                  className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
+                  value={progressionMode}
+                  onChange={(e) =>
+                    handleModeChange(
+                      e.target.value as
+                        'rep_goal' | 'fixed' | 'step_load' | 'manual'
+                    )
+                  }
+                >
+                  <option value="rep_goal">Total Rep Goal</option>
+                  <option value="fixed">Fixed Target</option>
+                  <option value="step_load">Step-Load (Reps Only)</option>
+                  <option value="manual">Manual (No Overload)</option>
+                </select>
+              </div>
+              {/* Rep Goal Input: Only for rep_goal & step_load */}
+              {progressionMode !== 'manual' && (
+                <div>
+                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
+                    <Trophy className="h-3 w-3 text-primary" />
+                    {progressionMode === 'fixed'
+                      ? 'Target Reps / Set'
+                      : 'Rep Goal (Total)'}
+                  </Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-xs bg-background"
+                    placeholder="e.g. 24"
+                    value={repGoal}
+                    onChange={(e) => handleRepGoalChange(e.target.value)}
+                  />
                 </div>
               )}
 
-            {/* Increment Amount */}
-            {progressionMode !== 'manual' && (
+              {/* Increment Type: Only for overload modes */}
+              {progressionMode !== 'manual' &&
+                progressionMode !== 'step_load' && (
+                  <div>
+                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                      Increment Type
+                    </Label>
+                    <select
+                      className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground disabled:opacity-50"
+                      value={incrementType}
+                      onChange={(e) =>
+                        handleIncrementTypeChange(
+                          e.target.value as 'weight' | 'reps'
+                        )
+                      }
+                    >
+                      <option value="weight">Weight ({weightUnit})</option>
+                      <option value="reps">Reps (Rep Count)</option>
+                    </select>
+                  </div>
+                )}
+
+              {/* Increment Amount */}
+              {progressionMode !== 'manual' && (
+                <div>
+                  <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
+                    {progressionMode === 'step_load' || incrementType === 'reps'
+                      ? 'Increment (Reps)'
+                      : `Increment (${weightUnit})`}
+                  </Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    className="h-8 text-xs bg-background"
+                    placeholder="+5"
+                    value={incrementValue}
+                    onChange={(e) => handleIncrementValueChange(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {/* Superset Grouping */}
+              <div>
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
+                  <Layers className="h-3 w-3 text-primary" />
+                  Superset Group
+                </Label>
+                <select
+                  className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
+                  value={supersetGroup ? String(supersetGroup) : 'none'}
+                  onChange={(e) => handleSupersetChange(e.target.value)}
+                >
+                  <option value="none">Solo (No Superset)</option>
+                  <option value="1">Superset A (Blue)</option>
+                  <option value="2">Superset B (Purple)</option>
+                  <option value="3">Superset C (Green)</option>
+                  <option value="4">Superset D (Amber)</option>
+                </select>
+              </div>
+
+              {/* Equipment / Brand */}
               <div>
                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
-                  {progressionMode === 'step_load' || incrementType === 'reps'
-                    ? 'Increment (Reps)'
-                    : `Increment (${weightUnit})`}
+                  Equipment / Brand
                 </Label>
                 <Input
-                  type="number"
-                  step="any"
+                  type="text"
                   className="h-8 text-xs bg-background"
-                  placeholder="+5"
-                  value={incrementValue}
-                  onChange={(e) => handleIncrementValueChange(e.target.value)}
+                  placeholder="e.g. Hammer Strength"
+                  value={equipmentBrand}
+                  onChange={(e) => handleEquipmentChange(e.target.value)}
                 />
               </div>
-            )}
-
-            {/* Superset Grouping */}
-            <div>
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
-                <Layers className="h-3 w-3 text-primary" />
-                Superset Group
-              </Label>
-              <select
-                className="h-8 w-full text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground"
-                value={supersetGroup ? String(supersetGroup) : 'none'}
-                onChange={(e) => handleSupersetChange(e.target.value)}
-              >
-                <option value="none">Solo (No Superset)</option>
-                <option value="1">Superset A (Blue)</option>
-                <option value="2">Superset B (Purple)</option>
-                <option value="3">Superset C (Green)</option>
-                <option value="4">Superset D (Amber)</option>
-              </select>
             </div>
 
-            {/* Equipment / Brand */}
+            {/* Exercise Notes Row */}
             <div>
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase mb-1 block">
-                Equipment / Brand
+              <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
+                <StickyNote className="h-3 w-3 text-primary" />
+                Exercise Notes / Cues (Optional)
               </Label>
               <Input
                 type="text"
                 className="h-8 text-xs bg-background"
-                placeholder="e.g. Hammer Strength"
-                value={equipmentBrand}
-                onChange={(e) => handleEquipmentChange(e.target.value)}
+                placeholder="e.g. Seat setting 4, wide grip, pause at bottom..."
+                value={notes}
+                onChange={(e) => handleNotesChange(e.target.value)}
               />
             </div>
           </div>
-
-          {/* Exercise Notes Row */}
-          <div>
-            <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex items-center gap-1 mb-1">
-              <StickyNote className="h-3 w-3 text-primary" />
-              Exercise Notes / Cues (Optional)
-            </Label>
-            <Input
-              type="text"
-              className="h-8 text-xs bg-background"
-              placeholder="e.g. Seat setting 4, wide grip, pause at bottom..."
-              value={notes}
-              onChange={(e) => handleNotesChange(e.target.value)}
-            />
-          </div>
-        </div>
-      )}
+        )}
 
       {isExpanded && isCardio && (
         <CardioLog

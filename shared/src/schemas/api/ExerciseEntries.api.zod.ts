@@ -165,8 +165,7 @@ export const createPresetSessionRequestSchema = z
     name: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
-    source: z.string().optional(),
-    exercises: z.array(presetSessionExerciseRequestSchema).optional(),
+    source: z.string().default('manual'),    exercises: z.array(presetSessionExerciseRequestSchema).optional(),
     workoutPlanAssignmentId: z.number().int().nullable().optional(),
   })
   .strict()

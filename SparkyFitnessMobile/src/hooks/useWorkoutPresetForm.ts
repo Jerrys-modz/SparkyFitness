@@ -105,6 +105,7 @@ export function presetFormReducer(
           })),
         })),
       };
+
     // "Save as preset" from a logged workout. Every logged set carries over
     // verbatim (completed or not — completion is about that day's session, not
     // the template); session-only fields (completion, PRs, RPE, per-exercise
@@ -177,8 +178,8 @@ export function useWorkoutPresetForm() {
     removeSet,
     updateSetField,
     updateSetMeta,
-    setExerciseProgression,
     setExerciseRest,
+    setExerciseProgression,
     supersetWith,
     ungroupExercise,
     reorderExercises,
@@ -215,7 +216,7 @@ export function useWorkoutPresetForm() {
       });
       return clientIds.map((c) => c.exerciseClientId);
     },
-    [exercisesModifiedRef]
+    [exercisesModifiedRef, dispatch]
   );
 
   const populateFromSession = useCallback(
@@ -237,7 +238,7 @@ export function useWorkoutPresetForm() {
         clientIds,
       });
     },
-    [exercisesModifiedRef]
+    [exercisesModifiedRef, dispatch]
   );
 
   return {

@@ -7,11 +7,6 @@ import {
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 
-import {
-  evaluateProgression,
-  type ExerciseProgressionConfig,
-} from '@workspace/shared';
-
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =
   'grid w-full min-w-[48rem] grid-cols-4 gap-2 sm:grid-cols-[7rem_10rem_5rem_6rem_6rem_6rem] sm:gap-x-6 sm:gap-y-2';
@@ -35,9 +30,10 @@ export interface WorkoutPlaybackExerciseDraft {
   started_at?: string | null;
   ended_at?: string | null;
   // Progression fields
-  progression_mode?: string | null;
+  progression_mode?:
+    'rep_goal' | 'fixed' | 'step_load' | 'manual' | string | null;
   rep_goal?: number | null;
-  increment_type?: 'weight' | 'reps' | null;
+  increment_type?: 'weight' | 'reps' | string | null;
   increment_value?: number | null;
   equipment_brand?: string | null;
   sets: WorkoutPlaybackSetDraft[];
@@ -322,8 +318,6 @@ export function createWorkoutPlaybackDraftFromPreset(
 
   const exercises: WorkoutPlaybackExerciseDraft[] = preset.exercises.map(
     (exercise, exerciseIndex) => {
-      const progressionMode = (exercise as any).progression_mode || 'rep_goal';
-
       return {
         exercise_id: exercise.exercise_id,
         exercise_name:
@@ -335,19 +329,46 @@ export function createWorkoutPlaybackDraftFromPreset(
           exercise.modality ?? exercise.exercise?.modality,
           exercise.category ?? exercise.exercise?.category
         ),
-        notes: (exercise as any).notes ?? null,
+        notes:
+          'notes' in exercise
+            ? ((exercise as { notes?: string | null }).notes ?? null)
+            : null,
         started_at: null,
         ended_at: null,
         // Preserve progression settings
-        progression_mode: (exercise as any).progression_mode || 'rep_goal',
-        rep_goal: (exercise as any).rep_goal ?? null,
-        increment_type: (exercise as any).increment_type || 'weight',
-        increment_value: (exercise as any).increment_value ?? 2.5,
-        equipment_brand: (exercise as any).equipment_brand ?? null,
+        ...('progression_mode' in exercise
+          ? {
+              progression_mode: (exercise as { progression_mode?: string })
+                .progression_mode,
+            }
+          : {}),
+        ...('rep_goal' in exercise
+          ? { rep_goal: (exercise as { rep_goal?: number }).rep_goal }
+          : {}),
+        ...('increment_type' in exercise
+          ? {
+              increment_type: (
+                exercise as { increment_type?: 'weight' | 'reps' }
+              ).increment_type,
+            }
+          : {}),
+        ...('increment_value' in exercise
+          ? {
+              increment_value: Number(
+                (exercise as { increment_value?: number }).increment_value
+              ),
+            }
+          : {}),
+        ...('equipment_brand' in exercise
+          ? {
+              equipment_brand: (exercise as { equipment_brand?: string })
+                .equipment_brand,
+            }
+          : {}),
         sets: exercise.sets.map((set, setIndex) => {
           const initialWeight = set.weight ?? null;
-          const initialReps =
-            progressionMode === 'rep_goal' ? null : (set.reps ?? null);
+          // Initialize with the preset's programmed reps so un-typed sets don't submit as null
+          const initialReps = set.reps;
 
           return {
             set_number: set.set_number ?? setIndex + 1,

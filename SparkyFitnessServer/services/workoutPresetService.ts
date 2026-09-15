@@ -1,141 +1,8 @@
 import { getClient } from '../db/poolManager.js';
-import { log } from '../config/logging.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
-import {
-  evaluateProgression,
-  type ExerciseProgressionConfig,
-  type LastExercisePerformance,
-} from '@workspace/shared';
-
-/**
- * Helper to dynamically evaluate progression overload on preset exercises
- * from the user's completed history before returning to mobile/web clients.
- */
-async function applyProgressionToPreset(
-  userId: string,
-  preset: any,
-  sharedClient?: any
-) {
-  if (!preset || !preset.exercises || preset.exercises.length === 0) {
-    return preset;
-  }
-
-  const client = sharedClient || (await getClient(userId));
-  const shouldRelease = !sharedClient;
-
-  try {
-    const enrichedExercises = await Promise.all(
-      preset.exercises.map(async (ex: any) => {
-        if (
-          !ex.rep_goal &&
-          ex.progression_mode !== 'fixed' &&
-          ex.progression_mode !== 'step_load'
-        ) {
-          return ex;
-        }
-
-        try {
-          const historyResult = await client.query(
-            `SELECT ees.weight, ees.reps, ees.set_number, ee.entry_date
-             FROM exercise_entry_sets ees
-             JOIN exercise_entries ee ON ees.exercise_entry_id = ee.id
-             WHERE ee.user_id = $1 
-               AND ee.exercise_id = $2
-               AND ees.reps IS NOT NULL 
-               AND ees.reps > 0
-             ORDER BY ee.entry_date DESC, ee.created_at DESC, ees.set_number ASC
-             LIMIT 50`,
-            [userId, ex.exercise_id]
-          );
-
-          if (historyResult.rows.length > 0) {
-            const latestDate = historyResult.rows[0].entry_date;
-            const lastSessionRows = historyResult.rows.filter(
-              (r: any) => String(r.entry_date) === String(latestDate)
-            );
-
-            const rawKg = lastSessionRows[0].weight
-              ? Number(lastSessionRows[0].weight)
-              : 0;
-            const baseWeightInLbs = rawKg > 0 ? rawKg * 2.20462 : 0;
-
-            const lastPerf: LastExercisePerformance = {
-              baseWeight: baseWeightInLbs,
-              sets: lastSessionRows.map((r: any) => ({
-                setNumber: r.set_number,
-                reps: Number(r.reps) || 0,
-                weight: r.weight ? Number(r.weight) * 2.20462 : 0,
-              })),
-            };
-
-            const config: ExerciseProgressionConfig = {
-              progressionMode: ex.progression_mode || 'rep_goal',
-              targetSets: ex.sets?.length || 5,
-              repGoal: ex.rep_goal,
-              incrementType: ex.increment_type || 'weight',
-              incrementValue: Number(ex.increment_value) || 2.5,
-              equipmentBrand: ex.equipment_brand,
-            };
-
-            const progression = evaluateProgression(config, lastPerf);
-
-            if (progression.goalAchieved) {
-              if (config.incrementType === 'weight' && baseWeightInLbs > 0) {
-                const newWeightKg = progression.suggestedWeight / 2.20462;
-                return {
-                  ...ex,
-                  sets: (ex.sets || []).map((s: any) => ({
-                    ...s,
-                    weight: newWeightKg,
-                  })),
-                };
-              }
-
-              if (
-                config.incrementType === 'reps' ||
-                ex.progression_mode === 'step_load'
-              ) {
-                const numSets = ex.sets?.length || 5;
-                const baseReps = Math.floor(
-                  progression.suggestedRepGoal / numSets
-                );
-                const remainder = progression.suggestedRepGoal % numSets;
-
-                return {
-                  ...ex,
-                  rep_goal: progression.suggestedRepGoal,
-                  sets: (ex.sets || []).map((s: any, idx: number) => ({
-                    ...s,
-                    reps: baseReps + (idx < remainder ? 1 : 0),
-                  })),
-                };
-              }
-            }
-          }
-        } catch (err) {
-          log(
-            'warn',
-            `Failed evaluating progression for exercise ${ex.exercise_id}:`,
-            err
-          );
-        }
-        return ex;
-      })
-    );
-
-    return {
-      ...preset,
-      exercises: enrichedExercises,
-    };
-  } finally {
-    if (shouldRelease) {
-      client.release();
-    }
-  }
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function createWorkoutPreset(userId: any, presetData: any) {
@@ -153,7 +20,7 @@ async function createWorkoutPreset(userId: any, presetData: any) {
     ...presetData,
     user_id: userId,
   });
-  return applyProgressionToPreset(userId, created);
+  return created;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,15 +32,8 @@ async function getWorkoutPresets(userId: any, page = 1, limit = 10) {
       page,
       limit
     );
-    const enrichedPresets = await Promise.all(
-      result.presets.map((preset: any) =>
-        applyProgressionToPreset(userId, preset, client)
-      )
-    );
-    return {
-      ...result,
-      presets: enrichedPresets,
-    };
+
+    return result;
   } finally {
     client.release();
   }
@@ -188,7 +48,7 @@ async function getWorkoutPresetById(userId: any, presetId: any) {
   if (!preset) {
     throw new Error('Workout preset not found.');
   }
-  return applyProgressionToPreset(userId, preset);
+  return preset;
 }
 
 async function updateWorkoutPreset(
@@ -222,7 +82,7 @@ async function updateWorkoutPreset(
     userId,
     updateData
   );
-  return applyProgressionToPreset(userId, updated);
+  return updated;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -257,9 +117,7 @@ async function searchWorkoutPresets(searchTerm: any, userId: any, limit: any) {
     userId,
     limit
   );
-  return Promise.all(
-    presets.map((preset: any) => applyProgressionToPreset(userId, preset))
-  );
+  return presets;
 }
 
 export { createWorkoutPreset };

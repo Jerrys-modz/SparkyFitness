@@ -38,6 +38,20 @@ import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 
+function weightFromKg(weightKg: number, unit: string): number {
+  if (!weightKg || weightKg <= 0) return 0;
+  return unit === 'lbs' || unit === 'st_lbs'
+    ? Math.round(weightKg * 2.20462262 * 10) / 10
+    : weightKg;
+}
+
+function weightToKgLocal(weight: number, unit: string): number {
+  if (!weight || weight <= 0) return 0;
+  return unit === 'lbs' || unit === 'st_lbs'
+    ? Math.round((weight / 2.20462262) * 100) / 100
+    : weight;
+}
+
 const MIN_REST_SECONDS = 15;
 const MAX_REST_SECONDS = 900;
 
@@ -158,9 +172,8 @@ const WorkoutPlaybackPage = () => {
           if (exercise.sets.some((s) => s.completed)) return exercise;
 
           try {
-            const response = await fetch(
-              `/api/v2/exercises/${exercise.exercise_id}/stats`,
-              { credentials: 'include' }
+            const response = await window.fetch(
+              `/api/exercises/${exercise.exercise_id}/stats`
             );
 
             if (!response.ok) return exercise;
@@ -171,44 +184,61 @@ const WorkoutPlaybackPage = () => {
               const rawKg = previousSessionSets[0].weight
                 ? Number(previousSessionSets[0].weight)
                 : 0;
-              const baseWeightInLbs =
-                weightUnit === 'lbs' && rawKg > 0 ? rawKg * 2.20462 : rawKg;
+              const baseWeightInDisplayUnit =
+                rawKg > 0 ? weightFromKg(rawKg, weightUnit) : 0;
 
               const lastPerf: LastExercisePerformance = {
-                baseWeight: baseWeightInLbs,
-                sets: previousSessionSets.map((s: any, idx: number) => ({
-                  setNumber: idx + 1,
-                  reps: Number(s.reps) || 0,
-                  weight: s.weight
-                    ? weightUnit === 'lbs'
-                      ? Number(s.weight) * 2.20462
-                      : Number(s.weight)
-                    : 0,
-                })),
+                baseWeight: baseWeightInDisplayUnit,
+                sets: previousSessionSets.map(
+                  (
+                    s: {
+                      set_number: number;
+                      reps: number | null;
+                      weight: number | null;
+                    },
+                    idx: number
+                  ) => ({
+                    setNumber: idx + 1,
+                    reps: Number(s.reps) || 0,
+                    weight: s.weight
+                      ? weightFromKg(Number(s.weight), weightUnit)
+                      : 0,
+                  })
+                ),
               };
 
+              const progressionMode =
+                exercise.progression_mode === 'fixed' ||
+                exercise.progression_mode === 'step_load' ||
+                exercise.progression_mode === 'manual'
+                  ? exercise.progression_mode
+                  : 'rep_goal';
+
+              const incrementType =
+                exercise.increment_type === 'reps' ? 'reps' : 'weight';
+
               const config: ExerciseProgressionConfig = {
-                progressionMode:
-                  (exercise as any).progression_mode || 'rep_goal',
+                progressionMode,
                 targetSets: exercise.sets.length || 5,
-                repGoal: (exercise as any).rep_goal,
-                incrementType: (exercise as any).increment_type || 'weight',
-                incrementValue:
-                  Number((exercise as any).increment_value) || 2.5,
-                equipmentBrand: (exercise as any).equipment_brand,
+                repGoal: exercise.rep_goal ?? 75,
+                incrementType,
+                incrementValue: Number(exercise.increment_value) || 2.5,
+                equipmentBrand: exercise.equipment_brand ?? undefined,
               };
 
               const progression = evaluateProgression(config, lastPerf);
 
               if (progression.goalAchieved) {
-                // Case A: Weight Progression -> Store in KG so desktop displays exact LBS
-                if (config.incrementType === 'weight' && baseWeightInLbs > 0) {
+                // Case A: Weight Progression -> Store in KG so database/session payload remains standardized
+                if (
+                  config.incrementType === 'weight' &&
+                  baseWeightInDisplayUnit > 0
+                ) {
                   hasChanges = true;
-                  const targetKg =
-                    weightUnit === 'lbs'
-                      ? progression.suggestedWeight / 2.20462
-                      : progression.suggestedWeight;
-
+                  const targetKg = weightToKgLocal(
+                    progression.suggestedWeight,
+                    weightUnit
+                  );
                   return {
                     ...exercise,
                     sets: exercise.sets.map((s) => ({
@@ -218,10 +248,10 @@ const WorkoutPlaybackPage = () => {
                   };
                 }
 
-                // Case B: Rep Progression (Hyperextensions, Step-load) -> Update reps!
+                // Case B: Rep Progression (Hyperextensions, Step-load) -> Update reps
                 if (
                   config.incrementType === 'reps' ||
-                  (exercise as any).progression_mode === 'step_load'
+                  exercise.progression_mode === 'step_load'
                 ) {
                   hasChanges = true;
                   const numSets = exercise.sets.length || 5;
@@ -234,7 +264,7 @@ const WorkoutPlaybackPage = () => {
                     ...exercise,
                     sets: exercise.sets.map((s, idx) => ({
                       ...s,
-                      reps: baseReps + (idx < remainder ? 1 : 0), // Sets update to 16 reps!
+                      reps: baseReps + (idx < remainder ? 1 : 0),
                     })),
                   };
                 }

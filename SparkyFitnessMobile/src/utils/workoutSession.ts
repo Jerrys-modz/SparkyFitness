@@ -848,7 +848,7 @@ export function resolveAssumedSetValues(
         effectivePreviousWeight ??
         planned?.weight ??
         lastEffective[tier].weight,
-      reps: planned?.reps ?? previous?.reps ?? lastEffective[tier].reps,
+      reps: previous?.reps ?? planned?.reps ?? lastEffective[tier].reps,
       duration:
         previous?.duration ??
         planned?.duration ??
@@ -1647,7 +1647,7 @@ export function buildActivitySetsPayload(
 export function buildPresetExercisesPayload(
   exercises: WorkoutDraftExercise[],
   weightUnit: 'kg' | 'lbs',
-  distanceUnit: 'km' | 'miles'
+  distanceUnit: 'km' | 'miles' = 'km'
 ): WorkoutPresetExercisePayload[] {
   return exercises.map((exercise, index) => {
     const modality = resolveSnapshotModality({
@@ -1704,11 +1704,11 @@ interface CanonicalPresetExercise {
   image_url: string | null;
   sort_order: number;
   superset_group: number | null;
-  progression_mode: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
-  rep_goal: number | null;
-  increment_type: 'weight' | 'reps' | null;
-  increment_value: number | null;
-  equipment_brand: string | null;
+  progression_mode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
+  rep_goal?: number | null;
+  increment_type?: 'weight' | 'reps' | null;
+  increment_value?: number | null;
+  equipment_brand?: string | null;
   sets: CanonicalPresetSet[];
 }
 
@@ -1815,6 +1815,7 @@ export function buildPresetUpdateExercises(
       const modality = resolveSnapshotModality(exercise.exercise_snapshot);
       const matchedIdx = matchedPresetIndex[index];
       const matched = matchedIdx == null ? null : preset.exercises[matchedIdx];
+      const rawMatched = matched as Partial<CanonicalPresetExercise> | null;
       const [only] = exercise.sets;
       const untouchedFabricatedSet =
         matched != null &&
@@ -1834,12 +1835,22 @@ export function buildPresetUpdateExercises(
             : (exercise.exercise_snapshot?.images?.[0] ?? null),
         sort_order: index,
         superset_group: exercise.superset_group ?? null,
-        // Carry over existing preset progression rules so they are NEVER wiped!
-        progression_mode: (matched as any)?.progression_mode ?? 'rep_goal',
-        rep_goal: (matched as any)?.rep_goal ?? null,
-        increment_type: (matched as any)?.increment_type ?? 'weight',
-        increment_value: Number((matched as any)?.increment_value) || 2.5,
-        equipment_brand: (matched as any)?.equipment_brand ?? null,
+        // Carry over existing preset progression rules if they exist
+        ...(rawMatched?.progression_mode
+          ? { progression_mode: rawMatched.progression_mode }
+          : {}),
+        ...(rawMatched?.rep_goal != null
+          ? { rep_goal: rawMatched.rep_goal }
+          : {}),
+        ...(rawMatched?.increment_type
+          ? { increment_type: rawMatched.increment_type }
+          : {}),
+        ...(rawMatched?.increment_value != null
+          ? { increment_value: Number(rawMatched.increment_value) }
+          : {}),
+        ...(rawMatched?.equipment_brand
+          ? { equipment_brand: rawMatched.equipment_brand }
+          : {}),
         sets: untouchedFabricatedSet
           ? []
           : exercise.sets.map((set, setIndex) =>
@@ -1867,19 +1878,31 @@ export function buildPresetUpdateExercises(
 
   const fromPreset: CanonicalPresetExercise[] = preset.exercises.map(
     (exercise, index) => {
+      const rawExercise = exercise as Partial<CanonicalPresetExercise>;
       const modality =
         sessionModalityByPresetIndex.get(index) ??
         resolveSnapshotModality(exercise);
+
       return {
         exercise_id: exercise.exercise_id,
         image_url: exercise.image_url ?? null,
         sort_order: index,
         superset_group: exercise.superset_group ?? null,
-        progression_mode: (exercise as any)?.progression_mode ?? 'rep_goal',
-        rep_goal: (exercise as any)?.rep_goal ?? null,
-        increment_type: (exercise as any)?.increment_type ?? 'weight',
-        increment_value: Number((exercise as any)?.increment_value) || 2.5,
-        equipment_brand: (exercise as any)?.equipment_brand ?? null,
+        ...(rawExercise.progression_mode
+          ? { progression_mode: rawExercise.progression_mode }
+          : {}),
+        ...(rawExercise.rep_goal != null
+          ? { rep_goal: rawExercise.rep_goal }
+          : {}),
+        ...(rawExercise.increment_type
+          ? { increment_type: rawExercise.increment_type }
+          : {}),
+        ...(rawExercise.increment_value != null
+          ? { increment_value: Number(rawExercise.increment_value) }
+          : {}),
+        ...(rawExercise.equipment_brand
+          ? { equipment_brand: rawExercise.equipment_brand }
+          : {}),
         sets: exercise.sets.map((set, setIndex) =>
           canonicalizePresetSet(set, setIndex + 1, modality)
         ),

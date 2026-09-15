@@ -20,9 +20,13 @@ export function evaluateProgression(
     };
   }
 
-  const effectiveRepGoal = config.repGoal ?? (config.targetSets * 8);
+  const effectiveRepGoal = config.repGoal ?? config.targetSets * 8;
 
-  if (!lastPerformance || !lastPerformance.sets || lastPerformance.sets.length === 0) {
+  if (
+    !lastPerformance ||
+    !lastPerformance.sets ||
+    lastPerformance.sets.length === 0
+  ) {
     return {
       goalAchieved: false,
       status: "FIRST_SESSION",
@@ -34,19 +38,23 @@ export function evaluateProgression(
     };
   }
 
-  const validSets = lastPerformance.sets.filter((s) => s.completed !== false && s.reps > 0);
+  const validSets = lastPerformance.sets.filter(
+    (s) => s.completed !== false && s.reps > 0
+  );
   const totalRepsAchieved = validSets.reduce((sum, s) => sum + s.reps, 0);
 
   let goalAchieved = false;
   let repDifference = 0;
 
   if (config.progressionMode === "fixed") {
-    // Fixed mode: Every working set must reach or exceed the target per-set reps
     const targetPerSet = config.repGoal ?? 8;
-    const successfulSets = validSets.filter((s) => s.reps >= targetPerSet).length;
-    goalAchieved = validSets.length >= config.targetSets && successfulSets >= config.targetSets;
-    const totalTargetReps = config.targetSets * targetPerSet;
-    repDifference = totalRepsAchieved - totalTargetReps;
+    const successfulSets = validSets.filter(
+      (s) => s.reps >= targetPerSet
+    ).length;
+    goalAchieved =
+      validSets.length >= config.targetSets &&
+      successfulSets >= config.targetSets;
+    repDifference = totalRepsAchieved - config.targetSets * targetPerSet;
 
     if (goalAchieved) {
       if (config.incrementType === "weight") {
@@ -60,6 +68,17 @@ export function evaluateProgression(
           repDifference,
           message: `All ${config.targetSets} sets reached ${targetPerSet} reps! Increase weight to ${newWeight}.`,
         };
+      } else {
+        const newRepGoal = targetPerSet + config.incrementValue;
+        return {
+          goalAchieved: true,
+          status: "PROGRESSION_REPS_INCREASE",
+          suggestedWeight: lastPerformance.baseWeight,
+          suggestedRepGoal: newRepGoal,
+          totalRepsAchieved,
+          repDifference,
+          message: `All ${config.targetSets} sets reached ${targetPerSet} reps! Target increased to ${newRepGoal} reps per set.`,
+        };
       }
     }
 
@@ -72,6 +91,39 @@ export function evaluateProgression(
       repDifference,
       message: `${successfulSets}/${config.targetSets} sets reached ${targetPerSet} reps. Hold weight.`,
     };
+  }
+
+  // Handle 'rep_goal' and 'step_load' modes
+  goalAchieved = totalRepsAchieved >= effectiveRepGoal;
+  repDifference = totalRepsAchieved - effectiveRepGoal;
+
+  if (goalAchieved) {
+    if (
+      config.incrementType === "weight" &&
+      config.progressionMode !== "step_load"
+    ) {
+      const newWeight = lastPerformance.baseWeight + config.incrementValue;
+      return {
+        goalAchieved: true,
+        status: "PROGRESSION_WEIGHT_INCREASE",
+        suggestedWeight: newWeight,
+        suggestedRepGoal: effectiveRepGoal,
+        totalRepsAchieved,
+        repDifference,
+        message: `Rep goal met (${totalRepsAchieved}/${effectiveRepGoal} reps)! Increasing weight to ${newWeight}.`,
+      };
+    } else {
+      const newRepGoal = effectiveRepGoal + config.incrementValue;
+      return {
+        goalAchieved: true,
+        status: "PROGRESSION_REPS_INCREASE",
+        suggestedWeight: lastPerformance.baseWeight,
+        suggestedRepGoal: newRepGoal,
+        totalRepsAchieved,
+        repDifference,
+        message: `Rep goal met (${totalRepsAchieved}/${effectiveRepGoal} reps)! Target increased to ${newRepGoal} reps.`,
+      };
+    }
   }
 
   return {

@@ -3,7 +3,7 @@ import type {
   ExerciseSnapshotResponse,
 } from '@workspace/shared';
 
-export type DraftSetType = 'warmup' | 'normal' | 'drop' | 'failure';
+export type DraftSetType = 'warmup' | 'normal' | 'drop' | 'failure' | string;
 
 export interface WorkoutDraftSet {
   clientId: string;
@@ -59,3 +59,35 @@ export interface WorkoutDraftExercise {
   incrementValue?: number | null;
   equipmentBrand?: string | null;
 }
+
+export interface WorkoutDraft {
+  type: 'workout';
+  name: string;
+  nameManuallySet?: boolean;
+  description?: string;
+  entryDate: string;
+  notes?: string;
+  exercises: WorkoutDraftExercise[];
+}
+
+export interface ActivityDraft {
+  type: 'activity';
+  exerciseId: string | null;
+  exerciseName: string;
+  exerciseCategory?: string | null;
+  exerciseImages?: string[];
+  caloriesPerHour: number;
+  name: string;
+  nameManuallySet?: boolean;
+  entryDate: string;
+  duration: string;
+  durationMinutes?: string;
+  calories: string;
+  caloriesBurned?: string;
+  caloriesManuallySet?: boolean;
+  distance: string;
+  avgHeartRate: string;
+  notes: string;
+}
+
+export type FormDraft = WorkoutDraft | ActivityDraft;

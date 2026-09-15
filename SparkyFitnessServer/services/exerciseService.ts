@@ -1,8 +1,3 @@
-import {
-  evaluateProgression,
-  type ExerciseProgressionConfig,
-  type LastExercisePerformance,
-} from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 import exerciseDb from '../models/exercise.js';
@@ -1957,142 +1952,23 @@ async function createGroupedWorkoutSession(
       const rawExercises =
         exercises !== undefined ? exercises : workoutPreset.exercises || [];
 
-      exerciseDefinitions = await Promise.all(
-        rawExercises.map(async (ex: any) => {
-          // Match with database preset to get authoritative progression rules
-          const presetEx = workoutPreset.exercises?.find(
-            (p: any) => p.exercise_id === ex.exercise_id
-          );
+      exerciseDefinitions = rawExercises.map((ex: any) => {
+        const presetEx = workoutPreset.exercises?.find(
+          (p: any) => p.exercise_id === ex.exercise_id
+        );
 
-          const progressionMode =
-            presetEx?.progression_mode || ex.progression_mode || 'rep_goal';
-          const repGoal = presetEx?.rep_goal ?? ex.rep_goal;
-          const incrementType =
-            presetEx?.increment_type || ex.increment_type || 'weight';
-          const incrementValue =
-            Number(presetEx?.increment_value ?? ex.increment_value) || 5.0;
-          const equipmentBrand =
-            presetEx?.equipment_brand || ex.equipment_brand;
-
-          if (
-            repGoal ||
-            progressionMode === 'fixed' ||
-            progressionMode === 'step_load'
-          ) {
-            try {
-              const historyResult = await client.query(
-                `SELECT ees.weight, ees.reps, ees.set_number, ee.entry_date
-                 FROM exercise_entry_sets ees
-                 JOIN exercise_entries ee ON ees.exercise_entry_id = ee.id
-                 WHERE ee.user_id = $1 
-                   AND ee.exercise_id = $2
-                   AND ees.reps IS NOT NULL 
-                   AND ees.reps > 0
-                   AND ee.exercise_preset_entry_id IS DISTINCT FROM $3
-                 ORDER BY ee.entry_date DESC, ee.created_at DESC, ees.set_number ASC
-                 LIMIT 50`,
-                [userId, ex.exercise_id, presetEntry.id]
-              );
-
-              if (historyResult.rows.length > 0) {
-                const latestDate = historyResult.rows[0].entry_date;
-                const lastSessionRows = historyResult.rows.filter(
-                  (r: any) => String(r.entry_date) === String(latestDate)
-                );
-
-                const rawKg = lastSessionRows[0].weight
-                  ? Number(lastSessionRows[0].weight)
-                  : 0;
-                const baseWeightInLbs = rawKg > 0 ? rawKg * 2.20462 : 0;
-
-                const lastPerf: LastExercisePerformance = {
-                  baseWeight: baseWeightInLbs,
-                  sets: lastSessionRows.map((r: any) => ({
-                    setNumber: r.set_number,
-                    reps: Number(r.reps) || 0,
-                    weight: r.weight ? Number(r.weight) * 2.20462 : 0,
-                  })),
-                };
-
-                const config: ExerciseProgressionConfig = {
-                  progressionMode: progressionMode as any,
-                  targetSets: ex.sets?.length || 5,
-                  repGoal,
-                  incrementType: incrementType as any,
-                  incrementValue,
-                  equipmentBrand,
-                };
-
-                const progression = evaluateProgression(config, lastPerf);
-
-                if (progression.goalAchieved) {
-                  // Case A: Weight Progression
-                  if (
-                    config.incrementType === 'weight' &&
-                    baseWeightInLbs > 0
-                  ) {
-                    const newWeightKg = progression.suggestedWeight / 2.20462;
-                    return {
-                      ...ex,
-                      rep_goal: repGoal,
-                      increment_type: incrementType,
-                      increment_value: incrementValue,
-                      equipment_brand: equipmentBrand,
-                      progression_mode: progressionMode,
-                      sets: (ex.sets || []).map((s: any) => ({
-                        ...s,
-                        weight: newWeightKg,
-                      })),
-                    };
-                  }
-
-                  // Case B: Rep Progression
-                  if (
-                    config.incrementType === 'reps' ||
-                    progressionMode === 'step_load'
-                  ) {
-                    const numSets = ex.sets?.length || 5;
-                    const baseReps = Math.floor(
-                      progression.suggestedRepGoal / numSets
-                    );
-                    const remainder = progression.suggestedRepGoal % numSets;
-
-                    return {
-                      ...ex,
-                      rep_goal: progression.suggestedRepGoal,
-                      increment_type: incrementType,
-                      increment_value: incrementValue,
-                      equipment_brand: equipmentBrand,
-                      progression_mode: progressionMode,
-                      sets: (ex.sets || []).map((s: any, idx: number) => ({
-                        ...s,
-                        weight: presetEx?.sets?.[idx]?.weight ?? s.weight,
-                        reps: baseReps + (idx < remainder ? 1 : 0),
-                      })),
-                    };
-                  }
-                }
-              }
-            } catch (err) {
-              log('error', 'Failed evaluating progression for exercise:', err);
-            }
-          }
-
-          return {
-            ...ex,
-            rep_goal: repGoal,
-            increment_type: incrementType,
-            increment_value: incrementValue,
-            equipment_brand: equipmentBrand,
-            progression_mode: progressionMode,
-          };
-        })
-      );
-
-      if (exercises === undefined) {
-        childEntrySource = 'Workout Preset';
-        preserveLegacyPresetDurationFallback = true;
-      }
+        return {
+          ...ex,
+          rep_goal: presetEx?.rep_goal ?? ex.rep_goal ?? null,
+          increment_type: presetEx?.increment_type ?? ex.increment_type ?? null,
+          increment_value:
+            presetEx?.increment_value ?? ex.increment_value ?? null,
+          equipment_brand:
+            presetEx?.equipment_brand ?? ex.equipment_brand ?? null,
+          progression_mode:
+            presetEx?.progression_mode ?? ex.progression_mode ?? null,
+        };
+      });
     } else {
       presetEntry =
         await exercisePresetEntryRepository.createExercisePresetEntryWithClient(

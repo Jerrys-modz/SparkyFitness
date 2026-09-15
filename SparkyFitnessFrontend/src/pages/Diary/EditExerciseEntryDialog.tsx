@@ -941,7 +941,11 @@ const EditExerciseEntryDialog = ({
                         setIndex={setIndex}
                         exerciseIndex={0}
                         onSetChange={(_, sIdx, field, value) =>
-                          handleSetChange(sIdx, field, value ?? undefined)
+                          handleSetChange(
+                            sIdx,
+                            field as Parameters<typeof handleSetChange>[1],
+                            value ?? undefined
+                          )
                         }
                         onDuplicateSet={(_, sIdx) => handleDuplicateSet(sIdx)}
                         onRemoveSet={(_, sIdx) => handleRemoveSet(sIdx)}

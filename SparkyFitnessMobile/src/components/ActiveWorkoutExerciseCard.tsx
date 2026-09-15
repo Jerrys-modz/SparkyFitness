@@ -330,8 +330,9 @@ function ActiveWorkoutExerciseCard({
   const clampedToRpe = durationLike || modality === 'reps_only';
   const effectiveMetricColumn = clampedToRpe ? 'rpe' : metricColumn;
   // Live, edit, and preview fetch the stats baseline so progression overload evaluates
+  const shouldFetchStats = mode !== 'view' || Boolean(excludePresetEntryId);
   const { data: stats } = useExerciseStats(
-    exercise.exercise_id,
+    shouldFetchStats ? exercise.exercise_id : null,
     excludePresetEntryId,
     sourcePresetId
   );
@@ -359,10 +360,14 @@ function ActiveWorkoutExerciseCard({
       equipmentBrand: exercise.equipment_brand ?? null,
     };
 
-    // Filter out warmup sets from previous session history
-    const workingPreviousSets = (previousSessionSets || []).filter(
-      (s: any) => s.setType !== 'warmup'
-    );
+    // Count only working sets (exclude warmups)
+    // Supports both API snake_case (set_type) and client camelCase (setType)
+    const workingPreviousSets = (previousSessionSets || []).filter((s) => {
+      const setType =
+        (s as { set_type?: string | null; setType?: string | null }).set_type ??
+        s.setType;
+      return setType !== 'warmup';
+    });
     const firstWorking = workingPreviousSets[0];
 
     const lastPerformance: LastExercisePerformance | null =
@@ -379,6 +384,7 @@ function ActiveWorkoutExerciseCard({
           }
         : null;
 
+    return evaluateProgression(config, lastPerformance);
     return evaluateProgression(config, lastPerformance);
   }, [
     exercise.rep_goal,
