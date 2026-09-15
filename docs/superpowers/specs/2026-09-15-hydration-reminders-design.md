@@ -2,7 +2,7 @@
 
 - **Issue:** [CodeWithCJ/SparkyFitness#2473](https://github.com/CodeWithCJ/SparkyFitness/issues/2473)
 - **Package:** `SparkyFitnessMobile/` only. No server, shared schema, or web changes.
-- **Status:** Draft, pending review.
+- **Status:** Approved; amended during planning (see "Amendments" at the end).
 
 ## Problem
 
@@ -248,3 +248,30 @@ notification.
 - Web frontend UI.
 - New WatchConnectivity message API / watch-side alert UI.
 - Wear OS / Android companion app.
+
+## Amendments (made while planning, 2026-09-15)
+
+These supersede the matching parts of Components §3–§5 above.
+
+1. **A chain, not one notification.** `computeReminderSchedule(...)` returns
+   up to 12 upcoming reminder times (each one interval after the previous,
+   moved into `[windowStart, windowEnd)` — a time before a day's start moves
+   to that start, a time at/after the end rolls to the next day's start). A
+   single scheduled notification cannot reschedule itself while the app is
+   closed, so one ping would have been the last until the app was opened.
+   It replaces the single-result `computeNextReminderTime(...)`.
+2. **Goal met → chain starts at tomorrow's window start**, instead of
+   cancelling everything and losing tomorrow's reminders for anyone who does
+   not open the app.
+3. **No "no goal configured" path.** `buildDailySummary` falls back to a
+   2500 ml goal and the Dashboard shows that as the user's goal; reminders
+   use the same value.
+4. **Overdue reminders** (the next time is already past) fire one minute
+   from now.
+5. **Toggle-off cancellation** is done by the reconciler effect when
+   `notificationsEnabled && waterReminderEnabled` turns false — the fasting
+   pattern — rather than a new setter in `notifications.ts`, which would
+   have created a hooks ↔ service import cycle.
+6. **Settings row labels** are "Water Reminders", "Remind After", "Start
+   Time", and "End Time"; the notification permission is never prompted from
+   the background reconcile, only from the settings toggle.
