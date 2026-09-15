@@ -165,10 +165,16 @@ const createFoodSchema = z
       .describe(
         "Create a food. AI clients: you MUST search the web and populate as many micro-nutrients (fat details, fiber, sugar, sodium, potassium, calcium, iron, vitamins), GI classification, and brand ('Homemade' or 'Traditional' if generic) as possible rather than just core macros."
       ),
-    food_name: z.string().min(1).max(200).describe('Name of the new food item'),
+    food_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .describe(
+        'Short, concise food name (2-4 words max, e.g. "Chicken Burrito", "Greek Salad"). Do NOT write sentences or full visual descriptions in food_name.'
+      ),
     brand: z.string().max(200).optional().describe('Brand name of the food'),
     notes: notesSchema.describe(
-      'Optional markdown reference note about this food — preparation, how the user orders it, or a recipe. Only set it when the user actually supplied such detail; never invent one.'
+      'Optional markdown reference note for recipes, preparation details, or ingredients. Keep food_name short and put extra details here.'
     ),
     calories: z.coerce.number().min(0).describe('Calories (kcal)'),
     protein: z.coerce.number().min(0).describe('Protein (g)'),
@@ -618,14 +624,18 @@ const saveAsMealTemplateSchema = z
       .string()
       .min(1)
       .max(200)
-      .describe('Name for the new meal template'),
+      .describe(
+        'Short, concise name for the meal template (2-4 words max, e.g. "Chicken Rice Bowl")'
+      ),
     description: z
       .string()
       .max(1000)
       .optional()
-      .describe('Description for the meal template'),
+      .describe(
+        'Short tag or label (under 50 chars). Put recipe steps, instructions, or long details in notes, not description'
+      ),
     notes: notesSchema.describe(
-      'Optional markdown reference note for the meal template, e.g. a recipe. Only set it when the user actually supplied one.'
+      'Optional markdown reference note for the meal template (recipes, preparation instructions). Put detailed info here.'
     ),
   })
   .strict();
