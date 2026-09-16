@@ -497,7 +497,7 @@ export async function scheduleWaterReminderNotifications(
         content: {
           title: notificationCopy(
             'notifications.hydration.title',
-            'Time to hydrate'
+            'Time to hydrate 💧'
           ),
           body: notificationCopy(
             'notifications.hydration.body',

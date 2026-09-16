@@ -382,7 +382,7 @@ describe('notifications service', () => {
       expect(mockSchedule).toHaveBeenCalledTimes(2);
       expect(mockSchedule).toHaveBeenCalledWith({
         content: expect.objectContaining({
-          title: 'Time to hydrate',
+          title: 'Time to hydrate 💧',
           body: "You haven't logged any water in a while.",
         }),
         trigger: expect.objectContaining({
