@@ -1169,6 +1169,7 @@ describe('workout presets', () => {
         action: 'update_workout_preset',
         preset_id: PRESET_ID,
         name: 'Leg Day (updated)',
+        confirmed: true,
       },
       opts
     );
@@ -1197,6 +1198,7 @@ describe('workout presets', () => {
       {
         action: 'update_workout_preset',
         preset_id: PRESET_ID,
+        confirmed: true,
         exercises: [
           {
             exercise_id: EXERCISE_ID,
@@ -1251,6 +1253,7 @@ describe('workout presets', () => {
       {
         action: 'update_workout_preset',
         preset_id: PRESET_ID,
+        confirmed: true,
         exercises: '{not json',
       },
       opts
@@ -1267,6 +1270,7 @@ describe('workout presets', () => {
       {
         action: 'update_workout_preset',
         preset_id: PRESET_ID,
+        confirmed: true,
         exercises: JSON.stringify({ exercise_id: EXERCISE_ID }),
       },
       opts
@@ -1286,6 +1290,7 @@ describe('workout presets', () => {
     const result = await tools.sparky_manage_exercise.execute!(
       {
         preset_id: PRESET_ID,
+        confirmed: true,
         exercises: [{ exercise_id: EXERCISE_ID }],
       },
       opts
@@ -1317,7 +1322,12 @@ describe('workout presets', () => {
     );
 
     const result = await tools.sparky_manage_exercise.execute!(
-      { action: 'update_workout_preset', preset_id: PRESET_ID, name: 'X' },
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        name: 'X',
+        confirmed: true,
+      },
       opts
     );
 
@@ -1332,7 +1342,11 @@ describe('workout presets', () => {
     });
 
     const result = await tools.sparky_manage_exercise.execute!(
-      { action: 'delete_workout_preset', preset_id: PRESET_ID },
+      {
+        action: 'delete_workout_preset',
+        preset_id: PRESET_ID,
+        confirmed: true,
+      },
       opts
     );
 
@@ -1351,13 +1365,45 @@ describe('workout presets', () => {
     );
 
     const result = await tools.sparky_manage_exercise.execute!(
-      { action: 'delete_workout_preset', preset_id: PRESET_ID },
+      {
+        action: 'delete_workout_preset',
+        preset_id: PRESET_ID,
+        confirmed: true,
+      },
       opts
     );
 
     expect(result).toBe(
       `Error [NOT_FOUND]: Workout preset with ID '${PRESET_ID}' not found.\n\nSuggestion: Check the ID and try again.`
     );
+  });
+
+  it('update_workout_preset does not mutate without confirmed=true', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        name: 'Leg Day (updated)',
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      `Updating workout preset ${PRESET_ID} can overwrite its exercise list. Confirm with the user first. If they agree, call update_workout_preset again with the same fields and confirmed=true. Nothing was changed.`
+    );
+    expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
+  });
+
+  it('delete_workout_preset does not mutate without confirmed=true', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'delete_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+
+    expect(result).toBe(
+      `Deleting workout preset ${PRESET_ID} is permanent. Confirm with the user first. If they agree, call delete_workout_preset again with preset_id=${PRESET_ID} and confirmed=true. Nothing was deleted.`
+    );
+    expect(workoutPresetService.deleteWorkoutPreset).not.toHaveBeenCalled();
   });
 });
 

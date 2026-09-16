@@ -162,6 +162,13 @@ const presetIdSchema = z.coerce
   .positive()
   .describe('Numeric ID of the workout preset');
 
+const confirmedSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    'Must be true to apply the mutation. If omitted or false, the tool returns a confirmation prompt and does not change anything.'
+  );
+
 const getWorkoutPresetSchema = z
   .object({
     action: z.literal('get_workout_preset'),
@@ -333,6 +340,7 @@ const updateWorkoutPresetSchema = z
   .object({
     action: z.literal('update_workout_preset'),
     preset_id: presetIdSchema.describe('ID of the workout preset to update'),
+    confirmed: confirmedSchema,
     name: z
       .string()
       .min(1)
@@ -362,6 +370,7 @@ const deleteWorkoutPresetSchema = z
   .object({
     action: z.literal('delete_workout_preset'),
     preset_id: presetIdSchema.describe('ID of the workout preset to delete'),
+    confirmed: confirmedSchema,
   })
   .strict();
 
@@ -603,6 +612,12 @@ export const manageExerciseInput = z.object({
     .optional()
     .describe(
       'Whether the workout preset is shared publicly — for create_workout_preset / update_workout_preset'
+    ),
+  confirmed: z
+    .boolean()
+    .optional()
+    .describe(
+      'Must be true to apply update_workout_preset or delete_workout_preset. If omitted or false, the tool returns a confirmation prompt and does not change anything.'
     ),
   // entry management
   entry_id: uuidSchema

@@ -174,6 +174,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'preset_id',
         'preset_name',
         'is_public',
+        'confirmed',
         'entry_id',
         'start_date',
         'end_date',
