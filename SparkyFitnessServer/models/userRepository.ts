@@ -15,13 +15,19 @@ async function createUser(
       'INSERT INTO "user" (id, email, name, image, created_at, updated_at) VALUES ($1, $2, $3, $4, now(), now())',
       [userId, email, full_name, null]
     );
-    // Insert into "account" for email/password
+    // Insert into "account" for email/password.
+    // account_id MUST be the user's id, not their email: Better Auth's
+    // sign-in looks for `providerId === 'credential' && accountId === user.id`,
+    // so an email here makes the account invisible and sign-in fails with
+    // "User not found" even though the row exists. (Tolerated before 1.7,
+    // which started matching on accountId.) Social/OIDC rows are different --
+    // those correctly store the provider's subject.
     await client.query(
       'INSERT INTO "account" (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, now(), now())',
-      [email, 'credential', userId, hashedPassword]
+      [userId, 'credential', userId, hashedPassword]
     );
     // Initialize profile and goals safely
-    await ensureUserInitialization(userId, full_name, client);
+    await ensureUserInitialization(userId, full_name, null, client);
     await client.query('COMMIT'); // Commit transaction
     return userId;
   } catch (error) {
@@ -231,9 +237,15 @@ async function updateUserEmail(userId: string, newEmail: string) {
       'UPDATE "user" SET email = $1, email_verified = false, updated_at = now() WHERE id = $2',
       [newEmail, userId]
     );
+    // account_id deliberately keeps the user id and is NOT rewritten to the new
+    // email. Better Auth resolves the credential row with
+    // `providerId === 'credential' && accountId === user.id`, so writing the
+    // email here would make password sign-in fail with "User not found"
+    // immediately after a user changes their address. Only `updated_at` moves;
+    // the address itself lives on the "user" row updated above.
     await client.query(
       'UPDATE "account" SET account_id = $1, updated_at = now() WHERE user_id = $2 AND provider_id = \'credential\'',
-      [newEmail, userId]
+      [userId, userId]
     );
     await client.query('COMMIT');
     return true;
@@ -286,7 +298,7 @@ async function createOidcUser(
     );
     const newUserId = userResult.rows[0].id;
     // Initialize profile and goals safely
-    await ensureUserInitialization(newUserId, fullName, client);
+    await ensureUserInitialization(newUserId, fullName, null, client);
     // Link the new user to the OIDC provider (account table)
     await client.query(
       'INSERT INTO "account" (id, account_id, provider_id, user_id, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, now(), now())',
@@ -426,7 +438,10 @@ async function getAllUsers(
 async function deleteUser(userId: string) {
   const client = await getSystemClient(); // System client for deleting user (admin operation)
   try {
-    // Delete from "user" (this should trigger cascades for session, account, etc.)
+    await client.query('BEGIN'); // Start transaction for atomicity
+    // Everything the user owns goes with them. Diary entries belonging to other
+    // users survive because the library foreign keys null their pointer instead
+    // of cascading; the entry carries its own snapshot of name and nutrition.
     const result = await client.query(
       'DELETE FROM "user" WHERE id = $1 RETURNING id',
       [userId]

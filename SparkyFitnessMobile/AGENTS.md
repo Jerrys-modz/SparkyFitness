@@ -1,8 +1,8 @@
 # AGENTS.md
 
-_Last updated: 2026-09-04_
+_Last updated: 2026-09-15_
 
-SparkyFitness Mobile is a React Native 0.85 + Expo SDK 56 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
+SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
 This is the package guide for `SparkyFitnessMobile/`. Work from this directory for mobile implementation and validation. If a task crosses into the backend, frontend, or `shared/`, read that package guide too before editing outside mobile.
 
@@ -18,7 +18,7 @@ This is the package guide for `SparkyFitnessMobile/`. Work from this directory f
 
 ## Stack And Imports
 
-- Primary stack: React 19.2, React Native 0.85, Expo SDK 56, TypeScript 6, React Navigation 7, TanStack Query 5, Uniwind / TailwindCSS v4, Reanimated 4, Skia, Victory Native, Expo Background Task / Task Manager / Notifications, Zustand, assistant-ui + AI SDK (chat).
+- Primary stack: React 19.2, React Native 0.86, Expo SDK 57, TypeScript 6, React Navigation 7, TanStack Query 5, Uniwind / TailwindCSS v4, Reanimated 4, Skia, Victory Native, Expo Background Task / Task Manager / Notifications, Zustand, assistant-ui + AI SDK (chat).
 - `@/*` maps to this package and `@workspace/shared` maps to `../shared/src/index.ts`.
 - Prefer `@workspace/shared` schemas, constants, date/timezone helpers, and types over local duplicates.
 - The app talks to the backend under `/api`; health uploads go to `POST /api/health-data`.
@@ -52,7 +52,7 @@ npx expo prebuild --clean
 - Use Watchman-disabled Jest commands in agent/sandbox runs; bare Jest often fails on macOS.
 - `collectCoverage` is enabled in Jest config, so expect coverage output from normal test runs.
 - Run `npx expo prebuild --clean` after native dependency changes, permissions, app group or widget target changes, Expo plugin changes, native config edits, or patching native modules.
-- After editing the root `patches/react-native-health-connect@3.5.3.patch`, run `pnpm install` from the repo root, then prebuild from mobile.
+- After editing the root `patches/react-native-health-connect@4.1.3.patch`, run `pnpm install` from the repo root, then prebuild from mobile.
 
 ## App Shell And Navigation
 
@@ -114,7 +114,7 @@ npx expo prebuild --clean
 - `useWaterIntakeMutation` fetches `waterContainersQueryKey`, persists the selected container, and optimistically updates `dailySummaryQueryKey(date)`.
 - Active-server switches clear React Query state before refetching connection state.
 - Error-boundary retry flows call `queryClient.resetQueries()`.
-- App-local toggles live in `stores/appPreferencesStore.ts` (Zustand `persist`, single AsyncStorage key `@SparkyFitness/app-preferences`): haptics, sounds, notifications, hydration/fasting card visibility, Ask Sparky and progress photos card visibility, the Liquid Glass tab bar opt-in, the active-workout metric column, and the default rest period (`defaultRestSec`, edited in `WorkoutSettingsScreen`). Consume via selectors (`useAppPreferencesStore((s) => s.hapticsEnabled)`) plus generated setters; non-React code reads current values through helpers like `getDefaultRestSec()`. A legacy-aware storage adapter migrates the old per-key `@HealthConnect:*` values once. These preferences never sync to the server.
+- App-local toggles live in `stores/appPreferencesStore.ts` (Zustand `persist`, single AsyncStorage key `@SparkyFitness/app-preferences`): haptics, sounds, notifications, hydration/fasting card visibility, Ask Sparky and progress photos card visibility, the Liquid Glass tab bar opt-in, the active-workout metric column, the default rest period (`defaultRestSec`, edited in `WorkoutSettingsScreen`), and the Health Trends layout (`healthTrendOrder` + `hiddenHealthTrends`, edited in `HealthTrendsSettingsScreen`). The Health Trends pair is written through the single `setHealthTrendLayout(order, hiddenKeys)` setter rather than one per field, because one drag changes order and visibility together; a saved order is reconciled against `constants/healthTrends.ts` by `resolveHealthTrendOrder`, so registering a new graph needs no `STORE_VERSION` bump. Consume via selectors (`useAppPreferencesStore((s) => s.hapticsEnabled)`) plus generated setters; non-React code reads current values through helpers like `getDefaultRestSec()`. A legacy-aware storage adapter migrates the old per-key `@HealthConnect:*` values once. These preferences never sync to the server.
 
 ## Health Sync
 
@@ -151,10 +151,12 @@ npx expo prebuild --clean
 
 ## Native Patches
 
-- `react-native-health-connect` is declared as `^3.5.3`; the installed 3.5.3 build is patched from the repo root via `pnpm.patchedDependencies`.
-- Patch file: `../patches/react-native-health-connect@3.5.3.patch`.
-- The patch changes Android `getAggregateGroupByPeriodRequest` implementations from instant-based `getTimeRangeFilter` to local-date-time `getTimeRangeFilterLocal` for non-Steps record types. This protects per-day grouping around DST and local-day boundaries.
+- `react-native-health-connect` is declared as `^4.1.3`; the installed build is patched from the repo root via `patchedDependencies` in `pnpm-workspace.yaml`.
+- Patch file: `../patches/react-native-health-connect@4.1.3.patch`, one hunk. `PermissionUtils.mapPermissionResult` maps `ExerciseRoute` and `BackgroundAccessPermission` back to JS but not `ReadHealthDataHistory`, even though `parsePermissions` accepts it on the request path. Since `requestPermission` also resolves through `mapPermissionResult`, a granted history permission can never be observed, so `ensureHistoryReadPermission` always returns false and Import Full History believes it is capped at 30 days. Reported upstream as matinzd/react-native-health-connect#276; drop the patch if that lands.
+- The older 3.5.3 patch also forced `getTimeRangeFilterLocal` in `getAggregateGroupByPeriodRequest` (DST / local-day grouping) and made `ExerciseRouteResultType` string-valued. Both are gone: 4.1.3 uses the local filter at all 21 sites, and upstream is fixing the route enum in #274 by typing the read path as a string literal union instead — a better fix than ours, so `routeNeedsConsent` keeps accepting both forms and depends on neither declaration.
 - `@bacons/apple-targets@4.0.6` is patched via `../patches/@bacons__apple-targets@4.0.6.patch`, fixing two upstream bugs. First, its xcode pass matched "its" extension target by type with a fall-back to any same-type target, which adopted and corrupted the expo-widgets `ExpoWidgetsTarget` on a clean prebuild; the patch scopes the match to an exact product-name hit. Second, the existing-target update path crashed every non-clean prebuild (EvanBacon/expo-apple-targets#201): removing the old build configuration list's referrers cleared `target.props.buildConfigurationList`, which the next line then dereferenced; the patch holds the list in a local and iterates a copy of its configurations so none are skipped mid-removal.
+- `@bacons/apple-targets` is held at 4.0.6 on purpose: it has a 5.x, and moving to it invalidates the patch file. `expo install --fix` does not touch either patched package (neither is an Expo SDK package), so SDK upgrades leave both patches applying cleanly.
+- `expo-health-connect` was removed. It only ever supplied an Expo config plugin, and upstream archived it: everything it did ships inside `react-native-health-connect` as of v4, which now writes both the `ACTION_SHOW_PERMISSIONS_RATIONALE` intent filter (Android 13 and below) and the `ViewPermissionUsageActivity` alias (Android 14+). Installing both causes Android build failures from duplicate classes.
 - After changing a patch or upgrading a patched package, run `pnpm install` from the repo root and then `npx expo prebuild --clean` from mobile before native validation.
 
 ## Food, Meals, Units, And Photo Estimates
@@ -195,7 +197,8 @@ npx expo prebuild --clean
 - `DashboardScreen` and `DiaryScreen` share date navigation patterns and support gesture-driven date movement.
 - `DashboardScreen` drives hydration quick-add, card visibility, fasting summary, health trends, and widget sync.
 - `DiaryScreen` owns meal type sections, measurement summaries, serving quick-adjust, swipe/long-press deletes, and AddSheet date propagation.
-- `DashboardSettingsScreen` controls dashboard card visibility and custom nutrient display preferences.
+- `DashboardSettingsScreen` controls dashboard card visibility and custom nutrient display preferences, and is the entry point to `HealthTrendsSettingsScreen`.
+- `HealthTrendsSettingsScreen` orders and hides the Health Trends graphs. One drag list holds the shown graphs, a `Hidden` divider, then the hidden ones; dragging a graph across the divider is what hides or shows it, so there are no switches. Every row including the divider shares `REORDER_ROW_HEIGHT`, keeping the stride uniform for the reorder worklets it shares with `WorkoutReorderList` and `MealTypeSettingsScreen` (`useReorderRowGeometry`, `useReorderRowPreviewStyle`, `createReorderRowPanGesture`, `resetReorderDragPreview`, all exported from `components/WorkoutReorderList.tsx`). Register a new graph in `constants/healthTrends.ts`; `HealthTrendsPager`'s render map is a total `Record<HealthTrendKey, ...>`, so registering one without rendering it is a compile error.
 - Progress photos live in one screen, `ProgressPhotosScreen`: the selected day's three angles with their management on top (`PhotoDaySlots`, date picked through `CalendarSheet`), over a timeline of that angle's recent shoots, each row carrying its weight and the delta against the previous one - a preview rather than the archive, see the History note below. `ProgressPhotoCompareScreen` (two days side by side) and `ProgressPhotoTimelapseScreen` (cross-faded playback) hang off it. Reached from the `AddSheet` row and `ProgressPhotosCard` on the Dashboard, both passing an optional `date`. `ProgressPhotoViewer` is the full-screen pinch-zoom viewer - deliberately not `ImageLightbox`, which resolves URIs through the food image source context and takes plain string URLs.
 - `ProgressPhotosCard` is scoped to the Dashboard's selected day, not the latest shoot whenever it was: every other card there answers for the selected date, so a card showing a different day read as today's photo and contradicted the date in the header. It reads the day off the gallery rather than the per-day endpoint because it shows that day's weight, which only the gallery carries. It gates that query on `progressPhotosCardVisible`, so a hidden card costs no request at app open, and prompts into the day when it has no photos rather than hiding itself - nothing else on the Dashboard advertises the feature.
 - Adding and removing write immediately rather than staging behind a Save: this screen is somewhere you browse, and unsaved state plus a back-guard does not belong on it. One pick is one request, so uploads stay serial anyway. Replacing needs no delete first because the server upserts on `(user_id, entry_date, photo_type)`; removal confirms first.
@@ -247,7 +250,8 @@ npx expo prebuild --clean
 - Many visual components read CSS variables with `useCSSVariable`, especially Skia charts and themed controls.
 - Animate Skia paths from Reanimated `useSharedValue` / `useDerivedValue`, not Skia's deprecated animation API.
 - `Icon.tsx` maps semantic names to SF Symbols on iOS and Ionicons on Android; verify identifiers before adding icons.
-- Use shared primitives where they fit: `FormInput`, `Button`, `SettingsRow`, `SettingsRowGroup`, `SegmentedControl`, `StepperInput`, `BottomSheetPicker`, `CalendarSheet`, `DateRangeSheet`, `AnchoredMenu`, and `FormScreenChrome`.
+- Use shared primitives where they fit: `FormInput`, `Button`, `SettingsRow`, `SettingsRowGroup`, `SegmentedControl`, `StepperInput`, `BottomSheetPicker`, `CalendarSheet`, `DateRangeSheet`, `AnchoredMenu`, `FooterActionBar`, and `FormScreenChrome`.
+- An action pinned below a list goes in `FooterActionBar`, never a hand-rolled `View` with flat bottom padding. A list's own `contentContainerStyle` inset does not reach a sibling pinned under it, so a flat padding leaves the action beneath Android's navigation bar; the component applies `Math.max(insets.bottom, 16)` in one place so the next screen cannot rediscover that. `FormScreenChrome`'s `FooterSaveBar` stays separate — it is the save-specific variant, with a top divider and the duplicate-press guard.
 - `DateRangeSheet` takes optional `title` and `confirmLabel`; they default to the writeback removal wording, so a consumer that is not removing anything (the time-lapse) must pass its own. It also takes `markedDates`, like `CalendarSheet`: both dot their days through the shared `useMarkedDayComponent` (`components/calendarMarkedDays.tsx`), which inverts the dot on a selected day and on either end of a range, and supplies no `Day` override at all when there is nothing to mark so every other caller keeps the library's own cell.
 - `BottomSheetPicker`, `CalendarSheet`, and sheets shown over native modals use `FullWindowOverlay` on iOS to avoid nested-provider inset bugs.
 - Keep button text and compact cards within their stable dimensions across mobile sizes. Avoid layout shifts from dynamic labels, loading states, or icon swaps.
@@ -273,6 +277,8 @@ npx expo prebuild --clean
 - Keep `YYYY-MM-DD` values as calendar-day strings until a database or external API boundary requires UTC instants.
 - For day-string logic, prefer shared timezone helpers such as `isDayString`, `addDays`, `compareDays`, `localDateToDay`, `todayInZone`, `instantToDay`, `dayToUtcRange`, and `dayRangeToUtcRange`.
 - Mobile API contract changes usually require matching server and often web checks. Food photo, shared schemas, nutrition, meal copy, and auth changes are common cross-package surfaces.
+- **Library Deletes & Cache Invalidation:** Library mutations for exercises (`useExerciseMutations.ts`) and foods (`useFoodMutations.ts`) must invalidate all dependent caches: library search, count, details, workout presets, and daily diary summaries (`dailySummaryRootQueryKey`).
+- **Snapshot Preservation & Preset Seeding:** `mode: 'delete'` preserves logged workouts/meals using snapshots (`exercise_id` / `food_id` set to `null`). When creating/saving a preset from a logged session (`useWorkoutPresetForm.ts`), entries with null `exercise_id` are automatically dropped while valid exercises carry over. Empty presets are guarded against starting or logging.
 
 ## Server API Orientation
 
@@ -280,7 +286,7 @@ All endpoints require auth headers, and proxy headers are injected before auth h
 
 - `healthDataApi.ts` - `POST /api/health-data`, identity checks, chunking, timeout, retry, session-expiry handling.
 - `dailySummaryApi.ts`, `goalsApi.ts`, `measurementsApi.ts`, `preferencesApi.ts` - daily summary, goals, check-ins, water, timezone bootstrap, nutrient display preferences.
-- `checkInPhotosApi.ts` - progress photos: the gallery (every photo with that day's weight, in one request), a day's photos, the days that have any, multipart upload and delete. Image bytes come from the authenticated `/file/{id}` route, so `useCheckInPhotoSource` attaches auth and proxy headers and memoizes each source by photo id.
+- `checkInPhotosApi.ts` - progress photos: the gallery (every photo with that day's weight, in one request), a day's photos, the days that have any, multipart upload and delete. Image bytes come from the authenticated `/file/{id}` route, so `useCheckInPhotoSource` attaches auth and proxy headers and memoizes each source by photo id. It is a thin wrapper over `useAuthedImageSource`, the shared hook behind every authenticated image (see also `usePregnancyPhotoSource` for bump photos); that hook also refuses to build a source over plaintext HTTP outside `__DEV__`, so the session token never goes out in clear.
 - `foodEntriesApi.ts`, `foodEntryMealsApi.ts`, `foodsApi.ts`, `mealsApi.ts`, `mealTypesApi.ts`, `mealPlansApi.ts` - diary food entries, grouped logged meals, saved foods/variants/barcodes, saved meals, meal types, and recurring meal plans.
 - `externalFoodSearchApi.ts`, `aiSettingsApi.ts`, `aiConversionApi.ts` - provider-agnostic food search/details/barcode, label/photo estimate, AI availability, unit conversion.
 - `exerciseApi.ts`, `externalExerciseSearchApi.ts`, `workoutPresetsApi.ts` - exercise history, suggested/search/import flows, preset/individual exercise sessions, workout presets.

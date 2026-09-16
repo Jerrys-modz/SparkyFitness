@@ -22,6 +22,8 @@ export interface IdentityUserResponse {
   fullName: string | null;
   activeUserFullName?: string;
   activeUserEmail: string;
+  /** True when the authenticated account is the demo sandbox. */
+  isDemo?: boolean;
 }
 
 export interface SwitchContextResponse {
@@ -231,4 +233,27 @@ export const getAccessibleUsers = async (): Promise<AccessibleUser[]> => {
           },
     access_end_date: item.access_end_date,
   }));
+};
+
+export const demoLogin = async (): Promise<AuthResponse> => {
+  const data = await apiCall<{
+    user?: BetterAuthUser;
+    message?: string;
+  }>('/auth/demo-login', {
+    method: 'POST',
+  });
+
+  if (!data?.user) {
+    throw new Error(
+      'Demo login succeeded but no user data was received from the server.'
+    );
+  }
+
+  return {
+    message: data.message || 'Demo login successful',
+    userId: data.user.id,
+    role: data.user.role || 'user',
+    fullName: data.user.name || 'Demo User',
+    email: data.user.email,
+  };
 };
