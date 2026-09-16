@@ -124,15 +124,9 @@ function presetMutationConfirmPrompt(
 ): string | null {
   if (confirmed === true) return null;
   if (action === 'delete') {
-    return (
-      `Deleting workout preset ${presetId} is permanent. Confirm with the user first. ` +
-      `If they agree, call delete_workout_preset again with preset_id=${presetId} and confirmed=true. Nothing was deleted.`
-    );
+    return `Deleting workout preset ${presetId} is permanent. Confirm with the user first. If they agree, call delete_workout_preset again with preset_id=${presetId} and confirmed=true. Nothing was deleted.`;
   }
-  return (
-    `Updating workout preset ${presetId} can overwrite its exercise list. Confirm with the user first. ` +
-    `If they agree, call update_workout_preset again with the same fields and confirmed=true. Nothing was changed.`
-  );
+  return `Updating workout preset ${presetId} can overwrite its exercise list. Confirm with the user first. If they agree, call update_workout_preset again with the same fields and confirmed=true. Nothing was changed.`;
 }
 
 // MCP's date-range defaults: a single `date` overrides start/end; otherwise
