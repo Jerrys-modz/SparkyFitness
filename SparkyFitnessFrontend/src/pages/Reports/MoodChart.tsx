@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { getTimeXAxisProps, prepareTimeChartData } from '@/utils/chartUtils';
 
+/** A built-in mood as "<emoji> <name>", or the raw tag for a user's own mood. */
 function moodTagLabel(tag: string): string {
   const def = moodByName(tag);
   return def ? `${def.emoji} ${def.displayName}` : tag;
