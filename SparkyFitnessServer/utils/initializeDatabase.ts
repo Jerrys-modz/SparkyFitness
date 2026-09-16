@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { log } from '../config/logging.js';
 import { getSystemClient } from '../db/poolManager.js';
 import { applyMigrations } from './dbMigrations.js';
 import { applyRlsPolicies } from './applyRlsPolicies.js';
@@ -14,6 +15,7 @@ async function initializeDatabase(): Promise<void> {
   const client: PoolClient = await getSystemClient();
   let destroyClient = true;
   try {
+    log('info', 'Waiting for the database initialization lock...');
     await client.query('SELECT pg_advisory_lock(hashtext($1))', [lockName]);
     await applyMigrations(client);
     await applyRlsPolicies(client);
