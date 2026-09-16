@@ -162,6 +162,61 @@ const presetIdSchema = z.coerce
   .positive()
   .describe('Numeric ID of the workout preset');
 
+// A preset's saved sets. Same shape as exerciseSetSchema minus rpe, which
+// diary sets support but workout_preset_exercise_sets has no column for.
+const presetSetSchema = z
+  .object({
+    set_type: setTypeEnum.default('Working Set'),
+    reps: z.coerce.number().int().min(0).optional(),
+    weight: z.coerce.number().min(0).optional().describe('Weight in kg'),
+    duration: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe('Duration in seconds'),
+    distance: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe('Distance in km — cardio sets'),
+    rest_time: z.coerce
+      .number()
+      .min(0)
+      .optional()
+      .describe('Rest time in seconds'),
+    notes: z.string().max(1000).optional().describe('Note for this set'),
+  })
+  .strict();
+
+// One exercise entry within a preset. Exercises that share the same
+// superset_group are performed back-to-back as a superset.
+const presetExerciseSchema = z
+  .object({
+    exercise_id: uuidSchema,
+    superset_group: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe(
+        'Exercises sharing the same superset_group number are grouped as a superset'
+      ),
+    sets: z
+      .array(presetSetSchema)
+      .optional()
+      .describe('Planned sets for this exercise in the preset'),
+  })
+  .strict();
+
+const presetExercisesInputSchema = z
+  .union([z.array(presetExerciseSchema), z.string()])
+  .describe(
+    'Exercises as an array of objects or a JSON string; each item is {exercise_id, sets?, superset_group?}'
+  );
+
+export type PresetExerciseInput = z.infer<typeof presetExerciseSchema>;
+
 const logWorkoutPresetSchema = z
   .object({
     action: z.literal('log_workout_preset'),
@@ -248,9 +303,16 @@ const createWorkoutPresetSchema = z
   .object({
     action: z.literal('create_workout_preset'),
     name: z.string().min(1).max(200).describe('Name of the workout preset'),
-    exercise_ids: z
-      .array(uuidSchema)
-      .describe('List of exercise UUIDs to include in the preset'),
+    description: z
+      .string()
+      .max(1000)
+      .optional()
+      .describe('Description for the preset'),
+    is_public: z
+      .boolean()
+      .optional()
+      .describe('Whether the preset is shared publicly'),
+    exercises: presetExercisesInputSchema,
   })
   .strict();
 
@@ -273,11 +335,11 @@ const updateWorkoutPresetSchema = z
       .boolean()
       .optional()
       .describe('Whether the preset is shared publicly'),
-    exercise_ids: z
-      .array(uuidSchema)
+    exercises: presetExercisesInputSchema
       .optional()
       .describe(
-        'Replacement list of exercise UUIDs; when provided, replaces the entire exercise list'
+        'Replacement exercises as an array of objects or a JSON string; when provided, replaces the entire exercise list. ' +
+          'Each item is {exercise_id, sets?, superset_group?}'
       ),
   })
   .strict();
@@ -363,11 +425,33 @@ export const manageExerciseInput = z.object({
     .describe(
       'Exercise name (e.g. "Walking", "Running", "Squats"). REQUIRED for "log_exercise" if exercise_id is not provided.'
     ),
-  exercise_ids: z
-    .array(uuidSchema)
+  exercises: z
+    .union([
+      z.array(
+        z.object({
+          exercise_id: uuidSchema,
+          superset_group: z.coerce.number().int().min(1).optional(),
+          sets: z
+            .array(
+              z.object({
+                set_type: setTypeEnum.optional(),
+                reps: z.coerce.number().int().min(0).optional(),
+                weight: z.coerce.number().min(0).optional(),
+                duration: z.coerce.number().int().min(0).optional(),
+                distance: z.coerce.number().min(0).optional(),
+                rest_time: z.coerce.number().min(0).optional(),
+                notes: z.string().max(1000).optional(),
+              })
+            )
+            .optional(),
+        })
+      ),
+      z.string(),
+    ])
     .optional()
     .describe(
-      'List of exercise UUIDs — for create_workout_preset / update_workout_preset (replaces the full list)'
+      'Exercises as array of objects or JSON string — for create_workout_preset / update_workout_preset (replaces the full list on update). ' +
+        'Each item is {exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}; items sharing the same superset_group are grouped as a superset.'
     ),
   name: z
     .string()
@@ -420,7 +504,7 @@ export const manageExerciseInput = z.object({
     .max(1000)
     .optional()
     .describe(
-      'Description — of the exercise for create_exercise, or of the preset for update_workout_preset'
+      'Description — of the exercise for create_exercise, or of the preset for create_workout_preset / update_workout_preset'
     ),
   modality: z
     .enum(EXERCISE_MODALITIES)
@@ -501,7 +585,7 @@ export const manageExerciseInput = z.object({
     .boolean()
     .optional()
     .describe(
-      'Whether the workout preset is shared publicly — for update_workout_preset'
+      'Whether the workout preset is shared publicly — for create_workout_preset / update_workout_preset'
     ),
   // entry management
   entry_id: uuidSchema

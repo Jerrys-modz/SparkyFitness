@@ -151,7 +151,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'action',
         'exercise_id',
         'exercise_name',
-        'exercise_ids',
+        'exercises',
         'name',
         'searchTerm',
         'muscleGroup',

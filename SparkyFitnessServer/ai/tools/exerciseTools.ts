@@ -25,6 +25,7 @@ import {
   manageExerciseSchema,
   manageExerciseInput,
   type ManageExerciseInput,
+  type PresetExerciseInput,
 } from './schemas/exercise.js';
 import { optionalDateSchema } from './schemas/common.js';
 import { normalizeActionArgs, normalizeDayKeywords } from './dates.js';
@@ -97,6 +98,18 @@ function toRepoSets(sets: ExerciseSetInput[]) {
     rest_time: s.rest_time ?? null,
     rpe: s.rpe ?? null,
     notes: s.notes ?? null,
+  }));
+}
+
+// Maps create/update_workout_preset's exercise input into the shape
+// workoutPresetRepository expects: sort_order from array position, sets run
+// through toRepoSets (rpe is silently dropped — presets have no rpe column).
+function toPresetExercises(exercises: PresetExerciseInput[]) {
+  return exercises.map((ex, i) => ({
+    exercise_id: ex.exercise_id,
+    sort_order: i,
+    superset_group: ex.superset_group ?? null,
+    sets: ex.sets ? toRepoSets(ex.sets) : undefined,
   }));
 }
 
@@ -365,8 +378,8 @@ Actions:
 - update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
-- create_workout_preset(name, exercise_ids)
-- update_workout_preset(preset_id, name?, description?, is_public?, exercise_ids?) — only the provided fields change; exercise_ids, when provided, replaces the entire exercise list
+- create_workout_preset(name, exercises, description?, is_public?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}]; items sharing the same superset_group are grouped as a superset
+- update_workout_preset(preset_id, name?, description?, is_public?, exercises?) — only the provided fields change; exercises, when provided, replaces the entire exercise list (same shape as create_workout_preset)
 - delete_workout_preset(preset_id) — permanently deletes the preset. This is destructive; confirm with the user first.
 - get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
       inputSchema: manageExerciseInput,
@@ -717,17 +730,24 @@ Actions:
             }
 
             case 'create_workout_preset': {
+              let exercises: PresetExerciseInput[];
+              if (typeof args.exercises === 'string') {
+                try {
+                  exercises = JSON.parse(args.exercises);
+                } catch {
+                  return ERRORS.VALIDATION('Invalid JSON format for exercises');
+                }
+              } else {
+                exercises = args.exercises;
+              }
               const preset = await workoutPresetService.createWorkoutPreset(
                 userId,
                 {
                   user_id: userId,
                   name: args.name,
-                  description: null,
-                  is_public: false,
-                  exercises: args.exercise_ids.map((exerciseId, i) => ({
-                    exercise_id: exerciseId,
-                    sort_order: i,
-                  })),
+                  description: args.description ?? null,
+                  is_public: args.is_public ?? false,
+                  exercises: toPresetExercises(exercises),
                 }
               );
               return formatConfirmation(
@@ -736,6 +756,16 @@ Actions:
             }
 
             case 'update_workout_preset': {
+              let exercises: PresetExerciseInput[] | undefined;
+              if (typeof args.exercises === 'string') {
+                try {
+                  exercises = JSON.parse(args.exercises);
+                } catch {
+                  return ERRORS.VALIDATION('Invalid JSON format for exercises');
+                }
+              } else {
+                exercises = args.exercises;
+              }
               try {
                 const preset = await workoutPresetService.updateWorkoutPreset(
                   userId,
@@ -744,10 +774,9 @@ Actions:
                     name: args.name,
                     description: args.description,
                     is_public: args.is_public,
-                    exercises: args.exercise_ids?.map((exerciseId, i) => ({
-                      exercise_id: exerciseId,
-                      sort_order: i,
-                    })),
+                    exercises: exercises
+                      ? toPresetExercises(exercises)
+                      : undefined,
                   }
                 );
                 return formatConfirmation(

@@ -865,7 +865,10 @@ describe('workout presets', () => {
       {
         action: 'create_workout_preset',
         name: 'Leg Day',
-        exercise_ids: [EXERCISE_ID, EXERCISE_ID_2],
+        exercises: [
+          { exercise_id: EXERCISE_ID },
+          { exercise_id: EXERCISE_ID_2 },
+        ],
       },
       opts
     );
@@ -881,11 +884,160 @@ describe('workout presets', () => {
         description: null,
         is_public: false,
         exercises: [
-          { exercise_id: EXERCISE_ID, sort_order: 0 },
-          { exercise_id: EXERCISE_ID_2, sort_order: 1 },
+          {
+            exercise_id: EXERCISE_ID,
+            sort_order: 0,
+            superset_group: null,
+            sets: undefined,
+          },
+          {
+            exercise_id: EXERCISE_ID_2,
+            sort_order: 1,
+            superset_group: null,
+            sets: undefined,
+          },
         ],
       }
     );
+  });
+
+  it('create_workout_preset builds sets and superset groups', async () => {
+    vi.mocked(workoutPresetService.createWorkoutPreset).mockResolvedValue({
+      id: 9,
+      name: 'Push/Pull Superset',
+      exercises: [{}, {}],
+    });
+
+    await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Push/Pull Superset',
+        description: 'Chest + back superset',
+        is_public: true,
+        exercises: [
+          {
+            exercise_id: EXERCISE_ID,
+            superset_group: 1,
+            sets: [
+              { reps: 10, weight: 60 },
+              { reps: 8, weight: 65, set_type: 'Drop Set' },
+            ],
+          },
+          {
+            exercise_id: EXERCISE_ID_2,
+            superset_group: 1,
+            sets: [{ reps: 12, weight: 20 }],
+          },
+        ],
+      },
+      opts
+    );
+
+    expect(workoutPresetService.createWorkoutPreset).toHaveBeenCalledWith(
+      'user-1',
+      {
+        user_id: 'user-1',
+        name: 'Push/Pull Superset',
+        description: 'Chest + back superset',
+        is_public: true,
+        exercises: [
+          {
+            exercise_id: EXERCISE_ID,
+            sort_order: 0,
+            superset_group: 1,
+            sets: [
+              {
+                set_number: 1,
+                set_type: 'Working Set',
+                reps: 10,
+                weight: 60,
+                duration: null,
+                distance: null,
+                rest_time: null,
+                rpe: null,
+                notes: null,
+              },
+              {
+                set_number: 2,
+                set_type: 'Drop Set',
+                reps: 8,
+                weight: 65,
+                duration: null,
+                distance: null,
+                rest_time: null,
+                rpe: null,
+                notes: null,
+              },
+            ],
+          },
+          {
+            exercise_id: EXERCISE_ID_2,
+            sort_order: 1,
+            superset_group: 1,
+            sets: [
+              {
+                set_number: 1,
+                set_type: 'Working Set',
+                reps: 12,
+                weight: 20,
+                duration: null,
+                distance: null,
+                rest_time: null,
+                rpe: null,
+                notes: null,
+              },
+            ],
+          },
+        ],
+      }
+    );
+  });
+
+  it('create_workout_preset accepts exercises as a JSON string', async () => {
+    vi.mocked(workoutPresetService.createWorkoutPreset).mockResolvedValue({
+      id: 9,
+      name: 'Leg Day',
+      exercises: [{}],
+    });
+
+    await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Leg Day',
+        exercises: JSON.stringify([{ exercise_id: EXERCISE_ID }]),
+      },
+      opts
+    );
+
+    expect(workoutPresetService.createWorkoutPreset).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        exercises: [
+          {
+            exercise_id: EXERCISE_ID,
+            sort_order: 0,
+            superset_group: null,
+            sets: undefined,
+          },
+        ],
+      })
+    );
+  });
+
+  it('create_workout_preset rejects malformed JSON exercises', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Leg Day',
+        exercises: '{not json',
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      'Error [VALIDATION]: Invalid JSON format for exercises'
+    );
+    expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
   });
 
   it('update_workout_preset updates only the provided fields and confirms', async () => {
@@ -917,7 +1069,7 @@ describe('workout presets', () => {
     );
   });
 
-  it('update_workout_preset replaces the exercise list when exercise_ids is provided', async () => {
+  it('update_workout_preset replaces the exercise list, sets, and superset groups when exercises is provided', async () => {
     vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
       id: PRESET_ID,
       name: 'Leg Day',
@@ -928,7 +1080,14 @@ describe('workout presets', () => {
       {
         action: 'update_workout_preset',
         preset_id: PRESET_ID,
-        exercise_ids: [EXERCISE_ID, EXERCISE_ID_2],
+        exercises: [
+          {
+            exercise_id: EXERCISE_ID,
+            superset_group: 2,
+            sets: [{ reps: 5, weight: 100 }],
+          },
+          { exercise_id: EXERCISE_ID_2 },
+        ],
       },
       opts
     );
@@ -941,11 +1100,49 @@ describe('workout presets', () => {
         description: undefined,
         is_public: undefined,
         exercises: [
-          { exercise_id: EXERCISE_ID, sort_order: 0 },
-          { exercise_id: EXERCISE_ID_2, sort_order: 1 },
+          {
+            exercise_id: EXERCISE_ID,
+            sort_order: 0,
+            superset_group: 2,
+            sets: [
+              {
+                set_number: 1,
+                set_type: 'Working Set',
+                reps: 5,
+                weight: 100,
+                duration: null,
+                distance: null,
+                rest_time: null,
+                rpe: null,
+                notes: null,
+              },
+            ],
+          },
+          {
+            exercise_id: EXERCISE_ID_2,
+            sort_order: 1,
+            superset_group: null,
+            sets: undefined,
+          },
         ],
       }
     );
+  });
+
+  it('update_workout_preset rejects malformed JSON exercises', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        exercises: '{not json',
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      'Error [VALIDATION]: Invalid JSON format for exercises'
+    );
+    expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
   });
 
   it('update_workout_preset maps a forbidden/missing preset to not found', async () => {
