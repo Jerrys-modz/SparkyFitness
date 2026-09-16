@@ -247,6 +247,9 @@ function scaleNutritionForConsumedAmount(
 
   return Object.fromEntries(
     Object.entries(nutrients).map(([name, value]) => {
+      if (value === null || value === undefined || value === '') {
+        return [name, null];
+      }
       const numeric = Number(value);
       return [
         name,

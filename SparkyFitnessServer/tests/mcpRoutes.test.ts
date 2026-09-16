@@ -183,13 +183,14 @@ describe('POST /mcp', () => {
     const foodEntries = Array.from({ length: 25 }, (_, index) => ({
       id: `food-${String(index).padStart(2, '0')}`,
       entry_date: '2026-09-15',
-      entry_time: '12:00',
+      entry_time:
+        index === 0 ? '12:00' : `14:${String(index).padStart(2, '0')}`,
       food_name: `Food ${index} ${'x'.repeat(500)}`,
     }));
     const mealEntries = Array.from({ length: 2 }, (_, index) => ({
       id: `meal-${index}`,
       entry_date: '2026-09-15',
-      entry_time: '13:00',
+      entry_time: index === 0 ? '12:30' : '13:30',
       name: `Meal ${index}`,
     }));
     vi.mocked(foodEntryService.getFoodEntriesByDateRange).mockResolvedValue(

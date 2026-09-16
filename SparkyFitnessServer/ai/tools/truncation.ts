@@ -84,7 +84,13 @@ function findDominantArray(data: unknown): DominantArray | null {
     const entries = [
       ...record.food_entries.map((entry) => ({ kind: 'food', entry })),
       ...record.meal_entries.map((entry) => ({ kind: 'meal', entry })),
-    ];
+    ].sort((left, right) => {
+      const leftEntry = left.entry as Record<string, unknown>;
+      const rightEntry = right.entry as Record<string, unknown>;
+      const leftKey = `${leftEntry.entry_date ?? ''}|${leftEntry.entry_time ?? ''}|${leftEntry.id ?? ''}`;
+      const rightKey = `${rightEntry.entry_date ?? ''}|${rightEntry.entry_time ?? ''}|${rightEntry.id ?? ''}`;
+      return leftKey.localeCompare(rightKey);
+    });
     return {
       array: entries,
       rebuild: (slice) => ({

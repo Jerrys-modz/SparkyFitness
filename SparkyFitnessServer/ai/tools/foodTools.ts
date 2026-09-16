@@ -1002,6 +1002,9 @@ Actions:
             // field: a model may add target_date/source_date to an
             // update/delete call, and the salvage logic would otherwise strip
             // the id fields and run a full-day copy instead.
+            if (args.food_id && args.barcode) {
+              return 'set_food_barcode';
+            }
             if (args.food_id) {
               return 'delete_food';
             }
@@ -2246,8 +2249,28 @@ Actions:
                   userId
                 );
                 if (!existingEntry) return ERRORS.NOT_FOUND('Entry', entryId);
-                const requestedQuantity =
+                let requestedQuantity =
                   entryQuantity ?? Number(existingEntry.quantity);
+                // With no supplied quantity, changing the unit must preserve
+                // the consumed amount. Convert the stored canonical amount
+                // into the requested representation before reconciling it
+                // back to the variant unit.
+                if (entryQuantity === undefined) {
+                  if (normalizeFoodUnit(entryUnit) === 'serving') {
+                    const servingSize = Number(existingEntry.serving_size);
+                    if (Number.isFinite(servingSize) && servingSize > 0) {
+                      requestedQuantity /= servingSize;
+                    }
+                  } else {
+                    const conversionFactor = getConversionFactor(
+                      normalizeFoodUnit(existingEntry.serving_unit),
+                      normalizeFoodUnit(entryUnit)
+                    );
+                    if (conversionFactor !== null) {
+                      requestedQuantity /= conversionFactor;
+                    }
+                  }
+                }
                 if (normalizeFoodUnit(entryUnit) === 'serving') {
                   const reconciled = reconcileEntryUnitToVariant(
                     requestedQuantity,
@@ -2372,13 +2395,13 @@ Actions:
                 throw error;
               }
               const updates = [
-                quantityChanged ? `quantity to ${args.quantity}` : '',
-                unitChanged ? `unit to ${args.unit}` : '',
+                quantityChanged ? `quantity to ${entryQuantity}` : '',
+                unitChanged ? `unit to ${entryUnit}` : '',
                 mealTypeChanged ? `meal type to ${mealType?.name}` : '',
               ].filter(Boolean);
               if (quantityChanged && unitChanged && !mealTypeChanged) {
                 return formatConfirmation(
-                  `Entry updated to ${args.quantity} ${args.unit}.`
+                  `Entry updated to ${entryQuantity} ${entryUnit}.`
                 );
               }
               return formatConfirmation(
@@ -2609,6 +2632,9 @@ Actions:
                   text += `  Fiber: ${s.fiber}g | Sugar: ${s.sugar}g | Sodium: ${s.sodium}mg\n`;
                   if (s.saturated_fat || s.cholesterol || s.potassium) {
                     text += `  Other: SatFat: ${s.saturated_fat}g | Chol: ${s.cholesterol}mg | Potas: ${s.potassium}mg`;
+                  }
+                  if (s.nutrition_warning) {
+                    text += `\n  Warning: ${s.nutrition_warning}`;
                   }
                   return text;
                 }

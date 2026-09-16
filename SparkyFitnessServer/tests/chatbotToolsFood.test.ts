@@ -843,6 +843,27 @@ describe('barcode metadata', () => {
     expect(foodEntryService.updateFoodEntry).not.toHaveBeenCalled();
   });
 
+  it('infers barcode metadata editing before the generic food-id deletion intent', async () => {
+    vi.mocked(foodCoreService.updateFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Granola Bar',
+      barcode: '0012345678901',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      { food_id: FOOD_ID, barcode: '0012345678901' },
+      opts
+    );
+
+    expect(result).toContain(
+      'Barcode for "Granola Bar" updated to 0012345678901.'
+    );
+    expect(foodCoreService.updateFood).toHaveBeenCalledWith('user-1', FOOD_ID, {
+      barcode: '0012345678901',
+    });
+    expect(foodCoreService.deleteFood).not.toHaveBeenCalled();
+  });
+
   it('does not update barcode metadata when the food is not writable', async () => {
     vi.mocked(foodCoreService.updateFood).mockRejectedValueOnce(
       new Error('Forbidden: You do not have permission to update this food.')
@@ -3339,12 +3360,36 @@ describe('update_entry', () => {
       opts
     );
 
-    expect(result).toBe('✅ Entry updated to 3 serving.');
+    expect(result).toBe('✅ Entry updated to 300 g.');
     expect(foodEntryService.updateFoodEntry).toHaveBeenCalledWith(
       'user-1',
       'user-1',
       ENTRY_ID,
       { quantity: 300, unit: 'g' }
+    );
+  });
+
+  it('reports the reconciled quantity for a unit-only food entry update', async () => {
+    vi.mocked(foodEntryService.updateFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'update_entry',
+        entry_id: ENTRY_ID,
+        entry_type: 'food_entry',
+        unit: 'serving',
+      },
+      opts
+    );
+
+    expect(result).toBe('✅ Entry updated to 100 g.');
+    expect(foodEntryService.updateFoodEntry).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      ENTRY_ID,
+      { quantity: 100, unit: 'g' }
     );
   });
 
@@ -4562,6 +4607,32 @@ describe('get_nutritional_summary', () => {
       'user-1',
       '2026-06-01',
       '2026-06-07'
+    );
+  });
+
+  it('warns when a day excludes ambiguous legacy entries', async () => {
+    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
+      {
+        entry_date: new Date(2026, 5, 1),
+        calories: 100,
+        protein: 10,
+        carbs: 20,
+        fat: 3,
+        legacy_ambiguous_entry_count: 1,
+      },
+    ]);
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'get_nutritional_summary',
+        start_date: '2026-06-01',
+        end_date: '2026-06-01',
+      },
+      opts
+    );
+
+    expect(result).toContain(
+      'Warning: Totals exclude legacy entries with ambiguous units.'
     );
   });
 
