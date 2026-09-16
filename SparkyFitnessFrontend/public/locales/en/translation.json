@@ -1044,7 +1044,21 @@
       "exercises": "exercises",
       "name": "Name",
       "deleteConfirmationDescription": "Are you sure you want to delete this exercise? This action cannot be undone.",
-      "deleteImpactDescription": "This exercise is used in other logs or workout plans. Deleting it may affect those records."
+      "deleteImpactDescription": "This exercise is used in other logs or workout plans. Deleting it may affect those records.",
+      "bulkDeleteDescription": "Remove these {{count}} exercises from your library and from any workout presets and plans. Workouts you have already logged are kept in your diary.",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteExerciseConfirmTitle": "Delete {{exerciseName}}?",
+      "deleteKeepsDiaryHint": "Deleting removes the exercise from your library, presets and plans. Your logged workouts keep their name, picture, sets and reps.",
+      "deleteWithHistory": "Delete including history",
+      "diaryEntriesCount": "{{count}} logged workouts",
+      "exerciseUnused": "This exercise is not used anywhere yet.",
+      "exerciseUsedByOtherUsersWarning": "This exercise is used by other users. You can only hide it. Hiding stops it appearing in search from now on, but does not affect their history, presets, or plans.",
+      "exerciseUsedIn": "This exercise is used in:",
+      "hide": "Hide",
+      "warning": "Warning!",
+      "workoutPlansCount": "{{count}} workout plans",
+      "workoutPresetsCount": "{{count}} workout presets"
     },
     "exerciseImportCSV": {
       "importExerciseData": "Import Exercise Data",
@@ -1244,6 +1258,7 @@
     "name": "Name",
     "presets": "presets",
     "startWorkout": "Start Workout",
+    "emptyPresetError": "Cannot start or log a workout preset with no exercises.",
     "stats": "Stats"
   },
   "workoutPlansManager": {
@@ -3369,7 +3384,11 @@
     "foods": "foods",
     "name": "Name",
     "removeFromFavorites": "Remove from favorites",
-    "notes": "Notes"
+    "notes": "Notes",
+    "bulkDeleteDescription": "Remove these {{count}} foods from your library and from any meals and meal plans. Entries you have already logged are kept in your diary.",
+    "deleteKeepsDiaryHint": "Deleting removes the food from your library, meals and meal plans. Your diary entries keep their name, brand and nutrition.",
+    "deleteMealPlanKeepsPastHistoryHint": "This food is used in your meal plans. Deleting it will remove future planned meals from your diary, while preserving your past logged history.",
+    "deleteWithHistory": "Delete including history"
   },
   "mealManagement": {
     "failedToLoadMeals": "Failed to load meals.",
@@ -5641,6 +5660,7 @@
     "title": "Edit Food Entry",
     "description": "Edit the quantity and serving unit for your food entry.",
     "latestVariantNote": "Note: Updating this entry will use the latest available variant details for the food, not the original snapshot.",
+    "deletedFoodNote": "This food is no longer in your food database. Showing details saved in this diary entry.",
     "quantity": "Quantity",
     "unit": "Unit",
     "meal": "Meal",

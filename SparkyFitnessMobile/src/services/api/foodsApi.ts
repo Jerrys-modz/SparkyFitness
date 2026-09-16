@@ -294,7 +294,48 @@ export interface UpdateFoodPayload {
 
 export interface DeleteFoodResponse {
   message: string;
+  status?: 'hidden' | 'deleted' | 'deleted_with_history';
 }
+
+/**
+ * What a delete should do to everything pointing at the food.
+ *
+ * - `hide` stops it appearing in search and changes nothing else.
+ * - `delete` removes it from the library and from meals/meal plans, keeping
+ *   diary history (entries carry their own snapshot).
+ * - `delete_with_history` also removes this user's own diary entries.
+ *
+ * Another user's diary is never affected; if anyone else still references the
+ * food the server hides it instead and reports `status: 'hidden'`.
+ */
+export type FoodDeleteMode = 'hide' | 'delete' | 'delete_with_history';
+
+export interface FoodDeletionImpact {
+  foodEntriesCount: number;
+  mealFoodsCount: number;
+  mealPlansCount: number;
+  mealPlanTemplateAssignmentsCount: number;
+  totalReferences: number;
+  otherUserReferences: number;
+}
+
+export const getFoodDeletionImpact = async (
+  foodId: string
+): Promise<FoodDeletionImpact> => {
+  const raw = await apiFetch<Partial<FoodDeletionImpact>>({
+    endpoint: `/api/foods/${foodId}/deletion-impact`,
+    serviceName: 'Foods API',
+    operation: 'get food deletion impact',
+  });
+  return {
+    foodEntriesCount: raw.foodEntriesCount ?? 0,
+    mealFoodsCount: raw.mealFoodsCount ?? 0,
+    mealPlansCount: raw.mealPlansCount ?? 0,
+    mealPlanTemplateAssignmentsCount: raw.mealPlanTemplateAssignmentsCount ?? 0,
+    totalReferences: raw.totalReferences ?? 0,
+    otherUserReferences: raw.otherUserReferences ?? 0,
+  };
+};
 
 /**
  * Updates a food item's metadata (name, brand, images).
@@ -365,10 +406,11 @@ export const updateFoodEntriesSnapshot = async (
  * Deletes a food item by ID.
  */
 export const deleteFood = async (
-  foodId: string
+  foodId: string,
+  mode: FoodDeleteMode = 'delete'
 ): Promise<DeleteFoodResponse> => {
   return apiFetch<DeleteFoodResponse>({
-    endpoint: `/api/foods/${foodId}`,
+    endpoint: `/api/foods/${foodId}?mode=${mode}`,
     serviceName: 'Foods API',
     operation: 'delete food',
     method: 'DELETE',

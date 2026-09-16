@@ -100,6 +100,19 @@ export interface Food {
   favorited_at?: string;
 }
 
+/**
+ * What a delete should do to everything pointing at the food.
+ *
+ * - `hide` stops it appearing in search and changes nothing else.
+ * - `delete` removes it from the library and from meals/meal plans, keeping
+ *   diary history (entries carry their own snapshot).
+ * - `delete_with_history` also removes the caller's own diary entries.
+ *
+ * Another user's diary is never affected; if anyone else still references the
+ * food the server hides it instead and says so in `status`.
+ */
+export type FoodDeleteMode = 'hide' | 'delete' | 'delete_with_history';
+
 export interface FoodDeletionImpact {
   foodEntries: FoodEntryDeletionImpact[];
   foodEntriesCount: number;
