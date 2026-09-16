@@ -517,6 +517,12 @@ export async function scheduleWaterReminderNotifications(
         `scheduleWaterReminderNotifications failed: ${(err as Error).message}`,
         'ERROR'
       );
+      // All or nothing. A half-scheduled chain gets persisted as reconciled,
+      // and the signature guard then blocks a retry for the reminders that
+      // never made it. Returning nothing keeps the caller on its "an empty
+      // result is not persisted" path, so the next reconcile tries again.
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
     }
   }
   return ids;

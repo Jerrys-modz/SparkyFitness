@@ -401,6 +401,20 @@ describe('notifications service', () => {
       expect(mockSchedule).toHaveBeenCalledTimes(1);
     });
 
+    it('cancels what it scheduled when a later reminder fails', async () => {
+      mockSchedule
+        .mockResolvedValueOnce('water-1' as any)
+        .mockRejectedValueOnce(new Error('scheduling unavailable'));
+
+      const ids = await scheduleWaterReminderNotifications([
+        inHours(1),
+        inHours(2),
+      ]);
+
+      expect(ids).toEqual([]);
+      expect(mockCancel).toHaveBeenCalledWith('water-1');
+    });
+
     it('schedules nothing while the water reminder toggle is off', async () => {
       useAppPreferencesStore.getState().setWaterReminderEnabled(false);
       expect(await scheduleWaterReminderNotifications([inHours(1)])).toEqual(

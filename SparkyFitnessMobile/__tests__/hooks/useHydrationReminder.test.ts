@@ -112,6 +112,21 @@ describe('reconcileWaterReminders', () => {
     expect(mockSchedule).toHaveBeenCalledTimes(2);
     expect(await storedIds()).toEqual(['n1', 'n2']);
   });
+
+  it('cancels the chain when it cannot be persisted', async () => {
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(
+      new Error('storage unavailable')
+    );
+
+    await reconcileWaterReminders(reconcileInput(), NOW);
+
+    expect(mockCancel).toHaveBeenCalledWith('n1');
+    expect(mockCancel).toHaveBeenCalledWith('n2');
+    expect(await storedIds()).toBeNull();
+
+    await reconcileWaterReminders(reconcileInput(), NOW);
+    expect(await storedIds()).toEqual(['n1', 'n2']);
+  });
 });
 
 describe('cancelWaterReminders', () => {

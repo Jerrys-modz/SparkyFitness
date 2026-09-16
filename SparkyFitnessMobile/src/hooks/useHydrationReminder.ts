@@ -113,10 +113,20 @@ export function reconcileWaterReminders(
     const notificationIds = await scheduleWaterReminderNotifications(times);
     if (notificationIds.length === 0) return;
 
-    await AsyncStorage.setItem(
-      WATER_REMINDER_STORAGE_KEY,
-      JSON.stringify({ signature, notificationIds })
-    );
+    try {
+      await AsyncStorage.setItem(
+        WATER_REMINDER_STORAGE_KEY,
+        JSON.stringify({ signature, notificationIds })
+      );
+    } catch (error) {
+      // `cancelWaterReminders` can only cancel what was persisted, so a failed
+      // write would leave a live chain nothing can reach — including the
+      // toggle-off path. Cancel it here and let the queue log the failure.
+      await Promise.all(
+        notificationIds.map((id) => cancelScheduledNotification(id))
+      );
+      throw error;
+    }
   });
 }
 
