@@ -40,6 +40,8 @@ const VALID_ACTIONS = [
   'delete_exercise_entry',
   'get_exercise_details',
   'create_workout_preset',
+  'update_workout_preset',
+  'delete_workout_preset',
   'get_exercise_progress',
 ];
 
@@ -364,6 +366,8 @@ Actions:
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
 - create_workout_preset(name, exercise_ids)
+- update_workout_preset(preset_id, name?, description?, is_public?, exercise_ids?) — only the provided fields change; exercise_ids, when provided, replaces the entire exercise list
+- delete_workout_preset(preset_id) — permanently deletes the preset. This is destructive; confirm with the user first.
 - get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
       inputSchema: manageExerciseInput,
       execute: async (rawArgs) => {
@@ -729,6 +733,60 @@ Actions:
               return formatConfirmation(
                 `Workout preset "${preset.name}" created with ${preset.exercises.length} exercises.`
               );
+            }
+
+            case 'update_workout_preset': {
+              try {
+                const preset = await workoutPresetService.updateWorkoutPreset(
+                  userId,
+                  args.preset_id,
+                  {
+                    name: args.name,
+                    description: args.description,
+                    is_public: args.is_public,
+                    exercises: args.exercise_ids?.map((exerciseId, i) => ({
+                      exercise_id: exerciseId,
+                      sort_order: i,
+                    })),
+                  }
+                );
+                return formatConfirmation(
+                  `Workout preset "${preset.name}" updated.`
+                );
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  error.message.includes('Forbidden')
+                ) {
+                  return ERRORS.NOT_FOUND(
+                    'Workout preset',
+                    String(args.preset_id)
+                  );
+                }
+                throw error;
+              }
+            }
+
+            case 'delete_workout_preset': {
+              try {
+                await workoutPresetService.deleteWorkoutPreset(
+                  userId,
+                  args.preset_id
+                );
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  (error.message.includes('Forbidden') ||
+                    error.message.includes('not found'))
+                ) {
+                  return ERRORS.NOT_FOUND(
+                    'Workout preset',
+                    String(args.preset_id)
+                  );
+                }
+                throw error;
+              }
+              return formatConfirmation('Workout preset deleted.');
             }
 
             case 'get_exercise_progress': {

@@ -154,10 +154,18 @@ const getWorkoutPresetsSchema = z
   })
   .strict();
 
+// workout_presets.id is a numeric (SERIAL) primary key, unlike most other
+// entities in this tool file which use UUIDs.
+const presetIdSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .describe('Numeric ID of the workout preset');
+
 const logWorkoutPresetSchema = z
   .object({
     action: z.literal('log_workout_preset'),
-    preset_id: uuidSchema.optional().describe('UUID of the workout preset'),
+    preset_id: presetIdSchema.optional(),
     preset_name: z
       .string()
       .min(1)
@@ -246,6 +254,41 @@ const createWorkoutPresetSchema = z
   })
   .strict();
 
+const updateWorkoutPresetSchema = z
+  .object({
+    action: z.literal('update_workout_preset'),
+    preset_id: presetIdSchema.describe('ID of the workout preset to update'),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('New name for the preset'),
+    description: z
+      .string()
+      .max(1000)
+      .optional()
+      .describe('New description for the preset'),
+    is_public: z
+      .boolean()
+      .optional()
+      .describe('Whether the preset is shared publicly'),
+    exercise_ids: z
+      .array(uuidSchema)
+      .optional()
+      .describe(
+        'Replacement list of exercise UUIDs; when provided, replaces the entire exercise list'
+      ),
+  })
+  .strict();
+
+const deleteWorkoutPresetSchema = z
+  .object({
+    action: z.literal('delete_workout_preset'),
+    preset_id: presetIdSchema.describe('ID of the workout preset to delete'),
+  })
+  .strict();
+
 const getExerciseProgressSchema = z
   .object({
     action: z.literal('get_exercise_progress'),
@@ -275,6 +318,8 @@ export const manageExerciseSchema = z.discriminatedUnion('action', [
   deleteExerciseEntrySchema,
   getExerciseDetailsSchema,
   createWorkoutPresetSchema,
+  updateWorkoutPresetSchema,
+  deleteWorkoutPresetSchema,
   getExerciseProgressSchema,
 ]);
 
@@ -296,6 +341,8 @@ export const manageExerciseInput = z.object({
       'delete_exercise_entry',
       'get_exercise_details',
       'create_workout_preset',
+      'update_workout_preset',
+      'delete_workout_preset',
       'get_exercise_progress',
     ])
     .optional()
@@ -319,13 +366,17 @@ export const manageExerciseInput = z.object({
   exercise_ids: z
     .array(uuidSchema)
     .optional()
-    .describe('List of exercise UUIDs — for create_workout_preset'),
+    .describe(
+      'List of exercise UUIDs — for create_workout_preset / update_workout_preset (replaces the full list)'
+    ),
   name: z
     .string()
     .min(1)
     .max(200)
     .optional()
-    .describe('Name — for create_exercise / create_workout_preset'),
+    .describe(
+      'Name — for create_exercise / create_workout_preset / update_workout_preset'
+    ),
   // search
   searchTerm: z
     .string()
@@ -368,7 +419,9 @@ export const manageExerciseInput = z.object({
     .string()
     .max(1000)
     .optional()
-    .describe('Description of the exercise'),
+    .describe(
+      'Description — of the exercise for create_exercise, or of the preset for update_workout_preset'
+    ),
   modality: z
     .enum(EXERCISE_MODALITIES)
     .optional()
@@ -430,13 +483,26 @@ export const manageExerciseInput = z.object({
       'Set details as array of objects or JSON string; per-set fields include rpe and notes'
     ),
   // presets
-  preset_id: uuidSchema.optional().describe('Workout preset UUID'),
+  preset_id: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      'Workout preset ID — for log_workout_preset / update_workout_preset / delete_workout_preset'
+    ),
   preset_name: z
     .string()
     .min(1)
     .max(200)
     .optional()
     .describe('Workout preset name'),
+  is_public: z
+    .boolean()
+    .optional()
+    .describe(
+      'Whether the workout preset is shared publicly — for update_workout_preset'
+    ),
   // entry management
   entry_id: uuidSchema
     .optional()

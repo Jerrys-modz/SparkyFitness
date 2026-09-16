@@ -27,6 +27,8 @@ vi.mock('../services/workoutPresetService', () => ({
   default: {
     getWorkoutPresets: vi.fn(),
     createWorkoutPreset: vi.fn(),
+    updateWorkoutPreset: vi.fn(),
+    deleteWorkoutPreset: vi.fn(),
   },
 }));
 vi.mock('../models/exercise', () => ({
@@ -65,7 +67,7 @@ const NOT_FOUND_RESOURCE_TEXT =
 const ENTRY_ID = '11111111-1111-4111-8111-111111111111';
 const EXERCISE_ID = '22222222-2222-4222-8222-222222222222';
 const EXERCISE_ID_2 = '33333333-3333-4333-8333-333333333333';
-const PRESET_ID = '44444444-4444-4444-8444-444444444444';
+const PRESET_ID = 4;
 
 let tools: ReturnType<typeof buildExerciseTools>;
 
@@ -883,6 +885,117 @@ describe('workout presets', () => {
           { exercise_id: EXERCISE_ID_2, sort_order: 1 },
         ],
       }
+    );
+  });
+
+  it('update_workout_preset updates only the provided fields and confirms', async () => {
+    vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Leg Day (updated)',
+      exercises: [{}],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        name: 'Leg Day (updated)',
+      },
+      opts
+    );
+
+    expect(result).toBe('✅ Workout preset "Leg Day (updated)" updated.');
+    expect(workoutPresetService.updateWorkoutPreset).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      {
+        name: 'Leg Day (updated)',
+        description: undefined,
+        is_public: undefined,
+        exercises: undefined,
+      }
+    );
+  });
+
+  it('update_workout_preset replaces the exercise list when exercise_ids is provided', async () => {
+    vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Leg Day',
+      exercises: [{}, {}],
+    });
+
+    await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        exercise_ids: [EXERCISE_ID, EXERCISE_ID_2],
+      },
+      opts
+    );
+
+    expect(workoutPresetService.updateWorkoutPreset).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      {
+        name: undefined,
+        description: undefined,
+        is_public: undefined,
+        exercises: [
+          { exercise_id: EXERCISE_ID, sort_order: 0 },
+          { exercise_id: EXERCISE_ID_2, sort_order: 1 },
+        ],
+      }
+    );
+  });
+
+  it('update_workout_preset maps a forbidden/missing preset to not found', async () => {
+    vi.mocked(workoutPresetService.updateWorkoutPreset).mockRejectedValue(
+      new Error(
+        'Forbidden: You do not have permission to update this workout preset.'
+      )
+    );
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'update_workout_preset', preset_id: PRESET_ID, name: 'X' },
+      opts
+    );
+
+    expect(result).toBe(
+      `Error [NOT_FOUND]: Workout preset with ID '${PRESET_ID}' not found.\n\nSuggestion: Check the ID and try again.`
+    );
+  });
+
+  it('delete_workout_preset deletes and confirms', async () => {
+    vi.mocked(workoutPresetService.deleteWorkoutPreset).mockResolvedValue({
+      message: 'Workout preset deleted successfully.',
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'delete_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+
+    expect(result).toBe('✅ Workout preset deleted.');
+    expect(workoutPresetService.deleteWorkoutPreset).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID
+    );
+  });
+
+  it('delete_workout_preset maps a forbidden/missing preset to not found', async () => {
+    vi.mocked(workoutPresetService.deleteWorkoutPreset).mockRejectedValue(
+      new Error(
+        'Forbidden: You do not have permission to delete this workout preset.'
+      )
+    );
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'delete_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+
+    expect(result).toBe(
+      `Error [NOT_FOUND]: Workout preset with ID '${PRESET_ID}' not found.\n\nSuggestion: Check the ID and try again.`
     );
   });
 });
