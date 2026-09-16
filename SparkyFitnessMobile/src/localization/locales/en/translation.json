@@ -238,6 +238,25 @@
     }
   },
   "activeWorkout": {
+    "progression": {
+      "toggleSettings": "Toggle progression settings",
+      "title": "Progression",
+      "manualOff": "Manual (Off)",
+      "fixedSummary": "Fixed Target · +{{value}} {{unit}}",
+      "stepLoadSummary": "Step-Load · {{reps}} reps · +{{value}} reps",
+      "repGoalSummary": "Rep Goal · {{reps}} reps · +{{value}} {{unit}}",
+      "overloadMode": "Overload Mode",
+      "modeRepGoal": "Rep Goal",
+      "modeFixed": "Fixed",
+      "modeStepLoad": "Step-Load",
+      "modeOff": "Off",
+      "targetRepsPerSet": "Target Reps / Set",
+      "targetRepsTotal": "Target Reps (Total)",
+      "incrementReps": "Increment (Reps)",
+      "incrementWeight": "Increment ({{unit}})",
+      "equipmentBrand": "Equipment / Machine Brand",
+      "equipmentBrandPlaceholder": "e.g. Hammer Strength, Cable Stack"
+    },
     "liveActivity": {
       "rest": "Rest",
       "paused": "Paused",
