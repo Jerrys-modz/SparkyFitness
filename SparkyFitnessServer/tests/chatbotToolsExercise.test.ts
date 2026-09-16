@@ -1157,6 +1157,20 @@ describe('workout presets', () => {
     expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
   });
 
+  it('create_workout_preset rejects decoded exercises that fail the preset schema', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Leg Day',
+        exercises: JSON.stringify([null]),
+      },
+      opts
+    );
+
+    expect(String(result)).toMatch(/^Error \[VALIDATION\]:/);
+    expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
+  });
+
   it('update_workout_preset updates only the provided fields and confirms', async () => {
     vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
       id: PRESET_ID,
@@ -1277,6 +1291,21 @@ describe('workout presets', () => {
     );
 
     expect(result).toBe('Error [VALIDATION]: exercises must be a JSON array');
+    expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
+  });
+
+  it('update_workout_preset rejects decoded exercises that fail the preset schema', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        confirmed: true,
+        exercises: JSON.stringify([null]),
+      },
+      opts
+    );
+
+    expect(String(result)).toMatch(/^Error \[VALIDATION\]:/);
     expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
   });
 

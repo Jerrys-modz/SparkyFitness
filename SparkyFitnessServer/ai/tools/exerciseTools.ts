@@ -26,6 +26,7 @@ import {
   manageExerciseInput,
   type ManageExerciseInput,
   type PresetExerciseInput,
+  presetExerciseSchema,
 } from './schemas/exercise.js';
 import { optionalDateSchema } from './schemas/common.js';
 import { normalizeActionArgs, normalizeDayKeywords } from './dates.js';
@@ -112,6 +113,35 @@ function toPresetExercises(exercises: PresetExerciseInput[]) {
     superset_group: ex.superset_group ?? null,
     sets: ex.sets ? toRepoSets(ex.sets) : undefined,
   }));
+}
+
+function parsePresetExercises(
+  raw: unknown
+):
+  | { ok: true; exercises: PresetExerciseInput[] }
+  | { ok: false; error: string } {
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return {
+        ok: false,
+        error: ERRORS.VALIDATION('Invalid JSON format for exercises'),
+      };
+    }
+  }
+  if (!Array.isArray(parsed)) {
+    return {
+      ok: false,
+      error: ERRORS.VALIDATION('exercises must be a JSON array'),
+    };
+  }
+  const result = z.array(presetExerciseSchema).safeParse(parsed);
+  if (!result.success) {
+    return { ok: false, error: formatZodError(result.error) };
+  }
+  return { ok: true, exercises: result.data };
 }
 
 // Trusted gate for update/delete. The tool description is not enough — without
@@ -816,19 +846,8 @@ Actions:
             }
 
             case 'create_workout_preset': {
-              let exercises: PresetExerciseInput[];
-              if (typeof args.exercises === 'string') {
-                try {
-                  exercises = JSON.parse(args.exercises);
-                } catch {
-                  return ERRORS.VALIDATION('Invalid JSON format for exercises');
-                }
-              } else {
-                exercises = args.exercises;
-              }
-              if (!Array.isArray(exercises)) {
-                return ERRORS.VALIDATION('exercises must be a JSON array');
-              }
+              const parsed = parsePresetExercises(args.exercises);
+              if (!parsed.ok) return parsed.error;
               const preset = await workoutPresetService.createWorkoutPreset(
                 userId,
                 {
@@ -836,7 +855,7 @@ Actions:
                   name: args.name,
                   description: args.description ?? null,
                   is_public: args.is_public ?? false,
-                  exercises: toPresetExercises(exercises),
+                  exercises: toPresetExercises(parsed.exercises),
                 }
               );
               return formatConfirmation(
@@ -852,17 +871,10 @@ Actions:
               );
               if (blocked) return blocked;
               let exercises: PresetExerciseInput[] | undefined;
-              if (typeof args.exercises === 'string') {
-                try {
-                  exercises = JSON.parse(args.exercises);
-                } catch {
-                  return ERRORS.VALIDATION('Invalid JSON format for exercises');
-                }
-              } else {
-                exercises = args.exercises;
-              }
-              if (exercises !== undefined && !Array.isArray(exercises)) {
-                return ERRORS.VALIDATION('exercises must be a JSON array');
+              if (args.exercises !== undefined) {
+                const parsed = parsePresetExercises(args.exercises);
+                if (!parsed.ok) return parsed.error;
+                exercises = parsed.exercises;
               }
               try {
                 const preset = await workoutPresetService.updateWorkoutPreset(

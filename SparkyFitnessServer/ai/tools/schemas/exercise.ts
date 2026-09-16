@@ -211,7 +211,7 @@ const presetSetSchema = z
 
 // One exercise entry within a preset. Exercises that share the same
 // superset_group are performed back-to-back as a superset.
-const presetExerciseSchema = z
+export const presetExerciseSchema = z
   .object({
     exercise_id: uuidSchema,
     superset_group: z.coerce
