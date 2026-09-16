@@ -241,6 +241,7 @@ describe('sparky_get_daily_report', () => {
       JSON.stringify({
         start_date: '2026-06-10',
         end_date: '2026-06-10',
+        energy_unit: 'kcal',
         nutrition: [
           {
             entry_date: '2026-06-10',
@@ -305,6 +306,7 @@ describe('sparky_get_daily_report', () => {
       JSON.stringify({
         start_date: '2026-06-10',
         end_date: '2026-06-10',
+        energy_unit: 'kcal',
         nutrition: [
           {
             entry_date: '2026-06-10',

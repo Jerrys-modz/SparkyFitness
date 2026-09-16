@@ -62,6 +62,7 @@ vi.mock('../models/foodRepository', () => ({
     getFoodsWithPagination: vi.fn(),
     countFoods: vi.fn(),
     getFoodById: vi.fn(),
+    getFoodEntryById: vi.fn(),
     getFoodVariantById: vi.fn(),
     updateFoodVariant: vi.fn(),
     getFoodVariantsByFoodId: vi.fn(),
@@ -158,6 +159,11 @@ beforeEach(() => {
   vi.mocked(foodRepository.getFoodVariantsByFoodId).mockResolvedValue(
     undefined as any
   );
+  vi.mocked(foodRepository.getFoodEntryById).mockResolvedValue({
+    quantity: 100,
+    serving_size: 100,
+    serving_unit: 'g',
+  });
   vi.mocked(mealTypeRepository.getAllMealTypes).mockResolvedValue([
     { id: 'default-id', name: 'Breakfast', sort_order: 1, user_id: null },
     { id: 'lunch-id', name: 'Lunch', sort_order: 2, user_id: null },
@@ -780,6 +786,83 @@ describe('lookup_food_nutrition', () => {
   });
 });
 
+describe('barcode metadata', () => {
+  it('stores a leading-zero barcode while creating a food', async () => {
+    vi.mocked(foodCoreService.createFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Granola Bar',
+      default_variant: {
+        id: VARIANT_ID,
+        calories: 250,
+        serving_size: 100,
+        serving_unit: 'g',
+      },
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'create_food',
+        food_name: 'Granola Bar',
+        barcode: '0012345678901',
+        calories: 250,
+        protein: 12,
+        carbs: 30,
+        fat: 8,
+      },
+      opts
+    );
+
+    expect(foodCoreService.createFood).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ barcode: '0012345678901' })
+    );
+  });
+
+  it('updates barcode metadata without changing a variant or diary history', async () => {
+    vi.mocked(foodCoreService.updateFood).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Granola Bar',
+      barcode: '0012345678901',
+    });
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'set_food_barcode',
+        food_id: FOOD_ID,
+        barcode: '0012345678901',
+      },
+      opts
+    );
+
+    expect(result).toContain(
+      'Barcode for "Granola Bar" updated to 0012345678901.'
+    );
+    expect(foodCoreService.updateFood).toHaveBeenCalledWith('user-1', FOOD_ID, {
+      barcode: '0012345678901',
+    });
+    expect(foodEntryService.updateFoodEntry).not.toHaveBeenCalled();
+  });
+
+  it('does not update barcode metadata when the food is not writable', async () => {
+    vi.mocked(foodCoreService.updateFood).mockRejectedValueOnce(
+      new Error('Forbidden: You do not have permission to update this food.')
+    );
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'set_food_barcode',
+        food_id: FOOD_ID,
+        barcode: '0012345678901',
+      },
+      opts
+    );
+
+    expect(result).toContain(
+      'Forbidden: You do not have permission to update this food.'
+    );
+  });
+});
+
 describe('log_food', () => {
   // Regression: logFoodSchema is strict, so is_quick_food used to be stripped
   // before the handler ran and the request vanished without a word. log_food
@@ -811,6 +894,145 @@ describe('log_food', () => {
     );
     expect(foodCoreService.createFood).not.toHaveBeenCalled();
     expect(foodEntryService.createFoodEntry).toHaveBeenCalled();
+  });
+
+  it('normalizes 75 g and 0.75 explicit servings to the same stored amount and nutrition', async () => {
+    const lentils = {
+      ...eggsRow,
+      name: 'Lentils, dry',
+      default_variant: {
+        ...eggsRow.default_variant,
+        id: VARIANT_ID,
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 351,
+        protein: 23.6,
+        carbs: 62.2,
+        fat: 1.9,
+      },
+    };
+    vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
+      lentils,
+    ]);
+    vi.mocked(foodRepository.getFoodVariantsByFoodId).mockResolvedValue([
+      lentils.default_variant,
+    ]);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Lentils, dry',
+    });
+
+    const gramsResult = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_name: 'Lentils, dry',
+        quantity: 75,
+        unit: 'g',
+        meal_type: 'breakfast',
+        entry_date: '2026-09-15',
+      },
+      opts
+    );
+    const servingResult = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_name: 'Lentils, dry',
+        quantity: 0.75,
+        unit: 'serving',
+        meal_type: 'breakfast',
+        entry_date: '2026-09-15',
+      },
+      opts
+    );
+
+    expect(foodEntryService.createFoodEntry).toHaveBeenNthCalledWith(
+      1,
+      'user-1',
+      'user-1',
+      expect.objectContaining({ quantity: 75, unit: 'g' })
+    );
+    expect(foodEntryService.createFoodEntry).toHaveBeenNthCalledWith(
+      2,
+      'user-1',
+      'user-1',
+      expect.objectContaining({ quantity: 75, unit: 'g' })
+    );
+    expect(gramsResult).toContain('Consumed: 263.25 kcal | P 17.7g');
+    expect(servingResult).toContain('Consumed: 263.25 kcal | P 17.7g');
+  });
+
+  it('converts compatible mass and volume units but never grams to millilitres', async () => {
+    const liquid = {
+      ...eggsRow,
+      name: 'Soup',
+      default_variant: {
+        ...eggsRow.default_variant,
+        serving_size: 250,
+        serving_unit: 'ml',
+      },
+    };
+    vi.mocked(foodRepository.getFoodsWithPagination)
+      .mockResolvedValueOnce([eggsRow])
+      .mockResolvedValueOnce([liquid]);
+    vi.mocked(foodRepository.getFoodVariantsByFoodId)
+      .mockResolvedValueOnce([eggsRow.default_variant])
+      .mockResolvedValueOnce([liquid.default_variant]);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Food',
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_name: 'Eggs',
+        quantity: 0.075,
+        unit: 'kg',
+        meal_type: 'breakfast',
+      },
+      opts
+    );
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_name: 'Soup',
+        quantity: 0.5,
+        unit: 'l',
+        meal_type: 'breakfast',
+      },
+      opts
+    );
+
+    expect(foodEntryService.createFoodEntry).toHaveBeenNthCalledWith(
+      1,
+      'user-1',
+      'user-1',
+      expect.objectContaining({ quantity: 75, unit: 'g' })
+    );
+    expect(foodEntryService.createFoodEntry).toHaveBeenNthCalledWith(
+      2,
+      'user-1',
+      'user-1',
+      expect.objectContaining({ quantity: 500, unit: 'ml' })
+    );
+  });
+
+  it('rejects a legacy unit that embeds a reference serving size', async () => {
+    vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
+      eggsRow,
+    ]);
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_name: 'Eggs',
+        quantity: 75,
+        unit: '100 g',
+        meal_type: 'breakfast',
+      },
+      opts
+    );
+
+    expect(result).toContain('Unit "100 g" is ambiguous');
   });
 
   it('reports the legacy meal_type name when resolution fails', async () => {
@@ -874,7 +1096,7 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe(
+    expect(result).toContain(
       '✅ Logged "eggs" (1 serving) for Breakfast on 2026-06-10.'
     );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
@@ -906,8 +1128,8 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe(
-      '✅ Logged "Eggs" (1 g) for Second breakfast on 2026-06-10.'
+    expect(result).toContain(
+      '✅ Logged "Eggs" (100 g) for Second breakfast on 2026-06-10.'
     );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
       'user-1',
@@ -952,7 +1174,7 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe(
+    expect(result).toContain(
       '✅ Logged "eggs" (2 serving) for Breakfast on 2026-06-10.'
     );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
@@ -1019,8 +1241,8 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe(
-      '✅ Logged "Eggs" (2 serving) for Breakfast on 2026-06-10.'
+    expect(result).toContain(
+      '✅ Logged "Eggs" (200 g) for Breakfast on 2026-06-10.'
     );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
       'user-1',
@@ -1065,8 +1287,8 @@ describe('log_food', () => {
     );
 
     const today = todayInZone('UTC');
-    expect(result).toBe(
-      `✅ Logged "Eggs" (1 ${eggsRow.default_variant.serving_unit}) for Breakfast on ${today}.`
+    expect(result).toContain(
+      `✅ Logged "Eggs" (100 ${eggsRow.default_variant.serving_unit}) for Breakfast on ${today}.`
     );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
       'user-1',
@@ -1097,8 +1319,8 @@ describe('log_food', () => {
     );
 
     const today = todayInZone('UTC');
-    expect(result).toBe(
-      `✅ Logged "Eggs" (1 ${eggsRow.default_variant.serving_unit}) for Breakfast on ${today}.`
+    expect(result).toContain(
+      `✅ Logged "Eggs" (100 ${eggsRow.default_variant.serving_unit}) for Breakfast on ${today}.`
     );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
       'user-1',
@@ -1106,11 +1328,75 @@ describe('log_food', () => {
       expect.objectContaining({
         food_id: FOOD_ID,
         variant_id: VARIANT_ID,
-        quantity: 1,
+        quantity: 100,
         unit: eggsRow.default_variant.serving_unit,
         entry_date: today,
       })
     );
+  });
+
+  it('uses each variant reference serving as the omitted-unit default', async () => {
+    const oneGram = {
+      ...eggsRow,
+      default_variant: {
+        ...eggsRow.default_variant,
+        serving_size: 1,
+        serving_unit: 'g',
+      },
+    };
+    const thirtyGrams = {
+      ...eggsRow,
+      default_variant: {
+        ...eggsRow.default_variant,
+        serving_size: 30,
+        serving_unit: 'g',
+      },
+    };
+    vi.mocked(foodRepository.getFoodById)
+      .mockResolvedValueOnce(oneGram)
+      .mockResolvedValueOnce(thirtyGrams);
+    vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      food_name: 'Eggs',
+    });
+
+    await tools.sparky_manage_food.execute!(
+      { action: 'log_food', food_id: FOOD_ID, meal_type: 'breakfast' },
+      opts
+    );
+    await tools.sparky_manage_food.execute!(
+      { action: 'log_food', food_id: FOOD_ID, meal_type: 'breakfast' },
+      opts
+    );
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_food',
+        food_id: FOOD_ID,
+        quantity: 1,
+        unit: 'g',
+        meal_type: 'breakfast',
+      },
+      opts
+    );
+
+    expect(
+      vi.mocked(foodEntryService.createFoodEntry).mock.calls[0]?.[2]
+    ).toMatchObject({
+      quantity: 1,
+      unit: 'g',
+    });
+    expect(
+      vi.mocked(foodEntryService.createFoodEntry).mock.calls[1]?.[2]
+    ).toMatchObject({
+      quantity: 30,
+      unit: 'g',
+    });
+    expect(
+      vi.mocked(foodEntryService.createFoodEntry).mock.calls[2]?.[2]
+    ).toMatchObject({
+      quantity: 1,
+      unit: 'g',
+    });
   });
 
   // A no-action call shaped like a log (food_id + quantity + meal_type) must
@@ -1152,7 +1438,9 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe('✅ Logged "Eggs" (100 g) for Lunch on 2026-06-10.');
+    expect(result).toContain(
+      '✅ Logged "Eggs" (100 g) for Lunch on 2026-06-10.'
+    );
     expect(foodRepository.getFoodsWithPagination).not.toHaveBeenCalled();
     expect(foodRepository.getFoodById).toHaveBeenCalledWith(FOOD_ID, 'user-1');
   });
@@ -1199,7 +1487,9 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe('✅ Logged "Eggs" (100 g) for Lunch on 2026-06-10.');
+    expect(result).toContain(
+      '✅ Logged "Eggs" (100 g) for Lunch on 2026-06-10.'
+    );
     expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
       'user-1',
       'user-1',
@@ -1265,10 +1555,12 @@ describe('log_food', () => {
       opts
     );
 
-    expect(pieceResult).toBe(
+    expect(pieceResult).toContain(
       '✅ Logged "Eggs" (2 piece) for Lunch on 2026-06-10.'
     );
-    expect(cupResult).toBe('✅ Logged "Eggs" (1 cup) for Lunch on 2026-06-10.');
+    expect(cupResult).toContain(
+      '✅ Logged "Eggs" (1 cup) for Lunch on 2026-06-10.'
+    );
     expect(foodEntryService.createFoodEntry).toHaveBeenNthCalledWith(
       1,
       'user-1',
@@ -1315,8 +1607,8 @@ describe('log_food', () => {
       opts
     );
 
-    expect(result).toBe(
-      'Error [VALIDATION]: Cannot safely log 100 g for this food because no matching serving variant is available.'
+    expect(result).toContain(
+      "Cannot safely convert 100 g to this food's 1 serving reference serving."
     );
     expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
   });
@@ -3052,7 +3344,7 @@ describe('update_entry', () => {
       'user-1',
       'user-1',
       ENTRY_ID,
-      { quantity: 3, unit: 'serving' }
+      { quantity: 300, unit: 'g' }
     );
   });
 
@@ -4550,6 +4842,10 @@ describe('sparky_get_food_diary', () => {
         end_date: '2026-06-10',
         food_entries: foodEntries,
         meal_entries: mealEntries,
+        total_count: 2,
+        has_more: false,
+        next_offset: null,
+        totals_scope: 'page',
       })
     );
     expect(foodEntryService.getFoodEntriesByDateRange).toHaveBeenCalledWith(
@@ -4561,6 +4857,46 @@ describe('sparky_get_food_diary', () => {
     expect(
       foodEntryMealRepository.getFoodEntryMealsByDateRange
     ).toHaveBeenCalledWith('user-1', '2026-06-10', '2026-06-10');
+  });
+
+  it('paginates food and meal entries together without gaps', async () => {
+    vi.mocked(foodEntryService.getFoodEntriesByDateRange).mockResolvedValue(
+      Array.from({ length: 25 }, (_, index) => ({
+        id: `food-${String(index).padStart(2, '0')}`,
+        entry_date: '2026-06-10',
+        food_name: `Food ${index}`,
+      }))
+    );
+    vi.mocked(
+      foodEntryMealRepository.getFoodEntryMealsByDateRange
+    ).mockResolvedValue([
+      { id: 'meal-1', entry_date: '2026-06-10', name: 'Meal 1' },
+      { id: 'meal-2', entry_date: '2026-06-10', name: 'Meal 2' },
+    ]);
+
+    const first = JSON.parse(
+      (await tools.sparky_get_food_diary.execute!(
+        { date: '2026-06-10', limit: 20, offset: 0 },
+        opts
+      )) as string
+    );
+    const second = JSON.parse(
+      (await tools.sparky_get_food_diary.execute!(
+        { date: '2026-06-10', limit: 20, offset: first.next_offset },
+        opts
+      )) as string
+    );
+    const ids = [
+      ...first.food_entries,
+      ...first.meal_entries,
+      ...second.food_entries,
+      ...second.meal_entries,
+    ].map((entry: { id: string }) => entry.id);
+
+    expect(first.has_more).toBe(true);
+    expect(first.next_offset).toBe(20);
+    expect(new Set(ids)).toHaveLength(27);
+    expect(ids).toHaveLength(27);
   });
 
   it('compacts the payload: single line, null/empty/redundant fields dropped, actionable ids kept', async () => {

@@ -800,8 +800,14 @@ async function updateFoodEntry(
           )
         : null;
 
+    // Quantity, unit and meal-type edits must preserve the entry snapshot.
+    // The catalog can change after logging, and reloading it here silently
+    // rewrites history even though the user did not choose a new variant.
+    const shouldRefreshSnapshot =
+      entryData.variant_id !== undefined &&
+      entryData.variant_id !== existingEntry.variant_id;
     let newSnapshotData;
-    if (food && variant) {
+    if (shouldRefreshSnapshot && food && variant) {
       newSnapshotData = {
         food_name: food.name,
         brand_name: food.brand,

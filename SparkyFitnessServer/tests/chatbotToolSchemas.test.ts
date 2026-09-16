@@ -78,6 +78,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'serving_size',
         'serving_unit',
         'brand',
+        'barcode',
         'quantity',
         'unit',
         'meal_type',
@@ -136,6 +137,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'delete_food',
         'update_entry',
         'set_food_notes',
+        'set_food_barcode',
         'update_food_variant',
         'copy_from_yesterday',
         'save_as_meal_template',
@@ -240,6 +242,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'list_checkin_diary',
         'get_fasting_status',
         'get_biometrics_history',
+        'get_custom_metrics_history',
       ],
     },
     {

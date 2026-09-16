@@ -4,7 +4,6 @@ import { log } from '../../config/logging.js';
 import preferenceService from '../../services/preferenceService.js';
 import exerciseEntryDb from '../../models/exerciseEntry.js';
 import measurementRepository from '../../models/measurementRepository.js';
-import reportRepository from '../../models/reportRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeDayKeywords } from './dates.js';
 import { dayString, formatJsonResult } from './formatting.js';
@@ -101,7 +100,10 @@ async function getDailyReport(
 ): Promise<Record<string, unknown>> {
   const { startDate, endDate } = reportDateRange(params, tz);
 
-  const nutritionRows = await reportRepository.getDailyNutritionTotalsRange(
+  // Use the same energy-unit projection as food diary reads and nutrition
+  // summaries. The repository always returns kcal, while MCP presentation
+  // follows the user's preference.
+  const nutritionRows = await getNutritionalSummaryRows(
     userId,
     startDate,
     endDate
@@ -129,6 +131,7 @@ async function getDailyReport(
   return {
     start_date: startDate,
     end_date: endDate,
+    energy_unit: nutritionRows[0]?.energy_unit ?? 'kcal',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     nutrition: nutritionRows.map((r: any) => ({
       entry_date: dayString(r.entry_date),
@@ -137,6 +140,7 @@ async function getDailyReport(
       carbs: r.carbs,
       fat: r.fat,
       fiber: r.fiber,
+      nutrition_warning: r.nutrition_warning,
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     exercise: exerciseRows.map((r: any) => ({
