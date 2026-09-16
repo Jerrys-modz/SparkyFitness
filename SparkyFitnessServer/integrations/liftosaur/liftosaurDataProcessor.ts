@@ -167,7 +167,7 @@ async function processSingleWorkout(
   createdByUserId: string,
   workout: LiftohistoryWorkout,
   timezone = 'UTC',
-  client?: any
+  client?: PoolClient | null
 ) {
   const startTime = new Date(workout.date);
   const entryDate = instantToDay(startTime, timezone);
