@@ -75,10 +75,21 @@ const EMOJI_CHOICES = [
 ];
 const COLOR_CHOICES = Object.keys(MOOD_COLOR);
 
-// Mood is stored 0-100, but `mood_value` is documented to carry 10-100 (see
-// `constants/healthDataImport.ts`), so that is all the slider offers.
+// `mood_value` is documented to carry 10-100 (see `constants/healthDataImport.ts`),
+// which is what an import may bring in. The picker stops at 95 so its last stop
+// is one half-step past the excited face rather than a whole one; 95 and 100
+// both read back as excited, so the two it gives up cost nothing.
 const MOOD_MIN = 10;
-const MOOD_MAX = 100;
+const MOOD_MAX = 95;
+
+/**
+ * A step is half the gap between two faces, so the stops in between are not
+ * stray positions but the half-way marks: happy leaning excited, calm leaning
+ * confident. That only reads as deliberate while a face lands on every second
+ * stop, which is what `MOOD_FACE_STEP` keeps true.
+ */
+const MOOD_STEP = 5;
+const MOOD_FACE_STEP = MOOD_STEP * 2;
 
 /** Half the `h-5 w-5` thumb in `components/ui/slider.tsx`. Radix keeps the thumb
  *  inside the track, so its centre travels the track inset by this much at
@@ -92,11 +103,20 @@ const THUMB_INSET_PX = 10;
  * the further right you went, since the bands are not evenly spread over 10-100.
  */
 const BAND_SCALE = BUILT_IN_MOODS.filter((m) => m.band != null).map((m) => {
-  // The band midpoint on the raw 0-100 scale, which for "sad" (0-15) is 8:
-  // below this slider's own minimum.
+  // `representativeMoodValue` gives the band midpoint on the raw 0-100 scale,
+  // which the two end bands put where no stop can land: 8 for "sad" (0-15),
+  // below the minimum, and 93 for "excited" (85-100). Snap onto the grid the
+  // thumb travels so every face is a stop the thumb can rest on.
   const value = Math.min(
     MOOD_MAX,
-    Math.max(MOOD_MIN, representativeMoodValue([m.name]))
+    Math.max(
+      MOOD_MIN,
+      MOOD_MIN +
+        Math.round(
+          (representativeMoodValue([m.name]) - MOOD_MIN) / MOOD_FACE_STEP
+        ) *
+          MOOD_FACE_STEP
+    )
   );
   return {
     ...m,
@@ -218,7 +238,7 @@ const MoodMeter = ({
           value={[mood === null ? 50 : mood]}
           min={MOOD_MIN}
           max={MOOD_MAX}
-          step={5}
+          step={MOOD_STEP}
           onValueChange={(vals) => onMoodChange(vals[0] ?? 50)}
           className="w-full"
           aria-label={t('moodMeter.intensity', 'Overall mood')}

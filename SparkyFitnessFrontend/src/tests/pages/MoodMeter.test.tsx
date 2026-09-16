@@ -25,11 +25,18 @@ jest.mock('@/hooks/CheckIn/useMood', () => ({
 // The slider's own bounds. Derived here rather than imported so the test states
 // the geometry independently of the table the component builds it from.
 const MOOD_MIN = 10;
-const MOOD_MAX = 100;
+const MOOD_MAX = 95;
+const MOOD_STEP = 5;
 
 /** Where Radix parks the thumb for a value, as a share of its travel. */
 const thumbPercent = (value: number) =>
   ((value - MOOD_MIN) / (MOOD_MAX - MOOD_MIN)) * 100;
+
+/** Every value the thumb can come to rest on. */
+const stops = Array.from(
+  { length: (MOOD_MAX - MOOD_MIN) / MOOD_STEP + 1 },
+  (_, i) => MOOD_MIN + i * MOOD_STEP
+);
 
 const renderMeter = (mood = 50) => {
   const onMoodChange = jest.fn();
@@ -74,18 +81,37 @@ describe('MoodMeter band legend', () => {
     });
   });
 
-  test('positions the faces by their bands rather than evenly', () => {
+  test('puts a face on every second stop', () => {
     const { container } = renderMeter();
     const lefts = legendFaces(container).map((face) =>
-      Number(parseFloat(face.style.left).toFixed(2))
+      parseFloat(face.style.left)
     );
 
-    expect(lefts).toEqual([
-      0, 11.11, 22.22, 33.33, 44.44, 55.56, 66.67, 77.78, 92.22,
+    expect(lefts.map((l) => Number(l.toFixed(2)))).toEqual([
+      0, 11.76, 23.53, 35.29, 47.06, 58.82, 70.59, 82.35, 94.12,
     ]);
-    // Spread evenly the happy face sat at 87.5%, while its own value (80) puts
-    // the thumb at 77.78%: a tenth of the width apart.
+    // Spread evenly the happy face sat at 87.5%, while its own value puts the
+    // thumb at 82.35%: a tenth of the width apart.
     expect(lefts[7]).not.toBeCloseTo(87.5, 1);
+  });
+
+  // What the reporter saw after the faces were pinned: dragging still left a
+  // gap, because a band held two stops and the face marked only one of them.
+  test('leaves every stop either on a face or exactly half-way between two', () => {
+    const { container } = renderMeter();
+    const lefts = legendFaces(container).map((face) =>
+      parseFloat(face.style.left)
+    );
+    const halfGap = (lefts[1]! - lefts[0]!) / 2;
+
+    stops.forEach((value) => {
+      const nearest = Math.min(
+        ...lefts.map((left) => Math.abs(thumbPercent(value) - left))
+      );
+      expect([0, halfGap].some((d) => Math.abs(nearest - d) < 0.001)).toBe(
+        true
+      );
+    });
   });
 
   test('insets the row by half a thumb, the way the thumb travel is inset', () => {
