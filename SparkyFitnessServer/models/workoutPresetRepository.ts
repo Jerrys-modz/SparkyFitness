@@ -72,6 +72,10 @@ async function createWorkoutPreset(presetData: any) {
 async function getWorkoutPresetByName(userId: any, name: any) {
   const client = await getClient(userId);
   try {
+    // Ownership/sharing visibility is enforced by RLS (owner, public, or
+    // family-shared via can_view_exercise_library). Do not re-filter on
+    // wp.user_id here, or a family-shared preset retrievable by ID returns
+    // NOT_FOUND when requested by name.
     const result = await client.query(
       `SELECT
         wp.id, wp.user_id, wp.name, wp.description, wp.is_public, wp.created_at, wp.updated_at,
@@ -105,9 +109,11 @@ async function getWorkoutPresetByName(userId: any, name: any) {
           ), '[]'::json
         ) AS exercises
       FROM workout_presets wp
-      WHERE wp.user_id = $1 AND wp.name ILIKE $2
-      GROUP BY wp.id`,
-      [userId, name]
+      WHERE wp.name ILIKE $1
+      GROUP BY wp.id
+      ORDER BY wp.id ASC
+      LIMIT 1`,
+      [name]
     );
     return result.rows[0] ? { ...result.rows[0], isNew: false } : null; // Add isNew: false for existing presets
   } finally {

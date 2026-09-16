@@ -132,4 +132,21 @@ describe('workoutPresetRepository superset_group', () => {
       expect(sql).toContain('wpe.superset_group');
     }
   });
+
+  it('looks up a preset by name via RLS instead of an owner-only filter', async () => {
+    await workoutPresetRepository.getWorkoutPresetByName(USER_ID, 'Push Day');
+
+    const call = client.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' &&
+        sql.includes('FROM workout_presets wp') &&
+        sql.includes('wp.name ILIKE')
+    );
+    expect(call).toBeDefined();
+    const [sql, params] = call as [string, unknown[]];
+    expect(sql).not.toContain('wp.user_id = $1');
+    expect(sql).toContain('wp.name ILIKE $1');
+    expect(params).toEqual(['Push Day']);
+    expect(getClient).toHaveBeenCalledWith(USER_ID);
+  });
 });
