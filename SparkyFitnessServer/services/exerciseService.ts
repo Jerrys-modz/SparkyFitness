@@ -1930,8 +1930,8 @@ async function createGroupedWorkoutSession(
     } = sessionData;
     let presetEntry: any;
     let exerciseDefinitions: any;
-    const childEntrySource = source;
-    const preserveLegacyPresetDurationFallback = false;
+    let childEntrySource = source;
+    let preserveLegacyPresetDurationFallback = false;
 
     if (workout_preset_id !== undefined && workout_preset_id !== null) {
       const workoutPreset = await workoutPresetRepository.getWorkoutPresetById(
@@ -1965,38 +1965,13 @@ async function createGroupedWorkoutSession(
       // keeps its own source and stays nested-edit-able like any other
       // client-authored session, unlike a pure workout_preset_id start
       // (source 'Workout Preset', not in EDITABLE_SOURCES).
-      const rawExercises =
+      exerciseDefinitions =
         exercises !== undefined ? exercises : workoutPreset.exercises || [];
 
-      const consumedPresetIndices = new Set<number>();
-      exerciseDefinitions = rawExercises.map((ex: any) => {
-        let presetEx: any = null;
-        if (workoutPreset.exercises) {
-          const matchedIndex = workoutPreset.exercises.findIndex(
-            (p: any, idx: number) =>
-              !consumedPresetIndices.has(idx) &&
-              p.exercise_id === ex.exercise_id
-          );
-          if (matchedIndex !== -1) {
-            consumedPresetIndices.add(matchedIndex);
-            presetEx = workoutPreset.exercises[matchedIndex];
-          }
-        }
-
-        return {
-          ...ex,
-          // Client payload wins so mid-workout edits are preserved, falling back to preset
-          rep_goal: ex.rep_goal ?? presetEx?.rep_goal ?? null,
-          increment_type:
-            ex.increment_type ?? presetEx?.increment_type ?? 'weight',
-          increment_value:
-            ex.increment_value ?? presetEx?.increment_value ?? 5.0,
-          equipment_brand:
-            ex.equipment_brand ?? presetEx?.equipment_brand ?? null,
-          progression_mode:
-            ex.progression_mode ?? presetEx?.progression_mode ?? 'rep_goal',
-        };
-      });
+      if (exercises === undefined) {
+        childEntrySource = 'Workout Preset';
+        preserveLegacyPresetDurationFallback = true;
+      }
     } else {
       presetEntry =
         await exercisePresetEntryRepository.createExercisePresetEntryWithClient(

@@ -796,24 +796,50 @@ function ActiveWorkoutExerciseCard({
         {isEdit && (
           <View className="mt-2 mb-1 px-1">
             <Pressable
-              onPress={() => setProgressionEditorOpen(!progressionEditorOpen)}
+              onPress={() => setProgressionEditorOpen((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={t(
+                'activeWorkout.progression.toggleSettings',
+                {
+                  defaultValue: 'Toggle progression settings',
+                }
+              )}
               className="flex-row items-center justify-between px-3 py-2 rounded-lg bg-surface border border-border-subtle"
             >
               <View className="flex-row items-center gap-2 flex-1 mr-2">
                 <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                  Progression
+                  {t('activeWorkout.progression.title', {
+                    defaultValue: 'Progression',
+                  })}
                 </Text>
                 <Text
                   numberOfLines={1}
                   className="text-xs font-medium text-text-primary flex-1"
                 >
                   {editMode === 'manual'
-                    ? 'Manual (Off)'
+                    ? t('activeWorkout.progression.manualOff', {
+                        defaultValue: 'Manual (Off)',
+                      })
                     : editMode === 'fixed'
-                      ? `Fixed Target · +${editIncrementValue} ${weightUnit}`
+                      ? t('activeWorkout.progression.fixedSummary', {
+                          defaultValue: 'Fixed Target · +{{value}} {{unit}}',
+                          value: editIncrementValue,
+                          unit: weightUnit,
+                        })
                       : editMode === 'step_load'
-                        ? `Step-Load · ${editRepGoal || '–'} reps · +${editIncrementValue} reps`
-                        : `Rep Goal · ${editRepGoal || '–'} reps · +${editIncrementValue} ${weightUnit}`}
+                        ? t('activeWorkout.progression.stepLoadSummary', {
+                            defaultValue:
+                              'Step-Load · {{reps}} reps · +{{value}} reps',
+                            reps: editRepGoal || '–',
+                            value: editIncrementValue,
+                          })
+                        : t('activeWorkout.progression.repGoalSummary', {
+                            defaultValue:
+                              'Rep Goal · {{reps}} reps · +{{value}} {{unit}}',
+                            reps: editRepGoal || '–',
+                            value: editIncrementValue,
+                            unit: weightUnit,
+                          })}
                 </Text>
               </View>
               <Icon
@@ -827,15 +853,37 @@ function ActiveWorkoutExerciseCard({
               <View className="mt-2 p-3 rounded-xl bg-surface border border-border-subtle gap-3">
                 <View>
                   <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1.5">
-                    Overload Mode
+                    {t('activeWorkout.progression.overloadMode', {
+                      defaultValue: 'Overload Mode',
+                    })}
                   </Text>
                   <View className="flex-row bg-raised rounded-lg p-0.5 border border-border-subtle">
                     {(
                       [
-                        { key: 'rep_goal', label: 'Rep Goal' },
-                        { key: 'fixed', label: 'Fixed' },
-                        { key: 'step_load', label: 'Step-Load' },
-                        { key: 'manual', label: 'Off' },
+                        {
+                          key: 'rep_goal',
+                          label: t('activeWorkout.progression.modeRepGoal', {
+                            defaultValue: 'Rep Goal',
+                          }),
+                        },
+                        {
+                          key: 'fixed',
+                          label: t('activeWorkout.progression.modeFixed', {
+                            defaultValue: 'Fixed',
+                          }),
+                        },
+                        {
+                          key: 'step_load',
+                          label: t('activeWorkout.progression.modeStepLoad', {
+                            defaultValue: 'Step-Load',
+                          }),
+                        },
+                        {
+                          key: 'manual',
+                          label: t('activeWorkout.progression.modeOff', {
+                            defaultValue: 'Off',
+                          }),
+                        },
                       ] as const
                     ).map((tab) => {
                       const isActive = editMode === tab.key;
@@ -848,14 +896,13 @@ function ActiveWorkoutExerciseCard({
                               tab.key === 'step_load'
                                 ? 'reps'
                                 : editIncrementType;
-                            if (tab.key === 'step_load')
-                              setEditIncrementType('reps');
+                            setEditIncrementType(newIncType);
                             handleCommitProgression({
                               progression_mode: tab.key,
                               increment_type: newIncType,
                             });
                           }}
-                          className={`flex-1 py-1.5 items-center justify-center rounded-md ${
+                          className={`flex-1 py-1.5 rounded-md items-center justify-center ${
                             isActive ? 'bg-surface shadow-sm' : ''
                           }`}
                         >
@@ -879,8 +926,12 @@ function ActiveWorkoutExerciseCard({
                     <View className="flex-1">
                       <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
                         {editMode === 'fixed'
-                          ? 'Target Reps / Set'
-                          : 'Target Reps (Total)'}
+                          ? t('activeWorkout.progression.targetRepsPerSet', {
+                              defaultValue: 'Target Reps / Set',
+                            })
+                          : t('activeWorkout.progression.targetRepsTotal', {
+                              defaultValue: 'Target Reps (Total)',
+                            })}
                       </Text>
                       <FormInput
                         value={editRepGoal}
@@ -905,20 +956,31 @@ function ActiveWorkoutExerciseCard({
                       <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
                         {editMode === 'step_load' ||
                         editIncrementType === 'reps'
-                          ? 'Increment (Reps)'
-                          : `Increment (${weightUnit})`}
+                          ? t('activeWorkout.progression.incrementReps', {
+                              defaultValue: 'Increment (Reps)',
+                            })
+                          : t('activeWorkout.progression.incrementWeight', {
+                              defaultValue: 'Increment ({{unit}})',
+                              unit: weightUnit,
+                            })}
                       </Text>
                       <FormInput
                         value={editIncrementValue}
                         onChangeText={(val) => {
                           setEditIncrementValue(val);
                           const num = parseFloat(val);
+                          const incrementInKg =
+                            editIncrementType === 'weight' &&
+                            weightUnit === 'lbs' &&
+                            !isNaN(num)
+                              ? weightToKg(num, 'lbs')
+                              : num;
                           handleCommitProgression({
-                            increment_value: isNaN(num) ? 2.5 : num,
+                            increment_value: isNaN(num) ? 2.5 : incrementInKg,
                           });
                         }}
                         keyboardType="decimal-pad"
-                        placeholder="2.5"
+                        placeholder={weightUnit === 'lbs' ? '5' : '2.5'}
                         style={{
                           height: 38,
                           fontSize: 14,
@@ -931,7 +993,9 @@ function ActiveWorkoutExerciseCard({
 
                 <View>
                   <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-                    Equipment / Machine Brand
+                    {t('activeWorkout.progression.equipmentBrand', {
+                      defaultValue: 'Equipment / Machine Brand',
+                    })}
                   </Text>
                   <FormInput
                     value={editEquipmentBrand}
@@ -942,7 +1006,10 @@ function ActiveWorkoutExerciseCard({
                       });
                     }}
                     autoCapitalize="words"
-                    placeholder="e.g. Hammer Strength, Cable Stack"
+                    placeholder={t(
+                      'activeWorkout.progression.equipmentBrandPlaceholder',
+                      { defaultValue: 'e.g. Hammer Strength, Cable Stack' }
+                    )}
                     style={{ height: 38, fontSize: 14, paddingHorizontal: 10 }}
                   />
                 </View>

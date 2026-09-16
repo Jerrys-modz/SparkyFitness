@@ -98,6 +98,21 @@ export function evaluateProgression(
   repDifference = totalRepsAchieved - effectiveRepGoal;
 
   if (goalAchieved) {
+    // Mode: step_load -> Keeps weight locked and steps up the target rep count
+    if (config.progressionMode === "step_load") {
+      const newRepGoal = effectiveRepGoal + config.incrementValue;
+      return {
+        goalAchieved: true,
+        status: "PROGRESSION_REPS_INCREASE",
+        suggestedWeight: lastPerformance.baseWeight,
+        suggestedRepGoal: newRepGoal,
+        totalRepsAchieved,
+        repDifference,
+        message: `Step-load rep target met (${totalRepsAchieved}/${effectiveRepGoal} reps)! Target increased to ${newRepGoal} reps at current load.`,
+      };
+    }
+
+    // Mode: rep_goal with weight increment
     if (config.incrementType === "weight") {
       const newWeight = lastPerformance.baseWeight + config.incrementValue;
       return {
@@ -109,18 +124,19 @@ export function evaluateProgression(
         repDifference,
         message: `Rep goal met (${totalRepsAchieved}/${effectiveRepGoal} reps)! Increasing weight to ${newWeight}.`,
       };
-    } else {
-      const newRepGoal = effectiveRepGoal + config.incrementValue;
-      return {
-        goalAchieved: true,
-        status: "PROGRESSION_REPS_INCREASE",
-        suggestedWeight: lastPerformance.baseWeight,
-        suggestedRepGoal: newRepGoal,
-        totalRepsAchieved,
-        repDifference,
-        message: `Rep goal met (${totalRepsAchieved}/${effectiveRepGoal} reps)! Target increased to ${newRepGoal} reps.`,
-      };
     }
+
+    // Mode: rep_goal with rep increment
+    const newRepGoal = effectiveRepGoal + config.incrementValue;
+    return {
+      goalAchieved: true,
+      status: "PROGRESSION_REPS_INCREASE",
+      suggestedWeight: lastPerformance.baseWeight,
+      suggestedRepGoal: newRepGoal,
+      totalRepsAchieved,
+      repDifference,
+      message: `Rep goal met (${totalRepsAchieved}/${effectiveRepGoal} reps)! Target increased to ${newRepGoal} reps.`,
+    };
   }
 
   return {

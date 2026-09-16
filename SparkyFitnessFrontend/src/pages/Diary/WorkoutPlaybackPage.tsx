@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiCall } from '@/api/api';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
@@ -38,12 +37,8 @@ import { localDateTimeToUtc } from '@workspace/shared';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
+import { fetchExerciseProgressionStats } from '@/hooks/Exercises/useExerciseEntries';
 
-function isWarmup(setType?: string | null): boolean {
-  if (!setType) return false;
-  const lower = setType.toLowerCase();
-  return lower === 'warmup' || lower.includes('warm');
-}
 function weightFromKg(weightKg: number, unit: string): number {
   if (!weightKg || weightKg <= 0) return 0;
   return unit === 'lbs' || unit === 'st_lbs'
@@ -183,13 +178,10 @@ const WorkoutPlaybackPage = () => {
           if (exercise.sets.some((s) => s.completed)) return exercise;
 
           try {
-            // Use v2 endpoint with credentials via apiCall
-            const response = await apiCall(
-              `/api/v2/exercises/${exercise.exercise_id}/stats`
+            const stats = await fetchExerciseProgressionStats(
+              exercise.exercise_id
             );
-
-            if (!response.ok) return exercise;
-            const stats = await response.json();
+            if (!stats) return exercise;
             const allPreviousSets = stats?.recentSessions?.[0]?.sets ?? [];
 
             // Exclude warmup sets from prior session to establish true working baseline
