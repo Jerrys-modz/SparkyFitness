@@ -26,6 +26,7 @@ vi.mock('../services/exerciseService', () => ({
 vi.mock('../services/workoutPresetService', () => ({
   default: {
     getWorkoutPresets: vi.fn(),
+    getWorkoutPresetById: vi.fn(),
     createWorkoutPreset: vi.fn(),
     updateWorkoutPreset: vi.fn(),
     deleteWorkoutPreset: vi.fn(),
@@ -776,6 +777,108 @@ describe('workout presets', () => {
       'user-1',
       1,
       1000
+    );
+  });
+
+  it('get_workout_preset renders exercise ids, sets, and superset groups', async () => {
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Push Day',
+      description: 'Chest focused',
+      is_public: true,
+      exercises: [
+        {
+          exercise_id: EXERCISE_ID,
+          exercise_name: 'Bench Press',
+          superset_group: 1,
+          sets: [
+            {
+              set_number: 1,
+              set_type: 'Working Set',
+              reps: 10,
+              weight: 60,
+              duration: null,
+              distance: null,
+              rest_time: null,
+              notes: null,
+            },
+          ],
+        },
+        {
+          exercise_id: EXERCISE_ID_2,
+          exercise_name: 'Incline Fly',
+          superset_group: 1,
+          sets: [],
+        },
+      ],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+
+    expect(result).toBe(
+      `### Push Day (ID: ${PRESET_ID})\n\n` +
+        'Chest focused\n\n' +
+        'Public: yes\n\n' +
+        `1. **Bench Press** [superset group 1]\n   exercise_id: ${EXERCISE_ID}\n` +
+        '   Set 1 (Working Set): 10 reps, 60kg\n' +
+        `2. **Incline Fly** [superset group 1]\n   exercise_id: ${EXERCISE_ID_2}\n` +
+        '   No sets recorded\n'
+    );
+    expect(workoutPresetService.getWorkoutPresetById).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID
+    );
+  });
+
+  it('get_workout_preset resolves the preset by name', async () => {
+    vi.mocked(workoutPresetRepository.getWorkoutPresetByName).mockResolvedValue(
+      { id: PRESET_ID, name: 'Push Day' }
+    );
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Push Day',
+      description: null,
+      is_public: false,
+      exercises: [],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_preset', preset_name: 'Push Day' },
+      opts
+    );
+
+    expect(result).toBe(
+      `### Push Day (ID: ${PRESET_ID})\n\nPublic: no\n\n_No exercises in this preset._`
+    );
+    expect(workoutPresetService.getWorkoutPresetById).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID
+    );
+  });
+
+  it('get_workout_preset requires preset_id or preset_name', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_preset' },
+      opts
+    );
+    expect(result).toBe(
+      'Error [VALIDATION]: Either preset_id or preset_name must be provided'
+    );
+  });
+
+  it('get_workout_preset maps a missing preset to not found', async () => {
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockRejectedValue(
+      new Error('Workout preset not found.')
+    );
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+    expect(result).toBe(
+      `Error [NOT_FOUND]: Workout preset with ID '${PRESET_ID}' not found.\n\nSuggestion: Check the ID and try again.`
     );
   });
 

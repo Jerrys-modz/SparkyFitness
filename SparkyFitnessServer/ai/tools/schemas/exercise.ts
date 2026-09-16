@@ -162,6 +162,19 @@ const presetIdSchema = z.coerce
   .positive()
   .describe('Numeric ID of the workout preset');
 
+const getWorkoutPresetSchema = z
+  .object({
+    action: z.literal('get_workout_preset'),
+    preset_id: presetIdSchema.optional(),
+    preset_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name of the preset (alternative to ID)'),
+  })
+  .strict();
+
 // A preset's saved sets. Same shape as exerciseSetSchema minus rpe, which
 // diary sets support but workout_preset_exercise_sets has no column for.
 const presetSetSchema = z
@@ -338,7 +351,8 @@ const updateWorkoutPresetSchema = z
     exercises: presetExercisesInputSchema
       .optional()
       .describe(
-        'Replacement exercises as an array of objects or a JSON string; when provided, replaces the entire exercise list. ' +
+        'Replacement exercises as an array of objects or a JSON string; when provided, REPLACES the entire exercise list, ' +
+          'so call get_workout_preset first and include every exercise that should remain (not just the ones being changed). ' +
           'Each item is {exercise_id, sets?, superset_group?}'
       ),
   })
@@ -375,6 +389,7 @@ export const manageExerciseSchema = z.discriminatedUnion('action', [
   logExerciseSchema,
   listExerciseDiarySchema,
   getWorkoutPresetsSchema,
+  getWorkoutPresetSchema,
   logWorkoutPresetSchema,
   updateExerciseEntrySchema,
   deleteExerciseEntrySchema,
@@ -398,6 +413,7 @@ export const manageExerciseInput = z.object({
       'log_exercise',
       'list_exercise_diary',
       'get_workout_presets',
+      'get_workout_preset',
       'log_workout_preset',
       'update_exercise_entry',
       'delete_exercise_entry',
@@ -450,7 +466,8 @@ export const manageExerciseInput = z.object({
     ])
     .optional()
     .describe(
-      'Exercises as array of objects or JSON string — for create_workout_preset / update_workout_preset (replaces the full list on update). ' +
+      'Exercises as array of objects or JSON string — for create_workout_preset / update_workout_preset. ' +
+        'On update_workout_preset this REPLACES the full exercise list, so call get_workout_preset first and include every exercise that should remain. ' +
         'Each item is {exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}; items sharing the same superset_group are grouped as a superset.'
     ),
   name: z

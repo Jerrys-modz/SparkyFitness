@@ -184,6 +184,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'log_exercise',
         'list_exercise_diary',
         'get_workout_presets',
+        'get_workout_preset',
         'log_workout_preset',
         'update_exercise_entry',
         'delete_exercise_entry',
