@@ -381,7 +381,7 @@ Actions:
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
 - create_workout_preset(name, exercises, description?, is_public?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}]; items sharing the same superset_group are grouped as a superset
-- update_workout_preset(preset_id, name?, description?, is_public?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed
+- update_workout_preset(preset_id, name?, description?, is_public?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. If YOU are deciding what to change (e.g. "review my workouts and improve them") rather than applying values the user explicitly gave you, describe the proposed changes and get the user's go-ahead before calling this — it silently overwrites the existing preset.
 - delete_workout_preset(preset_id) — permanently deletes the preset. This is destructive; confirm with the user first.
 - get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
       inputSchema: manageExerciseInput,
