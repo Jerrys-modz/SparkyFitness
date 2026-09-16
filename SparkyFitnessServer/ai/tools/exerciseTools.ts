@@ -394,7 +394,7 @@ Actions:
             if (args.searchTerm) {
               return 'search_exercises';
             }
-            if (args.exercises && (args.preset_id || args.preset_name)) {
+            if (args.exercises && args.preset_id) {
               return 'update_workout_preset';
             }
             if (args.exercises) {
@@ -811,6 +811,9 @@ Actions:
               } else {
                 exercises = args.exercises;
               }
+              if (!Array.isArray(exercises)) {
+                return ERRORS.VALIDATION('exercises must be a JSON array');
+              }
               const preset = await workoutPresetService.createWorkoutPreset(
                 userId,
                 {
@@ -836,6 +839,9 @@ Actions:
                 }
               } else {
                 exercises = args.exercises;
+              }
+              if (exercises !== undefined && !Array.isArray(exercises)) {
+                return ERRORS.VALIDATION('exercises must be a JSON array');
               }
               try {
                 const preset = await workoutPresetService.updateWorkoutPreset(

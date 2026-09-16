@@ -1143,6 +1143,20 @@ describe('workout presets', () => {
     expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
   });
 
+  it('create_workout_preset rejects non-array JSON exercises', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Leg Day',
+        exercises: JSON.stringify({ exercise_id: EXERCISE_ID }),
+      },
+      opts
+    );
+
+    expect(result).toBe('Error [VALIDATION]: exercises must be a JSON array');
+    expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
+  });
+
   it('update_workout_preset updates only the provided fields and confirms', async () => {
     vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
       id: PRESET_ID,
@@ -1245,6 +1259,53 @@ describe('workout presets', () => {
     expect(result).toBe(
       'Error [VALIDATION]: Invalid JSON format for exercises'
     );
+    expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
+  });
+
+  it('update_workout_preset rejects non-array JSON exercises', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        exercises: JSON.stringify({ exercise_id: EXERCISE_ID }),
+      },
+      opts
+    );
+
+    expect(result).toBe('Error [VALIDATION]: exercises must be a JSON array');
+    expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
+  });
+
+  it('infers update_workout_preset from exercises plus preset_id, not from preset_name', async () => {
+    vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Leg Day',
+      exercises: [{}],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        preset_id: PRESET_ID,
+        exercises: [{ exercise_id: EXERCISE_ID }],
+      },
+      opts
+    );
+
+    expect(result).toBe('✅ Workout preset "Leg Day" updated.');
+    expect(workoutPresetService.updateWorkoutPreset).toHaveBeenCalled();
+    expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
+  });
+
+  it('does not infer update_workout_preset from exercises plus preset_name', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        preset_name: 'Push Day',
+        exercises: [{ exercise_id: EXERCISE_ID }],
+      },
+      opts
+    );
+
+    expect(String(result)).toMatch(/Error \[VALIDATION\]/);
     expect(workoutPresetService.updateWorkoutPreset).not.toHaveBeenCalled();
   });
 
