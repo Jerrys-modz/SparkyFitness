@@ -155,3 +155,36 @@ describe('MoodMeter header', () => {
     expect(active?.textContent).toBe(emoji);
   });
 });
+
+describe('MoodMeter with a value from outside the picker', () => {
+  // A CSV import may carry 96-100, and rows logged before the picker stopped at
+  // 95 still hold them. Radix reports the controlled value verbatim, so passing
+  // one straight through announces a mood above the maximum it declares.
+  test('keeps the thumb it announces inside the range it declares', () => {
+    const { container } = renderMeter(100);
+    const thumb = container.querySelector('[role="slider"]')!;
+    const now = Number(thumb.getAttribute('aria-valuenow'));
+
+    expect(now).toBeLessThanOrEqual(
+      Number(thumb.getAttribute('aria-valuemax'))
+    );
+    expect(now).toBeGreaterThanOrEqual(
+      Number(thumb.getAttribute('aria-valuemin'))
+    );
+  });
+
+  test('still reads the value back as the band it belongs to', () => {
+    const { container } = renderMeter(100);
+
+    expect(container.querySelector('span.font-medium')).toHaveTextContent(
+      '😍Excited'
+    );
+  });
+
+  test('leaves the stored value alone until the slider is moved', () => {
+    const { onMoodChange } = renderMeter(100);
+
+    // Clamping is for display: a day opened and saved untouched keeps its 100.
+    expect(onMoodChange).not.toHaveBeenCalled();
+  });
+});

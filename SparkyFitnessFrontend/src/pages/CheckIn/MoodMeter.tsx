@@ -91,6 +91,10 @@ const MOOD_MAX = 95;
 const MOOD_STEP = 5;
 const MOOD_FACE_STEP = MOOD_STEP * 2;
 
+/** Into the range the picker can show. */
+const clampToScale = (value: number) =>
+  Math.min(MOOD_MAX, Math.max(MOOD_MIN, value));
+
 /** Half the `h-5 w-5` thumb in `components/ui/slider.tsx`. Radix keeps the thumb
  *  inside the track, so its centre travels the track inset by this much at
  *  either end -- the legend has to use that same box. */
@@ -107,16 +111,12 @@ const BAND_SCALE = BUILT_IN_MOODS.filter((m) => m.band != null).map((m) => {
   // which the two end bands put where no stop can land: 8 for "sad" (0-15),
   // below the minimum, and 93 for "excited" (85-100). Snap onto the grid the
   // thumb travels so every face is a stop the thumb can rest on.
-  const value = Math.min(
-    MOOD_MAX,
-    Math.max(
-      MOOD_MIN,
-      MOOD_MIN +
-        Math.round(
-          (representativeMoodValue([m.name]) - MOOD_MIN) / MOOD_FACE_STEP
-        ) *
-          MOOD_FACE_STEP
-    )
+  const value = clampToScale(
+    MOOD_MIN +
+      Math.round(
+        (representativeMoodValue([m.name]) - MOOD_MIN) / MOOD_FACE_STEP
+      ) *
+        MOOD_FACE_STEP
   );
   return {
     ...m,
@@ -234,8 +234,12 @@ const MoodMeter = ({
             {builtInMoodLabel(currentBand.name, currentBand.displayName)}
           </span>
         </div>
+        {/* Clamped for display only. An import may carry 96-100, and Radix
+            announces the controlled value verbatim, so passing one through
+            would report a mood above the maximum the slider declares. The
+            stored value is left alone until the user moves the thumb. */}
         <Slider
-          value={[mood === null ? 50 : mood]}
+          value={[clampToScale(mood ?? 50)]}
           min={MOOD_MIN}
           max={MOOD_MAX}
           step={MOOD_STEP}
