@@ -49,77 +49,59 @@ that, but back it up first if you're unsure.
 ## Mobile app
 
 In the SparkyFitness iOS/Android app, use the **same Public URL** (including
-the port). Do not use a Home Assistant ingress / `/api/hassio_ingress/…`
-URL — the SPA talks to `/api` on the same origin, and the phone needs a
-stable host:port.
+the port). Do not use a Home Assistant Ingress / `/api/hassio_ingress/…`
+URL — that path is per-install and can change, and it requires an active,
+authenticated Home Assistant session to even resolve, neither of which the
+mobile app can rely on. The phone needs a stable, directly-reachable
+host:port.
 
 On Android 13+, allow **Alarms & reminders** if you want rest-timer alerts
 on time.
 
-## Sidebar shortcut
+## Sidebar
 
-The add-on does not use Ingress (see [Why not HACS / Ingress?](#why-not-hacs--ingress)
-below), so it can't register a native Ingress panel. Instead, **Show in
-sidebar** (on by default in the Configuration tab) has the add-on create its
-own Lovelace dashboard for you on start, pointing at the same Public URL you
-already configured — no editing `configuration.yaml` by hand.
+The add-on uses Home Assistant **Ingress**, so it gets a real sidebar entry
+automatically — no dashboard to create, no `configuration.yaml` editing,
+and (unlike a plain `http://` iframe) it works over HTTPS too, including
+through **Nabu Casa Cloud remote access**, because Ingress is proxied
+through Home Assistant Core's own connection rather than needing its own
+certificate.
 
-This uses the "Home Assistant API" access the add-on requests
-(`homeassistant_api: true`), which Home Assistant grants automatically; you
-don't need to approve anything separately. On each start the add-on:
+- Icon and sidebar entry appear as soon as the add-on is installed and
+  started. If you don't want it in the sidebar, use the add-on's own
+  **Show in sidebar** toggle on its Info page (this is a stock Supervisor
+  feature for any Ingress add-on, not something this add-on adds).
+- Click the add-on, or **Open Web UI**, to open it embedded in the Home
+  Assistant UI.
+- This is on top of, not instead of, direct port access — **Public URL**
+  (`http://homeassistant.local:3004` by default) still works for opening
+  SparkyFitness in its own tab, and is still what the mobile app and
+  Extra trusted origins need (see [Mobile app](#mobile-app)).
 
-- Creates a storage-mode dashboard (`sparky-fitness`) with a full-page
-  iframe pointing at **Public URL**, and pins it to the sidebar, if one
-  doesn't already exist.
-- Updates that dashboard's URL if you change **Public URL**.
-- Removes the dashboard again if you turn **Show in sidebar** off.
+### How this works without changing the shared frontend
 
-This step is best-effort and logged with a `[sidebar-panel]` prefix in the
-add-on log — if Home Assistant's API isn't reachable yet or the dashboard
-already exists with different settings, the add-on still starts normally,
-it just skips or retries that part.
+SparkyFitnessFrontend (used by every install method — Docker Compose,
+Helm, this add-on, and the mobile app's web view) builds root-absolute
+asset and API paths (`/assets/...`, `/api/...`). Under Ingress, Home
+Assistant serves the page from a per-install path like
+`/api/hassio_ingress/<token>/`; a browser resolves those root-absolute
+paths against Home Assistant's own origin instead, bypassing Ingress
+entirely and 404ing.
 
-### "Unable to load iframes pointing at websites using http"
+Rather than changing that shared frontend source, this add-on's own
+`Dockerfile` post-processes the already-built static files (copied from
+the published `codewithcj/sparkyfitness` image) with
+[`patch-ingress-paths.sh`](patch-ingress-paths.sh): it makes those paths
+relative to a `<base href="/">` tag, which `nginx.conf` then rewrites
+per-request using Home Assistant's `X-Ingress-Path` header. Direct port
+access never sends that header, so `<base href="/">` stays untouched and
+behaves exactly as before. No other deployment is affected, because
+nothing outside this add-on's image runs that patch.
 
-If you see this banner instead of the app, it's Home Assistant's own
-frontend refusing to embed a plain `http://` iframe inside a page it served
-over `https://` — not a bug in the add-on. It shows up whenever you reach
-Home Assistant over HTTPS (Nabu Casa Cloud remote access, or your own
-reverse proxy/certificate) while Public URL is still `http://...`, because
-this add-on only serves plain HTTP.
-
-- If you only saw this over **Nabu Casa remote access** and normally use
-  Home Assistant over **plain HTTP on your LAN**, the sidebar dashboard
-  should load fine locally — Nabu Casa's cloud proxy fronts Home Assistant
-  Core itself, but it does not (and cannot) also expose this add-on's own
-  port over HTTPS.
-- If you access Home Assistant over **HTTPS everywhere** (your own
-  certificate, or no LAN HTTP fallback at all), there is no way for the
-  add-on to hand the sidebar an HTTPS URL on its own. You'd need to put
-  your own TLS-terminating reverse proxy (the **Nginx Proxy Manager**,
-  **Caddy**, or **Traefik** add-ons are common choices) in front of this
-  add-on's port, on a domain covered by a real certificate, and then set
-  **Public URL** to that `https://` address. That's a network/DNS setup
-  decision specific to your install, not something this add-on configures
-  for you.
-- Either way, you can always open SparkyFitness directly at Public URL in
-  its own browser tab/bookmark (or the mobile app) — only the *embedded
-  sidebar* view is affected by this restriction.
-
-If you'd rather manage it yourself (or you're on an older add-on version
-without this option), you can add the same kind of shortcut manually with a
-`panel_iframe` entry in Home Assistant's own `configuration.yaml`:
-
-```yaml
-panel_iframe:
-  sparkyfitness:
-    title: SparkyFitness
-    icon: mdi:dumbbell
-    url: "http://homeassistant.local:3004"
-```
-
-Use the same Public URL you set in the add-on's Configuration tab, then
-restart **Home Assistant Core** (not the add-on) to pick it up.
+This is intentionally brittle-but-loud: if a future frontend release
+changes how these paths get bundled, the patch script fails the Docker
+build (rather than silently shipping a broken sidebar), which is your
+signal to update the patterns in `patch-ingress-paths.sh`.
 
 ## Configuration
 
@@ -127,7 +109,6 @@ These map to the add-on **Configuration** tab in Home Assistant.
 
 | Option | Meaning |
 | --- | --- |
-| Show in sidebar | Auto-creates (and keeps in sync) a Lovelace dashboard pinning SparkyFitness to the HA sidebar. See [Sidebar shortcut](#sidebar-shortcut). |
 | Public URL | CORS / Better Auth origin. Must match the URL in your browser and in the mobile app. |
 | Timezone | Server TZ database name. |
 | Disable signup | Block new registrations after you have created your user. |
@@ -165,15 +146,12 @@ Rebuild/reinstall the add-on to pick up newer `codewithcj/sparkyfitness`
 and `codewithcj/sparkyfitness_server` images (`latest`). The database in
 `/data` is kept.
 
-## Why not HACS / Ingress?
+## Why not HACS?
 
-- **HACS** is for frontend cards and Python integrations. This is a
-  Supervisor **add-on** (a container), which is what Mealie and Donetick
-  use to host an app.
-- **Ingress** (the sidebar iframe at `/api/hassio_ingress/…`) breaks this
-  SPA, because the web app calls `/api` on the Home Assistant origin. Use
-  the mapped port instead. See [Sidebar shortcut](#sidebar-shortcut) above
-  for a way to still get a sidebar icon without Ingress.
+**HACS** is for frontend cards and Python integrations. This is a
+Supervisor **add-on** (a container), which is what Mealie and Donetick use
+to host an app. See [Sidebar](#sidebar) above for how the add-on gets a
+native Ingress sidebar panel without HACS.
 
 ## Hardware
 
