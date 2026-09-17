@@ -182,7 +182,13 @@ const EditGoalsForm = ({
   const handleApplyPreset = (presetId: string) => {
     const preset = goalPresets.find((p) => p.id === presetId);
     if (preset) {
-      setGoals((prev) => ({ ...prev, ...preset }));
+      setGoals((prev) => ({
+        ...prev,
+        ...preset,
+        // Presets saved before water tracking (or without a water value) store
+        // water_goal_ml as null; keep the current goal instead of wiping it out.
+        water_goal_ml: preset.water_goal_ml ?? prev.water_goal_ml,
+      }));
       setMacroInputType(preset.protein_percentage ? 'percentages' : 'grams');
     }
   };
