@@ -1,5 +1,5 @@
 name: SparkyFitness
-version: "1.2.1"
+version: "1.2.2"
 slug: sparkyfitness
 description: Self-hosted fitness tracker (nutrition, workouts, measurements) with PostgreSQL bundled.
 url: https://github.com/CodeWithCJ/SparkyFitness/tree/main/homeassistant/sparkyfitness

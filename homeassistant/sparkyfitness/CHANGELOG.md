@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.2
+
+- Document (and log a heads-up for) Home Assistant's "Unable to load
+  iframes pointing at websites using http" banner: it appears whenever
+  Home Assistant itself is reached over `https://` (Nabu Casa remote
+  access, a reverse proxy, your own certificate) while Public URL is still
+  `http://...`, since this add-on doesn't terminate TLS. See
+  [Sidebar shortcut](DOCS.md#sidebar-shortcut) for the fix (a
+  TLS-terminating reverse proxy in front of the add-on).
+
 ## 1.2.1
 
 - Fix **Show in sidebar** always failing with `invalid_format` ("Url path

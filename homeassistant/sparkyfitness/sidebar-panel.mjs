@@ -118,6 +118,16 @@ async function main() {
       return;
     }
 
+    if (FRONTEND_URL.startsWith('http://')) {
+      log(
+        'Note: frontend_url is http://. If you reach Home Assistant itself over ' +
+          'https:// (Nabu Casa remote access, a reverse proxy, your own certificate), ' +
+          'Home Assistant will refuse to embed this http:// iframe in the sidebar ' +
+          '("Unable to load iframes..."). See DOCS.md#sidebar-shortcut. This is ' +
+          'harmless if you only use Home Assistant over plain http on your LAN.',
+      );
+    }
+
     if (!existing) {
       await call(ws, {
         type: 'lovelace/dashboards/create',

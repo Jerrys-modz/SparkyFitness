@@ -68,9 +68,9 @@ This uses the "Home Assistant API" access the add-on requests
 (`homeassistant_api: true`), which Home Assistant grants automatically; you
 don't need to approve anything separately. On each start the add-on:
 
-- Creates a storage-mode dashboard (`sparkyfitness`) with a full-page iframe
-  pointing at **Public URL**, and pins it to the sidebar, if one doesn't
-  already exist.
+- Creates a storage-mode dashboard (`sparky-fitness`) with a full-page
+  iframe pointing at **Public URL**, and pins it to the sidebar, if one
+  doesn't already exist.
 - Updates that dashboard's URL if you change **Public URL**.
 - Removes the dashboard again if you turn **Show in sidebar** off.
 
@@ -78,6 +78,33 @@ This step is best-effort and logged with a `[sidebar-panel]` prefix in the
 add-on log — if Home Assistant's API isn't reachable yet or the dashboard
 already exists with different settings, the add-on still starts normally,
 it just skips or retries that part.
+
+### "Unable to load iframes pointing at websites using http"
+
+If you see this banner instead of the app, it's Home Assistant's own
+frontend refusing to embed a plain `http://` iframe inside a page it served
+over `https://` — not a bug in the add-on. It shows up whenever you reach
+Home Assistant over HTTPS (Nabu Casa Cloud remote access, or your own
+reverse proxy/certificate) while Public URL is still `http://...`, because
+this add-on only serves plain HTTP.
+
+- If you only saw this over **Nabu Casa remote access** and normally use
+  Home Assistant over **plain HTTP on your LAN**, the sidebar dashboard
+  should load fine locally — Nabu Casa's cloud proxy fronts Home Assistant
+  Core itself, but it does not (and cannot) also expose this add-on's own
+  port over HTTPS.
+- If you access Home Assistant over **HTTPS everywhere** (your own
+  certificate, or no LAN HTTP fallback at all), there is no way for the
+  add-on to hand the sidebar an HTTPS URL on its own. You'd need to put
+  your own TLS-terminating reverse proxy (the **Nginx Proxy Manager**,
+  **Caddy**, or **Traefik** add-ons are common choices) in front of this
+  add-on's port, on a domain covered by a real certificate, and then set
+  **Public URL** to that `https://` address. That's a network/DNS setup
+  decision specific to your install, not something this add-on configures
+  for you.
+- Either way, you can always open SparkyFitness directly at Public URL in
+  its own browser tab/bookmark (or the mobile app) — only the *embedded
+  sidebar* view is affected by this restriction.
 
 If you'd rather manage it yourself (or you're on an older add-on version
 without this option), you can add the same kind of shortcut manually with a
