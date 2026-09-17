@@ -311,6 +311,7 @@ describe('sparky_get_daily_report', () => {
     const report = JSON.parse(String(result));
 
     expect(report.energy_unit).toBe('kJ');
+    expect(report.nutrition[0].calories).toBeCloseTo(418.4);
     expect(report.exercise[0].exercise_calories).toBeCloseTo(1673.6);
   });
 
