@@ -582,7 +582,7 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       protein: cleanNumber(protein_to_store),
       carbs: cleanNumber(carbs_to_store),
       fat: cleanNumber(fat_to_store),
-      water_goal_ml: cleanNumber(p_water_goal_ml),
+      water_goal_ml: cleanNumber(p_water_goal_ml, true),
       saturated_fat: cleanNumber(p_saturated_fat),
       polyunsaturated_fat: cleanNumber(p_polyunsaturated_fat),
       monounsaturated_fat: cleanNumber(p_monounsaturated_fat),
