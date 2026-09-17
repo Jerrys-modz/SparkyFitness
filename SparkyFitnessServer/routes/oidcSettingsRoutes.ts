@@ -73,10 +73,14 @@ router.post('/', isAdmin, async (req, res) => {
  *   put:
  *     summary: Update an OIDC Provider (Admin Only)
  *     responses:
+ *       200:
+ *         description: OIDC provider updated successfully.
  *       400:
  *         description: Invalid OIDC provider settings.
  *       404:
  *         description: OIDC provider not found.
+ *       500:
+ *         description: Error updating OIDC provider.
  */
 router.put('/:id', isAdmin, async (req, res) => {
   const parsed = oidcProviderUpdateSchema.safeParse(req.body);
