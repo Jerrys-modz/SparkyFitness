@@ -133,7 +133,7 @@ describe('workoutPresetRepository superset_group', () => {
     }
   });
 
-  it('looks up a preset by name via RLS instead of an owner-only filter', async () => {
+  it('looks up a preset by name for the owner or a family share, not every public row', async () => {
     await workoutPresetRepository.getWorkoutPresetByName(USER_ID, 'Push Day');
 
     const call = client.query.mock.calls.find(
@@ -144,9 +144,13 @@ describe('workoutPresetRepository superset_group', () => {
     );
     expect(call).toBeDefined();
     const [sql, params] = call as [string, unknown[]];
-    expect(sql).not.toContain('wp.user_id = $1');
-    expect(sql).toContain('wp.name ILIKE $1');
-    expect(params).toEqual(['Push Day']);
+    expect(sql).toContain('wp.user_id = $1');
+    expect(sql).toContain(
+      "has_family_access(wp.user_id, 'can_view_exercise_library')"
+    );
+    expect(sql).toContain('wp.name ILIKE $2');
+    expect(sql).toContain('ORDER BY (wp.user_id = $1) DESC');
+    expect(params).toEqual([USER_ID, 'Push Day']);
     expect(getClient).toHaveBeenCalledWith(USER_ID);
   });
 });

@@ -48,6 +48,23 @@ const VALID_ACTIONS = [
   'get_exercise_progress',
 ];
 
+type WorkoutPresetSetRow = {
+  reps?: number | null;
+  weight?: number | null;
+  duration?: number | null;
+  distance?: number | null;
+  rest_time?: number | null;
+  notes?: string | null;
+  set_type?: string | null;
+};
+
+type WorkoutPresetExerciseRow = {
+  exercise_name?: string;
+  exercise_id?: string;
+  superset_group?: number | null;
+  sets?: WorkoutPresetSetRow[] | null;
+};
+
 // Optional inputs and nullable DB columns are treated alike: absent.
 function isSet<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
@@ -712,27 +729,29 @@ Actions:
               if (!preset.exercises || preset.exercises.length === 0) {
                 return `${text}_No exercises in this preset._`;
               }
-              preset.exercises.forEach((ex: any, i: number) => {
-                const superset = ex.superset_group
-                  ? ` [superset group ${ex.superset_group}]`
-                  : '';
-                text += `${i + 1}. **${ex.exercise_name}**${superset}\n   exercise_id: ${ex.exercise_id}\n`;
-                if (ex.sets && ex.sets.length > 0) {
-                  ex.sets.forEach((s: any, si: number) => {
-                    const details: string[] = [];
-                    if (isSet(s.reps)) details.push(`${s.reps} reps`);
-                    if (isSet(s.weight)) details.push(`${s.weight}kg`);
-                    if (isSet(s.duration)) details.push(`${s.duration}s`);
-                    if (isSet(s.distance)) details.push(`${s.distance}km`);
-                    if (isSet(s.rest_time))
-                      details.push(`rest ${s.rest_time}s`);
-                    if (s.notes) details.push(s.notes);
-                    text += `   Set ${si + 1} (${s.set_type || 'Working Set'}): ${details.join(', ') || 'no detail'}\n`;
-                  });
-                } else {
-                  text += '   No sets recorded\n';
+              preset.exercises.forEach(
+                (ex: WorkoutPresetExerciseRow, i: number) => {
+                  const superset = ex.superset_group
+                    ? ` [superset group ${ex.superset_group}]`
+                    : '';
+                  text += `${i + 1}. **${ex.exercise_name}**${superset}\n   exercise_id: ${ex.exercise_id}\n`;
+                  if (ex.sets && ex.sets.length > 0) {
+                    ex.sets.forEach((s: WorkoutPresetSetRow, si: number) => {
+                      const details: string[] = [];
+                      if (isSet(s.reps)) details.push(`${s.reps} reps`);
+                      if (isSet(s.weight)) details.push(`${s.weight}kg`);
+                      if (isSet(s.duration)) details.push(`${s.duration}s`);
+                      if (isSet(s.distance)) details.push(`${s.distance}km`);
+                      if (isSet(s.rest_time))
+                        details.push(`rest ${s.rest_time}s`);
+                      if (s.notes) details.push(s.notes);
+                      text += `   Set ${si + 1} (${s.set_type || 'Working Set'}): ${details.join(', ') || 'no detail'}\n`;
+                    });
+                  } else {
+                    text += '   No sets recorded\n';
+                  }
                 }
-              });
+              );
               return text;
             }
 
