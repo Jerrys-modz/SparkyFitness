@@ -15,6 +15,14 @@ vi.mock('../middleware/authMiddleware.js', () => ({
   },
 }));
 
+vi.mock('../middleware/checkPermissionMiddleware.js', () => ({
+  default:
+    () =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (_req: any, _res: any, next: any) =>
+      next(),
+}));
+
 vi.mock('../integrations/liftosaur/liftosaurService.js', () => ({
   default: {
     syncLiftosaurData: vi.fn(),
