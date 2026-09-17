@@ -71,6 +71,9 @@ router.post('/', isAdmin, async (req, res) => {
  * /admin/oidc-settings/{id}:
  *   put:
  *     summary: Update an OIDC Provider (Admin Only)
+ *     responses:
+ *       404:
+ *         description: OIDC provider not found.
  */
 router.put('/:id', isAdmin, async (req, res) => {
   try {
@@ -78,6 +81,9 @@ router.put('/:id', isAdmin, async (req, res) => {
     log('info', `[OIDC SETTINGS] Provider ${req.params.id} updated.`);
     res.status(200).json({ message: 'OIDC provider updated successfully' });
   } catch (error) {
+    if (error instanceof Error && error.message === 'OIDC provider not found') {
+      return res.status(404).json({ message: error.message });
+    }
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
     log('error', `[OIDC SETTINGS] PUT Error: ${error.message}`);
     res
