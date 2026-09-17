@@ -95,6 +95,12 @@ router.put('/:id', isAdmin, async (req, res) => {
     if (error instanceof Error && error.message === 'OIDC provider not found') {
       return res.status(404).json({ message: error.message });
     }
+    if (
+      error instanceof Error &&
+      error.message === 'OIDC client ID is required'
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
     log('error', `[OIDC SETTINGS] PUT Error: ${error.message}`);
     res

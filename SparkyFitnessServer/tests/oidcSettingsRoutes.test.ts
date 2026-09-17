@@ -40,7 +40,6 @@ describe('PUT /admin/oidc-settings/:id', () => {
     ['numeric issuer URL', { ...provider, issuer_url: 123 }],
     ['empty issuer URL', { ...provider, issuer_url: '' }],
     ['missing client ID', { issuer_url: provider.issuer_url }],
-    ['null client ID', { ...provider, client_id: null }],
     ['numeric client ID', { ...provider, client_id: 123 }],
     ['empty client ID', { ...provider, client_id: '' }],
     ['invalid scope', { ...provider, scope: {} }],

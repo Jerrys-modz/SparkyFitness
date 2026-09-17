@@ -4,6 +4,14 @@ import NodeCache from 'node-cache';
 import type { OidcProviderUpdate } from '../schemas/oidcProviderSchemas.js';
 const discoveryCache = new NodeCache({ stdTTL: 3600 });
 
+/** Falls back to Better Auth's configuration when the legacy client ID column is unset. */
+function getStoredClientId(row: {
+  client_id: string | null;
+  oidc_config?: { clientId?: string } | null;
+}): string | null {
+  return row.client_id ?? row.oidc_config?.clientId ?? null;
+}
+
 /**
  * Returns the frontend base URL with protocol and no trailing slash (for OIDC redirect URIs).
  * @returns {string}
@@ -72,7 +80,7 @@ async function getOidcProviders() {
         provider_id: row.provider_id,
         issuer_url: row.issuer,
         domain: row.domain,
-        client_id: row.client_id,
+        client_id: getStoredClientId(row),
         scope: row.scopes,
         is_active: config.is_active !== undefined ? config.is_active : true,
         redirect_uris: config.redirect_uris || [],
@@ -129,7 +137,7 @@ async function getOidcProviderById(id: string) {
       provider_id: row.provider_id,
       issuer_url: row.issuer,
       domain: row.domain,
-      client_id: row.client_id,
+      client_id: getStoredClientId(row),
       client_secret: row.client_secret,
       scope: row.scopes,
       is_active: config.is_active !== undefined ? config.is_active : true,
@@ -275,6 +283,10 @@ async function updateOidcProvider(
     if (!existing) {
       throw new Error('OIDC provider not found');
     }
+    const clientId = providerData.client_id ?? existing.client_id;
+    if (typeof clientId !== 'string' || clientId.length === 0) {
+      throw new Error('OIDC client ID is required');
+    }
     const config = JSON.stringify({
       display_name: providerData.display_name,
       logo_url: providerData.logo_url,
@@ -310,7 +322,7 @@ async function updateOidcProvider(
     const providerIdToUse = providerData.provider_id || existing.provider_id;
     const oidcConfig = {
       issuer: endpoints.issuer || providerData.issuer_url,
-      clientId: providerData.client_id,
+      clientId,
       clientSecret: clientSecret,
       scopes: (providerData.scope || 'openid email profile')
         .split(' ')
@@ -336,7 +348,7 @@ async function updateOidcProvider(
     const result = await client.query(query, [
       endpoints.issuer || providerData.issuer_url,
       providerData.domain === undefined ? existing.domain : providerData.domain,
-      providerData.client_id,
+      clientId,
       clientSecret,
       providerData.scope || 'openid email profile',
       discoveryEndpoint,

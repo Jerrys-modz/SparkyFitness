@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const oidcProviderUpdateSchema = z.object({
   issuer_url: z.string().min(1),
-  client_id: z.string().min(1),
+  client_id: z.string().min(1).nullable(),
   client_secret: z.string().nullable().optional(),
   provider_id: z.string().optional(),
   domain: z.string().optional(),

@@ -136,6 +136,85 @@ describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
   });
 
   it.each([
+    ['toggle', 'config-client'],
+    ['null', null],
+    ['replacement', 'replacement-client'],
+  ])(
+    'preserves or replaces a config-only client ID on %s updates',
+    async (_case, clientId) => {
+      const id = await seedProvider(`test-${randomUUID()}`);
+      const client = await getSystemClient();
+      try {
+        await client.query(
+          'UPDATE sso_provider SET client_id = NULL, oidc_config = $1::jsonb WHERE id = $2',
+          [JSON.stringify({ clientId: 'config-client' }), id]
+        );
+        const app = express();
+        app.use(express.json());
+        app.use('/admin/oidc-settings', oidcSettingsRoutes);
+        const listed = await request(app)
+          .get('/admin/oidc-settings')
+          .expect(200);
+        const provider = listed.body.find(
+          (entry: { id: string }) => entry.id === id
+        );
+        expect(provider.client_id).toBe('config-client');
+        const detail = await request(app)
+          .get(`/admin/oidc-settings/${id}`)
+          .expect(200);
+        expect(detail.body.client_id).toBe('config-client');
+
+        await request(app)
+          .put(`/admin/oidc-settings/${id}`)
+          .send({ ...provider, client_id: clientId, is_active: false })
+          .expect(200);
+
+        const stored = await client.query(
+          "SELECT client_id, oidc_config->>'clientId' AS config_client_id, additional_config::jsonb->'is_active' AS is_active FROM sso_provider WHERE id = $1",
+          [id]
+        );
+        expect(stored.rows[0]).toEqual({
+          client_id: clientId ?? 'config-client',
+          config_client_id: clientId ?? 'config-client',
+          is_active: false,
+        });
+      } finally {
+        client.release();
+      }
+    }
+  );
+
+  it('rejects an update without a usable client ID before writing', async () => {
+    const id = await seedProvider(`test-${randomUUID()}`);
+    const client = await getSystemClient();
+    try {
+      await client.query(
+        'UPDATE sso_provider SET client_id = NULL WHERE id = $1',
+        [id]
+      );
+      const app = express();
+      app.use(express.json());
+      app.use('/admin/oidc-settings', oidcSettingsRoutes);
+      const before = await client.query(
+        'SELECT * FROM sso_provider WHERE id = $1',
+        [id]
+      );
+      const response = await request(app)
+        .put(`/admin/oidc-settings/${id}`)
+        .send({ issuer_url: issuer, client_id: null, is_active: false });
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: 'OIDC client ID is required' });
+      const after = await client.query(
+        'SELECT * FROM sso_provider WHERE id = $1',
+        [id]
+      );
+      expect(after.rows).toEqual(before.rows);
+    } finally {
+      client.release();
+    }
+  });
+
+  it.each([
     ['omitted', undefined, 'original.example.test'],
     ['supplied', 'updated.example.test', 'updated.example.test'],
   ])(
