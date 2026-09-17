@@ -162,6 +162,9 @@ const presetIdSchema = z.coerce
   .positive()
   .describe('Numeric ID of the workout preset');
 
+const PRESET_NAME_LOOKUP =
+  'Name of a preset you own or that is family-shared (alternative to ID). Public presets outside those scopes must use preset_id.';
+
 const confirmedSchema = z
   .boolean()
   .optional()
@@ -178,7 +181,7 @@ const getWorkoutPresetSchema = z
       .min(1)
       .max(200)
       .optional()
-      .describe('Name of the preset (alternative to ID)'),
+      .describe(PRESET_NAME_LOOKUP),
   })
   .strict();
 
@@ -246,7 +249,7 @@ const logWorkoutPresetSchema = z
       .min(1)
       .max(200)
       .optional()
-      .describe('Name of the preset (alternative to ID)'),
+      .describe(PRESET_NAME_LOOKUP),
     entry_date: dateSchema,
   })
   .strict();
@@ -606,7 +609,7 @@ export const manageExerciseInput = z.object({
     .min(1)
     .max(200)
     .optional()
-    .describe('Workout preset name'),
+    .describe(PRESET_NAME_LOOKUP),
   is_public: z
     .boolean()
     .optional()

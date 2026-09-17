@@ -437,8 +437,8 @@ Actions:
 - log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,notes}]) — distance/avg_heart_rate/steps are for cardio
 - list_exercise_diary(entry_date)
 - get_workout_presets()
-- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: every exercise's ID, its sets, and its superset_group. Call this BEFORE update_workout_preset so you know the current exercise list.
-- log_workout_preset(entry_date, preset_id?|preset_name?)
+- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: every exercise's ID, its sets, and its superset_group. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
+- log_workout_preset(entry_date, preset_id?|preset_name?) — preset_name is own or family-shared only; public presets must use preset_id.
 - update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
