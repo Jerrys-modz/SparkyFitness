@@ -335,7 +335,7 @@ async function updateOidcProvider(
             RETURNING id`;
     const result = await client.query(query, [
       endpoints.issuer || providerData.issuer_url,
-      providerData.domain,
+      providerData.domain === undefined ? existing.domain : providerData.domain,
       providerData.client_id,
       clientSecret,
       providerData.scope || 'openid email profile',

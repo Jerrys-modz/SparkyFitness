@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
+// @ts-expect-error TS(7016): Could not find a declaration file for module 'supertest'.
+import request from 'supertest';
 import {
   afterAll,
   afterEach,
@@ -11,9 +18,20 @@ import {
 } from 'vitest';
 import { endPool, getSystemClient } from '../db/poolManager.js';
 import oidcProviderRepository from '../models/oidcProviderRepository.js';
+import oidcSettingsRoutes from '../routes/oidcSettingsRoutes.js';
 
 vi.mock('../auth.js', () => ({
   syncTrustedProviders: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../middleware/authMiddleware.js', () => ({
+  isAdmin: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
+vi.mock('../middleware/oidcLogoUpload.js', () => ({
+  default: {
+    single: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+  },
 }));
 
 /** Runs only against a reachable test database with the provider schema applied. */
@@ -116,6 +134,43 @@ describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
       provider_id: name,
     });
   });
+
+  it.each([
+    ['omitted', undefined, 'original.example.test'],
+    ['supplied', 'updated.example.test', 'updated.example.test'],
+  ])(
+    'handles the %s domain case in an admin update',
+    async (_case, domain, expected) => {
+      const providerId = `test-${randomUUID()}`;
+      const id = await seedProvider(providerId);
+      const client = await getSystemClient();
+      try {
+        await client.query(
+          'UPDATE sso_provider SET domain = $1 WHERE id = $2',
+          ['original.example.test', id]
+        );
+        const app = express();
+        app.use(express.json());
+        app.use('/admin/oidc-settings', oidcSettingsRoutes);
+
+        await request(app)
+          .put(`/admin/oidc-settings/${id}`)
+          .send({ issuer_url: issuer, client_id: 'updated-client', domain })
+          .expect(200);
+
+        const result = await client.query(
+          'SELECT domain, client_id FROM sso_provider WHERE id = $1',
+          [id]
+        );
+        expect(result.rows[0]).toEqual({
+          domain: expected,
+          client_id: 'updated-client',
+        });
+      } finally {
+        client.release();
+      }
+    }
+  );
 
   it.each(['prefixed alias', 'unprefixed alias', 'row ID'])(
     'updates through %s without changing the provider name',
