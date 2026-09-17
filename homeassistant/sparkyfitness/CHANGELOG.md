@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+- Fix **Show in sidebar** always failing with `invalid_format` ("Url path
+  needs to contain a hyphen"). Home Assistant rejects single-word Lovelace
+  dashboard `url_path`s; the add-on now registers itself under
+  `sparky-fitness` instead of `sparkyfitness`.
+
 ## 1.2.0
 
 - Add **Show in sidebar** (on by default). The add-on now registers its own

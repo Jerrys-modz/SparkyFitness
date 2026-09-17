@@ -39,6 +39,13 @@ host as a local add-on:
 2. Copy the `sparkyfitness` folder to `/addons/sparkyfitness`.
 3. In the Add-on Store, refresh; it appears under **Local add-ons**.
 
+When you pull down new commits and copy them over an already-installed
+local add-on, hitting **Update** rebuilds the image, but the Supervisor UI
+can keep showing a stale **Configuration** tab (missing new options) until
+you fully **uninstall and reinstall** the local add-on. Data in `/data`
+(database, uploads, secrets) is tied to the slug and normally survives
+that, but back it up first if you're unsure.
+
 ## Mobile app
 
 In the SparkyFitness iOS/Android app, use the **same Public URL** (including

@@ -12,7 +12,10 @@
 const SHOW = process.env.SPARKY_SHOW_IN_SIDEBAR === 'true';
 const FRONTEND_URL = process.env.SPARKY_FITNESS_FRONTEND_URL;
 const TOKEN = process.env.SUPERVISOR_TOKEN;
-const URL_PATH = 'sparkyfitness';
+// Home Assistant's dashboard url_path validator requires at least one
+// hyphen (it rejects single-word paths to avoid clashing with built-in
+// panels), so a plain "sparkyfitness" is refused with invalid_format.
+const URL_PATH = 'sparky-fitness';
 const WS_URL = 'ws://supervisor/core/websocket';
 const CONNECT_ATTEMPTS = 10;
 const CONNECT_RETRY_MS = 3000;
