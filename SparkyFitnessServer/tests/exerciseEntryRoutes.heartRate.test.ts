@@ -1,0 +1,111 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+// @ts-expect-error TS(7016): Could not find a declaration file for module 'supertest'
+import request from 'supertest';
+import express from 'express';
+// @ts-expect-error TS(7016): Could not find a declaration file for module 'multer'
+import multer from 'multer';
+import exerciseEntryRoutes from '../routes/exerciseEntryRoutes.js';
+import exerciseEntryService from '../services/exerciseEntryService.js';
+
+vi.mock('../middleware/authMiddleware.js', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authenticate: vi.fn((req: any, _res: any, next: any) => {
+    req.userId = 'user-123';
+    req.originalUserId = 'actor-123';
+    next();
+  }),
+}));
+vi.mock('../middleware/checkPermissionMiddleware.js', () => ({
+  default: vi.fn(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    () => (_req: any, _res: any, next: any) => next()
+  ),
+}));
+vi.mock('../middleware/uploadMiddleware.js', () => ({
+  createUploadMiddleware: vi.fn(() =>
+    multer({ storage: multer.memoryStorage() })
+  ),
+}));
+vi.mock('../services/exerciseService.js', () => ({ default: {} }));
+vi.mock('../services/exerciseEntryService.js', () => ({
+  default: { attachHeartRateToExerciseEntry: vi.fn() },
+}));
+vi.mock('../services/fitImportService.js', () => ({ default: {} }));
+vi.mock('../utils/permissionUtils.js', () => ({
+  canAccessUserData: vi.fn(),
+}));
+vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+
+const app = express();
+app.use(express.json());
+app.use('/exercise-entries', exerciseEntryRoutes);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.use((err: any, _req: any, res: any, _next: any) => {
+  res.status(err.status ?? 500).json({ error: err.message });
+});
+
+const ENTRY_ID = '11111111-1111-1111-1111-111111111111';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(
+    exerciseEntryService.attachHeartRateToExerciseEntry
+  ).mockResolvedValue(undefined);
+});
+
+describe('POST /exercise-entries/:id/heart-rate', () => {
+  it('forwards a valid heart-rate series to the service, scoped to the acting user', async () => {
+    const hrSamples = [
+      { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+      { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+    ];
+
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/heart-rate`)
+      .send({ hrSamples })
+      .expect(204);
+
+    expect(
+      exerciseEntryService.attachHeartRateToExerciseEntry
+    ).toHaveBeenCalledWith('user-123', 'actor-123', ENTRY_ID, hrSamples);
+  });
+
+  it('rejects an invalid entry id', async () => {
+    await request(app)
+      .post('/exercise-entries/not-a-uuid/heart-rate')
+      .send({ hrSamples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }] })
+      .expect(400);
+    expect(
+      exerciseEntryService.attachHeartRateToExerciseEntry
+    ).not.toHaveBeenCalled();
+  });
+
+  it('rejects a series with fewer than two samples', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/heart-rate`)
+      .send({ hrSamples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }] })
+      .expect(400);
+    expect(
+      exerciseEntryService.attachHeartRateToExerciseEntry
+    ).not.toHaveBeenCalled();
+  });
+
+  it('maps a not-found service error to 404', async () => {
+    const notFound = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    notFound.status = 404;
+    vi.mocked(
+      exerciseEntryService.attachHeartRateToExerciseEntry
+    ).mockRejectedValue(notFound);
+
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/heart-rate`)
+      .send({
+        hrSamples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+      })
+      .expect(404);
+  });
+});

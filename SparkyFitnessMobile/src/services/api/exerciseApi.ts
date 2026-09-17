@@ -417,6 +417,31 @@ export const deleteWorkout = async (id: string): Promise<void> => {
   });
 };
 
+/** One heart-rate reading, as captured on a paired Apple Watch. */
+export interface HeartRateSamplePayload {
+  /** ISO 8601 instant. */
+  t: string;
+  bpm: number;
+}
+
+/**
+ * Fills in avg/max heart rate and the HR-zone breakdown for an exercise
+ * entry that already exists, from a series captured on a paired watch during
+ * a live workout. See `useWatchWorkoutBridge`.
+ */
+export const attachExerciseEntryHeartRate = async (
+  exerciseEntryId: string,
+  hrSamples: HeartRateSamplePayload[]
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/heart-rate`,
+    serviceName: 'Exercise API',
+    operation: 'attach exercise entry heart rate',
+    method: 'POST',
+    body: { hrSamples },
+  });
+};
+
 export const deleteExerciseEntry = async (id: string): Promise<void> => {
   return apiFetch<void>({
     endpoint: `/api/exercise-entries/${id}`,

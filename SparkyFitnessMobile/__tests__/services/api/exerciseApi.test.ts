@@ -12,6 +12,7 @@ import {
   deleteExerciseEntry,
   updateExercise,
   deleteExerciseFromLibrary,
+  attachExerciseEntryHeartRate,
   type CreateExerciseEntryPayload,
 } from '../../../src/services/api/exerciseApi';
 import {
@@ -638,6 +639,45 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
       await expect(deleteExerciseEntry('entry-1')).rejects.toThrow(
         'Server error: 500 - Internal Server Error'
       );
+    });
+  });
+
+  describe('attachExerciseEntryHeartRate', () => {
+    it('sends POST request with the heart-rate series to /api/exercise-entries/:id/heart-rate', async () => {
+      mockGetActiveServerConfig.mockResolvedValue(testConfig);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(undefined),
+      });
+
+      const hrSamples = [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ];
+      await attachExerciseEntryHeartRate('entry-1', hrSamples);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/api/exercise-entries/entry-1/heart-rate',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ hrSamples }),
+        })
+      );
+    });
+
+    it('throws on server error', async () => {
+      mockGetActiveServerConfig.mockResolvedValue(testConfig);
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: () => Promise.resolve('Not Found'),
+      });
+
+      await expect(
+        attachExerciseEntryHeartRate('entry-1', [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        ])
+      ).rejects.toThrow('Server error: 404 - Not Found');
     });
   });
 });

@@ -246,6 +246,23 @@ export const updatePresetSessionRequestSchema = z
     }
   });
 
+// One heart-rate sample captured on a paired watch during a live workout.
+export const heartRateSampleRequestSchema = z.object({
+  /** ISO 8601 instant. */
+  t: z.iso.datetime(),
+  bpm: z.number().positive(),
+});
+
+// Attaches a heart-rate series to an exercise entry that already exists
+// (created by the live-workout start/reconcile flow before any HR data was
+// known) rather than creating one, unlike the HealthKit/Health Connect/Garmin
+// sync path.
+export const attachExerciseEntryHeartRateRequestSchema = z
+  .object({
+    hrSamples: z.array(heartRateSampleRequestSchema).min(2),
+  })
+  .strict();
+
 export const activityDetailRequestItemSchema = z.object({
   id: z.string().optional(),
   provider_name: z.string().optional(),
@@ -543,6 +560,12 @@ export type EntryExerciseSnapshotResponse = z.infer<
 >;
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
+>;
+export type HeartRateSampleRequest = z.infer<
+  typeof heartRateSampleRequestSchema
+>;
+export type AttachExerciseEntryHeartRateRequest = z.infer<
+  typeof attachExerciseEntryHeartRateRequestSchema
 >;
 export type PresetSessionExerciseRequest = z.infer<
   typeof presetSessionExerciseRequestSchema

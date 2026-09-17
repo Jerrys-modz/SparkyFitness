@@ -1,5 +1,8 @@
 import express from 'express';
-import { importFitResponseSchema } from '@workspace/shared';
+import {
+  importFitResponseSchema,
+  attachExerciseEntryHeartRateRequestSchema,
+} from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 import exerciseService from '../services/exerciseService.js';
@@ -805,6 +808,84 @@ router.put(
     }
   }
 );
+/**
+ * @swagger
+ * /exercise-entries/{id}/heart-rate:
+ *   post:
+ *     summary: Attach a heart-rate series to an exercise entry
+ *     tags: [Fitness & Workouts]
+ *     description: >
+ *       Fills in avg/max heart rate and the HR-zone breakdown for an exercise
+ *       entry that already exists (e.g. one created by a live workout
+ *       started from a preset), from a heart-rate series captured on a
+ *       paired watch.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The exercise entry ID.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               hrSamples:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     t:
+ *                       type: string
+ *                       format: date-time
+ *                     bpm:
+ *                       type: number
+ *     responses:
+ *       204:
+ *         description: Heart rate attached.
+ *       400:
+ *         description: Invalid request body or exercise entry ID.
+ *       404:
+ *         description: Exercise entry not found.
+ *       500:
+ *         description: Failed to attach heart rate.
+ */
+router.post('/:id/heart-rate', authenticate, async (req, res, next) => {
+  const { id } = req.params;
+  const uuidRegex =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (!id || typeof id !== 'string' || !uuidRegex.test(id)) {
+    return res.status(400).json({
+      error: 'Exercise Entry ID is required and must be a valid UUID.',
+    });
+  }
+  const parsed = attachExerciseEntryHeartRateRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.message });
+  }
+  try {
+    await exerciseEntryService.attachHeartRateToExerciseEntry(
+      req.userId,
+      req.originalUserId || req.userId,
+      id,
+      parsed.data.hrSamples
+    );
+    res.status(204).send();
+  } catch (error) {
+    // @ts-expect-error TS(2571): Object is of type 'unknown'.
+    if (
+      error.status === 404 ||
+      error.message?.startsWith('Exercise entry not found')
+    ) {
+      // @ts-expect-error TS(2571): Object is of type 'unknown'.
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+});
 /**
  * @swagger
  * /exercise-entries/progress/{exerciseId}:

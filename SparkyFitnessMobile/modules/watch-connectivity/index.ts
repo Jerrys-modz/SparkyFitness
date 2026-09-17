@@ -174,12 +174,71 @@ export interface WatchContextPayload {
   waterLog?: WatchWaterLogPayload[] | null;
 }
 
+/** One target set the watch shows for a planned exercise. */
+export interface WatchPlannedSetPayload {
+  /** The exercise_entry_sets id, stringified — matches the phone's own
+   * `WorkoutStep.setId` (activeWorkoutStore.ts) so a `setCompleted` echoing
+   * this back can be handed straight to `completeSet(setId)`. */
+  setId: string;
+  targetReps?: number | null;
+  /** Always kg, like every other weight this app moves to the watch. */
+  targetWeightKg?: number | null;
+  /** Rest to run after this set, in seconds — the phone's own `WorkoutStep.restSec`. */
+  restSeconds: number;
+}
+
+/** One exercise in the plan the watch was armed with. */
+export interface WatchPlannedExercisePayload {
+  /** The exercise_entries id — what a heart-rate batch for this exercise names. */
+  exerciseEntryId: string;
+  name: string;
+  sets: WatchPlannedSetPayload[];
+}
+
+/** The workout plan pushed to the watch when a live session starts. */
+export interface WatchWorkoutStartPayload {
+  /** The live-workout session id (`activeWorkoutStore.sessionId` on the phone). */
+  sessionId: string;
+  workoutName: string;
+  exercises: WatchPlannedExercisePayload[];
+}
+
+/** One set logged on the watch during an active workout. */
+export interface WatchSetCompletedPayload {
+  /** Stable id generated on the watch, to dedupe a re-delivered transfer. */
+  clientId: string;
+  sessionId: string;
+  setId: string;
+}
+
+/** One heart-rate reading captured on the watch. */
+export interface WatchHeartRateSamplePayload {
+  /** ISO 8601 instant. */
+  t: string;
+  bpm: number;
+}
+
+/** A batch of heart-rate samples for one exercise, from the watch. */
+export interface WatchHeartRateBatchPayload {
+  sessionId: string;
+  exerciseEntryId: string;
+  samples: WatchHeartRateSamplePayload[];
+}
+
+/** The wearer ended the workout on the watch. */
+export interface WatchWorkoutStopPayload {
+  sessionId: string;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
   onContextRequest: () => void;
   onWaterIntake: (payload: WatchWaterIntakePayload) => void;
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
+  onSetCompleted: (payload: WatchSetCompletedPayload) => void;
+  onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
+  onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -188,6 +247,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   isPaired(): boolean;
   updateContext(context: WatchContextPayload): Promise<void>;
   sendAck(clientId: string, ok: boolean): Promise<void>;
+  startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to

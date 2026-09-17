@@ -21,6 +21,9 @@ enum OutboundPayloads {
         static let waterIntake = "waterIntake"
         static let waterDelete = "waterDelete"
         static let contextRequest = "requestContext"
+        static let setCompleted = "setCompleted"
+        static let heartRateBatch = "heartRateBatch"
+        static let workoutStop = "workoutStop"
     }
 
     /// A morning check-in awaiting a server write.
@@ -63,4 +66,43 @@ enum OutboundPayloads {
 
     /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
+
+    /// One set logged during an active workout. Delivery must not be lost —
+    /// unlike a heart-rate sample, a dropped set is a hole in the diary the
+    /// wearer would have no way to notice — so this is sent via
+    /// `WatchSessionManager.transfer(_:)`'s queued path, not `sendMessage`
+    /// directly.
+    static func setCompleted(_ completedSet: CompletedSet) -> [String: Any] {
+        [
+            "type": Kind.setCompleted,
+            "clientId": completedSet.clientId,
+            "sessionId": completedSet.sessionId,
+            "setId": completedSet.setId,
+        ]
+    }
+
+    /// A batch of heart-rate samples for one exercise. Sent live via
+    /// `sendMessage` rather than the queued path: a batch that fails to reach
+    /// an unreachable phone is a small, bounded loss of HR fidelity for that
+    /// stretch, not a missing set — not worth resending stale readings once
+    /// the phone comes back.
+    static func heartRateBatch(_ batch: HeartRateBatch) -> [String: Any] {
+        [
+            "type": Kind.heartRateBatch,
+            "sessionId": batch.sessionId,
+            "exerciseEntryId": batch.exerciseEntryId,
+            "samples": batch.samples.map { ["t": $0.t, "bpm": $0.bpm] },
+        ]
+    }
+
+    /// The wearer ended the workout on the watch. Queued like `setCompleted`:
+    /// this is what tells the phone to flush buffered heart rate against the
+    /// session's exercise entries, and a phone that misses it entirely would
+    /// leave that heart rate stranded on the watch forever.
+    static func workoutStop(_ signal: WorkoutStopSignal) -> [String: Any] {
+        [
+            "type": Kind.workoutStop,
+            "sessionId": signal.sessionId,
+        ]
+    }
 }

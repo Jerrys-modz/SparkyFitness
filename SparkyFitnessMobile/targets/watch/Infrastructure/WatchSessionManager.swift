@@ -23,6 +23,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
     @Published private(set) var isReachable: Bool = false
 
     private let store = CheckInStore.shared
+    private let workoutStore = WorkoutSessionStore.shared
+    private let workoutHealthKit = WorkoutHealthKitController.shared
 
     /// True while a queued context request is still waiting to be answered.
     ///
@@ -324,8 +326,78 @@ final class WatchSessionManager: NSObject, ObservableObject {
         switch ContextPayloadMapper.type(of: payload) {
         case "context": handle(context: payload)
         case "ack": handle(ack: payload)
+        case "workoutStart": handle(workoutStart: payload)
         default: break
         }
+    }
+
+    // MARK: - Workout
+
+    /// Starts (or restarts, superseding whatever was running) the workout the
+    /// phone just armed the watch with. Requests HealthKit authorization every
+    /// time rather than caching the result: the wearer can grant or revoke it
+    /// from Settings between workouts, and a stale "already granted" would
+    /// silently run with no heart rate.
+    private func handle(workoutStart payload: [String: Any]) {
+        guard let plan = ContextPayloadMapper.workoutPlan(from: payload) else { return }
+
+        workoutHealthKit.stop()
+        workoutStore.start(with: plan)
+
+        // Neither closure runs on the main actor by virtue of running on the
+        // main thread — `WorkoutHealthKitController` dispatches them there,
+        // but that alone doesn't satisfy Swift's isolation checking for the
+        // `@MainActor` types on the other end, so each hops explicitly, the
+        // same pattern `WCSessionDelegate`'s callbacks use above.
+        workoutHealthKit.onHeartRate = { [weak workoutStore] bpm in
+            Task { @MainActor in
+                workoutStore?.recordHeartRate(bpm: bpm)
+            }
+        }
+        workoutHealthKit.onBatchReady = { [weak self] samples in
+            Task { @MainActor in
+                self?.sendHeartRateBatch(samples)
+            }
+        }
+        workoutHealthKit.requestAuthorization { [weak workoutHealthKit] granted in
+            guard granted else { return }
+            workoutHealthKit?.start()
+        }
+    }
+
+    /// Sends one completed set. Queued like a check-in — a hole in the diary
+    /// from a dropped delivery is not an acceptable loss, unlike a stretch of
+    /// missing heart rate.
+    func sendSetCompleted(_ set: PlannedSet) {
+        guard let sessionId = workoutStore.plan?.sessionId else { return }
+        let completed = CompletedSet(clientId: UUID().uuidString, sessionId: sessionId, setId: set.setId)
+        transfer(OutboundPayloads.setCompleted(completed))
+    }
+
+    /// Sends one heart-rate batch for whichever exercise is current right now.
+    /// Live only (`sendMessage`, silently dropped if unreachable) — see
+    /// `OutboundPayloads.heartRateBatch` for why this doesn't queue.
+    private func sendHeartRateBatch(_ samples: [HeartRateSample]) {
+        guard
+            WCSession.isSupported(), WCSession.default.isReachable,
+            let sessionId = workoutStore.plan?.sessionId,
+            let exerciseEntryId = workoutStore.currentExercise?.exerciseEntryId
+        else { return }
+        let batch = HeartRateBatch(sessionId: sessionId, exerciseEntryId: exerciseEntryId, samples: samples)
+        WCSession.default.sendMessage(OutboundPayloads.heartRateBatch(batch), replyHandler: nil, errorHandler: nil)
+    }
+
+    /// Ends the workout: stops the HealthKit session, tells the phone to stop
+    /// expecting more and flush whatever heart rate it has buffered, then
+    /// clears local state. Queued like `sendSetCompleted` — the phone must
+    /// eventually hear this even if it isn't reachable right now, or the
+    /// heart rate captured this session never gets attached to anything.
+    func endWorkout() {
+        workoutHealthKit.stop()
+        if let sessionId = workoutStore.plan?.sessionId {
+            transfer(OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId)))
+        }
+        workoutStore.reset()
     }
 }
 

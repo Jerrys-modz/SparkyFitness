@@ -4,8 +4,17 @@ import exerciseEntryRepository from '../models/exerciseEntry.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
+import * as workoutTelemetryRepository from '../models/workoutTelemetryRepository.js';
 import { parseISO, isValid } from 'date-fns';
-import { setsDurationMinutes } from '@workspace/shared';
+import {
+  setsDurationMinutes,
+  type HeartRateSampleRequest,
+} from '@workspace/shared';
+import {
+  computeHrZones,
+  resolveMaxHr,
+  type HrSample,
+} from './hrZoneCalculator.js';
 async function importExerciseEntriesFromCsv(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticatedUserId: any,
@@ -226,7 +235,70 @@ async function importExerciseEntriesFromCsv(
     failed: failedCount,
   };
 }
-export { importExerciseEntriesFromCsv };
+/**
+ * Attaches a heart-rate sample series captured on a paired Apple Watch to an
+ * exercise entry that already exists — created by the live-workout
+ * start/reconcile flow before any HR data was known. Unlike the
+ * HealthKit/Health Connect/Garmin sync path (healthDataHandlers.ts's
+ * persistWorkoutTelemetry), this never creates the entry itself, so it
+ * recomputes the zone breakdown directly with the same hrZoneCalculator
+ * rather than routing through that entry-creating function.
+ */
+async function attachHeartRateToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  hrSamples: HeartRateSampleRequest[]
+): Promise<void> {
+  const entry = await exerciseEntryRepository.getExerciseEntryById(
+    exerciseEntryId,
+    userId
+  );
+  if (!entry) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+
+  const bpmValues = hrSamples.map((s) => s.bpm);
+  const avgHeartRate = Math.round(
+    bpmValues.reduce((sum, bpm) => sum + bpm, 0) / bpmValues.length
+  );
+  const maxHeartRate = Math.round(Math.max(...bpmValues));
+
+  await exerciseEntryRepository.updateExerciseEntryHeartRateSummary(
+    exerciseEntryId,
+    userId,
+    { avg_heart_rate: avgHeartRate, max_heart_rate: maxHeartRate }
+  );
+
+  const samples: HrSample[] = hrSamples;
+  // No date-of-birth lookup here: resolveMaxHr already falls back to the
+  // observed sample max (or FALLBACK_MAX_HR) when age can't be derived,
+  // the same degraded-but-safe answer a synced workout gets for a user with
+  // no stored date of birth.
+  const { maxHr } = resolveMaxHr(null, samples);
+  const zones = computeHrZones(samples, maxHr);
+  if (zones.length > 0) {
+    await workoutTelemetryRepository.bulkInsertExerciseEntryHrZones(
+      userId,
+      actingUserId,
+      zones.map((zone) => ({
+        user_id: userId,
+        exercise_entry_id: exerciseEntryId,
+        entry_date: entry.entry_date,
+        zone_index: zone.zone_index,
+        zone_lower_bpm: zone.zone_lower_bpm,
+        zone_upper_bpm: zone.zone_upper_bpm,
+        seconds_in_zone: zone.seconds_in_zone,
+      }))
+    );
+  }
+}
+
+export { importExerciseEntriesFromCsv, attachHeartRateToExerciseEntry };
 export default {
   importExerciseEntriesFromCsv,
+  attachHeartRateToExerciseEntry,
 };

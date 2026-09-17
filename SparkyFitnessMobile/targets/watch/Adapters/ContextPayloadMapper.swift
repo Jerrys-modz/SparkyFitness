@@ -192,6 +192,41 @@ enum ContextPayloadMapper {
         return GoalProgress(calories: calories, protein: protein, carbs: carbs, fat: fat)
     }
 
+    // MARK: - Workout
+
+    /// The workout plan the phone armed the watch with. Nil when the payload
+    /// is missing required fields — a malformed `workoutStart` is dropped
+    /// rather than starting a session with holes in it.
+    static func workoutPlan(from payload: [String: Any]) -> ActiveWorkoutPlan? {
+        guard
+            let sessionId = payload["sessionId"] as? String,
+            let workoutName = payload["workoutName"] as? String,
+            let rawExercises = payload["exercises"] as? [[String: Any]]
+        else { return nil }
+
+        let exercises: [PlannedExercise] = rawExercises.compactMap { raw in
+            guard
+                let exerciseEntryId = raw["exerciseEntryId"] as? String,
+                let name = raw["name"] as? String,
+                let rawSets = raw["sets"] as? [[String: Any]]
+            else { return nil }
+
+            let sets: [PlannedSet] = rawSets.compactMap { rawSet in
+                guard let setId = rawSet["setId"] as? String else { return nil }
+                return PlannedSet(
+                    setId: setId,
+                    targetReps: rawSet["targetReps"] as? Double,
+                    targetWeightKg: rawSet["targetWeightKg"] as? Double,
+                    restSeconds: rawSet["restSeconds"] as? Int ?? 0
+                )
+            }
+            return PlannedExercise(exerciseEntryId: exerciseEntryId, name: name, sets: sets)
+        }
+        guard !exercises.isEmpty else { return nil }
+
+        return ActiveWorkoutPlan(sessionId: sessionId, workoutName: workoutName, exercises: exercises)
+    }
+
     // MARK: - Acks
 
     /// A server-write confirmation for one check-in.

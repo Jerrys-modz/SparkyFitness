@@ -15,6 +15,12 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterIntake: (([String: Any]) -> Void)?
     /// A request from the watch to delete one logged drink.
     var onWaterDelete: (([String: Any]) -> Void)?
+    /// One set logged during an active workout on the watch.
+    var onSetCompleted: (([String: Any]) -> Void)?
+    /// A batch of heart-rate samples for one exercise, captured on the watch.
+    var onHeartRateBatch: (([String: Any]) -> Void)?
+    /// The wearer ended the workout on the watch.
+    var onWorkoutStop: (([String: Any]) -> Void)?
 
     func activate() {
         guard WCSession.isSupported() else { return }
@@ -33,6 +39,12 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterIntake?(payload)
         case "waterDelete":
             onWaterDelete?(payload)
+        case "setCompleted":
+            onSetCompleted?(payload)
+        case "heartRateBatch":
+            onHeartRateBatch?(payload)
+        case "workoutStop":
+            onWorkoutStop?(payload)
         default:
             break
         }
@@ -94,7 +106,10 @@ public class WatchConnectivityModule: Module {
             "onCheckIn",
             "onContextRequest",
             "onWaterIntake",
-            "onWaterDelete"
+            "onWaterDelete",
+            "onSetCompleted",
+            "onHeartRateBatch",
+            "onWorkoutStop"
         )
 
         OnCreate {
@@ -126,6 +141,25 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onWaterDelete", [
                     "clientId": payload["clientId"] as? String ?? "",
                     "entryId": payload["entryId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onSetCompleted = { [weak self] payload in
+                self?.sendEvent("onSetCompleted", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onHeartRateBatch = { [weak self] payload in
+                self?.sendEvent("onHeartRateBatch", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
+                    "samples": payload["samples"] as? [[String: Any]] ?? [],
+                ])
+            }
+            self.delegateHandler.onWorkoutStop = { [weak self] payload in
+                self?.sendEvent("onWorkoutStop", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.activate()
@@ -166,6 +200,28 @@ public class WatchConnectivityModule: Module {
                 replyHandler: nil,
                 errorHandler: nil
             )
+        }
+
+        /// Arms the watch with the workout plan a live session was just
+        /// started from. Deliberately NOT sent via `updateContext` above:
+        /// application context is a single latest-value slot shared by the
+        /// whole app, so a workout push would either be clobbered by the next
+        /// nutrition/water context push or clobber it right back. This uses
+        /// the same queued-message channel `sendAck` and the watch's own
+        /// check-ins use instead — `sendMessage` when reachable, falling back
+        /// to `transferUserInfo` (queued, delivered once the watch is back)
+        /// so a workout started with the watch out of range still arrives.
+        AsyncFunction("startWorkout") { (plan: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = plan.compactMapValues(withoutNulls)
+            payload["type"] = "workoutStart"
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
+                    WCSession.default.transferUserInfo(payload)
+                }
+            } else {
+                WCSession.default.transferUserInfo(payload)
+            }
         }
     }
 }

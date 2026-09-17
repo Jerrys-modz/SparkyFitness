@@ -350,6 +350,45 @@ async function updateExerciseEntryTelemetryOnly(
   }
 }
 
+/** Partial payload accepted by updateExerciseEntryHeartRateSummary. */
+export interface HeartRateSummaryFields {
+  avg_heart_rate?: number | null;
+  max_heart_rate?: number | null;
+}
+
+/**
+ * Partial update of just avg/max heart rate on an existing exercise entry.
+ * Same "touch nothing else" contract as _updateExerciseEntryTelemetryOnlyWithClient
+ * rather than updateExerciseEntry, which merges the whole row and would need
+ * every other column resupplied. Used to fill in HR captured on a paired
+ * watch after the entry itself was already created by the live-workout
+ * start/reconcile flow.
+ */
+async function updateExerciseEntryHeartRateSummary(
+  id: string,
+  userId: string,
+  fields: HeartRateSummaryFields
+) {
+  const columns = (
+    Object.keys(fields) as (keyof HeartRateSummaryFields)[]
+  ).filter((column) => fields[column] !== undefined);
+  if (columns.length === 0) return;
+
+  const client = await getClient(userId);
+  try {
+    const setClause = columns
+      .map((column, index) => `${column} = $${index + 1}`)
+      .join(', ');
+    await client.query(
+      `UPDATE exercise_entries SET ${setClause}, updated_at = now()
+       WHERE id = $${columns.length + 1} AND user_id = $${columns.length + 2}`,
+      [...columns.map((column) => fields[column]), id, userId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 async function _updateExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
@@ -1957,6 +1996,7 @@ export default {
   updateExerciseEntry,
   updateExerciseEntryTelemetryOnly,
   _updateExerciseEntryTelemetryOnlyWithClient,
+  updateExerciseEntryHeartRateSummary,
   updateExerciseEntriesDateByPresetEntryIdWithClient,
   getWorkoutPlanAssignmentIdByPresetEntryIdWithClient,
   deleteExerciseEntriesByPresetEntryIdWithClient,
