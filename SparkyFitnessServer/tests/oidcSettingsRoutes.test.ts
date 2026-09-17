@@ -34,6 +34,30 @@ describe('PUT /admin/oidc-settings/:id', () => {
     vi.resetAllMocks();
   });
 
+  it.each([
+    ['missing issuer URL', { client_id: 'sparky' }],
+    ['null issuer URL', { ...provider, issuer_url: null }],
+    ['numeric issuer URL', { ...provider, issuer_url: 123 }],
+    ['empty issuer URL', { ...provider, issuer_url: '' }],
+    ['missing client ID', { issuer_url: provider.issuer_url }],
+    ['null client ID', { ...provider, client_id: null }],
+    ['numeric client ID', { ...provider, client_id: 123 }],
+    ['empty client ID', { ...provider, client_id: '' }],
+  ])(
+    'returns 400 for %s without updating the provider',
+    async (_name, body) => {
+      const response = await request(app)
+        .put('/admin/oidc-settings/authentik')
+        .send(body);
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        message: 'Invalid OIDC provider settings.',
+      });
+      expect(oidcProviderRepository.updateOidcProvider).not.toHaveBeenCalled();
+    }
+  );
+
   it('returns 404 when the provider does not exist', async () => {
     vi.mocked(oidcProviderRepository.updateOidcProvider).mockRejectedValue(
       new Error('OIDC provider not found')
@@ -62,14 +86,22 @@ describe('PUT /admin/oidc-settings/:id', () => {
     });
   });
 
-  it('retains the successful update response', async () => {
+  it('retains the successful update response and optional settings', async () => {
+    const settings = {
+      ...provider,
+      domain: 'example.test',
+      client_secret: 'new-secret',
+      admin_group: null,
+      is_active: false,
+      redirect_uris: ['https://sparky.example.test/callback'],
+    };
     vi.mocked(oidcProviderRepository.updateOidcProvider).mockResolvedValue({
       id: 'provider-id',
     });
 
     const response = await request(app)
       .put('/admin/oidc-settings/authentik')
-      .send(provider);
+      .send(settings);
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -77,7 +109,7 @@ describe('PUT /admin/oidc-settings/:id', () => {
     });
     expect(oidcProviderRepository.updateOidcProvider).toHaveBeenCalledWith(
       'authentik',
-      provider
+      settings
     );
   });
 });

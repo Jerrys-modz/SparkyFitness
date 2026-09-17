@@ -1,9 +1,14 @@
 import express from 'express';
+import { z } from 'zod';
 import { log } from '../config/logging.js';
 import { isAdmin } from '../middleware/authMiddleware.js';
 import oidcLogoUpload from '../middleware/oidcLogoUpload.js';
 import oidcProviderRepository from '../models/oidcProviderRepository.js';
 const router = express.Router();
+const oidcProviderUpdateSchema = z.object({
+  issuer_url: z.string().min(1),
+  client_id: z.string().min(1),
+});
 /**
  * @swagger
  * /admin/oidc-settings:
@@ -72,10 +77,16 @@ router.post('/', isAdmin, async (req, res) => {
  *   put:
  *     summary: Update an OIDC Provider (Admin Only)
  *     responses:
+ *       400:
+ *         description: Invalid OIDC provider settings.
  *       404:
  *         description: OIDC provider not found.
  */
 router.put('/:id', isAdmin, async (req, res) => {
+  const parsed = oidcProviderUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid OIDC provider settings.' });
+  }
   try {
     await oidcProviderRepository.updateOidcProvider(req.params.id, req.body);
     log('info', `[OIDC SETTINGS] Provider ${req.params.id} updated.`);
