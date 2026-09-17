@@ -43,6 +43,28 @@ describe('PUT /admin/oidc-settings/:id', () => {
     ['null client ID', { ...provider, client_id: null }],
     ['numeric client ID', { ...provider, client_id: 123 }],
     ['empty client ID', { ...provider, client_id: '' }],
+    ['invalid scope', { ...provider, scope: {} }],
+    ['invalid client_secret', { ...provider, client_secret: 123 }],
+    ['invalid provider_id', { ...provider, provider_id: 123 }],
+    ['invalid domain', { ...provider, domain: 123 }],
+    ['invalid display_name', { ...provider, display_name: 123 }],
+    ['invalid logo_url', { ...provider, logo_url: 123 }],
+    ['invalid auto_register', { ...provider, auto_register: 'false' }],
+    ['invalid is_active', { ...provider, is_active: 'false' }],
+    ['invalid redirect_uris', { ...provider, redirect_uris: [123] }],
+    ['invalid response_types', { ...provider, response_types: [123] }],
+    [
+      'invalid token_endpoint_auth_method',
+      { ...provider, token_endpoint_auth_method: 123 },
+    ],
+    ['invalid signing_algorithm', { ...provider, signing_algorithm: 123 }],
+    [
+      'invalid profile_signing_algorithm',
+      { ...provider, profile_signing_algorithm: 123 },
+    ],
+    ['invalid timeout', { ...provider, timeout: '30000' }],
+    ['invalid is_env_configured', { ...provider, is_env_configured: 'false' }],
+    ['invalid admin_group', { ...provider, admin_group: 123 }],
   ])(
     'returns 400 for %s without updating the provider',
     async (_name, body) => {
@@ -86,30 +108,49 @@ describe('PUT /admin/oidc-settings/:id', () => {
     });
   });
 
-  it('retains the successful update response and optional settings', async () => {
-    const settings = {
-      ...provider,
-      domain: 'example.test',
-      client_secret: 'new-secret',
-      admin_group: null,
-      is_active: false,
-      redirect_uris: ['https://sparky.example.test/callback'],
-    };
-    vi.mocked(oidcProviderRepository.updateOidcProvider).mockResolvedValue({
-      id: 'provider-id',
-    });
+  it.each(['new-secret', null, ''])(
+    'retains optional settings with client_secret %j',
+    async (clientSecret) => {
+      const settings = {
+        ...provider,
+        provider_id: 'authentik',
+        domain: 'example.test',
+        display_name: null,
+        logo_url: null,
+        auto_register: false,
+        response_types: ['code'],
+        token_endpoint_auth_method: 'client_secret_post',
+        signing_algorithm: 'RS256',
+        profile_signing_algorithm: 'none',
+        timeout: 30000,
+        is_env_configured: false,
+        scope: 'openid email profile',
+        client_secret: clientSecret,
+        admin_group: null,
+        is_active: false,
+        redirect_uris: ['https://sparky.example.test/callback'],
+      };
+      vi.mocked(oidcProviderRepository.updateOidcProvider).mockResolvedValue({
+        id: 'provider-id',
+      });
 
-    const response = await request(app)
-      .put('/admin/oidc-settings/authentik')
-      .send(settings);
+      const response = await request(app)
+        .put('/admin/oidc-settings/authentik')
+        .send({
+          ...settings,
+          id: 'provider-id',
+          discoveryEndpoint:
+            'https://identity.example.test/.well-known/openid-configuration',
+        });
 
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      message: 'OIDC provider updated successfully',
-    });
-    expect(oidcProviderRepository.updateOidcProvider).toHaveBeenCalledWith(
-      'authentik',
-      settings
-    );
-  });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        message: 'OIDC provider updated successfully',
+      });
+      expect(oidcProviderRepository.updateOidcProvider).toHaveBeenCalledWith(
+        'authentik',
+        settings
+      );
+    }
+  );
 });

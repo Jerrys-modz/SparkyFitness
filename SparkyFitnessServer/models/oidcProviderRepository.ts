@@ -1,28 +1,8 @@
 import { getSystemClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 import NodeCache from 'node-cache';
+import type { OidcProviderUpdate } from '../schemas/oidcProviderSchemas.js';
 const discoveryCache = new NodeCache({ stdTTL: 3600 });
-
-interface OidcProviderUpdate {
-  issuer_url: string;
-  client_id: string;
-  client_secret?: string | null;
-  provider_id?: string;
-  domain?: string;
-  display_name?: string | null;
-  logo_url?: string | null;
-  auto_register?: boolean;
-  is_active?: boolean;
-  redirect_uris?: string[];
-  response_types?: string[];
-  token_endpoint_auth_method?: string;
-  signing_algorithm?: string;
-  profile_signing_algorithm?: string;
-  timeout?: number;
-  is_env_configured?: boolean;
-  admin_group?: string | null;
-  scope?: string;
-}
 
 /**
  * Returns the frontend base URL with protocol and no trailing slash (for OIDC redirect URIs).
