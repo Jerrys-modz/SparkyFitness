@@ -101,6 +101,42 @@ describe('oidcProviderRepository', () => {
       }
     );
 
+    it.each([
+      [undefined, 'existing-admins'],
+      [null, null],
+      ['', ''],
+      ['new-admins', 'new-admins'],
+    ])(
+      'preserves update defaults for admin group %s',
+      async (adminGroup, expected) => {
+        mockClient.query.mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'row-id',
+              provider_id: 'authentik',
+              client_secret: 'old-secret',
+              additional_config: JSON.stringify({
+                admin_group: 'existing-admins',
+              }),
+            },
+          ],
+        });
+        mockClient.query.mockResolvedValueOnce({ rows: [{ id: 'row-id' }] });
+        vi.mocked(fetch).mockResolvedValue({ ok: false } as Response);
+
+        await oidcProviderRepository.updateOidcProvider('authentik', {
+          issuer_url: 'https://defaults.example.test',
+          client_id: 'sparky',
+          admin_group: adminGroup,
+        });
+
+        const parameters = mockClient.query.mock.calls[1][1];
+        expect(JSON.parse(parameters[10]).admin_group).toBe(expected);
+        expect(parameters[3]).toBe('old-secret');
+        expect(parameters[11].clientSecret).toBe('old-secret');
+      }
+    );
+
     it('retains an explicitly supplied replacement provider ID', async () => {
       mockClient.query.mockResolvedValueOnce({
         rows: [

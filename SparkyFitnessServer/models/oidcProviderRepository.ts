@@ -189,54 +189,64 @@ async function getOidcProviderById(id: string) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createOidcProvider(providerData: any) {
+/** Prepares stored configuration and discovered endpoints without writing to the database. */
+async function prepareOidcProvider(
+  providerData: OidcProviderUpdate,
+  providerId: string
+) {
+  const config = JSON.stringify({
+    display_name: providerData.display_name,
+    logo_url: providerData.logo_url,
+    auto_register: providerData.auto_register || false,
+    is_active:
+      providerData.is_active !== undefined ? providerData.is_active : true,
+    redirect_uris: providerData.redirect_uris || [],
+    response_types: providerData.response_types || ['code'],
+    token_endpoint_auth_method:
+      providerData.token_endpoint_auth_method || 'client_secret_post',
+    signing_algorithm: providerData.signing_algorithm || 'RS256',
+    profile_signing_algorithm: providerData.profile_signing_algorithm || 'none',
+    timeout: providerData.timeout || 30000,
+    is_env_configured: providerData.is_env_configured || false,
+    admin_group: providerData.admin_group,
+  });
+  const discoveryEndpoint =
+    providerData.issuer_url.replace(/\/$/, '') +
+    '/.well-known/openid-configuration';
+  const endpoints = await fetchOidcEndpoints(discoveryEndpoint);
+  const baseUrl = getBaseUrl();
+  const callbackBase = `${baseUrl}/api/auth`;
+  const oidcConfig = {
+    issuer: endpoints.issuer || providerData.issuer_url,
+    clientId: providerData.client_id,
+    clientSecret: providerData.client_secret,
+    scopes: (providerData.scope || 'openid email profile')
+      .split(' ')
+      .filter(Boolean),
+    discoveryEndpoint: discoveryEndpoint,
+    pkce: true,
+    redirectURI: `${callbackBase}/sso/callback/${providerId}`,
+    jwksEndpoint: endpoints.jwksEndpoint,
+    tokenEndpoint: endpoints.tokenEndpoint,
+    authorizationEndpoint: endpoints.authorizationEndpoint,
+    userInfoEndpoint: endpoints.userInfoEndpoint,
+    tokenEndpointAuthentication:
+      providerData.token_endpoint_auth_method || 'client_secret_post',
+    overrideUserInfo: true,
+  };
+  return { config, discoveryEndpoint, endpoints, oidcConfig };
+}
+
+/** Creates a provider with default configuration for omitted settings. */
+async function createOidcProvider(providerData: OidcProviderUpdate) {
   const client = await getSystemClient();
   try {
-    const config = JSON.stringify({
-      display_name: providerData.display_name,
-      logo_url: providerData.logo_url,
-      auto_register: providerData.auto_register || false,
-      is_active:
-        providerData.is_active !== undefined ? providerData.is_active : true,
-      redirect_uris: providerData.redirect_uris || [],
-      response_types: providerData.response_types || ['code'],
-      token_endpoint_auth_method:
-        providerData.token_endpoint_auth_method || 'client_secret_post',
-      signing_algorithm: providerData.signing_algorithm || 'RS256',
-      profile_signing_algorithm:
-        providerData.profile_signing_algorithm || 'none',
-      timeout: providerData.timeout || 30000,
-      is_env_configured: providerData.is_env_configured || false,
-      admin_group: providerData.admin_group || null,
-    });
     const providerId = providerData.provider_id || `oidc-${Date.now()}`;
-    const discoveryEndpoint =
-      providerData.issuer_url.replace(/\/$/, '') +
-      '/.well-known/openid-configuration';
-    // Fetch OIDC endpoints from discovery document
-    const endpoints = await fetchOidcEndpoints(discoveryEndpoint);
-    // Construct native oidcConfig for Better Auth (object for JSONB column; same base as auth.baseURL)
-    const baseUrl = getBaseUrl();
-    const callbackBase = `${baseUrl}/api/auth`;
-    const oidcConfig = {
-      issuer: endpoints.issuer || providerData.issuer_url,
-      clientId: providerData.client_id,
-      clientSecret: providerData.client_secret,
-      scopes: (providerData.scope || 'openid email profile')
-        .split(' ')
-        .filter(Boolean),
-      discoveryEndpoint: discoveryEndpoint,
-      pkce: true,
-      redirectURI: `${callbackBase}/sso/callback/${providerId}`,
-      jwksEndpoint: endpoints.jwksEndpoint,
-      tokenEndpoint: endpoints.tokenEndpoint,
-      authorizationEndpoint: endpoints.authorizationEndpoint,
-      userInfoEndpoint: endpoints.userInfoEndpoint,
-      tokenEndpointAuthentication:
-        providerData.token_endpoint_auth_method || 'client_secret_post',
-      overrideUserInfo: true,
-    };
+    const { config, discoveryEndpoint, endpoints, oidcConfig } =
+      await prepareOidcProvider(
+        { ...providerData, admin_group: providerData.admin_group || null },
+        providerId
+      );
     const result = await client.query(
       `INSERT INTO "sso_provider" 
             (provider_id, issuer, domain, client_id, client_secret, scopes, discovery_endpoint, 
@@ -287,57 +297,24 @@ async function updateOidcProvider(
     if (typeof clientId !== 'string' || clientId.length === 0) {
       throw new Error('OIDC client ID is required');
     }
-    const config = JSON.stringify({
-      display_name: providerData.display_name,
-      logo_url: providerData.logo_url,
-      auto_register: providerData.auto_register || false,
-      is_active:
-        providerData.is_active !== undefined ? providerData.is_active : true,
-      redirect_uris: providerData.redirect_uris || [],
-      response_types: providerData.response_types || ['code'],
-      token_endpoint_auth_method:
-        providerData.token_endpoint_auth_method || 'client_secret_post',
-      signing_algorithm: providerData.signing_algorithm || 'RS256',
-      profile_signing_algorithm:
-        providerData.profile_signing_algorithm || 'none',
-      timeout: providerData.timeout || 30000,
-      is_env_configured: providerData.is_env_configured || false,
-      admin_group:
-        providerData.admin_group !== undefined
-          ? providerData.admin_group
-          : existing?.admin_group || null,
-    });
-    const discoveryEndpoint =
-      providerData.issuer_url.replace(/\/$/, '') +
-      '/.well-known/openid-configuration';
     const clientSecret =
       providerData.client_secret && providerData.client_secret !== '*****'
         ? providerData.client_secret
         : existing.client_secret;
-    // Fetch OIDC endpoints from discovery document
-    const endpoints = await fetchOidcEndpoints(discoveryEndpoint);
-    // Construct native oidcConfig for Better Auth (same base as auth.baseURL; JSONB)
-    const baseUrl = getBaseUrl();
-    const callbackBase = `${baseUrl}/api/auth`;
     const providerIdToUse = providerData.provider_id || existing.provider_id;
-    const oidcConfig = {
-      issuer: endpoints.issuer || providerData.issuer_url,
-      clientId,
-      clientSecret: clientSecret,
-      scopes: (providerData.scope || 'openid email profile')
-        .split(' ')
-        .filter(Boolean),
-      discoveryEndpoint: discoveryEndpoint,
-      pkce: true,
-      redirectURI: `${callbackBase}/sso/callback/${providerIdToUse}`,
-      jwksEndpoint: endpoints.jwksEndpoint,
-      tokenEndpoint: endpoints.tokenEndpoint,
-      authorizationEndpoint: endpoints.authorizationEndpoint,
-      userInfoEndpoint: endpoints.userInfoEndpoint,
-      tokenEndpointAuthentication:
-        providerData.token_endpoint_auth_method || 'client_secret_post',
-      overrideUserInfo: true,
-    };
+    const { config, discoveryEndpoint, endpoints, oidcConfig } =
+      await prepareOidcProvider(
+        {
+          ...providerData,
+          client_id: clientId,
+          client_secret: clientSecret,
+          admin_group:
+            providerData.admin_group !== undefined
+              ? providerData.admin_group
+              : existing.admin_group || null,
+        },
+        providerIdToUse
+      );
     const query = `
             UPDATE "sso_provider" 
             SET issuer=$1, domain=$2, client_id=$3, client_secret=$4, scopes=$5, discovery_endpoint=$6, 
