@@ -66,15 +66,15 @@ jobs:
         working-directory: SparkyFitnessMobile
         run: xcodebuild -list -workspace ios/SparkyFitness.xcworkspace
 
-      # Runs before the host app on purpose. This is the target carrying the
-      # watch app's own Swift, and the host-app build below has a known
-      # pre-existing failure — putting that first would mask this result.
+      # Scheme name comes from `name` in targets/watch/expo-target.config.js.
+      # Note it is NOT "SparkyFitness Watch" — there is a sibling
+      # SparkyFitnessWatchWidget target, so match this exactly.
       - name: Build watchOS companion
         working-directory: SparkyFitnessMobile
         run: |
           xcodebuild \
             -workspace ios/SparkyFitness.xcworkspace \
-            -scheme 'SparkyFitness Watch' \
+            -scheme 'SparkyFitnessWatch' \
             -configuration Debug \
             -destination 'generic/platform=watchOS Simulator' \
             -derivedDataPath build \
@@ -83,15 +83,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             build
 
-      # Non-blocking until the watch app icon is sorted out. Embedding the
-      # watch target into the host app makes actool demand a full watchOS
-      # AppIcon set, and targets/watch/expo-target.config.js still points at
-      # the phone's adaptive icon ("swap for a dedicated Watch icon" per its
-      # own TODO) — so this fails with "app icon set named AppIcon did not
-      # have any applicable content", unrelated to any Swift in the diff.
-      # Drop continue-on-error once a real watch icon lands.
-      - name: Build iOS app (non-blocking)
-        continue-on-error: true
+      - name: Build iOS app
         working-directory: SparkyFitnessMobile
         run: |
           xcodebuild \
