@@ -19,6 +19,7 @@ import {
 import { endPool, getSystemClient } from '../db/poolManager.js';
 import oidcProviderRepository from '../models/oidcProviderRepository.js';
 import oidcSettingsRoutes from '../routes/oidcSettingsRoutes.js';
+import { upsertEnvOidcProvider } from '../utils/oidcEnvConfig.js';
 
 vi.mock('../auth.js', () => ({
   syncTrustedProviders: vi.fn().mockResolvedValue(undefined),
@@ -82,6 +83,16 @@ async function seedProvider(
   }
 }
 
+/** Sets the same environment configuration for each simulated startup. */
+function configureEnvProvider(providerId: string) {
+  vi.stubEnv('SPARKY_FITNESS_OIDC_AUTH_ENABLED', 'true');
+  vi.stubEnv('SPARKY_FITNESS_OIDC_ISSUER_URL', issuer);
+  vi.stubEnv('SPARKY_FITNESS_OIDC_CLIENT_ID', 'env-client');
+  vi.stubEnv('SPARKY_FITNESS_OIDC_CLIENT_SECRET', 'env-secret');
+  vi.stubEnv('SPARKY_FITNESS_OIDC_PROVIDER_SLUG', providerId);
+  vi.stubEnv('SPARKY_FITNESS_OIDC_DOMAIN', 'example.test');
+}
+
 describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
@@ -89,6 +100,7 @@ describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
 
   afterEach(async () => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     const client = await getSystemClient();
     try {
       await client.query(
@@ -103,6 +115,143 @@ describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
 
   afterAll(async () => {
     await endPool();
+  });
+
+  it('configures the same environment provider concurrently', async () => {
+    const providerId = `test-${randomUUID()}`;
+    const client = await getSystemClient();
+    try {
+      const existing = await client.query(
+        `SELECT id FROM sso_provider
+         WHERE additional_config::jsonb->>'is_env_configured' = 'true'`
+      );
+      expect(existing.rows).toEqual([]);
+
+      configureEnvProvider(providerId);
+
+      // Hold discovery until both callers have reached it, without mocking database work.
+      let releaseDiscovery!: () => void;
+      const ready = new Promise<void>((resolve) => {
+        releaseDiscovery = resolve;
+      });
+      let arrivals = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          if (++arrivals === 2) releaseDiscovery();
+          await ready;
+          return { ok: false };
+        })
+      );
+
+      const outcomes = await Promise.allSettled([
+        upsertEnvOidcProvider(),
+        upsertEnvOidcProvider(),
+      ]);
+      const result = await client.query(
+        'SELECT id, provider_id, client_id, domain FROM sso_provider WHERE provider_id = $1',
+        [providerId]
+      );
+      fixtureIds.push(...result.rows.map((row: { id: string }) => row.id));
+
+      expect(result.rows).toEqual([
+        {
+          id: expect.any(String),
+          provider_id: providerId,
+          client_id: 'env-client',
+          domain: 'example.test',
+        },
+      ]);
+      expect(outcomes).toEqual([
+        { status: 'fulfilled', value: undefined },
+        { status: 'fulfilled', value: undefined },
+      ]);
+    } finally {
+      client.release();
+    }
+  });
+
+  it.each(['env-secret', '*****'])(
+    'updates the exact provider with literal env secret %s while preserving its manual alias',
+    async (secret) => {
+      const name = `test-${randomUUID()}`;
+      const exactId = await seedProvider(name);
+      const aliasId = await seedProvider(`oidc-${name}`);
+      const staleId = await seedProvider(`stale-${randomUUID()}`);
+      const client = await getSystemClient();
+      try {
+        await client.query(
+          'UPDATE sso_provider SET additional_config = $1 WHERE id = $2',
+          [JSON.stringify({ is_env_configured: true }), staleId]
+        );
+        configureEnvProvider(name);
+        vi.stubEnv('SPARKY_FITNESS_OIDC_CLIENT_SECRET', secret);
+
+        await upsertEnvOidcProvider();
+
+        const result = await client.query(
+          `SELECT id, provider_id, client_id, client_secret, oidc_config->>'clientSecret' AS config_secret
+           FROM sso_provider WHERE id = ANY($1::uuid[]) ORDER BY provider_id`,
+          [[exactId, aliasId, staleId]]
+        );
+        expect(result.rows).toEqual([
+          {
+            id: aliasId,
+            provider_id: `oidc-${name}`,
+            client_id: 'original-client',
+            client_secret: 'original-secret',
+            config_secret: null,
+          },
+          {
+            id: exactId,
+            provider_id: name,
+            client_id: 'env-client',
+            client_secret: secret,
+            config_secret: secret,
+          },
+        ]);
+      } finally {
+        client.release();
+      }
+    }
+  );
+
+  it('rolls back the provider save when stale cleanup fails', async () => {
+    const name = `test-${randomUUID()}`;
+    const staleId = await seedProvider(`stale-${randomUUID()}`);
+    const trigger = `oidc_cleanup_${randomUUID().replaceAll('-', '')}`;
+    const client = await getSystemClient();
+    try {
+      await client.query(
+        'UPDATE sso_provider SET additional_config = $1 WHERE id = $2',
+        [JSON.stringify({ is_env_configured: true }), staleId]
+      );
+      await client.query(`CREATE FUNCTION ${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'test stale cleanup failure'; END $$`);
+      await client.query(`CREATE TRIGGER ${trigger} BEFORE DELETE ON sso_provider
+        FOR EACH ROW WHEN (OLD.id = '${staleId}'::uuid) EXECUTE FUNCTION ${trigger}()`);
+      configureEnvProvider(name);
+
+      await expect(upsertEnvOidcProvider()).rejects.toThrow(
+        'test stale cleanup failure'
+      );
+
+      const result = await client.query(
+        'SELECT id, provider_id FROM sso_provider WHERE id = $1 OR provider_id = $2',
+        [staleId, name]
+      );
+      fixtureIds.push(...result.rows.map((row: { id: string }) => row.id));
+      expect(result.rows).toEqual([
+        { id: staleId, provider_id: expect.stringMatching(/^stale-/) },
+      ]);
+    } finally {
+      try {
+        await client.query(`DROP TRIGGER IF EXISTS ${trigger} ON sso_provider`);
+        await client.query(`DROP FUNCTION IF EXISTS ${trigger}()`);
+      } finally {
+        client.release();
+      }
+    }
   });
 
   it.each([false, true])(

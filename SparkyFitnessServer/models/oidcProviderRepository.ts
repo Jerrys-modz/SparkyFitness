@@ -2,6 +2,7 @@ import { getSystemClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 import NodeCache from 'node-cache';
 import type { OidcProviderUpdate } from '../schemas/oidcProviderSchemas.js';
+import type { PoolClient } from 'pg';
 const discoveryCache = new NodeCache({ stdTTL: 3600 });
 
 /** Falls back to Better Auth's configuration when the legacy client ID column is unset. */
@@ -282,6 +283,90 @@ async function createOidcProvider(providerData: OidcProviderUpdate) {
     client.release();
   }
 }
+/** Saves the environment provider and removes stale environment providers atomically. */
+async function upsertEnvOidcProvider(
+  providerData: OidcProviderUpdate & {
+    provider_id: string;
+    client_secret: string;
+    domain: string;
+  }
+): Promise<string[]> {
+  const providerId = providerData.provider_id;
+  const { config, discoveryEndpoint, endpoints, oidcConfig } =
+    await prepareOidcProvider(providerData, providerId);
+  const client: PoolClient = await getSystemClient();
+  let failed = false;
+  let removed: string[];
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO "sso_provider"
+       (provider_id, issuer, domain, client_id, client_secret, scopes, discovery_endpoint,
+        authorization_endpoint, token_endpoint, jwks_endpoint, userinfo_endpoint,
+        additional_config, oidc_config)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+       ON CONFLICT (provider_id) DO UPDATE SET
+         issuer = EXCLUDED.issuer, domain = EXCLUDED.domain,
+         client_id = EXCLUDED.client_id, client_secret = EXCLUDED.client_secret,
+         scopes = EXCLUDED.scopes, discovery_endpoint = EXCLUDED.discovery_endpoint,
+         authorization_endpoint = EXCLUDED.authorization_endpoint,
+         token_endpoint = EXCLUDED.token_endpoint, jwks_endpoint = EXCLUDED.jwks_endpoint,
+         userinfo_endpoint = EXCLUDED.userinfo_endpoint,
+         additional_config = EXCLUDED.additional_config, oidc_config = EXCLUDED.oidc_config,
+         updated_at = NOW()`,
+      [
+        providerId,
+        endpoints.issuer || providerData.issuer_url,
+        providerData.domain,
+        providerData.client_id,
+        providerData.client_secret,
+        providerData.scope || 'openid email profile',
+        discoveryEndpoint,
+        endpoints.authorizationEndpoint,
+        endpoints.tokenEndpoint,
+        endpoints.jwksEndpoint,
+        endpoints.userInfoEndpoint,
+        config,
+        oidcConfig,
+      ]
+    );
+    const result = await client.query<{ provider_id: string }>(
+      `DELETE FROM "sso_provider"
+       WHERE additional_config::jsonb->>'is_env_configured' = 'true'
+       AND provider_id != $1
+       RETURNING provider_id`,
+      [providerId]
+    );
+    removed = result.rows.map((row) => row.provider_id);
+    await client.query('COMMIT');
+  } catch (error) {
+    failed = true;
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      log(
+        'error',
+        'Failed to roll back environment OIDC configuration:',
+        rollbackError
+      );
+    }
+    throw error;
+  } finally {
+    client.release(failed);
+  }
+  try {
+    const { syncTrustedProviders } = await import('../auth.js');
+    await syncTrustedProviders();
+  } catch (error) {
+    log(
+      'error',
+      'Failed to refresh trusted providers after environment configuration:',
+      error
+    );
+  }
+  return removed;
+}
+
 /** Update the resolved provider, retaining its provider ID unless explicitly replaced. */
 async function updateOidcProvider(
   id: string,
@@ -428,6 +513,7 @@ export { getOidcProviderById };
 export { getActiveOidcProviderIds };
 export { createOidcProvider };
 export { updateOidcProvider };
+export { upsertEnvOidcProvider };
 export { deleteOidcProvider };
 export { setProviderLogo };
 export default {
@@ -436,6 +522,7 @@ export default {
   getActiveOidcProviderIds,
   createOidcProvider,
   updateOidcProvider,
+  upsertEnvOidcProvider,
   deleteOidcProvider,
   setProviderLogo,
 };
