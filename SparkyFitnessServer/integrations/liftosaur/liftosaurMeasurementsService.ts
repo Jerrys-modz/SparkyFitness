@@ -215,6 +215,19 @@ export async function importMeasurementsFromLiftosaur(
         }
 
         hasMore = Boolean(page.hasMore) && withinWindow;
+        // On a full sync every value is inside the window, so the window alone
+        // cannot end the loop. Stop if the provider reports more pages without
+        // advancing the cursor rather than re-fetching the same page forever.
+        if (
+          hasMore &&
+          (page.nextCursor === undefined || page.nextCursor === cursor)
+        ) {
+          log(
+            'warn',
+            `[liftosaurMeasurements] Liftosaur reported more values for key ${def.key} without advancing the cursor; stopping pagination.`
+          );
+          hasMore = false;
+        }
         cursor = page.nextCursor;
       }
     } catch (err: unknown) {

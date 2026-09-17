@@ -239,6 +239,19 @@ async function syncLiftosaurData(
     const withinWindow =
       fullSync || startInstant !== undefined || newestWorkoutDate >= cutoffMs;
     hasMore = !!page.hasMore && withinWindow;
+    // A full sync or an explicit date range has no window to stop it, so a
+    // provider that keeps reporting hasMore without moving the cursor would
+    // re-fetch the same page forever. Stop when the cursor does not advance.
+    if (
+      hasMore &&
+      (page.nextCursor === undefined || page.nextCursor === cursor)
+    ) {
+      log(
+        'warn',
+        `[liftosaurService] Liftosaur reported more history for user ${userId} without advancing the cursor; stopping pagination.`
+      );
+      hasMore = false;
+    }
     cursor = page.nextCursor;
   }
 

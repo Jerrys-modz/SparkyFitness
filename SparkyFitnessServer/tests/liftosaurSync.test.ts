@@ -87,4 +87,35 @@ describe('liftosaurSync', () => {
       ['provider-123']
     );
   });
+
+  it('stops paginating when a full sync reports more pages without advancing the cursor', async () => {
+    // A full sync has no date window to end the loop, so an unchanged cursor
+    // has to, or the sync re-fetches the same page forever.
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        data: {
+          records: [
+            {
+              id: 1,
+              text: '2026-03-01T10:00:00Z / exercises: {\n  Squat / 3x5 100kg\n}',
+            },
+          ],
+          hasMore: true,
+          nextCursor: 7,
+        },
+      },
+    });
+
+    const result = await liftosaurService.syncLiftosaurData(
+      'user-1',
+      'user-1',
+      true,
+      'provider-123'
+    );
+
+    expect(result.success).toBe(true);
+    // First page, then one more for the cursor that did not move.
+    expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2);
+    expect(result.workoutsImported).toBe(2);
+  });
 });
