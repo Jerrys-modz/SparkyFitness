@@ -18,6 +18,7 @@ import {
   pickBestVariant,
   IMPLAUSIBLE_SERVING_UNITS,
 } from '../../services/foodProviderLookupService.js';
+import { cleanMealSummary } from '../../services/foodPhotoEstimationService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import {
   compactRecord,
@@ -1638,11 +1639,18 @@ Actions:
               }
               // The `|| null` on optional fields is MCP's storage quirk
               // (an explicit 0 is stored as null), ported as-is.
+              const rawFoodName = args.food_name?.trim() || 'Food';
+              const isNameTooLong =
+                rawFoodName.length > 50 || /[.!?\n]/.test(rawFoodName);
+              const cleanedName = isNameTooLong
+                ? cleanMealSummary(rawFoodName)
+                : rawFoodName;
+              const notes = args.notes || (isNameTooLong ? rawFoodName : null);
               const food = await foodCoreService.createFood(userId, {
                 user_id: userId,
-                name: args.food_name,
+                name: cleanedName,
                 brand: args.brand || null,
-                notes: args.notes || null,
+                notes,
                 serving_size: targetQuantity,
                 serving_unit: targetUnit,
                 calories: args.calories,
