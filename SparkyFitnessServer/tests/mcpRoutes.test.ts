@@ -179,6 +179,15 @@ describe('POST /mcp', () => {
     );
     expect(diaryTool.inputSchema.properties).toHaveProperty('limit');
     expect(diaryTool.inputSchema.properties).toHaveProperty('offset');
+    const nutritionSummaryTool = listed.body.result.tools.find(
+      (tool: { name: string }) => tool.name === 'sparky_get_nutrition_summary'
+    );
+    expect(nutritionSummaryTool.inputSchema.properties).not.toHaveProperty(
+      'limit'
+    );
+    expect(nutritionSummaryTool.inputSchema.properties).not.toHaveProperty(
+      'offset'
+    );
 
     const foodEntries = Array.from({ length: 25 }, (_, index) => ({
       id: `food-${String(index).padStart(2, '0')}`,

@@ -863,17 +863,23 @@ async function lookupFoodNutrition(
 
 // Standalone domain tools.
 const foodPaginationSchema = z.object({
-  limit: z.number().int().min(1).max(50).optional(),
+  limit: z.number().int().min(1).max(500).optional(),
   offset: z.number().int().min(0).optional(),
 });
 
-const foodDateRangeSchema = z
-  .object({
-    date: optionalDateSchema,
-    start_date: optionalDateSchema,
-    end_date: optionalDateSchema,
-  })
-  .merge(foodPaginationSchema);
+const foodDateRangeSchema = z.object({
+  date: optionalDateSchema,
+  start_date: optionalDateSchema,
+  end_date: optionalDateSchema,
+});
+
+// Diary payloads contain nested entries and can hit MCP response limits much
+// sooner than catalog lists. Keep their public page size conservative without
+// narrowing unrelated list/search/usage tools.
+const foodDiaryDateRangeSchema = foodDateRangeSchema.extend({
+  limit: z.number().int().min(1).max(50).optional(),
+  offset: z.number().int().min(0).optional(),
+});
 
 const listFoodsSchema = foodPaginationSchema.extend({
   search: z.string().optional(),
@@ -1403,6 +1409,11 @@ Actions:
               }
               const entryDate = args.entry_date || todayInZone(tz);
               const quantity = args.quantity ?? 1;
+              if (args.unit && isAmbiguousLegacyFoodUnit(args.unit)) {
+                return ERRORS.VALIDATION(
+                  `Unit "${args.unit}" is ambiguous because it includes a reference serving size. Use a consumed unit such as {"quantity":75,"unit":"g"}, or an explicit serving count such as {"quantity":0.75,"unit":"serving"}.`
+                );
+              }
               const result = await lookupFoodNutrition(
                 userId,
                 args.food_name,
@@ -2311,7 +2322,8 @@ Actions:
                       quantity: entryQuantity,
                       unit: entryUnit,
                       ...mealTypeUpdate,
-                    }
+                    },
+                    { preserveSnapshot: true }
                   );
                 } else {
                   // Lightweight parent read (no components) to decide whether
@@ -2808,9 +2820,9 @@ Actions:
     sparky_get_food_diary: tool({
       description:
         'Returns entry-level food diary data for a specific date or date range.',
-      inputSchema: foodDateRangeSchema,
+      inputSchema: foodDiaryDateRangeSchema,
       execute: async (rawArgs) => {
-        const parsed = foodDateRangeSchema.safeParse(
+        const parsed = foodDiaryDateRangeSchema.safeParse(
           normalizeDayKeywords(rawArgs, tz)
         );
         if (!parsed.success) {

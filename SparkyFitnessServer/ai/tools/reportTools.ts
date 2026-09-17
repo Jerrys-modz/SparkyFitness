@@ -10,6 +10,7 @@ import { dayString, formatJsonResult } from './formatting.js';
 import { getResolvedExerciseCaloriesRange } from '../../services/exerciseCalorieRangeService.js';
 import { getNutritionalSummaryRows, getWaterHistoryRows } from './foodTools.js';
 import { getBiometricsHistoryRows } from './checkinTools.js';
+import { convertEnergy } from './unitConversion.js';
 import {
   manageReportSchema,
   manageReportInput,
@@ -108,6 +109,14 @@ async function getDailyReport(
     startDate,
     endDate
   );
+  const preferences = await preferenceService.getUserPreferences(
+    userId,
+    userId
+  );
+  const energyUnit =
+    nutritionRows[0]?.energy_unit ??
+    (preferences?.energy_unit as string | undefined) ??
+    'kcal';
   const exerciseRows = await exerciseEntryDb.getDailyExerciseTotalsRange(
     userId,
     startDate,
@@ -131,7 +140,7 @@ async function getDailyReport(
   return {
     start_date: startDate,
     end_date: endDate,
-    energy_unit: nutritionRows[0]?.energy_unit ?? 'kcal',
+    energy_unit: energyUnit,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     nutrition: nutritionRows.map((r: any) => ({
       entry_date: dayString(r.entry_date),
@@ -143,14 +152,20 @@ async function getDailyReport(
       nutrition_warning: r.nutrition_warning,
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    exercise: exerciseRows.map((r: any) => ({
-      entry_date: dayString(r.entry_date),
-      exercise_calories:
+    exercise: exerciseRows.map((r: any) => {
+      const exerciseCalories =
         resolvedByDate.get(dayString(r.entry_date))?.calories ??
-        r.calories_burned,
-      exercise_minutes: r.duration_minutes,
-      steps: r.steps,
-    })),
+        r.calories_burned;
+      return {
+        entry_date: dayString(r.entry_date),
+        exercise_calories:
+          energyUnit === 'kJ' && typeof exerciseCalories === 'number'
+            ? convertEnergy(exerciseCalories, 'kcal', 'kJ')
+            : exerciseCalories,
+        exercise_minutes: r.duration_minutes,
+        steps: r.steps,
+      };
+    }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     water: waterRows.map((r: any) => ({
       entry_date: dayString(r.entry_date),

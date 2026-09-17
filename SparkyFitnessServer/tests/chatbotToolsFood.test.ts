@@ -1837,6 +1837,23 @@ describe('log_external_food', () => {
     });
   }
 
+  it('rejects an ambiguous legacy unit before external lookup or write', async () => {
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'log_external_food',
+        food_name: 'Apple',
+        quantity: 75,
+        unit: '100 g',
+        meal_type: 'breakfast',
+      },
+      opts
+    );
+
+    expect(result).toContain('Unit "100 g" is ambiguous');
+    expect(searchProviderFoods).not.toHaveBeenCalled();
+    expect(foodEntryService.createFoodEntry).not.toHaveBeenCalled();
+  });
+
   // Regression: the cascade ordered providers purely by the repository's
   // sort_order/created_at, ignoring default_food_data_provider_id. With
   // sort_order NULL (the common case) the newest provider won every lookup and
@@ -3303,7 +3320,8 @@ describe('update_entry', () => {
         quantity: undefined,
         unit: undefined,
         meal_type_id: MEAL_TYPE_ID,
-      }
+      },
+      { preserveSnapshot: true }
     );
   });
 
@@ -3340,7 +3358,8 @@ describe('update_entry', () => {
         quantity: undefined,
         unit: undefined,
         meal_type_id: 'default-id',
-      }
+      },
+      { preserveSnapshot: true }
     );
   });
 
@@ -3365,7 +3384,8 @@ describe('update_entry', () => {
       'user-1',
       'user-1',
       ENTRY_ID,
-      { quantity: 300, unit: 'g' }
+      { quantity: 300, unit: 'g' },
+      { preserveSnapshot: true }
     );
   });
 
@@ -3389,7 +3409,8 @@ describe('update_entry', () => {
       'user-1',
       'user-1',
       ENTRY_ID,
-      { quantity: 100, unit: 'g' }
+      { quantity: 100, unit: 'g' },
+      { preserveSnapshot: true }
     );
   });
 
@@ -3427,7 +3448,8 @@ describe('update_entry', () => {
         quantity: undefined,
         unit: undefined,
         meal_type_id: 'dinner-id',
-      }
+      },
+      { preserveSnapshot: true }
     );
   });
 

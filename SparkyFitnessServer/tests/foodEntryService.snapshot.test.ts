@@ -61,7 +61,37 @@ describe('foodEntryService.updateFoodEntry snapshots', () => {
     mockUpdateSetup();
   });
 
-  it('preserves historical reference nutrition for a quantity-only update', async () => {
+  it('preserves historical reference nutrition for an MCP quantity-only update', async () => {
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: OLD_VARIANT_ID,
+      serving_size: 100,
+      serving_unit: 'g',
+      calories: 999,
+      protein: 99,
+      carbs: 99,
+      fat: 99,
+    });
+
+    await foodEntryService.updateFoodEntry(
+      'user-1',
+      'user-1',
+      ENTRY_ID,
+      { quantity: 50, unit: 'g' },
+      { preserveSnapshot: true }
+    );
+
+    const snapshot = vi.mocked(foodRepository.updateFoodEntry).mock
+      .calls[0]?.[4];
+    expect(snapshot).toMatchObject({
+      food_name: 'Lentils, dry',
+      serving_size: 100,
+      serving_unit: 'g',
+      calories: 351,
+      protein: 23.6,
+    });
+  });
+
+  it('refreshes reference nutrition for a native quantity-only update', async () => {
     vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
       id: OLD_VARIANT_ID,
       serving_size: 100,
@@ -80,11 +110,9 @@ describe('foodEntryService.updateFoodEntry snapshots', () => {
     const snapshot = vi.mocked(foodRepository.updateFoodEntry).mock
       .calls[0]?.[4];
     expect(snapshot).toMatchObject({
-      food_name: 'Lentils, dry',
-      serving_size: 100,
-      serving_unit: 'g',
-      calories: 351,
-      protein: 23.6,
+      food_name: 'Changed catalog food',
+      calories: 999,
+      protein: 99,
     });
   });
 

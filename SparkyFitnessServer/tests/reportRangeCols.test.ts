@@ -96,6 +96,11 @@ describe('getDailyNutritionTotalsRange select list', () => {
   // Two fields are published under a different name than their column, and the consumers read
   // the alias: foodTools maps row.fiber and row.sugar. Renaming a column without carrying the
   // alias would hand those consumers undefined, which they coerce to 0.
+  it('recognizes legacy units that embed a reference serving size', async () => {
+    const sql = await sqlOf();
+    expect(sql).toContain("fe.unit ~ '^\\s*[0-9]+(?:\\.[0-9]+)?\\s+\\S'");
+  });
+
   it('publishes dietary_fiber as fiber and sugars as sugar', async () => {
     const sql = await sqlOf();
     expect(sql).toMatch(/\bas fiber,?$/m);
