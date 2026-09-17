@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0
+
+- Replace the **Show in sidebar** Lovelace-dashboard workaround with real
+  Home Assistant **Ingress** support: the add-on now gets a native sidebar
+  panel that works over HTTPS too (including Nabu Casa Cloud remote
+  access), instead of an embedded `http://` iframe that Home Assistant
+  refuses to load under HTTPS.
+- This is implemented entirely inside the add-on's own `Dockerfile`
+  (`patch-ingress-paths.sh` + a matching `nginx.conf` rewrite) rather than
+  in the shared SparkyFitnessFrontend source, so Docker Compose, Helm, and
+  mobile installs are unaffected. See
+  [Sidebar](DOCS.md#sidebar) for how it works.
+- Removed `homeassistant_api` access and the `show_in_sidebar` option —
+  no longer needed now that Ingress provides the sidebar panel natively
+  (with its own stock "Show in sidebar" toggle on the add-on's Info page).
+
 ## 1.2.2
 
 - Document (and log a heads-up for) Home Assistant's "Unable to load
