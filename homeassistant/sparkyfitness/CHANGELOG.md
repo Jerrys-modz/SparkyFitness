@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- Fix the add-on failing to start with `nginx: [emerg] "limit_req_zone"
+  directive is not allowed here`. Alpine's `nginx` package includes
+  `conf.d/*.conf` at the top-level context and `http.d/*.conf` inside
+  `http {}`; the generated site config now lands in `http.d` instead of
+  `conf.d`.
+
 ## 1.1.0
 
 - Configuration tab covers Garmin, email, login flags, private-network AI,

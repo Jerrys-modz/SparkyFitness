@@ -222,7 +222,7 @@ log "Generating Nginx config"
 envsubst \
   "\$SPARKY_FITNESS_SERVER_HOST \$SPARKY_FITNESS_SERVER_PORT \$NGINX_RATE_LIMIT \$SPARKY_FITNESS_FRONTEND_URL \$NGINX_LISTEN_PORT \$NGINX_ACCESS_LOG \$NGINX_ERROR_LOG" \
   < /etc/nginx/templates/default.conf.template \
-  > /etc/nginx/conf.d/default.conf
+  > /etc/nginx/http.d/default.conf
 nginx -t || die "Invalid Nginx configuration"
 
 cleanup() {

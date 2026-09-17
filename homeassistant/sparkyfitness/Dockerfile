@@ -25,7 +25,7 @@ RUN apk add --no-cache \
       /var/cache/nginx/client-body \
       /var/cache/nginx/proxy \
       /etc/nginx/templates \
-      /etc/nginx/conf.d \
+      /etc/nginx/http.d \
       /var/log/nginx \
     && sed -i 's|/var/run/nginx.pid|/var/run/nginx/nginx.pid|g' /etc/nginx/nginx.conf \
     && sed -i 's|^[[:space:]]*user|#user|g' /etc/nginx/nginx.conf
