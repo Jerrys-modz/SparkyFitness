@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "SparkyFitness benötigt Zugriff auf deine Kamera, um Lebensmittel-Barcodes und Etiketten zu scannen.",
+    "NSHealthShareUsageDescription": "SparkyFitness liest Gesundheitsdaten (z. B. Aktivität, Trainingseinheiten und Körpermaße), um sie in der App anzuzeigen und mit deinem selbst gehosteten SparkyFitness-Server zu synchronisieren.",
+    "NSHealthUpdateUsageDescription": "SparkyFitness schreibt die von dir erfassten Nährwert- und Flüssigkeitsdaten in Apple Health, um beide synchron zu halten.",
+    "NSLocalNetworkUsageDescription": "SparkyFitness verbindet sich mit selbst gehosteten Servern in deinem lokalen Netzwerk."
+  }
+}

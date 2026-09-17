@@ -1,0 +1,17 @@
+"widget.calorie.name" = "Kalorien";
+"widget.calorie.description" = "Die heutige Kalorienzufuhr auf einen Blick.";
+"widget.macro.name" = "Makronährstoffe";
+"widget.macro.description" = "Heutiges Eiweiß, Kohlenhydrate und Fett auf einen Blick.";
+"widget.kcal_left" = "kcal übrig";
+"widget.kcal" = "kcal";
+"widget.food" = "Lebensmittel";
+"widget.burned" = "Verbraucht";
+"widget.goal" = "Ziel";
+"widget.protein" = "Eiweiß";
+"widget.carbs" = "Kohlenhydrate";
+"widget.fat" = "Fett";
+"widget.grams" = "%@ g";
+"widget.a11y.kcal_left" = "%@ kcal übrig";
+"widget.a11y.kcal" = "%@ kcal";
+"widget.search_food" = "Lebensmittel suchen";
+"widget.scan_barcode" = "Barcode scannen";
