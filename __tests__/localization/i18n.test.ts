@@ -181,6 +181,29 @@ describe('representative PR3 strings', () => {
     });
   });
 
+  it('renders the language settings, shell and save strings in German', async () => {
+    await jest.isolateModulesAsync(async () => {
+      const {
+        default: i18n,
+        initializeI18n,
+      } = require('../../src/localization/i18n');
+      await initializeI18n('de');
+
+      expect(i18n.t('settings.language.title')).toBe('Sprache');
+      expect(i18n.t('settings.language.system')).toBe('System');
+      expect(i18n.t('settings.language.english')).toBe('Englisch');
+      expect(i18n.t('settings.language.polish')).toBe('Polnisch');
+      expect(i18n.t('settings.language.spanish')).toBe('Spanisch');
+      expect(i18n.t('settings.language.pickerHint')).toBe(
+        'Sprachmenü öffnen'
+      );
+      expect(i18n.t('settings.app')).toBe('App Einstellungen');
+      expect(i18n.t('navigation.settings')).toBe('Einstellungen');
+      expect(i18n.t('common.save')).toBe('Speichern');
+      expect(i18n.t('common.saving')).toBe('Speichern…');
+    });
+  });
+
   it('keeps the endonym Polski in the English catalog', async () => {
     await jest.isolateModulesAsync(async () => {
       const {
@@ -454,6 +477,32 @@ describe('ImportHistory pluralization', () => {
       expect(progress(2)).toBe('de 2 días');
       expect(imported(1)).toBe('1 día importado');
       expect(imported(12)).toBe('12 días importados');
+    });
+  });
+
+  it('uses German one/other forms for representative day counts', async () => {
+    await jest.isolateModulesAsync(async () => {
+      const {
+        default: i18n,
+        initializeI18n,
+      } = require('../../src/localization/i18n');
+      await initializeI18n('de');
+      const progress = (count: number) =>
+        i18n.t('importHistory.progress.ofDays', {
+          defaultValue: 'of {{formattedCount}} days',
+          count,
+          formattedCount: String(count),
+        });
+      const imported = (count: number) =>
+        i18n.t('importHistory.done.daysImported', {
+          defaultValue: '{{formattedCount}} days imported',
+          count,
+          formattedCount: String(count),
+        });
+      expect(progress(1)).toBe('von 1 Tag');
+      expect(progress(2)).toBe('von 2 Tagen');
+      expect(imported(1)).toBe('1 Tag importiert');
+      expect(imported(12)).toBe('12 Tage importiert');
     });
   });
 });
