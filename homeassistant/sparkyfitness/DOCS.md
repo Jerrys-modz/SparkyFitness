@@ -49,6 +49,38 @@ stable host:port.
 On Android 13+, allow **Alarms & reminders** if you want rest-timer alerts
 on time.
 
+## Sidebar shortcut
+
+The add-on does not use Ingress (see [Why not HACS / Ingress?](#why-not-hacs--ingress)
+below), so it has no built-in sidebar panel. You can still pin it to the
+sidebar with a **panel iframe**, which points straight at the add-on's
+normal port instead of going through Home Assistant's ingress proxy — the
+page loads on its own real origin exactly like opening it in a new tab, so
+none of the app's `/api` calls or login cookies are affected.
+
+1. Open the **File editor** or **Studio Code Server** add-on (or edit
+   `configuration.yaml` over Samba/SSH).
+2. Add this to Home Assistant's `configuration.yaml` (this is HA's own core
+   config file, not anything inside this add-on):
+
+   ```yaml
+   panel_iframe:
+     sparkyfitness:
+       title: SparkyFitness
+       icon: mdi:dumbbell
+       url: "http://homeassistant.local:3004"
+   ```
+
+   Use the same Public URL you set in the add-on's Configuration tab.
+3. Restart **Home Assistant Core** (Developer Tools → YAML → Restart, or
+   Settings → System → Restart — not the add-on itself) to pick it up.
+
+SparkyFitness now appears as its own icon in the sidebar. `panel_iframe`
+is an older integration and some newer Home Assistant releases nudge you
+toward adding a "Web page" dashboard from **Settings → Dashboards → Add
+Dashboard** instead; either one works the same way here since both just
+embed the add-on's existing URL.
+
 ## Configuration
 
 These map to the add-on **Configuration** tab in Home Assistant.
@@ -99,9 +131,8 @@ and `codewithcj/sparkyfitness_server` images (`latest`). The database in
   use to host an app.
 - **Ingress** (the sidebar iframe at `/api/hassio_ingress/…`) breaks this
   SPA, because the web app calls `/api` on the Home Assistant origin. Use
-  the mapped port instead. You can still add a **Webpage** dashboard card
-  pointing at `http://homeassistant.local:3004` if you want a sidebar
-  shortcut.
+  the mapped port instead. See [Sidebar shortcut](#sidebar-shortcut) above
+  for a way to still get a sidebar icon without Ingress.
 
 ## Hardware
 
