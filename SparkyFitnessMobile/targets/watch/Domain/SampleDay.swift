@@ -108,5 +108,50 @@ enum SampleDay {
     /// The state before the phone has ever synced — the other layout worth
     /// checking, since it's what a new install and a phone-free morning show.
     static var emptyContext: WatchContext { .empty }
+
+    // MARK: - Workout
+
+    /// A three-exercise session as the phone would push it.
+    ///
+    /// Deliberately uneven, for the same reason the water containers above
+    /// are: an exercise name long enough to truncate on a 40mm, a bodyweight
+    /// movement with no target weight, and rest that varies per set. A tidy
+    /// plan of three identical exercises hides exactly the layout problems a
+    /// preview is for.
+    static let workoutPlan = ActiveWorkoutPlan(
+        sessionId: "preview-session",
+        workoutName: "Push Day",
+        exercises: [
+            PlannedExercise(
+                exerciseEntryId: "preview-ex-1",
+                name: "Barbell Bench Press",
+                sets: [
+                    PlannedSet(setId: "1", targetReps: 10, targetWeightKg: 60, restSeconds: 90),
+                    PlannedSet(setId: "2", targetReps: 8, targetWeightKg: 70, restSeconds: 90),
+                    PlannedSet(setId: "3", targetReps: 6, targetWeightKg: 80, restSeconds: 120),
+                ]
+            ),
+            PlannedExercise(
+                exerciseEntryId: "preview-ex-2",
+                name: "Incline Dumbbell Shoulder Press",
+                sets: [
+                    PlannedSet(setId: "4", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60),
+                    PlannedSet(setId: "5", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60),
+                ]
+            ),
+            PlannedExercise(
+                exerciseEntryId: "preview-ex-3",
+                name: "Press-ups",
+                sets: [
+                    PlannedSet(setId: "6", targetReps: 15, targetWeightKg: nil, restSeconds: 45),
+                ]
+            ),
+        ]
+    )
+
+    /// A plausible working heart rate mid-set. Only ever visible in a preview
+    /// or on a real wrist — the simulator has no sensor behind
+    /// `HKLiveWorkoutBuilder`, so it renders the no-BPM layout instead.
+    static let workoutBpm: Double = 142
 }
 #endif

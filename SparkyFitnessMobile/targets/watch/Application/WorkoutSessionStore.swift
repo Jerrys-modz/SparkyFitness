@@ -29,6 +29,13 @@ final class WorkoutSessionStore: ObservableObject {
 
     private init() {}
 
+    #if DEBUG
+    /// A detached instance for Xcode previews. Canvases in one process share
+    /// `shared`, so without this one preview's started workout leaks into the
+    /// next one's "no workout" state.
+    static func previewInstance() -> WorkoutSessionStore { WorkoutSessionStore() }
+    #endif
+
     var isActive: Bool { plan != nil }
 
     var currentExercise: PlannedExercise? {

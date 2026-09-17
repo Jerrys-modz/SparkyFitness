@@ -220,3 +220,50 @@ private struct RestTimerView: View {
         return String(format: "%d:%02d", remaining / 60, remaining % 60)
     }
 }
+
+#if DEBUG
+/// A store already mid-workout, for the canvases below. `completedSets` marks
+/// that many of the first exercise's sets done — one is enough to put the
+/// view into its rest state, since completing a set starts that set's rest.
+@MainActor
+private func previewStore(
+    bpm: Double? = SampleDay.workoutBpm,
+    completedSets: Int = 0
+) -> WorkoutSessionStore {
+    let store = WorkoutSessionStore.previewInstance()
+    store.start(with: SampleDay.workoutPlan)
+    if let bpm {
+        store.recordHeartRate(bpm: bpm)
+    }
+    for set in SampleDay.workoutPlan.exercises[0].sets.prefix(completedSets) {
+        store.markSetCompleted(set)
+    }
+    return store
+}
+
+#Preview("Mid-workout") {
+    WorkoutView()
+        .environmentObject(previewStore())
+        .environmentObject(WatchSessionManager.shared)
+}
+
+#Preview("Resting") {
+    WorkoutView()
+        .environmentObject(previewStore(completedSets: 1))
+        .environmentObject(WatchSessionManager.shared)
+}
+
+/// Before the phone has armed anything — what the tab shows most of the time.
+#Preview("No workout") {
+    WorkoutView()
+        .environmentObject(WorkoutSessionStore.previewInstance())
+        .environmentObject(WatchSessionManager.shared)
+}
+
+/// The no-heart-rate layout, which is also everything a simulator can render.
+#Preview("No heart rate") {
+    WorkoutView()
+        .environmentObject(previewStore(bpm: nil))
+        .environmentObject(WatchSessionManager.shared)
+}
+#endif
