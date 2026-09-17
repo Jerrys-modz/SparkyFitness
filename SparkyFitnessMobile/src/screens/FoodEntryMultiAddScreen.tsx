@@ -199,7 +199,15 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
     if (!isSubmitting) return;
     // preventDefault on beforeRemove blocks every removal route — hardware
     // back, gestures, and header back alike — for the flight's duration.
+    // The empty-basket exception: the success path pops to the diary the
+    // moment the batch reconciles, while this listener is still attached
+    // (the isSubmitting re-render that unsubscribes it hasn't committed
+    // yet). Without the exception the guard swallows its own success
+    // navigation and the review screen sits on its empty state.
     return navigation.addListener('beforeRemove', (event) => {
+      if (useFoodSearchSelectionStore.getState().selectedByKey.size === 0) {
+        return;
+      }
       event.preventDefault();
     });
   }, [navigation, isSubmitting]);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import FoodEntryMultiAddScreen from '../../src/screens/FoodEntryMultiAddScreen';
 import { useMealTypes } from '../../src/hooks/useMealTypes';
@@ -225,6 +225,19 @@ describe('FoodEntryMultiAddScreen', () => {
     const preventDefault = jest.fn();
     beforeRemoveHandlers.forEach((handler) => handler({ preventDefault }));
     expect(preventDefault).toHaveBeenCalled();
+
+    // Field-QA regression: after a fully successful batch empties the
+    // basket, the success popToTop fires while this listener is still
+    // attached (the isSubmitting re-render lags). The guard must let that
+    // removal through instead of swallowing its own navigation.
+    act(() => {
+      useFoodSearchSelectionStore.getState().clear();
+    });
+    const successPreventDefault = jest.fn();
+    beforeRemoveHandlers.forEach((handler) =>
+      handler({ preventDefault: successPreventDefault })
+    );
+    expect(successPreventDefault).not.toHaveBeenCalled();
   });
 
   test('Add all submits every row as a draft, removes successes, and pops to top once the basket is empty', async () => {
