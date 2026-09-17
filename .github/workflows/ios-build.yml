@@ -1,0 +1,97 @@
+name: Build iOS & watchOS
+
+# Compile-only check for the native Apple side. The Android workflow covers
+# its own platform and `ci-tests.yml` covers the TypeScript, but nothing
+# compiled the Swift until this existed — so a broken watch target or Expo
+# native module could land unnoticed.
+#
+# Builds Debug rather than Release on purpose: the watch target's SwiftUI
+# previews and its `SampleDay` fixtures are `#if DEBUG`, so a Release build
+# would skip exactly the code most likely to rot.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "SparkyFitnessMobile/**"
+      - "shared/**"
+      - ".github/workflows/ios-build.yml"
+  pull_request:
+    paths:
+      - "SparkyFitnessMobile/**"
+      - "shared/**"
+      - ".github/workflows/ios-build.yml"
+
+# A second push to the same branch makes the first build irrelevant.
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compile iOS app and watchOS companion
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          echo "--- watchOS SDKs ---"
+          xcodebuild -showsdks | grep -i watch || echo "no watchOS SDK on this image"
+
+      # Must run from the repo root: the workspace patches @bacons/apple-targets,
+      # and that patch is what stops prebuild corrupting the widget target.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prebuild iOS project
+        working-directory: SparkyFitnessMobile
+        run: npx expo prebuild --platform ios
+
+      - name: List generated schemes
+        working-directory: SparkyFitnessMobile
+        run: xcodebuild -list -workspace ios/SparkyFitness.xcworkspace
+
+      - name: Build iOS app
+        working-directory: SparkyFitnessMobile
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'SparkyFitness' \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      # Separate from the iOS build because a simulator build of the host app
+      # does not necessarily compile the embedded watch target.
+      - name: Build watchOS companion
+        working-directory: SparkyFitnessMobile
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'SparkyFitness Watch' \
+            -configuration Debug \
+            -destination 'generic/platform=watchOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
