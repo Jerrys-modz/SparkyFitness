@@ -448,11 +448,13 @@ const NotificationSettingsScreen: React.FC<
         ref={startTimeSheetRef}
         value={waterReminderWindowStart}
         onSelectTime={handleStartTimeSelect}
+        commitOn="done"
       />
       <TimeSheet
         ref={endTimeSheetRef}
         value={waterReminderWindowEnd}
         onSelectTime={handleEndTimeSelect}
+        commitOn="done"
       />
     </View>
   );
