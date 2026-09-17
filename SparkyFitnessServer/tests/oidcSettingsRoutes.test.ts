@@ -80,6 +80,19 @@ describe('PUT /admin/oidc-settings/:id', () => {
     }
   );
 
+  it('accepts a null scope returned by provider details', async () => {
+    const settings = { ...provider, scope: null };
+    const response = await request(app)
+      .put('/admin/oidc-settings/authentik')
+      .send(settings);
+
+    expect(response.status).toBe(200);
+    expect(oidcProviderRepository.updateOidcProvider).toHaveBeenCalledWith(
+      'authentik',
+      settings
+    );
+  });
+
   it('returns 404 when the provider does not exist', async () => {
     vi.mocked(oidcProviderRepository.updateOidcProvider).mockRejectedValue(
       new Error('OIDC provider not found')

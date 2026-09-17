@@ -18,7 +18,7 @@ export const oidcProviderUpdateSchema = z.object({
   timeout: z.number().optional(),
   is_env_configured: z.boolean().optional(),
   admin_group: z.string().nullable().optional(),
-  scope: z.string().optional(),
+  scope: z.string().nullable().optional(),
 });
 
 export type OidcProviderUpdate = z.infer<typeof oidcProviderUpdateSchema>;
