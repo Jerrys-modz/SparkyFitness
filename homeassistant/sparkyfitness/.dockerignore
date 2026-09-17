@@ -2,3 +2,4 @@
 !Dockerfile
 !run.sh
 !nginx.conf
+!sidebar-panel.mjs
