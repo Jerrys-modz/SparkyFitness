@@ -223,9 +223,7 @@ export const useSyncLiftosaurMutation = () => {
       invalidateDiary();
 
       const workoutsImp = data?.workoutsImported ?? data?.processedCount ?? 0;
-      const workoutsExp = data?.workoutsExported ?? 0;
       const measImp = data?.measurementsImported ?? 0;
-      const measExp = data?.measurementsExported ?? 0;
 
       toast({
         title: t(
@@ -234,12 +232,10 @@ export const useSyncLiftosaurMutation = () => {
         ),
         description: t(
           'integrations.liftosaurSyncDetails',
-          'Synced: {{workoutsImported}} workouts imported, {{workoutsExported}} workouts exported, {{measurementsImported}} measurements imported, {{measurementsExported}} measurements exported.',
+          'Synced: {{workoutsImported}} workouts, {{measurementsImported}} measurements imported.',
           {
             workoutsImported: workoutsImp,
-            workoutsExported: workoutsExp,
             measurementsImported: measImp,
-            measurementsExported: measExp,
           }
         ),
       });

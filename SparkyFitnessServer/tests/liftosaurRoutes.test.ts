@@ -48,9 +48,7 @@ describe('liftosaurRoutes', () => {
         parsedCount: 5,
         skippedCount: 0,
         workoutsImported: 5,
-        workoutsExported: 0,
         measurementsImported: 0,
-        measurementsExported: 0,
         source: 'live_api',
       });
 

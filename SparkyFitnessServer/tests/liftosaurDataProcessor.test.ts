@@ -41,9 +41,9 @@ vi.mock('../models/activityDetailsRepository.js', () => ({
 
 vi.mock('../models/workoutPresetRepository.js', () => ({
   default: {
-    getWorkoutPresetByNameWithClient: vi.fn().mockResolvedValue(null),
-    createWorkoutPresetWithClient: vi.fn().mockResolvedValue({ id: 42 }),
-    addExerciseToWorkoutPresetWithClient: vi.fn().mockResolvedValue(undefined),
+    getWorkoutPresetByName: vi.fn().mockResolvedValue(null),
+    createWorkoutPreset: vi.fn().mockResolvedValue({ id: 42 }),
+    addExerciseToWorkoutPreset: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -155,12 +155,13 @@ describe('processLiftosaurWorkouts', () => {
     const workouts = parseSampleWorkouts();
     await processLiftosaurWorkouts(UID, CID, workouts);
 
-    expect(
-      workoutPresetRepository.getWorkoutPresetByNameWithClient
-    ).toHaveBeenCalledWith(mockClient, UID, '5/3/1');
-    expect(
-      workoutPresetRepository.createWorkoutPresetWithClient
-    ).toHaveBeenCalledWith(mockClient, {
+    // Library rows are written outside the transaction (garminActivityProcessor
+    // rule), so these take no client argument.
+    expect(workoutPresetRepository.getWorkoutPresetByName).toHaveBeenCalledWith(
+      UID,
+      '5/3/1'
+    );
+    expect(workoutPresetRepository.createWorkoutPreset).toHaveBeenCalledWith({
       user_id: UID,
       name: '5/3/1',
       description: 'Workout session from Liftosaur: 5/3/1',

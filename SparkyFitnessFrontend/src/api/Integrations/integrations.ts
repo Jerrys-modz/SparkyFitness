@@ -70,9 +70,7 @@ export const syncHevyData = async (
 export interface LiftosaurSyncResult {
   message?: string;
   workoutsImported?: number;
-  workoutsExported?: number;
   measurementsImported?: number;
-  measurementsExported?: number;
   processedCount?: number;
 }
 

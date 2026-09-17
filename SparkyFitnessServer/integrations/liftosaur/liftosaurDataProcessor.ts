@@ -144,22 +144,20 @@ async function processSingleWorkout(
   // Find or create the reusable workout preset (the Liftosaur program name, or
   // a generic name for ad-hoc sessions) so the diary shows the whole workout as
   // a single grouped session instead of loose exercises.
+  // Library rows (exercises above, presets here) are written on their own
+  // connection, outside the diary transaction, the same way
+  // services/garmin/garminActivityProcessor.ts does it: they are get-or-create
+  // lookups whose survival after a rollback is harmless, and keeping them out
+  // means a failure here cannot abort the transaction that owns the entries.
   let workoutPreset: WorkoutPresetRow | null =
-    await workoutPresetRepository.getWorkoutPresetByNameWithClient(
-      client,
-      userId,
-      workoutTitle
-    );
+    await workoutPresetRepository.getWorkoutPresetByName(userId, workoutTitle);
   if (!workoutPreset) {
-    workoutPreset = await workoutPresetRepository.createWorkoutPresetWithClient(
-      client,
-      {
-        user_id: userId,
-        name: workoutTitle,
-        description: `Workout session from Liftosaur: ${workoutTitle}`,
-        is_public: false,
-      }
-    );
+    workoutPreset = await workoutPresetRepository.createWorkoutPreset({
+      user_id: userId,
+      name: workoutTitle,
+      description: `Workout session from Liftosaur: ${workoutTitle}`,
+      is_public: false,
+    });
   }
   if (!workoutPreset) {
     throw new Error(
@@ -282,15 +280,16 @@ async function processSingleWorkout(
         LIFTOSAUR_SOURCE,
         presetEntry.id
       );
-    const entry: ExerciseEntryRow | null = created?.entry ?? created ?? null;
+    const entry: ExerciseEntryRow | null = created.entry ?? null;
 
     // 5. Populate the reusable preset template with this exercise. Reuses the
     //    existing exercise row when present and skips if it already has sets,
     //    so repeat occurrences of the same routine don't duplicate template
-    //    rows.
+    //    rows. Template rows are library data, so this runs outside the
+    //    transaction and a failure here only costs the template, not the
+    //    imported workout.
     try {
-      await workoutPresetRepository.addExerciseToWorkoutPresetWithClient(
-        client,
+      await workoutPresetRepository.addExerciseToWorkoutPreset(
         userId,
         workoutPreset.id,
         exercise.id,
@@ -307,41 +306,37 @@ async function processSingleWorkout(
 
     // 6. Stash the raw serialized record and parsed exercise as an activity
     //    detail (like Garmin/Hevy) so the original Liftosaur data stays
-    //    visible/editable in the Advanced section of the entry.
+    //    visible/editable in the Advanced section of the entry. This writes on
+    //    the transaction client and is deliberately not caught: a failed
+    //    statement aborts the surrounding transaction, so swallowing it here
+    //    would only surface later as a failed COMMIT with a misleading error.
     if (entry?.id) {
-      try {
-        const detailPayload = {
-          exercise_entry_id: entry.id,
-          provider_name: LIFTOSAUR_SOURCE,
-          detail_type: 'full_activity_data',
-          detail_data: {
-            workout: {
-              id: workout.id,
-              rawDate: workout.rawDate,
-              date: workout.date,
-              programName: workout.programName,
-              dayName: workout.dayName,
-              week: workout.week,
-              dayInWeek: workout.dayInWeek,
-              day: workout.day,
-              durationSeconds: workout.durationSeconds,
-              notes: workout.notes,
-            },
-            exercise: liftosaurExercise,
+      const detailPayload = {
+        exercise_entry_id: entry.id,
+        provider_name: LIFTOSAUR_SOURCE,
+        detail_type: 'full_activity_data',
+        detail_data: {
+          workout: {
+            id: workout.id,
+            rawDate: workout.rawDate,
+            date: workout.date,
+            programName: workout.programName,
+            dayName: workout.dayName,
+            week: workout.week,
+            dayInWeek: workout.dayInWeek,
+            day: workout.day,
+            durationSeconds: workout.durationSeconds,
+            notes: workout.notes,
           },
-          created_by_user_id: createdByUserId,
-          updated_by_user_id: createdByUserId,
-        };
-        await activityDetailsRepository._createActivityDetailWithClient(
-          client,
-          detailPayload
-        );
-      } catch (error) {
-        log(
-          'error',
-          `Failed to store Liftosaur activity detail for entry ${entry.id}: ${errorMessage(error)}`
-        );
-      }
+          exercise: liftosaurExercise,
+        },
+        created_by_user_id: createdByUserId,
+        updated_by_user_id: createdByUserId,
+      };
+      await activityDetailsRepository._createActivityDetailWithClient(
+        client,
+        detailPayload
+      );
     }
   }
 }

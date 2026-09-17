@@ -201,8 +201,6 @@ export interface LiftosaurSyncResult {
   parsedCount: number;
   skippedCount: number;
   workoutsImported: number;
-  workoutsExported: number;
   measurementsImported: number;
-  measurementsExported: number;
   source: 'live_api';
 }

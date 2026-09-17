@@ -71,9 +71,7 @@ describe('liftosaurSync', () => {
 
     expect(result.success).toBe(true);
     expect(result.workoutsImported).toBe(1);
-    expect(result.workoutsExported).toBe(0);
     expect(result.measurementsImported).toBe(3);
-    expect(result.measurementsExported).toBe(0);
     expect(result.processedCount).toBe(4); // 1 + 3
 
     expect(

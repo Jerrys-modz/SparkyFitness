@@ -1,4 +1,3 @@
-import type { PoolClient } from 'pg';
 import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-format'
@@ -9,88 +8,75 @@ import {
 } from '../utils/dbSearchHelper.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createWorkoutPresetWithClient(
-  client: PoolClient,
-  presetData: any
-) {
-  const presetResult = await client.query(
-    `INSERT INTO workout_presets (user_id, name, description, is_public)
-     VALUES ($1, $2, $3, $4) RETURNING id, user_id, name, description, is_public`,
-    [
-      presetData.user_id,
-      presetData.name,
-      presetData.description,
-      presetData.is_public,
-    ]
-  );
-  const newPreset = { ...presetResult.rows[0], isNew: true };
-  if (presetData.exercises && presetData.exercises.length > 0) {
-    for (const exercise of presetData.exercises) {
-      const exerciseResult = await client.query(
-        `INSERT INTO workout_preset_exercises (
-          workout_preset_id,
-          exercise_id,
-          image_url,
-          sort_order,
-          superset_group,
-          progression_mode,
-          rep_goal,
-          increment_type,
-          increment_value,
-          equipment_brand
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-        [
-          newPreset.id,
-          exercise.exercise_id,
-          exercise.image_url,
-          exercise.sort_order || 0,
-          exercise.superset_group ?? null,
-          exercise.progression_mode ?? 'rep_goal',
-          exercise.rep_goal ?? null,
-          exercise.increment_type ?? 'weight',
-          exercise.increment_value ?? 5.0,
-          exercise.equipment_brand ?? null,
-        ]
-      );
-      const newExerciseId = exerciseResult.rows[0].id;
-      if (exercise.sets && exercise.sets.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const setsValues = exercise.sets.map((set: any) => [
-          newExerciseId,
-          set.set_number,
-          set.set_type,
-          set.reps,
-          set.weight,
-          set.duration,
-          set.distance,
-          set.rest_time,
-          set.notes,
-        ]);
-        const setsQuery = format(
-          'INSERT INTO workout_preset_exercise_sets (workout_preset_exercise_id, set_number, set_type, reps, weight, duration, distance, rest_time, notes) VALUES %L',
-          setsValues
-        );
-        await client.query(setsQuery);
-      }
-    }
-  }
-  // Refetch the created preset to get the full nested structure
-  return getWorkoutPresetByIdWithClient(
-    client,
-    newPreset.id,
-    presetData.user_id
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function createWorkoutPreset(presetData: any) {
   const client = await getClient(presetData.user_id); // User-specific operation
   try {
     await client.query('BEGIN');
-    const result = await createWorkoutPresetWithClient(client, presetData);
+    const presetResult = await client.query(
+      `INSERT INTO workout_presets (user_id, name, description, is_public)
+       VALUES ($1, $2, $3, $4) RETURNING id, user_id, name, description, is_public`,
+      [
+        presetData.user_id,
+        presetData.name,
+        presetData.description,
+        presetData.is_public,
+      ]
+    );
+    const newPreset = { ...presetResult.rows[0], isNew: true };
+    if (presetData.exercises && presetData.exercises.length > 0) {
+      for (const exercise of presetData.exercises) {
+        const exerciseResult = await client.query(
+          `INSERT INTO workout_preset_exercises (
+            workout_preset_id,
+            exercise_id,
+            image_url,
+            sort_order,
+            superset_group,
+            progression_mode,
+            rep_goal,
+            increment_type,
+            increment_value,
+            equipment_brand
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+          [
+            newPreset.id,
+            exercise.exercise_id,
+            exercise.image_url,
+            exercise.sort_order || 0,
+            exercise.superset_group ?? null,
+            exercise.progression_mode ?? 'rep_goal',
+            exercise.rep_goal ?? null,
+            exercise.increment_type ?? 'weight',
+            exercise.increment_value ?? 5.0,
+            exercise.equipment_brand ?? null,
+          ]
+        );
+        const newExerciseId = exerciseResult.rows[0].id;
+        if (exercise.sets && exercise.sets.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const setsValues = exercise.sets.map((set: any) => [
+            newExerciseId,
+            set.set_number,
+            set.set_type,
+            set.reps,
+            set.weight,
+            set.duration,
+            set.distance,
+            set.rest_time,
+            set.notes,
+          ]);
+          const setsQuery = format(
+            'INSERT INTO workout_preset_exercise_sets (workout_preset_exercise_id, set_number, set_type, reps, weight, duration, distance, rest_time, notes) VALUES %L',
+            setsValues
+          );
+          await client.query(setsQuery);
+        }
+      }
+    }
     await client.query('COMMIT');
-    return result;
+    // Refetch the created preset to get the full nested structure
+    return getWorkoutPresetById(newPreset.id, presetData.user_id);
   } catch (error) {
     await client.query('ROLLBACK');
     log('error', 'Error creating workout preset:', error);
@@ -101,61 +87,52 @@ async function createWorkoutPreset(presetData: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWorkoutPresetByNameWithClient(
-  client: PoolClient,
-  userId: any,
-  name: any
-) {
-  const result = await client.query(
-    `SELECT
-      wp.id, wp.user_id, wp.name, wp.description, wp.is_public, wp.created_at, wp.updated_at,
-      COALESCE(
-        (SELECT json_agg(ex_data)
-         FROM (
-           SELECT
-             wpe.id,
-             wpe.exercise_id,
-             wpe.image_url,
-             wpe.sort_order,
-             wpe.superset_group,
-             wpe.progression_mode,
-             wpe.rep_goal,
-             wpe.increment_type,
-             wpe.increment_value,
-             wpe.equipment_brand,
-             e.name as exercise_name,
-             e.category as category,
-             e.modality as modality,
-             COALESCE(
-               (SELECT json_agg(set_data ORDER BY set_data.set_number)
-                FROM (
-                  SELECT
-                    wpes.id, wpes.set_number, wpes.set_type, wpes.reps, wpes.weight, wpes.duration, wpes.distance, wpes.rest_time, wpes.notes
-                  FROM workout_preset_exercise_sets wpes
-                  WHERE wpes.workout_preset_exercise_id = wpe.id
-                ) AS set_data
-               ), '[]'::json
-             ) AS sets
-           FROM workout_preset_exercises wpe
-           JOIN exercises e ON wpe.exercise_id = e.id
-           WHERE wpe.workout_preset_id = wp.id
-           ORDER BY wpe.sort_order ASC, wpe.id ASC
-         ) AS ex_data
-        ), '[]'::json
-      ) AS exercises
-    FROM workout_presets wp
-    WHERE wp.user_id = $1 AND wp.name ILIKE $2
-    GROUP BY wp.id`,
-    [userId, name]
-  );
-  return result.rows[0] ? { ...result.rows[0], isNew: false } : null; // Add isNew: false for existing presets
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getWorkoutPresetByName(userId: any, name: any) {
   const client = await getClient(userId);
   try {
-    return await getWorkoutPresetByNameWithClient(client, userId, name);
+    const result = await client.query(
+      `SELECT
+        wp.id, wp.user_id, wp.name, wp.description, wp.is_public, wp.created_at, wp.updated_at,
+        COALESCE(
+          (SELECT json_agg(ex_data)
+           FROM (
+             SELECT
+               wpe.id,
+               wpe.exercise_id,
+               wpe.image_url,
+               wpe.sort_order,
+               wpe.superset_group,
+               wpe.progression_mode,
+               wpe.rep_goal,
+               wpe.increment_type,
+               wpe.increment_value,
+               wpe.equipment_brand,
+               e.name as exercise_name,
+               e.category as category,
+               e.modality as modality,
+               COALESCE(
+                 (SELECT json_agg(set_data ORDER BY set_data.set_number)
+                  FROM (
+                    SELECT
+                      wpes.id, wpes.set_number, wpes.set_type, wpes.reps, wpes.weight, wpes.duration, wpes.distance, wpes.rest_time, wpes.notes
+                    FROM workout_preset_exercise_sets wpes
+                    WHERE wpes.workout_preset_exercise_id = wpe.id
+                  ) AS set_data
+                 ), '[]'::json
+               ) AS sets
+             FROM workout_preset_exercises wpe
+             JOIN exercises e ON wpe.exercise_id = e.id
+             WHERE wpe.workout_preset_id = wp.id
+             ORDER BY wpe.sort_order ASC, wpe.id ASC
+           ) AS ex_data
+          ), '[]'::json
+        ) AS exercises
+      FROM workout_presets wp
+      WHERE wp.user_id = $1 AND wp.name ILIKE $2
+      GROUP BY wp.id`,
+      [userId, name]
+    );
+    return result.rows[0] ? { ...result.rows[0], isNew: false } : null; // Add isNew: false for existing presets
   } finally {
     client.release();
   }
@@ -227,61 +204,51 @@ async function getWorkoutPresets(userId: any, page = 1, limit = 10) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWorkoutPresetByIdWithClient(
-  client: PoolClient,
-  presetId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _userId?: any
-) {
-  const result = await client.query(
-    `SELECT
-       wp.id, wp.user_id, wp.name, wp.description, wp.is_public, wp.created_at, wp.updated_at,
-       COALESCE(
-         (SELECT json_agg(ex_data)
-          FROM (
-            SELECT
-              wpe.id,
-              wpe.exercise_id,
-              wpe.image_url,
-              wpe.superset_group,
-              wpe.progression_mode,
-              wpe.rep_goal,
-              wpe.increment_type,
-              wpe.increment_value,
-              wpe.equipment_brand,
-              e.name as exercise_name,
-              e.category as category,
-              e.modality as modality,
-              COALESCE(
-                (SELECT json_agg(set_data ORDER BY set_data.set_number)
-                 FROM (
-                   SELECT
-                     wpes.id, wpes.set_number, wpes.set_type, wpes.reps, wpes.weight, wpes.duration, wpes.distance, wpes.rest_time, wpes.notes
-                   FROM workout_preset_exercise_sets wpes
-                   WHERE wpes.workout_preset_exercise_id = wpe.id
-                 ) AS set_data
-                ), '[]'::json
-              ) AS sets
-            FROM workout_preset_exercises wpe
-            JOIN exercises e ON wpe.exercise_id = e.id
-            WHERE wpe.workout_preset_id = wp.id
-            ORDER BY wpe.sort_order ASC, wpe.id ASC
-          ) AS ex_data
-         ), '[]'::json
-       ) AS exercises
-     FROM workout_presets wp
-     WHERE wp.id = $1
-     GROUP BY wp.id`,
-    [presetId]
-  );
-  return result.rows[0];
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getWorkoutPresetById(presetId: any, userId: any) {
   const client = await getClient(userId); // User-specific operation (RLS will handle access)
   try {
-    return await getWorkoutPresetByIdWithClient(client, presetId, userId);
+    const result = await client.query(
+      `SELECT
+         wp.id, wp.user_id, wp.name, wp.description, wp.is_public, wp.created_at, wp.updated_at,
+         COALESCE(
+           (SELECT json_agg(ex_data)
+            FROM (
+              SELECT
+                wpe.id,
+                wpe.exercise_id,
+                wpe.image_url,
+                wpe.superset_group,
+                wpe.progression_mode,
+                wpe.rep_goal,
+                wpe.increment_type,
+                wpe.increment_value,
+                wpe.equipment_brand,
+                e.name as exercise_name,
+                e.category as category,
+                e.modality as modality,
+                COALESCE(
+                  (SELECT json_agg(set_data ORDER BY set_data.set_number)
+                   FROM (
+                     SELECT
+                       wpes.id, wpes.set_number, wpes.set_type, wpes.reps, wpes.weight, wpes.duration, wpes.distance, wpes.rest_time, wpes.notes
+                     FROM workout_preset_exercise_sets wpes
+                     WHERE wpes.workout_preset_exercise_id = wpe.id
+                   ) AS set_data
+                  ), '[]'::json
+                ) AS sets
+              FROM workout_preset_exercises wpe
+              JOIN exercises e ON wpe.exercise_id = e.id
+              WHERE wpe.workout_preset_id = wp.id
+              ORDER BY wpe.sort_order ASC, wpe.id ASC
+            ) AS ex_data
+           ), '[]'::json
+         ) AS exercises
+       FROM workout_presets wp
+       WHERE wp.id = $1
+       GROUP BY wp.id`,
+      [presetId]
+    );
+    return result.rows[0];
   } finally {
     client.release();
   }
@@ -413,97 +380,6 @@ async function getWorkoutPresetOwnerId(userId: any, presetId: any) {
   }
 }
 
-async function addExerciseToWorkoutPresetWithClient(
-  client: PoolClient,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  workoutPresetId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  imageUrl: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sets: any,
-  sortOrder = 0,
-  progressionMode = 'rep_goal',
-  repGoal: number | null = null,
-  incrementType: 'weight' | 'reps' = 'weight',
-  incrementValue: number = 5.0,
-  equipmentBrand: string | null = null
-) {
-  const existingExerciseResult = await client.query(
-    `SELECT id
-     FROM workout_preset_exercises
-     WHERE workout_preset_id = $1 AND exercise_id = $2
-     ORDER BY id ASC
-     LIMIT 1`,
-    [workoutPresetId, exerciseId]
-  );
-
-  let exercisePresetId;
-  if (existingExerciseResult.rows.length > 0) {
-    exercisePresetId = existingExerciseResult.rows[0].id;
-    // Check if it already has sets
-    const setsCountResult = await client.query(
-      'SELECT COUNT(*) FROM workout_preset_exercise_sets WHERE workout_preset_exercise_id = $1',
-      [exercisePresetId]
-    );
-    if (parseInt(setsCountResult.rows[0].count, 10) > 0) {
-      return exercisePresetId;
-    }
-    // If no sets, proceed to add them below
-  } else {
-    const exerciseResult = await client.query(
-      `INSERT INTO workout_preset_exercises (
-        workout_preset_id,
-        exercise_id,
-        image_url,
-        sort_order,
-        progression_mode,
-        rep_goal,
-        increment_type,
-        increment_value,
-        equipment_brand
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [
-        workoutPresetId,
-        exerciseId,
-        imageUrl,
-        sortOrder,
-        progressionMode,
-        repGoal,
-        incrementType,
-        incrementValue,
-        equipmentBrand,
-      ]
-    );
-    exercisePresetId = exerciseResult.rows[0].id;
-  }
-
-  if (sets && sets.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const setsValues = sets.map((set: any) => [
-      exercisePresetId,
-      set.set_number,
-      set.set_type,
-      set.reps,
-      set.weight,
-      set.duration,
-      set.distance,
-      set.rest_time,
-      set.notes,
-    ]);
-    const setsQuery = format(
-      'INSERT INTO workout_preset_exercise_sets (workout_preset_exercise_id, set_number, set_type, reps, weight, duration, distance, rest_time, notes) VALUES %L',
-      setsValues
-    );
-    await client.query(setsQuery);
-  }
-  return exercisePresetId;
-}
-
 async function addExerciseToWorkoutPreset(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userId: any,
@@ -525,20 +401,76 @@ async function addExerciseToWorkoutPreset(
   const client = await getClient(userId); // User-specific operation
   try {
     await client.query('BEGIN');
-    const exercisePresetId = await addExerciseToWorkoutPresetWithClient(
-      client,
-      userId,
-      workoutPresetId,
-      exerciseId,
-      imageUrl,
-      sets,
-      sortOrder,
-      progressionMode,
-      repGoal,
-      incrementType,
-      incrementValue,
-      equipmentBrand
+    const existingExerciseResult = await client.query(
+      `SELECT id
+       FROM workout_preset_exercises
+       WHERE workout_preset_id = $1 AND exercise_id = $2
+       ORDER BY id ASC
+       LIMIT 1`,
+      [workoutPresetId, exerciseId]
     );
+
+    let exercisePresetId;
+    if (existingExerciseResult.rows.length > 0) {
+      exercisePresetId = existingExerciseResult.rows[0].id;
+      // Check if it already has sets
+      const setsCountResult = await client.query(
+        'SELECT COUNT(*) FROM workout_preset_exercise_sets WHERE workout_preset_exercise_id = $1',
+        [exercisePresetId]
+      );
+      if (parseInt(setsCountResult.rows[0].count, 10) > 0) {
+        await client.query('COMMIT');
+        return exercisePresetId;
+      }
+      // If no sets, proceed to add them below
+    } else {
+      const exerciseResult = await client.query(
+        `INSERT INTO workout_preset_exercises (
+          workout_preset_id,
+          exercise_id,
+          image_url,
+          sort_order,
+          progression_mode,
+          rep_goal,
+          increment_type,
+          increment_value,
+          equipment_brand
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [
+          workoutPresetId,
+          exerciseId,
+          imageUrl,
+          sortOrder,
+          progressionMode,
+          repGoal,
+          incrementType,
+          incrementValue,
+          equipmentBrand,
+        ]
+      );
+      exercisePresetId = exerciseResult.rows[0].id;
+    }
+
+    if (sets && sets.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const setsValues = sets.map((set: any) => [
+        exercisePresetId,
+        set.set_number,
+        set.set_type,
+        set.reps,
+        set.weight,
+        set.duration,
+        set.distance,
+        set.rest_time,
+        set.notes,
+      ]);
+      const setsQuery = format(
+        'INSERT INTO workout_preset_exercise_sets (workout_preset_exercise_id, set_number, set_type, reps, weight, duration, distance, rest_time, notes) VALUES %L',
+        setsValues
+      );
+      await client.query(setsQuery);
+    }
     await client.query('COMMIT');
     return exercisePresetId;
   } catch (error) {
@@ -637,30 +569,22 @@ async function searchWorkoutPresets(
 }
 
 export { createWorkoutPreset };
-export { createWorkoutPresetWithClient };
 export { getWorkoutPresets };
 export { getWorkoutPresetById };
-export { getWorkoutPresetByIdWithClient };
 export { updateWorkoutPreset };
 export { deleteWorkoutPreset };
 export { getWorkoutPresetOwnerId };
 export { searchWorkoutPresets };
 export { getWorkoutPresetByName };
-export { getWorkoutPresetByNameWithClient };
 export { addExerciseToWorkoutPreset };
-export { addExerciseToWorkoutPresetWithClient };
 export default {
   createWorkoutPreset,
-  createWorkoutPresetWithClient,
   getWorkoutPresets,
   getWorkoutPresetById,
-  getWorkoutPresetByIdWithClient,
   updateWorkoutPreset,
   deleteWorkoutPreset,
   getWorkoutPresetOwnerId,
   searchWorkoutPresets,
   getWorkoutPresetByName,
-  getWorkoutPresetByNameWithClient,
   addExerciseToWorkoutPreset,
-  addExerciseToWorkoutPresetWithClient,
 };

@@ -303,9 +303,7 @@ async function syncLiftosaurData(
     parsedCount: workoutsImported,
     skippedCount,
     workoutsImported,
-    workoutsExported: 0,
     measurementsImported,
-    measurementsExported: 0,
     source: 'live_api',
   };
 }
