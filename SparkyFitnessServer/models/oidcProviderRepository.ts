@@ -2,6 +2,28 @@ import { getSystemClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 import NodeCache from 'node-cache';
 const discoveryCache = new NodeCache({ stdTTL: 3600 });
+
+interface OidcProviderUpdate {
+  issuer_url: string;
+  client_id: string;
+  client_secret?: string | null;
+  provider_id?: string;
+  domain?: string;
+  display_name?: string | null;
+  logo_url?: string | null;
+  auto_register?: boolean;
+  is_active?: boolean;
+  redirect_uris?: string[];
+  response_types?: string[];
+  token_endpoint_auth_method?: string;
+  signing_algorithm?: string;
+  profile_signing_algorithm?: string;
+  timeout?: number;
+  is_env_configured?: boolean;
+  admin_group?: string | null;
+  scope?: string;
+}
+
 /**
  * Returns the frontend base URL with protocol and no trailing slash (for OIDC redirect URIs).
  * @returns {string}
@@ -94,8 +116,8 @@ async function getOidcProviders() {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getOidcProviderById(id: any) {
+/** Resolve a provider by row ID, exact provider ID, or a legacy prefix alias. */
+async function getOidcProviderById(id: string) {
   if (!id) return null;
   const client = await getSystemClient();
   try {
@@ -107,7 +129,13 @@ async function getOidcProviderById(id: any) {
        WHERE id::text = $1 
           OR provider_id = $1 
           OR provider_id = $2 
-          OR provider_id = $3`,
+          OR provider_id = $3
+       ORDER BY CASE
+         WHEN id::text = $1 THEN 0
+         WHEN provider_id = $1 THEN 1
+         ELSE 2
+       END
+       LIMIT 1`,
       [id, cleanId, prefixedId]
     );
     const row = result.rows[0];
@@ -256,11 +284,17 @@ async function createOidcProvider(providerData: any) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function updateOidcProvider(id: any, providerData: any) {
+/** Update the resolved provider, retaining its provider ID unless explicitly replaced. */
+async function updateOidcProvider(
+  id: string,
+  providerData: OidcProviderUpdate
+) {
   const client = await getSystemClient();
   try {
     const existing = await getOidcProviderById(id);
+    if (!existing) {
+      throw new Error('OIDC provider not found');
+    }
     const config = JSON.stringify({
       display_name: providerData.display_name,
       logo_url: providerData.logo_url,
@@ -293,7 +327,7 @@ async function updateOidcProvider(id: any, providerData: any) {
     // Construct native oidcConfig for Better Auth (same base as auth.baseURL; JSONB)
     const baseUrl = getBaseUrl();
     const callbackBase = `${baseUrl}/api/auth`;
-    const providerIdToUse = providerData.provider_id || id;
+    const providerIdToUse = providerData.provider_id || existing.provider_id;
     const oidcConfig = {
       issuer: endpoints.issuer || providerData.issuer_url,
       clientId: providerData.client_id,
@@ -317,7 +351,7 @@ async function updateOidcProvider(id: any, providerData: any) {
             SET issuer=$1, domain=$2, client_id=$3, client_secret=$4, scopes=$5, discovery_endpoint=$6, 
                 authorization_endpoint=$7, token_endpoint=$8, jwks_endpoint=$9, userinfo_endpoint=$10,
                 additional_config=$11, oidc_config=$12::jsonb, provider_id=$13, updated_at=NOW() 
-            WHERE id::text=$14 OR provider_id=$14
+            WHERE id::text=$14
             RETURNING id`;
     const result = await client.query(query, [
       endpoints.issuer || providerData.issuer_url,
@@ -333,7 +367,7 @@ async function updateOidcProvider(id: any, providerData: any) {
       config,
       oidcConfig,
       providerIdToUse,
-      id,
+      existing.id,
     ]);
     // Refresh Better Auth trusted providers after update
     try {
