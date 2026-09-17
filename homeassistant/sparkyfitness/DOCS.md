@@ -52,34 +52,40 @@ on time.
 ## Sidebar shortcut
 
 The add-on does not use Ingress (see [Why not HACS / Ingress?](#why-not-hacs--ingress)
-below), so it has no built-in sidebar panel. You can still pin it to the
-sidebar with a **panel iframe**, which points straight at the add-on's
-normal port instead of going through Home Assistant's ingress proxy — the
-page loads on its own real origin exactly like opening it in a new tab, so
-none of the app's `/api` calls or login cookies are affected.
+below), so it can't register a native Ingress panel. Instead, **Show in
+sidebar** (on by default in the Configuration tab) has the add-on create its
+own Lovelace dashboard for you on start, pointing at the same Public URL you
+already configured — no editing `configuration.yaml` by hand.
 
-1. Open the **File editor** or **Studio Code Server** add-on (or edit
-   `configuration.yaml` over Samba/SSH).
-2. Add this to Home Assistant's `configuration.yaml` (this is HA's own core
-   config file, not anything inside this add-on):
+This uses the "Home Assistant API" access the add-on requests
+(`homeassistant_api: true`), which Home Assistant grants automatically; you
+don't need to approve anything separately. On each start the add-on:
 
-   ```yaml
-   panel_iframe:
-     sparkyfitness:
-       title: SparkyFitness
-       icon: mdi:dumbbell
-       url: "http://homeassistant.local:3004"
-   ```
+- Creates a storage-mode dashboard (`sparkyfitness`) with a full-page iframe
+  pointing at **Public URL**, and pins it to the sidebar, if one doesn't
+  already exist.
+- Updates that dashboard's URL if you change **Public URL**.
+- Removes the dashboard again if you turn **Show in sidebar** off.
 
-   Use the same Public URL you set in the add-on's Configuration tab.
-3. Restart **Home Assistant Core** (Developer Tools → YAML → Restart, or
-   Settings → System → Restart — not the add-on itself) to pick it up.
+This step is best-effort and logged with a `[sidebar-panel]` prefix in the
+add-on log — if Home Assistant's API isn't reachable yet or the dashboard
+already exists with different settings, the add-on still starts normally,
+it just skips or retries that part.
 
-SparkyFitness now appears as its own icon in the sidebar. `panel_iframe`
-is an older integration and some newer Home Assistant releases nudge you
-toward adding a "Web page" dashboard from **Settings → Dashboards → Add
-Dashboard** instead; either one works the same way here since both just
-embed the add-on's existing URL.
+If you'd rather manage it yourself (or you're on an older add-on version
+without this option), you can add the same kind of shortcut manually with a
+`panel_iframe` entry in Home Assistant's own `configuration.yaml`:
+
+```yaml
+panel_iframe:
+  sparkyfitness:
+    title: SparkyFitness
+    icon: mdi:dumbbell
+    url: "http://homeassistant.local:3004"
+```
+
+Use the same Public URL you set in the add-on's Configuration tab, then
+restart **Home Assistant Core** (not the add-on) to pick it up.
 
 ## Configuration
 
@@ -87,6 +93,7 @@ These map to the add-on **Configuration** tab in Home Assistant.
 
 | Option | Meaning |
 | --- | --- |
+| Show in sidebar | Auto-creates (and keeps in sync) a Lovelace dashboard pinning SparkyFitness to the HA sidebar. See [Sidebar shortcut](#sidebar-shortcut). |
 | Public URL | CORS / Better Auth origin. Must match the URL in your browser and in the mobile app. |
 | Timezone | Server TZ database name. |
 | Disable signup | Block new registrations after you have created your user. |

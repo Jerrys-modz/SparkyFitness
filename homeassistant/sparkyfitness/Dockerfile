@@ -38,6 +38,7 @@ RUN apk add --no-cache --virtual .garmin-build git build-base libffi-dev openssl
     && apk del .garmin-build
 
 COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY sidebar-panel.mjs /opt/sidebar-panel.mjs
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 

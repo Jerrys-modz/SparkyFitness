@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Add **Show in sidebar** (on by default). The add-on now registers its own
+  Lovelace dashboard in Home Assistant on start, so SparkyFitness shows up
+  in the sidebar without hand-editing `configuration.yaml`. Requires the
+  add-on's new `homeassistant_api: true` permission (granted automatically).
+- Manual `panel_iframe` setup is still documented as a fallback.
+
 ## 1.1.1
 
 - Fix the add-on failing to start with `nginx: [emerg] "limit_req_zone"

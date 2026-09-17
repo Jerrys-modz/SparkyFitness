@@ -40,6 +40,7 @@ opt() {
     '.[$key] // $default' "${OPTIONS_FILE}"
 }
 
+SHOW_IN_SIDEBAR=$(opt show_in_sidebar "true")
 FRONTEND_URL=$(opt frontend_url "http://homeassistant.local:3004")
 TIMEZONE=$(opt timezone "Etc/UTC")
 DISABLE_SIGNUP=$(opt disable_signup "false")
@@ -89,6 +90,7 @@ export \
   SPARKY_FITNESS_APP_DB_USER \
   SPARKY_FITNESS_APP_DB_PASSWORD \
   SPARKY_FITNESS_FRONTEND_URL="${FRONTEND_URL}" \
+  SPARKY_SHOW_IN_SIDEBAR="${SHOW_IN_SIDEBAR}" \
   SPARKY_FITNESS_API_ENCRYPTION_KEY \
   BETTER_AUTH_SECRET \
   SPARKY_FITNESS_DISABLE_SIGNUP="${DISABLE_SIGNUP}" \
@@ -247,5 +249,11 @@ trap 'cleanup; exit 0' INT TERM
 log "SparkyFitness is up at ${FRONTEND_URL}"
 nginx -g "daemon off;" &
 NGINX_PID=$!
+
+# Best-effort: register (or remove) the sidebar dashboard. Never blocks
+# startup and never fails the add-on if Home Assistant's API isn't ready
+# or `homeassistant_api` access wasn't granted.
+node /opt/sidebar-panel.mjs &
+
 wait "${NGINX_PID}"
 cleanup
