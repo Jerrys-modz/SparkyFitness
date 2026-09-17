@@ -3,14 +3,11 @@ import axios from 'axios';
 import {
   parseLiftosaurValue,
   importMeasurementsFromLiftosaur,
-  exportMeasurementsToLiftosaur,
 } from '../integrations/liftosaur/liftosaurMeasurementsService.js';
 import measurementService from '../services/measurementService.js';
-import measurementRepository from '../models/measurementRepository.js';
 
 vi.mock('axios');
 vi.mock('../services/measurementService.js');
-vi.mock('../models/measurementRepository.js');
 vi.mock('../config/logging.js', () => ({
   log: vi.fn(),
 }));
@@ -108,51 +105,6 @@ describe('liftosaurMeasurementsService', () => {
         ]),
         'user-1',
         'user-1'
-      );
-    });
-  });
-
-  describe('exportMeasurementsToLiftosaur', () => {
-    it('exports check-in measurements to Liftosaur endpoints', async () => {
-      const mockedCheckIns = [
-        {
-          entry_date: '2026-03-01',
-          weight: 80,
-          body_fat_percentage: 15,
-          neck: 38,
-          waist: 82,
-          hips: 95,
-        },
-      ];
-
-      vi.mocked(
-        measurementService.getCheckInMeasurementsByDateRange
-      ).mockResolvedValue(mockedCheckIns as any);
-      vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue(
-        []
-      );
-
-      const mockedPost = vi.mocked(axios.post);
-      mockedPost.mockResolvedValue({ status: 201 } as any);
-
-      const exported = await exportMeasurementsToLiftosaur(
-        'user-1',
-        'test-key',
-        'UTC',
-        '2026-03-01',
-        '2026-03-01'
-      );
-
-      expect(exported).toBe(5); // weight, bodyfat, neck, waist, hips
-      expect(mockedPost).toHaveBeenCalledWith(
-        expect.stringContaining('/weight'),
-        expect.objectContaining({ value: '80kg' }),
-        expect.any(Object)
-      );
-      expect(mockedPost).toHaveBeenCalledWith(
-        expect.stringContaining('/bodyfat'),
-        expect.objectContaining({ value: '15%' }),
-        expect.any(Object)
       );
     });
   });

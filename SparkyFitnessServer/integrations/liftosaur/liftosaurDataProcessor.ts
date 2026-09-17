@@ -1,24 +1,29 @@
 /**
- * Normalize parsed Liftosaur workout records into SparkyFitness exercise
- * entries, mirroring the Hevy ingest pipeline (integrations/hevy/hevyDataProcessor.ts):
- * one reusable workout preset per Liftosaur program, one preset entry (session)
- * per workout, one exercise entry per Liftosaur exercise, and a raw activity
- * detail stashed on each entry so nothing Liftosaur sent is lost.
+ * Liftosaur Data Processor.
+ * Ingests parsed Liftohistory workouts into SparkyFitness exercise_entries,
+ * exercise_preset_entries (workout sessions), workout_presets (reusable templates),
+ * and activity_details rows. Follows the pattern established by the Garmin and
+ * Hevy processors (services/garmin/garminActivityProcessor.ts,
+ * integrations/hevy/hevyDataProcessor.ts).
  */
+import type { PoolClient } from 'pg';
 import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import exerciseRepository from '../../models/exercise.js';
 import activityDetailsRepository from '../../models/activityDetailsRepository.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepository.js';
-import { log } from '../../config/logging.js';
 import { getClient } from '../../db/poolManager.js';
-import type { PoolClient } from 'pg';
+import { log } from '../../config/logging.js';
 import { instantToDay, instantHourMinute } from '@workspace/shared';
 import {
+  LiftohistoryWorkout,
   LiftohistoryExercise,
   LiftohistorySet,
-  LiftohistoryWorkout,
 } from './liftosaurTypes.js';
+
+const LB_TO_KG = 0.45359237;
+
+export const LIFTOSAUR_SOURCE = 'Liftosaur';
 
 /** Minimal shapes for the repository rows we consume by id. */
 interface ExerciseRow {
@@ -33,10 +38,6 @@ interface PresetEntryRow {
 interface ExerciseEntryRow {
   id: string;
 }
-
-const LIFTOSAUR_SOURCE = 'Liftosaur';
-
-const LB_TO_KG = 0.45359237;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -56,18 +57,9 @@ async function processLiftosaurWorkouts(
     `Processing ${workouts.length} Liftosaur workouts for user ${userId}...`
   );
 
-  let client: PoolClient | null;
+  const client = await getClient(userId, createdByUserId);
   try {
-    client = await getClient(userId, createdByUserId);
-  } catch {
-    client = null;
-  }
-  const hasTx = client !== null && typeof client.query === 'function';
-
-  try {
-    if (hasTx && client !== null) {
-      await client.query('BEGIN');
-    }
+    await client.query('BEGIN');
 
     // Mirror the Garmin/Hevy re-sync model: clear any existing Liftosaur sessions
     // and exercise entries in the synced date range before rebuilding so re-syncs
@@ -79,47 +71,21 @@ async function processLiftosaurWorkouts(
       const startDate = entryDates.reduce((a, b) => (a < b ? a : b));
       const endDate = entryDates.reduce((a, b) => (a > b ? a : b));
 
-      if (
-        hasTx &&
-        client !== null &&
-        exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient
-      ) {
-        await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient(
-          client,
-          userId,
-          startDate,
-          endDate,
-          LIFTOSAUR_SOURCE
-        );
-      } else {
-        await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDate(
-          userId,
-          startDate,
-          endDate,
-          LIFTOSAUR_SOURCE
-        );
-      }
+      await exerciseEntryRepository.deleteExerciseEntriesByEntrySourceAndDateWithClient(
+        client,
+        userId,
+        startDate,
+        endDate,
+        LIFTOSAUR_SOURCE
+      );
 
-      if (
-        hasTx &&
-        client !== null &&
-        exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient
-      ) {
-        await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient(
-          client,
-          userId,
-          startDate,
-          endDate,
-          LIFTOSAUR_SOURCE
-        );
-      } else {
-        await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDate(
-          userId,
-          startDate,
-          endDate,
-          LIFTOSAUR_SOURCE
-        );
-      }
+      await exercisePresetEntryRepository.deleteExercisePresetEntriesByEntrySourceAndDateWithClient(
+        client,
+        userId,
+        startDate,
+        endDate,
+        LIFTOSAUR_SOURCE
+      );
     }
 
     // Paginated fetches can overlap at page boundaries; process each workout id
@@ -135,39 +101,33 @@ async function processLiftosaurWorkouts(
         userId,
         createdByUserId,
         workout,
-        timezone,
-        client
+        client,
+        timezone
       );
     }
 
-    if (hasTx && client !== null) {
-      await client.query('COMMIT');
-    }
+    await client.query('COMMIT');
   } catch (error) {
-    if (hasTx && client !== null) {
-      await client.query('ROLLBACK');
-    }
+    await client.query('ROLLBACK');
     log(
       'error',
       `Failed to process Liftosaur workouts for user ${userId}: ${errorMessage(error)}`
     );
     throw error;
   } finally {
-    if (client && typeof client.release === 'function') {
-      client.release();
-    }
+    client.release();
   }
 }
 
 /**
- * Process a single parsed Liftosaur workout.
+ * Process a single parsed Liftosaur workout within the active transaction.
  */
 async function processSingleWorkout(
   userId: string,
   createdByUserId: string,
   workout: LiftohistoryWorkout,
-  timezone = 'UTC',
-  client?: PoolClient | null
+  client: PoolClient,
+  timezone = 'UTC'
 ) {
   const startTime = new Date(workout.date);
   const entryDate = instantToDay(startTime, timezone);
@@ -185,14 +145,21 @@ async function processSingleWorkout(
   // a generic name for ad-hoc sessions) so the diary shows the whole workout as
   // a single grouped session instead of loose exercises.
   let workoutPreset: WorkoutPresetRow | null =
-    await workoutPresetRepository.getWorkoutPresetByName(userId, workoutTitle);
+    await workoutPresetRepository.getWorkoutPresetByNameWithClient(
+      client,
+      userId,
+      workoutTitle
+    );
   if (!workoutPreset) {
-    workoutPreset = await workoutPresetRepository.createWorkoutPreset({
-      user_id: userId,
-      name: workoutTitle,
-      description: `Workout session from Liftosaur: ${workoutTitle}`,
-      is_public: false,
-    });
+    workoutPreset = await workoutPresetRepository.createWorkoutPresetWithClient(
+      client,
+      {
+        user_id: userId,
+        name: workoutTitle,
+        description: `Workout session from Liftosaur: ${workoutTitle}`,
+        is_public: false,
+      }
+    );
   }
   if (!workoutPreset) {
     throw new Error(
@@ -212,18 +179,12 @@ async function processSingleWorkout(
   };
 
   const presetEntry: PresetEntryRow =
-    client && exercisePresetEntryRepository.createExercisePresetEntryWithClient
-      ? await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
-          client,
-          userId,
-          presetPayload,
-          createdByUserId
-        )
-      : await exercisePresetEntryRepository.createExercisePresetEntry(
-          userId,
-          presetPayload,
-          createdByUserId
-        );
+    await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
+      client,
+      userId,
+      presetPayload,
+      createdByUserId
+    );
 
   const workoutDurationMinutes = workout.durationSeconds
     ? Math.round(workout.durationSeconds / 60)
@@ -235,8 +196,8 @@ async function processSingleWorkout(
     exerciseIndex++
   ) {
     const liftosaurExercise = workout.exercises[exerciseIndex]!;
-    // 1. Find or create the SparkyFitness exercise. Liftosaur serializes full
-    //    names with an equipment suffix ("Squat, Barbell"); try the exact name
+
+    // 1. Resolve exercise in SparkyFitness library: try exact name match
     //    first, then the bare name ("Squat"), then create a custom exercise
     //    that preserves the full Liftosaur name.
     let exercise: ExerciseRow | null =
@@ -298,13 +259,7 @@ async function processSingleWorkout(
       distance: null,
       superset_group: null, // supersets are not part of the serialized format
       source_id: sourceId,
-      exercise_preset_entry_id: presetEntry.id,
-      notes:
-        liftosaurExercise.notes ??
-        workout.notes ??
-        `Synced from Liftosaur: ${workoutTitle}`,
-      entry_source: LIFTOSAUR_SOURCE,
-      sort_order: exerciseIndex,
+      notes: liftosaurExercise.notes || null,
       sets: mergedSets.sets.map((set) => ({
         set_number: set.set_number,
         set_type: set.set_type,
@@ -318,34 +273,24 @@ async function processSingleWorkout(
 
     // 4. Create the exercise entry, linked to the session (preset entry) so it
     //    groups under the workout instead of standing alone.
-    let entry: ExerciseEntryRow | null;
-    if (client && exerciseEntryRepository._createExerciseEntryWithClient) {
-      const created =
-        await exerciseEntryRepository._createExerciseEntryWithClient(
-          client,
-          userId,
-          entryData,
-          createdByUserId,
-          LIFTOSAUR_SOURCE,
-          presetEntry.id
-        );
-      entry = created?.entry ?? created ?? null;
-    } else {
-      entry = await exerciseEntryRepository.createExerciseEntry(
+    const created =
+      await exerciseEntryRepository._createExerciseEntryWithClient(
+        client,
         userId,
         entryData,
         createdByUserId,
         LIFTOSAUR_SOURCE,
         presetEntry.id
       );
-    }
+    const entry: ExerciseEntryRow | null = created?.entry ?? created ?? null;
 
     // 5. Populate the reusable preset template with this exercise. Reuses the
     //    existing exercise row when present and skips if it already has sets,
     //    so repeat occurrences of the same routine don't duplicate template
     //    rows.
     try {
-      await workoutPresetRepository.addExerciseToWorkoutPreset(
+      await workoutPresetRepository.addExerciseToWorkoutPresetWithClient(
+        client,
         userId,
         workoutPreset.id,
         exercise.id,
@@ -387,20 +332,10 @@ async function processSingleWorkout(
           created_by_user_id: createdByUserId,
           updated_by_user_id: createdByUserId,
         };
-        if (
-          client &&
-          activityDetailsRepository._createActivityDetailWithClient
-        ) {
-          await activityDetailsRepository._createActivityDetailWithClient(
-            client,
-            detailPayload
-          );
-        } else {
-          await activityDetailsRepository.createActivityDetail(
-            userId,
-            detailPayload
-          );
-        }
+        await activityDetailsRepository._createActivityDetailWithClient(
+          client,
+          detailPayload
+        );
       } catch (error) {
         log(
           'error',
@@ -421,19 +356,19 @@ interface NormalizedSet {
   notes: string | null;
 }
 
-interface NormalizedSets {
+/**
+ * Merge Liftosaur's split set categories into a single set sequence.
+ *
+ * Precedence:
+ * 1. Working sets come from completedSets (expanded by `count`).
+ * 2. Warmup sets come from warmupSets (marked 'Warm-up').
+ * 3. Target sets supply rest timers (`timerSeconds`) and fallback targets
+ *    when completed sets are missing (e.g. an unfinished session).
+ */
+function mergeSets(exercise: LiftohistoryExercise): {
   sets: NormalizedSet[];
   timerSeconds: number;
-}
-
-/**
- * Merge a Liftosaur exercise's warmup + completed + target sets into the flat
- * SparkyFitness set list. Warmups stay warm-ups; every other set is a working
- * set (labels like "drop"/"failure" map to SparkyFitness's richer set types).
- * The merged reps/weight/RPE prefer what was completed, with the target's rest
- * timer attached when present.
- */
-function mergeSets(exercise: LiftohistoryExercise): NormalizedSets {
+} {
   const completed = expandSets(exercise.completedSets);
   const warmup = expandSets(exercise.warmupSets);
   const target = expandSets(exercise.targetSets);
@@ -484,8 +419,6 @@ function toNormalizedSet(
   setNumber: number,
   setType: string
 ): NormalizedSet {
-  // Completed reps win over target reps; unilateral sets report the right-side
-  // reps here (the full left/right detail is preserved in the activity detail).
   const reps = set.reps || null;
   const weightKg = toWeightKg(set.weightValue, set.weightUnit);
   const notes = set.label ? `Label: ${set.label}` : null;

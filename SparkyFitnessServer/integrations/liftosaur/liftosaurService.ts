@@ -13,7 +13,7 @@ import { decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
 import { logRawResponse } from '../../utils/diagnosticLogger.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
-import { dayToUtcRange, instantToDay } from '@workspace/shared';
+import { dayToUtcRange } from '@workspace/shared';
 import { parseLiftohistory } from './liftohistoryParser.js';
 import liftosaurDataProcessor from './liftosaurDataProcessor.js';
 import {
@@ -21,15 +21,9 @@ import {
   LiftosaurHistoryResponseData,
   LiftosaurProviderStatus,
   LiftosaurSyncResult,
-} from './liftosaurTypes.js';
-import {
-  importMeasurementsFromLiftosaur,
-  exportMeasurementsToLiftosaur,
-} from './liftosaurMeasurementsService.js';
-import {
-  exportWorkoutsToLiftosaur,
   getValidatedLiftosaurBaseUrl,
-} from './liftosaurWorkoutExportService.js';
+} from './liftosaurTypes.js';
+import { importMeasurementsFromLiftosaur } from './liftosaurMeasurementsService.js';
 
 const HISTORY_PAGE_SIZE = 200; // Liftosaur API cap
 
@@ -285,52 +279,6 @@ async function syncLiftosaurData(
     );
   }
 
-  const exportStartDate =
-    startDate ?? (fullSync ? undefined : instantToDay(new Date(cutoffMs), tz));
-  const exportEndDate = endDate;
-
-  // 3. Export non-Liftosaur workouts to Liftosaur
-  let workoutsExported = 0;
-  try {
-    workoutsExported = await exportWorkoutsToLiftosaur(
-      userId,
-      apiKey,
-      tz,
-      exportStartDate,
-      exportEndDate
-    );
-    log(
-      'info',
-      `[liftosaurService] Exported ${workoutsExported} workouts for user ${userId}.`
-    );
-  } catch (wErr) {
-    log(
-      'error',
-      `[liftosaurService] Error exporting workouts for user ${userId}: ${errorMessage(wErr)}`
-    );
-  }
-
-  // 4. Export SparkyFitness measurements to Liftosaur
-  let measurementsExported = 0;
-  try {
-    measurementsExported = await exportMeasurementsToLiftosaur(
-      userId,
-      apiKey,
-      tz,
-      exportStartDate,
-      exportEndDate
-    );
-    log(
-      'info',
-      `[liftosaurService] Exported ${measurementsExported} measurements for user ${userId}.`
-    );
-  } catch (mExpErr) {
-    log(
-      'error',
-      `[liftosaurService] Error exporting measurements for user ${userId}: ${errorMessage(mExpErr)}`
-    );
-  }
-
   const client = await getSystemClient();
   try {
     await client.query(
@@ -343,15 +291,11 @@ async function syncLiftosaurData(
     client.release();
   }
 
-  const totalProcessed =
-    workoutsImported +
-    measurementsImported +
-    workoutsExported +
-    measurementsExported;
+  const totalProcessed = workoutsImported + measurementsImported;
 
   log(
     'info',
-    `Liftosaur bidirectional synchronization completed for user ${userId}. Total processed: ${totalProcessed} (workouts: +${workoutsImported}/-${workoutsExported}, measurements: +${measurementsImported}/-${measurementsExported})`
+    `Liftosaur synchronization completed for user ${userId}. Total imported: ${totalProcessed} (${workoutsImported} workouts, ${measurementsImported} measurements)`
   );
   return {
     success: true,
@@ -359,9 +303,9 @@ async function syncLiftosaurData(
     parsedCount: workoutsImported,
     skippedCount,
     workoutsImported,
-    workoutsExported,
+    workoutsExported: 0,
     measurementsImported,
-    measurementsExported,
+    measurementsExported: 0,
     source: 'live_api',
   };
 }
@@ -444,10 +388,12 @@ export { getLiftosaurProviderId };
 export { syncLiftosaurData };
 export { getStatus };
 export { disconnect };
+export { getValidatedLiftosaurBaseUrl };
 export default {
   getLiftosaurApiKey,
   getLiftosaurProviderId,
   syncLiftosaurData,
   getStatus,
   disconnect,
+  getValidatedLiftosaurBaseUrl,
 };

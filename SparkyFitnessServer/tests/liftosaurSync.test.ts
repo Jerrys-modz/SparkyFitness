@@ -3,7 +3,6 @@ import axios from 'axios';
 import liftosaurService from '../integrations/liftosaur/liftosaurService.js';
 import liftosaurDataProcessor from '../integrations/liftosaur/liftosaurDataProcessor.js';
 import * as measurementsService from '../integrations/liftosaur/liftosaurMeasurementsService.js';
-import * as workoutExportService from '../integrations/liftosaur/liftosaurWorkoutExportService.js';
 import { getSystemClient } from '../db/poolManager.js';
 
 vi.mock('axios');
@@ -22,20 +21,10 @@ vi.mock('../integrations/liftosaur/liftosaurDataProcessor.js', () => ({
 }));
 vi.mock('../integrations/liftosaur/liftosaurMeasurementsService.js', () => ({
   importMeasurementsFromLiftosaur: vi.fn().mockResolvedValue(3),
-  exportMeasurementsToLiftosaur: vi.fn().mockResolvedValue(4),
   parseLiftosaurValue: vi.fn(),
 }));
-vi.mock('../integrations/liftosaur/liftosaurWorkoutExportService.js', () => ({
-  exportWorkoutsToLiftosaur: vi.fn().mockResolvedValue(2),
-  getValidatedLiftosaurBaseUrl: vi
-    .fn()
-    .mockReturnValue('https://www.liftosaur.com'),
-  default: {
-    exportWorkoutsToLiftosaur: vi.fn().mockResolvedValue(2),
-  },
-}));
 
-describe('liftosaurBidirectionalSync', () => {
+describe('liftosaurSync', () => {
   let mockClient: any;
 
   beforeEach(() => {
@@ -57,7 +46,7 @@ describe('liftosaurBidirectionalSync', () => {
     vi.mocked(getSystemClient).mockResolvedValue(mockClient);
   });
 
-  it('coordinates bidirectional sync for workouts and measurements with detailed counts', async () => {
+  it('coordinates synchronization for workouts and measurements with detailed counts', async () => {
     const mockedAxiosGet = vi.mocked(axios.get);
     mockedAxiosGet.mockResolvedValueOnce({
       data: {
@@ -82,22 +71,16 @@ describe('liftosaurBidirectionalSync', () => {
 
     expect(result.success).toBe(true);
     expect(result.workoutsImported).toBe(1);
-    expect(result.workoutsExported).toBe(2);
+    expect(result.workoutsExported).toBe(0);
     expect(result.measurementsImported).toBe(3);
-    expect(result.measurementsExported).toBe(4);
-    expect(result.processedCount).toBe(10); // 1 + 2 + 3 + 4
+    expect(result.measurementsExported).toBe(0);
+    expect(result.processedCount).toBe(4); // 1 + 3
 
     expect(
       liftosaurDataProcessor.processLiftosaurWorkouts
     ).toHaveBeenCalledTimes(1);
     expect(
       measurementsService.importMeasurementsFromLiftosaur
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      workoutExportService.exportWorkoutsToLiftosaur
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      measurementsService.exportMeasurementsToLiftosaur
     ).toHaveBeenCalledTimes(1);
 
     // Verify last_sync_at update

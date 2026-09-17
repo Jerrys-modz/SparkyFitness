@@ -139,37 +139,53 @@ export interface LiftosaurMeasurementResponseData {
   hasMore: boolean;
   nextCursor?: number;
 }
+export const DEFAULT_LIFTOSAUR_API_BASE_URL = 'https://www.liftosaur.com';
 
-export interface LiftosaurMeasurementWritePayload {
-  value: string;
-  timestamp?: number | string;
-}
+/**
+ * Validates and resolves the Liftosaur API base URL.
+ *
+ * Security Guarantee:
+ * Strictly enforces HTTPS protocol for any configured override
+ * (SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL) to guarantee that user API keys
+ * and sensitive workout/health data are never transmitted over unencrypted HTTP.
+ *
+ * Localhost exception:
+ * 'http://localhost' and 'http://127.0.0.1' are permitted solely in non-production
+ * environments (test/development) to support local test mock servers.
+ *
+ * @throws Error if the configured URL is invalid or uses an insecure non-HTTPS scheme.
+ */
+export function getValidatedLiftosaurBaseUrl(): string {
+  const configured = process.env.SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL;
+  if (!configured || configured.trim() === '') {
+    return DEFAULT_LIFTOSAUR_API_BASE_URL;
+  }
 
-// ─── Export shapes for Liftohistory serialization ───────────────────────────
+  const trimmed = configured.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch (err) {
+    throw new Error(
+      `Invalid SPARKY_FITNESS_LIFTOSAUR_API_BASE_URL: '${trimmed}'. Must be a valid URL.`,
+      { cause: err }
+    );
+  }
 
-export interface LiftohistoryExportSet {
-  reps: number;
-  weight?: number | null;
-  weightUnit?: LiftohistoryWeightUnit;
-  rpe?: number | null;
-  durationSeconds?: number | null;
-  notes?: string | null;
-  setType?: string | null;
-}
+  const isLocalhost =
+    parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  const isTestOrDev =
+    process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
 
-export interface LiftohistoryExportExercise {
-  name: string;
-  notes?: string | null;
-  sets: LiftohistoryExportSet[];
-}
+  if (parsed.protocol !== 'https:') {
+    if (!isLocalhost || !isTestOrDev) {
+      throw new Error(
+        `Insecure Liftosaur API base URL rejected: '${trimmed}'. HTTPS is strictly required to protect API credentials.`
+      );
+    }
+  }
 
-export interface LiftohistoryExportWorkout {
-  date: string; // ISO string or YYYY-MM-DD HH:mm:ss
-  programName?: string | null;
-  dayName?: string | null;
-  durationSeconds?: number | null;
-  notes?: string | null;
-  exercises: LiftohistoryExportExercise[];
+  return trimmed.replace(/\/+$/, '');
 }
 
 // ─── Sync status / result shapes surfaced to the API ────────────────────────

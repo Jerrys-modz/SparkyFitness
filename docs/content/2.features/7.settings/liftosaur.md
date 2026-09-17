@@ -1,6 +1,6 @@
 # Liftosaur Integration
 
-The Liftosaur integration allows you to bidirectionally sync workouts, exercise sets, and body measurements between [Liftosaur](https://www.liftosaur.com) and SparkyFitness.
+The Liftosaur integration allows you to automatically import workouts, exercise sets, and body measurements from [Liftosaur](https://www.liftosaur.com) into SparkyFitness.
 
 ---
 
@@ -39,19 +39,13 @@ The Liftosaur integration allows you to bidirectionally sync workouts, exercise 
 ## Data Synchronized
 
 ### Workouts & Exercises
-- **Bidirectional Synchronization**:
-  - Workouts completed in Liftosaur are automatically parsed and imported into SparkyFitness.
-  - Workouts logged directly in SparkyFitness (not originating from Liftosaur) are exported to Liftosaur in Liftohistory text format.
-- **Sets, Reps, and Weights**:
-  - Completed sets, warmup sets, repetitions, weights (kg/lb), RPE, and notes are preserved.
-  - Reusable workout presets and session entries are created so workouts group cleanly in your Diary.
+- **Workouts**: Workouts completed in Liftosaur are automatically parsed and imported into SparkyFitness.
+- **Sets, Reps, and Weights**: Completed sets, warmup sets, repetitions, weights (kg/lb), RPE, and notes are preserved. Reusable workout presets and session entries are created so workouts group cleanly in your Diary.
 
 ![Liftosaur Exercise Diary Entry](/liftosaur_exercise_log.png)
 
 ### Body Measurements
-- **Bidirectional Measurement Sync**:
-  - Body weight and custom measurement entries are synchronized between SparkyFitness and Liftosaur.
-  - Automatic source attribution prevents echo/duplicate export loops.
+- **Measurements**: Body weight and measurement entries logged in Liftosaur are automatically imported into SparkyFitness.
 
 ---
 
@@ -59,7 +53,7 @@ The Liftosaur integration allows you to bidirectionally sync workouts, exercise 
 
 - **Automatic Hourly Sync**: SparkyFitness schedules a background synchronization task every hour for all active Liftosaur providers.
 - **Sync Now**: Click **Sync Now** on the Liftosaur provider card at any time to trigger an immediate sync.
-- **Sync Range**: Click **Sync Range** to selectively import and export data within a custom date range.
+- **Sync Range**: Click **Sync Range** to selectively import data within a custom date range.
 
 ---
 

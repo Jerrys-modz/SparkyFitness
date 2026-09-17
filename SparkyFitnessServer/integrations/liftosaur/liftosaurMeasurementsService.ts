@@ -1,18 +1,15 @@
 /**
  * Liftosaur Measurements Synchronization Service.
- * Ingests body measurements from Liftosaur (/api/v1/measurements/:key) into SparkyFitness,
- * and exports SparkyFitness check-in and custom measurements to Liftosaur.
+ * Ingests body measurements from Liftosaur (/api/v1/measurements/:key) into SparkyFitness.
  */
 import axios, { AxiosError } from 'axios';
 import { log } from '../../config/logging.js';
 import measurementService from '../../services/measurementService.js';
-import measurementRepository from '../../models/measurementRepository.js';
-import { localDateTimeToUtc, instantToDay } from '@workspace/shared';
+import { instantToDay } from '@workspace/shared';
 import {
-  LiftosaurApiEnvelope,
   LiftosaurMeasurementResponseData,
+  getValidatedLiftosaurBaseUrl,
 } from './liftosaurTypes.js';
-import { getValidatedLiftosaurBaseUrl } from './liftosaurWorkoutExportService.js';
 
 const LB_TO_KG = 0.45359237;
 const IN_TO_CM = 2.54;
@@ -88,77 +85,77 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Parse a Liftosaur measurement value string (e.g. "82.5kg", "180lb", "18%", "37cm", "14.5in").
+ * Parses numeric value and normalizes units into metric (kg, %, cm).
+ * Liftosaur measurement values are strings like "82.5kg", "180lb", "18%", "37cm", "15in".
  */
 export function parseLiftosaurValue(
   valStr: string,
   targetUnit: 'kg' | '%' | 'cm'
 ): number | null {
   if (!valStr || typeof valStr !== 'string') return null;
-  const trimmed = valStr.trim();
+  const trimmed = valStr.trim().toLowerCase();
 
-  // Percentage: e.g. "18.5%" or "18"
-  if (targetUnit === '%') {
-    const match = trimmed.match(/^([\d.]+)\s*%?$/);
-    if (match && match[1]) {
-      const num = parseFloat(match[1]);
-      return isNaN(num) ? null : Math.round(num * 100) / 100;
-    }
-    return null;
-  }
+  // Extract numeric part and unit part
+  const match = trimmed.match(/^([\d.]+)\s*([a-z%]*)$/);
+  if (!match) return null;
 
-  // Weight: e.g. "82.5kg", "180lb", or "82.5"
+  const num = parseFloat(match[1]!);
+  if (isNaN(num)) return null;
+
+  const unit = match[2] || targetUnit;
+
   if (targetUnit === 'kg') {
-    const match = trimmed.match(/^([\d.]+)\s*(kg|lb)?$/i);
-    if (match && match[1]) {
-      const num = parseFloat(match[1]);
-      if (isNaN(num)) return null;
-      const unit = (match[2] || 'kg').toLowerCase();
-      const kg = unit === 'lb' ? num * LB_TO_KG : num;
-      return Math.round(kg * 100) / 100;
+    if (unit === 'lb' || unit === 'lbs') {
+      return Math.round(num * LB_TO_KG * 100) / 100;
     }
-    return null;
+    return num;
   }
 
-  // Length: e.g. "37cm", "14.5in", or "37"
   if (targetUnit === 'cm') {
-    const match = trimmed.match(/^([\d.]+)\s*(cm|in)?$/i);
-    if (match && match[1]) {
-      const num = parseFloat(match[1]);
-      if (isNaN(num)) return null;
-      const unit = (match[2] || 'cm').toLowerCase();
-      const cm = unit === 'in' ? num * IN_TO_CM : num;
-      return Math.round(cm * 100) / 100;
+    if (unit === 'in' || unit === 'inch' || unit === 'inches') {
+      return Math.round(num * IN_TO_CM * 100) / 100;
     }
-    return null;
+    return num;
   }
 
-  return null;
+  return num; // '%'
 }
 
 /**
- * Fetch one page of a measurement key from Liftosaur API.
+ * Fetch a page of measurement values from Liftosaur.
  */
 async function getMeasurementPage(
   apiKey: string,
   key: string,
   cursor?: number
 ): Promise<LiftosaurMeasurementResponseData> {
-  const response = await axios.get<
-    LiftosaurApiEnvelope<LiftosaurMeasurementResponseData>
-  >(
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  const params: Record<string, string | number> = {};
+  if (cursor !== undefined) {
+    params.cursor = cursor;
+  }
+
+  const response = await axios.get<{
+    data?: LiftosaurMeasurementResponseData;
+  }>(
     `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
     {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      params: {
-        limit: 200,
-        ...(cursor !== undefined ? { cursor } : {}),
-      },
-      timeout: 10000,
+      headers,
+      params,
+      timeout: 15000,
     }
   );
+
   return (
-    response.data?.data ?? { key, category: '', values: [], hasMore: false }
+    response.data.data || {
+      key,
+      category: '',
+      values: [],
+      hasMore: false,
+    }
   );
 }
 
@@ -247,221 +244,7 @@ export async function importMeasurementsFromLiftosaur(
   return healthDataToProcess.length;
 }
 
-/**
- * Send or update a measurement in Liftosaur.
- */
-async function sendMeasurementToLiftosaur(
-  apiKey: string,
-  key: string,
-  value: string,
-  timestampMs: number
-): Promise<boolean> {
-  const headers = {
-    Authorization: `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-  };
-  try {
-    await axios.post(
-      `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}`,
-      { value, timestamp: timestampMs },
-      { headers, timeout: 10000 }
-    );
-    return true;
-  } catch (err) {
-    const axiosErr = err as AxiosError;
-    if (axiosErr?.response?.status === 409) {
-      // Measurement already exists at timestamp; update it
-      try {
-        await axios.put(
-          `${getValidatedLiftosaurBaseUrl()}/api/v1/measurements/${encodeURIComponent(key)}/${timestampMs}`,
-          { value },
-          { headers, timeout: 10000 }
-        );
-        return true;
-      } catch (putErr) {
-        log(
-          'warn',
-          `[liftosaurMeasurements] Failed to PUT measurement ${key} at ${timestampMs}: ${errorMessage(putErr)}`
-        );
-        return false;
-      }
-    }
-    log(
-      'warn',
-      `[liftosaurMeasurements] Failed to POST measurement ${key}: ${errorMessage(err)}`
-    );
-    return false;
-  }
-}
-
-/**
- * Export SparkyFitness measurements to Liftosaur.
- */
-export async function exportMeasurementsToLiftosaur(
-  userId: string,
-  apiKey: string,
-  tz: string,
-  startDate?: string | null,
-  endDate?: string | null
-): Promise<number> {
-  let exportedCount = 0;
-
-  // 1. Export Check-In Measurements (weight, body_fat_percentage, neck, waist, hips)
-  try {
-    const checkIns =
-      (await measurementService.getCheckInMeasurementsByDateRange(
-        userId,
-        userId,
-        startDate || null,
-        endDate || null
-      )) as Array<{
-        entry_date: string | Date;
-        weight?: number | null;
-        body_fat_percentage?: number | null;
-        neck?: number | null;
-        waist?: number | null;
-        hips?: number | null;
-      }>;
-
-    for (const row of checkIns) {
-      const dayStr =
-        row.entry_date instanceof Date
-          ? instantToDay(row.entry_date, tz)
-          : String(row.entry_date).slice(0, 10);
-
-      const timestampMs = new Date(
-        localDateTimeToUtc(`${dayStr}T12:00:00`, tz)
-      ).getTime();
-      if (isNaN(timestampMs)) continue;
-
-      if (row.weight && Number(row.weight) > 0) {
-        const ok = await sendMeasurementToLiftosaur(
-          apiKey,
-          'weight',
-          `${Math.round(Number(row.weight) * 100) / 100}kg`,
-          timestampMs
-        );
-        if (ok) exportedCount += 1;
-      }
-
-      if (row.body_fat_percentage && Number(row.body_fat_percentage) > 0) {
-        const ok = await sendMeasurementToLiftosaur(
-          apiKey,
-          'bodyfat',
-          `${Math.round(Number(row.body_fat_percentage) * 100) / 100}%`,
-          timestampMs
-        );
-        if (ok) exportedCount += 1;
-      }
-
-      if (row.neck && Number(row.neck) > 0) {
-        const ok = await sendMeasurementToLiftosaur(
-          apiKey,
-          'neck',
-          `${Math.round(Number(row.neck) * 100) / 100}cm`,
-          timestampMs
-        );
-        if (ok) exportedCount += 1;
-      }
-
-      if (row.waist && Number(row.waist) > 0) {
-        const ok = await sendMeasurementToLiftosaur(
-          apiKey,
-          'waist',
-          `${Math.round(Number(row.waist) * 100) / 100}cm`,
-          timestampMs
-        );
-        if (ok) exportedCount += 1;
-      }
-
-      if (row.hips && Number(row.hips) > 0) {
-        const ok = await sendMeasurementToLiftosaur(
-          apiKey,
-          'hips',
-          `${Math.round(Number(row.hips) * 100) / 100}cm`,
-          timestampMs
-        );
-        if (ok) exportedCount += 1;
-      }
-    }
-  } catch (err) {
-    log(
-      'error',
-      `[liftosaurMeasurements] Error exporting check-ins: ${errorMessage(err)}`
-    );
-  }
-
-  // 2. Export Custom Measurements for circumferences (Chest, Shoulders, Biceps, etc.)
-  try {
-    const categories = (await measurementRepository.getCustomCategories(
-      userId
-    )) as Array<{
-      id: string;
-      name: string;
-    }>;
-
-    const customKeyMap: Record<string, string> = {
-      chest: 'chest',
-      shoulders: 'shoulders',
-      biceps: 'biceps_right',
-      calves: 'calves_right',
-      thighs: 'thigh_right',
-      forearms: 'forearm_right',
-    };
-
-    for (const cat of categories) {
-      const lowerName = cat.name.toLowerCase().trim();
-      const liftosaurKey = customKeyMap[lowerName];
-      if (!liftosaurKey) continue;
-
-      const entries =
-        (await measurementService.getCustomMeasurementsByDateRange(
-          userId,
-          userId,
-          cat.id,
-          startDate || null,
-          endDate || null
-        )) as Array<{
-          date: string | Date;
-          value: string | number;
-          source?: string | null;
-        }>;
-
-      for (const entry of entries) {
-        if (entry.source && entry.source.toLowerCase() === 'liftosaur')
-          continue;
-
-        const dayStr =
-          entry.date instanceof Date
-            ? instantToDay(entry.date, tz)
-            : String(entry.date).slice(0, 10);
-        const timestampMs = new Date(
-          localDateTimeToUtc(`${dayStr}T12:00:00`, tz)
-        ).getTime();
-        const numVal = parseFloat(String(entry.value));
-        if (isNaN(timestampMs) || isNaN(numVal) || numVal <= 0) continue;
-
-        const ok = await sendMeasurementToLiftosaur(
-          apiKey,
-          liftosaurKey,
-          `${Math.round(numVal * 100) / 100}cm`,
-          timestampMs
-        );
-        if (ok) exportedCount += 1;
-      }
-    }
-  } catch (err) {
-    log(
-      'error',
-      `[liftosaurMeasurements] Error exporting custom measurements: ${errorMessage(err)}`
-    );
-  }
-
-  return exportedCount;
-}
-
 export default {
   importMeasurementsFromLiftosaur,
-  exportMeasurementsToLiftosaur,
   parseLiftosaurValue,
 };
