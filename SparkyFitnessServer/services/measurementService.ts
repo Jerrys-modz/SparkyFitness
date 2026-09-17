@@ -1301,6 +1301,28 @@ async function getCustomMeasurementEntriesByDate(
     throw error;
   }
 }
+async function getCustomMeasurementEntriesByDateRange(
+  authenticatedUserId: string,
+  targetUserId: string,
+  startDate: string,
+  endDate: string
+) {
+  try {
+    return await measurementRepository.getCustomMeasurementEntriesByDateRange(
+      targetUserId,
+      startDate,
+      endDate
+    );
+  } catch (error) {
+    log(
+      'error',
+      `Error fetching custom measurement entries for user ${targetUserId} by ${authenticatedUserId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 /**
  * Latest manual value per custom category on or before `date`, one row per
  * category. Backs the mobile Daily editor's previous-value hints; only manual
@@ -2081,6 +2103,7 @@ export default {
   deleteCustomCategory,
   getCustomMeasurementEntries,
   getCustomMeasurementEntriesByDate,
+  getCustomMeasurementEntriesByDateRange,
   getLatestManualCustomEntriesOnOrBeforeDate,
   getCheckInMeasurementsByDateRange,
   getCustomMeasurementsByDateRange,
