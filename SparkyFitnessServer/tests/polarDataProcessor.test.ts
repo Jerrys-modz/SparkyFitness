@@ -332,21 +332,36 @@ describe('processPolarActivity daily metrics (issue #2471)', () => {
     expect(categoryIds).toEqual(['cat-active', 'cat-daily']);
   });
 
-  it('stamps total_calories with the read time so re-syncs can advance it', async () => {
-    // The upsert only advances total_calories when a strictly newer capture
-    // time arrives. The activity's start_time is fixed for the day, so using it
-    // froze a day's calories at whatever the first sync saw.
-    const before = Date.now();
-    await processPolarActivity(UID, CID, [activity()]);
-    const after = Date.now();
+  it("orders total_calories by Polar's end_time, not local processing time", async () => {
+    // The upsert only advances total_calories on a strictly newer stamp. Polar's
+    // end_time advances as the current day accumulates, so re-syncs progress;
+    // local processing time would not be safe because the hourly cron and the
+    // manual route run concurrently with no serialization, so a slow older
+    // response can land last and would clobber fresher calories.
+    await processPolarActivity(UID, CID, [
+      activity({ end_time: '2026-09-13T17:43:30' }),
+    ]);
 
     const stamp = vi.mocked(genericHealthRepository.upsertDailyHealthMetrics)
       .mock.calls[0][2].total_calories_captured_at as Date;
 
-    expect(stamp.getTime()).toBeGreaterThanOrEqual(before);
-    expect(stamp.getTime()).toBeLessThanOrEqual(after);
-    // Explicitly not the activity's own start instant.
-    expect(stamp.toISOString()).not.toBe('2026-09-13T00:00:00.000Z');
+    expect(stamp.toISOString()).toBe('2026-09-13T17:43:30.000Z');
+  });
+
+  it('advances the calorie stamp as the day accumulates', async () => {
+    await processPolarActivity(UID, CID, [
+      activity({ end_time: '2026-09-13T12:00:00' }),
+    ]);
+    await processPolarActivity(UID, CID, [
+      activity({ end_time: '2026-09-13T18:00:00' }),
+    ]);
+
+    const calls = vi.mocked(genericHealthRepository.upsertDailyHealthMetrics)
+      .mock.calls;
+    const first = calls[0][2].total_calories_captured_at as Date;
+    const second = calls[1][2].total_calories_captured_at as Date;
+
+    expect(second.getTime()).toBeGreaterThan(first.getTime());
   });
 
   it('records a zero-step day rather than skipping it', async () => {

@@ -435,8 +435,18 @@ async function processPolarActivity(
       );
     }
 
-    // Provider-scoped daily summary behind the Diary wearable health card.
-    const capturedAt = new Date();
+    // Ordering key for the total_calories gate below. Polar's end_time is the
+    // end of the window the record summarises, so it advances as the current day
+    // accumulates and is stable once the day closes -- a provider-side snapshot
+    // revision time. Local processing time cannot be used here: syncPolarData
+    // has no per-user serialization and both the hourly cron and the manual
+    // route can run concurrently, so a slow older response can land after a
+    // newer one and would carry the later stamp, overwriting fresher calories.
+    // start_time is the last resort and is fixed for the day, so a record
+    // missing end_time simply stops advancing rather than regressing.
+    const snapshotAt = parsePolarToUTC(
+      getVal(activity, 'end-time') || startTime || entryDate
+    );
     if (
       steps !== null ||
       distanceMeters !== null ||
@@ -455,12 +465,11 @@ async function processPolarActivity(
           active_calories: activeCalories,
           total_calories: calories,
           // The upsert only advances total_calories when a strictly newer
-          // capture time comes with it, so the two must travel together and the
-          // stamp must move between syncs. The activity's start_time is fixed
-          // for the day, so using it froze a day's calories at whatever the
-          // first sync of that day saw -- the running total never caught up.
-          // This is when we read the value, which is what captured_at means.
-          total_calories_captured_at: calories !== null ? capturedAt : null,
+          // stamp comes with it, so the two must always travel together.
+          total_calories_captured_at:
+            calories !== null && snapshotAt !== null
+              ? new Date(snapshotAt)
+              : null,
         }
       );
     }
