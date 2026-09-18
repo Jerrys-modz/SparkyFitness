@@ -21,6 +21,7 @@ import {
   Flame,
   Thermometer,
 } from 'lucide-react';
+import { calculateSmartYAxisDomain } from '@/utils/chartUtils';
 import { usePreferences } from '@/contexts/PreferencesContext';
 
 interface IntradaySamplesChartProps {
@@ -204,8 +205,19 @@ const IntradaySamplesChart: React.FC<IntradaySamplesChartProps> = ({
     return null;
   }
 
-  const yMin = Math.max(0, Math.floor(stats.min * 0.9));
-  const yMax = Math.ceil(stats.max * 1.1) || 100;
+  // Reuse the shared domain helper rather than hand-rolling one here. Its
+  // margin is additive and it only clamps to zero when the data is
+  // non-negative, which matters because skin temperature is reported as a
+  // signed deviation from baseline: the previous inline
+  // `Math.max(0, min * 0.9)` clipped those readings out of the chart twice
+  // over -- multiplying a negative raises it (-0.5 * 0.9 = -0.45) and the
+  // clamp then floored the axis at 0.
+  // Projected to the one key the helper reads; SampleDataPoint carries a `raw`
+  // sample object that does not fit ChartDataPoint's index signature.
+  const yDomain = calculateSmartYAxisDomain(
+    chartData.map((point) => ({ value: point.value })),
+    'value'
+  ) ?? [0, 100];
 
   return (
     <Card className="w-full overflow-hidden">
@@ -269,7 +281,7 @@ const IntradaySamplesChart: React.FC<IntradaySamplesChartProps> = ({
                 interval="preserveStartEnd"
               />
               <YAxis
-                domain={[yMin, yMax]}
+                domain={yDomain}
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
