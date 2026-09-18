@@ -5,6 +5,10 @@ import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import { instantToDay, isValidTimeZone } from '@workspace/shared';
 import activityDetailsRepository from '../../models/activityDetailsRepository.js';
+import type {
+  WithingsCustomMeasurement,
+  WithingsMeasureGroup,
+} from '../../types/withings.js';
 // Define a mapping for Withings metric types to SparkyFitness measurement types
 // This can be extended as more Withings metrics are integrated
 const WITHINGS_METRIC_MAPPING = {
@@ -303,12 +307,9 @@ const WITHINGS_METRIC_MAPPING = {
   },
 };
 async function processWithingsMeasures(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createdByUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  measuregrps: any,
+  userId: string,
+  createdByUserId: string,
+  measuregrps: WithingsMeasureGroup[],
   timezone = 'UTC'
 ) {
   if (!Array.isArray(measuregrps) || measuregrps.length === 0) {
@@ -395,11 +396,9 @@ async function processWithingsMeasures(
   }
 }
 async function processWithingsHeartData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createdByUserId: any,
-  heartSeries = [],
+  userId: string,
+  createdByUserId: string,
+  heartSeries: unknown[] = [],
   timezone = 'UTC'
 ) {
   if (!Array.isArray(heartSeries) || heartSeries.length === 0) {
@@ -518,12 +517,10 @@ async function processWithingsHeartData(
   }
 }
 async function processWithingsSleepData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createdByUserId: any,
-  sleepSeries = [],
-  sleepSummary = [],
+  userId: string,
+  createdByUserId: string,
+  sleepSeries: unknown[] = [],
+  sleepSummary: unknown[] = [],
   timezone = 'UTC'
 ) {
   // Normalize inputs to always be arrays (Withings sometimes returns a single object)
@@ -757,12 +754,9 @@ async function processWithingsSleepData(
   }
 }
 async function upsertCustomMeasurementLogic(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createdByUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  customMeasurement: any,
+  userId: string,
+  createdByUserId: string,
+  customMeasurement: WithingsCustomMeasurement,
   source = 'manual'
 ) {
   const {
@@ -774,8 +768,9 @@ async function upsertCustomMeasurementLogic(
     frequency,
   } = customMeasurement;
   let category = await measurementRepository.getCustomCategories(userId);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  category = category.find((cat: any) => cat.name === categoryName);
+  category = category.find(
+    (cat: { name: string }) => cat.name === categoryName
+  );
   let categoryId;
   if (!category) {
     // Create new custom category if it doesn't exist
@@ -812,11 +807,9 @@ async function upsertCustomMeasurementLogic(
   );
 }
 async function processWithingsActivity(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createdByUserId: any,
-  activities = []
+  userId: string,
+  createdByUserId: string,
+  activities: unknown[] = []
 ) {
   if (!Array.isArray(activities) || activities.length === 0) {
     log('info', `No Withings activity data to process for user ${userId}.`);
@@ -883,11 +876,9 @@ async function processWithingsActivity(
 }
 
 async function processWithingsWorkouts(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createdByUserId: any,
-  workouts = []
+  userId: string,
+  createdByUserId: string,
+  workouts: unknown[] = []
 ) {
   if (!Array.isArray(workouts) || workouts.length === 0) {
     log('info', `No Withings workout data to process for user ${userId}.`);

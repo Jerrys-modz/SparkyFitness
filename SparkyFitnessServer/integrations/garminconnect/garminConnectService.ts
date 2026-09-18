@@ -11,6 +11,7 @@ import {
   GarminLoginResponseDto,
 } from '../../types/garmin.js';
 import { addDays } from '@workspace/shared';
+import { attachOutboundErrorDetail } from '../../utils/outboundHttp.js';
 
 const GARMIN_MICROSERVICE_URL =
   process.env.GARMIN_MICROSERVICE_URL || 'http://localhost:8000'; // Default for local dev
@@ -23,6 +24,10 @@ const garminAxios = axios.create({
   httpsAgent,
   timeout: 120000,
 });
+
+// Instances made with axios.create() do not inherit the default instance's
+// interceptors, so the blank-message rescue has to be attached here too.
+attachOutboundErrorDetail(garminAxios);
 
 /**
  * Execute a POST request to the Garmin microservice with automatic retries on transient connection errors.

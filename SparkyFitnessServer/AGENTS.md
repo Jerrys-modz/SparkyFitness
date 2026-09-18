@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-09-14_
+_Last updated: 2026-09-17_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -70,6 +70,8 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `middleware/` - auth, permissions, uploads, and shared Express middleware
 - `utils/uploadsPath.ts` - the uploads root plus the resolver and containment guard for stored `file_path` values; use it instead of re-deriving `SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY`
 - `utils/oauthState.ts` - server-issued single-use OAuth `state` nonces for provider linking (`issueOAuthState`, `persistOAuthState`, `claimOAuthState`); use it instead of hand-rolling a state value
+- `utils/outboundHttp.ts` - process-wide outbound HTTP defaults, applied from `index.ts`: the axios request timeout and the per-address-family connect attempt timeout. Both are fixed constants on purpose - do not add env overrides. Also exports `attachOutboundErrorDetail`, which any module holding its own `axios.create()` instance must call
+- `utils/errors.ts` - `ValidationError` plus `describeError(error)`; prefer it over `error.message` when logging a failure that may have come from an outbound call, because a failed connect is an `AggregateError` whose `message` is empty
 - `middleware/requireSelfMiddleware.ts` - `requireSelfActor`, which rejects a switched/delegated context outright; attach per-route to account-linking routes
 - `integrations/` - provider adapters and ingest pipelines
 - `schemas/` - Zod route schemas
