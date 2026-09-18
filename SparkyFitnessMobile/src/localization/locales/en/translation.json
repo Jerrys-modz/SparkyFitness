@@ -797,9 +797,9 @@
     },
     "syncChoice": {
       "title": "Sync {{range}}",
-      "message": "Re-syncing everything is slower.",
-      "newOnly": "Sync New Data",
-      "resend": "Re-sync Everything"
+      "message": "Re-reading workout maps and heart rate takes longer.",
+      "newOnly": "Sync",
+      "resend": "Sync + Workout Detail"
     }
   },
   "syncFrequency": {

@@ -768,18 +768,18 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
           range: rangeLabel,
         }),
         t('syncScreen.syncChoice.message', {
-          defaultValue: 'Re-syncing everything is slower.',
+          defaultValue: 'Re-reading workout maps and heart rate takes longer.',
         }),
         [
           {
             text: t('syncScreen.syncChoice.newOnly', {
-              defaultValue: 'Sync New Data',
+              defaultValue: 'Sync',
             }),
             onPress: () => runSync(false),
           },
           {
             text: t('syncScreen.syncChoice.resend', {
-              defaultValue: 'Re-sync Everything',
+              defaultValue: 'Sync + Workout Detail',
             }),
             onPress: () => runSync(true),
           },

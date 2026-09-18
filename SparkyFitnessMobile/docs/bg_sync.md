@@ -113,17 +113,20 @@ fixing what gets collected.
 
 ```
 Sync Last 30 Days
-Re-syncing everything is slower.
+Re-reading workout maps and heart rate takes longer.
 
-  [ Sync New Data ]  [ Re-sync Everything ]  [ Cancel ]
+  [ Sync ]  [ Sync + Workout Detail ]  [ Cancel ]
 ```
 
-Both options sync the selected range **and the same set of metrics** — the choice only
-controls whether already-collected workouts have their route and sample series re-read.
-The title carries the selected range so the scope is visible without reading prose. Two
-earlier attempts failed here: "New Data Only" read as though it synced only workouts, and
-a version explaining the cache took five lines to say what the buttons now say by
-themselves. The prompt is skipped when nothing has been collected yet
+Both options send **the whole selected range**, not a delta: a foreground sync re-reads
+every enabled metric over the window and the server upserts, so steps, sleep and weight
+are re-sent whether or not they changed. The choice controls one thing only — whether
+already-collected workouts have their route and sample series re-read.
+The title carries the selected range so the scope is visible without reading prose. Three
+earlier attempts failed: "New Data Only" read as though it synced only workouts; a version
+explaining the cache took five lines; and "Sync New Data" / "Re-sync Everything" was simply
+untrue, because both options re-send everything in the range. Only the workout detail
+differs, so that is what the buttons name. The prompt is skipped when nothing has been collected yet
 (`hasAnyEnrichedSessions()`), since both options would then do identical work.
 
 Sync-on-open and background sync never prompt and never force.
