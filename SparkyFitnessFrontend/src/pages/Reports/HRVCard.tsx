@@ -35,7 +35,7 @@ interface TransformedData {
 
 const HRVCard = ({ data }: HRVCardProps) => {
   const { t } = useTranslation();
-  const { formatDateInUserTimezone, timeFormat } = usePreferences();
+  const { formatDateInUserTimezone, formatTime } = usePreferences();
   const [isMounted, setIsMounted] = useState(false);
   const [showIntraday, setShowIntraday] = useState(false);
 
@@ -106,17 +106,12 @@ const HRVCard = ({ data }: HRVCardProps) => {
       const d = new Date(iso);
       if (!Number.isFinite(d.getTime())) continue;
 
-      const is12Hour = timeFormat === '12h';
-      const hours = d.getHours();
-      const minutes = d.getMinutes().toString().padStart(2, '0');
-      const displayTime = is12Hour
-        ? `${hours % 12 || 12}:${minutes} ${hours >= 12 ? 'PM' : 'AM'}`
-        : `${hours.toString().padStart(2, '0')}:${minutes}`;
-
-      points.push({ time: iso, displayTime, rmssd });
+      // formatTime applies the user's configured timezone and time format;
+      // getHours()/getMinutes() would use the browser's zone instead.
+      points.push({ time: iso, displayTime: formatTime(iso), rmssd });
     }
     return points.sort((a, b) => a.time.localeCompare(b.time));
-  }, [hrvSampleBuckets, latestDate, timeFormat]);
+  }, [hrvSampleBuckets, latestDate, formatTime]);
 
   const hasIntraday = intradayPoints.length > 0;
 

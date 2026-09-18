@@ -923,12 +923,26 @@ async function processPolarNightlyRecharge(
       }
 
       if (hrvSamples.length > 0) {
+        // A night straddles midnight, so each recharge record is a PARTIAL-day
+        // write for both days it touches -- and consecutive nights therefore
+        // share a day bucket (night N's morning samples and night N+1's evening
+        // samples both land on day N). health_metric_samples keeps one row per
+        // (user, metric, day, provider), so the default `replace` mode made the
+        // later night wipe the earlier night's readings for that shared day.
+        const times = hrvSamples.map((sample) => sample.timestamp.getTime());
         await upsertSamplesByDay(
           userId,
           createdByUserId,
           'hrv',
           POLAR_HEALTH_PROVIDER,
-          hrvSamples
+          hrvSamples,
+          {
+            mode: 'merge',
+            window: {
+              startMs: Math.min(...times),
+              endMs: Math.max(...times),
+            },
+          }
         );
       }
     }
@@ -1110,6 +1124,7 @@ async function processPolarSpO2(
       (spo2Data && typeof spo2Data === 'object' ? [spo2Data] : []);
   if (!Array.isArray(resultList) || resultList.length === 0) return;
 
+  const tz = await loadUserTimezone(userId);
   const spo2Samples: FlatHealthSample[] = [];
 
   for (const item of resultList) {
@@ -1148,8 +1163,20 @@ async function processPolarSpO2(
 
     if (!Number.isFinite(timestamp.getTime())) continue;
 
+    // Never bucket on the UTC day: a test at 01:00 in UTC+2 is 23:00 UTC the
+    // day before and would land on the wrong day. The spec supplies
+    // time_zone_offset (minutes) per test, which beats the account timezone
+    // because it is where the device actually was; fall back to the user's zone.
+    const offsetMinutes = toFiniteNumber(
+      getVal(item, 'time-zone-offset') ?? getVal(item, 'time_zone_offset')
+    );
     const entryDate =
-      getVal(item, 'date') || timestamp.toISOString().split('T')[0];
+      getVal(item, 'date') ||
+      (offsetMinutes !== null
+        ? new Date(timestamp.getTime() + offsetMinutes * 60_000)
+            .toISOString()
+            .slice(0, 10)
+        : instantToDay(timestamp.toISOString(), tz));
 
     spo2Samples.push({
       entry_date: entryDate,
@@ -1195,6 +1222,7 @@ async function processPolarBodyTemperature(
       (bodyTempData && typeof bodyTempData === 'object' ? [bodyTempData] : []);
   if (!Array.isArray(tempList) || tempList.length === 0) return;
 
+  const bodyTempTz = await loadUserTimezone(userId);
   const vitalsToInsert = [];
 
   for (const item of tempList) {
@@ -1228,7 +1256,7 @@ async function processPolarBodyTemperature(
           if (!Number.isFinite(sampleTime.getTime())) continue;
           vitalsToInsert.push({
             user_id: userId,
-            entry_date: instantToDay(sampleTime.toISOString(), 'UTC'),
+            entry_date: instantToDay(sampleTime.toISOString(), bodyTempTz),
             timestamp: sampleTime,
             body_temperature_celsius: Math.round(celsius * 100) / 100,
             source_provider: POLAR_HEALTH_PROVIDER,
