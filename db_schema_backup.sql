@@ -2080,7 +2080,9 @@ CREATE TABLE public.exercise_entry_laps (
     elevation_gain_meters numeric(7,2),
     elevation_loss_meters numeric(7,2),
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    moving_time_seconds integer,
+    avg_moving_speed_mps numeric(6,2)
 );
 
 
