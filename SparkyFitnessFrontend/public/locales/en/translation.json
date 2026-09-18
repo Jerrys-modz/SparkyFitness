@@ -89,7 +89,8 @@
     "ratio": "Ratio: {{val}}",
     "chronic": "Chronic: {{val}}",
     "empty": "No wearable data synced for this day.",
-    "skinTemp": "Skin Temperature"
+    "skinTemp": "Skin Temperature",
+    "weekly": "weekly"
   },
   "foodCsvImport": {
     "title": "Import Food Data",
