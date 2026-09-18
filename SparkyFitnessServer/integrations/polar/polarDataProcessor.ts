@@ -74,21 +74,50 @@ const getVal = (obj: any, key: any) => {
  * This is the standard way to store timestamps in SparkyFitness.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const parsePolarToUTC = (timeStr: any) => {
-  if (!timeStr) return null;
-  // Handle date-only strings by explicitly assuming UTC midnight
-  if (timeStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return new Date(`${timeStr}T00:00:00Z`).toISOString();
+/**
+ * True when the leading YYYY-MM-DD of a timestamp is a real calendar date.
+ *
+ * `new Date()` silently normalises impossible dates -- "2026-02-30" becomes
+ * 2026-03-02 -- which is finite and would otherwise be persisted two days off.
+ * Round-tripping the components catches that before anything is stored.
+ */
+const hasRealCalendarDate = (timeStr: string): boolean => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(timeStr);
+  if (!match) return false;
+  const [, year, month, day] = match.map(Number);
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  return (
+    probe.getUTCFullYear() === year &&
+    probe.getUTCMonth() === month - 1 &&
+    probe.getUTCDate() === day
+  );
+};
+
+const parsePolarToUTC = (timeStr: unknown): string | null => {
+  // Total by construction: the processing phase of syncPolarData runs the
+  // processors without a per-processor try/catch, so a single malformed
+  // timestamp from one endpoint used to abort the whole sync. A non-string
+  // threw on `.match`, and an unparseable string threw on `.toISOString()`.
+  if (typeof timeStr !== 'string' || timeStr === '') return null;
+  if (!hasRealCalendarDate(timeStr)) return null;
+
+  const toIso = (value: string): string | null => {
+    const parsed = new Date(value);
+    return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+  };
+
+  // Date-only strings are explicitly UTC midnight.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(timeStr)) {
+    return toIso(`${timeStr}T00:00:00Z`);
   }
-  // If it's a naive timestamp string (no Z or offset), append Z to force it to be treated as UTC
-  // Polar's activity and exercise docs state these naive strings are UTC.
+  // Naive timestamps carry no offset; Polar documents these as UTC.
   if (
-    timeStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?:|:\d{2}|:\d{2}\.\d{1,6})$/)
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?:|:\d{2}|:\d{2}\.\d{1,6})$/.test(timeStr)
   ) {
-    return new Date(`${timeStr}Z`).toISOString();
+    return toIso(`${timeStr}Z`);
   }
-  // Otherwise (if it has an offset or is a full ISO string), new Date() will handle it correctly
-  return new Date(timeStr).toISOString();
+  // Anything else already carries an offset or is a full ISO string.
+  return toIso(timeStr);
 };
 /**
  * Resolve a hypnogram wall-clock key ("HH:MM", recording zone) to a UTC instant.
@@ -652,11 +681,9 @@ async function processPolarSleep(
         // the process time zone. Both stretched "awake" far past the night
         // (issue #2431). The last stage ends at the recorded wake time, and no
         // stage runs past it.
-        const bedtimeMs = new Date(
-          parsePolarToUTC(startTime) as string
-        ).getTime();
+        const bedtimeMs = new Date(parsePolarToUTC(startTime) ?? NaN).getTime();
         const wakeMs = endTime
-          ? new Date(parsePolarToUTC(endTime) as string).getTime()
+          ? new Date(parsePolarToUTC(endTime) ?? NaN).getTime()
           : Number.NaN;
         const offsetMinutes = recordUtcOffsetMinutes ?? 0;
         const sortedStages = stagesArray
@@ -824,7 +851,7 @@ async function processPolarNightlyRecharge(
           getVal(recharge, 'heart-rate-variability-start-time');
 
         let currentMs = startStr
-          ? new Date(parsePolarToUTC(startStr) as string).getTime()
+          ? new Date(parsePolarToUTC(startStr) ?? NaN).getTime()
           : new Date(`${entryDate}T00:00:00Z`).getTime();
         if (!Number.isFinite(currentMs)) {
           currentMs = new Date(`${entryDate}T00:00:00Z`).getTime();
@@ -856,7 +883,7 @@ async function processPolarNightlyRecharge(
             getVal(item, 'timestamp') ??
             getVal(item, 't');
           if (rmssd !== null && timeStr) {
-            const timestamp = new Date(parsePolarToUTC(timeStr) as string);
+            const timestamp = new Date(parsePolarToUTC(timeStr) ?? NaN);
             if (Number.isFinite(timestamp.getTime())) {
               hrvSamples.push({
                 entry_date: entryDate,
@@ -1064,7 +1091,7 @@ async function processPolarContinuousHeartRate(
 
       let timestamp: Date;
       if (String(sampleTime).includes('T')) {
-        timestamp = new Date(parsePolarToUTC(sampleTime) as string);
+        timestamp = new Date(parsePolarToUTC(sampleTime) ?? NaN);
       } else {
         // "HH:mm:ss" in local device time
         const timePart =
@@ -1156,7 +1183,7 @@ async function processPolarSpO2(
       // milliseconds and dated every reading to January 1970.
       timestamp = new Date(testTime > 1e12 ? testTime : testTime * 1000);
     } else if (testTime) {
-      timestamp = new Date(parsePolarToUTC(testTime) as string);
+      timestamp = new Date(parsePolarToUTC(testTime) ?? NaN);
     } else {
       continue;
     }
@@ -1236,9 +1263,7 @@ async function processPolarBodyTemperature(
     const periodStart =
       getVal(item, 'start-time') ?? getVal(item, 'start_time');
     if (Array.isArray(periodSamples) && periodStart) {
-      const startMs = new Date(
-        parsePolarToUTC(periodStart) as string
-      ).getTime();
+      const startMs = new Date(parsePolarToUTC(periodStart) ?? NaN).getTime();
       if (Number.isFinite(startMs)) {
         for (const sample of periodSamples) {
           if (!sample || typeof sample !== 'object') continue;
@@ -1289,7 +1314,7 @@ async function processPolarBodyTemperature(
       // processPolarSpO2).
       timestamp = new Date(timeVal > 1e12 ? timeVal : timeVal * 1000);
     } else if (timeVal) {
-      timestamp = new Date(parsePolarToUTC(timeVal) as string);
+      timestamp = new Date(parsePolarToUTC(timeVal) ?? NaN);
     } else if (entryDate) {
       timestamp = new Date(`${entryDate}T12:00:00Z`);
     } else {
@@ -1298,7 +1323,10 @@ async function processPolarBodyTemperature(
 
     if (!Number.isFinite(timestamp.getTime())) continue;
 
-    const resolvedDate = entryDate || timestamp.toISOString().split('T')[0];
+    // Never fall back to the UTC day: a reading just after local midnight is
+    // still the previous day in UTC and would bucket a day early.
+    const resolvedDate =
+      entryDate || instantToDay(timestamp.toISOString(), bodyTempTz);
 
     vitalsToInsert.push({
       user_id: userId,
@@ -1344,6 +1372,7 @@ async function processPolarSkinTemperature(
       (skinTempData && typeof skinTempData === 'object' ? [skinTempData] : []);
   if (!Array.isArray(tempList) || tempList.length === 0) return;
 
+  const skinTempTz = await loadUserTimezone(userId);
   const skinSamples: FlatHealthSample[] = [];
 
   for (const item of tempList) {
@@ -1385,7 +1414,7 @@ async function processPolarSkinTemperature(
       // processPolarSpO2).
       timestamp = new Date(timeVal > 1e12 ? timeVal : timeVal * 1000);
     } else if (timeVal) {
-      timestamp = new Date(parsePolarToUTC(timeVal) as string);
+      timestamp = new Date(parsePolarToUTC(timeVal) ?? NaN);
     } else if (entryDate) {
       timestamp = new Date(`${entryDate}T12:00:00Z`);
     } else {
@@ -1394,7 +1423,9 @@ async function processPolarSkinTemperature(
 
     if (!Number.isFinite(timestamp.getTime())) continue;
 
-    const resolvedDate = entryDate || timestamp.toISOString().split('T')[0];
+    // Same as body temperature: bucket on the user's day, not the UTC day.
+    const resolvedDate =
+      entryDate || instantToDay(timestamp.toISOString(), skinTempTz);
 
     skinSamples.push({
       entry_date: resolvedDate,

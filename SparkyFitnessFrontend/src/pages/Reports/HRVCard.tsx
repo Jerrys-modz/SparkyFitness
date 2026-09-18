@@ -330,7 +330,10 @@ const HRVCard = ({ data }: HRVCardProps) => {
         </div>
 
         <div className="text-center mt-2 text-xs text-muted-foreground">
-          {showIntraday
+          {/* Match the chart that is actually rendered: showIntraday can stay
+              true after the selected date loses its samples, in which case the
+              daily chart is shown and the toggle is hidden. */}
+          {showIntraday && hasIntraday
             ? t(
                 'sleepHealth.overnightHrvSeriesDesc',
                 '5-minute interval overnight HRV series'

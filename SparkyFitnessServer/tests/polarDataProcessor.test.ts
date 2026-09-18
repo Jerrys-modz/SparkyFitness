@@ -823,3 +823,91 @@ describe('Polar sample day-bucketing (issue #2471 follow-up)', () => {
     expect(samples[0].entry_date).toBe('2023-10-20');
   });
 });
+
+describe('malformed Polar timestamps do not abort a sync', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // syncPolarData's processing phase runs the processors without a
+  // per-processor try/catch, so one bad timestamp from a single endpoint used
+  // to take down the whole sync: a non-string threw on `.match`, and an
+  // unparseable string threw on `.toISOString()`.
+  it('skips unparseable SpO2 timestamps instead of throwing', async () => {
+    await expect(
+      processPolarSpO2(UID, CID, [
+        {
+          test_time: 'not-a-date',
+          test_status: 'SPO2_TEST_PASSED',
+          blood_oxygen_percent: 97,
+        },
+        {
+          test_time: { nested: true },
+          test_status: 'SPO2_TEST_PASSED',
+          blood_oxygen_percent: 98,
+        },
+        {
+          test_time: 1697787256,
+          time_zone_offset: 0,
+          test_status: 'SPO2_TEST_PASSED',
+          blood_oxygen_percent: 95,
+        },
+      ] as never[])
+    ).resolves.not.toThrow();
+
+    // The one valid reading still lands, and neither bad row becomes an
+    // epoch-0 date: `new Date(null)` is finite and would have passed the guard.
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{ percentage: number; timestamp: Date }>;
+    expect(samples).toHaveLength(1);
+    expect(samples[0].percentage).toBe(95);
+    expect(samples[0].timestamp.getUTCFullYear()).toBe(2023);
+  });
+
+  it('rejects impossible calendar dates rather than rolling them forward', async () => {
+    // new Date() silently normalises "2026-02-30" to 2026-03-02, which is
+    // finite and would have been stored two days off.
+    await processPolarBodyTemperature(UID, CID, [
+      {
+        start_time: '2026-02-30T04:00:00',
+        samples: [
+          { temperature_celsius: 36.5, recording_time_delta_milliseconds: 0 },
+        ],
+      },
+      {
+        start_time: '2026-02-28T04:00:00',
+        samples: [
+          { temperature_celsius: 36.6, recording_time_delta_milliseconds: 0 },
+        ],
+      },
+    ] as never[]);
+
+    const vitals = vi.mocked(genericHealthRepository.bulkUpsertVitals).mock
+      .calls[0][2] as unknown as Array<{
+      timestamp: Date;
+      body_temperature_celsius: number;
+    }>;
+    expect(vitals).toHaveLength(1);
+    expect(vitals[0].body_temperature_celsius).toBe(36.6);
+    expect(vitals[0].timestamp.toISOString()).toBe('2026-02-28T04:00:00.000Z');
+  });
+
+  it('skips unparseable continuous heart rate timestamps', async () => {
+    await expect(
+      processPolarContinuousHeartRate(UID, CID, [
+        {
+          date: '2026-09-13',
+          heart_rate_samples: [
+            { heart_rate: 60, sample_time: '07:00:00' },
+            { heart_rate: 61, sample_time: 12345 },
+            { heart_rate: 62, sample_time: 'garbage' },
+          ],
+        },
+      ] as never[])
+    ).resolves.not.toThrow();
+
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{ bpm: number }>;
+    expect(samples.map((s) => s.bpm)).toEqual([60]);
+  });
+});

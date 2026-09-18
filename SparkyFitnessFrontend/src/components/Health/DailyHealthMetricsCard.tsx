@@ -296,11 +296,18 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
                   metrics.weekly_training_load ??
                   '--'}
               </span>
-              {metrics.acute_training_load != null && (
+              {/* Label which period the number is: the value falls back to the
+                  weekly load when acute is absent, and an unlabelled figure
+                  reads as an acute load. */}
+              {metrics.acute_training_load != null ? (
                 <span className="text-xs text-muted-foreground">
                   {t('dailyHealthMetrics.acute', 'acute')}
                 </span>
-              )}
+              ) : metrics.weekly_training_load != null ? (
+                <span className="text-xs text-muted-foreground">
+                  {t('dailyHealthMetrics.weekly', 'weekly')}
+                </span>
+              ) : null}
             </div>
             <span className="text-[11px] text-muted-foreground font-mono truncate">
               {metrics.acwr_ratio != null
