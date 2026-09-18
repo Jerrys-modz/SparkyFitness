@@ -45,8 +45,6 @@ router.get(
       );
       res.status(500).json({
         message: 'Error initiating Withings authorization',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
       });
     }
   }
@@ -132,8 +130,6 @@ router.post('/callback', authMiddleware.authenticate, async (req, res) => {
     );
     res.status(500).json({
       message: 'Error handling Withings OAuth callback',
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      error: error.message,
     });
   }
 });
@@ -194,8 +190,6 @@ router.post(
       );
       res.status(500).json({
         message: 'Error initiating manual Withings sync',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
       });
     }
   }
@@ -230,8 +224,6 @@ router.post(
       );
       res.status(500).json({
         message: 'Error disconnecting Withings account',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
       });
     }
   }
@@ -265,8 +257,6 @@ router.get(
       log('error', `Error getting Withings status: ${describeError(error)}`);
       res.status(500).json({
         message: 'Error getting Withings status',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
       });
     }
   }
