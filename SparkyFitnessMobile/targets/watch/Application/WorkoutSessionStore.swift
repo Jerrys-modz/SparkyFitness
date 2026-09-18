@@ -141,6 +141,29 @@ final class WorkoutSessionStore: ObservableObject {
         return step
     }
 
+    /// How many of an exercise's sets are logged, for the picker's subtitle.
+    ///
+    /// `filter {}.count` rather than `count(where:)`: the latter is a Swift 6
+    /// stdlib addition gated on watchOS 11, and this target deploys to 10.0.
+    func completedSetCount(for exercise: PlannedExercise) -> Int {
+        exercise.sets.filter { completedSetIds.contains($0.setId) }.count
+    }
+
+    func isComplete(_ exercise: PlannedExercise) -> Bool {
+        !exercise.sets.isEmpty && completedSetCount(for: exercise) == exercise.sets.count
+    }
+
+    /// Moves the cursor to an exercise chosen from the picker, landing on its
+    /// first set that still needs doing — coming back to a half-finished
+    /// exercise should resume it, not restart it. Falls back to its first set
+    /// when every one is already logged.
+    func jumpToExercise(_ exerciseEntryId: String) {
+        let owned = steps.indices.filter { steps[$0].exerciseEntryId == exerciseEntryId }
+        guard let first = owned.first else { return }
+        stopRestTimer()
+        currentStepIndex = owned.first { !isCompleted(steps[$0]) } ?? first
+    }
+
     func goToNextStep() {
         guard currentStepIndex + 1 < steps.count else { return }
         stopRestTimer()

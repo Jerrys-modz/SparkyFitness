@@ -39,9 +39,21 @@ private struct WaitingForWorkoutView: View {
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
+    @State private var showingExercises = false
+
+    /// The back chevron only belongs on the set screen: during rest that
+    /// corner is Skip, matching where Hevy puts each.
+    ///
+    /// Written as a guard rather than a ternary in the call: `cond ? nil :
+    /// { ... }` leaves the closure branch with nothing to infer its type from.
+    private var openExerciseList: (() -> Void)? {
+        guard !store.isResting else { return nil }
+        return { showingExercises = true }
+    }
+
     var body: some View {
         VStack(spacing: 4) {
-            MetricsStrip()
+            MetricsStrip(onBack: openExerciseList)
 
             if store.isResting {
                 RestView()
@@ -55,6 +67,85 @@ private struct ActiveWorkoutView: View {
             }
         }
         .padding(.horizontal, 4)
+        .sheet(isPresented: $showingExercises) {
+            ExerciseListView { exerciseEntryId in
+                store.jumpToExercise(exerciseEntryId)
+            }
+        }
+        .onAppear {
+            #if DEBUG
+            if ScreenshotSeed.opensExerciseList {
+                showingExercises = true
+            }
+            #endif
+        }
+    }
+}
+
+/// Every exercise in the preset, so the wearer can work out of order — skip
+/// ahead when a machine is taken, or come back to something left half done.
+/// Selecting one resumes it at its first unlogged set rather than restarting.
+///
+/// Text-only, unlike Hevy's thumbnails: exercise images live behind the
+/// server's authenticated `/file/{id}` route, and the watch has no
+/// credentials of its own to fetch them with.
+private struct ExerciseListView: View {
+    let onSelect: (String) -> Void
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+    @Environment(\.dismiss) private var dismiss
+
+    private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(exercises) { exercise in
+                    Button {
+                        onSelect(exercise.exerciseEntryId)
+                        dismiss()
+                    } label: {
+                        ExerciseRow(exercise: exercise)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } header: {
+                Text("\(exercises.count) Exercises")
+            }
+        }
+    }
+}
+
+private struct ExerciseRow: View {
+    let exercise: PlannedExercise
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        HStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(exercise.name)
+                    .font(.caption)
+                    .lineLimit(2)
+                Text(subtitle)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            if store.isComplete(exercise) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+            }
+        }
+    }
+
+    /// "3 Sets" until something is logged, then "1/3 Sets" — the count alone
+    /// stops being the useful number once the wearer is part way in.
+    private var subtitle: String {
+        let done = store.completedSetCount(for: exercise)
+        let total = exercise.sets.count
+        return done == 0 ? "\(total) Sets" : "\(done)/\(total) Sets"
     }
 }
 
@@ -62,10 +153,22 @@ private struct ActiveWorkoutView: View {
 /// deliberately small: it is reference information, not the thing being
 /// interacted with, and the set values below need the room.
 private struct MetricsStrip: View {
+    /// Non-nil puts a back chevron at the leading edge, opening the exercise
+    /// picker. Inline here rather than on its own row above: a watch screen
+    /// cannot spare a whole row for one control.
+    var onBack: (() -> Void)?
+
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
         HStack(spacing: 6) {
+            if let onBack = onBack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+            }
             if let kcal = store.activeEnergyKcal {
                 Label("\(Int(kcal))", systemImage: "flame.fill")
                     .foregroundStyle(.orange)
@@ -443,6 +546,13 @@ private func previewStore(
 #Preview("No heart rate") {
     WorkoutView()
         .environmentObject(previewStore(bpm: nil))
+        .environmentObject(WatchSessionManager.shared)
+}
+
+/// The picker reached from the back chevron, one exercise part way done.
+#Preview("Exercise picker") {
+    ExerciseListView { _ in }
+        .environmentObject(previewStore(completedSets: 1))
         .environmentObject(WatchSessionManager.shared)
 }
 #endif

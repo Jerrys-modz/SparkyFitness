@@ -131,12 +131,14 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
 
-          # $1 = output name, $2 = SPARKY_SCREENSHOT_WORKOUT, $3 = page
+          # $1 = output name, $2 = SPARKY_SCREENSHOT_WORKOUT, $3 = page,
+          # $4 = optional SPARKY_SCREENSHOT_SHEET
           shoot() {
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
             SIMCTL_CHILD_SPARKY_SCREENSHOT_SEED=1 \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_WORKOUT="$2" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_PAGE="$3" \
+            SIMCTL_CHILD_SPARKY_SCREENSHOT_SHEET="${4:-}" \
               xcrun simctl launch "$UDID" "$BUNDLE_ID"
             # SwiftUI needs a moment to settle, and the rest countdown needs
             # to actually be counting before it is worth photographing.
@@ -147,6 +149,7 @@ jobs:
           shoot workout-active active workout
           shoot workout-resting resting workout
           shoot workout-idle none workout
+          shoot workout-exercises active workout exercises
           shoot goals none goals
 
           ls -la screenshots

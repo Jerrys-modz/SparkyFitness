@@ -34,6 +34,12 @@ enum ScreenshotSeed {
         ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_PAGE"]
     }
 
+    /// Opens the exercise picker on appear. A sheet cannot be driven from
+    /// `simctl` the way a launch environment can, so the view checks this.
+    static var opensExerciseList: Bool {
+        ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "exercises"
+    }
+
     private static var workoutState: WorkoutState {
         WorkoutState(
             rawValue: ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_WORKOUT"] ?? ""
