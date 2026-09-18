@@ -332,6 +332,23 @@ describe('processPolarActivity daily metrics (issue #2471)', () => {
     expect(categoryIds).toEqual(['cat-active', 'cat-daily']);
   });
 
+  it('stamps total_calories with the read time so re-syncs can advance it', async () => {
+    // The upsert only advances total_calories when a strictly newer capture
+    // time arrives. The activity's start_time is fixed for the day, so using it
+    // froze a day's calories at whatever the first sync saw.
+    const before = Date.now();
+    await processPolarActivity(UID, CID, [activity()]);
+    const after = Date.now();
+
+    const stamp = vi.mocked(genericHealthRepository.upsertDailyHealthMetrics)
+      .mock.calls[0][2].total_calories_captured_at as Date;
+
+    expect(stamp.getTime()).toBeGreaterThanOrEqual(before);
+    expect(stamp.getTime()).toBeLessThanOrEqual(after);
+    // Explicitly not the activity's own start instant.
+    expect(stamp.toISOString()).not.toBe('2026-09-13T00:00:00.000Z');
+  });
+
   it('records a zero-step day rather than skipping it', async () => {
     await processPolarActivity(UID, CID, [
       activity({ steps: 0, calories: 0, active_calories: 0 }),

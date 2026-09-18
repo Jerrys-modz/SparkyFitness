@@ -14,12 +14,32 @@ import { utcOffsetMinutesFromIsoString } from '@workspace/shared';
 const POLAR_HEALTH_PROVIDER = 'polar';
 
 /**
+ * A Polar daily-activity record as the AccessLink list API returns it. Polar
+ * mixes hyphenated and underscored keys across endpoints, so both spellings are
+ * declared and read through `getVal`.
+ */
+export interface PolarActivityRecord {
+  date?: string;
+  'start-time'?: string;
+  start_time?: string;
+  'end-time'?: string;
+  end_time?: string;
+  steps?: number | string;
+  'active-steps'?: number | string;
+  active_steps?: number | string;
+  calories?: number | string;
+  'active-calories'?: number | string;
+  active_calories?: number | string;
+  'distance-from-steps'?: number | string;
+  distance_from_steps?: number | string;
+}
+
+/**
  * Coerce a Polar numeric field to a finite number, or null when it is absent or
  * unparseable. Distinct from a falsy check: a legitimate 0 (no steps that day)
  * must survive, which `if (steps)` would drop.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const toFiniteNumber = (value: any): number | null => {
+const toFiniteNumber = (value: unknown): number | null => {
   if (value === undefined || value === null || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -347,12 +367,14 @@ async function processPolarPhysicalInfo(
  * dedup and this processor need the same answer, so the resolution lives here.
  * Returns null when neither field is present.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvePolarActivityDate = (activity: any): string | null => {
+export const resolvePolarActivityDate = (
+  activity: PolarActivityRecord
+): string | null => {
   const entryDate = getVal(activity, 'date');
-  if (entryDate) return entryDate;
+  if (typeof entryDate === 'string' && entryDate) return entryDate;
   const startTime = getVal(activity, 'start-time');
-  if (startTime) return startTime.split('T')[0];
+  if (typeof startTime === 'string' && startTime)
+    return startTime.split('T')[0];
   return null;
 };
 
@@ -360,8 +382,9 @@ export const resolvePolarActivityDate = (activity: any): string | null => {
  * Read the step count off a Polar daily-activity record, or null when absent.
  * Shared with the service-level dedup so both agree on which field wins.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvePolarActivitySteps = (activity: any): number | null =>
+export const resolvePolarActivitySteps = (
+  activity: PolarActivityRecord
+): number | null =>
   toFiniteNumber(getVal(activity, 'steps') ?? getVal(activity, 'active-steps'));
 
 /**
@@ -413,6 +436,7 @@ async function processPolarActivity(
     }
 
     // Provider-scoped daily summary behind the Diary wearable health card.
+    const capturedAt = new Date();
     if (
       steps !== null ||
       distanceMeters !== null ||
@@ -430,12 +454,13 @@ async function processPolarActivity(
           total_distance_meters: distanceMeters,
           active_calories: activeCalories,
           total_calories: calories,
-          // The upsert only advances total_calories when a newer capture time
-          // comes with it, so the two must always travel together.
-          total_calories_captured_at:
-            calories !== null
-              ? new Date(parsePolarToUTC(startTime || entryDate) as string)
-              : null,
+          // The upsert only advances total_calories when a strictly newer
+          // capture time comes with it, so the two must travel together and the
+          // stamp must move between syncs. The activity's start_time is fixed
+          // for the day, so using it froze a day's calories at whatever the
+          // first sync of that day saw -- the running total never caught up.
+          // This is when we read the value, which is what captured_at means.
+          total_calories_captured_at: calories !== null ? capturedAt : null,
         }
       );
     }

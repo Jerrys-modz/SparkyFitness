@@ -3,13 +3,21 @@ import '@testing-library/jest-dom';
 import { DailyHealthMetrics } from '@workspace/shared';
 import { DailyHealthMetricsCard } from '@/components/Health/DailyHealthMetricsCard';
 
+// The card calls t(key, defaultValue, options); interpolate so assertions can
+// check the rendered value rather than the raw {{val}} template.
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, second?: unknown) => {
-      if (typeof second === 'string') return second;
-      const opts = second as Record<string, unknown> | undefined;
-      const template = (opts?.['defaultValue'] as string) ?? key;
-      return template.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
+    t: (key: string, defaultValue?: unknown, options?: unknown) => {
+      const opts = (
+        typeof defaultValue === 'object' && defaultValue !== null
+          ? defaultValue
+          : options
+      ) as Record<string, unknown> | undefined;
+      const template =
+        typeof defaultValue === 'string'
+          ? defaultValue
+          : ((opts?.['defaultValue'] as string) ?? key);
+      return template.replace(/\{\{(\w+)\}\}/g, (_m: string, name: string) =>
         String(opts?.[name] ?? '')
       );
     },
@@ -83,6 +91,22 @@ describe('DailyHealthMetricsCard section visibility', () => {
 
     expect(screen.getByText('Body Battery')).toBeInTheDocument();
     expect(screen.getByText('Avg Stress')).toBeInTheDocument();
+  });
+
+  it('renders zero-valued recovery readings instead of dashes', () => {
+    render(
+      <DailyHealthMetricsCard
+        metrics={metrics({
+          resting_heart_rate: 54,
+          heart_rate_recovery_1min: 0,
+          training_readiness_score: 60,
+          recovery_time_hours: 0,
+        })}
+      />
+    );
+
+    expect(screen.getByText('Recovery: 0 bpm')).toBeInTheDocument();
+    expect(screen.getByText(/Rec: 0h/)).toBeInTheDocument();
   });
 
   it('reports an empty day rather than collapsing the tile', () => {

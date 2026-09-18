@@ -208,9 +208,12 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
             </div>
             <span className="text-[11px] text-muted-foreground truncate">
               {t('dailyHealthMetrics.recovery', 'Recovery: {{val}}', {
-                val: metrics.heart_rate_recovery_1min
-                  ? `${metrics.heart_rate_recovery_1min} bpm`
-                  : '--',
+                // `!= null` rather than truthy: a 1-minute HR recovery of 0
+                // is a real reading and must not render as "no data".
+                val:
+                  metrics.heart_rate_recovery_1min != null
+                    ? `${metrics.heart_rate_recovery_1min} bpm`
+                    : '--',
               })}
             </span>
           </div>
@@ -257,9 +260,12 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
             <span className="text-[11px] text-muted-foreground font-mono truncate">
               <RefreshCw className="inline h-3 w-3 mr-0.5 text-muted-foreground" />
               {t('dailyHealthMetrics.recHours', 'Rec: {{val}}', {
-                val: metrics.recovery_time_hours
-                  ? `${metrics.recovery_time_hours}h`
-                  : '--',
+                // `!= null` rather than truthy: 0h means fully recovered,
+                // not missing.
+                val:
+                  metrics.recovery_time_hours != null
+                    ? `${metrics.recovery_time_hours}h`
+                    : '--',
               })}
             </span>
           </div>
