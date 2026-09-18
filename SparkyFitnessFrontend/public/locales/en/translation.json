@@ -3855,7 +3855,7 @@
       "lapTableCaloriesHeader": "Calories",
       "heartRateTimeInZonesTitle": "Heart Rate Time in Zones",
       "timeInZoneSLabel": "Time in Zone (s)",
-      "avgMovingSpeed": "Avg Moving Speed",
+      "avgMovingPace": "Avg Moving Pace",
       "caloriesBreakdown": "Active / Resting",
       "elapsedTime": "Elapsed Time",
       "elevationRange": "Min / Max Elev",

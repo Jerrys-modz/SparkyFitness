@@ -794,6 +794,14 @@
       "subtitle": "Export anonymized health data for bug reports",
       "privacy": "Reads the last 4 hours of data from Health Connect for troubleshooting.\nValues are rounded for privacy. Nothing is sent automatically.",
       "error": "Failed to generate health data report: {{error}}"
+    },
+    "syncChoice": {
+      "title": "Sync {{start}} – {{end}}",
+      "titleSingleDay": "Sync {{day}}",
+      "quick": "Quick Sync",
+      "quickDescription": "Sends all your health data. Workouts already synced keep the map and heart rate they have.",
+      "all": "All Sync",
+      "allDescription": "The same, and also re-reads the map and heart rate for workouts already synced. Slower."
     }
   },
   "syncFrequency": {
