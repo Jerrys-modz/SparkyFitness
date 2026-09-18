@@ -30,6 +30,38 @@ describe('oidcProviderRepository', () => {
     getSystemClient.mockResolvedValue(mockClient);
     vi.clearAllMocks();
   });
+  describe('upsertEnvOidcProvider', () => {
+    it.each([false, true])(
+      'preserves the original error and releases the client (rollback fails: %s)',
+      async (rollbackFails) => {
+        const originalError = new Error('provider save failed');
+        mockClient.query.mockImplementation(async (sql: string) => {
+          if (sql.includes('INSERT INTO')) throw originalError;
+          if (sql === 'ROLLBACK' && rollbackFails) {
+            throw new Error('rollback failed');
+          }
+          return { rows: [] };
+        });
+        vi.mocked(fetch).mockResolvedValue({ ok: false } as Response);
+
+        await expect(
+          oidcProviderRepository.upsertEnvOidcProvider({
+            provider_id: 'test-provider',
+            issuer_url: 'https://identity.example.test',
+            client_id: 'client',
+            client_secret: 'secret',
+            domain: 'example.test',
+            is_env_configured: true,
+          })
+        ).rejects.toBe(originalError);
+
+        expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+        expect(mockClient.release).toHaveBeenCalledExactlyOnceWith(
+          rollbackFails
+        );
+      }
+    );
+  });
   describe('createOidcProvider', () => {
     it('should persist is_env_configured in additional_config', async () => {
       const providerData = {

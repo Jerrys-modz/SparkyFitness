@@ -295,7 +295,7 @@ async function upsertEnvOidcProvider(
   const { config, discoveryEndpoint, endpoints, oidcConfig } =
     await prepareOidcProvider(providerData, providerId);
   const client: PoolClient = await getSystemClient();
-  let failed = false;
+  let rollbackFailed = false;
   let removed: string[];
   try {
     await client.query('BEGIN');
@@ -343,10 +343,10 @@ async function upsertEnvOidcProvider(
     removed = result.rows.map((row) => row.provider_id);
     await client.query('COMMIT');
   } catch (error) {
-    failed = true;
     try {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
+      rollbackFailed = true;
       log(
         'error',
         'Failed to roll back environment OIDC configuration:',
@@ -355,7 +355,7 @@ async function upsertEnvOidcProvider(
     }
     throw error;
   } finally {
-    client.release(failed);
+    client.release(rollbackFailed);
   }
   try {
     const { syncTrustedProviders } = await import('../auth.js');
