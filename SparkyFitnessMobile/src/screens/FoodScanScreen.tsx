@@ -616,12 +616,19 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
   // with `initialMode: 'photo'` still hit the gate.
   useEffect(() => {
     if (isCaptureBarcodeMode) return;
+    if (isBasketOriginScan) {
+      // Basket-origin scans cannot use photo mode at all (its flow pops to
+      // the diary root and would drop the basket): hide the gate, snap the
+      // segment back to barcode, and never reach the availability fetch —
+      // including deep-link photo entries the filtered segments can't stop.
+      setPhotoGateVisible(false);
+      setScanMode('barcode');
+      return;
+    }
     if (scanMode !== 'photo') return;
     if (aiSettingQuery.isLoading) return;
 
-    // Belt-and-braces for deep links: a photo initialMode can arrive with a
-    // basket-origin returnDepth even though the segment is filtered above.
-    if (!photoModeAvailable || isBasketOriginScan) {
+    if (!photoModeAvailable) {
       setPhotoGateVisible(true);
       return;
     }

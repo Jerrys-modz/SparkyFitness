@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
@@ -61,12 +61,13 @@ function isConfirmedRejection(error: unknown): boolean {
 export function useAddFoodEntriesBatch() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   // The latch lives in the selection store, not this hook: a remounted
   // review screen gets a fresh hook instance, and the duplicate-press guard
   // it inherits expires after 700ms — an unknown request from this batch may
   // still commit server-side long after that. The store flag also locks all
-  // basket/draft mutations for the flight's duration.
+  // basket/draft mutations for the flight's duration, and is the single
+  // source of truth the screens render from.
+  const isSubmitting = useFoodSearchSelectionStore((s) => s.isSubmitting);
 
   const submitBatch = useCallback(
     async (drafts: MultiAddDraft[]): Promise<BatchSubmitResult | null> => {
@@ -77,7 +78,11 @@ export function useAddFoodEntriesBatch() {
         return null;
       }
       useFoodSearchSelectionStore.getState().setSubmitting(true);
-      setIsSubmitting(true);
+      // Captured so an identity-change cancelBatch() mid-flight can discard
+      // this batch's reconciliation entirely (the requests still run out,
+      // but their outcomes never land in the next account's cleared basket).
+      const batchGeneration =
+        useFoodSearchSelectionStore.getState().batchGeneration;
 
       try {
         const { ok, invalid } = partitionDrafts(drafts);
@@ -116,6 +121,17 @@ export function useAddFoodEntriesBatch() {
             stopOnError: isAuthFailure,
           }
         );
+
+        // Identity changed mid-flight (cancelBatch): the basket this batch
+        // was reconciling into is gone. Drop the results — the requests have
+        // already run out against the old account and their outcomes must
+        // not surface under the new one.
+        if (
+          batchGeneration !==
+          useFoodSearchSelectionStore.getState().batchGeneration
+        ) {
+          return null;
+        }
 
         const succeededKeys: string[] = [];
         const outcomes: RowOutcome[] = [];
@@ -174,9 +190,9 @@ export function useAddFoodEntriesBatch() {
         };
       } finally {
         // Clear the store latch first so the caller's post-batch
-        // reconciliation (removeKeys/setOutcomes) runs unlocked.
+        // reconciliation (removeKeys/setOutcomes) runs unlocked. After a
+        // cancelBatch this is a no-op — the latch is already released.
         useFoodSearchSelectionStore.getState().setSubmitting(false);
-        setIsSubmitting(false);
       }
     },
     [queryClient, t]

@@ -286,7 +286,7 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                     )}
                   >
                     <Text className="text-text-primary text-base font-medium mr-1">
-                      {mealTypeLabel(resolvedDefaultMealTypeId)}
+                      {mealTypeLabel(effectiveBulkMealTypeId)}
                     </Text>
                     <Icon
                       name="chevron-down"
@@ -361,6 +361,16 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
 
                     <View className="mt-3 flex-row items-center justify-between">
                       <StepperInput
+                        accessibilityLabels={{
+                          decrement: t(
+                            'foodEntryMultiAdd.accessibility.decreaseQuantity',
+                            { defaultValue: 'Decrease quantity' }
+                          ),
+                          increment: t(
+                            'foodEntryMultiAdd.accessibility.increaseQuantity',
+                            { defaultValue: 'Increase quantity' }
+                          ),
+                        }}
                         value={row.quantityText}
                         onChangeText={(text) => {
                           if (DECIMAL_INPUT_REGEX.test(text)) {
@@ -379,18 +389,28 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                             });
                           }
                         }}
-                        onIncrement={() =>
+                        onIncrement={() => {
+                          // Invalid text parses to NaN — fall back to the
+                          // seed quantity so a tap never writes "NaN".
+                          const base = isRowQuantityValid(row)
+                            ? rowQuantity(row)
+                            : parseDecimalInput(
+                                initialDraftQuantityText(row.food)
+                              );
                           selection.updateDraft(row.key, {
-                            quantityText: String(rowQuantity(row) + 1),
-                          })
-                        }
-                        onDecrement={() =>
+                            quantityText: String(base + 1),
+                          });
+                        }}
+                        onDecrement={() => {
+                          const base = isRowQuantityValid(row)
+                            ? rowQuantity(row)
+                            : parseDecimalInput(
+                                initialDraftQuantityText(row.food)
+                              );
                           selection.updateDraft(row.key, {
-                            quantityText: String(
-                              Math.max(0, rowQuantity(row) - 1)
-                            ),
-                          })
-                        }
+                            quantityText: String(Math.max(0, base - 1)),
+                          });
+                        }}
                       />
                       <BottomSheetPicker
                         value={row.mealTypeId}

@@ -10,7 +10,10 @@ import {
 } from './queryTestUtils';
 import type { MultiAddDraft } from '../../src/utils/multiAddFoodEntries';
 import type { FoodItem } from '../../src/types/foods';
-import { __resetFoodSearchSelectionStoreForTests } from '../../src/stores/foodSearchSelectionStore';
+import {
+  __resetFoodSearchSelectionStoreForTests,
+  useFoodSearchSelectionStore,
+} from '../../src/stores/foodSearchSelectionStore';
 
 jest.mock('../../src/services/api/foodEntriesApi', () => ({
   createFoodEntry: jest.fn(),
@@ -231,6 +234,35 @@ describe('useAddFoodEntriesBatch', () => {
       queryKey: ['dailySummary', '2026-09-16'],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['foods'] });
+  });
+
+  test('an identity-change cancel discards the settled batch reconciliation', async () => {
+    let resolveRequest: (value: unknown) => void = () => {};
+    mockCreateFoodEntry.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve;
+        })
+    );
+    const { result } = renderHook(() => useAddFoodEntriesBatch(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    let pending: Promise<unknown> | undefined;
+    await act(async () => {
+      pending = result.current.submitBatch([makeDraft('f0')]);
+      // Identity changes while the row's request is still in flight.
+      useFoodSearchSelectionStore.getState().cancelBatch();
+      resolveRequest({ id: 'entry-1' });
+    });
+
+    const settled = await pending;
+    expect(settled).toBeNull();
+    // The cleared basket stays cleared — no success toast, no reconciliation
+    // of the old account's outcome into the new account's basket.
+    expect(Toast.show).not.toHaveBeenCalled();
+    expect(useFoodSearchSelectionStore.getState().isSubmitting).toBe(false);
+    expect(useFoodSearchSelectionStore.getState().selectedByKey.size).toBe(0);
   });
 
   test('a second submit while one is in flight is rejected without attempting its own row', async () => {

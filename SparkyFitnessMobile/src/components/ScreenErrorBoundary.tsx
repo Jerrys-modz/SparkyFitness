@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import Icon from './Icon';
@@ -160,7 +161,13 @@ export function withErrorBoundary<P extends object>(
 ) {
   const Wrapped = (props: P) => {
     const onGoBack = options?.canGoBack
-      ? () => (props as Record<string, any>).navigation?.goBack()
+      ? () => {
+          // A multi-add batch may still have requests in flight whose
+          // outcomes the user must see recorded; the shared submission
+          // latch is only ever held during one, so gate on it globally.
+          if (useFoodSearchSelectionStore.getState().isSubmitting) return;
+          (props as Record<string, any>).navigation?.goBack();
+        }
       : undefined;
 
     return (

@@ -185,6 +185,17 @@ describe('FoodEntryMultiAddScreen', () => {
     ).toBe(false);
   });
 
+  test('incrementing an invalid quantity falls back to the seed, never NaN', () => {
+    seedBasket([makeFood('f0')]);
+    const screen = renderScreen();
+
+    // "." passes the decimal-input regex but parses to NaN.
+    fireEvent.changeText(screen.getByDisplayValue('100'), '.');
+    fireEvent.press(screen.getByLabelText('Increase quantity'));
+
+    expect(screen.getByDisplayValue('101')).toBeTruthy();
+  });
+
   test('Add all is disabled once the only row has an invalid quantity', () => {
     seedBasket([makeFood('f0')]);
     const screen = renderScreen();

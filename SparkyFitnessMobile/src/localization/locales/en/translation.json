@@ -3117,7 +3117,9 @@
     },
     "accessibility": {
       "mealForAll": "Meal for all items: {{meal}}",
-      "mealForRow": "Meal for {{food}}: {{meal}}"
+      "mealForRow": "Meal for {{food}}: {{meal}}",
+      "increaseQuantity": "Increase quantity",
+      "decreaseQuantity": "Decrease quantity"
     },
     "actions": {
       "addAll_one": "Add all ({{count}})",

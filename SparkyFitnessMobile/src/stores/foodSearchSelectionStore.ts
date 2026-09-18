@@ -54,7 +54,21 @@ interface FoodSearchSelectionState {
    * the screen reconciles results (removeKeys/setOutcomes run unlocked).
    */
   isSubmitting: boolean;
+  /**
+   * Monotonic token bumped by cancelBatch. A batch captures the token when
+   * it starts and discards its reconciliation if the token moved — the
+   * identity-change clear cancels an in-flight batch without waiting for
+   * its requests, and a settled stale batch can never write outcomes into
+   * the new account's freshly-cleared basket.
+   */
+  batchGeneration: number;
   setSubmitting: (submitting: boolean) => void;
+  /**
+   * Identity-change clear: cancel any active batch (bumping the generation
+   * so its reconciliation is skipped), empty every map, and release the
+   * latch — unlike clear(), which is a no-op mid-flight by design.
+   */
+  cancelBatch: () => void;
   toggle: (
     food: FoodItem,
     maxItems: number,
@@ -92,6 +106,17 @@ export const useFoodSearchSelectionStore = create<FoodSearchSelectionState>(
     drafts: new Map(),
     outcomes: new Map(),
     isSubmitting: false,
+    batchGeneration: 0,
+
+    cancelBatch: () => {
+      set({
+        selectedByKey: new Map(),
+        drafts: new Map(),
+        outcomes: new Map(),
+        isSubmitting: false,
+        batchGeneration: get().batchGeneration + 1,
+      });
+    },
 
     setSubmitting: (submitting) => {
       if (get().isSubmitting === submitting) return;
@@ -216,5 +241,6 @@ export function __resetFoodSearchSelectionStoreForTests(): void {
     drafts: new Map(),
     outcomes: new Map(),
     isSubmitting: false,
+    batchGeneration: 0,
   });
 }
