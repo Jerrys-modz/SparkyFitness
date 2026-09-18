@@ -189,10 +189,16 @@ export function useAddFoodEntriesBatch() {
           authHalted,
         };
       } finally {
-        // Clear the store latch first so the caller's post-batch
-        // reconciliation (removeKeys/setOutcomes) runs unlocked. After a
-        // cancelBatch this is a no-op — the latch is already released.
-        useFoodSearchSelectionStore.getState().setSubmitting(false);
+        // Release the latch only if this batch still owns it. After a
+        // cancelBatch the generation moved on: the latch is either already
+        // released, or — if a replacement batch has since started — it
+        // belongs to THAT batch, and releasing it here would cut the
+        // replacement's flight short. Reconciliation unlock still works
+        // because the non-canceled path always matches its own generation.
+        const store = useFoodSearchSelectionStore.getState();
+        if (store.batchGeneration === batchGeneration) {
+          store.setSubmitting(false);
+        }
       }
     },
     [queryClient, t]

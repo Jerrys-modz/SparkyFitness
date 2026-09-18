@@ -265,6 +265,49 @@ describe('useAddFoodEntriesBatch', () => {
     expect(useFoodSearchSelectionStore.getState().selectedByKey.size).toBe(0);
   });
 
+  test('a canceled batch cannot release the replacement latch', async () => {
+    let resolveFirst: (value: unknown) => void = () => {};
+    let resolveSecond: (value: unknown) => void = () => {};
+    mockCreateFoodEntry
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          })
+      );
+    const { result } = renderHook(() => useAddFoodEntriesBatch(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    let second: Promise<unknown> | undefined;
+    await act(async () => {
+      void result.current.submitBatch([makeDraft('f0')]);
+      // Identity change cancels the first batch; a replacement starts over
+      // the cleared basket and takes the latch.
+      useFoodSearchSelectionStore.getState().cancelBatch();
+      second = result.current.submitBatch([makeDraft('f1')]);
+      resolveFirst({ id: 'stale-entry' });
+    });
+
+    // The stale batch settled, but it must not have released the latch the
+    // replacement now owns.
+    expect(useFoodSearchSelectionStore.getState().isSubmitting).toBe(true);
+
+    await act(async () => {
+      resolveSecond({ id: 'entry-2' });
+      await second;
+    });
+    expect(useFoodSearchSelectionStore.getState().isSubmitting).toBe(false);
+    // The replacement batch succeeded on its own merits — its toast is
+    // expected; only the stale batch's reconciliation was suppressed.
+  });
+
   test('a second submit while one is in flight is rejected without attempting its own row', async () => {
     let resolveFirst: (value: unknown) => void = () => {};
     mockCreateFoodEntry.mockImplementation(
