@@ -16,6 +16,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Withings
 - Polar Flow (partially tested)
 - Hevy (not tested)
+- [Liftosaur](/features/settings/liftosaur)
 - OpenFoodFacts
 - USDA
 - Fatsecret

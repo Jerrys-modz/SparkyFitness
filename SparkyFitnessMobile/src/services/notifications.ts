@@ -14,6 +14,7 @@ import {
 
 const CHANNEL_ID = 'workout-timer';
 const FASTING_CHANNEL_ID = 'fasting';
+const HYDRATION_CHANNEL_ID = 'hydration';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
@@ -56,6 +57,14 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
     });
     await Notifications.setNotificationChannelAsync(FASTING_CHANNEL_ID, {
       name: notificationCopy('notifications.channels.fasting', 'Fasting'),
+      importance: Notifications.AndroidImportance.HIGH,
+      enableVibrate: true,
+    });
+    await Notifications.setNotificationChannelAsync(HYDRATION_CHANNEL_ID, {
+      name: notificationCopy(
+        'notifications.channels.hydration',
+        'Hydration reminders'
+      ),
       importance: Notifications.AndroidImportance.HIGH,
       enableVibrate: true,
     });
@@ -470,6 +479,59 @@ export async function scheduleFastGoalNotification(
     );
     return null;
   }
+}
+
+/**
+ * Schedules one hydration reminder per future time and returns the ids that
+ * were scheduled. Never prompts for permission: this runs from a background
+ * reconcile, and the settings toggle only turns on once permission is granted.
+ */
+export async function scheduleWaterReminderNotifications(
+  times: Date[]
+): Promise<string[]> {
+  const prefs = useAppPreferencesStore.getState();
+  if (!prefs.notificationsEnabled || !prefs.waterReminderEnabled) return [];
+  if (!(await hasNotificationPermission())) return [];
+
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  for (const time of times) {
+    const timeMs = time.getTime();
+    if (Number.isNaN(timeMs) || timeMs <= nowMs) continue;
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.hydration.title',
+            'Time to hydrate 💧'
+          ),
+          body: notificationCopy(
+            'notifications.hydration.body',
+            "You haven't logged any water in a while."
+          ),
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: time,
+          channelId: HYDRATION_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    } catch (err) {
+      addLog(
+        `scheduleWaterReminderNotifications failed: ${(err as Error).message}`,
+        'ERROR'
+      );
+      // All or nothing. A half-scheduled chain gets persisted as reconciled,
+      // and the signature guard then blocks a retry for the reminders that
+      // never made it. Returning nothing keeps the caller on its "an empty
+      // result is not persisted" path, so the next reconcile tries again.
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
+    }
+  }
+  return ids;
 }
 
 export async function cancelScheduledNotification(
