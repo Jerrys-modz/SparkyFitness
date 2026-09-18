@@ -112,18 +112,18 @@ fixing what gets collected.
 **Sync Now** therefore asks:
 
 ```
-Sync Health Data
-Your health data syncs either way. The only difference is workout
-maps and charts — those are sent once per workout, so re-sending
-them covers workouts already synced and takes longer.
+Sync Last 30 Days
+Re-syncing everything is slower.
 
-  [ Sync Now ]  [ Sync + Re-send Maps ]  [ Cancel ]
+  [ Sync New Data ]  [ Re-sync Everything ]  [ Cancel ]
 ```
 
 Both options sync the selected range **and the same set of metrics** — the choice only
 controls whether already-collected workouts have their route and sample series re-read.
-The copy leads with that, because the first wording ("New Data Only") read as though it
-synced only workouts. The prompt is skipped when nothing has been collected yet
+The title carries the selected range so the scope is visible without reading prose. Two
+earlier attempts failed here: "New Data Only" read as though it synced only workouts, and
+a version explaining the cache took five lines to say what the buttons now say by
+themselves. The prompt is skipped when nothing has been collected yet
 (`hasAnyEnrichedSessions()`), since both options would then do identical work.
 
 Sync-on-open and background sync never prompt and never force.

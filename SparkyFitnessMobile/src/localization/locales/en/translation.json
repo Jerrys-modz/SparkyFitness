@@ -796,10 +796,10 @@
       "error": "Failed to generate health data report: {{error}}"
     },
     "syncChoice": {
-      "title": "Sync Health Data",
-      "message": "Your health data syncs either way. The only difference is workout maps and charts — those are sent once per workout, so re-sending them covers workouts already synced and takes longer.",
-      "newOnly": "Sync Now",
-      "resend": "Sync + Re-send Maps"
+      "title": "Sync {{range}}",
+      "message": "Re-syncing everything is slower.",
+      "newOnly": "Sync New Data",
+      "resend": "Re-sync Everything"
     }
   },
   "syncFrequency": {

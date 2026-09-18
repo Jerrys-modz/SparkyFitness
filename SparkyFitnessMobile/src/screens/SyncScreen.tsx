@@ -739,6 +739,13 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
    * With nothing collected yet the two options do identical work, so the
    * prompt is skipped rather than asking a question with one real answer.
    */
+  const rangeLabel = useMemo(
+    () =>
+      timeRangeOptions.find((o) => o.value === selectedTimeRange)?.label ??
+      selectedTimeRange,
+    [timeRangeOptions, selectedTimeRange]
+  );
+
   const handleSync = useCallback((): void => {
     if (syncMutation.isPending || isSyncClaimed()) return;
     void (async () => {
@@ -754,21 +761,25 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
         return;
       }
       Alert.alert(
-        t('syncScreen.syncChoice.title', { defaultValue: 'Sync Health Data' }),
+        // The range goes in the title so the scope is visible at a glance
+        // rather than described in prose.
+        t('syncScreen.syncChoice.title', {
+          defaultValue: 'Sync {{range}}',
+          range: rangeLabel,
+        }),
         t('syncScreen.syncChoice.message', {
-          defaultValue:
-            'Your health data syncs either way. The only difference is workout maps and charts — those are sent once per workout, so re-sending them covers workouts already synced and takes longer.',
+          defaultValue: 'Re-syncing everything is slower.',
         }),
         [
           {
             text: t('syncScreen.syncChoice.newOnly', {
-              defaultValue: 'Sync Now',
+              defaultValue: 'Sync New Data',
             }),
             onPress: () => runSync(false),
           },
           {
             text: t('syncScreen.syncChoice.resend', {
-              defaultValue: 'Sync + Re-send Maps',
+              defaultValue: 'Re-sync Everything',
             }),
             onPress: () => runSync(true),
           },
@@ -779,7 +790,7 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
         ]
       );
     })();
-  }, [syncMutation.isPending, runSync, t]);
+  }, [syncMutation.isPending, runSync, rangeLabel, t]);
 
   const header = useScreenHeader({
     title: t('syncScreen.title', { defaultValue: 'Health Data Sync' }),
