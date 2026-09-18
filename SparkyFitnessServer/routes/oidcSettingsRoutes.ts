@@ -72,6 +72,66 @@ router.post('/', isAdmin, async (req, res) => {
  * /admin/oidc-settings/{id}:
  *   put:
  *     summary: Update an OIDC Provider (Admin Only)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - issuer_url
+ *               - client_id
+ *             properties:
+ *               issuer_url:
+ *                 type: string
+ *                 minLength: 1
+ *               client_id:
+ *                 type: string
+ *                 minLength: 1
+ *                 nullable: true
+ *                 description: Null retains the stored client ID; a usable stored ID is required.
+ *               client_secret:
+ *                 type: string
+ *                 nullable: true
+ *               provider_id:
+ *                 type: string
+ *               domain:
+ *                 type: string
+ *                 description: Retains the stored domain when omitted.
+ *               display_name:
+ *                 type: string
+ *                 nullable: true
+ *               logo_url:
+ *                 type: string
+ *                 nullable: true
+ *               auto_register:
+ *                 type: boolean
+ *               is_active:
+ *                 type: boolean
+ *               redirect_uris:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               response_types:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               token_endpoint_auth_method:
+ *                 type: string
+ *               signing_algorithm:
+ *                 type: string
+ *               profile_signing_algorithm:
+ *                 type: string
+ *               timeout:
+ *                 type: number
+ *               is_env_configured:
+ *                 type: boolean
+ *               admin_group:
+ *                 type: string
+ *                 nullable: true
+ *               scope:
+ *                 type: string
+ *                 nullable: true
  *     responses:
  *       200:
  *         description: OIDC provider updated successfully.
