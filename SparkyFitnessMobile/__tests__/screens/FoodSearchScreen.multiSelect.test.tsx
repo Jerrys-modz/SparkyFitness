@@ -20,7 +20,10 @@ import {
   __resetAppPreferencesStoreForTests,
   useAppPreferencesStore,
 } from '../../src/stores/appPreferencesStore';
-import { __resetFoodSearchSelectionStoreForTests } from '../../src/stores/foodSearchSelectionStore';
+import {
+  __resetFoodSearchSelectionStoreForTests,
+  useFoodSearchSelectionStore,
+} from '../../src/stores/foodSearchSelectionStore';
 import type { Meal } from '../../src/types/meals';
 import type { FoodItem } from '../../src/types/foods';
 
@@ -329,6 +332,21 @@ describe('FoodSearchScreen multi-select', () => {
 
     expect(screen.getByText('1 selected')).toBeTruthy();
     expect(screen.queryByLabelText('Select Lunch Bowl')).toBeNull();
+  });
+
+  test('the basket bar never appears in picker modes, even with a global basket', () => {
+    // Maintainer review: the store is global, so a basket built in the
+    // diary flow used to reappear — with Review — inside the meal-builder
+    // picker, where it would write diary entries.
+    useFoodSearchSelectionStore.getState().toggle(buildFood(), 50, undefined);
+
+    const screen = renderLanding({
+      date: '2026-09-18',
+      pickerMode: 'meal-builder',
+    });
+
+    expect(screen.queryByText('1 selected')).toBeNull();
+    expect(screen.queryByLabelText('Review')).toBeNull();
   });
 
   test('Clear empties the basket and hides the bar', () => {

@@ -185,6 +185,68 @@ describe('FoodEntryMultiAddScreen', () => {
     ).toBe(false);
   });
 
+  test('Add all stays disabled while a row has no resolved meal type', () => {
+    // Meal types not yet loaded: no app default, no backfill — submitting
+    // would send meal_type_id '' and burn a confirmed-rejection round trip.
+    mockMealTypes.mockReturnValue({
+      mealTypes: [],
+      defaultMealTypeId: undefined,
+      isLoading: true,
+      isError: false,
+    } as never);
+    seedBasket([makeFood('f0')], '');
+    // No route meal-type context either — the row has nothing to resolve.
+    const screen = renderScreen({ mealTypeId: undefined });
+
+    const addButton = screen.getByRole('button', { name: 'Add all (1)' });
+    expect(addButton.props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+  });
+
+  test('meal types finishing load re-enables Add all', () => {
+    const loading = {
+      mealTypes: [],
+      defaultMealTypeId: undefined,
+      isLoading: true,
+      isError: false,
+    } as never;
+    mockMealTypes.mockReturnValue(loading);
+    seedBasket([makeFood('f0')], '');
+    const screen = renderScreen({ mealTypeId: undefined });
+
+    const loadingState = screen.getByRole('button', { name: 'Add all (1)' });
+    expect(loadingState.props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+
+    // Meal types resolve; the same mounted screen must re-enable the action.
+    mockMealTypes.mockReturnValue({
+      mealTypes: [
+        { id: 'meal-1', name: 'Breakfast', is_visible: true, sort_order: 1 },
+      ] as never,
+      defaultMealTypeId: 'meal-1',
+      isLoading: false,
+      isError: false,
+    } as never);
+    screen.rerender(
+      <SafeAreaProvider initialMetrics={{ insets, frame }}>
+        <FoodEntryMultiAddScreen
+          navigation={navigation}
+          route={{
+            key: 'multi-add',
+            name: 'FoodEntryMultiAdd',
+            params: { date: '2026-09-16', mealTypeId: undefined },
+          }}
+        />
+      </SafeAreaProvider>
+    );
+    const loadedState = screen.getByRole('button', { name: 'Add all (1)' });
+    expect(loadedState.props.accessibilityState).toMatchObject({
+      disabled: false,
+    });
+  });
+
   test('incrementing an invalid quantity falls back to the seed, never NaN', () => {
     seedBasket([makeFood('f0')]);
     const screen = renderScreen();

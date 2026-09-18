@@ -218,8 +218,10 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   // the explicit contentContainerStyle replaces (not adds to) the
   // safe-area padding the className provides, so the inset is added here.
   const [basketBarHeight, setBasketBarHeight] = useState(64);
+  // Gated on availability too: picker modes hide the bar, and reserving its
+  // space there would leave a dead gap above the fold.
   const basketListPadding =
-    selectionCount > 0
+    multiSelectAvailable && selectionCount > 0
       ? { paddingBottom: basketBarHeight + insets.bottom + 24 }
       : undefined;
 
@@ -1429,10 +1431,15 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
     >
       {renderHeaderBar()}
       {renderBody()}
-      {/* Basket bar: visible whenever anything is selected, in or out of
-          select mode, so a basket built on the landing list is not silently
-          lost after Cancel or while searching. */}
-      {selectionCount > 0 && (
+      {/* Basket bar: visible whenever anything is selected in a
+          diary-logging context, in or out of select mode, so a basket built
+          on the landing list is not silently lost after Cancel or while
+          searching. The availability gate matters because the store is
+          global: without it a basket built in the diary flow survives
+          backing out and reappears — with Review — inside the meal-builder /
+          meal-plan / container-link pickers, where Review would write diary
+          entries. Same leak class FoodScanScreen guards for photo scans. */}
+      {multiSelectAvailable && selectionCount > 0 && (
         <View
           className="absolute left-4 right-4 rounded-xl bg-raised border border-border-subtle flex-row items-center justify-between px-4 py-3"
           style={{ bottom: insets.bottom + 12 }}

@@ -138,7 +138,12 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
     (row) => row.outcome === 'unknown'
   );
   const hasInvalidRetryableRow = retryableRows.some(
-    (row) => !isRowQuantityValid(row)
+    (row) =>
+      !isRowQuantityValid(row) ||
+      // An unresolved meal type submits meal_type_id: '' and burns a
+      // round-trip to come back as a confirmed rejection — block the submit
+      // until the row (or the resolved default) provides one.
+      !(row.mealTypeId || resolvedDefaultMealTypeId)
   );
 
   const draftFor = useCallback(

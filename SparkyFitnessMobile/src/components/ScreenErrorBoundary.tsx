@@ -1,5 +1,4 @@
 import React from 'react';
-import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import Icon from './Icon';
@@ -152,6 +151,12 @@ export class SectionErrorBoundary extends React.Component<
 
 interface ErrorBoundaryOptions {
   canGoBack?: boolean;
+  /**
+   * Screen-specific veto for the error-boundary Go Back; returning false
+   * blocks the callback. Opt-in per screen so one flow's concerns never
+   * dead-end another screen's crash recovery.
+   */
+  goBackGuard?: () => boolean;
 }
 
 export function withErrorBoundary<P extends object>(
@@ -162,10 +167,7 @@ export function withErrorBoundary<P extends object>(
   const Wrapped = (props: P) => {
     const onGoBack = options?.canGoBack
       ? () => {
-          // A multi-add batch may still have requests in flight whose
-          // outcomes the user must see recorded; the shared submission
-          // latch is only ever held during one, so gate on it globally.
-          if (useFoodSearchSelectionStore.getState().isSubmitting) return;
+          if (options.goBackGuard?.() === false) return;
           (props as Record<string, any>).navigation?.goBack();
         }
       : undefined;

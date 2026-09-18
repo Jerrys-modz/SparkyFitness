@@ -90,7 +90,7 @@ const FoodResultRow: React.FC<FoodResultRowProps> = ({
         }
       >
         {selection ? (
-          <View className="mr-3">
+          <View className="ml-3">
             <Icon
               name={
                 selection.isSelected
@@ -106,7 +106,7 @@ const FoodResultRow: React.FC<FoodResultRowProps> = ({
             />
           </View>
         ) : null}
-        <View className="flex-1">
+        <View className="flex-1 mx-3">
           <View className="flex-row items-start gap-1">
             <Text className="text-text-primary text-base font-medium flex-shrink">
               {item.name}
