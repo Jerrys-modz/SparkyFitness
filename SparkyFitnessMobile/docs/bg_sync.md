@@ -112,21 +112,31 @@ fixing what gets collected.
 **Sync Now** therefore asks:
 
 ```
-Sync Last 30 Days
-Re-reading workout maps and heart rate takes longer.
+Sync 19 Aug – 18 Sep
 
-  [ Sync ]  [ Sync + Workout Detail ]  [ Cancel ]
+  Quick Sync
+  Sends all your health data. Workouts already synced keep the
+  map and heart rate they have.
+
+  All Sync
+  The same, and also re-reads the map and heart rate for workouts
+  already synced. Slower.
 ```
 
 Both options send **the whole selected range**, not a delta: a foreground sync re-reads
 every enabled metric over the window and the server upserts, so steps, sleep and weight
 are re-sent whether or not they changed. The choice controls one thing only — whether
 already-collected workouts have their route and sample series re-read.
-The title carries the selected range so the scope is visible without reading prose. Three
-earlier attempts failed: "New Data Only" read as though it synced only workouts; a version
-explaining the cache took five lines; and "Sync New Data" / "Re-sync Everything" was simply
-untrue, because both options re-send everything in the range. Only the workout detail
-differs, so that is what the buttons name. The prompt is skipped when nothing has been collected yet
+This is an `ActionSheet`, not `Alert.alert`: the difference between the two options cannot
+be carried by a button title alone, and a native alert cannot render a second line under a
+button. `ActionSheetItem.description` was added for it — optional, so the eight existing
+consumers render unchanged.
+
+The title carries the actual dates rather than "Last 30 Days", formatted through the app
+locale. Four earlier wordings failed: "New Data Only" read as though it synced only
+workouts; a version explaining the cache took five lines; "Sync New Data" / "Re-sync
+Everything" was untrue, because both options re-send everything in the range; and
+"Sync + Workout Detail" still needed the message to interpret it. The prompt is skipped when nothing has been collected yet
 (`hasAnyEnrichedSessions()`), since both options would then do identical work.
 
 Sync-on-open and background sync never prompt and never force.

@@ -81,7 +81,12 @@ import type { TimeRange } from '../services/storage';
 import { addLog } from '../services/LogService';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { formatRelativeTime } from '../utils/dateUtils';
+import { formatRelativeTime, formatShortDate } from '../utils/dateUtils';
+import { getSyncStartDate } from '../utils/syncUtils';
+import ActionSheet, {
+  type ActionSheetItem,
+  type ActionSheetRef,
+} from '../components/ActionSheet';
 import { getErrorMessage } from '../utils/errors';
 import { HEALTH_METRICS, getHealthMetricLabel } from '../HealthMetrics';
 import type { HealthMetric } from '../HealthMetrics';
@@ -168,6 +173,7 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
     Record<string, boolean>
   >({});
   const dateRangeSheetRef = useRef<DateRangeSheetRef>(null);
+  const syncChoiceSheetRef = useRef<ActionSheetRef>(null);
   const [isBackgroundSyncEnabled, setIsBackgroundSyncEnabled] =
     useState<boolean>(false);
   const [isSyncOnOpenEnabled, setIsSyncOnOpenEnabled] =
@@ -739,11 +745,53 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
    * With nothing collected yet the two options do identical work, so the
    * prompt is skipped rather than asking a question with one real answer.
    */
-  const rangeLabel = useMemo(
-    () =>
-      timeRangeOptions.find((o) => o.value === selectedTimeRange)?.label ??
-      selectedTimeRange,
-    [timeRangeOptions, selectedTimeRange]
+  // Concrete dates rather than "Last 30 Days": the window is what the choice
+  // applies to, so showing it removes a step of interpretation. Formatted
+  // through the app locale, like every other date in the app.
+  const syncRangeTitle = useMemo(() => {
+    const toDay = (d: Date): string =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+        d.getDate()
+      ).padStart(2, '0')}`;
+    const start = formatShortDate(
+      toDay(getSyncStartDate(selectedTimeRange)),
+      dateLocale
+    );
+    const end = formatShortDate(toDay(new Date()), dateLocale);
+    return start === end
+      ? t('syncScreen.syncChoice.titleSingleDay', {
+          defaultValue: 'Sync {{day}}',
+          day: end,
+        })
+      : t('syncScreen.syncChoice.title', {
+          defaultValue: 'Sync {{start}} – {{end}}',
+          start,
+          end,
+        });
+  }, [selectedTimeRange, dateLocale, t]);
+
+  const syncChoiceItems = useMemo<ActionSheetItem[]>(
+    () => [
+      {
+        key: 'quick',
+        label: t('syncScreen.syncChoice.quick', { defaultValue: 'Quick Sync' }),
+        description: t('syncScreen.syncChoice.quickDescription', {
+          defaultValue:
+            'Sends all your health data. Workouts already synced keep the map and heart rate they have.',
+        }),
+        onPress: () => runSync(false),
+      },
+      {
+        key: 'all',
+        label: t('syncScreen.syncChoice.all', { defaultValue: 'All Sync' }),
+        description: t('syncScreen.syncChoice.allDescription', {
+          defaultValue:
+            'The same, and also re-reads the map and heart rate for workouts already synced. Slower.',
+        }),
+        onPress: () => runSync(true),
+      },
+    ],
+    [t, runSync]
   );
 
   const handleSync = useCallback((): void => {
@@ -760,37 +808,9 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
         runSync(false);
         return;
       }
-      Alert.alert(
-        // The range goes in the title so the scope is visible at a glance
-        // rather than described in prose.
-        t('syncScreen.syncChoice.title', {
-          defaultValue: 'Sync {{range}}',
-          range: rangeLabel,
-        }),
-        t('syncScreen.syncChoice.message', {
-          defaultValue: 'Re-reading workout maps and heart rate takes longer.',
-        }),
-        [
-          {
-            text: t('syncScreen.syncChoice.newOnly', {
-              defaultValue: 'Sync',
-            }),
-            onPress: () => runSync(false),
-          },
-          {
-            text: t('syncScreen.syncChoice.resend', {
-              defaultValue: 'Sync + Workout Detail',
-            }),
-            onPress: () => runSync(true),
-          },
-          {
-            text: t('common.cancel', { defaultValue: 'Cancel' }),
-            style: 'cancel',
-          },
-        ]
-      );
+      syncChoiceSheetRef.current?.present();
     })();
-  }, [syncMutation.isPending, runSync, rangeLabel, t]);
+  }, [syncMutation.isPending, runSync]);
 
   const header = useScreenHeader({
     title: t('syncScreen.title', { defaultValue: 'Health Data Sync' }),
@@ -980,6 +1000,12 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
         <DateRangeSheet
           ref={dateRangeSheetRef}
           onConfirm={(from, to) => doRemoveWritebackData({ from, to })}
+        />
+
+        <ActionSheet
+          ref={syncChoiceSheetRef}
+          title={syncRangeTitle}
+          items={syncChoiceItems}
         />
 
         {/* Health Data Report — Android only */}
