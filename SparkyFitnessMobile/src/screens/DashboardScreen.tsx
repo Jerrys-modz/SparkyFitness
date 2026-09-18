@@ -45,6 +45,7 @@ import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import {
+  caffeineActiveRootQueryKey,
   fastingRootQueryKey,
   medicationsRootQueryKey,
   useCustomNutrients,
@@ -320,6 +321,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     kinetics: caffeineKinetics,
     nowMs: caffeineNowMs,
     isLoading: isCaffeineLoading,
+    refetch: refetchCaffeine,
   } = useCaffeineKinetics(selectedDate, caffeineCardVisible);
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const medicationsCardVisible = useAppPreferencesStore(
@@ -348,7 +350,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       refetchTrends(),
       refetchCustomNutrients(),
       refetchNutrientPrefs(),
-      // FastingCard owns its own queries; nudge them on pull-to-refresh.
+      refetchCaffeine(),
+      // CaffeineCard and FastingCard own their own queries; nudge them on pull-to-refresh.
+      queryClient.invalidateQueries({ queryKey: caffeineActiveRootQueryKey }),
       queryClient.invalidateQueries({ queryKey: fastingRootQueryKey }),
       // MedicationsCard owns its own queries.
       queryClient.invalidateQueries({ queryKey: medicationsRootQueryKey }),
@@ -361,6 +365,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     refetchTrends,
     refetchCustomNutrients,
     refetchNutrientPrefs,
+    refetchCaffeine,
     queryClient,
   ]);
 
