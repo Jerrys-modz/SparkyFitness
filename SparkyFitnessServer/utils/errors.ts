@@ -8,11 +8,15 @@ export class ValidationError extends Error {
 // A thrown value only has to be renderable, not an Error, and `error.message`
 // on its own is not always enough to diagnose one. Node's Happy Eyeballs
 // connector rejects with an `AggregateError` whose `message` is the empty
-// string and whose real causes sit in `errors[]`, so interpolating the message
-// straight into a log line produces a bare `Error exchanging Withings code for
-// tokens:` with nothing after it -- exactly what issue #2285 reported. Unwrap
-// the aggregate and the `cause` chain, fall back to the syscall `code`, and
-// never return an empty string.
+// string and whose real causes sit in `errors[]`. axios already flattens that
+// case into its own message, so the axios paths are covered without this; what
+// is not covered is everything else that reaches a `${error.message}` log line
+// -- native fetch/undici rejections, database errors, and values that are not
+// Errors at all. Interpolating one of those can still produce a bare
+// `Error exchanging Withings code for tokens:` with nothing after it, which is
+// what issue #2285 reported before the axios upgrade. Unwrap the aggregate and
+// the `cause` chain, fall back to the syscall `code`, and never return an
+// empty string.
 const MAX_CAUSE_DEPTH = 3;
 const MAX_CAUSES_PER_LEVEL = 4;
 

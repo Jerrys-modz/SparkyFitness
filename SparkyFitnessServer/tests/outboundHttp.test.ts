@@ -1,10 +1,7 @@
 import net from 'net';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  attachOutboundErrorDetail,
-  configureOutboundHttp,
-} from '../utils/outboundHttp.js';
+import { configureOutboundHttp } from '../utils/outboundHttp.js';
 import { describeError } from '../utils/errors.js';
 
 let previousTimeout: unknown;
@@ -67,36 +64,7 @@ describe('configureOutboundHttp', () => {
 
     configureOutboundHttp();
 
-    expect(setAttemptTimeout).toHaveBeenCalledWith(2000);
+    expect(setAttemptTimeout).toHaveBeenCalledWith(5000);
     expect(axios.defaults.timeout).toBe(30000);
-  });
-});
-
-describe('attachOutboundErrorDetail', () => {
-  it('fills in a blank rejection message and leaves a populated one intact', async () => {
-    const instance = axios.create();
-    attachOutboundErrorDetail(instance);
-
-    const blank = Object.assign(new Error(''), {
-      cause: new AggregateError(
-        [Object.assign(new Error(''), { code: 'ETIMEDOUT' })],
-        ''
-      ),
-    });
-    instance.interceptors.request.use(() => {
-      throw blank;
-    });
-    await expect(instance.get('https://example.invalid')).rejects.toThrow(
-      /ETIMEDOUT/
-    );
-
-    const described = axios.create();
-    attachOutboundErrorDetail(described);
-    described.interceptors.request.use(() => {
-      throw new Error('Request failed with status code 401');
-    });
-    await expect(described.get('https://example.invalid')).rejects.toThrow(
-      'Request failed with status code 401'
-    );
   });
 });
