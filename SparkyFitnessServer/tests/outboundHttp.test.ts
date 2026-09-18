@@ -5,13 +5,18 @@ import { configureOutboundHttp } from '../utils/outboundHttp.js';
 import { describeError } from '../utils/errors.js';
 
 let previousTimeout: unknown;
+let previousAttemptTimeout: number;
 
 beforeEach(() => {
   previousTimeout = axios.defaults.timeout;
+  // The spy on setDefaultAutoSelectFamilyAttemptTimeout calls through, so
+  // configureOutboundHttp() really does move the process-wide default.
+  previousAttemptTimeout = net.getDefaultAutoSelectFamilyAttemptTimeout();
 });
 
 afterEach(() => {
   axios.defaults.timeout = previousTimeout as number;
+  net.setDefaultAutoSelectFamilyAttemptTimeout(previousAttemptTimeout);
   vi.restoreAllMocks();
 });
 
