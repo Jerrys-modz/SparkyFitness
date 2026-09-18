@@ -31,6 +31,7 @@ import {
   type WritebackDateRange,
 } from '../WritebackMetrics';
 import { enabledWritebackPermissions } from '../services/shared/healthPermissionSets';
+import { hasAnyEnrichedSessions } from '../services/shared/enrichedSessionCache';
 import HealthSourceLabel from '../components/HealthSourceLabel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
@@ -714,10 +715,71 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
     setIsSharingReport(false);
   };
 
-  const handleSync = (): void => {
+  const runSync = useCallback(
+    (forceTelemetry: boolean): void => {
+      syncMutation.mutate({
+        timeRange: selectedTimeRange,
+        healthMetricStates,
+        forceTelemetry,
+      });
+    },
+    [syncMutation, selectedTimeRange, healthMetricStates]
+  );
+
+  /**
+   * Manual sync. Offers to re-send workout details as well as new data.
+   *
+   * Workout routes and sample series are collected once per workout and then
+   * skipped on every later run, so a plain sync cannot bring them back — and
+   * because that record lives on the device, deleting the data server-side
+   * does not clear it either. Asking here is what makes the expensive option
+   * reachable at all, and keeps it a deliberate choice rather than a button
+   * that is quietly slow every time.
+   *
+   * With nothing collected yet the two options do identical work, so the
+   * prompt is skipped rather than asking a question with one real answer.
+   */
+  const handleSync = useCallback((): void => {
     if (syncMutation.isPending || isSyncClaimed()) return;
-    syncMutation.mutate({ timeRange: selectedTimeRange, healthMetricStates });
-  };
+    void (async () => {
+      let canForce = false;
+      try {
+        canForce = await hasAnyEnrichedSessions();
+      } catch {
+        // Unreadable cache: fall through to a normal sync rather than
+        // blocking the button on a diagnostic question.
+      }
+      if (!canForce) {
+        runSync(false);
+        return;
+      }
+      Alert.alert(
+        t('syncScreen.syncChoice.title', { defaultValue: 'Sync Health Data' }),
+        t('syncScreen.syncChoice.message', {
+          defaultValue:
+            'Workout routes and heart rate details are sent once per workout. Re-sending them takes longer.',
+        }),
+        [
+          {
+            text: t('syncScreen.syncChoice.newOnly', {
+              defaultValue: 'New Data Only',
+            }),
+            onPress: () => runSync(false),
+          },
+          {
+            text: t('syncScreen.syncChoice.resend', {
+              defaultValue: 'Re-send Workout Details',
+            }),
+            onPress: () => runSync(true),
+          },
+          {
+            text: t('common.cancel', { defaultValue: 'Cancel' }),
+            style: 'cancel',
+          },
+        ]
+      );
+    })();
+  }, [syncMutation.isPending, runSync, t]);
 
   const header = useScreenHeader({
     title: t('syncScreen.title', { defaultValue: 'Health Data Sync' }),

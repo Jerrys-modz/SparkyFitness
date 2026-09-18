@@ -1104,8 +1104,9 @@ const handleWorkout: RecordHandler = async (
   for (const w of filteredWorkouts) {
     // Already-collected workouts neither consume a slot nor get re-read, so a
     // bounded budget works through the backlog across syncs instead of
-    // re-picking the same newest few every run (#2191).
-    if (await hasEnrichedSession(workoutCacheKey(w))) {
+    // re-picking the same newest few every run (#2191). A forced run re-reads
+    // them anyway — that is the user asking for exactly this window again.
+    if (!ctx.force && (await hasEnrichedSession(workoutCacheKey(w)))) {
       skippedAlreadyCollected++;
       continue;
     }
@@ -1138,6 +1139,7 @@ const handleWorkout: RecordHandler = async (
           ? (workoutAny.totalDistance?.quantity ?? 0)
           : (workoutAny.totalDistance ?? 0);
       let totalSteps: number | undefined;
+      let basalEnergyBurned: number | undefined;
 
       // Pin units explicitly on each getStatistic call. getAllStatistics returns
       // values in the user's HealthKit-preferred unit (often miles / kJ), but the
@@ -1150,6 +1152,24 @@ const handleWorkout: RecordHandler = async (
         );
         if (energyStats?.sumQuantity?.quantity) {
           totalEnergyBurned = energyStats.sumQuantity.quantity;
+        }
+
+        // Resting/basal burn during the workout. Apple Fitness shows both
+        // ("Active 57 CAL / Total 94 CAL"), and Total - Active is this value;
+        // without it the app's Active/Resting tile can only render "57 / —".
+        // Read through the same statistics(for:) path as active energy, so it
+        // stays limited to samples HealthKit associates with this workout —
+        // see the note on step count below for why a general clock-window
+        // query is not substituted here. If HealthKit associates no basal
+        // samples with the workout this stays undefined and resting simply
+        // remains unreported, exactly as before.
+        const basalStats = await w.getStatistic(
+          'HKQuantityTypeIdentifierBasalEnergyBurned',
+          'kcal'
+        );
+        const basal = basalStats?.sumQuantity?.quantity;
+        if (typeof basal === 'number' && Number.isFinite(basal) && basal > 0) {
+          basalEnergyBurned = basal;
         }
 
         const distanceTypes = [
@@ -1237,6 +1257,9 @@ const handleWorkout: RecordHandler = async (
         telemetry.elapsed_time_seconds = Math.round(durationSeconds);
       }
       if (totalEnergyBurned) telemetry.active_calories = totalEnergyBurned;
+      if (basalEnergyBurned !== undefined) {
+        telemetry.resting_calories = basalEnergyBurned;
+      }
 
       // Telemetry must be collected here, inside the closure that owns the live
       // proxy: the per-workout sample predicate takes the proxy object itself,

@@ -278,6 +278,18 @@ export const hasEnrichedSession = async (
   return cacheIndex.has(key);
 };
 
+/**
+ * Whether this server holds any collected-telemetry records at all.
+ *
+ * Used to decide whether offering "re-send workout details" is meaningful: with
+ * an empty cache nothing is being skipped, so a forced run and a normal one do
+ * exactly the same work and the choice is noise.
+ */
+export const hasAnyEnrichedSessions = async (): Promise<boolean> => {
+  await load();
+  return cacheIndex.size > 0;
+};
+
 // Commits are serialised. Without this, two runs (a foreground sync overlapping
 // a background one — telemetryBudget.ts notes they are not mutually exclusive)
 // both await load(), capture the same array, and the second computes its merge

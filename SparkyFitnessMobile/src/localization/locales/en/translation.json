@@ -794,6 +794,12 @@
       "subtitle": "Export anonymized health data for bug reports",
       "privacy": "Reads the last 4 hours of data from Health Connect for troubleshooting.\nValues are rounded for privacy. Nothing is sent automatically.",
       "error": "Failed to generate health data report: {{error}}"
+    },
+    "syncChoice": {
+      "title": "Sync Health Data",
+      "message": "Workout routes and heart rate details are sent once per workout. Re-sending them takes longer.",
+      "newOnly": "New Data Only",
+      "resend": "Re-send Workout Details"
     }
   },
   "syncFrequency": {

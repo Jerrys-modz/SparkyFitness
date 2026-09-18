@@ -3,6 +3,7 @@ import {
   MAX_ENRICHED_SESSION_KEYS,
   _resetEnrichedSessionCacheForTests,
   clearEnrichedSessions,
+  hasAnyEnrichedSessions,
   hasEnrichedSession,
   hasHeartRateTelemetry,
   markEnrichedSessions,
@@ -292,5 +293,38 @@ describe('enrichedSessionCache', () => {
         true
       );
     });
+  });
+});
+
+// Gates whether the manual sync offers to re-send workout details: with an
+// empty cache nothing is being skipped, so a forced run and a normal one do
+// identical work and the choice would be noise.
+describe('hasAnyEnrichedSessions', () => {
+  it('is false before anything has been collected', async () => {
+    mockActiveConfig.mockResolvedValue('server-1');
+    expect(await hasAnyEnrichedSessions()).toBe(false);
+  });
+
+  it('is true once a session is recorded', async () => {
+    mockActiveConfig.mockResolvedValue('server-1');
+    await markEnrichedSessions(['rec-1:m']);
+    expect(await hasAnyEnrichedSessions()).toBe(true);
+  });
+
+  it('is false again after the cache is cleared', async () => {
+    mockActiveConfig.mockResolvedValue('server-1');
+    await markEnrichedSessions(['rec-1:m']);
+    await clearEnrichedSessions();
+    expect(await hasAnyEnrichedSessions()).toBe(false);
+  });
+
+  it('is scoped per server, like the rest of the cache', async () => {
+    mockActiveConfig.mockResolvedValue('server-1');
+    await markEnrichedSessions(['rec-1:m']);
+    expect(await hasAnyEnrichedSessions()).toBe(true);
+
+    _resetEnrichedSessionCacheForTests();
+    mockActiveConfig.mockResolvedValue('server-2');
+    expect(await hasAnyEnrichedSessions()).toBe(false);
   });
 });

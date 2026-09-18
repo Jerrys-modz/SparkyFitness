@@ -1482,8 +1482,9 @@ export const enrichExerciseSessions = async (
     }
     // Already-collected sessions neither consume a slot nor get re-read, so a
     // bounded budget works through the backlog across syncs instead of
-    // re-picking the same newest few every run (#2191).
-    if (await hasEnrichedSession(sessionCacheKey(record))) {
+    // re-picking the same newest few every run (#2191). A forced run re-reads
+    // them anyway — that is the user asking for exactly this window again.
+    if (!ctx.force && (await hasEnrichedSession(sessionCacheKey(record)))) {
       skippedAlreadyCollected++;
       continue;
     }
