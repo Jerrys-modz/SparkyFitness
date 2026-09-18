@@ -772,3 +772,54 @@ describe('Polar biosensing payloads match the AccessLink spec', () => {
     expect(samples[0].entry_date).toBe('2023-10-20');
   });
 });
+
+describe('Polar sample day-bucketing (issue #2471 follow-up)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('merges HRV rather than replacing a day two nights both touch', async () => {
+    // A night straddles midnight, so night N's morning samples and night N+1's
+    // evening samples share day N. In the default `replace` mode the later
+    // night wiped the earlier night's readings for that day.
+    await processPolarNightlyRecharge(UID, CID, [
+      { date: '2026-09-09', hrv_samples: { '23:01': 71, '00:10': 66 } },
+      { date: '2026-09-10', hrv_samples: { '23:05': 70, '00:20': 64 } },
+    ] as never[]);
+
+    const calls = vi.mocked(upsertSamplesByDay).mock.calls;
+    expect(calls).toHaveLength(2);
+
+    for (const call of calls) {
+      const options = call[5] as { mode?: string; window?: unknown };
+      expect(options?.mode).toBe('merge');
+      expect(options?.window).toBeDefined();
+    }
+
+    // Both nights write to 2026-09-09; merge is what stops the second
+    // overwriting the first.
+    const daysPerCall = calls.map((call) =>
+      (call[4] as unknown as Array<{ entry_date: string }>).map(
+        (s) => s.entry_date
+      )
+    );
+    expect(daysPerCall[0]).toContain('2026-09-09');
+    expect(daysPerCall[1]).toContain('2026-09-09');
+  });
+
+  it('buckets SpO2 by the recording zone offset, not the UTC day', async () => {
+    // 01:00 in UTC+2 is 23:00 UTC the previous day.
+    await processPolarSpO2(UID, CID, [
+      {
+        test_time: Date.parse('2023-10-19T23:00:00Z') / 1000,
+        time_zone_offset: 120,
+        test_status: 'SPO2_TEST_PASSED',
+        blood_oxygen_percent: 96,
+      },
+    ] as never[]);
+
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{ entry_date: string }>;
+    expect(samples[0].entry_date).toBe('2023-10-20');
+  });
+});

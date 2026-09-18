@@ -46,7 +46,7 @@ const IntradaySamplesChart: React.FC<IntradaySamplesChartProps> = ({
   isLoading = false,
 }) => {
   const { t } = useTranslation();
-  const { timeFormat } = usePreferences();
+  const { formatTime } = usePreferences();
 
   const metricConfig = useMemo(() => {
     switch (metric) {
@@ -157,17 +157,11 @@ const IntradaySamplesChart: React.FC<IntradaySamplesChartProps> = ({
           const d = new Date(isoTime);
           if (!Number.isFinite(d.getTime())) continue;
 
-          // Format time as HH:mm or hh:mm a
-          const is12Hour = timeFormat === '12h';
-          const hours = d.getHours();
-          const minutes = d.getMinutes().toString().padStart(2, '0');
-          const displayTime = is12Hour
-            ? `${hours % 12 || 12}:${minutes} ${hours >= 12 ? 'PM' : 'AM'}`
-            : `${hours.toString().padStart(2, '0')}:${minutes}`;
-
           allSamples.push({
             time: isoTime,
-            displayTime,
+            // formatTime applies the user's configured timezone and time
+            // format; getHours()/getMinutes() would use the browser's zone.
+            displayTime: formatTime(isoTime),
             value: Number(val),
             raw: sample,
           });
@@ -193,7 +187,7 @@ const IntradaySamplesChart: React.FC<IntradaySamplesChartProps> = ({
     };
 
     return { chartData: allSamples, stats, provider: sourceProvider };
-  }, [samples, selectedDate, metricConfig, timeFormat]);
+  }, [samples, selectedDate, metricConfig, formatTime]);
 
   const Icon = metricConfig.icon;
 

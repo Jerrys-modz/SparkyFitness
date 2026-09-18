@@ -12,6 +12,11 @@ const DISPLAYABLE_FIELDS = [
   'training_readiness_score',
   'acute_training_load',
   'weekly_training_load',
+  // The Training Load tile also renders these two, and Polar can report
+  // tolerance/ratio without strain — omitting them here would skip an otherwise
+  // displayable row and hide the card.
+  'chronic_training_load',
+  'acwr_ratio',
 ] as const satisfies readonly (keyof DailyHealthMetrics)[];
 
 /**
