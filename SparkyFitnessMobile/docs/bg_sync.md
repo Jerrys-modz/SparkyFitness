@@ -113,14 +113,17 @@ fixing what gets collected.
 
 ```
 Sync Health Data
-Workout routes and heart rate details are sent once per workout.
-Re-sending them takes longer.
+Your health data syncs either way. The only difference is workout
+maps and charts — those are sent once per workout, so re-sending
+them covers workouts already synced and takes longer.
 
-  [ New Data Only ]  [ Re-send Workout Details ]  [ Cancel ]
+  [ Sync Now ]  [ Sync + Re-send Maps ]  [ Cancel ]
 ```
 
-Both options sync the selected range; the choice only controls whether already-collected
-workouts are re-read. The prompt is skipped when nothing has been collected yet
+Both options sync the selected range **and the same set of metrics** — the choice only
+controls whether already-collected workouts have their route and sample series re-read.
+The copy leads with that, because the first wording ("New Data Only") read as though it
+synced only workouts. The prompt is skipped when nothing has been collected yet
 (`hasAnyEnrichedSessions()`), since both options would then do identical work.
 
 Sync-on-open and background sync never prompt and never force.

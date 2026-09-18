@@ -797,9 +797,9 @@
     },
     "syncChoice": {
       "title": "Sync Health Data",
-      "message": "Workout routes and heart rate details are sent once per workout. Re-sending them takes longer.",
-      "newOnly": "New Data Only",
-      "resend": "Re-send Workout Details"
+      "message": "Your health data syncs either way. The only difference is workout maps and charts — those are sent once per workout, so re-sending them covers workouts already synced and takes longer.",
+      "newOnly": "Sync Now",
+      "resend": "Sync + Re-send Maps"
     }
   },
   "syncFrequency": {

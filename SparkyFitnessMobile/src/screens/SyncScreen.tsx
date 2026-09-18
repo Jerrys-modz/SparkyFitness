@@ -757,18 +757,18 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
         t('syncScreen.syncChoice.title', { defaultValue: 'Sync Health Data' }),
         t('syncScreen.syncChoice.message', {
           defaultValue:
-            'Workout routes and heart rate details are sent once per workout. Re-sending them takes longer.',
+            'Your health data syncs either way. The only difference is workout maps and charts — those are sent once per workout, so re-sending them covers workouts already synced and takes longer.',
         }),
         [
           {
             text: t('syncScreen.syncChoice.newOnly', {
-              defaultValue: 'New Data Only',
+              defaultValue: 'Sync Now',
             }),
             onPress: () => runSync(false),
           },
           {
             text: t('syncScreen.syncChoice.resend', {
-              defaultValue: 'Re-send Workout Details',
+              defaultValue: 'Sync + Re-send Maps',
             }),
             onPress: () => runSync(true),
           },
