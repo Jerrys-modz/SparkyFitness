@@ -30,7 +30,9 @@ interface WithingsMeasureGroup extends WithingsPayloadRecord {
   category?: number;
   date?: number;
   timestamp?: number;
-  measures: WithingsMeasure[];
+  // Not guaranteed: a malformed or partial group can omit it, so consumers
+  // must narrow before iterating.
+  measures?: WithingsMeasure[];
 }
 
 /** A `series` entry from `/v2/heart?action=list`. */

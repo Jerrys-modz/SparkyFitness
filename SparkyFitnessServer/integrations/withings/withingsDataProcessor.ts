@@ -327,6 +327,13 @@ async function processWithingsMeasures(
       );
       continue;
     }
+    if (!Array.isArray(group.measures)) {
+      log(
+        'warn',
+        `Missing or malformed measures in Withings measure group: ${JSON.stringify(group)}`
+      );
+      continue;
+    }
     const entryDate = instantToDay(timestamp * 1000, timezone); // Convert Unix timestamp to YYYY-MM-DD
     const measurementsToUpsert = {};
     const customMeasurementsToUpsert = [];
