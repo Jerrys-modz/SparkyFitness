@@ -39,6 +39,10 @@ const metrics = (overrides: Partial<DailyHealthMetrics>): DailyHealthMetrics =>
     fitness_age: null,
     training_readiness_score: null,
     recovery_time_hours: null,
+    acute_training_load: null,
+    chronic_training_load: null,
+    weekly_training_load: null,
+    acwr_ratio: null,
     ...overrides,
   }) as DailyHealthMetrics;
 
@@ -57,6 +61,23 @@ describe('DailyHealthMetricsCard section visibility', () => {
     expect(screen.queryByText('Avg Stress')).not.toBeInTheDocument();
     expect(screen.queryByText('VO2 Max')).not.toBeInTheDocument();
     expect(screen.queryByText('Readiness')).not.toBeInTheDocument();
+    expect(screen.queryByText('Training Load')).not.toBeInTheDocument();
+  });
+
+  it('renders Training Load tile when acute training load is present', () => {
+    render(
+      <DailyHealthMetricsCard
+        metrics={metrics({
+          acute_training_load: 45.2,
+          chronic_training_load: 38.5,
+          acwr_ratio: 1.17,
+        })}
+      />
+    );
+
+    expect(screen.getByText('Training Load')).toBeInTheDocument();
+    expect(screen.getByText('45.2')).toBeInTheDocument();
+    expect(screen.getByText('Ratio: 1.17')).toBeInTheDocument();
   });
 
   it('renders every tile when a provider reports everything', () => {
@@ -69,6 +90,7 @@ describe('DailyHealthMetricsCard section visibility', () => {
           resting_heart_rate: 48,
           vo2_max: 47,
           training_readiness_score: 72,
+          acute_training_load: 50,
         })}
       />
     );
@@ -79,6 +101,7 @@ describe('DailyHealthMetricsCard section visibility', () => {
       'Resting HR',
       'VO2 Max',
       'Readiness',
+      'Training Load',
     ].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
   });
 

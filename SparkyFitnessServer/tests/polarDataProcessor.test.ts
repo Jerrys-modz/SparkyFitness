@@ -4,6 +4,7 @@ import exerciseEntryRepository from '../models/exerciseEntry.js';
 import sleepRepository from '../models/sleepRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
+import { upsertSamplesByDay } from '../services/healthMetricSampleWriter.js';
 import {
   hypnogramStageStartMs,
   processPolarActivity,
@@ -11,22 +12,34 @@ import {
   processPolarNightlyRecharge,
   processPolarPhysicalInfo,
   processPolarSleep,
+  processPolarCardioLoad,
+  processPolarContinuousHeartRate,
+  processPolarSpO2,
+  processPolarBodyTemperature,
+  processPolarSkinTemperature,
   resolvePolarActivityDate,
   resolvePolarActivitySteps,
 } from '../integrations/polar/polarDataProcessor.js';
 
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+vi.mock('../utils/timezoneLoader.js', () => ({
+  loadUserTimezone: vi.fn().mockResolvedValue('America/New_York'),
+}));
+vi.mock('../services/healthMetricSampleWriter.js', () => ({
+  upsertSamplesByDay: vi.fn().mockResolvedValue(1),
+}));
 vi.mock('../models/measurementRepository.js', () => ({
   default: {
     upsertStepData: vi.fn(),
     upsertCheckInMeasurements: vi.fn(),
-    getCustomCategories: vi.fn(),
-    createCustomCategory: vi.fn(),
+    getCustomCategories: vi.fn().mockResolvedValue([]),
+    createCustomCategory: vi.fn().mockResolvedValue({ id: 'cat-new' }),
     upsertCustomMeasurement: vi.fn(),
   },
 }));
 vi.mock('../models/genericHealthRepository.js', () => ({
-  upsertDailyHealthMetrics: vi.fn(),
+  upsertDailyHealthMetrics: vi.fn().mockResolvedValue({}),
+  bulkUpsertVitals: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('../models/exercise.js', () => ({
   default: {
@@ -458,5 +471,207 @@ describe('resolvePolarActivityDate / resolvePolarActivitySteps', () => {
     expect(resolvePolarActivitySteps({ 'active-steps': 12 })).toBe(12);
     expect(resolvePolarActivitySteps({ steps: 0 })).toBe(0);
     expect(resolvePolarActivitySteps({})).toBeNull();
+  });
+});
+
+describe('processPolarCardioLoad', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes partial daily health metrics for acute and chronic load', async () => {
+    await processPolarCardioLoad(UID, CID, [
+      {
+        date: '2026-09-18',
+        strain: 45.2,
+        tolerance: 38.5,
+        'cardio-load-ratio': 1.17,
+      },
+    ]);
+
+    expect(
+      genericHealthRepository.upsertDailyHealthMetrics
+    ).toHaveBeenCalledWith(
+      UID,
+      CID,
+      expect.objectContaining({
+        user_id: UID,
+        entry_date: '2026-09-18',
+        source_provider: 'polar',
+        acute_training_load: 45.2,
+        chronic_training_load: 38.5,
+        acwr_ratio: 1.17,
+      })
+    );
+  });
+});
+
+describe('processPolarNightlyRecharge HRV samples series', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('extracts 5-minute interval HRV series and writes samples', async () => {
+    await processPolarNightlyRecharge(UID, CID, [
+      {
+        date: '2026-09-18',
+        'heart-rate-variability-avg': 48,
+        'hrv-samples': {
+          'start-time': '2026-09-18T00:00:00Z',
+          'interval-in-seconds': 300,
+          '5min-intervals': [45, 50, 52],
+        },
+      },
+    ] as never[]);
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      CID,
+      'hrv',
+      'polar',
+      expect.arrayContaining([
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          rmssd_ms: 45,
+          device_name: 'Polar Device',
+        }),
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          rmssd_ms: 50,
+          device_name: 'Polar Device',
+        }),
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          rmssd_ms: 52,
+          device_name: 'Polar Device',
+        }),
+      ])
+    );
+  });
+});
+
+describe('processPolarContinuousHeartRate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('converts local sample times to timestamps and writes heart_rate samples', async () => {
+    await processPolarContinuousHeartRate(
+      UID,
+      CID,
+      {
+        polar_user: 'p-1',
+        date: '2026-09-18',
+        'heart-rate-samples': [
+          { 'sample-time': '08:00:00', 'heart-rate': 62 },
+          { 'sample-time': '08:05:00', 'heart-rate': 68 },
+        ],
+      },
+      'America/New_York'
+    );
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      CID,
+      'heart_rate',
+      'polar',
+      expect.arrayContaining([
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          bpm: 62,
+          device_name: 'Polar Device',
+        }),
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          bpm: 68,
+          device_name: 'Polar Device',
+        }),
+      ])
+    );
+  });
+});
+
+describe('processPolarSpO2', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes passed SpO2 spot test readings and skips invalid ones', async () => {
+    await processPolarSpO2(UID, CID, [
+      {
+        'test-status': 'SPO2_TEST_PASSED',
+        'blood-oxygen-percent': 98,
+        'test-time': 1726660000,
+        date: '2026-09-18',
+      },
+      {
+        'test-status': 'SPO2_TEST_FAILED',
+        'blood-oxygen-percent': 85,
+        'test-time': 1726661000,
+        date: '2026-09-18',
+      },
+    ]);
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(UID, CID, 'spo2', 'polar', [
+      expect.objectContaining({
+        entry_date: '2026-09-18',
+        percentage: 98,
+        device_name: 'Polar Device',
+      }),
+    ]);
+  });
+});
+
+describe('processPolarBodyTemperature & processPolarSkinTemperature', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes body temperature entries to vitals_entries', async () => {
+    await processPolarBodyTemperature(UID, CID, [
+      {
+        date: '2026-09-18',
+        'test-time': 1726660000,
+        'temperature-celsius': 36.8,
+      },
+    ]);
+
+    expect(genericHealthRepository.bulkUpsertVitals).toHaveBeenCalledWith(
+      UID,
+      CID,
+      [
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          body_temperature_celsius: 36.8,
+          source_provider: 'polar',
+        }),
+      ]
+    );
+  });
+
+  it('writes skin temperature series to health_metric_samples', async () => {
+    await processPolarSkinTemperature(UID, CID, [
+      {
+        date: '2026-09-18',
+        'test-time': 1726660000,
+        'skin-temperature-celsius': 34.2,
+        'deviation-from-baseline-celsius': 0.3,
+      },
+    ]);
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      CID,
+      'skin_temperature',
+      'polar',
+      [
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          celsius: 34.2,
+          deviation_celsius: 0.3,
+          device_name: 'Polar Device',
+        }),
+      ]
+    );
   });
 });

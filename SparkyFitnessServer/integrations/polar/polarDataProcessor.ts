@@ -5,7 +5,15 @@ import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import activityDetailsRepository from '../../models/activityDetailsRepository.js';
 import * as genericHealthRepository from '../../models/genericHealthRepository.js';
-import { utcOffsetMinutesFromIsoString } from '@workspace/shared';
+import {
+  utcOffsetMinutesFromIsoString,
+  localDateTimeToUtc,
+} from '@workspace/shared';
+import {
+  upsertSamplesByDay,
+  FlatHealthSample,
+} from '../../services/healthMetricSampleWriter.js';
+import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 
 /**
  * Provider tag for Polar rows in daily_health_metrics. Lowercase to match the
@@ -790,8 +798,488 @@ async function processPolarNightlyRecharge(
         });
       }
     }
+
+    // Intraday HRV series -> health_metric_samples (metric: 'hrv')
+    const hrvPayload =
+      getVal(recharge, 'hrv-samples') ?? getVal(recharge, 'hrv_samples');
+    if (hrvPayload) {
+      const hrvSamples: FlatHealthSample[] = [];
+      const intervals =
+        getVal(hrvPayload, '5min-intervals') ??
+        getVal(hrvPayload, '5min_intervals') ??
+        getVal(hrvPayload, 'intervals');
+
+      if (Array.isArray(intervals)) {
+        const intervalSec =
+          toFiniteNumber(
+            getVal(hrvPayload, 'interval-in-seconds') ??
+              getVal(hrvPayload, 'interval_in_seconds')
+          ) ?? 300;
+        const startStr =
+          getVal(hrvPayload, 'start-time') ??
+          getVal(hrvPayload, 'sample-time') ??
+          getVal(recharge, 'sleep-start-time') ??
+          getVal(recharge, 'heart-rate-variability-start-time');
+
+        let currentMs = startStr
+          ? new Date(parsePolarToUTC(startStr) as string).getTime()
+          : new Date(`${entryDate}T00:00:00Z`).getTime();
+        if (!Number.isFinite(currentMs)) {
+          currentMs = new Date(`${entryDate}T00:00:00Z`).getTime();
+        }
+
+        for (const val of intervals) {
+          const rmssd = toFiniteNumber(val);
+          if (rmssd !== null && rmssd >= 0) {
+            hrvSamples.push({
+              entry_date: entryDate,
+              timestamp: new Date(currentMs),
+              rmssd_ms: rmssd,
+              device_name: 'Polar Device',
+            });
+          }
+          currentMs += intervalSec * 1000;
+        }
+      } else if (Array.isArray(hrvPayload)) {
+        for (const item of hrvPayload) {
+          const rmssd = toFiniteNumber(
+            getVal(item, 'rmssd') ??
+              getVal(item, 'hrv') ??
+              getVal(item, 'value') ??
+              getVal(item, 'data')
+          );
+          const timeStr =
+            getVal(item, 'sample-time') ??
+            getVal(item, 'time') ??
+            getVal(item, 'timestamp') ??
+            getVal(item, 't');
+          if (rmssd !== null && timeStr) {
+            const timestamp = new Date(parsePolarToUTC(timeStr) as string);
+            if (Number.isFinite(timestamp.getTime())) {
+              hrvSamples.push({
+                entry_date: entryDate,
+                timestamp,
+                rmssd_ms: rmssd,
+                device_name: 'Polar Device',
+              });
+            }
+          }
+        }
+      }
+
+      if (hrvSamples.length > 0) {
+        await upsertSamplesByDay(
+          userId,
+          createdByUserId,
+          'hrv',
+          POLAR_HEALTH_PROVIDER,
+          hrvSamples
+        );
+      }
+    }
   }
 }
+
+/**
+ * Processes Polar cardio load data.
+ */
+async function processPolarCardioLoad(
+  userId: string,
+  createdByUserId: string,
+  cardioLoadData: unknown
+) {
+  const cardioList = Array.isArray(cardioLoadData)
+    ? cardioLoadData
+    : (
+        cardioLoadData as {
+          'cardio-loads'?: unknown[];
+          cardio_loads?: unknown[];
+        }
+      )?.['cardio-loads'] ||
+      (
+        cardioLoadData as {
+          'cardio-loads'?: unknown[];
+          cardio_loads?: unknown[];
+        }
+      )?.cardio_loads ||
+      [];
+  if (!Array.isArray(cardioList) || cardioList.length === 0) return;
+
+  for (const entry of cardioList) {
+    if (!entry || typeof entry !== 'object') continue;
+    const entryDate = getVal(entry, 'date');
+    if (!entryDate) continue;
+
+    const strain = toFiniteNumber(getVal(entry, 'strain'));
+    const tolerance = toFiniteNumber(getVal(entry, 'tolerance'));
+    const cardioLoadRatio = toFiniteNumber(
+      getVal(entry, 'cardio-load-ratio') ?? getVal(entry, 'cardio_load_ratio')
+    );
+
+    if (strain !== null || tolerance !== null || cardioLoadRatio !== null) {
+      await genericHealthRepository.upsertDailyHealthMetrics(
+        userId,
+        createdByUserId,
+        {
+          user_id: userId,
+          entry_date: entryDate,
+          source_provider: POLAR_HEALTH_PROVIDER,
+          acute_training_load:
+            strain !== null ? Math.round(strain * 100) / 100 : null,
+          chronic_training_load:
+            tolerance !== null ? Math.round(tolerance * 100) / 100 : null,
+          acwr_ratio:
+            cardioLoadRatio !== null
+              ? Math.round(cardioLoadRatio * 100) / 100
+              : null,
+        }
+      );
+    }
+  }
+}
+
+/**
+ * Processes Polar continuous heart rate data.
+ */
+async function processPolarContinuousHeartRate(
+  userId: string,
+  createdByUserId: string,
+  continuousHrData: unknown,
+  userTz?: string
+) {
+  const hrList = Array.isArray(continuousHrData)
+    ? continuousHrData
+    : (
+        continuousHrData as {
+          continuous_heart_rates?: unknown[];
+          'continuous-heart-rates'?: unknown[];
+        }
+      )?.['continuous-heart-rates'] ||
+      (
+        continuousHrData as {
+          continuous_heart_rates?: unknown[];
+          'continuous-heart-rates'?: unknown[];
+        }
+      )?.continuous_heart_rates ||
+      (continuousHrData && typeof continuousHrData === 'object'
+        ? [continuousHrData]
+        : []);
+  if (!Array.isArray(hrList) || hrList.length === 0) return;
+
+  const tz = userTz || (await loadUserTimezone(userId));
+  const hrSamples: FlatHealthSample[] = [];
+
+  for (const dayItem of hrList) {
+    if (!dayItem || typeof dayItem !== 'object') continue;
+    const entryDate = getVal(dayItem, 'date');
+    const samples =
+      getVal(dayItem, 'heart-rate-samples') ??
+      getVal(dayItem, 'heart_rate_samples') ??
+      getVal(dayItem, 'samples');
+
+    if (!entryDate || !Array.isArray(samples)) continue;
+
+    for (const sample of samples) {
+      if (!sample || typeof sample !== 'object') continue;
+      const bpm = toFiniteNumber(
+        getVal(sample, 'heart-rate') ??
+          getVal(sample, 'heart_rate') ??
+          getVal(sample, 'bpm') ??
+          getVal(sample, 'value')
+      );
+      const sampleTime =
+        getVal(sample, 'sample-time') ??
+        getVal(sample, 'sample_time') ??
+        getVal(sample, 'time');
+      if (bpm === null || !sampleTime) continue;
+
+      let timestamp: Date;
+      if (String(sampleTime).includes('T')) {
+        timestamp = new Date(parsePolarToUTC(sampleTime) as string);
+      } else {
+        // "HH:mm:ss" in local device time
+        const timePart =
+          String(sampleTime).length === 5
+            ? `${sampleTime}:00`
+            : String(sampleTime);
+        timestamp = localDateTimeToUtc(
+          `${entryDate}T${timePart.substring(0, 5)}`,
+          tz
+        );
+      }
+
+      if (Number.isFinite(timestamp.getTime())) {
+        hrSamples.push({
+          entry_date: entryDate,
+          timestamp,
+          bpm: Math.round(bpm),
+          device_name: 'Polar Device',
+        });
+      }
+    }
+  }
+
+  if (hrSamples.length > 0) {
+    await upsertSamplesByDay(
+      userId,
+      createdByUserId,
+      'heart_rate',
+      POLAR_HEALTH_PROVIDER,
+      hrSamples
+    );
+  }
+}
+
+/**
+ * Processes Polar SpO2 spot test data.
+ */
+async function processPolarSpO2(
+  userId: string,
+  createdByUserId: string,
+  spo2Data: unknown
+) {
+  const resultList = Array.isArray(spo2Data)
+    ? spo2Data
+    : (
+        spo2Data as {
+          'spo2-test-results'?: unknown[];
+          spo2_test_results?: unknown[];
+        }
+      )?.['spo2-test-results'] ||
+      (
+        spo2Data as {
+          'spo2-test-results'?: unknown[];
+          spo2_test_results?: unknown[];
+        }
+      )?.spo2_test_results ||
+      (spo2Data && typeof spo2Data === 'object' ? [spo2Data] : []);
+  if (!Array.isArray(resultList) || resultList.length === 0) return;
+
+  const spo2Samples: FlatHealthSample[] = [];
+
+  for (const item of resultList) {
+    if (!item || typeof item !== 'object') continue;
+    const testStatus =
+      getVal(item, 'test-status') ?? getVal(item, 'test_status');
+    // Inconclusive or failed tests must not be plotted as real readings
+    if (testStatus && testStatus !== 'SPO2_TEST_PASSED') continue;
+
+    const percentage = toFiniteNumber(
+      getVal(item, 'blood-oxygen-percent') ??
+        getVal(item, 'blood_oxygen_percent') ??
+        getVal(item, 'percentage') ??
+        getVal(item, 'spo2')
+    );
+    if (percentage === null) continue;
+
+    const testTime =
+      getVal(item, 'test-time') ??
+      getVal(item, 'test_time') ??
+      getVal(item, 'time') ??
+      getVal(item, 'timestamp');
+
+    let timestamp: Date;
+    if (typeof testTime === 'number') {
+      timestamp = new Date(testTime * 1000 > 1e12 ? testTime : testTime * 1000);
+    } else if (testTime) {
+      timestamp = new Date(parsePolarToUTC(testTime) as string);
+    } else {
+      continue;
+    }
+
+    if (!Number.isFinite(timestamp.getTime())) continue;
+
+    const entryDate =
+      getVal(item, 'date') || timestamp.toISOString().split('T')[0];
+
+    spo2Samples.push({
+      entry_date: entryDate,
+      timestamp,
+      percentage: Math.round(percentage * 10) / 10,
+      device_name: 'Polar Device',
+    });
+  }
+
+  if (spo2Samples.length > 0) {
+    await upsertSamplesByDay(
+      userId,
+      createdByUserId,
+      'spo2',
+      POLAR_HEALTH_PROVIDER,
+      spo2Samples
+    );
+  }
+}
+
+/**
+ * Processes Polar body temperature biosensing data.
+ */
+async function processPolarBodyTemperature(
+  userId: string,
+  createdByUserId: string,
+  bodyTempData: unknown
+) {
+  const tempList = Array.isArray(bodyTempData)
+    ? bodyTempData
+    : (
+        bodyTempData as {
+          'body-temperatures'?: unknown[];
+          body_temperatures?: unknown[];
+        }
+      )?.['body-temperatures'] ||
+      (
+        bodyTempData as {
+          'body-temperatures'?: unknown[];
+          body_temperatures?: unknown[];
+        }
+      )?.body_temperatures ||
+      (bodyTempData && typeof bodyTempData === 'object' ? [bodyTempData] : []);
+  if (!Array.isArray(tempList) || tempList.length === 0) return;
+
+  const vitalsToInsert = [];
+
+  for (const item of tempList) {
+    if (!item || typeof item !== 'object') continue;
+    const tempCelsius = toFiniteNumber(
+      getVal(item, 'temperature-celsius') ??
+        getVal(item, 'temperature_celsius') ??
+        getVal(item, 'body-temperature-celsius') ??
+        getVal(item, 'body_temperature_celsius') ??
+        getVal(item, 'temperature')
+    );
+    if (tempCelsius === null) continue;
+
+    const timeVal =
+      getVal(item, 'test-time') ??
+      getVal(item, 'test_time') ??
+      getVal(item, 'timestamp') ??
+      getVal(item, 'time');
+    const entryDate = getVal(item, 'date');
+
+    let timestamp: Date;
+    if (typeof timeVal === 'number') {
+      timestamp = new Date(timeVal * 1000 > 1e12 ? timeVal : timeVal * 1000);
+    } else if (timeVal) {
+      timestamp = new Date(parsePolarToUTC(timeVal) as string);
+    } else if (entryDate) {
+      timestamp = new Date(`${entryDate}T12:00:00Z`);
+    } else {
+      continue;
+    }
+
+    if (!Number.isFinite(timestamp.getTime())) continue;
+
+    const resolvedDate = entryDate || timestamp.toISOString().split('T')[0];
+
+    vitalsToInsert.push({
+      user_id: userId,
+      entry_date: resolvedDate,
+      timestamp,
+      body_temperature_celsius: Math.round(tempCelsius * 100) / 100,
+      source_provider: POLAR_HEALTH_PROVIDER,
+      device_name: 'Polar Device',
+    });
+  }
+
+  if (vitalsToInsert.length > 0) {
+    await genericHealthRepository.bulkUpsertVitals(
+      userId,
+      createdByUserId,
+      vitalsToInsert
+    );
+  }
+}
+
+/**
+ * Processes Polar skin temperature biosensing data.
+ */
+async function processPolarSkinTemperature(
+  userId: string,
+  createdByUserId: string,
+  skinTempData: unknown
+) {
+  const tempList = Array.isArray(skinTempData)
+    ? skinTempData
+    : (
+        skinTempData as {
+          'skin-temperatures'?: unknown[];
+          skin_temperatures?: unknown[];
+        }
+      )?.['skin-temperatures'] ||
+      (
+        skinTempData as {
+          'skin-temperatures'?: unknown[];
+          skin_temperatures?: unknown[];
+        }
+      )?.skin_temperatures ||
+      (skinTempData && typeof skinTempData === 'object' ? [skinTempData] : []);
+  if (!Array.isArray(tempList) || tempList.length === 0) return;
+
+  const skinSamples: FlatHealthSample[] = [];
+
+  for (const item of tempList) {
+    if (!item || typeof item !== 'object') continue;
+    const celsius = toFiniteNumber(
+      getVal(item, 'skin-temperature-celsius') ??
+        getVal(item, 'skin_temperature_celsius') ??
+        getVal(item, 'temperature-celsius') ??
+        getVal(item, 'temperature_celsius') ??
+        getVal(item, 'temperature')
+    );
+    const deviation = toFiniteNumber(
+      getVal(item, 'deviation-from-baseline-celsius') ??
+        getVal(item, 'deviation_from_baseline_celsius') ??
+        getVal(item, 'deviation-celsius') ??
+        getVal(item, 'deviation_celsius') ??
+        getVal(item, 'deviation')
+    );
+    if (celsius === null && deviation === null) continue;
+
+    const timeVal =
+      getVal(item, 'test-time') ??
+      getVal(item, 'test_time') ??
+      getVal(item, 'timestamp') ??
+      getVal(item, 'time');
+    const entryDate = getVal(item, 'date');
+
+    let timestamp: Date;
+    if (typeof timeVal === 'number') {
+      timestamp = new Date(timeVal * 1000 > 1e12 ? timeVal : timeVal * 1000);
+    } else if (timeVal) {
+      timestamp = new Date(parsePolarToUTC(timeVal) as string);
+    } else if (entryDate) {
+      timestamp = new Date(`${entryDate}T12:00:00Z`);
+    } else {
+      continue;
+    }
+
+    if (!Number.isFinite(timestamp.getTime())) continue;
+
+    const resolvedDate = entryDate || timestamp.toISOString().split('T')[0];
+
+    skinSamples.push({
+      entry_date: resolvedDate,
+      timestamp,
+      celsius: celsius !== null ? Math.round(celsius * 100) / 100 : undefined,
+      temperature_celsius:
+        celsius !== null ? Math.round(celsius * 100) / 100 : undefined,
+      deviation_celsius:
+        deviation !== null ? Math.round(deviation * 100) / 100 : undefined,
+      device_name: 'Polar Device',
+    });
+  }
+
+  if (skinSamples.length > 0) {
+    await upsertSamplesByDay(
+      userId,
+      createdByUserId,
+      'skin_temperature',
+      POLAR_HEALTH_PROVIDER,
+      skinSamples
+    );
+  }
+}
+
 /**
  * Helper to convert ISO 8601 duration string (e.g., PT1H30M15S) to seconds.
  */
@@ -811,12 +1299,22 @@ export { processPolarPhysicalInfo };
 export { processPolarActivity };
 export { processPolarSleep };
 export { processPolarNightlyRecharge };
+export { processPolarCardioLoad };
+export { processPolarContinuousHeartRate };
+export { processPolarSpO2 };
+export { processPolarBodyTemperature };
+export { processPolarSkinTemperature };
 export default {
   processPolarExercises,
   processPolarPhysicalInfo,
   processPolarActivity,
   processPolarSleep,
   processPolarNightlyRecharge,
+  processPolarCardioLoad,
+  processPolarContinuousHeartRate,
+  processPolarSpO2,
+  processPolarBodyTemperature,
+  processPolarSkinTemperature,
   resolvePolarActivityDate,
   resolvePolarActivitySteps,
 };

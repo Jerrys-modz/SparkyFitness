@@ -84,6 +84,10 @@
     "fitnessAge": "Fit Age: {{val}}",
     "readiness": "Readiness",
     "recHours": "Rec: {{val}}",
+    "trainingLoad": "Training Load",
+    "acute": "acute",
+    "ratio": "Ratio: {{val}}",
+    "chronic": "Chronic: {{val}}",
     "empty": "No wearable data synced for this day."
   },
   "foodCsvImport": {

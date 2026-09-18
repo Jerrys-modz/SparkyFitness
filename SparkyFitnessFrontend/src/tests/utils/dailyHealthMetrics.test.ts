@@ -13,6 +13,8 @@ const row = (overrides: Partial<DailyHealthMetrics>): DailyHealthMetrics =>
     resting_heart_rate: null,
     vo2_max: null,
     training_readiness_score: null,
+    acute_training_load: null,
+    weekly_training_load: null,
     ...overrides,
   }) as DailyHealthMetrics;
 
@@ -26,6 +28,15 @@ describe('selectDisplayableHealthMetrics', () => {
 
     expect(selected?.source_provider).toBe('polar');
     expect(selected?.resting_heart_rate).toBe(54);
+  });
+
+  it('selects provider row when acute_training_load is present', () => {
+    const selected = selectDisplayableHealthMetrics([
+      row({ source_provider: 'polar', acute_training_load: 45.2 }),
+    ]);
+
+    expect(selected?.source_provider).toBe('polar');
+    expect(selected?.acute_training_load).toBe(45.2);
   });
 
   it('returns undefined when no provider reported a displayable metric', () => {

@@ -10,6 +10,8 @@ const DISPLAYABLE_FIELDS = [
   'resting_heart_rate',
   'vo2_max',
   'training_readiness_score',
+  'acute_training_load',
+  'weekly_training_load',
 ] as const satisfies readonly (keyof DailyHealthMetrics)[];
 
 /**
