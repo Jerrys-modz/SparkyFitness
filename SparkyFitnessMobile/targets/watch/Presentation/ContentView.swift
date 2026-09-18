@@ -71,6 +71,20 @@ struct ContentView: View {
             // would otherwise have nothing to draw from — even though the
             // app's own pages are happily showing the persisted context.
             session.refreshComplications()
+
+            #if DEBUG
+            // Last, so nothing above re-applies an empty phone context over
+            // the seeded one. Only ever active with the CI screenshot job's
+            // launch environment set — see ScreenshotSeed.
+            if ScreenshotSeed.isEnabled {
+                ScreenshotSeed.apply()
+                didFirstRun = true
+                if let name = ScreenshotSeed.requestedPage,
+                   let requested = screenshotPage(named: name) {
+                    page = requested
+                }
+            }
+            #endif
         }
         // The case `onAppear` misses: the app was never torn down, just put
         // away for the night, so the only signal that a new day started is
@@ -112,6 +126,22 @@ struct ContentView: View {
     private var initialPage: Page {
         store.isReplacingToday ? .goals : .entry
     }
+
+    #if DEBUG
+    /// Maps a `SPARKY_SCREENSHOT_PAGE` value onto a tab. `Page` is Int-backed
+    /// and private, so the CI job names pages by string and this does the
+    /// lookup. Nil for an unknown name, leaving the normal landing logic be.
+    private func screenshotPage(named name: String) -> Page? {
+        switch name {
+        case "goals": return .goals
+        case "water": return .water
+        case "entry": return .entry
+        case "trend": return .trend
+        case "workout": return .workout
+        default: return nil
+        }
+    }
+    #endif
 }
 
 /// One-time screen used when there is no seed value. From the second entry

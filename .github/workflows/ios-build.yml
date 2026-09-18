@@ -96,3 +96,64 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build
+
+      # Screenshots of the watch app, for PRs that change its UI. A simulator
+      # has no paired phone, so every page would otherwise render its "not
+      # synced yet" state — the DEBUG-only ScreenshotSeed fills the stores
+      # from SampleDay at launch instead. It is also the only way to capture
+      # a live heart rate: there is no sensor behind HKLiveWorkoutBuilder in
+      # a simulator, so the BPM layout never appears on real hardware here.
+      - name: Capture watch screenshots
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -euo pipefail
+
+          APP="build/Build/Products/Debug-watchsimulator/SparkyFitnessWatch.app"
+          BUNDLE_ID="org.SparkyApps.SparkyFitnessMobile1.dev.watchkitapp"
+          mkdir -p screenshots
+
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          for runtime, entries in devices.items():
+              if 'watchOS' in runtime and entries:
+                  print(entries[0]['udid'])
+                  break
+          ")
+          if [ -z "${UDID:-}" ]; then
+            echo 'No watchOS simulator available on this image:'
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using watch simulator $UDID"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+
+          # $1 = output name, $2 = SPARKY_SCREENSHOT_WORKOUT, $3 = page
+          shoot() {
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            SIMCTL_CHILD_SPARKY_SCREENSHOT_SEED=1 \
+            SIMCTL_CHILD_SPARKY_SCREENSHOT_WORKOUT="$2" \
+            SIMCTL_CHILD_SPARKY_SCREENSHOT_PAGE="$3" \
+              xcrun simctl launch "$UDID" "$BUNDLE_ID"
+            # SwiftUI needs a moment to settle, and the rest countdown needs
+            # to actually be counting before it is worth photographing.
+            sleep 8
+            xcrun simctl io "$UDID" screenshot "screenshots/$1.png"
+          }
+
+          shoot workout-active active workout
+          shoot workout-resting resting workout
+          shoot workout-idle none workout
+          shoot goals none goals
+
+          ls -la screenshots
+
+      - name: Upload watch screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: watch-screenshots
+          path: SparkyFitnessMobile/screenshots/*.png
+          if-no-files-found: error
