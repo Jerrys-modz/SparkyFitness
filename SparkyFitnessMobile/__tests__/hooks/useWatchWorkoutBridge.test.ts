@@ -39,6 +39,7 @@ const mockListeners = new Map<string, Listener>();
 jest.mock('../../modules/watch-connectivity', () => {
   const mockModule = {
     isSupported: jest.fn(() => true),
+    stopWorkout: jest.fn(),
     addListener: jest.fn((event: string, callback: Listener) => {
       mockListeners.set(event, callback);
       const remove = jest.fn(() => mockListeners.delete(event));
@@ -55,6 +56,11 @@ const mockAttachHeartRate = attachExerciseEntryHeartRate as jest.MockedFunction<
   typeof attachExerciseEntryHeartRate
 >;
 const mockAddLog = addLog as jest.MockedFunction<typeof addLog>;
+const mockStopWorkout = (
+  jest.requireMock('../../modules/watch-connectivity') as {
+    default: { stopWorkout: jest.Mock };
+  }
+).default.stopWorkout;
 
 function fire(event: string, payload: unknown) {
   mockListeners.get(event)?.(payload);
@@ -337,5 +343,66 @@ describe('useWatchWorkoutBridge', () => {
       await Promise.resolve();
     });
     expect(mockAttachHeartRate).not.toHaveBeenCalled();
+  });
+
+  it('attaches heart rate and stops the watch when the phone ends the workout', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+      });
+    });
+
+    // The watch never sends workoutStop here — the wearer finished on the
+    // phone, which is the common case and the one that used to strand the
+    // buffered samples entirely.
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+
+    expect(mockStopWorkout).toHaveBeenCalledWith('session-1');
+    expect(mockAttachHeartRate).toHaveBeenCalledWith('ex-uuid-1', [
+      { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+      { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+    ]);
+  });
+
+  it('does not double-attach when the watch reports a stop the phone already handled', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+      });
+    });
+
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+    expect(mockAttachHeartRate).toHaveBeenCalledTimes(1);
+
+    // The queued workoutStop lands afterwards; the buffer is already empty.
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+    expect(mockAttachHeartRate).toHaveBeenCalledTimes(1);
   });
 });

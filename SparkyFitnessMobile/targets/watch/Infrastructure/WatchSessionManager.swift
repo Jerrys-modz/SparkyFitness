@@ -327,6 +327,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "context": handle(context: payload)
         case "ack": handle(ack: payload)
         case "workoutStart": handle(workoutStart: payload)
+        case "workoutStop": handle(workoutStopFromPhone: payload)
         default: break
         }
     }
@@ -368,6 +369,24 @@ final class WatchSessionManager: NSObject, ObservableObject {
             guard granted else { return }
             workoutHealthKit?.start()
         }
+    }
+
+    /// The wearer finished the workout on the PHONE. Tears down the same way
+    /// `endWorkout` does but sends nothing back — the phone is the one that
+    /// told us, and it flushes its own heart-rate buffer when it ends a
+    /// session, so echoing `workoutStop` at it would be a second flush of an
+    /// already-emptied buffer.
+    ///
+    /// Ignores a stop naming a session we are not running: a queued transfer
+    /// can arrive after the next workout has already started, and tearing
+    /// that one down would look like the watch dropping a live workout.
+    private func handle(workoutStopFromPhone payload: [String: Any]) {
+        guard
+            let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload),
+            workoutStore.plan?.sessionId == sessionId
+        else { return }
+        workoutHealthKit.stop()
+        workoutStore.reset()
     }
 
     /// Sends one completed set, carrying whatever the wearer typed. Queued

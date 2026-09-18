@@ -258,6 +258,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   updateContext(context: WatchContextPayload): Promise<void>;
   sendAck(clientId: string, ok: boolean): Promise<void>;
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
+  /**
+   * Tells the watch the workout it was armed with has ended on the phone, so
+   * it stops its HealthKit session and clears the Workout tab. Takes the
+   * session id rather than being argument-less so a stop for an already
+   * superseded workout can be ignored watch-side.
+   */
+  stopWorkout(sessionId: string): Promise<void>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to

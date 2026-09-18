@@ -93,7 +93,10 @@ private struct ExerciseListView: View {
     let onSelect: (String) -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var session: WatchSessionManager
     @Environment(\.dismiss) private var dismiss
+
+    @State private var confirmingFinish = false
 
     private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
 
@@ -112,6 +115,33 @@ private struct ExerciseListView: View {
             } header: {
                 Text("\(exercises.count) Exercises")
             }
+
+            // Finishing lives here rather than on the set screen: this is the
+            // workout's overview, and an end-everything button one tap from
+            // the tick that logs a set is a mis-tap waiting to happen.
+            Section {
+                Button(role: .destructive) {
+                    confirmingFinish = true
+                } label: {
+                    Label("Finish Workout", systemImage: "flag.checkered")
+                        .font(.caption)
+                }
+            }
+        }
+        .confirmationDialog(
+            "Finish workout?",
+            isPresented: $confirmingFinish,
+            titleVisibility: .visible
+        ) {
+            Button("Finish", role: .destructive) {
+                // Dismissed first so the sheet is not re-rendering against a
+                // plan that `endWorkout` has already cleared.
+                dismiss()
+                session.endWorkout()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Heart rate for this session is sent to your phone.")
         }
     }
 }

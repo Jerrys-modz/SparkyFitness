@@ -194,6 +194,12 @@ enum ContextPayloadMapper {
 
     // MARK: - Workout
 
+    /// The session a phone-sent `workoutStop` names. Nil for a malformed
+    /// payload, which is dropped rather than ending whatever is running.
+    static func workoutStopSessionId(from payload: [String: Any]) -> String? {
+        payload["sessionId"] as? String
+    }
+
     /// The workout plan the phone armed the watch with. Nil when the payload
     /// is missing required fields — a malformed `workoutStart` is dropped
     /// rather than starting a session with holes in it.

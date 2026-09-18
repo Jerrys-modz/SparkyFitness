@@ -26,7 +26,7 @@ import { queryClient } from './queryClient';
  * phone-logged set — this only adds the immediate flush a phone screen that
  * isn't open would otherwise wait on. Heart rate is buffered per exercise
  * entry (the watch tags each batch with whichever exercise is on screen) and
- * attached once the wearer ends the workout on the watch.
+ * attached once the workout ends — from either end, see `flushHeartRate`.
  *
  * iOS-only; a no-op everywhere else.
  */
@@ -94,37 +94,47 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
     []
   );
 
+  // Attaches everything buffered this workout and empties the buffer. Safe
+  // to call twice — the second call finds nothing left, which is what makes
+  // it harmless for the watch's `workoutStop` to arrive after the phone has
+  // already ended the same session itself.
+  const flushHeartRate = useCallback(async (): Promise<void> => {
+    const buffered = Array.from(hrBufferRef.current.entries());
+    hrBufferRef.current.clear();
+    for (const [exerciseEntryId, samples] of buffered) {
+      // The zone calculator needs at least two samples to derive a
+      // duration between them; a lone reading has nothing to attach.
+      if (samples.length < 2) continue;
+      try {
+        await attachExerciseEntryHeartRate(exerciseEntryId, samples);
+      } catch (error) {
+        addLog(
+          `Failed to attach watch heart rate to exercise entry ${exerciseEntryId}: ${String(error)}`,
+          'ERROR'
+        );
+      }
+    }
+  }, []);
+
   const handleWorkoutStop = useCallback(
     async (_payload: WatchWorkoutStopPayload): Promise<void> => {
-      const buffered = Array.from(hrBufferRef.current.entries());
-      hrBufferRef.current.clear();
-      for (const [exerciseEntryId, samples] of buffered) {
-        // The zone calculator needs at least two samples to derive a
-        // duration between them; a lone reading has nothing to attach.
-        if (samples.length < 2) continue;
-        try {
-          await attachExerciseEntryHeartRate(exerciseEntryId, samples);
-        } catch (error) {
-          addLog(
-            `Failed to attach watch heart rate to exercise entry ${exerciseEntryId}: ${String(error)}`,
-            'ERROR'
-          );
-        }
-      }
+      await flushHeartRate();
     },
-    []
+    [flushHeartRate]
   );
 
   const handlersRef = useRef({
     handleSetCompleted,
     handleHeartRateBatch,
     handleWorkoutStop,
+    flushHeartRate,
   });
   useEffect(() => {
     handlersRef.current = {
       handleSetCompleted,
       handleHeartRateBatch,
       handleWorkoutStop,
+      flushHeartRate,
     };
   });
 
@@ -156,5 +166,23 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
       heartRateBatchSub.remove();
       workoutStopSub.remove();
     };
+  }, [enabled]);
+
+  // The other way a workout ends: the wearer finished (or discarded) it on
+  // the PHONE. The watch has no idea that happened, so without this it keeps
+  // an HKWorkoutSession running against a closed session and every sample it
+  // captured sits in the buffer until the app is killed. Watching the store
+  // rather than hooking the finish screen catches every exit — finish,
+  // discard, and "Clear & Start" superseding one workout with another.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity || !WatchConnectivity.isSupported())
+      return;
+
+    return useActiveWorkoutStore.subscribe((state, prevState) => {
+      const ended = prevState.sessionId;
+      if (ended === null || state.sessionId === ended) return;
+      void WatchConnectivity?.stopWorkout(ended);
+      void handlersRef.current.flushHeartRate();
+    });
   }, [enabled]);
 }

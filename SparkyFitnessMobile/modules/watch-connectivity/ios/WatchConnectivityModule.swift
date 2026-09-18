@@ -228,6 +228,24 @@ public class WatchConnectivityModule: Module {
                 WCSession.default.transferUserInfo(payload)
             }
         }
+
+        /// Tells the watch the workout it was armed with is over, because it
+        /// was finished (or discarded) on the phone. Without this the watch
+        /// keeps an `HKWorkoutSession` running against a session the phone
+        /// has already closed — a dead workout on screen and the sensor
+        /// still sampling. Queued like `startWorkout` for the same reason: a
+        /// watch out of range must still hear it eventually.
+        AsyncFunction("stopWorkout") { (sessionId: String) -> Void in
+            guard WCSession.isSupported() else { return }
+            let payload: [String: Any] = ["type": "workoutStop", "sessionId": sessionId]
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
+                    WCSession.default.transferUserInfo(payload)
+                }
+            } else {
+                WCSession.default.transferUserInfo(payload)
+            }
+        }
     }
 }
 
