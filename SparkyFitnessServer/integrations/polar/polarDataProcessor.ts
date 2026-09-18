@@ -74,12 +74,32 @@ const getVal = (obj: any, key: any) => {
  * This is the standard way to store timestamps in SparkyFitness.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * True when the leading YYYY-MM-DD of a timestamp is a real calendar date.
+ *
+ * `new Date()` silently normalises impossible dates -- "2026-02-30" becomes
+ * 2026-03-02 -- which is finite and would otherwise be persisted two days off.
+ * Round-tripping the components catches that before anything is stored.
+ */
+const hasRealCalendarDate = (timeStr: string): boolean => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(timeStr);
+  if (!match) return false;
+  const [, year, month, day] = match.map(Number);
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  return (
+    probe.getUTCFullYear() === year &&
+    probe.getUTCMonth() === month - 1 &&
+    probe.getUTCDate() === day
+  );
+};
+
 const parsePolarToUTC = (timeStr: unknown): string | null => {
   // Total by construction: the processing phase of syncPolarData runs the
   // processors without a per-processor try/catch, so a single malformed
   // timestamp from one endpoint used to abort the whole sync. A non-string
   // threw on `.match`, and an unparseable string threw on `.toISOString()`.
   if (typeof timeStr !== 'string' || timeStr === '') return null;
+  if (!hasRealCalendarDate(timeStr)) return null;
 
   const toIso = (value: string): string | null => {
     const parsed = new Date(value);
@@ -661,9 +681,7 @@ async function processPolarSleep(
         // the process time zone. Both stretched "awake" far past the night
         // (issue #2431). The last stage ends at the recorded wake time, and no
         // stage runs past it.
-        const bedtimeMs = new Date(
-          parsePolarToUTC(startTime) as string
-        ).getTime();
+        const bedtimeMs = new Date(parsePolarToUTC(startTime) ?? NaN).getTime();
         const wakeMs = endTime
           ? new Date(parsePolarToUTC(endTime) ?? NaN).getTime()
           : Number.NaN;
@@ -1245,9 +1263,7 @@ async function processPolarBodyTemperature(
     const periodStart =
       getVal(item, 'start-time') ?? getVal(item, 'start_time');
     if (Array.isArray(periodSamples) && periodStart) {
-      const startMs = new Date(
-        parsePolarToUTC(periodStart) as string
-      ).getTime();
+      const startMs = new Date(parsePolarToUTC(periodStart) ?? NaN).getTime();
       if (Number.isFinite(startMs)) {
         for (const sample of periodSamples) {
           if (!sample || typeof sample !== 'object') continue;

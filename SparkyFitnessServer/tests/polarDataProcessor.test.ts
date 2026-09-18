@@ -864,6 +864,34 @@ describe('malformed Polar timestamps do not abort a sync', () => {
     expect(samples[0].timestamp.getUTCFullYear()).toBe(2023);
   });
 
+  it('rejects impossible calendar dates rather than rolling them forward', async () => {
+    // new Date() silently normalises "2026-02-30" to 2026-03-02, which is
+    // finite and would have been stored two days off.
+    await processPolarBodyTemperature(UID, CID, [
+      {
+        start_time: '2026-02-30T04:00:00',
+        samples: [
+          { temperature_celsius: 36.5, recording_time_delta_milliseconds: 0 },
+        ],
+      },
+      {
+        start_time: '2026-02-28T04:00:00',
+        samples: [
+          { temperature_celsius: 36.6, recording_time_delta_milliseconds: 0 },
+        ],
+      },
+    ] as never[]);
+
+    const vitals = vi.mocked(genericHealthRepository.bulkUpsertVitals).mock
+      .calls[0][2] as unknown as Array<{
+      timestamp: Date;
+      body_temperature_celsius: number;
+    }>;
+    expect(vitals).toHaveLength(1);
+    expect(vitals[0].body_temperature_celsius).toBe(36.6);
+    expect(vitals[0].timestamp.toISOString()).toBe('2026-02-28T04:00:00.000Z');
+  });
+
   it('skips unparseable continuous heart rate timestamps', async () => {
     await expect(
       processPolarContinuousHeartRate(UID, CID, [
