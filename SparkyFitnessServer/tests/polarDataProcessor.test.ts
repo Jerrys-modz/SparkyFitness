@@ -4,6 +4,7 @@ import exerciseEntryRepository from '../models/exerciseEntry.js';
 import sleepRepository from '../models/sleepRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
+import { upsertSamplesByDay } from '../services/healthMetricSampleWriter.js';
 import {
   hypnogramStageStartMs,
   processPolarActivity,
@@ -11,22 +12,34 @@ import {
   processPolarNightlyRecharge,
   processPolarPhysicalInfo,
   processPolarSleep,
+  processPolarCardioLoad,
+  processPolarContinuousHeartRate,
+  processPolarSpO2,
+  processPolarBodyTemperature,
+  processPolarSkinTemperature,
   resolvePolarActivityDate,
   resolvePolarActivitySteps,
 } from '../integrations/polar/polarDataProcessor.js';
 
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+vi.mock('../utils/timezoneLoader.js', () => ({
+  loadUserTimezone: vi.fn().mockResolvedValue('America/New_York'),
+}));
+vi.mock('../services/healthMetricSampleWriter.js', () => ({
+  upsertSamplesByDay: vi.fn().mockResolvedValue(1),
+}));
 vi.mock('../models/measurementRepository.js', () => ({
   default: {
     upsertStepData: vi.fn(),
     upsertCheckInMeasurements: vi.fn(),
-    getCustomCategories: vi.fn(),
-    createCustomCategory: vi.fn(),
+    getCustomCategories: vi.fn().mockResolvedValue([]),
+    createCustomCategory: vi.fn().mockResolvedValue({ id: 'cat-new' }),
     upsertCustomMeasurement: vi.fn(),
   },
 }));
 vi.mock('../models/genericHealthRepository.js', () => ({
-  upsertDailyHealthMetrics: vi.fn(),
+  upsertDailyHealthMetrics: vi.fn().mockResolvedValue({}),
+  bulkUpsertVitals: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('../models/exercise.js', () => ({
   default: {
@@ -458,5 +471,355 @@ describe('resolvePolarActivityDate / resolvePolarActivitySteps', () => {
     expect(resolvePolarActivitySteps({ 'active-steps': 12 })).toBe(12);
     expect(resolvePolarActivitySteps({ steps: 0 })).toBe(0);
     expect(resolvePolarActivitySteps({})).toBeNull();
+  });
+});
+
+describe('processPolarCardioLoad', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes partial daily health metrics for acute and chronic load', async () => {
+    await processPolarCardioLoad(UID, CID, [
+      {
+        date: '2026-09-18',
+        strain: 45.2,
+        tolerance: 38.5,
+        'cardio-load-ratio': 1.17,
+      },
+    ]);
+
+    expect(
+      genericHealthRepository.upsertDailyHealthMetrics
+    ).toHaveBeenCalledWith(
+      UID,
+      CID,
+      expect.objectContaining({
+        user_id: UID,
+        entry_date: '2026-09-18',
+        source_provider: 'polar',
+        acute_training_load: 45.2,
+        chronic_training_load: 38.5,
+        acwr_ratio: 1.17,
+      })
+    );
+  });
+});
+
+describe('processPolarNightlyRecharge HRV samples series', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // The shape Polar actually returns: an object keyed by wall-clock "HH:MM" in
+  // the recording zone. An earlier fixture used a synthetic
+  // { '5min-intervals': [...] } object, which no Polar endpoint produces, so the
+  // test passed while real payloads silently wrote nothing.
+  it('extracts the clock-keyed overnight HRV series', async () => {
+    await processPolarNightlyRecharge(UID, CID, [
+      {
+        date: '2026-09-09',
+        'heart-rate-variability-avg': 68,
+        hrv_samples: { '23:01': 71, '23:06': 55, '00:01': 66, '04:02': 60 },
+      },
+    ] as never[]);
+
+    expect(upsertSamplesByDay).toHaveBeenCalledTimes(1);
+    const [, , metric, provider, samples] =
+      vi.mocked(upsertSamplesByDay).mock.calls[0];
+    expect(metric).toBe('hrv');
+    expect(provider).toBe('polar');
+    expect(samples).toHaveLength(4);
+    expect(
+      (samples as unknown as Array<{ rmssd_ms: number }>).map((s) => s.rmssd_ms)
+    ).toEqual([71, 55, 66, 60]);
+  });
+
+  it('places evening readings on the night before the wake date', async () => {
+    // `recharge.date` is the wake date, so 23:01 belongs to the previous
+    // evening and 00:01 to the date itself. Getting this wrong buries a night's
+    // readings on one calendar day (issue #2431 for the sleep hypnogram).
+    await processPolarNightlyRecharge(UID, CID, [
+      {
+        date: '2026-09-09',
+        hrv_samples: { '00:01': 66, '23:01': 71 },
+      },
+    ] as never[]);
+
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{
+      entry_date: string;
+      timestamp: Date;
+    }>;
+
+    // Sorted chronologically regardless of key order in the payload.
+    expect(samples.map((s) => s.entry_date)).toEqual([
+      '2026-09-08',
+      '2026-09-09',
+    ]);
+    expect(samples[1].timestamp.getTime()).toBeGreaterThan(
+      samples[0].timestamp.getTime()
+    );
+  });
+
+  it('skips malformed keys and negative values', async () => {
+    await processPolarNightlyRecharge(UID, CID, [
+      {
+        date: '2026-09-09',
+        hrv_samples: {
+          '01:00': 60,
+          'not-a-time': 55,
+          '02:00': -1,
+          '99:99': 40,
+        },
+      },
+    ] as never[]);
+
+    const samples = vi.mocked(upsertSamplesByDay).mock.calls[0][4] as unknown[];
+    expect(samples).toHaveLength(1);
+  });
+});
+
+describe('processPolarContinuousHeartRate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('converts local sample times to timestamps and writes heart_rate samples', async () => {
+    await processPolarContinuousHeartRate(
+      UID,
+      CID,
+      {
+        polar_user: 'p-1',
+        date: '2026-09-18',
+        'heart-rate-samples': [
+          { 'sample-time': '08:00:00', 'heart-rate': 62 },
+          { 'sample-time': '08:05:00', 'heart-rate': 68 },
+        ],
+      },
+      'America/New_York'
+    );
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      CID,
+      'heart_rate',
+      'polar',
+      expect.arrayContaining([
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          bpm: 62,
+          device_name: 'Polar Device',
+        }),
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          bpm: 68,
+          device_name: 'Polar Device',
+        }),
+      ])
+    );
+  });
+});
+
+describe('processPolarSpO2', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes passed SpO2 spot test readings and skips invalid ones', async () => {
+    await processPolarSpO2(UID, CID, [
+      {
+        'test-status': 'SPO2_TEST_PASSED',
+        'blood-oxygen-percent': 98,
+        'test-time': 1726660000,
+        date: '2026-09-18',
+      },
+      {
+        'test-status': 'SPO2_TEST_FAILED',
+        'blood-oxygen-percent': 85,
+        'test-time': 1726661000,
+        date: '2026-09-18',
+      },
+    ]);
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(UID, CID, 'spo2', 'polar', [
+      expect.objectContaining({
+        entry_date: '2026-09-18',
+        percentage: 98,
+        device_name: 'Polar Device',
+      }),
+    ]);
+  });
+});
+
+describe('processPolarBodyTemperature & processPolarSkinTemperature', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes body temperature entries to vitals_entries', async () => {
+    await processPolarBodyTemperature(UID, CID, [
+      {
+        date: '2026-09-18',
+        'test-time': 1726660000,
+        'temperature-celsius': 36.8,
+      },
+    ]);
+
+    expect(genericHealthRepository.bulkUpsertVitals).toHaveBeenCalledWith(
+      UID,
+      CID,
+      [
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          body_temperature_celsius: 36.8,
+          source_provider: 'polar',
+        }),
+      ]
+    );
+  });
+
+  it('writes skin temperature series to health_metric_samples', async () => {
+    await processPolarSkinTemperature(UID, CID, [
+      {
+        date: '2026-09-18',
+        'test-time': 1726660000,
+        'skin-temperature-celsius': 34.2,
+        'deviation-from-baseline-celsius': 0.3,
+      },
+    ]);
+
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      CID,
+      'skin_temperature',
+      'polar',
+      [
+        expect.objectContaining({
+          entry_date: '2026-09-18',
+          celsius: 34.2,
+          deviation_celsius: 0.3,
+          device_name: 'Polar Device',
+        }),
+      ]
+    );
+  });
+});
+
+// These fixtures are taken from Polar's published OpenAPI spec
+// (https://www.polar.com/accesslink-api/swagger.yaml) rather than invented, so
+// they catch the class of bug where a processor parses a shape the API never
+// returns and silently writes nothing.
+describe('Polar biosensing payloads match the AccessLink spec', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('dates SpO2 spot tests from unix seconds, not milliseconds', async () => {
+    await processPolarSpO2(UID, CID, [
+      {
+        test_time: 1697787256,
+        test_status: 'SPO2_TEST_PASSED',
+        blood_oxygen_percent: 95,
+      },
+    ] as never[]);
+
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{ timestamp: Date; percentage: number }>;
+    expect(samples[0].percentage).toBe(95);
+    expect(samples[0].timestamp.toISOString()).toBe('2023-10-20T07:34:16.000Z');
+  });
+
+  it('expands body temperature periods using start_time plus the sample delta', async () => {
+    await processPolarBodyTemperature(UID, CID, [
+      {
+        start_time: '2023-10-20T04:00:00',
+        end_time: '2023-10-20T05:00:00',
+        samples: [
+          { temperature_celsius: 36.5, recording_time_delta_milliseconds: 0 },
+          {
+            temperature_celsius: 36.7,
+            recording_time_delta_milliseconds: 60000,
+          },
+        ],
+      },
+    ] as never[]);
+
+    const vitals = vi.mocked(genericHealthRepository.bulkUpsertVitals).mock
+      .calls[0][2] as unknown as Array<{
+      timestamp: Date;
+      body_temperature_celsius: number;
+    }>;
+    expect(vitals).toHaveLength(2);
+    expect(vitals[0].body_temperature_celsius).toBe(36.5);
+    expect(vitals[0].timestamp.toISOString()).toBe('2023-10-20T04:00:00.000Z');
+    // Second reading is the delta applied to the period start.
+    expect(vitals[1].timestamp.toISOString()).toBe('2023-10-20T04:01:00.000Z');
+  });
+
+  it('reads skin temperature from sleep_date and the sleep_time field', async () => {
+    await processPolarSkinTemperature(UID, CID, [
+      {
+        sleep_time_skin_temperature_celsius: 36.5,
+        deviation_from_baseline_celsius: 0.5,
+        sleep_date: '2023-10-20',
+      },
+    ] as never[]);
+
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{ entry_date: string }>;
+    expect(samples).toHaveLength(1);
+    expect(samples[0].entry_date).toBe('2023-10-20');
+  });
+});
+
+describe('Polar sample day-bucketing (issue #2471 follow-up)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('merges HRV rather than replacing a day two nights both touch', async () => {
+    // A night straddles midnight, so night N's morning samples and night N+1's
+    // evening samples share day N. In the default `replace` mode the later
+    // night wiped the earlier night's readings for that day.
+    await processPolarNightlyRecharge(UID, CID, [
+      { date: '2026-09-09', hrv_samples: { '23:01': 71, '00:10': 66 } },
+      { date: '2026-09-10', hrv_samples: { '23:05': 70, '00:20': 64 } },
+    ] as never[]);
+
+    const calls = vi.mocked(upsertSamplesByDay).mock.calls;
+    expect(calls).toHaveLength(2);
+
+    for (const call of calls) {
+      const options = call[5] as { mode?: string; window?: unknown };
+      expect(options?.mode).toBe('merge');
+      expect(options?.window).toBeDefined();
+    }
+
+    // Both nights write to 2026-09-09; merge is what stops the second
+    // overwriting the first.
+    const daysPerCall = calls.map((call) =>
+      (call[4] as unknown as Array<{ entry_date: string }>).map(
+        (s) => s.entry_date
+      )
+    );
+    expect(daysPerCall[0]).toContain('2026-09-09');
+    expect(daysPerCall[1]).toContain('2026-09-09');
+  });
+
+  it('buckets SpO2 by the recording zone offset, not the UTC day', async () => {
+    // 01:00 in UTC+2 is 23:00 UTC the previous day.
+    await processPolarSpO2(UID, CID, [
+      {
+        test_time: Date.parse('2023-10-19T23:00:00Z') / 1000,
+        time_zone_offset: 120,
+        test_status: 'SPO2_TEST_PASSED',
+        blood_oxygen_percent: 96,
+      },
+    ] as never[]);
+
+    const samples = vi.mocked(upsertSamplesByDay).mock
+      .calls[0][4] as unknown as Array<{ entry_date: string }>;
+    expect(samples[0].entry_date).toBe('2023-10-20');
   });
 });

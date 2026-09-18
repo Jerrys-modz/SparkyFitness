@@ -84,7 +84,12 @@
     "fitnessAge": "Fit Age: {{val}}",
     "readiness": "Readiness",
     "recHours": "Rec: {{val}}",
-    "empty": "No wearable data synced for this day."
+    "trainingLoad": "Training Load",
+    "acute": "acute",
+    "ratio": "Ratio: {{val}}",
+    "chronic": "Chronic: {{val}}",
+    "empty": "No wearable data synced for this day.",
+    "skinTemp": "Skin Temperature"
   },
   "foodCsvImport": {
     "title": "Import Food Data",
@@ -2775,7 +2780,9 @@
     "welcomeUser": "Welcome {{name}}",
     "selectAll": "Select all",
     "selectRow": "Select row",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "avg": "Avg",
+    "max": "Max"
   },
   "diary": {
     "nutritionSummary": "Nutrition Summary",
@@ -4032,7 +4039,11 @@
     "normalRHR": "Normal adult: 60-100 bpm",
     "normalRange": "Normal: 12-20 brpm",
     "pulseOx": "Pulse Ox (SpO2)",
-    "range": "Range"
+    "range": "Range",
+    "dailyTrend": "Trend",
+    "overnightSeries": "Night Series",
+    "overnightHrvSeriesDesc": "5-minute interval overnight HRV series",
+    "spotTests": "Spot Tests"
   },
   "sleepSummary": {
     "title": "Last Night's Sleep",

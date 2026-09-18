@@ -9,6 +9,7 @@ import {
   Zap,
   TrendingUp,
   RefreshCw,
+  Flame,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -84,19 +85,26 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
 
   // Each tile is gated on its own headline value: a provider that reports only
   // some of these (Polar gives resting HR but no body battery or stress) used to
-  // render the rest as a wall of "--". These are the same five fields the card's
+  // render the rest as a wall of "--". These are the same fields the card's
   // own visibility keys on, so the card shows exactly when a tile would.
   const showBodyBattery = metrics.body_battery_highest != null;
   const showStress = metrics.avg_stress_level != null;
   const showRestingHr = metrics.resting_heart_rate != null;
   const showVo2Max = metrics.vo2_max != null;
   const showReadiness = metrics.training_readiness_score != null;
+  const showTrainingLoad =
+    metrics.acute_training_load != null || metrics.weekly_training_load != null;
 
   // A single surviving tile in a 2-column grid leaves a dead half-row; let it
   // span the full width instead.
   const loneTile =
-    [showStress, showRestingHr, showVo2Max, showReadiness].filter(Boolean)
-      .length === 1
+    [
+      showStress,
+      showRestingHr,
+      showVo2Max,
+      showReadiness,
+      showTrainingLoad,
+    ].filter(Boolean).length === 1
       ? 'col-span-2 '
       : '';
 
@@ -267,6 +275,43 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
                     ? `${metrics.recovery_time_hours}h`
                     : '--',
               })}
+            </span>
+          </div>
+        )}
+
+        {/* Training Load */}
+        {showTrainingLoad && (
+          <div
+            className={`${loneTile}p-3.5 rounded-xl bg-muted/50 border flex flex-col justify-between`}
+          >
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
+              <Flame className="h-4 w-4 text-orange-500 shrink-0" />
+              <span>
+                {t('dailyHealthMetrics.trainingLoad', 'Training Load')}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-orange-500">
+                {metrics.acute_training_load ??
+                  metrics.weekly_training_load ??
+                  '--'}
+              </span>
+              {metrics.acute_training_load != null && (
+                <span className="text-xs text-muted-foreground">
+                  {t('dailyHealthMetrics.acute', 'acute')}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-muted-foreground font-mono truncate">
+              {metrics.acwr_ratio != null
+                ? t('dailyHealthMetrics.ratio', 'Ratio: {{val}}', {
+                    val: metrics.acwr_ratio,
+                  })
+                : metrics.chronic_training_load != null
+                  ? t('dailyHealthMetrics.chronic', 'Chronic: {{val}}', {
+                      val: metrics.chronic_training_load,
+                    })
+                  : '--'}
             </span>
           </div>
         )}

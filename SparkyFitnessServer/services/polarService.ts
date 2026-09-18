@@ -150,6 +150,41 @@ async function syncPolarData(
           responses['raw_nightly_recharge'].data
         );
       }
+      if (responses['raw_cardio_load']) {
+        await polarDataProcessor.processPolarCardioLoad(
+          userId,
+          userId,
+          responses['raw_cardio_load'].data
+        );
+      }
+      if (responses['raw_continuous_heart_rate']) {
+        await polarDataProcessor.processPolarContinuousHeartRate(
+          userId,
+          userId,
+          responses['raw_continuous_heart_rate'].data
+        );
+      }
+      if (responses['raw_spo2']) {
+        await polarDataProcessor.processPolarSpO2(
+          userId,
+          userId,
+          responses['raw_spo2'].data
+        );
+      }
+      if (responses['raw_body_temperature']) {
+        await polarDataProcessor.processPolarBodyTemperature(
+          userId,
+          userId,
+          responses['raw_body_temperature'].data
+        );
+      }
+      if (responses['raw_skin_temperature']) {
+        await polarDataProcessor.processPolarSkinTemperature(
+          userId,
+          userId,
+          responses['raw_skin_temperature'].data
+        );
+      }
       // Update last_sync_at
       const client = await getSystemClient();
       try {
@@ -260,6 +295,26 @@ async function syncPolarData(
     const newRecharge = await safeFetch('nightly_recharge', () =>
       polarIntegrationService.fetchRecentNightlyRecharge(userId, accessToken)
     );
+    const newCardioLoad =
+      (await safeFetch('cardio_load', () =>
+        polarIntegrationService.fetchRecentCardioLoad(userId, accessToken)
+      )) || [];
+    const newContinuousHr = await safeFetch('continuous_heart_rate', () =>
+      polarIntegrationService.fetchRecentContinuousHeartRate(
+        userId,
+        accessToken
+      )
+    );
+    const newSpO2 = await safeFetch('spo2', () =>
+      polarIntegrationService.fetchRecentSpO2(userId, accessToken)
+    );
+    const newBodyTemp = await safeFetch('body_temperature', () =>
+      polarIntegrationService.fetchRecentBodyTemperature(userId, accessToken)
+    );
+    const newSkinTemp = await safeFetch('skin_temperature', () =>
+      polarIntegrationService.fetchRecentSkinTemperature(userId, accessToken)
+    );
+
     // 2. Process EVERYTHING second (The Action Phase)
     log('debug', '[polarService] Phase 2: Processing captured data...');
     // Remove duplicates before processing
@@ -321,6 +376,37 @@ async function syncPolarData(
         userId,
         userId,
         newRecharge
+      );
+    }
+    if (newCardioLoad && newCardioLoad.length > 0) {
+      await polarDataProcessor.processPolarCardioLoad(
+        userId,
+        userId,
+        newCardioLoad
+      );
+    }
+    if (newContinuousHr) {
+      await polarDataProcessor.processPolarContinuousHeartRate(
+        userId,
+        userId,
+        newContinuousHr
+      );
+    }
+    if (newSpO2) {
+      await polarDataProcessor.processPolarSpO2(userId, userId, newSpO2);
+    }
+    if (newBodyTemp) {
+      await polarDataProcessor.processPolarBodyTemperature(
+        userId,
+        userId,
+        newBodyTemp
+      );
+    }
+    if (newSkinTemp) {
+      await polarDataProcessor.processPolarSkinTemperature(
+        userId,
+        userId,
+        newSkinTemp
       );
     }
     // Update last_sync_at
