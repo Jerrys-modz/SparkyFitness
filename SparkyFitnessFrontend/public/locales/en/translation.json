@@ -83,7 +83,8 @@
     "vo2Max": "VO2 Max",
     "fitnessAge": "Fit Age: {{val}}",
     "readiness": "Readiness",
-    "recHours": "Rec: {{val}}"
+    "recHours": "Rec: {{val}}",
+    "empty": "No wearable data synced for this day."
   },
   "foodCsvImport": {
     "title": "Import Food Data",
@@ -2807,7 +2808,8 @@
       "legendNow": "Now",
       "legendDose": "Logged dose",
       "legendEstimated": "Assumed time",
-      "legendCutoff": "Last {{dose}}mg dose {{time}}"
+      "legendCutoff": "Last {{dose}}mg dose {{time}}",
+      "empty": "No caffeine logged for this day."
     },
     "exercise": "Exercise",
     "widgets": {

@@ -2,14 +2,32 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import exerciseRepository from '../models/exercise.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import sleepRepository from '../models/sleepRepository.js';
+import measurementRepository from '../models/measurementRepository.js';
+import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import {
   hypnogramStageStartMs,
+  processPolarActivity,
   processPolarExercises,
+  processPolarNightlyRecharge,
+  processPolarPhysicalInfo,
   processPolarSleep,
+  resolvePolarActivityDate,
+  resolvePolarActivitySteps,
 } from '../integrations/polar/polarDataProcessor.js';
 
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
-vi.mock('../models/measurementRepository.js', () => ({ default: {} }));
+vi.mock('../models/measurementRepository.js', () => ({
+  default: {
+    upsertStepData: vi.fn(),
+    upsertCheckInMeasurements: vi.fn(),
+    getCustomCategories: vi.fn(),
+    createCustomCategory: vi.fn(),
+    upsertCustomMeasurement: vi.fn(),
+  },
+}));
+vi.mock('../models/genericHealthRepository.js', () => ({
+  upsertDailyHealthMetrics: vi.fn(),
+}));
 vi.mock('../models/exercise.js', () => ({
   default: {
     getExerciseBySourceAndSourceId: vi.fn(),
@@ -242,5 +260,203 @@ describe('hypnogramStageStartMs', () => {
     expect(hypnogramStageStartMs('03:15', naive, 0)).toBe(
       Date.parse('2026-07-15T03:15:00Z')
     );
+  });
+});
+
+describe('processPolarActivity daily metrics (issue #2471)', () => {
+  // The real payload shape from /users/activities: start_time/end_time, no `date`.
+  // processPolarActivity's untyped `activities = []` default infers never[].
+  const activity = (overrides: Record<string, unknown> = {}) =>
+    ({
+      start_time: '2026-09-13T00:00',
+      end_time: '2026-09-13T23:56',
+      calories: 2635,
+      active_calories: 964,
+      steps: 8154,
+      distance_from_steps: 4682.88,
+      ...overrides,
+    }) as never;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue([
+      { id: 'cat-active', name: 'Active Calories' },
+      { id: 'cat-daily', name: 'Daily Calories' },
+    ]);
+  });
+
+  it('writes steps to check_in_measurements, not a custom category', async () => {
+    await processPolarActivity(UID, CID, [activity()]);
+
+    expect(measurementRepository.upsertStepData).toHaveBeenCalledWith(
+      UID,
+      CID,
+      8154,
+      '2026-09-13'
+    );
+    // The old "Steps" custom category must no longer be created or written.
+    expect(measurementRepository.createCustomCategory).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Steps' })
+    );
+  });
+
+  it('writes a polar daily_health_metrics summary with distance in metres', async () => {
+    await processPolarActivity(UID, CID, [activity()]);
+
+    expect(
+      genericHealthRepository.upsertDailyHealthMetrics
+    ).toHaveBeenCalledWith(
+      UID,
+      CID,
+      expect.objectContaining({
+        user_id: UID,
+        entry_date: '2026-09-13',
+        source_provider: 'polar',
+        total_steps: 8154,
+        // Polar already reports metres; it must not be scaled like Garmin's km.
+        total_distance_meters: 4682.88,
+        active_calories: 964,
+        total_calories: 2635,
+        // total_calories is only advanced when its capture time comes with it.
+        total_calories_captured_at: expect.any(Date),
+      })
+    );
+  });
+
+  it('keeps logging calories as custom measurements', async () => {
+    await processPolarActivity(UID, CID, [activity()]);
+
+    const categoryIds = vi
+      .mocked(measurementRepository.upsertCustomMeasurement)
+      .mock.calls.map((call) => call[2]);
+    expect(categoryIds).toEqual(['cat-active', 'cat-daily']);
+  });
+
+  it("orders total_calories by Polar's end_time, not local processing time", async () => {
+    // The upsert only advances total_calories on a strictly newer stamp. Polar's
+    // end_time advances as the current day accumulates, so re-syncs progress;
+    // local processing time would not be safe because the hourly cron and the
+    // manual route run concurrently with no serialization, so a slow older
+    // response can land last and would clobber fresher calories.
+    await processPolarActivity(UID, CID, [
+      activity({ end_time: '2026-09-13T17:43:30' }),
+    ]);
+
+    const stamp = vi.mocked(genericHealthRepository.upsertDailyHealthMetrics)
+      .mock.calls[0][2].total_calories_captured_at as Date;
+
+    expect(stamp.toISOString()).toBe('2026-09-13T17:43:30.000Z');
+  });
+
+  it('advances the calorie stamp as the day accumulates', async () => {
+    await processPolarActivity(UID, CID, [
+      activity({ end_time: '2026-09-13T12:00:00' }),
+    ]);
+    await processPolarActivity(UID, CID, [
+      activity({ end_time: '2026-09-13T18:00:00' }),
+    ]);
+
+    const calls = vi.mocked(genericHealthRepository.upsertDailyHealthMetrics)
+      .mock.calls;
+    const first = calls[0][2].total_calories_captured_at as Date;
+    const second = calls[1][2].total_calories_captured_at as Date;
+
+    expect(second.getTime()).toBeGreaterThan(first.getTime());
+  });
+
+  it('records a zero-step day rather than skipping it', async () => {
+    await processPolarActivity(UID, CID, [
+      activity({ steps: 0, calories: 0, active_calories: 0 }),
+    ]);
+
+    expect(measurementRepository.upsertStepData).toHaveBeenCalledWith(
+      UID,
+      CID,
+      0,
+      '2026-09-13'
+    );
+  });
+
+  it('processes every day it is given, one row per date', async () => {
+    await processPolarActivity(UID, CID, [
+      activity({ start_time: '2026-09-13T00:00', steps: 8154 }),
+      activity({ start_time: '2026-09-14T00:00', steps: 4762 }),
+      activity({ start_time: '2026-09-15T00:00', steps: 3445 }),
+    ]);
+
+    expect(
+      vi
+        .mocked(measurementRepository.upsertStepData)
+        .mock.calls.map((call) => [call[3], call[2]])
+    ).toEqual([
+      ['2026-09-13', 8154],
+      ['2026-09-14', 4762],
+      ['2026-09-15', 3445],
+    ]);
+  });
+});
+
+describe('polar daily_health_metrics merge sources (issue #2471)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue([]);
+    vi.mocked(measurementRepository.createCustomCategory).mockResolvedValue({
+      id: 'cat-new',
+    });
+  });
+
+  it('records overnight average HR as the daily resting heart rate', async () => {
+    await processPolarNightlyRecharge(UID, CID, [
+      { date: '2026-09-09', 'heart-rate-avg': 53 },
+    ] as never[]);
+
+    expect(
+      genericHealthRepository.upsertDailyHealthMetrics
+    ).toHaveBeenCalledWith(
+      UID,
+      CID,
+      expect.objectContaining({
+        entry_date: '2026-09-09',
+        source_provider: 'polar',
+        resting_heart_rate: 53,
+      })
+    );
+  });
+
+  it('records VO2 max from physical information', async () => {
+    await processPolarPhysicalInfo(UID, CID, [
+      { created: '2026-09-09T10:00:00', 'vo2-max': 47 },
+    ] as never[]);
+
+    expect(
+      genericHealthRepository.upsertDailyHealthMetrics
+    ).toHaveBeenCalledWith(
+      UID,
+      CID,
+      expect.objectContaining({
+        entry_date: '2026-09-09',
+        source_provider: 'polar',
+        vo2_max: 47,
+      })
+    );
+  });
+});
+
+describe('resolvePolarActivityDate / resolvePolarActivitySteps', () => {
+  it('falls back to start_time when the record carries no date', () => {
+    expect(resolvePolarActivityDate({ start_time: '2026-09-08T13:20' })).toBe(
+      '2026-09-08'
+    );
+    expect(resolvePolarActivityDate({ date: '2026-09-08' })).toBe('2026-09-08');
+    expect(
+      resolvePolarActivityDate({ end_time: '2026-09-08T23:57' })
+    ).toBeNull();
+  });
+
+  it('reads steps from either field and preserves zero', () => {
+    expect(resolvePolarActivitySteps({ steps: 3445 })).toBe(3445);
+    expect(resolvePolarActivitySteps({ 'active-steps': 12 })).toBe(12);
+    expect(resolvePolarActivitySteps({ steps: 0 })).toBe(0);
+    expect(resolvePolarActivitySteps({})).toBeNull();
   });
 });
