@@ -21,7 +21,8 @@ SparkyFitness pulls the following data from Polar:
 
 *   **Workouts (Exercises)**: Automatically logs cardio training sessions into your Diary, including duration, calories burned, and sport type.
 *   **Physical Info**: Syncs your latest **Weight** and **Height** from your Polar profile.
-*   **Daily Activity**: Syncs your daily **Steps**, **Active Calories**, and **Total Calories** as custom measurements.
+*   **Daily Activity**: Syncs your daily **Steps**, **Distance**, **Active Calories**, and **Total Calories**. Steps appear in **Reports → Daily Steps** and the Daily Step Log, and count towards your Diary energy goal. Active and total calories are kept as custom measurements.
+*   **Daily Health Summary**: Steps, distance, calories, overnight resting heart rate (from Nightly Recharge), and VO2 max feed the **Daily Wearable Health Summary** card in your Diary.
 
 ## Important Limitations
 

@@ -266,9 +266,24 @@ async function syncPolarData(
     allExercises = Array.from(
       new Map(allExercises.map((ex) => [ex.id, ex])).values()
     );
-    allActivities = Array.from(
-      new Map(allActivities.map((act) => [act.date, act])).values()
-    );
+    // Polar's /users/activities items carry start_time/end_time and no `date`,
+    // so keying this Map on act.date collapsed the whole window into one record
+    // (issue #2471). Key on the resolved calendar day instead, keeping the
+    // record with the highest step count when a day reports several periods --
+    // which matches upsertStepData's max-wins semantics downstream.
+    const activitiesByDate = new Map<string, (typeof allActivities)[number]>();
+    for (const act of allActivities) {
+      const date = polarDataProcessor.resolvePolarActivityDate(act);
+      if (!date) continue;
+      const existing = activitiesByDate.get(date);
+      const steps = polarDataProcessor.resolvePolarActivitySteps(act) ?? -1;
+      const existingSteps =
+        polarDataProcessor.resolvePolarActivitySteps(existing) ?? -1;
+      if (!existing || steps > existingSteps) {
+        activitiesByDate.set(date, act);
+      }
+    }
+    allActivities = Array.from(activitiesByDate.values());
     // Process data
     if (physicalInfo && physicalInfo.length > 0) {
       await polarDataProcessor.processPolarPhysicalInfo(

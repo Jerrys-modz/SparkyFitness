@@ -4,7 +4,27 @@ import exerciseRepository from '../../models/exercise.js';
 import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import activityDetailsRepository from '../../models/activityDetailsRepository.js';
+import * as genericHealthRepository from '../../models/genericHealthRepository.js';
 import { utcOffsetMinutesFromIsoString } from '@workspace/shared';
+
+/**
+ * Provider tag for Polar rows in daily_health_metrics. Lowercase to match the
+ * other providers' source_provider values (the column is free text).
+ */
+const POLAR_HEALTH_PROVIDER = 'polar';
+
+/**
+ * Coerce a Polar numeric field to a finite number, or null when it is absent or
+ * unparseable. Distinct from a falsy check: a legitimate 0 (no steps that day)
+ * must survive, which `if (steps)` would drop.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const toFiniteNumber = (value: any): number | null => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 /**
  * Helper to get a value from a Polar object regardless of hyphen or underscore usage.
  */
@@ -255,6 +275,23 @@ async function processPolarPhysicalInfo(
         `Upserted Polar check-in measurements for user ${userId} on ${entryDate}.`
       );
     }
+    // VO2 max also feeds the provider-scoped daily summary. The upsert COALESCEs
+    // per column on (user_id, entry_date, source_provider), so this partial write
+    // merges with the activity and nightly-recharge writes for the same day.
+    const vo2Max = toFiniteNumber(getVal(info, 'vo2-max'));
+    if (vo2Max !== null) {
+      await genericHealthRepository.upsertDailyHealthMetrics(
+        userId,
+        createdByUserId,
+        {
+          user_id: userId,
+          entry_date: entryDate,
+          source_provider: POLAR_HEALTH_PROVIDER,
+          vo2_max: vo2Max,
+        }
+      );
+    }
+
     // Process other physiological metrics as custom measurements
     const physiologicalMetrics = [
       {
@@ -303,6 +340,31 @@ async function processPolarPhysicalInfo(
   }
 }
 /**
+ * Resolve the calendar day a Polar daily-activity record belongs to.
+ *
+ * The `/users/activities` list returns `start_time`/`end_time` and no `date`
+ * field; only the simple per-day summaries carry `date`. Both the service-level
+ * dedup and this processor need the same answer, so the resolution lives here.
+ * Returns null when neither field is present.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const resolvePolarActivityDate = (activity: any): string | null => {
+  const entryDate = getVal(activity, 'date');
+  if (entryDate) return entryDate;
+  const startTime = getVal(activity, 'start-time');
+  if (startTime) return startTime.split('T')[0];
+  return null;
+};
+
+/**
+ * Read the step count off a Polar daily-activity record, or null when absent.
+ * Shared with the service-level dedup so both agree on which field wins.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const resolvePolarActivitySteps = (activity: any): number | null =>
+  toFiniteNumber(getVal(activity, 'steps') ?? getVal(activity, 'active-steps'));
+
+/**
  * Processes Polar daily activity data.
  */
 
@@ -320,12 +382,8 @@ async function processPolarActivity(
       activities.activities || [];
   if (!activityList || activityList.length === 0) return;
   for (const activity of activityList) {
-    // Polar activity object might have 'date' (if simple summary) or 'start_time' (if detailed).
-    let entryDate = getVal(activity, 'date');
+    const entryDate = resolvePolarActivityDate(activity);
     const startTime = getVal(activity, 'start-time');
-    if (!entryDate && startTime) {
-      entryDate = startTime.split('T')[0];
-    }
     if (!entryDate) {
       log(
         'warn',
@@ -333,37 +391,82 @@ async function processPolarActivity(
       );
       continue;
     }
-    const calories = getVal(activity, 'calories');
-    const activeCalories = getVal(activity, 'active-calories');
-    const steps = getVal(activity, 'steps') ?? getVal(activity, 'active-steps');
-    // Polar daily activity often contains steps and calories
-    if (calories || activeCalories || steps) {
-      const metrics = [
-        { name: 'Steps', value: steps, unit: 'count', frequency: 'Daily' },
+    const calories = toFiniteNumber(getVal(activity, 'calories'));
+    const activeCalories = toFiniteNumber(getVal(activity, 'active-calories'));
+    const steps = resolvePolarActivitySteps(activity);
+    // Polar reports distance in metres, already derived from the step count.
+    const distanceMeters = toFiniteNumber(
+      getVal(activity, 'distance-from-steps')
+    );
+
+    // Steps belong in check_in_measurements, which is what Reports -> Daily
+    // Steps, the Daily Step Log and the Diary energy goal all read. upsertStepData
+    // is max-wins per day, so the partial first/last day of Polar's 28-day window
+    // never shrinks a total an earlier sync already recorded (issue #2471).
+    if (steps !== null) {
+      await measurementRepository.upsertStepData(
+        userId,
+        createdByUserId,
+        steps,
+        entryDate
+      );
+    }
+
+    // Provider-scoped daily summary behind the Diary wearable health card.
+    if (
+      steps !== null ||
+      distanceMeters !== null ||
+      activeCalories !== null ||
+      calories !== null
+    ) {
+      await genericHealthRepository.upsertDailyHealthMetrics(
+        userId,
+        createdByUserId,
         {
-          name: 'Active Calories',
-          value: activeCalories,
-          unit: 'kcal',
-          frequency: 'Daily',
-        },
-        {
-          name: 'Daily Calories',
-          value: calories,
-          unit: 'kcal',
-          frequency: 'Daily',
-        },
-      ];
-      for (const metric of metrics) {
-        if (metric.value !== undefined && metric.value !== null) {
-          await upsertCustomMeasurementLogic(userId, createdByUserId, {
-            categoryName: metric.name,
-            value: metric.value,
-            unit: metric.unit,
-            entryDate: entryDate,
-            entryTimestamp: parsePolarToUTC(startTime || entryDate),
-            frequency: metric.frequency,
-          });
+          user_id: userId,
+          entry_date: entryDate,
+          source_provider: POLAR_HEALTH_PROVIDER,
+          total_steps: steps,
+          total_distance_meters: distanceMeters,
+          active_calories: activeCalories,
+          total_calories: calories,
+          // The upsert only advances total_calories when a newer capture time
+          // comes with it, so the two must always travel together.
+          total_calories_captured_at:
+            calories !== null
+              ? new Date(parsePolarToUTC(startTime || entryDate) as string)
+              : null,
         }
+      );
+    }
+
+    // Calories stay as custom measurements: check_in_measurements has no column
+    // for them, and existing users already chart these categories. Steps are
+    // deliberately absent here now that they have a first-class home.
+    const metrics = [
+      {
+        name: 'Active Calories',
+        value: activeCalories,
+        unit: 'kcal',
+        frequency: 'Daily',
+      },
+      {
+        name: 'Daily Calories',
+        value: calories,
+        unit: 'kcal',
+        frequency: 'Daily',
+      },
+    ];
+    for (const metric of metrics) {
+      if (metric.value !== null) {
+        await upsertCustomMeasurementLogic(userId, createdByUserId, {
+          categoryName: metric.name,
+          value: metric.value,
+          unit: metric.unit,
+          entryDate: entryDate,
+          entryTimestamp: parsePolarToUTC(startTime || entryDate),
+          frequency: metric.frequency,
+        });
       }
     }
   }
@@ -590,6 +693,24 @@ async function processPolarNightlyRecharge(
   for (const recharge of rechargeList) {
     const entryDate = getVal(recharge, 'date');
     if (!entryDate) continue;
+
+    // Overnight average HR is the closest thing Polar gives to a resting HR, and
+    // it is one of the fields the Diary wearable health card keys its visibility
+    // off. Merges into the same daily row as activity and physical info.
+    const restingHeartRate = toFiniteNumber(getVal(recharge, 'heart-rate-avg'));
+    if (restingHeartRate !== null) {
+      await genericHealthRepository.upsertDailyHealthMetrics(
+        userId,
+        createdByUserId,
+        {
+          user_id: userId,
+          entry_date: entryDate,
+          source_provider: POLAR_HEALTH_PROVIDER,
+          resting_heart_rate: Math.round(restingHeartRate),
+        }
+      );
+    }
+
     // Custom measurements for recharge metrics
     const metrics = [
       {
@@ -662,4 +783,6 @@ export default {
   processPolarActivity,
   processPolarSleep,
   processPolarNightlyRecharge,
+  resolvePolarActivityDate,
+  resolvePolarActivitySteps,
 };
