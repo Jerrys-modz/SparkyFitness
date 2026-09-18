@@ -8,6 +8,8 @@ import * as genericHealthRepository from '../../models/genericHealthRepository.j
 import {
   utcOffsetMinutesFromIsoString,
   localDateTimeToUtc,
+  addDays,
+  instantToDay,
 } from '@workspace/shared';
 import {
   upsertSamplesByDay,
@@ -865,6 +867,59 @@ async function processPolarNightlyRecharge(
             }
           }
         }
+      } else if (typeof hrvPayload === 'object') {
+        // The shape Polar actually returns: an object keyed by wall-clock
+        // "HH:MM" in the recording zone, e.g. { "23:01": 71, "00:06": 66 }.
+        //
+        // `recharge.date` is the WAKE date, so a night runs from the previous
+        // evening into that morning: keys at 23:01 belong to date-1 and keys at
+        // 00:06 belong to date. Splitting on midday rather than trusting object
+        // key order keeps that correct however the JSON is ordered.
+        const tz = await loadUserTimezone(userId);
+        const previousDay = addDays(entryDate, -1);
+
+        const parsed = Object.entries(
+          hrvPayload as Record<string, unknown>
+        ).flatMap(([hhmm, value]) => {
+          const match = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+          const rmssd = toFiniteNumber(value);
+          if (!match || rmssd === null || rmssd < 0) return [];
+          const hours = Number(match[1]);
+          const minutes = Number(match[2]);
+          if (hours > 23 || minutes > 59) return [];
+          return [
+            {
+              // Evening readings belong to the night before the wake date.
+              day: hours >= 12 ? previousDay : entryDate,
+              minuteOfDay: hours * 60 + minutes,
+              hhmm: `${String(hours).padStart(2, '0')}:${match[2]}`,
+              rmssd,
+            },
+          ];
+        });
+
+        parsed.sort((a, b) =>
+          a.day === b.day
+            ? a.minuteOfDay - b.minuteOfDay
+            : a.day < b.day
+              ? -1
+              : 1
+        );
+
+        for (const sample of parsed) {
+          const timestamp = localDateTimeToUtc(
+            `${sample.day}T${sample.hhmm}`,
+            tz
+          );
+          if (Number.isFinite(timestamp.getTime())) {
+            hrvSamples.push({
+              entry_date: sample.day,
+              timestamp,
+              rmssd_ms: sample.rmssd,
+              device_name: 'Polar Device',
+            });
+          }
+        }
       }
 
       if (hrvSamples.length > 0) {
@@ -1080,7 +1135,11 @@ async function processPolarSpO2(
 
     let timestamp: Date;
     if (typeof testTime === 'number') {
-      timestamp = new Date(testTime * 1000 > 1e12 ? testTime : testTime * 1000);
+      // Compare the raw value, not the multiplied one: Polar sends unix
+      // SECONDS (spec example 1697787256), and `v * 1000 > 1e12` is true for
+      // any seconds value after 2001, which then used the raw seconds as
+      // milliseconds and dated every reading to January 1970.
+      timestamp = new Date(testTime > 1e12 ? testTime : testTime * 1000);
     } else if (testTime) {
       timestamp = new Date(parsePolarToUTC(testTime) as string);
     } else {
@@ -1140,6 +1199,46 @@ async function processPolarBodyTemperature(
 
   for (const item of tempList) {
     if (!item || typeof item !== 'object') continue;
+
+    // /v3/users/biosensing/bodytemperature returns measurement PERIODS, each
+    // with an absolute start_time and a nested samples[] whose entries carry
+    // only recording_time_delta_milliseconds. Expand those into absolute
+    // readings; a flat item is still handled below for other shapes.
+    const periodSamples = getVal(item, 'samples');
+    const periodStart =
+      getVal(item, 'start-time') ?? getVal(item, 'start_time');
+    if (Array.isArray(periodSamples) && periodStart) {
+      const startMs = new Date(
+        parsePolarToUTC(periodStart) as string
+      ).getTime();
+      if (Number.isFinite(startMs)) {
+        for (const sample of periodSamples) {
+          if (!sample || typeof sample !== 'object') continue;
+          const celsius = toFiniteNumber(
+            getVal(sample, 'temperature-celsius') ??
+              getVal(sample, 'temperature_celsius')
+          );
+          const deltaMs =
+            toFiniteNumber(
+              getVal(sample, 'recording-time-delta-milliseconds') ??
+                getVal(sample, 'recording_time_delta_milliseconds')
+            ) ?? 0;
+          if (celsius === null) continue;
+          const sampleTime = new Date(startMs + deltaMs);
+          if (!Number.isFinite(sampleTime.getTime())) continue;
+          vitalsToInsert.push({
+            user_id: userId,
+            entry_date: instantToDay(sampleTime.toISOString(), 'UTC'),
+            timestamp: sampleTime,
+            body_temperature_celsius: Math.round(celsius * 100) / 100,
+            source_provider: POLAR_HEALTH_PROVIDER,
+            device_name: 'Polar Device',
+          });
+        }
+        continue;
+      }
+    }
+
     const tempCelsius = toFiniteNumber(
       getVal(item, 'temperature-celsius') ??
         getVal(item, 'temperature_celsius') ??
@@ -1158,7 +1257,9 @@ async function processPolarBodyTemperature(
 
     let timestamp: Date;
     if (typeof timeVal === 'number') {
-      timestamp = new Date(timeVal * 1000 > 1e12 ? timeVal : timeVal * 1000);
+      // Seconds vs milliseconds: compare the raw value (see the note in
+      // processPolarSpO2).
+      timestamp = new Date(timeVal > 1e12 ? timeVal : timeVal * 1000);
     } else if (timeVal) {
       timestamp = new Date(parsePolarToUTC(timeVal) as string);
     } else if (entryDate) {
@@ -1220,7 +1321,11 @@ async function processPolarSkinTemperature(
   for (const item of tempList) {
     if (!item || typeof item !== 'object') continue;
     const celsius = toFiniteNumber(
-      getVal(item, 'skin-temperature-celsius') ??
+      // Spec field is sleep_time_skin_temperature_celsius; the rest are
+      // tolerated spellings.
+      getVal(item, 'sleep-time-skin-temperature-celsius') ??
+        getVal(item, 'sleep_time_skin_temperature_celsius') ??
+        getVal(item, 'skin-temperature-celsius') ??
         getVal(item, 'skin_temperature_celsius') ??
         getVal(item, 'temperature-celsius') ??
         getVal(item, 'temperature_celsius') ??
@@ -1240,11 +1345,17 @@ async function processPolarSkinTemperature(
       getVal(item, 'test_time') ??
       getVal(item, 'timestamp') ??
       getVal(item, 'time');
-    const entryDate = getVal(item, 'date');
+    // Spec field is sleep_date (one value per night, not a series).
+    const entryDate =
+      getVal(item, 'sleep-date') ??
+      getVal(item, 'sleep_date') ??
+      getVal(item, 'date');
 
     let timestamp: Date;
     if (typeof timeVal === 'number') {
-      timestamp = new Date(timeVal * 1000 > 1e12 ? timeVal : timeVal * 1000);
+      // Seconds vs milliseconds: compare the raw value (see the note in
+      // processPolarSpO2).
+      timestamp = new Date(timeVal > 1e12 ? timeVal : timeVal * 1000);
     } else if (timeVal) {
       timestamp = new Date(parsePolarToUTC(timeVal) as string);
     } else if (entryDate) {
