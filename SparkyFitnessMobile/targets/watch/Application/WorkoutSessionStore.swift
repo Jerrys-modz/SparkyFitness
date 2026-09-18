@@ -56,15 +56,15 @@ final class WorkoutSessionStore: ObservableObject {
 
     /// Values to show for a set: whatever was typed, falling back to the plan.
     func values(for step: WorkoutStep) -> SetValues {
-        let edited = editedValues[step.set.setId]
+        let edited = editedValues[step.plannedSet.setId]
         return SetValues(
-            weightKg: edited?.weightKg ?? step.set.targetWeightKg,
-            reps: edited?.reps ?? step.set.targetReps
+            weightKg: edited?.weightKg ?? step.plannedSet.targetWeightKg,
+            reps: edited?.reps ?? step.plannedSet.targetReps
         )
     }
 
     func isCompleted(_ step: WorkoutStep) -> Bool {
-        completedSetIds.contains(step.set.setId)
+        completedSetIds.contains(step.plannedSet.setId)
     }
 
     func start(with plan: ActiveWorkoutPlan) {
@@ -74,7 +74,7 @@ final class WorkoutSessionStore: ObservableObject {
                 WorkoutStep(
                     exerciseEntryId: exercise.exerciseEntryId,
                     exerciseName: exercise.name,
-                    set: set,
+                    plannedSet: set,
                     setNumber: index + 1,
                     setCount: exercise.sets.count
                 )
@@ -130,13 +130,13 @@ final class WorkoutSessionStore: ObservableObject {
     @discardableResult
     func completeCurrentSet() -> WorkoutStep? {
         guard let step = currentStep, !isCompleted(step) else { return nil }
-        completedSetIds.insert(step.set.setId)
+        completedSetIds.insert(step.plannedSet.setId)
 
         if currentStepIndex + 1 < steps.count {
             currentStepIndex += 1
         }
-        if step.set.restSeconds > 0 {
-            startRest(seconds: step.set.restSeconds)
+        if step.plannedSet.restSeconds > 0 {
+            startRest(seconds: step.plannedSet.restSeconds)
         }
         return step
     }

@@ -59,18 +59,21 @@ struct ActiveWorkoutPlan: Codable, Equatable {
 struct WorkoutStep: Identifiable, Equatable {
     let exerciseEntryId: String
     let exerciseName: String
-    let set: PlannedSet
+    /// Named `plannedSet` rather than `set`: inside a computed property's
+    /// braces Swift reads a leading `set` as the start of a setter clause, so
+    /// `var id: String { set.setId }` fails to parse.
+    let plannedSet: PlannedSet
     /// 1-based position of this set within its own exercise, and how many
     /// that exercise has — the "1/2" in "Warmup 1/2".
     let setNumber: Int
     let setCount: Int
 
-    var id: String { set.setId }
+    var id: String { plannedSet.setId }
 
     /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
     var label: String {
         let kind: String
-        switch set.setType?.lowercased() {
+        switch plannedSet.setType?.lowercased() {
         case "warmup": kind = "Warmup"
         case "drop": kind = "Drop"
         case "failure": kind = "Failure"

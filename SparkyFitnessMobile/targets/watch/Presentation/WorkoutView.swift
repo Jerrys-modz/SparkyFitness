@@ -152,8 +152,8 @@ private struct CurrentSetView: View {
                 allowsDecimal: field == .weight
             ) { entered in
                 switch field {
-                case .weight: store.setValue(for: step.set.setId, weightKg: entered)
-                case .reps: store.setValue(for: step.set.setId, reps: entered)
+                case .weight: store.setValue(for: step.plannedSet.setId, weightKg: entered)
+                case .reps: store.setValue(for: step.plannedSet.setId, reps: entered)
                 }
                 editing = nil
             }
@@ -221,7 +221,10 @@ private struct StepControls: View {
             Button(action: onComplete) {
                 Image(systemName: isCompleted ? "checkmark.circle.fill" : "checkmark")
                     .font(.title3)
-                    .foregroundStyle(isCompleted ? .green : .black)
+                    // Spelled `Color.x` rather than `.x`: the parameter is an
+                    // opaque `some ShapeStyle`, which gives a ternary's two
+                    // branches nothing to infer a shared type from.
+                    .foregroundStyle(isCompleted ? Color.green : Color.black)
                     .frame(width: 52, height: 30)
                     .background(
                         isCompleted ? Color.green.opacity(0.2) : Color.green,
@@ -345,7 +348,7 @@ private struct NumericKeypadView: View {
                 Text(entry.isEmpty ? placeholder : entry)
                     .font(.title3)
                     .monospacedDigit()
-                    .foregroundStyle(entry.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(entry.isEmpty ? Color.secondary : Color.primary)
                 Spacer()
                 Text(title)
                     .font(.system(size: 9))

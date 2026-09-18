@@ -378,7 +378,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let completed = CompletedSet(
             clientId: UUID().uuidString,
             sessionId: sessionId,
-            setId: step.set.setId,
+            setId: step.plannedSet.setId,
             weightKg: values.weightKg,
             reps: values.reps
         )
