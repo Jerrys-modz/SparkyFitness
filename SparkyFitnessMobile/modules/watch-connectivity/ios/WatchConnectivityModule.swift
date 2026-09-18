@@ -148,6 +148,11 @@ public class WatchConnectivityModule: Module {
                     "clientId": payload["clientId"] as? String ?? "",
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "setId": payload["setId"] as? String ?? "",
+                    // Absent (rather than null) when the watch had no value,
+                    // so JS can omit the field from the set patch instead of
+                    // clearing a planned one — same rule as body fat above.
+                    "weightKg": payload["weightKg"] as? Double,
+                    "reps": payload["reps"] as? Double,
                 ])
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in

@@ -158,6 +158,54 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
   });
 
+  it('applies weight and reps typed on the watch before completing the set', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 82.5,
+        reps: 6,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(82.5);
+    expect(set.reps).toBe(6);
+    expect(getStore().completedSetIds['101']).toBeDefined();
+  });
+
+  it('leaves planned values alone when the watch sends none', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: null,
+        reps: null,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The fixture's planned 60kg x 10 survives rather than being nulled out.
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(60);
+    expect(set.reps).toBe(10);
+  });
+
   it('ignores a setCompleted for a session that is no longer active', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

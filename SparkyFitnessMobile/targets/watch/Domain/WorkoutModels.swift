@@ -2,9 +2,8 @@ import Foundation
 
 /// One set the phone expects for an exercise, as planned before the workout
 /// started — target reps/weight, not what actually gets logged. The watch
-/// shows these as placeholders and lets the wearer adjust before confirming,
-/// the same "assumed values" pattern the phone's own active-workout screen
-/// uses.
+/// shows these as the starting values in its editable fields, the same
+/// "assumed values" pattern the phone's own active-workout screen uses.
 struct PlannedSet: Codable, Equatable, Identifiable {
     /// The server-assigned exercise_entry_sets id, stringified — this is
     /// exactly `WorkoutStep.setId` on the phone (`activeWorkoutStore.ts`), so
@@ -19,6 +18,10 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// `WorkoutStep.restSec` (activeWorkoutStore.ts), carried over verbatim so
     /// the watch's timer agrees with what the phone would have shown.
     let restSeconds: Int
+    /// `normal`, `warmup`, `drop`… straight from `exercise_entry_sets.set_type`.
+    /// Drives the label above the values ("Warmup 1/2" rather than "Set 1/2");
+    /// nil or an unrecognised value just reads as a normal set.
+    let setType: String?
 
     var id: String { setId }
 }
@@ -47,15 +50,60 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     let exercises: [PlannedExercise]
 }
 
+/// One set of one exercise, as a position in the workout's flat running order.
+///
+/// The watch shows a single set at a time and pages through them, so it walks
+/// a flattened sequence rather than a list of exercises — the same shape the
+/// phone's `buildStepsFromSession` produces, which is what keeps the two
+/// cursors talking about the same thing.
+struct WorkoutStep: Identifiable, Equatable {
+    let exerciseEntryId: String
+    let exerciseName: String
+    let set: PlannedSet
+    /// 1-based position of this set within its own exercise, and how many
+    /// that exercise has — the "1/2" in "Warmup 1/2".
+    let setNumber: Int
+    let setCount: Int
+
+    var id: String { set.setId }
+
+    /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
+    var label: String {
+        let kind: String
+        switch set.setType?.lowercased() {
+        case "warmup": kind = "Warmup"
+        case "drop": kind = "Drop"
+        case "failure": kind = "Failure"
+        default: kind = "Set"
+        }
+        return "\(kind) \(setNumber)/\(setCount)"
+    }
+}
+
+/// What the wearer actually did for a set, once they have adjusted the
+/// targets. Absent fields mean "unchanged from target" — the watch only
+/// records an override when a value is edited.
+struct SetValues: Codable, Equatable {
+    var weightKg: Double?
+    var reps: Double?
+}
+
 /// One completed set, as reported to the phone. `setId` must be one of the
 /// ids `ActiveWorkoutPlan` supplied — the phone looks it up in its own
 /// session rather than trusting anything else about it.
+///
+/// Carries the values too, because the watch is where they were typed: the
+/// phone applies them with `updateSetField` before `completeSet`, so a set
+/// logged from the wrist records what the wearer actually lifted rather than
+/// the plan's guess.
 struct CompletedSet: Codable, Equatable {
     /// Generated on the watch so a queued transfer delivered twice can be
     /// recognised and ignored — same role `CheckIn.id` plays for check-ins.
     let clientId: String
     let sessionId: String
     let setId: String
+    let weightKg: Double?
+    let reps: Double?
 }
 
 /// One heart-rate reading captured during the workout.

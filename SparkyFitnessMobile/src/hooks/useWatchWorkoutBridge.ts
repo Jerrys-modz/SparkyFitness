@@ -5,7 +5,10 @@ import WatchConnectivity, {
   type WatchHeartRateSamplePayload,
   type WatchWorkoutStopPayload,
 } from '../../modules/watch-connectivity';
-import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import {
+  useActiveWorkoutStore,
+  type ActiveSetPatch,
+} from '../stores/activeWorkoutStore';
 import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
 import { attachExerciseEntryHeartRate } from '../services/api/exerciseApi';
 import { addLog } from '../services/LogService';
@@ -57,6 +60,18 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
         );
         return;
       }
+      // Values the wearer typed on the watch land first: `completeSet` runs
+      // the store's assumed-value adoption, which only fills a field that is
+      // still empty, so patching afterwards would be overwriting a value the
+      // store had already committed. Each field is omitted unless the watch
+      // actually had one — writing null would clear the planned value.
+      const patch: ActiveSetPatch = {};
+      if (payload.weightKg != null) patch.weight = payload.weightKg;
+      if (payload.reps != null) patch.reps = payload.reps;
+      if (Object.keys(patch).length > 0) {
+        state.updateSetField(payload.setId, patch);
+      }
+
       state.completeSet(payload.setId);
       // Flushed immediately rather than left to the debounced autosave: the
       // phone screen that normally drives that debounce may not even be

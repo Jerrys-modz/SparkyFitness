@@ -79,6 +79,7 @@ function buildWatchWorkoutStartPayload(
           targetReps: set.reps ?? planned?.reps ?? null,
           targetWeightKg: set.weight ?? planned?.weight ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
+          setType: set.set_type ?? null,
         };
       }),
     })),

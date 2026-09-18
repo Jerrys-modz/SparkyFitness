@@ -126,24 +126,30 @@ enum SampleDay {
                 exerciseEntryId: "preview-ex-1",
                 name: "Barbell Bench Press",
                 sets: [
-                    PlannedSet(setId: "1", targetReps: 10, targetWeightKg: 60, restSeconds: 90),
-                    PlannedSet(setId: "2", targetReps: 8, targetWeightKg: 70, restSeconds: 90),
-                    PlannedSet(setId: "3", targetReps: 6, targetWeightKg: 80, restSeconds: 120),
+                    // A warmup first, so the label above the values is
+                    // exercised rather than always reading "Set n/m".
+                    PlannedSet(setId: "1", targetReps: 10, targetWeightKg: 40, restSeconds: 60, setType: "warmup"),
+                    PlannedSet(setId: "2", targetReps: 8, targetWeightKg: 70, restSeconds: 90, setType: "normal"),
+                    // A fractional load: plate maths lands on 2.5s, and the
+                    // value box has to fit "82.5" without truncating.
+                    PlannedSet(setId: "3", targetReps: 6, targetWeightKg: 82.5, restSeconds: 120, setType: "normal"),
                 ]
             ),
             PlannedExercise(
                 exerciseEntryId: "preview-ex-2",
                 name: "Incline Dumbbell Shoulder Press",
                 sets: [
-                    PlannedSet(setId: "4", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60),
-                    PlannedSet(setId: "5", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60),
+                    PlannedSet(setId: "4", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60, setType: "normal"),
+                    PlannedSet(setId: "5", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60, setType: "normal"),
                 ]
             ),
             PlannedExercise(
                 exerciseEntryId: "preview-ex-3",
                 name: "Press-ups",
                 sets: [
-                    PlannedSet(setId: "6", targetReps: 15, targetWeightKg: nil, restSeconds: 45),
+                    // Bodyweight: no target weight at all, so the KG box has
+                    // to render its empty state.
+                    PlannedSet(setId: "6", targetReps: 15, targetWeightKg: nil, restSeconds: 45, setType: "normal"),
                 ]
             ),
         ]
@@ -153,5 +159,8 @@ enum SampleDay {
     /// or on a real wrist — the simulator has no sensor behind
     /// `HKLiveWorkoutBuilder`, so it renders the no-BPM layout instead.
     static let workoutBpm: Double = 142
+
+    /// Active energy a few minutes into the session, for the metrics strip.
+    static let workoutKcal: Double = 84
 }
 #endif

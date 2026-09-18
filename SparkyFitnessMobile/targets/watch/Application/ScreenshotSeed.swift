@@ -57,9 +57,11 @@ enum ScreenshotSeed {
         case .active, .resting:
             workout.start(with: SampleDay.workoutPlan)
             workout.recordHeartRate(bpm: SampleDay.workoutBpm)
-            if workoutState == .resting,
-               let firstSet = SampleDay.workoutPlan.exercises.first?.sets.first {
-                workout.markSetCompleted(firstSet)
+            workout.recordActiveEnergy(kcal: SampleDay.workoutKcal)
+            if workoutState == .resting {
+                // Completing a set is what starts its rest, so this is also
+                // how the rest screen gets on screen.
+                workout.completeCurrentSet()
             }
         }
     }

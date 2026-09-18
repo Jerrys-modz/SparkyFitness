@@ -359,18 +359,29 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 self?.sendHeartRateBatch(samples)
             }
         }
+        workoutHealthKit.onActiveEnergy = { [weak workoutStore] kcal in
+            Task { @MainActor in
+                workoutStore?.recordActiveEnergy(kcal: kcal)
+            }
+        }
         workoutHealthKit.requestAuthorization { [weak workoutHealthKit] granted in
             guard granted else { return }
             workoutHealthKit?.start()
         }
     }
 
-    /// Sends one completed set. Queued like a check-in — a hole in the diary
-    /// from a dropped delivery is not an acceptable loss, unlike a stretch of
-    /// missing heart rate.
-    func sendSetCompleted(_ set: PlannedSet) {
+    /// Sends one completed set, carrying whatever the wearer typed. Queued
+    /// like a check-in — a hole in the diary from a dropped delivery is not an
+    /// acceptable loss, unlike a stretch of missing heart rate.
+    func sendSetCompleted(_ step: WorkoutStep, values: SetValues) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
-        let completed = CompletedSet(clientId: UUID().uuidString, sessionId: sessionId, setId: set.setId)
+        let completed = CompletedSet(
+            clientId: UUID().uuidString,
+            sessionId: sessionId,
+            setId: step.set.setId,
+            weightKg: values.weightKg,
+            reps: values.reps
+        )
         transfer(OutboundPayloads.setCompleted(completed))
     }
 
@@ -381,7 +392,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         guard
             WCSession.isSupported(), WCSession.default.isReachable,
             let sessionId = workoutStore.plan?.sessionId,
-            let exerciseEntryId = workoutStore.currentExercise?.exerciseEntryId
+            let exerciseEntryId = workoutStore.currentStep?.exerciseEntryId
         else { return }
         let batch = HeartRateBatch(sessionId: sessionId, exerciseEntryId: exerciseEntryId, samples: samples)
         WCSession.default.sendMessage(OutboundPayloads.heartRateBatch(batch), replyHandler: nil, errorHandler: nil)

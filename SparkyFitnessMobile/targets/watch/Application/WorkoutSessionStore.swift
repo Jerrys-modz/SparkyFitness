@@ -3,25 +3,35 @@ import Combine
 
 /// In-memory state for the workout currently shown on the Workout tab.
 ///
+/// Walks a flat sequence of sets rather than a list of exercises: the wearer
+/// sees one set at a time and pages through them, so the cursor is a position
+/// in `steps`. That mirrors the phone's own `buildStepsFromSession`, which is
+/// what keeps the two sides describing the same position.
+///
 /// Deliberately NOT persisted the way `CheckInStore` is: the phone is already
 /// the durable record here (`WatchSessionManager.transfer(_:)` queues each
 /// `setCompleted` individually, so a set survives even if the watch app is
 /// later killed), so there is nothing this store alone holds that would be
-/// worth recovering after a relaunch. A relaunch mid-workout simply waits for
-/// the phone to answer `requestContext()`-style — in practice the wearer
-/// re-opens Workout and taps Start again only if the phone-side session is
-/// itself gone.
+/// worth recovering after a relaunch.
 @MainActor
 final class WorkoutSessionStore: ObservableObject {
     static let shared = WorkoutSessionStore()
 
     @Published private(set) var plan: ActiveWorkoutPlan?
-    @Published private(set) var currentExerciseIndex: Int = 0
+    /// Every set of every exercise, in the order they are meant to be done.
+    @Published private(set) var steps: [WorkoutStep] = []
+    @Published private(set) var currentStepIndex: Int = 0
     @Published private(set) var completedSetIds: Set<String> = []
+    /// Edited weight/reps by set id. A set with no entry here is still on its
+    /// planned targets.
+    @Published private(set) var editedValues: [String: SetValues] = [:]
     @Published private(set) var latestBpm: Double?
+    @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var elapsedSeconds: Int = 0
     /// Non-nil while a rest countdown is running before the next set.
     @Published private(set) var restEndsAt: Date?
+    /// The rest's full length, so the progress bar has a denominator.
+    @Published private(set) var restDurationSeconds: Int = 0
 
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
@@ -38,32 +48,45 @@ final class WorkoutSessionStore: ObservableObject {
 
     var isActive: Bool { plan != nil }
 
-    var currentExercise: PlannedExercise? {
-        guard let plan, plan.exercises.indices.contains(currentExerciseIndex) else {
-            return nil
-        }
-        return plan.exercises[currentExerciseIndex]
+    var currentStep: WorkoutStep? {
+        steps.indices.contains(currentStepIndex) ? steps[currentStepIndex] : nil
     }
 
-    /// True once every set of the current exercise is checked off — the cue
-    /// to show "next exercise" rather than another set row.
-    var isCurrentExerciseDone: Bool {
-        guard let exercise = currentExercise, !exercise.sets.isEmpty else { return false }
-        return exercise.sets.allSatisfy { completedSetIds.contains($0.setId) }
+    var isResting: Bool { restEndsAt != nil }
+
+    /// Values to show for a set: whatever was typed, falling back to the plan.
+    func values(for step: WorkoutStep) -> SetValues {
+        let edited = editedValues[step.set.setId]
+        return SetValues(
+            weightKg: edited?.weightKg ?? step.set.targetWeightKg,
+            reps: edited?.reps ?? step.set.targetReps
+        )
     }
 
-    var isLastExercise: Bool {
-        guard let plan else { return true }
-        return currentExerciseIndex >= plan.exercises.count - 1
+    func isCompleted(_ step: WorkoutStep) -> Bool {
+        completedSetIds.contains(step.set.setId)
     }
 
     func start(with plan: ActiveWorkoutPlan) {
         self.plan = plan
-        currentExerciseIndex = 0
+        steps = plan.exercises.flatMap { exercise in
+            exercise.sets.enumerated().map { index, set in
+                WorkoutStep(
+                    exerciseEntryId: exercise.exerciseEntryId,
+                    exerciseName: exercise.name,
+                    set: set,
+                    setNumber: index + 1,
+                    setCount: exercise.sets.count
+                )
+            }
+        }
+        currentStepIndex = 0
         completedSetIds = []
+        editedValues = [:]
         latestBpm = nil
+        activeEnergyKcal = nil
         elapsedSeconds = 0
-        restEndsAt = nil
+        stopRestTimer()
         startedAt = Date()
         startElapsedTimer()
     }
@@ -72,9 +95,12 @@ final class WorkoutSessionStore: ObservableObject {
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {
         plan = nil
-        currentExerciseIndex = 0
+        steps = []
+        currentStepIndex = 0
         completedSetIds = []
+        editedValues = [:]
         latestBpm = nil
+        activeEnergyKcal = nil
         elapsedSeconds = 0
         startedAt = nil
         stopElapsedTimer()
@@ -85,34 +111,63 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = bpm
     }
 
-    /// Marks a set done locally and starts its rest, if any. The caller is
-    /// responsible for telling the phone — this only updates what the watch
-    /// itself shows.
-    func markSetCompleted(_ set: PlannedSet) {
-        guard !completedSetIds.contains(set.setId) else { return }
-        completedSetIds.insert(set.setId)
-        if set.restSeconds > 0 {
-            startRest(seconds: set.restSeconds)
-        }
-        if isCurrentExerciseDone, !isLastExercise {
-            currentExerciseIndex += 1
-        }
+    func recordActiveEnergy(kcal: Double) {
+        activeEnergyKcal = kcal
     }
 
-    func goToNextExercise() {
-        guard let plan, currentExerciseIndex + 1 < plan.exercises.count else { return }
-        stopRestTimer()
-        currentExerciseIndex += 1
+    /// Overrides one value on a set. Passing nil leaves that field alone, so
+    /// the keypad can commit weight and reps independently.
+    func setValue(for setId: String, weightKg: Double? = nil, reps: Double? = nil) {
+        var values = editedValues[setId] ?? SetValues()
+        if let weightKg { values.weightKg = weightKg }
+        if let reps { values.reps = reps }
+        editedValues[setId] = values
     }
 
-    func goToPreviousExercise() {
-        guard currentExerciseIndex > 0 else { return }
+    /// Marks the current set done, starts its rest, and advances the cursor.
+    /// Returns the step that was completed so the caller can report it — the
+    /// store never talks to the phone itself.
+    @discardableResult
+    func completeCurrentSet() -> WorkoutStep? {
+        guard let step = currentStep, !isCompleted(step) else { return nil }
+        completedSetIds.insert(step.set.setId)
+
+        if currentStepIndex + 1 < steps.count {
+            currentStepIndex += 1
+        }
+        if step.set.restSeconds > 0 {
+            startRest(seconds: step.set.restSeconds)
+        }
+        return step
+    }
+
+    func goToNextStep() {
+        guard currentStepIndex + 1 < steps.count else { return }
         stopRestTimer()
-        currentExerciseIndex -= 1
+        currentStepIndex += 1
+    }
+
+    func goToPreviousStep() {
+        guard currentStepIndex > 0 else { return }
+        stopRestTimer()
+        currentStepIndex -= 1
     }
 
     func skipRest() {
         stopRestTimer()
+    }
+
+    /// The ±15s controls on the rest screen. Dropping to zero or below just
+    /// ends the rest, same as skipping.
+    func adjustRest(bySeconds delta: Int) {
+        guard let endsAt = restEndsAt else { return }
+        let newEndsAt = endsAt.addingTimeInterval(TimeInterval(delta))
+        guard newEndsAt > Date() else {
+            stopRestTimer()
+            return
+        }
+        restEndsAt = newEndsAt
+        restDurationSeconds = max(1, restDurationSeconds + delta)
     }
 
     // MARK: - Timers
@@ -134,11 +189,11 @@ final class WorkoutSessionStore: ObservableObject {
 
     private func startRest(seconds: Int) {
         restTimer?.invalidate()
-        let endsAt = Date().addingTimeInterval(TimeInterval(seconds))
-        restEndsAt = endsAt
+        restEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
+        restDurationSeconds = seconds
         restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, let endsAt = self.restEndsAt else { return }
                 if Date() >= endsAt {
                     self.stopRestTimer()
                 }
@@ -150,5 +205,6 @@ final class WorkoutSessionStore: ObservableObject {
         restTimer?.invalidate()
         restTimer = nil
         restEndsAt = nil
+        restDurationSeconds = 0
     }
 }

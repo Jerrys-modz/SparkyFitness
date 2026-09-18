@@ -185,6 +185,8 @@ export interface WatchPlannedSetPayload {
   targetWeightKg?: number | null;
   /** Rest to run after this set, in seconds — the phone's own `WorkoutStep.restSec`. */
   restSeconds: number;
+  /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
+  setType?: string | null;
 }
 
 /** One exercise in the plan the watch was armed with. */
@@ -209,6 +211,14 @@ export interface WatchSetCompletedPayload {
   clientId: string;
   sessionId: string;
   setId: string;
+  /**
+   * What the wearer actually did, as edited on the watch. Null/undefined
+   * means the watch had no value — callers MUST omit the field from the set
+   * patch in that case rather than writing null, which would clear the
+   * planned value instead of leaving it alone.
+   */
+  weightKg?: number | null;
+  reps?: number | null;
 }
 
 /** One heart-rate reading captured on the watch. */

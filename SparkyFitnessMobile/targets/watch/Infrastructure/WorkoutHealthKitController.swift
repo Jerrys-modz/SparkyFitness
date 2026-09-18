@@ -21,6 +21,9 @@ final class WorkoutHealthKitController: NSObject {
     /// Fired periodically with whatever samples accumulated since the last
     /// flush, for `heartRateBatch` transfers. Always called on the main queue.
     var onBatchReady: (([HeartRateSample]) -> Void)?
+    /// Running active energy for this workout, in kcal. Always called on the
+    /// main queue.
+    var onActiveEnergy: ((Double) -> Void)?
 
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -37,6 +40,7 @@ final class WorkoutHealthKitController: NSObject {
     private static let batchInterval: TimeInterval = 10
 
     private var heartRateType: HKQuantityType { HKQuantityType(.heartRate) }
+    private var activeEnergyType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
 
     private override init() {
         super.init()
@@ -47,8 +51,12 @@ final class WorkoutHealthKitController: NSObject {
             DispatchQueue.main.async { completion(false) }
             return
         }
-        let shareTypes: Set<HKSampleType> = [HKObjectType.workoutType(), heartRateType]
-        let readTypes: Set<HKObjectType> = [heartRateType, HKObjectType.workoutType()]
+        let shareTypes: Set<HKSampleType> = [
+            HKObjectType.workoutType(), heartRateType, activeEnergyType,
+        ]
+        let readTypes: Set<HKObjectType> = [
+            heartRateType, activeEnergyType, HKObjectType.workoutType(),
+        ]
         healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { success, _ in
             DispatchQueue.main.async { completion(success) }
         }
@@ -157,16 +165,29 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
         _ workoutBuilder: HKLiveWorkoutBuilder,
         didCollectDataOf collectedTypes: Set<HKSampleType>
     ) {
-        guard collectedTypes.contains(heartRateType) else { return }
-        guard let statistics = workoutBuilder.statistics(for: heartRateType) else { return }
-        let unit = HKUnit.count().unitDivided(by: .minute())
-        guard let bpm = statistics.mostRecentQuantity()?.doubleValue(for: unit) else { return }
+        if collectedTypes.contains(heartRateType),
+           let statistics = workoutBuilder.statistics(for: heartRateType),
+           let bpm = statistics.mostRecentQuantity()?
+               .doubleValue(for: HKUnit.count().unitDivided(by: .minute())) {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                let sample = HeartRateSample(
+                    t: self.instantFormatter.string(from: Date()),
+                    bpm: bpm
+                )
+                self.pendingSamples.append(sample)
+                self.onHeartRate?(bpm)
+            }
+        }
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            let sample = HeartRateSample(t: self.instantFormatter.string(from: Date()), bpm: bpm)
-            self.pendingSamples.append(sample)
-            self.onHeartRate?(bpm)
+        // Cumulative for the whole workout, not an instantaneous reading, so
+        // it is read as a running sum rather than a most-recent value.
+        if collectedTypes.contains(activeEnergyType),
+           let statistics = workoutBuilder.statistics(for: activeEnergyType),
+           let kcal = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) {
+            DispatchQueue.main.async { [weak self] in
+                self?.onActiveEnergy?(kcal)
+            }
         }
     }
 }

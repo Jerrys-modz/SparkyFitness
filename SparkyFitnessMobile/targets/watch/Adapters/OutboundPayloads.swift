@@ -67,18 +67,30 @@ enum OutboundPayloads {
     /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
 
-    /// One set logged during an active workout. Delivery must not be lost —
-    /// unlike a heart-rate sample, a dropped set is a hole in the diary the
-    /// wearer would have no way to notice — so this is sent via
-    /// `WatchSessionManager.transfer(_:)`'s queued path, not `sendMessage`
-    /// directly.
+    /// One set logged during an active workout, with whatever the wearer
+    /// actually did. Delivery must not be lost — unlike a heart-rate sample,
+    /// a dropped set is a hole in the diary the wearer would have no way to
+    /// notice — so this is sent via `WatchSessionManager.transfer(_:)`'s
+    /// queued path, not `sendMessage` directly.
+    ///
+    /// `weightKg` and `reps` are OMITTED rather than sent as null when the
+    /// watch has no value for them, the same rule `checkIn` follows above:
+    /// the phone patches the set with what arrives, so a null would clear a
+    /// planned value instead of leaving it be.
     static func setCompleted(_ completedSet: CompletedSet) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "type": Kind.setCompleted,
             "clientId": completedSet.clientId,
             "sessionId": completedSet.sessionId,
             "setId": completedSet.setId,
         ]
+        if let weightKg = completedSet.weightKg {
+            payload["weightKg"] = weightKg
+        }
+        if let reps = completedSet.reps {
+            payload["reps"] = reps
+        }
+        return payload
     }
 
     /// A batch of heart-rate samples for one exercise. Sent live via
