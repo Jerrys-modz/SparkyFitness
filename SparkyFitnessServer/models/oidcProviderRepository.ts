@@ -300,6 +300,9 @@ async function upsertEnvOidcProvider(
   try {
     await client.query('BEGIN');
     await client.query(
+      "SELECT pg_advisory_xact_lock(hashtext('oidc_environment_provider_reconciliation'))"
+    );
+    await client.query(
       `INSERT INTO "sso_provider"
        (provider_id, issuer, domain, client_id, client_secret, scopes, discovery_endpoint,
         authorization_endpoint, token_endpoint, jwks_endpoint, userinfo_endpoint,
