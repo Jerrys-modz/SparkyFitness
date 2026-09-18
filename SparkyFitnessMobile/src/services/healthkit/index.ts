@@ -37,6 +37,7 @@ import {
   type TelemetryRunContext,
 } from '../shared/telemetryBudget';
 import {
+  enrichedSessionOrder,
   hasEnrichedSession,
   sessionTelemetryKey,
 } from '../shared/enrichedSessionCache';
@@ -1101,7 +1102,24 @@ const handleWorkout: RecordHandler = async (
   const telemetryAllowed = new Set<unknown>();
   const startedAtMs = Date.now();
   let skippedAlreadyCollected = 0;
-  for (const w of filteredWorkouts) {
+  // A forced run re-reads cached sessions, so the cache no longer thins the
+  // candidates and the budget alone decides. Taken newest-first that would
+  // pick the same few every run and never reach the rest of the range, so
+  // order by how long ago each was collected: never-collected first, then
+  // least recently collected. Re-read sessions are re-committed to the back
+  // of the cache, so the next forced run continues where this one stopped.
+  const selectionOrder = ctx.force ? await enrichedSessionOrder() : null;
+  const collectionRank = (workout: unknown): number => {
+    const key = workoutCacheKey(workout);
+    if (!key || !selectionOrder) return -1;
+    return selectionOrder.get(key) ?? -1;
+  };
+  const candidates = selectionOrder
+    ? [...filteredWorkouts].sort(
+        (a, b) => collectionRank(a) - collectionRank(b)
+      )
+    : filteredWorkouts;
+  for (const w of candidates) {
     // Already-collected workouts neither consume a slot nor get re-read, so a
     // bounded budget works through the backlog across syncs instead of
     // re-picking the same newest few every run (#2191). A forced run re-reads
@@ -1160,16 +1178,29 @@ const handleWorkout: RecordHandler = async (
         // Read through the same statistics(for:) path as active energy, so it
         // stays limited to samples HealthKit associates with this workout —
         // see the note on step count below for why a general clock-window
-        // query is not substituted here. If HealthKit associates no basal
-        // samples with the workout this stays undefined and resting simply
-        // remains unreported, exactly as before.
-        const basalStats = await w.getStatistic(
-          'HKQuantityTypeIdentifierBasalEnergyBurned',
-          'kcal'
-        );
-        const basal = basalStats?.sumQuantity?.quantity;
-        if (typeof basal === 'number' && Number.isFinite(basal) && basal > 0) {
-          basalEnergyBurned = basal;
+        // query is not substituted here.
+        //
+        // Isolated in its own try: basal energy is a separate HealthKit read
+        // permission from active energy, so this call rejects outright on a
+        // device where only active was granted. Inside the shared try that
+        // would abandon the distance and step reads below it on every
+        // workout, silently falling back to the coarser totals on the sample
+        // — and distance feeds pace. Resting is optional; distance is not.
+        try {
+          const basalStats = await w.getStatistic(
+            'HKQuantityTypeIdentifierBasalEnergyBurned',
+            'kcal'
+          );
+          const basal = basalStats?.sumQuantity?.quantity;
+          if (
+            typeof basal === 'number' &&
+            Number.isFinite(basal) &&
+            basal > 0
+          ) {
+            basalEnergyBurned = basal;
+          }
+        } catch {
+          // Not readable on this device; resting stays unreported.
         }
 
         const distanceTypes = [

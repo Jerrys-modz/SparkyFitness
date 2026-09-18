@@ -170,7 +170,18 @@ const ActivityReportLapTable: React.FC<LapTableProps> = ({
   // as a 1.08 km one — which is how the totals row previously reported 27:06
   // for a workout whose real overall pace was 23:08.
   const totalAvgPace = paceMinPerUnit(totalDist, totalDurSec);
-  const totalAvgMovingPace = paceMinPerUnit(totalDist, totalMovingSec);
+  // Moving pace is summed over ONLY the laps that reported a moving time, so
+  // its distance and its time describe the same laps. Dividing the whole
+  // workout's distance by a partial moving time reads far too fast — a lap
+  // with distance but no moving telemetry contributed its kilometres without
+  // its seconds, which halved the figure on a two-lap workout.
+  const movingLaps = processedLaps.filter(
+    (l) => l.movingDurationSeconds > 0 && l.lapDistance > 0
+  );
+  const totalAvgMovingPace = paceMinPerUnit(
+    movingLaps.reduce((s, l) => s + l.lapDistance, 0),
+    movingLaps.reduce((s, l) => s + l.movingDurationSeconds, 0)
+  );
 
   const NA = t('common.notApplicable', 'N/A');
 

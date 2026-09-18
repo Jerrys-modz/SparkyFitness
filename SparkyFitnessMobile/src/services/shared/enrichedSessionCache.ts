@@ -279,6 +279,24 @@ export const hasEnrichedSession = async (
 };
 
 /**
+ * Collection recency for every cached session, as key -> position.
+ *
+ * `commit` re-appends a key it already holds, so a session's position is how
+ * recently its telemetry was collected: position 0 is the least recently
+ * collected. A forced run orders its candidates by this so repeated runs walk
+ * through the backlog instead of re-reading the same newest few every time —
+ * the budget bounds one run, this is what makes successive runs progress.
+ */
+export const enrichedSessionOrder = async (): Promise<
+  ReadonlyMap<string, number>
+> => {
+  const list = await load();
+  const order = new Map<string, number>();
+  list.forEach((key, index) => order.set(key, index));
+  return order;
+};
+
+/**
  * Whether this server holds any collected-telemetry records at all.
  *
  * Used to decide whether offering "re-send workout details" is meaningful: with

@@ -155,8 +155,13 @@ outside keeps its entry, and re-read workouts are re-committed as normal.
 Threaded: `telemetryBudget.ts` → `healthSyncEngine.ts` → `healthConnectService.ts` /
 `.ios.ts` → `useSyncHealthData` → `SyncScreen`.
 
-A forced run still honours the budget, so with more than 25 workouts in range the
-remainder arrive on later syncs.
+A forced run still honours the budget, so a range holding more workouts than it takes
+several runs to finish. Those runs make progress because a forced run orders its
+candidates by **collection recency** rather than newest-first: `commit` re-appends a key
+it already holds, so a session's position in the cache is how recently it was collected,
+and `enrichedSessionOrder()` exposes that. Never-collected sessions come first, then the
+least recently collected. Without that ordering the budget would hand every forced run
+the same newest few and the rest of the range would never be re-read at all.
 
 ### Android route consent
 

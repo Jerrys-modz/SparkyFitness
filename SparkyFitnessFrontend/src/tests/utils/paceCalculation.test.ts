@@ -61,3 +61,59 @@ describe('paceMinPerUnit — distance over time, per Garmin', () => {
     expect(paceMinPerUnit(1.03, NaN)).toBe(0);
   });
 });
+
+// A lap can carry distance without moving telemetry: Garmin FIT only sets
+// movingDuration when LapMesg.totalTimerTime is present, and a lap whose GPS
+// samples all sit below the stop threshold derives none. Summing every lap's
+// distance against only the reporting laps' moving time reads far too fast.
+describe('totals moving pace with mixed lap telemetry', () => {
+  // Mirrors ActivityReportLapTable's totals: distance and time must come from
+  // the same laps.
+  const totalsMovingPace = (
+    laps: { lapDistance: number; movingDurationSeconds: number }[]
+  ): number => {
+    const eligible = laps.filter(
+      (l) => l.movingDurationSeconds > 0 && l.lapDistance > 0
+    );
+    return paceMinPerUnit(
+      eligible.reduce((s, l) => s + l.lapDistance, 0),
+      eligible.reduce((s, l) => s + l.movingDurationSeconds, 0)
+    );
+  };
+
+  it('ignores a distance-bearing lap that reported no moving time', () => {
+    const laps = [
+      { lapDistance: 1, movingDurationSeconds: 500 },
+      { lapDistance: 1, movingDurationSeconds: 0 }, // no moving telemetry
+    ];
+    // Both laps' distance over one lap's moving time would give 4.17 min/km,
+    // twice as fast as any lap actually recorded.
+    expect(totalsMovingPace(laps)).toBeCloseTo(8.33, 2);
+  });
+
+  it('matches the single lap pace when only one lap reports moving time', () => {
+    const laps = [
+      { lapDistance: 2, movingDurationSeconds: 0 },
+      { lapDistance: 1.5, movingDurationSeconds: 900 },
+    ];
+    expect(totalsMovingPace(laps)).toBeCloseTo(paceMinPerUnit(1.5, 900), 5);
+  });
+
+  it('is 0 when no lap reports moving time, so the column stays hidden', () => {
+    expect(
+      totalsMovingPace([
+        { lapDistance: 1, movingDurationSeconds: 0 },
+        { lapDistance: 2, movingDurationSeconds: 0 },
+      ])
+    ).toBe(0);
+  });
+
+  it('distance-weights the laps that do report moving time', () => {
+    const laps = [
+      { lapDistance: 3, movingDurationSeconds: 900 }, // 5:00 /km
+      { lapDistance: 1, movingDurationSeconds: 600 }, // 10:00 /km
+    ];
+    // 4 km over 1500 s = 6.25, not the 7.5 a mean of the two paces would give.
+    expect(totalsMovingPace(laps)).toBeCloseTo(6.25, 2);
+  });
+});
