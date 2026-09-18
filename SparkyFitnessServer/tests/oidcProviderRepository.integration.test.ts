@@ -171,74 +171,95 @@ describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
     }
   });
 
-  it('serializes environment providers with different IDs', async () => {
-    const providerIds = [`test-${randomUUID()}`, `test-${randomUUID()}`];
-    const trigger = `oidc_commit_${randomUUID().replaceAll('-', '')}`;
-    const client = await getSystemClient();
-    let saves: Promise<PromiseSettledResult<string[]>[]> | undefined;
-    let gateHeld = false;
-    try {
-      await client.query('SELECT pg_advisory_lock(hashtext($1))', [trigger]);
-      gateHeld = true;
-      // Hold commits so both callers overlap even on a fast database.
-      await client.query(`CREATE FUNCTION ${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$
+  it.each([false, true])(
+    'serializes environment providers with different IDs (existing: %s)',
+    async (existing) => {
+      const providerIds = [`test-${randomUUID()}`, `test-${randomUUID()}`];
+      const trigger = `oidc_commit_${randomUUID().replaceAll('-', '')}`;
+      const client = await getSystemClient();
+      let saves: Promise<PromiseSettledResult<string[]>[]> | undefined;
+      let gateHeld = false;
+      try {
+        if (existing) {
+          for (const providerId of providerIds) await seedProvider(providerId);
+          await client.query(
+            `UPDATE sso_provider SET additional_config = '{"is_env_configured":true}'
+           WHERE provider_id = ANY($1::text[])`,
+            [providerIds]
+          );
+        }
+        await client.query('SELECT pg_advisory_lock(hashtext($1))', [trigger]);
+        gateHeld = true;
+        // Existing rows must overlap before cleanup to expose opposing row locks.
+        // New rows must overlap at commit so neither cleanup sees the other insert.
+        await client.query(`CREATE FUNCTION ${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN PERFORM pg_advisory_xact_lock_shared(hashtext('${trigger}')); RETURN NEW; END $$`);
-      await client.query(`CREATE CONSTRAINT TRIGGER ${trigger} AFTER INSERT ON sso_provider
-        DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION ${trigger}()`);
+        if (existing) {
+          await client.query(`CREATE TRIGGER ${trigger} AFTER INSERT OR UPDATE ON sso_provider
+          FOR EACH ROW EXECUTE FUNCTION ${trigger}()`);
+        } else {
+          await client.query(`CREATE CONSTRAINT TRIGGER ${trigger} AFTER INSERT ON sso_provider
+          DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION ${trigger}()`);
+        }
 
-      saves = Promise.allSettled(
-        providerIds.map((providerId) =>
-          oidcProviderRepository.upsertEnvOidcProvider({
-            provider_id: providerId,
-            issuer_url: issuer,
-            client_id: 'env-client',
-            client_secret: 'env-secret',
-            domain: 'example.test',
-            is_env_configured: true,
-          })
-        )
-      );
-      await vi.waitFor(async () => {
-        const waiting = await client.query(
-          `SELECT count(*)::int AS count FROM pg_locks
+        saves = Promise.allSettled(
+          providerIds.map((providerId) =>
+            oidcProviderRepository.upsertEnvOidcProvider({
+              provider_id: providerId,
+              issuer_url: issuer,
+              client_id: 'env-client',
+              client_secret: 'env-secret',
+              domain: 'example.test',
+              is_env_configured: true,
+            })
+          )
+        );
+        await vi.waitFor(async () => {
+          const waiting = await client.query(
+            `SELECT count(*)::int AS count FROM pg_locks
            WHERE locktype = 'advisory' AND NOT granted
            AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`
-        );
-        expect(waiting.rows[0].count).toBe(2);
-      });
-      await client.query('SELECT pg_advisory_unlock(hashtext($1))', [trigger]);
-      gateHeld = false;
-      const outcomes = await saves;
-      const result = await client.query(
-        'SELECT id, provider_id FROM sso_provider WHERE provider_id = ANY($1::text[])',
-        [providerIds]
-      );
-      fixtureIds.push(...result.rows.map((row: { id: string }) => row.id));
-      expect(outcomes.map((outcome) => outcome.status)).toEqual([
-        'fulfilled',
-        'fulfilled',
-      ]);
-      expect(result.rows).toHaveLength(1);
-      expect(providerIds).toContain(result.rows[0].provider_id);
-    } finally {
-      if (gateHeld) {
+          );
+          expect(waiting.rows[0].count).toBe(2);
+        });
         await client.query('SELECT pg_advisory_unlock(hashtext($1))', [
           trigger,
         ]);
-      }
-      await saves;
-      try {
-        await client.query(`DROP TRIGGER IF EXISTS ${trigger} ON sso_provider`);
-        await client.query(`DROP FUNCTION IF EXISTS ${trigger}()`);
-        await client.query(
-          'DELETE FROM sso_provider WHERE provider_id = ANY($1::text[])',
+        gateHeld = false;
+        const outcomes = await saves;
+        const result = await client.query(
+          'SELECT id, provider_id FROM sso_provider WHERE provider_id = ANY($1::text[])',
           [providerIds]
         );
+        fixtureIds.push(...result.rows.map((row: { id: string }) => row.id));
+        expect(outcomes).toEqual([
+          { status: 'fulfilled', value: expect.any(Array) },
+          { status: 'fulfilled', value: expect.any(Array) },
+        ]);
+        expect(result.rows).toHaveLength(1);
+        expect(providerIds).toContain(result.rows[0].provider_id);
       } finally {
-        client.release();
+        if (gateHeld) {
+          await client.query('SELECT pg_advisory_unlock(hashtext($1))', [
+            trigger,
+          ]);
+        }
+        await saves;
+        try {
+          await client.query(
+            `DROP TRIGGER IF EXISTS ${trigger} ON sso_provider`
+          );
+          await client.query(`DROP FUNCTION IF EXISTS ${trigger}()`);
+          await client.query(
+            'DELETE FROM sso_provider WHERE provider_id = ANY($1::text[])',
+            [providerIds]
+          );
+        } finally {
+          client.release();
+        }
       }
     }
-  });
+  );
 
   it.each(['env-secret', '*****'])(
     'updates the exact provider with literal env secret %s while preserving its manual alias',
