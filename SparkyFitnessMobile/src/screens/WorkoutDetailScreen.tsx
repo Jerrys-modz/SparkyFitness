@@ -641,6 +641,41 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         }),
       });
     }
+    // Heart rate is read-only — it only arrives from a paired watch or a
+    // synced workout, and there is no field for typing one — so it is shown
+    // from the saved session even while editing.
+    const hrValues = session.exercises
+      .map((ex) => ex.avg_heart_rate)
+      .filter((bpm): bpm is number => bpm != null && bpm > 0);
+    if (hrValues.length > 0) {
+      // An unweighted mean of the per-exercise averages. The phone never holds
+      // the raw series — only what the server derived per entry — so a
+      // duration-weighted figure is not available to compute here. With the
+      // watch batching roughly once a minute the per-exercise averages cover
+      // comparable spans, which keeps this close; it is a session summary
+      // rather than a clinical number.
+      const avgHr =
+        hrValues.reduce((sum, bpm) => sum + bpm, 0) / hrValues.length;
+      summaryItems.push({
+        value: formatLocalizedNumber(Math.round(avgHr)),
+        label: t('workoutDetail.summary.avgHeartRate', {
+          defaultValue: 'Avg HR',
+        }),
+      });
+    }
+    const maxHrValues = session.exercises
+      .map((ex) => ex.max_heart_rate)
+      .filter((bpm): bpm is number => bpm != null && bpm > 0);
+    if (maxHrValues.length > 0) {
+      // Exact, unlike the average: the highest of the per-exercise maxima IS
+      // the workout's maximum.
+      summaryItems.push({
+        value: formatLocalizedNumber(Math.round(Math.max(...maxHrValues))),
+        label: t('workoutDetail.summary.maxHeartRate', {
+          defaultValue: 'Max HR',
+        }),
+      });
+    }
     if (summaryItems.length === 0) return null;
 
     return (

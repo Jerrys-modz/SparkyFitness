@@ -393,7 +393,9 @@
       "notesForSet": "Notes for set {{number}}",
       "addSet": "Add set to {{name}}",
       "caloriesUnit": "kcal",
-      "addSetLabel": "Add set"
+      "addSetLabel": "Add set",
+      "heartRateFor": "Average heart rate for {{name}}",
+      "heartRateUnit": "bpm"
     },
     "nextSet": "Next Set"
   },
@@ -3310,7 +3312,9 @@
       "exercise_other": "Exercises",
       "sets": "Sets",
       "volume": "Volume",
-      "calories": "Calories"
+      "calories": "Calories",
+      "avgHeartRate": "Avg HR",
+      "maxHeartRate": "Max HR"
     },
     "errors": {
       "needsExercise": "Workout needs an exercise",

@@ -618,6 +618,14 @@ export interface WorkoutCardExercise {
   notes?: string | null;
   /** Present on session entries; absent on draft/preset sources. */
   calories_burned?: number | null;
+  /**
+   * Heart rate for this exercise, present on session entries once a paired
+   * watch has reported it (or a synced workout supplied it). Per exercise
+   * rather than per session because the watch tags each batch with whichever
+   * exercise was on screen when it was captured.
+   */
+  avg_heart_rate?: number | null;
+  max_heart_rate?: number | null;
   exercise_snapshot: {
     name?: string | null;
     category?: string | null;

@@ -271,6 +271,37 @@ describe('WorkoutDetailScreen', () => {
     expect(screen.queryByLabelText('More options for Bench Press')).toBeNull();
   });
 
+  it('summarises heart rate across the session when a watch reported it', () => {
+    const session = buildSession({
+      exercises: [
+        buildExercise({
+          id: 'entry-1',
+          avg_heart_rate: 130,
+          max_heart_rate: 150,
+        }),
+        buildExercise({
+          id: 'entry-2',
+          avg_heart_rate: 150,
+          max_heart_rate: 172,
+        }),
+      ],
+    });
+    const screen = renderScreen(session);
+
+    // Mean of the per-exercise averages.
+    expect(screen.getByText('Avg HR')).toBeTruthy();
+    expect(screen.getByText('140')).toBeTruthy();
+    // Highest of the per-exercise maxima — exact, not an approximation.
+    expect(screen.getByText('Max HR')).toBeTruthy();
+    expect(screen.getByText('172')).toBeTruthy();
+  });
+
+  it('omits the heart-rate summary entirely when no exercise has one', () => {
+    const screen = renderScreen(buildSession());
+    expect(screen.queryByText('Avg HR')).toBeNull();
+    expect(screen.queryByText('Max HR')).toBeNull();
+  });
+
   it('derives done vs upcoming set states from server completed_at timestamps', () => {
     const session = buildSession({
       exercises: [
