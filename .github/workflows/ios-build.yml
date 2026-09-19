@@ -258,8 +258,31 @@ jobs:
           # point here, stops the clock ticking underneath the settle check.
           xcrun simctl status_bar "$UDID" override \
             --time '9:41' --batteryState charged --batteryLevel 100 || true
+          # One second of checking against the likeliest cause of a Release
+          # build that launches and dies: no embedded JS. Debug gets away
+          # without it because Metro serves the bundle; Release has only this
+          # file, and an app that cannot find it exits before drawing
+          # anything.
+          if [ ! -f "$APP/main.jsbundle" ]; then
+            echo "::error::No main.jsbundle in the app bundle -- the Release bundling phase did not produce one."
+            ls -la "$APP" | head -40
+            exit 1
+          fi
+
           xcrun simctl install "$UDID" "$APP"
-          xcrun simctl launch "$UDID" "$BUNDLE_ID"
+
+          # Started before the app so nothing is missed. If the app dies on
+          # launch this is the only place that says why: there is no Metro to
+          # print to, and a Release build has no redbox.
+          APP_LOG="$RUNNER_TEMP/app.log"
+          xcrun simctl spawn "$UDID" log stream --level debug \
+            --predicate 'processImagePath CONTAINS "SparkyFitness"' \
+            > "$APP_LOG" 2>&1 &
+          LOG_PID=$!
+
+          # `simctl launch` prints "<bundle id>: <pid>".
+          PID=$(xcrun simctl launch "$UDID" "$BUNDLE_ID" | awk -F': ' '{print $2}')
+          echo "Launched as PID ${PID:-unknown}"
 
           # React Native's first frame is well behind process launch: the
           # bridge starts, the bundle is parsed, then navigation mounts. Rather
@@ -280,6 +303,26 @@ jobs:
             sleep 5
           done
 
+          kill "$LOG_PID" 2>/dev/null || true
+
+          # The settle check cannot tell a finished screen from a dead app:
+          # SpringBoard is perfectly still too, so a crash satisfies it in two
+          # frames and the job goes green around a photograph of the home
+          # screen. Asking whether the process is still there is what
+          # distinguishes them.
+          if [ -z "${PID:-}" ] || ! ps -p "$PID" > /dev/null 2>&1; then
+            echo "::error::The app exited after launch; the screenshot is of whatever replaced it."
+            echo '--- last 150 lines of the app log ---'
+            tail -150 "$APP_LOG" || true
+            echo '--- most recent crash reports ---'
+            for report in $(ls -t "$HOME"/Library/Logs/DiagnosticReports/*.ips 2>/dev/null | head -3); do
+              echo "== $report"
+              head -80 "$report" || true
+            done
+            exit 1
+          fi
+          echo "App still running after the settle loop."
+
           # xcodebuild's environment dump pushes the tail of this job past
           # where GitHub truncates a log, so report into the step summary too.
           {
@@ -291,7 +334,10 @@ jobs:
 
           ls -la screenshots
 
+      # always(), because a screenshot of the wrong thing is the evidence for
+      # working out what went wrong.
       - name: Upload phone screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phone-screenshots
