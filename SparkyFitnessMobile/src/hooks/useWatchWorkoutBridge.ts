@@ -10,7 +10,7 @@ import {
   type ActiveSetPatch,
 } from '../stores/activeWorkoutStore';
 import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
-import { attachExerciseEntryHeartRate } from '../services/api/exerciseApi';
+import { attachExerciseEntryWatchTelemetry } from '../services/api/exerciseApi';
 import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 
@@ -25,8 +25,10 @@ import { queryClient } from './queryClient';
  * already owns rest timers, PR detection and autosave dirtying for a
  * phone-logged set — this only adds the immediate flush a phone screen that
  * isn't open would otherwise wait on. Heart rate is buffered per exercise
- * entry (the watch tags each batch with whichever exercise is on screen) and
- * attached once the workout ends — from either end, see `flushHeartRate`.
+ * entry, along with the active energy it measured (the watch tags each batch
+ * with whichever exercise is on screen), and attached once the workout ends —
+ * from either end, see `flushHeartRate`. The measured energy replaces the
+ * server's duration-and-sets calorie estimate for those entries.
  *
  * iOS-only; a no-op everywhere else.
  */
@@ -39,6 +41,11 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
   const hrBufferRef = useRef<Map<string, WatchHeartRateSamplePayload[]>>(
     new Map()
   );
+  // Active energy the watch measured, summed per exercise entry from the
+  // per-batch deltas it sends. Kept separate from the sample buffer because
+  // a batch can carry energy with no samples, or samples with no energy —
+  // HealthKit permissions are granted per type.
+  const energyBufferRef = useRef<Map<string, number>>(new Map());
   // Guards a queued setCompleted transfer being delivered (and thus
   // completeSet'd) twice — WatchConnectivity makes no once-only promise.
   const handledSetClientIdsRef = useRef<Set<string>>(new Set());
@@ -85,11 +92,21 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
     (payload: WatchHeartRateBatchPayload): void => {
       const sessionId = useActiveWorkoutStore.getState().sessionId;
       if (sessionId !== payload.sessionId) return;
-      const existing = hrBufferRef.current.get(payload.exerciseEntryId) ?? [];
-      hrBufferRef.current.set(
-        payload.exerciseEntryId,
-        existing.concat(payload.samples)
-      );
+      if (payload.samples.length > 0) {
+        const existing = hrBufferRef.current.get(payload.exerciseEntryId) ?? [];
+        hrBufferRef.current.set(
+          payload.exerciseEntryId,
+          existing.concat(payload.samples)
+        );
+      }
+      if (payload.activeEnergyKcal != null) {
+        const existing =
+          energyBufferRef.current.get(payload.exerciseEntryId) ?? 0;
+        energyBufferRef.current.set(
+          payload.exerciseEntryId,
+          existing + payload.activeEnergyKcal
+        );
+      }
     },
     []
   );
@@ -99,17 +116,36 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
   // it harmless for the watch's `workoutStop` to arrive after the phone has
   // already ended the same session itself.
   const flushHeartRate = useCallback(async (): Promise<void> => {
-    const buffered = Array.from(hrBufferRef.current.entries());
-    hrBufferRef.current.clear();
-    for (const [exerciseEntryId, samples] of buffered) {
-      // The zone calculator needs at least two samples to derive a
-      // duration between them; a lone reading has nothing to attach.
-      if (samples.length < 2) continue;
+    const samplesByEntry = hrBufferRef.current;
+    const energyByEntry = energyBufferRef.current;
+    hrBufferRef.current = new Map();
+    energyBufferRef.current = new Map();
+
+    // One post per exercise entry carrying whichever of the two the watch
+    // actually produced, so an entry with energy but no usable series still
+    // gets its measured calories.
+    const entryIds = new Set([
+      ...samplesByEntry.keys(),
+      ...energyByEntry.keys(),
+    ]);
+    for (const exerciseEntryId of entryIds) {
+      const samples = samplesByEntry.get(exerciseEntryId) ?? [];
+      const kcal = energyByEntry.get(exerciseEntryId);
+      // The zone calculator needs at least two samples to derive a duration
+      // between them; a lone reading has nothing to attach, and the server
+      // rejects a one-sample series outright.
+      const hrSamples = samples.length >= 2 ? samples : undefined;
+      // Both absent means there is nothing to say; the server rejects that
+      // body, so don't spend a request discovering it.
+      if (!hrSamples && kcal == null) continue;
       try {
-        await attachExerciseEntryHeartRate(exerciseEntryId, samples);
+        await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
+          ...(hrSamples ? { hrSamples } : {}),
+          ...(kcal != null ? { activeEnergyKcal: kcal } : {}),
+        });
       } catch (error) {
         addLog(
-          `Failed to attach watch heart rate to exercise entry ${exerciseEntryId}: ${String(error)}`,
+          `Failed to attach watch telemetry to exercise entry ${exerciseEntryId}: ${String(error)}`,
           'ERROR'
         );
       }

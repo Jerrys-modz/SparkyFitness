@@ -7,13 +7,13 @@ import {
 } from '../../src/stores/activeWorkoutStore';
 import {
   updateWorkout,
-  attachExerciseEntryHeartRate,
+  attachExerciseEntryWatchTelemetry,
 } from '../../src/services/api/exerciseApi';
 import { addLog } from '../../src/services/LogService';
 
 jest.mock('../../src/services/api/exerciseApi', () => ({
   updateWorkout: jest.fn(),
-  attachExerciseEntryHeartRate: jest.fn(),
+  attachExerciseEntryWatchTelemetry: jest.fn(),
 }));
 
 jest.mock('../../src/hooks/invalidateExerciseCache', () => ({
@@ -52,9 +52,10 @@ jest.mock('../../modules/watch-connectivity', () => {
 const mockUpdateWorkout = updateWorkout as jest.MockedFunction<
   typeof updateWorkout
 >;
-const mockAttachHeartRate = attachExerciseEntryHeartRate as jest.MockedFunction<
-  typeof attachExerciseEntryHeartRate
->;
+const mockAttachTelemetry =
+  attachExerciseEntryWatchTelemetry as jest.MockedFunction<
+    typeof attachExerciseEntryWatchTelemetry
+  >;
 const mockAddLog = addLog as jest.MockedFunction<typeof addLog>;
 const mockStopWorkout = (
   jest.requireMock('../../modules/watch-connectivity') as {
@@ -128,7 +129,7 @@ describe('useWatchWorkoutBridge', () => {
     mockListeners.clear();
     __resetActiveWorkoutStoreForTests();
     mockUpdateWorkout.mockImplementation(async () => getStore().session!);
-    mockAttachHeartRate.mockResolvedValue(undefined);
+    mockAttachTelemetry.mockResolvedValue(undefined);
   });
 
   it('subscribes to all three watch events when enabled', () => {
@@ -288,10 +289,12 @@ describe('useWatchWorkoutBridge', () => {
       await Promise.resolve();
     });
 
-    expect(mockAttachHeartRate).toHaveBeenCalledWith('ex-uuid-1', [
-      { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
-      { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
-    ]);
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ],
+    });
   });
 
   it('skips attaching heart rate for an exercise with fewer than two samples', async () => {
@@ -313,7 +316,7 @@ describe('useWatchWorkoutBridge', () => {
       await Promise.resolve();
     });
 
-    expect(mockAttachHeartRate).not.toHaveBeenCalled();
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
   });
 
   it('clears the heart-rate buffer after a workoutStop', async () => {
@@ -336,13 +339,13 @@ describe('useWatchWorkoutBridge', () => {
       fire('onWorkoutStop', { sessionId: 'session-1' });
       await Promise.resolve();
     });
-    mockAttachHeartRate.mockClear();
+    mockAttachTelemetry.mockClear();
 
     await act(async () => {
       fire('onWorkoutStop', { sessionId: 'session-1' });
       await Promise.resolve();
     });
-    expect(mockAttachHeartRate).not.toHaveBeenCalled();
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
   });
 
   it('attaches heart rate and stops the watch when the phone ends the workout', async () => {
@@ -370,10 +373,78 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockStopWorkout).toHaveBeenCalledWith('session-1');
-    expect(mockAttachHeartRate).toHaveBeenCalledWith('ex-uuid-1', [
-      { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
-      { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
-    ]);
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ],
+    });
+  });
+
+  it('sums the per-batch energy deltas into one measured calorie figure', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+        activeEnergyKcal: 12.5,
+      });
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [{ t: '2026-09-17T10:01:00.000Z', bpm: 131 }],
+        activeEnergyKcal: 7.5,
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        { t: '2026-09-17T10:01:00.000Z', bpm: 131 },
+      ],
+      activeEnergyKcal: 20,
+    });
+  });
+
+  it('posts measured energy even when the series is too short to zone', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }],
+        activeEnergyKcal: 9,
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    // hrSamples omitted — one reading spans no time, so there is nothing to
+    // bucket into zones — but the calories the watch measured still land.
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      activeEnergyKcal: 9,
+    });
   });
 
   it('does not double-attach when the watch reports a stop the phone already handled', async () => {
@@ -396,13 +467,13 @@ describe('useWatchWorkoutBridge', () => {
       getStore().clearWorkout();
       await Promise.resolve();
     });
-    expect(mockAttachHeartRate).toHaveBeenCalledTimes(1);
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
 
     // The queued workoutStop lands afterwards; the buffer is already empty.
     await act(async () => {
       fire('onWorkoutStop', { sessionId: 'session-1' });
       await Promise.resolve();
     });
-    expect(mockAttachHeartRate).toHaveBeenCalledTimes(1);
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
   });
 });

@@ -228,11 +228,25 @@ export interface WatchHeartRateSamplePayload {
   bpm: number;
 }
 
-/** A batch of heart-rate samples for one exercise, from the watch. */
+/**
+ * One batch of what the watch measured while a given exercise was on screen.
+ *
+ * Named for heart rate because that is what it started as, and still its
+ * bulk; `activeEnergyKcal` rides along because HealthKit reports both from
+ * the same `HKLiveWorkoutBuilder` and they share the same per-exercise
+ * attribution.
+ */
 export interface WatchHeartRateBatchPayload {
   sessionId: string;
   exerciseEntryId: string;
   samples: WatchHeartRateSamplePayload[];
+  /**
+   * Active energy burned SINCE THE LAST BATCH, in kcal — a delta, not a
+   * running total, so the phone can sum per exercise and have the parts add
+   * up to the workout's real total. Absent when HealthKit reported no energy
+   * (permission refused, or nothing measured yet).
+   */
+  activeEnergyKcal?: number;
 }
 
 /** The wearer ended the workout on the watch. */

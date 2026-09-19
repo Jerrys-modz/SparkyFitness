@@ -32,12 +32,13 @@ final class WorkoutHealthKitController: NSObject {
     private var batchTimer: Timer?
     private let instantFormatter = ISO8601DateFormatter()
 
-    /// How often accumulated samples are flushed to `onBatchReady`. Short
-    /// enough that a batch lost to an unreachable phone (see
-    /// `OutboundPayloads.heartRateBatch`, sent live rather than queued) is a
-    /// small gap, long enough not to spam WatchConnectivity with a message
-    /// per heartbeat.
-    private static let batchInterval: TimeInterval = 10
+    /// How often accumulated samples are flushed to `onBatchReady`.
+    ///
+    /// A minute rather than ten seconds because batches are QUEUED now
+    /// (`WatchSessionManager.sendHeartRateBatch`) instead of dropped when the
+    /// phone is out of range: nothing is lost by batching less often, and an
+    /// hour's workout costs ~60 queued transfers rather than ~360.
+    private static let batchInterval: TimeInterval = 60
 
     private var heartRateType: HKQuantityType { HKQuantityType(.heartRate) }
     private var activeEnergyType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
@@ -99,12 +100,21 @@ final class WorkoutHealthKitController: NSObject {
         }
     }
 
-    /// Ends the session, flushing any samples still buffered so a stop right
-    /// after a reading doesn't lose it to the next batch that never comes.
-    func stop() {
+    /// Ends the session and RETURNS whatever samples were still buffered,
+    /// rather than pushing them through `onBatchReady`.
+    ///
+    /// That callback hops to the main actor via `Task { @MainActor in }`, so
+    /// a final flush routed through it would run after the caller had already
+    /// torn the workout down — `WatchSessionManager.endWorkout` clears the
+    /// store synchronously, and the batch would then find no session to tag
+    /// itself with and be dropped. Handing the samples back lets the caller
+    /// send them while the session is still standing.
+    @discardableResult
+    func stop() -> [HeartRateSample] {
         stopBatchTimer()
-        flush()
-        guard let session else { return }
+        let remaining = pendingSamples
+        pendingSamples = []
+        guard let session else { return remaining }
         let now = Date()
         session.end()
         builder?.endCollection(withEnd: now) { [weak self] _, _ in
@@ -112,6 +122,7 @@ final class WorkoutHealthKitController: NSObject {
         }
         self.session = nil
         self.builder = nil
+        return remaining
     }
 
     private func startBatchTimer() {

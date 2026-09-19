@@ -125,6 +125,13 @@ struct HeartRateBatch: Codable, Equatable {
     let sessionId: String
     let exerciseEntryId: String
     let samples: [HeartRateSample]
+    /// Active energy burned since the previous batch, in kcal — a DELTA
+    /// rather than the running total `WorkoutSessionStore.activeEnergyKcal`
+    /// holds. Sending deltas means the phone can attribute each one to
+    /// whichever exercise was on screen and still have them sum to the real
+    /// workout total; a running total would have to be differenced somewhere,
+    /// and doing it here keeps that arithmetic next to the reading.
+    let activeEnergyKcal: Double?
 }
 
 /// The wearer ended the workout on the watch. Carries no data of its own —

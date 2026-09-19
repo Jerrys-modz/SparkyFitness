@@ -28,7 +28,7 @@ vi.mock('../middleware/uploadMiddleware.js', () => ({
 }));
 vi.mock('../services/exerciseService.js', () => ({ default: {} }));
 vi.mock('../services/exerciseEntryService.js', () => ({
-  default: { attachHeartRateToExerciseEntry: vi.fn() },
+  default: { attachWatchTelemetryToExerciseEntry: vi.fn() },
 }));
 vi.mock('../services/fitImportService.js', () => ({ default: {} }));
 vi.mock('../utils/permissionUtils.js', () => ({
@@ -49,11 +49,11 @@ const ENTRY_ID = '11111111-1111-1111-1111-111111111111';
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(
-    exerciseEntryService.attachHeartRateToExerciseEntry
+    exerciseEntryService.attachWatchTelemetryToExerciseEntry
   ).mockResolvedValue(undefined);
 });
 
-describe('POST /exercise-entries/:id/heart-rate', () => {
+describe('POST /exercise-entries/:id/watch-telemetry', () => {
   it('forwards a valid heart-rate series to the service, scoped to the acting user', async () => {
     const hrSamples = [
       { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
@@ -61,32 +61,75 @@ describe('POST /exercise-entries/:id/heart-rate', () => {
     ];
 
     await request(app)
-      .post(`/exercise-entries/${ENTRY_ID}/heart-rate`)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
       .send({ hrSamples })
       .expect(204);
 
     expect(
-      exerciseEntryService.attachHeartRateToExerciseEntry
-    ).toHaveBeenCalledWith('user-123', 'actor-123', ENTRY_ID, hrSamples);
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).toHaveBeenCalledWith(
+      'user-123',
+      'actor-123',
+      ENTRY_ID,
+      hrSamples,
+      undefined
+    );
   });
 
   it('rejects an invalid entry id', async () => {
     await request(app)
-      .post('/exercise-entries/not-a-uuid/heart-rate')
+      .post('/exercise-entries/not-a-uuid/watch-telemetry')
       .send({ hrSamples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }] })
       .expect(400);
     expect(
-      exerciseEntryService.attachHeartRateToExerciseEntry
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
     ).not.toHaveBeenCalled();
   });
 
   it('rejects a series with fewer than two samples', async () => {
     await request(app)
-      .post(`/exercise-entries/${ENTRY_ID}/heart-rate`)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
       .send({ hrSamples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }] })
       .expect(400);
     expect(
-      exerciseEntryService.attachHeartRateToExerciseEntry
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).not.toHaveBeenCalled();
+  });
+
+  it('forwards measured active energy alongside the series', async () => {
+    const hrSamples = [
+      { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+      { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+    ];
+
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({ hrSamples, activeEnergyKcal: 87.4 })
+      .expect(204);
+
+    expect(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).toHaveBeenCalledWith('user-123', 'actor-123', ENTRY_ID, hrSamples, 87.4);
+  });
+
+  it('accepts active energy on its own, with no heart-rate series', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({ activeEnergyKcal: 42 })
+      .expect(204);
+
+    expect(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).toHaveBeenCalledWith('user-123', 'actor-123', ENTRY_ID, undefined, 42);
+  });
+
+  it('rejects a body carrying neither heart rate nor active energy', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({})
+      .expect(400);
+    expect(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
     ).not.toHaveBeenCalled();
   });
 
@@ -95,11 +138,11 @@ describe('POST /exercise-entries/:id/heart-rate', () => {
     // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
     notFound.status = 404;
     vi.mocked(
-      exerciseEntryService.attachHeartRateToExerciseEntry
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
     ).mockRejectedValue(notFound);
 
     await request(app)
-      .post(`/exercise-entries/${ENTRY_ID}/heart-rate`)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
       .send({
         hrSamples: [
           { t: '2026-09-17T10:00:00.000Z', bpm: 120 },

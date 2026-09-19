@@ -25,6 +25,12 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private let store = CheckInStore.shared
     private let workoutStore = WorkoutSessionStore.shared
     private let workoutHealthKit = WorkoutHealthKitController.shared
+    /// Cumulative active energy already reported to the phone, so each batch
+    /// can carry only what was burned since the last one. Reset whenever a
+    /// workout starts — `WorkoutSessionStore.activeEnergyKcal` restarts from
+    /// nothing too, and a stale high-water mark would swallow the first
+    /// batches of the new workout.
+    private var reportedEnergyKcal: Double = 0
 
     /// True while a queued context request is still waiting to be answered.
     ///
@@ -344,6 +350,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
         workoutHealthKit.stop()
         workoutStore.start(with: plan)
+        reportedEnergyKcal = 0
 
         // Neither closure runs on the main actor by virtue of running on the
         // main thread — `WorkoutHealthKitController` dispatches them there,
@@ -385,7 +392,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload),
             workoutStore.plan?.sessionId == sessionId
         else { return }
-        workoutHealthKit.stop()
+        sendFinalHeartRateBatch()
         workoutStore.reset()
     }
 
@@ -405,16 +412,30 @@ final class WatchSessionManager: NSObject, ObservableObject {
     }
 
     /// Sends one heart-rate batch for whichever exercise is current right now.
-    /// Live only (`sendMessage`, silently dropped if unreachable) — see
-    /// `OutboundPayloads.heartRateBatch` for why this doesn't queue.
+    ///
+    /// Queued like a completed set, NOT reachability-gated. A phone in a gym
+    /// bag two rooms away is the normal case, not the exception, and dropping
+    /// batches whenever it drifts out of range loses exactly the data this
+    /// feature exists to capture. The flush interval is a minute
+    /// (`WorkoutHealthKitController.batchInterval`) to keep the queue sane.
     private func sendHeartRateBatch(_ samples: [HeartRateSample]) {
         guard
-            WCSession.isSupported(), WCSession.default.isReachable,
             let sessionId = workoutStore.plan?.sessionId,
             let exerciseEntryId = workoutStore.currentStep?.exerciseEntryId
         else { return }
-        let batch = HeartRateBatch(sessionId: sessionId, exerciseEntryId: exerciseEntryId, samples: samples)
-        WCSession.default.sendMessage(OutboundPayloads.heartRateBatch(batch), replyHandler: nil, errorHandler: nil)
+        // `max(0, ...)` because the running total should only ever climb, but
+        // a HealthKit session that restarts mid-workout would reset it, and a
+        // negative delta would subtract calories the wearer really burned.
+        let cumulative = workoutStore.activeEnergyKcal ?? 0
+        let energyDelta = max(0, cumulative - reportedEnergyKcal)
+        reportedEnergyKcal = cumulative
+        let batch = HeartRateBatch(
+            sessionId: sessionId,
+            exerciseEntryId: exerciseEntryId,
+            samples: samples,
+            activeEnergyKcal: energyDelta
+        )
+        transfer(OutboundPayloads.heartRateBatch(batch))
     }
 
     /// Ends the workout: stops the HealthKit session, tells the phone to stop
@@ -423,11 +444,25 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// eventually hear this even if it isn't reachable right now, or the
     /// heart rate captured this session never gets attached to anything.
     func endWorkout() {
-        workoutHealthKit.stop()
+        // Order matters: the last batch has to be queued BEFORE the stop
+        // signal, because the phone flushes its buffer the moment that signal
+        // lands and transfers are delivered in the order they were queued.
+        // It also has to happen before `reset()`, which clears the session
+        // and exercise the batch tags itself with.
+        sendFinalHeartRateBatch()
         if let sessionId = workoutStore.plan?.sessionId {
             transfer(OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId)))
         }
         workoutStore.reset()
+    }
+
+    /// Stops HealthKit and sends whatever it was still holding. Separate from
+    /// `endWorkout` because the phone-initiated stop needs the same drain
+    /// without sending a stop signal back.
+    private func sendFinalHeartRateBatch() {
+        let remaining = workoutHealthKit.stop()
+        guard !remaining.isEmpty else { return }
+        sendHeartRateBatch(remaining)
     }
 }
 

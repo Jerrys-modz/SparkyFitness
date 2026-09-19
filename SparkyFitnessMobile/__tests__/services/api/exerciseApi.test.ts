@@ -12,7 +12,7 @@ import {
   deleteExerciseEntry,
   updateExercise,
   deleteExerciseFromLibrary,
-  attachExerciseEntryHeartRate,
+  attachExerciseEntryWatchTelemetry,
   type CreateExerciseEntryPayload,
 } from '../../../src/services/api/exerciseApi';
 import {
@@ -642,8 +642,8 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
     });
   });
 
-  describe('attachExerciseEntryHeartRate', () => {
-    it('sends POST request with the heart-rate series to /api/exercise-entries/:id/heart-rate', async () => {
+  describe('attachExerciseEntryWatchTelemetry', () => {
+    it('sends POST request with the series and measured energy to /api/exercise-entries/:id/watch-telemetry', async () => {
       mockGetActiveServerConfig.mockResolvedValue(testConfig);
       mockFetch.mockResolvedValue({
         ok: true,
@@ -654,13 +654,35 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
       ];
-      await attachExerciseEntryHeartRate('entry-1', hrSamples);
+      await attachExerciseEntryWatchTelemetry('entry-1', {
+        hrSamples,
+        activeEnergyKcal: 84,
+      });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://example.com/api/exercise-entries/entry-1/heart-rate',
+        'https://example.com/api/exercise-entries/entry-1/watch-telemetry',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ hrSamples }),
+          body: JSON.stringify({ hrSamples, activeEnergyKcal: 84 }),
+        })
+      );
+    });
+
+    it('sends energy on its own when there is no usable series', async () => {
+      mockGetActiveServerConfig.mockResolvedValue(testConfig);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(undefined),
+      });
+
+      await attachExerciseEntryWatchTelemetry('entry-1', {
+        activeEnergyKcal: 42,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/api/exercise-entries/entry-1/watch-telemetry',
+        expect.objectContaining({
+          body: JSON.stringify({ activeEnergyKcal: 42 }),
         })
       );
     });
@@ -674,9 +696,9 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
       });
 
       await expect(
-        attachExerciseEntryHeartRate('entry-1', [
-          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
-        ])
+        attachExerciseEntryWatchTelemetry('entry-1', {
+          hrSamples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }],
+        })
       ).rejects.toThrow('Server error: 404 - Not Found');
     });
   });

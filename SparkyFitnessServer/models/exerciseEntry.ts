@@ -350,10 +350,15 @@ async function updateExerciseEntryTelemetryOnly(
   }
 }
 
-/** Partial payload accepted by updateExerciseEntryHeartRateSummary. */
-export interface HeartRateSummaryFields {
+/** Partial payload accepted by updateExerciseEntryWatchTelemetry. */
+export interface WatchTelemetryFields {
   avg_heart_rate?: number | null;
   max_heart_rate?: number | null;
+  /**
+   * Measured active energy, overriding the duration-and-sets estimate the
+   * server derives when an entry is saved without one.
+   */
+  calories_burned?: number | null;
 }
 
 /**
@@ -364,13 +369,13 @@ export interface HeartRateSummaryFields {
  * watch after the entry itself was already created by the live-workout
  * start/reconcile flow.
  */
-async function updateExerciseEntryHeartRateSummary(
+async function updateExerciseEntryWatchTelemetry(
   id: string,
   userId: string,
-  fields: HeartRateSummaryFields
+  fields: WatchTelemetryFields
 ) {
   const columns = (
-    Object.keys(fields) as (keyof HeartRateSummaryFields)[]
+    Object.keys(fields) as (keyof WatchTelemetryFields)[]
   ).filter((column) => fields[column] !== undefined);
   if (columns.length === 0) return;
 
@@ -1996,7 +2001,7 @@ export default {
   updateExerciseEntry,
   updateExerciseEntryTelemetryOnly,
   _updateExerciseEntryTelemetryOnlyWithClient,
-  updateExerciseEntryHeartRateSummary,
+  updateExerciseEntryWatchTelemetry,
   updateExerciseEntriesDateByPresetEntryIdWithClient,
   getWorkoutPlanAssignmentIdByPresetEntryIdWithClient,
   deleteExerciseEntriesByPresetEntryIdWithClient,

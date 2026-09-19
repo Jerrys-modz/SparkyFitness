@@ -1,6 +1,8 @@
 import { log } from '../config/logging.js';
 import exerciseRepository from '../models/exercise.js';
-import exerciseEntryRepository from '../models/exerciseEntry.js';
+import exerciseEntryRepository, {
+  type WatchTelemetryFields,
+} from '../models/exerciseEntry.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
@@ -236,19 +238,24 @@ async function importExerciseEntriesFromCsv(
   };
 }
 /**
- * Attaches a heart-rate sample series captured on a paired Apple Watch to an
+ * Attaches what a paired Apple Watch measured during a live workout to an
  * exercise entry that already exists — created by the live-workout
- * start/reconcile flow before any HR data was known. Unlike the
+ * start/reconcile flow before any of this was known. Unlike the
  * HealthKit/Health Connect/Garmin sync path (healthDataHandlers.ts's
  * persistWorkoutTelemetry), this never creates the entry itself, so it
  * recomputes the zone breakdown directly with the same hrZoneCalculator
  * rather than routing through that entry-creating function.
+ *
+ * `activeEnergyKcal` overwrites `calories_burned`, which the server otherwise
+ * derives from duration and sets. A watch on the wearer's wrist measured it;
+ * the derivation is a formula, so the measurement wins.
  */
-async function attachHeartRateToExerciseEntry(
+async function attachWatchTelemetryToExerciseEntry(
   userId: string,
   actingUserId: string,
   exerciseEntryId: string,
-  hrSamples: HeartRateSampleRequest[]
+  hrSamples: HeartRateSampleRequest[] | undefined,
+  activeEnergyKcal?: number
 ): Promise<void> {
   const entry = await exerciseEntryRepository.getExerciseEntryById(
     exerciseEntryId,
@@ -261,18 +268,28 @@ async function attachHeartRateToExerciseEntry(
     throw error;
   }
 
-  const bpmValues = hrSamples.map((s) => s.bpm);
-  const avgHeartRate = Math.round(
-    bpmValues.reduce((sum, bpm) => sum + bpm, 0) / bpmValues.length
-  );
-  const maxHeartRate = Math.round(Math.max(...bpmValues));
-
-  await exerciseEntryRepository.updateExerciseEntryHeartRateSummary(
+  // Only the fields supplied are written — the model does a partial UPDATE,
+  // so a post carrying just calories must not blank out heart rate that an
+  // earlier post already attached.
+  const fields: WatchTelemetryFields = {};
+  if (hrSamples && hrSamples.length > 0) {
+    const bpmValues = hrSamples.map((s) => s.bpm);
+    fields.avg_heart_rate = Math.round(
+      bpmValues.reduce((sum, bpm) => sum + bpm, 0) / bpmValues.length
+    );
+    fields.max_heart_rate = Math.round(Math.max(...bpmValues));
+  }
+  if (activeEnergyKcal !== undefined) {
+    fields.calories_burned = Math.round(activeEnergyKcal);
+  }
+  await exerciseEntryRepository.updateExerciseEntryWatchTelemetry(
     exerciseEntryId,
     userId,
-    { avg_heart_rate: avgHeartRate, max_heart_rate: maxHeartRate }
+    fields
   );
 
+  // Zones need the series; a calories-only post has nothing to bucket.
+  if (!hrSamples || hrSamples.length === 0) return;
   const samples: HrSample[] = hrSamples;
   // No date-of-birth lookup here: resolveMaxHr already falls back to the
   // observed sample max (or FALLBACK_MAX_HR) when age can't be derived,
@@ -297,8 +314,8 @@ async function attachHeartRateToExerciseEntry(
   }
 }
 
-export { importExerciseEntriesFromCsv, attachHeartRateToExerciseEntry };
+export { importExerciseEntriesFromCsv, attachWatchTelemetryToExerciseEntry };
 export default {
   importExerciseEntriesFromCsv,
-  attachHeartRateToExerciseEntry,
+  attachWatchTelemetryToExerciseEntry,
 };

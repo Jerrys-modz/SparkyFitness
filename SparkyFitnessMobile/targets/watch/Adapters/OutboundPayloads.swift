@@ -93,18 +93,24 @@ enum OutboundPayloads {
         return payload
     }
 
-    /// A batch of heart-rate samples for one exercise. Sent live via
-    /// `sendMessage` rather than the queued path: a batch that fails to reach
-    /// an unreachable phone is a small, bounded loss of HR fidelity for that
-    /// stretch, not a missing set — not worth resending stale readings once
-    /// the phone comes back.
+    /// A batch of heart-rate samples for one exercise. Queued like a completed
+    /// set: these readings ARE the feature, and a phone out of range during a
+    /// workout is normal rather than exceptional, so a dropped batch is a hole
+    /// in the record rather than a cosmetic gap.
     static func heartRateBatch(_ batch: HeartRateBatch) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "type": Kind.heartRateBatch,
             "sessionId": batch.sessionId,
             "exerciseEntryId": batch.exerciseEntryId,
             "samples": batch.samples.map { ["t": $0.t, "bpm": $0.bpm] },
         ]
+        // Omitted rather than sent as zero when there is nothing to report:
+        // the phone only posts calories it actually received, and a zero
+        // would overwrite the server's estimate with a measurement of none.
+        if let kcal = batch.activeEnergyKcal, kcal > 0 {
+            payload["activeEnergyKcal"] = kcal
+        }
+        return payload
     }
 
     /// The wearer ended the workout on the watch. Queued like `setCompleted`:

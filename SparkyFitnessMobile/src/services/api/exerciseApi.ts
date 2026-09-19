@@ -425,20 +425,27 @@ export interface HeartRateSamplePayload {
 }
 
 /**
- * Fills in avg/max heart rate and the HR-zone breakdown for an exercise
- * entry that already exists, from a series captured on a paired watch during
- * a live workout. See `useWatchWorkoutBridge`.
+ * Fills in what a paired Apple Watch measured during a live workout on an
+ * exercise entry that already exists: avg/max heart rate, the HR-zone
+ * breakdown, and active energy. See `useWatchWorkoutBridge`.
+ *
+ * `activeEnergyKcal` replaces the server's duration-and-sets calorie
+ * estimate for that entry. Both fields are optional individually, but the
+ * server rejects a body carrying neither.
  */
-export const attachExerciseEntryHeartRate = async (
+export const attachExerciseEntryWatchTelemetry = async (
   exerciseEntryId: string,
-  hrSamples: HeartRateSamplePayload[]
+  telemetry: {
+    hrSamples?: HeartRateSamplePayload[];
+    activeEnergyKcal?: number;
+  }
 ): Promise<void> => {
   return apiFetch<void>({
-    endpoint: `/api/exercise-entries/${exerciseEntryId}/heart-rate`,
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/watch-telemetry`,
     serviceName: 'Exercise API',
-    operation: 'attach exercise entry heart rate',
+    operation: 'attach exercise entry watch telemetry',
     method: 'POST',
-    body: { hrSamples },
+    body: telemetry,
   });
 };
 

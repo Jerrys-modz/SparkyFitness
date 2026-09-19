@@ -107,7 +107,10 @@ export const exerciseEntrySetResponseSchema = z
     // Km. Optional: pre-distance servers omit it.
     distance: z.number().nullable().optional(),
     // Progression & Equipment Fields
-    progression_mode: z.enum(["rep_goal", "fixed", "step_load", "manual"]).nullable().optional(),
+    progression_mode: z
+      .enum(["rep_goal", "fixed", "step_load", "manual"])
+      .nullable()
+      .optional(),
     rep_goal: z.number().int().nullable().optional(),
     increment_type: z.enum(["weight", "reps"]).nullable().optional(),
     increment_value: z.number().nullable().optional(),
@@ -253,15 +256,34 @@ export const heartRateSampleRequestSchema = z.object({
   bpm: z.number().positive(),
 });
 
-// Attaches a heart-rate series to an exercise entry that already exists
-// (created by the live-workout start/reconcile flow before any HR data was
-// known) rather than creating one, unlike the HealthKit/Health Connect/Garmin
-// sync path.
-export const attachExerciseEntryHeartRateRequestSchema = z
+// Attaches what a paired Apple Watch measured during a live workout to an
+// exercise entry that already exists (created by the live-workout
+// start/reconcile flow before any of this was known) rather than creating
+// one, unlike the HealthKit/Health Connect/Garmin sync path.
+//
+// Both fields are optional but at least one must be present: heart rate and
+// active energy come from the same HKLiveWorkoutBuilder, but the wearer can
+// grant one HealthKit permission and refuse the other, so either can be the
+// only thing a workout produced.
+export const attachExerciseEntryWatchTelemetryRequestSchema = z
   .object({
-    hrSamples: z.array(heartRateSampleRequestSchema).min(2),
+    // Two samples minimum: the zone calculator derives each zone's duration
+    // from the gaps between consecutive readings, so a lone sample spans no
+    // time and contributes nothing.
+    hrSamples: z.array(heartRateSampleRequestSchema).min(2).optional(),
+    /**
+     * Active energy the watch actually measured for this exercise, in kcal.
+     * Replaces the server's duration-and-sets estimate for this entry, which
+     * is a formula rather than a measurement.
+     */
+    activeEnergyKcal: z.number().nonnegative().optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (body) =>
+      body.hrSamples !== undefined || body.activeEnergyKcal !== undefined,
+    { message: "At least one of hrSamples or activeEnergyKcal is required." },
+  );
 
 export const activityDetailRequestItemSchema = z.object({
   id: z.string().optional(),
@@ -564,8 +586,8 @@ export type ExerciseEntrySetRequest = z.infer<
 export type HeartRateSampleRequest = z.infer<
   typeof heartRateSampleRequestSchema
 >;
-export type AttachExerciseEntryHeartRateRequest = z.infer<
-  typeof attachExerciseEntryHeartRateRequestSchema
+export type AttachExerciseEntryWatchTelemetryRequest = z.infer<
+  typeof attachExerciseEntryWatchTelemetryRequestSchema
 >;
 export type PresetSessionExerciseRequest = z.infer<
   typeof presetSessionExerciseRequestSchema
