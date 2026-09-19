@@ -3113,13 +3113,15 @@
       "chooseMeal": "Choose meal"
     },
     "pickers": {
-      "selectMeal": "Select Meal"
+      "selectMeal": "Select Meal",
+      "selectServing": "Select Serving"
     },
     "accessibility": {
       "mealForAll": "Meal for all items: {{meal}}",
       "mealForRow": "Meal for {{food}}: {{meal}}",
       "increaseQuantity": "Increase quantity",
-      "decreaseQuantity": "Decrease quantity"
+      "decreaseQuantity": "Decrease quantity",
+      "changeServing": "Change serving for {{name}}"
     },
     "actions": {
       "addAll_one": "Add all ({{count}})",

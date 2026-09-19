@@ -7,6 +7,7 @@ import {
 import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 import type {
   AddManyResult,
+  DraftVariantServing,
   FoodDraftFields,
   RowOutcomeStatus,
 } from '../stores/foodSearchSelectionStore';
@@ -18,6 +19,9 @@ export interface BasketRow {
   food: FoodItem;
   quantityText: string;
   mealTypeId: string;
+  /** '' = the food's default variant; see FoodDraftFields. */
+  variantId: string;
+  variant?: DraftVariantServing;
   outcome?: RowOutcomeStatus;
 }
 
@@ -48,6 +52,7 @@ export function useFoodSearchSelection(
   const removeKeys = useFoodSearchSelectionStore((s) => s.removeKeys);
   const clear = useFoodSearchSelectionStore((s) => s.clear);
   const updateDraft = useFoodSearchSelectionStore((s) => s.updateDraft);
+  const setDraftVariant = useFoodSearchSelectionStore((s) => s.setDraftVariant);
   const applyMealTypeToAll = useFoodSearchSelectionStore(
     (s) => s.applyMealTypeToAll
   );
@@ -95,6 +100,8 @@ export function useFoodSearchSelection(
           food,
           quantityText: draft?.quantityText ?? '1',
           mealTypeId: draft?.mealTypeId ?? initialMealTypeId ?? '',
+          variantId: draft?.variantId ?? '',
+          variant: draft?.variant,
           outcome: outcomes.get(key),
         };
       }),
@@ -115,6 +122,7 @@ export function useFoodSearchSelection(
      * screen; FoodSearchScreen only needs selectedFoods/isSelected/count. */
     basketRows,
     updateDraft,
+    setDraftVariant,
     applyMealTypeToAll,
     setOutcomes,
   };

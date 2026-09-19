@@ -115,6 +115,30 @@ describe('convertDraftToPayload', () => {
     expect(eu.status === 'ok' && eu.payload.quantity).toBe(1000.5);
   });
 
+  test('a chosen variant overrides the default in the linked payload', () => {
+    const conversion = convertDraftToPayload(
+      makeDraft({
+        variant: {
+          id: 'variant-cup',
+          serving_size: 1,
+          serving_unit: 'cup',
+          calories: 150,
+          protein: 8,
+          carbs: 30,
+          fat: 3,
+        },
+        quantityText: '2',
+      })
+    );
+
+    expect(conversion.status).toBe('ok');
+    if (conversion.status !== 'ok') return;
+    expect(conversion.payload.variant_id).toBe('variant-cup');
+    expect(conversion.payload.unit).toBe('cup');
+    expect(conversion.payload.quantity).toBe(2);
+    expect(conversion.payload.food_id).toBe('food-1');
+  });
+
   test('falls back to a standalone snapshot when the variant has no id', () => {
     const food = makeFood({
       default_variant: {

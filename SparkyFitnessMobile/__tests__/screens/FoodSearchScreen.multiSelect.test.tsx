@@ -334,6 +334,27 @@ describe('FoodSearchScreen multi-select', () => {
     expect(screen.queryByLabelText('Select Lunch Bowl')).toBeNull();
   });
 
+  test('local search results join the basket in select mode', () => {
+    mockUseFoodSearch.mockReturnValue({
+      searchResults: [buildFood()],
+      isSearching: false,
+      isSearchActive: true,
+      isSearchError: false,
+    } as any);
+    const screen = renderLanding();
+    fireEvent.press(screen.getByLabelText('Select'));
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('Search foods...'),
+      'greek'
+    );
+
+    // The local result row toggles selection instead of navigating.
+    fireEvent.press(screen.getByText('Greek Chicken'));
+    expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(screen.getByText('1 selected')).toBeTruthy();
+  });
+
   test('the basket bar never appears in picker modes, even with a global basket', () => {
     // Maintainer review: the store is global, so a basket built in the
     // diary flow used to reappear — with Review — inside the meal-builder

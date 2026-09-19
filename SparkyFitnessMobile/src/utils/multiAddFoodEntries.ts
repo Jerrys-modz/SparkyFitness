@@ -1,5 +1,6 @@
 import type { CreateFoodEntryPayload } from '../services/api/foodEntriesApi';
 import type { FoodItem } from '../types/foods';
+
 import { parseDecimalInput } from './numericInput';
 
 /**
@@ -8,6 +9,19 @@ import { parseDecimalInput } from './numericInput';
  * size the diary API and the UI can reason about.
  */
 export const MULTI_ADD_MAX_ITEMS = 50;
+
+/**
+ * Serving-bearing subset shared by every variant shape a draft can carry.
+ * An id-less serving IS the food's default basis — conversion falls back
+ * to the default variant for nutrition and the linked-entry id in that
+ * case, because only an id-bearing choice can be logged as a linked
+ * variant.
+ */
+export interface DraftVariantServing {
+  id?: string;
+  serving_size: number;
+  serving_unit: string;
+}
 
 /**
  * Stable identity for a selectable food. The same food surfaces in several
@@ -39,6 +53,12 @@ export function initialDraftQuantityText(food: FoodItem): string {
 
 export interface MultiAddDraft {
   food: FoodItem;
+  /**
+   * Chosen serving basis snapshot, taken at selection time so conversion
+   * never depends on the variants query still being cached at submit
+   * time. An id-less snapshot means the default variant's basis.
+   */
+  variant?: DraftVariantServing;
   /**
    * Raw quantity text from the review row. Locale-tolerant ("1,5" and "1.5"
    * both parse) via parseDecimalInput; conversion rejects anything that does
@@ -112,7 +132,9 @@ export function convertDraftToPayload(
     return { status: 'invalid', key, reason: 'quantity' };
   }
 
-  const variant = food.default_variant;
+  // Id-less choice == default basis: only an id-bearing choice can be a
+  // linked variant; the default carries full nutrition for snapshots.
+  const variant = draft.variant?.id ? draft.variant : food.default_variant;
   const payload: CreateFoodEntryPayload = {
     meal_type_id: draft.mealTypeId,
     quantity,

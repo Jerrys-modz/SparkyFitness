@@ -228,6 +228,44 @@ describe('useFoodSearchSelection', () => {
     expect(conversion.status === 'ok' && conversion.payload.quantity).toBe(100);
   });
 
+  test('setDraftVariant records the variant and reseeds quantity in its unit', () => {
+    const { result } = renderHook(() => useFoodSearchSelection());
+    const food = makeFood('f1', 'v1'); // default variant serves 100 g
+    act(() => {
+      result.current.toggle(food);
+    });
+    expect(result.current.basketRows[0].quantityText).toBe('100');
+    expect(result.current.basketRows[0].variantId).toBe('');
+
+    act(() => {
+      useFoodSearchSelectionStore.getState().setDraftVariant('f1:v1', {
+        id: 'v2',
+        serving_size: 1,
+        serving_unit: 'cup',
+      });
+    });
+    const row = result.current.basketRows[0];
+    expect(row.variantId).toBe('v2');
+    expect(row.quantityText).toBe('1');
+
+    // Back to default — even re-selecting it BY its real id — normalizes
+    // to '' and reseeds the default serving.
+    act(() => {
+      useFoodSearchSelectionStore.getState().setDraftVariant('f1:v1', {
+        id: 'v1',
+        serving_size: 100,
+        serving_unit: 'g',
+      });
+    });
+    expect(result.current.basketRows[0].variantId).toBe('');
+    expect(result.current.basketRows[0].quantityText).toBe('100');
+    expect(result.current.basketRows[0].variant).toEqual({
+      id: undefined,
+      serving_size: 100,
+      serving_unit: 'g',
+    });
+  });
+
   test('basket and draft mutations are refused while a batch is submitting', () => {
     const { result } = renderHook(() => useFoodSearchSelection());
     act(() => {
@@ -243,6 +281,11 @@ describe('useFoodSearchSelection', () => {
     act(() => {
       result.current.removeKeys(['f1:v1']);
       result.current.updateDraft('f1:v1', { quantityText: '5' });
+      useFoodSearchSelectionStore.getState().setDraftVariant('f1:v1', {
+        id: 'v9',
+        serving_size: 2,
+        serving_unit: 'oz',
+      });
       result.current.clear();
     });
     expect(result.current.count).toBe(1);

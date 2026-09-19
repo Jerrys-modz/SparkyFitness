@@ -1,15 +1,33 @@
 import { create } from 'zustand';
 import type { FoodItem } from '../types/foods';
 import {
+  DraftVariantServing,
   initialDraftQuantityText,
   multiAddKeyForFood,
 } from '../utils/multiAddFoodEntries';
+export type { DraftVariantServing };
 
 export interface FoodDraftFields {
   /** Raw quantity text from the review row; parsed with parseDecimalInput. */
   quantityText: string;
   mealTypeId: string;
+  /**
+   * Chosen variant id; '' means the food's default variant. Quantity is
+   * denominated in the chosen variant's serving unit.
+   */
+  variantId: string;
+  /** Chosen serving basis snapshot; absent = default variant. */
+  variant?: DraftVariantServing;
 }
+
+/**
+ * Snapshot of the row's chosen serving basis, stored on the draft at
+ * selection time. The variants query cache cannot be trusted at submit
+ * time — it expires while the review screen is unmounted — so the draft
+ * carries what conversion needs (linked path: id + unit; quantity
+ * recovery: serving size) instead of re-resolving variantId against a
+ * possibly-evicted cache.
+ */
 
 /**
  * A row's outcome from the last batch attempt. `confirmed_rejected` covers
@@ -82,6 +100,12 @@ interface FoodSearchSelectionState {
   removeKeys: (keys: readonly string[]) => void;
   clear: () => void;
   updateDraft: (key: string, patch: Partial<FoodDraftFields>) => void;
+  /**
+   * Switch a row to another variant: records the variant id and re-seeds the
+   * quantity in the new variant's serving unit — a number carried across
+   * variants is meaningless (170 against a "1 cup" variant).
+   */
+  setDraftVariant: (key: string, variant: DraftVariantServing) => void;
   applyMealTypeToAll: (mealTypeId: string) => void;
   setOutcomes: (entries: { key: string; status: RowOutcomeStatus }[]) => void;
 }
@@ -144,6 +168,7 @@ export const useFoodSearchSelectionStore = create<FoodSearchSelectionState>(
       nextDrafts.set(key, {
         quantityText: initialDraftQuantityText(food),
         mealTypeId: initialMealTypeId ?? '',
+        variantId: '',
       });
       set({ selectedByKey: nextSelected, drafts: nextDrafts });
       return true;
@@ -167,6 +192,7 @@ export const useFoodSearchSelectionStore = create<FoodSearchSelectionState>(
         nextDrafts.set(key, {
           quantityText: initialDraftQuantityText(food),
           mealTypeId: initialMealTypeId ?? '',
+          variantId: '',
         });
         added++;
       }
@@ -204,6 +230,32 @@ export const useFoodSearchSelectionStore = create<FoodSearchSelectionState>(
       if (!current) return;
       const next = new Map(drafts);
       next.set(key, { ...current, ...patch });
+      set({ drafts: next });
+    },
+
+    setDraftVariant: (key, variant) => {
+      if (get().isSubmitting) return;
+      const { drafts, selectedByKey } = get();
+      const current = drafts.get(key);
+      if (!current) return;
+      // Re-selecting the food's default normalizes back to '' so the
+      // invariant "'' = default variant" holds however the user got there.
+      const defaultId = selectedByKey.get(key)?.default_variant?.id;
+      const isDefault = !variant.id || variant.id === defaultId;
+      const next = new Map(drafts);
+      next.set(key, {
+        ...current,
+        variantId: isDefault ? '' : variant.id!,
+        variant: {
+          id: isDefault ? undefined : variant.id,
+          serving_size: variant.serving_size,
+          serving_unit: variant.serving_unit,
+        },
+        quantityText:
+          variant.serving_size != null && Number.isFinite(variant.serving_size)
+            ? String(variant.serving_size)
+            : current.quantityText,
+      });
       set({ drafts: next });
     },
 

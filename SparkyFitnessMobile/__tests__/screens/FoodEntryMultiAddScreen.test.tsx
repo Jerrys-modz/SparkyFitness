@@ -4,6 +4,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import FoodEntryMultiAddScreen from '../../src/screens/FoodEntryMultiAddScreen';
 import { useMealTypes } from '../../src/hooks/useMealTypes';
 import { useAddFoodEntriesBatch } from '../../src/hooks/useAddFoodEntriesBatch';
+import { useFoodVariants } from '../../src/hooks/useFoodVariants';
+import {
+  createTestQueryClient,
+  createQueryWrapper,
+} from '../hooks/queryTestUtils';
 import {
   useFoodSearchSelectionStore,
   __resetFoodSearchSelectionStoreForTests,
@@ -21,6 +26,10 @@ jest.mock('../../src/hooks/useMealTypes', () => ({
 
 jest.mock('../../src/hooks/useAddFoodEntriesBatch', () => ({
   useAddFoodEntriesBatch: jest.fn(),
+}));
+
+jest.mock('../../src/hooks/useFoodVariants', () => ({
+  useFoodVariants: jest.fn(),
 }));
 
 jest.mock('uniwind', () => ({
@@ -63,6 +72,9 @@ jest.mock('react-i18next', () => ({
 }));
 
 const mockMealTypes = useMealTypes as jest.MockedFunction<typeof useMealTypes>;
+const mockUseFoodVariants = useFoodVariants as jest.MockedFunction<
+  typeof useFoodVariants
+>;
 const mockUseAddFoodEntriesBatch =
   useAddFoodEntriesBatch as jest.MockedFunction<typeof useAddFoodEntriesBatch>;
 
@@ -117,17 +129,26 @@ const navigation = {
   },
 } as any;
 
+let queryClient: ReturnType<typeof createTestQueryClient>;
+
 function renderScreen(routeParams: Record<string, unknown> = {}) {
+  const QueryWrapper = createQueryWrapper(queryClient);
   return render(
     <SafeAreaProvider initialMetrics={{ insets, frame }}>
-      <FoodEntryMultiAddScreen
-        navigation={navigation}
-        route={{
-          key: 'multi-add',
-          name: 'FoodEntryMultiAdd',
-          params: { date: '2026-09-16', mealTypeId: 'meal-1', ...routeParams },
-        }}
-      />
+      <QueryWrapper>
+        <FoodEntryMultiAddScreen
+          navigation={navigation}
+          route={{
+            key: 'multi-add',
+            name: 'FoodEntryMultiAdd',
+            params: {
+              date: '2026-09-16',
+              mealTypeId: 'meal-1',
+              ...routeParams,
+            },
+          }}
+        />
+      </QueryWrapper>
     </SafeAreaProvider>
   );
 }
@@ -137,6 +158,12 @@ describe('FoodEntryMultiAddScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient = createTestQueryClient();
+    mockUseFoodVariants.mockReturnValue({
+      variants: [],
+      isLoading: false,
+      isError: false,
+    });
     __resetFoodSearchSelectionStoreForTests();
     mockMealTypes.mockReturnValue({
       mealTypes: [
@@ -154,7 +181,9 @@ describe('FoodEntryMultiAddScreen', () => {
     });
   });
 
-  afterEach(() => {});
+  afterEach(() => {
+    queryClient.clear();
+  });
 
   test('shows an empty state when nothing is selected', () => {
     const screen = renderScreen();
@@ -183,6 +212,104 @@ describe('FoodEntryMultiAddScreen', () => {
     expect(
       useFoodSearchSelectionStore.getState().selectedByKey.has(keyFor('f0'))
     ).toBe(false);
+  });
+
+  test('Add all submits drafts carrying the chosen variant snapshot, not a cache lookup', async () => {
+    // Variants query never resolves (loading) and the cache is empty —
+    // the exact remount-after-expiry window. The draft snapshot taken at
+    // selection time must still reach submitBatch.
+    mockUseFoodVariants.mockReturnValue({
+      variants: undefined,
+      isLoading: true,
+      isError: false,
+    } as never);
+    seedBasket([makeFood('f0')]);
+    // Simulate the earlier selection: snapshot on the draft.
+    useFoodSearchSelectionStore.getState().setDraftVariant('f0:variant-f0', {
+      id: 'variant-cup',
+      serving_size: 1,
+      serving_unit: 'cup',
+    });
+    const result: BatchSubmitResult = {
+      succeededKeys: [],
+      outcomes: [],
+      invalidKeys: [],
+      authHalted: false,
+    };
+    submitBatch.mockResolvedValue(result);
+    const screen = renderScreen({ mealTypeId: 'meal-1' });
+
+    // The row's serving label comes from the snapshot too — with the
+    // cache empty it must still read "1 cup" (the sheet's eagerly-rendered
+    // default option is also in the tree, so presence of "1 cup" is the
+    // assertion; the submit draft below proves the basis).
+
+    fireEvent.press(screen.getByText('Add all (1)'));
+
+    await waitFor(() => expect(submitBatch).toHaveBeenCalled());
+    const draft = submitBatch.mock.calls[0][0][0];
+    expect(draft.variant).toEqual({
+      id: 'variant-cup',
+      serving_size: 1,
+      serving_unit: 'cup',
+    });
+    expect(draft.quantityText).toBe('1');
+  });
+
+  test('invalid-quantity recovery resets to the CHOSEN variant serving, not the default', () => {
+    seedBasket([makeFood('f0')]); // default 100 g
+    useFoodSearchSelectionStore.getState().setDraftVariant('f0:variant-f0', {
+      id: 'variant-cup',
+      serving_size: 1,
+      serving_unit: 'cup',
+    });
+    const screen = renderScreen();
+
+    fireEvent.changeText(screen.getByDisplayValue('1'), '.');
+    fireEvent.press(screen.getByLabelText('Increase quantity'));
+
+    // Falls back to the cup variant's serving (1), not the default's 100.
+    expect(screen.getByDisplayValue('2')).toBeTruthy();
+  });
+
+  test('a multi-variant row offers a serving picker that reseeds the quantity', () => {
+    mockUseFoodVariants.mockReturnValue({
+      variants: [
+        {
+          id: 'variant-cup',
+          food_id: 'f0',
+          serving_size: 1,
+          serving_unit: 'cup',
+          calories: 150,
+          protein: 8,
+          carbs: 30,
+          fat: 3,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as never);
+    seedBasket([makeFood('f0')]);
+    const screen = renderScreen();
+
+    fireEvent.press(screen.getByLabelText('Change serving for Food f0'));
+
+    // The sheet lists both the default serving and the fetched variant.
+    fireEvent.press(screen.getByText('1 cup'));
+
+    const row = useFoodSearchSelectionStore
+      .getState()
+      .drafts.get('f0:variant-f0');
+    expect(row?.variantId).toBe('variant-cup');
+    expect(row?.quantityText).toBe('1');
+  });
+
+  test('a single-variant row shows the plain serving, no picker', () => {
+    seedBasket([makeFood('f0')]);
+    const screen = renderScreen();
+
+    expect(screen.getByText('100 g')).toBeTruthy();
+    expect(screen.queryByLabelText('Change serving for Food f0')).toBeNull();
   });
 
   test('Add all stays disabled while a row has no resolved meal type', () => {
@@ -229,16 +356,19 @@ describe('FoodEntryMultiAddScreen', () => {
       isLoading: false,
       isError: false,
     } as never);
+    const QueryWrapper = createQueryWrapper(queryClient);
     screen.rerender(
       <SafeAreaProvider initialMetrics={{ insets, frame }}>
-        <FoodEntryMultiAddScreen
-          navigation={navigation}
-          route={{
-            key: 'multi-add',
-            name: 'FoodEntryMultiAdd',
-            params: { date: '2026-09-16', mealTypeId: undefined },
-          }}
-        />
+        <QueryWrapper>
+          <FoodEntryMultiAddScreen
+            navigation={navigation}
+            route={{
+              key: 'multi-add',
+              name: 'FoodEntryMultiAdd',
+              params: { date: '2026-09-16', mealTypeId: undefined },
+            }}
+          />
+        </QueryWrapper>
       </SafeAreaProvider>
     );
     const loadedState = screen.getByRole('button', { name: 'Add all (1)' });
@@ -330,6 +460,11 @@ describe('FoodEntryMultiAddScreen', () => {
     expect(submitBatch).toHaveBeenCalledWith([
       {
         food: expect.objectContaining({ id: 'f0' }),
+        // No variant chosen: the draft carries the default variant's basis.
+        variant: expect.objectContaining({
+          id: 'variant-f0',
+          serving_unit: 'g',
+        }),
         quantityText: '100',
         mealTypeId: 'meal-1',
         entryDate: '2026-09-16',

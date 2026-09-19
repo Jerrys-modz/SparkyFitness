@@ -1075,6 +1075,19 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   const renderResultRow = ({ item }: { item: ResultRow }) => (
     <FoodSearchResultRow
       row={item}
+      // Local search results join the multi-select basket (#1980 request 2);
+      // meals stay single-tap and online provider results are out of scope
+      // until the import workflow can feed the basket.
+      selection={
+        isSelectMode && item.type === 'food'
+          ? {
+              isSelected: isFoodSelected(item.food),
+              onToggle: () => handleToggleFoodSelection(item.food),
+              accentColor,
+              inactiveColor: textMuted,
+            }
+          : undefined
+      }
       profileId={profile?.id}
       favoriteKeys={favoriteKeys}
       favoriteGold={favoriteGold}

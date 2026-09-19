@@ -25,6 +25,8 @@ import { FooterSaveBar } from '../components/FormScreenChrome';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useMealTypes } from '../hooks/useMealTypes';
 import { useAddFoodEntriesBatch } from '../hooks/useAddFoodEntriesBatch';
+import { useFoodVariants } from '../hooks/useFoodVariants';
+import type { TFunction } from 'i18next';
 import { useFoodSearchSelection } from '../hooks/useFoodSearchSelection';
 import type { BasketRow } from '../hooks/useFoodSearchSelection';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -32,8 +34,11 @@ import { formatDateLabel } from '../utils/dateUtils';
 import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
 import { formatServingUnit } from '../utils/foodDetails';
 import { getMealTypeDisplayLabel } from '../utils/mealNutrition';
-import type { MultiAddDraft } from '../utils/multiAddFoodEntries';
-import { initialDraftQuantityText } from '../utils/multiAddFoodEntries';
+import type {
+  DraftVariantServing,
+  MultiAddDraft,
+} from '../utils/multiAddFoodEntries';
+import type { FoodDefaultVariant, FoodVariantDetail } from '../types/foods';
 import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 import type { RootStackScreenProps } from '../types/navigation';
 import type { MealType } from '../types/mealTypes';
@@ -44,10 +49,117 @@ function rowQuantity(row: BasketRow): number {
   return parseDecimalInput(row.quantityText);
 }
 
+/**
+ * The row's serving-size basis for recovery paths (blur reset, stepper
+ * fallback): the chosen variant's serving, else the food's default.
+ */
+function rowServingSize(row: BasketRow): number {
+  const serving =
+    row.variant?.serving_size ?? row.food.default_variant?.serving_size;
+  return serving != null && Number.isFinite(serving) ? serving : 1;
+}
+
 function isRowQuantityValid(row: BasketRow): boolean {
   const quantity = rowQuantity(row);
   return Number.isFinite(quantity) && quantity > 0;
 }
+
+/**
+ * Per-row variant selector (maintainer review, request 1): swaps the row's
+ * serving basis — unit and quantity reseed — among the food's variants. A
+ * child component because useFoodVariants is per-food and rows render in a
+ * map; React Query caches per foodId so every row fetches once.
+ */
+const VariantPicker: React.FC<{
+  food: BasketRow['food'];
+  variantId: string;
+  /** Draft's serving snapshot — the display source of truth when the
+   * variants query is empty or still loading (e.g. reopened screen). */
+  snapshot?: DraftVariantServing;
+  disabled: boolean;
+  onSelect: (
+    variant: FoodVariantDetail | FoodDefaultVariant | DraftVariantServing
+  ) => void;
+  textMuted: string;
+  t: TFunction;
+}> = ({ food, variantId, snapshot, disabled, onSelect, textMuted, t }) => {
+  const { variants } = useFoodVariants(food.id);
+  const options = useMemo(() => {
+    const all: (
+      FoodVariantDetail | FoodDefaultVariant | DraftVariantServing
+    )[] = [food.default_variant, ...(variants ?? [])];
+    // Keep the chosen snapshot selectable even when the fetched list does
+    // not (yet) contain it — otherwise a cache-empty reopen would show it
+    // nowhere and flip the label back to the default serving.
+    if (snapshot?.id && !all.some((v) => v.id === snapshot.id)) {
+      all.push(snapshot);
+    }
+    const seen = new Set<string>();
+    return all.filter((variant) => {
+      // Dedupe by id, treating a missing id as its own bucket so two
+      // id-less entries (default variants) cannot render twice either.
+      const id = variant.id ?? '';
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [food.default_variant, variants, snapshot]);
+  const selected =
+    options.find((variant) => (variant.id ?? '') === variantId) ??
+    snapshot ??
+    food.default_variant;
+  const servingLabel = `${selected.serving_size} ${formatServingUnit(
+    selected.serving_unit
+  )}`;
+
+  // Single-variant foods have nothing to switch — render the plain serving.
+  if (options.length <= 1) {
+    return (
+      // i18n-audit-ignore-next-line hardcoded-ui-text -- quantity and unit are literal data values.
+      <Text className="text-xs text-text-secondary mt-1">{servingLabel}</Text>
+    );
+  }
+  return (
+    <BottomSheetPicker
+      value={selected.id ?? ''}
+      options={options.map((variant) => ({
+        label: `${variant.serving_size} ${formatServingUnit(
+          variant.serving_unit
+        )}`,
+        value: variant.id ?? '',
+      }))}
+      onSelect={(value: string) => {
+        const variant = options.find((v) => (v.id ?? '') === value);
+        if (variant) onSelect(variant);
+      }}
+      title={t('foodEntryMultiAdd.pickers.selectServing', {
+        defaultValue: 'Select Serving',
+      })}
+      renderTrigger={({ onPress }) => (
+        <TouchableOpacity
+          onPress={onPress}
+          disabled={disabled}
+          activeOpacity={0.7}
+          className="flex-row items-center mt-1"
+          accessibilityRole="button"
+          accessibilityLabel={t(
+            'foodEntryMultiAdd.accessibility.changeServing',
+            {
+              name: food.name,
+              defaultValue: 'Change serving for {{name}}',
+            }
+          )}
+        >
+          {/* i18n-audit-ignore-next-line hardcoded-ui-text -- quantity and unit are literal data values. */}
+          <Text className="text-xs text-text-secondary font-medium">
+            {servingLabel}
+          </Text>
+          <Icon name="chevron-down" size={12} color={textMuted} />
+        </TouchableOpacity>
+      )}
+    />
+  );
+};
 
 /**
  * Multi-add review screen (#1980): the last stop for a food-search basket
@@ -149,6 +261,12 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
   const draftFor = useCallback(
     (row: BasketRow): MultiAddDraft => ({
       food: row.food,
+      // The draft carries the chosen serving basis as a snapshot taken at
+      // selection time — the variants cache can expire while this screen
+      // is unmounted, so submit must not re-resolve variantId against it
+      // (a miss would silently log the selected quantity against the
+      // default variant).
+      variant: row.variant ?? row.food.default_variant,
       quantityText: row.quantityText,
       mealTypeId: row.mealTypeId || resolvedDefaultMealTypeId,
       entryDate: date,
@@ -337,15 +455,17 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                             {row.food.brand}
                           </Text>
                         ) : null}
-                        {/* i18n-audit-ignore-next-line hardcoded-ui-text -- quantity and unit are literal data values. */}
-                        <Text className="text-xs text-text-secondary mt-1">
-                          <>
-                            {row.food.default_variant.serving_size}{' '}
-                            {formatServingUnit(
-                              row.food.default_variant.serving_unit
-                            )}
-                          </>
-                        </Text>
+                        <VariantPicker
+                          food={row.food}
+                          variantId={row.variantId}
+                          snapshot={row.variant}
+                          disabled={isSubmitting}
+                          onSelect={(variant) =>
+                            selection.setDraftVariant(row.key, variant)
+                          }
+                          textMuted={textMuted}
+                          t={t}
+                        />
                       </View>
                       <TouchableOpacity
                         onPress={() => selection.removeKeys([row.key])}
@@ -386,11 +506,10 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                         }}
                         onBlur={() => {
                           if (!isRowQuantityValid(row)) {
-                            // Reset in the variant's serving unit, not '1' —
-                            // same denomination as the seed (one GRAM of a
-                            // 100 g food is not a sensible fallback).
+                            // Reset in the ROW's serving unit — the chosen
+                            // variant when selected, else the food's default.
                             selection.updateDraft(row.key, {
-                              quantityText: initialDraftQuantityText(row.food),
+                              quantityText: String(rowServingSize(row)),
                             });
                           }
                         }}
@@ -399,9 +518,7 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                           // seed quantity so a tap never writes "NaN".
                           const base = isRowQuantityValid(row)
                             ? rowQuantity(row)
-                            : parseDecimalInput(
-                                initialDraftQuantityText(row.food)
-                              );
+                            : rowServingSize(row);
                           selection.updateDraft(row.key, {
                             quantityText: String(base + 1),
                           });
@@ -409,9 +526,7 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                         onDecrement={() => {
                           const base = isRowQuantityValid(row)
                             ? rowQuantity(row)
-                            : parseDecimalInput(
-                                initialDraftQuantityText(row.food)
-                              );
+                            : rowServingSize(row);
                           selection.updateDraft(row.key, {
                             quantityText: String(Math.max(0, base - 1)),
                           });
