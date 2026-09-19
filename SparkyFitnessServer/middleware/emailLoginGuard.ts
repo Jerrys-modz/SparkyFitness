@@ -1,13 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { isEmailLoginDisabled } from '../utils/emailLogin.js';
 
+/** Block public password routes without blocking internal demo sign-in. */
 export function emailLoginGuard(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  // Demo login needs the credential backend, but public password routes still
-  // follow the environment policy.
   if (
     isEmailLoginDisabled() &&
     (req.path.startsWith('/api/auth/sign-in/email') ||
