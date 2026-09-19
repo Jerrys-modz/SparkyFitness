@@ -385,10 +385,7 @@ async function updateOidcProvider(
     if (typeof clientId !== 'string' || clientId.length === 0) {
       throw new Error('OIDC client ID is required');
     }
-    const clientSecret =
-      providerData.client_secret && providerData.client_secret !== '*****'
-        ? providerData.client_secret
-        : existing.client_secret;
+    const clientSecret = providerData.client_secret || existing.client_secret;
     const providerIdToUse = providerData.provider_id || existing.provider_id;
     const { config, discoveryEndpoint, endpoints, oidcConfig } =
       await prepareOidcProvider(

@@ -33,9 +33,7 @@ router.get('/:id', isAdmin, async (req, res) => {
       req.params.id
     );
     if (provider) {
-      // Mask the secret for display
-      provider.client_secret = '*****';
-      res.json(provider);
+      res.json({ ...provider, client_secret: undefined });
     } else {
       res.status(404).json({ message: 'OIDC provider not found' });
     }
