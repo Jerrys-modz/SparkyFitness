@@ -54,21 +54,7 @@ SparkyFitness implements a two-tier database security model using superuser priv
 
 Configure these optional modules based on your deployment environment and desired features.
 
-### Module 1: 🌐 Nginx, Ports & Reverse Proxy Headers `[Frontend Nginx & Backend]`
-
-Controls web access ports, Nginx brute-force protection, and client IP resolution behind reverse proxies:
-
-- **`SPARKY_FITNESS_FRONTEND_PORT`**: Port exposed on your host machine for web access. Defaults to `3004`.
-- **`NGINX_RATE_LIMIT`**: Rate limit on `/api/auth/*` routes to prevent brute-force attacks (e.g., `5r/s`). Defaults to `5r/s`.
-- **`SPARKY_FITNESS_REAL_IP_HEADER`**: Name of the trusted proxy header containing the real client IP (e.g., `CF-Connecting-IP` for Cloudflare Tunnel / CDN, `X-Forwarded-For` for NPM/Traefik, `True-Client-IP` for Akamai).
-- **`SPARKY_FITNESS_TRUSTED_PROXY_HOPS`**: Number of proxy layers between client and server when not using a named header. Defaults to `1`.
-- **`ALLOW_PRIVATE_NETWORK_CORS`**: Set to `true` to allow Cross-Origin Resource Sharing (CORS) from private LAN subnets (`192.168.x.x`, `10.x.x.x`, `172.16.x.x`, `localhost`).
-- **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated list of additional local IP origins trusted by Better Auth (e.g., `http://192.168.1.100:3004`).
-- **`NGINX_LISTEN_PORT`**: Port Nginx listens on inside container (`80` root / `8080` non-root).
-- **`NGINX_ACCESS_LOG`** / **`NGINX_ERROR_LOG`**: Nginx log paths.
-- **`NGINX_DUMP_CONFIG`**: Set to `true` to dump resolved Nginx configuration on startup.
-
-### Module 2: 💾 Persistent Host Storage Paths `[Host Volumes]`
+### Module 1: 💾 Persistent Host Storage Paths `[Host Volumes]`
 
 Maps persistent container directories to specific locations on your host filesystem (e.g., Synology NAS, Unraid, TrueNAS):
 
@@ -76,17 +62,69 @@ Maps persistent container directories to specific locations on your host filesys
 - **`SERVER_BACKUP_PATH`**: Host directory where database backups are exported (e.g., `./backup`).
 - **`SERVER_UPLOADS_PATH`**: Host directory for profile avatars and custom food photos (e.g., `./uploads`).
 
-### Module 3: 🛡️ Admin Email, Public Signups & Public Demo Mode `[Backend]`
+### Module 2: 🛡️ Admin Email, Public Signups & Access Policy `[Backend]`
 
-Controls initial administrator privileges, user registrations, and public demo accounts:
+Controls initial administrator privileges, who may register, and how users sign in:
 
 - **`SPARKY_FITNESS_ADMIN_EMAIL`**: (Optional) Email address automatically granted Admin privileges on server startup. If left blank, the **first user to register** becomes Admin.
 - **`SPARKY_FITNESS_DISABLE_SIGNUP`**: Set to `true` to disable new user registrations and lock the instance for private use.
+- **`SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`**: Set to `true` to force users to log in exclusively via SSO. Requires OIDC to be configured (Module 5), otherwise nobody can sign in.
+- **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to force password login enabled if OIDC misbehaves. Do not set this alongside `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN` — the two contradict each other and the server resolves the conflict differently depending on the code path.
+- **`ALLOW_PRIVATE_NETWORK_CORS`**: Set to `true` to allow Cross-Origin Resource Sharing (CORS) from private LAN subnets (`192.168.x.x`, `10.x.x.x`, `172.16.x.x`, `localhost`).
+
+### Module 3: 🧪 Public Demo Mode `[Backend]`
+
+Runs an isolated demo account seeded with sample data that resets every 24 hours at midnight UTC. Leave this off for a normal instance.
+
 - **`SPARKY_FITNESS_DEMO_MODE`**: Set to `true` to enable an isolated demo user seeded with rich sample data that automatically resets every 24 hours at midnight UTC.
 - **`SPARKY_FITNESS_DEMO_EMAIL`**: Email for the demo user. Defaults to `demo@sparkyfitness.com`.
 - **`SPARKY_FITNESS_DEMO_PASSWORD`**: Password for the demo user. If unset, a secure temporary password is generated on startup.
 
-### Module 4: ⏱️ Sign-in & API Key Rate Limiting `[Backend]`
+### Module 4: ✉️ SMTP Email Notifications `[Backend]`
+
+Enable email delivery for password resets, account verification codes, and system alerts:
+
+- **`SPARKY_FITNESS_EMAIL_HOST`**: SMTP outgoing server hostname (e.g., `smtp.mailgun.org` or `smtp.gmail.com`).
+- **`SPARKY_FITNESS_EMAIL_PORT`**: SMTP port (`587` for STARTTLS, `465` for SSL/TLS, `25` for local relays). Defaults to `587`.
+- **`SPARKY_FITNESS_EMAIL_SECURE`**: Set to `true` for port `465` implicit TLS; `false` for port `587` STARTTLS.
+- **`SPARKY_FITNESS_EMAIL_USER`**: SMTP username.
+- **`SPARKY_FITNESS_EMAIL_PASS`**: SMTP password or API token. (Can also be supplied via **`SPARKY_FITNESS_EMAIL_PASS_FILE`**).
+- **`SPARKY_FITNESS_EMAIL_FROM`**: Sender email address visible to recipients (e.g., `noreply@yourdomain.com`).
+
+### Module 5: 🔑 OpenID Connect (OIDC / SSO) `[Backend]`
+
+Integrate with centralized identity providers such as Authentik, Keycloak, Authelia, or Okta:
+
+- **`SPARKY_FITNESS_OIDC_AUTH_ENABLED`**: Set to `true` to enable OIDC single sign-on.
+- **`SPARKY_FITNESS_OIDC_PROVIDER_NAME`**: Display label on the "Log in with..." button (e.g., `Authentik`).
+- **`SPARKY_FITNESS_OIDC_PROVIDER_SLUG`**: URL-safe unique identifier (e.g., `authentik`).
+- **`SPARKY_FITNESS_OIDC_ISSUER_URL`**: Base URL of your IdP (e.g., `https://auth.example.com/application/o/sparky/`).
+- **`SPARKY_FITNESS_OIDC_CLIENT_ID`**: OAuth2 Client ID created in your IdP.
+- **`SPARKY_FITNESS_OIDC_CLIENT_SECRET`**: OAuth2 Client Secret. (Can also be supplied via **`SPARKY_FITNESS_OIDC_CLIENT_SECRET_FILE`**).
+- **`SPARKY_FITNESS_OIDC_ADMIN_GROUP`**: Group or role claim that automatically elevates the user to Admin (e.g., `Admin`).
+- **`SPARKY_FITNESS_OIDC_SCOPE`**: Scopes to request (defaults to `openid email profile`).
+
+### Module 6: ⌚ Garmin Connect Microservice `[Garmin & Backend]`
+
+Connect to the Python-based Garmin sync microservice bundled in `docker-compose.prod.yml`:
+
+- **`GARMIN_MICROSERVICE_URL`**: Microservice endpoint URL (e.g., `http://sparkyfitness-garmin:8000`).
+- **`GARMIN_SERVICE_PORT`**: Microservice port. Defaults to `8000`.
+
+### Module 7: 🌐 Nginx, Ports & Reverse Proxy Headers `[Frontend Nginx & Backend]`
+
+Controls web access ports, Nginx brute-force protection, and client IP resolution behind reverse proxies:
+
+- **`SPARKY_FITNESS_FRONTEND_PORT`**: Port exposed on your host machine for web access. Defaults to `3004`.
+- **`NGINX_RATE_LIMIT`**: Rate limit on `/api/auth/*` routes to prevent brute-force attacks (e.g., `5r/s`). Defaults to `5r/s`.
+- **`SPARKY_FITNESS_REAL_IP_HEADER`**: Name of the trusted proxy header containing the real client IP (e.g., `CF-Connecting-IP` for Cloudflare Tunnel / CDN, `X-Forwarded-For` for NPM/Traefik, `True-Client-IP` for Akamai).
+- **`SPARKY_FITNESS_TRUSTED_PROXY_HOPS`**: Number of proxy layers between client and server when not using a named header. Defaults to `1`.
+- **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated list of additional local IP origins trusted by Better Auth (e.g., `http://192.168.1.100:3004`).
+- **`NGINX_LISTEN_PORT`**: Port Nginx listens on inside container (`80` root / `8080` non-root).
+- **`NGINX_ACCESS_LOG`** / **`NGINX_ERROR_LOG`**: Nginx log paths.
+- **`NGINX_DUMP_CONFIG`**: Set to `true` to dump resolved Nginx configuration on startup.
+
+### Module 8: ⏱️ Sign-in & API Key Rate Limiting `[Backend]`
 
 Customizes rate-limiting thresholds for logins, two-factor verification, and external automation API keys:
 
@@ -95,7 +133,15 @@ Customizes rate-limiting thresholds for logins, two-factor verification, and ext
 - **`SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS`**: Maximum requests per API key token window. Defaults to `100`.
 - **`SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS`**: API key window in milliseconds. Defaults to `60000` (1 minute).
 
-### Module 5: 🛡️ Admin Policy Toggles `[Backend]`
+### Module 9: 🛡️ Outbound Corporate / Forwarding Proxy `[Backend]`
+
+Route outgoing backend requests (such as OpenFoodFacts, Strava, or AI providers) through a corporate forward proxy:
+
+- **`HTTP_PROXY`**: Proxy URL for outbound HTTP requests (e.g., `http://proxy.example.com:8888`).
+- **`HTTPS_PROXY`**: Proxy URL for outbound HTTPS requests.
+- **`NO_PROXY`**: Comma-separated list of hostnames to bypass proxy (e.g., `localhost,127.0.0.1,sparkyfitness-garmin`).
+
+### Module 10: 🛡️ Admin Policy Toggles `[Backend]`
 
 Each of these is also settable in the Admin UI, where it is stored in the database. Setting the environment variable to `true` forces the policy on regardless of what is stored; leaving it unset defers to the Admin UI. All default to off.
 
@@ -108,48 +154,7 @@ Each of these is also settable in the Admin UI, where it is stored in the databa
 The developer mock-data switches (formerly `SPARKY_FITNESS_SAVE_MOCK_DATA` and the per-provider `SPARKY_FITNESS_*_DATA_SOURCE` variables) have been removed. Capturing a provider's raw responses, and replaying them instead of calling the provider, are now per-sync checkboxes on the provider sync dialog, available only while an admin has enabled **Allow Local Provider Response Capture** in **Admin > Global Provider Settings**. `GARMIN_SERVICE_IS_CN` is unaffected and remains an environment variable on the Garmin container.
 :::
 
-### Module 6: 🔑 OpenID Connect (OIDC / SSO) `[Backend]`
-
-Integrate with centralized identity providers such as Authentik, Keycloak, Authelia, or Okta:
-
-- **`SPARKY_FITNESS_OIDC_AUTH_ENABLED`**: Set to `true` to enable OIDC single sign-on.
-- **`SPARKY_FITNESS_OIDC_PROVIDER_NAME`**: Display label on the "Log in with..." button (e.g., `Authentik`).
-- **`SPARKY_FITNESS_OIDC_PROVIDER_SLUG`**: URL-safe unique identifier (e.g., `authentik`).
-- **`SPARKY_FITNESS_OIDC_ISSUER_URL`**: Base URL of your IdP (e.g., `https://auth.example.com/application/o/sparky/`).
-- **`SPARKY_FITNESS_OIDC_CLIENT_ID`**: OAuth2 Client ID created in your IdP.
-- **`SPARKY_FITNESS_OIDC_CLIENT_SECRET`**: OAuth2 Client Secret. (Can also be supplied via **`SPARKY_FITNESS_OIDC_CLIENT_SECRET_FILE`**).
-- **`SPARKY_FITNESS_OIDC_ADMIN_GROUP`**: Group or role claim that automatically elevates the user to Admin (e.g., `Admin`).
-- **`SPARKY_FITNESS_OIDC_SCOPE`**: Scopes to request (defaults to `openid email profile`).
-- **`SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`**: Set to `true` to force users to log in exclusively via SSO.
-- **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to force password login enabled if OIDC misbehaves.
-
-### Module 7: ✉️ SMTP Email Notifications `[Backend]`
-
-Enable email delivery for password resets, account verification codes, and system alerts:
-
-- **`SPARKY_FITNESS_EMAIL_HOST`**: SMTP outgoing server hostname (e.g., `smtp.mailgun.org` or `smtp.gmail.com`).
-- **`SPARKY_FITNESS_EMAIL_PORT`**: SMTP port (`587` for STARTTLS, `465` for SSL/TLS, `25` for local relays). Defaults to `587`.
-- **`SPARKY_FITNESS_EMAIL_SECURE`**: Set to `true` for port `465` implicit TLS; `false` for port `587` STARTTLS.
-- **`SPARKY_FITNESS_EMAIL_USER`**: SMTP username.
-- **`SPARKY_FITNESS_EMAIL_PASS`**: SMTP password or API token. (Can also be supplied via **`SPARKY_FITNESS_EMAIL_PASS_FILE`**).
-- **`SPARKY_FITNESS_EMAIL_FROM`**: Sender email address visible to recipients (e.g., `noreply@yourdomain.com`).
-
-### Module 8: 🛡️ Outbound Corporate / Forwarding Proxy `[Backend]`
-
-Route outgoing backend requests (such as OpenFoodFacts, Strava, or AI providers) through a corporate forward proxy:
-
-- **`HTTP_PROXY`**: Proxy URL for outbound HTTP requests (e.g., `http://proxy.example.com:8888`).
-- **`HTTPS_PROXY`**: Proxy URL for outbound HTTPS requests.
-- **`NO_PROXY`**: Comma-separated list of hostnames to bypass proxy (e.g., `localhost,127.0.0.1,sparkyfitness-garmin`).
-
-### Module 9: ⌚ Garmin Connect Microservice `[Garmin & Backend]`
-
-Connect to the Python-based Garmin sync microservice bundled in `docker-compose.prod.yml`:
-
-- **`GARMIN_MICROSERVICE_URL`**: Microservice endpoint URL (e.g., `http://sparkyfitness-garmin:8000`).
-- **`GARMIN_SERVICE_PORT`**: Microservice port. Defaults to `8000`.
-
-### Module 10: 📱 iOS Mobile App Development `[Mobile Build]`
+### Module 11: 📱 iOS Mobile App Development `[Mobile Build]`
 
 Configures code signing, bundle identifiers, and shared App Groups when building [`SparkyFitnessMobile`](/developer/getting-started):
 

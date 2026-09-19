@@ -154,6 +154,7 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     enableNetworkNginx.value = false;
     enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
+    enableDemoMode.value = false;
     enableRateLimiting.value = false;
     enableOidc.value = false;
     enableSmtp.value = false;
@@ -166,6 +167,7 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     allowPrivateNetworkCors.value = true;
     enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
+    enableDemoMode.value = false;
     enableRateLimiting.value = false;
     enableOidc.value = false;
     enableSmtp.value = false;
@@ -180,6 +182,7 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     trustedProxyHops.value = "1";
     enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
+    enableDemoMode.value = false;
     enableRateLimiting.value = false;
     enableOidc.value = false;
     enableSmtp.value = false;
@@ -193,6 +196,7 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     enableNetworkNginx.value = true;
     enableCustomVolumes.value = true;
     enableAuthAdmin.value = true;
+    enableDemoMode.value = false;
     enableRateLimiting.value = true;
     enableOidc.value = true;
     enableSmtp.value = true;
@@ -211,6 +215,7 @@ const generatedEnv = computed(() => {
     !enableNetworkNginx.value &&
     !enableCustomVolumes.value &&
     !enableAuthAdmin.value &&
+    !enableDemoMode.value &&
     !enableRateLimiting.value &&
     !enableOidc.value &&
     !enableSmtp.value &&
@@ -263,26 +268,6 @@ NODE_ENV=production
 TZ=${timezone.value}
 `;
 
-  if (enableNetworkNginx.value) {
-    out += `\n# --- Frontend & Nginx Settings ---
-SPARKY_FITNESS_FRONTEND_PORT=${frontendPort.value}
-SPARKY_FITNESS_SERVER_PORT=${serverPort.value}
-NGINX_RATE_LIMIT=${nginxRateLimit.value}
-NGINX_LISTEN_PORT=${nginxListenPort.value}
-`;
-    if (realIpHeader.value !== "none") {
-      out += `SPARKY_FITNESS_REAL_IP_HEADER=${realIpHeader.value}\n`;
-    } else {
-      out += `SPARKY_FITNESS_TRUSTED_PROXY_HOPS=${trustedProxyHops.value}\n`;
-    }
-    if (allowPrivateNetworkCors.value) {
-      out += `ALLOW_PRIVATE_NETWORK_CORS=true\n`;
-    }
-    if (extraTrustedOrigins.value.trim()) {
-      out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
-    }
-  }
-
   if (enableCustomVolumes.value) {
     out += `\n# --- Volume Storage Paths ---
 DB_PATH=${dbPath.value}
@@ -295,9 +280,10 @@ SERVER_UPLOADS_PATH=${uploadsPath.value}
     out += `\n# --- Authentication & Admin Settings ---\n`;
     // Emitting both flags is contradictory and the server resolves the conflict
     // differently depending on the path, so the fail-safe is only written when
-    // email login has not been explicitly disabled below.
-    const emailLoginDisabled = enableOidc.value && disableEmailLogin.value;
-    if (!emailLoginDisabled) {
+    // email login has not been explicitly disabled.
+    if (disableEmailLogin.value) {
+      out += `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true\n`;
+    } else {
       out += `SPARKY_FITNESS_FORCE_EMAIL_LOGIN=${forceEmailLogin.value}\n`;
     }
     if (disableSignup.value) {
@@ -306,17 +292,27 @@ SERVER_UPLOADS_PATH=${uploadsPath.value}
     if (adminEmail.value.trim()) {
       out += `SPARKY_FITNESS_ADMIN_EMAIL=${adminEmail.value.trim()}\n`;
     }
-    if (enableDemoMode.value) {
-      out += `SPARKY_FITNESS_DEMO_MODE=true\nSPARKY_FITNESS_DEMO_EMAIL=${demoEmail.value}\nSPARKY_FITNESS_DEMO_PASSWORD=${demoPassword.value}\n`;
+    if (allowPrivateNetworkCors.value) {
+      out += `ALLOW_PRIVATE_NETWORK_CORS=true\n`;
     }
   }
 
-  if (enableRateLimiting.value) {
-    out += `\n# --- Rate Limiting Settings ---
-SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX=${signinRateLimitMax.value}
-SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW=${signinRateLimitWindow.value}
-SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS=${apiKeyRateLimitMax.value}
-SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS=${apiKeyRateLimitWindowMs.value}
+  if (enableDemoMode.value) {
+    out += `\n# --- Public Demo Mode ---
+SPARKY_FITNESS_DEMO_MODE=true
+SPARKY_FITNESS_DEMO_EMAIL=${demoEmail.value}
+SPARKY_FITNESS_DEMO_PASSWORD=${demoPassword.value}
+`;
+  }
+
+  if (enableSmtp.value && smtpHost.value.trim()) {
+    out += `\n# --- Email / SMTP Settings ---
+SPARKY_FITNESS_EMAIL_HOST=${smtpHost.value}
+SPARKY_FITNESS_EMAIL_PORT=${smtpPort.value}
+SPARKY_FITNESS_EMAIL_SECURE=${smtpSecure.value}
+SPARKY_FITNESS_EMAIL_USER=${smtpUser.value}
+SPARKY_FITNESS_EMAIL_PASS=${smtpPass.value}
+SPARKY_FITNESS_EMAIL_FROM=${smtpFrom.value}
 `;
   }
 
@@ -331,19 +327,38 @@ SPARKY_FITNESS_OIDC_CLIENT_SECRET=${oidcClientSecret.value}
 SPARKY_FITNESS_OIDC_ADMIN_GROUP=${oidcAdminGroup.value}
 SPARKY_FITNESS_OIDC_SCOPE=${oidcScope.value}
 `;
-    if (disableEmailLogin.value) {
-      out += `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true\n`;
+  }
+
+  if (enableGarmin.value) {
+    out += `\n# --- Garmin Microservice ---
+GARMIN_MICROSERVICE_URL=${garminUrl.value}
+GARMIN_SERVICE_PORT=${garminPort.value}
+`;
+  }
+
+  if (enableNetworkNginx.value) {
+    out += `\n# --- Frontend & Nginx Settings ---
+SPARKY_FITNESS_FRONTEND_PORT=${frontendPort.value}
+SPARKY_FITNESS_SERVER_PORT=${serverPort.value}
+NGINX_RATE_LIMIT=${nginxRateLimit.value}
+NGINX_LISTEN_PORT=${nginxListenPort.value}
+`;
+    if (realIpHeader.value !== "none") {
+      out += `SPARKY_FITNESS_REAL_IP_HEADER=${realIpHeader.value}\n`;
+    } else {
+      out += `SPARKY_FITNESS_TRUSTED_PROXY_HOPS=${trustedProxyHops.value}\n`;
+    }
+    if (extraTrustedOrigins.value.trim()) {
+      out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
     }
   }
 
-  if (enableSmtp.value && smtpHost.value.trim()) {
-    out += `\n# --- Email / SMTP Settings ---
-SPARKY_FITNESS_EMAIL_HOST=${smtpHost.value}
-SPARKY_FITNESS_EMAIL_PORT=${smtpPort.value}
-SPARKY_FITNESS_EMAIL_SECURE=${smtpSecure.value}
-SPARKY_FITNESS_EMAIL_USER=${smtpUser.value}
-SPARKY_FITNESS_EMAIL_PASS=${smtpPass.value}
-SPARKY_FITNESS_EMAIL_FROM=${smtpFrom.value}
+  if (enableRateLimiting.value) {
+    out += `\n# --- Rate Limiting Settings ---
+SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX=${signinRateLimitMax.value}
+SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW=${signinRateLimitWindow.value}
+SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS=${apiKeyRateLimitMax.value}
+SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS=${apiKeyRateLimitWindowMs.value}
 `;
   }
 
@@ -357,13 +372,6 @@ SPARKY_FITNESS_EMAIL_FROM=${smtpFrom.value}
     if (httpsProxy.value.trim())
       out += `HTTPS_PROXY=${httpsProxy.value.trim()}\n`;
     if (noProxy.value.trim()) out += `NO_PROXY=${noProxy.value.trim()}\n`;
-  }
-
-  if (enableGarmin.value) {
-    out += `\n# --- Garmin Microservice ---
-GARMIN_MICROSERVICE_URL=${garminUrl.value}
-GARMIN_SERVICE_PORT=${garminPort.value}
-`;
   }
 
   return out;
@@ -749,123 +757,7 @@ onMounted(() => {
         <span>Optional Configuration Modules</span>
         <small>Select what you need for your deployment environment</small>
       </div>
-
-      <!-- Module 1: Nginx & Reverse Proxy -->
-      <div :class="['module-card', { active: enableNetworkNginx }]">
-        <div
-          class="module-header"
-          @click="enableNetworkNginx = !enableNetworkNginx"
-        >
-          <label class="module-toggle" @click.stop>
-            <input v-model="enableNetworkNginx" type="checkbox" />
-            <span class="module-title"
-              >🌐 Nginx, Ports & Reverse Proxy Headers</span
-            >
-          </label>
-          <span class="module-badge">{{
-            enableNetworkNginx ? "Enabled" : "Click to Enable"
-          }}</span>
-        </div>
-        <div v-if="enableNetworkNginx" class="module-body">
-          <div class="field-explanation">
-            Configure host port mappings, Nginx brute-force protection, and real
-            client IP header resolution.
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label
-                >Frontend Host Port
-                <code class="var-badge"
-                  >SPARKY_FITNESS_FRONTEND_PORT</code
-                ></label
-              >
-              <input
-                v-model="frontendPort"
-                type="text"
-                class="text-input"
-                placeholder="3004"
-              />
-              <span class="field-hint"
-                >Port exposed on your host machine for web access. Default:
-                <code>3004</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Nginx Auth Rate Limit
-                <code class="var-badge">NGINX_RATE_LIMIT</code></label
-              >
-              <input
-                v-model="nginxRateLimit"
-                type="text"
-                class="text-input"
-                placeholder="5r/s"
-              />
-              <span class="field-hint"
-                >Rate limit on <code>/api/auth/*</code> routes to prevent
-                brute-force attacks. Default: <code>5r/s</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Client Real IP Header
-                <code class="var-badge"
-                  >SPARKY_FITNESS_REAL_IP_HEADER</code
-                ></label
-              >
-              <select v-model="realIpHeader" class="text-input">
-                <option value="none">None (Direct or LAN Access)</option>
-                <option value="CF-Connecting-IP">
-                  Cloudflare Tunnel / CDN (CF-Connecting-IP)
-                </option>
-                <option value="X-Forwarded-For">
-                  Traefik / Caddy / Nginx Proxy Manager (X-Forwarded-For)
-                </option>
-                <option value="True-Client-IP">
-                  Enterprise Proxy (True-Client-IP)
-                </option>
-              </select>
-              <span class="field-hint"
-                >Accurately identifies visitor IP address behind proxies for
-                rate limiting and audit logs.</span
-              >
-            </div>
-            <div class="form-group" v-if="realIpHeader === 'none'">
-              <label
-                >Trusted Proxy Hops
-                <code class="var-badge"
-                  >SPARKY_FITNESS_TRUSTED_PROXY_HOPS</code
-                ></label
-              >
-              <input
-                v-model="trustedProxyHops"
-                type="text"
-                class="text-input"
-                placeholder="1"
-              />
-              <span class="field-hint"
-                >Number of proxy layers between client and server. Default:
-                <code>1</code>.</span
-              >
-            </div>
-          </div>
-          <div class="checkbox-group" style="margin-top: 12px">
-            <label class="checkbox-label">
-              <input v-model="allowPrivateNetworkCors" type="checkbox" />
-              <span class="checkbox-text">
-                Allow Private Network CORS
-                <code class="var-badge">ALLOW_PRIVATE_NETWORK_CORS=true</code>
-              </span>
-            </label>
-            <span class="field-hint" style="margin-left: 26px"
-              >Enables browser API calls from private LAN subnets (192.168.x.x,
-              10.x.x.x, 172.16.x.x).</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <!-- Module 2: Storage & Volume Paths -->
+      <!-- Module 1: Persistent Host Storage Paths -->
       <div :class="['module-card', { active: enableCustomVolumes }]">
         <div
           class="module-header"
@@ -934,15 +826,12 @@ onMounted(() => {
           </div>
         </div>
       </div>
-
-      <!-- Module 3: Admin & Registration Controls -->
+      <!-- Module 2: Admin, Signups & Access Policy -->
       <div :class="['module-card', { active: enableAuthAdmin }]">
         <div class="module-header" @click="enableAuthAdmin = !enableAuthAdmin">
           <label class="module-toggle" @click.stop>
             <input v-model="enableAuthAdmin" type="checkbox" />
-            <span class="module-title"
-              >🛡️ Admin Email, Public Signups & Public Demo Mode</span
-            >
+            <span class="module-title">🛡️ Admin, Signups & Access Policy</span>
           </label>
           <span class="module-badge">{{
             enableAuthAdmin ? "Enabled" : "Click to Enable"
@@ -993,7 +882,70 @@ onMounted(() => {
             >
           </div>
 
-          <!-- Public Demo Mode -->
+          <!-- Sign-in method: moved here from the OIDC module, because it is an
+               access-policy decision rather than an OIDC detail. -->
+          <div
+            class="checkbox-group"
+            style="
+              margin-top: 14px;
+              padding-top: 14px;
+              border-top: 1px dashed rgba(125, 125, 125, 0.2);
+            "
+          >
+            <label class="checkbox-label">
+              <input v-model="disableEmailLogin" type="checkbox" />
+              <span class="checkbox-text">
+                Disable Email/Password Login on UI
+                <code class="var-badge"
+                  >SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true</code
+                >
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Forces users to log in exclusively via SSO.</span
+            >
+          </div>
+
+          <!-- Network access policy: moved here from the Nginx module. -->
+          <div
+            class="checkbox-group"
+            style="
+              margin-top: 14px;
+              padding-top: 14px;
+              border-top: 1px dashed rgba(125, 125, 125, 0.2);
+            "
+          >
+            <label class="checkbox-label">
+              <input v-model="allowPrivateNetworkCors" type="checkbox" />
+              <span class="checkbox-text">
+                Allow Private Network CORS
+                <code class="var-badge">ALLOW_PRIVATE_NETWORK_CORS=true</code>
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Enables browser API calls from private LAN subnets (192.168.x.x,
+              10.x.x.x, 172.16.x.x).</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Module 3: Public Demo Mode -->
+      <div :class="['module-card', { active: enableDemoMode }]">
+        <div class="module-header" @click="enableDemoMode = !enableDemoMode">
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableDemoMode" type="checkbox" />
+            <span class="module-title">🧪 Public Demo Mode</span>
+          </label>
+          <span class="module-badge">{{
+            enableDemoMode ? "Enabled" : "Off"
+          }}</span>
+        </div>
+        <div v-if="enableDemoMode" class="module-body">
+          <p class="field-hint" style="margin: 0">
+            Runs a demo account seeded with sample data that resets daily at
+            midnight UTC. Leave this off for a normal instance.
+          </p>
           <div
             class="checkbox-group"
             style="
@@ -1041,101 +993,111 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Module 4: Rate Limiting -->
-      <div :class="['module-card', { active: enableRateLimiting }]">
-        <div
-          class="module-header"
-          @click="enableRateLimiting = !enableRateLimiting"
-        >
+      <!-- Module 4: SMTP Mail Server -->
+      <div :class="['module-card', { active: enableSmtp }]">
+        <div class="module-header" @click="enableSmtp = !enableSmtp">
           <label class="module-toggle" @click.stop>
-            <input v-model="enableRateLimiting" type="checkbox" />
-            <span class="module-title">⏱️ Sign-in & API Key Rate Limiting</span>
+            <input v-model="enableSmtp" type="checkbox" />
+            <span class="module-title">✉️ SMTP Email Notifications</span>
           </label>
           <span class="module-badge">{{
-            enableRateLimiting ? "Enabled" : "Click to Enable"
+            enableSmtp ? "Enabled" : "Click to Enable"
           }}</span>
         </div>
-        <div v-if="enableRateLimiting" class="module-body">
+        <div v-if="enableSmtp" class="module-body">
           <div class="field-explanation">
-            Customize rate-limiting thresholds for logins, two-factor
-            verification, and external automation API keys.
+            Enable sending password reset emails, account verification codes,
+            and system alerts.
           </div>
           <div class="grid-2">
             <div class="form-group">
               <label
-                >Max Sign-in Attempts
-                <code class="var-badge"
-                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX</code
-                ></label
+                >SMTP Host
+                <code class="var-badge">SPARKY_FITNESS_EMAIL_HOST</code></label
               >
               <input
-                v-model="signinRateLimitMax"
+                v-model="smtpHost"
                 type="text"
                 class="text-input"
-                placeholder="4"
+                placeholder="smtp.mailgun.org"
+              />
+              <span class="field-hint">Outgoing mail server hostname.</span>
+            </div>
+            <div class="form-group">
+              <label
+                >SMTP Port
+                <code class="var-badge">SPARKY_FITNESS_EMAIL_PORT</code></label
+              >
+              <input
+                v-model="smtpPort"
+                type="text"
+                class="text-input"
+                placeholder="587"
               />
               <span class="field-hint"
-                >Attempts allowed per IP before temporary lockout. Default:
-                <code>4</code>.</span
+                >587 for STARTTLS, 465 for SSL/TLS, or 25 for local
+                relays.</span
               >
             </div>
             <div class="form-group">
               <label
-                >Sign-in Window Seconds
-                <code class="var-badge"
-                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW</code
-                ></label
+                >SMTP Username
+                <code class="var-badge">SPARKY_FITNESS_EMAIL_USER</code></label
               >
               <input
-                v-model="signinRateLimitWindow"
+                v-model="smtpUser"
                 type="text"
                 class="text-input"
-                placeholder="60"
+                placeholder="postmaster@yourdomain.com"
+              />
+              <span class="field-hint">Authentication username.</span>
+            </div>
+            <div class="form-group">
+              <label
+                >SMTP Password
+                <code class="var-badge">SPARKY_FITNESS_EMAIL_PASS</code></label
+              >
+              <input
+                v-model="smtpPass"
+                :type="showSecrets ? 'text' : 'password'"
+                class="text-input font-mono"
               />
               <span class="field-hint"
-                >Lockout tracking window in seconds. Default:
-                <code>60</code>.</span
+                >Authentication password or API token.</span
               >
             </div>
             <div class="form-group">
               <label
-                >Max API Key Requests
-                <code class="var-badge"
-                  >SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS</code
-                ></label
+                >From Email
+                <code class="var-badge">SPARKY_FITNESS_EMAIL_FROM</code></label
               >
               <input
-                v-model="apiKeyRateLimitMax"
-                type="text"
+                v-model="smtpFrom"
+                type="email"
                 class="text-input"
-                placeholder="100"
+                placeholder="noreply@yourdomain.com"
               />
               <span class="field-hint"
-                >Max requests per API key token window. Default:
-                <code>100</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >API Key Window MS
-                <code class="var-badge"
-                  >SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS</code
-                ></label
-              >
-              <input
-                v-model="apiKeyRateLimitWindowMs"
-                type="text"
-                class="text-input"
-                placeholder="60000"
-              />
-              <span class="field-hint"
-                >Window in milliseconds. Default: <code>60000</code>.</span
+                >Sender address visible to recipients.</span
               >
             </div>
           </div>
+
+          <div class="checkbox-group" style="margin-top: 14px">
+            <label class="checkbox-label">
+              <input v-model="smtpSecure" type="checkbox" />
+              <span class="checkbox-text">
+                Use SSL/TLS (Port 465)
+                <code class="var-badge">SPARKY_FITNESS_EMAIL_SECURE=true</code>
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Enable for port 465 implicit TLS. Leave unchecked for port 587
+              STARTTLS.</span
+            >
+          </div>
         </div>
       </div>
-
       <!-- Module 5: OIDC Single Sign-On -->
       <div :class="['module-card', { active: enableOidc }]">
         <div class="module-header" @click="enableOidc = !enableOidc">
@@ -1257,130 +1219,258 @@ onMounted(() => {
               >
             </div>
           </div>
-          <div class="checkbox-group" style="margin-top: 12px">
-            <label class="checkbox-label">
-              <input v-model="disableEmailLogin" type="checkbox" />
-              <span class="checkbox-text">
-                Disable Email/Password Login on UI
-                <code class="var-badge"
-                  >SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true</code
-                >
-              </span>
-            </label>
-            <span class="field-hint" style="margin-left: 26px"
-              >Forces users to log in exclusively via SSO.</span
-            >
-          </div>
+          <div class="checkbox-group" style="margin-top: 12px"></div>
         </div>
       </div>
-
-      <!-- Module 6: SMTP Mail Server -->
-      <div :class="['module-card', { active: enableSmtp }]">
-        <div class="module-header" @click="enableSmtp = !enableSmtp">
+      <!-- Module 6: Garmin Microservice -->
+      <div :class="['module-card', { active: enableGarmin }]">
+        <div class="module-header" @click="enableGarmin = !enableGarmin">
           <label class="module-toggle" @click.stop>
-            <input v-model="enableSmtp" type="checkbox" />
-            <span class="module-title">✉️ SMTP Email Notifications</span>
+            <input v-model="enableGarmin" type="checkbox" />
+            <span class="module-title">⌚ Garmin Connect Microservice</span>
           </label>
           <span class="module-badge">{{
-            enableSmtp ? "Enabled" : "Click to Enable"
+            enableGarmin ? "Enabled" : "Click to Enable"
           }}</span>
         </div>
-        <div v-if="enableSmtp" class="module-body">
+        <div v-if="enableGarmin" class="module-body">
           <div class="field-explanation">
-            Enable sending password reset emails, account verification codes,
-            and system alerts.
+            Connects to the Python-based Garmin sync microservice bundled in
+            <code>docker-compose.prod.yml</code>.
           </div>
           <div class="grid-2">
             <div class="form-group">
               <label
-                >SMTP Host
-                <code class="var-badge">SPARKY_FITNESS_EMAIL_HOST</code></label
+                >Microservice URL
+                <code class="var-badge">GARMIN_MICROSERVICE_URL</code></label
               >
               <input
-                v-model="smtpHost"
+                v-model="garminUrl"
                 type="text"
-                class="text-input"
-                placeholder="smtp.mailgun.org"
-              />
-              <span class="field-hint">Outgoing mail server hostname.</span>
-            </div>
-            <div class="form-group">
-              <label
-                >SMTP Port
-                <code class="var-badge">SPARKY_FITNESS_EMAIL_PORT</code></label
-              >
-              <input
-                v-model="smtpPort"
-                type="text"
-                class="text-input"
-                placeholder="587"
-              />
-              <span class="field-hint"
-                >587 for STARTTLS, 465 for SSL/TLS, or 25 for local
-                relays.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >SMTP Username
-                <code class="var-badge">SPARKY_FITNESS_EMAIL_USER</code></label
-              >
-              <input
-                v-model="smtpUser"
-                type="text"
-                class="text-input"
-                placeholder="postmaster@yourdomain.com"
-              />
-              <span class="field-hint">Authentication username.</span>
-            </div>
-            <div class="form-group">
-              <label
-                >SMTP Password
-                <code class="var-badge">SPARKY_FITNESS_EMAIL_PASS</code></label
-              >
-              <input
-                v-model="smtpPass"
-                :type="showSecrets ? 'text' : 'password'"
                 class="text-input font-mono"
+                placeholder="http://sparkyfitness-garmin:8000"
               />
               <span class="field-hint"
-                >Authentication password or API token.</span
+                >Internal Docker network service endpoint. Default:
+                <code>http://sparkyfitness-garmin:8000</code>.</span
               >
             </div>
             <div class="form-group">
               <label
-                >From Email
-                <code class="var-badge">SPARKY_FITNESS_EMAIL_FROM</code></label
+                >Service Port
+                <code class="var-badge">GARMIN_SERVICE_PORT</code></label
               >
               <input
-                v-model="smtpFrom"
-                type="email"
+                v-model="garminPort"
+                type="text"
                 class="text-input"
-                placeholder="noreply@yourdomain.com"
+                placeholder="8000"
               />
               <span class="field-hint"
-                >Sender address visible to recipients.</span
+                >Internal port the Garmin microservice listens on. Default:
+                <code>8000</code>.</span
               >
             </div>
-          </div>
-
-          <div class="checkbox-group" style="margin-top: 14px">
-            <label class="checkbox-label">
-              <input v-model="smtpSecure" type="checkbox" />
-              <span class="checkbox-text">
-                Use SSL/TLS (Port 465)
-                <code class="var-badge">SPARKY_FITNESS_EMAIL_SECURE=true</code>
-              </span>
-            </label>
-            <span class="field-hint" style="margin-left: 26px"
-              >Enable for port 465 implicit TLS. Leave unchecked for port 587
-              STARTTLS.</span
-            >
           </div>
         </div>
       </div>
-
-      <!-- Module 7: Outbound Proxy -->
+      <!-- Module 7: Nginx & Reverse Proxy -->
+      <div :class="['module-card', { active: enableNetworkNginx }]">
+        <div
+          class="module-header"
+          @click="enableNetworkNginx = !enableNetworkNginx"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableNetworkNginx" type="checkbox" />
+            <span class="module-title"
+              >🌐 Nginx, Ports & Reverse Proxy Headers</span
+            >
+          </label>
+          <span class="module-badge">{{
+            enableNetworkNginx ? "Enabled" : "Click to Enable"
+          }}</span>
+        </div>
+        <div v-if="enableNetworkNginx" class="module-body">
+          <div class="field-explanation">
+            Configure host port mappings, Nginx brute-force protection, and real
+            client IP header resolution.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label
+                >Frontend Host Port
+                <code class="var-badge"
+                  >SPARKY_FITNESS_FRONTEND_PORT</code
+                ></label
+              >
+              <input
+                v-model="frontendPort"
+                type="text"
+                class="text-input"
+                placeholder="3004"
+              />
+              <span class="field-hint"
+                >Port exposed on your host machine for web access. Default:
+                <code>3004</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Nginx Auth Rate Limit
+                <code class="var-badge">NGINX_RATE_LIMIT</code></label
+              >
+              <input
+                v-model="nginxRateLimit"
+                type="text"
+                class="text-input"
+                placeholder="5r/s"
+              />
+              <span class="field-hint"
+                >Rate limit on <code>/api/auth/*</code> routes to prevent
+                brute-force attacks. Default: <code>5r/s</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Client Real IP Header
+                <code class="var-badge"
+                  >SPARKY_FITNESS_REAL_IP_HEADER</code
+                ></label
+              >
+              <select v-model="realIpHeader" class="text-input">
+                <option value="none">None (Direct or LAN Access)</option>
+                <option value="CF-Connecting-IP">
+                  Cloudflare Tunnel / CDN (CF-Connecting-IP)
+                </option>
+                <option value="X-Forwarded-For">
+                  Traefik / Caddy / Nginx Proxy Manager (X-Forwarded-For)
+                </option>
+                <option value="True-Client-IP">
+                  Enterprise Proxy (True-Client-IP)
+                </option>
+              </select>
+              <span class="field-hint"
+                >Accurately identifies visitor IP address behind proxies for
+                rate limiting and audit logs.</span
+              >
+            </div>
+            <div class="form-group" v-if="realIpHeader === 'none'">
+              <label
+                >Trusted Proxy Hops
+                <code class="var-badge"
+                  >SPARKY_FITNESS_TRUSTED_PROXY_HOPS</code
+                ></label
+              >
+              <input
+                v-model="trustedProxyHops"
+                type="text"
+                class="text-input"
+                placeholder="1"
+              />
+              <span class="field-hint"
+                >Number of proxy layers between client and server. Default:
+                <code>1</code>.</span
+              >
+            </div>
+          </div>
+          <div class="checkbox-group" style="margin-top: 12px"></div>
+        </div>
+      </div>
+      <!-- Module 8: Rate Limiting -->
+      <div :class="['module-card', { active: enableRateLimiting }]">
+        <div
+          class="module-header"
+          @click="enableRateLimiting = !enableRateLimiting"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableRateLimiting" type="checkbox" />
+            <span class="module-title">⏱️ Sign-in & API Key Rate Limiting</span>
+          </label>
+          <span class="module-badge">{{
+            enableRateLimiting ? "Enabled" : "Click to Enable"
+          }}</span>
+        </div>
+        <div v-if="enableRateLimiting" class="module-body">
+          <div class="field-explanation">
+            Customize rate-limiting thresholds for logins, two-factor
+            verification, and external automation API keys.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label
+                >Max Sign-in Attempts
+                <code class="var-badge"
+                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX</code
+                ></label
+              >
+              <input
+                v-model="signinRateLimitMax"
+                type="text"
+                class="text-input"
+                placeholder="4"
+              />
+              <span class="field-hint"
+                >Attempts allowed per IP before temporary lockout. Default:
+                <code>4</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Sign-in Window Seconds
+                <code class="var-badge"
+                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW</code
+                ></label
+              >
+              <input
+                v-model="signinRateLimitWindow"
+                type="text"
+                class="text-input"
+                placeholder="60"
+              />
+              <span class="field-hint"
+                >Lockout tracking window in seconds. Default:
+                <code>60</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Max API Key Requests
+                <code class="var-badge"
+                  >SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS</code
+                ></label
+              >
+              <input
+                v-model="apiKeyRateLimitMax"
+                type="text"
+                class="text-input"
+                placeholder="100"
+              />
+              <span class="field-hint"
+                >Max requests per API key token window. Default:
+                <code>100</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >API Key Window MS
+                <code class="var-badge"
+                  >SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS</code
+                ></label
+              >
+              <input
+                v-model="apiKeyRateLimitWindowMs"
+                type="text"
+                class="text-input"
+                placeholder="60000"
+              />
+              <span class="field-hint"
+                >Window in milliseconds. Default: <code>60000</code>.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Module 9: Outbound Proxy -->
       <div :class="['module-card', { active: enableOutboundProxy }]">
         <div
           class="module-header"
@@ -1437,59 +1527,6 @@ onMounted(() => {
               />
               <span class="field-hint"
                 >Comma-separated internal hostnames that bypass the proxy.</span
-              >
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Module 8: Garmin Microservice -->
-      <div :class="['module-card', { active: enableGarmin }]">
-        <div class="module-header" @click="enableGarmin = !enableGarmin">
-          <label class="module-toggle" @click.stop>
-            <input v-model="enableGarmin" type="checkbox" />
-            <span class="module-title">⌚ Garmin Connect Microservice</span>
-          </label>
-          <span class="module-badge">{{
-            enableGarmin ? "Enabled" : "Click to Enable"
-          }}</span>
-        </div>
-        <div v-if="enableGarmin" class="module-body">
-          <div class="field-explanation">
-            Connects to the Python-based Garmin sync microservice bundled in
-            <code>docker-compose.prod.yml</code>.
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label
-                >Microservice URL
-                <code class="var-badge">GARMIN_MICROSERVICE_URL</code></label
-              >
-              <input
-                v-model="garminUrl"
-                type="text"
-                class="text-input font-mono"
-                placeholder="http://sparkyfitness-garmin:8000"
-              />
-              <span class="field-hint"
-                >Internal Docker network service endpoint. Default:
-                <code>http://sparkyfitness-garmin:8000</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Service Port
-                <code class="var-badge">GARMIN_SERVICE_PORT</code></label
-              >
-              <input
-                v-model="garminPort"
-                type="text"
-                class="text-input"
-                placeholder="8000"
-              />
-              <span class="field-hint"
-                >Internal port the Garmin microservice listens on. Default:
-                <code>8000</code>.</span
               >
             </div>
           </div>
