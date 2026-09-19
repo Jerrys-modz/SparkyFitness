@@ -169,10 +169,17 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
            let statistics = workoutBuilder.statistics(for: heartRateType),
            let bpm = statistics.mostRecentQuantity()?
                .doubleValue(for: HKUnit.count().unitDivided(by: .minute())) {
+            // The reading's OWN instant, not `Date()` at delivery time.
+            // HealthKit hands these over in bursts, so stamping them on
+            // arrival would bunch a spread of readings onto nearly the same
+            // moment - and the server derives each zone's duration from the
+            // gaps between samples, so a compressed timeline silently
+            // misreports how long was spent in every zone.
+            let sampledAt = statistics.mostRecentQuantityDateInterval()?.end ?? Date()
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 let sample = HeartRateSample(
-                    t: self.instantFormatter.string(from: Date()),
+                    t: self.instantFormatter.string(from: sampledAt),
                     bpm: bpm
                 )
                 self.pendingSamples.append(sample)
