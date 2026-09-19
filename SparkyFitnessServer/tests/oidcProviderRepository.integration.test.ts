@@ -21,6 +21,10 @@ import oidcProviderRepository from '../models/oidcProviderRepository.js';
 import oidcSettingsRoutes from '../routes/oidcSettingsRoutes.js';
 import { upsertEnvOidcProvider } from '../utils/oidcEnvConfig.js';
 
+const app = express();
+app.use(express.json());
+app.use('/admin/oidc-settings', oidcSettingsRoutes);
+
 vi.mock('../auth.js', () => ({
   syncTrustedProviders: vi.fn().mockResolvedValue(undefined),
 }));
@@ -116,6 +120,48 @@ describe.runIf(RUN)('OIDC provider identity in PostgreSQL', () => {
   afterAll(async () => {
     await endPool();
   });
+
+  it('omits the secret from provider details and preserves it on round-trip updates', async () => {
+    const id = await seedProvider(`test-${randomUUID()}`);
+    const response = await request(app).get(`/admin/oidc-settings/${id}`);
+    expect(response.status).toBe(200);
+    expect(response.body).not.toHaveProperty('client_secret');
+    const updated = await request(app)
+      .put(`/admin/oidc-settings/${id}`)
+      .send(response.body);
+    expect(updated.status).toBe(200);
+    const stored = await oidcProviderRepository.getOidcProviderById(id);
+    expect(stored?.client_secret).toBe('original-secret');
+  });
+
+  it.each(['replacement-secret', '*****'])(
+    'stores the supplied admin secret %s literally',
+    async (secret) => {
+      const id = await seedProvider(`test-${randomUUID()}`);
+      const response = await request(app)
+        .put(`/admin/oidc-settings/${id}`)
+        .send({
+          issuer_url: issuer,
+          client_id: 'updated-client',
+          domain: 'example.test',
+          client_secret: secret,
+        });
+      expect(response.status).toBe(200);
+      const client = await getSystemClient();
+      try {
+        const result = await client.query(
+          `SELECT client_secret, oidc_config->>'clientSecret' AS config_secret
+        FROM sso_provider WHERE id = $1`,
+          [id]
+        );
+        expect(result.rows).toEqual([
+          { client_secret: secret, config_secret: secret },
+        ]);
+      } finally {
+        client.release();
+      }
+    }
+  );
 
   it('configures the same environment provider concurrently', async () => {
     const providerId = `test-${randomUUID()}`;

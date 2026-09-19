@@ -2507,7 +2507,7 @@
       "issuerUrl": "Issuer URL",
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
-      "leaveUnchanged": "Leave unchanged if *****",
+      "leaveUnchanged": "Leave blank to keep the existing secret",
       "scope": "Scope",
       "redirectUri": "Redirect URI",
       "redirectUriPlaceholder": "e.g., {{uri}}",

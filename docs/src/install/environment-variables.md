@@ -76,8 +76,8 @@ Controls initial administrator privileges, who may register, and how users sign 
 
 - **`SPARKY_FITNESS_ADMIN_EMAIL`**: (Optional) Email address automatically granted Admin privileges on server startup. If left blank, the **first user to register** becomes Admin.
 - **`SPARKY_FITNESS_DISABLE_SIGNUP`**: Set to `true` to disable new user registrations and lock the instance for private use.
-- **`SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`**: Set to `true` to force users to log in exclusively via SSO. Requires OIDC to be configured (Module 5), otherwise nobody can sign in.
-- **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to force password login enabled if OIDC misbehaves. Do not set this alongside `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN` — the two contradict each other and the server resolves the conflict differently depending on the code path.
+- **`SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`**: Set to `true` to force users to log in exclusively via SSO. Overridden by `SPARKY_FITNESS_FORCE_EMAIL_LOGIN`. Configure OIDC or SMTP-backed magic links first — on a fresh instance with neither, this leaves no way to sign in, because passkey registration needs an existing session.
+- **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to keep password login available if OIDC misbehaves. It takes precedence over `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`, so to actually disable password login you must set that to `true` **and** unset this one (or set it to `false`). The tracked `.env.example` enables this by default.
 - **`ALLOW_PRIVATE_NETWORK_CORS`**: Set to `true` to allow Cross-Origin Resource Sharing (CORS) from private LAN subnets (`192.168.x.x`, `10.x.x.x`, `172.16.x.x`, `localhost`).
 
 ### Module 3: 🧪 Public Demo Mode `[Backend]`

@@ -215,6 +215,18 @@ function applyPreset(preset: "simple" | "full") {
   }
 }
 
+/**
+ * True when an alternative sign-in path is actually configured. Disabling
+ * email/password login without one leaves a fresh instance with no way to
+ * onboard: magic links need SMTP to deliver, and passkey registration requires
+ * an already-authenticated session.
+ */
+const hasAlternativeSignIn = computed(
+  () =>
+    (enableOidc.value && oidcIssuerUrl.value.trim() !== "") ||
+    (enableSmtp.value && smtpHost.value.trim() !== ""),
+);
+
 function setQuickUrl(url: string) {
   customFrontendUrl.value = url;
 }
@@ -313,7 +325,7 @@ SERVER_UPLOADS_PATH=${uploadsPath.value}
     // Emitting both flags is contradictory and the server resolves the conflict
     // differently depending on the path, so the fail-safe is only written when
     // email login has not been explicitly disabled.
-    if (disableEmailLogin.value) {
+    if (disableEmailLogin.value && hasAlternativeSignIn.value) {
       out += `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true\n`;
     } else {
       out += `SPARKY_FITNESS_FORCE_EMAIL_LOGIN=${forceEmailLogin.value}\n`;
@@ -1067,8 +1079,17 @@ onMounted(() => {
               border-top: 1px dashed rgba(125, 125, 125, 0.2);
             "
           >
-            <label class="checkbox-label">
-              <input v-model="disableEmailLogin" type="checkbox" />
+            <label
+              class="checkbox-label"
+              :style="
+                hasAlternativeSignIn ? '' : 'opacity: 0.55; cursor: not-allowed'
+              "
+            >
+              <input
+                v-model="disableEmailLogin"
+                type="checkbox"
+                :disabled="!hasAlternativeSignIn"
+              />
               <span class="checkbox-text">
                 Disable Email/Password Login on UI
                 <code class="var-badge"
@@ -1076,9 +1097,17 @@ onMounted(() => {
                 >
               </span>
             </label>
-            <span class="field-hint" style="margin-left: 26px"
-              >Forces users to log in exclusively via SSO.</span
-            >
+            <span class="field-hint" style="margin-left: 26px">
+              <template v-if="hasAlternativeSignIn"
+                >Forces users to log in exclusively via SSO.</template
+              >
+              <template v-else
+                >Configure OIDC or SMTP first. Turning this on without another
+                sign-in method would leave a fresh instance with no way to log
+                in — magic links need SMTP to send, and passkeys need an
+                existing session to register.</template
+              >
+            </span>
           </div>
 
           <!-- Network access policy: moved here from the Nginx module. -->

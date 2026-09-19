@@ -30,11 +30,16 @@ async function appRoleCanAuthenticate(): Promise<boolean> {
   try {
     await probe.connect();
     return true;
-  } catch {
-    // Any failure here means "cannot get in with this password", which is the
-    // only question being asked. A genuinely unreachable database surfaces a
-    // clearer error moments later when migrations run on the owner connection.
-    return false;
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code;
+    // Only an authentication rejection answers the question being asked. Any
+    // other failure — unreachable host, missing database, exhausted
+    // connections — would otherwise be misread as a stale password and trigger
+    // a pointless ALTER ROLE while hiding the real cause.
+    if (code === '28P01' || code === '28000') {
+      return false;
+    }
+    throw error;
   } finally {
     await probe.end().catch(() => undefined);
   }

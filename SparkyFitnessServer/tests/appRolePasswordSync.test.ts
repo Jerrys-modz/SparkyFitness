@@ -89,7 +89,9 @@ describe('application role password synchronisation', () => {
   });
 
   it('gives an actionable error when the owner lacks CREATEROLE', async () => {
-    connectMock.mockRejectedValue(new Error('auth failed'));
+    connectMock.mockRejectedValue(
+      Object.assign(new Error('auth failed'), { code: '28P01' })
+    );
     const { client } = makeClient({
       roleExists: true,
       alterError: Object.assign(new Error('permission denied'), {
@@ -102,9 +104,27 @@ describe('application role password synchronisation', () => {
     ).rejects.toThrow(/lacks CREATEROLE/);
   });
 
+  it('propagates a non-authentication probe failure instead of altering', async () => {
+    // e.g. the database is unreachable. Treating this as a password mismatch
+    // would issue a pointless ALTER ROLE and bury the real cause.
+    connectMock.mockRejectedValue(
+      Object.assign(new Error('connect ECONNREFUSED'), {
+        code: 'ECONNREFUSED',
+      })
+    );
+    const { client, queries } = makeClient({ roleExists: true });
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      applyMigrations(client as any)
+    ).rejects.toThrow(/ECONNREFUSED/);
+    expect(sqlOf(queries, 'ALTER ROLE')).toHaveLength(0);
+  });
+
   it('escapes a single quote in the password', async () => {
     process.env.SPARKY_FITNESS_APP_DB_PASSWORD = "pw'with'quotes";
-    connectMock.mockRejectedValue(new Error('auth failed'));
+    connectMock.mockRejectedValue(
+      Object.assign(new Error('auth failed'), { code: '28P01' })
+    );
     const { client, queries } = makeClient({ roleExists: true });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await applyMigrations(client as any);
