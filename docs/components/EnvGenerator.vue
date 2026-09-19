@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 
 // --- Preset Mode ---
 const selectedPreset = ref<"simple" | "full">("simple");
@@ -226,6 +226,29 @@ const hasAlternativeSignIn = computed(
     (enableOidc.value && oidcIssuerUrl.value.trim() !== "") ||
     (enableSmtp.value && smtpHost.value.trim() !== ""),
 );
+
+/**
+ * Keep the ports that appear inside URLs in step with the port fields.
+ *
+ * docker-compose derives the Garmin URL from GARMIN_SERVICE_PORT, and the
+ * access URL has to match the published frontend port, so a generated file that
+ * disagreed with itself would not work. Only the port component is rewritten,
+ * and only when the URL already carries one — an access URL behind a reverse
+ * proxy (https://fitness.example.com) must not gain a port it never had.
+ */
+function withPort(url: string, port: string): string {
+  return url.replace(/:(\d+)(?=(\/|$))/, `:${port}`);
+}
+
+watch(garminPort, (next) => {
+  if (next.trim()) garminUrl.value = withPort(garminUrl.value, next.trim());
+});
+
+watch(frontendPort, (next) => {
+  if (next.trim()) {
+    customFrontendUrl.value = withPort(customFrontendUrl.value, next.trim());
+  }
+});
 
 function setQuickUrl(url: string) {
   customFrontendUrl.value = url;
