@@ -32,6 +32,13 @@ final class WorkoutHealthKitController: NSObject {
     private var batchTimer: Timer?
     private let instantFormatter = ISO8601DateFormatter()
 
+    #if DEBUG
+    /// Simulator stand-in for the wrist sensors; see `SyntheticWorkoutSignal`.
+    private var syntheticTimer: Timer?
+    private var syntheticStartedAt: Date?
+    private var syntheticEnergyKcal: Double = 0
+    #endif
+
     /// How often accumulated samples are flushed to `onBatchReady`.
     ///
     /// A minute rather than ten seconds because batches are QUEUED now
@@ -63,6 +70,16 @@ final class WorkoutHealthKitController: NSObject {
     }
 
     func requestAuthorization(completion: @escaping (Bool) -> Void) {
+        #if DEBUG
+        // The synthetic source never touches the health store, so there is
+        // nothing to authorize. Answering yes here rather than at the call
+        // site keeps `WatchSessionManager.handle(workoutStart:)` on exactly
+        // the branch it takes in production, prompt and all.
+        if SyntheticWorkoutSignal.isEnabled {
+            DispatchQueue.main.async { completion(true) }
+            return
+        }
+        #endif
         guard HKHealthStore.isHealthDataAvailable() else {
             DispatchQueue.main.async { completion(false) }
             return
@@ -88,6 +105,12 @@ final class WorkoutHealthKitController: NSObject {
     /// - Parameter sessionId: the Sparky live-workout session this belongs to,
     ///   stamped into the saved workout's metadata as the own-write marker.
     func start(sessionId: String) {
+        #if DEBUG
+        if SyntheticWorkoutSignal.isEnabled {
+            startSynthetic()
+            return
+        }
+        #endif
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
 
         let configuration = HKWorkoutConfiguration()
@@ -132,6 +155,9 @@ final class WorkoutHealthKitController: NSObject {
     /// send them while the session is still standing.
     @discardableResult
     func stop() -> [HeartRateSample] {
+        #if DEBUG
+        stopSynthetic()
+        #endif
         stopBatchTimer()
         let remaining = pendingSamples
         pendingSamples = []
@@ -164,6 +190,53 @@ final class WorkoutHealthKitController: NSObject {
         pendingSamples = []
         onBatchReady?(batch)
     }
+
+    #if DEBUG
+    /// Runs `SyntheticWorkoutSignal` in place of HealthKit, into the same
+    /// buffer and the same batch timer the real readings use — so a simulator
+    /// run exercises the shipping batching, timestamping and flush code rather
+    /// than a second copy of it.
+    private func startSynthetic() {
+        guard syntheticTimer == nil else { return }
+        syntheticStartedAt = Date()
+        syntheticEnergyKcal = 0
+        startBatchTimer()
+        syntheticTimer = Timer.scheduledTimer(
+            withTimeInterval: SyntheticWorkoutSignal.sampleInterval,
+            repeats: true
+        ) { [weak self] _ in
+            self?.emitSyntheticReading()
+        }
+    }
+
+    private func stopSynthetic() {
+        syntheticTimer?.invalidate()
+        syntheticTimer = nil
+        syntheticStartedAt = nil
+    }
+
+    /// The timer fires on the main run loop, which is where the HealthKit path
+    /// hands its readings over too, so this appends directly instead of
+    /// dispatching again.
+    private func emitSyntheticReading() {
+        guard let startedAt = syntheticStartedAt else { return }
+        let now = Date()
+        let bpm = SyntheticWorkoutSignal.bpm(atElapsed: now.timeIntervalSince(startedAt))
+        pendingSamples.append(
+            HeartRateSample(t: instantFormatter.string(from: now), bpm: bpm)
+        )
+        onHeartRate?(bpm)
+
+        // Cumulative, matching what the real path reads off the builder's
+        // `sumQuantity` — `WatchSessionManager` is what turns it into the
+        // per-batch delta, and that arithmetic is part of what is under test.
+        syntheticEnergyKcal += SyntheticWorkoutSignal.energyDelta(
+            bpm: bpm,
+            over: SyntheticWorkoutSignal.sampleInterval
+        )
+        onActiveEnergy?(syntheticEnergyKcal)
+    }
+    #endif
 }
 
 // MARK: - HKWorkoutSessionDelegate
