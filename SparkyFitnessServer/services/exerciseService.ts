@@ -2018,6 +2018,31 @@ async function createGroupedWorkoutSession(
     client.release();
   }
 }
+/**
+ * Picks the calorie figure an edited exercise entry should keep.
+ *
+ * Precedence: a value the client sent is a deliberate override and wins. Past
+ * that, a device measurement beats the duration-and-sets estimate — a watch
+ * on the wearer's wrist recorded it, so editing a note or a weight must not
+ * replace what was measured with a formula. Only an entry with no
+ * measurement re-derives.
+ *
+ * The measurement lives in `active_calories`, a telemetry column the entry
+ * update preserves, which is exactly why it can be trusted here: it is still
+ * the original reading however many times the session has been saved since.
+ * Postgres returns `numeric` as a string, hence the parse.
+ */
+function resolveEditedCaloriesBurned(
+  clientCalories: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  existingEntry: any,
+  recomputed: number
+): number {
+  if (typeof clientCalories === 'number') return recomputed;
+  const measured = Number(existingEntry?.active_calories);
+  return Number.isFinite(measured) && measured > 0 ? measured : recomputed;
+}
+
 async function updateGroupedWorkoutSession(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userId: any,
@@ -2188,7 +2213,11 @@ async function updateGroupedWorkoutSession(
                 null,
               avg_heart_rate: preparedEntry.avg_heart_rate,
               duration_minutes: preparedEntry.duration_minutes,
-              calories_burned: preparedEntry.calories_burned,
+              calories_burned: resolveEditedCaloriesBurned(
+                ex.calories_burned,
+                existingById.get(ex.id),
+                preparedEntry.calories_burned
+              ),
               entry_date: targetEntryDate,
               entry_time: ex.entry_time ?? null,
             },

@@ -280,7 +280,13 @@ async function attachWatchTelemetryToExerciseEntry(
     fields.max_heart_rate = Math.round(Math.max(...bpmValues));
   }
   if (activeEnergyKcal !== undefined) {
-    fields.calories_burned = Math.round(activeEnergyKcal);
+    const measured = Math.round(activeEnergyKcal);
+    // Written to both columns on purpose. `calories_burned` is what the diary
+    // adds up; `active_calories` is a telemetry column the ordinary entry
+    // update preserves, so it survives a later edit and is how that edit
+    // knows these calories were measured rather than derived.
+    fields.calories_burned = measured;
+    fields.active_calories = measured;
   }
   await exerciseEntryRepository.updateExerciseEntryWatchTelemetry(
     exerciseEntryId,

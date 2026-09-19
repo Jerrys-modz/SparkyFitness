@@ -359,6 +359,14 @@ export interface WatchTelemetryFields {
    * server derives when an entry is saved without one.
    */
   calories_burned?: number | null;
+  /**
+   * The same measurement, kept in its own column as the durable record of
+   * provenance. `calories_burned` is the figure the diary totals and is
+   * recomputed whenever a session is edited; `active_calories` is a
+   * telemetry column, preserved across those edits, and is what lets the
+   * edit path tell a measurement apart from an estimate.
+   */
+  active_calories?: number | null;
 }
 
 /**
