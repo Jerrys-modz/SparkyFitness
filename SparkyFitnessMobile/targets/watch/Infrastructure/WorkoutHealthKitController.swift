@@ -40,6 +40,21 @@ final class WorkoutHealthKitController: NSObject {
     /// hour's workout costs ~60 queued transfers rather than ~360.
     private static let batchInterval: TimeInterval = 60
 
+    /// Stamped onto every workout this app saves to HealthKit, so the phone's
+    /// inbound sync can recognise its own writes and skip them.
+    ///
+    /// Duplicated as a literal in
+    /// `src/services/healthkit/dataTransformation.ts` — a Swift watch target
+    /// and a React Native module have no way to share a constant, the same
+    /// reason `WatchDeepLink.scheme` exists in three places. Renaming it here
+    /// without renaming it there silently reintroduces duplicate workouts.
+    ///
+    /// A metadata key rather than the source bundle id because the watch app's
+    /// bundle (`<phone>.watchkitapp`) is not the phone's, so the existing
+    /// `isOwnRecord` bundle comparison would never match a workout written
+    /// from the wrist.
+    static let sessionMetadataKey = "SparkyFitnessSessionId"
+
     private var heartRateType: HKQuantityType { HKQuantityType(.heartRate) }
     private var activeEnergyType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
 
@@ -70,7 +85,9 @@ final class WorkoutHealthKitController: NSObject {
     /// sampling and the system workout UI; a no-op if a session is already
     /// running or HealthKit isn't available (the Workout tab still functions
     /// as a plain timer/set tracker either way, just without live HR).
-    func start() {
+    /// - Parameter sessionId: the Sparky live-workout session this belongs to,
+    ///   stamped into the saved workout's metadata as the own-write marker.
+    func start(sessionId: String) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
 
         let configuration = HKWorkoutConfiguration()
@@ -93,6 +110,10 @@ final class WorkoutHealthKitController: NSObject {
             let now = Date()
             newSession.startActivity(with: now)
             newBuilder.beginCollection(withStart: now) { _, _ in }
+            // Added while collecting rather than at finish: builder metadata
+            // is saved with the workout either way, and doing it here keeps
+            // `stop()` from nesting another completion handler.
+            newBuilder.addMetadata([Self.sessionMetadataKey: sessionId]) { _, _ in }
             startBatchTimer()
         } catch {
             session = nil

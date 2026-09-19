@@ -374,7 +374,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         workoutHealthKit.requestAuthorization { [weak workoutHealthKit] granted in
             guard granted else { return }
-            workoutHealthKit?.start()
+            workoutHealthKit?.start(sessionId: plan.sessionId)
         }
     }
 
