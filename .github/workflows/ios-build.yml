@@ -7,8 +7,15 @@ name: Build iOS & watchOS
 #
 # The compile checks build Debug on purpose: the watch target's SwiftUI
 # previews and its `SampleDay` fixtures are `#if DEBUG`, so a Release build
-# would skip exactly the code most likely to rot. The phone screenshot build
-# at the end is the one deliberate exception, for the reason stated there.
+# would skip exactly the code most likely to rot. The phone screenshot job is
+# the one deliberate exception, for the reason stated there.
+#
+# Two jobs rather than one, and they run in parallel. The watch scheme builds
+# the containing iOS app with it, so a single job got the Debug Pods for free
+# and then had to build every Pod again from scratch for the Release
+# screenshot — the two together ran past the job timeout. Split, the wall
+# clock is the slower of the two instead of their sum, and neither can starve
+# the other of time.
 
 on:
   workflow_dispatch:
@@ -32,7 +39,7 @@ jobs:
   build:
     name: Compile iOS app and watchOS companion
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -155,16 +162,52 @@ jobs:
 
           ls -la screenshots
 
-      # The phone counterpart of the watch shots above, and the one Release
-      # build in this workflow. That is not incidental: expo-dev-client owns
-      # the first screen of a Debug build, so a Debug run photographs its
-      # "Searching for development servers..." launcher no matter how the JS
-      # is bundled. Its takeover is `#if DEBUG`, so Release goes straight to
-      # the app, and the Release build phase embeds the bundle by itself --
-      # no FORCE_BUNDLING, and no Metro server needed at runtime.
-      # EXPO_PUBLIC_SCREENSHOT_SEED is inlined at bundle time and sends the
-      # app to the workout detail screen with a fixture session. Kept separate
-      # from the compile check above so that stays an honest check of the
+      - name: Upload watch screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: watch-screenshots
+          path: SparkyFitnessMobile/screenshots/*.png
+          if-no-files-found: error
+
+  phone-screenshot:
+    name: Photograph the phone's workout detail screen
+    runs-on: macos-latest
+    # Longer than the compile job: this one builds every Pod in Release from
+    # scratch, which is most of the hour.
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      # Must run from the repo root: the workspace patches @bacons/apple-targets,
+      # and that patch is what stops prebuild corrupting the widget target.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prebuild iOS project
+        working-directory: SparkyFitnessMobile
+        run: npx expo prebuild --platform ios
+
+      # The one Release build in this workflow, and that is not incidental:
+      # expo-dev-client owns the first screen of a Debug build, so a Debug run
+      # photographs its "Searching for development servers..." launcher no
+      # matter how the JS is bundled. Its takeover is `#if DEBUG`, so Release
+      # goes straight to the app, and the Release build phase embeds the
+      # bundle by itself -- no FORCE_BUNDLING, and no Metro server needed at
+      # runtime. EXPO_PUBLIC_SCREENSHOT_SEED is inlined at bundle time and
+      # sends the app to the workout detail screen with a fixture session.
+      # Kept out of the compile job so that stays an honest check of the
       # configuration developers actually build.
       - name: Build iOS app with the screenshot seed
         working-directory: SparkyFitnessMobile
@@ -248,9 +291,9 @@ jobs:
 
           ls -la screenshots
 
-      - name: Upload screenshots
+      - name: Upload phone screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: watch-screenshots
+          name: phone-screenshots
           path: SparkyFitnessMobile/screenshots/*.png
           if-no-files-found: error
