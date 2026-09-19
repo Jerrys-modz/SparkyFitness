@@ -316,18 +316,14 @@ SPARKY_FITNESS_FRONTEND_URL=${customFrontendUrl.value}
 NODE_ENV=production
 `;
 
-  if (enableDbIdentity.value) {
-    out += `\n# --- Database Names & Connection ---
-# docker-compose falls back to these same values when the variables are absent.
-# The name and superuser are only read when PostgreSQL first initialises.
-SPARKY_FITNESS_DB_NAME=${dbName.value}
-SPARKY_FITNESS_DB_HOST=${dbHost.value}
-SPARKY_FITNESS_DB_PORT=${dbPort.value}
-SPARKY_FITNESS_APP_DB_USER=${appDbUser.value}
+  if (enableCustomVolumes.value) {
+    out += `\n# --- Persistent Host Storage Paths ---
+# docker-compose falls back to these same values when the variables are absent,
+# so only set them when you want the data somewhere else.
+DB_PATH=${dbPath.value}
+SERVER_BACKUP_PATH=${backupPath.value}
+SERVER_UPLOADS_PATH=${uploadsPath.value}
 `;
-    if (appDbPassword.value.trim()) {
-      out += `SPARKY_FITNESS_APP_DB_PASSWORD=${appDbPassword.value}\n`;
-    }
   }
 
   if (enableServerRuntime.value) {
@@ -339,16 +335,6 @@ TZ=${timezone.value}
     if (extraTrustedOrigins.value.trim()) {
       out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
     }
-  }
-
-  if (enableCustomVolumes.value) {
-    out += `\n# --- Persistent Host Storage Paths ---
-# docker-compose falls back to these same values when the variables are absent,
-# so only set them when you want the data somewhere else.
-DB_PATH=${dbPath.value}
-SERVER_BACKUP_PATH=${backupPath.value}
-SERVER_UPLOADS_PATH=${uploadsPath.value}
-`;
   }
 
   if (enableAuthAdmin.value) {
@@ -406,6 +392,29 @@ GARMIN_SERVICE_PORT=${garminPort.value}
     }
   }
 
+  if (enableRateLimiting.value) {
+    out += `\n# --- Rate Limiting Settings ---
+SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX=${signinRateLimitMax.value}
+SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW=${signinRateLimitWindow.value}
+SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS=${apiKeyRateLimitMax.value}
+SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS=${apiKeyRateLimitWindowMs.value}
+`;
+  }
+
+  if (enableDbIdentity.value) {
+    out += `\n# --- Database Names & Connection ---
+# docker-compose falls back to these same values when the variables are absent.
+# The name and superuser are only read when PostgreSQL first initialises.
+SPARKY_FITNESS_DB_NAME=${dbName.value}
+SPARKY_FITNESS_DB_HOST=${dbHost.value}
+SPARKY_FITNESS_DB_PORT=${dbPort.value}
+SPARKY_FITNESS_APP_DB_USER=${appDbUser.value}
+`;
+    if (appDbPassword.value.trim()) {
+      out += `SPARKY_FITNESS_APP_DB_PASSWORD=${appDbPassword.value}\n`;
+    }
+  }
+
   if (enableNetworkNginx.value) {
     out += `\n# --- Frontend & Nginx Settings ---
 SPARKY_FITNESS_FRONTEND_PORT=${frontendPort.value}
@@ -417,15 +426,6 @@ NGINX_LISTEN_PORT=${nginxListenPort.value}
     } else {
       out += `SPARKY_FITNESS_TRUSTED_PROXY_HOPS=${trustedProxyHops.value}\n`;
     }
-  }
-
-  if (enableRateLimiting.value) {
-    out += `\n# --- Rate Limiting Settings ---
-SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX=${signinRateLimitMax.value}
-SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW=${signinRateLimitWindow.value}
-SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS=${apiKeyRateLimitMax.value}
-SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS=${apiKeyRateLimitWindowMs.value}
-`;
   }
 
   if (
@@ -753,120 +753,80 @@ onMounted(() => {
         <span>Optional Configuration Modules</span>
         <small>Select what you need for your deployment environment</small>
       </div>
-      <!-- Module 1: Database Names & Connection -->
-      <div :class="['module-card', { active: enableDbIdentity }]">
+      <!-- Module 1: Persistent Host Storage Paths -->
+      <div :class="['module-card', { active: enableCustomVolumes }]">
         <div
           class="module-header"
-          @click="enableDbIdentity = !enableDbIdentity"
+          @click="enableCustomVolumes = !enableCustomVolumes"
         >
           <label class="module-toggle" @click.stop>
-            <input v-model="enableDbIdentity" type="checkbox" />
-            <span class="module-title">🗄️ Database Names &amp; Connection</span>
+            <input v-model="enableCustomVolumes" type="checkbox" />
+            <span class="module-title">💾 Persistent Host Storage Paths</span>
           </label>
           <span class="module-badge">{{
-            enableDbIdentity ? "Enabled" : "Using defaults"
+            enableCustomVolumes ? "Enabled" : "Click to Enable"
           }}</span>
         </div>
-        <div v-if="enableDbIdentity" class="module-body">
+        <div v-if="enableCustomVolumes" class="module-body">
           <div class="upgrade-warning">
-            <strong>Already running SparkyFitness?</strong> The database name
-            and superuser name are only read the first time PostgreSQL
-            initialises. Changing them later does not rename anything &mdash;
-            the server just fails to authenticate. Leave them alone unless you
-            are setting up a new instance or pointing at an external database.
+            <strong>Already running SparkyFitness?</strong> Copy these three
+            values from your existing <code>.env</code>. They are always written
+            to the generated file, and pointing them at a new directory starts
+            the server with an empty database. If you bind-mounted paths
+            directly in your <code>docker-compose.yml</code>, these are ignored
+            and nothing changes for you.
           </div>
           <div class="field-explanation">
-            Defaults: <code>sparkyfitness_db</code>, superuser
-            <code>sparky</code>, application user <code>sparky_app</code> on
-            <code>sparkyfitness-db:5432</code>. The server creates and maintains
-            the application role itself, generating its password when you leave
-            it blank.
+            Where the database, backups, and user uploads live on the host
+            filesystem (e.g. Synology NAS, Unraid, TrueNAS). The defaults match
+            what
+            <code>docker-compose.yml</code> uses when these are unset.
           </div>
           <div class="grid-2">
             <div class="form-group">
               <label
-                >App Database User
-                <code class="var-badge">SPARKY_FITNESS_APP_DB_USER</code></label
+                >Postgres Data Path
+                <code class="var-badge">DB_PATH</code></label
               >
               <input
-                v-model="appDbUser"
+                v-model="dbPath"
                 type="text"
                 class="text-input"
-                placeholder="sparky_app"
+                placeholder="./postgresql"
               />
               <span class="field-hint"
-                >Restricted runtime application user.</span
+                >Host directory for PostgreSQL cluster data.</span
               >
             </div>
             <div class="form-group">
               <label
-                >App Database Password
-                <code class="var-badge"
-                  >SPARKY_FITNESS_APP_DB_PASSWORD</code
-                ></label
-              >
-              <div class="input-with-action">
-                <input
-                  v-model="appDbPassword"
-                  :type="showSecrets ? 'text' : 'password'"
-                  class="text-input font-mono"
-                />
-                <button
-                  type="button"
-                  class="icon-btn"
-                  title="Generate New Password"
-                  @click="appDbPassword = generateSecurePassword(24)"
-                >
-                  🎲
-                </button>
-              </div>
-              <span class="field-hint">Runtime database access password.</span>
-            </div>
-            <div class="form-group">
-              <label
-                >Database Name
-                <code class="var-badge">SPARKY_FITNESS_DB_NAME</code></label
+                >Backups Path
+                <code class="var-badge">SERVER_BACKUP_PATH</code></label
               >
               <input
-                v-model="dbName"
+                v-model="backupPath"
                 type="text"
                 class="text-input"
-                placeholder="sparkyfitness_db"
+                placeholder="./backup"
               />
               <span class="field-hint"
-                >PostgreSQL database name created inside the container.</span
+                >Host directory where database backups are exported.</span
               >
             </div>
             <div class="form-group">
               <label
-                >Database Host
-                <code class="var-badge">SPARKY_FITNESS_DB_HOST</code></label
+                >Uploads & Images Path
+                <code class="var-badge">SERVER_UPLOADS_PATH</code></label
               >
               <input
-                v-model="dbHost"
+                v-model="uploadsPath"
                 type="text"
                 class="text-input"
-                placeholder="sparkyfitness-db"
+                placeholder="./uploads"
               />
               <span class="field-hint"
-                >Internal Docker network service name. Default:
-                <code>sparkyfitness-db</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Database Port
-                <code class="var-badge">SPARKY_FITNESS_DB_PORT</code></label
-              >
-              <input
-                v-model="dbPort"
-                type="text"
-                class="text-input"
-                placeholder="5432"
-              />
-              <span class="field-hint"
-                >Only change this when pointing at an external PostgreSQL on a
-                non-standard port.</span
+                >Host directory for user profile avatars and custom food
+                photos.</span
               >
             </div>
           </div>
@@ -972,87 +932,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Module 3: Persistent Host Storage Paths -->
-      <div :class="['module-card', { active: enableCustomVolumes }]">
-        <div
-          class="module-header"
-          @click="enableCustomVolumes = !enableCustomVolumes"
-        >
-          <label class="module-toggle" @click.stop>
-            <input v-model="enableCustomVolumes" type="checkbox" />
-            <span class="module-title">💾 Persistent Host Storage Paths</span>
-          </label>
-          <span class="module-badge">{{
-            enableCustomVolumes ? "Enabled" : "Click to Enable"
-          }}</span>
-        </div>
-        <div v-if="enableCustomVolumes" class="module-body">
-          <div class="upgrade-warning">
-            <strong>Already running SparkyFitness?</strong> Copy these three
-            values from your existing <code>.env</code>. They are always written
-            to the generated file, and pointing them at a new directory starts
-            the server with an empty database. If you bind-mounted paths
-            directly in your <code>docker-compose.yml</code>, these are ignored
-            and nothing changes for you.
-          </div>
-          <div class="field-explanation">
-            Where the database, backups, and user uploads live on the host
-            filesystem (e.g. Synology NAS, Unraid, TrueNAS). The defaults match
-            what
-            <code>docker-compose.yml</code> uses when these are unset.
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label
-                >Postgres Data Path
-                <code class="var-badge">DB_PATH</code></label
-              >
-              <input
-                v-model="dbPath"
-                type="text"
-                class="text-input"
-                placeholder="./postgresql"
-              />
-              <span class="field-hint"
-                >Host directory for PostgreSQL cluster data.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Backups Path
-                <code class="var-badge">SERVER_BACKUP_PATH</code></label
-              >
-              <input
-                v-model="backupPath"
-                type="text"
-                class="text-input"
-                placeholder="./backup"
-              />
-              <span class="field-hint"
-                >Host directory where database backups are exported.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Uploads & Images Path
-                <code class="var-badge">SERVER_UPLOADS_PATH</code></label
-              >
-              <input
-                v-model="uploadsPath"
-                type="text"
-                class="text-input"
-                placeholder="./uploads"
-              />
-              <span class="field-hint"
-                >Host directory for user profile avatars and custom food
-                photos.</span
-              >
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Module 4: Admin, Signups & Access Policy -->
+      <!-- Module 3: Admin, Signups & Access Policy -->
       <div :class="['module-card', { active: enableAuthAdmin }]">
         <div class="module-header" @click="enableAuthAdmin = !enableAuthAdmin">
           <label class="module-toggle" @click.stop>
@@ -1173,7 +1053,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Module 5: SMTP Mail Server -->
+      <!-- Module 4: SMTP Mail Server -->
       <div :class="['module-card', { active: enableSmtp }]">
         <div class="module-header" @click="enableSmtp = !enableSmtp">
           <label class="module-toggle" @click.stop>
@@ -1278,7 +1158,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 6: OIDC Single Sign-On -->
+      <!-- Module 5: OIDC Single Sign-On -->
       <div :class="['module-card', { active: enableOidc }]">
         <div class="module-header" @click="enableOidc = !enableOidc">
           <label class="module-toggle" @click.stop>
@@ -1402,7 +1282,7 @@ onMounted(() => {
           <div class="checkbox-group" style="margin-top: 12px"></div>
         </div>
       </div>
-      <!-- Module 7: Garmin Microservice -->
+      <!-- Module 6: Garmin Microservice -->
       <div :class="['module-card', { active: enableGarmin }]">
         <div class="module-header" @click="enableGarmin = !enableGarmin">
           <label class="module-toggle" @click.stop>
@@ -1467,7 +1347,221 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 8: Nginx & Reverse Proxy -->
+      <!-- Module 7: Rate Limiting -->
+      <div :class="['module-card', { active: enableRateLimiting }]">
+        <div
+          class="module-header"
+          @click="enableRateLimiting = !enableRateLimiting"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableRateLimiting" type="checkbox" />
+            <span class="module-title">⏱️ Sign-in & API Key Rate Limiting</span>
+          </label>
+          <span class="module-badge">{{
+            enableRateLimiting ? "Enabled" : "Click to Enable"
+          }}</span>
+        </div>
+        <div v-if="enableRateLimiting" class="module-body">
+          <div class="field-explanation">
+            Customize rate-limiting thresholds for logins, two-factor
+            verification, and external automation API keys.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label
+                >Max Sign-in Attempts
+                <code class="var-badge"
+                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX</code
+                ></label
+              >
+              <input
+                v-model="signinRateLimitMax"
+                type="text"
+                class="text-input"
+                placeholder="4"
+              />
+              <span class="field-hint"
+                >Attempts allowed per IP before temporary lockout. Default:
+                <code>4</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Sign-in Window Seconds
+                <code class="var-badge"
+                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW</code
+                ></label
+              >
+              <input
+                v-model="signinRateLimitWindow"
+                type="text"
+                class="text-input"
+                placeholder="60"
+              />
+              <span class="field-hint"
+                >Lockout tracking window in seconds. Default:
+                <code>60</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Max API Key Requests
+                <code class="var-badge"
+                  >SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS</code
+                ></label
+              >
+              <input
+                v-model="apiKeyRateLimitMax"
+                type="text"
+                class="text-input"
+                placeholder="100"
+              />
+              <span class="field-hint"
+                >Max requests per API key token window. Default:
+                <code>100</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >API Key Window MS
+                <code class="var-badge"
+                  >SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS</code
+                ></label
+              >
+              <input
+                v-model="apiKeyRateLimitWindowMs"
+                type="text"
+                class="text-input"
+                placeholder="60000"
+              />
+              <span class="field-hint"
+                >Window in milliseconds. Default: <code>60000</code>.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Module 8: Database Names & Connection -->
+      <div :class="['module-card', { active: enableDbIdentity }]">
+        <div
+          class="module-header"
+          @click="enableDbIdentity = !enableDbIdentity"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableDbIdentity" type="checkbox" />
+            <span class="module-title">🗄️ Database Names &amp; Connection</span>
+          </label>
+          <span class="module-badge">{{
+            enableDbIdentity ? "Enabled" : "Using defaults"
+          }}</span>
+        </div>
+        <div v-if="enableDbIdentity" class="module-body">
+          <div class="upgrade-warning">
+            <strong>Already running SparkyFitness?</strong> The database name
+            and superuser name are only read the first time PostgreSQL
+            initialises. Changing them later does not rename anything &mdash;
+            the server just fails to authenticate. Leave them alone unless you
+            are setting up a new instance or pointing at an external database.
+          </div>
+          <div class="field-explanation">
+            Defaults: <code>sparkyfitness_db</code>, superuser
+            <code>sparky</code>, application user <code>sparky_app</code> on
+            <code>sparkyfitness-db:5432</code>. The server creates and maintains
+            the application role itself, generating its password when you leave
+            it blank.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label
+                >App Database User
+                <code class="var-badge">SPARKY_FITNESS_APP_DB_USER</code></label
+              >
+              <input
+                v-model="appDbUser"
+                type="text"
+                class="text-input"
+                placeholder="sparky_app"
+              />
+              <span class="field-hint"
+                >Restricted runtime application user.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >App Database Password
+                <code class="var-badge"
+                  >SPARKY_FITNESS_APP_DB_PASSWORD</code
+                ></label
+              >
+              <div class="input-with-action">
+                <input
+                  v-model="appDbPassword"
+                  :type="showSecrets ? 'text' : 'password'"
+                  class="text-input font-mono"
+                />
+                <button
+                  type="button"
+                  class="icon-btn"
+                  title="Generate New Password"
+                  @click="appDbPassword = generateSecurePassword(24)"
+                >
+                  🎲
+                </button>
+              </div>
+              <span class="field-hint">Runtime database access password.</span>
+            </div>
+            <div class="form-group">
+              <label
+                >Database Name
+                <code class="var-badge">SPARKY_FITNESS_DB_NAME</code></label
+              >
+              <input
+                v-model="dbName"
+                type="text"
+                class="text-input"
+                placeholder="sparkyfitness_db"
+              />
+              <span class="field-hint"
+                >PostgreSQL database name created inside the container.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Database Host
+                <code class="var-badge">SPARKY_FITNESS_DB_HOST</code></label
+              >
+              <input
+                v-model="dbHost"
+                type="text"
+                class="text-input"
+                placeholder="sparkyfitness-db"
+              />
+              <span class="field-hint"
+                >Internal Docker network service name. Default:
+                <code>sparkyfitness-db</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Database Port
+                <code class="var-badge">SPARKY_FITNESS_DB_PORT</code></label
+              >
+              <input
+                v-model="dbPort"
+                type="text"
+                class="text-input"
+                placeholder="5432"
+              />
+              <span class="field-hint"
+                >Only change this when pointing at an external PostgreSQL on a
+                non-standard port.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module 9: Nginx & Reverse Proxy -->
       <div :class="['module-card', { active: enableNetworkNginx }]">
         <div
           class="module-header"
@@ -1567,100 +1661,6 @@ onMounted(() => {
             </div>
           </div>
           <div class="checkbox-group" style="margin-top: 12px"></div>
-        </div>
-      </div>
-      <!-- Module 9: Rate Limiting -->
-      <div :class="['module-card', { active: enableRateLimiting }]">
-        <div
-          class="module-header"
-          @click="enableRateLimiting = !enableRateLimiting"
-        >
-          <label class="module-toggle" @click.stop>
-            <input v-model="enableRateLimiting" type="checkbox" />
-            <span class="module-title">⏱️ Sign-in & API Key Rate Limiting</span>
-          </label>
-          <span class="module-badge">{{
-            enableRateLimiting ? "Enabled" : "Click to Enable"
-          }}</span>
-        </div>
-        <div v-if="enableRateLimiting" class="module-body">
-          <div class="field-explanation">
-            Customize rate-limiting thresholds for logins, two-factor
-            verification, and external automation API keys.
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label
-                >Max Sign-in Attempts
-                <code class="var-badge"
-                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX</code
-                ></label
-              >
-              <input
-                v-model="signinRateLimitMax"
-                type="text"
-                class="text-input"
-                placeholder="4"
-              />
-              <span class="field-hint"
-                >Attempts allowed per IP before temporary lockout. Default:
-                <code>4</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Sign-in Window Seconds
-                <code class="var-badge"
-                  >SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW</code
-                ></label
-              >
-              <input
-                v-model="signinRateLimitWindow"
-                type="text"
-                class="text-input"
-                placeholder="60"
-              />
-              <span class="field-hint"
-                >Lockout tracking window in seconds. Default:
-                <code>60</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Max API Key Requests
-                <code class="var-badge"
-                  >SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS</code
-                ></label
-              >
-              <input
-                v-model="apiKeyRateLimitMax"
-                type="text"
-                class="text-input"
-                placeholder="100"
-              />
-              <span class="field-hint"
-                >Max requests per API key token window. Default:
-                <code>100</code>.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >API Key Window MS
-                <code class="var-badge"
-                  >SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS</code
-                ></label
-              >
-              <input
-                v-model="apiKeyRateLimitWindowMs"
-                type="text"
-                class="text-input"
-                placeholder="60000"
-              />
-              <span class="field-hint"
-                >Window in milliseconds. Default: <code>60000</code>.</span
-              >
-            </div>
-          </div>
         </div>
       </div>
       <!-- Module 10: Outbound Proxy -->
