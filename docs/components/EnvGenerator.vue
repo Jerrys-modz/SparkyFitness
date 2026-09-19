@@ -2,10 +2,13 @@
 import { ref, computed, onMounted } from "vue";
 
 // --- Preset Mode ---
-const selectedPreset = ref<"simple" | "local" | "proxy" | "full">("simple");
+const selectedPreset = ref<"simple" | "full">("simple");
 
 // --- Feature Module Checkbox Toggles ---
 const enableNetworkNginx = ref(false);
+const enableDbIdentity = ref(false);
+const enableServerRuntime = ref(false);
+const enableCustomVolumes = ref(false);
 const enableAuthAdmin = ref(false);
 const enableRateLimiting = ref(false);
 const enableOidc = ref(false);
@@ -23,7 +26,7 @@ const dbHost = ref("sparkyfitness-db");
 const dbPort = ref("5432");
 
 // --- 2. Security Secrets & Access URL (Always Core) ---
-const customFrontendUrl = ref("http://localhost:3004");
+const customFrontendUrl = ref("https://fitness.example.com");
 const apiEncryptionKey = ref("");
 const betterAuthSecret = ref("");
 const timezone = ref("Etc/UTC");
@@ -171,42 +174,18 @@ function rerollSecrets() {
   demoPassword.value = generateSecurePassword(16);
 }
 
-function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
+function applyPreset(preset: "simple" | "full") {
   selectedPreset.value = preset;
-  // Each branch assigns every preset-controlled value. Leaving one out lets a
-  // previously selected preset leak into the generated file — switching from
-  // Localhost Dev used to carry ALLOW_PRIVATE_NETWORK_CORS=true into a
-  // reverse-proxy or full config.
+  // Both branches assign every preset-controlled value. Leaving one out lets
+  // the previous selection leak into the generated file — a earlier version
+  // carried ALLOW_PRIVATE_NETWORK_CORS=true from one preset into another.
   if (preset === "simple") {
-    customFrontendUrl.value = "http://localhost:3004";
-    allowPrivateNetworkCors.value = false;
-    enableNetworkNginx.value = false;
-    enableAuthAdmin.value = false;
-    enableDemoMode.value = false;
-    enableRateLimiting.value = false;
-    enableOidc.value = false;
-    enableSmtp.value = false;
-    enableOutboundProxy.value = false;
-    enableGarmin.value = false;
-    realIpHeader.value = "none";
-  } else if (preset === "local") {
-    customFrontendUrl.value = "http://localhost:3004";
-    enableNetworkNginx.value = true;
-    allowPrivateNetworkCors.value = true;
-    enableAuthAdmin.value = false;
-    enableDemoMode.value = false;
-    enableRateLimiting.value = false;
-    enableOidc.value = false;
-    enableSmtp.value = false;
-    enableOutboundProxy.value = false;
-    enableGarmin.value = false;
-    realIpHeader.value = "none";
-  } else if (preset === "proxy") {
     customFrontendUrl.value = "https://fitness.example.com";
     allowPrivateNetworkCors.value = false;
-    enableNetworkNginx.value = true;
-    realIpHeader.value = "CF-Connecting-IP";
-    trustedProxyHops.value = "1";
+    enableNetworkNginx.value = false;
+    enableDbIdentity.value = false;
+    enableServerRuntime.value = false;
+    enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
     enableDemoMode.value = false;
     enableRateLimiting.value = false;
@@ -214,18 +193,24 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     enableSmtp.value = false;
     enableOutboundProxy.value = false;
     enableGarmin.value = false;
+    realIpHeader.value = "none";
   } else if (preset === "full") {
     customFrontendUrl.value = "https://fitness.example.com";
     allowPrivateNetworkCors.value = false;
     realIpHeader.value = "CF-Connecting-IP";
     trustedProxyHops.value = "1";
     enableNetworkNginx.value = true;
+    enableDbIdentity.value = true;
+    enableServerRuntime.value = true;
+    enableCustomVolumes.value = true;
     enableAuthAdmin.value = true;
+    // Demo mode seeds and resets a public sample account, so it stays off even
+    // here; it is not something you want switched on by picking a template.
     enableDemoMode.value = false;
     enableRateLimiting.value = true;
     enableOidc.value = true;
     enableSmtp.value = true;
-    enableOutboundProxy.value = false;
+    enableOutboundProxy.value = true;
     enableGarmin.value = true;
   }
 }
@@ -237,6 +222,9 @@ function setQuickUrl(url: string) {
 // Reactive .env output
 const generatedEnv = computed(() => {
   const isMinimal =
+    !enableDbIdentity.value &&
+    !enableServerRuntime.value &&
+    !enableCustomVolumes.value &&
     !enableNetworkNginx.value &&
     !enableAuthAdmin.value &&
     !enableDemoMode.value &&
@@ -248,17 +236,17 @@ const generatedEnv = computed(() => {
 
   if (isMinimal) {
     return `# =================================================================
-# SparkyFitness - Simple 8-Variable Onboarding Configuration
+# SparkyFitness - Simple 5-Variable Onboarding Configuration
 # =================================================================
 # Documentation: https://codewithcj.github.io/SparkyFitness/
 # Note: The first registered user automatically receives full Admin access.
+# The database name and the application user use the docker-compose defaults
+# (sparkyfitness_db, sparky_app); the server creates and maintains the
+# application role itself.
 
 # Database Credentials
-SPARKY_FITNESS_DB_NAME=${dbName.value}
 SPARKY_FITNESS_DB_USER=${dbUser.value}
 SPARKY_FITNESS_DB_PASSWORD=${dbPassword.value}
-SPARKY_FITNESS_APP_DB_USER=${appDbUser.value}
-SPARKY_FITNESS_APP_DB_PASSWORD=${appDbPassword.value}
 
 # Security Secrets
 SPARKY_FITNESS_API_ENCRYPTION_KEY=${apiEncryptionKey.value}
@@ -275,35 +263,50 @@ SPARKY_FITNESS_FRONTEND_URL=${customFrontendUrl.value}
 # =================================================================
 
 # --- PostgreSQL Database Settings ---
-SPARKY_FITNESS_DB_NAME=${dbName.value}
 SPARKY_FITNESS_DB_USER=${dbUser.value}
 SPARKY_FITNESS_DB_PASSWORD=${dbPassword.value}
-SPARKY_FITNESS_APP_DB_USER=${appDbUser.value}
-SPARKY_FITNESS_APP_DB_PASSWORD=${appDbPassword.value}
-SPARKY_FITNESS_DB_HOST=${dbHost.value}
-SPARKY_FITNESS_DB_PORT=${dbPort.value}
 
 # --- Core Security & Server Settings ---
 SPARKY_FITNESS_API_ENCRYPTION_KEY=${apiEncryptionKey.value}
 BETTER_AUTH_SECRET=${betterAuthSecret.value}
 SPARKY_FITNESS_FRONTEND_URL=${customFrontendUrl.value}
+NODE_ENV=production
+`;
+
+  if (enableDbIdentity.value) {
+    out += `\n# --- Database Names & Connection ---
+# docker-compose falls back to these same values when the variables are absent.
+# The name and superuser are only read when PostgreSQL first initialises.
+SPARKY_FITNESS_DB_NAME=${dbName.value}
+SPARKY_FITNESS_DB_HOST=${dbHost.value}
+SPARKY_FITNESS_DB_PORT=${dbPort.value}
+SPARKY_FITNESS_APP_DB_USER=${appDbUser.value}
+`;
+    if (appDbPassword.value.trim()) {
+      out += `SPARKY_FITNESS_APP_DB_PASSWORD=${appDbPassword.value}\n`;
+    }
+  }
+
+  if (enableServerRuntime.value) {
+    out += `\n# --- Server Runtime ---
 SPARKY_FITNESS_SERVER_PORT=${serverPort.value}
 SPARKY_FITNESS_LOG_LEVEL=${logLevel.value}
-NODE_ENV=production
 TZ=${timezone.value}
-${
-  extraTrustedOrigins.value.trim()
-    ? `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`
-    : ""
-}
-# --- Persistent Host Storage Paths ---
-# Always written out. docker-compose falls back to these same values when the
-# variables are absent, so pinning them here keeps an upgrade from silently
-# pointing at a different directory.
+`;
+    if (extraTrustedOrigins.value.trim()) {
+      out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
+    }
+  }
+
+  if (enableCustomVolumes.value) {
+    out += `\n# --- Persistent Host Storage Paths ---
+# docker-compose falls back to these same values when the variables are absent,
+# so only set them when you want the data somewhere else.
 DB_PATH=${dbPath.value}
 SERVER_BACKUP_PATH=${backupPath.value}
 SERVER_UPLOADS_PATH=${uploadsPath.value}
 `;
+  }
 
   if (enableAuthAdmin.value) {
     out += `\n# --- Authentication & Admin Settings ---\n`;
@@ -324,14 +327,6 @@ SERVER_UPLOADS_PATH=${uploadsPath.value}
     if (allowPrivateNetworkCors.value) {
       out += `ALLOW_PRIVATE_NETWORK_CORS=true\n`;
     }
-  }
-
-  if (enableDemoMode.value) {
-    out += `\n# --- Public Demo Mode ---
-SPARKY_FITNESS_DEMO_MODE=true
-SPARKY_FITNESS_DEMO_EMAIL=${demoEmail.value}
-SPARKY_FITNESS_DEMO_PASSWORD=${demoPassword.value}
-`;
   }
 
   if (enableSmtp.value && smtpHost.value.trim()) {
@@ -397,6 +392,14 @@ SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS=${apiKeyRateLimitWindowMs.value}
     if (httpsProxy.value.trim())
       out += `HTTPS_PROXY=${httpsProxy.value.trim()}\n`;
     if (noProxy.value.trim()) out += `NO_PROXY=${noProxy.value.trim()}\n`;
+  }
+
+  if (enableDemoMode.value) {
+    out += `\n# --- Public Demo Mode ---
+SPARKY_FITNESS_DEMO_MODE=true
+SPARKY_FITNESS_DEMO_EMAIL=${demoEmail.value}
+SPARKY_FITNESS_DEMO_PASSWORD=${demoPassword.value}
+`;
   }
 
   return out;
@@ -472,7 +475,7 @@ onMounted(() => {
 
     <!-- Clean Preset Selection Bar -->
     <div class="preset-card">
-      <span class="preset-title">Select Deployment Template:</span>
+      <span class="preset-title">Start from:</span>
       <div class="preset-options">
         <label
           :class="[
@@ -488,44 +491,8 @@ onMounted(() => {
             @change="applyPreset('simple')"
           />
           <span class="preset-text">
-            <strong>⚡ Minimal 8-Vars</strong>
-            <small>Quickest 60-sec onboarding</small>
-          </span>
-        </label>
-        <label
-          :class="[
-            'preset-radio-option',
-            { active: selectedPreset === 'local' },
-          ]"
-        >
-          <input
-            type="radio"
-            name="preset"
-            value="local"
-            :checked="selectedPreset === 'local'"
-            @change="applyPreset('local')"
-          />
-          <span class="preset-text">
-            <strong>💻 Localhost Dev</strong>
-            <small>Local ports + private CORS</small>
-          </span>
-        </label>
-        <label
-          :class="[
-            'preset-radio-option',
-            { active: selectedPreset === 'proxy' },
-          ]"
-        >
-          <input
-            type="radio"
-            name="preset"
-            value="proxy"
-            :checked="selectedPreset === 'proxy'"
-            @change="applyPreset('proxy')"
-          />
-          <span class="preset-text">
-            <strong>🌐 Reverse Proxy</strong>
-            <small>HTTPS domain + real IP header</small>
+            <strong>⚡ Minimal</strong>
+            <small>Just the 5 values a standard install needs</small>
           </span>
         </label>
         <label
@@ -542,8 +509,8 @@ onMounted(() => {
             @change="applyPreset('full')"
           />
           <span class="preset-text">
-            <strong>⚙️ All Features</strong>
-            <small>SSO, SMTP, Volumes, Garmin</small>
+            <strong>⚙️ All Options</strong>
+            <small>Every section turned on, ready to trim</small>
           </span>
         </label>
       </div>
@@ -586,16 +553,16 @@ onMounted(() => {
           v-model="customFrontendUrl"
           type="text"
           class="text-input font-mono"
-          placeholder="http://localhost:3004 or https://fitness.yourdomain.com"
+          placeholder="https://fitness.yourdomain.com"
         />
         <div class="quick-links">
           <span>Quick fill:</span>
           <button
             type="button"
             class="quick-tag"
-            @click="setQuickUrl('http://localhost:3004')"
+            @click="setQuickUrl('https://fitness.example.com')"
           >
-            Localhost (3004)
+            Custom Domain (HTTPS)
           </button>
           <button
             type="button"
@@ -607,9 +574,9 @@ onMounted(() => {
           <button
             type="button"
             class="quick-tag"
-            @click="setQuickUrl('https://fitness.example.com')"
+            @click="setQuickUrl('http://localhost:3004')"
           >
-            HTTPS Domain
+            Localhost (3004)
           </button>
         </div>
         <span class="field-hint"
@@ -619,27 +586,14 @@ onMounted(() => {
       </div>
 
       <!-- Database Credentials Grid -->
-      <div class="section-title">PostgreSQL Database Credentials</div>
+      <div class="section-title">PostgreSQL Superuser</div>
       <div class="field-explanation">
-        SparkyFitness uses a superuser for migrations and a restricted
-        least-privilege user for daily application requests.
+        The account that owns the schema and runs migrations. The database name,
+        host and the restricted application user all have working defaults
+        &mdash; change them in <strong>Database Names &amp; Connection</strong>
+        below if you need to.
       </div>
       <div class="grid-2">
-        <div class="form-group">
-          <label
-            >Database Name
-            <code class="var-badge">SPARKY_FITNESS_DB_NAME</code></label
-          >
-          <input
-            v-model="dbName"
-            type="text"
-            class="text-input"
-            placeholder="sparkyfitness_db"
-          />
-          <span class="field-hint"
-            >PostgreSQL database name created inside the container.</span
-          >
-        </div>
         <div class="form-group">
           <label
             >Superuser User
@@ -676,73 +630,6 @@ onMounted(() => {
             </button>
           </div>
           <span class="field-hint">Database superuser password.</span>
-        </div>
-        <div class="form-group">
-          <label
-            >App Database User
-            <code class="var-badge">SPARKY_FITNESS_APP_DB_USER</code></label
-          >
-          <input
-            v-model="appDbUser"
-            type="text"
-            class="text-input"
-            placeholder="sparky_app"
-          />
-          <span class="field-hint">Restricted runtime application user.</span>
-        </div>
-        <div class="form-group">
-          <label
-            >App Database Password
-            <code class="var-badge">SPARKY_FITNESS_APP_DB_PASSWORD</code></label
-          >
-          <div class="input-with-action">
-            <input
-              v-model="appDbPassword"
-              :type="showSecrets ? 'text' : 'password'"
-              class="text-input font-mono"
-            />
-            <button
-              type="button"
-              class="icon-btn"
-              title="Generate New Password"
-              @click="appDbPassword = generateSecurePassword(24)"
-            >
-              🎲
-            </button>
-          </div>
-          <span class="field-hint">Runtime database access password.</span>
-        </div>
-        <div class="form-group">
-          <label
-            >Database Host
-            <code class="var-badge">SPARKY_FITNESS_DB_HOST</code></label
-          >
-          <input
-            v-model="dbHost"
-            type="text"
-            class="text-input"
-            placeholder="sparkyfitness-db"
-          />
-          <span class="field-hint"
-            >Internal Docker network service name. Default:
-            <code>sparkyfitness-db</code>.</span
-          >
-        </div>
-        <div class="form-group">
-          <label
-            >Database Port
-            <code class="var-badge">SPARKY_FITNESS_DB_PORT</code></label
-          >
-          <input
-            v-model="dbPort"
-            type="text"
-            class="text-input"
-            placeholder="5432"
-          />
-          <span class="field-hint"
-            >Only change this when pointing at an external PostgreSQL on a
-            non-standard port.</span
-          >
         </div>
       </div>
 
@@ -807,154 +694,6 @@ onMounted(() => {
           Keep persistent.</span
         >
       </div>
-
-      <div class="section-divider">
-        <span>⚙️ Server Runtime</span>
-      </div>
-      <div class="field-explanation">
-        Always written to the generated file. The timezone drives how the server
-        buckets entries into calendar days, so set it to your own zone rather
-        than leaving it on UTC.
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Server Timezone <code class="var-badge">TZ</code></label>
-          <input
-            v-model="timezone"
-            type="text"
-            class="text-input"
-            list="tz-options"
-            placeholder="Start typing, e.g. New_York"
-          />
-          <datalist id="tz-options">
-            <option v-for="tz in timezoneOptions" :key="tz" :value="tz" />
-          </datalist>
-          <span class="field-hint"
-            >Type to search the IANA list, e.g. <code>America/New_York</code>.
-            Drives how entries are bucketed into calendar days.
-            <button
-              type="button"
-              class="link-btn"
-              @click="timezone = detectedTimezone"
-            >
-              Use mine ({{ detectedTimezone }})
-            </button>
-          </span>
-        </div>
-        <div class="form-group">
-          <label
-            >Log Level
-            <code class="var-badge">SPARKY_FITNESS_LOG_LEVEL</code></label
-          >
-          <select v-model="logLevel" class="text-input">
-            <option value="ERROR">ERROR (default)</option>
-            <option value="WARN">WARN</option>
-            <option value="INFO">INFO</option>
-            <option value="DEBUG">DEBUG</option>
-            <option value="SILENT">SILENT</option>
-          </select>
-          <span class="field-hint"
-            >Raise to DEBUG only while troubleshooting; it is noisy.</span
-          >
-        </div>
-        <div class="form-group">
-          <label
-            >Backend Port
-            <code class="var-badge">SPARKY_FITNESS_SERVER_PORT</code></label
-          >
-          <input
-            v-model="serverPort"
-            type="text"
-            class="text-input"
-            placeholder="3010"
-          />
-          <span class="field-hint"
-            >Port the backend listens on inside its container.</span
-          >
-        </div>
-        <div class="form-group">
-          <label
-            >Extra Trusted Origins
-            <code class="var-badge"
-              >SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS</code
-            ></label
-          >
-          <input
-            v-model="extraTrustedOrigins"
-            type="text"
-            class="text-input"
-            placeholder="http://192.168.1.50:3004"
-          />
-          <span class="field-hint"
-            >Comma-separated additional origins Better Auth should trust. Leave
-            blank unless you reach the app on more than one URL.</span
-          >
-        </div>
-      </div>
-
-      <div class="section-divider">
-        <span>💾 Persistent Host Storage Paths</span>
-      </div>
-      <div class="upgrade-warning">
-        <strong>Already running SparkyFitness?</strong> Copy these three values
-        from your existing <code>.env</code>. They are always written to the
-        generated file, and pointing them at a new directory starts the server
-        with an empty database. If you bind-mounted paths directly in your
-        <code>docker-compose.yml</code>, these are ignored and nothing changes
-        for you.
-      </div>
-      <div class="field-explanation">
-        Where the database, backups, and user uploads live on the host
-        filesystem (e.g. Synology NAS, Unraid, TrueNAS). The defaults match what
-        <code>docker-compose.yml</code> uses when these are unset.
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label
-            >Postgres Data Path <code class="var-badge">DB_PATH</code></label
-          >
-          <input
-            v-model="dbPath"
-            type="text"
-            class="text-input"
-            placeholder="./postgresql"
-          />
-          <span class="field-hint"
-            >Host directory for PostgreSQL cluster data.</span
-          >
-        </div>
-        <div class="form-group">
-          <label
-            >Backups Path
-            <code class="var-badge">SERVER_BACKUP_PATH</code></label
-          >
-          <input
-            v-model="backupPath"
-            type="text"
-            class="text-input"
-            placeholder="./backup"
-          />
-          <span class="field-hint"
-            >Host directory where database backups are exported.</span
-          >
-        </div>
-        <div class="form-group">
-          <label
-            >Uploads & Images Path
-            <code class="var-badge">SERVER_UPLOADS_PATH</code></label
-          >
-          <input
-            v-model="uploadsPath"
-            type="text"
-            class="text-input"
-            placeholder="./uploads"
-          />
-          <span class="field-hint"
-            >Host directory for user profile avatars and custom food
-            photos.</span
-          >
-        </div>
-      </div>
     </div>
 
     <!-- OPTIONAL FEATURE MODULES (CHECKBOX CARDS) -->
@@ -963,7 +702,306 @@ onMounted(() => {
         <span>Optional Configuration Modules</span>
         <small>Select what you need for your deployment environment</small>
       </div>
-      <!-- Module 1: Admin, Signups & Access Policy -->
+      <!-- Module 1: Database Names & Connection -->
+      <div :class="['module-card', { active: enableDbIdentity }]">
+        <div
+          class="module-header"
+          @click="enableDbIdentity = !enableDbIdentity"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableDbIdentity" type="checkbox" />
+            <span class="module-title">🗄️ Database Names &amp; Connection</span>
+          </label>
+          <span class="module-badge">{{
+            enableDbIdentity ? "Enabled" : "Using defaults"
+          }}</span>
+        </div>
+        <div v-if="enableDbIdentity" class="module-body">
+          <div class="upgrade-warning">
+            <strong>Already running SparkyFitness?</strong> The database name
+            and superuser name are only read the first time PostgreSQL
+            initialises. Changing them later does not rename anything &mdash;
+            the server just fails to authenticate. Leave them alone unless you
+            are setting up a new instance or pointing at an external database.
+          </div>
+          <div class="field-explanation">
+            Defaults: <code>sparkyfitness_db</code>, superuser
+            <code>sparky</code>, application user <code>sparky_app</code> on
+            <code>sparkyfitness-db:5432</code>. The server creates and maintains
+            the application role itself, generating its password when you leave
+            it blank.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label
+                >App Database User
+                <code class="var-badge">SPARKY_FITNESS_APP_DB_USER</code></label
+              >
+              <input
+                v-model="appDbUser"
+                type="text"
+                class="text-input"
+                placeholder="sparky_app"
+              />
+              <span class="field-hint"
+                >Restricted runtime application user.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >App Database Password
+                <code class="var-badge"
+                  >SPARKY_FITNESS_APP_DB_PASSWORD</code
+                ></label
+              >
+              <div class="input-with-action">
+                <input
+                  v-model="appDbPassword"
+                  :type="showSecrets ? 'text' : 'password'"
+                  class="text-input font-mono"
+                />
+                <button
+                  type="button"
+                  class="icon-btn"
+                  title="Generate New Password"
+                  @click="appDbPassword = generateSecurePassword(24)"
+                >
+                  🎲
+                </button>
+              </div>
+              <span class="field-hint">Runtime database access password.</span>
+            </div>
+            <div class="form-group">
+              <label
+                >Database Name
+                <code class="var-badge">SPARKY_FITNESS_DB_NAME</code></label
+              >
+              <input
+                v-model="dbName"
+                type="text"
+                class="text-input"
+                placeholder="sparkyfitness_db"
+              />
+              <span class="field-hint"
+                >PostgreSQL database name created inside the container.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Database Host
+                <code class="var-badge">SPARKY_FITNESS_DB_HOST</code></label
+              >
+              <input
+                v-model="dbHost"
+                type="text"
+                class="text-input"
+                placeholder="sparkyfitness-db"
+              />
+              <span class="field-hint"
+                >Internal Docker network service name. Default:
+                <code>sparkyfitness-db</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Database Port
+                <code class="var-badge">SPARKY_FITNESS_DB_PORT</code></label
+              >
+              <input
+                v-model="dbPort"
+                type="text"
+                class="text-input"
+                placeholder="5432"
+              />
+              <span class="field-hint"
+                >Only change this when pointing at an external PostgreSQL on a
+                non-standard port.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module 2: Server Runtime -->
+      <div :class="['module-card', { active: enableServerRuntime }]">
+        <div
+          class="module-header"
+          @click="enableServerRuntime = !enableServerRuntime"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableServerRuntime" type="checkbox" />
+            <span class="module-title">⚙️ Server Runtime</span>
+          </label>
+          <span class="module-badge">{{
+            enableServerRuntime ? "Enabled" : "Click to Enable"
+          }}</span>
+        </div>
+        <div v-if="enableServerRuntime" class="module-body">
+          <div class="field-explanation">
+            Always written to the generated file. The timezone drives how the
+            server buckets entries into calendar days, so set it to your own
+            zone rather than leaving it on UTC.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Server Timezone <code class="var-badge">TZ</code></label>
+              <input
+                v-model="timezone"
+                type="text"
+                class="text-input"
+                list="tz-options"
+                placeholder="Start typing, e.g. New_York"
+              />
+              <datalist id="tz-options">
+                <option v-for="tz in timezoneOptions" :key="tz" :value="tz" />
+              </datalist>
+              <span class="field-hint"
+                >Type to search the IANA list, e.g.
+                <code>America/New_York</code>. Drives how entries are bucketed
+                into calendar days.
+                <button
+                  type="button"
+                  class="link-btn"
+                  @click="timezone = detectedTimezone"
+                >
+                  Use mine ({{ detectedTimezone }})
+                </button>
+              </span>
+            </div>
+            <div class="form-group">
+              <label
+                >Log Level
+                <code class="var-badge">SPARKY_FITNESS_LOG_LEVEL</code></label
+              >
+              <select v-model="logLevel" class="text-input">
+                <option value="ERROR">ERROR (default)</option>
+                <option value="WARN">WARN</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="SILENT">SILENT</option>
+              </select>
+              <span class="field-hint"
+                >Raise to DEBUG only while troubleshooting; it is noisy.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Backend Port
+                <code class="var-badge">SPARKY_FITNESS_SERVER_PORT</code></label
+              >
+              <input
+                v-model="serverPort"
+                type="text"
+                class="text-input"
+                placeholder="3010"
+              />
+              <span class="field-hint"
+                >Port the backend listens on inside its container.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Extra Trusted Origins
+                <code class="var-badge"
+                  >SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS</code
+                ></label
+              >
+              <input
+                v-model="extraTrustedOrigins"
+                type="text"
+                class="text-input"
+                placeholder="http://192.168.1.50:3004"
+              />
+              <span class="field-hint"
+                >Comma-separated additional origins Better Auth should trust.
+                Leave blank unless you reach the app on more than one URL.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module 3: Persistent Host Storage Paths -->
+      <div :class="['module-card', { active: enableCustomVolumes }]">
+        <div
+          class="module-header"
+          @click="enableCustomVolumes = !enableCustomVolumes"
+        >
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableCustomVolumes" type="checkbox" />
+            <span class="module-title">💾 Persistent Host Storage Paths</span>
+          </label>
+          <span class="module-badge">{{
+            enableCustomVolumes ? "Enabled" : "Click to Enable"
+          }}</span>
+        </div>
+        <div v-if="enableCustomVolumes" class="module-body">
+          <div class="upgrade-warning">
+            <strong>Already running SparkyFitness?</strong> Copy these three
+            values from your existing <code>.env</code>. They are always written
+            to the generated file, and pointing them at a new directory starts
+            the server with an empty database. If you bind-mounted paths
+            directly in your <code>docker-compose.yml</code>, these are ignored
+            and nothing changes for you.
+          </div>
+          <div class="field-explanation">
+            Where the database, backups, and user uploads live on the host
+            filesystem (e.g. Synology NAS, Unraid, TrueNAS). The defaults match
+            what
+            <code>docker-compose.yml</code> uses when these are unset.
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label
+                >Postgres Data Path
+                <code class="var-badge">DB_PATH</code></label
+              >
+              <input
+                v-model="dbPath"
+                type="text"
+                class="text-input"
+                placeholder="./postgresql"
+              />
+              <span class="field-hint"
+                >Host directory for PostgreSQL cluster data.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Backups Path
+                <code class="var-badge">SERVER_BACKUP_PATH</code></label
+              >
+              <input
+                v-model="backupPath"
+                type="text"
+                class="text-input"
+                placeholder="./backup"
+              />
+              <span class="field-hint"
+                >Host directory where database backups are exported.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Uploads & Images Path
+                <code class="var-badge">SERVER_UPLOADS_PATH</code></label
+              >
+              <input
+                v-model="uploadsPath"
+                type="text"
+                class="text-input"
+                placeholder="./uploads"
+              />
+              <span class="field-hint"
+                >Host directory for user profile avatars and custom food
+                photos.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module 4: Admin, Signups & Access Policy -->
       <div :class="['module-card', { active: enableAuthAdmin }]">
         <div class="module-header" @click="enableAuthAdmin = !enableAuthAdmin">
           <label class="module-toggle" @click.stop>
@@ -1067,70 +1105,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Module 2: Public Demo Mode -->
-      <div :class="['module-card', { active: enableDemoMode }]">
-        <div class="module-header" @click="enableDemoMode = !enableDemoMode">
-          <label class="module-toggle" @click.stop>
-            <input v-model="enableDemoMode" type="checkbox" />
-            <span class="module-title">🧪 Public Demo Mode</span>
-          </label>
-          <span class="module-badge">{{
-            enableDemoMode ? "Enabled" : "Off"
-          }}</span>
-        </div>
-        <div v-if="enableDemoMode" class="module-body">
-          <p class="field-hint" style="margin: 0">
-            Runs a demo account seeded with sample data that resets daily at
-            midnight UTC. Leave this off for a normal instance.
-          </p>
-          <div
-            class="checkbox-group"
-            style="
-              margin-top: 14px;
-              padding-top: 14px;
-              border-top: 1px dashed rgba(125, 125, 125, 0.2);
-            "
-          >
-            <label class="checkbox-label">
-              <input v-model="enableDemoMode" type="checkbox" />
-              <span class="checkbox-text">
-                Enable Public Demo Mode
-                <code class="var-badge">SPARKY_FITNESS_DEMO_MODE=true</code>
-              </span>
-            </label>
-            <span class="field-hint" style="margin-left: 26px"
-              >Runs a demo account seeded with sample data that resets daily at
-              midnight UTC.</span
-            >
-          </div>
-
-          <div
-            v-if="enableDemoMode"
-            class="grid-2"
-            style="margin-top: 10px; margin-left: 26px"
-          >
-            <div class="form-group">
-              <label>Demo Email</label>
-              <input
-                v-model="demoEmail"
-                type="email"
-                class="text-input"
-                placeholder="demo@sparkyfitness.com"
-              />
-            </div>
-            <div class="form-group">
-              <label>Demo Password</label>
-              <input
-                v-model="demoPassword"
-                :type="showSecrets ? 'text' : 'password'"
-                class="text-input font-mono"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Module 3: SMTP Mail Server -->
+      <!-- Module 5: SMTP Mail Server -->
       <div :class="['module-card', { active: enableSmtp }]">
         <div class="module-header" @click="enableSmtp = !enableSmtp">
           <label class="module-toggle" @click.stop>
@@ -1235,7 +1210,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 4: OIDC Single Sign-On -->
+      <!-- Module 6: OIDC Single Sign-On -->
       <div :class="['module-card', { active: enableOidc }]">
         <div class="module-header" @click="enableOidc = !enableOidc">
           <label class="module-toggle" @click.stop>
@@ -1359,7 +1334,7 @@ onMounted(() => {
           <div class="checkbox-group" style="margin-top: 12px"></div>
         </div>
       </div>
-      <!-- Module 5: Garmin Microservice -->
+      <!-- Module 7: Garmin Microservice -->
       <div :class="['module-card', { active: enableGarmin }]">
         <div class="module-header" @click="enableGarmin = !enableGarmin">
           <label class="module-toggle" @click.stop>
@@ -1411,7 +1386,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 6: Nginx & Reverse Proxy -->
+      <!-- Module 8: Nginx & Reverse Proxy -->
       <div :class="['module-card', { active: enableNetworkNginx }]">
         <div
           class="module-header"
@@ -1513,7 +1488,7 @@ onMounted(() => {
           <div class="checkbox-group" style="margin-top: 12px"></div>
         </div>
       </div>
-      <!-- Module 7: Rate Limiting -->
+      <!-- Module 9: Rate Limiting -->
       <div :class="['module-card', { active: enableRateLimiting }]">
         <div
           class="module-header"
@@ -1607,7 +1582,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 8: Outbound Proxy -->
+      <!-- Module 10: Outbound Proxy -->
       <div :class="['module-card', { active: enableOutboundProxy }]">
         <div
           class="module-header"
@@ -1665,6 +1640,68 @@ onMounted(() => {
               <span class="field-hint"
                 >Comma-separated internal hostnames that bypass the proxy.</span
               >
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Module 11: Public Demo Mode -->
+      <div :class="['module-card', { active: enableDemoMode }]">
+        <div class="module-header" @click="enableDemoMode = !enableDemoMode">
+          <label class="module-toggle" @click.stop>
+            <input v-model="enableDemoMode" type="checkbox" />
+            <span class="module-title">🧪 Public Demo Mode</span>
+          </label>
+          <span class="module-badge">{{
+            enableDemoMode ? "Enabled" : "Off"
+          }}</span>
+        </div>
+        <div v-if="enableDemoMode" class="module-body">
+          <p class="field-hint" style="margin: 0">
+            Runs a demo account seeded with sample data that resets daily at
+            midnight UTC. Leave this off for a normal instance.
+          </p>
+          <div
+            class="checkbox-group"
+            style="
+              margin-top: 14px;
+              padding-top: 14px;
+              border-top: 1px dashed rgba(125, 125, 125, 0.2);
+            "
+          >
+            <label class="checkbox-label">
+              <input v-model="enableDemoMode" type="checkbox" />
+              <span class="checkbox-text">
+                Enable Public Demo Mode
+                <code class="var-badge">SPARKY_FITNESS_DEMO_MODE=true</code>
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Runs a demo account seeded with sample data that resets daily at
+              midnight UTC.</span
+            >
+          </div>
+
+          <div
+            v-if="enableDemoMode"
+            class="grid-2"
+            style="margin-top: 10px; margin-left: 26px"
+          >
+            <div class="form-group">
+              <label>Demo Email</label>
+              <input
+                v-model="demoEmail"
+                type="email"
+                class="text-input"
+                placeholder="demo@sparkyfitness.com"
+              />
+            </div>
+            <div class="form-group">
+              <label>Demo Password</label>
+              <input
+                v-model="demoPassword"
+                :type="showSecrets ? 'text' : 'password'"
+                class="text-input font-mono"
+              />
             </div>
           </div>
         </div>

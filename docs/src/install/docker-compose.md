@@ -21,7 +21,7 @@ Before you begin, ensure you have the following installed:
 2.  **Configure Environment Variables (`.env`)**:
     Choose the configuration method that best fits your needs:
     *   ⚡ **[Interactive .env Generator (Recommended)](/install/env-generator)**: Generate a tailored `.env` file with 1-click cryptographically secure passwords and secrets directly in your browser.
-    *   📄 **[Minimal .env Starter Template](https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/docker/.env.simple.example)**: Download the 8-line minimal template for rapid 60-second setup:
+    *   📄 **[Minimal .env Starter Template](https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/docker/.env.simple.example)**: Download the 5-variable minimal template for rapid 60-second setup:
         ```bash
         curl -L -o .env https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/docker/.env.simple.example
         ```

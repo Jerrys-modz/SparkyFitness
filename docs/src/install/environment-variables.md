@@ -32,12 +32,16 @@ The following environment variables are **mandatory** and must be supplied for t
 SparkyFitness implements a two-tier database security model using superuser privileges for migrations and unprivileged application user credentials for daily RLS-enforced queries:
 
 - **`SPARKY_FITNESS_DB_HOST`**: Database hostname (e.g., `sparkyfitness-db` inside Docker, or `localhost` for local development).
-- **`SPARKY_FITNESS_DB_NAME`**: PostgreSQL database name (e.g., `sparkyfitness_db`).
-- **`SPARKY_FITNESS_DB_USER`**: Database superuser for migrations and schema setup (e.g., `sparky`).
+- **`SPARKY_FITNESS_DB_NAME`**: _(Optional)_ PostgreSQL database name. Defaults to `sparkyfitness_db`. Read only at first initialisation — see the warning below.
+- **`SPARKY_FITNESS_DB_USER`**: Database superuser for migrations and schema setup (e.g., `sparky`). _(Optional)_ Defaults to `sparky`. Read only at first initialisation.
 - **`SPARKY_FITNESS_DB_PASSWORD`**: Superuser password. (Can also be supplied via **`SPARKY_FITNESS_DB_PASSWORD_FILE`**).
-- **`SPARKY_FITNESS_APP_DB_USER`**: Application database user with limited privileges (e.g., `sparky_app`).
-- **`SPARKY_FITNESS_APP_DB_PASSWORD`**: Application database user password. (Can also be supplied via **`SPARKY_FITNESS_APP_DB_PASSWORD_FILE`**).
+- **`SPARKY_FITNESS_APP_DB_USER`**: _(Optional)_ Application database user with limited privileges. Defaults to `sparky_app`. The server creates this role itself.
+- **`SPARKY_FITNESS_APP_DB_PASSWORD`**: _(Optional)_ Application database user password. If unset, the server generates one on each start and updates the role to match. Set it explicitly if more than one server shares this database, or if you pre-created the role. (Can also be supplied via **`SPARKY_FITNESS_APP_DB_PASSWORD_FILE`**).
 - **`SPARKY_FITNESS_DB_PORT`**: (Optional) Host port to expose PostgreSQL externally for tools like pgAdmin/DBeaver. Defaults to `5432`.
+
+::: danger Changing database credentials after the first start
+`SPARKY_FITNESS_DB_NAME`, `SPARKY_FITNESS_DB_USER` and `SPARKY_FITNESS_DB_PASSWORD` are handed to PostgreSQL only when it initialises an empty data directory. On every later start PostgreSQL ignores them and keeps what it already has, so editing them in `.env` does not change the database — it only changes what the server tries to authenticate with, which then fails. To rotate them, `ALTER` the role inside PostgreSQL yourself. The application user is different: the server keeps that role's password in sync automatically.
+:::
 
 ### 3. Security & Cryptographic Secrets `[Backend]`
 

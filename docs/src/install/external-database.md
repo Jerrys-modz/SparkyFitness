@@ -108,10 +108,14 @@ SPARKY_FITNESS_APP_DB_PASSWORD=another_secure_password
 
 If a server node fails during database initialization without closing its connection, other instances wait until PostgreSQL detects the lost connection and releases the startup lock. With default Linux TCP keepalive settings, an idle connection can take about two hours to detect. Configure PostgreSQL’s [TCP keepalive settings](https://www.postgresql.org/docs/current/runtime-config-connection.html#GUC-TCP-KEEPALIVES-IDLE) for your recovery requirements; `client_connection_check_interval` helps running queries notice a detected disconnect. [`idle_session_timeout`](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-IDLE-SESSION-TIMEOUT) can end abandoned sessions idle outside a transaction, but does not cover running queries or idle transactions, and needs care with connection pools. When using a proxy, also configure its detection of lost client connections.
 
-> [!IMPORTANT]
-> `SPARKY_FITNESS_APP_DB_USER` and `SPARKY_FITNESS_APP_DB_PASSWORD` are **always required** in the `.env` file — the app uses them for the live query connection pool regardless of which setup option you chose.
-> - **Option A**: the app creates this role automatically using these values.
-> - **Option B**: the role already exists; the password in `.env` must match the one set when you created it manually.
+::: warning Set both values for an external database
+`SPARKY_FITNESS_APP_DB_USER` and `SPARKY_FITNESS_APP_DB_PASSWORD` are optional for a standard Docker Compose install, where the server picks `sparky_app` and generates a password on each start. **For an external database you should set both explicitly**, because you control the role's lifecycle.
+
+- **Option A**: the app creates this role automatically using these values.
+- **Option B**: the role already exists, and the password in `.env` must match the one you set when creating it. The server verifies this by connecting as that role at startup; because the check succeeds, it issues no `ALTER ROLE` and your owner still does not need `CREATEROLE`.
+
+If the password in `.env` stops matching the role, the server updates the role to match — which does require `CREATEROLE`. On a database where you deliberately withheld that privilege, keep the two in sync yourself, or the server will stop with an error telling you which `ALTER ROLE` to run.
+:::
 
 ### Connecting over a Unix socket
 
