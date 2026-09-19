@@ -154,7 +154,69 @@ jobs:
 
           ls -la screenshots
 
-      - name: Upload watch screenshots
+      # The phone counterpart of the watch shots above. Its own build rather
+      # than a reuse of the compile-check one: FORCE_BUNDLING embeds the JS in
+      # the app so it runs in a simulator with no Metro server, and
+      # EXPO_PUBLIC_SCREENSHOT_SEED is inlined at bundle time to send the app
+      # straight to the workout detail screen with a fixture session. Keeping
+      # it separate leaves the build above an honest compile check of what
+      # ships. Both are Debug and share Pods, so this is mostly re-running the
+      # bundle phase.
+      - name: Build iOS app with the screenshot seed
+        working-directory: SparkyFitnessMobile
+        env:
+          FORCE_BUNDLING: "1"
+          EXPO_PUBLIC_SCREENSHOT_SEED: "1"
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'SparkyFitness' \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Capture phone screenshots
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -euo pipefail
+
+          APP="build/Build/Products/Debug-iphonesimulator/SparkyFitness.app"
+          BUNDLE_ID="org.SparkyApps.SparkyFitnessMobile1.dev"
+
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          for runtime, entries in devices.items():
+              if 'iOS' in runtime:
+                  for entry in entries:
+                      if entry['name'].startswith('iPhone'):
+                          print(entry['udid'])
+                          raise SystemExit
+          ")
+          if [ -z "${UDID:-}" ]; then
+            echo 'No iPhone simulator available on this image:'
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using iPhone simulator $UDID"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" "$BUNDLE_ID"
+          # React Native's first frame is well behind process launch: the
+          # bridge starts, the bundle is parsed, then navigation mounts. The
+          # watch shots need 8s and this needs considerably more.
+          sleep 25
+          xcrun simctl io "$UDID" screenshot "screenshots/workout-detail-hr.png"
+
+          ls -la screenshots
+
+      - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
           name: watch-screenshots

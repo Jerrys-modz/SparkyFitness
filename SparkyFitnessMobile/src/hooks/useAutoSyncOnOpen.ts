@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import type { BootstrapRoute } from './useAppBootstrap';
 import { AppState } from 'react-native';
 import { useSyncHealthData } from './useSyncHealthData';
 import {
@@ -25,7 +26,12 @@ import { addLog } from '../services/LogService';
 const AUTO_SYNC_WATCHDOG_MS = 90_000;
 
 interface AutoSyncOnOpenArgs {
-  initialRoute: 'Tabs' | 'Onboarding' | null;
+  /**
+   * Widened to `BootstrapRoute` rather than the two original literals: the CI
+   * screenshot build adds a third. The `!== 'Tabs'` guard below already does
+   * the right thing with it — a screenshot runner has no server to sync with.
+   */
+  initialRoute: BootstrapRoute | null;
   syncMutation: ReturnType<typeof useSyncHealthData>;
 }
 

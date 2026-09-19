@@ -22,6 +22,10 @@ import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchWorkoutBridge } from './src/hooks';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
+import {
+  SCREENSHOT_SEED_ENABLED,
+  SCREENSHOT_SESSION,
+} from './src/services/screenshotSeed';
 import { useAppLanguageForegroundSync } from './src/hooks/useAppLanguageForegroundSync';
 import { useAutoSyncOnOpen } from './src/hooks/useAutoSyncOnOpen';
 import { useAddSheetActions } from './src/hooks/useAddSheetActions';
@@ -638,6 +642,14 @@ function AppContent() {
           <Stack.Screen
             name="WorkoutDetail"
             component={SafeWorkoutDetail}
+            // Only set in the CI screenshot build, where this is the initial
+            // route and nothing navigated here with params. Normal navigation
+            // always passes its own session, which overrides these.
+            initialParams={
+              SCREENSHOT_SEED_ENABLED
+                ? { session: SCREENSHOT_SESSION }
+                : undefined
+            }
             options={({ route }) =>
               createStackScreenOptions(route.params?.session?.name ?? t('screens.workout', { defaultValue: 'Workout' }), {
                 headerBackTitle: t('navigation.diary', { defaultValue: 'Diary' }),
