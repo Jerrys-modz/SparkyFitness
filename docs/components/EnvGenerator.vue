@@ -602,22 +602,27 @@ onMounted(() => {
           <button
             type="button"
             class="quick-tag"
-            @click="setQuickUrl('http://192.168.1.100:3004')"
+            @click="setQuickUrl(`http://192.168.1.100:${frontendPort}`)"
           >
-            LAN IP (192.168.1.100)
+            LAN IP (192.168.1.100:{{ frontendPort }})
           </button>
           <button
             type="button"
             class="quick-tag"
-            @click="setQuickUrl('http://localhost:3004')"
+            @click="setQuickUrl(`http://localhost:${frontendPort}`)"
           >
-            Localhost (3004)
+            Localhost ({{ frontendPort }})
           </button>
         </div>
-        <span class="field-hint"
-          >The public address you open in your browser or mobile app. Essential
-          for CORS security and cookie sessions.</span
-        >
+        <span class="field-hint">
+          The public address you open in your browser or mobile app. Essential
+          for CORS security and cookie sessions. For a direct or LAN address the
+          port must match
+          <code class="var-badge">SPARKY_FITNESS_FRONTEND_PORT</code> ({{
+            frontendPort
+          }}), which is kept in step for you; behind a reverse proxy the URL has
+          no port and none is added.
+        </span>
       </div>
 
       <!-- Database Credentials Grid -->
