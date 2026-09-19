@@ -388,6 +388,10 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                 value={effectiveBulkMealTypeId}
                 options={mealTypeOptions}
                 onSelect={(mealTypeId: string) => {
+                  // The store already refuses draft changes mid-batch; guard
+                  // the local label too so the trigger cannot drift from the
+                  // locked drafts while a submission is in flight.
+                  if (isSubmitting) return;
                   setBulkMealTypeId(mealTypeId);
                   selection.applyMealTypeToAll(mealTypeId);
                 }}
@@ -397,6 +401,8 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                 renderTrigger={({ onPress }) => (
                   <TouchableOpacity
                     onPress={onPress}
+
+                    disabled={isSubmitting}
                     activeOpacity={0.7}
                     className="flex-row items-center"
                     accessibilityRole="button"
