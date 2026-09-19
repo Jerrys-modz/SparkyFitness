@@ -124,6 +124,10 @@ const garminPort = ref("8000");
 // UI State
 const copied = ref(false);
 const showSecrets = ref(false);
+// The preview is collapsed until asked for: it prints the database password,
+// the encryption key and the auth secret in clear text, and this page is often
+// open while screen-sharing. Copy and Download work without revealing it.
+const showEnvOutput = ref(false);
 
 // --- 100% Client-Side Web Crypto Generation ---
 function generateHexKey(bytes = 32): string {
@@ -1803,7 +1807,31 @@ onMounted(() => {
         >
         for what each setting does.
       </div>
-      <pre class="env-preview"><code>{{ generatedEnv }}</code></pre>
+      <div class="reveal-row">
+        <button
+          type="button"
+          class="action-btn secondary"
+          @click="showEnvOutput = !showEnvOutput"
+        >
+          {{ showEnvOutput ? "🙈 Hide" : "👁️ Show" }} generated
+          <code>.env</code>
+        </button>
+        <span class="field-hint">
+          <template v-if="showEnvOutput"
+            >Your database password, encryption key and auth secret are shown
+            below in clear text.</template
+          >
+          <template v-else
+            >Hidden by default — it contains your database password, encryption
+            key and auth secret in clear text. You do not need to reveal it to
+            copy or download the file.</template
+          >
+        </span>
+      </div>
+      <pre
+        v-if="showEnvOutput"
+        class="env-preview"
+      ><code>{{ generatedEnv }}</code></pre>
     </div>
   </div>
 </template>
@@ -2242,6 +2270,20 @@ onMounted(() => {
 .beta-warning a {
   color: var(--vp-c-brand-1, #3b82f6);
   text-decoration: underline;
+}
+
+.reveal-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.reveal-row .field-hint {
+  flex: 1;
+  min-width: 240px;
+  margin-top: 0;
 }
 
 .env-preview {
