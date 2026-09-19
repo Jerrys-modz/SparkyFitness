@@ -43,8 +43,11 @@ const simctlJson = (command) =>
 const SCHEME = 'SparkyFitnessWatch';
 
 console.log(`› Building ${SCHEME} scheme...`);
+// Signing is disabled explicitly: a simulator build never needs it, and
+// leaving it on makes the build fail on a machine whose only team is a free
+// Personal Team (and on a CI runner, which has no identity at all).
 execSync(
-  `xcodebuild -workspace ios/SparkyFitness.xcworkspace -scheme '${SCHEME}' -destination 'generic/platform=watchOS Simulator' build -quiet`,
+  `xcodebuild -workspace ios/SparkyFitness.xcworkspace -scheme '${SCHEME}' -destination 'generic/platform=watchOS Simulator' -quiet CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build`,
   { stdio: 'inherit' }
 );
 

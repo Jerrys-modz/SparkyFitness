@@ -1,0 +1,242 @@
+name: Interactive iOS/watchOS simulator
+
+# Hands you a GUI on a GitHub macOS runner, with a paired iPhone and Apple
+# Watch simulator already running the app.
+#
+# Why this exists: the watch app cannot be driven any other way. Apple does not
+# support UI testing on watchOS, Maestro is iOS-only, and idb does not target
+# watch simulators — so screenshots and `simctl` can set a watch simulator up,
+# but nothing can tap it. Screen Sharing can.
+#
+# The runner joins your tailnet rather than being exposed publicly, so the only
+# way in is from a device already on it.
+#
+# workflow_dispatch ONLY, deliberately. This job holds a runner for as long as
+# you stay connected; on a push trigger that would be hours of runner time per
+# commit. Cancel the run when you are done.
+#
+# Required repository secrets:
+#   TS_AUTHKEY     Tailscale auth key. Make it ephemeral so the runner drops
+#                  off your tailnet when the job ends, and reusable so you do
+#                  not mint a new one per run.
+#   VNC_PASSWORD   Screen Sharing password. Apple's legacy VNC password is
+#                  capped at 8 characters and truncates silently past that, so
+#                  make it exactly 8.
+
+on:
+  workflow_dispatch:
+    inputs:
+      hold_minutes:
+        description: "Minutes to keep the runner open (capped at 330)"
+        default: "120"
+      fake_heart_rate:
+        description: "Launch the watch app with synthetic heart rate"
+        type: boolean
+        default: true
+
+jobs:
+  simulator:
+    name: Remote simulator session
+    runs-on: macos-latest
+    # The GitHub ceiling is 6 hours. The hold loop below is what actually ends
+    # the session; this is only a backstop against it never exiting.
+    timeout-minutes: 360
+
+    steps:
+      - name: Check required secrets
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${TS_AUTHKEY:-}" ] || missing="$missing TS_AUTHKEY"
+          [ -n "${VNC_PASSWORD:-}" ] || missing="$missing VNC_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "Missing repository secret(s):$missing"
+            echo "The comment at the top of this workflow says what each one is."
+            exit 1
+          fi
+          # Failing here beats connecting later and finding the password you
+          # set is not the password macOS kept.
+          if [ "${#VNC_PASSWORD}" -gt 8 ]; then
+            echo "VNC_PASSWORD is ${#VNC_PASSWORD} characters; legacy VNC truncates at 8."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: sparky-ci-simulator
+          version: latest
+
+      - name: Enable Screen Sharing
+        env:
+          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$VNC_PASSWORD"
+
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on \
+            -clientopts -setvnclegacy -vnclegacy yes \
+            -setvncpw -vncpw "$VNC_PASSWORD" \
+            -restart -agent -privs -all -allowAccessFor -allUsers
+
+          sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist 2>/dev/null || true
+
+          # A runner that sleeps or locks its screen is a runner you cannot see.
+          nohup caffeinate -dimsu > /dev/null 2>&1 &
+
+          TAILNET_IP=$(tailscale ip -4 | head -1)
+          {
+            echo '### Remote simulator'
+            echo
+            echo 'Connect with Screen Sharing (or any VNC client) to:'
+            echo
+            echo '```'
+            echo "vnc://$TAILNET_IP"
+            echo '```'
+            echo
+            echo 'Or by hostname, `sparky-ci-simulator`, if MagicDNS is on.'
+            echo 'The username is unused; the password is your `VNC_PASSWORD` secret.'
+            echo
+            echo 'Cancel this run when you are finished — it holds a runner until then.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Tailnet address: $TAILNET_IP"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prebuild iOS project
+        working-directory: SparkyFitnessMobile
+        run: npx expo prebuild --platform ios
+
+      # Debug, not Release, and for once that is the right way round. This
+      # session exists to poke at the app against a real server, and a Release
+      # build has __DEV__ false, which makes the app reject a plain-HTTP server
+      # URL — exactly what a self-hosted SparkyFitness on your tailnet is.
+      # Debug also means expo-dev-client has a Metro server to connect to, so
+      # its launcher is a stepping stone here rather than the dead end it is in
+      # the screenshot job.
+      - name: Build iOS app
+        working-directory: SparkyFitnessMobile
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'SparkyFitness' \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Start Metro
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -euo pipefail
+          nohup pnpm start > "$RUNNER_TEMP/metro.log" 2>&1 &
+          # The dev client gives up quickly if nothing is listening yet.
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:8081/status > /dev/null; then
+              echo "Metro is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Metro did not come up within 60s; last output:"
+          tail -40 "$RUNNER_TEMP/metro.log"
+          exit 1
+
+      # Booted before the watch script runs, because that script pairs with
+      # whichever iPhone is already booted — which is how we make sure it picks
+      # this one rather than an arbitrary device off the list.
+      - name: Boot the iPhone simulator
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -euo pipefail
+
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          for runtime, entries in devices.items():
+              if 'iOS' in runtime:
+                  for entry in entries:
+                      if entry['name'].startswith('iPhone'):
+                          print(entry['udid'])
+                          raise SystemExit
+          ")
+          if [ -z "${UDID:-}" ]; then
+            echo 'No iPhone simulator available on this image:'
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "IPHONE_UDID=$UDID" >> "$GITHUB_ENV"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+
+      # The same script you run on your own Mac, flags and all: it builds the
+      # watch app, pairs it to the booted iPhone and launches it.
+      - name: Pair and launch the watch app
+        working-directory: SparkyFitnessMobile
+        # Through env rather than straight into the script body: a dispatch
+        # input is text, and text pasted into a shell is a command.
+        env:
+          FAKE_HEART_RATE: ${{ inputs.fake_heart_rate }}
+        run: |
+          set -euo pipefail
+          if [ "$FAKE_HEART_RATE" = "true" ]; then
+            node scripts/run-watch.mjs --pair --fake-hr
+          else
+            node scripts/run-watch.mjs --pair
+          fi
+
+      # Last, so the phone app's WCSession activates against a pairing that
+      # already exists rather than one that appears underneath it.
+      - name: Install and launch the phone app
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -euo pipefail
+          APP="build/Build/Products/Debug-iphonesimulator/SparkyFitness.app"
+          xcrun simctl install "$IPHONE_UDID" "$APP"
+          xcrun simctl launch "$IPHONE_UDID" "org.SparkyApps.SparkyFitnessMobile1.dev"
+          open -a Simulator
+
+      - name: Hold the session open
+        env:
+          HOLD_MINUTES: ${{ inputs.hold_minutes }}
+        run: |
+          set -euo pipefail
+          MINUTES=$HOLD_MINUTES
+          case "$MINUTES" in
+            ''|*[!0-9]*)
+              echo "hold_minutes must be a whole number of minutes; got '$MINUTES'."
+              exit 1
+              ;;
+          esac
+          # Under the 6-hour job ceiling with room for the build that preceded
+          # this, so the session ends by its own hand rather than by a kill.
+          if [ "$MINUTES" -gt 330 ]; then MINUTES=330; fi
+          echo "Holding for $MINUTES minutes. Cancel this run to end it sooner."
+          END=$(( $(date +%s) + MINUTES * 60 ))
+          while [ "$(date +%s)" -lt "$END" ]; do
+            echo "$(date -u +%H:%M:%SZ) — session up, $(( (END - $(date +%s)) / 60 ))m left"
+            sleep 60
+          done
