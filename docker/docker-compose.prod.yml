@@ -7,8 +7,13 @@ services:
     # ports:
     #   - "${SPARKY_FITNESS_DB_PORT:-5432}:5432"
     environment:
-      POSTGRES_DB: ${SPARKY_FITNESS_DB_NAME:?Variable is required and must be set}
-      POSTGRES_USER: ${SPARKY_FITNESS_DB_USER:?Variable is required and must be set}
+      # These two are only read the first time the database initialises, so the
+      # defaults below are what an install that never set them is already using.
+      # Do not change them on an existing instance: PostgreSQL ignores the new
+      # value and the server then authenticates with credentials that no longer
+      # match. See docs/src/install/environment-variables.md.
+      POSTGRES_DB: ${SPARKY_FITNESS_DB_NAME:-sparkyfitness_db}
+      POSTGRES_USER: ${SPARKY_FITNESS_DB_USER:-sparky}
       POSTGRES_PASSWORD: ${SPARKY_FITNESS_DB_PASSWORD:-}
       # Uncomment the line below and comment the line above to use a file-based secret
       # POSTGRES_PASSWORD_FILE: /run/secrets/sparkyfitness_db_password
@@ -36,12 +41,12 @@ services:
       # --- Database Connection ---
       SPARKY_FITNESS_DB_HOST: ${SPARKY_FITNESS_DB_HOST:-sparkyfitness-db} # Use the service name 'sparkyfitness-db' for inter-container communication
       SPARKY_FITNESS_DB_PORT: 5432 # Uses internal container port. Do NOT change this if SPARKY_FITNESS_DB_HOST is using container name.
-      SPARKY_FITNESS_DB_NAME: ${SPARKY_FITNESS_DB_NAME:?Variable is required and must be set}
+      SPARKY_FITNESS_DB_NAME: ${SPARKY_FITNESS_DB_NAME:-sparkyfitness_db}
       SPARKY_FITNESS_DB_USER: ${SPARKY_FITNESS_DB_USER:-sparky}
       SPARKY_FITNESS_DB_PASSWORD: ${SPARKY_FITNESS_DB_PASSWORD:-}
       # Uncomment the line below and comment the line above to use a file-based secret
       # SPARKY_FITNESS_DB_PASSWORD_FILE: /run/secrets/sparkyfitness_db_password
-      SPARKY_FITNESS_APP_DB_USER: ${SPARKY_FITNESS_APP_DB_USER:-sparkyapp}
+      SPARKY_FITNESS_APP_DB_USER: ${SPARKY_FITNESS_APP_DB_USER:-sparky_app}
       SPARKY_FITNESS_APP_DB_PASSWORD: ${SPARKY_FITNESS_APP_DB_PASSWORD:-}
       # Uncomment the line below and comment the line above to use a file-based secret
       # SPARKY_FITNESS_APP_DB_PASSWORD_FILE: /run/secrets/sparkyfitness_app_db_password
