@@ -21,6 +21,7 @@ import { expo } from '@better-auth/expo';
 import { expoSsoCookieRelay } from './utils/expoSsoCookieRelay.js';
 import { passkey } from '@better-auth/passkey';
 import { isDemoMode } from './middleware/demoGuardMiddleware.js';
+import { isEmailLoginDisabled } from './utils/emailLogin.js';
 
 const { Pool } = pg;
 /**
@@ -342,8 +343,7 @@ const auth = betterAuth({
     // the *public* route instead; SparkyFitnessServer.ts refuses
     // /api/auth/sign-in/email and /sign-up/email with the identical response
     // Better Auth would have sent, so nothing outside can tell the difference.
-    enabled:
-      isDemoMode() || process.env.SPARKY_FITNESS_DISABLE_EMAIL_LOGIN !== 'true',
+    enabled: isDemoMode() || !isEmailLoginDisabled(),
     requireEmailVerification: false,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
