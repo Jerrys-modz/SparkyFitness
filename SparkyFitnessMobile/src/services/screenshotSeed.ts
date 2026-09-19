@@ -19,10 +19,12 @@ import type {
  * flag from `xcodebuild` into React Native. That also means the check below is
  * a constant after bundling, not a runtime lookup.
  *
- * Deliberately NOT gated on `__DEV__`: the screenshot build bundles its JS
- * with `FORCE_BUNDLING=1` so the app runs in a simulator without Metro, and
- * whether that counts as a dev bundle is an implementation detail of the
- * build. The env var alone decides, and it is absent from every normal build.
+ * Deliberately NOT gated on `__DEV__`, and it cannot be: the screenshot build
+ * is a Release build, because `expo-dev-client` owns the first screen of a
+ * Debug one and would photograph its launcher instead of the app. `__DEV__`
+ * is false there, so that gate would compile this seed out and land the shot
+ * on Onboarding. The env var alone decides, and it is absent from every
+ * normal build.
  */
 export const SCREENSHOT_SEED_ENABLED =
   process.env.EXPO_PUBLIC_SCREENSHOT_SEED === '1';

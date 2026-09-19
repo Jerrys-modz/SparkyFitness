@@ -5,9 +5,10 @@ name: Build iOS & watchOS
 # compiled the Swift until this existed — so a broken watch target or Expo
 # native module could land unnoticed.
 #
-# Builds Debug rather than Release on purpose: the watch target's SwiftUI
+# The compile checks build Debug on purpose: the watch target's SwiftUI
 # previews and its `SampleDay` fixtures are `#if DEBUG`, so a Release build
-# would skip exactly the code most likely to rot.
+# would skip exactly the code most likely to rot. The phone screenshot build
+# at the end is the one deliberate exception, for the reason stated there.
 
 on:
   workflow_dispatch:
@@ -31,7 +32,7 @@ jobs:
   build:
     name: Compile iOS app and watchOS companion
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
@@ -154,24 +155,26 @@ jobs:
 
           ls -la screenshots
 
-      # The phone counterpart of the watch shots above. Its own build rather
-      # than a reuse of the compile-check one: FORCE_BUNDLING embeds the JS in
-      # the app so it runs in a simulator with no Metro server, and
-      # EXPO_PUBLIC_SCREENSHOT_SEED is inlined at bundle time to send the app
-      # straight to the workout detail screen with a fixture session. Keeping
-      # it separate leaves the build above an honest compile check of what
-      # ships. Both are Debug and share Pods, so this is mostly re-running the
-      # bundle phase.
+      # The phone counterpart of the watch shots above, and the one Release
+      # build in this workflow. That is not incidental: expo-dev-client owns
+      # the first screen of a Debug build, so a Debug run photographs its
+      # "Searching for development servers..." launcher no matter how the JS
+      # is bundled. Its takeover is `#if DEBUG`, so Release goes straight to
+      # the app, and the Release build phase embeds the bundle by itself --
+      # no FORCE_BUNDLING, and no Metro server needed at runtime.
+      # EXPO_PUBLIC_SCREENSHOT_SEED is inlined at bundle time and sends the
+      # app to the workout detail screen with a fixture session. Kept separate
+      # from the compile check above so that stays an honest check of the
+      # configuration developers actually build.
       - name: Build iOS app with the screenshot seed
         working-directory: SparkyFitnessMobile
         env:
-          FORCE_BUNDLING: "1"
           EXPO_PUBLIC_SCREENSHOT_SEED: "1"
         run: |
           xcodebuild \
             -workspace ios/SparkyFitness.xcworkspace \
             -scheme 'SparkyFitness' \
-            -configuration Debug \
+            -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
@@ -184,8 +187,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          APP="build/Build/Products/Debug-iphonesimulator/SparkyFitness.app"
+          APP="build/Build/Products/Release-iphonesimulator/SparkyFitness.app"
           BUNDLE_ID="org.SparkyApps.SparkyFitnessMobile1.dev"
+          SHOT="screenshots/workout-detail-hr.png"
+          mkdir -p screenshots
 
           UDID=$(xcrun simctl list devices available -j | python3 -c "
           import json, sys
@@ -206,13 +211,40 @@ jobs:
 
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
+          # A pinned status bar makes the shot reproducible and, more to the
+          # point here, stops the clock ticking underneath the settle check.
+          xcrun simctl status_bar "$UDID" override \
+            --time '9:41' --batteryState charged --batteryLevel 100 || true
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" "$BUNDLE_ID"
+
           # React Native's first frame is well behind process launch: the
-          # bridge starts, the bundle is parsed, then navigation mounts. The
-          # watch shots need 8s and this needs considerably more.
-          sleep 25
-          xcrun simctl io "$UDID" screenshot "screenshots/workout-detail-hr.png"
+          # bridge starts, the bundle is parsed, then navigation mounts. Rather
+          # than guess one sleep, wait for two consecutive identical frames --
+          # with the clock pinned, an unchanged screen means the UI settled.
+          # The opening wait is what stops the launch screen matching itself.
+          sleep 20
+          previous=""
+          for _ in $(seq 1 10); do
+            rm -f "$SHOT.tmp"
+            xcrun simctl io "$UDID" screenshot --type=png "$SHOT.tmp"
+            mv -f "$SHOT.tmp" "$SHOT"
+            current=$(shasum -a 256 "$SHOT" | cut -d ' ' -f 1)
+            if [ "$current" = "$previous" ]; then
+              break
+            fi
+            previous="$current"
+            sleep 5
+          done
+
+          # xcodebuild's environment dump pushes the tail of this job past
+          # where GitHub truncates a log, so report into the step summary too.
+          {
+            echo '### Screenshots'
+            echo '```'
+            ls -la screenshots
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
           ls -la screenshots
 
