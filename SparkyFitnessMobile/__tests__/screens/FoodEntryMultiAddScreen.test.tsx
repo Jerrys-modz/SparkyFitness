@@ -304,12 +304,21 @@ describe('FoodEntryMultiAddScreen', () => {
     expect(row?.quantityText).toBe('1');
   });
 
-  test('a single-variant row shows the plain serving, no picker', () => {
+  test('a row defers its variants fetch until the serving picker is opened', () => {
     seedBasket([makeFood('f0')]);
     const screen = renderScreen();
 
-    expect(screen.getByText('100 g')).toBeTruthy();
-    expect(screen.queryByLabelText('Change serving for Food f0')).toBeNull();
+    // This component renders once per basket row, so an eager query fired up
+    // to MULTI_ADD_MAX_ITEMS (50) parallel requests on mount — uncapped,
+    // unlike the submit fan-out.
+    expect(mockUseFoodVariants).toHaveBeenCalledWith('f0', { enabled: false });
+    expect(mockUseFoodVariants).not.toHaveBeenCalledWith('f0', {
+      enabled: true,
+    });
+
+    fireEvent.press(screen.getByLabelText('Change serving for Food f0'));
+
+    expect(mockUseFoodVariants).toHaveBeenCalledWith('f0', { enabled: true });
   });
 
   test('Add all stays disabled while a row has no resolved meal type', () => {

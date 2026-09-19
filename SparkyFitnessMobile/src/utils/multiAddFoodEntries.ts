@@ -27,7 +27,12 @@ export interface DraftVariantServing {
  * Stable identity for a selectable food. The same food surfaces in several
  * landing sections (Recently Logged / Top / Favorites); keying on
  * food id + default variant id collapses those duplicates into one basket
- * row, while different variants of the same food stay separately selectable.
+ * row.
+ *
+ * Note this keys on the DEFAULT variant, not the row's chosen one: switching
+ * a row's serving basis on the review screen does not change its key, so one
+ * food is always at most one basket row. Selecting the same food twice under
+ * two different servings is not supported.
  */
 export function multiAddKeyForFood(food: FoodItem): string {
   const variantId = food.default_variant?.id;

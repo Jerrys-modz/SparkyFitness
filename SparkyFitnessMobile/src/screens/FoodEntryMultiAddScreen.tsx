@@ -69,6 +69,13 @@ function isRowQuantityValid(row: BasketRow): boolean {
  * serving basis — unit and quantity reseed — among the food's variants. A
  * child component because useFoodVariants is per-food and rows render in a
  * map; React Query caches per foodId so every row fetches once.
+ *
+ * The fetch is deferred until the sheet is first opened. This renders once
+ * per basket row, so an eager query fired up to MULTI_ADD_MAX_ITEMS (50)
+ * parallel requests the moment the review screen mounted — uncapped, unlike
+ * the submit fan-out. The cost of deferring is that a single-variant food
+ * can no longer be detected before the first tap, so every row shows the
+ * chevron and such a food opens a one-option sheet.
  */
 const VariantPicker: React.FC<{
   food: BasketRow['food'];
@@ -83,7 +90,8 @@ const VariantPicker: React.FC<{
   textMuted: string;
   t: TFunction;
 }> = ({ food, variantId, snapshot, disabled, onSelect, textMuted, t }) => {
-  const { variants } = useFoodVariants(food.id);
+  const [hasOpened, setHasOpened] = useState(false);
+  const { variants } = useFoodVariants(food.id, { enabled: hasOpened });
   const options = useMemo(() => {
     const all: (
       FoodVariantDetail | FoodDefaultVariant | DraftVariantServing
@@ -112,13 +120,6 @@ const VariantPicker: React.FC<{
     selected.serving_unit
   )}`;
 
-  // Single-variant foods have nothing to switch — render the plain serving.
-  if (options.length <= 1) {
-    return (
-      // i18n-audit-ignore-next-line hardcoded-ui-text -- quantity and unit are literal data values.
-      <Text className="text-xs text-text-secondary mt-1">{servingLabel}</Text>
-    );
-  }
   return (
     <BottomSheetPicker
       value={selected.id ?? ''}
@@ -137,7 +138,11 @@ const VariantPicker: React.FC<{
       })}
       renderTrigger={({ onPress }) => (
         <TouchableOpacity
-          onPress={onPress}
+          onPress={() => {
+            // First tap is what enables the variants query above.
+            setHasOpened(true);
+            onPress();
+          }}
           disabled={disabled}
           activeOpacity={0.7}
           className="flex-row items-center mt-1"
@@ -401,7 +406,6 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                 renderTrigger={({ onPress }) => (
                   <TouchableOpacity
                     onPress={onPress}
-
                     disabled={isSubmitting}
                     activeOpacity={0.7}
                     className="flex-row items-center"
