@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
+import { withBase } from "vitepress";
 
 // --- Preset Mode ---
 const selectedPreset = ref<"simple" | "full">("simple");
@@ -1792,6 +1793,16 @@ onMounted(() => {
           </button>
         </div>
       </div>
+      <div class="beta-warning">
+        <strong>⚠️ Check this before you use it.</strong> This generator is new
+        and may still get things wrong. Read the output, confirm the values
+        match your deployment — especially ports, paths and URLs — and keep a
+        copy of any existing <code>.env</code> before replacing it. See the
+        <a :href="withBase('/install/environment-variables')"
+          >Environment Variables reference</a
+        >
+        for what each setting does.
+      </div>
       <pre class="env-preview"><code>{{ generatedEnv }}</code></pre>
     </div>
   </div>
@@ -2216,6 +2227,21 @@ onMounted(() => {
   color: var(--vp-c-text-2, #888);
   line-height: 1.35;
   margin-top: 2px;
+}
+
+.beta-warning {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  background: rgba(234, 179, 8, 0.1);
+}
+
+.beta-warning a {
+  color: var(--vp-c-brand-1, #3b82f6);
+  text-decoration: underline;
 }
 
 .env-preview {
