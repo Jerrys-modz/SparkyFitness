@@ -120,6 +120,7 @@ const noProxy = ref("localhost,127.0.0.1,sparkyfitness-garmin");
 // --- 10. Garmin Microservice (Optional) ---
 const garminUrl = ref("http://sparkyfitness-garmin:8000");
 const garminPort = ref("8000");
+const garminIsCn = ref(false);
 
 // UI State
 const copied = ref(false);
@@ -198,6 +199,7 @@ function applyPreset(preset: "simple" | "full") {
     enableSmtp.value = false;
     enableOutboundProxy.value = false;
     enableGarmin.value = false;
+    garminIsCn.value = false;
     realIpHeader.value = "none";
   } else if (preset === "full") {
     customFrontendUrl.value = "https://fitness.example.com";
@@ -217,6 +219,7 @@ function applyPreset(preset: "simple" | "full") {
     enableSmtp.value = true;
     enableOutboundProxy.value = true;
     enableGarmin.value = true;
+    garminIsCn.value = false;
   }
 }
 
@@ -398,6 +401,9 @@ SPARKY_FITNESS_OIDC_SCOPE=${oidcScope.value}
 GARMIN_MICROSERVICE_URL=${garminUrl.value}
 GARMIN_SERVICE_PORT=${garminPort.value}
 `;
+    if (garminIsCn.value) {
+      out += `GARMIN_SERVICE_IS_CN=true\n`;
+    }
   }
 
   if (enableNetworkNginx.value) {
@@ -1445,6 +1451,19 @@ onMounted(() => {
                 <code>8000</code>.</span
               >
             </div>
+          </div>
+          <div class="checkbox-group" style="margin-top: 12px">
+            <label class="checkbox-label">
+              <input v-model="garminIsCn" type="checkbox" />
+              <span class="checkbox-text">
+                Garmin China region
+                <code class="var-badge">GARMIN_SERVICE_IS_CN=true</code>
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Only for accounts on Garmin's China service. Leave off everywhere
+              else.</span
+            >
           </div>
         </div>
       </div>
