@@ -111,4 +111,35 @@ router.get('/allow-user-ai-config', authenticate, async (req, res) => {
       .json({ message: 'Error checking user AI config permission' });
   }
 });
+/**
+ * @swagger
+ * /global-settings/mock-data-enabled:
+ *   get:
+ *     summary: Check if the runtime mock-data options are available (Authenticated)
+ *     tags: [System & Admin]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Returns whether an admin has enabled the mock-data options.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mock_data_enabled:
+ *                   type: boolean
+ */
+router.get('/mock-data-enabled', authenticate, async (_req, res) => {
+  try {
+    const isEnabled = await globalSettingsRepository.isMockDataEnabled();
+    res.json({ mock_data_enabled: isEnabled });
+  } catch (error) {
+    log(
+      'error',
+      `Error checking mock data setting: ${error instanceof Error ? error.message : String(error)}`
+    );
+    res.status(500).json({ message: 'Error checking mock data setting' });
+  }
+});
 export default router;
