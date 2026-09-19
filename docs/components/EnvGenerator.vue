@@ -1780,22 +1780,6 @@ onMounted(() => {
             <code>docker-compose.yml</code></span
           >
         </div>
-        <div class="toolbar-actions">
-          <button
-            type="button"
-            class="action-btn primary"
-            @click="copyToClipboard"
-          >
-            {{ copied ? "✅ Copied to Clipboard!" : "📋 Copy .env" }}
-          </button>
-          <button
-            type="button"
-            class="action-btn secondary"
-            @click="downloadEnvFile"
-          >
-            ⬇️ Download .env File
-          </button>
-        </div>
       </div>
       <div class="beta-warning">
         <strong>⚠️ Check this before you use it.</strong> This generator is new
@@ -1816,6 +1800,22 @@ onMounted(() => {
           {{ showEnvOutput ? "🙈 Hide" : "👁️ Show" }} generated
           <code>.env</code>
         </button>
+        <button
+          type="button"
+          class="action-btn primary"
+          @click="copyToClipboard"
+        >
+          {{ copied ? "✅ Copied to Clipboard!" : "📋 Copy .env" }}
+        </button>
+        <button
+          type="button"
+          class="action-btn secondary"
+          @click="downloadEnvFile"
+        >
+          ⬇️ Download .env File
+        </button>
+      </div>
+      <div class="reveal-note">
         <span class="field-hint">
           <template v-if="showEnvOutput"
             >Your database password, encryption key and auth secret are shown
@@ -2280,9 +2280,11 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.reveal-row .field-hint {
-  flex: 1;
-  min-width: 240px;
+.reveal-note {
+  margin-bottom: 12px;
+}
+
+.reveal-note .field-hint {
   margin-top: 0;
 }
 
