@@ -29,6 +29,36 @@ const betterAuthSecret = ref("");
 const timezone = ref("Etc/UTC");
 const logLevel = ref("ERROR");
 
+// The full IANA zone list straight from the browser, so it never goes stale.
+// Older engines lack Intl.supportedValuesOf, hence the modest fallback.
+const TIMEZONE_ALIASES = [
+  "Asia/Kolkata",
+  "Asia/Saigon",
+  "Europe/Kyiv",
+  "America/Buenos_Aires",
+];
+const FALLBACK_TIMEZONES = [
+  "Etc/UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Sao_Paulo",
+  "Europe/London",
+  "Europe/Berlin",
+  "Europe/Paris",
+  "Europe/Moscow",
+  "Asia/Kolkata",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+];
+const timezoneOptions = ref<string[]>(FALLBACK_TIMEZONES);
+const detectedTimezone = ref("Etc/UTC");
+
 // --- 3. Nginx & Reverse Proxy (Optional) ---
 const frontendPort = ref("3004");
 const serverPort = ref("3010");
@@ -257,10 +287,15 @@ SPARKY_FITNESS_DB_PORT=${dbPort.value}
 SPARKY_FITNESS_API_ENCRYPTION_KEY=${apiEncryptionKey.value}
 BETTER_AUTH_SECRET=${betterAuthSecret.value}
 SPARKY_FITNESS_FRONTEND_URL=${customFrontendUrl.value}
+SPARKY_FITNESS_SERVER_PORT=${serverPort.value}
 SPARKY_FITNESS_LOG_LEVEL=${logLevel.value}
 NODE_ENV=production
 TZ=${timezone.value}
-
+${
+  extraTrustedOrigins.value.trim()
+    ? `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`
+    : ""
+}
 # --- Persistent Host Storage Paths ---
 # Always written out. docker-compose falls back to these same values when the
 # variables are absent, so pinning them here keeps an upgrade from silently
@@ -333,7 +368,6 @@ GARMIN_SERVICE_PORT=${garminPort.value}
   if (enableNetworkNginx.value) {
     out += `\n# --- Frontend & Nginx Settings ---
 SPARKY_FITNESS_FRONTEND_PORT=${frontendPort.value}
-SPARKY_FITNESS_SERVER_PORT=${serverPort.value}
 NGINX_RATE_LIMIT=${nginxRateLimit.value}
 NGINX_LISTEN_PORT=${nginxListenPort.value}
 `;
@@ -341,9 +375,6 @@ NGINX_LISTEN_PORT=${nginxListenPort.value}
       out += `SPARKY_FITNESS_REAL_IP_HEADER=${realIpHeader.value}\n`;
     } else {
       out += `SPARKY_FITNESS_TRUSTED_PROXY_HOPS=${trustedProxyHops.value}\n`;
-    }
-    if (extraTrustedOrigins.value.trim()) {
-      out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
     }
   }
 
@@ -407,6 +438,23 @@ function downloadEnvFile() {
 }
 
 onMounted(() => {
+  try {
+    const supported = (
+      Intl as unknown as { supportedValuesOf?: (k: string) => string[] }
+    ).supportedValuesOf;
+    if (typeof supported === "function") {
+      // supportedValuesOf returns canonical zone names only, so e.g.
+      // Asia/Calcutta is listed but Asia/Kolkata is not. Both are valid TZ
+      // values, so merge the common modern aliases in to keep them findable.
+      timezoneOptions.value = Array.from(
+        new Set([...supported.call(Intl, "timeZone"), ...TIMEZONE_ALIASES]),
+      ).sort();
+    }
+    const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (local) detectedTimezone.value = local;
+  } catch {
+    // keep the fallback list and Etc/UTC
+  }
   rerollSecrets();
 });
 </script>
@@ -680,6 +728,22 @@ onMounted(() => {
             <code>sparkyfitness-db</code>.</span
           >
         </div>
+        <div class="form-group">
+          <label
+            >Database Port
+            <code class="var-badge">SPARKY_FITNESS_DB_PORT</code></label
+          >
+          <input
+            v-model="dbPort"
+            type="text"
+            class="text-input"
+            placeholder="5432"
+          />
+          <span class="field-hint"
+            >Only change this when pointing at an external PostgreSQL on a
+            non-standard port.</span
+          >
+        </div>
       </div>
 
       <!-- Security Encryption Keys -->
@@ -742,6 +806,90 @@ onMounted(() => {
           >Signs session JWTs and encrypts TOTP 2-Factor Authentication keys.
           Keep persistent.</span
         >
+      </div>
+
+      <div class="section-divider">
+        <span>⚙️ Server Runtime</span>
+      </div>
+      <div class="field-explanation">
+        Always written to the generated file. The timezone drives how the server
+        buckets entries into calendar days, so set it to your own zone rather
+        than leaving it on UTC.
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Server Timezone <code class="var-badge">TZ</code></label>
+          <input
+            v-model="timezone"
+            type="text"
+            class="text-input"
+            list="tz-options"
+            placeholder="Start typing, e.g. New_York"
+          />
+          <datalist id="tz-options">
+            <option v-for="tz in timezoneOptions" :key="tz" :value="tz" />
+          </datalist>
+          <span class="field-hint"
+            >Type to search the IANA list, e.g. <code>America/New_York</code>.
+            Drives how entries are bucketed into calendar days.
+            <button
+              type="button"
+              class="link-btn"
+              @click="timezone = detectedTimezone"
+            >
+              Use mine ({{ detectedTimezone }})
+            </button>
+          </span>
+        </div>
+        <div class="form-group">
+          <label
+            >Log Level
+            <code class="var-badge">SPARKY_FITNESS_LOG_LEVEL</code></label
+          >
+          <select v-model="logLevel" class="text-input">
+            <option value="ERROR">ERROR (default)</option>
+            <option value="WARN">WARN</option>
+            <option value="INFO">INFO</option>
+            <option value="DEBUG">DEBUG</option>
+            <option value="SILENT">SILENT</option>
+          </select>
+          <span class="field-hint"
+            >Raise to DEBUG only while troubleshooting; it is noisy.</span
+          >
+        </div>
+        <div class="form-group">
+          <label
+            >Backend Port
+            <code class="var-badge">SPARKY_FITNESS_SERVER_PORT</code></label
+          >
+          <input
+            v-model="serverPort"
+            type="text"
+            class="text-input"
+            placeholder="3010"
+          />
+          <span class="field-hint"
+            >Port the backend listens on inside its container.</span
+          >
+        </div>
+        <div class="form-group">
+          <label
+            >Extra Trusted Origins
+            <code class="var-badge"
+              >SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS</code
+            ></label
+          >
+          <input
+            v-model="extraTrustedOrigins"
+            type="text"
+            class="text-input"
+            placeholder="http://192.168.1.50:3004"
+          />
+          <span class="field-hint"
+            >Comma-separated additional origins Better Auth should trust. Leave
+            blank unless you reach the app on more than one URL.</span
+          >
+        </div>
       </div>
 
       <div class="section-divider">
@@ -1915,6 +2063,17 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 6px 8px;
   line-height: 1.4;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 4px;
+  font: inherit;
+  color: var(--vp-c-brand-1, #3b82f6);
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .section-divider {
