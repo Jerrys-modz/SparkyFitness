@@ -11,7 +11,7 @@ For the complete tracked reference file, see [`.env.example` on GitHub](https://
 
 ::: tip
 💡 **For Standard Docker Compose Users:**
-You **only need to edit your `.env` file**. The official `docker-compose.yml` is already pre-configured to automatically pass all environment variables to the correct containers (`Database`, `Server`, `Frontend`, and `Garmin`).
+You **only need to edit your `.env` file**. The official `docker-compose.yml` already passes the variables it defines through to the services it runs (`Database`, `Server`, and `Frontend`). The `Garmin` service is commented out by default — uncomment it to use the Garmin variables — and the iOS build variables are only read by local mobile builds, never by Compose.
 
 🛠️ **For Custom Deployments (Kubernetes, Helm, Portainer, Bare-Metal):**
 The service tags below (`[Backend Server]`, `[Frontend Nginx]`, `[PostgreSQL]`, `[Garmin]`) indicate which component consumes each setting.

@@ -81,12 +81,12 @@ const GlobalProviderSettings = () => {
                   Allow Local Provider Response Capture
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Adds two options to the provider sync dialog: save a
-                  provider&apos;s raw responses to a JSON file on the server,
-                  and replay that file instead of calling the provider. Intended
-                  for collecting a sample to share when troubleshooting a sync —
-                  turn it back off afterwards, as it lets any user write files
-                  to the server.
+                  Adds two options to the provider sync dialog, for admins only:
+                  save a provider&apos;s raw responses to a JSON file on the
+                  server, and replay that file instead of calling the provider.
+                  Intended for collecting a sample to share when troubleshooting
+                  a sync. The captured file is stored per provider rather than
+                  per user, so turn this back off once you have what you need.
                 </p>
               </div>
               <Switch

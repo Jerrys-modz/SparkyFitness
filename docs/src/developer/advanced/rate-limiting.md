@@ -47,7 +47,7 @@ location ^~ /api/auth/ {
 
 ### A caveat worth knowing
 
-::warning
+::: warning
 **The zone keys on `$binary_remote_addr`**, which is the address of whatever proxy sits in
 front of the container. If you run behind a reverse proxy, CDN or tunnel (Nginx Proxy
 Manager, Cloudflare Tunnel), that is a single address for *every* visitor — so all users
@@ -171,7 +171,7 @@ With the defaults you should see four `401`s followed by `429`s. If you see `429
 fourth request instead of the fifth, the custom rules are not being applied and Better Auth's
 3-per-10s default is in force.
 
-::caution
+::: warning
 Do not run this against a production instance that sits behind fail2ban or CrowdSec unless
 your own IP is allow-listed. The `401`s this generates are exactly what those tools ban for,
 and you can lock yourself out at the CDN edge for hours.

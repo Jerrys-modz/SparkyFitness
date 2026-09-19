@@ -17,7 +17,10 @@ router.post('/sync', authMiddleware.authenticate, async (req, res) => {
 
     const createdByUserId = req.userId;
     const { providerId, startDate, endDate } = req.body;
-    const { dataSource, saveMockData } = await resolveMockDataOptions(req.body);
+    const { dataSource, saveMockData } = await resolveMockDataOptions(
+      req.body,
+      req.authenticatedUserId
+    );
     const fullSync =
       req.query.fullSync === 'true' || req.body.fullSync === true;
     log(

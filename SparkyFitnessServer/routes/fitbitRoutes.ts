@@ -108,7 +108,8 @@ router.post(
       const userId = req.userId;
       const { startDate, endDate } = req.body;
       const { dataSource, saveMockData } = await resolveMockDataOptions(
-        req.body
+        req.body,
+        req.authenticatedUserId
       );
       log(
         'info',

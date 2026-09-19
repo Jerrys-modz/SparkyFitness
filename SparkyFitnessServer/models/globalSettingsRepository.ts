@@ -125,57 +125,58 @@ async function isOpenFoodFactsContributionAllowed(): Promise<boolean> {
     client.release();
   }
 }
-async function isPrivateNetworkAiAllowed(): Promise<boolean> {
-  const client = await getSystemClient();
+/**
+ * The boolean policy columns on `global_settings`. A closed union, because the
+ * column name is interpolated into the SQL below — nothing outside this file
+ * can widen it, and no value ever comes from a request.
+ */
+type BooleanSettingColumn =
+  | 'allow_private_network_ai'
+  | 'allow_private_network_food_providers'
+  | 'public_api_docs'
+  | 'dev_tools_enabled'
+  | 'mock_data_enabled';
+
+/**
+ * Reads one boolean policy column from `global_settings`, failing closed.
+ *
+ * These are consulted on request paths (SSRF policy, API-doc access, dev tool
+ * registration), so an unreachable database must deny rather than throw a
+ * connection error into the caller. The client is acquired inside the try for
+ * that reason: `getSystemClient()` itself rejects when Postgres is down.
+ */
+async function readBooleanSetting(
+  column: BooleanSettingColumn
+): Promise<boolean> {
+  let client;
   try {
+    client = await getSystemClient();
     const result = await client.query(
-      'SELECT allow_private_network_ai FROM global_settings WHERE id = 1'
+      `SELECT ${column} FROM global_settings WHERE id = 1`
     );
-    return result.rows[0]?.allow_private_network_ai === true;
-  } catch {
+    return result.rows[0]?.[column] === true;
+  } catch (error) {
+    log(
+      'warn',
+      `[GLOBAL SETTINGS REPO] Could not read ${column}; defaulting to false: ${error instanceof Error ? error.message : String(error)}`
+    );
     return false;
   } finally {
-    client.release();
+    client?.release();
   }
+}
+
+async function isPrivateNetworkAiAllowed(): Promise<boolean> {
+  return readBooleanSetting('allow_private_network_ai');
 }
 async function isPrivateNetworkFoodProvidersAllowed(): Promise<boolean> {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      'SELECT allow_private_network_food_providers FROM global_settings WHERE id = 1'
-    );
-    return result.rows[0]?.allow_private_network_food_providers === true;
-  } catch {
-    return false;
-  } finally {
-    client.release();
-  }
+  return readBooleanSetting('allow_private_network_food_providers');
 }
 async function isPublicApiDocsAllowed(): Promise<boolean> {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      'SELECT public_api_docs FROM global_settings WHERE id = 1'
-    );
-    return result.rows[0]?.public_api_docs === true;
-  } catch {
-    return false;
-  } finally {
-    client.release();
-  }
+  return readBooleanSetting('public_api_docs');
 }
 async function isDevToolsEnabled(): Promise<boolean> {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      'SELECT dev_tools_enabled FROM global_settings WHERE id = 1'
-    );
-    return result.rows[0]?.dev_tools_enabled === true;
-  } catch {
-    return false;
-  } finally {
-    client.release();
-  }
+  return readBooleanSetting('dev_tools_enabled');
 }
 /**
  * Admin master switch for the runtime mock-data options. While false, the
@@ -185,17 +186,7 @@ async function isDevToolsEnabled(): Promise<boolean> {
  * decision made in the Admin UI and meant to be turned back off.
  */
 async function isMockDataEnabled(): Promise<boolean> {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      'SELECT mock_data_enabled FROM global_settings WHERE id = 1'
-    );
-    return result.rows[0]?.mock_data_enabled === true;
-  } catch {
-    return false;
-  } finally {
-    client.release();
-  }
+  return readBooleanSetting('mock_data_enabled');
 }
 async function isUserAiConfigAllowed() {
   const client = await getSystemClient();

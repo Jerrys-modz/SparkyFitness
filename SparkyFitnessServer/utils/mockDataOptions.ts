@@ -1,4 +1,5 @@
 import { isMockDataEnabled } from '../models/globalSettingsRepository.js';
+import { resolveIsAdminByUserId } from './adminCheck.js';
 
 export interface MockDataOptions {
   /** Provider slug, or 'local' to replay a previously captured bundle. */
@@ -17,14 +18,27 @@ const DISABLED: MockDataOptions = {
  *
  * Both options are developer/support tooling: one makes the server write raw
  * provider responses to disk, the other replays them instead of calling the
- * provider. They are only honoured while an admin has turned on the
- * `mock_data_enabled` global setting, which is off by default — so on a normal
- * instance a user cannot reach either capability, whatever they post.
+ * provider.
+ *
+ * Two gates, both required. The `mock_data_enabled` global setting is off by
+ * default, so on a normal instance neither capability exists at all. On top of
+ * that the caller must be an admin, because a captured bundle is stored per
+ * provider (`mock_data/<provider>_raw.json`) and not per user: without the
+ * admin gate, one user could capture their raw sleep, heart-rate, GPS and
+ * nutrition data and a second user could replay that same file into their own
+ * account. Admins are already the trusted operator role for this instance.
  */
 export async function resolveMockDataOptions(
-  body: unknown
+  body: unknown,
+  authenticatedUserId?: string
 ): Promise<MockDataOptions> {
   if (!(await isMockDataEnabled())) {
+    return DISABLED;
+  }
+  if (
+    !authenticatedUserId ||
+    !(await resolveIsAdminByUserId(authenticatedUserId))
+  ) {
     return DISABLED;
   }
   const source = body as

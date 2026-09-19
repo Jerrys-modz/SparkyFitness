@@ -40,7 +40,7 @@ Before you begin, ensure you have the following installed:
 The `docker-compose.prod.yml` file defines three main services:
 
 *   **`sparkyfitness-db`**:
-    *   **Image**: `postgres:15-alpine`
+    *   **Image**: `postgres:18.3-alpine`
     *   **Purpose**: The PostgreSQL database server for storing application data.
     *   **Data Persistence**: Data is persisted in a Docker volume mapped to `../postgresql` on your host, ensuring your data is not lost if containers are removed.
 

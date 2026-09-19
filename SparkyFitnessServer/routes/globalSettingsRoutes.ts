@@ -1,3 +1,4 @@
+import { resolveIsAdmin } from '../utils/adminCheck.js';
 import express from 'express';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import { log } from '../config/logging.js';
@@ -115,13 +116,17 @@ router.get('/allow-user-ai-config', authenticate, async (req, res) => {
  * @swagger
  * /global-settings/mock-data-enabled:
  *   get:
- *     summary: Check if the runtime mock-data options are available (Authenticated)
+ *     summary: Check if the runtime mock-data options are available to the caller (Authenticated)
  *     tags: [System & Admin]
  *     security:
  *       - cookieAuth: []
  *     responses:
  *       200:
- *         description: Returns whether an admin has enabled the mock-data options.
+ *         description: >
+ *           Whether the caller may use the per-sync mock-data options: the
+ *           global setting is on AND the caller is an admin. Mirrors the
+ *           server-side gate in utils/mockDataOptions.ts so the sync dialog
+ *           only offers what the server will honour.
  *         content:
  *           application/json:
  *             schema:
@@ -130,10 +135,14 @@ router.get('/allow-user-ai-config', authenticate, async (req, res) => {
  *                 mock_data_enabled:
  *                   type: boolean
  */
-router.get('/mock-data-enabled', authenticate, async (_req, res) => {
+router.get('/mock-data-enabled', authenticate, async (req, res) => {
   try {
+    // Same two gates as resolveMockDataOptions: the captured bundle is stored
+    // per provider rather than per user, so replay is admin-only.
     const isEnabled = await globalSettingsRepository.isMockDataEnabled();
-    res.json({ mock_data_enabled: isEnabled });
+    const available =
+      isEnabled && (await resolveIsAdmin(req.user, req.authenticatedUserId));
+    res.json({ mock_data_enabled: available });
   } catch (error) {
     log(
       'error',

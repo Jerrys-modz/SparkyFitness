@@ -69,7 +69,10 @@ router.post('/sync', async (req, res) => {
   try {
     const userId = req.userId;
     const { startDate, endDate } = req.body;
-    const { dataSource, saveMockData } = await resolveMockDataOptions(req.body);
+    const { dataSource, saveMockData } = await resolveMockDataOptions(
+      req.body,
+      req.authenticatedUserId
+    );
     log(
       'info',
       `[stravaRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}${dataSource ? ` (Source: ${dataSource})` : ''}`

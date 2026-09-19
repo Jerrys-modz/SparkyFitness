@@ -144,8 +144,13 @@ function rerollSecrets() {
 
 function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
   selectedPreset.value = preset;
+  // Each branch assigns every preset-controlled value. Leaving one out lets a
+  // previously selected preset leak into the generated file — switching from
+  // Localhost Dev used to carry ALLOW_PRIVATE_NETWORK_CORS=true into a
+  // reverse-proxy or full config.
   if (preset === "simple") {
     customFrontendUrl.value = "http://localhost:3004";
+    allowPrivateNetworkCors.value = false;
     enableNetworkNginx.value = false;
     enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
@@ -169,6 +174,7 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     realIpHeader.value = "none";
   } else if (preset === "proxy") {
     customFrontendUrl.value = "https://fitness.example.com";
+    allowPrivateNetworkCors.value = false;
     enableNetworkNginx.value = true;
     realIpHeader.value = "CF-Connecting-IP";
     trustedProxyHops.value = "1";
@@ -180,6 +186,10 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     enableOutboundProxy.value = false;
     enableGarmin.value = false;
   } else if (preset === "full") {
+    customFrontendUrl.value = "https://fitness.example.com";
+    allowPrivateNetworkCors.value = false;
+    realIpHeader.value = "CF-Connecting-IP";
+    trustedProxyHops.value = "1";
     enableNetworkNginx.value = true;
     enableCustomVolumes.value = true;
     enableAuthAdmin.value = true;
@@ -282,9 +292,14 @@ SERVER_UPLOADS_PATH=${uploadsPath.value}
   }
 
   if (enableAuthAdmin.value) {
-    out += `\n# --- Authentication & Admin Settings ---
-SPARKY_FITNESS_FORCE_EMAIL_LOGIN=${forceEmailLogin.value}
-`;
+    out += `\n# --- Authentication & Admin Settings ---\n`;
+    // Emitting both flags is contradictory and the server resolves the conflict
+    // differently depending on the path, so the fail-safe is only written when
+    // email login has not been explicitly disabled below.
+    const emailLoginDisabled = enableOidc.value && disableEmailLogin.value;
+    if (!emailLoginDisabled) {
+      out += `SPARKY_FITNESS_FORCE_EMAIL_LOGIN=${forceEmailLogin.value}\n`;
+    }
     if (disableSignup.value) {
       out += `SPARKY_FITNESS_DISABLE_SIGNUP=true\n`;
     }
