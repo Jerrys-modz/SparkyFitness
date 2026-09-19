@@ -42,7 +42,7 @@ The `docker-compose.prod.yml` file defines three main services:
 *   **`sparkyfitness-db`**:
     *   **Image**: `postgres:18.3-alpine`
     *   **Purpose**: The PostgreSQL database server for storing application data.
-    *   **Data Persistence**: Data is persisted in a Docker volume mapped to `../postgresql` on your host, ensuring your data is not lost if containers are removed.
+    *   **Data Persistence**: Data is persisted to `./postgresql` on your host (override with `DB_PATH`), ensuring your data is not lost if containers are removed.
 
 *   **`sparkyfitness-server`**:
     *   **Image**: `codewithcj/sparkyfitness_server:latest`

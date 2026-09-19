@@ -6,7 +6,6 @@ const selectedPreset = ref<"simple" | "local" | "proxy" | "full">("simple");
 
 // --- Feature Module Checkbox Toggles ---
 const enableNetworkNginx = ref(false);
-const enableCustomVolumes = ref(false);
 const enableAuthAdmin = ref(false);
 const enableRateLimiting = ref(false);
 const enableOidc = ref(false);
@@ -43,7 +42,7 @@ const allowPrivateNetworkCors = ref(false);
 const extraTrustedOrigins = ref("");
 
 // --- 4. Custom Host Storage Paths (Optional) ---
-const dbPath = ref("../postgresql");
+const dbPath = ref("./postgresql");
 const backupPath = ref("./backup");
 const uploadsPath = ref("./uploads");
 
@@ -152,7 +151,6 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     customFrontendUrl.value = "http://localhost:3004";
     allowPrivateNetworkCors.value = false;
     enableNetworkNginx.value = false;
-    enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
     enableDemoMode.value = false;
     enableRateLimiting.value = false;
@@ -165,7 +163,6 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     customFrontendUrl.value = "http://localhost:3004";
     enableNetworkNginx.value = true;
     allowPrivateNetworkCors.value = true;
-    enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
     enableDemoMode.value = false;
     enableRateLimiting.value = false;
@@ -180,7 +177,6 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     enableNetworkNginx.value = true;
     realIpHeader.value = "CF-Connecting-IP";
     trustedProxyHops.value = "1";
-    enableCustomVolumes.value = false;
     enableAuthAdmin.value = false;
     enableDemoMode.value = false;
     enableRateLimiting.value = false;
@@ -194,7 +190,6 @@ function applyPreset(preset: "simple" | "local" | "proxy" | "full") {
     realIpHeader.value = "CF-Connecting-IP";
     trustedProxyHops.value = "1";
     enableNetworkNginx.value = true;
-    enableCustomVolumes.value = true;
     enableAuthAdmin.value = true;
     enableDemoMode.value = false;
     enableRateLimiting.value = true;
@@ -213,7 +208,6 @@ function setQuickUrl(url: string) {
 const generatedEnv = computed(() => {
   const isMinimal =
     !enableNetworkNginx.value &&
-    !enableCustomVolumes.value &&
     !enableAuthAdmin.value &&
     !enableDemoMode.value &&
     !enableRateLimiting.value &&
@@ -266,15 +260,15 @@ SPARKY_FITNESS_FRONTEND_URL=${customFrontendUrl.value}
 SPARKY_FITNESS_LOG_LEVEL=${logLevel.value}
 NODE_ENV=production
 TZ=${timezone.value}
-`;
 
-  if (enableCustomVolumes.value) {
-    out += `\n# --- Volume Storage Paths ---
+# --- Persistent Host Storage Paths ---
+# Always written out. docker-compose falls back to these same values when the
+# variables are absent, so pinning them here keeps an upgrade from silently
+# pointing at a different directory.
 DB_PATH=${dbPath.value}
 SERVER_BACKUP_PATH=${backupPath.value}
 SERVER_UPLOADS_PATH=${uploadsPath.value}
 `;
-  }
 
   if (enableAuthAdmin.value) {
     out += `\n# --- Authentication & Admin Settings ---\n`;
@@ -749,6 +743,70 @@ onMounted(() => {
           Keep persistent.</span
         >
       </div>
+
+      <div class="section-divider">
+        <span>💾 Persistent Host Storage Paths</span>
+      </div>
+      <div class="upgrade-warning">
+        <strong>Already running SparkyFitness?</strong> Copy these three values
+        from your existing <code>.env</code>. They are always written to the
+        generated file, and pointing them at a new directory starts the server
+        with an empty database. If you bind-mounted paths directly in your
+        <code>docker-compose.yml</code>, these are ignored and nothing changes
+        for you.
+      </div>
+      <div class="field-explanation">
+        Where the database, backups, and user uploads live on the host
+        filesystem (e.g. Synology NAS, Unraid, TrueNAS). The defaults match what
+        <code>docker-compose.yml</code> uses when these are unset.
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label
+            >Postgres Data Path <code class="var-badge">DB_PATH</code></label
+          >
+          <input
+            v-model="dbPath"
+            type="text"
+            class="text-input"
+            placeholder="./postgresql"
+          />
+          <span class="field-hint"
+            >Host directory for PostgreSQL cluster data.</span
+          >
+        </div>
+        <div class="form-group">
+          <label
+            >Backups Path
+            <code class="var-badge">SERVER_BACKUP_PATH</code></label
+          >
+          <input
+            v-model="backupPath"
+            type="text"
+            class="text-input"
+            placeholder="./backup"
+          />
+          <span class="field-hint"
+            >Host directory where database backups are exported.</span
+          >
+        </div>
+        <div class="form-group">
+          <label
+            >Uploads & Images Path
+            <code class="var-badge">SERVER_UPLOADS_PATH</code></label
+          >
+          <input
+            v-model="uploadsPath"
+            type="text"
+            class="text-input"
+            placeholder="./uploads"
+          />
+          <span class="field-hint"
+            >Host directory for user profile avatars and custom food
+            photos.</span
+          >
+        </div>
+      </div>
     </div>
 
     <!-- OPTIONAL FEATURE MODULES (CHECKBOX CARDS) -->
@@ -757,76 +815,7 @@ onMounted(() => {
         <span>Optional Configuration Modules</span>
         <small>Select what you need for your deployment environment</small>
       </div>
-      <!-- Module 1: Persistent Host Storage Paths -->
-      <div :class="['module-card', { active: enableCustomVolumes }]">
-        <div
-          class="module-header"
-          @click="enableCustomVolumes = !enableCustomVolumes"
-        >
-          <label class="module-toggle" @click.stop>
-            <input v-model="enableCustomVolumes" type="checkbox" />
-            <span class="module-title">💾 Persistent Host Storage Paths</span>
-          </label>
-          <span class="module-badge">{{
-            enableCustomVolumes ? "Enabled" : "Click to Enable"
-          }}</span>
-        </div>
-        <div v-if="enableCustomVolumes" class="module-body">
-          <div class="field-explanation">
-            Map database, backups, and user uploads to specific paths on your
-            host filesystem (e.g. Synology NAS, Unraid, TrueNAS).
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label
-                >Postgres Data Path
-                <code class="var-badge">DB_PATH</code></label
-              >
-              <input
-                v-model="dbPath"
-                type="text"
-                class="text-input"
-                placeholder="../postgresql"
-              />
-              <span class="field-hint"
-                >Host directory for PostgreSQL cluster data.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Backups Path
-                <code class="var-badge">SERVER_BACKUP_PATH</code></label
-              >
-              <input
-                v-model="backupPath"
-                type="text"
-                class="text-input"
-                placeholder="./backup"
-              />
-              <span class="field-hint"
-                >Host directory where database backups are exported.</span
-              >
-            </div>
-            <div class="form-group">
-              <label
-                >Uploads & Images Path
-                <code class="var-badge">SERVER_UPLOADS_PATH</code></label
-              >
-              <input
-                v-model="uploadsPath"
-                type="text"
-                class="text-input"
-                placeholder="./uploads"
-              />
-              <span class="field-hint"
-                >Host directory for user profile avatars and custom food
-                photos.</span
-              >
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Module 2: Admin, Signups & Access Policy -->
+      <!-- Module 1: Admin, Signups & Access Policy -->
       <div :class="['module-card', { active: enableAuthAdmin }]">
         <div class="module-header" @click="enableAuthAdmin = !enableAuthAdmin">
           <label class="module-toggle" @click.stop>
@@ -930,7 +919,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Module 3: Public Demo Mode -->
+      <!-- Module 2: Public Demo Mode -->
       <div :class="['module-card', { active: enableDemoMode }]">
         <div class="module-header" @click="enableDemoMode = !enableDemoMode">
           <label class="module-toggle" @click.stop>
@@ -993,7 +982,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Module 4: SMTP Mail Server -->
+      <!-- Module 3: SMTP Mail Server -->
       <div :class="['module-card', { active: enableSmtp }]">
         <div class="module-header" @click="enableSmtp = !enableSmtp">
           <label class="module-toggle" @click.stop>
@@ -1098,7 +1087,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 5: OIDC Single Sign-On -->
+      <!-- Module 4: OIDC Single Sign-On -->
       <div :class="['module-card', { active: enableOidc }]">
         <div class="module-header" @click="enableOidc = !enableOidc">
           <label class="module-toggle" @click.stop>
@@ -1222,7 +1211,7 @@ onMounted(() => {
           <div class="checkbox-group" style="margin-top: 12px"></div>
         </div>
       </div>
-      <!-- Module 6: Garmin Microservice -->
+      <!-- Module 5: Garmin Microservice -->
       <div :class="['module-card', { active: enableGarmin }]">
         <div class="module-header" @click="enableGarmin = !enableGarmin">
           <label class="module-toggle" @click.stop>
@@ -1274,7 +1263,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 7: Nginx & Reverse Proxy -->
+      <!-- Module 6: Nginx & Reverse Proxy -->
       <div :class="['module-card', { active: enableNetworkNginx }]">
         <div
           class="module-header"
@@ -1376,7 +1365,7 @@ onMounted(() => {
           <div class="checkbox-group" style="margin-top: 12px"></div>
         </div>
       </div>
-      <!-- Module 8: Rate Limiting -->
+      <!-- Module 7: Rate Limiting -->
       <div :class="['module-card', { active: enableRateLimiting }]">
         <div
           class="module-header"
@@ -1470,7 +1459,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <!-- Module 9: Outbound Proxy -->
+      <!-- Module 8: Outbound Proxy -->
       <div :class="['module-card', { active: enableOutboundProxy }]">
         <div
           class="module-header"
@@ -1926,6 +1915,32 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 6px 8px;
   line-height: 1.4;
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(125, 125, 125, 0.25);
+}
+
+.upgrade-warning {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  background: rgba(234, 179, 8, 0.1);
 }
 
 .var-badge {

@@ -56,9 +56,13 @@ Configure these optional modules based on your deployment environment and desire
 
 ### Module 1: 💾 Persistent Host Storage Paths `[Host Volumes]`
 
-Maps persistent container directories to specific locations on your host filesystem (e.g., Synology NAS, Unraid, TrueNAS):
+Maps persistent container directories to specific locations on your host filesystem (e.g., Synology NAS, Unraid, TrueNAS).
 
-- **`DB_PATH`**: Host directory for PostgreSQL cluster data (e.g., `../postgresql`).
+::: warning Upgrading an existing instance
+`docker-compose.yml` falls back to these same defaults when the variables are absent, so a running instance already uses them whether or not they appear in your `.env`. If you change one, the server starts against a new, empty directory and it will look like your data is gone. Copy the values from your existing `.env` rather than assuming the defaults, and if you bind-mounted paths directly in `docker-compose.yml` these variables are ignored entirely.
+:::
+
+- **`DB_PATH`**: Host directory for PostgreSQL cluster data. Defaults to `./postgresql`, relative to your `docker-compose.yml`.
 - **`SERVER_BACKUP_PATH`**: Host directory where database backups are exported (e.g., `./backup`).
 - **`SERVER_UPLOADS_PATH`**: Host directory for profile avatars and custom food photos (e.g., `./uploads`).
 
