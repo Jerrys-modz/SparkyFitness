@@ -1,17 +1,1 @@
-"widget.calorie.name" = "Kalória";
-"widget.calorie.description" = "A mai kalóriabeviteled egy pillantásra.";
-"widget.macro.name" = "Makrók";
-"widget.macro.description" = "A mai fehérje-, szénhidrát- és zsírbeviteled egy pillantásra.";
-"widget.kcal_left" = "kcal maradt";
-"widget.kcal" = "kcal";
-"widget.food" = "Étel";
-"widget.burned" = "Elégetett";
-"widget.goal" = "Cél";
-"widget.protein" = "Fehérje";
-"widget.carbs" = "Szénhidrát";
-"widget.fat" = "Zsír";
-"widget.grams" = "%@ g";
-"widget.a11y.kcal_left" = "%@ kcal maradt";
-"widget.a11y.kcal" = "%@ kcal";
-"widget.search_food" = "Étel keresése";
-"widget.scan_barcode" = "Vonalkód beolvasása";
+

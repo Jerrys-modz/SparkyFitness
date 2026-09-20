@@ -1,17 +1,10 @@
 "widget.calorie.name" = "Kalorier";
-"widget.calorie.description" = "Dagens kaloriinntak med ett blikk.";
 "widget.macro.name" = "Makroer";
-"widget.macro.description" = "Dagens protein, karbohydrater og fett med ett blikk.";
-"widget.kcal_left" = "kcal igjen";
-"widget.kcal" = "kcal";
 "widget.food" = "Mat";
 "widget.burned" = "Forbrent";
 "widget.goal" = "Mål";
 "widget.protein" = "Protein";
 "widget.carbs" = "Karbohydrater";
 "widget.fat" = "Fett";
-"widget.grams" = "%@ g";
-"widget.a11y.kcal_left" = "%@ kcal igjen";
-"widget.a11y.kcal" = "%@ kcal";
 "widget.search_food" = "Søk etter mat";
 "widget.scan_barcode" = "Skann strekkode";
