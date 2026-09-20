@@ -6,9 +6,15 @@ import type { SupportedLanguage } from './localeRegistry';
 import locale_enTranslation from './locales/en/translation.json';
 import locale_esTranslation from './locales/es/translation.json';
 import locale_plTranslation from './locales/pl/translation.json';
+import locale_yue_HantTranslation from './locales/yue-Hant/translation.json';
+import locale_zh_HansTranslation from './locales/zh-Hans/translation.json';
+import locale_zh_HantTranslation from './locales/zh-Hant/translation.json';
 
 export const RESOURCE_MAP = {
   "en": { translation: locale_enTranslation },
   "es": { translation: locale_esTranslation },
   "pl": { translation: locale_plTranslation },
+  "yue-Hant": { translation: locale_yue_HantTranslation },
+  "zh-Hans": { translation: locale_zh_HansTranslation },
+  "zh-Hant": { translation: locale_zh_HantTranslation },
 } satisfies Record<SupportedLanguage, { translation: object }>;
