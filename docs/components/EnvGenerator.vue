@@ -644,6 +644,16 @@ onMounted(() => {
         &mdash; change them in <strong>Database Names &amp; Connection</strong>
         below if you need to.
       </div>
+      <div class="upgrade-warning">
+        <strong>Setting up for the first time?</strong> Pick these now.
+        PostgreSQL reads them only while it initialises an empty data directory;
+        on every later start it keeps the credentials it already has. Changing
+        them here afterwards does not rename the user or change the password
+        &mdash; it only changes what the server tries to log in with, and the
+        connection then fails. To rotate them on a running instance,
+        <code>ALTER</code> the role inside PostgreSQL first, then put the new
+        values here so the two match.
+      </div>
       <div class="grid-2">
         <div class="form-group">
           <label
