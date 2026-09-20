@@ -19,7 +19,7 @@
       "intlLocale": "es-ES",
       "displayNameKey": "settings.language.spanish",
       "defaultDisplayName": "Español"
-    }
+    },
     "zh-Hans": {
       "languageCode": "zh-Hans",
       "intlLocale": "zh-Hans-CN",
