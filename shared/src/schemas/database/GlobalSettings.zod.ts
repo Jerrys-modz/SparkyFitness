@@ -16,11 +16,11 @@ export const globalSettingsSchema = z.object({
   allow_user_ai_config: z.boolean(),
   allow_openfoodfacts_contributions: z.boolean(),
   default_vision_ai_service_id: z.string().uuid().nullable().optional(),
-  allow_private_network_ai: z.boolean().optional(),
-  allow_private_network_food_providers: z.boolean().optional(),
-  public_api_docs: z.boolean().optional(),
-  dev_tools_enabled: z.boolean().optional(),
-  mock_data_enabled: z.boolean().optional(),
+  allow_private_network_ai: z.boolean(),
+  allow_private_network_food_providers: z.boolean(),
+  public_api_docs: z.boolean(),
+  dev_tools_enabled: z.boolean(),
+  mock_data_enabled: z.boolean(),
 });
 
 export const globalSettingsInitializerSchema = z.object({

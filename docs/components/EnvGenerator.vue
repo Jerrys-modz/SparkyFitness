@@ -131,22 +131,29 @@ const showSecrets = ref(false);
 const showEnvOutput = ref(false);
 
 // --- 100% Client-Side Web Crypto Generation ---
-function generateHexKey(bytes = 32): string {
+// Every secret below protects a production database or session store, so there
+// is deliberately no Math.random() fallback: a browser without Web Crypto gets
+// no secrets at all rather than predictable ones.
+const cryptoUnavailable = ref(false);
+
+function randomBytes(bytes: number): Uint8Array {
   if (
     typeof window === "undefined" ||
     !window.crypto ||
     !window.crypto.getRandomValues
   ) {
-    let result = "";
-    const hex = "0123456789abcdef";
-    for (let i = 0; i < bytes * 2; i++) {
-      result += hex[Math.floor(Math.random() * hex.length)];
-    }
-    return result;
+    cryptoUnavailable.value = true;
+    throw new Error("Web Crypto is unavailable in this browser.");
   }
   const arr = new Uint8Array(bytes);
   window.crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+  return arr;
+}
+
+function generateHexKey(bytes = 32): string {
+  return Array.from(randomBytes(bytes), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 function generateBase64Key(bytes = 32): string {
@@ -154,16 +161,7 @@ function generateBase64Key(bytes = 32): string {
   // drops characters outside the base64 alphabet. A generic password therefore
   // decodes to fewer bytes than it looks — 32 mixed characters became 21 bytes —
   // so emit real base64 and the key is exactly the size it claims to be.
-  const arr = new Uint8Array(bytes);
-  if (
-    typeof window !== "undefined" &&
-    window.crypto &&
-    window.crypto.getRandomValues
-  ) {
-    window.crypto.getRandomValues(arr);
-  } else {
-    for (let i = 0; i < bytes; i++) arr[i] = Math.floor(Math.random() * 256);
-  }
+  const arr = randomBytes(bytes);
   let binary = "";
   for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
   // btoa is available in every browser; this runs entirely client-side, so the
@@ -174,34 +172,42 @@ function generateBase64Key(bytes = 32): string {
 }
 
 function generateSecurePassword(length = 24): string {
+  // No $ and no #: Docker Compose interpolates unquoted .env values, so a $
+  // followed by a valid name would be substituted or dropped, and # can start
+  // an inline comment. Both would silently truncate the password.
   const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*_-";
-  if (
-    typeof window === "undefined" ||
-    !window.crypto ||
-    !window.crypto.getRandomValues
-  ) {
-    let result = "";
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }
-  const arr = new Uint32Array(length);
-  window.crypto.getRandomValues(arr);
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@%&*_-";
+  // 256 is not a multiple of the alphabet length, so a plain modulo would
+  // favour the first few characters. Reject the biased tail instead.
+  const limit = 256 - (256 % chars.length);
   let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(arr[i] % chars.length);
+  while (result.length < length) {
+    for (const b of randomBytes(length)) {
+      if (b >= limit) continue;
+      result += chars.charAt(b % chars.length);
+      if (result.length === length) break;
+    }
   }
   return result;
 }
 
 function rerollSecrets() {
-  dbPassword.value = generateSecurePassword(24);
-  appDbPassword.value = generateSecurePassword(24);
-  apiEncryptionKey.value = generateHexKey(32);
-  betterAuthSecret.value = generateBase64Key(32);
-  demoPassword.value = generateSecurePassword(16);
+  if (cryptoUnavailable.value) return;
+  try {
+    dbPassword.value = generateSecurePassword(24);
+    appDbPassword.value = generateSecurePassword(24);
+    apiEncryptionKey.value = generateHexKey(32);
+    betterAuthSecret.value = generateBase64Key(32);
+    demoPassword.value = generateSecurePassword(16);
+  } catch {
+    // randomBytes already flipped cryptoUnavailable; leave the fields blank so
+    // nothing weak can be copied or downloaded.
+    dbPassword.value = "";
+    appDbPassword.value = "";
+    apiEncryptionKey.value = "";
+    betterAuthSecret.value = "";
+    demoPassword.value = "";
+  }
 }
 
 function applyPreset(preset: "simple" | "full") {
@@ -475,7 +481,19 @@ SPARKY_FITNESS_DEMO_PASSWORD=${demoPassword.value}
   return out;
 });
 
+// Docker Compose interpolates unquoted .env values. Anything the user typed
+// into a secret field — SMTP or OIDC in particular — can therefore be mangled,
+// so name the offending variables instead of silently emitting them.
+const unsafeEnvKeys = computed(() =>
+  generatedEnv.value
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("#") && line.includes("="))
+    .filter((line) => /[$#]/.test(line.slice(line.indexOf("=") + 1)))
+    .map((line) => line.slice(0, line.indexOf("="))),
+);
+
 async function copyToClipboard() {
+  if (cryptoUnavailable.value) return;
   try {
     await navigator.clipboard.writeText(generatedEnv.value);
     copied.value = true;
@@ -497,6 +515,7 @@ async function copyToClipboard() {
 }
 
 function downloadEnvFile() {
+  if (cryptoUnavailable.value) return;
   const blob = new Blob([generatedEnv.value], {
     type: "text/plain;charset=utf-8",
   });
@@ -606,6 +625,7 @@ onMounted(() => {
           <button
             type="button"
             class="action-btn secondary"
+            :disabled="cryptoUnavailable"
             @click="rerollSecrets"
           >
             🎲 Re-roll Secrets
@@ -709,6 +729,7 @@ onMounted(() => {
               type="button"
               class="icon-btn"
               title="Generate New Password"
+              :disabled="cryptoUnavailable"
               @click="dbPassword = generateSecurePassword(24)"
             >
               🎲
@@ -743,6 +764,7 @@ onMounted(() => {
             type="button"
             class="icon-btn"
             title="Generate New 64-char Hex Key"
+            :disabled="cryptoUnavailable"
             @click="apiEncryptionKey = generateHexKey(32)"
           >
             🎲
@@ -769,6 +791,7 @@ onMounted(() => {
             type="button"
             class="icon-btn"
             title="Generate New Auth Secret"
+            :disabled="cryptoUnavailable"
             @click="betterAuthSecret = generateBase64Key(32)"
           >
             🎲
@@ -1537,6 +1560,7 @@ onMounted(() => {
                   type="button"
                   class="icon-btn"
                   title="Generate New Password"
+                  :disabled="cryptoUnavailable"
                   @click="appDbPassword = generateSecurePassword(24)"
                 >
                   🎲
@@ -1847,6 +1871,21 @@ onMounted(() => {
         >
         for what each setting does.
       </div>
+      <div v-if="unsafeEnvKeys.length" class="beta-warning">
+        ⚠️ These values contain <code>$</code> or <code>#</code>, which Docker
+        Compose treats specially in an unquoted <code>.env</code> value and may
+        substitute or truncate: <code>{{ unsafeEnvKeys.join(", ") }}</code
+        >. Choose values without those characters, or wrap the value in single
+        quotes in the file you save.
+      </div>
+      <div v-if="cryptoUnavailable" class="beta-warning">
+        ⚠️ This browser does not expose the Web Crypto API, so no secrets can be
+        generated here. Generation, copying and downloading are disabled rather
+        than falling back to weaker randomness. Use a current browser, or
+        generate each secret yourself with
+        <code>openssl rand -hex 32</code> and
+        <code>openssl rand -base64 32</code>.
+      </div>
       <div class="reveal-row">
         <button
           type="button"
@@ -1859,6 +1898,7 @@ onMounted(() => {
         <button
           type="button"
           class="action-btn primary"
+          :disabled="cryptoUnavailable"
           @click="copyToClipboard"
         >
           {{ copied ? "✅ Copied to Clipboard!" : "📋 Copy .env" }}
@@ -1866,6 +1906,7 @@ onMounted(() => {
         <button
           type="button"
           class="action-btn secondary"
+          :disabled="cryptoUnavailable"
           @click="downloadEnvFile"
         >
           ⬇️ Download .env File
@@ -2326,6 +2367,11 @@ onMounted(() => {
 .beta-warning a {
   color: var(--vp-c-brand-1, #3b82f6);
   text-decoration: underline;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .reveal-row {

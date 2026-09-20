@@ -5499,8 +5499,10 @@
   "success": "Success",
   "syncRangeDialog": {
     "troubleshooting": "Troubleshooting",
-    "saveMockData": "Save this sync's raw responses to a file on the server",
-    "useLocalData": "Sync from the previously saved file instead of {{provider}}",
+    "modeLive": "Sync normally from {{provider}}",
+    "modeCapture": "Sync from {{provider}} and save this sync's raw responses to a file on the server",
+    "modeReplay": "Sync from the previously saved file instead of {{provider}}",
+    "replayIgnoresDates": "The date range does not apply here — the saved file is replayed in full, covering whatever period it was captured over.",
     "description": "Choose the date range you would like to synchronize from {{provider}}.",
     "endDate": "End Date",
     "last180Days": "Last 180 Days",

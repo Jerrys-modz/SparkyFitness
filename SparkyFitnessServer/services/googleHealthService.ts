@@ -55,7 +55,8 @@ async function syncGoogleHealthData(
     const bundle = loadRawBundle('googlehealth');
     if (!bundle || !bundle.responses) {
       throw new Error(
-        'Raw diagnostic bundle not found. Run a sync with "Save provider responses locally" ticked first to capture raw API responses.'
+        'Raw diagnostic bundle not found. Run a sync with "Sync and save ' +
+          'this sync\'s raw responses" selected first to capture one.'
       );
     }
     const r = bundle.responses as Record<string, { data: unknown }>;

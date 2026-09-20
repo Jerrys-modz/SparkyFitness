@@ -52,6 +52,11 @@ export const useUpdateSettings = () => {
         queryClient.invalidateQueries({
           queryKey: openFoodFactsContributionKeys.all,
         }),
+        // Read by the provider sync dialog, which is a different screen with
+        // its own cache entry. Without this the capture checkboxes keep the
+        // stale answer until its staleTime expires, so turning the admin
+        // toggle on appears to do nothing.
+        queryClient.invalidateQueries({ queryKey: mockDataKeys.all }),
       ]);
     },
   });

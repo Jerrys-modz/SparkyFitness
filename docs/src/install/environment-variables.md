@@ -85,7 +85,7 @@ Controls initial administrator privileges, who may register, and how users sign 
 - **`SPARKY_FITNESS_ADMIN_EMAIL`**: (Optional) Email address automatically granted Admin privileges on server startup. If left blank, the **first user to register** becomes Admin.
 - **`SPARKY_FITNESS_DISABLE_SIGNUP`**: Set to `true` to disable new user registrations and lock the instance for private use.
 - **`SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`**: Set to `true` to force users to log in exclusively via SSO. Overridden by `SPARKY_FITNESS_FORCE_EMAIL_LOGIN`. Configure OIDC or SMTP-backed magic links first — on a fresh instance with neither, this leaves no way to sign in, because passkey registration needs an existing session.
-- **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to keep password login available if OIDC misbehaves. It takes precedence over `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`, so to actually disable password login you must set that to `true` **and** unset this one (or set it to `false`). The tracked `.env.example` enables this by default.
+- **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to keep password login available if OIDC misbehaves. It takes precedence over `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`, so to actually disable password login you must set that to `true` **and** unset this one (or set it to `false`). `docker/.env.example` carries it only as a commented example, so it is off unless you uncomment it.
 - **`ALLOW_PRIVATE_NETWORK_CORS`**: Set to `true` to allow Cross-Origin Resource Sharing (CORS) from private LAN subnets (`192.168.x.x`, `10.x.x.x`, `172.16.x.x`, `localhost`).
 
 ### Module 4: ✉️ SMTP Email Notifications `[Backend]`
@@ -128,7 +128,7 @@ Customizes rate-limiting thresholds for logins, two-factor verification, and ext
 - **`SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS`**: Maximum requests per API key token window. Defaults to `100`.
 - **`SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS`**: API key window in milliseconds. Defaults to `60000` (1 minute).
 
-### Module 8: 🗄️ Database Names & Connection `[Database & Backend]`
+### Module 8: 🗄️ Database Names & Connection `[Database & Backend]` {#module-8-database-names-connection}
 
 Every value here has a working default that Docker Compose already supplies, so a standard install never sets them. Change them for an external or managed PostgreSQL, or to use non-default names.
 

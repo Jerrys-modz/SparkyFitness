@@ -14,19 +14,20 @@ The AI assistant can perform the following actions across different health domai
 
 Track your diet, manage meals, and analyze your nutritional intake.
 
-| Feature                | Tool Action               | Example Prompt                                          |
-| :--------------------- | :------------------------ | :------------------------------------------------------ |
-| **Log Food**           | `log_food`                | "I just had a 250g steak and a salad."                  |
+| Feature                | Tool Action                         | Example Prompt                                                                  |
+| :--------------------- | :---------------------------------- | :------------------------------------------------------------------------------ |
+| **Log Food**           | `log_food`                          | "I just had a 250g steak and a salad."                                          |
 | **Quick Add**          | `log_external_food` / `create_food` | "Quick add my restaurant tasting menu, ~1200 kcal — don't save it to my foods." |
-| **Meal Templates**     | `log_meal`                | "Log my 'Standard Breakfast' for today."                |
-| **Water Tracking**     | `log_water`               | "I drank 500ml of water."                               |
-| **Daily Diary**        | `list_diary`              | "What have I eaten today?"                              |
-| **Copy Entries**       | `copy_from_yesterday`     | "Copy my breakfast from yesterday to today."            |
-| **Nutrition Analysis** | `get_nutritional_summary` | "Give me a breakdown of my macros for the last 7 days." |
+| **Meal Templates**     | `log_meal`                          | "Log my 'Standard Breakfast' for today."                                        |
+| **Water Tracking**     | `log_water`                         | "I drank 500ml of water."                                                       |
+| **Daily Diary**        | `list_diary`                        | "What have I eaten today?"                                                      |
+| **Copy Entries**       | `copy_from_yesterday`               | "Copy my breakfast from yesterday to today."                                    |
+| **Nutrition Analysis** | `get_nutritional_summary`           | "Give me a breakdown of my macros for the last 7 days."                         |
 
 ::: info
 **Quick Add** mirrors the checkbox in the web and mobile food forms: the food is logged to your diary for that date but stays out of your food list, search, favorites, and recents. It applies to whichever path the assistant already uses — `log_external_food` for a match from a provider such as OpenFoodFacts or USDA, `create_food` for a custom or homemade food — so asking for Quick Add never costs you the verified provider nutrition. It applies only to foods being added for the first time: if the food is already in your food list, it stays there and the assistant tells you Quick Add was not applied, because hiding it would remove a food you already rely on. Ask for it explicitly ("quick add", "don't save this to my foods"); otherwise foods the assistant creates are saved to your list as usual.
 :::
+
 ### 🏋️ Exercise & Fitness
 
 Manage your workouts, track strength progress, and use presets.
@@ -76,7 +77,7 @@ Because the AI has access to all these tools, it can do things a standard app ca
 ## 🔐 Security & Privacy
 
 1.  **User Isolation (RLS)**: Normal MCP tools are restricted by PostgreSQL **Row Level Security**, scoped to the user authenticated by the API key. The AI can _only_ see data belonging to that user.
-2.  **Admin-Only Dev Tools**: A small set of optional developer/debugging tools is **off by default**. They are enabled only when `DEV_TOOLS_ENABLED=true` and the request uses an admin API key. These tools intentionally run with elevated database access (the owner pool, bypassing Row Level Security), so leave them disabled unless you are actively debugging.
+2.  **Admin-Only Dev Tools**: A small set of optional developer/debugging tools is **off by default**. They require an admin API key, plus either the **Admin > System Settings** toggle or the `DEV_TOOLS_ENABLED=true` environment variable, which forces them on regardless of the stored setting. These tools intentionally run with elevated database access (the owner pool, bypassing Row Level Security), so leave them disabled unless you are actively debugging.
 3.  **Local First**: If you run SparkyFitness locally, your data never leaves your infrastructure until you send it to your chosen AI provider (e.g., Anthropic or OpenAI).
 
 ## 🚀 Getting Started
@@ -112,11 +113,21 @@ Go to **Settings → Developer & Integrations → API Key Management** in the we
 **stdio-only clients** (such as the classic Claude Desktop config) can't talk HTTP directly. Use the off-the-shelf [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) bridge. The key goes in an `env` block, and the header uses the no-space `Authorization:${AUTH_HEADER}` form — `mcp-remote`'s documented workaround for clients that mangle spaces in header arguments (e.g. Claude Desktop on Windows, Cursor):
 
 ```json
-{ "mcpServers": { "sparky-fitness": {
-    "command": "npx",
-    "args": ["-y", "mcp-remote", "https://<your-host>/mcp",
-             "--header", "Authorization:${AUTH_HEADER}"],
-    "env": { "AUTH_HEADER": "Bearer <API_KEY>" } } } }
+{
+  "mcpServers": {
+    "sparky-fitness": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://<your-host>/mcp",
+        "--header",
+        "Authorization:${AUTH_HEADER}"
+      ],
+      "env": { "AUTH_HEADER": "Bearer <API_KEY>" }
+    }
+  }
+}
 ```
 
 _Note: for a local-dev server over plain HTTP, add `--allow-http` to the args and use `http://localhost:8080/mcp` (or `http://localhost:3010/mcp` to hit the server directly) — `mcp-remote` refuses non-HTTPS URLs otherwise._
@@ -126,8 +137,8 @@ _Note: for a local-dev server over plain HTTP, add `--allow-http` to the args an
 1.  In Open WebUI, click your name in the bottom left and open the **Admin Panel → Settings**.
 2.  Scroll down to the Tools section and select **Integrations**.
 3.  Add a new connection:
-    *  Type: MCP Streamable HTTP (click 'OpenAPI' to change the option)
-    *   URL: The MCP url from above
-    *   Auth: Bearer
-    *   API Key: The API key from above
+    - Type: MCP Streamable HTTP (click 'OpenAPI' to change the option)
+    - URL: The MCP url from above
+    - Auth: Bearer
+    - API Key: The API key from above
 4.  Save the options and refresh the web page. You can enable it on new chats through the Integration option.

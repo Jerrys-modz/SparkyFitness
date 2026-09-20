@@ -38,6 +38,7 @@ from service import (
     get_dates_in_range,
     grams_to_kg,
     map_garmin_stress_to_mood,
+    mock_filename,
     meters_to_km,
     project_daily_calorie_metrics,
     safe_convert,
@@ -158,7 +159,10 @@ async def get_health_and_wellness(request_data: HealthAndWellnessRequest):
     start_date = request_data.start_date
     end_date = request_data.end_date
 
-    filename = "health_and_wellness_data.json"
+    # syncGarminData splits a request into seven-day chunks, so a single
+    # fixed filename would keep only the last chunk on capture and replay
+    # that one chunk for every iteration. Key the bundle by its range.
+    filename = mock_filename("health_and_wellness_data", start_date, end_date)
 
     data_source = (request_data.data_source or GARMIN_DATA_SOURCE).lower()
     save_mock_data = (
@@ -1596,7 +1600,10 @@ async def get_activities_and_workouts(request_data: ActivitiesAndWorkoutsRequest
     end_date = request_data.end_date
     activity_type = request_data.activity_type
 
-    filename = "activities_and_workouts_data.json"
+    # syncGarminData splits a request into seven-day chunks, so a single
+    # fixed filename would keep only the last chunk on capture and replay
+    # that one chunk for every iteration. Key the bundle by its range.
+    filename = mock_filename("activities_and_workouts_data", start_date, end_date)
 
     data_source = (request_data.data_source or GARMIN_DATA_SOURCE).lower()
     save_mock_data = (
@@ -1821,7 +1828,10 @@ async def get_nutrition_diary(request_data: NutritionDiaryRequest):
     start_date = request_data.start_date
     end_date = request_data.end_date
 
-    filename = "nutrition_diary_data.json"
+    # syncGarminData splits a request into seven-day chunks, so a single
+    # fixed filename would keep only the last chunk on capture and replay
+    # that one chunk for every iteration. Key the bundle by its range.
+    filename = mock_filename("nutrition_diary_data", start_date, end_date)
 
     data_source = (request_data.data_source or GARMIN_DATA_SOURCE).lower()
     save_mock_data = (

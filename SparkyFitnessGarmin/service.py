@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import os
+import re
 import time
 from datetime import date, timedelta
 
@@ -187,6 +188,21 @@ def clean_garmin_data(data):
             # If not valid JSON, return the original string
             return data
     return data
+
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def mock_filename(prefix: str, start_date: str, end_date: str) -> str:
+    """Name a capture bundle after the chunk range it covers.
+
+    The dates arrive from the request body as plain strings, and the result is
+    joined onto MOCK_DATA_DIR, so anything that is not an ISO calendar day is
+    dropped rather than allowed to walk out of that directory.
+    """
+    if _DATE_RE.match(start_date) and _DATE_RE.match(end_date):
+        return f"{prefix}_{start_date}_{end_date}.json"
+    return f"{prefix}.json"
 
 
 def _save_to_local_file(filename: str, data: dict):

@@ -143,7 +143,15 @@ curl -L -o .env https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/
 # default. Start here for SSO, SMTP, an external database or a reverse proxy.
 # curl -L -o .env https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/docker/.env.example
 
-# 4. Start the app
+# 4. Replace the placeholders (skip if you used Option A — the generator
+# already filled these in). The server refuses to start while they are left
+# as-is, and the database would otherwise initialize with a published password.
+#   SPARKY_FITNESS_DB_PASSWORD        any strong password
+#   SPARKY_FITNESS_API_ENCRYPTION_KEY openssl rand -hex 32     (64 hex chars)
+#   BETTER_AUTH_SECRET                openssl rand -base64 32  (44 chars)
+#   SPARKY_FITNESS_FRONTEND_URL       the URL you will open the app at
+
+# 5. Start the app
 docker compose pull && docker compose up -d
 
 # Access application at http://localhost:3004

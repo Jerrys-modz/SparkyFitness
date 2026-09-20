@@ -53,8 +53,8 @@ async function syncFitbitData(
     const bundle = loadRawBundle('fitbit');
     if (!bundle || !bundle.responses) {
       throw new Error(
-        'Raw diagnostic bundle not found. Please run a sync with live API ' +
-          'and "Capture Mock Data" enabled to capture raw API responses first.'
+        'Raw diagnostic bundle not found. Run a sync with "Sync and save ' +
+          'this sync\'s raw responses" selected first to capture one.'
       );
     }
     const responses = bundle.responses;
