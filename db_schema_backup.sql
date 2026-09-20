@@ -2622,6 +2622,11 @@ CREATE TABLE public.global_settings (
     allow_user_ai_config boolean DEFAULT true NOT NULL,
     default_vision_ai_service_id uuid,
     allow_openfoodfacts_contributions boolean DEFAULT false NOT NULL,
+    allow_private_network_ai boolean DEFAULT false NOT NULL,
+    allow_private_network_food_providers boolean DEFAULT false NOT NULL,
+    public_api_docs boolean DEFAULT false NOT NULL,
+    dev_tools_enabled boolean DEFAULT false NOT NULL,
+    mock_data_enabled boolean DEFAULT false NOT NULL,
     CONSTRAINT single_row_check CHECK ((id = 1))
 );
 
