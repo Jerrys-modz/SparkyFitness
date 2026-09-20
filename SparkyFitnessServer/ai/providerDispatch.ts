@@ -99,8 +99,8 @@ export type DispatchResult =
     };
 
 const DEFAULT_TIMEOUT_MS = 90_000;
-// Ollama is nearly always a local server, where the first request after an idle
-// period pays a cold start: loading a multi-billion-parameter model into VRAM
+// Ollama and models using a custom URL are nearly always local, where the first
+// request often triggers a cold start: loading a multi-billion-parameter model
 // can take minutes on modest hardware, before inference begins. 120s was short
 // enough to fail that load outright. Matches CHAT_REQUEST_TIMEOUT_MS in
 // chatService.ts, so the dispatch path is no longer the stricter of the two.
@@ -1008,7 +1008,7 @@ async function performOllama(
 
 function resolveTimeout(req: DispatchRequest, family: ProviderFamily): number {
   if (typeof req.timeoutMs === 'number') return req.timeoutMs;
-  if (family === 'ollama') {
+  if (family === 'ollama' || requiresCustomUrl(req.provider.service_type)) {
     return OLLAMA_DEFAULT_TIMEOUT_MS;
   }
   return DEFAULT_TIMEOUT_MS;
