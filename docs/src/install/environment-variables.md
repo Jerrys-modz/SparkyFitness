@@ -43,7 +43,8 @@ SparkyFitness uses a two-tier database model: a superuser for migrations and sch
 - **`SPARKY_FITNESS_API_ENCRYPTION_KEY`**: A 64-character hex string (256-bit AES) for encrypting stored external provider API keys and tokens in Postgres. (Can also be supplied via **`SPARKY_FITNESS_API_ENCRYPTION_KEY_FILE`**).
   - Generate with: `openssl rand -hex 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - **`BETTER_AUTH_SECRET`**: A secret key used by Better Auth to sign session JWTs and encrypt TOTP 2-Factor Authentication keys in the database. (Can also be supplied via **`BETTER_AUTH_SECRET_FILE`**).
-  - Generate with: `openssl rand -hex 32`
+  - Generate with: `openssl rand -base64 32`
+  - Use **base64**, not hex. The server decodes this value as base64 and silently drops anything outside that alphabet, so a passphrase containing `!@#$%` yields a shorter key than it appears to.
   - > [!CAUTION]
     > **CRITICAL for 2FA/TOTP:** If you change this variable after users have enabled 2FA, the server will lose access to their secret keys and **all 2FA users will be locked out**. Keep this value persistent and back it up.
 
@@ -73,7 +74,7 @@ Always written by the generator. These have working defaults, but the timezone i
 - **`SPARKY_FITNESS_LOG_LEVEL`**: Verbosity — `DEBUG`, `INFO`, `WARN`, `ERROR` or `SILENT`. Defaults to `ERROR`. Raise it only while troubleshooting.
 - **`NODE_ENV`**: Always `production` for a deployment. The generator hardcodes it.
 - **`SPARKY_FITNESS_SERVER_PORT`**: Port the backend listens on inside its container. Defaults to `3010`. Docker Compose passes the same value to the frontend, whose nginx proxies to it, so the two always move together.
-- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name; only relevant outside Compose.
+- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name. It is resolved from inside the frontend container, so `localhost` points at the frontend itself and every API call returns 502 — only override it to reach a backend outside this compose project.
 - **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated additional origins Better Auth should trust. Leave blank unless you reach the app on more than one URL.
 - **`BETTER_AUTH_URL`**: Overrides the base URL Better Auth builds callback links from. Only needed when it cannot be derived from `SPARKY_FITNESS_FRONTEND_URL`.
 

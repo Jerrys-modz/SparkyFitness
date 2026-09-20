@@ -170,9 +170,11 @@ services:
     environment:
       SPARKY_FITNESS_FRONTEND_URL: ${SPARKY_FITNESS_FRONTEND_URL}
       # Where the frontend's nginx proxies /api, /health-data and /uploads.
-      # The host defaults to this file's backend service name, so only change it
-      # to reach a backend that is not part of this compose project. The port
-      # must match the one passed to the server service above.
+      # This is resolved inside the frontend container, on the compose network,
+      # so it must name the backend service — "localhost" here points at the
+      # frontend itself and every API call returns 502. Only override it to
+      # reach a backend outside this compose project. The port must match the
+      # one passed to the server service above.
       SPARKY_FITNESS_SERVER_HOST: ${SPARKY_FITNESS_SERVER_HOST:-sparkyfitness-server}
       SPARKY_FITNESS_SERVER_PORT: ${SPARKY_FITNESS_SERVER_PORT:-3010}
       NGINX_RATE_LIMIT: ${NGINX_RATE_LIMIT:-5r/s}

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import crypto from 'node:crypto';
 
 const connectMock = vi.fn();
 const endMock = vi.fn().mockResolvedValue(undefined);
@@ -37,6 +38,11 @@ function makeClient(opts: { roleExists: boolean; alterError?: unknown }) {
   return { client: { query, release: vi.fn() }, queries };
 }
 
+// Minted per run so no password-shaped literal sits in the source; see
+// tests/appDbCredentials.test.ts for the reasoning.
+const appPassword = () => `app-${crypto.randomBytes(8).toString('hex')}`;
+let currentAppPassword = appPassword();
+
 const sqlOf = (queries: string[], prefix: string) =>
   queries.filter((q) => q.trim().startsWith(prefix));
 
@@ -44,7 +50,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   endMock.mockResolvedValue(undefined);
   process.env.SPARKY_FITNESS_APP_DB_USER = 'sparky_app';
-  process.env.SPARKY_FITNESS_APP_DB_PASSWORD = 'app_pw';
+  currentAppPassword = appPassword();
+  process.env.SPARKY_FITNESS_APP_DB_PASSWORD = currentAppPassword;
   process.env.SPARKY_FITNESS_DB_USER = 'sparky';
   process.env.SPARKY_FITNESS_DB_HOST = 'localhost';
   process.env.SPARKY_FITNESS_DB_NAME = 'sparkyfitness_db';
@@ -85,7 +92,7 @@ describe('application role password synchronisation', () => {
     const alters = sqlOf(queries, 'ALTER ROLE');
     expect(alters).toHaveLength(1);
     expect(alters[0]).toContain('"sparky_app"');
-    expect(alters[0]).toContain("'app_pw'");
+    expect(alters[0]).toContain(`'${currentAppPassword}'`);
   });
 
   it('gives an actionable error when the owner lacks CREATEROLE', async () => {

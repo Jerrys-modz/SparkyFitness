@@ -149,6 +149,30 @@ function generateHexKey(bytes = 32): string {
   return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function generateBase64Key(bytes = 32): string {
+  // auth.ts reads this with Buffer.from(value, "base64"), and Node silently
+  // drops characters outside the base64 alphabet. A generic password therefore
+  // decodes to fewer bytes than it looks — 32 mixed characters became 21 bytes —
+  // so emit real base64 and the key is exactly the size it claims to be.
+  const arr = new Uint8Array(bytes);
+  if (
+    typeof window !== "undefined" &&
+    window.crypto &&
+    window.crypto.getRandomValues
+  ) {
+    window.crypto.getRandomValues(arr);
+  } else {
+    for (let i = 0; i < bytes; i++) arr[i] = Math.floor(Math.random() * 256);
+  }
+  let binary = "";
+  for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
+  // btoa is available in every browser; this runs entirely client-side, so the
+  // static GitHub Pages build needs nothing extra.
+  return typeof btoa === "function"
+    ? btoa(binary)
+    : Buffer.from(arr).toString("base64");
+}
+
 function generateSecurePassword(length = 24): string {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*_-";
@@ -176,7 +200,7 @@ function rerollSecrets() {
   dbPassword.value = generateSecurePassword(24);
   appDbPassword.value = generateSecurePassword(24);
   apiEncryptionKey.value = generateHexKey(32);
-  betterAuthSecret.value = generateSecurePassword(32);
+  betterAuthSecret.value = generateBase64Key(32);
   demoPassword.value = generateSecurePassword(16);
 }
 
@@ -745,7 +769,7 @@ onMounted(() => {
             type="button"
             class="icon-btn"
             title="Generate New Auth Secret"
-            @click="betterAuthSecret = generateSecurePassword(32)"
+            @click="betterAuthSecret = generateBase64Key(32)"
           >
             🎲
           </button>

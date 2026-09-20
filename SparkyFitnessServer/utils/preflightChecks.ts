@@ -34,7 +34,7 @@ function runPreflightChecks() {
     SPARKY_FITNESS_API_ENCRYPTION_KEY:
       "Must be persistent to decrypt database data. Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     BETTER_AUTH_SECRET:
-      'Signs session cookies and encrypts stored 2FA/TOTP secrets, so it must be persistent. A value that changes between restarts logs every user out and permanently locks out anyone with 2FA enabled. Generate with: openssl rand -hex 32',
+      'Signs session cookies and encrypts stored 2FA/TOTP secrets, so it must be persistent. A value that changes between restarts logs every user out and permanently locks out anyone with 2FA enabled. Generate with: openssl rand -base64 32',
   };
   const missingMandatory = Object.keys(mandatoryVars).filter(
     (varName) => !process.env[varName]

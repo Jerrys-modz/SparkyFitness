@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import crypto from 'node:crypto';
 
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 
@@ -14,6 +15,15 @@ const ENV_KEYS = [
   'BETTER_AUTH_SECRET',
 ] as const;
 
+/**
+ * Fixture values are minted per run rather than written as literals. Nothing
+ * here is a credential — they only need to be non-empty so preflight proceeds
+ * to the checks under test — and generating them keeps password-shaped strings
+ * out of the source entirely, which is what secret scanners match on.
+ */
+const fixture = (label: string) =>
+  `${label}-${crypto.randomBytes(8).toString('hex')}`;
+
 let saved: Record<string, string | undefined>;
 
 beforeEach(() => {
@@ -23,10 +33,12 @@ beforeEach(() => {
   process.env.SPARKY_FITNESS_DB_HOST = 'localhost';
   process.env.SPARKY_FITNESS_DB_NAME = 'sparkyfitness_db';
   process.env.SPARKY_FITNESS_DB_USER = 'sparky';
-  process.env.SPARKY_FITNESS_DB_PASSWORD = 'owner_pw';
+  process.env.SPARKY_FITNESS_DB_PASSWORD = fixture('db');
   process.env.SPARKY_FITNESS_FRONTEND_URL = 'http://localhost:3004';
-  process.env.SPARKY_FITNESS_API_ENCRYPTION_KEY = 'a'.repeat(64);
-  process.env.BETTER_AUTH_SECRET = 'auth_secret';
+  process.env.SPARKY_FITNESS_API_ENCRYPTION_KEY = crypto
+    .randomBytes(32)
+    .toString('hex');
+  process.env.BETTER_AUTH_SECRET = fixture('auth');
 });
 
 afterEach(() => {
@@ -62,13 +74,14 @@ describe('app database credentials are soft requirements', () => {
   });
 
   it('leaves supplied values untouched', async () => {
+    const suppliedPassword = fixture('app');
     process.env.SPARKY_FITNESS_APP_DB_USER = 'my_app_role';
-    process.env.SPARKY_FITNESS_APP_DB_PASSWORD = 'my_app_pw';
+    process.env.SPARKY_FITNESS_APP_DB_PASSWORD = suppliedPassword;
     const { runPreflightChecks } = (await import('../utils/preflightChecks.js'))
       .default;
     runPreflightChecks();
     expect(process.env.SPARKY_FITNESS_APP_DB_USER).toBe('my_app_role');
-    expect(process.env.SPARKY_FITNESS_APP_DB_PASSWORD).toBe('my_app_pw');
+    expect(process.env.SPARKY_FITNESS_APP_DB_PASSWORD).toBe(suppliedPassword);
   });
 
   it('generates a different password on each run', async () => {
