@@ -25,7 +25,7 @@
       "intlLocale": "de-DE",
       "displayNameKey": "settings.language.german",
       "defaultDisplayName": "Deutsch"
-    }
+    },
     "zh-Hans": {
       "languageCode": "zh-Hans",
       "intlLocale": "zh-Hans-CN",
