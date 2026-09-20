@@ -1075,7 +1075,9 @@ onMounted(() => {
             </label>
             <span class="field-hint" style="margin-left: 26px">
               <template v-if="hasAlternativeSignIn"
-                >Forces users to log in exclusively via SSO.</template
+                >Removes the password form, leaving passwordless sign-in: OIDC
+                if you configured it, SMTP magic links if you configured
+                that.</template
               >
               <template v-else
                 >Configure OIDC or SMTP first. Turning this on without another
