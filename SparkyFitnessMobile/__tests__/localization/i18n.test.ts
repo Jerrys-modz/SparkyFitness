@@ -109,8 +109,15 @@ describe('getDeviceLanguage', () => {
 });
 
 describe('SUPPORTED_LANGUAGES', () => {
-  it('includes en, pl and es', () => {
-    expect(SUPPORTED_LANGUAGES).toEqual(['en', 'pl', 'es']);
+  it('lists every shipped locale in registry order', () => {
+    expect(SUPPORTED_LANGUAGES).toEqual([
+      'en',
+      'pl',
+      'es',
+      'zh-Hans',
+      'zh-Hant',
+      'yue-Hant',
+    ]);
   });
 });
 
