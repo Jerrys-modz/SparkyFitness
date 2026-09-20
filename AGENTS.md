@@ -57,7 +57,7 @@ Do not read or search these paths; they burn context for nothing:
 - `pnpm-lock.yaml` (~1.3 MB) - never read; check `package.json` files instead.
 - `db_schema_backup.sql` (~330 KB) - never read whole; grep for the one `CREATE TABLE` you need.
 - `SparkyFitnessFrontend/dist/` - build output.
-- `SparkyFitnessFrontend/public/locales/` except `en/` - 27 machine-synced translations. Only `en/translation.json` is ever hand-edited, and even that (~120 KB) should be grepped, not read whole.
+- `SparkyFitnessFrontend/public/locales/` except `en/` - 35 machine-synced translations. Only `en/translation.json` is ever hand-edited, and even that (~120 KB) should be grepped, not read whole.
 
 Cheap ways to learn things:
 

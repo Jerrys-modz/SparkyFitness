@@ -1,0 +1,17 @@
+"widget.calorie.name" = "Calorias";
+"widget.calorie.description" = "Sua ingestão de calorias de hoje num relance.";
+"widget.macro.name" = "Macros";
+"widget.macro.description" = "Suas proteínas, carboidratos e gorduras de hoje num relance.";
+"widget.kcal_left" = "kcal restantes";
+"widget.kcal" = "kcal";
+"widget.food" = "Alimento";
+"widget.burned" = "Queimadas";
+"widget.goal" = "Meta";
+"widget.protein" = "Proteínas";
+"widget.carbs" = "Carboidratos";
+"widget.fat" = "Gorduras";
+"widget.grams" = "%@ g";
+"widget.a11y.kcal_left" = "%@ kcal restantes";
+"widget.a11y.kcal" = "%@ kcal";
+"widget.search_food" = "Buscar alimento";
+"widget.scan_barcode" = "Escanear código";
