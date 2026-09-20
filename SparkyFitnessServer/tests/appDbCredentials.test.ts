@@ -115,4 +115,15 @@ describe('app database credentials are soft requirements', () => {
       .default;
     expect(() => runPreflightChecks()).toThrow(/mandatory environment/i);
   });
+
+  it('refuses to start without BETTER_AUTH_SECRET rather than inventing one', async () => {
+    // It signs session cookies and encrypts stored 2FA secrets. Generating a
+    // fresh one each boot logs everyone out and locks out 2FA users for good,
+    // so an absent value has to stop the server instead.
+    delete process.env.BETTER_AUTH_SECRET;
+    const { runPreflightChecks } = (await import('../utils/preflightChecks.js'))
+      .default;
+    expect(() => runPreflightChecks()).toThrow(/mandatory environment/i);
+    expect(process.env.BETTER_AUTH_SECRET).toBeUndefined();
+  });
 });

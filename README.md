@@ -135,10 +135,12 @@ curl -L -o docker-compose.yml https://raw.githubusercontent.com/CodeWithCJ/Spark
 # Option A (Recommended): Generate custom .env with 1-click secure keys in browser:
 # 👉 https://codewithcj.github.io/SparkyFitness/install/env-generator
 
-# Option B: Download the minimal 5-variable starter template:
+# Option B: Minimal template — 5 values, everything else uses the defaults
+# docker-compose already applies. Fine for most self-hosted installs.
 curl -L -o .env https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/docker/.env.simple.example
 
-# Option C: Download the full reference template:
+# Option C: Full reference — every supported variable, commented out with its
+# default. Start here for SSO, SMTP, an external database or a reverse proxy.
 # curl -L -o .env https://raw.githubusercontent.com/CodeWithCJ/SparkyFitness/main/docker/.env.example
 
 # 4. Start the app

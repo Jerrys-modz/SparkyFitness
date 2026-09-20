@@ -33,6 +33,8 @@ function runPreflightChecks() {
       'Required for CORS security. E.g. https://sparkyfitness.domain.com  or http://localhost:8080 for development.',
     SPARKY_FITNESS_API_ENCRYPTION_KEY:
       "Must be persistent to decrypt database data. Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    BETTER_AUTH_SECRET:
+      'Signs session cookies and encrypts stored 2FA/TOTP secrets, so it must be persistent. A value that changes between restarts logs every user out and permanently locks out anyone with 2FA enabled. Generate with: openssl rand -hex 32',
   };
   const missingMandatory = Object.keys(mandatoryVars).filter(
     (varName) => !process.env[varName]
@@ -80,25 +82,6 @@ function runPreflightChecks() {
         'and the application role will be updated to match. Set it explicitly ' +
         'if more than one server shares this database.'
     );
-  }
-  // Handle BETTER_AUTH_SECRET as a soft requirement
-  if (!process.env.BETTER_AUTH_SECRET) {
-    const generatedSecret = crypto.randomBytes(32).toString('hex');
-    process.env.BETTER_AUTH_SECRET = generatedSecret;
-    console.warn(
-      '\x1b[33m%s\x1b[0m',
-      'WARNING: BETTER_AUTH_SECRET is not set!'
-    );
-    console.warn(
-      'A temporary secret has been generated to allow the server to start.'
-    );
-    console.warn(
-      'IMPORTANT: Please set BETTER_AUTH_SECRET in your .env file to ensure user sessions remain valid across server restarts.'
-    );
-    console.warn(
-      '------------------------------------------------------------------\n'
-    );
-    log('warn', 'BETTER_AUTH_SECRET was missing and auto-generated.');
   }
   log('info', 'Environment variable pre-flight checks passed successfully.');
 }
