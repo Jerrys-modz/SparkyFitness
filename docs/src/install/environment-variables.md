@@ -66,6 +66,12 @@ Maps persistent container directories to specific locations on your host filesys
 - **`SERVER_BACKUP_PATH`**: Host directory where database backups are exported (e.g., `./backup`).
 - **`SERVER_UPLOADS_PATH`**: Host directory for profile avatars and custom food photos (e.g., `./uploads`).
 
+The three below are the bare-metal equivalents, read by the server process itself rather than by `docker-compose.yml`. Leave them unset under Docker Compose — the volume mappings above already put the data in the right place, and setting these as well only moves it somewhere the container does not persist.
+
+- **`SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY`**: Absolute path the server writes avatars, food photos and OIDC provider logos to. Defaults to `uploads/` inside the server directory.
+- **`SPARKY_FITNESS_CUSTOM_BACKUP_DIRECTORY`**: Absolute path for exported database backups.
+- **`SPARKY_FITNESS_CUSTOM_TEMP_DIRECTORY`**: Absolute path for the staging area used while a backup is being uploaded for restore.
+
 ### Module 2: ⚙️ Server Runtime `[Backend]`
 
 Always written by the generator. These have working defaults, but the timezone in particular is worth setting: it decides which calendar day an entry is filed under.
@@ -111,6 +117,19 @@ Integrate with centralized identity providers such as Authentik, Keycloak, Authe
 - **`SPARKY_FITNESS_OIDC_CLIENT_SECRET`**: OAuth2 Client Secret. (Can also be supplied via **`SPARKY_FITNESS_OIDC_CLIENT_SECRET_FILE`**).
 - **`SPARKY_FITNESS_OIDC_ADMIN_GROUP`**: Group or role claim that automatically elevates the user to Admin (e.g., `Admin`).
 - **`SPARKY_FITNESS_OIDC_SCOPE`**: Scopes to request (defaults to `openid email profile`).
+
+#### Advanced OIDC (rarely needed)
+
+These only apply when the four required values above (`ISSUER_URL`, `CLIENT_ID`, `CLIENT_SECRET`, `PROVIDER_SLUG`) are all set; the whole env-configured provider is ignored otherwise. Every one has a working default, so change them only if your IdP demands it.
+
+- **`SPARKY_FITNESS_OIDC_AUTO_REGISTER`**: Whether a successful login creates an account that does not exist yet. Defaults to `true`; set to `false` to require that accounts be provisioned first.
+- **`SPARKY_FITNESS_OIDC_AUTO_REDIRECT`**: Set to `true` to send users straight to the IdP instead of showing the login page. Defaults to `false`. Pair it with a fail-safe (`SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true`) while you are still testing the provider.
+- **`SPARKY_FITNESS_OIDC_DOMAIN`**: Email domain associated with the provider. Defaults to `<provider-slug>.env`.
+- **`SPARKY_FITNESS_OIDC_LOGO_URL`**: Icon shown on the "Log in with…" button. Defaults to none.
+- **`SPARKY_FITNESS_OIDC_TOKEN_AUTH_METHOD`**: How the client authenticates at the token endpoint. Defaults to `client_secret_post`.
+- **`SPARKY_FITNESS_OIDC_ID_TOKEN_SIGNED_ALG`**: Expected ID-token signing algorithm. Defaults to `RS256`.
+- **`SPARKY_FITNESS_OIDC_USERINFO_SIGNED_ALG`**: Expected userinfo signing algorithm. Defaults to `none`, meaning an unsigned JSON response.
+- **`SPARKY_FITNESS_OIDC_TIMEOUT`**: Milliseconds to wait on the IdP before giving up. Defaults to `30000`.
 
 ### Module 6: ⌚ Garmin Connect Microservice `[Garmin & Backend]`
 
