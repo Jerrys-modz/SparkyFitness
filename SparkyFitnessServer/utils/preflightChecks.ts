@@ -1,17 +1,33 @@
 import crypto from 'crypto';
 import { log } from '../config/logging.js';
 
-/** Matches the docker-compose default and the tracked .env templates. */
+/**
+ * Defaults shared with docker-compose and the tracked .env templates. Keep the
+ * three in step: a value that differs between them silently points the server
+ * at a database other than the one Compose created.
+ */
 export const DEFAULT_APP_DB_USER = 'sparky_app';
+const DEFAULTED_VARS: Record<string, string> = {
+  SPARKY_FITNESS_DB_HOST: 'sparkyfitness-db',
+  SPARKY_FITNESS_DB_NAME: 'sparkyfitness_db',
+  SPARKY_FITNESS_DB_USER: 'sparky',
+};
 
 function runPreflightChecks() {
+  // Connection details that docker-compose already supplies, so they only ever
+  // fall back here on a bare-metal or external-database install. Defaulting
+  // rather than refusing keeps a Compose deployment working with nothing but
+  // the secrets set, which is what the .env templates and the generator assume.
+  for (const [varName, fallback] of Object.entries(DEFAULTED_VARS)) {
+    if (!process.env[varName]) {
+      process.env[varName] = fallback;
+      log(
+        'info',
+        `${varName} was not set; using "${fallback}". Set it explicitly for a bare-metal or external database.`
+      );
+    }
+  }
   const mandatoryVars = {
-    SPARKY_FITNESS_DB_HOST:
-      'Required for DB connection. Use "localhost" for local development, or "sparkyfitness-db" for Docker deployments.',
-    SPARKY_FITNESS_DB_NAME:
-      'Required for database connection. Default is often "sparkyfitness_db".',
-    SPARKY_FITNESS_DB_USER:
-      'Required for database connection. This is super user with default is often "sparky".',
     SPARKY_FITNESS_DB_PASSWORD: 'Required for database connection.',
     SPARKY_FITNESS_FRONTEND_URL:
       'Required for CORS security. E.g. https://sparkyfitness.domain.com  or http://localhost:8080 for development.',

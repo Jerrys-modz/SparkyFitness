@@ -81,6 +81,34 @@ describe('app database credentials are soft requirements', () => {
     expect(process.env.SPARKY_FITNESS_APP_DB_PASSWORD).not.toBe(first);
   });
 
+  it('defaults the connection details docker-compose normally supplies', async () => {
+    for (const k of [
+      'SPARKY_FITNESS_DB_HOST',
+      'SPARKY_FITNESS_DB_NAME',
+      'SPARKY_FITNESS_DB_USER',
+    ]) {
+      delete process.env[k];
+    }
+    const { runPreflightChecks } = (await import('../utils/preflightChecks.js'))
+      .default;
+    expect(() => runPreflightChecks()).not.toThrow();
+    expect(process.env.SPARKY_FITNESS_DB_HOST).toBe('sparkyfitness-db');
+    expect(process.env.SPARKY_FITNESS_DB_NAME).toBe('sparkyfitness_db');
+    expect(process.env.SPARKY_FITNESS_DB_USER).toBe('sparky');
+  });
+
+  it('never overrides connection details that were supplied', async () => {
+    process.env.SPARKY_FITNESS_DB_HOST = 'db.internal';
+    process.env.SPARKY_FITNESS_DB_NAME = 'custom_db';
+    process.env.SPARKY_FITNESS_DB_USER = 'custom_user';
+    const { runPreflightChecks } = (await import('../utils/preflightChecks.js'))
+      .default;
+    runPreflightChecks();
+    expect(process.env.SPARKY_FITNESS_DB_HOST).toBe('db.internal');
+    expect(process.env.SPARKY_FITNESS_DB_NAME).toBe('custom_db');
+    expect(process.env.SPARKY_FITNESS_DB_USER).toBe('custom_user');
+  });
+
   it('still refuses to start without a genuinely mandatory variable', async () => {
     delete process.env.SPARKY_FITNESS_API_ENCRYPTION_KEY;
     const { runPreflightChecks } = (await import('../utils/preflightChecks.js'))

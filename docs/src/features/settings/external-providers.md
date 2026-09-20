@@ -57,6 +57,22 @@ Submitted data is covered by the Open Food Facts Open Database License (ODbL) an
 
 ## Contributing Mock Data
 
-We are constantly working to improve these integrations. If you notice data missing or incorrect, you can help by providing anonymized mock data.
+We are constantly working to improve these integrations. If you notice data missing or incorrect, you can help by capturing what the provider actually returned and sharing it.
 
-Join the **CodeWithCJ** community on [Discord](https://discord.gg/vcnMT5cPEA) and reach out if you'd like to share your mock data to help us improve the sync logic!
+### Capturing a sync
+
+This is off by default and is admin-only.
+
+1. As an admin, go to **Admin → Global Provider Settings** and turn on **Allow Local Provider Response Capture**.
+2. Open **Settings → Integrations**, press **Sync** on the provider, and pick your date range as usual.
+3. Two extra checkboxes appear in that dialog. Tick **Save this sync's raw responses to a file on the server** and run the sync.
+4. The capture is written to `mock_data/<provider>_raw.json` inside the server container or install directory.
+5. Turn the admin setting back off when you are done.
+
+To replay a saved capture instead of calling the provider — useful for reproducing a bug without hitting the live API — tick **Sync from the previously saved file** instead.
+
+::: warning
+The capture is stored per provider, not per user, and contains raw health data: sleep, heart rate, GPS activity and nutrition. That is why it is admin-only and off by default. Review the file before sharing it, and turn the setting off once you have what you need.
+:::
+
+Join the **CodeWithCJ** community on [Discord](https://discord.gg/vcnMT5cPEA) and reach out if you'd like to share a capture to help us improve the sync logic!

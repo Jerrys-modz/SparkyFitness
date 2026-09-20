@@ -21,23 +21,18 @@ The service tags below (`[Backend Server]`, `[Frontend Nginx]`, `[PostgreSQL]`, 
 
 ## 🔑 Core Essentials (Mandatory)
 
-The following environment variables are **mandatory** and must be supplied for the application to start correctly. Failure to provide these will result in the server failing preflight checks.
+These five have no safe default and must be supplied; the server fails its preflight checks without them. Everything else — including the database name, host, port and the restricted application user — has a working default and is covered under [Database Names & Connection](#module-8-database-names-connection) below.
 
 ### 1. Application Access URL `[Frontend & Backend]`
 
 - **`SPARKY_FITNESS_FRONTEND_URL`**: The public URL of your frontend (e.g., `http://localhost:3004` for Docker Compose, `http://localhost:8080` for bare-metal local development, or your domain like `https://fitness.example.com` for production). This is crucial for CORS security and cookie sessions.
 
-### 2. PostgreSQL Database Credentials `[Database & Backend]`
+### 2. PostgreSQL Superuser `[Database & Backend]`
 
-SparkyFitness implements a two-tier database security model using superuser privileges for migrations and unprivileged application user credentials for daily RLS-enforced queries:
+SparkyFitness uses a two-tier database model: a superuser for migrations and schema setup, and an unprivileged application user for daily RLS-enforced queries. Only the superuser's credentials are mandatory — the server creates and maintains the application role itself.
 
-- **`SPARKY_FITNESS_DB_HOST`**: Database hostname (e.g., `sparkyfitness-db` inside Docker, or `localhost` for local development).
-- **`SPARKY_FITNESS_DB_NAME`**: _(Optional)_ PostgreSQL database name. Defaults to `sparkyfitness_db`. Read only at first initialisation — see the warning below.
-- **`SPARKY_FITNESS_DB_USER`**: Database superuser for migrations and schema setup (e.g., `sparky`). _(Optional)_ Defaults to `sparky`. Read only at first initialisation.
-- **`SPARKY_FITNESS_DB_PASSWORD`**: Superuser password. (Can also be supplied via **`SPARKY_FITNESS_DB_PASSWORD_FILE`**).
-- **`SPARKY_FITNESS_APP_DB_USER`**: _(Optional)_ Application database user with limited privileges. Defaults to `sparky_app`. The server creates this role itself.
-- **`SPARKY_FITNESS_APP_DB_PASSWORD`**: _(Optional)_ Application database user password. If unset, the server generates one on each start and updates the role to match. Set it explicitly if more than one server shares this database, or if you pre-created the role. (Can also be supplied via **`SPARKY_FITNESS_APP_DB_PASSWORD_FILE`**).
-- **`SPARKY_FITNESS_DB_PORT`**: (Optional) Host port to expose PostgreSQL externally for tools like pgAdmin/DBeaver. Defaults to `5432`.
+- **`SPARKY_FITNESS_DB_USER`**: Database superuser for migrations and schema setup. Defaults to `sparky`, and Docker Compose supplies it, so in practice you only set this for a bare-metal or external database.
+- **`SPARKY_FITNESS_DB_PASSWORD`**: Superuser password. No default — you must choose one. (Can also be supplied via **`SPARKY_FITNESS_DB_PASSWORD_FILE`**).
 
 ::: danger Changing database credentials after the first start
 `SPARKY_FITNESS_DB_NAME`, `SPARKY_FITNESS_DB_USER` and `SPARKY_FITNESS_DB_PASSWORD` are handed to PostgreSQL only when it initialises an empty data directory. On every later start PostgreSQL ignores them and keeps what it already has, so editing them in `.env` does not change the database — it only changes what the server tries to authenticate with, which then fails. To rotate them, `ALTER` the role inside PostgreSQL yourself. The application user is different: the server keeps that role's password in sync automatically.
@@ -70,7 +65,19 @@ Maps persistent container directories to specific locations on your host filesys
 - **`SERVER_BACKUP_PATH`**: Host directory where database backups are exported (e.g., `./backup`).
 - **`SERVER_UPLOADS_PATH`**: Host directory for profile avatars and custom food photos (e.g., `./uploads`).
 
-### Module 2: 🛡️ Admin Email, Public Signups & Access Policy `[Backend]`
+### Module 2: ⚙️ Server Runtime `[Backend]`
+
+Always written by the generator. These have working defaults, but the timezone in particular is worth setting: it decides which calendar day an entry is filed under.
+
+- **`TZ`**: Server timezone as a TZ database name (e.g. `America/New_York`, `Europe/Berlin`). Defaults to `Etc/UTC`. A wrong value silently files diary entries under the wrong day.
+- **`SPARKY_FITNESS_LOG_LEVEL`**: Verbosity — `DEBUG`, `INFO`, `WARN`, `ERROR` or `SILENT`. Defaults to `ERROR`. Raise it only while troubleshooting.
+- **`NODE_ENV`**: Always `production` for a deployment. The generator hardcodes it.
+- **`SPARKY_FITNESS_SERVER_PORT`**: Port the backend listens on inside its container. Defaults to `3010`. Docker Compose passes the same value to the frontend, whose nginx proxies to it, so the two always move together.
+- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name; only relevant outside Compose.
+- **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated additional origins Better Auth should trust. Leave blank unless you reach the app on more than one URL.
+- **`BETTER_AUTH_URL`**: Overrides the base URL Better Auth builds callback links from. Only needed when it cannot be derived from `SPARKY_FITNESS_FRONTEND_URL`.
+
+### Module 3: 🛡️ Admin Email, Public Signups & Access Policy `[Backend]`
 
 Controls initial administrator privileges, who may register, and how users sign in:
 
@@ -79,14 +86,6 @@ Controls initial administrator privileges, who may register, and how users sign 
 - **`SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`**: Set to `true` to force users to log in exclusively via SSO. Overridden by `SPARKY_FITNESS_FORCE_EMAIL_LOGIN`. Configure OIDC or SMTP-backed magic links first — on a fresh instance with neither, this leaves no way to sign in, because passkey registration needs an existing session.
 - **`SPARKY_FITNESS_FORCE_EMAIL_LOGIN`**: Fail-safe toggle. Set to `true` to keep password login available if OIDC misbehaves. It takes precedence over `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`, so to actually disable password login you must set that to `true` **and** unset this one (or set it to `false`). The tracked `.env.example` enables this by default.
 - **`ALLOW_PRIVATE_NETWORK_CORS`**: Set to `true` to allow Cross-Origin Resource Sharing (CORS) from private LAN subnets (`192.168.x.x`, `10.x.x.x`, `172.16.x.x`, `localhost`).
-
-### Module 3: 🧪 Public Demo Mode `[Backend]`
-
-Runs an isolated demo account seeded with sample data that resets every 24 hours at midnight UTC. Leave this off for a normal instance.
-
-- **`SPARKY_FITNESS_DEMO_MODE`**: Set to `true` to enable an isolated demo user seeded with rich sample data that automatically resets every 24 hours at midnight UTC.
-- **`SPARKY_FITNESS_DEMO_EMAIL`**: Email for the demo user. Defaults to `demo@sparkyfitness.com`.
-- **`SPARKY_FITNESS_DEMO_PASSWORD`**: Password for the demo user. If unset, a secure temporary password is generated on startup.
 
 ### Module 4: ✉️ SMTP Email Notifications `[Backend]`
 
@@ -119,7 +118,26 @@ Connect to the Python-based Garmin sync microservice bundled in `docker-compose.
 - **`GARMIN_MICROSERVICE_URL`**: Microservice endpoint URL (e.g., `http://sparkyfitness-garmin:8000`).
 - **`GARMIN_SERVICE_PORT`**: Microservice port. Defaults to `8000`.
 
-### Module 7: 🌐 Nginx, Ports & Reverse Proxy Headers `[Frontend Nginx & Backend]`
+### Module 7: ⏱️ Sign-in & API Key Rate Limiting `[Backend]`
+
+Customizes rate-limiting thresholds for logins, two-factor verification, and external automation API keys:
+
+- **`SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX`**: Maximum login attempts allowed per IP before temporary lockout. Defaults to `4`.
+- **`SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW`**: Lockout tracking window in seconds. Defaults to `60`.
+- **`SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS`**: Maximum requests per API key token window. Defaults to `100`.
+- **`SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS`**: API key window in milliseconds. Defaults to `60000` (1 minute).
+
+### Module 8: 🗄️ Database Names & Connection `[Database & Backend]`
+
+Every value here has a working default that Docker Compose already supplies, so a standard install never sets them. Change them for an external or managed PostgreSQL, or to use non-default names.
+
+- **`SPARKY_FITNESS_DB_HOST`**: Database hostname. Defaults to `sparkyfitness-db`, the Compose service name. Use `localhost` for a bare-metal install, or a socket directory (any value starting with `/`) to connect over a Unix socket.
+- **`SPARKY_FITNESS_DB_NAME`**: PostgreSQL database name. Defaults to `sparkyfitness_db`. Read only at first initialisation — see the warning above.
+- **`SPARKY_FITNESS_DB_PORT`**: Defaults to `5432`. Under Docker Compose the server always reaches the database on `5432` inside the network, and this only selects the **host** port if you uncomment the database `ports:` mapping for pgAdmin or DBeaver. Change it for a bare-metal or external PostgreSQL on a non-standard port.
+- **`SPARKY_FITNESS_APP_DB_USER`**: Application database user with limited privileges. Defaults to `sparky_app`. The server creates this role itself.
+- **`SPARKY_FITNESS_APP_DB_PASSWORD`**: If unset, the server generates one on each start and updates the role to match. Set it explicitly if more than one server shares this database, or if you pre-created the role on a managed PostgreSQL. (Can also be supplied via **`SPARKY_FITNESS_APP_DB_PASSWORD_FILE`**).
+
+### Module 9: 🌐 Nginx, Ports & Reverse Proxy Headers `[Frontend Nginx & Backend]`
 
 Controls web access ports, Nginx brute-force protection, and client IP resolution behind reverse proxies:
 
@@ -132,16 +150,7 @@ Controls web access ports, Nginx brute-force protection, and client IP resolutio
 - **`NGINX_ACCESS_LOG`** / **`NGINX_ERROR_LOG`**: Nginx log paths.
 - **`NGINX_DUMP_CONFIG`**: Set to `true` to dump resolved Nginx configuration on startup.
 
-### Module 8: ⏱️ Sign-in & API Key Rate Limiting `[Backend]`
-
-Customizes rate-limiting thresholds for logins, two-factor verification, and external automation API keys:
-
-- **`SPARKY_FITNESS_SIGN_IN_RATELIMIT_MAX`**: Maximum login attempts allowed per IP before temporary lockout. Defaults to `4`.
-- **`SPARKY_FITNESS_SIGN_IN_RATELIMIT_WINDOW`**: Lockout tracking window in seconds. Defaults to `60`.
-- **`SPARKY_FITNESS_API_KEY_RATELIMIT_MAX_REQUESTS`**: Maximum requests per API key token window. Defaults to `100`.
-- **`SPARKY_FITNESS_API_KEY_RATELIMIT_WINDOW_MS`**: API key window in milliseconds. Defaults to `60000` (1 minute).
-
-### Module 9: 🛡️ Outbound Corporate / Forwarding Proxy `[Backend]`
+### Module 10: 🛡️ Outbound Corporate / Forwarding Proxy `[Backend]`
 
 Route outgoing backend requests (such as OpenFoodFacts, Strava, or AI providers) through a corporate forward proxy:
 
@@ -149,7 +158,15 @@ Route outgoing backend requests (such as OpenFoodFacts, Strava, or AI providers)
 - **`HTTPS_PROXY`**: Proxy URL for outbound HTTPS requests.
 - **`NO_PROXY`**: Comma-separated list of hostnames to bypass proxy (e.g., `localhost,127.0.0.1,sparkyfitness-garmin`).
 
-### Module 10: 🛡️ Admin Policy Toggles `[Backend]`
+### Module 11: 🧪 Public Demo Mode `[Backend]`
+
+Runs an isolated demo account seeded with sample data that resets every 24 hours at midnight UTC. Leave this off for a normal instance.
+
+- **`SPARKY_FITNESS_DEMO_MODE`**: Set to `true` to enable an isolated demo user seeded with rich sample data that automatically resets every 24 hours at midnight UTC.
+- **`SPARKY_FITNESS_DEMO_EMAIL`**: Email for the demo user. Defaults to `demo@sparkyfitness.com`.
+- **`SPARKY_FITNESS_DEMO_PASSWORD`**: Password for the demo user. If unset, a secure temporary password is generated on startup.
+
+### Module 12: 🛡️ Admin Policy Toggles `[Backend]`
 
 Each of these is also settable in the Admin UI, where it is stored in the database. Setting the environment variable to `true` forces the policy on regardless of what is stored; leaving it unset defers to the Admin UI. All default to off.
 
@@ -162,7 +179,7 @@ Each of these is also settable in the Admin UI, where it is stored in the databa
 The developer mock-data switches (formerly `SPARKY_FITNESS_SAVE_MOCK_DATA` and the per-provider `SPARKY_FITNESS_*_DATA_SOURCE` variables) have been removed. Capturing a provider's raw responses, and replaying them instead of calling the provider, are now per-sync checkboxes on the provider sync dialog, available only while an admin has enabled **Allow Local Provider Response Capture** in **Admin > Global Provider Settings**. `GARMIN_SERVICE_IS_CN` is unaffected and remains an environment variable on the Garmin container.
 :::
 
-### Module 11: 📱 iOS Mobile App Development `[Mobile Build]`
+### Module 13: 📱 iOS Mobile App Development `[Mobile Build]`
 
 Configures code signing, bundle identifiers, and shared App Groups when building [`SparkyFitnessMobile`](/developer/getting-started):
 

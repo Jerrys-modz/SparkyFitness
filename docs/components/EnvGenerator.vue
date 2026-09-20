@@ -1553,8 +1553,11 @@ onMounted(() => {
                 placeholder="5432"
               />
               <span class="field-hint"
-                >Only change this when pointing at an external PostgreSQL on a
-                non-standard port.</span
+                >Under Docker Compose the server always reaches the database on
+                5432 inside the network, and this only selects the host port if
+                you uncomment the database <code>ports:</code> mapping for
+                pgAdmin or DBeaver. Change it for a bare-metal or external
+                PostgreSQL on a non-standard port.</span
               >
             </div>
           </div>
