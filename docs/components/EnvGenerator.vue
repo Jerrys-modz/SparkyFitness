@@ -2392,11 +2392,17 @@ button:disabled {
   margin-top: 0;
 }
 
+/*
+ * Follow the site theme rather than pinning a dark palette: these are the same
+ * variables VitePress uses for its own fenced code blocks, so the preview
+ * matches every other code block on the page in both light and dark mode.
+ */
 .env-preview {
   margin: 0;
   padding: 16px;
-  background: #111827;
-  color: #f3f4f6;
+  background: var(--vp-code-block-bg);
+  color: var(--vp-c-text-1);
+  border: 1px solid var(--vp-c-divider);
   border-radius: 8px;
   overflow-x: auto;
   font-size: 0.88rem;
@@ -2405,6 +2411,6 @@ button:disabled {
 }
 
 .env-preview code {
-  color: #e5e7eb;
+  color: inherit;
 }
 </style>
