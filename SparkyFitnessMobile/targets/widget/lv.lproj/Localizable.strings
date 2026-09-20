@@ -1,0 +1,17 @@
+"widget.calorie.name" = "Kalorijas";
+"widget.calorie.description" = "Šodienas kaloriju patēriņš vienā acu uzmetienā.";
+"widget.macro.name" = "Makro";
+"widget.macro.description" = "Šodienas olbaltumvielas, ogļhidrāti un tauki vienā acu uzmetienā.";
+"widget.kcal_left" = "kcal atlikušas";
+"widget.kcal" = "kcal";
+"widget.food" = "Ēdiens";
+"widget.burned" = "Sadedzinātas";
+"widget.goal" = "Mērķis";
+"widget.protein" = "Olbaltumvielas";
+"widget.carbs" = "Ogļhidrāti";
+"widget.fat" = "Tauki";
+"widget.grams" = "%@ g";
+"widget.a11y.kcal_left" = "%@ kcal atlikušas";
+"widget.a11y.kcal" = "%@ kcal";
+"widget.search_food" = "Meklēt ēdienu";
+"widget.scan_barcode" = "Skenēt svītrkodu";

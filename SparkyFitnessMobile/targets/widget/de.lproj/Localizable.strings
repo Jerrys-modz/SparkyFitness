@@ -1,0 +1,17 @@
+"widget.calorie.name" = "Kalorien";
+"widget.calorie.description" = "Deine heutige Kalorienzufuhr auf einen Blick.";
+"widget.macro.name" = "Makros";
+"widget.macro.description" = "Deine heutigen Proteine, Kohlenhydrate und Fette auf einen Blick.";
+"widget.kcal_left" = "kcal übrig";
+"widget.kcal" = "kcal";
+"widget.food" = "Essen";
+"widget.burned" = "Verbrannt";
+"widget.goal" = "Ziel";
+"widget.protein" = "Protein";
+"widget.carbs" = "Kohlenhydrate";
+"widget.fat" = "Fett";
+"widget.grams" = "%@ g";
+"widget.a11y.kcal_left" = "%@ kcal übrig";
+"widget.a11y.kcal" = "%@ kcal";
+"widget.search_food" = "Essen suchen";
+"widget.scan_barcode" = "Barcode scannen";
