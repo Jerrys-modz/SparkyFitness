@@ -674,4 +674,45 @@ describe('useWatchWorkoutBridge', () => {
       ],
     });
   });
+
+  it('stays subscribed while the server is offline and flushes when it returns', async () => {
+    const { rerender } = renderHook(
+      ({ connected }: { connected: boolean }) =>
+        useWatchWorkoutBridge(true, connected),
+      { initialProps: { connected: false } }
+    );
+    expect(mockListeners.has('onSetCompleted')).toBe(true);
+    expect(mockListeners.has('onHeartRateBatch')).toBe(true);
+    expect(mockListeners.has('onWorkoutStop')).toBe(true);
+
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-offline',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+        activeEnergyKcal: 12.5,
+      });
+    });
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+
+    await act(async () => {
+      rerender({ connected: true });
+      await Promise.resolve();
+    });
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ],
+      activeEnergyKcal: 12.5,
+    });
+  });
 });

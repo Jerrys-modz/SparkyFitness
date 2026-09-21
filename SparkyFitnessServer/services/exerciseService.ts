@@ -512,7 +512,7 @@ async function updateExerciseEntry(
         updateData.exercise_id,
         authenticatedUserId
       );
-      let estimated = 0;
+      let estimated = existingEntry.calories_burned ?? 0;
       if (exercise) {
         const caloriesPerHour =
           await calorieCalculationService.estimateCaloriesBurnedPerHour(

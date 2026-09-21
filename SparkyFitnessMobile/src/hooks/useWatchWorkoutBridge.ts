@@ -34,7 +34,10 @@ import { normalizeDate } from '../utils/dateUtils';
  *
  * iOS-only; a no-op everywhere else.
  */
-export function useWatchWorkoutBridge(enabled: boolean): void {
+export function useWatchWorkoutBridge(
+  enabled: boolean,
+  serverConnected: boolean = true
+): void {
   // Heart-rate samples captured so far this workout, keyed by exercise_entries
   // id. NOT cleared by a flush: every field the server derives from a post
   // (avg, max, calories, the zone rows it upserts) is computed from the whole
@@ -309,6 +312,14 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
   // captured sits in the buffer until the app is killed. Watching the store
   // rather than hooking the finish screen catches every exit — finish,
   // discard, and "Clear & Start" superseding one workout with another.
+  // Listeners stay on while offline so batches are not dropped. Attach
+  // cannot succeed until the API is reachable, so retry the buffered
+  // series the moment the server comes back.
+  useEffect(() => {
+    if (!enabled || !serverConnected) return;
+    void handlersRef.current.flushHeartRate();
+  }, [enabled, serverConnected]);
+
   useEffect(() => {
     if (!enabled || !WatchConnectivity || !WatchConnectivity.isSupported())
       return;

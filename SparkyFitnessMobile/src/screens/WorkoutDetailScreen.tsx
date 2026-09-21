@@ -659,25 +659,27 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     );
     if (hrExercises.length > 0) {
       // Duration-weighted so a long cardio block is not pulled down by a
-      // short warmup that happened to average lower. Falls back to an
-      // unweighted mean when no exercise has a duration.
-      const totalDuration = hrExercises.reduce(
-        (sum, ex) => sum + (Number(ex.duration_minutes) || 0),
+      // short warmup that happened to average lower. Zero-duration entries
+      // are legal and would otherwise contribute nothing, so weight only
+      // when every included exercise has a positive duration.
+      const durations = hrExercises.map(
+        (ex) => Number(ex.duration_minutes) || 0
+      );
+      const totalDuration = durations.reduce(
+        (sum, duration) => sum + duration,
         0
       );
-      const avgHr =
-        totalDuration > 0
-          ? hrExercises.reduce(
-              (sum, ex) =>
-                sum +
-                (ex.avg_heart_rate as number) *
-                  (Number(ex.duration_minutes) || 0),
-              0
-            ) / totalDuration
-          : hrExercises.reduce(
-              (sum, ex) => sum + (ex.avg_heart_rate as number),
-              0
-            ) / hrExercises.length;
+      const canWeightByDuration = durations.every((duration) => duration > 0);
+      const avgHr = canWeightByDuration
+        ? hrExercises.reduce(
+            (sum, ex, index) =>
+              sum + (ex.avg_heart_rate as number) * durations[index],
+            0
+          ) / totalDuration
+        : hrExercises.reduce(
+            (sum, ex) => sum + (ex.avg_heart_rate as number),
+            0
+          ) / hrExercises.length;
       summaryItems.push({
         value: formatLocalizedNumber(Math.round(avgHr)),
         label: t('workoutDetail.summary.avgHeartRate', {
