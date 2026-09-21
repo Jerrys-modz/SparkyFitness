@@ -280,7 +280,6 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'weather_humidity_percentage',
   'gear_name',
   'gear_external_id',
-  'watch_telemetry_observed_at',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
