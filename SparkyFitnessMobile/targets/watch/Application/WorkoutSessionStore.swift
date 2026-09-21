@@ -94,7 +94,10 @@ final class WorkoutSessionStore: ObservableObject {
         if plan.setOrder.isEmpty {
             steps = flattened
         } else {
-            let byId = Dictionary(uniqueKeysWithValues: flattened.map { ($0.plannedSet.setId, $0) })
+            let byId = Dictionary(
+                flattened.map { ($0.plannedSet.setId, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
             let ordered = plan.setOrder.compactMap { byId[$0] }
             steps = ordered.isEmpty ? flattened : ordered
         }

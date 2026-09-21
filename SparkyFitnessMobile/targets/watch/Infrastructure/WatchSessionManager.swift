@@ -347,6 +347,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// silently run with no heart rate.
     private func handle(workoutStart payload: [String: Any]) {
         guard let plan = ContextPayloadMapper.workoutPlan(from: payload) else { return }
+        // A redelivered `workoutStart` for the session already running must
+        // not stop HealthKit and restart the plan from set 1.
+        if workoutStore.plan?.sessionId == plan.sessionId { return }
 
         workoutHealthKit.stop()
         workoutStore.start(with: plan)
@@ -455,10 +458,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// feature exists to capture. The flush interval is a minute
     /// (`WorkoutHealthKitController.batchInterval`) to keep the queue sane.
     private func sendHeartRateBatch(_ samples: [HeartRateSample]) {
-        guard
-            let sessionId = workoutStore.plan?.sessionId,
-            let exerciseEntryId = workoutStore.currentStep?.exerciseEntryId
-        else { return }
+        guard let sessionId = workoutStore.plan?.sessionId else { return }
+        // After the last set, `currentStep` is nil so the UI can show
+        // complete. The final drain still belongs to that last exercise.
+        let exerciseEntryId =
+            workoutStore.currentStep?.exerciseEntryId
+            ?? workoutStore.steps.last?.exerciseEntryId
+        guard let exerciseEntryId else { return }
         // `max(0, ...)` because the running total should only ever climb, but
         // a HealthKit session that restarts mid-workout would reset it, and a
         // negative delta would subtract calories the wearer really burned.

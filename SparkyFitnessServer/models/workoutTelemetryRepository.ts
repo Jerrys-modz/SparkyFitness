@@ -310,17 +310,27 @@ export async function replaceExerciseEntryHrZones(
 ): Promise<ExerciseEntryHrZones[]> {
   const client = await getClient(userId, actingUserId);
   try {
-    await client.query(
-      `DELETE FROM exercise_entry_hr_zones
-       WHERE exercise_entry_id = $1 AND user_id = $2`,
-      [exerciseEntryId, userId]
-    );
-    if (!zones || zones.length === 0) return [];
-    return await _bulkInsertExerciseEntryHrZonesWithClient(
-      client as unknown as TelemetryDbClient,
-      userId,
-      zones
-    );
+    await client.query('BEGIN');
+    try {
+      await client.query(
+        `DELETE FROM exercise_entry_hr_zones
+         WHERE exercise_entry_id = $1 AND user_id = $2`,
+        [exerciseEntryId, userId]
+      );
+      const rows =
+        !zones || zones.length === 0
+          ? []
+          : await _bulkInsertExerciseEntryHrZonesWithClient(
+              client as unknown as TelemetryDbClient,
+              userId,
+              zones
+            );
+      await client.query('COMMIT');
+      return rows;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
   } finally {
     if (client && typeof client.release === 'function') client.release();
   }

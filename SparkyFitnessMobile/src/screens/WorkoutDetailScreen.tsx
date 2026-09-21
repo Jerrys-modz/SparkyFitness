@@ -654,18 +654,30 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     // Heart rate is read-only — it only arrives from a paired watch or a
     // synced workout, and there is no field for typing one — so it is shown
     // from the saved session even while editing.
-    const hrValues = session.exercises
-      .map((ex) => ex.avg_heart_rate)
-      .filter((bpm): bpm is number => bpm != null && bpm > 0);
-    if (hrValues.length > 0) {
-      // An unweighted mean of the per-exercise averages. The phone never holds
-      // the raw series — only what the server derived per entry — so a
-      // duration-weighted figure is not available to compute here. With the
-      // watch batching roughly once a minute the per-exercise averages cover
-      // comparable spans, which keeps this close; it is a session summary
-      // rather than a clinical number.
+    const hrExercises = session.exercises.filter(
+      (ex) => ex.avg_heart_rate != null && ex.avg_heart_rate > 0
+    );
+    if (hrExercises.length > 0) {
+      // Duration-weighted so a long cardio block is not pulled down by a
+      // short warmup that happened to average lower. Falls back to an
+      // unweighted mean when no exercise has a duration.
+      const totalDuration = hrExercises.reduce(
+        (sum, ex) => sum + (Number(ex.duration_minutes) || 0),
+        0
+      );
       const avgHr =
-        hrValues.reduce((sum, bpm) => sum + bpm, 0) / hrValues.length;
+        totalDuration > 0
+          ? hrExercises.reduce(
+              (sum, ex) =>
+                sum +
+                (ex.avg_heart_rate as number) *
+                  (Number(ex.duration_minutes) || 0),
+              0
+            ) / totalDuration
+          : hrExercises.reduce(
+              (sum, ex) => sum + (ex.avg_heart_rate as number),
+              0
+            ) / hrExercises.length;
       summaryItems.push({
         value: formatLocalizedNumber(Math.round(avgHr)),
         label: t('workoutDetail.summary.avgHeartRate', {

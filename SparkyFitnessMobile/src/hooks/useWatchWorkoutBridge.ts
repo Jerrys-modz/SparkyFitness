@@ -195,6 +195,9 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
     if (!hasUnpostedRef.current) return;
     const samplesByEntry = hrBufferRef.current;
     const energyByEntry = energyBufferRef.current;
+    // Captured with the maps: a new session starting in the same store
+    // transition replaces this ref before the awaits below resolve.
+    const entryDate = entryDateRef.current;
     // Cleared up front so a batch arriving mid-flush re-arms it rather than
     // being marked posted by this pass, which never saw it.
     hasUnpostedRef.current = false;
@@ -232,8 +235,8 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
         );
       }
     }
-    if (entryDateRef.current) {
-      invalidateExerciseCache(queryClient, entryDateRef.current);
+    if (entryDate) {
+      invalidateExerciseCache(queryClient, entryDate);
     }
   }, []);
 

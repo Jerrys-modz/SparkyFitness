@@ -27,7 +27,10 @@ import {
   mapDayStatisticsToMinMaxAvg,
 } from './dataAggregation';
 import { BLOOD_GLUCOSE_MG_DL_PER_MMOL_L } from '../shared/dataTransformation';
-import { WATCH_SESSION_METADATA_KEY } from './dataTransformation';
+import {
+  WATCH_SESSION_METADATA_KEY,
+  isOwnWatchWorkout,
+} from './dataTransformation';
 import { DIETARY_WRITE_IDENTIFIERS } from './writebackMappers';
 import {
   collectWorkoutTelemetry,
@@ -1091,7 +1094,12 @@ const handleWorkout: RecordHandler = async (
   const filteredWorkouts = workouts.filter((w) => {
     const workoutStart = new Date(w.startDate);
     const workoutEnd = new Date(w.endDate);
-    return overlapsDateRange(workoutStart, workoutEnd, startDate, endDate);
+    if (!overlapsDateRange(workoutStart, workoutEnd, startDate, endDate)) {
+      return false;
+    }
+    // Drop our own watch sessions before they claim telemetry-budget slots.
+    // The transformer still skips them as defense in depth.
+    return !isOwnWatchWorkout(w as unknown as Record<string, unknown>);
   });
 
   // Budget slots are assigned in list order (the query is newest-first) before

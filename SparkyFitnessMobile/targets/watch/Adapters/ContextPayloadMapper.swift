@@ -207,14 +207,14 @@ enum ContextPayloadMapper {
         guard
             let sessionId = payload["sessionId"] as? String,
             let workoutName = payload["workoutName"] as? String,
-            let rawExercises = payload["exercises"] as? [[String: Any]]
+            let rawExercises = dictionaryArray(payload["exercises"])
         else { return nil }
 
         let exercises: [PlannedExercise] = rawExercises.compactMap { raw in
             guard
                 let exerciseEntryId = raw["exerciseEntryId"] as? String,
                 let name = raw["name"] as? String,
-                let rawSets = raw["sets"] as? [[String: Any]]
+                let rawSets = dictionaryArray(raw["sets"])
             else { return nil }
 
             let sets: [PlannedSet] = rawSets.compactMap { rawSet in
@@ -278,5 +278,14 @@ enum ContextPayloadMapper {
         if let typed = raw as? [String] { return typed }
         guard let any = raw as? [Any] else { return [] }
         return any.compactMap { $0 as? String }
+    }
+
+    /// WatchConnectivity nested arrays arrive as `NSArray` of `NSDictionary`.
+    /// A direct `as? [[String: Any]]` frequently returns nil for that, which
+    /// would drop the whole workout (exercises) or an exercise (sets).
+    private static func dictionaryArray(_ raw: Any?) -> [[String: Any]]? {
+        if let typed = raw as? [[String: Any]] { return typed }
+        guard let any = raw as? [Any] else { return nil }
+        return any.compactMap { $0 as? [String: Any] }
     }
 }

@@ -304,14 +304,41 @@ async function attachWatchTelemetryToExerciseEntry(
     fields.calories_burned = measured;
     fields.active_calories = measured;
   }
-  await exerciseEntryRepository.updateExerciseEntryWatchTelemetry(
-    exerciseEntryId,
-    userId,
-    fields
-  );
+  // Later flushes post the accumulated series / energy. An older snapshot
+  // completing after a newer one must not roll max HR or measured calories
+  // backwards.
+  const storedMax = Number(entry.max_heart_rate);
+  const skipHr =
+    fields.max_heart_rate != null &&
+    entry.max_heart_rate != null &&
+    Number.isFinite(storedMax) &&
+    fields.max_heart_rate < storedMax;
+  if (skipHr) {
+    delete fields.avg_heart_rate;
+    delete fields.max_heart_rate;
+  }
+  const storedCalories = Number(entry.active_calories);
+  if (
+    fields.active_calories != null &&
+    entry.active_calories != null &&
+    entry.active_calories !== '' &&
+    Number.isFinite(storedCalories) &&
+    fields.active_calories < storedCalories
+  ) {
+    delete fields.calories_burned;
+    delete fields.active_calories;
+  }
+  if (Object.keys(fields).length > 0) {
+    await exerciseEntryRepository.updateExerciseEntryWatchTelemetry(
+      exerciseEntryId,
+      userId,
+      fields
+    );
+  }
 
   // Zones need the series; a calories-only post has nothing to bucket.
-  if (!hrSamples || hrSamples.length === 0) return;
+  // A stale (lower max) series also must not replace newer zone rows.
+  if (skipHr || !hrSamples || hrSamples.length === 0) return;
   const samples: HrSample[] = hrSamples;
   // The same date of birth the sync path reads (healthDataHandlers.ts's
   // persistWorkoutTelemetry). Without it this path fell back to the observed

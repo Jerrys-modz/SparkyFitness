@@ -1884,11 +1884,18 @@ async function createGroupedExerciseEntriesWithClient(
     const priorIndex = priorUnused.findIndex(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (prior: any) =>
-        prior?.exercise_id === exercise.exercise_id &&
-        (prior?.sort_order ?? 0) === (exercise.sort_order ?? 0)
+        typeof exercise.id === 'string' && prior?.id === exercise.id
     );
-    const prior = priorIndex >= 0 ? priorUnused.splice(priorIndex, 1)[0] : null;
-    const measured = Number(prior?.active_calories);
+    const priorByExercise =
+      priorIndex >= 0
+        ? priorIndex
+        : priorUnused.findIndex(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (prior: any) => prior?.exercise_id === exercise.exercise_id
+          );
+    const prior =
+      priorByExercise >= 0 ? priorUnused.splice(priorByExercise, 1)[0] : null;
+    const measured = parseMeasuredCalories(prior?.active_calories);
 
     const preparedEntry = await prepareExerciseEntryForCreate(userId, {
       // A client-minted entry uuid (create-in-reconcile for a mid-workout add)
@@ -1907,7 +1914,7 @@ async function createGroupedExerciseEntriesWithClient(
       // unless a watch measurement is sitting on the row we just deleted.
       ...(typeof exercise.calories_burned === 'number'
         ? { calories_burned: exercise.calories_burned }
-        : Number.isFinite(measured) && measured > 0
+        : measured != null
           ? { calories_burned: measured }
           : {}),
       sort_order: exercise.sort_order ?? 0,
@@ -1916,8 +1923,7 @@ async function createGroupedExerciseEntriesWithClient(
       distance: exercise.distance,
       avg_heart_rate: exercise.avg_heart_rate ?? prior?.avg_heart_rate,
       max_heart_rate: prior?.max_heart_rate,
-      active_calories:
-        Number.isFinite(measured) && measured > 0 ? measured : undefined,
+      active_calories: measured,
       entry_time: exercise.entry_time ?? null,
     });
     const { entry: createdEntry } =
@@ -2093,8 +2099,15 @@ function resolveEditedCaloriesBurned(
   recomputed: number
 ): number {
   if (typeof clientCalories === 'number') return clientCalories;
-  const measured = Number(existingEntry?.active_calories);
-  return Number.isFinite(measured) && measured > 0 ? measured : recomputed;
+  const measured = parseMeasuredCalories(existingEntry?.active_calories);
+  return measured != null ? measured : recomputed;
+}
+
+/** Finite nonnegative device measurement. `null`/`''` must not become 0. */
+function parseMeasuredCalories(raw: unknown): number | undefined {
+  if (raw == null || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
 async function updateGroupedWorkoutSession(

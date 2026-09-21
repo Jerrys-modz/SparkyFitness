@@ -100,12 +100,14 @@ describe('exerciseService grouped workouts', () => {
     exerciseEntryDb.getWorkoutPlanAssignmentIdByPresetEntryIdWithClient.mockResolvedValue(
       null
     );
-    vi.mocked(
-      workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient
-    ).mockReset().mockResolvedValue([]);
+    vi.mocked(workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient)
+      .mockReset()
+      .mockResolvedValue([]);
     vi.mocked(
       workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
-    ).mockReset().mockResolvedValue([]);
+    )
+      .mockReset()
+      .mockResolvedValue([]);
   });
   it('rolls back grouped workout creation when a child insert fails', async () => {
     // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
@@ -1543,8 +1545,7 @@ describe('exerciseService grouped workouts', () => {
         name: 'Test Exercise',
         calories_per_hour: 600,
       }));
-      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
-      exerciseEntryDb._createExerciseEntryWithClient
+      vi.mocked(exerciseEntryDb._createExerciseEntryWithClient)
         .mockResolvedValueOnce({
           entry: { id: 'new-entry-a' },
           operation: 'created',

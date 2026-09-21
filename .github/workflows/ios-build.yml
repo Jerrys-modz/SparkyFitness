@@ -13,11 +13,15 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - "package.json"
+      - "pnpm-lock.yaml"
       - "SparkyFitnessMobile/**"
       - "shared/**"
       - ".github/workflows/ios-build.yml"
   pull_request:
     paths:
+      - "package.json"
+      - "pnpm-lock.yaml"
       - "SparkyFitnessMobile/**"
       - "shared/**"
       - ".github/workflows/ios-build.yml"
@@ -32,10 +36,15 @@ jobs:
     name: Compile iOS app and watchOS companion
     runs-on: macos-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4

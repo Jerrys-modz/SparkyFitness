@@ -276,21 +276,23 @@ describe('WorkoutDetailScreen', () => {
       exercises: [
         buildExercise({
           id: 'entry-1',
-          avg_heart_rate: 130,
-          max_heart_rate: 150,
+          duration_minutes: 1,
+          avg_heart_rate: 100,
+          max_heart_rate: 110,
         }),
         buildExercise({
           id: 'entry-2',
-          avg_heart_rate: 150,
+          duration_minutes: 60,
+          avg_heart_rate: 160,
           max_heart_rate: 172,
         }),
       ],
     });
     const screen = renderScreen(session);
 
-    // Mean of the per-exercise averages.
+    // Duration-weighted: 1 min at 100 and 60 min at 160 → ~159, not 130.
     expect(screen.getByText('Avg HR')).toBeTruthy();
-    expect(screen.getByText('140')).toBeTruthy();
+    expect(screen.getByText('159')).toBeTruthy();
     // Highest of the per-exercise maxima — exact, not an approximation.
     expect(screen.getByText('Max HR')).toBeTruthy();
     expect(screen.getByText('172')).toBeTruthy();

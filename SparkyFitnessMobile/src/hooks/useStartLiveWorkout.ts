@@ -97,7 +97,9 @@ export function armWatchForActiveSession(t: TFunction): void {
   if (!WatchConnectivity?.isSupported()) return;
   const { session } = useActiveWorkoutStore.getState();
   if (session == null || session.type !== 'preset') return;
-  void WatchConnectivity.startWorkout(buildWatchWorkoutStartPayload(session, t));
+  void WatchConnectivity.startWorkout(
+    buildWatchWorkoutStartPayload(session, t)
+  );
 }
 
 /**

@@ -113,23 +113,44 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('404s instead of attaching telemetry to another user\'s entry', async () => {
+  it("404s instead of attaching telemetry to another user's entry", async () => {
     // @ts-expect-error TS(2339): mock method not on typed function.
     exerciseEntryRepository.getExerciseEntryOwnerId.mockResolvedValue(
       'someone-else'
     );
 
     await expect(
-      attachWatchTelemetryToExerciseEntry(
-        userId,
-        userId,
-        entryId,
-        series(150)
-      )
+      attachWatchTelemetryToExerciseEntry(userId, userId, entryId, series(150))
     ).rejects.toMatchObject({ status: 404 });
 
     expect(
       exerciseEntryRepository.updateExerciseEntryWatchTelemetry
+    ).not.toHaveBeenCalled();
+  });
+
+  it('does not let an older snapshot roll max HR or calories backwards', async () => {
+    // @ts-expect-error TS(2339): mock method not on typed function.
+    exerciseEntryRepository.getExerciseEntryById.mockResolvedValue({
+      id: entryId,
+      user_id: userId,
+      entry_date: '2026-01-01',
+      max_heart_rate: 178,
+      active_calories: 400,
+    });
+
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150),
+      200
+    );
+
+    expect(
+      exerciseEntryRepository.updateExerciseEntryWatchTelemetry
+    ).not.toHaveBeenCalled();
+    expect(
+      workoutTelemetryRepository.replaceExerciseEntryHrZones
     ).not.toHaveBeenCalled();
   });
 });

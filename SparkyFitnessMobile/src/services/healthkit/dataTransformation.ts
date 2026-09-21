@@ -63,7 +63,7 @@ export const WATCH_SESSION_METADATA_KEY = 'SparkyFitnessSessionId';
  * live-workout flow already logged these sets in the diary as they happened;
  * re-importing the HealthKit copy would file the same session a second time.
  */
-const isOwnWatchWorkout = (rec: Record<string, unknown>): boolean => {
+export const isOwnWatchWorkout = (rec: Record<string, unknown>): boolean => {
   const metadata = rec.metadata as Record<string, unknown> | undefined;
   return metadata?.[WATCH_SESSION_METADATA_KEY] !== undefined;
 };
