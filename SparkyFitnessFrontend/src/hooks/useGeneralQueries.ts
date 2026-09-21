@@ -23,19 +23,32 @@ interface CachedStarData {
 const getCacheKey = (owner: string, repo: string) =>
   `github-stars-${owner}-${repo}`;
 
+// Touching localStorage throws outright in browsers with site data blocked,
+// and this runs during render, so an unguarded read takes down the layout.
 const readCachedStars = (
   owner: string,
   repo: string
 ): CachedStarData | undefined => {
-  const cached = localStorage.getItem(getCacheKey(owner, repo));
-  if (!cached) {
-    return undefined;
-  }
   try {
+    const cached = localStorage.getItem(getCacheKey(owner, repo));
+    if (!cached) {
+      return undefined;
+    }
     const parsed: CachedStarData = JSON.parse(cached);
     return typeof parsed.count === 'number' ? parsed : undefined;
   } catch {
     return undefined;
+  }
+};
+
+const writeCachedStars = (owner: string, repo: string, count: number): void => {
+  try {
+    localStorage.setItem(
+      getCacheKey(owner, repo),
+      JSON.stringify({ count, fetchedAt: Date.now() })
+    );
+  } catch {
+    // Storage unavailable; the count still renders, it just is not cached.
   }
 };
 
@@ -46,10 +59,7 @@ export const useGitHubStarsQuery = (owner: string, repo: string) => {
     queryKey: generalKeys.githubStars(owner, repo),
     queryFn: async () => {
       const data = await getGitHubRepo(owner, repo);
-      localStorage.setItem(
-        getCacheKey(owner, repo),
-        JSON.stringify({ count: data.stargazers_count, fetchedAt: Date.now() })
-      );
+      writeCachedStars(owner, repo, data.stargazers_count);
       return data.stargazers_count;
     },
     initialData: cached?.count,
