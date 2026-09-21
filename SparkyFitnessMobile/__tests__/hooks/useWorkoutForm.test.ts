@@ -317,7 +317,7 @@ describe('workoutFormReducer', () => {
       expect(result.exercises[1]).toBe(state.exercises[1]);
     });
 
-    it('drops serverIds so the payload takes the delete-and-recreate path for the whole session', () => {
+    it('drops only the replaced exercise id so siblings keep theirs', () => {
       const state = makeReplaceState();
       const result = workoutFormReducer(state, {
         type: 'REPLACE_EXERCISE',
@@ -327,10 +327,10 @@ describe('workoutFormReducer', () => {
       });
 
       const payload = buildExercisesPayload(result.exercises, 'kg');
-      expect(payload.every((e) => !('id' in e))).toBe(true);
-      expect(payload.flatMap((e) => e.sets).every((s) => !('id' in s))).toBe(
-        true
-      );
+      expect(payload[0]).not.toHaveProperty('id');
+      expect(payload[0].sets.every((s) => !('id' in s))).toBe(true);
+      expect(payload[1].id).toBe('srv-2');
+      expect(payload[1].sets[0].id).toBe(103);
     });
   });
 

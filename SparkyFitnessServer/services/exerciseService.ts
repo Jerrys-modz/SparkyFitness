@@ -1881,20 +1881,15 @@ async function createGroupedExerciseEntriesWithClient(
       preserveLegacyPresetDurationFallback,
     });
 
+    // Telemetry identity is the entry UUID only. Matching by exercise_id
+    // (or sort_order) reattaches one occurrence's HR/calories/zones onto
+    // another when the same movement is repeated or reordered.
     const priorIndex = priorUnused.findIndex(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (prior: any) =>
         typeof exercise.id === 'string' && prior?.id === exercise.id
     );
-    const priorByExercise =
-      priorIndex >= 0
-        ? priorIndex
-        : priorUnused.findIndex(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (prior: any) => prior?.exercise_id === exercise.exercise_id
-          );
-    const prior =
-      priorByExercise >= 0 ? priorUnused.splice(priorByExercise, 1)[0] : null;
+    const prior = priorIndex >= 0 ? priorUnused.splice(priorIndex, 1)[0] : null;
     const measured = parseMeasuredCalories(prior?.active_calories);
 
     const preparedEntry = await prepareExerciseEntryForCreate(userId, {
@@ -2152,20 +2147,14 @@ async function updateGroupedWorkoutSession(
       }
 
       const incomingExercises = updateData.exercises;
-      const withId = incomingExercises.filter(
+      // Any stable entry UUID is enough to reconcile in place. New
+      // occurrences omit id; mixed payloads used to 400 and force the
+      // client to strip every id, which then reattached telemetry by
+      // exercise_id. Keep ids that exist, create the ones that don't.
+      const useReconcile = incomingExercises.some(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e: any) => e.id !== undefined && e.id !== null
-      ).length;
-
-      if (withId !== 0 && withId !== incomingExercises.length) {
-        throw createServiceError(
-          400,
-          'exercises[].id must be provided for all entries or none.'
-        );
-      }
-
-      const useReconcile =
-        withId === incomingExercises.length && incomingExercises.length > 0;
+        (e: any) => typeof e.id === 'string'
+      );
 
       // Capture the workout plan assignment before any child rows are deleted:
       // the assignment id lives on exercise_entries, so once delete-and-recreate
@@ -2180,10 +2169,10 @@ async function updateGroupedWorkoutSession(
 
       if (!useReconcile) {
         // Snapshot watch telemetry from the rows about to be deleted so the
-        // replacements can keep measured calories / HR. Match is exercise_id
-        // + sort_order: the client strips every id when any exercise is new.
-        // Zones live in a child table that cascades on that delete, so they
-        // have to be read first and handed to create as `hrZonesByPriorId`.
+        // replacements can keep measured calories / HR when the incoming
+        // payload still names those rows by id. Zones live in a child table
+        // that cascades on that delete, so they have to be read first and
+        // handed to create as `hrZonesByPriorId`.
         const hrZonesByPriorId = new Map();
         for (const ex of existingSession.exercises || []) {
           if (!ex?.id) continue;
@@ -2244,7 +2233,7 @@ async function updateGroupedWorkoutSession(
           // client uuid, then skip the update/reconcile-sets path below — the
           // create already inserts its sets, so falling through would
           // double-insert them.
-          if (!existingById.has(ex.id)) {
+          if (typeof ex.id !== 'string' || !existingById.has(ex.id)) {
             await createGroupedExerciseEntriesWithClient(
               client,
               userId,

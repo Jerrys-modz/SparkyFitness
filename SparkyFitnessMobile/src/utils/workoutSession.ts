@@ -392,14 +392,10 @@ export function buildExercisesPayload(
   weightUnit: 'kg' | 'lbs',
   distanceUnit: 'km' | 'miles'
 ) {
-  // Server enforces "all or none" for exercise IDs on preset-session update
-  // (exerciseService.js ~L1713). If any exercise is new, we strip IDs from all
-  // exercises AND all sets so the server takes its delete-and-recreate path.
-  // Set IDs within an exercise, by contrast, reconcile correctly with mixed
-  // IDs — update for present IDs, insert for absent, delete for omitted.
-  const allExercisesHaveServerId =
-    exercises.length > 0 && exercises.every((e) => e.serverId !== undefined);
-
+  // Send each exercise's serverId when we have one. New occurrences omit
+  // it; the server reconciles mixed payloads in place so existing watch
+  // telemetry stays on the same entry UUID. Stripping every id used to
+  // force delete-and-recreate, which then guessed identity by exercise_id.
   return exercises.map((exercise, index) => {
     // The server recomputes calories from duration and sets whenever
     // calories_burned is omitted; a user-edited value is sent as a manual
@@ -416,9 +412,7 @@ export function buildExercisesPayload(
       // fields the form has no UI for must still be round-tripped
       // explicitly — omitting them silently wipes the stored values.
       return {
-        ...(allExercisesHaveServerId && set.serverId !== undefined
-          ? { id: set.serverId }
-          : {}),
+        ...(set.serverId !== undefined ? { id: set.serverId } : {}),
         set_number: setIndex + 1,
         set_type: set.setType ?? null,
         weight: isNaN(weight) ? null : weightToKg(weight, weightUnit),
@@ -439,9 +433,7 @@ export function buildExercisesPayload(
     });
 
     return {
-      ...(allExercisesHaveServerId && exercise.serverId !== undefined
-        ? { id: exercise.serverId }
-        : {}),
+      ...(exercise.serverId !== undefined ? { id: exercise.serverId } : {}),
       exercise_id: exercise.exerciseId,
       sort_order: index,
       // Cardio duration is the sum of its set durations — the sets are the

@@ -1,18 +1,22 @@
 import { vi, beforeEach, describe, expect, it } from 'vitest';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import userRepository from '../models/userRepository.js';
-import * as workoutTelemetryRepository from '../models/workoutTelemetryRepository.js';
 import { attachWatchTelemetryToExerciseEntry } from '../services/exerciseEntryService.js';
 
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
 vi.mock('../models/exercise', () => ({ default: {} }));
-vi.mock('../models/exerciseEntry', () => ({
-  default: {
-    getExerciseEntryById: vi.fn(),
-    getExerciseEntryOwnerId: vi.fn(),
-    updateExerciseEntryWatchTelemetry: vi.fn(),
-  },
-}));
+vi.mock('../models/exerciseEntry', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../models/exerciseEntry.js')>();
+  return {
+    ...actual,
+    default: {
+      ...actual.default,
+      getExerciseEntryOwnerId: vi.fn(),
+      applyWatchTelemetryAtomically: vi.fn(),
+    },
+  };
+});
 vi.mock('../models/workoutPresetRepository', () => ({ default: {} }));
 vi.mock('../models/activityDetailsRepository', () => ({ default: {} }));
 vi.mock('../models/preferenceRepository', () => ({ default: {} }));
@@ -39,13 +43,11 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // @ts-expect-error TS(2339): mock method not on typed function.
-    exerciseEntryRepository.getExerciseEntryById.mockResolvedValue({
-      id: entryId,
-      user_id: userId,
-      entry_date: '2026-01-01',
-    });
-    // @ts-expect-error TS(2339): mock method not on typed function.
     exerciseEntryRepository.getExerciseEntryOwnerId.mockResolvedValue(userId);
+    // @ts-expect-error TS(2339): mock method not on typed function.
+    exerciseEntryRepository.applyWatchTelemetryAtomically.mockResolvedValue(
+      undefined
+    );
     // @ts-expect-error TS(2339): mock method not on typed function.
     userRepository.getUserProfile.mockResolvedValue({ date_of_birth: null });
   });
@@ -63,9 +65,10 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
       series(150)
     );
 
-    const [, , , zones] = vi.mocked(
-      workoutTelemetryRepository.replaceExerciseEntryHrZones
-    ).mock.calls[0];
+    const zones = vi.mocked(
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).mock.calls[0][4];
+    if (!zones) throw new Error('expected zones');
     // Mid-fifties, so the Nes estimate puts max HR near 176 and zone 4 starts
     // at 0.8 x that. The pairing with the case below is the point: the same
     // series must not be filed under a different zone depending on whether it
@@ -82,9 +85,10 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
       series(150)
     );
 
-    const [, , , zones] = vi.mocked(
-      workoutTelemetryRepository.replaceExerciseEntryHrZones
-    ).mock.calls[0];
+    const zones = vi.mocked(
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).mock.calls[0][4];
+    if (!zones) throw new Error('expected zones');
     // FALLBACK_MAX_HR (190) rather than an age estimate, which lands the very
     // same 150 bpm a zone lower.
     expect(zones).toHaveLength(1);
@@ -102,15 +106,17 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     );
 
     expect(
-      exerciseEntryRepository.updateExerciseEntryWatchTelemetry
-    ).toHaveBeenCalledWith(entryId, userId, {
-      calories_burned: 312,
-      active_calories: 312,
-    });
-    // Nothing to bucket without a series.
-    expect(
-      workoutTelemetryRepository.replaceExerciseEntryHrZones
-    ).not.toHaveBeenCalled();
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).toHaveBeenCalledWith(
+      entryId,
+      userId,
+      userId,
+      {
+        calories_burned: 312,
+        active_calories: 312,
+      },
+      null
+    );
   });
 
   it("404s instead of attaching telemetry to another user's entry", async () => {
@@ -124,20 +130,11 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     ).rejects.toMatchObject({ status: 404 });
 
     expect(
-      exerciseEntryRepository.updateExerciseEntryWatchTelemetry
+      exerciseEntryRepository.applyWatchTelemetryAtomically
     ).not.toHaveBeenCalled();
   });
 
-  it('does not let an older snapshot roll max HR or calories backwards', async () => {
-    // @ts-expect-error TS(2339): mock method not on typed function.
-    exerciseEntryRepository.getExerciseEntryById.mockResolvedValue({
-      id: entryId,
-      user_id: userId,
-      entry_date: '2026-01-01',
-      max_heart_rate: 178,
-      active_calories: 400,
-    });
-
+  it('hands the proposed snapshot to the atomic writer', async () => {
     await attachWatchTelemetryToExerciseEntry(
       userId,
       userId,
@@ -147,10 +144,52 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     );
 
     expect(
-      exerciseEntryRepository.updateExerciseEntryWatchTelemetry
-    ).not.toHaveBeenCalled();
-    expect(
-      workoutTelemetryRepository.replaceExerciseEntryHrZones
-    ).not.toHaveBeenCalled();
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).toHaveBeenCalledWith(
+      entryId,
+      userId,
+      userId,
+      expect.objectContaining({
+        max_heart_rate: 150,
+        calories_burned: 200,
+        active_calories: 200,
+      }),
+      expect.any(Array)
+    );
+  });
+});
+
+describe('filterStaleWatchTelemetryFields', () => {
+  it('drops max HR and calories that would roll stored snapshots backwards', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields, skipHr } = filterStaleWatchTelemetryFields(
+      { max_heart_rate: 178, active_calories: 400 },
+      {
+        avg_heart_rate: 150,
+        max_heart_rate: 150,
+        calories_burned: 200,
+        active_calories: 200,
+      }
+    );
+    expect(skipHr).toBe(true);
+    expect(fields).toEqual({});
+  });
+
+  it('keeps a newer max and measured calories', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields, skipHr } = filterStaleWatchTelemetryFields(
+      { max_heart_rate: 140, active_calories: 100 },
+      {
+        avg_heart_rate: 150,
+        max_heart_rate: 178,
+        calories_burned: 200,
+        active_calories: 200,
+      }
+    );
+    expect(skipHr).toBe(false);
+    expect(fields.max_heart_rate).toBe(178);
+    expect(fields.active_calories).toBe(200);
   });
 });

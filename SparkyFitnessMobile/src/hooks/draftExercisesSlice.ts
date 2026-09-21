@@ -133,8 +133,8 @@ export function draftExercisesReducer(
 
     // Mirrors the live store's replaceExercise: swap the exercise identity in
     // place (keeping clientId, position, and superset grouping). Dropping
-    // serverId sends the whole session down the server's delete-and-recreate
-    // path (mixed old/new exercise ids aren't allowed). Sets are only
+    // this row's serverId creates a new occurrence so watch telemetry from
+    // the old movement is not inherited; siblings keep their ids. Sets are only
     // preserved when the replacement's effective modality matches the
     // original's — otherwise a duration set's null reps, or a weight_reps
     // set's stale duration, would carry into a UI that hides those fields

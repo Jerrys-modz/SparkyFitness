@@ -1566,7 +1566,7 @@ describe('workoutSession', () => {
         expect(payload[0].sets[0]).not.toHaveProperty('rest_time');
       });
 
-      it('strips all exercise and set IDs when any exercise lacks serverId (mixed fallback)', () => {
+      it('keeps existing exercise and set IDs when a sibling is new', () => {
         const payload = buildExercisesPayload(
           [
             makeDraftExercise({
@@ -1576,7 +1576,6 @@ describe('workoutSession', () => {
                 { clientId: 'c1', serverId: 101, weight: '100', reps: '10' },
               ],
             }),
-            // New exercise without serverId — should force the fallback.
             makeDraftExercise({
               exerciseId: UUID_B,
               sets: [{ clientId: 'c2', weight: '80', reps: '8' }],
@@ -1585,8 +1584,8 @@ describe('workoutSession', () => {
           'kg',
           'km'
         );
-        expect(payload[0]).not.toHaveProperty('id');
-        expect(payload[0].sets[0]).not.toHaveProperty('id');
+        expect(payload[0].id).toBe(UUID_A);
+        expect(payload[0].sets[0].id).toBe(101);
         expect(payload[1]).not.toHaveProperty('id');
         expect(payload[1].sets[0]).not.toHaveProperty('id');
         expect(() =>

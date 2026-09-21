@@ -1166,44 +1166,54 @@ describe('exerciseService grouped workouts', () => {
       expect(client.query).toHaveBeenCalledWith('COMMIT');
     });
 
-    it('rejects mixed id presence with 400', async () => {
+    it('reconciles existing ids and creates exercises that omit id', async () => {
       setupExistingSession();
-
-      await expect(
-        exerciseService.updateGroupedWorkoutSession(
-          'user-1',
-          'actor-1',
-          'preset-entry-1',
-          {
-            exercises: [
-              {
-                id: 'entry-a',
-                exercise_id: exerciseAId,
-                sort_order: 0,
-                duration_minutes: 0,
-                sets: [],
-              },
-              {
-                exercise_id: exerciseBId,
-                sort_order: 1,
-                duration_minutes: 0,
-                sets: [],
-              },
-            ],
-          }
-        )
-      ).rejects.toMatchObject({
-        status: 400,
-        message: 'exercises[].id must be provided for all entries or none.',
+      vi.mocked(
+        exerciseEntryDb._createExerciseEntryWithClient
+      ).mockResolvedValue({
+        entry: { id: 'new-entry-c' },
+        operation: 'created',
       });
 
-      expect(
-        exerciseEntryDb._updateExerciseEntryWithClient
-      ).not.toHaveBeenCalled();
+      const exerciseCId = '33333333-3333-4333-8333-333333333333';
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 0,
+              sets: [],
+            },
+            {
+              id: 'entry-b',
+              exercise_id: exerciseBId,
+              sort_order: 1,
+              duration_minutes: 0,
+              sets: [],
+            },
+            {
+              exercise_id: exerciseCId,
+              sort_order: 2,
+              duration_minutes: 0,
+              sets: [],
+            },
+          ],
+        }
+      );
+
       expect(
         exerciseEntryDb.deleteExerciseEntriesByPresetEntryIdWithClient
       ).not.toHaveBeenCalled();
-      expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+      expect(exerciseEntryDb._updateExerciseEntryWithClient).toHaveBeenCalled();
+      expect(
+        exerciseEntryDb._createExerciseEntryWithClient
+      ).toHaveBeenCalledTimes(1);
+      expect(client.query).toHaveBeenCalledWith('COMMIT');
     });
 
     it('round-trips superset_group through the reconcile path', async () => {
@@ -1443,7 +1453,7 @@ describe('exerciseService grouped workouts', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('keeps watch telemetry across delete-and-recreate', async () => {
+    it('does not attach telemetry by exercise_id when ids are omitted', async () => {
       const measuredSession = {
         ...existingSession,
         exercises: [
@@ -1506,17 +1516,15 @@ describe('exerciseService grouped workouts', () => {
       const [firstCreate, secondCreate] = vi.mocked(
         exerciseEntryDb._createExerciseEntryWithClient
       ).mock.calls;
-      expect(firstCreate[2]).toMatchObject({
-        calories_burned: 412,
-        avg_heart_rate: 142,
-        max_heart_rate: 168,
-        active_calories: 412,
-      });
+      expect(firstCreate[2].calories_burned).not.toBe(412);
+      expect(firstCreate[2].avg_heart_rate ?? null).toBeNull();
+      expect(firstCreate[2].max_heart_rate).toBeUndefined();
+      expect(firstCreate[2].active_calories).toBeUndefined();
       expect(secondCreate[2].avg_heart_rate ?? null).toBeNull();
       expect(secondCreate[2].active_calories).toBeUndefined();
     });
 
-    it('copies HR zone rows onto the replacement entries', async () => {
+    it('does not copy HR zones by exercise_id when ids are omitted', async () => {
       const measuredSession = {
         ...existingSession,
         exercises: [
@@ -1593,22 +1601,8 @@ describe('exerciseService grouped workouts', () => {
       );
 
       expect(
-        workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient
-      ).toHaveBeenCalledWith(client, 'entry-a');
-      expect(
         workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
-      ).toHaveBeenCalledWith(client, 'user-1', [
-        expect.objectContaining({
-          user_id: 'user-1',
-          exercise_entry_id: 'new-entry-a',
-          entry_date: '2026-03-12',
-          zone_index: 4,
-          seconds_in_zone: 180,
-        }),
-      ]);
-      expect(
-        workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
-      ).toHaveBeenCalledTimes(1);
+      ).not.toHaveBeenCalled();
     });
   });
 

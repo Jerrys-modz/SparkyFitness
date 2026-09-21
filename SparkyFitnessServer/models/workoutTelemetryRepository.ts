@@ -312,19 +312,12 @@ export async function replaceExerciseEntryHrZones(
   try {
     await client.query('BEGIN');
     try {
-      await client.query(
-        `DELETE FROM exercise_entry_hr_zones
-         WHERE exercise_entry_id = $1 AND user_id = $2`,
-        [exerciseEntryId, userId]
+      const rows = await _replaceExerciseEntryHrZonesWithClient(
+        client as unknown as TelemetryDbClient,
+        userId,
+        exerciseEntryId,
+        zones
       );
-      const rows =
-        !zones || zones.length === 0
-          ? []
-          : await _bulkInsertExerciseEntryHrZonesWithClient(
-              client as unknown as TelemetryDbClient,
-              userId,
-              zones
-            );
       await client.query('COMMIT');
       return rows;
     } catch (error) {
@@ -334,6 +327,22 @@ export async function replaceExerciseEntryHrZones(
   } finally {
     if (client && typeof client.release === 'function') client.release();
   }
+}
+
+/** Same replace as above, joining a caller's open transaction. */
+export async function _replaceExerciseEntryHrZonesWithClient(
+  client: TelemetryDbClient,
+  userId: string,
+  exerciseEntryId: string,
+  zones: ExerciseEntryHrZonesInitializer[]
+): Promise<ExerciseEntryHrZones[]> {
+  await client.query(
+    `DELETE FROM exercise_entry_hr_zones
+     WHERE exercise_entry_id = $1 AND user_id = $2`,
+    [exerciseEntryId, userId]
+  );
+  if (!zones || zones.length === 0) return [];
+  return _bulkInsertExerciseEntryHrZonesWithClient(client, userId, zones);
 }
 
 export async function _bulkInsertExerciseEntryHrZonesWithClient(

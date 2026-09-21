@@ -2,12 +2,12 @@ import { log } from '../config/logging.js';
 import exerciseRepository from '../models/exercise.js';
 import exerciseEntryRepository, {
   type WatchTelemetryFields,
+  type WatchTelemetryZoneSpec,
 } from '../models/exerciseEntry.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import userRepository from '../models/userRepository.js';
-import * as workoutTelemetryRepository from '../models/workoutTelemetryRepository.js';
 import { parseISO, isValid } from 'date-fns';
 import {
   setsDurationMinutes,
@@ -273,17 +273,6 @@ async function attachWatchTelemetryToExerciseEntry(
     throw error;
   }
 
-  const entry = await exerciseEntryRepository.getExerciseEntryById(
-    exerciseEntryId,
-    userId
-  );
-  if (!entry) {
-    const error = new Error('Exercise entry not found.');
-    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
-    error.status = 404;
-    throw error;
-  }
-
   // Only the fields supplied are written — the model does a partial UPDATE,
   // so a post carrying just calories must not blank out heart rate that an
   // earlier post already attached.
@@ -304,68 +293,30 @@ async function attachWatchTelemetryToExerciseEntry(
     fields.calories_burned = measured;
     fields.active_calories = measured;
   }
-  // Later flushes post the accumulated series / energy. An older snapshot
-  // completing after a newer one must not roll max HR or measured calories
-  // backwards.
-  const storedMax = Number(entry.max_heart_rate);
-  const skipHr =
-    typeof fields.max_heart_rate === 'number' &&
-    entry.max_heart_rate !== null &&
-    entry.max_heart_rate !== undefined &&
-    Number.isFinite(storedMax) &&
-    fields.max_heart_rate < storedMax;
-  if (skipHr) {
-    delete fields.avg_heart_rate;
-    delete fields.max_heart_rate;
-  }
-  const storedCalories = Number(entry.active_calories);
-  if (
-    typeof fields.active_calories === 'number' &&
-    entry.active_calories !== null &&
-    entry.active_calories !== undefined &&
-    entry.active_calories !== '' &&
-    Number.isFinite(storedCalories) &&
-    fields.active_calories < storedCalories
-  ) {
-    delete fields.calories_burned;
-    delete fields.active_calories;
-  }
-  if (Object.keys(fields).length > 0) {
-    await exerciseEntryRepository.updateExerciseEntryWatchTelemetry(
-      exerciseEntryId,
-      userId,
-      fields
-    );
-  }
 
   // Zones need the series; a calories-only post has nothing to bucket.
-  // A stale (lower max) series also must not replace newer zone rows.
-  if (skipHr || !hrSamples || hrSamples.length === 0) return;
-  const samples: HrSample[] = hrSamples;
-  // The same date of birth the sync path reads (healthDataHandlers.ts's
-  // persistWorkoutTelemetry). Without it this path fell back to the observed
-  // sample max, so one user's zones depended on where the workout came from:
-  // a 55-year-old got a 190 ceiling from the wrist and 176 from a synced
-  // copy of the same session, shifting every zone floor between them.
-  const profile = await userRepository.getUserProfile(userId);
-  const { maxHr } = resolveMaxHr(profile?.date_of_birth, samples);
-  const zones = computeHrZones(samples, maxHr);
-  // Replace the set rather than upsert-only: a later flush with a higher
-  // observed max (no DOB) shifts floors and would otherwise leave stale
-  // higher-zone rows that the new series no longer occupies.
-  await workoutTelemetryRepository.replaceExerciseEntryHrZones(
+  // Stale-snapshot rejection (and the zone write) happens under FOR UPDATE
+  // inside applyWatchTelemetryAtomically so two in-flight flushes cannot
+  // both pass the check against the same pre-lock row.
+  let zones: WatchTelemetryZoneSpec[] | null = null;
+  if (hrSamples && hrSamples.length > 0) {
+    const samples: HrSample[] = hrSamples;
+    // The same date of birth the sync path reads (healthDataHandlers.ts's
+    // persistWorkoutTelemetry). Without it this path fell back to the observed
+    // sample max, so one user's zones depended on where the workout came from:
+    // a 55-year-old got a 190 ceiling from the wrist and 176 from a synced
+    // copy of the same session, shifting every zone floor between them.
+    const profile = await userRepository.getUserProfile(userId);
+    const { maxHr } = resolveMaxHr(profile?.date_of_birth, samples);
+    zones = computeHrZones(samples, maxHr);
+  }
+
+  await exerciseEntryRepository.applyWatchTelemetryAtomically(
+    exerciseEntryId,
     userId,
     actingUserId,
-    exerciseEntryId,
-    zones.map((zone) => ({
-      user_id: userId,
-      exercise_entry_id: exerciseEntryId,
-      entry_date: entry.entry_date,
-      zone_index: zone.zone_index,
-      zone_lower_bpm: zone.zone_lower_bpm,
-      zone_upper_bpm: zone.zone_upper_bpm,
-      seconds_in_zone: zone.seconds_in_zone,
-    }))
+    fields,
+    zones
   );
 }
 
