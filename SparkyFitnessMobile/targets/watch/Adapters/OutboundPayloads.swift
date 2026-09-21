@@ -100,6 +100,7 @@ enum OutboundPayloads {
     static func heartRateBatch(_ batch: HeartRateBatch) -> [String: Any] {
         var payload: [String: Any] = [
             "type": Kind.heartRateBatch,
+            "clientId": batch.clientId,
             "sessionId": batch.sessionId,
             "exerciseEntryId": batch.exerciseEntryId,
             "samples": batch.samples.map { ["t": $0.t, "bpm": $0.bpm] },

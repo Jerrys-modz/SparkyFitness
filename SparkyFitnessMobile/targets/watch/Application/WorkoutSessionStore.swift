@@ -8,11 +8,12 @@ import Combine
 /// in `steps`. That mirrors the phone's own `buildStepsFromSession`, which is
 /// what keeps the two sides describing the same position.
 ///
-/// Deliberately NOT persisted the way `CheckInStore` is: the phone is already
-/// the durable record here (`WatchSessionManager.transfer(_:)` queues each
-/// `setCompleted` individually, so a set survives even if the watch app is
-/// later killed), so there is nothing this store alone holds that would be
-/// worth recovering after a relaunch.
+/// Persisted across jetsam: watchOS keeps an `HKWorkoutSession` alive after
+/// memory-pressure kills, but our delegates and this store die with the
+/// process. Without a snapshot the Workout tab would relaunch empty against
+/// a still-running HK session, and every buffered sample would have no
+/// exercise to tag. Sets still queue through WatchConnectivity; this snapshot
+/// is what lets the wearer keep going on the same plan after the relaunch.
 @MainActor
 final class WorkoutSessionStore: ObservableObject {
     static let shared = WorkoutSessionStore()
@@ -37,13 +38,23 @@ final class WorkoutSessionStore: ObservableObject {
     private var restTimer: Timer?
     private var startedAt: Date?
 
-    private init() {}
+    private let defaults = UserDefaults.standard
+    private let snapshotKey = "sparky.watch.workoutSnapshot"
+    /// Previews share this process's UserDefaults; they must not write a
+    /// snapshot that the next real launch would restore as a live workout.
+    private let persistEnabled: Bool
+
+    private init(persistEnabled: Bool = true) {
+        self.persistEnabled = persistEnabled
+    }
 
     #if DEBUG
     /// A detached instance for Xcode previews. Canvases in one process share
     /// `shared`, so without this one preview's started workout leaks into the
     /// next one's "no workout" state.
-    static func previewInstance() -> WorkoutSessionStore { WorkoutSessionStore() }
+    static func previewInstance() -> WorkoutSessionStore {
+        WorkoutSessionStore(persistEnabled: false)
+    }
     #endif
 
     var isActive: Bool { plan != nil }
@@ -96,6 +107,7 @@ final class WorkoutSessionStore: ObservableObject {
         stopRestTimer()
         startedAt = Date()
         startElapsedTimer()
+        persistSnapshot(reportedEnergyKcal: 0)
     }
 
     /// Clears local state. Does not itself notify the phone — callers that
@@ -112,6 +124,7 @@ final class WorkoutSessionStore: ObservableObject {
         startedAt = nil
         stopElapsedTimer()
         stopRestTimer()
+        clearSnapshot()
     }
 
     func recordHeartRate(bpm: Double) {
@@ -129,6 +142,7 @@ final class WorkoutSessionStore: ObservableObject {
         if let weightKg { values.weightKg = weightKg }
         if let reps { values.reps = reps }
         editedValues[setId] = values
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     /// Marks the current set done, starts the next set's rest, and advances
@@ -152,6 +166,7 @@ final class WorkoutSessionStore: ObservableObject {
             // "Workout complete" instead of a rest timer with no way out.
             currentStepIndex = steps.count
         }
+        persistSnapshot(reportedEnergyKcal: nil)
         return step
     }
 
@@ -176,6 +191,7 @@ final class WorkoutSessionStore: ObservableObject {
         guard let first = owned.first else { return }
         stopRestTimer()
         currentStepIndex = owned.first { !isCompleted(steps[$0]) } ?? first
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     func goToNextStep() {
@@ -205,6 +221,80 @@ final class WorkoutSessionStore: ObservableObject {
         }
         restEndsAt = newEndsAt
         restDurationSeconds = max(1, restDurationSeconds + delta)
+    }
+
+    // MARK: - Jetsam snapshot
+
+    /// What we write to disk so a relaunch can pick the workout back up.
+    /// `reportedEnergyKcal` is owned by `WatchSessionManager` (it is "what we
+    /// have already sent", not UI) but it has to travel with the plan: a
+    /// reset-to-zero after recover would send the running total as a fresh
+    /// delta and double calories.
+    struct Snapshot: Codable {
+        var plan: ActiveWorkoutPlan
+        var currentStepIndex: Int
+        var completedSetIds: [String]
+        var editedValues: [String: SetValues]
+        var startedAt: Date
+        var reportedEnergyKcal: Double
+    }
+
+    /// Last energy high-water mark we persisted. WatchSessionManager reads
+    /// this after `restoreSnapshot` so it does not have to keep a parallel
+    /// UserDefaults key.
+    private(set) var restoredReportedEnergyKcal: Double = 0
+
+    /// Writes the live plan. Pass `reportedEnergyKcal` when the caller just
+    /// sent a batch; pass nil to keep whatever was last stored (set complete,
+    /// cursor move) so we do not zero the high-water mark from a UI event.
+    func persistSnapshot(reportedEnergyKcal: Double?) {
+        guard persistEnabled, let plan, let startedAt else { return }
+        let energy: Double
+        if let reportedEnergyKcal {
+            energy = reportedEnergyKcal
+            restoredReportedEnergyKcal = reportedEnergyKcal
+        } else {
+            energy = restoredReportedEnergyKcal
+        }
+        let snapshot = Snapshot(
+            plan: plan,
+            currentStepIndex: currentStepIndex,
+            completedSetIds: Array(completedSetIds),
+            editedValues: editedValues,
+            startedAt: startedAt,
+            reportedEnergyKcal: energy
+        )
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: snapshotKey)
+        }
+    }
+
+    /// Rehydrates a jetsam'd workout. Returns the snapshot so the session
+    /// manager can rebind HealthKit and restore its energy high-water mark.
+    /// No-op (and returns nil) when there is nothing stored.
+    @discardableResult
+    func restoreSnapshot() -> Snapshot? {
+        guard persistEnabled,
+              let data = defaults.data(forKey: snapshotKey),
+              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data)
+        else { return nil }
+        start(with: snapshot.plan)
+        // `start(with:)` resets cursor / completions / energy and writes a
+        // fresh snapshot; put the recovered progress back on top.
+        currentStepIndex = min(snapshot.currentStepIndex, steps.count)
+        completedSetIds = Set(snapshot.completedSetIds)
+        editedValues = snapshot.editedValues
+        startedAt = snapshot.startedAt
+        elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
+        restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
+        persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
+        return snapshot
+    }
+
+    func clearSnapshot() {
+        restoredReportedEnergyKcal = 0
+        guard persistEnabled else { return }
+        defaults.removeObject(forKey: snapshotKey)
     }
 
     // MARK: - Timers

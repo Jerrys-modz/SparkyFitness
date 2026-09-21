@@ -390,6 +390,7 @@ describe('useWatchWorkoutBridge', () => {
 
     act(() => {
       fire('onHeartRateBatch', {
+        clientId: 'hr-1',
         sessionId: 'session-1',
         exerciseEntryId: 'ex-uuid-1',
         samples: [
@@ -399,6 +400,7 @@ describe('useWatchWorkoutBridge', () => {
         activeEnergyKcal: 12.5,
       });
       fire('onHeartRateBatch', {
+        clientId: 'hr-2',
         sessionId: 'session-1',
         exerciseEntryId: 'ex-uuid-1',
         samples: [{ t: '2026-09-17T10:01:00.000Z', bpm: 131 }],
@@ -429,6 +431,7 @@ describe('useWatchWorkoutBridge', () => {
 
     act(() => {
       fire('onHeartRateBatch', {
+        clientId: 'hr-energy-only',
         sessionId: 'session-1',
         exerciseEntryId: 'ex-uuid-1',
         samples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }],
@@ -487,6 +490,7 @@ describe('useWatchWorkoutBridge', () => {
     });
     act(() => {
       fire('onHeartRateBatch', {
+        clientId: 'hr-late-1',
         sessionId: 'session-1',
         exerciseEntryId: 'ex-uuid-1',
         samples: [
@@ -507,6 +511,7 @@ describe('useWatchWorkoutBridge', () => {
     // still holding — always after the session has already ended here.
     await act(async () => {
       fire('onHeartRateBatch', {
+        clientId: 'hr-late-2',
         sessionId: 'session-1',
         exerciseEntryId: 'ex-uuid-1',
         samples: [
@@ -550,6 +555,7 @@ describe('useWatchWorkoutBridge', () => {
 
     await act(async () => {
       fire('onHeartRateBatch', {
+        clientId: 'hr-short',
         sessionId: 'session-1',
         exerciseEntryId: 'ex-uuid-1',
         samples: [
@@ -589,5 +595,83 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(mockAttachTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('dedupes a re-delivered heart-rate batch by clientId so calories do not double', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    const payload = {
+      clientId: 'hr-redeliver',
+      sessionId: 'session-1',
+      exerciseEntryId: 'ex-uuid-1',
+      samples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ],
+      activeEnergyKcal: 12.5,
+    };
+    act(() => {
+      fire('onHeartRateBatch', payload);
+      fire('onHeartRateBatch', payload);
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ],
+      activeEnergyKcal: 12.5,
+    });
+  });
+
+  it('skips energy on a batch with no clientId so a redelivery cannot double calories', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+        activeEnergyKcal: 12.5,
+      });
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+          { t: '2026-09-17T10:00:20.000Z', bpm: 134 },
+        ],
+        activeEnergyKcal: 7.5,
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    // Samples still merge (timestamp-deduped); energy is refused without a
+    // clientId because transferUserInfo can redeliver the same delta.
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        { t: '2026-09-17T10:00:20.000Z', bpm: 134 },
+      ],
+    });
   });
 });

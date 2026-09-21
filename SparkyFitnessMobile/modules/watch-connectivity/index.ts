@@ -243,6 +243,13 @@ export interface WatchHeartRateSamplePayload {
  * attribution.
  */
 export interface WatchHeartRateBatchPayload {
+  /**
+   * Stable id generated on the watch, to dedupe a re-delivered
+   * `transferUserInfo`. Absent on a batch from an older watch build —
+   * those must not apply `activeEnergyKcal` again, because a redelivery
+   * would double the diary calories.
+   */
+  clientId?: string;
   sessionId: string;
   exerciseEntryId: string;
   samples: WatchHeartRateSamplePayload[];

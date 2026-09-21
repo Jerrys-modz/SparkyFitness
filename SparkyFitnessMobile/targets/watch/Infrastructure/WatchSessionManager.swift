@@ -351,7 +351,19 @@ final class WatchSessionManager: NSObject, ObservableObject {
         workoutHealthKit.stop()
         workoutStore.start(with: plan)
         reportedEnergyKcal = 0
+        bindHealthKitCallbacks()
+        // Request the prompt, but do not treat its `success` as "granted" —
+        // Apple's completion only means the dialog finished. Start the
+        // session either way: a denied share still lets the tab run as a
+        // timer, and read access (HR) cannot be inspected up front.
+        workoutHealthKit.requestAuthorization { [weak workoutHealthKit] _ in
+            workoutHealthKit?.start(sessionId: plan.sessionId)
+        }
+    }
 
+    /// The HealthKit controller outlives a jetsam'd SwiftUI tree; the
+    /// closures do not. Rebind after recover so samples keep flowing.
+    private func bindHealthKitCallbacks() {
         // Neither closure runs on the main actor by virtue of running on the
         // main thread — `WorkoutHealthKitController` dispatches them there,
         // but that alone doesn't satisfy Swift's isolation checking for the
@@ -372,9 +384,33 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 workoutStore?.recordActiveEnergy(kcal: kcal)
             }
         }
-        workoutHealthKit.requestAuthorization { [weak workoutHealthKit] granted in
-            guard granted else { return }
-            workoutHealthKit?.start(sessionId: plan.sessionId)
+    }
+
+    /// Picks an HKWorkoutSession back up after jetsam, or starts a fresh one
+    /// against the persisted plan if the system let the recovered session go.
+    private func recoverLiveWorkoutIfNeeded() {
+        // A queued `workoutStart` can land before activationDidCompleteWith.
+        // That is a live arm from the phone, newer than any snapshot, and
+        // restoring over it would resurrect the previous session on top.
+        if workoutStore.plan != nil { return }
+        guard let snapshot = workoutStore.restoreSnapshot() else {
+            // A recovered HK session with no plan is a ghost — end it so
+            // Fitness does not keep a workout we can no longer attribute.
+            workoutHealthKit.recoverIfNeeded { [weak self] recovered in
+                if recovered {
+                    _ = self?.workoutHealthKit.stop()
+                }
+            }
+            return
+        }
+        reportedEnergyKcal = snapshot.reportedEnergyKcal
+        bindHealthKitCallbacks()
+        workoutHealthKit.recoverIfNeeded { [weak self] recovered in
+            guard let self else { return }
+            if recovered { return }
+            self.workoutHealthKit.requestAuthorization { _ in
+                self.workoutHealthKit.start(sessionId: snapshot.plan.sessionId)
+            }
         }
     }
 
@@ -433,7 +469,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // hand over whatever the buffer held, including nothing.
         guard !samples.isEmpty || energyDelta > 0 else { return }
         reportedEnergyKcal = cumulative
+        workoutStore.persistSnapshot(reportedEnergyKcal: reportedEnergyKcal)
         let batch = HeartRateBatch(
+            clientId: UUID().uuidString,
             sessionId: sessionId,
             exerciseEntryId: exerciseEntryId,
             samples: samples,
@@ -489,6 +527,7 @@ extension WatchSessionManager: WCSessionDelegate {
             // works with the phone nowhere in sight.
             self.adoptReceivedContext()
             self.retryPending()
+            self.recoverLiveWorkoutIfNeeded()
             self.requestContext()
         }
     }

@@ -17,6 +17,7 @@ import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
 import { getGroupedExerciseSessionByIdWithClient } from '../services/exerciseEntryHistoryService.js';
 import exerciseService from '../services/exerciseService.js';
 import { canEditGroupedWorkout } from '@workspace/shared';
+import * as workoutTelemetryRepository from '../models/workoutTelemetryRepository.js';
 vi.mock('../db/poolManager', () => ({
   getClient: vi.fn(),
   getSystemClient: vi.fn(),
@@ -79,6 +80,10 @@ vi.mock('../services/exerciseEntryHistoryService', () => ({
   getGroupedExerciseSessionById: vi.fn(),
   getGroupedExerciseSessionByIdWithClient: vi.fn(),
 }));
+vi.mock('../models/workoutTelemetryRepository.js', () => ({
+  getHrZonesForExerciseEntryWithClient: vi.fn().mockResolvedValue([]),
+  _bulkInsertExerciseEntryHrZonesWithClient: vi.fn().mockResolvedValue([]),
+}));
 describe('exerciseService grouped workouts', () => {
   const client = {
     query: vi.fn(),
@@ -95,6 +100,12 @@ describe('exerciseService grouped workouts', () => {
     exerciseEntryDb.getWorkoutPlanAssignmentIdByPresetEntryIdWithClient.mockResolvedValue(
       null
     );
+    vi.mocked(
+      workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient
+    ).mockReset().mockResolvedValue([]);
+    vi.mocked(
+      workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
+    ).mockReset().mockResolvedValue([]);
   });
   it('rolls back grouped workout creation when a child insert fails', async () => {
     // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
@@ -1501,6 +1512,102 @@ describe('exerciseService grouped workouts', () => {
       });
       expect(secondCreate[2].avg_heart_rate ?? null).toBeNull();
       expect(secondCreate[2].active_calories).toBeUndefined();
+    });
+
+    it('copies HR zone rows onto the replacement entries', async () => {
+      const measuredSession = {
+        ...existingSession,
+        exercises: [
+          {
+            ...existingSession.exercises[0],
+            active_calories: '412.00',
+            avg_heart_rate: 142,
+            max_heart_rate: 168,
+          },
+          existingSession.exercises[1],
+        ],
+      };
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
+        .mockResolvedValueOnce(measuredSession)
+        .mockResolvedValueOnce(measuredSession);
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
+        { id: 'preset-entry-1' }
+      );
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
+        id,
+        name: 'Test Exercise',
+        calories_per_hour: 600,
+      }));
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exerciseEntryDb._createExerciseEntryWithClient
+        .mockResolvedValueOnce({
+          entry: { id: 'new-entry-a' },
+          operation: 'created',
+        })
+        .mockResolvedValueOnce({
+          entry: { id: 'new-entry-b' },
+          operation: 'created',
+        });
+      vi.mocked(
+        workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient
+      ).mockImplementation(async (_client, entryId) => {
+        if (entryId === 'entry-a') {
+          return [
+            {
+              zone_index: 4,
+              zone_lower_bpm: 140,
+              zone_upper_bpm: 159,
+              seconds_in_zone: 180,
+            },
+          ] as never;
+        }
+        return [];
+      });
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 30,
+              sets: [],
+            },
+            {
+              exercise_id: exerciseBId,
+              sort_order: 1,
+              duration_minutes: 15,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      expect(
+        workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient
+      ).toHaveBeenCalledWith(client, 'entry-a');
+      expect(
+        workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
+      ).toHaveBeenCalledWith(client, 'user-1', [
+        expect.objectContaining({
+          user_id: 'user-1',
+          exercise_entry_id: 'new-entry-a',
+          entry_date: '2026-03-12',
+          zone_index: 4,
+          seconds_in_zone: 180,
+        }),
+      ]);
+      expect(
+        workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
+      ).toHaveBeenCalledTimes(1);
     });
   });
 

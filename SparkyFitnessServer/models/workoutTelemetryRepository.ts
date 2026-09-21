@@ -359,19 +359,29 @@ export async function _bulkInsertExerciseEntryHrZonesWithClient(
   }
 }
 
+export async function getHrZonesForExerciseEntryWithClient(
+  client: TelemetryDbClient,
+  exerciseEntryId: string
+): Promise<ExerciseEntryHrZones[]> {
+  const res = (await client.query(
+    `SELECT * FROM exercise_entry_hr_zones
+     WHERE exercise_entry_id = $1
+     ORDER BY zone_index ASC`,
+    [exerciseEntryId]
+  )) as { rows: ExerciseEntryHrZones[] };
+  return res.rows;
+}
+
 export async function getHrZonesForExerciseEntry(
   exerciseEntryId: string,
   actingUserId: string
 ): Promise<ExerciseEntryHrZones[]> {
   const client = await getClient(actingUserId);
   try {
-    const res = (await client.query(
-      `SELECT * FROM exercise_entry_hr_zones
-       WHERE exercise_entry_id = $1
-       ORDER BY zone_index ASC`,
-      [exerciseEntryId]
-    )) as { rows: ExerciseEntryHrZones[] };
-    return res.rows;
+    return await getHrZonesForExerciseEntryWithClient(
+      client as unknown as TelemetryDbClient,
+      exerciseEntryId
+    );
   } finally {
     if (client && typeof client.release === 'function') client.release();
   }

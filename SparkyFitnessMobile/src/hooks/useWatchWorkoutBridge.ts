@@ -65,6 +65,10 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
   // Guards a queued setCompleted transfer being delivered (and thus
   // completeSet'd) twice — WatchConnectivity makes no once-only promise.
   const handledSetClientIdsRef = useRef<Set<string>>(new Set());
+  // Same for heart-rate batches: `transferUserInfo` can redeliver, and the
+  // energy field is a delta, so applying it twice doubles calories. Samples
+  // are also timestamp-deduped below as a belt for a missing clientId.
+  const handledHrBatchClientIdsRef = useRef<Set<string>>(new Set());
   // Points at `flushHeartRate` below, which the batch handler needs for a
   // late arrival but which is declared after it. Populated by the same effect
   // that syncs `handlersRef`, which runs before the listeners are attached.
@@ -134,16 +138,32 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
         energyBufferRef.current = new Map();
         bufferedSessionIdRef.current = payload.sessionId;
         hasUnpostedRef.current = false;
+        handledHrBatchClientIdsRef.current = new Set();
+      }
+      if (payload.clientId) {
+        if (handledHrBatchClientIdsRef.current.has(payload.clientId)) {
+          return;
+        }
+        handledHrBatchClientIdsRef.current.add(payload.clientId);
       }
       if (payload.samples.length > 0) {
         const existing = hrBufferRef.current.get(payload.exerciseEntryId) ?? [];
-        hrBufferRef.current.set(
-          payload.exerciseEntryId,
-          existing.concat(payload.samples)
+        const seen = new Set(existing.map((sample) => sample.t));
+        const added = payload.samples.filter(
+          (sample) => sample?.t && !seen.has(sample.t)
         );
-        hasUnpostedRef.current = true;
+        if (added.length > 0) {
+          hrBufferRef.current.set(
+            payload.exerciseEntryId,
+            existing.concat(added)
+          );
+          hasUnpostedRef.current = true;
+        }
       }
-      if (payload.activeEnergyKcal != null) {
+      // Energy is a delta. A redelivered batch without a clientId cannot be
+      // distinguished from a new one, so skip calories rather than double
+      // them. Samples still merge via the timestamp set above.
+      if (payload.clientId && payload.activeEnergyKcal != null) {
         const existing =
           energyBufferRef.current.get(payload.exerciseEntryId) ?? 0;
         energyBufferRef.current.set(
@@ -322,6 +342,7 @@ export function useWatchWorkoutBridge(enabled: boolean): void {
         energyBufferRef.current = new Map();
         bufferedSessionIdRef.current = state.sessionId;
         hasUnpostedRef.current = false;
+        handledHrBatchClientIdsRef.current = new Set();
         entryDateRef.current =
           state.session?.entry_date != null
             ? normalizeDate(state.session.entry_date)

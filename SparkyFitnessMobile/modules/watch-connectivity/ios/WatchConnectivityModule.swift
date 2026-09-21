@@ -157,6 +157,7 @@ public class WatchConnectivityModule: Module {
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in
                 self?.sendEvent("onHeartRateBatch", [
+                    "clientId": payload["clientId"] as? String ?? "",
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
                     // WatchConnectivity delivers nested dictionaries as NSArray

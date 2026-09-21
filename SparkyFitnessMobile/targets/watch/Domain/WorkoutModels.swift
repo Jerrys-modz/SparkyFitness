@@ -125,6 +125,10 @@ struct HeartRateSample: Codable, Equatable {
 /// multi-minute set; tagging by exercise here means the phone never has to
 /// reconstruct per-exercise windows from timestamps alone.
 struct HeartRateBatch: Codable, Equatable {
+    /// Generated on the watch so a queued `transferUserInfo` delivered twice
+    /// can be recognised and ignored — same role `CompletedSet.clientId`
+    /// plays for sets. Without it a redelivery adds the energy delta again.
+    let clientId: String
     let sessionId: String
     let exerciseEntryId: String
     let samples: [HeartRateSample]
