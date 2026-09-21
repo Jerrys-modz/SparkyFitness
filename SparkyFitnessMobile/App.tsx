@@ -161,7 +161,13 @@ function WatchCheckInGate() {
  * dropped those events with no replay.
  */
 function WatchWorkoutGate() {
-  const { isConnected: isServerConnected } = useServerConnection();
+  // Poll so a server that comes back while the app stays in the
+  // foreground is noticed — default useServerConnection() does not
+  // poll, so isServerConnected would stay false and the buffered
+  // telemetry would never flush.
+  const { isConnected: isServerConnected } = useServerConnection({
+    enablePolling: true,
+  });
   useWatchWorkoutBridge(true, isServerConnected);
   return null;
 }
