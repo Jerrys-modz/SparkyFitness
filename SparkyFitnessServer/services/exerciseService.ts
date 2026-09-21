@@ -1914,7 +1914,7 @@ async function createGroupedExerciseEntriesWithClient(
       // unless a watch measurement is sitting on the row we just deleted.
       ...(typeof exercise.calories_burned === 'number'
         ? { calories_burned: exercise.calories_burned }
-        : measured != null
+        : measured !== undefined
           ? { calories_burned: measured }
           : {}),
       sort_order: exercise.sort_order ?? 0,
@@ -2100,12 +2100,12 @@ function resolveEditedCaloriesBurned(
 ): number {
   if (typeof clientCalories === 'number') return clientCalories;
   const measured = parseMeasuredCalories(existingEntry?.active_calories);
-  return measured != null ? measured : recomputed;
+  return measured !== undefined ? measured : recomputed;
 }
 
 /** Finite nonnegative device measurement. `null`/`''` must not become 0. */
 function parseMeasuredCalories(raw: unknown): number | undefined {
-  if (raw == null || raw === '') return undefined;
+  if (raw === null || raw === undefined || raw === '') return undefined;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }

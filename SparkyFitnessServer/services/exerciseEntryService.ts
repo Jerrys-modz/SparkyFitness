@@ -309,8 +309,9 @@ async function attachWatchTelemetryToExerciseEntry(
   // backwards.
   const storedMax = Number(entry.max_heart_rate);
   const skipHr =
-    fields.max_heart_rate != null &&
-    entry.max_heart_rate != null &&
+    typeof fields.max_heart_rate === 'number' &&
+    entry.max_heart_rate !== null &&
+    entry.max_heart_rate !== undefined &&
     Number.isFinite(storedMax) &&
     fields.max_heart_rate < storedMax;
   if (skipHr) {
@@ -319,8 +320,9 @@ async function attachWatchTelemetryToExerciseEntry(
   }
   const storedCalories = Number(entry.active_calories);
   if (
-    fields.active_calories != null &&
-    entry.active_calories != null &&
+    typeof fields.active_calories === 'number' &&
+    entry.active_calories !== null &&
+    entry.active_calories !== undefined &&
     entry.active_calories !== '' &&
     Number.isFinite(storedCalories) &&
     fields.active_calories < storedCalories
