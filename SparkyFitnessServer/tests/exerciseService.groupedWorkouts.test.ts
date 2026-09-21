@@ -1453,7 +1453,7 @@ describe('exerciseService grouped workouts', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('does not attach telemetry by exercise_id when ids are omitted', async () => {
+    it('rejects an id-less edit of a session that already has watch telemetry', async () => {
       const measuredSession = {
         ...existingSession,
         exercises: [
@@ -1474,135 +1474,33 @@ describe('exerciseService grouped workouts', () => {
       exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
         { id: 'preset-entry-1' }
       );
-      // @ts-expect-error TS(2339): mockImplementation on mocked fn
-      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
-      // @ts-expect-error TS(2339): mockImplementation on mocked fn
-      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
-        id,
-        name: 'Test Exercise',
-        calories_per_hour: 600,
-      }));
-      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
-      exerciseEntryDb._createExerciseEntryWithClient.mockResolvedValue({
-        entry: { id: 'new-entry' },
-        operation: 'created',
-      });
 
-      await exerciseService.updateGroupedWorkoutSession(
-        'user-1',
-        'actor-1',
-        'preset-entry-1',
-        {
-          exercises: [
-            {
-              exercise_id: exerciseAId,
-              sort_order: 0,
-              duration_minutes: 30,
-              sets: [],
-            },
-            {
-              exercise_id: exerciseBId,
-              sort_order: 1,
-              duration_minutes: 15,
-              sets: [],
-            },
-          ],
-        }
-      );
+      await expect(
+        exerciseService.updateGroupedWorkoutSession(
+          'user-1',
+          'actor-1',
+          'preset-entry-1',
+          {
+            exercises: [
+              {
+                exercise_id: exerciseAId,
+                sort_order: 0,
+                duration_minutes: 30,
+                sets: [],
+              },
+            ],
+          }
+        )
+      ).rejects.toMatchObject({
+        status: 409,
+        message:
+          'Exercise entry ids are required to edit a session with watch telemetry.',
+      });
 
       expect(
         exerciseEntryDb.deleteExerciseEntriesByPresetEntryIdWithClient
-      ).toHaveBeenCalled();
-      const [firstCreate, secondCreate] = vi.mocked(
-        exerciseEntryDb._createExerciseEntryWithClient
-      ).mock.calls;
-      expect(firstCreate[2].calories_burned).not.toBe(412);
-      expect(firstCreate[2].avg_heart_rate ?? null).toBeNull();
-      expect(firstCreate[2].max_heart_rate).toBeUndefined();
-      expect(firstCreate[2].active_calories).toBeUndefined();
-      expect(secondCreate[2].avg_heart_rate ?? null).toBeNull();
-      expect(secondCreate[2].active_calories).toBeUndefined();
-    });
-
-    it('does not copy HR zones by exercise_id when ids are omitted', async () => {
-      const measuredSession = {
-        ...existingSession,
-        exercises: [
-          {
-            ...existingSession.exercises[0],
-            active_calories: '412.00',
-            avg_heart_rate: 142,
-            max_heart_rate: 168,
-          },
-          existingSession.exercises[1],
-        ],
-      };
-      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
-      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
-        .mockResolvedValueOnce(measuredSession)
-        .mockResolvedValueOnce(measuredSession);
-      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
-      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
-        { id: 'preset-entry-1' }
-      );
-      // @ts-expect-error TS(2339): mockImplementation on mocked fn
-      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
-      // @ts-expect-error TS(2339): mockImplementation on mocked fn
-      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
-        id,
-        name: 'Test Exercise',
-        calories_per_hour: 600,
-      }));
-      vi.mocked(exerciseEntryDb._createExerciseEntryWithClient)
-        .mockResolvedValueOnce({
-          entry: { id: 'new-entry-a' },
-          operation: 'created',
-        })
-        .mockResolvedValueOnce({
-          entry: { id: 'new-entry-b' },
-          operation: 'created',
-        });
-      vi.mocked(
-        workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient
-      ).mockImplementation(async (_client, entryId) => {
-        if (entryId === 'entry-a') {
-          return [
-            {
-              zone_index: 4,
-              zone_lower_bpm: 140,
-              zone_upper_bpm: 159,
-              seconds_in_zone: 180,
-            },
-          ] as never;
-        }
-        return [];
-      });
-
-      await exerciseService.updateGroupedWorkoutSession(
-        'user-1',
-        'actor-1',
-        'preset-entry-1',
-        {
-          exercises: [
-            {
-              exercise_id: exerciseAId,
-              sort_order: 0,
-              duration_minutes: 30,
-              sets: [],
-            },
-            {
-              exercise_id: exerciseBId,
-              sort_order: 1,
-              duration_minutes: 15,
-              sets: [],
-            },
-          ],
-        }
-      );
-
-      expect(
-        workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient
       ).not.toHaveBeenCalled();
+      expect(client.query).toHaveBeenCalledWith('ROLLBACK');
     });
   });
 
@@ -2357,9 +2255,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
     sets: [],
   };
 
-  // Base columns (31) + telemetry columns (40, added across the generic-health-tables
-  // and complete-workout-telemetry migrations) = 71; the id column, when a client uuid
-  // is supplied, is appended as the 72nd placeholder.
+  // Base columns (31) + telemetry columns (41) = 72; the id column, when a
+  // client uuid is supplied, is appended as the 73rd placeholder.
   it('inserts the client-provided uuid into the id column as the last placeholder', async () => {
     const client = makeClient();
     await create(
@@ -2374,12 +2271,12 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).toContain('$72');
+    expect(insert!.sql).toContain('$73');
     expect(insert!.sql).toContain('modality');
     expect(insert!.sql).toContain(', id)');
-    // $72 is the last param — the client uuid.
-    expect(insert!.params).toHaveLength(72);
-    expect(insert!.params[71]).toBe('client-uuid-1');
+    // $73 is the last param — the client uuid.
+    expect(insert!.params).toHaveLength(73);
+    expect(insert!.params[72]).toBe('client-uuid-1');
   });
 
   it('omits the id column when no id is provided (defaults to gen_random_uuid)', async () => {
@@ -2396,8 +2293,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).not.toContain('$72');
+    expect(insert!.sql).not.toContain('$73');
     expect(insert!.sql).not.toMatch(/modality, id\)/);
-    expect(insert!.params).toHaveLength(71);
+    expect(insert!.params).toHaveLength(72);
   });
 });

@@ -283,6 +283,14 @@ async function attachWatchTelemetryToExerciseEntry(
       bpmValues.reduce((sum, bpm) => sum + bpm, 0) / bpmValues.length
     );
     fields.max_heart_rate = Math.round(Math.max(...bpmValues));
+    const observedMs = Math.max(
+      ...hrSamples
+        .map((sample) => Date.parse(sample.t))
+        .filter((ms) => Number.isFinite(ms))
+    );
+    if (Number.isFinite(observedMs)) {
+      fields.watch_telemetry_observed_at = new Date(observedMs).toISOString();
+    }
   }
   if (activeEnergyKcal !== undefined) {
     const measured = Math.round(activeEnergyKcal);

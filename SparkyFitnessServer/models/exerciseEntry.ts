@@ -280,6 +280,7 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'weather_humidity_percentage',
   'gear_name',
   'gear_external_id',
+  'watch_telemetry_observed_at',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -368,6 +369,13 @@ export interface WatchTelemetryFields {
    * edit path tell a measurement apart from an estimate.
    */
   active_calories?: number | null;
+  /**
+   * Latest sample instant in the series this write came from. Later flushes
+   * of the same workout carry a later (or equal) value; an older in-flight
+   * request with the same max HR / calories must not overwrite avg HR or
+   * zones once a newer snapshot has committed.
+   */
+  watch_telemetry_observed_at?: string | Date | null;
 }
 
 /**
@@ -434,21 +442,40 @@ async function updateExerciseEntryWatchTelemetry(
  * Drop proposed max-HR / calories that would roll a stored snapshot backwards.
  * `skipHr` also means the caller must not replace zone rows from that series.
  */
+function observedAtMs(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const ms =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
+  return Number.isFinite(ms) ? ms : null;
+}
+
 export function filterStaleWatchTelemetryFields(
-  entry: { max_heart_rate?: unknown; active_calories?: unknown },
+  entry: {
+    max_heart_rate?: unknown;
+    active_calories?: unknown;
+    watch_telemetry_observed_at?: unknown;
+  },
   fields: WatchTelemetryFields
 ): { fields: WatchTelemetryFields; skipHr: boolean } {
   const next: WatchTelemetryFields = { ...fields };
+  const incomingObserved = observedAtMs(next.watch_telemetry_observed_at);
+  const storedObserved = observedAtMs(entry.watch_telemetry_observed_at);
+  const staleSnapshot =
+    incomingObserved !== null &&
+    storedObserved !== null &&
+    incomingObserved <= storedObserved;
   const storedMax = Number(entry.max_heart_rate);
   const skipHr =
-    typeof next.max_heart_rate === 'number' &&
-    entry.max_heart_rate !== null &&
-    entry.max_heart_rate !== undefined &&
-    Number.isFinite(storedMax) &&
-    next.max_heart_rate < storedMax;
+    staleSnapshot ||
+    (typeof next.max_heart_rate === 'number' &&
+      entry.max_heart_rate !== null &&
+      entry.max_heart_rate !== undefined &&
+      Number.isFinite(storedMax) &&
+      next.max_heart_rate < storedMax);
   if (skipHr) {
     delete next.avg_heart_rate;
     delete next.max_heart_rate;
+    delete next.watch_telemetry_observed_at;
   }
   const storedCalories = Number(entry.active_calories);
   if (
@@ -498,6 +525,7 @@ async function applyWatchTelemetryAtomically(
             entry_date: string;
             max_heart_rate?: unknown;
             active_calories?: unknown;
+            watch_telemetry_observed_at?: unknown;
           }
         | undefined;
       if (!entry) {
@@ -516,7 +544,7 @@ async function applyWatchTelemetryAtomically(
         userId,
         fields
       );
-      if (!skipHr && zones && zones.length > 0) {
+      if (!skipHr && zones !== null) {
         await workoutTelemetryRepository._replaceExerciseEntryHrZonesWithClient(
           client,
           userId,

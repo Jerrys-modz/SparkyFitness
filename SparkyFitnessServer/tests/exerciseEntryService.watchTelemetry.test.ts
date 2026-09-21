@@ -192,4 +192,49 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(fields.max_heart_rate).toBe(178);
     expect(fields.active_calories).toBe(200);
   });
+
+  it('rejects an older snapshot when max HR and calories are tied', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields, skipHr } = filterStaleWatchTelemetryFields(
+      {
+        max_heart_rate: 170,
+        active_calories: 200,
+        watch_telemetry_observed_at: '2026-01-01T12:01:00.000Z',
+      },
+      {
+        avg_heart_rate: 140,
+        max_heart_rate: 170,
+        calories_burned: 200,
+        active_calories: 200,
+        watch_telemetry_observed_at: '2026-01-01T12:00:30.000Z',
+      }
+    );
+    expect(skipHr).toBe(true);
+    expect(fields.avg_heart_rate).toBeUndefined();
+    expect(fields.watch_telemetry_observed_at).toBeUndefined();
+    expect(fields.active_calories).toBe(200);
+  });
+
+  it('accepts a later snapshot with the same max HR', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields, skipHr } = filterStaleWatchTelemetryFields(
+      {
+        max_heart_rate: 170,
+        active_calories: 200,
+        watch_telemetry_observed_at: '2026-01-01T12:00:30.000Z',
+      },
+      {
+        avg_heart_rate: 145,
+        max_heart_rate: 170,
+        calories_burned: 200,
+        active_calories: 200,
+        watch_telemetry_observed_at: '2026-01-01T12:01:00.000Z',
+      }
+    );
+    expect(skipHr).toBe(false);
+    expect(fields.avg_heart_rate).toBe(145);
+    expect(fields.watch_telemetry_observed_at).toBe('2026-01-01T12:01:00.000Z');
+  });
 });

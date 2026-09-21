@@ -2168,6 +2168,27 @@ async function updateGroupedWorkoutSession(
         );
 
       if (!useReconcile) {
+        // No string ids means we cannot match replacements to prior rows.
+        // Deleting would drop measured calories / HR / zones. Current
+        // clients send ids (mixed is allowed); older all-id-absent payloads
+        // are refused when the session already has watch telemetry.
+        const hasWatchTelemetry = (existingSession.exercises || []).some(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (ex: any) =>
+            (ex?.avg_heart_rate !== null &&
+              ex?.avg_heart_rate !== undefined &&
+              ex?.avg_heart_rate !== '') ||
+            (ex?.max_heart_rate !== null &&
+              ex?.max_heart_rate !== undefined &&
+              ex?.max_heart_rate !== '') ||
+            parseMeasuredCalories(ex?.active_calories) !== undefined
+        );
+        if (hasWatchTelemetry) {
+          throw createServiceError(
+            409,
+            'Exercise entry ids are required to edit a session with watch telemetry.'
+          );
+        }
         // Snapshot watch telemetry from the rows about to be deleted so the
         // replacements can keep measured calories / HR when the incoming
         // payload still names those rows by id. Zones live in a child table
