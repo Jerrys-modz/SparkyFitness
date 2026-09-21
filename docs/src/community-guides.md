@@ -23,3 +23,8 @@ Run it on a schedule alongside SparkyFitness if you want your Cronometer history
 
 One limitation worth knowing before you try it, observed on a free-tier account: the `servings` export lists per-food rows (`Day,Time,Group,Food Name,Amount,Category`) with no nutrient columns, while only the `dailySummary` export carries the numbers, one row per day. On that path it is a daily-totals source, not a food-diary import. Paid tiers were not tested.
 
+### Samsung Health import
+
+You can import sleep and weight data from Samsung Health using the command line and the scripts from [this repository](https://codeberg.org/giggio/sparky_fitness_convert).
+
+First export the data from the Samsung Health app (Settings > Download personal data) then use the 2 files referenced in the repository to import.
