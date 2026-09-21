@@ -105,10 +105,11 @@ enum OutboundPayloads {
             "exerciseEntryId": batch.exerciseEntryId,
             "samples": batch.samples.map { ["t": $0.t, "bpm": $0.bpm] },
         ]
-        // Omitted rather than sent as zero when there is nothing to report:
-        // the phone only posts calories it actually received, and a zero
-        // would overwrite the server's estimate with a measurement of none.
-        if let kcal = batch.activeEnergyKcal, kcal > 0 {
+        // Include 0: a measured zero must replace the diary estimate.
+        // Dropping it here made HR-only batches post without calories, so
+        // the server kept calories_burned from duration/sets. Nil still
+        // means this batch has no energy reading at all.
+        if let kcal = batch.activeEnergyKcal {
             payload["activeEnergyKcal"] = kcal
         }
         return payload

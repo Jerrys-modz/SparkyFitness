@@ -468,13 +468,19 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // `max(0, ...)` because the running total should only ever climb, but
         // a HealthKit session that restarts mid-workout would reset it, and a
         // negative delta would subtract calories the wearer really burned.
-        let cumulative = workoutStore.activeEnergyKcal ?? 0
-        let energyDelta = max(0, cumulative - reportedEnergyKcal)
+        // Nil until HealthKit has delivered a reading, so a first HR batch
+        // does not post a fake measured zero before any energy exists.
+        let energyDelta: Double?
+        if let cumulative = workoutStore.activeEnergyKcal {
+            energyDelta = max(0, cumulative - reportedEnergyKcal)
+            reportedEnergyKcal = cumulative
+        } else {
+            energyDelta = nil
+        }
         // The one place that can see both halves of a batch, and so the only
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
-        guard !samples.isEmpty || energyDelta > 0 else { return }
-        reportedEnergyKcal = cumulative
+        guard !samples.isEmpty || (energyDelta ?? 0) > 0 else { return }
         workoutStore.persistSnapshot(reportedEnergyKcal: reportedEnergyKcal)
         let batch = HeartRateBatch(
             clientId: UUID().uuidString,
