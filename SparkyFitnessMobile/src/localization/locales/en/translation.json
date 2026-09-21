@@ -71,6 +71,18 @@
       "english": "English",
       "polish": "Polski",
       "spanish": "Español",
+      "simplifiedChinese": "简体中文",
+      "traditionalChinese": "正體中文",
+      "cantoneseTraditional": "正體粵語",
+      "german": "Deutsch",
+      "french": "Français",
+      "hungarian": "Magyar",
+      "italian": "Italiano",
+      "latvian": "Latviešu",
+      "norwegianBokmal": "Norsk bokmål",
+      "dutch": "Nederlands",
+      "brazilianPortuguese": "Português (Brasil)",
+      "russian": "Русский",
       "pickerHint": "Opens language selection menu",
       "changeFailed": "Couldn't change the language",
       "managedByIOS": "Managed by iOS",
@@ -794,6 +806,14 @@
       "subtitle": "Export anonymized health data for bug reports",
       "privacy": "Reads the last 4 hours of data from Health Connect for troubleshooting.\nValues are rounded for privacy. Nothing is sent automatically.",
       "error": "Failed to generate health data report: {{error}}"
+    },
+    "syncChoice": {
+      "title": "Sync {{start}} – {{end}}",
+      "titleSingleDay": "Sync {{day}}",
+      "quick": "Quick Sync",
+      "quickDescription": "Sends all your health data. Workouts already synced keep the map and heart rate they have.",
+      "all": "All Sync",
+      "allDescription": "The same, and also re-reads the map and heart rate for workouts already synced. Slower."
     }
   },
   "syncFrequency": {
@@ -3139,6 +3159,46 @@
       "selectMeal": "Select Meal"
     }
   },
+  "foodEntryMultiAdd": {
+    "title": "Review",
+    "addingToDate": "Adding to {{date}}",
+    "labels": {
+      "meal": "Meal",
+      "chooseMeal": "Choose meal"
+    },
+    "pickers": {
+      "selectMeal": "Select Meal",
+      "selectServing": "Select Serving"
+    },
+    "accessibility": {
+      "mealForAll": "Meal for all items: {{meal}}",
+      "mealForRow": "Meal for {{food}}: {{meal}}",
+      "increaseQuantity": "Increase quantity",
+      "decreaseQuantity": "Decrease quantity",
+      "changeServing": "Change serving for {{name}}"
+    },
+    "actions": {
+      "addAll_one": "Add all ({{count}})",
+      "addAll_other": "Add all ({{count}})",
+      "remove": "Remove {{name}}",
+      "addAnyway": "Add anyway",
+      "addAnywayFor": "Add {{name}} anyway"
+    },
+    "banners": {
+      "unknownOutcome": "Some items couldn't be added and may already be in your diary"
+    },
+    "errors": {
+      "invalidQuantity": "Enter a quantity greater than zero.",
+      "rowRejected": "Couldn't add this item. Check it and try again."
+    },
+    "states": {
+      "empty": "No foods selected"
+    },
+    "toasts": {
+      "added_one": "Added {{count}} food",
+      "added_other": "Added {{count}} foods"
+    }
+  },
   "exerciseSearch": {
     "title": "Exercises",
     "tabs": {
@@ -3229,6 +3289,17 @@
     },
     "search": {
       "placeholder": "Search foods..."
+    },
+    "multiSelect": {
+      "select": "Select",
+      "cancel": "Cancel",
+      "clear": "Clear",
+      "review": "Review",
+      "selectAll": "Select all",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected",
+      "limitReached": "You can select up to {{limit}} foods",
+      "foodCheckbox": "Select {{name}}"
     },
     "states": {
       "connectToSearch": "Connect to a server to search foods",
