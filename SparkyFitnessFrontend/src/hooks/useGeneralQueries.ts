@@ -17,34 +17,46 @@ export const useCurrentVersionQuery = () => {
 
 interface CachedStarData {
   count: number;
+  fetchedAt?: number;
 }
 
 const getCacheKey = (owner: string, repo: string) =>
   `github-stars-${owner}-${repo}`;
 
+const readCachedStars = (
+  owner: string,
+  repo: string
+): CachedStarData | undefined => {
+  const cached = localStorage.getItem(getCacheKey(owner, repo));
+  if (!cached) {
+    return undefined;
+  }
+  try {
+    const parsed: CachedStarData = JSON.parse(cached);
+    return typeof parsed.count === 'number' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const useGitHubStarsQuery = (owner: string, repo: string) => {
+  const cached = readCachedStars(owner, repo);
+
   return useQuery<number, Error>({
     queryKey: generalKeys.githubStars(owner, repo),
     queryFn: async () => {
       const data = await getGitHubRepo(owner, repo);
       localStorage.setItem(
         getCacheKey(owner, repo),
-        JSON.stringify({ count: data.stargazers_count })
+        JSON.stringify({ count: data.stargazers_count, fetchedAt: Date.now() })
       );
       return data.stargazers_count;
     },
-    initialData: () => {
-      const cached = localStorage.getItem(getCacheKey(owner, repo));
-      if (cached) {
-        try {
-          const parsed: CachedStarData = JSON.parse(cached);
-          return parsed.count;
-        } catch (e) {
-          return undefined;
-        }
-      }
-      return undefined;
-    },
+    initialData: cached?.count,
+    // Without this, React Query treats the cached value as fetched "now" on
+    // every mount, so staleTime never elapses and the count freezes forever.
+    // Entries written before fetchedAt existed are treated as already stale.
+    initialDataUpdatedAt: cached ? (cached.fetchedAt ?? 0) : undefined,
     staleTime: 1000 * 60 * 60 * 24,
     enabled: Boolean(owner && repo),
   });

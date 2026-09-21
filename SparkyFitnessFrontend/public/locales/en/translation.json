@@ -33,7 +33,9 @@
     "partialTitle": "Photo published; product data unconfirmed"
   },
   "layout": {
-    "welcome": "Welcome {{activeUserName}}"
+    "welcome": "Welcome {{activeUserName}}",
+    "docs": "Docs",
+    "translate": "Translate"
   },
   "chat": {
     "toolCategories": {
