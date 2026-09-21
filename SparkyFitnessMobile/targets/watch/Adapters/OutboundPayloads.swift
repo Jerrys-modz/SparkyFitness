@@ -21,6 +21,9 @@ enum OutboundPayloads {
         static let waterIntake = "waterIntake"
         static let waterDelete = "waterDelete"
         static let contextRequest = "requestContext"
+        static let setCompleted = "setCompleted"
+        static let heartRateBatch = "heartRateBatch"
+        static let workoutStop = "workoutStop"
     }
 
     /// A morning check-in awaiting a server write.
@@ -63,4 +66,61 @@ enum OutboundPayloads {
 
     /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
+
+    /// One set logged during an active workout, with whatever the wearer
+    /// actually did. Delivery must not be lost — unlike a heart-rate sample,
+    /// a dropped set is a hole in the diary the wearer would have no way to
+    /// notice — so this is sent via `WatchSessionManager.transfer(_:)`'s
+    /// queued path, not `sendMessage` directly.
+    ///
+    /// `weightKg` and `reps` are OMITTED rather than sent as null when the
+    /// watch has no value for them, the same rule `checkIn` follows above:
+    /// the phone patches the set with what arrives, so a null would clear a
+    /// planned value instead of leaving it be.
+    static func setCompleted(_ completedSet: CompletedSet) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.setCompleted,
+            "clientId": completedSet.clientId,
+            "sessionId": completedSet.sessionId,
+            "setId": completedSet.setId,
+        ]
+        if let weightKg = completedSet.weightKg {
+            payload["weightKg"] = weightKg
+        }
+        if let reps = completedSet.reps {
+            payload["reps"] = reps
+        }
+        return payload
+    }
+
+    /// A batch of heart-rate samples for one exercise. Queued like a completed
+    /// set: these readings ARE the feature, and a phone out of range during a
+    /// workout is normal rather than exceptional, so a dropped batch is a hole
+    /// in the record rather than a cosmetic gap.
+    static func heartRateBatch(_ batch: HeartRateBatch) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.heartRateBatch,
+            "sessionId": batch.sessionId,
+            "exerciseEntryId": batch.exerciseEntryId,
+            "samples": batch.samples.map { ["t": $0.t, "bpm": $0.bpm] },
+        ]
+        // Omitted rather than sent as zero when there is nothing to report:
+        // the phone only posts calories it actually received, and a zero
+        // would overwrite the server's estimate with a measurement of none.
+        if let kcal = batch.activeEnergyKcal, kcal > 0 {
+            payload["activeEnergyKcal"] = kcal
+        }
+        return payload
+    }
+
+    /// The wearer ended the workout on the watch. Queued like `setCompleted`:
+    /// this is what tells the phone to flush buffered heart rate against the
+    /// session's exercise entries, and a phone that misses it entirely would
+    /// leave that heart rate stranded on the watch forever.
+    static func workoutStop(_ signal: WorkoutStopSignal) -> [String: Any] {
+        [
+            "type": Kind.workoutStop,
+            "sessionId": signal.sessionId,
+        ]
+    }
 }

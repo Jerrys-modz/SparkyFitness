@@ -1,11 +1,23 @@
 import { log } from '../config/logging.js';
 import exerciseRepository from '../models/exercise.js';
-import exerciseEntryRepository from '../models/exerciseEntry.js';
+import exerciseEntryRepository, {
+  type WatchTelemetryFields,
+} from '../models/exerciseEntry.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
+import userRepository from '../models/userRepository.js';
+import * as workoutTelemetryRepository from '../models/workoutTelemetryRepository.js';
 import { parseISO, isValid } from 'date-fns';
-import { setsDurationMinutes } from '@workspace/shared';
+import {
+  setsDurationMinutes,
+  type HeartRateSampleRequest,
+} from '@workspace/shared';
+import {
+  computeHrZones,
+  resolveMaxHr,
+  type HrSample,
+} from './hrZoneCalculator.js';
 async function importExerciseEntriesFromCsv(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticatedUserId: any,
@@ -226,7 +238,110 @@ async function importExerciseEntriesFromCsv(
     failed: failedCount,
   };
 }
-export { importExerciseEntriesFromCsv };
+/**
+ * Attaches what a paired Apple Watch measured during a live workout to an
+ * exercise entry that already exists — created by the live-workout
+ * start/reconcile flow before any of this was known. Unlike the
+ * HealthKit/Health Connect/Garmin sync path (healthDataHandlers.ts's
+ * persistWorkoutTelemetry), this never creates the entry itself, so it
+ * recomputes the zone breakdown directly with the same hrZoneCalculator
+ * rather than routing through that entry-creating function.
+ *
+ * `activeEnergyKcal` overwrites `calories_burned`, which the server otherwise
+ * derives from duration and sets. A watch on the wearer's wrist measured it;
+ * the derivation is a formula, so the measurement wins.
+ */
+async function attachWatchTelemetryToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  hrSamples: HeartRateSampleRequest[] | undefined,
+  activeEnergyKcal?: number
+): Promise<void> {
+  // Fail closed: family/delegate diary *read* can SELECT another user's
+  // entry via RLS, but this route must not 204 after an UPDATE that
+  // matches zero rows, or write HR zones under the caller's user_id onto
+  // someone else's workout. Same owner check as getExerciseEntryById.
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  if (!ownerId || ownerId !== userId) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+
+  const entry = await exerciseEntryRepository.getExerciseEntryById(
+    exerciseEntryId,
+    userId
+  );
+  if (!entry) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+
+  // Only the fields supplied are written — the model does a partial UPDATE,
+  // so a post carrying just calories must not blank out heart rate that an
+  // earlier post already attached.
+  const fields: WatchTelemetryFields = {};
+  if (hrSamples && hrSamples.length > 0) {
+    const bpmValues = hrSamples.map((s) => s.bpm);
+    fields.avg_heart_rate = Math.round(
+      bpmValues.reduce((sum, bpm) => sum + bpm, 0) / bpmValues.length
+    );
+    fields.max_heart_rate = Math.round(Math.max(...bpmValues));
+  }
+  if (activeEnergyKcal !== undefined) {
+    const measured = Math.round(activeEnergyKcal);
+    // Written to both columns on purpose. `calories_burned` is what the diary
+    // adds up; `active_calories` is a telemetry column the ordinary entry
+    // update preserves, so it survives a later edit and is how that edit
+    // knows these calories were measured rather than derived.
+    fields.calories_burned = measured;
+    fields.active_calories = measured;
+  }
+  await exerciseEntryRepository.updateExerciseEntryWatchTelemetry(
+    exerciseEntryId,
+    userId,
+    fields
+  );
+
+  // Zones need the series; a calories-only post has nothing to bucket.
+  if (!hrSamples || hrSamples.length === 0) return;
+  const samples: HrSample[] = hrSamples;
+  // The same date of birth the sync path reads (healthDataHandlers.ts's
+  // persistWorkoutTelemetry). Without it this path fell back to the observed
+  // sample max, so one user's zones depended on where the workout came from:
+  // a 55-year-old got a 190 ceiling from the wrist and 176 from a synced
+  // copy of the same session, shifting every zone floor between them.
+  const profile = await userRepository.getUserProfile(userId);
+  const { maxHr } = resolveMaxHr(profile?.date_of_birth, samples);
+  const zones = computeHrZones(samples, maxHr);
+  // Replace the set rather than upsert-only: a later flush with a higher
+  // observed max (no DOB) shifts floors and would otherwise leave stale
+  // higher-zone rows that the new series no longer occupies.
+  await workoutTelemetryRepository.replaceExerciseEntryHrZones(
+    userId,
+    actingUserId,
+    exerciseEntryId,
+    zones.map((zone) => ({
+      user_id: userId,
+      exercise_entry_id: exerciseEntryId,
+      entry_date: entry.entry_date,
+      zone_index: zone.zone_index,
+      zone_lower_bpm: zone.zone_lower_bpm,
+      zone_upper_bpm: zone.zone_upper_bpm,
+      seconds_in_zone: zone.seconds_in_zone,
+    }))
+  );
+}
+
+export { importExerciseEntriesFromCsv, attachWatchTelemetryToExerciseEntry };
 export default {
   importExerciseEntriesFromCsv,
+  attachWatchTelemetryToExerciseEntry,
 };

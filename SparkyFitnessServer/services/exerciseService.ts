@@ -511,6 +511,7 @@ async function updateExerciseEntry(
         updateData.exercise_id,
         authenticatedUserId
       );
+      let estimated = 0;
       if (exercise) {
         const caloriesPerHour =
           await calorieCalculationService.estimateCaloriesBurnedPerHour(
@@ -518,15 +519,20 @@ async function updateExerciseEntry(
             authenticatedUserId,
             updateData.sets
           );
-        updateData.calories_burned =
-          (caloriesPerHour / 60) * updateData.duration_minutes;
+        estimated = (caloriesPerHour / 60) * updateData.duration_minutes;
       } else {
         log(
           'warn',
           `Exercise ${updateData.exercise_id} not found. Cannot auto-calculate calories_burned.`
         );
-        updateData.calories_burned = 0;
       }
+      // A watch-measured figure (active_calories) beats the formula, same
+      // rule as the grouped-session edit path.
+      updateData.calories_burned = resolveEditedCaloriesBurned(
+        undefined,
+        existingEntry,
+        estimated
+      );
     } else if (updateData.calories_burned === undefined) {
       // If calories_burned is not in updateData, use existing value or 0
       updateData.calories_burned = existingEntry.calories_burned || 0;
@@ -1858,12 +1864,28 @@ async function createGroupedExerciseEntriesWithClient(
     workoutPlanAssignmentId = null,
     // @ts-expect-error TS(2339): Property 'preserveLegacyPresetDurationFallback' do... Remove this comment to see the full error message
     preserveLegacyPresetDurationFallback = false,
+    // @ts-expect-error TS(2339): Property 'preserveTelemetryFrom' does not exist on... Remove this comment to see the full error message
+    preserveTelemetryFrom = [],
   } = options;
   const createdEntries = [];
+  // Each prior entry is consumed at most once so two of the same exercise
+  // keep their own measurements instead of both inheriting the first's.
+  const priorUnused = Array.isArray(preserveTelemetryFrom)
+    ? [...preserveTelemetryFrom]
+    : [];
   for (const exercise of exercises || []) {
     const durationMinutes = deriveDurationMinutes(exercise, {
       preserveLegacyPresetDurationFallback,
     });
+
+    const priorIndex = priorUnused.findIndex(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (prior: any) =>
+        prior?.exercise_id === exercise.exercise_id &&
+        (prior?.sort_order ?? 0) === (exercise.sort_order ?? 0)
+    );
+    const prior = priorIndex >= 0 ? priorUnused.splice(priorIndex, 1)[0] : null;
+    const measured = Number(prior?.active_calories);
 
     const preparedEntry = await prepareExerciseEntryForCreate(userId, {
       // A client-minted entry uuid (create-in-reconcile for a mid-workout add)
@@ -1878,15 +1900,21 @@ async function createGroupedExerciseEntriesWithClient(
       sets: exercise.sets || [],
       duration_minutes: durationMinutes,
       // A client-provided value is a manual override; omitting it lets
-      // prepareExerciseEntryForCreate recompute from duration and sets.
+      // prepareExerciseEntryForCreate recompute from duration and sets —
+      // unless a watch measurement is sitting on the row we just deleted.
       ...(typeof exercise.calories_burned === 'number'
         ? { calories_burned: exercise.calories_burned }
-        : {}),
+        : Number.isFinite(measured) && measured > 0
+          ? { calories_burned: measured }
+          : {}),
       sort_order: exercise.sort_order ?? 0,
       superset_group: exercise.superset_group ?? null,
       workout_plan_assignment_id: workoutPlanAssignmentId,
       distance: exercise.distance,
-      avg_heart_rate: exercise.avg_heart_rate,
+      avg_heart_rate: exercise.avg_heart_rate ?? prior?.avg_heart_rate,
+      max_heart_rate: prior?.max_heart_rate,
+      active_calories:
+        Number.isFinite(measured) && measured > 0 ? measured : undefined,
       entry_time: exercise.entry_time ?? null,
     });
     const { entry: createdEntry } =
@@ -2018,6 +2046,31 @@ async function createGroupedWorkoutSession(
     client.release();
   }
 }
+/**
+ * Picks the calorie figure an edited exercise entry should keep.
+ *
+ * Precedence: a value the client sent is a deliberate override and wins. Past
+ * that, a device measurement beats the duration-and-sets estimate — a watch
+ * on the wearer's wrist recorded it, so editing a note or a weight must not
+ * replace what was measured with a formula. Only an entry with no
+ * measurement re-derives.
+ *
+ * The measurement lives in `active_calories`, a telemetry column the entry
+ * update preserves, which is exactly why it can be trusted here: it is still
+ * the original reading however many times the session has been saved since.
+ * Postgres returns `numeric` as a string, hence the parse.
+ */
+function resolveEditedCaloriesBurned(
+  clientCalories: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  existingEntry: any,
+  recomputed: number
+): number {
+  if (typeof clientCalories === 'number') return clientCalories;
+  const measured = Number(existingEntry?.active_calories);
+  return Number.isFinite(measured) && measured > 0 ? measured : recomputed;
+}
+
 async function updateGroupedWorkoutSession(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userId: any,
@@ -2087,6 +2140,9 @@ async function updateGroupedWorkoutSession(
         );
 
       if (!useReconcile) {
+        // Snapshot watch telemetry from the rows about to be deleted so the
+        // replacements can keep measured calories / HR. Match is exercise_id
+        // + sort_order: the client strips every id when any exercise is new.
         await exerciseEntryDb.deleteExerciseEntriesByPresetEntryIdWithClient(
           client,
           userId,
@@ -2103,6 +2159,7 @@ async function updateGroupedWorkoutSession(
           {
             entrySource: existingSession.source,
             workoutPlanAssignmentId,
+            preserveTelemetryFrom: existingSession.exercises,
           }
         );
       } else {
@@ -2186,9 +2243,15 @@ async function updateGroupedWorkoutSession(
                 preparedEntry.distance ??
                 existingById.get(ex.id)?.distance ??
                 null,
-              avg_heart_rate: preparedEntry.avg_heart_rate,
+              avg_heart_rate:
+                existingById.get(ex.id)?.avg_heart_rate ??
+                preparedEntry.avg_heart_rate,
               duration_minutes: preparedEntry.duration_minutes,
-              calories_burned: preparedEntry.calories_burned,
+              calories_burned: resolveEditedCaloriesBurned(
+                ex.calories_burned,
+                existingById.get(ex.id),
+                preparedEntry.calories_burned
+              ),
               entry_date: targetEntryDate,
               entry_time: ex.entry_time ?? null,
             },

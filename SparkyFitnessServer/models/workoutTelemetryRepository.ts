@@ -295,6 +295,37 @@ export async function bulkInsertExerciseEntryHrZones(
   }
 }
 
+/**
+ * Drops every zone row for an entry, then inserts `zones`.
+ *
+ * The watch-telemetry route re-posts the accumulated series on each flush.
+ * Upsert-only left stale `zone_index` rows behind when a later series (no
+ * DOB, higher observed max) shifted the floors and occupied fewer zones.
+ */
+export async function replaceExerciseEntryHrZones(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  zones: ExerciseEntryHrZonesInitializer[]
+): Promise<ExerciseEntryHrZones[]> {
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query(
+      `DELETE FROM exercise_entry_hr_zones
+       WHERE exercise_entry_id = $1 AND user_id = $2`,
+      [exerciseEntryId, userId]
+    );
+    if (!zones || zones.length === 0) return [];
+    return await _bulkInsertExerciseEntryHrZonesWithClient(
+      client as unknown as TelemetryDbClient,
+      userId,
+      zones
+    );
+  } finally {
+    if (client && typeof client.release === 'function') client.release();
+  }
+}
+
 export async function _bulkInsertExerciseEntryHrZonesWithClient(
   client: TelemetryDbClient,
   userId: string,

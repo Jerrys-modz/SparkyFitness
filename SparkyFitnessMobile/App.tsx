@@ -19,7 +19,7 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchWorkoutBridge } from './src/hooks';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
 import { useAppLanguageForegroundSync } from './src/hooks/useAppLanguageForegroundSync';
@@ -151,6 +151,18 @@ const androidModalAnimation =
 function WatchCheckInGate() {
   const { isConnected: isServerConnected } = useServerConnection();
   useWatchCheckInBridge(isServerConnected);
+  return null;
+}
+
+/**
+ * Same gating as `WatchCheckInGate`, for the Workout tab's set completions
+ * and heart rate: without a server connection there is nowhere to save a
+ * completed set or attach heart rate to, so the bridge stays off rather than
+ * failing writes it can't make.
+ */
+function WatchWorkoutGate() {
+  const { isConnected: isServerConnected } = useServerConnection();
+  useWatchWorkoutBridge(isServerConnected);
   return null;
 }
 
@@ -320,6 +332,7 @@ function AppContent() {
       }}
     >
       <WatchCheckInGate />
+      <WatchWorkoutGate />
       <SafeAreaProvider>
         {/* Inside SafeAreaProvider on purpose: the viewer positions its close
             button against the insets, so mounting it at the app root crashes

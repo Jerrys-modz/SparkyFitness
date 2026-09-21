@@ -787,6 +787,179 @@ describe('exerciseService grouped workouts', () => {
       });
     });
 
+    it('keeps a watch-measured calorie figure when an edit would recompute it', async () => {
+      // entry-a carries active_calories: what a paired watch actually
+      // measured, written by the watch-telemetry route. Editing the session
+      // must not replace a measurement with the duration-and-sets estimate.
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
+      const measuredSession = {
+        ...existingSession,
+        exercises: [
+          { ...existingSession.exercises[0], active_calories: '412.00' },
+          existingSession.exercises[1],
+        ],
+      };
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
+        .mockResolvedValueOnce(measuredSession)
+        .mockResolvedValueOnce(measuredSession);
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
+        { id: 'preset-entry-1' }
+      );
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
+        id,
+        name: 'Test Exercise',
+        calories_per_hour: 600,
+      }));
+      vi.mocked(
+        calorieCalculationService.estimateCaloriesBurnedPerHour
+      ).mockResolvedValue(600); // would derive 300 / 150
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 30,
+              sets: [],
+            },
+            {
+              id: 'entry-b',
+              exercise_id: exerciseBId,
+              sort_order: 1,
+              duration_minutes: 15,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      const [firstCall, secondCall] = vi.mocked(
+        exerciseEntryDb._updateExerciseEntryWithClient
+      ).mock.calls;
+      // The measurement survives, as a number despite pg returning numeric
+      // columns as strings.
+      expect(firstCall[3]).toMatchObject({ calories_burned: 412 });
+      // entry-b has no measurement, so it still re-derives.
+      expect(secondCall[3]).toMatchObject({ calories_burned: 150 });
+    });
+
+    it('keeps watch-attached avg_heart_rate when an edit omits it', async () => {
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
+      const measuredSession = {
+        ...existingSession,
+        exercises: [
+          { ...existingSession.exercises[0], avg_heart_rate: 142 },
+          existingSession.exercises[1],
+        ],
+      };
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
+        .mockResolvedValueOnce(measuredSession)
+        .mockResolvedValueOnce(measuredSession);
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
+        { id: 'preset-entry-1' }
+      );
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
+        id,
+        name: 'Test Exercise',
+        calories_per_hour: 600,
+      }));
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 30,
+              sets: [],
+            },
+            {
+              id: 'entry-b',
+              exercise_id: exerciseBId,
+              sort_order: 1,
+              duration_minutes: 15,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      const [firstCall, secondCall] = vi.mocked(
+        exerciseEntryDb._updateExerciseEntryWithClient
+      ).mock.calls;
+      expect(firstCall[3]).toMatchObject({ avg_heart_rate: 142 });
+      expect(secondCall[3].avg_heart_rate ?? null).toBeNull();
+    });
+
+    it('lets a client-provided calories_burned override even a measurement', async () => {
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
+      const measuredSession = {
+        ...existingSession,
+        exercises: [
+          { ...existingSession.exercises[0], active_calories: '412.00' },
+          existingSession.exercises[1],
+        ],
+      };
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
+        .mockResolvedValueOnce(measuredSession)
+        .mockResolvedValueOnce(measuredSession);
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
+        { id: 'preset-entry-1' }
+      );
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
+        id,
+        name: 'Test Exercise',
+        calories_per_hour: 600,
+      }));
+      vi.mocked(
+        calorieCalculationService.estimateCaloriesBurnedPerHour
+      ).mockResolvedValue(600);
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 30,
+              calories_burned: 999,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      const [firstCall] = vi.mocked(
+        exerciseEntryDb._updateExerciseEntryWithClient
+      ).mock.calls;
+      expect(firstCall[3]).toMatchObject({ calories_burned: 999 });
+    });
+
     it('honors a client-provided calories_burned instead of recomputing', async () => {
       setupExistingSession();
       vi.mocked(
@@ -1255,6 +1428,79 @@ describe('exerciseService grouped workouts', () => {
       expect(
         exerciseEntryDb._reconcileExerciseEntrySetsWithClient
       ).not.toHaveBeenCalled();
+    });
+
+    it('keeps watch telemetry across delete-and-recreate', async () => {
+      const measuredSession = {
+        ...existingSession,
+        exercises: [
+          {
+            ...existingSession.exercises[0],
+            active_calories: '412.00',
+            avg_heart_rate: 142,
+            max_heart_rate: 168,
+          },
+          existingSession.exercises[1],
+        ],
+      };
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
+        .mockResolvedValueOnce(measuredSession)
+        .mockResolvedValueOnce(measuredSession);
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
+        { id: 'preset-entry-1' }
+      );
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
+        id,
+        name: 'Test Exercise',
+        calories_per_hour: 600,
+      }));
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exerciseEntryDb._createExerciseEntryWithClient.mockResolvedValue({
+        entry: { id: 'new-entry' },
+        operation: 'created',
+      });
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 30,
+              sets: [],
+            },
+            {
+              exercise_id: exerciseBId,
+              sort_order: 1,
+              duration_minutes: 15,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      expect(
+        exerciseEntryDb.deleteExerciseEntriesByPresetEntryIdWithClient
+      ).toHaveBeenCalled();
+      const [firstCreate, secondCreate] = vi.mocked(
+        exerciseEntryDb._createExerciseEntryWithClient
+      ).mock.calls;
+      expect(firstCreate[2]).toMatchObject({
+        calories_burned: 412,
+        avg_heart_rate: 142,
+        max_heart_rate: 168,
+        active_calories: 412,
+      });
+      expect(secondCreate[2].avg_heart_rate ?? null).toBeNull();
+      expect(secondCreate[2].active_calories).toBeUndefined();
     });
   });
 

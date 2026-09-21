@@ -450,6 +450,48 @@ describe('transformHealthRecords', () => {
       expect(workoutResult.title).toBe('Running');
     });
 
+    test('skips a workout our own watch app wrote', () => {
+      // The live-workout flow already logged these sets in the diary as they
+      // happened. Importing the HealthKit copy the watch saved would file the
+      // same session a second time — and the bundle-id guard cannot catch it,
+      // because the watch app's bundle is not the phone's.
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 37,
+          duration: 3600,
+          metadata: { SparkyFitnessSessionId: 'session-abc' },
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'Workout',
+        unit: '',
+        type: 'workout',
+      });
+
+      expect(result).toHaveLength(0);
+    });
+
+    test('still imports a workout from another app that carries metadata', () => {
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 37,
+          duration: 3600,
+          metadata: { HKTimeZone: 'Europe/London' },
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'Workout',
+        unit: '',
+        type: 'workout',
+      });
+
+      expect(result).toHaveLength(1);
+    });
+
     test('falls back to "Workout type {code}" for unknown codes', () => {
       const records = [
         {

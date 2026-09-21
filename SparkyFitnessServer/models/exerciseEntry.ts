@@ -350,6 +350,58 @@ async function updateExerciseEntryTelemetryOnly(
   }
 }
 
+/** Partial payload accepted by updateExerciseEntryWatchTelemetry. */
+export interface WatchTelemetryFields {
+  avg_heart_rate?: number | null;
+  max_heart_rate?: number | null;
+  /**
+   * Measured active energy, overriding the duration-and-sets estimate the
+   * server derives when an entry is saved without one.
+   */
+  calories_burned?: number | null;
+  /**
+   * The same measurement, kept in its own column as the durable record of
+   * provenance. `calories_burned` is the figure the diary totals and is
+   * recomputed whenever a session is edited; `active_calories` is a
+   * telemetry column, preserved across those edits, and is what lets the
+   * edit path tell a measurement apart from an estimate.
+   */
+  active_calories?: number | null;
+}
+
+/**
+ * Partial update of just avg/max heart rate on an existing exercise entry.
+ * Same "touch nothing else" contract as _updateExerciseEntryTelemetryOnlyWithClient
+ * rather than updateExerciseEntry, which merges the whole row and would need
+ * every other column resupplied. Used to fill in HR captured on a paired
+ * watch after the entry itself was already created by the live-workout
+ * start/reconcile flow.
+ */
+async function updateExerciseEntryWatchTelemetry(
+  id: string,
+  userId: string,
+  fields: WatchTelemetryFields
+) {
+  const columns = (
+    Object.keys(fields) as (keyof WatchTelemetryFields)[]
+  ).filter((column) => fields[column] !== undefined);
+  if (columns.length === 0) return;
+
+  const client = await getClient(userId);
+  try {
+    const setClause = columns
+      .map((column, index) => `${column} = $${index + 1}`)
+      .join(', ');
+    await client.query(
+      `UPDATE exercise_entries SET ${setClause}, updated_at = now()
+       WHERE id = $${columns.length + 1} AND user_id = $${columns.length + 2}`,
+      [...columns.map((column) => fields[column]), id, userId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 async function _updateExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
@@ -1986,6 +2038,7 @@ export default {
   updateExerciseEntry,
   updateExerciseEntryTelemetryOnly,
   _updateExerciseEntryTelemetryOnlyWithClient,
+  updateExerciseEntryWatchTelemetry,
   updateExerciseEntriesDateByPresetEntryIdWithClient,
   getWorkoutPlanAssignmentIdByPresetEntryIdWithClient,
   deleteExerciseEntriesByPresetEntryIdWithClient,
