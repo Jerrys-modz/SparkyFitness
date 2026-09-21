@@ -436,7 +436,7 @@ function ActiveWorkoutExerciseCard({
             plannedSetValues,
             progressionResult?.goalAchieved &&
               progressionResult.status === 'PROGRESSION_WEIGHT_INCREASE'
-              ? weightToKg(Number(exercise.increment_value) || 2.5, weightUnit)
+              ? Number(exercise.increment_value) || 2.5
               : null
           )
         : null,
@@ -447,7 +447,6 @@ function ActiveWorkoutExerciseCard({
       previousSessionSets,
       plannedSetValues,
       progressionResult,
-      weightUnit,
     ]
   );
 
