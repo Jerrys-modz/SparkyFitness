@@ -462,10 +462,23 @@ describe('WorkoutCompleteScreen', () => {
     resolve!(refreshed);
 
     expect(await findByText('Avg HR')).toBeTruthy();
+    expect(await findByText('Max HR')).toBeTruthy();
     // Regex, like the calories assertions above: StatValue splits the figure
     // and its unit across nodes.
     expect(await findByText(/132/)).toBeTruthy();
     expect(await findByText(/168/)).toBeTruthy();
+  });
+
+  it('omits the Max HR tile when only an average was recorded', async () => {
+    const refreshed = makeSession();
+    refreshed.exercises = refreshed.exercises.map((e) => ({
+      ...e,
+      avg_heart_rate: 132,
+    }));
+    (getWorkout as jest.Mock).mockResolvedValue(refreshed);
+    const { findByText, queryByText } = renderScreen();
+    expect(await findByText('Avg HR')).toBeTruthy();
+    expect(queryByText('Max HR')).toBeNull();
   });
 
   it('shows no heart rate tiles for a workout with no watch behind it', async () => {

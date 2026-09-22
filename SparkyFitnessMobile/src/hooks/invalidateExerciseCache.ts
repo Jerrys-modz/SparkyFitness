@@ -5,6 +5,7 @@ import {
   exerciseStatsQueryKeyRoot,
   suggestedExercisesQueryKey,
   dailySummaryQueryKey,
+  workoutSessionQueryKeyRoot,
 } from './queryKeys';
 
 export function invalidateExerciseCache(
@@ -33,5 +34,7 @@ export function invalidateExerciseCache(
   // — the completion summary most of all, which opens the moment a workout
   // ends — holds a copy with no heart rate in it. Without this the figures
   // appear only on a later visit, which reads as them not working at all.
-  void queryClient.invalidateQueries({ queryKey: ['workoutSession'] });
+  void queryClient.invalidateQueries({
+    queryKey: [...workoutSessionQueryKeyRoot],
+  });
 }

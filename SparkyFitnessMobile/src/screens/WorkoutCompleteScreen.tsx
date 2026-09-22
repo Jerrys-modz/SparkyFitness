@@ -743,24 +743,22 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
                   unit={t('workoutComplete.units.bpm', { defaultValue: 'bpm' })}
                 />
               </StatTile>
-              <StatTile
-                icon="heart-rate"
-                iconColor={heartRateColor}
-                label={t('workoutComplete.stats.maxHeartRate', {
-                  defaultValue: 'Max HR',
-                })}
-              >
-                {heartRate.maxBpm != null ? (
+              {heartRate.maxBpm != null && (
+                <StatTile
+                  icon="heart-rate"
+                  iconColor={heartRateColor}
+                  label={t('workoutComplete.stats.maxHeartRate', {
+                    defaultValue: 'Max HR',
+                  })}
+                >
                   <StatValue
                     value={formatLocalizedNumber(Math.round(heartRate.maxBpm))}
                     unit={t('workoutComplete.units.bpm', {
                       defaultValue: 'bpm',
                     })}
                   />
-                ) : (
-                  <StatValue value="—" />
-                )}
-              </StatTile>
+                </StatTile>
+              )}
             </View>
           )}
 
