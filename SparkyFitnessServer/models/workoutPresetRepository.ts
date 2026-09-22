@@ -588,12 +588,26 @@ export interface WorkoutPresetExerciseProgressionFields {
   equipment_brand?: string | null;
 }
 
-async function updateWorkoutPresetExerciseProgression(
-  userId: string,
+export interface WorkoutPresetExerciseProgressionUpdate {
+  match: { exerciseId?: string; presetExerciseId?: number };
+  fields: WorkoutPresetExerciseProgressionFields;
+}
+
+export interface WorkoutPresetExerciseProgressionRow {
+  id: number;
+  exercise_id: string;
+  progression_mode: string | null;
+  rep_goal: number | null;
+  increment_type: string | null;
+  increment_value: number | string | null;
+  equipment_brand: string | null;
+}
+
+function buildProgressionUpdateQuery(
   presetId: number,
-  match: { exerciseId?: string; presetExerciseId?: number },
+  match: WorkoutPresetExerciseProgressionUpdate['match'],
   fields: WorkoutPresetExerciseProgressionFields
-) {
+): { text: string; values: unknown[] } {
   const assignments: string[] = [];
   const params: unknown[] = [];
   let index = 1;
@@ -623,10 +637,8 @@ async function updateWorkoutPresetExerciseProgression(
     throw new Error('exercise_id or preset_exercise_id is required');
   }
 
-  const client = await getClient(userId);
-  try {
-    const result = await client.query(
-      `UPDATE workout_preset_exercises wpe
+  return {
+    text: `UPDATE workout_preset_exercises wpe
        SET ${assignments.join(', ')}, updated_at = now()
        WHERE ${where.join(' AND ')}
        RETURNING
@@ -637,12 +649,53 @@ async function updateWorkoutPresetExerciseProgression(
          wpe.increment_type,
          wpe.increment_value,
          wpe.equipment_brand`,
-      params
-    );
-    return result.rows;
+    values: params,
+  };
+}
+
+async function updateWorkoutPresetExerciseProgressions(
+  userId: string,
+  presetId: number,
+  updates: WorkoutPresetExerciseProgressionUpdate[]
+) {
+  if (updates.length === 0) {
+    throw new Error('No progression fields to update');
+  }
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+    const rows: WorkoutPresetExerciseProgressionRow[] = [];
+    for (const update of updates) {
+      const query = buildProgressionUpdateQuery(
+        presetId,
+        update.match,
+        update.fields
+      );
+      const result = await client.query(query.text, query.values);
+      if (result.rows.length === 0) {
+        throw new Error('Workout preset exercise not found.');
+      }
+      rows.push(...result.rows);
+    }
+    await client.query('COMMIT');
+    return rows;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }
+}
+
+async function updateWorkoutPresetExerciseProgression(
+  userId: string,
+  presetId: number,
+  match: WorkoutPresetExerciseProgressionUpdate['match'],
+  fields: WorkoutPresetExerciseProgressionFields
+) {
+  return updateWorkoutPresetExerciseProgressions(userId, presetId, [
+    { match, fields },
+  ]);
 }
 
 export { createWorkoutPreset };
@@ -655,6 +708,7 @@ export { searchWorkoutPresets };
 export { getWorkoutPresetByName };
 export { addExerciseToWorkoutPreset };
 export { updateWorkoutPresetExerciseProgression };
+export { updateWorkoutPresetExerciseProgressions };
 export default {
   createWorkoutPreset,
   getWorkoutPresets,
@@ -666,4 +720,5 @@ export default {
   getWorkoutPresetByName,
   addExerciseToWorkoutPreset,
   updateWorkoutPresetExerciseProgression,
+  updateWorkoutPresetExerciseProgressions,
 };

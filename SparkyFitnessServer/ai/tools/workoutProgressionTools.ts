@@ -72,6 +72,17 @@ function formatExerciseProgression(
   return text;
 }
 
+function formatProgressionChange(input: {
+  progression_mode?: string | null;
+  rep_goal?: number | null;
+  increment_type?: string | null;
+  increment_value?: number | string | null;
+  equipment_brand?: string | null;
+}): string {
+  const brand = input.equipment_brand ? input.equipment_brand : 'no brand';
+  return `${formatProgressionSettings(input)} · ${brand}`;
+}
+
 function filterExercises(
   exercises: PresetExerciseRow[],
   args: {
@@ -274,7 +285,10 @@ Actions:
 
               const planned = targets.map((exercise) => {
                 const next = args.apply_recommendations
-                  ? recommendationFor(exercise)
+                  ? {
+                      ...recommendationFor(exercise),
+                      equipment_brand: exercise.equipment_brand,
+                    }
                   : {
                       progression_mode:
                         fields!.progression_mode ??
@@ -293,6 +307,10 @@ Actions:
                         (Number(exercise.increment_value) > 0
                           ? Number(exercise.increment_value)
                           : 2.5),
+                      equipment_brand:
+                        fields!.equipment_brand !== undefined
+                          ? fields!.equipment_brand
+                          : exercise.equipment_brand,
                       reason: 'Requested update.',
                     };
                 return { exercise, next };
@@ -302,33 +320,32 @@ Actions:
                 const preview = planned
                   .map(
                     ({ exercise, next }) =>
-                      `- ${exercise.exercise_name}: ${formatProgressionSettings(exercise)} → ${formatProgressionSettings(next)}`
+                      `- ${exercise.exercise_name}: ${formatProgressionChange(exercise)} → ${formatProgressionChange(next)}`
                   )
                   .join('\n');
                 return `Updating progression on preset ${preset.id} (${preset.name}) will change overload settings for ${planned.length} exercise${planned.length === 1 ? '' : 's'}:\n${preview}\nConfirm with the user first. If they agree, call update_progression again with the same fields and confirmed=true. Nothing was changed.`;
               }
 
-              const updated: string[] = [];
-              for (const { exercise, next } of planned) {
-                const rows =
-                  await workoutPresetService.updateWorkoutPresetExerciseProgression(
-                    userId,
-                    preset.id,
-                    { presetExerciseId: exercise.id },
-                    args.apply_recommendations
+              const rows =
+                await workoutPresetService.updateWorkoutPresetExerciseProgressions(
+                  userId,
+                  preset.id,
+                  planned.map(({ exercise, next }) => ({
+                    match: { presetExerciseId: exercise.id },
+                    fields: args.apply_recommendations
                       ? {
                           progression_mode: next.progression_mode,
                           rep_goal: next.rep_goal,
                           increment_type: next.increment_type,
                           increment_value: next.increment_value,
                         }
-                      : fields!
-                  );
-                const row = rows[0] ?? next;
-                updated.push(
-                  `${exercise.exercise_name}: ${formatProgressionSettings(row)}`
+                      : fields!,
+                  }))
                 );
-              }
+              const updated = planned.map(({ exercise, next }, index) => {
+                const row = rows[index] ?? next;
+                return `${exercise.exercise_name}: ${formatProgressionChange(row)}`;
+              });
               return formatConfirmation(
                 `Updated progression on ${preset.name}:\n${updated.join('\n')}`
               );

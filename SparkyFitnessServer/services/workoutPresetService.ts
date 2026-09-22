@@ -1,4 +1,5 @@
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
+import type { WorkoutPresetExerciseProgressionUpdate } from '../models/workoutPresetRepository.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
@@ -118,17 +119,10 @@ async function deleteWorkoutPreset(userId: any, presetId: any) {
   return { message: 'Workout preset deleted successfully.' };
 }
 
-async function updateWorkoutPresetExerciseProgression(
+async function updateWorkoutPresetExerciseProgressions(
   userId: string,
   presetId: number,
-  match: { exerciseId?: string; presetExerciseId?: number },
-  fields: {
-    progression_mode?: string;
-    rep_goal?: number | null;
-    increment_type?: string;
-    increment_value?: number;
-    equipment_brand?: string | null;
-  }
+  updates: WorkoutPresetExerciseProgressionUpdate[]
 ) {
   const ownerId = await workoutPresetRepository.getWorkoutPresetOwnerId(
     userId,
@@ -140,16 +134,26 @@ async function updateWorkoutPresetExerciseProgression(
     );
   }
   const rows =
-    await workoutPresetRepository.updateWorkoutPresetExerciseProgression(
+    await workoutPresetRepository.updateWorkoutPresetExerciseProgressions(
       userId,
       presetId,
-      match,
-      fields
+      updates
     );
   if (!rows || rows.length === 0) {
     throw new Error('Workout preset exercise not found.');
   }
   return rows;
+}
+
+async function updateWorkoutPresetExerciseProgression(
+  userId: string,
+  presetId: number,
+  match: WorkoutPresetExerciseProgressionUpdate['match'],
+  fields: WorkoutPresetExerciseProgressionUpdate['fields']
+) {
+  return updateWorkoutPresetExerciseProgressions(userId, presetId, [
+    { match, fields },
+  ]);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,6 +175,7 @@ export { updateWorkoutPreset };
 export { deleteWorkoutPreset };
 export { searchWorkoutPresets };
 export { updateWorkoutPresetExerciseProgression };
+export { updateWorkoutPresetExerciseProgressions };
 export default {
   createWorkoutPreset,
   getWorkoutPresets,
@@ -179,4 +184,5 @@ export default {
   deleteWorkoutPreset,
   searchWorkoutPresets,
   updateWorkoutPresetExerciseProgression,
+  updateWorkoutPresetExerciseProgressions,
 };

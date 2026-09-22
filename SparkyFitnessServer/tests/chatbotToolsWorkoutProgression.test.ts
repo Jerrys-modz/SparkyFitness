@@ -4,7 +4,7 @@ vi.mock('../services/workoutPresetService.js', () => ({
   default: {
     getWorkoutPresets: vi.fn(),
     getWorkoutPresetById: vi.fn(),
-    updateWorkoutPresetExerciseProgression: vi.fn(),
+    updateWorkoutPresetExerciseProgressions: vi.fn(),
   },
 }));
 
@@ -35,7 +35,7 @@ const DB_ERROR_TEXT =
 const svc = workoutPresetService as unknown as {
   getWorkoutPresets: ReturnType<typeof vi.fn>;
   getWorkoutPresetById: ReturnType<typeof vi.fn>;
-  updateWorkoutPresetExerciseProgression: ReturnType<typeof vi.fn>;
+  updateWorkoutPresetExerciseProgressions: ReturnType<typeof vi.fn>;
 };
 
 const repo = workoutPresetRepository as unknown as {
@@ -176,19 +176,20 @@ describe('sparky_manage_workout_progression', () => {
     );
     expect(result).toBe(
       'Updating progression on preset 7 (Push Day) will change overload settings for 1 exercise:\n' +
-        '- Barbell Bench Press: Total Rep Goal · 24 total reps · +5 kg → Fixed Target · 8 reps/set · +2.5 kg\n' +
+        '- Barbell Bench Press: Total Rep Goal · 24 total reps · +5 kg · no brand → Fixed Target · 8 reps/set · +2.5 kg · no brand\n' +
         'Confirm with the user first. If they agree, call update_progression again with the same fields and confirmed=true. Nothing was changed.'
     );
-    expect(svc.updateWorkoutPresetExerciseProgression).not.toHaveBeenCalled();
+    expect(svc.updateWorkoutPresetExerciseProgressions).not.toHaveBeenCalled();
   });
 
   it('writes recommended settings when confirmed', async () => {
-    svc.updateWorkoutPresetExerciseProgression.mockResolvedValue([
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
       {
         progression_mode: 'fixed',
         rep_goal: 8,
         increment_type: 'weight',
         increment_value: 2.5,
+        equipment_brand: null,
       },
     ]);
     const result = await getTool().execute!(
@@ -202,28 +203,36 @@ describe('sparky_manage_workout_progression', () => {
       opts
     );
     expect(result).toBe(
-      '✅ Updated progression on Push Day:\nBarbell Bench Press: Fixed Target · 8 reps/set · +2.5 kg'
+      '✅ Updated progression on Push Day:\nBarbell Bench Press: Fixed Target · 8 reps/set · +2.5 kg · no brand'
     );
-    expect(svc.updateWorkoutPresetExerciseProgression).toHaveBeenCalledWith(
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledTimes(
+      1
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
       'user-1',
       PRESET_ID,
-      { presetExerciseId: 101 },
-      {
-        progression_mode: 'fixed',
-        rep_goal: 8,
-        increment_type: 'weight',
-        increment_value: 2.5,
-      }
+      [
+        {
+          match: { presetExerciseId: 101 },
+          fields: {
+            progression_mode: 'fixed',
+            rep_goal: 8,
+            increment_type: 'weight',
+            increment_value: 2.5,
+          },
+        },
+      ]
     );
   });
 
   it('writes explicit fields when confirmed', async () => {
-    svc.updateWorkoutPresetExerciseProgression.mockResolvedValue([
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
       {
         progression_mode: 'step_load',
         rep_goal: 40,
         increment_type: 'reps',
         increment_value: 3,
+        equipment_brand: 'LifeFitness',
       },
     ]);
     const result = await getTool().execute!(
@@ -240,18 +249,100 @@ describe('sparky_manage_workout_progression', () => {
       opts
     );
     expect(result).toBe(
-      '✅ Updated progression on Push Day:\nCable Fly: Step-Load (Reps Only) · 40 total reps · +3 reps'
+      '✅ Updated progression on Push Day:\nCable Fly: Step-Load (Reps Only) · 40 total reps · +3 reps · LifeFitness'
     );
-    expect(svc.updateWorkoutPresetExerciseProgression).toHaveBeenCalledWith(
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
       'user-1',
       PRESET_ID,
-      { presetExerciseId: 102 },
+      [
+        {
+          match: { presetExerciseId: 102 },
+          fields: {
+            progression_mode: 'step_load',
+            rep_goal: 40,
+            increment_type: 'reps',
+            increment_value: 3,
+          },
+        },
+      ]
+    );
+  });
+
+  it('shows an equipment-brand-only change in the confirmation preview', async () => {
+    const result = await getTool().execute!(
       {
-        progression_mode: 'step_load',
-        rep_goal: 40,
-        increment_type: 'reps',
-        increment_value: 3,
-      }
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        preset_exercise_id: 102,
+        equipment_brand: 'Hammer Strength',
+      },
+      opts
+    );
+    expect(result).toBe(
+      'Updating progression on preset 7 (Push Day) will change overload settings for 1 exercise:\n' +
+        '- Cable Fly: Total Rep Goal · 24 total reps · +5 kg · LifeFitness → Total Rep Goal · 24 total reps · +5 kg · Hammer Strength\n' +
+        'Confirm with the user first. If they agree, call update_progression again with the same fields and confirmed=true. Nothing was changed.'
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).not.toHaveBeenCalled();
+  });
+
+  it('applies a whole-preset update in one service call', async () => {
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
+      {
+        progression_mode: 'fixed',
+        rep_goal: 8,
+        increment_type: 'weight',
+        increment_value: 2.5,
+        equipment_brand: null,
+      },
+      {
+        progression_mode: 'rep_goal',
+        rep_goal: 30,
+        increment_type: 'weight',
+        increment_value: 2.5,
+        equipment_brand: 'LifeFitness',
+      },
+    ]);
+    const result = await getTool().execute!(
+      {
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        apply_recommendations: true,
+        confirmed: true,
+      },
+      opts
+    );
+    expect(result).toBe(
+      '✅ Updated progression on Push Day:\n' +
+        'Barbell Bench Press: Fixed Target · 8 reps/set · +2.5 kg · no brand\n' +
+        'Cable Fly: Total Rep Goal · 30 total reps · +2.5 kg · LifeFitness'
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledTimes(
+      1
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      [
+        {
+          match: { presetExerciseId: 101 },
+          fields: {
+            progression_mode: 'fixed',
+            rep_goal: 8,
+            increment_type: 'weight',
+            increment_value: 2.5,
+          },
+        },
+        {
+          match: { presetExerciseId: 102 },
+          fields: {
+            progression_mode: 'rep_goal',
+            rep_goal: 30,
+            increment_type: 'weight',
+            increment_value: 2.5,
+          },
+        },
+      ]
     );
   });
 
@@ -267,7 +358,7 @@ describe('sparky_manage_workout_progression', () => {
     expect(result).toBe(
       'Error [VALIDATION]: Provide apply_recommendations=true or at least one of progression_mode, rep_goal, increment_type, increment_value, equipment_brand'
     );
-    expect(svc.updateWorkoutPresetExerciseProgression).not.toHaveBeenCalled();
+    expect(svc.updateWorkoutPresetExerciseProgressions).not.toHaveBeenCalled();
   });
 
   it('returns NOT_FOUND for a missing preset', async () => {
@@ -298,7 +389,7 @@ describe('sparky_manage_workout_progression', () => {
   });
 
   it('returns FORBIDDEN when the caller does not own the preset', async () => {
-    svc.updateWorkoutPresetExerciseProgression.mockRejectedValue(
+    svc.updateWorkoutPresetExerciseProgressions.mockRejectedValue(
       new Error(
         'Forbidden: You do not have permission to update this workout preset.'
       )
