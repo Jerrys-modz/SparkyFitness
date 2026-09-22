@@ -316,6 +316,12 @@ export interface MealPercentageOptions {
   allowLegacyKeys?: boolean;
 }
 
+/**
+ * Returns the configured share for a meal, preferring custom percentages keyed
+ * by lowercased name and treating spaces and underscores as aliases. Unless
+ * disabled, the lookup falls back to the legacy `<name>_percentage` fields.
+ * Returns 0 when no goals or matching percentage exist.
+ */
 export function getMealPercentage(
   mealName: string,
   goals?: DailyGoals,
@@ -353,10 +359,11 @@ export function getMealPercentage(
 }
 
 /**
- * Calorie target for a meal, or 0 if it has none.
+ * Returns the rounded calorie target for a meal.
  *
- * Custom types read `custom_meal_percentages`. System types may also read the
- * legacy `<name>_percentage` columns (`allowLegacyKeys`).
+ * Custom meal types use only `custom_meal_percentages`; system meal types may
+ * also use the legacy `<name>_percentage` fields. Returns 0 when the goals,
+ * calorie goal, or matching percentage are unavailable.
  */
 export function getMealTargetCalories(
   mealName: string,
