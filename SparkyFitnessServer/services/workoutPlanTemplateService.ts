@@ -207,21 +207,34 @@ async function updateWorkoutPlanTemplate(
       'Forbidden: You do not have permission to update this workout plan template.'
     );
   }
+  let existingTemplate: Awaited<
+    ReturnType<typeof workoutPlanTemplateRepository.getWorkoutPlanTemplateById>
+  > | null = null;
+  if (updateData.schedule_type || updateData.assignments) {
+    existingTemplate =
+      await workoutPlanTemplateRepository.getWorkoutPlanTemplateById(
+        templateId,
+        userId
+      );
+  }
+  // If schedule_type changed between weekly and sequential, require updated assignments
+  if (
+    updateData.schedule_type &&
+    existingTemplate?.schedule_type &&
+    updateData.schedule_type !== existingTemplate.schedule_type &&
+    !updateData.assignments
+  ) {
+    throw new Error(
+      'Changing schedule_type requires providing updated assignments.'
+    );
+  }
   // Validate assignments if they are being updated
   if (updateData.assignments) {
-    let scheduleType: 'weekly' | 'sequential' =
-      updateData.schedule_type || 'weekly';
-    if (!updateData.schedule_type) {
-      const existingTemplate =
-        await workoutPlanTemplateRepository.getWorkoutPlanTemplateById(
-          templateId,
-          userId
-        );
-      scheduleType =
-        existingTemplate?.schedule_type === 'sequential'
-          ? 'sequential'
-          : 'weekly';
-    }
+    const scheduleType: 'weekly' | 'sequential' =
+      updateData.schedule_type ||
+      (existingTemplate?.schedule_type === 'sequential'
+        ? 'sequential'
+        : 'weekly');
     await validateAndNormalizeAssignments(
       updateData.assignments,
       scheduleType,

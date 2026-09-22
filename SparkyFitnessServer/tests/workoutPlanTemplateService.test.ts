@@ -315,10 +315,49 @@ describe('workoutPlanTemplateService', () => {
   });
 
   describe('updateWorkoutPlanTemplate - sequential vs weekly', () => {
-    it('switching weekly to sequential deletes old entries and skips materialization', async () => {
+    it('throws error when changing schedule_type without providing assignments', async () => {
       vi.mocked(
         workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId
       ).mockResolvedValue(USER_ID);
+      vi.mocked(
+        workoutPlanTemplateRepository.getWorkoutPlanTemplateById
+      ).mockResolvedValue({
+        id: TEMPLATE_ID,
+        user_id: USER_ID,
+        plan_name: 'Existing Weekly',
+        is_active: true,
+        schedule_type: 'weekly',
+        assignments: [],
+      });
+
+      await expect(
+        workoutPlanTemplateService.updateWorkoutPlanTemplate(
+          USER_ID,
+          TEMPLATE_ID,
+          {
+            plan_name: 'Switched to Sequential',
+            schedule_type: 'sequential',
+          }
+        )
+      ).rejects.toThrow(
+        'Changing schedule_type requires providing updated assignments.'
+      );
+    });
+
+    it('switching weekly to sequential with assignments deletes old entries and skips materialization', async () => {
+      vi.mocked(
+        workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId
+      ).mockResolvedValue(USER_ID);
+      vi.mocked(
+        workoutPlanTemplateRepository.getWorkoutPlanTemplateById
+      ).mockResolvedValue({
+        id: TEMPLATE_ID,
+        user_id: USER_ID,
+        plan_name: 'Existing Weekly',
+        is_active: true,
+        schedule_type: 'weekly',
+        assignments: [],
+      });
       vi.mocked(
         workoutPlanTemplateRepository.updateWorkoutPlanTemplate
       ).mockResolvedValue({
@@ -335,6 +374,7 @@ describe('workoutPlanTemplateService', () => {
           plan_name: 'Switched to Sequential',
           is_active: true,
           schedule_type: 'sequential',
+          assignments: [{ session_index: 0, sort_order: 0 }],
         }
       );
 

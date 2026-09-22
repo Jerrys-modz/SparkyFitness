@@ -507,33 +507,35 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
           )
         ).sort((a: number, b: number) => a - b);
 
-        // Query logged exercise entries linked to assignments of this template
+        // Query logged exercise entries linked to assignments of this template in strict chronological order
         const loggedEntriesQuery = `
-          SELECT ee.workout_plan_assignment_id, ee.entry_date, ee.created_at
+          SELECT ee.id, ee.workout_plan_assignment_id, ee.entry_date, ee.created_at
           FROM exercise_entries ee
           JOIN workout_plan_template_assignments a ON ee.workout_plan_assignment_id = a.id
           WHERE a.template_id = $1
-          ORDER BY ee.entry_date ASC, ee.created_at ASC
+          ORDER BY ee.entry_date ASC, ee.created_at ASC, ee.id ASC
         `;
         const loggedEntriesResult = await client.query(loggedEntriesQuery, [
           plan.id,
         ]);
         const loggedRows = loggedEntriesResult.rows;
 
-        // Map assignment ID -> array of timestamps
-        const timestampsByAssignment = new Map<number | string, string[]>();
-        for (const row of loggedRows) {
+        // Map assignment ID -> array of monotonic sequence numbers
+        const logOrderIndicesByAssignment = new Map<
+          number | string,
+          number[]
+        >();
+        for (const [logOrder, row] of loggedRows.entries()) {
           const aid = row.workout_plan_assignment_id;
           if (aid === null || aid === undefined) continue;
-          const ts = `${row.entry_date}T${row.created_at ? new Date(row.created_at).toISOString().split('T')[1] : '00:00:00.000Z'}`;
-          const list = timestampsByAssignment.get(aid) || [];
-          list.push(ts);
-          timestampsByAssignment.set(aid, list);
+          const list = logOrderIndicesByAssignment.get(aid) || [];
+          list.push(logOrder);
+          logOrderIndicesByAssignment.set(aid, list);
         }
 
         let nextSessionIndex = sessionIndices[0] ?? 0;
         let nextSessionOrder = 0;
-        let cycleThreshold = '';
+        let cycleThreshold = -1;
         let hasActiveSession = false;
 
         // Loop cycles to find first incomplete session
@@ -549,17 +551,17 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
 
             // Check if every assignment in this session has been completed after cycleThreshold
             let sessionCanComplete = true;
-            let sessionCompletionTs = cycleThreshold;
+            let sessionCompletionOrder = cycleThreshold;
 
             for (const a of sAssignments) {
-              const timestamps = timestampsByAssignment.get(a.id) || [];
-              const nextTs = timestamps.find((t) => t > cycleThreshold);
-              if (!nextTs) {
+              const orders = logOrderIndicesByAssignment.get(a.id) || [];
+              const nextOrder = orders.find((o) => o > cycleThreshold);
+              if (nextOrder === undefined) {
                 sessionCanComplete = false;
                 break;
               }
-              if (nextTs > sessionCompletionTs) {
-                sessionCompletionTs = nextTs;
+              if (nextOrder > sessionCompletionOrder) {
+                sessionCompletionOrder = nextOrder;
               }
             }
 
@@ -570,15 +572,15 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
               cycleCompleted = false;
               break;
             } else {
-              cycleThreshold = sessionCompletionTs;
+              cycleThreshold = sessionCompletionOrder;
             }
           }
 
           if (cycleCompleted) {
             // Check if there are any further entries logged after the latest cycleThreshold
             let hasFutureLogs = false;
-            for (const timestamps of timestampsByAssignment.values()) {
-              if (timestamps.some((t) => t > cycleThreshold)) {
+            for (const orders of logOrderIndicesByAssignment.values()) {
+              if (orders.some((o) => o > cycleThreshold)) {
                 hasFutureLogs = true;
                 break;
               }
