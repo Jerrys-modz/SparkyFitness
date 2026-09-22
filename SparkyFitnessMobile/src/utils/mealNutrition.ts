@@ -308,13 +308,10 @@ export function calculateMealNutrition(entries: FoodEntry[]): MealNutrition {
 
 export interface MealPercentageOptions {
   /**
-   * Whether the flat `<name>_percentage` columns may answer for this meal.
-   *
-   * Those columns belong to the four system meals, and they are keyed by name
-   * alone — so a user's own meal type called "breakfast" would read the system
-   * Breakfast share straight out of them. Pass false for a custom type: its
-   * share lives in `custom_meal_percentages` under its own name, or it has
-   * none.
+   * System meals may read the flat `<name>_percentage` columns. Custom types
+   * must not — those columns are keyed by name, so a custom "breakfast" would
+   * inherit the system Breakfast share. Custom shares live in
+   * `custom_meal_percentages`.
    */
   allowLegacyKeys?: boolean;
 }
@@ -356,15 +353,10 @@ export function getMealPercentage(
 }
 
 /**
- * The calorie target to show beside a meal, or 0 when it has none.
+ * Calorie target for a meal, or 0 if it has none.
  *
- * Custom meal types get one too. The web goals editor offers a slider for
- * every meal type, system or not, and writes the custom ones into
- * `custom_meal_percentages` — so a share set there was always meant to be
- * shown, and mobile simply never read it back.
- *
- * `isSystemMealType` still matters, but only to decide whether the legacy
- * flat columns may answer; see `MealPercentageOptions.allowLegacyKeys`.
+ * Custom types read `custom_meal_percentages`. System types may also read the
+ * legacy `<name>_percentage` columns (`allowLegacyKeys`).
  */
 export function getMealTargetCalories(
   mealName: string,

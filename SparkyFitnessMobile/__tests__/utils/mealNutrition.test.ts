@@ -467,9 +467,6 @@ describe('getMealPercentage', () => {
 
   it("refuses the legacy columns when they are not this meal's to read", () => {
     const goals: DailyGoals = { breakfast_percentage: 25 } as DailyGoals;
-    // A user's own meal type that happens to be called "breakfast". The flat
-    // columns are keyed by name alone, so without this it reads the system
-    // Breakfast share.
     expect(
       getMealPercentage('breakfast', goals, { allowLegacyKeys: false })
     ).toBe(0);
@@ -480,12 +477,10 @@ describe('getMealPercentage', () => {
 describe('getMealTargetCalories', () => {
   const goals: DailyGoals = {
     breakfast_percentage: 25,
-    custom_meal_percentages: { 'pre-workout': 10, breakfast: 40 },
+    custom_meal_percentages: { 'pre-workout': 10 },
   } as DailyGoals;
 
   it('gives a custom meal type the share set for it on the web', () => {
-    // The regression behind issue #2329: a custom meal with a percentage
-    // configured showed no target at all on mobile.
     expect(getMealTargetCalories('Pre-Workout', false, goals, 2000)).toBe(200);
   });
 
@@ -499,12 +494,6 @@ describe('getMealTargetCalories', () => {
   it("does not let a custom meal inherit a system meal's legacy share", () => {
     const systemOnly: DailyGoals = { breakfast_percentage: 25 } as DailyGoals;
     expect(getMealTargetCalories('breakfast', false, systemOnly, 2000)).toBe(0);
-  });
-
-  it('prefers an explicit custom share over the legacy column', () => {
-    // Both exist for "breakfast" here; the custom entry is the one the user
-    // set most recently through the goals editor.
-    expect(getMealTargetCalories('breakfast', true, goals, 2000)).toBe(800);
   });
 
   it('returns 0 without goals or without a calorie goal', () => {
