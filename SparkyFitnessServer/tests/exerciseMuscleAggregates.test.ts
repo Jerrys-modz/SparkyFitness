@@ -3,7 +3,7 @@ import {
   calculateExerciseVariety,
   calculateMuscleGroupRecovery,
   primaryMusclesOf,
-} from '../utils/exerciseMuscleAggregates.js';
+} from '@workspace/shared';
 
 const CHEST_JSON = '["Chest","Triceps"]';
 

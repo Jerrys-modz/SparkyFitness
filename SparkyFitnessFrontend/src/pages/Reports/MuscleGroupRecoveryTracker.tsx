@@ -48,7 +48,7 @@ const MuscleGroupRecoveryTracker = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-2">
           {sortedMuscleGroups.map(([muscle, lastWorkoutDate]) => (
             <div key={muscle} className="flex items-center justify-between">
               <span className="font-medium capitalize">

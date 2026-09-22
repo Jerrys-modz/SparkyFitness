@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LayoutDashboard, Dumbbell, Activity } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Activity, ChevronDown } from 'lucide-react';
 import WorkoutHeatmap from './WorkoutHeatmap';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
@@ -54,39 +54,22 @@ interface ExerciseReportsDashboardProps {
   endDate: string | null;
 }
 
-// Default layout for widgets
-const DEFAULT_LAYOUT = [
-  'keyStats',
-  'heatmap',
-  'filtersAggregation',
+const SNAPSHOT_WIDGETS = [
   'muscleGroupRecovery',
-  'prProgression',
   'exerciseVariety',
-  'volumeTrend',
-  'maxWeightTrend',
-  'estimated1RMTrend',
-  'bestSetRepRange',
   'trainingVolumeByMuscleGroup',
-  'repsVsWeightScatter',
-  'setPerformance',
-  'timeUnderTension',
-  'prVisualization',
 ];
 
-const STRENGTH_LAYOUT = [
+const ANALYSIS_WIDGETS = [
   'filtersAggregation',
   'volumeTrend',
   'maxWeightTrend',
   'estimated1RMTrend',
-  'heatmap',
-  'muscleGroupRecovery',
-  'prProgression',
-  'exerciseVariety',
   'bestSetRepRange',
-  'trainingVolumeByMuscleGroup',
   'repsVsWeightScatter',
   'setPerformance',
   'timeUnderTension',
+  'prProgression',
   'prVisualization',
 ];
 
@@ -126,6 +109,7 @@ const ExerciseReportsDashboard = ({
   const [statsInterval, setStatsInterval] = useState<
     'day' | 'week' | 'month' | 'year'
   >('day');
+  const [showMoreAnalysis, setShowMoreAnalysis] = useState(false);
 
   const { activeUserId } = useActiveUser();
 
@@ -164,6 +148,10 @@ const ExerciseReportsDashboard = ({
   );
 
   const selectedExercisesForChart = useMemo(() => {
+    const needsProgress =
+      viewMode === 'strength' || viewMode === 'cardio' || showMoreAnalysis;
+    if (!needsProgress) return [];
+
     if (selectedExercise && selectedExercise !== 'All') {
       return [selectedExercise];
     }
@@ -188,7 +176,7 @@ const ExerciseReportsDashboard = ({
       );
     }
     return [];
-  }, [selectedExercise, availableExercises]);
+  }, [selectedExercise, availableExercises, viewMode, showMoreAnalysis]);
 
   const { mainQueries, comparisonQueries } = useExerciseProgressQueries({
     selectedExercisesForChart,
@@ -248,7 +236,7 @@ const ExerciseReportsDashboard = ({
     mainQueries.some((q) => q.isFetching) ||
     comparisonQueries.some((q) => q.isFetching);
 
-  if (!exerciseDashboardData || loading || isFetchingCharts) {
+  if (!exerciseDashboardData || loading) {
     return (
       <div>
         {t(
@@ -744,16 +732,38 @@ const ExerciseReportsDashboard = ({
         <div className="space-y-6">
           <CardioVolumeIntervalChart summaryData={statsSummary} />
 
-          <MatchedCoursesList matchedData={matchedCourses} />
-
-          <ActivityInterrogationFinder onQueryFetch={handleQueryFetch} />
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {!loading &&
-              DEFAULT_LAYOUT.filter(
-                (id) => id !== 'keyStats' && id !== 'heatmap'
-              ).map((widgetId) => renderWidget(widgetId))}
+            {SNAPSHOT_WIDGETS.map((widgetId) => renderWidget(widgetId))}
           </div>
+
+          <button
+            type="button"
+            className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            onClick={() => setShowMoreAnalysis((open) => !open)}
+          >
+            {showMoreAnalysis
+              ? t('exerciseAnalytics.hideAnalysis', 'Hide extra charts')
+              : t('exerciseAnalytics.moreAnalysis', 'More analysis')}
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform ${
+                showMoreAnalysis ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {showMoreAnalysis && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {isFetchingCharts ? (
+                <p className="text-sm text-muted-foreground lg:col-span-2">
+                  {t(
+                    'exerciseReportsDashboard.loadingExerciseData',
+                    'Loading exercise data...'
+                  )}
+                </p>
+              ) : null}
+              {ANALYSIS_WIDGETS.map((widgetId) => renderWidget(widgetId))}
+            </div>
+          )}
         </div>
       )}
 
@@ -761,10 +771,8 @@ const ExerciseReportsDashboard = ({
       {viewMode === 'strength' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {!loading &&
-              STRENGTH_LAYOUT.filter((id) => id !== 'heatmap').map((widgetId) =>
-                renderWidget(widgetId)
-              )}
+            {SNAPSHOT_WIDGETS.map((widgetId) => renderWidget(widgetId))}
+            {ANALYSIS_WIDGETS.map((widgetId) => renderWidget(widgetId))}
           </div>
         </div>
       )}

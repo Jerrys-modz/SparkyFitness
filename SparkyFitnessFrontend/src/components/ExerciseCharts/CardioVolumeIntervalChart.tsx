@@ -169,7 +169,7 @@ export const CardioVolumeIntervalChart = ({
           )}
         </div>
       </CardHeader>
-      <CardContent className="h-72 pt-2">
+      <CardContent className="h-56 sm:h-72 pt-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
