@@ -306,9 +306,23 @@ export function calculateMealNutrition(entries: FoodEntry[]): MealNutrition {
   };
 }
 
+export interface MealPercentageOptions {
+  /**
+   * Whether the flat `<name>_percentage` columns may answer for this meal.
+   *
+   * Those columns belong to the four system meals, and they are keyed by name
+   * alone — so a user's own meal type called "breakfast" would read the system
+   * Breakfast share straight out of them. Pass false for a custom type: its
+   * share lives in `custom_meal_percentages` under its own name, or it has
+   * none.
+   */
+  allowLegacyKeys?: boolean;
+}
+
 export function getMealPercentage(
   mealName: string,
-  goals?: DailyGoals
+  goals?: DailyGoals,
+  options?: MealPercentageOptions
 ): number {
   if (!goals) return 0;
 
@@ -326,6 +340,8 @@ export function getMealPercentage(
     }
   }
 
+  if (options?.allowLegacyKeys === false) return 0;
+
   const legacyKey = `${key}_percentage` as keyof DailyGoals;
   if (legacyKey in goals && typeof goals[legacyKey] === 'number') {
     return (goals[legacyKey] as number) ?? 0;
@@ -337,4 +353,28 @@ export function getMealPercentage(
   }
 
   return 0;
+}
+
+/**
+ * The calorie target to show beside a meal, or 0 when it has none.
+ *
+ * Custom meal types get one too. The web goals editor offers a slider for
+ * every meal type, system or not, and writes the custom ones into
+ * `custom_meal_percentages` — so a share set there was always meant to be
+ * shown, and mobile simply never read it back.
+ *
+ * `isSystemMealType` still matters, but only to decide whether the legacy
+ * flat columns may answer; see `MealPercentageOptions.allowLegacyKeys`.
+ */
+export function getMealTargetCalories(
+  mealName: string,
+  isSystemMealType: boolean,
+  goals?: DailyGoals,
+  calorieGoal?: number
+): number {
+  if (!goals || !calorieGoal) return 0;
+  const percentage = getMealPercentage(mealName, goals, {
+    allowLegacyKeys: isSystemMealType,
+  });
+  return Math.round((calorieGoal * percentage) / 100);
 }
