@@ -5953,7 +5953,7 @@
       "cardio": "Cardio & GPS",
       "cardioShort": "Cardio"
     },
-    "interval": "Interval:",
+    "interval": "Group by:",
     "intervals": {
       "day": "day",
       "week": "week",

@@ -43,6 +43,10 @@ function parseDay(day: string | null | undefined): Date | null {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
+function weekStartsOnOf(firstDayOfWeek: number): 0 | 1 | 2 | 3 | 4 | 5 | 6 {
+  return (((firstDayOfWeek % 7) + 7) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+}
+
 /**
  * Contribution grid over the selected report range (falls back to the last
  * 12 months). Weeks are columns, weekdays are rows, no per-day numbers.
@@ -57,8 +61,7 @@ export function buildWorkoutContributionGrid(options: {
   formatDay?: (date: Date) => string;
   monthLabel?: (date: Date) => string;
 }): WorkoutContributionGrid {
-  const weekStartsOn = (((options.firstDayOfWeek % 7) + 7) % 7) as
-    0 | 1 | 2 | 3 | 4 | 5 | 6;
+  const weekStartsOn = weekStartsOnOf(options.firstDayOfWeek);
   const formatDay = options.formatDay ?? ymd;
   const monthLabel =
     options.monthLabel ??
@@ -66,17 +69,20 @@ export function buildWorkoutContributionGrid(options: {
 
   let rangeStart = parseDay(options.startDate) ?? subMonths(options.today, 12);
   let rangeEnd = parseDay(options.endDate) ?? options.today;
+  let rangeStartKey = options.startDate ?? formatDay(rangeStart);
+  let rangeEndKey = options.endDate ?? formatDay(rangeEnd);
   if (rangeStart > rangeEnd) {
-    const swap = rangeStart;
+    const swapDate = rangeStart;
     rangeStart = rangeEnd;
-    rangeEnd = swap;
+    rangeEnd = swapDate;
+    const swapKey = rangeStartKey;
+    rangeStartKey = rangeEndKey;
+    rangeEndKey = swapKey;
   }
 
   const gridStart = startOfWeek(rangeStart, { weekStartsOn });
   const gridEnd = endOfWeek(rangeEnd, { weekStartsOn });
   const workoutSet = new Set(options.workoutDates);
-  const rangeStartKey = formatDay(rangeStart);
-  const rangeEndKey = formatDay(rangeEnd);
 
   const weekdayKeys = [
     ...HEATMAP_WEEKDAY_KEYS.slice(weekStartsOn),
