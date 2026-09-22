@@ -49,7 +49,6 @@ export const laneForStageType = (stageType: string): SleepStageLane => {
 export const isPlottedSleepStage = (stageType: string): boolean =>
   !UNPLOTTED_STAGE_TYPES.has(stageType.toLowerCase());
 
-
 /** One contiguous run of a single stage, as absolute instants. */
 export interface SleepTimelineSegment {
   stage: SleepStageLane;
