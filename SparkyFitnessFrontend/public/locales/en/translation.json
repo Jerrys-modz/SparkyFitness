@@ -4236,7 +4236,10 @@
   },
   "muscleGroupRecovery": {
     "title": "Muscle Group Recovery",
-    "noRecoveryData": "No muscle group recovery data available."
+    "noRecoveryData": "No muscle group recovery data available.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}} days ago"
   },
   "prProgressionChart": {
     "title": "Personal Record Progression",

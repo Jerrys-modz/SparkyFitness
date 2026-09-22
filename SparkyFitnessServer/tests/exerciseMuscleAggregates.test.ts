@@ -75,6 +75,24 @@ describe('muscle-group aggregates from flat exercise entries', () => {
     });
   });
 
+  it('merges the same muscle logged under different casings', () => {
+    expect(
+      calculateMuscleGroupRecovery([
+        {
+          entry_date: '2026-09-16',
+          exercise_primary_muscles: '["biceps"]',
+        },
+        {
+          entry_date: '2026-09-22',
+          exercise_primary_muscles: '["Biceps"]',
+        },
+      ])
+    ).toEqual({ Biceps: '2026-09-22' });
+    expect(
+      primaryMusclesOf({ exercise_primary_muscles: '["biceps","Biceps"]' })
+    ).toEqual(['Biceps']);
+  });
+
   it('does not JSON.parse an already-parsed nested array', () => {
     const nested = [
       {

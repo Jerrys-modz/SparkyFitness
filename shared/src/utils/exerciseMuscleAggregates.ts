@@ -5,10 +5,22 @@ export interface MuscleEntry {
   exercise_primary_muscles?: unknown;
 }
 
+function canonicalMuscleName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function asMuscleNames(values: unknown[]): string[] {
-  return values.filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
+  const names = values
+    .filter((value): value is string => typeof value === "string")
+    .map(canonicalMuscleName)
+    .filter((name) => name.length > 0);
+  return [...new Set(names)];
 }
 
 function parseJsonArray(value: unknown): unknown[] {
