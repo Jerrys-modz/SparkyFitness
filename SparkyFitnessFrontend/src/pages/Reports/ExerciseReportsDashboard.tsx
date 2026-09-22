@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Dumbbell, Activity } from 'lucide-react';
 import WorkoutHeatmap from './WorkoutHeatmap';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
@@ -17,7 +16,6 @@ import {
   useAvailableExercises,
   useAvailableMuscleGroups,
 } from '@/hooks/Exercises/useExerciseSearch';
-import { calculateTotalTonnage } from '@/utils/reportUtil';
 import { ExerciseDashboardData } from '@/types/reports';
 import {
   calculateEstimated1RMTrendData,
@@ -261,10 +259,6 @@ const ExerciseReportsDashboard = ({
     );
   }
 
-  const totalTonnage = calculateTotalTonnage(
-    exerciseDashboardData.exerciseEntries
-  );
-
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case 'keyStats':
@@ -272,42 +266,33 @@ const ExerciseReportsDashboard = ({
           <KeyStatsWidget
             key="keyStats"
             data={exerciseDashboardData}
-            totalTonnage={totalTonnage}
             weightUnit={weightUnit}
           />
         );
       case 'heatmap':
-        return (
-          <Card key="heatmap">
-            <CardHeader>
-              <CardTitle>
-                {t(
-                  'exerciseReportsDashboard.workoutHeatmap',
-                  'Workout Heatmap'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {exerciseDashboardData?.exerciseEntries &&
-              exerciseDashboardData.exerciseEntries.length > 0 ? (
-                <WorkoutHeatmap
-                  workoutDates={Array.from(
-                    new Set(
-                      exerciseDashboardData.exerciseEntries.map(
-                        (entry) => entry.entry_date
-                      )
-                    )
-                  )}
-                />
-              ) : (
-                <p className="text-center text-muted-foreground">
-                  {t(
-                    'exerciseReportsDashboard.noWorkoutDataAvailableForHeatmap',
-                    'No workout data available for heatmap.'
-                  )}
-                </p>
+        return exerciseDashboardData?.exerciseEntries &&
+          exerciseDashboardData.exerciseEntries.length > 0 ? (
+          <WorkoutHeatmap
+            key="heatmap"
+            workoutDates={Array.from(
+              new Set(
+                exerciseDashboardData.exerciseEntries.map(
+                  (entry) => entry.entry_date
+                )
+              )
+            )}
+          />
+        ) : (
+          <Card
+            key="heatmap"
+            className="h-full border shadow-sm flex items-center justify-center p-6"
+          >
+            <p className="text-center text-muted-foreground text-xs">
+              {t(
+                'exerciseReportsDashboard.noWorkoutDataAvailableForHeatmap',
+                'No workout data available for heatmap.'
               )}
-            </CardContent>
+            </p>
           </Card>
         );
       case 'filtersAggregation':
@@ -473,7 +458,7 @@ const ExerciseReportsDashboard = ({
           exerciseDashboardData.muscleGroupVolume &&
           Object.keys(exerciseDashboardData.muscleGroupVolume).length > 0
             ? Object.entries(exerciseDashboardData.muscleGroupVolume).map(
-                ([muscle, volume]) => ({ muscle, volume })
+                ([muscle, volume]) => ({ muscle, volume: Math.round(volume) })
               )
             : [];
         return trainingVolumeByMuscleGroupData.length > 0 &&
@@ -623,34 +608,43 @@ const ExerciseReportsDashboard = ({
       {/* Tier 1: View Mode Tabs & Global Interval Selector */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-3 rounded-xl border bg-card shadow-sm">
         {/* Domain View Selector */}
-        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-          <Button
-            variant={viewMode === 'all' ? 'default' : 'ghost'}
-            size="sm"
-            className="text-xs font-semibold h-8"
+        <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-lg min-w-0">
+          <button
+            type="button"
+            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs transition-all ${
+              viewMode === 'all'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
             onClick={() => setViewMode('all')}
           >
             <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" />
             {t('exerciseAnalytics.views.all', 'All Workouts')}
-          </Button>
-          <Button
-            variant={viewMode === 'strength' ? 'default' : 'ghost'}
-            size="sm"
-            className="text-xs font-semibold h-8"
+          </button>
+          <button
+            type="button"
+            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs transition-all ${
+              viewMode === 'strength'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
             onClick={() => setViewMode('strength')}
           >
             <Dumbbell className="w-3.5 h-3.5 mr-1.5" />
             {t('exerciseAnalytics.views.strength', 'Strength & Resistance')}
-          </Button>
-          <Button
-            variant={viewMode === 'cardio' ? 'default' : 'ghost'}
-            size="sm"
-            className="text-xs font-semibold h-8"
+          </button>
+          <button
+            type="button"
+            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs transition-all ${
+              viewMode === 'cardio'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
             onClick={() => setViewMode('cardio')}
           >
             <Activity className="w-3.5 h-3.5 mr-1.5" />
             {t('exerciseAnalytics.views.cardio', 'Cardio & GPS')}
-          </Button>
+          </button>
         </div>
 
         {/* Global Interval Selector */}
@@ -693,7 +687,6 @@ const ExerciseReportsDashboard = ({
         <div className="lg:col-span-7 space-y-6">
           <KeyStatsWidget
             data={exerciseDashboardData}
-            totalTonnage={totalTonnage}
             weightUnit={weightUnit}
           />
           <CardioPRBadgesWidget prData={prMatrix} viewMode={viewMode} />

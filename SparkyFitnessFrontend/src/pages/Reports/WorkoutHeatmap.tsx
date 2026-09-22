@@ -1,11 +1,26 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { info } from '@/utils/logging';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import {
+  buildWorkoutContributionGrid,
+  type HeatmapWeekdayKey,
+} from '@/utils/workoutHeatmap';
 
 interface WorkoutHeatmapProps {
   workoutDates: string[]; // Array of 'YYYY-MM-DD' strings
 }
+
+const WEEKDAY_SHORT: Record<HeatmapWeekdayKey, string> = {
+  sunday: 'S',
+  monday: 'M',
+  tuesday: 'Tu',
+  wednesday: 'W',
+  thursday: 'Th',
+  friday: 'F',
+  saturday: 'S',
+};
 
 const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
   const { t } = useTranslation();
@@ -16,66 +31,16 @@ const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
   } = usePreferences();
   info(loggingLevel, 'WorkoutHeatmap: Rendering component.');
 
-  const today = new Date();
-
-  const generateMonthData = (year: number, month: number) => {
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    const daysInMonth = lastDayOfMonth.getDate();
-    const monthFirstDay = firstDayOfMonth.getDay(); // 0 for Sunday, 6 for Saturday
-
-    const monthData = [];
-    const emptyCells = (monthFirstDay - prefFirstDayOfWeek + 7) % 7;
-    // Add leading empty cells for days before the 1st of the month
-    for (let i = 0; i < emptyCells; i++) {
-      monthData.push(null);
-    }
-
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(year, month, i);
-      monthData.push(date);
-    }
-    return monthData;
-  };
-
-  const getDayColor = (date: Date | null) => {
-    if (!date) return 'bg-gray-100 dark:bg-gray-800'; // Empty cell color
-
-    const dateString = formatDateInUserTimezone(date, 'yyyy-MM-dd');
-    const hasWorkout = workoutDates.includes(dateString);
-
-    if (hasWorkout) {
-      // You can implement more sophisticated logic here for intensity
-      // For now, a simple green for any workout
-      return 'bg-green-500 text-white';
-    }
-    return 'bg-gray-200 dark:bg-gray-700'; // No workout color
-  };
-
-  // Generate data for the last 12 months
-  const monthsToDisplay = [];
-  for (let i = 0; i < 12; i++) {
-    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    monthsToDisplay.unshift({
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      name: date.toLocaleString('default', { month: 'short' }),
-    });
-  }
-
-  const baseDays = [
-    { key: 'sunday', label: 'S' },
-    { key: 'monday', label: 'M' },
-    { key: 'tuesday', label: 'Tu' },
-    { key: 'wednesday', label: 'W' },
-    { key: 'thursday', label: 'Th' },
-    { key: 'friday', label: 'F' },
-    { key: 'saturday', label: 'S' },
-  ];
-  const shiftedDays = [
-    ...baseDays.slice(prefFirstDayOfWeek),
-    ...baseDays.slice(0, prefFirstDayOfWeek),
-  ];
+  const grid = useMemo(
+    () =>
+      buildWorkoutContributionGrid({
+        workoutDates,
+        today: new Date(),
+        firstDayOfWeek: prefFirstDayOfWeek,
+        formatDay: (date) => formatDateInUserTimezone(date, 'yyyy-MM-dd'),
+      }),
+    [workoutDates, prefFirstDayOfWeek, formatDateInUserTimezone]
+  );
 
   return (
     <Card className="h-full border shadow-sm">
@@ -85,50 +50,57 @@ const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-          {monthsToDisplay.map((monthInfo) => (
-            <div
-              key={`${monthInfo.year}-${monthInfo.month}`}
-              className="flex flex-col items-center"
-            >
-              <h4 className="text-sm font-semibold mb-2">
-                {monthInfo.name} {monthInfo.year}
-              </h4>
-              <div
-                className="grid grid-cols-7 gap-1"
-                style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
-              >
-                {shiftedDays.map((day) => (
-                  <div
-                    key={day.key}
-                    className="text-xs text-center text-muted-foreground"
-                  >
-                    {t(`common.day_short.${day.key}`, day.label)}
-                  </div>
-                ))}
-                {generateMonthData(monthInfo.year, monthInfo.month).map(
-                  (date, dayIndex) => (
-                    <div
-                      key={dayIndex}
-                      className={`w-8 h-8 md:w-5 md:h-5 rounded-md flex items-center justify-center text-center text-[10px] md:text-[8px] ${getDayColor(date)}`}
-                      title={
-                        date
-                          ? formatDateInUserTimezone(date, 'yyyy-MM-dd') +
-                            (workoutDates.includes(
-                              formatDateInUserTimezone(date, 'yyyy-MM-dd')
-                            )
-                              ? ` (${t('exerciseReportsDashboard.workout', 'Workout')})`
-                              : ` (${t('exerciseReportsDashboard.noWorkout', 'No Workout')})`)
-                          : ''
-                      }
-                    >
-                      {date ? date.getDate() : ''}
-                    </div>
-                  )
-                )}
-              </div>
+        <div className="overflow-x-auto">
+          <div className="inline-flex gap-1 min-w-full">
+            <div className="flex flex-col gap-[3px] pt-5 shrink-0">
+              {grid.weekdayKeys.map((key) => (
+                <div
+                  key={key}
+                  className="h-3 w-4 text-[9px] leading-3 text-muted-foreground"
+                >
+                  {t(`common.day_short.${key}`, WEEKDAY_SHORT[key])}
+                </div>
+              ))}
             </div>
-          ))}
+            <div className="flex gap-[3px]">
+              {grid.weeks.map((week, weekIndex) => (
+                <div
+                  key={week.days[0]?.dayKey ?? weekIndex}
+                  className="flex flex-col gap-[3px]"
+                >
+                  <div className="h-4 text-[10px] leading-4 text-muted-foreground whitespace-nowrap">
+                    {week.monthLabel ?? ''}
+                  </div>
+                  {week.days.map((cell) => {
+                    const title = cell.inRange
+                      ? `${cell.dayKey} (${
+                          cell.hasWorkout
+                            ? t('exerciseReportsDashboard.workout', 'Workout')
+                            : t(
+                                'exerciseReportsDashboard.noWorkout',
+                                'No Workout'
+                              )
+                        })`
+                      : '';
+                    return (
+                      <div
+                        key={cell.dayKey}
+                        title={title}
+                        aria-label={title || undefined}
+                        className={`w-3 h-3 rounded-[3px] ${
+                          !cell.inRange
+                            ? 'bg-transparent'
+                            : cell.hasWorkout
+                              ? 'bg-green-500'
+                              : 'bg-muted'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
