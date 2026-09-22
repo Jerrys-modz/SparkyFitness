@@ -1,5 +1,6 @@
 import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
+import { sleepStageMergeWindow } from '../utils/sleepStageAggregates.js';
 
 async function upsertSleepEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -407,20 +408,17 @@ async function mergeSleepStageEvents(
     const normalizedEvents = sleepStageEvents.map((event) =>
       normalizeSleepStageEventData(event, userId)
     );
-    const startMs = normalizedEvents.map((s) =>
-      new Date(s.start_time).getTime()
-    );
-    const endMs = normalizedEvents.map((s) => new Date(s.end_time).getTime());
-    const payloadStart = new Date(Math.min(...startMs));
-    const payloadEnd = new Date(Math.max(...endMs));
-    await deleteSupersededSleepStagesWithClient(
-      client,
-      userId,
-      entryId,
-      payloadStart,
-      payloadEnd,
-      normalizedEvents
-    );
+    const mergeWindow = sleepStageMergeWindow(normalizedEvents);
+    if (mergeWindow) {
+      await deleteSupersededSleepStagesWithClient(
+        client,
+        userId,
+        entryId,
+        mergeWindow.start,
+        mergeWindow.end,
+        normalizedEvents
+      );
+    }
     const results = [];
     for (const stageEvent of normalizedEvents) {
       results.push(

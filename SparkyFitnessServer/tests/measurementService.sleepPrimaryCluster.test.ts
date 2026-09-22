@@ -3,6 +3,7 @@ import {
   clusterSleepStagesByGap,
   getPrimarySleepStageCluster,
   recomputeSleepAggregatesFromStages,
+  sleepStageMergeWindow,
 } from '../utils/sleepStageAggregates.js';
 
 /**
@@ -103,5 +104,48 @@ describe('recomputeSleepAggregatesFromStages primary cluster (#1954)', () => {
           1000
       )
     );
+  });
+});
+
+describe('sleepStageMergeWindow', () => {
+  it('ignores in_bed and unknown when computing the overlap-delete window', () => {
+    const window = sleepStageMergeWindow([
+      {
+        stage_type: 'in_bed',
+        start_time: '2026-09-22T02:10:00Z',
+        end_time: '2026-09-22T10:03:00Z',
+      },
+      {
+        stage_type: 'light',
+        start_time: '2026-09-22T09:18:00Z',
+        end_time: '2026-09-22T09:43:00Z',
+      },
+      {
+        stage_type: 'rem',
+        start_time: '2026-09-22T09:43:00Z',
+        end_time: '2026-09-22T10:03:00Z',
+      },
+    ]);
+
+    expect(window).not.toBeNull();
+    expect(window?.start.toISOString()).toBe('2026-09-22T09:18:00.000Z');
+    expect(window?.end.toISOString()).toBe('2026-09-22T10:03:00.000Z');
+  });
+
+  it('returns null for an in_bed-only payload so overlap-delete is skipped', () => {
+    expect(
+      sleepStageMergeWindow([
+        {
+          stage_type: 'in_bed',
+          start_time: '2026-09-22T02:10:00Z',
+          end_time: '2026-09-22T10:03:00Z',
+        },
+        {
+          stage_type: 'unknown',
+          start_time: '2026-09-22T02:10:00Z',
+          end_time: '2026-09-22T03:00:00Z',
+        },
+      ])
+    ).toBeNull();
   });
 });

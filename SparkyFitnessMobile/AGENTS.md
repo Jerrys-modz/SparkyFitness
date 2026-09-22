@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-09-15_
+_Last updated: 2026-09-22_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -106,6 +106,7 @@ npx expo prebuild --clean
 
 - Query setup lives in `src/hooks/queryClient.ts`; keys live in `src/hooks/queryKeys.ts`.
 - Default `staleTime` is `Infinity`, so mutations must explicitly invalidate or update affected caches.
+- `refreshHealthSyncCache` invalidates daily summary, measurements, sleep (`sleepDayQueryKey` / `sleepRangeQueryKey`), and exercise history after a health sync. Sleep is in that set because a partial observer upload would otherwise sit in the diary until the app is reloaded.
 - `useRefetchOnFocus(refetch, enabled)` is the standard focus-refresh hook.
 - `useFoodsLibrary` is an intentional exception with an infinite query, finite stale window, and `resetQueries(...)` refreshes so focus/pull refresh reloads page 1 instead of every cached page.
 - Meal mutations invalidate meals, recent meals, search, and details; food entry creation can affect recent meals.

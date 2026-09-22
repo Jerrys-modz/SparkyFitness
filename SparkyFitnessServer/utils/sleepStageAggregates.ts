@@ -8,6 +8,21 @@
 
 export const SLEEP_STAGE_CLUSTER_GAP_MS = 4 * 60 * 60 * 1000;
 
+/**
+ * Stages that define a partial re-sync's overlap-delete window.
+ *
+ * `in_bed` / `unknown` are HealthKit envelopes, not scored stages. Apple Health
+ * writes one InBed sample covering bedtime→wake, so a 6h observer window still
+ * returns that full-night sample. Using it as the merge window would delete
+ * every scored stage contained in the night.
+ */
+export const SLEEP_STAGE_MERGE_WINDOW_TYPES = new Set([
+  'awake',
+  'rem',
+  'light',
+  'deep',
+]);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function sumAsleepSeconds(stages: any[]): number {
   if (!Array.isArray(stages)) return 0;
@@ -21,6 +36,33 @@ export function sumAsleepSeconds(stages: any[]): number {
     }
     return sum;
   }, 0);
+}
+
+/**
+ * Overlap-delete window for a sleep stage merge payload.
+ *
+ * Returns null when the payload has no scored/awake stages so a later InBed-only
+ * retry cannot wipe previously stored detailed stages.
+ */
+export function sleepStageMergeWindow(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stages: any[]
+): { start: Date; end: Date } | null {
+  if (!Array.isArray(stages) || stages.length === 0) return null;
+
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+  for (const stage of stages) {
+    const type = String(stage?.stage_type ?? '').toLowerCase();
+    if (!SLEEP_STAGE_MERGE_WINDOW_TYPES.has(type)) continue;
+    const start = new Date(stage.start_time).getTime();
+    const end = new Date(stage.end_time).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (start < minStart) minStart = start;
+    if (end > maxEnd) maxEnd = end;
+  }
+  if (!Number.isFinite(minStart) || !Number.isFinite(maxEnd)) return null;
+  return { start: new Date(minStart), end: new Date(maxEnd) };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

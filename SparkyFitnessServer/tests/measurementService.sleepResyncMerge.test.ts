@@ -4,6 +4,7 @@ import sleepRepository from '../models/sleepRepository.js';
 import userRepository from '../models/userRepository.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { sleepStageMergeWindow } from '../utils/sleepStageAggregates.js';
 vi.mock('../models/measurementRepository');
 vi.mock('../models/userRepository');
 vi.mock('../models/exerciseRepository');
@@ -68,28 +69,25 @@ describe('processHealthData sleep re-sync merge (issue #1180)', () => {
               Math.round(Number(stage.duration_in_seconds)) || 0,
           };
         });
-        const ws = Math.min(
-          ...normalizedStages.map((stage) =>
-            new Date(stage.start_time).getTime()
-          )
-        );
-        const we = Math.max(
-          ...normalizedStages.map((stage) => new Date(stage.end_time).getTime())
-        );
+        const mergeWindow = sleepStageMergeWindow(normalizedStages);
         const keptKeys = new Set(
           normalizedStages.map(
             (stage) => `${stage.start_time}|${stage.end_time}`
           )
         );
-        storedStages = storedStages.filter((stored) => {
-          const ss = new Date(stored.start_time).getTime();
-          const se = new Date(stored.end_time).getTime();
-          const fullyContained = ss >= ws && se <= we;
-          const isKept = keptKeys.has(
-            `${new Date(stored.start_time).toISOString()}|${new Date(stored.end_time).toISOString()}`
-          );
-          return !fullyContained || isKept;
-        });
+        if (mergeWindow) {
+          const ws = mergeWindow.start.getTime();
+          const we = mergeWindow.end.getTime();
+          storedStages = storedStages.filter((stored) => {
+            const ss = new Date(stored.start_time).getTime();
+            const se = new Date(stored.end_time).getTime();
+            const fullyContained = ss >= ws && se <= we;
+            const isKept = keptKeys.has(
+              `${new Date(stored.start_time).toISOString()}|${new Date(stored.end_time).toISOString()}`
+            );
+            return !fullyContained || isKept;
+          });
+        }
         for (const stage of normalizedStages) {
           const idx = storedStages.findIndex(
             (stored) =>
@@ -689,5 +687,111 @@ describe('processHealthData sleep re-sync merge (issue #1180)', () => {
     const details = updateCall[3] as { time_asleep_in_seconds: number };
     // deep (5400) + light (3600) + rem (3600) = 12600; awake/in_bed/unknown excluded.
     expect(details.time_asleep_in_seconds).toBe(12600);
+  });
+
+  // HealthKit writes one InBed sample covering bedtime→wake. A later observer
+  // window still returns that envelope plus only the wake-end scored stages. The merge
+  // window must follow the scored stages, not the envelope, or the earlier night is wiped.
+  it('does not let an in_bed envelope wipe scored stages outside a partial resync', async () => {
+    await measurementService.processHealthData(
+      [
+        {
+          type: 'SleepSession',
+          source: 'HealthKit',
+          timestamp: '2026-09-22T02:10:00Z',
+          bedtime: '2026-09-22T02:10:00Z',
+          wake_time: '2026-09-22T10:03:00Z',
+          duration_in_seconds: 28380,
+          stage_events: [
+            {
+              stage_type: 'in_bed',
+              start_time: '2026-09-22T02:10:00Z',
+              end_time: '2026-09-22T06:20:00Z',
+              duration_in_seconds: 15000,
+            },
+            {
+              stage_type: 'rem',
+              start_time: '2026-09-22T06:20:00Z',
+              end_time: '2026-09-22T07:50:00Z',
+              duration_in_seconds: 5400,
+            },
+            {
+              stage_type: 'light',
+              start_time: '2026-09-22T07:50:00Z',
+              end_time: '2026-09-22T09:45:00Z',
+              duration_in_seconds: 6900,
+            },
+            {
+              stage_type: 'awake',
+              start_time: '2026-09-22T09:45:00Z',
+              end_time: '2026-09-22T10:03:00Z',
+              duration_in_seconds: 1080,
+            },
+          ],
+        },
+      ],
+      userId,
+      actingUserId
+    );
+    expect(storedStages).toHaveLength(4);
+
+    await measurementService.processHealthData(
+      [
+        {
+          type: 'SleepSession',
+          source: 'HealthKit',
+          timestamp: '2026-09-22T02:10:00Z',
+          bedtime: '2026-09-22T02:10:00Z',
+          wake_time: '2026-09-22T10:03:00Z',
+          duration_in_seconds: 28380,
+          stage_events: [
+            {
+              stage_type: 'in_bed',
+              start_time: '2026-09-22T02:10:00Z',
+              end_time: '2026-09-22T10:03:00Z',
+              duration_in_seconds: 28380,
+            },
+            {
+              stage_type: 'light',
+              start_time: '2026-09-22T09:18:00Z',
+              end_time: '2026-09-22T09:43:00Z',
+              duration_in_seconds: 1500,
+            },
+            {
+              stage_type: 'rem',
+              start_time: '2026-09-22T09:43:00Z',
+              end_time: '2026-09-22T10:03:00Z',
+              duration_in_seconds: 1200,
+            },
+          ],
+        },
+      ],
+      userId,
+      actingUserId
+    );
+
+    const remStart = storedStages.filter((s) => s.stage_type === 'rem');
+    const lightStart = storedStages.filter((s) => s.stage_type === 'light');
+    expect(
+      remStart.some((s) => s.start_time === '2026-09-22T06:20:00.000Z')
+    ).toBe(true);
+    expect(
+      lightStart.some((s) => s.start_time === '2026-09-22T07:50:00.000Z')
+    ).toBe(true);
+
+    const aggCalls = (
+      sleepRepository.updateSleepEntryAggregates as unknown as {
+        mock: { calls: unknown[][] };
+      }
+    ).mock.calls;
+    const lastAggregates = aggCalls[aggCalls.length - 1][3] as {
+      time_asleep_in_seconds: number;
+    };
+    // Original rem 5400 + original light 6900 (straddles the fragment window so it
+    // is kept) + fragment rem 1200. Fragment light 1500 is inside the original light
+    // span but a different natural key, so it is added rather than replacing it —
+    // time_asleep is still far above the 45-minute fragment.
+    expect(lastAggregates.time_asleep_in_seconds).toBeGreaterThan(45 * 60);
+    expect(lastAggregates.time_asleep_in_seconds).toBeGreaterThanOrEqual(5400);
   });
 });
