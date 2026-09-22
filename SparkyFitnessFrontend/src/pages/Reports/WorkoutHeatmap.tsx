@@ -9,7 +9,9 @@ import {
 } from '@/utils/workoutHeatmap';
 
 interface WorkoutHeatmapProps {
-  workoutDates: string[]; // Array of 'YYYY-MM-DD' strings
+  workoutDates: string[];
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 const WEEKDAY_SHORT: Record<HeatmapWeekdayKey, string> = {
@@ -22,7 +24,11 @@ const WEEKDAY_SHORT: Record<HeatmapWeekdayKey, string> = {
   saturday: 'S',
 };
 
-const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
+const WorkoutHeatmap = ({
+  workoutDates,
+  startDate,
+  endDate,
+}: WorkoutHeatmapProps) => {
   const { t } = useTranslation();
   const {
     loggingLevel,
@@ -37,10 +43,20 @@ const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
         workoutDates,
         today: new Date(),
         firstDayOfWeek: prefFirstDayOfWeek,
+        startDate,
+        endDate,
         formatDay: (date) => formatDateInUserTimezone(date, 'yyyy-MM-dd'),
       }),
-    [workoutDates, prefFirstDayOfWeek, formatDateInUserTimezone]
+    [
+      workoutDates,
+      startDate,
+      endDate,
+      prefFirstDayOfWeek,
+      formatDateInUserTimezone,
+    ]
   );
+
+  const compact = grid.weeks.length > 12;
 
   return (
     <Card className="h-full border shadow-sm">
@@ -51,12 +67,14 @@ const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <div className="inline-flex gap-1 min-w-full">
+          <div className="inline-flex gap-1">
             <div className="flex flex-col gap-[3px] pt-5 shrink-0">
               {grid.weekdayKeys.map((key) => (
                 <div
                   key={key}
-                  className="h-3 w-4 text-[9px] leading-3 text-muted-foreground"
+                  className={`${
+                    compact ? 'h-3' : 'h-4'
+                  } w-4 text-[9px] leading-none flex items-center text-muted-foreground`}
                 >
                   {t(`common.day_short.${key}`, WEEKDAY_SHORT[key])}
                 </div>
@@ -87,7 +105,9 @@ const WorkoutHeatmap = ({ workoutDates }: WorkoutHeatmapProps) => {
                         key={cell.dayKey}
                         title={title}
                         aria-label={title || undefined}
-                        className={`w-3 h-3 rounded-[3px] ${
+                        className={`${
+                          compact ? 'w-3 h-3' : 'w-4 h-4'
+                        } rounded-[3px] ${
                           !cell.inRange
                             ? 'bg-transparent'
                             : cell.hasWorkout

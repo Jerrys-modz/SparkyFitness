@@ -36,14 +36,24 @@ function ymd(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function parseDay(day: string | null | undefined): Date | null {
+  if (!day) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
 /**
- * Last 12 months as a GitHub-style contribution grid: weeks as columns,
- * weekdays as rows, no per-day numbers. `firstDayOfWeek` is 0=Sun … 6=Sat.
+ * Contribution grid over the selected report range (falls back to the last
+ * 12 months). Weeks are columns, weekdays are rows, no per-day numbers.
+ * `firstDayOfWeek` is 0=Sun … 6=Sat.
  */
 export function buildWorkoutContributionGrid(options: {
   workoutDates: string[];
   today: Date;
   firstDayOfWeek: number;
+  startDate?: string | null;
+  endDate?: string | null;
   formatDay?: (date: Date) => string;
   monthLabel?: (date: Date) => string;
 }): WorkoutContributionGrid {
@@ -54,12 +64,19 @@ export function buildWorkoutContributionGrid(options: {
     options.monthLabel ??
     ((date: Date) => date.toLocaleString('default', { month: 'short' }));
 
-  const rangeStart = subMonths(options.today, 12);
+  let rangeStart = parseDay(options.startDate) ?? subMonths(options.today, 12);
+  let rangeEnd = parseDay(options.endDate) ?? options.today;
+  if (rangeStart > rangeEnd) {
+    const swap = rangeStart;
+    rangeStart = rangeEnd;
+    rangeEnd = swap;
+  }
+
   const gridStart = startOfWeek(rangeStart, { weekStartsOn });
-  const gridEnd = endOfWeek(options.today, { weekStartsOn });
+  const gridEnd = endOfWeek(rangeEnd, { weekStartsOn });
   const workoutSet = new Set(options.workoutDates);
-  const todayKey = formatDay(options.today);
   const rangeStartKey = formatDay(rangeStart);
+  const rangeEndKey = formatDay(rangeEnd);
 
   const weekdayKeys = [
     ...HEATMAP_WEEKDAY_KEYS.slice(weekStartsOn),
@@ -76,12 +93,15 @@ export function buildWorkoutContributionGrid(options: {
         date,
         dayKey,
         hasWorkout: workoutSet.has(dayKey),
-        inRange: dayKey >= rangeStartKey && dayKey <= todayKey,
+        inRange: dayKey >= rangeStartKey && dayKey <= rangeEndKey,
       };
     });
     const firstOfMonth = weekDays.find((cell) => cell.date.getDate() === 1);
+    const firstInRange = weekDays.find((cell) => cell.inRange);
+    const labelDate =
+      firstOfMonth?.date ?? (i === 0 ? firstInRange?.date : undefined);
     weeks.push({
-      monthLabel: firstOfMonth ? monthLabel(firstOfMonth.date) : null,
+      monthLabel: labelDate ? monthLabel(labelDate) : null,
       days: weekDays,
     });
   }
