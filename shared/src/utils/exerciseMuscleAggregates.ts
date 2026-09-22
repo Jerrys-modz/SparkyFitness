@@ -1,8 +1,15 @@
+export interface MuscleSet {
+  reps?: number | null;
+  weight?: number | null;
+  duration?: number | null;
+}
+
 export interface MuscleEntry {
   entry_date?: string;
   exercise_name?: string;
   exercises?: { primary_muscles?: unknown } | null;
   exercise_primary_muscles?: unknown;
+  sets?: MuscleSet[] | null;
 }
 
 function canonicalMuscleName(name: string): string {
@@ -32,6 +39,13 @@ function parseJsonArray(value: unknown): unknown[] {
   } catch {
     return [];
   }
+}
+
+function workingSetCount(sets: MuscleSet[] | null | undefined): number {
+  if (!Array.isArray(sets) || sets.length === 0) return 0;
+  return sets.filter(
+    (set) => (Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0,
+  ).length;
 }
 
 /**
@@ -80,4 +94,21 @@ export function calculateExerciseVariety(
     varietyData[muscle] = muscleExerciseMap[muscle]?.size ?? 0;
   }
   return varietyData;
+}
+
+/** Hevy-style heat: working sets per primary muscle over the range. */
+export function calculateMuscleGroupSets(
+  exerciseEntries: MuscleEntry[],
+): Record<string, number> {
+  const setsByMuscle: Record<string, number> = {};
+  for (const entry of exerciseEntries) {
+    const muscles = primaryMusclesOf(entry);
+    if (muscles.length === 0) continue;
+    const count = workingSetCount(entry.sets);
+    if (count === 0) continue;
+    for (const muscle of muscles) {
+      setsByMuscle[muscle] = (setsByMuscle[muscle] || 0) + count;
+    }
+  }
+  return setsByMuscle;
 }

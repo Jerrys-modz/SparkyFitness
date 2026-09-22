@@ -377,8 +377,73 @@ export const SET_TYPE_STYLES: Record<string, string> = {
  */
 export const svgClassToSchemaName: Record<string, string> = {
   abdominal: 'abdominals',
+  obliques: 'abdominals',
   lowerback: 'lower back',
   quads: 'quadriceps',
-  obliques: 'abdominals', // Map obliques to abdominals
-  // Add other mappings if necessary, e.g. 'lats' if it appears in SVG
+  biceps: 'biceps',
+  calves: 'calves',
+  chest: 'chest',
+  forearms: 'forearms',
+  glutes: 'glutes',
+  hamstrings: 'hamstrings',
+  shoulders: 'shoulders',
+  traps: 'traps',
+  triceps: 'triceps',
 };
+
+const MUSCLE_ALIASES: Record<string, string[]> = {
+  abdominals: ['abs', 'abdominal', 'obliques'],
+  quadriceps: ['quads'],
+  'lower back': ['lowerback'],
+  traps: ['trapezius'],
+  lats: ['latissimus dorsi'],
+};
+
+export function muscleKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+export function svgClassToMuscleKey(svgClass: string): string {
+  return muscleKey(svgClassToSchemaName[svgClass] || svgClass);
+}
+
+export function setsForMuscleKey(
+  key: string,
+  setsByMuscle: Record<string, number>
+): number {
+  const names = new Set([key, ...(MUSCLE_ALIASES[key] ?? [])]);
+  let total = 0;
+  for (const [name, count] of Object.entries(setsByMuscle)) {
+    if (names.has(muscleKey(name))) total += count;
+  }
+  return total;
+}
+
+export function unmappedMuscleSets(
+  setsByMuscle: Record<string, number>
+): { muscle: string; sets: number }[] {
+  const mappedKeys = new Set(
+    Object.keys(svgClassToSchemaName).map(svgClassToMuscleKey)
+  );
+  return Object.entries(setsByMuscle)
+    .filter(([name, sets]) => {
+      if (sets <= 0) return false;
+      const key = muscleKey(name);
+      if (mappedKeys.has(key)) return false;
+      return !Object.entries(MUSCLE_ALIASES).some(
+        ([canonical, aliases]) =>
+          mappedKeys.has(canonical) && aliases.includes(key)
+      );
+    })
+    .map(([muscle, sets]) => ({ muscle, sets }))
+    .sort((a, b) => b.sets - a.sets);
+}
+
+export function heatLevel(count: number, max: number): number {
+  if (count <= 0 || max <= 0) return 0;
+  const t = count / max;
+  if (t <= 0.25) return 1;
+  if (t <= 0.5) return 2;
+  if (t <= 0.75) return 3;
+  return 4;
+}

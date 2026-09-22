@@ -118,6 +118,9 @@ export interface ExerciseDashboardData {
   muscleGroupVolume: {
     [muscleGroup: string]: number;
   };
+  muscleGroupSets: {
+    [muscleGroup: string]: number;
+  };
   exerciseEntries: DailyExerciseEntry[];
   consistencyData: {
     currentStreak: number;

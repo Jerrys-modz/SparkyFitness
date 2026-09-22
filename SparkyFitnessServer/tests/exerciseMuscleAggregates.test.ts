@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateExerciseVariety,
   calculateMuscleGroupRecovery,
+  calculateMuscleGroupSets,
   primaryMusclesOf,
 } from '@workspace/shared';
 
@@ -105,5 +106,24 @@ describe('muscle-group aggregates from flat exercise entries', () => {
       Chest: '2026-09-22',
     });
     expect(calculateExerciseVariety(nested)).toEqual({ Chest: 1 });
+  });
+
+  it('counts working sets per primary muscle', () => {
+    expect(
+      calculateMuscleGroupSets([
+        {
+          exercise_primary_muscles: '["Chest","Triceps"]',
+          sets: [
+            { reps: 10, weight: 60 },
+            { reps: 8, weight: 60 },
+            { reps: 0, weight: 0 },
+          ],
+        },
+        {
+          exercise_primary_muscles: '["chest"]',
+          sets: [{ reps: 12, weight: 40 }],
+        },
+      ])
+    ).toEqual({ Chest: 3, Triceps: 2 });
   });
 });

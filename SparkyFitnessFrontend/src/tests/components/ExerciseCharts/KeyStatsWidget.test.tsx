@@ -23,6 +23,7 @@ const data: ExerciseDashboardData = {
   prData: {},
   bestSetRepRange: {},
   muscleGroupVolume: {},
+  muscleGroupSets: {},
   exerciseEntries: [],
   consistencyData: {
     currentStreak: 3,

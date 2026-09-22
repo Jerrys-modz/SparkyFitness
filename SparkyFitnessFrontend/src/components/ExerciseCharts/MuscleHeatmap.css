@@ -1,0 +1,39 @@
+.muscle-heatmap svg {
+  width: 100%;
+  height: auto;
+}
+
+.muscle-heatmap path {
+  stroke: #4b5563;
+  stroke-width: 0.5;
+  transition: fill 0.2s ease-in-out;
+}
+
+.muscle-heatmap path.heat-0 {
+  fill: #374151;
+}
+
+.muscle-heatmap path.heat-1 {
+  fill: #86efac;
+}
+
+.muscle-heatmap path.heat-2 {
+  fill: #22c55e;
+}
+
+.muscle-heatmap path.heat-3 {
+  fill: #eab308;
+}
+
+.muscle-heatmap path.heat-4 {
+  fill: #e11d48;
+}
+
+:root[data-theme='light'] .muscle-heatmap path.heat-0 {
+  fill: #e5e7eb;
+  stroke: #d1d5db;
+}
+
+:root[data-theme='light'] .muscle-heatmap path {
+  stroke: #d1d5db;
+}

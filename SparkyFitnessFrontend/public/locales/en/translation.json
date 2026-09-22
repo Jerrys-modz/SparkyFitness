@@ -4234,6 +4234,13 @@
     "calcium": "Calcium",
     "iron": "Iron"
   },
+  "muscleHeatmap": {
+    "title": "Muscle Heat Map",
+    "subtitle": "Working sets on primary muscles in this date range",
+    "sets": "sets",
+    "fewer": "Fewer",
+    "more": "More"
+  },
   "muscleGroupRecovery": {
     "title": "Muscle Group Recovery",
     "noRecoveryData": "No muscle group recovery data available.",

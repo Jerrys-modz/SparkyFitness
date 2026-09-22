@@ -34,6 +34,7 @@ import { RepsVsWeightChart } from '@/components/ExerciseCharts/RepsVsWeightChart
 import { TimeUnderTensionChart } from '@/components/ExerciseCharts/TimeUnderTensionChart';
 import { BestSetRepRangeChart } from '@/components/ExerciseCharts/BestSetRepRangeChart';
 import { TrainingVolumeByMuscleGroupChart } from '@/components/ExerciseCharts/TrainingVolumeByMuscleGroupChart';
+import { MuscleHeatmap } from '@/components/ExerciseCharts/MuscleHeatmap';
 import { PrVisualizationWidget } from '@/components/ExerciseCharts/PrVisualizationWidget';
 import { ActivityTelemetryList } from '@/components/ExerciseCharts/ActivityTelemetryList';
 import { CardioVolumeIntervalChart } from '@/components/ExerciseCharts/CardioVolumeIntervalChart';
@@ -55,6 +56,7 @@ interface ExerciseReportsDashboardProps {
 }
 
 const SNAPSHOT_WIDGETS = [
+  'muscleHeatmap',
   'muscleGroupRecovery',
   'exerciseVariety',
   'trainingVolumeByMuscleGroup',
@@ -302,6 +304,12 @@ const ExerciseReportsDashboard = ({
             availableExercises={availableExercises}
           />
         );
+      case 'muscleHeatmap': {
+        const setsByMuscle = exerciseDashboardData.muscleGroupSets || {};
+        return Object.values(setsByMuscle).some((count) => count > 0) ? (
+          <MuscleHeatmap key="muscleHeatmap" setsByMuscle={setsByMuscle} />
+        ) : null;
+      }
       case 'muscleGroupRecovery': {
         const recoveryData = exerciseDashboardData?.recoveryData;
         return recoveryData && Object.keys(recoveryData).length > 0 ? (
