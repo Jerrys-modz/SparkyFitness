@@ -507,29 +507,88 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
           )
         ).sort((a: number, b: number) => a - b);
 
-        // Query the assignment with the most recent logged exercise entry
-        const lastCompletedQuery = `
-          SELECT a.id, a.session_index, MAX(ee.entry_date) AS last_done, MAX(ee.created_at) AS last_created_at
-          FROM workout_plan_template_assignments a
-          JOIN exercise_entries ee ON ee.workout_plan_assignment_id = a.id
+        // Query logged exercise entries linked to assignments of this template
+        const loggedEntriesQuery = `
+          SELECT ee.workout_plan_assignment_id, ee.entry_date, ee.created_at
+          FROM exercise_entries ee
+          JOIN workout_plan_template_assignments a ON ee.workout_plan_assignment_id = a.id
           WHERE a.template_id = $1
-          GROUP BY a.id, a.session_index, a.sort_order
-          ORDER BY MAX(ee.entry_date) DESC, MAX(ee.created_at) DESC, COALESCE(a.sort_order, 0) DESC
-          LIMIT 1
+          ORDER BY ee.entry_date ASC, ee.created_at ASC
         `;
-        const lastCompletedResult = await client.query(lastCompletedQuery, [
+        const loggedEntriesResult = await client.query(loggedEntriesQuery, [
           plan.id,
         ]);
-        const lastCompleted = lastCompletedResult.rows[0];
+        const loggedRows = loggedEntriesResult.rows;
+
+        // Map assignment ID -> array of timestamps
+        const timestampsByAssignment = new Map<number | string, string[]>();
+        for (const row of loggedRows) {
+          const aid = row.workout_plan_assignment_id;
+          if (aid === null || aid === undefined) continue;
+          const ts = `${row.entry_date}T${row.created_at ? new Date(row.created_at).toISOString().split('T')[1] : '00:00:00.000Z'}`;
+          const list = timestampsByAssignment.get(aid) || [];
+          list.push(ts);
+          timestampsByAssignment.set(aid, list);
+        }
 
         let nextSessionIndex = sessionIndices[0] ?? 0;
         let nextSessionOrder = 0;
-        if (lastCompleted) {
-          const lastSessionIndex = lastCompleted.session_index ?? 0;
-          const currentPos = sessionIndices.indexOf(lastSessionIndex);
-          if (currentPos !== -1) {
-            nextSessionOrder = (currentPos + 1) % sessionIndices.length;
-            nextSessionIndex = sessionIndices[nextSessionOrder] ?? 0;
+        let cycleThreshold = '';
+        let hasActiveSession = false;
+
+        // Loop cycles to find first incomplete session
+        while (!hasActiveSession) {
+          let cycleCompleted = true;
+          for (let i = 0; i < sessionIndices.length; i++) {
+            const sIndex = sessionIndices[i]!;
+            const sAssignments = assignments.filter(
+              (a: { session_index?: number | null }) =>
+                (a.session_index ?? 0) === sIndex
+            );
+            if (sAssignments.length === 0) continue;
+
+            // Check if every assignment in this session has been completed after cycleThreshold
+            let sessionCanComplete = true;
+            let sessionCompletionTs = cycleThreshold;
+
+            for (const a of sAssignments) {
+              const timestamps = timestampsByAssignment.get(a.id) || [];
+              const nextTs = timestamps.find((t) => t > cycleThreshold);
+              if (!nextTs) {
+                sessionCanComplete = false;
+                break;
+              }
+              if (nextTs > sessionCompletionTs) {
+                sessionCompletionTs = nextTs;
+              }
+            }
+
+            if (!sessionCanComplete) {
+              nextSessionIndex = sIndex;
+              nextSessionOrder = i;
+              hasActiveSession = true;
+              cycleCompleted = false;
+              break;
+            } else {
+              cycleThreshold = sessionCompletionTs;
+            }
+          }
+
+          if (cycleCompleted) {
+            // Check if there are any further entries logged after the latest cycleThreshold
+            let hasFutureLogs = false;
+            for (const timestamps of timestampsByAssignment.values()) {
+              if (timestamps.some((t) => t > cycleThreshold)) {
+                hasFutureLogs = true;
+                break;
+              }
+            }
+            if (!hasFutureLogs) {
+              // Wrap around to the start of the next cycle
+              nextSessionIndex = sessionIndices[0] ?? 0;
+              nextSessionOrder = 0;
+              hasActiveSession = true;
+            }
           }
         }
 

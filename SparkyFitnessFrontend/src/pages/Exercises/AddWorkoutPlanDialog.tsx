@@ -153,7 +153,10 @@ const AddWorkoutPlanDialog = ({
       return;
     }
 
-    const planData = {
+    const planData: Omit<
+      WorkoutPlanTemplate,
+      'id' | 'user_id' | 'created_at' | 'updated_at'
+    > = {
       plan_name: planName,
       description,
       start_date: startDate,

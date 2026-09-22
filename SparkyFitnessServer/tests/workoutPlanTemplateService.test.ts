@@ -346,6 +346,25 @@ describe('workoutPlanTemplateService', () => {
       ).not.toHaveBeenCalled();
       expect(result.schedule_type).toBe('sequential');
     });
+
+    it('throws error when updating weekly plan with invalid day_of_week', async () => {
+      vi.mocked(
+        workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId
+      ).mockResolvedValue(USER_ID);
+
+      await expect(
+        workoutPlanTemplateService.updateWorkoutPlanTemplate(
+          USER_ID,
+          TEMPLATE_ID,
+          {
+            schedule_type: 'weekly',
+            assignments: [{ day_of_week: 7, sort_order: 0 }],
+          }
+        )
+      ).rejects.toThrow(
+        'Weekly workout plan assignments must have a valid day_of_week (0-6).'
+      );
+    });
   });
 
   describe('getActiveWorkoutPlanForDate', () => {
