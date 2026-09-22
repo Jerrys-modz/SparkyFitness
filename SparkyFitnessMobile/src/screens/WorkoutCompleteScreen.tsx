@@ -313,10 +313,14 @@ function CaloriesShimmer() {
 
 function StatTile({
   icon,
+  iconColor,
   label,
   children,
 }: {
   icon: IconName;
+  // Tinted only for the physiological metrics (calories, heart rate), matching
+  // WorkoutDetailScreen's summary row; structural stats stay muted.
+  iconColor?: string;
   label: string;
   children: ReactNode;
 }) {
@@ -324,7 +328,7 @@ function StatTile({
   return (
     <View className="flex-1 bg-surface rounded-xl shadow-sm px-3.5 py-3">
       <View className="flex-row items-center gap-1">
-        <Icon name={icon} size={12} color={textMuted} />
+        <Icon name={icon} size={12} color={iconColor ?? textMuted} />
         <Text
           className="text-xs font-semibold uppercase text-text-muted"
           style={{ letterSpacing: 0.6 }}
@@ -400,6 +404,10 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
   const { runNavigationAction } = useNavigationActionGuard(navigation);
 
   const prColor = String(useCSSVariable('--color-pr'));
+  const [heartRateColor, activeEnergyColor] = useCSSVariable([
+    '--color-heart-rate',
+    '--color-active-energy',
+  ]) as [string, string];
 
   const summary = useMemo(
     () => buildWorkoutCompletionSummary(session, completedSetIds, prSetIds, t),
@@ -703,6 +711,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
             </StatTile>
             <StatTile
               icon="flame"
+              iconColor={activeEnergyColor}
               label={t('workoutComplete.stats.calories', {
                 defaultValue: 'Calories',
               })}
@@ -724,6 +733,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
             <View className="flex-row gap-2 mt-2">
               <StatTile
                 icon="heart-rate"
+                iconColor={heartRateColor}
                 label={t('workoutComplete.stats.avgHeartRate', {
                   defaultValue: 'Avg HR',
                 })}
@@ -735,6 +745,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
               </StatTile>
               <StatTile
                 icon="heart-rate"
+                iconColor={heartRateColor}
                 label={t('workoutComplete.stats.maxHeartRate', {
                   defaultValue: 'Max HR',
                 })}
