@@ -3,6 +3,7 @@ import {
   formatProgressionSettings,
   recommendProgression,
 } from '../ai/tools/workoutProgressionRecommend.js';
+import { convertWeight } from '../ai/tools/unitConversion.js';
 
 const WORKING_8x3 = [
   { reps: 8, set_type: 'Working Set' },
@@ -139,6 +140,17 @@ describe('recommendProgression', () => {
       }).progression_mode
     ).toBe('rep_goal');
   });
+
+  it('recommends a 5 lb jump when the user prefers lbs', () => {
+    const rec = recommendProgression({
+      name: 'Barbell Bench Press',
+      equipment: ['Barbell'],
+      workingSets: WORKING_8x3,
+      weightUnit: 'lbs',
+    });
+    expect(rec.increment_type).toBe('weight');
+    expect(rec.increment_value).toBeCloseTo(convertWeight(5, 'lbs', 'kg'));
+  });
 });
 
 describe('formatProgressionSettings', () => {
@@ -175,6 +187,30 @@ describe('formatProgressionSettings', () => {
         progression_mode: 'manual',
         rep_goal: null,
       })
-    ).toBe('Manual (No Overload) (manual)');
+    ).toBe('Manual (No Overload)');
+  });
+
+  it("prints weight increments in the user's preferred unit", () => {
+    expect(
+      formatProgressionSettings(
+        {
+          progression_mode: 'fixed',
+          rep_goal: 8,
+          increment_type: 'weight',
+          increment_value: 2.5,
+        },
+        'lbs'
+      )
+    ).toBe('Fixed Target · 8 reps/set · +5.5 lbs');
+  });
+
+  it('does not print snake_case mode keys', () => {
+    const rendered = formatProgressionSettings({
+      progression_mode: 'rep_goal',
+      rep_goal: 24,
+      increment_type: 'weight',
+      increment_value: 2.5,
+    });
+    expect(rendered).not.toMatch(/\b(rep_goal|fixed|step_load|manual)\b/);
   });
 });

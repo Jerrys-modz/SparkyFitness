@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../services/preferenceService.js', () => ({
+  default: {
+    getUserPreferences: vi.fn(),
+  },
+}));
+
 vi.mock('../services/workoutPresetService.js', () => ({
   default: {
     getWorkoutPresets: vi.fn(),
@@ -20,7 +26,9 @@ vi.mock('../config/logging.js', () => ({
 
 import workoutPresetService from '../services/workoutPresetService.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
+import preferenceService from '../services/preferenceService.js';
 import { buildWorkoutProgressionTools } from '../ai/tools/workoutProgressionTools.js';
+import { convertWeight } from '../ai/tools/unitConversion.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
 const opts = toolOpts;
@@ -94,6 +102,9 @@ describe('sparky_manage_workout_progression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     svc.getWorkoutPresetById.mockResolvedValue(PRESET);
+    vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+      default_weight_unit: 'kg',
+    } as never);
   });
 
   it('lists workout presets when no preset is given (inferred from {})', async () => {
@@ -484,5 +495,64 @@ describe('sparky_manage_workout_progression', () => {
       opts
     );
     expect(result).toBe(DB_ERROR_TEXT);
+  });
+
+  it('lists and recommends weight increments in lbs when that is the preference', async () => {
+    vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+      default_weight_unit: 'lbs',
+    } as never);
+    const result = await getTool().execute!(
+      { action: 'recommend_progression', preset_id: PRESET_ID },
+      opts
+    );
+    expect(String(result)).toContain('+11 lbs');
+    expect(String(result)).toContain('+5 lbs');
+    expect(String(result)).not.toContain(' kg');
+    expect(String(result)).not.toMatch(
+      /\(rep_goal\)|\(fixed\)|\(step_load\)|\(manual\)/
+    );
+  });
+
+  it('stores an explicit lbs increment as kg', async () => {
+    vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+      default_weight_unit: 'lbs',
+    } as never);
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
+      {
+        progression_mode: 'fixed',
+        rep_goal: 5,
+        increment_type: 'weight',
+        increment_value: convertWeight(5, 'lbs', 'kg'),
+        equipment_brand: null,
+      },
+    ]);
+    await getTool().execute!(
+      {
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        preset_exercise_id: 101,
+        progression_mode: 'fixed',
+        rep_goal: 5,
+        increment_type: 'weight',
+        increment_value: 5,
+        confirmed: true,
+      },
+      opts
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      [
+        {
+          match: { presetExerciseId: 101 },
+          fields: {
+            progression_mode: 'fixed',
+            rep_goal: 5,
+            increment_type: 'weight',
+            increment_value: convertWeight(5, 'lbs', 'kg'),
+          },
+        },
+      ]
+    );
   });
 });

@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { log } from '../../config/logging.js';
 import workoutPresetService from '../../services/workoutPresetService.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
+import preferenceService from '../../services/preferenceService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatConfirmation, formatList } from './formatting.js';
 import {
@@ -13,8 +14,11 @@ import {
 import { normalizeActionArgs } from './dates.js';
 import {
   formatProgressionSettings,
+  incrementToKg,
   recommendProgression,
+  resolveWeightUnit,
   type ProgressionRecommendation,
+  type WeightUnit,
 } from './workoutProgressionRecommend.js';
 
 const VALID_ACTIONS = [...WORKOUT_PROGRESSION_ACTIONS];
@@ -46,7 +50,8 @@ interface WorkoutPresetRow {
 }
 
 function recommendationFor(
-  exercise: PresetExerciseRow
+  exercise: PresetExerciseRow,
+  weightUnit: WeightUnit
 ): ProgressionRecommendation {
   return recommendProgression({
     name: exercise.exercise_name ?? '',
@@ -54,33 +59,38 @@ function recommendationFor(
     modality: exercise.modality,
     equipment: exercise.equipment,
     workingSets: exercise.sets ?? [],
+    weightUnit,
   });
 }
 
 function formatExerciseProgression(
   exercise: PresetExerciseRow,
+  weightUnit: WeightUnit,
   recommended?: ProgressionRecommendation
 ): string {
-  const current = formatProgressionSettings(exercise);
+  const current = formatProgressionSettings(exercise, weightUnit);
   const brand = exercise.equipment_brand
     ? ` · ${exercise.equipment_brand}`
     : '';
   let text = `**${exercise.exercise_name ?? 'Exercise'}**${brand}\n  now: ${current}\n  preset_exercise_id: ${exercise.id}`;
   if (recommended) {
-    text += `\n  recommended: ${formatProgressionSettings(recommended)}\n  why: ${recommended.reason}`;
+    text += `\n  recommended: ${formatProgressionSettings(recommended, weightUnit)}\n  why: ${recommended.reason}`;
   }
   return text;
 }
 
-function formatProgressionChange(input: {
-  progression_mode?: string | null;
-  rep_goal?: number | null;
-  increment_type?: string | null;
-  increment_value?: number | string | null;
-  equipment_brand?: string | null;
-}): string {
+function formatProgressionChange(
+  input: {
+    progression_mode?: string | null;
+    rep_goal?: number | null;
+    increment_type?: string | null;
+    increment_value?: number | string | null;
+    equipment_brand?: string | null;
+  },
+  weightUnit: WeightUnit
+): string {
   const brand = input.equipment_brand ? input.equipment_brand : 'no brand';
-  return `${formatProgressionSettings(input)} · ${brand}`;
+  return `${formatProgressionSettings(input, weightUnit)} · ${brand}`;
 }
 
 function filterExercises(
@@ -181,13 +191,15 @@ export function buildWorkoutProgressionTools(userId: string, tz: string) {
 
 This tool takes a FLAT object with an "action" field. Do NOT nest fields under the action name.
 
-Modes (from the in-app Progression & Overload Guide):
-- rep_goal — Total Rep Goal. Best for machines, cables, dumbbells, accessories. Overload when combined reps across working sets hit the target.
-- fixed — Fixed Target. Best for heavy barbell compounds. Every working set must hit the per-set target before the load moves.
-- step_load — Step-Load (Reps Only). Best for bodyweight/calisthenics. Load stays fixed; the rep target steps up.
-- manual — Manual (No Overload). Warmups, deloads, cardio, timed work.
+When talking to the user, use the mode names only. Never print the snake_case keys.
 
-Weights are stored in kg.
+Modes (from the in-app Progression & Overload Guide). progression_mode values for this tool:
+- Total Rep Goal (progression_mode=rep_goal). Best for machines, cables, dumbbells, accessories. Overload when combined reps across working sets hit the target.
+- Fixed Target (progression_mode=fixed). Best for heavy barbell compounds. Every working set must hit the per-set target before the load moves.
+- Step-Load (progression_mode=step_load). Best for bodyweight/calisthenics. Load stays fixed; the rep target steps up.
+- Manual (progression_mode=manual). Warmups, deloads, cardio, timed work.
+
+Weight increments are stored in kg but this tool speaks in the user's preferred weight unit (kg or lbs). When increment_type is weight, increment_value is in that unit.
 
 Actions:
 - action: 'list_progression' (fields: preset_id?|preset_name?) — current mode/target/increment for every exercise. Omit the preset to list presets instead.
@@ -206,6 +218,11 @@ Actions:
           return formatZodError(parsed.error);
         }
         const args: ManageWorkoutProgressionInput = parsed.data;
+        const prefs = await preferenceService.getUserPreferences(
+          userId,
+          userId
+        );
+        const weightUnit = resolveWeightUnit(prefs?.default_weight_unit);
         try {
           switch (args.action) {
             case 'list_progression': {
@@ -229,7 +246,7 @@ Actions:
               return formatList(
                 exercises,
                 `Progression: ${preset.name}`,
-                (exercise) => formatExerciseProgression(exercise)
+                (exercise) => formatExerciseProgression(exercise, weightUnit)
               );
             }
 
@@ -255,7 +272,8 @@ Actions:
                 (exercise) =>
                   formatExerciseProgression(
                     exercise,
-                    recommendationFor(exercise)
+                    weightUnit,
+                    recommendationFor(exercise, weightUnit)
                   )
               );
             }
@@ -286,7 +304,7 @@ Actions:
               const planned = targets.map((exercise) => {
                 const next = args.apply_recommendations
                   ? {
-                      ...recommendationFor(exercise),
+                      ...recommendationFor(exercise, weightUnit),
                       equipment_brand:
                         fields?.equipment_brand !== undefined
                           ? fields.equipment_brand
@@ -306,10 +324,15 @@ Actions:
                         exercise.increment_type ??
                         'weight',
                       increment_value:
-                        fields!.increment_value ??
-                        (Number(exercise.increment_value) > 0
-                          ? Number(exercise.increment_value)
-                          : 2.5),
+                        fields!.increment_value !== undefined
+                          ? incrementToKg(
+                              fields!.increment_value,
+                              fields!.increment_type ?? exercise.increment_type,
+                              weightUnit
+                            )
+                          : Number(exercise.increment_value) > 0
+                            ? Number(exercise.increment_value)
+                            : incrementToKg(2.5, 'weight', weightUnit),
                       equipment_brand:
                         fields!.equipment_brand !== undefined
                           ? fields!.equipment_brand
@@ -323,7 +346,7 @@ Actions:
                 const preview = planned
                   .map(
                     ({ exercise, next }) =>
-                      `- ${exercise.exercise_name}: ${formatProgressionChange(exercise)} → ${formatProgressionChange(next)}`
+                      `- ${exercise.exercise_name}: ${formatProgressionChange(exercise, weightUnit)} → ${formatProgressionChange(next, weightUnit)}`
                   )
                   .join('\n');
                 return `Updating progression on preset ${preset.id} (${preset.name}) will change overload settings for ${planned.length} exercise${planned.length === 1 ? '' : 's'}:\n${preview}\nConfirm with the user first. If they agree, call update_progression again with the same fields and confirmed=true. Nothing was changed.`;
@@ -345,12 +368,24 @@ Actions:
                             ? { equipment_brand: fields.equipment_brand }
                             : {}),
                         }
-                      : fields!,
+                      : {
+                          ...fields!,
+                          ...(fields!.increment_value !== undefined
+                            ? {
+                                increment_value: incrementToKg(
+                                  fields!.increment_value,
+                                  fields!.increment_type ??
+                                    exercise.increment_type,
+                                  weightUnit
+                                ),
+                              }
+                            : {}),
+                        },
                   }))
                 );
               const updated = planned.map(({ exercise, next }, index) => {
                 const row = rows[index] ?? next;
-                return `${exercise.exercise_name}: ${formatProgressionChange(row)}`;
+                return `${exercise.exercise_name}: ${formatProgressionChange(row, weightUnit)}`;
               });
               return formatConfirmation(
                 `Updated progression on ${preset.name}:\n${updated.join('\n')}`

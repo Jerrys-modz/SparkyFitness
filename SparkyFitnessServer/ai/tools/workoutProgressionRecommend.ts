@@ -2,6 +2,7 @@ import type {
   ProgressionIncrementType,
   ProgressionMode,
 } from '@workspace/shared';
+import { convertWeight } from './unitConversion.js';
 
 export const PROGRESSION_MODE_LABELS: Record<ProgressionMode, string> = {
   rep_goal: 'Total Rep Goal',
@@ -9,6 +10,8 @@ export const PROGRESSION_MODE_LABELS: Record<ProgressionMode, string> = {
   step_load: 'Step-Load (Reps Only)',
   manual: 'Manual (No Overload)',
 };
+
+export type WeightUnit = 'kg' | 'lbs';
 
 export interface ProgressionRecommendation {
   progression_mode: ProgressionMode;
@@ -27,6 +30,36 @@ export interface RecommendProgressionInput {
     reps?: number | null;
     set_type?: string | null;
   }[];
+  weightUnit?: WeightUnit;
+}
+
+export function resolveWeightUnit(raw?: string | null): WeightUnit {
+  const unit = (raw ?? 'kg').toLowerCase();
+  return unit === 'lbs' || unit === 'lb' ? 'lbs' : 'kg';
+}
+
+export function formatIncrementNumber(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+/** Weight increments are stored in kg. Rep increments are left alone. */
+export function incrementToKg(
+  value: number,
+  incrementType: string | null | undefined,
+  weightUnit: WeightUnit
+): number {
+  if (incrementType === 'reps') return value;
+  return convertWeight(value, weightUnit, 'kg');
+}
+
+function recommendedWeightIncrementKg(
+  isDumbbell: boolean,
+  weightUnit: WeightUnit
+): number {
+  // Plate / dumbbell jumps in the user's unit, stored in kg.
+  if (weightUnit === 'lbs') return convertWeight(5, 'lbs', 'kg');
+  return isDumbbell ? 2 : 2.5;
 }
 
 function asList(value: unknown): string[] {
@@ -71,6 +104,7 @@ function workingSetReps(
 export function recommendProgression(
   input: RecommendProgressionInput
 ): ProgressionRecommendation {
+  const weightUnit = input.weightUnit ?? 'kg';
   const equipment = asList(input.equipment);
   const haystack = [input.name, input.category, ...equipment]
     .filter(Boolean)
@@ -80,6 +114,7 @@ export function recommendProgression(
   const setCount = reps.length || 3;
   const perSet = reps.length > 0 ? Math.min(...reps) : 8;
   const totalReps = reps.length > 0 ? reps.reduce((sum, n) => sum + n, 0) : 24;
+  const isDumbbell = equipment.some((item) => /dumbbell/i.test(item));
 
   const modality = (input.modality ?? '').toLowerCase();
   if (
@@ -91,7 +126,7 @@ export function recommendProgression(
       progression_mode: 'manual',
       rep_goal: null,
       increment_type: 'weight',
-      increment_value: 2.5,
+      increment_value: recommendedWeightIncrementKg(false, weightUnit),
       reason:
         'Cardio and timed work has no weight/reps overload. Manual leaves the target alone.',
     };
@@ -124,7 +159,7 @@ export function recommendProgression(
       progression_mode: 'fixed',
       rep_goal: perSet,
       increment_type: 'weight',
-      increment_value: 2.5,
+      increment_value: recommendedWeightIncrementKg(false, weightUnit),
       reason:
         'Heavy barbell compounds do best when every working set has to hit the target before the load moves.',
     };
@@ -134,27 +169,31 @@ export function recommendProgression(
     progression_mode: 'rep_goal',
     rep_goal: totalReps,
     increment_type: 'weight',
-    increment_value: equipment.some((item) => /dumbbell/i.test(item)) ? 2 : 2.5,
+    increment_value: recommendedWeightIncrementKg(isDumbbell, weightUnit),
     reason: `Total Rep Goal fits machines, cables, dumbbells and accessories — ${setCount} working set${setCount === 1 ? '' : 's'} aiming for ${totalReps} reps combined, then a small load bump.`,
   };
 }
 
-export function formatProgressionSettings(input: {
-  progression_mode?: string | null;
-  rep_goal?: number | null;
-  increment_type?: string | null;
-  increment_value?: number | string | null;
-}): string {
+export function formatProgressionSettings(
+  input: {
+    progression_mode?: string | null;
+    rep_goal?: number | null;
+    increment_type?: string | null;
+    increment_value?: number | string | null;
+  },
+  weightUnit: WeightUnit = 'kg'
+): string {
   const mode = (input.progression_mode ?? 'rep_goal') as ProgressionMode;
   const label = PROGRESSION_MODE_LABELS[mode] ?? mode;
-  if (mode === 'manual') return `${label} (manual)`;
+  // Mode names only — never the snake_case keys (rep_goal / fixed / …).
+  if (mode === 'manual') return label;
   const incrementType = input.increment_type ?? 'weight';
   const parsedIncrement = Number(input.increment_value);
   const incrementValue = parsedIncrement > 0 ? parsedIncrement : 2.5;
   const increment =
     incrementType === 'reps'
-      ? `+${incrementValue} reps`
-      : `+${incrementValue} kg`;
+      ? `+${formatIncrementNumber(incrementValue)} reps`
+      : `+${formatIncrementNumber(convertWeight(incrementValue, 'kg', weightUnit))} ${weightUnit}`;
   const target =
     mode === 'fixed'
       ? `${input.rep_goal ?? 8} reps/set`
