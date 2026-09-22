@@ -22,6 +22,11 @@ import {
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
+import {
+  calculateExerciseVariety,
+  calculateMuscleGroupRecovery,
+  primaryMusclesOf,
+} from '../utils/exerciseMuscleAggregates.js';
 
 interface CustomNutrientDefinition {
   id: string;
@@ -631,55 +636,6 @@ function calculateWorkoutConsistency(
     monthlyFrequency: isNaN(monthlyFrequency) ? 0 : monthlyFrequency,
   };
 }
-// Helper function to calculate muscle group recovery
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function calculateMuscleGroupRecovery(exerciseEntries: any) {
-  const recoveryData = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseEntries.forEach((entry: any) => {
-    const muscles = entry.exercises
-      ? JSON.parse(entry.exercises.primary_muscles || '[]')
-      : [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    muscles.forEach((muscle: any) => {
-      // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-      if (!recoveryData[muscle] || entry.entry_date > recoveryData[muscle]) {
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        recoveryData[muscle] = entry.entry_date;
-      }
-    });
-  });
-  return recoveryData;
-}
-// Helper function to calculate exercise variety
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function calculateExerciseVariety(exerciseEntries: any) {
-  const varietyData = {};
-  const muscleExerciseMap = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseEntries.forEach((entry: any) => {
-    if (entry.exercises && entry.exercises.primary_muscles) {
-      const primaryMuscles = JSON.parse(
-        entry.exercises.primary_muscles || '[]'
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      primaryMuscles.forEach((muscle: any) => {
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        if (!muscleExerciseMap[muscle]) {
-          // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-          muscleExerciseMap[muscle] = new Set();
-        }
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        muscleExerciseMap[muscle].add(entry.exercise_name);
-      });
-    }
-  });
-  for (const muscle in muscleExerciseMap) {
-    // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-    varietyData[muscle] = muscleExerciseMap[muscle].size;
-  }
-  return varietyData;
-}
 // Helper function to calculate PR progression
 function calculatePrProgression(exerciseEntries: WorkoutEntry[]) {
   const progression: Record<string, PrRecord[]> = {};
@@ -859,17 +815,12 @@ async function getExerciseDashboardData(
             }
           }
           // Muscle group volume
-          if (entry.exercises && entry.exercises.primary_muscles) {
-            // It's already parsed in getReportsData, so no need to parse again
-            const primaryMuscles = entry.exercises.primary_muscles;
-            if (Array.isArray(primaryMuscles)) {
-              primaryMuscles.forEach((muscle) => {
-                // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-                muscleGroupVolume[muscle] =
-                  // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-                  (muscleGroupVolume[muscle] || 0) + weight * reps;
-              });
-            }
+          const primaryMuscles = primaryMusclesOf(entry);
+          for (const muscle of primaryMuscles) {
+            // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
+            muscleGroupVolume[muscle] =
+              // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
+              (muscleGroupVolume[muscle] || 0) + weight * reps;
           }
         });
       }

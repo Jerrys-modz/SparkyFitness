@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest';
+import {
+  calculateExerciseVariety,
+  calculateMuscleGroupRecovery,
+  primaryMusclesOf,
+} from '../utils/exerciseMuscleAggregates.js';
+
+const CHEST_JSON = '["Chest","Triceps"]';
+
+describe('primaryMusclesOf', () => {
+  it('reads the flat HealthKit/repo column', () => {
+    expect(primaryMusclesOf({ exercise_primary_muscles: CHEST_JSON })).toEqual([
+      'Chest',
+      'Triceps',
+    ]);
+  });
+
+  it('reads an already-parsed nested array from getReportsData', () => {
+    expect(
+      primaryMusclesOf({
+        exercises: { primary_muscles: ['Chest', 'Triceps'] },
+      })
+    ).toEqual(['Chest', 'Triceps']);
+  });
+
+  it('still parses a nested JSON string (the old recovery/variety shape)', () => {
+    expect(
+      primaryMusclesOf({
+        exercises: { primary_muscles: CHEST_JSON },
+      })
+    ).toEqual(['Chest', 'Triceps']);
+  });
+
+  it('returns [] when nothing is present', () => {
+    expect(primaryMusclesOf({})).toEqual([]);
+    expect(primaryMusclesOf({ exercise_primary_muscles: null })).toEqual([]);
+    expect(primaryMusclesOf({ exercises: { primary_muscles: '[]' } })).toEqual(
+      []
+    );
+  });
+});
+
+describe('muscle-group aggregates from flat exercise entries', () => {
+  const entries = [
+    {
+      entry_date: '2026-09-20',
+      exercise_name: 'Bench Press',
+      exercise_primary_muscles: CHEST_JSON,
+    },
+    {
+      entry_date: '2026-09-22',
+      exercise_name: 'Incline Press',
+      exercise_primary_muscles: '["Chest"]',
+    },
+    {
+      entry_date: '2026-09-21',
+      exercise_name: 'Row',
+      exercise_primary_muscles: '["Back"]',
+    },
+  ];
+
+  it('tracks the most recent date a muscle was trained', () => {
+    expect(calculateMuscleGroupRecovery(entries)).toEqual({
+      Chest: '2026-09-22',
+      Triceps: '2026-09-20',
+      Back: '2026-09-21',
+    });
+  });
+
+  it('counts unique exercises per muscle', () => {
+    expect(calculateExerciseVariety(entries)).toEqual({
+      Chest: 2,
+      Triceps: 1,
+      Back: 1,
+    });
+  });
+
+  it('does not JSON.parse an already-parsed nested array', () => {
+    const nested = [
+      {
+        entry_date: '2026-09-22',
+        exercise_name: 'Bench Press',
+        exercises: { primary_muscles: ['Chest'] },
+      },
+    ];
+    expect(calculateMuscleGroupRecovery(nested)).toEqual({
+      Chest: '2026-09-22',
+    });
+    expect(calculateExerciseVariety(nested)).toEqual({ Chest: 1 });
+  });
+});
