@@ -196,6 +196,42 @@ describe('FoodSummary', () => {
     expect(queryByText(/\/ \d+/)).toBeNull();
   });
 
+  it('a custom type shows the target calories configured for it', () => {
+    // Issue #2329: the share is set on the web, stored under the type's own
+    // name, and was never read back on mobile.
+    const goals = {
+      custom_meal_percentages: { 'pre-workout': 20 },
+    } as DailyGoals;
+    const { queryByText } = render(
+      <FoodSummary
+        foodEntries={[entry('e4', 'custom-pw', 'Pre-Workout')]}
+        mealTypes={mealTypes}
+        goals={goals}
+        calorieGoal={2000}
+      />
+    );
+    expect(queryByText(/\/ 400/)).not.toBeNull();
+  });
+
+  it('a custom type named breakfast uses ITS OWN share, not the system one', () => {
+    // Both are present: the legacy column says 25% and the custom entry says
+    // 10%. The custom type is entitled to the latter and nothing else.
+    const goals = {
+      breakfast_percentage: 25,
+      custom_meal_percentages: { breakfast: 10 },
+    } as DailyGoals;
+    const { queryByText } = render(
+      <FoodSummary
+        foodEntries={[entry('e5', 'custom-b', 'breakfast')]}
+        mealTypes={mealTypes}
+        goals={goals}
+        calorieGoal={2000}
+      />
+    );
+    expect(queryByText(/\/ 200/)).not.toBeNull();
+    expect(queryByText(/\/ 500/)).toBeNull();
+  });
+
   it('a historical (unresolved) group never inherits target calories', () => {
     const goals = { breakfast_percentage: 25 } as DailyGoals;
     const { queryByText } = render(
