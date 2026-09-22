@@ -5954,6 +5954,8 @@
       "cardioShort": "Cardio"
     },
     "interval": "Group by:",
+    "moreAnalysis": "More analysis",
+    "hideAnalysis": "Hide extra charts",
     "intervals": {
       "day": "day",
       "week": "week",

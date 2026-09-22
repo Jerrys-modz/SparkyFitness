@@ -1,5 +1,3 @@
-import { parseJsonArrayField } from './exerciseJsonFields.js';
-
 export interface MuscleEntry {
   entry_date?: string;
   exercise_name?: string;
@@ -9,8 +7,19 @@ export interface MuscleEntry {
 
 function asMuscleNames(values: unknown[]): string[] {
   return values.filter(
-    (value): value is string => typeof value === 'string' && value.length > 0
+    (value): value is string => typeof value === "string" && value.length > 0,
   );
+}
+
+function parseJsonArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || value.length === 0) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -20,20 +29,14 @@ function asMuscleNames(values: unknown[]): string[] {
  */
 export function primaryMusclesOf(entry: MuscleEntry): string[] {
   const nested = entry.exercises?.primary_muscles;
-  if (Array.isArray(nested)) return asMuscleNames(nested);
-  if (typeof nested === 'string') {
-    return asMuscleNames(parseJsonArrayField(nested));
+  if (nested !== undefined && nested !== null) {
+    return asMuscleNames(parseJsonArray(nested));
   }
-  const flat = entry.exercise_primary_muscles;
-  if (Array.isArray(flat)) return asMuscleNames(flat);
-  if (typeof flat === 'string' || flat === null || flat === undefined) {
-    return asMuscleNames(parseJsonArrayField(flat));
-  }
-  return [];
+  return asMuscleNames(parseJsonArray(entry.exercise_primary_muscles));
 }
 
 export function calculateMuscleGroupRecovery(
-  exerciseEntries: MuscleEntry[]
+  exerciseEntries: MuscleEntry[],
 ): Record<string, string> {
   const recoveryData: Record<string, string> = {};
   for (const entry of exerciseEntries) {
@@ -48,22 +51,21 @@ export function calculateMuscleGroupRecovery(
 }
 
 export function calculateExerciseVariety(
-  exerciseEntries: MuscleEntry[]
+  exerciseEntries: MuscleEntry[],
 ): Record<string, number> {
   const muscleExerciseMap: Record<string, Set<string>> = {};
   for (const entry of exerciseEntries) {
     const name = entry.exercise_name;
     if (!name) continue;
     for (const muscle of primaryMusclesOf(entry)) {
-      if (!muscleExerciseMap[muscle]) {
-        muscleExerciseMap[muscle] = new Set();
-      }
-      muscleExerciseMap[muscle].add(name);
+      const bucket = muscleExerciseMap[muscle] ?? new Set<string>();
+      muscleExerciseMap[muscle] = bucket;
+      bucket.add(name);
     }
   }
   const varietyData: Record<string, number> = {};
   for (const muscle of Object.keys(muscleExerciseMap)) {
-    varietyData[muscle] = muscleExerciseMap[muscle].size;
+    varietyData[muscle] = muscleExerciseMap[muscle]?.size ?? 0;
   }
   return varietyData;
 }

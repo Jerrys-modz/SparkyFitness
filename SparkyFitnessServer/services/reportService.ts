@@ -18,15 +18,13 @@ import {
   FOOD_VARIANT_NUTRIENT_FIELDS,
   todayInZone,
   isUsableMeasuredBmr,
+  calculateExerciseVariety,
+  calculateMuscleGroupRecovery,
+  primaryMusclesOf,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
-import {
-  calculateExerciseVariety,
-  calculateMuscleGroupRecovery,
-  primaryMusclesOf,
-} from '../utils/exerciseMuscleAggregates.js';
 
 interface CustomNutrientDefinition {
   id: string;
