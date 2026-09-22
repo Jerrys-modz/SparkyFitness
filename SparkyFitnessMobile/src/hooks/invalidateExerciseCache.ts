@@ -28,4 +28,10 @@ export function invalidateExerciseCache(
   void queryClient.invalidateQueries({
     queryKey: dailySummaryQueryKey(entryDate),
   });
+  void queryClient.invalidateQueries({
+    queryKey: ['activeWorkoutPlan'],
+  });
+  void queryClient.invalidateQueries({
+    queryKey: ['workoutPlanTemplates'],
+  });
 }

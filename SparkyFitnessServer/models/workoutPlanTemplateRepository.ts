@@ -2,14 +2,40 @@ import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
 import format from 'pg-format';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createWorkoutPlanTemplate(planData: any) {
+async function createWorkoutPlanTemplate(planData: {
+  user_id: string;
+  plan_name: string;
+  description?: string | null;
+  start_date?: string | Date | null;
+  end_date?: string | Date | null;
+  is_active?: boolean | null;
+  schedule_type?: 'weekly' | 'sequential';
+  entry_mode?: 'prompt' | 'prefill';
+  assignments?: Array<{
+    id?: number | string | null;
+    day_of_week?: number | null;
+    session_index?: number | null;
+    session_name?: string | null;
+    workout_preset_id?: number | string | null;
+    exercise_id?: string | null;
+    sort_order?: number | null;
+    sets?: Array<{
+      set_number: number;
+      set_type?: string | null;
+      reps?: number | null;
+      weight?: number | null;
+      duration?: number | null;
+      rest_time?: number | null;
+      notes?: string | null;
+    }> | null;
+  }> | null;
+}) {
   const client = await getClient(planData.user_id); // User-specific operation
   try {
     await client.query('BEGIN');
     const insertTemplateQuery = `
-            INSERT INTO workout_plan_templates (user_id, plan_name, description, start_date, end_date, is_active)
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+            INSERT INTO workout_plan_templates (user_id, plan_name, description, start_date, end_date, is_active, schedule_type, entry_mode)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
     const templateValues = [
       planData.user_id,
       planData.plan_name ?? '',
@@ -17,6 +43,8 @@ async function createWorkoutPlanTemplate(planData: any) {
       planData.start_date ?? new Date(),
       planData.end_date,
       planData.is_active ?? false,
+      planData.schedule_type || 'weekly',
+      planData.entry_mode || 'prompt',
     ];
     const templateResult = await client.query(
       insertTemplateQuery,
@@ -26,14 +54,16 @@ async function createWorkoutPlanTemplate(planData: any) {
     if (planData.assignments && planData.assignments.length > 0) {
       for (const a of planData.assignments) {
         const assignmentResult = await client.query(
-          `INSERT INTO workout_plan_template_assignments (template_id, day_of_week, workout_preset_id, exercise_id, sort_order)
-                     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          `INSERT INTO workout_plan_template_assignments (template_id, day_of_week, workout_preset_id, exercise_id, sort_order, session_index, session_name)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
           [
             newTemplate.id,
             a.day_of_week,
             a.workout_preset_id,
             a.exercise_id,
             a.sort_order || 0,
+            a.session_index || null,
+            a.session_name || null,
           ]
         );
         if (a.exercise_id && a.sets && a.sets.length > 0) {
@@ -66,7 +96,7 @@ async function createWorkoutPlanTemplate(planData: any) {
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -80,7 +110,7 @@ async function createWorkoutPlanTemplate(planData: any) {
                             LEFT JOIN workout_presets wp ON a.workout_preset_id = wp.id
                             LEFT JOIN exercises e ON a.exercise_id = e.id
                             WHERE a.template_id = t.id
-                            ORDER BY a.day_of_week ASC, a.sort_order ASC, a.id ASC
+                            ORDER BY a.day_of_week ASC NULLS LAST, a.session_index ASC NULLS LAST, a.sort_order ASC, a.id ASC
                         ) AS assignment_data
                     ),
                     '[]'::json
@@ -115,7 +145,7 @@ async function getWorkoutPlanTemplatesByUserId(userId: any) {
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -129,7 +159,7 @@ async function getWorkoutPlanTemplatesByUserId(userId: any) {
                             LEFT JOIN workout_presets wp ON a.workout_preset_id = wp.id
                             LEFT JOIN exercises e ON a.exercise_id = e.id
                             WHERE a.template_id = t.id
-                            ORDER BY a.day_of_week ASC, a.sort_order ASC, a.id ASC
+                            ORDER BY a.day_of_week ASC NULLS LAST, a.session_index ASC NULLS LAST, a.sort_order ASC, a.id ASC
                         ) AS assignment_data
                     ),
                     '[]'::json
@@ -156,7 +186,7 @@ async function getWorkoutPlanTemplateById(templateId: any, userId: any) {
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -170,7 +200,7 @@ async function getWorkoutPlanTemplateById(templateId: any, userId: any) {
                             LEFT JOIN workout_presets wp ON a.workout_preset_id = wp.id
                             LEFT JOIN exercises e ON a.exercise_id = e.id
                             WHERE a.template_id = t.id
-                            ORDER BY a.day_of_week ASC, a.sort_order ASC, a.id ASC
+                            ORDER BY a.day_of_week ASC NULLS LAST, a.session_index ASC NULLS LAST, a.sort_order ASC, a.id ASC
                         ) AS assignment_data
                     ),
                     '[]'::json
@@ -198,14 +228,19 @@ async function updateWorkoutPlanTemplate(
     await client.query('BEGIN');
     await client.query(
       `UPDATE workout_plan_templates SET
-                plan_name = $1, description = $2, start_date = $3, end_date = $4, is_active = $5, updated_at = now()
-             WHERE id = $6 AND user_id = $7 RETURNING *`,
+                plan_name = $1, description = $2, start_date = $3, end_date = $4, is_active = $5,
+                schedule_type = COALESCE($6, schedule_type),
+                entry_mode = COALESCE($7, entry_mode),
+                updated_at = now()
+             WHERE id = $8 AND user_id = $9 RETURNING *`,
       [
         updateData.plan_name ?? '',
         updateData.description ?? '',
         updateData.start_date ?? new Date(),
         updateData.end_date,
         updateData.is_active ?? false,
+        updateData.schedule_type ?? null,
+        updateData.entry_mode ?? null,
         templateId,
         userId,
       ]
@@ -259,12 +294,14 @@ async function updateWorkoutPlanTemplate(
         ) {
           // This is an existing assignment, so we update it
           await client.query(
-            'UPDATE workout_plan_template_assignments SET day_of_week = $1, workout_preset_id = $2, exercise_id = $3, sort_order = $4 WHERE id = $5',
+            'UPDATE workout_plan_template_assignments SET day_of_week = $1, workout_preset_id = $2, exercise_id = $3, sort_order = $4, session_index = $5, session_name = $6 WHERE id = $7',
             [
               a.day_of_week,
               a.workout_preset_id,
               a.exercise_id,
               a.sort_order || 0,
+              a.session_index || null,
+              a.session_name || null,
               a.id,
             ]
           );
@@ -294,14 +331,16 @@ async function updateWorkoutPlanTemplate(
         } else {
           // This is a new assignment, so we insert it
           const assignmentResult = await client.query(
-            `INSERT INTO workout_plan_template_assignments (template_id, day_of_week, workout_preset_id, exercise_id, sort_order)
-                         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            `INSERT INTO workout_plan_template_assignments (template_id, day_of_week, workout_preset_id, exercise_id, sort_order, session_index, session_name)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
             [
               templateId,
               a.day_of_week,
               a.workout_preset_id,
               a.exercise_id,
               a.sort_order || 0,
+              a.session_index || null,
+              a.session_name || null,
             ]
           );
           const newAssignmentId = assignmentResult.rows[0].id;
@@ -335,7 +374,7 @@ async function updateWorkoutPlanTemplate(
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -349,7 +388,7 @@ async function updateWorkoutPlanTemplate(
                             LEFT JOIN workout_presets wp ON a.workout_preset_id = wp.id
                             LEFT JOIN exercises e ON a.exercise_id = e.id
                             WHERE a.template_id = t.id
-                            ORDER BY a.day_of_week ASC, a.sort_order ASC, a.id ASC
+                            ORDER BY a.day_of_week ASC NULLS LAST, a.session_index ASC NULLS LAST, a.sort_order ASC, a.id ASC
                         ) AS assignment_data
                     ),
                     '[]'::json
@@ -393,8 +432,10 @@ async function deleteWorkoutPlanTemplate(templateId: any, userId: any) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWorkoutPlanTemplateOwnerId(templateId: any, userId: any) {
+async function getWorkoutPlanTemplateOwnerId(
+  templateId: string | number,
+  userId: string
+) {
   const client = await getClient(userId); // User-specific operation (RLS will handle access)
   try {
     const result = await client.query(
@@ -406,8 +447,8 @@ async function getWorkoutPlanTemplateOwnerId(templateId: any, userId: any) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getActiveWorkoutPlanForDate(userId: any, date: any) {
+
+async function getActiveWorkoutPlanForDate(userId: string, date: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const query = `
@@ -418,7 +459,7 @@ async function getActiveWorkoutPlanForDate(userId: any, date: any) {
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -432,7 +473,7 @@ async function getActiveWorkoutPlanForDate(userId: any, date: any) {
                             LEFT JOIN workout_presets wp ON a.workout_preset_id = wp.id
                             LEFT JOIN exercises e ON a.exercise_id = e.id
                             WHERE a.template_id = t.id
-                            ORDER BY a.day_of_week ASC, a.sort_order ASC, a.id ASC
+                            ORDER BY a.day_of_week ASC NULLS LAST, a.session_index ASC NULLS LAST, a.sort_order ASC, a.id ASC
                         ) AS assignment_data
                     ),
                     '[]'::json
@@ -441,10 +482,94 @@ async function getActiveWorkoutPlanForDate(userId: any, date: any) {
             WHERE t.user_id = $1
             AND t.is_active = TRUE
             AND $2 BETWEEN t.start_date AND COALESCE(t.end_date, '9999-12-31')
-            LIMIT 1
+            ORDER BY t.created_at ASC
         `;
     const result = await client.query(query, [userId, date]);
-    return result.rows[0];
+    const plans = result.rows;
+    if (!plans || plans.length === 0) return [];
+
+    for (const plan of plans) {
+      if (plan.schedule_type === 'sequential') {
+        const assignments = plan.assignments || [];
+        if (assignments.length === 0) {
+          plan.next_assignment = null;
+          plan.next_assignments = [];
+          plan.sequence_position = null;
+          continue;
+        }
+
+        // Group distinct session indices (0-indexed)
+        const sessionIndices: number[] = Array.from(
+          new Set<number>(
+            assignments.map(
+              (a: { session_index?: number | null }) => a.session_index ?? 0
+            )
+          )
+        ).sort((a: number, b: number) => a - b);
+
+        // Query the assignment with the most recent logged exercise entry
+        const lastCompletedQuery = `
+          SELECT a.id, a.session_index, MAX(ee.entry_date) AS last_done, MAX(ee.created_at) AS last_created_at
+          FROM workout_plan_template_assignments a
+          JOIN exercise_entries ee ON ee.workout_plan_assignment_id = a.id
+          WHERE a.template_id = $1
+          GROUP BY a.id, a.session_index, a.sort_order
+          ORDER BY MAX(ee.entry_date) DESC, MAX(ee.created_at) DESC, COALESCE(a.sort_order, 0) DESC
+          LIMIT 1
+        `;
+        const lastCompletedResult = await client.query(lastCompletedQuery, [
+          plan.id,
+        ]);
+        const lastCompleted = lastCompletedResult.rows[0];
+
+        let nextSessionIndex = sessionIndices[0] ?? 0;
+        let nextSessionOrder = 0;
+        if (lastCompleted) {
+          const lastSessionIndex = lastCompleted.session_index ?? 0;
+          const currentPos = sessionIndices.indexOf(lastSessionIndex);
+          if (currentPos !== -1) {
+            nextSessionOrder = (currentPos + 1) % sessionIndices.length;
+            nextSessionIndex = sessionIndices[nextSessionOrder] ?? 0;
+          }
+        }
+
+        const activeSessionAssignments = assignments.filter(
+          (a: { session_index?: number | null }) =>
+            (a.session_index ?? 0) === nextSessionIndex
+        );
+
+        const currentSessionName =
+          activeSessionAssignments[0]?.session_name || null;
+
+        plan.next_assignments = activeSessionAssignments;
+        plan.next_assignment = activeSessionAssignments[0] || null;
+        plan.sequence_position = {
+          current: nextSessionOrder + 1,
+          total: sessionIndices.length,
+          session_name: currentSessionName,
+        };
+      } else {
+        // Weekly plan resolution for the query date
+        const assignments = plan.assignments || [];
+        const [year, month, day] = String(date).split('-').map(Number);
+        const queryDayOfWeek =
+          year && month && day ? new Date(year, month - 1, day).getDay() : null;
+
+        const todaysAssignments =
+          queryDayOfWeek !== null
+            ? assignments.filter(
+                (a: { day_of_week: number | null }) =>
+                  a.day_of_week === queryDayOfWeek
+              )
+            : [];
+
+        plan.next_assignments = todaysAssignments;
+        plan.next_assignment = todaysAssignments[0] || null;
+        plan.sequence_position = null;
+      }
+    }
+
+    return plans;
   } finally {
     client.release();
   }

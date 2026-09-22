@@ -77,13 +77,17 @@ export const createExerciseEntry = async (
 
 export const logWorkoutPreset = async (
   workoutPresetId: string | number,
-  entryDate: string
+  entryDate: string,
+  workoutPlanAssignmentId?: number | string | null
 ): Promise<void> => {
   return apiCall('/exercise-preset-entries', {
     method: 'POST',
     body: JSON.stringify({
       workout_preset_id: workoutPresetId,
       entry_date: entryDate,
+      ...(workoutPlanAssignmentId
+        ? { workout_plan_assignment_id: workoutPlanAssignmentId }
+        : {}),
     }),
   });
 };

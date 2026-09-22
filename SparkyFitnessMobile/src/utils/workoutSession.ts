@@ -1401,7 +1401,7 @@ export function buildWorkoutCompletionSummary(
 
 // --- Live-start payload builders ---
 
-function makeDefaultStartSet(
+export function makeDefaultStartSet(
   setNumber: number,
   modality: ExerciseModality
 ): ExerciseEntrySetRequest {

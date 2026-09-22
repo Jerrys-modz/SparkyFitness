@@ -17,7 +17,9 @@ export interface WorkoutPlanAssignmentSetInput {
 
 export interface WorkoutPlanAssignmentInput {
   id?: number | string | null;
-  day_of_week: number;
+  day_of_week?: number | null;
+  session_index?: number | null;
+  session_name?: string | null;
   workout_preset_id?: number | string | null;
   exercise_id?: string | null;
   sort_order?: number | null;
@@ -30,6 +32,8 @@ export interface CreateWorkoutPlanTemplateInput {
   start_date?: string | null;
   end_date?: string | null;
   is_active?: boolean | null;
+  schedule_type?: 'weekly' | 'sequential';
+  entry_mode?: 'prompt' | 'prefill';
   assignments?: WorkoutPlanAssignmentInput[] | null;
   currentClientDate?: string | null;
 }
@@ -40,6 +44,8 @@ export interface UpdateWorkoutPlanTemplateInput {
   start_date?: string | null;
   end_date?: string | null;
   is_active?: boolean | null;
+  schedule_type?: 'weekly' | 'sequential';
+  entry_mode?: 'prompt' | 'prefill';
   assignments?: WorkoutPlanAssignmentInput[] | null;
   currentClientDate?: string | null;
 }
@@ -54,8 +60,23 @@ async function createWorkoutPlanTemplate(
     planData
   );
   // Validate assignments
+  const scheduleType = planData.schedule_type || 'weekly';
   if (planData.assignments) {
     for (const assignment of planData.assignments) {
+      if (scheduleType === 'weekly') {
+        if (
+          assignment.day_of_week === undefined ||
+          assignment.day_of_week === null ||
+          assignment.day_of_week < 0 ||
+          assignment.day_of_week > 6
+        ) {
+          throw new Error(
+            'Weekly workout plan assignments must have a valid day_of_week (0-6).'
+          );
+        }
+      } else if (scheduleType === 'sequential') {
+        assignment.day_of_week = null;
+      }
       if (assignment.workout_preset_id) {
         const preset = await workoutPresetRepository.getWorkoutPresetById(
           assignment.workout_preset_id,
@@ -91,10 +112,14 @@ async function createWorkoutPlanTemplate(
       'createWorkoutPlanTemplate service - newPlan created:',
       newPlan
     );
-    if (newPlan.is_active) {
+    if (
+      newPlan.is_active &&
+      newPlan.schedule_type !== 'sequential' &&
+      newPlan.entry_mode === 'prefill'
+    ) {
       log(
         'info',
-        `createWorkoutPlanTemplate service - New plan is active, creating exercise entries from template ${newPlan.id}`
+        `createWorkoutPlanTemplate service - New plan is active, weekly, and prefill, creating exercise entries from template ${newPlan.id}`
       );
       const today = await resolveTemplateStartDay(
         userId,
@@ -108,7 +133,7 @@ async function createWorkoutPlanTemplate(
     } else {
       log(
         'info',
-        'createWorkoutPlanTemplate service - New plan is not active, skipping exercise entry creation.'
+        'createWorkoutPlanTemplate service - Skipping exercise entry creation (inactive, sequential, or prompt mode).'
       );
     }
     return newPlan;
@@ -220,10 +245,14 @@ async function updateWorkoutPlanTemplate(
       'updateWorkoutPlanTemplate service - updatedPlan:',
       updatedPlan
     );
-    if (updatedPlan.is_active) {
+    if (
+      updatedPlan.is_active &&
+      updatedPlan.schedule_type !== 'sequential' &&
+      updatedPlan.entry_mode === 'prefill'
+    ) {
       log(
         'info',
-        `updateWorkoutPlanTemplate service - Updated plan is active, creating exercise entries from template ${updatedPlan.id}`
+        `updateWorkoutPlanTemplate service - Updated plan is active, weekly, and prefill, creating exercise entries from template ${updatedPlan.id}`
       );
       await exerciseRepository.createExerciseEntriesFromTemplate(
         updatedPlan.id,
@@ -233,7 +262,7 @@ async function updateWorkoutPlanTemplate(
     } else {
       log(
         'info',
-        'updateWorkoutPlanTemplate service - Updated plan is not active, skipping exercise entry creation.'
+        'updateWorkoutPlanTemplate service - Skipping exercise entry creation (inactive, sequential, or prompt mode).'
       );
     }
     return updatedPlan;

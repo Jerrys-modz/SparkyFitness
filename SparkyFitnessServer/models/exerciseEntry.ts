@@ -1033,12 +1033,6 @@ async function getWorkoutPlanAssignmentIdByPresetEntryIdWithClient(
     [userId, presetEntryId]
   );
 
-  if (result.rows.length > 1) {
-    throw new Error(
-      'Grouped workout contains multiple workout plan assignment ids.'
-    );
-  }
-
   return result.rows[0]?.workout_plan_assignment_id ?? null;
 }
 async function deleteExerciseEntriesByPresetEntryIdWithClient(

@@ -1951,7 +1951,15 @@
   "exerciseSummary": {
     "tapToAdd": "Tap to add exercise",
     "addExercise": "Add exercise",
-    "title": "Exercise"
+    "title": "Exercise",
+    "planUpNext": "Plan Up Next",
+    "sessionNumber": "Session {{current}} of {{total}}",
+    "sessionNumberIndex": "Session {{current}}",
+    "startWorkout": "Start",
+    "switchSession": "Switch",
+    "suggestedPlanSession": "Suggested",
+    "scheduledToday": "Scheduled Today",
+    "selectSession": "Select Session"
   },
   "foodRow": {
     "unknownFood": "Unknown food",
