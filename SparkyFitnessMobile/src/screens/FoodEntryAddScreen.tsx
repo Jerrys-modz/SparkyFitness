@@ -566,12 +566,18 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
     };
   }, [adjustedValues, activeVariant]);
 
+  const labelLookupId = selectedVariantOverride
+    ? selectedVariantOverride.id
+    : selectedVariantId;
+  const matchedLabelOption = variantPickerOptions.find(
+    (option) => option.id === labelLookupId
+  );
   const quantityUnitLabel =
-    variantPickerOptions.find((option) => option.id === selectedVariantId)
-      ?.quantityUnitLabel ?? formatQuantityUnitLabel(displayValues);
+    matchedLabelOption?.quantityUnitLabel ??
+    formatQuantityUnitLabel(displayValues);
   const perServingLabel =
-    variantPickerOptions.find((option) => option.id === selectedVariantId)
-      ?.perServingLabel ?? formatVariantServingLabel(displayValues);
+    matchedLabelOption?.perServingLabel ??
+    formatVariantServingLabel(displayValues);
 
   const pendingVariantToPersist = useMemo<FoodUnitVariant | null>(() => {
     if (!selectedVariantOverride) return null;
