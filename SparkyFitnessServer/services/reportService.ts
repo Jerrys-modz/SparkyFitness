@@ -20,6 +20,7 @@ import {
   isUsableMeasuredBmr,
   calculateExerciseVariety,
   calculateMuscleGroupRecovery,
+  calculateMuscleGroupSets,
   primaryMusclesOf,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
@@ -831,6 +832,7 @@ async function getExerciseDashboardData(
       timezone
     );
     const recoveryData = calculateMuscleGroupRecovery(exerciseEntries);
+    const muscleGroupSets = calculateMuscleGroupSets(exerciseEntries);
     const prProgressionData = calculatePrProgression(exerciseEntries);
     const exerciseVarietyData = calculateExerciseVariety(exerciseEntries);
     const setPerformanceData = calculateSetPerformance(exerciseEntries);
@@ -843,6 +845,7 @@ async function getExerciseDashboardData(
       prData,
       bestSetRepRange,
       muscleGroupVolume,
+      muscleGroupSets,
       consistencyData, // Add consistency data to the response
       recoveryData, // Add recovery data to the response
       prProgressionData, // Add PR progression data to the response
