@@ -93,6 +93,37 @@ function formatProgressionChange(
   return `${formatProgressionSettings(input, weightUnit)} · ${brand}`;
 }
 
+function resolvedIncrementKg(
+  fields: {
+    increment_value?: number;
+    increment_type?: string;
+  } | null,
+  exercise: PresetExerciseRow,
+  weightUnit: WeightUnit
+): number {
+  if (fields?.increment_value !== undefined) {
+    return incrementToKg(
+      fields.increment_value,
+      fields.increment_type ?? exercise.increment_type,
+      weightUnit
+    );
+  }
+  if (Number(exercise.increment_value) > 0) {
+    return Number(exercise.increment_value);
+  }
+  return incrementToKg(2.5, 'weight', weightUnit);
+}
+
+function shouldPersistIncrement(
+  fields: { increment_value?: number } | null,
+  exercise: PresetExerciseRow
+): boolean {
+  return (
+    fields?.increment_value !== undefined ||
+    !(Number(exercise.increment_value) > 0)
+  );
+}
+
 function filterExercises(
   exercises: PresetExerciseRow[],
   args: {
@@ -323,16 +354,11 @@ Actions:
                         fields!.increment_type ??
                         exercise.increment_type ??
                         'weight',
-                      increment_value:
-                        fields!.increment_value !== undefined
-                          ? incrementToKg(
-                              fields!.increment_value,
-                              fields!.increment_type ?? exercise.increment_type,
-                              weightUnit
-                            )
-                          : Number(exercise.increment_value) > 0
-                            ? Number(exercise.increment_value)
-                            : incrementToKg(2.5, 'weight', weightUnit),
+                      increment_value: resolvedIncrementKg(
+                        fields,
+                        exercise,
+                        weightUnit
+                      ),
                       equipment_brand:
                         fields!.equipment_brand !== undefined
                           ? fields!.equipment_brand
@@ -370,22 +396,19 @@ Actions:
                         }
                       : {
                           ...fields!,
-                          ...(fields!.increment_value !== undefined
-                            ? {
-                                increment_value: incrementToKg(
-                                  fields!.increment_value,
-                                  fields!.increment_type ??
-                                    exercise.increment_type,
-                                  weightUnit
-                                ),
-                              }
+                          ...(shouldPersistIncrement(fields, exercise)
+                            ? { increment_value: next.increment_value }
                             : {}),
                         },
                   }))
                 );
               const updated = planned.map(({ exercise, next }, index) => {
                 const row = rows[index] ?? next;
-                return `${exercise.exercise_name}: ${formatProgressionChange(row, weightUnit)}`;
+                const persisted =
+                  Number(row.increment_value) > 0
+                    ? row
+                    : { ...row, increment_value: next.increment_value };
+                return `${exercise.exercise_name}: ${formatProgressionChange(persisted, weightUnit)}`;
               });
               return formatConfirmation(
                 `Updated progression on ${preset.name}:\n${updated.join('\n')}`

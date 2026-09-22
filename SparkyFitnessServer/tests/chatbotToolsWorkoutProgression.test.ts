@@ -555,4 +555,89 @@ describe('sparky_manage_workout_progression', () => {
       ]
     );
   });
+
+  it('persists the preview increment fallback when the stored value is missing', async () => {
+    svc.getWorkoutPresetById.mockResolvedValue({
+      ...PRESET,
+      exercises: [{ ...PRESET.exercises[0], increment_value: 0 }],
+    });
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
+      {
+        progression_mode: 'fixed',
+        rep_goal: 8,
+        increment_type: 'weight',
+        increment_value: 0,
+        equipment_brand: null,
+      },
+    ]);
+    const result = await getTool().execute!(
+      {
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        preset_exercise_id: 101,
+        progression_mode: 'fixed',
+        confirmed: true,
+      },
+      opts
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      [
+        {
+          match: { presetExerciseId: 101 },
+          fields: {
+            progression_mode: 'fixed',
+            increment_value: 2.5,
+          },
+        },
+      ]
+    );
+    expect(result).toContain('+2.5 kg');
+  });
+
+  it('uses the same lbs increment fallback in the preview write and confirmation', async () => {
+    vi.mocked(preferenceService.getUserPreferences).mockResolvedValue({
+      default_weight_unit: 'lbs',
+    } as never);
+    svc.getWorkoutPresetById.mockResolvedValue({
+      ...PRESET,
+      exercises: [{ ...PRESET.exercises[0], increment_value: null }],
+    });
+    const stored = convertWeight(2.5, 'lbs', 'kg');
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
+      {
+        progression_mode: 'fixed',
+        rep_goal: 8,
+        increment_type: 'weight',
+        increment_value: stored,
+        equipment_brand: null,
+      },
+    ]);
+    const result = await getTool().execute!(
+      {
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        preset_exercise_id: 101,
+        progression_mode: 'fixed',
+        confirmed: true,
+      },
+      opts
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      [
+        {
+          match: { presetExerciseId: 101 },
+          fields: {
+            progression_mode: 'fixed',
+            increment_value: stored,
+          },
+        },
+      ]
+    );
+    expect(result).toContain('+2.5 lbs');
+    expect(result).not.toContain('+5.5 lbs');
+  });
 });
