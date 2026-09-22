@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { info } from '@/utils/logging';
@@ -30,12 +30,9 @@ const WorkoutHeatmap = ({
   endDate,
 }: WorkoutHeatmapProps) => {
   const { t } = useTranslation();
-  const {
-    loggingLevel,
-    formatDateInUserTimezone,
-    firstDayOfWeek: prefFirstDayOfWeek,
-  } = usePreferences();
+  const { loggingLevel, firstDayOfWeek: prefFirstDayOfWeek } = usePreferences();
   info(loggingLevel, 'WorkoutHeatmap: Rendering component.');
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   const grid = useMemo(
     () =>
@@ -45,16 +42,15 @@ const WorkoutHeatmap = ({
         firstDayOfWeek: prefFirstDayOfWeek,
         startDate,
         endDate,
-        formatDay: (date) => formatDateInUserTimezone(date, 'yyyy-MM-dd'),
       }),
-    [
-      workoutDates,
-      startDate,
-      endDate,
-      prefFirstDayOfWeek,
-      formatDateInUserTimezone,
-    ]
+    [workoutDates, startDate, endDate, prefFirstDayOfWeek]
   );
+
+  useLayoutEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    node.scrollLeft = node.scrollWidth;
+  }, [grid.weeks.length, startDate, endDate]);
 
   const compact = grid.weeks.length > 12;
 
@@ -66,7 +62,7 @@ const WorkoutHeatmap = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <div ref={scrollerRef} className="overflow-x-auto">
           <div className="inline-flex gap-1">
             <div className="flex flex-col gap-[3px] pt-5 shrink-0">
               {grid.weekdayKeys.map((key) => (

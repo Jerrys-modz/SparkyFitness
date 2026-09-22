@@ -673,7 +673,7 @@ const ExerciseReportsDashboard = ({
         {/* Global Interval Selector */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
-            {t('exerciseAnalytics.interval', 'Interval:')}
+            {t('exerciseAnalytics.interval', 'Group by:')}
           </span>
           <div className="flex items-center bg-muted p-1 rounded-md text-xs">
             {(['day', 'week', 'month', 'year'] as const).map((int) => (
