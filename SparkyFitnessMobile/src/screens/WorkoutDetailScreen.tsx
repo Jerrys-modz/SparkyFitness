@@ -35,6 +35,7 @@ import {
   formatVolume,
   canReorderDraftExercises,
   exerciseFromSnapshot,
+  summarizeWorkoutHeartRate,
 } from '../utils/workoutSession';
 import { formatLocalizedNumber } from '../localization';
 import {
@@ -654,48 +655,21 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     // Heart rate is read-only — it only arrives from a paired watch or a
     // synced workout, and there is no field for typing one — so it is shown
     // from the saved session even while editing.
-    const hrExercises = session.exercises.filter(
-      (ex) => ex.avg_heart_rate != null && ex.avg_heart_rate > 0
-    );
-    if (hrExercises.length > 0) {
-      // Duration-weighted so a long cardio block is not pulled down by a
-      // short warmup that happened to average lower. Zero-duration entries
-      // are legal and would otherwise contribute nothing, so weight only
-      // when every included exercise has a positive duration.
-      const durations = hrExercises.map(
-        (ex) => Number(ex.duration_minutes) || 0
-      );
-      const totalDuration = durations.reduce(
-        (sum, duration) => sum + duration,
-        0
-      );
-      const canWeightByDuration = durations.every((duration) => duration > 0);
-      const avgHr = canWeightByDuration
-        ? hrExercises.reduce(
-            (sum, ex, index) =>
-              sum + (ex.avg_heart_rate as number) * durations[index],
-            0
-          ) / totalDuration
-        : hrExercises.reduce(
-            (sum, ex) => sum + (ex.avg_heart_rate as number),
-            0
-          ) / hrExercises.length;
+    const heartRate = summarizeWorkoutHeartRate(session.exercises);
+    if (heartRate) {
       summaryItems.push({
-        value: formatLocalizedNumber(Math.round(avgHr)),
+        value: formatLocalizedNumber(Math.round(heartRate.avgBpm)),
         label: t('workoutDetail.summary.avgHeartRate', {
           defaultValue: 'Avg HR',
         }),
         icon: { name: 'heart-rate', color: heartRateColor },
       });
     }
-    const maxHrValues = session.exercises
-      .map((ex) => ex.max_heart_rate)
-      .filter((bpm): bpm is number => bpm != null && bpm > 0);
-    if (maxHrValues.length > 0) {
+    if (heartRate?.maxBpm != null) {
       // Exact, unlike the average: the highest of the per-exercise maxima IS
       // the workout's maximum.
       summaryItems.push({
-        value: formatLocalizedNumber(Math.round(Math.max(...maxHrValues))),
+        value: formatLocalizedNumber(Math.round(heartRate.maxBpm)),
         label: t('workoutDetail.summary.maxHeartRate', {
           defaultValue: 'Max HR',
         }),

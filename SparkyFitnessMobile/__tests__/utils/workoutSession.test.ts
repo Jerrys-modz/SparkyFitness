@@ -1,4 +1,5 @@
 import {
+  summarizeWorkoutHeartRate,
   CATEGORY_ICON_MAP,
   getWorkoutIcon,
   getSourceLabel,
@@ -5629,5 +5630,63 @@ describe('workoutSession', () => {
         buildPresetUpdateExercises(session, preset, allCompleted(session))
       ).toBeNull();
     });
+  });
+});
+
+describe('summarizeWorkoutHeartRate', () => {
+  it('returns null when no exercise carries a heart rate', () => {
+    expect(summarizeWorkoutHeartRate([])).toBeNull();
+    expect(
+      summarizeWorkoutHeartRate([
+        { avg_heart_rate: null, duration_minutes: 10 },
+      ])
+    ).toBeNull();
+    // Zero is not a reading; it is the absence of one.
+    expect(
+      summarizeWorkoutHeartRate([{ avg_heart_rate: 0, duration_minutes: 10 }])
+    ).toBeNull();
+  });
+
+  it('weights the average by duration', () => {
+    // 30 min at 120 and 10 min at 160 is 130, not the 140 a plain mean gives.
+    const summary = summarizeWorkoutHeartRate([
+      { avg_heart_rate: 120, duration_minutes: 30 },
+      { avg_heart_rate: 160, duration_minutes: 10 },
+    ]);
+    expect(summary?.avgBpm).toBeCloseTo(130);
+  });
+
+  it('falls back to a plain mean when any duration is missing', () => {
+    // A zero-duration entry would contribute nothing to a weighted mean and
+    // silently vanish from the average, so the whole calculation steps back.
+    const summary = summarizeWorkoutHeartRate([
+      { avg_heart_rate: 120, duration_minutes: 30 },
+      { avg_heart_rate: 160, duration_minutes: 0 },
+    ]);
+    expect(summary?.avgBpm).toBeCloseTo(140);
+  });
+
+  it('accepts a duration that arrives as a string', () => {
+    const summary = summarizeWorkoutHeartRate([
+      { avg_heart_rate: 120, duration_minutes: '30' },
+      { avg_heart_rate: 160, duration_minutes: '10' },
+    ]);
+    expect(summary?.avgBpm).toBeCloseTo(130);
+  });
+
+  it('takes the highest per-exercise maximum, exactly', () => {
+    const summary = summarizeWorkoutHeartRate([
+      { avg_heart_rate: 120, max_heart_rate: 150, duration_minutes: 10 },
+      { avg_heart_rate: 130, max_heart_rate: 171, duration_minutes: 10 },
+    ]);
+    expect(summary?.maxBpm).toBe(171);
+  });
+
+  it('reports a null maximum when only averages were recorded', () => {
+    const summary = summarizeWorkoutHeartRate([
+      { avg_heart_rate: 120, duration_minutes: 10 },
+    ]);
+    expect(summary?.avgBpm).toBeCloseTo(120);
+    expect(summary?.maxBpm).toBeNull();
   });
 });

@@ -3484,8 +3484,13 @@
       "volume": "Volume",
       "sets": "Sets",
       "calories": "Calories",
+      "avgHeartRate": "Avg HR",
+      "maxHeartRate": "Max HR",
       "distance": "Distance",
       "averageRpe": "Average RPE"
+    },
+    "units": {
+      "bpm": "bpm"
     },
     "labels": {
       "todayAt": " · Today at ",

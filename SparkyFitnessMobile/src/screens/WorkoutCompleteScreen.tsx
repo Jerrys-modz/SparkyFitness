@@ -59,6 +59,7 @@ import {
   resolveSnapshotModality,
   summarizeWorkoutSpan,
   SUPERSET_PALETTE_VARS,
+  summarizeWorkoutHeartRate,
 } from '../utils/workoutSession';
 import type { RootStackScreenProps } from '../types/navigation';
 import type { WorkoutPreset } from '../types/workoutPresets';
@@ -448,6 +449,15 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     queryKey: workoutSessionQueryKey(session.id),
     queryFn: () => getWorkout(session.id),
   });
+  // Heart rate comes from the same refetch as calories, and for the same
+  // reason: it is not in the snapshot this screen opens with. It arrives later
+  // still — the watch posts telemetry after the workout is saved — so the
+  // flush invalidates every `workoutSession` query and this re-renders when it
+  // lands. A workout with no watch behind it simply has no tiles here.
+  const heartRate = useMemo(
+    () => summarizeWorkoutHeartRate((refreshedSession ?? session).exercises),
+    [refreshedSession, session]
+  );
   const snapshotCalories = getSessionCalories(session);
   const caloriesValue =
     refreshedSession != null
@@ -709,6 +719,39 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
               )}
             </StatTile>
           </View>
+
+          {heartRate && (
+            <View className="flex-row gap-2 mt-2">
+              <StatTile
+                icon="heart-rate"
+                label={t('workoutComplete.stats.avgHeartRate', {
+                  defaultValue: 'Avg HR',
+                })}
+              >
+                <StatValue
+                  value={formatLocalizedNumber(Math.round(heartRate.avgBpm))}
+                  unit={t('workoutComplete.units.bpm', { defaultValue: 'bpm' })}
+                />
+              </StatTile>
+              <StatTile
+                icon="heart-rate"
+                label={t('workoutComplete.stats.maxHeartRate', {
+                  defaultValue: 'Max HR',
+                })}
+              >
+                {heartRate.maxBpm != null ? (
+                  <StatValue
+                    value={formatLocalizedNumber(Math.round(heartRate.maxBpm))}
+                    unit={t('workoutComplete.units.bpm', {
+                      defaultValue: 'bpm',
+                    })}
+                  />
+                ) : (
+                  <StatValue value="—" />
+                )}
+              </StatTile>
+            </View>
+          )}
 
           {summary.totalDistanceKm > 0 && (
             <View className="flex-row gap-2 mt-2">

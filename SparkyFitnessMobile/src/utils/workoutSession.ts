@@ -1981,3 +1981,60 @@ export function buildPresetUpdateExercises(
     );
   return equivalent ? null : fromSession;
 }
+
+/** The heart-rate figures a workout can show, or null when it carries none. */
+export interface WorkoutHeartRateSummary {
+  avgBpm: number;
+  maxBpm: number | null;
+}
+
+/**
+ * Average and peak heart rate across a session's exercises.
+ *
+ * The average is duration-weighted, so a long cardio block is not pulled down
+ * by a short warmup that happened to average lower. Zero-duration entries are
+ * legal and would contribute nothing to a weighted mean, so the weighting only
+ * applies when every contributing exercise has a positive duration; otherwise
+ * it falls back to a plain mean of the per-exercise averages.
+ *
+ * Shared by the workout detail screen and the completion summary. Heart rate
+ * only ever arrives from a paired watch or a synced workout — there is no
+ * field for typing one — so both read it from the saved session.
+ */
+export function summarizeWorkoutHeartRate(
+  exercises: readonly {
+    avg_heart_rate?: number | null;
+    max_heart_rate?: number | null;
+    duration_minutes?: number | string | null;
+  }[]
+): WorkoutHeartRateSummary | null {
+  const withHr = exercises.filter(
+    (exercise) => exercise.avg_heart_rate != null && exercise.avg_heart_rate > 0
+  );
+  if (withHr.length === 0) return null;
+
+  const durations = withHr.map(
+    (exercise) => Number(exercise.duration_minutes) || 0
+  );
+  const totalDuration = durations.reduce((sum, value) => sum + value, 0);
+  const canWeightByDuration = durations.every((value) => value > 0);
+  const avgBpm = canWeightByDuration
+    ? withHr.reduce(
+        (sum, exercise, index) =>
+          sum + (exercise.avg_heart_rate as number) * durations[index],
+        0
+      ) / totalDuration
+    : withHr.reduce(
+        (sum, exercise) => sum + (exercise.avg_heart_rate as number),
+        0
+      ) / withHr.length;
+
+  const maxValues = exercises
+    .map((exercise) => exercise.max_heart_rate)
+    .filter((value): value is number => value != null && value > 0);
+
+  return {
+    avgBpm,
+    maxBpm: maxValues.length > 0 ? Math.max(...maxValues) : null,
+  };
+}
