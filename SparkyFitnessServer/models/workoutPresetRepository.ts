@@ -237,6 +237,7 @@ async function getWorkoutPresetById(presetId: any, userId: any) {
                 e.name as exercise_name,
                 e.category as category,
                 e.modality as modality,
+                e.equipment as equipment,
                 COALESCE(
                   (SELECT json_agg(set_data ORDER BY set_data.set_number)
                    FROM (
@@ -579,6 +580,71 @@ async function searchWorkoutPresets(
   }
 }
 
+export interface WorkoutPresetExerciseProgressionFields {
+  progression_mode?: string;
+  rep_goal?: number | null;
+  increment_type?: string;
+  increment_value?: number;
+  equipment_brand?: string | null;
+}
+
+async function updateWorkoutPresetExerciseProgression(
+  userId: string,
+  presetId: number,
+  match: { exerciseId?: string; presetExerciseId?: number },
+  fields: WorkoutPresetExerciseProgressionFields
+) {
+  const assignments: string[] = [];
+  const params: unknown[] = [];
+  let index = 1;
+  const add = (column: string, value: unknown) => {
+    if (value === undefined) return;
+    params.push(value);
+    assignments.push(`${column} = $${index++}`);
+  };
+  add('progression_mode', fields.progression_mode);
+  add('rep_goal', fields.rep_goal);
+  add('increment_type', fields.increment_type);
+  add('increment_value', fields.increment_value);
+  add('equipment_brand', fields.equipment_brand);
+  if (assignments.length === 0) {
+    throw new Error('No progression fields to update');
+  }
+
+  const where: string[] = [`wpe.workout_preset_id = $${index++}`];
+  params.push(presetId);
+  if (match.presetExerciseId !== undefined) {
+    where.push(`wpe.id = $${index++}`);
+    params.push(match.presetExerciseId);
+  } else if (match.exerciseId) {
+    where.push(`wpe.exercise_id = $${index++}`);
+    params.push(match.exerciseId);
+  } else {
+    throw new Error('exercise_id or preset_exercise_id is required');
+  }
+
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `UPDATE workout_preset_exercises wpe
+       SET ${assignments.join(', ')}, updated_at = now()
+       WHERE ${where.join(' AND ')}
+       RETURNING
+         wpe.id,
+         wpe.exercise_id,
+         wpe.progression_mode,
+         wpe.rep_goal,
+         wpe.increment_type,
+         wpe.increment_value,
+         wpe.equipment_brand`,
+      params
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
 export { createWorkoutPreset };
 export { getWorkoutPresets };
 export { getWorkoutPresetById };
@@ -588,6 +654,7 @@ export { getWorkoutPresetOwnerId };
 export { searchWorkoutPresets };
 export { getWorkoutPresetByName };
 export { addExerciseToWorkoutPreset };
+export { updateWorkoutPresetExerciseProgression };
 export default {
   createWorkoutPreset,
   getWorkoutPresets,
@@ -598,4 +665,5 @@ export default {
   searchWorkoutPresets,
   getWorkoutPresetByName,
   addExerciseToWorkoutPreset,
+  updateWorkoutPresetExerciseProgression,
 };

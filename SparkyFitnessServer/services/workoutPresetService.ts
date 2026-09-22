@@ -117,6 +117,41 @@ async function deleteWorkoutPreset(userId: any, presetId: any) {
   }
   return { message: 'Workout preset deleted successfully.' };
 }
+
+async function updateWorkoutPresetExerciseProgression(
+  userId: string,
+  presetId: number,
+  match: { exerciseId?: string; presetExerciseId?: number },
+  fields: {
+    progression_mode?: string;
+    rep_goal?: number | null;
+    increment_type?: string;
+    increment_value?: number;
+    equipment_brand?: string | null;
+  }
+) {
+  const ownerId = await workoutPresetRepository.getWorkoutPresetOwnerId(
+    userId,
+    presetId
+  );
+  if (ownerId !== userId) {
+    throw new Error(
+      'Forbidden: You do not have permission to update this workout preset.'
+    );
+  }
+  const rows =
+    await workoutPresetRepository.updateWorkoutPresetExerciseProgression(
+      userId,
+      presetId,
+      match,
+      fields
+    );
+  if (!rows || rows.length === 0) {
+    throw new Error('Workout preset exercise not found.');
+  }
+  return rows;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function searchWorkoutPresets(searchTerm: any, userId: any, limit: any) {
   if (limit === null || limit === undefined) {
@@ -135,6 +170,7 @@ export { getWorkoutPresetById };
 export { updateWorkoutPreset };
 export { deleteWorkoutPreset };
 export { searchWorkoutPresets };
+export { updateWorkoutPresetExerciseProgression };
 export default {
   createWorkoutPreset,
   getWorkoutPresets,
@@ -142,4 +178,5 @@ export default {
   updateWorkoutPreset,
   deleteWorkoutPreset,
   searchWorkoutPresets,
+  updateWorkoutPresetExerciseProgression,
 };
