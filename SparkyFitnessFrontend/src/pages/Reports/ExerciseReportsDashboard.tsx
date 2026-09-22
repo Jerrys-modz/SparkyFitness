@@ -259,6 +259,12 @@ const ExerciseReportsDashboard = ({
     );
   }
 
+  const heatmapDates = Array.from(
+    new Set(
+      exerciseDashboardData.exerciseEntries.map((entry) => entry.entry_date)
+    )
+  );
+
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case 'keyStats':
@@ -274,13 +280,9 @@ const ExerciseReportsDashboard = ({
           exerciseDashboardData.exerciseEntries.length > 0 ? (
           <WorkoutHeatmap
             key="heatmap"
-            workoutDates={Array.from(
-              new Set(
-                exerciseDashboardData.exerciseEntries.map(
-                  (entry) => entry.entry_date
-                )
-              )
-            )}
+            workoutDates={heatmapDates}
+            startDate={startDate}
+            endDate={endDate}
           />
         ) : (
           <Card
@@ -608,10 +610,11 @@ const ExerciseReportsDashboard = ({
       {/* Tier 1: View Mode Tabs & Global Interval Selector */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-3 rounded-xl border bg-card shadow-sm">
         {/* Domain View Selector */}
-        <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-lg min-w-0">
+        <div className="self-start inline-flex items-center gap-1 bg-muted p-1 rounded-md">
           <button
             type="button"
-            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs transition-all ${
+            title={t('exerciseAnalytics.views.all', 'All Workouts')}
+            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs whitespace-nowrap transition-all ${
               viewMode === 'all'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -619,11 +622,20 @@ const ExerciseReportsDashboard = ({
             onClick={() => setViewMode('all')}
           >
             <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" />
-            {t('exerciseAnalytics.views.all', 'All Workouts')}
+            <span className="md:hidden">
+              {t('exerciseAnalytics.views.allShort', 'All')}
+            </span>
+            <span className="hidden md:inline">
+              {t('exerciseAnalytics.views.all', 'All Workouts')}
+            </span>
           </button>
           <button
             type="button"
-            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs transition-all ${
+            title={t(
+              'exerciseAnalytics.views.strength',
+              'Strength & Resistance'
+            )}
+            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs whitespace-nowrap transition-all ${
               viewMode === 'strength'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -631,11 +643,17 @@ const ExerciseReportsDashboard = ({
             onClick={() => setViewMode('strength')}
           >
             <Dumbbell className="w-3.5 h-3.5 mr-1.5" />
-            {t('exerciseAnalytics.views.strength', 'Strength & Resistance')}
+            <span className="md:hidden">
+              {t('exerciseAnalytics.views.strengthShort', 'Strength')}
+            </span>
+            <span className="hidden md:inline">
+              {t('exerciseAnalytics.views.strength', 'Strength & Resistance')}
+            </span>
           </button>
           <button
             type="button"
-            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs transition-all ${
+            title={t('exerciseAnalytics.views.cardio', 'Cardio & GPS')}
+            className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs whitespace-nowrap transition-all ${
               viewMode === 'cardio'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -643,7 +661,12 @@ const ExerciseReportsDashboard = ({
             onClick={() => setViewMode('cardio')}
           >
             <Activity className="w-3.5 h-3.5 mr-1.5" />
-            {t('exerciseAnalytics.views.cardio', 'Cardio & GPS')}
+            <span className="md:hidden">
+              {t('exerciseAnalytics.views.cardioShort', 'Cardio')}
+            </span>
+            <span className="hidden md:inline">
+              {t('exerciseAnalytics.views.cardio', 'Cardio & GPS')}
+            </span>
           </button>
         </div>
 
@@ -697,13 +720,9 @@ const ExerciseReportsDashboard = ({
           {exerciseDashboardData?.exerciseEntries &&
           exerciseDashboardData.exerciseEntries.length > 0 ? (
             <WorkoutHeatmap
-              workoutDates={Array.from(
-                new Set(
-                  exerciseDashboardData.exerciseEntries.map(
-                    (entry) => entry.entry_date
-                  )
-                )
-              )}
+              workoutDates={heatmapDates}
+              startDate={startDate}
+              endDate={endDate}
             />
           ) : (
             <Card className="h-full border shadow-sm flex items-center justify-center p-6">

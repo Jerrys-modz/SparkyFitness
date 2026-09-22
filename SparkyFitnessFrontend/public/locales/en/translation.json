@@ -5947,8 +5947,11 @@
     },
     "views": {
       "all": "All Workouts",
+      "allShort": "All",
       "strength": "Strength & Resistance",
-      "cardio": "Cardio & GPS"
+      "strengthShort": "Strength",
+      "cardio": "Cardio & GPS",
+      "cardioShort": "Cardio"
     },
     "interval": "Interval:",
     "intervals": {
