@@ -287,7 +287,10 @@ Actions:
                 const next = args.apply_recommendations
                   ? {
                       ...recommendationFor(exercise),
-                      equipment_brand: exercise.equipment_brand,
+                      equipment_brand:
+                        fields?.equipment_brand !== undefined
+                          ? fields.equipment_brand
+                          : exercise.equipment_brand,
                     }
                   : {
                       progression_mode:
@@ -338,6 +341,9 @@ Actions:
                           rep_goal: next.rep_goal,
                           increment_type: next.increment_type,
                           increment_value: next.increment_value,
+                          ...(fields?.equipment_brand !== undefined
+                            ? { equipment_brand: fields.equipment_brand }
+                            : {}),
                         }
                       : fields!,
                   }))

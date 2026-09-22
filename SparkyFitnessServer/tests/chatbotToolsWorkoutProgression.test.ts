@@ -286,6 +286,65 @@ describe('sparky_manage_workout_progression', () => {
     expect(svc.updateWorkoutPresetExerciseProgressions).not.toHaveBeenCalled();
   });
 
+  it('overlays an explicit equipment brand when applying recommendations', async () => {
+    const preview = await getTool().execute!(
+      {
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        preset_exercise_id: 101,
+        apply_recommendations: true,
+        equipment_brand: 'Rogue',
+      },
+      opts
+    );
+    expect(preview).toBe(
+      'Updating progression on preset 7 (Push Day) will change overload settings for 1 exercise:\n' +
+        '- Barbell Bench Press: Total Rep Goal · 24 total reps · +5 kg · no brand → Fixed Target · 8 reps/set · +2.5 kg · Rogue\n' +
+        'Confirm with the user first. If they agree, call update_progression again with the same fields and confirmed=true. Nothing was changed.'
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).not.toHaveBeenCalled();
+
+    svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
+      {
+        progression_mode: 'fixed',
+        rep_goal: 8,
+        increment_type: 'weight',
+        increment_value: 2.5,
+        equipment_brand: 'Rogue',
+      },
+    ]);
+    const result = await getTool().execute!(
+      {
+        action: 'update_progression',
+        preset_id: PRESET_ID,
+        preset_exercise_id: 101,
+        apply_recommendations: true,
+        equipment_brand: 'Rogue',
+        confirmed: true,
+      },
+      opts
+    );
+    expect(result).toBe(
+      '✅ Updated progression on Push Day:\nBarbell Bench Press: Fixed Target · 8 reps/set · +2.5 kg · Rogue'
+    );
+    expect(svc.updateWorkoutPresetExerciseProgressions).toHaveBeenCalledWith(
+      'user-1',
+      PRESET_ID,
+      [
+        {
+          match: { presetExerciseId: 101 },
+          fields: {
+            progression_mode: 'fixed',
+            rep_goal: 8,
+            increment_type: 'weight',
+            increment_value: 2.5,
+            equipment_brand: 'Rogue',
+          },
+        },
+      ]
+    );
+  });
+
   it('applies a whole-preset update in one service call', async () => {
     svc.updateWorkoutPresetExerciseProgressions.mockResolvedValue([
       {
