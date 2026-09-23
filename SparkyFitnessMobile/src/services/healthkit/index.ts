@@ -71,7 +71,11 @@ const limitTelemetry = createConcurrencyLimiter(TELEMETRY_CONCURRENCY);
 const workoutCacheKey = (workout: unknown): string | null => {
   const w = workout as { uuid?: string; endDate?: string | Date };
   const end = w.endDate instanceof Date ? w.endDate.toISOString() : w.endDate;
-  return sessionTelemetryKey(w.uuid, end);
+  const key = sessionTelemetryKey(w.uuid, end);
+  // v2: walks collected before route access was granted were cached with an
+  // empty track, and the cache then skipped them forever. The suffix makes
+  // the next sync read each workout once more.
+  return key ? `${key}:v2` : null;
 };
 
 // Track if HealthKit is available on this device
