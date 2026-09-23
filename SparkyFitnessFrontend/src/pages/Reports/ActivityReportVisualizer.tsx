@@ -82,10 +82,15 @@ const ActivityReportVisualizer = ({
     | undefined;
   const entryDateRaw = entryRecord?.entry_date;
   const entryDate = entryDateRaw ? String(entryDateRaw).slice(0, 10) : '';
+  const sampleEndDate = entryDate
+    ? new Date(Date.parse(`${entryDate}T00:00:00Z`) + 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10)
+    : undefined;
   const { data: hrBuckets } = useHealthMetricSamples(
     'heart_rate',
     entryDate,
-    entryDate || undefined
+    sampleEndDate
   );
   const workoutHrSeries = useMemo(() => {
     const toPoint = (timestamp: number, bpm: number): ChartDataPoint => ({

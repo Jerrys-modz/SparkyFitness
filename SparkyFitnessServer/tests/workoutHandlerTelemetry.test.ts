@@ -171,6 +171,14 @@ describe('workoutHandler — backward compatibility', () => {
     expect(payload.source_id).toBe('hk-workout-1');
   });
 
+  it('stores the workout start as a local entry time', async () => {
+    await workoutHandler.handle(baseEntry(), makeCtx());
+
+    const payload = (exerciseEntryDb.createExerciseEntry as Mock).mock
+      .calls[0][1];
+    expect(payload.entry_time).toBe('09:00:00');
+  });
+
   it('persists provider-associated workout steps for calorie deduplication', async () => {
     await workoutHandler.handle(baseEntry({ steps: 6123 }), makeCtx());
 
