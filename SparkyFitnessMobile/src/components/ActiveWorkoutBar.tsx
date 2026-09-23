@@ -623,6 +623,15 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
                     `Failed to delete discarded live-start workout: ${error}`,
                     'ERROR'
                   );
+                  if (entryDate != null)
+                    invalidateExerciseCache(queryClient, entryDate);
+                  Alert.alert(
+                    t('common.error', { defaultValue: 'Error' }),
+                    t('activeWorkout.failedToDeleteWorkout', {
+                      defaultValue:
+                        'Failed to delete discarded workout session from diary.',
+                    })
+                  );
                 });
             },
           },

@@ -1322,6 +1322,7 @@
     "noExercisesInPlanSession": "No exercises found in this session.",
     "switchSessionLabel": "Switch / Pick Session:",
     "sessionNumber": "Session {{num}}",
+    "dayNumber": "Day {{num}}",
     "suggestedBadge": "Suggested",
     "planWorkoutLogged": "Workout session logged to diary.",
     "exerciseTotal": "Exercise Total",

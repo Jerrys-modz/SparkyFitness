@@ -27,6 +27,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { error } from '@/utils/logging';
 import type { WorkoutPlanTemplate } from '@/types/workout';
 import AddWorkoutPlanDialog from './AddWorkoutPlanDialog';
+import { formatDateToYYYYMMDD } from '@/lib/utils';
 import {
   useCreateWorkoutPlanTemplateMutation,
   useDeleteWorkoutPlanTemplateMutation,
@@ -58,7 +59,10 @@ const WorkoutPlansManager = () => {
   );
 
   const { data: plans } = useWorkoutPlanTemplates(user?.id);
-  const { data: activePlan } = useActiveWorkoutPlan(undefined, user?.id);
+  const { data: activePlan } = useActiveWorkoutPlan(
+    formatDateToYYYYMMDD(new Date()),
+    user?.id
+  );
   const { mutateAsync: createWorkoutPlanTemplate } =
     useCreateWorkoutPlanTemplateMutation();
   const { mutateAsync: updateWorkoutPlanTemplate } =

@@ -148,9 +148,14 @@ describe('workoutPlanTemplateService', () => {
       ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID);
       expect(
         workoutPlanTemplateRepository.updateWorkoutPlanTemplate
-      ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID, {
-        plan_name: 'Updated Name',
-      });
+      ).toHaveBeenCalledWith(
+        TEMPLATE_ID,
+        USER_ID,
+        {
+          plan_name: 'Updated Name',
+        },
+        false
+      );
       expect(result.plan_name).toBe('Updated Name');
     });
   });
@@ -383,8 +388,18 @@ describe('workoutPlanTemplateService', () => {
         exerciseRepository.deleteExerciseEntriesByTemplateId
       ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID, '2026-09-10');
       expect(
-        workoutPlanTemplateRepository.unlinkExerciseEntriesByTemplateId
-      ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID);
+        workoutPlanTemplateRepository.updateWorkoutPlanTemplate
+      ).toHaveBeenCalledWith(
+        TEMPLATE_ID,
+        USER_ID,
+        {
+          plan_name: 'Switched to Sequential',
+          is_active: true,
+          schedule_type: 'sequential',
+          assignments: [{ session_index: 0, sort_order: 0, day_of_week: null }],
+        },
+        true
+      );
       expect(
         exerciseRepository.createExerciseEntriesFromTemplate
       ).not.toHaveBeenCalled();

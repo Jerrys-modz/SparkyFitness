@@ -1011,10 +1011,9 @@ async function updateExerciseEntriesDateByPresetEntryIdWithClient(
   );
 }
 /**
- * The single non-null workout plan assignment id shared by the child
+ * The non-null workout plan assignment id associated with the child
  * exercise_entries of a grouped session, or null when the session is not
- * linked to a workout plan. Throws if the children carry more than one
- * distinct non-null assignment id.
+ * linked to a workout plan.
  */
 async function getWorkoutPlanAssignmentIdByPresetEntryIdWithClient(
   client: PoolClient,

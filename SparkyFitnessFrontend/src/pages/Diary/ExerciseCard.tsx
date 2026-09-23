@@ -51,7 +51,10 @@ import {
   useExerciseEntries,
 } from '@/hooks/Exercises/useExerciseEntries';
 import { useActiveWorkoutPlans } from '@/hooks/Exercises/useWorkoutPlans';
-import { useWorkoutPresets } from '@/hooks/Exercises/useWorkoutPresets';
+import {
+  useWorkoutPresets,
+  workoutPresetByIdOptions,
+} from '@/hooks/Exercises/useWorkoutPresets';
 import {
   isCardioModality,
   resolveExerciseCalories,
@@ -163,9 +166,22 @@ const ExerciseCard = ({
 
     for (const a of sessionAssignments) {
       if (a.workout_preset_id) {
-        const preset = workoutPresets.find(
+        let preset = workoutPresets.find(
           (p) => String(p.id) === String(a.workout_preset_id)
         );
+        if (!preset) {
+          try {
+            preset = await queryClient.fetchQuery(
+              workoutPresetByIdOptions(a.workout_preset_id)
+            );
+          } catch (err) {
+            error(
+              loggingLevel,
+              `Failed to fetch preset for session: ${a.workout_preset_id}`,
+              err
+            );
+          }
+        }
         if (preset && preset.exercises && preset.exercises.length > 0) {
           combinedExercises.push(
             ...preset.exercises.map((ex) => ({
@@ -620,11 +636,17 @@ const ExerciseCard = ({
           a.workout_preset_name ||
           a.exercise_name ||
           (plan.schedule_type === 'sequential'
-            ? `Session ${(a.session_index ?? 0) + 1}`
-            : `Day ${(a.day_of_week ?? 0) + 1}`);
+            ? t('exerciseCard.sessionNumber', {
+                num: a.session_index ?? 1,
+                defaultValue: `Session ${a.session_index ?? 1}`,
+              })
+            : t('exerciseCard.dayNumber', {
+                num: (a.day_of_week ?? 0) + 1,
+                defaultValue: `Day ${(a.day_of_week ?? 0) + 1}`,
+              }));
         map.set(key, {
           assignment: a,
-          sessionIndex: a.session_index ?? 0,
+          sessionIndex: a.session_index ?? 1,
           name,
           exerciseCount: 1,
           isSuggested,

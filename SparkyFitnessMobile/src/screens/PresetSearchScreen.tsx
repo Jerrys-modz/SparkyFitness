@@ -219,16 +219,17 @@ const PresetSearchScreen: React.FC<PresetSearchScreenProps> = ({
                 >
                   {item.name}
                 </Text>
-                {activePlan?.next_assignment?.workout_preset_id ===
-                  String(item.id) && (
-                  <View className="bg-primary/20 px-1.5 py-0.5 rounded">
-                    <Text className="text-[10px] text-primary font-bold">
-                      {t('exerciseSummary.suggestedPlanSession', {
-                        defaultValue: 'Suggested',
-                      })}
-                    </Text>
-                  </View>
-                )}
+                {activePlan?.next_assignment?.workout_preset_id != null &&
+                  Number(activePlan.next_assignment.workout_preset_id) ===
+                    Number(item.id) && (
+                    <View className="bg-primary/20 px-1.5 py-0.5 rounded">
+                      <Text className="text-[10px] text-primary font-bold">
+                        {t('exerciseSummary.suggestedPlanSession', {
+                          defaultValue: 'Suggested',
+                        })}
+                      </Text>
+                    </View>
+                  )}
                 <ShareStatusBadge status={status} />
               </View>
               <Text className="text-sm mt-0.5" style={{ color: textSecondary }}>
@@ -275,7 +276,7 @@ const PresetSearchScreen: React.FC<PresetSearchScreenProps> = ({
       getImageSource,
       profile,
       t,
-      activePlan?.next_assignment?.workout_preset_id,
+      activePlan,
     ]
   );
 

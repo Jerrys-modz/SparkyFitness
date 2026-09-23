@@ -83,11 +83,9 @@ export const logWorkoutPreset = async (
   return apiCall('/exercise-preset-entries', {
     method: 'POST',
     body: JSON.stringify({
-      workout_preset_id: workoutPresetId,
+      workout_preset_id: Number(workoutPresetId),
       entry_date: entryDate,
-      ...(workoutPlanAssignmentId
-        ? { workout_plan_assignment_id: workoutPlanAssignmentId }
-        : {}),
+      ...(workoutPlanAssignmentId != null ? { workoutPlanAssignmentId } : {}),
     }),
   });
 };

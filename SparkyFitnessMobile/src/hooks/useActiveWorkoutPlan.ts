@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchActiveWorkoutPlans } from '../services/api/workoutPlansApi';
 import { activeWorkoutPlanQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
+import { getTodayDate } from '../utils/dateUtils';
 
 export function useActiveWorkoutPlans(
   date?: string,
   options?: { enabled?: boolean }
 ) {
   const { enabled = true } = options ?? {};
-  const queryDate = date || new Date().toISOString().slice(0, 10);
+  const queryDate = date || getTodayDate();
 
   const query = useQuery({
     queryKey: activeWorkoutPlanQueryKey(queryDate),

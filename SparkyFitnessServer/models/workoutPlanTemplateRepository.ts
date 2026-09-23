@@ -1,35 +1,98 @@
+import type { PoolClient } from 'pg';
 import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
-// @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
+// @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-format'.
 import format from 'pg-format';
-async function createWorkoutPlanTemplate(planData: {
+import {
+  computeSequentialPlanProgression,
+  type AssignmentProgressionInput,
+  type LoggedEntryProgressionInput,
+} from '../services/workoutPlanProgression.js';
+
+export interface WorkoutPlanAssignmentSetInput {
+  set_number: number;
+  set_type?: string | null;
+  reps?: number | null;
+  weight?: number | null;
+  duration?: number | null;
+  rest_time?: number | null;
+  notes?: string | null;
+}
+
+export interface WorkoutPlanAssignmentInput {
+  id?: number | string | null;
+  day_of_week?: number | null;
+  session_index?: number | null;
+  session_name?: string | null;
+  workout_preset_id?: number | string | null;
+  exercise_id?: string | null;
+  sort_order?: number | null;
+  sets?: WorkoutPlanAssignmentSetInput[] | null;
+}
+
+export interface WorkoutPlanTemplateCreateInput {
   user_id: string;
   plan_name: string;
   description?: string | null;
   start_date?: string | Date | null;
   end_date?: string | Date | null;
   is_active?: boolean | null;
-  schedule_type?: 'weekly' | 'sequential';
-  entry_mode?: 'prompt' | 'prefill';
-  assignments?: Array<{
-    id?: number | string | null;
-    day_of_week?: number | null;
-    session_index?: number | null;
+  schedule_type?: 'weekly' | 'sequential' | null;
+  entry_mode?: 'prompt' | 'prefill' | null;
+  assignments?: WorkoutPlanAssignmentInput[] | null;
+}
+
+export interface WorkoutPlanTemplateUpdateInput {
+  plan_name?: string;
+  description?: string | null;
+  start_date?: string | Date | null;
+  end_date?: string | Date | null;
+  is_active?: boolean | null;
+  schedule_type?: 'weekly' | 'sequential' | null;
+  entry_mode?: 'prompt' | 'prefill' | null;
+  assignments?: WorkoutPlanAssignmentInput[] | null;
+}
+
+export interface WorkoutPlanAssignmentRow extends AssignmentProgressionInput {
+  id: number | string;
+  day_of_week?: number | null;
+  sort_order?: number | null;
+  session_index?: number | null;
+  session_name?: string | null;
+  workout_preset_id?: number | null;
+  workout_preset_name?: string | null;
+  exercise_id?: string | null;
+  exercise_name?: string | null;
+  modality?: string | null;
+  sets?: WorkoutPlanAssignmentSetInput[];
+}
+
+export interface WorkoutPlanTemplateRow {
+  id: number | string;
+  user_id?: string;
+  plan_name?: string;
+  description?: string | null;
+  start_date?: string | Date | null;
+  end_date?: string | Date | null;
+  is_active?: boolean | null;
+  schedule_type?: 'weekly' | 'sequential' | null;
+  entry_mode?: 'prompt' | 'prefill' | null;
+  created_at?: string | Date | null;
+  updated_at?: string | Date | null;
+  assignments?: WorkoutPlanAssignmentRow[];
+  next_assignment?: WorkoutPlanAssignmentRow | null;
+  next_assignments?: WorkoutPlanAssignmentRow[];
+  sequence_position?: {
+    current: number;
+    total: number;
     session_name?: string | null;
-    workout_preset_id?: number | string | null;
-    exercise_id?: string | null;
-    sort_order?: number | null;
-    sets?: Array<{
-      set_number: number;
-      set_type?: string | null;
-      reps?: number | null;
-      weight?: number | null;
-      duration?: number | null;
-      rest_time?: number | null;
-      notes?: string | null;
-    }> | null;
-  }> | null;
-}) {
+  } | null;
+  [key: string]: unknown;
+}
+
+async function createWorkoutPlanTemplate(
+  planData: WorkoutPlanTemplateCreateInput
+): Promise<WorkoutPlanTemplateRow> {
   const client = await getClient(planData.user_id); // User-specific operation
   try {
     await client.query('BEGIN');
@@ -43,7 +106,7 @@ async function createWorkoutPlanTemplate(planData: {
       planData.start_date ?? new Date(),
       planData.end_date,
       planData.is_active ?? false,
-      planData.schedule_type || 'weekly',
+      planData.schedule_type || 'sequential',
       planData.entry_mode || 'prompt',
     ];
     const templateResult = await client.query(
@@ -68,8 +131,7 @@ async function createWorkoutPlanTemplate(planData: {
         );
         if (a.exercise_id && a.sets && a.sets.length > 0) {
           const newAssignmentId = assignmentResult.rows[0].id;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const setsValues = a.sets.map((set: any) => [
+          const setsValues = a.sets.map((set) => [
             newAssignmentId,
             set.set_number,
             set.set_type,
@@ -124,8 +186,7 @@ async function createWorkoutPlanTemplate(planData: {
     await client.query('ROLLBACK');
     log(
       'error',
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      `Error creating workout plan template: ${error.message}`,
+      `Error creating workout plan template: ${(error as Error).message}`,
       error
     );
     throw error;
@@ -133,8 +194,10 @@ async function createWorkoutPlanTemplate(planData: {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWorkoutPlanTemplatesByUserId(userId: any) {
+
+async function getWorkoutPlanTemplatesByUserId(
+  userId: string
+): Promise<WorkoutPlanTemplateRow[]> {
   const client = await getClient(userId); // User-specific operation
   try {
     const query = `
@@ -174,8 +237,11 @@ async function getWorkoutPlanTemplatesByUserId(userId: any) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWorkoutPlanTemplateById(templateId: any, userId: any) {
+
+async function getWorkoutPlanTemplateById(
+  templateId: string | number,
+  userId: string
+): Promise<WorkoutPlanTemplateRow | null> {
   const client = await getClient(userId); // User-specific operation
   try {
     const query = `
@@ -209,23 +275,32 @@ async function getWorkoutPlanTemplateById(templateId: any, userId: any) {
             WHERE t.id = $1
         `;
     const result = await client.query(query, [templateId]);
-    return result.rows[0];
+    return result.rows[0] ?? null;
   } finally {
     client.release();
   }
 }
 
 async function updateWorkoutPlanTemplate(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  templateId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateData: any
-) {
+  templateId: string | number,
+  userId: string,
+  updateData: WorkoutPlanTemplateUpdateInput,
+  shouldUnlinkHistoricalEntries = false
+): Promise<WorkoutPlanTemplateRow> {
   const client = await getClient(userId); // User-specific operation
   try {
     await client.query('BEGIN');
+    if (shouldUnlinkHistoricalEntries) {
+      await client.query(
+        `UPDATE exercise_entries
+         SET workout_plan_assignment_id = NULL
+         WHERE user_id = $1
+           AND workout_plan_assignment_id IN (
+             SELECT id FROM workout_plan_template_assignments WHERE template_id = $2
+           )`,
+        [userId, templateId]
+      );
+    }
     await client.query(
       `UPDATE workout_plan_templates SET
                 plan_name = $1, description = $2, start_date = $3, end_date = $4, is_active = $5,
@@ -252,29 +327,24 @@ async function updateWorkoutPlanTemplate(
         'SELECT id FROM workout_plan_template_assignments WHERE template_id = $1',
         [templateId]
       );
-      const existingAssignmentIds = existingAssignmentsResult.rows.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (r: any) => r.id
-      );
+      const existingAssignmentIds = (
+        existingAssignmentsResult.rows as Array<{ id: number }>
+      ).map((r) => r.id);
       // Then, get the new assignment ids (filtering only numeric ones)
       const newAssignmentIds = updateData.assignments
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((a: any) => a.id)
+        .map((a) => a.id)
         .filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (id: any) =>
+          (id): id is number | string =>
             id !== null &&
             id !== undefined &&
             id !== '' &&
-            !isNaN(id) &&
+            !isNaN(Number(id)) &&
             Number.isInteger(Number(id))
         )
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((id: any) => Number(id));
+        .map((id) => Number(id));
       // Delete any assignments that are no longer in the plan
       const assignmentsToDelete = existingAssignmentIds.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (id: any) => !newAssignmentIds.includes(id)
+        (id) => !newAssignmentIds.includes(id)
       );
       if (assignmentsToDelete.length > 0) {
         await client.query(
@@ -289,7 +359,7 @@ async function updateWorkoutPlanTemplate(
           a.id !== null &&
           a.id !== undefined &&
           a.id !== '' &&
-          !isNaN(a.id) &&
+          !isNaN(Number(a.id)) &&
           Number.isInteger(Number(a.id))
         ) {
           // This is an existing assignment, so we update it
@@ -311,8 +381,7 @@ async function updateWorkoutPlanTemplate(
             [a.id]
           );
           if (a.exercise_id && a.sets && a.sets.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const setsValues = a.sets.map((set: any) => [
+            const setsValues = a.sets.map((set) => [
               a.id,
               set.set_number,
               set.set_type,
@@ -345,8 +414,7 @@ async function updateWorkoutPlanTemplate(
           );
           const newAssignmentId = assignmentResult.rows[0].id;
           if (a.exercise_id && a.sets && a.sets.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const setsValues = a.sets.map((set: any) => [
+            const setsValues = a.sets.map((set) => [
               newAssignmentId,
               set.set_number,
               set.set_type,
@@ -402,8 +470,7 @@ async function updateWorkoutPlanTemplate(
     await client.query('ROLLBACK');
     log(
       'error',
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      `Error updating workout plan template ${templateId}: ${error.message}`,
+      `Error updating workout plan template ${templateId}: ${(error as Error).message}`,
       error
     );
     throw error;
@@ -411,20 +478,22 @@ async function updateWorkoutPlanTemplate(
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteWorkoutPlanTemplate(templateId: any, userId: any) {
+
+async function deleteWorkoutPlanTemplate(
+  templateId: string | number,
+  userId: string
+): Promise<WorkoutPlanTemplateRow | null> {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
       'DELETE FROM workout_plan_templates WHERE id = $1 AND user_id = $2 RETURNING *',
       [templateId, userId]
     );
-    return result.rows[0];
+    return result.rows[0] ?? null;
   } catch (error) {
     log(
       'error',
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      `Error deleting workout plan template ${templateId}: ${error.message}`,
+      `Error deleting workout plan template ${templateId}: ${(error as Error).message}`,
       error
     );
     throw error;
@@ -432,10 +501,11 @@ async function deleteWorkoutPlanTemplate(templateId: any, userId: any) {
     client.release();
   }
 }
+
 async function getWorkoutPlanTemplateOwnerId(
   templateId: string | number,
   userId: string
-) {
+): Promise<string | null> {
   const client = await getClient(userId); // User-specific operation (RLS will handle access)
   try {
     const result = await client.query(
@@ -448,7 +518,10 @@ async function getWorkoutPlanTemplateOwnerId(
   }
 }
 
-async function getActiveWorkoutPlanForDate(userId: string, date: string) {
+async function getActiveWorkoutPlanForDate(
+  userId: string,
+  date: string
+): Promise<WorkoutPlanTemplateRow[]> {
   const client = await getClient(userId); // User-specific operation
   try {
     const query = `
@@ -485,7 +558,7 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
             ORDER BY t.created_at ASC
         `;
     const result = await client.query(query, [userId, date]);
-    const plans = result.rows;
+    const plans = result.rows as WorkoutPlanTemplateRow[];
     if (!plans || plans.length === 0) return [];
 
     for (const plan of plans) {
@@ -497,15 +570,6 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
           plan.sequence_position = null;
           continue;
         }
-
-        // Group distinct session indices (0-indexed)
-        const sessionIndices: number[] = Array.from(
-          new Set<number>(
-            assignments.map(
-              (a: { session_index?: number | null }) => a.session_index ?? 0
-            )
-          )
-        ).sort((a: number, b: number) => a - b);
 
         // Query logged exercise entries linked to assignments of this template in strict chronological order
         const loggedEntriesQuery = `
@@ -522,97 +586,17 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
           date,
           plan.start_date || '1970-01-01',
         ]);
-        const loggedRows = loggedEntriesResult.rows;
+        const loggedRows =
+          loggedEntriesResult.rows as LoggedEntryProgressionInput[];
 
-        // Map assignment ID -> array of monotonic sequence numbers
-        const logOrderIndicesByAssignment = new Map<
-          number | string,
-          number[]
-        >();
-        for (const [logOrder, row] of loggedRows.entries()) {
-          const aid = row.workout_plan_assignment_id;
-          if (aid === null || aid === undefined) continue;
-          const list = logOrderIndicesByAssignment.get(aid) || [];
-          list.push(logOrder);
-          logOrderIndicesByAssignment.set(aid, list);
-        }
-
-        let nextSessionIndex = sessionIndices[0] ?? 0;
-        let nextSessionOrder = 0;
-        let cycleThreshold = -1;
-        let hasActiveSession = false;
-
-        // Loop cycles to find first incomplete session
-        while (!hasActiveSession) {
-          let cycleCompleted = true;
-          for (let i = 0; i < sessionIndices.length; i++) {
-            const sIndex = sessionIndices[i]!;
-            const sAssignments = assignments.filter(
-              (a: { session_index?: number | null }) =>
-                (a.session_index ?? 0) === sIndex
-            );
-            if (sAssignments.length === 0) continue;
-
-            // Check if every assignment in this session has been completed after cycleThreshold
-            let sessionCanComplete = true;
-            let sessionCompletionOrder = cycleThreshold;
-
-            for (const a of sAssignments) {
-              const orders = logOrderIndicesByAssignment.get(a.id) || [];
-              const nextOrder = orders.find((o) => o > cycleThreshold);
-              if (nextOrder === undefined) {
-                sessionCanComplete = false;
-                break;
-              }
-              if (nextOrder > sessionCompletionOrder) {
-                sessionCompletionOrder = nextOrder;
-              }
-            }
-
-            if (!sessionCanComplete) {
-              nextSessionIndex = sIndex;
-              nextSessionOrder = i;
-              hasActiveSession = true;
-              cycleCompleted = false;
-              break;
-            } else {
-              cycleThreshold = sessionCompletionOrder;
-            }
-          }
-
-          if (cycleCompleted) {
-            // Check if there are any further entries logged after the latest cycleThreshold
-            let hasFutureLogs = false;
-            for (const orders of logOrderIndicesByAssignment.values()) {
-              if (orders.some((o) => o > cycleThreshold)) {
-                hasFutureLogs = true;
-                break;
-              }
-            }
-            if (!hasFutureLogs) {
-              // Wrap around to the start of the next cycle
-              nextSessionIndex = sessionIndices[0] ?? 0;
-              nextSessionOrder = 0;
-              hasActiveSession = true;
-            }
-          }
-        }
-
-        const activeSessionAssignments = assignments.filter(
-          (a: { session_index?: number | null }) =>
-            (a.session_index ?? 0) === nextSessionIndex
+        const progression = computeSequentialPlanProgression(
+          assignments,
+          loggedRows
         );
 
-        const currentSessionName =
-          activeSessionAssignments[0]?.session_name || null;
-
-        plan.next_assignments = activeSessionAssignments;
-        plan.next_assignment = activeSessionAssignments[0] || null;
-        plan.sequence_position = {
-          current: nextSessionOrder + 1,
-          total: sessionIndices.length,
-          session_name: currentSessionName,
-        };
+        plan.next_assignments = progression.nextAssignments;
+        plan.next_assignment = progression.nextAssignment;
+        plan.sequence_position = progression.sequencePosition;
       } else {
         // Weekly plan resolution for the query date
         const assignments = plan.assignments || [];
@@ -622,10 +606,7 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
 
         const todaysAssignments =
           queryDayOfWeek !== null
-            ? assignments.filter(
-                (a: { day_of_week: number | null }) =>
-                  a.day_of_week === queryDayOfWeek
-              )
+            ? assignments.filter((a) => a.day_of_week === queryDayOfWeek)
             : [];
 
         plan.next_assignments = todaysAssignments;
@@ -642,9 +623,10 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
 
 async function unlinkExerciseEntriesByTemplateId(
   templateId: string | number,
-  userId: string
+  userId: string,
+  externalClient?: PoolClient
 ): Promise<void> {
-  const client = await getClient(userId);
+  const client = externalClient || (await getClient(userId));
   try {
     await client.query(
       `UPDATE exercise_entries
@@ -656,7 +638,9 @@ async function unlinkExerciseEntriesByTemplateId(
       [userId, templateId]
     );
   } finally {
-    client.release();
+    if (!externalClient) {
+      client.release();
+    }
   }
 }
 

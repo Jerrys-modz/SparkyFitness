@@ -52,6 +52,7 @@ import {
   useServerConnection,
 } from '../hooks';
 import { useWorkoutPresets } from '../hooks/useWorkoutPresets';
+import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
 import { useActiveWorkoutPlans } from '../hooks/useActiveWorkoutPlan';
 import { useStartLiveWorkout } from '../hooks/useStartLiveWorkout';
 import {
@@ -340,9 +341,16 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       for (let i = 0; i < sessionAssignments.length; i++) {
         const a = sessionAssignments[i]!;
         if (a.workout_preset_id) {
-          const preset = allPresets.find(
+          let preset = allPresets.find(
             (p) => String(p.id) === String(a.workout_preset_id)
           );
+          if (!preset) {
+            try {
+              preset = await getWorkoutPresetById(Number(a.workout_preset_id));
+            } catch {
+              // Ignore fetch error, fallback gracefully
+            }
+          }
           if (preset && preset.exercises) {
             preset.exercises.forEach((ex) => {
               const modality = resolveExerciseModality(
@@ -419,12 +427,16 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         assignment.exercise_name ||
         targetPlan.plan_name;
 
+      const singlePresetId =
+        sessionAssignments.length === 1 &&
+        sessionAssignments[0]?.workout_preset_id
+          ? Number(sessionAssignments[0].workout_preset_id)
+          : undefined;
+
       await startLiveWorkout({
         name: sessionName,
         exercises: startExercises,
-        sourcePresetId: assignment.workout_preset_id
-          ? Number(assignment.workout_preset_id)
-          : undefined,
+        sourcePresetId: singlePresetId,
         workoutPlanAssignmentId: assignment.id
           ? Number(assignment.id)
           : undefined,

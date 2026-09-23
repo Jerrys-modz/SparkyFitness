@@ -256,24 +256,21 @@ async function updateWorkoutPlanTemplate(
       userId,
       today
     );
-    if (
+    const shouldUnlinkHistoricalEntries =
       existingTemplate?.schedule_type === 'weekly' &&
-      updateData.schedule_type === 'sequential'
-    ) {
+      updateData.schedule_type === 'sequential';
+    if (shouldUnlinkHistoricalEntries) {
       log(
         'info',
         `updateWorkoutPlanTemplate service - Unlinking historical exercise entries for template ${templateId} on transition to sequential`
-      );
-      await workoutPlanTemplateRepository.unlinkExerciseEntriesByTemplateId(
-        templateId,
-        userId
       );
     }
     const updatedPlan =
       await workoutPlanTemplateRepository.updateWorkoutPlanTemplate(
         templateId,
         userId,
-        updateData
+        updateData,
+        shouldUnlinkHistoricalEntries
       );
     log(
       'info',

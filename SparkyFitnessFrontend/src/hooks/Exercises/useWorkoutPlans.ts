@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { formatDateToYYYYMMDD } from '@/lib/utils';
 import {
   getWorkoutPlanTemplates,
   getActiveWorkoutPlans,
@@ -39,7 +40,7 @@ export const useWorkoutPlanTemplates = (userId?: string) => {
 
 export const useActiveWorkoutPlans = (date?: string, userId?: string) => {
   const { t } = useTranslation();
-  const queryDate = date || new Date().toISOString().slice(0, 10);
+  const queryDate = date || formatDateToYYYYMMDD(new Date());
   return useQuery({
     queryKey: workoutPlanKeys.active(queryDate),
     queryFn: () => getActiveWorkoutPlans(queryDate),
