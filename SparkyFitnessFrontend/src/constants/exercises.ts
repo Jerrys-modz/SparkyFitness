@@ -386,6 +386,9 @@ export const svgClassToSchemaName: Record<string, string> = {
   forearms: 'forearms',
   glutes: 'glutes',
   hamstrings: 'hamstrings',
+  // Posterior "wings" on muscle-male.svg. The file ships them as obliques,
+  // which painted ab sets onto the lats. Those paths are retagged `lats`.
+  lats: 'lats',
   shoulders: 'shoulders',
   traps: 'traps',
   triceps: 'triceps',

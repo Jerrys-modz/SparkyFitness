@@ -11,10 +11,16 @@ describe('muscle heatmap matching', () => {
     expect(setsForMuscleKey('quadriceps', { Quads: 3 })).toBe(3);
   });
 
+  it('counts lats, including the latissimus dorsi alias', () => {
+    expect(setsForMuscleKey('lats', { Lats: 6, 'Latissimus Dorsi': 1 })).toBe(
+      7
+    );
+  });
+
   it('lists muscles the male SVG cannot tint', () => {
-    expect(unmappedMuscleSets({ Biceps: 4, Lats: 6, Chest: 2 })).toEqual([
-      { muscle: 'Lats', sets: 6 },
-    ]);
+    expect(
+      unmappedMuscleSets({ Biceps: 4, Lats: 6, Chest: 2, Neck: 3 })
+    ).toEqual([{ muscle: 'Neck', sets: 3 }]);
   });
 
   it('buckets set counts into four heat levels', () => {
