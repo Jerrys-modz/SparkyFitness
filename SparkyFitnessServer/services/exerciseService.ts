@@ -28,7 +28,6 @@ import {
   toNumber,
   parseCsv,
   DEFAULT_CSV_FORMAT,
-  type ExerciseEntryHrZones,
 } from '@workspace/shared';
 import {
   getGroupedExerciseSessionById,
@@ -42,7 +41,6 @@ import {
   equipmentNameMap,
 } from '../integrations/wger/wgerNameMapping.js';
 import { ExternalProviderType } from '../types/externalProvider.js';
-import * as workoutTelemetryRepository from '../models/workoutTelemetryRepository.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1866,31 +1864,12 @@ async function createGroupedExerciseEntriesWithClient(
     workoutPlanAssignmentId = null,
     // @ts-expect-error TS(2339): Property 'preserveLegacyPresetDurationFallback' do... Remove this comment to see the full error message
     preserveLegacyPresetDurationFallback = false,
-    // @ts-expect-error TS(2339): Property 'preserveTelemetryFrom' does not exist on... Remove this comment to see the full error message
-    preserveTelemetryFrom = [],
-    // @ts-expect-error TS(2339): Property 'hrZonesByPriorId' does not exist on type... Remove this comment to see the full error message
-    hrZonesByPriorId = null,
   } = options;
   const createdEntries = [];
-  // Each prior entry is consumed at most once so two of the same exercise
-  // keep their own measurements instead of both inheriting the first's.
-  const priorUnused = Array.isArray(preserveTelemetryFrom)
-    ? [...preserveTelemetryFrom]
-    : [];
   for (const exercise of exercises || []) {
     const durationMinutes = deriveDurationMinutes(exercise, {
       preserveLegacyPresetDurationFallback,
     });
-
-    // Telemetry identity is the entry UUID only. Matching by exercise_id
-    // (or sort_order) reattaches one occurrence's HR/calories/zones onto
-    // another when the same movement is repeated or reordered.
-    const priorIndex = priorUnused.findIndex(
-      (prior: { id?: unknown }) =>
-        typeof exercise.id === 'string' && prior?.id === exercise.id
-    );
-    const prior = priorIndex >= 0 ? priorUnused.splice(priorIndex, 1)[0] : null;
-    const measured = parseMeasuredCalories(prior?.active_calories);
 
     const preparedEntry = await prepareExerciseEntryForCreate(userId, {
       // A client-minted entry uuid (create-in-reconcile for a mid-workout add)
@@ -1905,21 +1884,16 @@ async function createGroupedExerciseEntriesWithClient(
       sets: exercise.sets || [],
       duration_minutes: durationMinutes,
       // A client-provided value is a manual override; omitting it lets
-      // prepareExerciseEntryForCreate recompute from duration and sets —
-      // unless a watch measurement is sitting on the row we just deleted.
+      // prepareExerciseEntryForCreate recompute from duration and sets.
       ...(typeof exercise.calories_burned === 'number'
         ? { calories_burned: exercise.calories_burned }
-        : measured !== undefined
-          ? { calories_burned: measured }
-          : {}),
+        : {}),
       sort_order: exercise.sort_order ?? 0,
       superset_group: exercise.superset_group ?? null,
       workout_plan_assignment_id:
         exercise.workout_plan_assignment_id || workoutPlanAssignmentId || null,
       distance: exercise.distance,
-      avg_heart_rate: exercise.avg_heart_rate ?? prior?.avg_heart_rate,
-      max_heart_rate: prior?.max_heart_rate,
-      active_calories: measured,
+      avg_heart_rate: exercise.avg_heart_rate,
       entry_time: exercise.entry_time ?? null,
     });
     const { entry: createdEntry } =
@@ -1932,28 +1906,6 @@ async function createGroupedExerciseEntriesWithClient(
         presetEntryId
       );
     createdEntries.push(createdEntry);
-    // Zone rows cascade off the deleted prior entry. Copy them onto the
-    // replacement so a delete-and-recreate (add an exercise after a watch
-    // workout) does not leave avg/max HR with an empty zone chart.
-    const priorZones =
-      prior?.id && hrZonesByPriorId instanceof Map
-        ? hrZonesByPriorId.get(prior.id)
-        : null;
-    if (priorZones?.length && createdEntry?.id) {
-      await workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient(
-        client,
-        userId,
-        priorZones.map((zone: ExerciseEntryHrZones) => ({
-          user_id: userId,
-          exercise_entry_id: createdEntry.id,
-          entry_date: entryDate,
-          zone_index: zone.zone_index,
-          zone_lower_bpm: zone.zone_lower_bpm ?? null,
-          zone_upper_bpm: zone.zone_upper_bpm ?? null,
-          seconds_in_zone: zone.seconds_in_zone,
-        }))
-      );
-    }
   }
   return createdEntries;
 }
@@ -2190,21 +2142,6 @@ async function updateGroupedWorkoutSession(
             'Exercise entry ids are required to edit a session with watch telemetry.'
           );
         }
-        // Snapshot watch telemetry from the rows about to be deleted so the
-        // replacements can keep measured calories / HR when the incoming
-        // payload still names those rows by id. Zones live in a child table
-        // that cascades on that delete, so they have to be read first and
-        // handed to create as `hrZonesByPriorId`.
-        const hrZonesByPriorId = new Map();
-        for (const ex of existingSession.exercises || []) {
-          if (!ex?.id) continue;
-          const zones =
-            await workoutTelemetryRepository.getHrZonesForExerciseEntryWithClient(
-              client,
-              ex.id
-            );
-          if (zones?.length) hrZonesByPriorId.set(ex.id, zones);
-        }
         await exerciseEntryDb.deleteExerciseEntriesByPresetEntryIdWithClient(
           client,
           userId,
@@ -2221,8 +2158,6 @@ async function updateGroupedWorkoutSession(
           {
             entrySource: existingSession.source,
             workoutPlanAssignmentId,
-            preserveTelemetryFrom: existingSession.exercises,
-            hrZonesByPriorId,
           }
         );
       } else {
