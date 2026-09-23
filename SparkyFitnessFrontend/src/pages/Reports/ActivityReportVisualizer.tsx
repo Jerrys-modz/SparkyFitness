@@ -73,8 +73,14 @@ const ActivityReportVisualizer = ({
   const { data: gpsRow, isLoading: gpsLoading } =
     useWorkoutGpsPoints(exerciseEntryId);
   const gpsPoints = gpsRow?.points;
-  const entryDateRaw = (exerciseEntry as { entry_date?: string } | undefined)
-    ?.entry_date;
+  const entryRecord = exerciseEntry as
+    | {
+        entry_date?: string;
+        entry_time?: string | null;
+        duration_minutes?: number | null;
+      }
+    | undefined;
+  const entryDateRaw = entryRecord?.entry_date;
   const entryDate = entryDateRaw ? String(entryDateRaw).slice(0, 10) : '';
   const { data: hrBuckets } = useHealthMetricSamples(
     'heart_rate',
@@ -82,27 +88,45 @@ const ActivityReportVisualizer = ({
     entryDate || undefined
   );
   const workoutHrSeries = useMemo(() => {
-    const points: ChartDataPoint[] = [];
+    const toPoint = (timestamp: number, bpm: number): ChartDataPoint => ({
+      timestamp,
+      activityDuration: 0,
+      distance: 0,
+      speed: 0,
+      pace: 0,
+      heartRate: bpm,
+      runCadence: 0,
+      elevation: null,
+    });
+    const tagged: ChartDataPoint[] = [];
+    const during: ChartDataPoint[] = [];
+    const startMs = entryRecord?.entry_time
+      ? Date.parse(`${entryDate}T${entryRecord.entry_time}`)
+      : NaN;
+    const endMs =
+      Number.isFinite(startMs) &&
+      typeof entryRecord?.duration_minutes === 'number'
+        ? startMs + entryRecord.duration_minutes * 60_000
+        : NaN;
     for (const bucket of hrBuckets ?? []) {
       if (bucket.metric !== 'heart_rate') continue;
       for (const sample of bucket.samples) {
-        if (sample.ex !== exerciseEntryId || typeof sample.bpm !== 'number') {
-          continue;
-        }
+        if (typeof sample.bpm !== 'number') continue;
         const timestamp = Date.parse(sample.t);
         if (!Number.isFinite(timestamp)) continue;
-        points.push({
-          timestamp,
-          activityDuration: 0,
-          distance: 0,
-          speed: 0,
-          pace: 0,
-          heartRate: sample.bpm,
-          runCadence: 0,
-          elevation: null,
-        });
+        if (sample.ex === exerciseEntryId) {
+          tagged.push(toPoint(timestamp, sample.bpm));
+        } else if (
+          !sample.ex &&
+          Number.isFinite(endMs) &&
+          timestamp >= startMs &&
+          timestamp <= endMs
+        ) {
+          during.push(toPoint(timestamp, sample.bpm));
+        }
       }
     }
+    const points = tagged.length > 0 ? tagged : during;
     points.sort((a, b) => a.timestamp - b.timestamp);
     const start = points[0]?.timestamp;
     if (start != null) {
@@ -111,7 +135,7 @@ const ActivityReportVisualizer = ({
       }
     }
     return points;
-  }, [hrBuckets, exerciseEntryId]);
+  }, [hrBuckets, exerciseEntryId, entryDate, entryRecord]);
   const { data: dbLaps } = useWorkoutLaps(exerciseEntryId);
   const { data: dbHrZones } = useWorkoutHrZones(exerciseEntryId);
 
