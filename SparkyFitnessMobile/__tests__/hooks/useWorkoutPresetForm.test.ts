@@ -191,7 +191,6 @@ describe('presetFormReducer', () => {
       type: 'ADD_SET',
       exerciseClientId: 'e1',
       setClientId: 's1',
-      serverId: 'entry-1',
     });
     expect(next.exercises[0].sets).toEqual([
       {
@@ -211,7 +210,6 @@ describe('presetFormReducer', () => {
       type: 'REMOVE_SET',
       exerciseClientId: 'e1',
       setClientId: 's1',
-      serverId: 'entry-1',
     });
     expect(next.exercises[0].sets.map((s) => s.clientId)).toEqual(['s2']);
   });
