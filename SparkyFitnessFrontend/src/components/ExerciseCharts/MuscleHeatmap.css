@@ -37,6 +37,10 @@
   stroke-width: 1.75;
 }
 
+.muscle-heatmap path.is-dimmed {
+  opacity: 0.22;
+}
+
 :root[data-theme='light'] .muscle-heatmap path.is-selected {
   stroke: #111827;
 }
