@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutDashboard, Dumbbell, Activity, ChevronDown } from 'lucide-react';
@@ -75,6 +75,16 @@ const ANALYSIS_WIDGETS = [
   'prVisualization',
 ];
 
+const ANALYSIS_CHARTS = ANALYSIS_WIDGETS.filter(
+  (widgetId) => widgetId !== 'filtersAggregation'
+);
+
+function chartHasContent(node: unknown): boolean {
+  if (node == null || node === false) return false;
+  if (Array.isArray(node)) return node.some(chartHasContent);
+  return true;
+}
+
 const STRENGTH_CATEGORIES = [
   'Strength',
   'Powerlifting',
@@ -112,6 +122,20 @@ const ExerciseReportsDashboard = ({
     'day' | 'week' | 'month' | 'year'
   >('day');
   const [showMoreAnalysis, setShowMoreAnalysis] = useState(false);
+  const [openChart, setOpenChart] = useState<string | null>(null);
+  const [isDesktop, setIsDesktop] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 1024px)').matches
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   const { activeUserId } = useActiveUser();
 
@@ -601,6 +625,118 @@ const ExerciseReportsDashboard = ({
     return allTelemetryActivityEntries;
   })();
 
+  const chartTitle = (widgetId: string) => {
+    switch (widgetId) {
+      case 'volumeTrend':
+        return t('exerciseReportsDashboard.volumeTrend', 'Volume Trend');
+      case 'maxWeightTrend':
+        return t('exerciseReportsDashboard.maxWeightTrend', 'Max Weight Trend');
+      case 'estimated1RMTrend':
+        return t(
+          'exerciseReportsDashboard.estimated1RMTrend',
+          'Estimated 1RM Trend'
+        );
+      case 'bestSetRepRange':
+        return t(
+          'exerciseReportsDashboard.bestSetByRepRangeTitle',
+          'Best Set by Rep Range'
+        );
+      case 'repsVsWeightScatter':
+        return t(
+          'exerciseReportsDashboard.repsVsWeightTitle',
+          'Reps vs Weight'
+        );
+      case 'setPerformance':
+        return t(
+          'exerciseReportsDashboard.setPerformanceAnalysis.title',
+          'Set Performance Analysis'
+        );
+      case 'timeUnderTension':
+        return t(
+          'exerciseReportsDashboard.timeUnderTensionTrendTitle',
+          'Time Under Tension Trend'
+        );
+      case 'prProgression':
+        return t(
+          'exerciseReportsDashboard.prProgressionTitle',
+          'PR Progression'
+        );
+      case 'prVisualization':
+        return t(
+          'exerciseReportsDashboard.personalRecordsTitle',
+          'Personal Records'
+        );
+      default:
+        return widgetId;
+    }
+  };
+
+  const analysisSection = (
+    <>
+      <button
+        type="button"
+        className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+        onClick={() => setShowMoreAnalysis((open) => !open)}
+      >
+        {showMoreAnalysis
+          ? t('exerciseAnalytics.hideAnalysis', 'Hide extra charts')
+          : t('exerciseAnalytics.moreAnalysis', 'More analysis')}
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform ${
+            showMoreAnalysis ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {showMoreAnalysis && (
+        <div className="space-y-3">
+          {isFetchingCharts ? (
+            <p className="text-sm text-muted-foreground">
+              {t(
+                'exerciseReportsDashboard.loadingExerciseData',
+                'Loading exercise data...'
+              )}
+            </p>
+          ) : null}
+          {renderWidget('filtersAggregation')}
+          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+            {ANALYSIS_CHARTS.map((widgetId) => {
+              const node = renderWidget(widgetId);
+              if (!chartHasContent(node)) return null;
+              const open = openChart === widgetId;
+              return (
+                <div key={widgetId} className="min-w-0">
+                  <button
+                    type="button"
+                    className="lg:hidden flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left text-sm font-medium"
+                    aria-expanded={open}
+                    onClick={() => setOpenChart(open ? null : widgetId)}
+                  >
+                    {chartTitle(widgetId)}
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${
+                        open ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  <div
+                    className={
+                      open
+                        ? 'mt-2 lg:mt-0 max-lg:[&_h3]:sr-only'
+                        : 'hidden lg:block'
+                    }
+                  >
+                    {(open || isDesktop) && node}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6">
       {/* Tier 1: View Mode Tabs & Global Interval Selector */}
@@ -744,34 +880,7 @@ const ExerciseReportsDashboard = ({
             {SNAPSHOT_WIDGETS.map((widgetId) => renderWidget(widgetId))}
           </div>
 
-          <button
-            type="button"
-            className="w-full inline-flex items-center justify-center gap-1.5 rounded-md border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-            onClick={() => setShowMoreAnalysis((open) => !open)}
-          >
-            {showMoreAnalysis
-              ? t('exerciseAnalytics.hideAnalysis', 'Hide extra charts')
-              : t('exerciseAnalytics.moreAnalysis', 'More analysis')}
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform ${
-                showMoreAnalysis ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-
-          {showMoreAnalysis && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {isFetchingCharts ? (
-                <p className="text-sm text-muted-foreground lg:col-span-2">
-                  {t(
-                    'exerciseReportsDashboard.loadingExerciseData',
-                    'Loading exercise data...'
-                  )}
-                </p>
-              ) : null}
-              {ANALYSIS_WIDGETS.map((widgetId) => renderWidget(widgetId))}
-            </div>
-          )}
+          {analysisSection}
         </div>
       )}
 
@@ -780,8 +889,8 @@ const ExerciseReportsDashboard = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {SNAPSHOT_WIDGETS.map((widgetId) => renderWidget(widgetId))}
-            {ANALYSIS_WIDGETS.map((widgetId) => renderWidget(widgetId))}
           </div>
+          {analysisSection}
         </div>
       )}
 
