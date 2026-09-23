@@ -289,6 +289,14 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     );
   }, [storeHydrated]);
 
+  const safeGoBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Tabs', { screen: 'Diary' });
+    }
+  }, [navigation]);
+
   // If the route is opened with no live workout (stale deep link), bail out.
   // Finish/Discard clear the session themselves and own their navigation, so
   // this only auto-pops when the screen *arrived* without a session.
@@ -299,8 +307,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       return;
     }
     if (!storeHydrated) return;
-    if (!hadSessionRef.current && navigation.canGoBack()) navigation.goBack();
-  }, [sessionId, storeHydrated, navigation]);
+    if (!hadSessionRef.current) safeGoBack();
+  }, [sessionId, storeHydrated, safeGoBack]);
 
   const activeExerciseId = useMemo(() => {
     if (session == null || activeSetId == null) return null;
@@ -1024,7 +1032,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
               // debounce and frees the user immediately; the delete finishes in
               // the background (a racing autosave 404s harmlessly server-side).
               useActiveWorkoutStore.getState().clearWorkout();
-              navigation.goBack();
+              safeGoBack();
               deleteWorkout(idToDelete)
                 .then(() => {
                   if (entryDate != null)
@@ -1068,12 +1076,12 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           style: 'destructive',
           onPress: () => {
             useActiveWorkoutStore.getState().clearWorkout();
-            navigation.goBack();
+            safeGoBack();
           },
         },
       ]
     );
-  }, [createdByLiveStart, sessionId, session, queryClient, navigation, t]);
+  }, [createdByLiveStart, sessionId, session, queryClient, safeGoBack, t]);
 
   const handleFinish = useCallback(async () => {
     // "Discard changes" sits one tap from "Retry", and a mis-tap would
@@ -1098,7 +1106,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
             style: 'destructive',
             onPress: () => {
               useActiveWorkoutStore.getState().clearWorkout();
-              navigation.goBack();
+              safeGoBack();
             },
           },
         ]
@@ -1156,11 +1164,11 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       if (celebration != null) {
         navigation.replace('WorkoutComplete', celebration);
       } else {
-        navigation.goBack();
+        safeGoBack();
       }
     }
     await attempt();
-  }, [flush, navigation, t]);
+  }, [flush, navigation, safeGoBack, t]);
 
   // Long-gap guard on the way out: a workout left open across a long break
   // (forgotten overnight, one straggler set the next morning) would stamp the
@@ -1400,7 +1408,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         startedAt={startedAt}
         now={now}
         progress={progress}
-        onBack={() => navigation.goBack()}
+        onBack={safeGoBack}
         onDiscard={handleDiscard}
         onEndWorkout={handleConfirmEnd}
         onRename={() => setRenameVisible(true)}
