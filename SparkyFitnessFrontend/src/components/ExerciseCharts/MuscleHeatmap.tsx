@@ -96,5 +96,3 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
     </Card>
   );
 };
-
-export default MuscleHeatmap;
