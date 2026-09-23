@@ -1914,7 +1914,8 @@ async function createGroupedExerciseEntriesWithClient(
           : {}),
       sort_order: exercise.sort_order ?? 0,
       superset_group: exercise.superset_group ?? null,
-      workout_plan_assignment_id: workoutPlanAssignmentId,
+      workout_plan_assignment_id:
+        exercise.workout_plan_assignment_id || workoutPlanAssignmentId || null,
       distance: exercise.distance,
       avg_heart_rate: exercise.avg_heart_rate ?? prior?.avg_heart_rate,
       max_heart_rate: prior?.max_heart_rate,

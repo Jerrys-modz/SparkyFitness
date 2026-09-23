@@ -40,6 +40,12 @@ describe('invalidateExerciseCache', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: [...exerciseStatsQueryKeyRoot],
     });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['activeWorkoutPlan'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['workoutPlanTemplates'],
+    });
 
     invalidateSpy.mockRestore();
   });

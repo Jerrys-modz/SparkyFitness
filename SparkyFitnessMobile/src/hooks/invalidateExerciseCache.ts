@@ -37,4 +37,10 @@ export function invalidateExerciseCache(
   void queryClient.invalidateQueries({
     queryKey: [...workoutSessionQueryKeyRoot],
   });
+  void queryClient.invalidateQueries({
+    queryKey: ['activeWorkoutPlan'],
+  });
+  void queryClient.invalidateQueries({
+    queryKey: ['workoutPlanTemplates'],
+  });
 }

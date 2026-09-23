@@ -208,8 +208,16 @@ export const exercisesLibraryQueryKey = (searchTerm: string) =>
 export const externalExerciseSearchQueryKey = (
   providerType: string,
   searchTerm: string,
-  providerId?: string
-) => ['externalExerciseSearch', providerType, searchTerm, providerId] as const;
+  providerId?: string,
+  language?: string
+) =>
+  [
+    'externalExerciseSearch',
+    providerType,
+    searchTerm,
+    providerId,
+    language,
+  ] as const;
 
 export const workoutSessionQueryKeyRoot = ['workoutSession'] as const;
 export const workoutSessionQueryKey = (sessionId: string) =>
@@ -222,6 +230,9 @@ export const workoutPresetSearchQueryKey = (searchTerm: string) =>
 
 export const workoutPresetsLibraryQueryKey = (searchTerm: string) =>
   ['workoutPresetsLibrary', searchTerm] as const;
+
+export const activeWorkoutPlanQueryKey = (date: string) =>
+  ['workoutPlanTemplates', 'active', date] as const;
 
 export const activeAiServiceSettingQueryKey = [
   'ai-service-settings',
