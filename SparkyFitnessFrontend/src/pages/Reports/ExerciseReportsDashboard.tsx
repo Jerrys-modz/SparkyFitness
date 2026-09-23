@@ -741,7 +741,7 @@ const ExerciseReportsDashboard = ({
   return (
     <div className="space-y-6">
       {/* Tier 1: View Mode Tabs & Global Interval Selector */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-3 rounded-xl border bg-card shadow-sm">
+      <div className="sticky top-0 z-20 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-3 rounded-xl border bg-card shadow-sm">
         {/* Domain View Selector */}
         <div className="self-start inline-flex items-center gap-1 bg-muted p-1 rounded-md">
           <button
@@ -749,7 +749,7 @@ const ExerciseReportsDashboard = ({
             title={t('exerciseAnalytics.views.all', 'All Workouts')}
             className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs whitespace-nowrap transition-all ${
               viewMode === 'all'
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setViewMode('all')}
@@ -770,7 +770,7 @@ const ExerciseReportsDashboard = ({
             )}
             className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs whitespace-nowrap transition-all ${
               viewMode === 'strength'
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setViewMode('strength')}
@@ -788,7 +788,7 @@ const ExerciseReportsDashboard = ({
             title={t('exerciseAnalytics.views.cardio', 'Cardio & GPS')}
             className={`inline-flex items-center px-2.5 py-1 rounded font-medium text-xs whitespace-nowrap transition-all ${
               viewMode === 'cardio'
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setViewMode('cardio')}
@@ -826,7 +826,7 @@ const ExerciseReportsDashboard = ({
                 }}
                 className={`px-2.5 py-1 rounded font-medium capitalize text-xs transition-all ${
                   statsInterval === int
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -899,7 +899,10 @@ const ExerciseReportsDashboard = ({
       {viewMode === 'cardio' && (
         <div className="space-y-6">
           <CardioSessionList
-            entries={filteredGarminActivityEntries}
+            key={`${startDate ?? ''}-${endDate ?? ''}-${unitSystem}`}
+            startDate={startDate}
+            endDate={endDate}
+            unitSystem={unitSystem}
             formatDate={formatDateInUserTimezone}
             parseISO={parseISO}
           />
