@@ -489,10 +489,19 @@ async function queryExerciseActivities(
       params.push(minKm);
       whereClauses.push(`distance >= $${params.length}`);
     } else if (!request.category) {
+      // Word boundaries, not substrings: "crunch" contains "run" and was
+      // showing up as cardio. Strength is out even when an old row was
+      // stored with category Cardio, or when a gym session has a little
+      // distance from walking between sets.
       whereClauses.push(`(
-        (distance IS NOT NULL AND distance > 0)
-        OR LOWER(COALESCE(category, '')) IN ('cardio', 'running', 'cycling', 'walking', 'swimming', 'endurance', 'garmin')
-        OR LOWER(exercise_name) ~ '(run|walk|cycle|swim|hike|treadmill|elliptical|rower|garmin|cardio)'
+        COALESCE(modality, '') <> 'weight_reps'
+        AND LOWER(COALESCE(category, '')) NOT IN ('strength', 'powerlifting', 'olympic weightlifting', 'strongman')
+        AND LOWER(exercise_name) !~* '\\m(strength|crunch|sit-?up|plank)\\M'
+        AND (
+          COALESCE(modality, '') IN ('duration', 'duration_distance')
+          OR LOWER(COALESCE(category, '')) IN ('cardio', 'running', 'cycling', 'walking', 'swimming', 'endurance', 'garmin')
+          OR LOWER(exercise_name) ~* '\\m(run(ning|s)?|walk(ing|s)?|cycl(e|ing)|bike|biking|swim(ming)?|hik(e|ing)|treadmill|elliptical|rower|rowing|cardio|stairs?)\\M'
+        )
       )`);
     }
     if (maxKm !== undefined) {

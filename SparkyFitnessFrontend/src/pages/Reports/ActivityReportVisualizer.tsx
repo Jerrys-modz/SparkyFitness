@@ -14,6 +14,7 @@ import {
   useWorkoutGpsPoints,
   useWorkoutLaps,
   useWorkoutHrZones,
+  useHealthMetricSamples,
 } from '@/hooks/useGenericHealth';
 import {
   processChartData,
@@ -72,6 +73,45 @@ const ActivityReportVisualizer = ({
   const { data: gpsRow, isLoading: gpsLoading } =
     useWorkoutGpsPoints(exerciseEntryId);
   const gpsPoints = gpsRow?.points;
+  const entryDateRaw = (exerciseEntry as { entry_date?: string } | undefined)
+    ?.entry_date;
+  const entryDate = entryDateRaw ? String(entryDateRaw).slice(0, 10) : '';
+  const { data: hrBuckets } = useHealthMetricSamples(
+    'heart_rate',
+    entryDate,
+    entryDate || undefined
+  );
+  const workoutHrSeries = useMemo(() => {
+    const points: ChartDataPoint[] = [];
+    for (const bucket of hrBuckets ?? []) {
+      if (bucket.metric !== 'heart_rate') continue;
+      for (const sample of bucket.samples) {
+        if (sample.ex !== exerciseEntryId || typeof sample.bpm !== 'number') {
+          continue;
+        }
+        const timestamp = Date.parse(sample.t);
+        if (!Number.isFinite(timestamp)) continue;
+        points.push({
+          timestamp,
+          activityDuration: 0,
+          distance: 0,
+          speed: 0,
+          pace: 0,
+          heartRate: sample.bpm,
+          runCadence: 0,
+          elevation: null,
+        });
+      }
+    }
+    points.sort((a, b) => a.timestamp - b.timestamp);
+    const start = points[0]?.timestamp;
+    if (start != null) {
+      for (const point of points) {
+        point.activityDuration = (point.timestamp - start) / 60000;
+      }
+    }
+    return points;
+  }, [hrBuckets, exerciseEntryId]);
   const { data: dbLaps } = useWorkoutLaps(exerciseEntryId);
   const { data: dbHrZones } = useWorkoutHrZones(exerciseEntryId);
 
@@ -432,18 +472,26 @@ const ActivityReportVisualizer = ({
           <p className="text-sm text-muted-foreground">
             {t(
               'exerciseAnalytics.cardio.noRoute',
-              'No GPS route for this one. Indoor workouts stay as heart rate only.'
+              'No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.'
             )}
           </p>
         )}
-        {heartRateData.length > 0 ? (
+        {heartRateData.length > 0 || workoutHrSeries.length > 0 ? (
           <ActivityHeartRateChart
-            data={heartRateData}
+            data={heartRateData.length > 0 ? heartRateData : workoutHrSeries}
             xAxisMode={effectiveXAxisMode}
             getXAxisDataKey={getXAxisDataKey}
             getXAxisLabel={getXAxisLabel}
             distanceUnit={distanceUnit}
           />
+        ) : stats.heartRate ? (
+          <p className="text-sm text-muted-foreground">
+            {t('exerciseAnalytics.cardio.avgHeartRate', {
+              defaultValue:
+                'Average heart rate {{bpm}} bpm. Beat-by-beat samples were not stored.',
+              bpm: Math.round(stats.heartRate),
+            })}
+          </p>
         ) : (
           <p className="text-sm text-muted-foreground">
             {t(
