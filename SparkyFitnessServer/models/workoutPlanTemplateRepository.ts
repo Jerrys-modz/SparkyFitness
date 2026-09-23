@@ -106,7 +106,7 @@ async function createWorkoutPlanTemplate(
       planData.start_date ?? new Date(),
       planData.end_date,
       planData.is_active ?? false,
-      planData.schedule_type || 'sequential',
+      planData.schedule_type || 'weekly',
       planData.entry_mode || 'prompt',
     ];
     const templateResult = await client.query(
@@ -291,15 +291,7 @@ async function updateWorkoutPlanTemplate(
   try {
     await client.query('BEGIN');
     if (shouldUnlinkHistoricalEntries) {
-      await client.query(
-        `UPDATE exercise_entries
-         SET workout_plan_assignment_id = NULL
-         WHERE user_id = $1
-           AND workout_plan_assignment_id IN (
-             SELECT id FROM workout_plan_template_assignments WHERE template_id = $2
-           )`,
-        [userId, templateId]
-      );
+      await unlinkExerciseEntriesByTemplateId(templateId, userId, client);
     }
     await client.query(
       `UPDATE workout_plan_templates SET

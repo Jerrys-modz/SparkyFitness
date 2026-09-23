@@ -182,4 +182,48 @@ describe('computeSequentialPlanProgression', () => {
     });
     expect(result.nextAssignment?.id).toBe(2);
   });
+
+  it('keeps progression on first incomplete session when an out-of-order session is logged prematurely', () => {
+    const assignments: AssignmentProgressionInput[] = [
+      { id: 10, session_index: 1, session_name: 'Session 1' },
+      { id: 20, session_index: 2, session_name: 'Session 2' },
+      { id: 30, session_index: 3, session_name: 'Session 3' },
+    ];
+
+    // User logged Session 2 before Session 1
+    const logs: LoggedEntryProgressionInput[] = [
+      { id: 'l1', workout_plan_assignment_id: 20, entry_date: '2026-09-10' },
+    ];
+
+    const result = computeSequentialPlanProgression(assignments, logs);
+    // Progression must remain at Session 1 because Session 1 is not completed in this cycle
+    expect(result.sequencePosition).toEqual({
+      current: 1,
+      total: 3,
+      session_name: 'Session 1',
+    });
+    expect(result.nextAssignment?.id).toBe(10);
+  });
+
+  it('handles multiple sessions logged on the same date in chronological sequence', () => {
+    const assignments: AssignmentProgressionInput[] = [
+      { id: 1, session_index: 1, session_name: 'Morning Session' },
+      { id: 2, session_index: 2, session_name: 'Evening Session' },
+    ];
+
+    // Both logged on 2026-09-20 in chronological order
+    const logs: LoggedEntryProgressionInput[] = [
+      { id: 101, workout_plan_assignment_id: 1, entry_date: '2026-09-20' },
+      { id: 102, workout_plan_assignment_id: 2, entry_date: '2026-09-20' },
+    ];
+
+    const result = computeSequentialPlanProgression(assignments, logs);
+    // Cycle completed -> wraps back to Session 1
+    expect(result.sequencePosition).toEqual({
+      current: 1,
+      total: 2,
+      session_name: 'Morning Session',
+    });
+    expect(result.nextAssignment?.id).toBe(1);
+  });
 });

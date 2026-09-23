@@ -117,6 +117,8 @@ async function createWorkoutPlanTemplate(
     const newPlan =
       await workoutPlanTemplateRepository.createWorkoutPlanTemplate({
         ...planData,
+        schedule_type: scheduleType,
+        entry_mode: planData.entry_mode || 'prompt',
         user_id: userId,
       });
     log(
