@@ -173,6 +173,10 @@ export const presetSessionExerciseRequestSchema = z
     equipment_brand: z.string().nullable().optional(),
     sets: z.array(exerciseEntrySetRequestSchema).default([]),
     entry_time: timeStringSchema.nullish(),
+    workout_plan_assignment_id: z
+      .union([z.string(), z.number()])
+      .nullable()
+      .optional(),
   })
   .strict();
 
@@ -189,7 +193,10 @@ export const createPresetSessionRequestSchema = z
     notes: z.string().nullable().optional(),
     source: z.string().default("manual"),
     exercises: z.array(presetSessionExerciseRequestSchema).optional(),
-    workoutPlanAssignmentId: z.number().int().nullable().optional(),
+    workoutPlanAssignmentId: z
+      .union([z.string(), z.number()])
+      .nullable()
+      .optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -347,6 +354,10 @@ export const exerciseEntryResponseSchema = z
     steps: z.number().nullable().optional(),
     category: z.string().nullable().optional(),
     superset_group: z.number().int().nullable(),
+    workout_plan_assignment_id: z
+      .union([z.string(), z.number()])
+      .nullable()
+      .optional(),
     max_heart_rate: z.number().nullable().optional(),
     heart_rate_recovery_1min: z.number().nullable().optional(),
     avg_respiration_brpm: z.number().nullable().optional(),
@@ -424,6 +435,10 @@ export const presetSessionResponseSchema = z
     id: z.string(),
     entry_date: z.string().nullable(),
     workout_preset_id: z.number().int().nullable(),
+    workout_plan_assignment_id: z
+      .union([z.string(), z.number()])
+      .nullable()
+      .optional(),
     name: z.string(),
     description: z.string().nullable(),
     notes: z.string().nullable(),
