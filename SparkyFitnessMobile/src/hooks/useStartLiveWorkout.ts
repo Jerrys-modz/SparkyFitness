@@ -39,6 +39,8 @@ interface StartLiveWorkoutArgs {
    * flow can offer to update the preset. Omit for empty starts.
    */
   sourcePresetId?: number;
+  /** Plan assignment id if starting from a workout plan session. */
+  workoutPlanAssignmentId?: number;
 }
 
 /**
@@ -112,7 +114,12 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
   // guard has cleared. Split out so the "Workout in progress" prompt can
   // clear the in-progress session and then call straight through.
   const runStart = useCallback(
-    async ({ name, exercises, sourcePresetId }: StartLiveWorkoutArgs) => {
+    async ({
+      name,
+      exercises,
+      sourcePresetId,
+      workoutPlanAssignmentId,
+    }: StartLiveWorkoutArgs) => {
       if (exercises.length === 0) {
         Toast.show({
           type: 'error',
@@ -152,6 +159,7 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           // server keeps the client-supplied exercises verbatim when both
           // fields are present instead of substituting the preset's own.
           workout_preset_id: sourcePresetId,
+          workoutPlanAssignmentId,
         });
         invalidateCache(entryDate);
         // Chained so the exact-alarm prompt never stacks on top of the OS
