@@ -339,7 +339,7 @@ export const useActivityDetailsQuery = (
 
 export const useBodyMapSvgQuery = () => {
   return useQuery({
-    queryKey: assetKeys.svg('muscle-male'),
+    queryKey: assetKeys.svg('muscle-male-lats1'),
     queryFn: getBodyMapSvg,
     staleTime: Infinity,
     meta: {

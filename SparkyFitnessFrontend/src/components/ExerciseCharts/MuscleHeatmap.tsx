@@ -75,6 +75,10 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
       });
     });
 
+    svgElement.querySelectorAll('path[data-muscle="lats"]').forEach((path) => {
+      svgElement.appendChild(path);
+    });
+
     return () => {
       cleanups.forEach((cleanup) => cleanup());
     };
@@ -86,6 +90,7 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
     container.querySelectorAll('path[data-muscle]').forEach((path) => {
       const selected = path.getAttribute('data-muscle') === pickedKey;
       path.classList.toggle('is-selected', selected);
+      path.classList.toggle('is-dimmed', pickedKey !== null && !selected);
       path.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
   }, [pickedKey, svgContent, setsByMuscle, maxSets]);
