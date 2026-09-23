@@ -38,6 +38,7 @@ import { MuscleHeatmap } from '@/components/ExerciseCharts/MuscleHeatmap';
 import { PrVisualizationWidget } from '@/components/ExerciseCharts/PrVisualizationWidget';
 import { ActivityTelemetryList } from '@/components/ExerciseCharts/ActivityTelemetryList';
 import { CardioVolumeIntervalChart } from '@/components/ExerciseCharts/CardioVolumeIntervalChart';
+import { CardioSessionList } from '@/components/ExerciseCharts/CardioSessionList';
 import { ActivityInterrogationFinder } from '@/components/ExerciseCharts/ActivityInterrogationFinder';
 import { CardioPRBadgesWidget } from '@/components/ExerciseCharts/CardioPRBadgesWidget';
 import { MatchedCoursesList } from '@/components/ExerciseCharts/MatchedCoursesList';
@@ -897,6 +898,12 @@ const ExerciseReportsDashboard = ({
       {/* 3C: CARDIO & GPS VIEW */}
       {viewMode === 'cardio' && (
         <div className="space-y-6">
+          <CardioSessionList
+            entries={filteredGarminActivityEntries}
+            formatDate={formatDateInUserTimezone}
+            parseISO={parseISO}
+          />
+
           <CardioVolumeIntervalChart summaryData={statsSummary} />
 
           <MatchedCoursesList matchedData={matchedCourses} />
@@ -906,27 +913,24 @@ const ExerciseReportsDashboard = ({
       )}
 
       {/* Tier 4: Synced Activity Logs (Filtered by domain) */}
-      <ActivityTelemetryList
-        entries={filteredGarminActivityEntries}
-        formatDate={formatDateInUserTimezone}
-        parseISO={parseISO}
-        title={
-          viewMode === 'strength'
-            ? t(
-                'exerciseAnalytics.activityLogs.strength',
-                'Strength Workout Activity Logs'
-              )
-            : viewMode === 'cardio'
+      {viewMode !== 'cardio' && (
+        <ActivityTelemetryList
+          entries={filteredGarminActivityEntries}
+          formatDate={formatDateInUserTimezone}
+          parseISO={parseISO}
+          title={
+            viewMode === 'strength'
               ? t(
-                  'exerciseAnalytics.activityLogs.cardio',
-                  'Cardio & GPS Activity Maps'
+                  'exerciseAnalytics.activityLogs.strength',
+                  'Strength Workout Activity Logs'
                 )
               : t(
                   'exerciseAnalytics.activityLogs.all',
                   'Workout Activity History & Maps'
                 )
-        }
-      />
+          }
+        />
+      )}
     </div>
   );
 };
