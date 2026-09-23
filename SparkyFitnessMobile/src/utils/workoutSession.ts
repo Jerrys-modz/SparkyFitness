@@ -392,10 +392,10 @@ export function buildExercisesPayload(
   weightUnit: 'kg' | 'lbs',
   distanceUnit: 'km' | 'miles'
 ) {
-  // Send each exercise's serverId when we have one. New occurrences omit
-  // it; the server reconciles mixed payloads in place so existing watch
-  // telemetry stays on the same entry UUID. Stripping every id used to
-  // force delete-and-recreate, which then guessed identity by exercise_id.
+  // Send each exercise's serverId when we have one. Exercises added,
+  // replaced, or duplicated in the form carry a client-minted uuid, so a
+  // save that drops every prior row still reconciles instead of the id-less
+  // 409. Older drafts omit the id.
   return exercises.map((exercise, index) => {
     // The server recomputes calories from duration and sets whenever
     // calories_burned is omitted; a user-edited value is sent as a manual

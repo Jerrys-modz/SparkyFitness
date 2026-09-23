@@ -27,7 +27,7 @@ export interface WorkoutSetMetaPatch {
 
 export interface WorkoutDraftExercise {
   clientId: string;
-  /** Populated only when the exercise row originated from an existing server session. */
+  /** Server entry uuid. Existing rows keep theirs; new ones are minted in the form. */
   serverId?: string;
   /** Null when editing a session whose library exercise has since been deleted. */
   exerciseId: string | null;
