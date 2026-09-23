@@ -12,6 +12,7 @@ vi.mock('../models/workoutPlanTemplateRepository.js', () => ({
     deleteWorkoutPlanTemplate: vi.fn(),
     getWorkoutPlanTemplateOwnerId: vi.fn(),
     getActiveWorkoutPlanForDate: vi.fn(),
+    unlinkExerciseEntriesByTemplateId: vi.fn(),
   },
 }));
 
@@ -381,6 +382,9 @@ describe('workoutPlanTemplateService', () => {
       expect(
         exerciseRepository.deleteExerciseEntriesByTemplateId
       ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID, '2026-09-10');
+      expect(
+        workoutPlanTemplateRepository.unlinkExerciseEntriesByTemplateId
+      ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID);
       expect(
         exerciseRepository.createExerciseEntriesFromTemplate
       ).not.toHaveBeenCalled();

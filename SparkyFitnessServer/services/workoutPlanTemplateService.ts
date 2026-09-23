@@ -256,6 +256,19 @@ async function updateWorkoutPlanTemplate(
       userId,
       today
     );
+    if (
+      existingTemplate?.schedule_type === 'weekly' &&
+      updateData.schedule_type === 'sequential'
+    ) {
+      log(
+        'info',
+        `updateWorkoutPlanTemplate service - Unlinking historical exercise entries for template ${templateId} on transition to sequential`
+      );
+      await workoutPlanTemplateRepository.unlinkExerciseEntriesByTemplateId(
+        templateId,
+        userId
+      );
+    }
     const updatedPlan =
       await workoutPlanTemplateRepository.updateWorkoutPlanTemplate(
         templateId,

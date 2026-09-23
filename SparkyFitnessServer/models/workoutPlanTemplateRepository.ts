@@ -513,10 +513,14 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
           FROM exercise_entries ee
           JOIN workout_plan_template_assignments a ON ee.workout_plan_assignment_id = a.id
           WHERE a.template_id = $1
+            AND ee.entry_date <= $2
+            AND ee.entry_date >= $3
           ORDER BY ee.entry_date ASC, ee.created_at ASC, ee.id ASC
         `;
         const loggedEntriesResult = await client.query(loggedEntriesQuery, [
           plan.id,
+          date,
+          plan.start_date || '1970-01-01',
         ]);
         const loggedRows = loggedEntriesResult.rows;
 
@@ -635,6 +639,27 @@ async function getActiveWorkoutPlanForDate(userId: string, date: string) {
     client.release();
   }
 }
+
+async function unlinkExerciseEntriesByTemplateId(
+  templateId: string | number,
+  userId: string
+): Promise<void> {
+  const client = await getClient(userId);
+  try {
+    await client.query(
+      `UPDATE exercise_entries
+       SET workout_plan_assignment_id = NULL
+       WHERE user_id = $1
+         AND workout_plan_assignment_id IN (
+           SELECT id FROM workout_plan_template_assignments WHERE template_id = $2
+         )`,
+      [userId, templateId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 export { createWorkoutPlanTemplate };
 export { getWorkoutPlanTemplatesByUserId };
 export { getWorkoutPlanTemplateById };
@@ -642,6 +667,7 @@ export { updateWorkoutPlanTemplate };
 export { deleteWorkoutPlanTemplate };
 export { getWorkoutPlanTemplateOwnerId };
 export { getActiveWorkoutPlanForDate };
+export { unlinkExerciseEntriesByTemplateId };
 export default {
   createWorkoutPlanTemplate,
   getWorkoutPlanTemplatesByUserId,
@@ -650,4 +676,5 @@ export default {
   deleteWorkoutPlanTemplate,
   getWorkoutPlanTemplateOwnerId,
   getActiveWorkoutPlanForDate,
+  unlinkExerciseEntriesByTemplateId,
 };
