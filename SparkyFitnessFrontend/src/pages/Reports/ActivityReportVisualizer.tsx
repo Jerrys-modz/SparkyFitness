@@ -40,6 +40,8 @@ import { ChartDataPoint } from '@/types/reports';
 interface ActivityReportVisualizerProps {
   exerciseEntryId: string;
   providerName: string;
+  /** `outdoor` is the cardio list: route map and heart-rate chart only. */
+  variant?: 'full' | 'outdoor';
 }
 
 type XAxisMode = 'timeOfDay' | 'activityDuration' | 'distance';
@@ -47,6 +49,7 @@ type XAxisMode = 'timeOfDay' | 'activityDuration' | 'distance';
 const ActivityReportVisualizer = ({
   exerciseEntryId,
   providerName,
+  variant = 'full',
 }: ActivityReportVisualizerProps) => {
   const { t } = useTranslation();
   const [xAxisMode, setXAxisMode] = useState<XAxisMode>('timeOfDay');
@@ -413,6 +416,51 @@ const ActivityReportVisualizer = ({
     stats.activityName ||
     ((exerciseEntry as Record<string, unknown>)?.['exercise_name'] as string) ||
     t('common.workout', 'Workout');
+
+  if (variant === 'outdoor') {
+    const mapPolyline =
+      gpsPoints && gpsPoints.length > 0
+        ? gpsPoints
+            .filter((p) => p.lat !== 0 && p.lon !== 0)
+            .map((p) => ({ lat: p.lat, lon: p.lon }))
+        : activityData?.activity?.details?.geoPolylineDTO?.polyline || [];
+    return (
+      <div className="space-y-4">
+        {mapPolyline.length > 0 ? (
+          <ActivityReportMap polylineData={mapPolyline} height={260} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'exerciseAnalytics.cardio.noRoute',
+              'No GPS route for this one. Indoor workouts stay as heart rate only.'
+            )}
+          </p>
+        )}
+        {heartRateData.length > 0 ? (
+          <ActivityHeartRateChart
+            data={heartRateData}
+            xAxisMode={effectiveXAxisMode}
+            getXAxisDataKey={getXAxisDataKey}
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'exerciseAnalytics.cardio.noHeartRate',
+              'No heart-rate samples for this workout.'
+            )}
+          </p>
+        )}
+        {hrInTimezonesData && hrInTimezonesData.length > 0 && (
+          <ActivityHeartRateZonesChart
+            data={hrInTimezonesData}
+            providerName={providerName}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="activity-report-visualizer p-4">
