@@ -4289,7 +4289,9 @@
     "subtitle": "Working sets on primary muscles in this date range",
     "sets": "sets",
     "fewer": "Fewer",
-    "more": "More"
+    "more": "More",
+    "tap": "Tap a muscle",
+    "notOnFigure": "Not on the figure"
   },
   "muscleGroupRecovery": {
     "title": "Muscle Group Recovery",
