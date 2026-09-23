@@ -2,6 +2,7 @@ export interface MuscleSet {
   reps?: number | null;
   weight?: number | null;
   duration?: number | null;
+  set_type?: string | null;
 }
 
 export interface MuscleEntry {
@@ -44,8 +45,14 @@ function parseJsonArray(value: unknown): unknown[] {
 function workingSetCount(sets: MuscleSet[] | null | undefined): number {
   if (!Array.isArray(sets) || sets.length === 0) return 0;
   return sets.filter(
-    (set) => (Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0,
+    (set) =>
+      !isWarmupSet(set) &&
+      ((Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0),
   ).length;
+}
+
+function isWarmupSet(set: MuscleSet): boolean {
+  return set.set_type?.trim().toLowerCase().replace(/-/g, " ") === "warm up";
 }
 
 /**

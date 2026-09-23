@@ -116,6 +116,7 @@ describe('muscle-group aggregates from flat exercise entries', () => {
           sets: [
             { reps: 10, weight: 60 },
             { reps: 8, weight: 60 },
+            { reps: 10, weight: 40, set_type: 'Warm-up' },
             { reps: 0, weight: 0 },
           ],
         },
