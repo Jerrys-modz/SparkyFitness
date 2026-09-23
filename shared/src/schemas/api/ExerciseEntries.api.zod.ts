@@ -269,8 +269,14 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
   .object({
     // Two samples minimum: the zone calculator derives each zone's duration
     // from the gaps between consecutive readings, so a lone sample spans no
-    // time and contributes nothing.
-    hrSamples: z.array(heartRateSampleRequestSchema).min(2).optional(),
+    // time and contributes nothing. Capped well above a long workout (the
+    // watch expands a series at 30s) so one post cannot exhaust the parser
+    // or the zone sort.
+    hrSamples: z
+      .array(heartRateSampleRequestSchema)
+      .min(2)
+      .max(10000)
+      .optional(),
     /**
      * Active energy the watch actually measured for this exercise, in kcal.
      * Replaces the server's duration-and-sets estimate for this entry, which

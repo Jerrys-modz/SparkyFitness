@@ -4,6 +4,7 @@ import request from 'supertest';
 import express from 'express';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'multer'
 import multer from 'multer';
+import { attachExerciseEntryWatchTelemetryRequestSchema } from '@workspace/shared';
 import exerciseEntryRoutes from '../routes/exerciseEntryRoutes.js';
 import exerciseEntryService from '../services/exerciseEntryService.js';
 
@@ -94,6 +95,19 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
     expect(
       exerciseEntryService.attachWatchTelemetryToExerciseEntry
     ).not.toHaveBeenCalled();
+  });
+
+  it('rejects a heart-rate series above the sample cap', () => {
+    const hrSamples = Array.from({ length: 10001 }, (_, i) => ({
+      t: new Date(Date.UTC(2026, 8, 17, 10, 0, i)).toISOString(),
+      bpm: 120,
+    }));
+
+    const parsed = attachExerciseEntryWatchTelemetryRequestSchema.safeParse({
+      hrSamples,
+    });
+
+    expect(parsed.success).toBe(false);
   });
 
   it('forwards measured active energy alongside the series', async () => {
