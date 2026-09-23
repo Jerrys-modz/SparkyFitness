@@ -715,4 +715,37 @@ describe('useWatchWorkoutBridge', () => {
       activeEnergyKcal: 12.5,
     });
   });
+
+  it('reports unposted telemetry so the phone only polls while a flush is outstanding', async () => {
+    const onPending = jest.fn();
+    const { rerender } = renderHook(
+      ({ connected }: { connected: boolean }) =>
+        useWatchWorkoutBridge(true, connected, onPending),
+      { initialProps: { connected: false } }
+    );
+
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-pending',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+        activeEnergyKcal: 4,
+      });
+    });
+    expect(onPending).toHaveBeenCalledWith(true);
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+
+    await act(async () => {
+      rerender({ connected: true });
+      await Promise.resolve();
+    });
+    expect(onPending).toHaveBeenLastCalledWith(false);
+  });
 });

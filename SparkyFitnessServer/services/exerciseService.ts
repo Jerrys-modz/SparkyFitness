@@ -28,6 +28,7 @@ import {
   toNumber,
   parseCsv,
   DEFAULT_CSV_FORMAT,
+  type ExerciseEntryHrZones,
 } from '@workspace/shared';
 import {
   getGroupedExerciseSessionById,
@@ -1885,8 +1886,7 @@ async function createGroupedExerciseEntriesWithClient(
     // (or sort_order) reattaches one occurrence's HR/calories/zones onto
     // another when the same movement is repeated or reordered.
     const priorIndex = priorUnused.findIndex(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (prior: any) =>
+      (prior: { id?: unknown }) =>
         typeof exercise.id === 'string' && prior?.id === exercise.id
     );
     const prior = priorIndex >= 0 ? priorUnused.splice(priorIndex, 1)[0] : null;
@@ -1942,8 +1942,7 @@ async function createGroupedExerciseEntriesWithClient(
       await workoutTelemetryRepository._bulkInsertExerciseEntryHrZonesWithClient(
         client,
         userId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        priorZones.map((zone: any) => ({
+        priorZones.map((zone: ExerciseEntryHrZones) => ({
           user_id: userId,
           exercise_entry_id: createdEntry.id,
           entry_date: entryDate,
@@ -2089,8 +2088,7 @@ async function createGroupedWorkoutSession(
  */
 function resolveEditedCaloriesBurned(
   clientCalories: unknown,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  existingEntry: any,
+  existingEntry: { active_calories?: unknown } | null | undefined,
   recomputed: number
 ): number {
   if (typeof clientCalories === 'number') return clientCalories;
@@ -2152,8 +2150,7 @@ async function updateGroupedWorkoutSession(
       // client to strip every id, which then reattached telemetry by
       // exercise_id. Keep ids that exist, create the ones that don't.
       const useReconcile = incomingExercises.some(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e: any) => typeof e.id === 'string'
+        (e: { id?: unknown }) => typeof e.id === 'string'
       );
 
       // Capture the workout plan assignment before any child rows are deleted:
@@ -2173,8 +2170,11 @@ async function updateGroupedWorkoutSession(
         // clients send ids (mixed is allowed); older all-id-absent payloads
         // are refused when the session already has watch telemetry.
         const hasWatchTelemetry = (existingSession.exercises || []).some(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (ex: any) =>
+          (ex: {
+            avg_heart_rate?: unknown;
+            max_heart_rate?: unknown;
+            active_calories?: unknown;
+          }) =>
             (ex?.avg_heart_rate !== null &&
               ex?.avg_heart_rate !== undefined &&
               ex?.avg_heart_rate !== '') ||

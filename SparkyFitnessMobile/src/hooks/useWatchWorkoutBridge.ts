@@ -36,7 +36,8 @@ import { normalizeDate } from '../utils/dateUtils';
  */
 export function useWatchWorkoutBridge(
   enabled: boolean,
-  serverConnected: boolean = true
+  serverConnected: boolean = true,
+  onTelemetryPendingChange?: (pending: boolean) => void
 ): void {
   // Heart-rate samples captured so far this workout, keyed by exercise_entries
   // id. NOT cleared by a flush: every field the server derives from a post
@@ -65,6 +66,12 @@ export function useWatchWorkoutBridge(
   // batch arriving after both — cost nothing when there is nothing new, while
   // still retrying after a failed attach.
   const hasUnpostedRef = useRef(false);
+  const onPendingChangeRef = useRef(onTelemetryPendingChange);
+  const setUnpostedRef = useRef((pending: boolean) => {
+    if (hasUnpostedRef.current === pending) return;
+    hasUnpostedRef.current = pending;
+    onPendingChangeRef.current?.(pending);
+  });
   // Guards a queued setCompleted transfer being delivered (and thus
   // completeSet'd) twice — WatchConnectivity makes no once-only promise.
   const handledSetClientIdsRef = useRef<Set<string>>(new Set());
@@ -140,7 +147,7 @@ export function useWatchWorkoutBridge(
         hrBufferRef.current = new Map();
         energyBufferRef.current = new Map();
         bufferedSessionIdRef.current = payload.sessionId;
-        hasUnpostedRef.current = false;
+        setUnpostedRef.current(false);
         handledHrBatchClientIdsRef.current = new Set();
       }
       if (payload.clientId) {
@@ -160,7 +167,7 @@ export function useWatchWorkoutBridge(
             payload.exerciseEntryId,
             existing.concat(added)
           );
-          hasUnpostedRef.current = true;
+          setUnpostedRef.current(true);
         }
       }
       // Energy is a delta. A redelivered batch without a clientId cannot be
@@ -173,7 +180,7 @@ export function useWatchWorkoutBridge(
           payload.exerciseEntryId,
           existing + payload.activeEnergyKcal
         );
-        hasUnpostedRef.current = true;
+        setUnpostedRef.current(true);
       }
       // Arrived after the workout already ended, so nothing else is coming to
       // trigger a flush — attach it now. This is the ordinary path for a
@@ -203,7 +210,7 @@ export function useWatchWorkoutBridge(
     const entryDate = entryDateRef.current;
     // Cleared up front so a batch arriving mid-flush re-arms it rather than
     // being marked posted by this pass, which never saw it.
-    hasUnpostedRef.current = false;
+    setUnpostedRef.current(false);
 
     // One post per exercise entry carrying whichever of the two the watch
     // actually produced, so an entry with energy but no usable series still
@@ -231,7 +238,7 @@ export function useWatchWorkoutBridge(
         // Left dirty so the next flush retries this entry. The buffer still
         // holds every sample, so that retry posts the full series, not a
         // remnant of it.
-        hasUnpostedRef.current = true;
+        setUnpostedRef.current(true);
         addLog(
           `Failed to attach watch telemetry to exercise entry ${exerciseEntryId}: ${String(error)}`,
           'ERROR'
@@ -274,6 +281,7 @@ export function useWatchWorkoutBridge(
       flushHeartRate,
     };
     flushHeartRateRef.current = flushHeartRate;
+    onPendingChangeRef.current = onTelemetryPendingChange;
   });
 
   useEffect(() => {
@@ -355,7 +363,7 @@ export function useWatchWorkoutBridge(
         hrBufferRef.current = new Map();
         energyBufferRef.current = new Map();
         bufferedSessionIdRef.current = state.sessionId;
-        hasUnpostedRef.current = false;
+        setUnpostedRef.current(false);
         handledHrBatchClientIdsRef.current = new Set();
         entryDateRef.current =
           state.session?.entry_date != null

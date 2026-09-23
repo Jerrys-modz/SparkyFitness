@@ -351,7 +351,7 @@ async function updateExerciseEntryTelemetryOnly(
   }
 }
 
-/** Partial payload accepted by updateExerciseEntryWatchTelemetry. */
+/** Partial payload accepted by applyWatchTelemetryAtomically. */
 export interface WatchTelemetryFields {
   avg_heart_rate?: number | null;
   max_heart_rate?: number | null;
@@ -401,8 +401,7 @@ function watchTelemetrySetClause(fields: WatchTelemetryFields): {
 }
 
 async function _updateExerciseEntryWatchTelemetryWithClient(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
+  client: workoutTelemetryRepository.TelemetryDbClient,
   id: string,
   userId: string,
   fields: WatchTelemetryFields
@@ -414,27 +413,6 @@ async function _updateExerciseEntryWatchTelemetryWithClient(
      WHERE id = $${columns.length + 1} AND user_id = $${columns.length + 2}`,
     [...columns.map((column) => fields[column]), id, userId]
   );
-}
-
-async function updateExerciseEntryWatchTelemetry(
-  id: string,
-  userId: string,
-  fields: WatchTelemetryFields
-) {
-  const { columns } = watchTelemetrySetClause(fields);
-  if (columns.length === 0) return;
-
-  const client = await getClient(userId);
-  try {
-    await _updateExerciseEntryWatchTelemetryWithClient(
-      client,
-      id,
-      userId,
-      fields
-    );
-  } finally {
-    client.release();
-  }
 }
 
 /**
@@ -2205,7 +2183,6 @@ export default {
   updateExerciseEntry,
   updateExerciseEntryTelemetryOnly,
   _updateExerciseEntryTelemetryOnlyWithClient,
-  updateExerciseEntryWatchTelemetry,
   applyWatchTelemetryAtomically,
   filterStaleWatchTelemetryFields,
   updateExerciseEntriesDateByPresetEntryIdWithClient,
