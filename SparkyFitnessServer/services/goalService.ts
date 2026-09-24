@@ -218,6 +218,14 @@ async function getUserGoalsForRange(
 
     // Clone to avoid mutating the source in the cache or repository
     let processedGoals = { ...goals };
+    // A cleared water goal is stored as null. Readers still need a goal,
+    // otherwise the diary shows nothing and the next save can write 0.
+    if (
+      processedGoals.water_goal_ml === null ||
+      processedGoals.water_goal_ml === undefined
+    ) {
+      processedGoals.water_goal_ml = DEFAULT_GOALS.water_goal_ml ?? 1920;
+    }
 
     if (adjust) {
       let goalCalories =
@@ -543,6 +551,15 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
         log(
           'debug',
           `cleanNumber: Value is null/undefined, returning ${allow_null ? null : 0}`
+        );
+        return allow_null ? null : 0;
+      }
+      // Number('') and Number('  ') are 0. A cleared water goal (and other
+      // allow_null fields) must stay null instead of being saved as zero.
+      if (typeof value === 'string' && value.trim() === '') {
+        log(
+          'debug',
+          `cleanNumber: Value is blank, returning ${allow_null ? null : 0}`
         );
         return allow_null ? null : 0;
       }
