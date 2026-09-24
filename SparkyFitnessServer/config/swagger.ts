@@ -791,6 +791,19 @@ const options = {
             name: { type: 'string' },
             description: { type: 'string' },
             is_public: { type: 'boolean' },
+            workout_format: {
+              type: 'string',
+              enum: [
+                'standard',
+                'interval',
+                'tabata',
+                'amrap',
+                'emom',
+                'for_time',
+              ],
+              default: 'standard',
+            },
+            time_cap_seconds: { type: 'integer', nullable: true },
             exercises: {
               type: 'array',
               items: {

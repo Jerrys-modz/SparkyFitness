@@ -10,8 +10,12 @@ import type {
   ExerciseModality,
   ExerciseRecentSessionSet,
   ExerciseSnapshotResponse,
+  IntervalEngineStep,
+  IntervalPhase,
   PresetSessionResponse,
+  WorkoutFormat,
 } from '@workspace/shared';
+import { buildIntervalPhases, shiftPhasesForPause } from '@workspace/shared';
 import type { Exercise } from '../types/exercise';
 import {
   describeActiveSetAssumed,
@@ -199,6 +203,18 @@ export interface ActiveWorkoutState {
   sourcePresetId: number | null;
   sourceServerConfigId: string | null;
 
+  /** Interval / WOD format configuration & tracking */
+  workoutFormat: WorkoutFormat;
+  timeCapSeconds: number | null;
+  intervalPhases: IntervalPhase[];
+  intervalPhaseIndex: number;
+  isIntervalPaused: boolean;
+  intervalPauseStartedAt: number | null;
+  intervalRoundsCompleted: number;
+  intervalRepsCompleted: number;
+  intervalStatus: 'rx' | 'scaled';
+  intervalScalingNotes: string;
+
   startWorkout: (
     session: PresetSessionResponse,
     opts?: {
@@ -206,9 +222,19 @@ export interface ActiveWorkoutState {
       plannedSetValues?: AssumedSetValues[][];
       sourcePresetId?: number;
       sourceServerConfigId?: string;
+      workoutFormat?: WorkoutFormat;
+      timeCapSeconds?: number | null;
     }
   ) => void;
   startWorkoutAtSet: (session: PresetSessionResponse, setId: string) => void;
+  incrementIntervalRound: () => void;
+  decrementIntervalRound: () => void;
+  setIntervalReps: (reps: number) => void;
+  setIntervalStatus: (status: 'rx' | 'scaled') => void;
+  setIntervalScalingNotes: (notes: string) => void;
+  pauseInterval: () => void;
+  resumeInterval: () => void;
+  updateIntervalPhaseIndex: (index: number) => void;
   /**
    * Capture the historical PR baseline for an exercise, once. No-op unless a
    * live workout is active and the key is absent — so view/edit renders of the
@@ -404,6 +430,16 @@ const initialData: Pick<
   | 'previousSessionSets'
   | 'sourcePresetId'
   | 'sourceServerConfigId'
+  | 'workoutFormat'
+  | 'timeCapSeconds'
+  | 'intervalPhases'
+  | 'intervalPhaseIndex'
+  | 'isIntervalPaused'
+  | 'intervalPauseStartedAt'
+  | 'intervalRoundsCompleted'
+  | 'intervalRepsCompleted'
+  | 'intervalStatus'
+  | 'intervalScalingNotes'
 > = {
   sessionId: null,
   session: null,
@@ -422,6 +458,16 @@ const initialData: Pick<
   previousSessionSets: {},
   sourcePresetId: null,
   sourceServerConfigId: null,
+  workoutFormat: 'standard',
+  timeCapSeconds: null,
+  intervalPhases: [],
+  intervalPhaseIndex: 0,
+  isIntervalPaused: false,
+  intervalPauseStartedAt: null,
+  intervalRoundsCompleted: 0,
+  intervalRepsCompleted: 0,
+  intervalStatus: 'rx',
+  intervalScalingNotes: '',
 };
 
 /**
@@ -1006,6 +1052,51 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
             }
           });
         });
+
+        const workoutFormat = opts?.workoutFormat ?? 'standard';
+        const timeCapSeconds = opts?.timeCapSeconds ?? null;
+        let intervalPhases: IntervalPhase[] = [];
+        if (workoutFormat !== 'standard') {
+          let engineSteps: IntervalEngineStep[] = [];
+          if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
+            engineSteps = session.exercises.map((ex) => {
+              const firstSet = ex.sets[0];
+              return {
+                exerciseName: ex.exercise_snapshot?.name || 'Exercise',
+                durationSec:
+                  firstSet?.duration ??
+                  (workoutFormat === 'tabata' ? 20 : null),
+                restSec:
+                  firstSet?.rest_time ??
+                  (workoutFormat === 'tabata' ? 10 : null),
+                reps: firstSet?.reps ?? null,
+              };
+            });
+          } else {
+            engineSteps = steps.map((s) => {
+              const loc = locateSet(session, s.setId);
+              const durationSec =
+                loc?.exercise.sets[loc.setIndex]?.duration ?? null;
+              const restSec = s.restSec;
+              const reps = loc?.exercise.sets[loc.setIndex]?.reps ?? null;
+              return {
+                exerciseName: s.exerciseName,
+                durationSec,
+                restSec,
+                reps,
+              };
+            });
+          }
+          intervalPhases = buildIntervalPhases(
+            {
+              format: workoutFormat,
+              timeCapSeconds,
+              steps: engineSteps,
+            },
+            Date.now()
+          );
+        }
+
         set({
           sessionId: session.id,
           session,
@@ -1030,6 +1121,16 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           previousSessionSets: {},
           sourcePresetId: opts?.sourcePresetId ?? null,
           sourceServerConfigId: opts?.sourceServerConfigId ?? null,
+          workoutFormat,
+          timeCapSeconds,
+          intervalPhases,
+          intervalPhaseIndex: 0,
+          isIntervalPaused: false,
+          intervalPauseStartedAt: null,
+          intervalRoundsCompleted: 0,
+          intervalRepsCompleted: 0,
+          intervalStatus: 'rx',
+          intervalScalingNotes: '',
         });
       },
 
@@ -1078,7 +1179,178 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           // prompt on finish.
           sourcePresetId: null,
           sourceServerConfigId: null,
+          workoutFormat: 'standard',
+          timeCapSeconds: null,
+          intervalPhases: [],
+          intervalPhaseIndex: 0,
+          isIntervalPaused: false,
+          intervalPauseStartedAt: null,
+          intervalRoundsCompleted: 0,
+          intervalRepsCompleted: 0,
+          intervalStatus: 'rx',
+          intervalScalingNotes: '',
         });
+      },
+
+      incrementIntervalRound: () => {
+        const state = get();
+        const nextRounds = state.intervalRoundsCompleted + 1;
+        const session = state.session;
+
+        if (!session || session.exercises.length === 0) {
+          set({ intervalRoundsCompleted: nextRounds });
+          return;
+        }
+
+        const renderKeys = { ...state.setRenderKeys };
+        const updatedExercises = session.exercises.map((exercise) => {
+          const roundSetsCount = Math.max(
+            1,
+            Math.round(
+              exercise.sets.length / (state.intervalRoundsCompleted + 1)
+            )
+          );
+          const templateSets = exercise.sets.slice(-roundSetsCount);
+          const sources =
+            templateSets.length > 0
+              ? templateSets
+              : [exercise.sets[exercise.sets.length - 1]!];
+
+          let runningSession: PresetSessionResponse = {
+            ...session,
+            exercises: session.exercises,
+          };
+
+          const newSets: ExerciseEntrySetResponse[] = sources.map(
+            (set, idx) => {
+              const tempId = nextTempSetId(runningSession, renderKeys);
+              // Update runningSession so nextTempSetId advances
+              runningSession = {
+                ...runningSession,
+                exercises: runningSession.exercises.map((e) =>
+                  e.id === exercise.id
+                    ? {
+                        ...e,
+                        sets: [
+                          ...e.sets,
+                          {
+                            ...set,
+                            id: tempId,
+                            set_number: exercise.sets.length + idx + 1,
+                          },
+                        ],
+                      }
+                    : e
+                ),
+              };
+              return {
+                ...set,
+                id: tempId,
+                set_number: exercise.sets.length + idx + 1,
+                completed_at: null,
+                is_pr: false,
+              };
+            }
+          );
+
+          return {
+            ...exercise,
+            sets: [...exercise.sets, ...newSets],
+          };
+        });
+
+        const nextSession: PresetSessionResponse = {
+          ...session,
+          exercises: updatedExercises,
+        };
+
+        const sessionEditState = buildSessionEditState(state, nextSession);
+        set({
+          ...sessionEditState,
+          intervalRoundsCompleted: nextRounds,
+        });
+      },
+
+      decrementIntervalRound: () => {
+        const state = get();
+        if (state.intervalRoundsCompleted <= 0) return;
+        const nextRounds = state.intervalRoundsCompleted - 1;
+        const session = state.session;
+
+        if (!session || session.exercises.length === 0) {
+          set({ intervalRoundsCompleted: nextRounds });
+          return;
+        }
+
+        const updatedExercises = session.exercises.map((exercise) => {
+          const roundSetsCount = Math.max(
+            1,
+            Math.round(
+              exercise.sets.length / (state.intervalRoundsCompleted + 1)
+            )
+          );
+          if (exercise.sets.length > roundSetsCount) {
+            return {
+              ...exercise,
+              sets: exercise.sets.slice(0, -roundSetsCount),
+            };
+          }
+          return exercise;
+        });
+
+        const nextSession: PresetSessionResponse = {
+          ...session,
+          exercises: updatedExercises,
+        };
+
+        const sessionEditState = buildSessionEditState(state, nextSession);
+        set({
+          ...sessionEditState,
+          intervalRoundsCompleted: nextRounds,
+        });
+      },
+
+      setIntervalReps: (reps) => {
+        set({ intervalRepsCompleted: reps });
+      },
+
+      setIntervalStatus: (status) => {
+        set({ intervalStatus: status });
+      },
+
+      setIntervalScalingNotes: (notes) => {
+        set({ intervalScalingNotes: notes });
+      },
+
+      pauseInterval: () => {
+        const state = get();
+        if (state.isIntervalPaused || state.workoutFormat === 'standard')
+          return;
+        set({
+          isIntervalPaused: true,
+          intervalPauseStartedAt: Date.now(),
+        });
+      },
+
+      resumeInterval: () => {
+        const state = get();
+        if (!state.isIntervalPaused || state.intervalPauseStartedAt == null)
+          return;
+        const pauseDurationMs = Date.now() - state.intervalPauseStartedAt;
+        const nextPhases = shiftPhasesForPause(
+          state.intervalPhases,
+          state.intervalPhaseIndex,
+          pauseDurationMs
+        );
+        set({
+          isIntervalPaused: false,
+          intervalPauseStartedAt: null,
+          intervalPhases: nextPhases,
+        });
+      },
+
+      updateIntervalPhaseIndex: (index) => {
+        set({ intervalPhaseIndex: index });
       },
 
       capturePrBaseline: (exerciseId, baseline) => {
@@ -1137,11 +1409,13 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         };
 
         // PR detection runs against the pre-completion map (the candidate is
-        // excluded internally). On a hit: stamp the set and fire the strong
-        // success haptic. A regular log fires only the light selection tick,
-        // so the PR buzz still stands out against it.
+        // excluded internally). Sets logged within an interval/WOD session are saved as
+        // exercise entry sets for record-keeping but excluded from individual lift PRs.
+        // On a hit: stamp the set and fire the strong success haptic. A regular log fires
+        // only the light selection tick, so the PR buzz still stands out against it.
         let prSetIds = state.prSetIds;
         if (
+          state.workoutFormat === 'standard' &&
           session != null &&
           isPrSet(session, setId, state.completedSetIds, state.prBaseline)
         ) {
@@ -1999,6 +2273,16 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // The preset link feeds the finish prompt; survives a cold start.
         sourcePresetId: state.sourcePresetId,
         sourceServerConfigId: state.sourceServerConfigId,
+        workoutFormat: state.workoutFormat,
+        timeCapSeconds: state.timeCapSeconds,
+        intervalPhases: state.intervalPhases,
+        intervalPhaseIndex: state.intervalPhaseIndex,
+        isIntervalPaused: state.isIntervalPaused,
+        intervalPauseStartedAt: state.intervalPauseStartedAt,
+        intervalRoundsCompleted: state.intervalRoundsCompleted,
+        intervalRepsCompleted: state.intervalRepsCompleted,
+        intervalStatus: state.intervalStatus,
+        intervalScalingNotes: state.intervalScalingNotes,
       }),
       migrate: (persistedState, version) => {
         // v4 changed `completedSetIds` values from `true` to epoch-ms tap

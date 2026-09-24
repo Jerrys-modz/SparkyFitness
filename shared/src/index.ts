@@ -184,3 +184,4 @@ export * from "./schemas/database/UserMedicationDisplayPreferences.zod.ts";
 export * from "./schemas/database/UserMoodDisplayPreferences.zod.ts";
 export * from "./types/progression.ts";
 export * from "./utils/progressionEngine.ts";
+export * from "./utils/intervalEngine.ts";

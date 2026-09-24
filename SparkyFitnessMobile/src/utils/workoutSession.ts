@@ -300,6 +300,57 @@ export function buildSessionSubtitle(
     }
 
     const parts: string[] = [];
+
+    const wodScoreDetail = session.activity_details?.find(
+      (d) => d.detail_type === 'wod_score'
+    );
+    if (wodScoreDetail?.detail_data) {
+      let data: Record<string, unknown> | null = null;
+      if (typeof wodScoreDetail.detail_data === 'string') {
+        try {
+          data = JSON.parse(wodScoreDetail.detail_data) as Record<
+            string,
+            unknown
+          >;
+        } catch {
+          data = null;
+        }
+      } else if (
+        typeof wodScoreDetail.detail_data === 'object' &&
+        wodScoreDetail.detail_data !== null
+      ) {
+        data = wodScoreDetail.detail_data as Record<string, unknown>;
+      }
+      if (data) {
+        const formatStr =
+          typeof data.format === 'string'
+            ? data.format.toUpperCase().replace('_', ' ')
+            : 'WOD';
+        const rounds =
+          typeof data.rounds_completed === 'number' ? data.rounds_completed : 0;
+        const reps =
+          typeof data.reps_completed === 'number' ? data.reps_completed : 0;
+        const status =
+          typeof data.status === 'string' ? data.status.toUpperCase() : null;
+
+        let scoreStr = '';
+        if (data.format === 'amrap') {
+          scoreStr = `${rounds} + ${reps}`;
+        } else if (data.format === 'for_time') {
+          scoreStr =
+            typeof data.elapsed_seconds === 'number'
+              ? formatDuration(Math.floor(data.elapsed_seconds / 60))
+              : 'Completed';
+        } else {
+          scoreStr = `${rounds} rds`;
+        }
+        if (status) {
+          scoreStr += ` (${status})`;
+        }
+        parts.push(`${formatStr}: ${scoreStr}`);
+      }
+    }
+
     parts.push(
       t('workout.exerciseCount', {
         count: exerciseCount,
