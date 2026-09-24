@@ -973,6 +973,68 @@ describe('exerciseService grouped workouts', () => {
       expect(firstCall[3]).toMatchObject({ calories_burned: 999 });
     });
 
+    it('keeps a saved calorie override when a later edit omits calories_burned', async () => {
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock).mockReset();
+      const overriddenSession = {
+        ...existingSession,
+        exercises: [
+          {
+            ...existingSession.exercises[0],
+            active_calories: '412.00',
+            calories_burned: 999,
+          },
+          existingSession.exercises[1],
+        ],
+      };
+      (getGroupedExerciseSessionByIdWithClient as unknown as Mock)
+        .mockResolvedValueOnce(overriddenSession)
+        .mockResolvedValueOnce(overriddenSession);
+      // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+      exercisePresetEntryRepository.updateExercisePresetEntryWithClient.mockResolvedValue(
+        { id: 'preset-entry-1' }
+      );
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      resolveExerciseIdToUuid.mockImplementation(async (id: string) => id);
+      // @ts-expect-error TS(2339): mockImplementation on mocked fn
+      exerciseDb.getExerciseById.mockImplementation(async (id: string) => ({
+        id,
+        name: 'Test Exercise',
+        calories_per_hour: 600,
+      }));
+      vi.mocked(
+        calorieCalculationService.estimateCaloriesBurnedPerHour
+      ).mockResolvedValue(600);
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 30,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      const [firstCall] = vi.mocked(
+        exerciseEntryDb._updateExerciseEntryWithClient
+      ).mock.calls;
+      expect(firstCall[3]).toMatchObject({ calories_burned: 999 });
+      expect(getGroupedExerciseSessionByIdWithClient).toHaveBeenNthCalledWith(
+        1,
+        client,
+        'user-1',
+        'preset-entry-1',
+        true
+      );
+    });
+
     it('honors a client-provided calories_burned instead of recomputing', async () => {
       setupExistingSession();
       vi.mocked(

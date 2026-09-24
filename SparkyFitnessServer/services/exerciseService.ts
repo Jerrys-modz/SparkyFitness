@@ -2047,24 +2047,30 @@ async function createGroupedWorkoutSession(
 /**
  * Picks the calorie figure an edited exercise entry should keep.
  *
- * Precedence: a value the client sent is a deliberate override and wins. Past
- * that, a device measurement beats the duration-and-sets estimate — a watch
- * on the wearer's wrist recorded it, so editing a note or a weight must not
- * replace what was measured with a formula. Only an entry with no
+ * Precedence: a value the client sent is a deliberate override and wins. A
+ * saved figure that already differs from `active_calories` is an earlier
+ * override — later edits omit `calories_burned` unless the user changes it
+ * again, and preferring the measurement would wipe it. Otherwise a device
+ * measurement beats the duration-and-sets estimate. Only an entry with no
  * measurement re-derives.
  *
  * The measurement lives in `active_calories`, a telemetry column the entry
- * update preserves, which is exactly why it can be trusted here: it is still
- * the original reading however many times the session has been saved since.
- * Postgres returns `numeric` as a string, hence the parse.
+ * update preserves. The watch writes the same number to both columns, so
+ * they diverge only after an explicit override. Postgres returns `numeric`
+ * as a string, hence the parse.
  */
 function resolveEditedCaloriesBurned(
   clientCalories: unknown,
-  existingEntry: { active_calories?: unknown } | null | undefined,
+  existingEntry:
+    { active_calories?: unknown; calories_burned?: unknown } | null | undefined,
   recomputed: number
 ): number {
   if (typeof clientCalories === 'number') return clientCalories;
   const measured = parseMeasuredCalories(existingEntry?.active_calories);
+  const saved = parseMeasuredCalories(existingEntry?.calories_burned);
+  if (measured !== undefined && saved !== undefined && saved !== measured) {
+    return saved;
+  }
   return measured !== undefined ? measured : recomputed;
 }
 
@@ -2091,7 +2097,10 @@ async function updateGroupedWorkoutSession(
     const existingSession = await getGroupedExerciseSessionByIdWithClient(
       client,
       userId,
-      presetEntryId
+      presetEntryId,
+      // Child rows are about to be rewritten from this snapshot. Lock them
+      // so a watch flush cannot commit newer HR or calories in between.
+      updateData.exercises !== undefined
     );
     if (!existingSession) {
       throw createServiceError(404, 'Exercise preset entry not found.');
