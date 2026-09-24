@@ -1,5 +1,26 @@
 import SwiftUI
 
+/// Dark-theme category colours, in the same order as `SUPERSET_PALETTE_VARS`
+/// (`workoutSupersets.ts`). Run 0 is blue, then orange, violet, green, pink,
+/// teal, amber, slate. Values are the dark `--color-cat-*` tokens from
+/// `global.css`, not the light ones — the watch UI is always dark.
+private enum SupersetPalette {
+    private static let colors: [Color] = [
+        Color(red: 105 / 255, green: 146 / 255, blue: 211 / 255),
+        Color(red: 209 / 255, green: 138 / 255, blue: 97 / 255),
+        Color(red: 145 / 255, green: 102 / 255, blue: 204 / 255),
+        Color(red: 106 / 255, green: 164 / 255, blue: 111 / 255),
+        Color(red: 204 / 255, green: 102 / 255, blue: 136 / 255),
+        Color(red: 90 / 255, green: 173 / 255, blue: 175 / 255),
+        Color(red: 212 / 255, green: 169 / 255, blue: 84 / 255),
+        Color(red: 110 / 255, green: 118 / 255, blue: 135 / 255),
+    ]
+
+    static func color(for run: Int) -> Color {
+        colors[abs(run) % colors.count]
+    }
+}
+
 /// The Workout tab. Nothing here starts a workout — the phone arms it by
 /// pushing `workoutStart` for a preset session already begun there.
 ///
@@ -160,6 +181,7 @@ private struct WorkoutCompleteView: View {
 private struct ExerciseBlock: Identifiable {
     let id: String
     let header: String?
+    let supersetRun: Int?
     var exercises: [PlannedExercise]
 }
 
@@ -204,6 +226,7 @@ private struct ExerciseListView: View {
                     ExerciseBlock(
                         id: "superset-\(run)",
                         header: "Superset",
+                        supersetRun: run,
                         exercises: [exercise]
                     )
                 )
@@ -212,6 +235,7 @@ private struct ExerciseListView: View {
                     ExerciseBlock(
                         id: exercise.exerciseEntryId,
                         header: nil,
+                        supersetRun: nil,
                         exercises: [exercise]
                     )
                 )
@@ -239,8 +263,9 @@ private struct ExerciseListView: View {
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    if let header = block.header {
+                    if let header = block.header, let run = block.supersetRun {
                         Text(header)
+                            .foregroundStyle(SupersetPalette.color(for: run))
                     }
                 }
             }
@@ -295,6 +320,13 @@ private struct ExerciseRow: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption2)
                     .foregroundStyle(.green)
+            }
+        }
+        .padding(.leading, exercise.supersetRun == nil ? 0 : 8)
+        .background(alignment: .leading) {
+            if let run = exercise.supersetRun {
+                SupersetPalette.color(for: run)
+                    .frame(width: 3)
             }
         }
     }
@@ -367,6 +399,13 @@ private struct CurrentSetView: View {
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
 
+    private var supersetColor: Color? {
+        guard let run = store.plan?.exercises.first(where: {
+            $0.exerciseEntryId == step.exerciseEntryId
+        })?.supersetRun else { return nil }
+        return SupersetPalette.color(for: run)
+    }
+
     private enum EditableField: Identifiable {
         case weight, reps
         var id: Int { self == .weight ? 0 : 1 }
@@ -382,7 +421,7 @@ private struct CurrentSetView: View {
                 if let partners = step.supersetWith {
                     Text("Superset · \(partners)")
                         .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(supersetColor ?? Color.secondary)
                         .lineLimit(1)
                 }
                 Text(step.label)
@@ -548,7 +587,7 @@ private struct RestView: View {
                 VStack(spacing: 0) {
                     Text(next.supersetWith == nil ? "Next set" : "Next in superset")
                         .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(nextSupersetColor(next) ?? Color.secondary)
                     Text(next.exerciseName)
                         .font(.caption2)
                         .lineLimit(1)
@@ -584,6 +623,15 @@ private struct RestView: View {
         let total = Double(store.restDurationSeconds)
         guard total > 0 else { return 0 }
         return min(1, max(0, 1 - Double(remainingSeconds) / total))
+    }
+
+    private func nextSupersetColor(_ step: WorkoutStep) -> Color? {
+        guard step.supersetWith != nil,
+              let run = store.plan?.exercises.first(where: {
+                  $0.exerciseEntryId == step.exerciseEntryId
+              })?.supersetRun
+        else { return nil }
+        return SupersetPalette.color(for: run)
     }
 
     private func nextTargetLabel(for step: WorkoutStep) -> String {
