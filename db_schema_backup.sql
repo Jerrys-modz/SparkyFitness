@@ -4776,7 +4776,10 @@ CREATE TABLE public.workout_presets (
     description text,
     is_public boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    workout_format character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    time_cap_seconds integer,
+    CONSTRAINT chk_workout_presets_format CHECK (((workout_format)::text = ANY ((ARRAY['standard'::character varying, 'interval'::character varying, 'tabata'::character varying, 'amrap'::character varying, 'emom'::character varying, 'for_time'::character varying])::text[])))
 );
 
 
