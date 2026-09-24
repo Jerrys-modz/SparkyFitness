@@ -96,6 +96,24 @@ async function getUserGoalsForRange(
   ];
 
   let currentFallback = (fallback ?? DEFAULT_GOALS) as Record<string, unknown>;
+  if (
+    currentFallback.water_goal_ml === null ||
+    currentFallback.water_goal_ml === undefined
+  ) {
+    const priorWater = await goalRepository.getMostRecentWaterGoalBeforeDate(
+      userId,
+      startDate
+    );
+    if (
+      priorWater?.water_goal_ml !== null &&
+      priorWater?.water_goal_ml !== undefined
+    ) {
+      currentFallback = {
+        ...currentFallback,
+        water_goal_ml: priorWater.water_goal_ml,
+      };
+    }
+  }
   const result: Record<string, unknown> = {};
   let cursor = parseISO(startDate);
   const end = parseISO(endDate);

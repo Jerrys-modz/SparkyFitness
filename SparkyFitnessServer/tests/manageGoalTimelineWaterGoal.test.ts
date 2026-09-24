@@ -25,6 +25,7 @@ vi.mock('../models/goalRepository.js', () => ({
     deleteDefaultGoal: vi.fn().mockResolvedValue(undefined),
     getGoalsInRange: vi.fn().mockResolvedValue([]),
     getMostRecentGoalBeforeDate: vi.fn().mockResolvedValue(null),
+    getMostRecentWaterGoalBeforeDate: vi.fn().mockResolvedValue(null),
   },
 }));
 
@@ -50,6 +51,9 @@ describe('manageGoalTimeline water_goal_ml persistence', () => {
     vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue(
       null
     );
+    vi.mocked(
+      goalRepository.getMostRecentWaterGoalBeforeDate
+    ).mockResolvedValue(null);
   });
 
   it('preserves null when water_goal_ml is omitted, instead of coercing to 0', async () => {
@@ -241,5 +245,31 @@ describe('manageGoalTimeline water_goal_ml persistence', () => {
     ).toBe(2500);
     expect((result['2020-01-01'] as { calories: number }).calories).toBe(2100);
     expect((result['2020-01-02'] as { calories: number }).calories).toBe(2100);
+  });
+
+  it('uses an earlier non-null water goal when the latest row before the range omits it', async () => {
+    vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue({
+      calories: 2100,
+      water_goal_ml: null,
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+    });
+    vi.mocked(
+      goalRepository.getMostRecentWaterGoalBeforeDate
+    ).mockResolvedValue({
+      water_goal_ml: 2500,
+    });
+
+    const result = await goalService.getUserGoalsForRange(
+      'user-1',
+      '2020-01-01',
+      '2020-01-01'
+    );
+
+    expect((result['2020-01-01'] as { calories: number }).calories).toBe(2100);
+    expect(
+      (result['2020-01-01'] as { water_goal_ml: number }).water_goal_ml
+    ).toBe(2500);
   });
 });

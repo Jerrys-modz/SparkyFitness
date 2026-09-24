@@ -107,6 +107,33 @@ async function getMostRecentGoalBeforeDate(userId: any, selectedDate: any) {
     client.release();
   }
 }
+
+// Latest water goal before the range, skipping rows that stored null.
+// The most recent goal row can omit water while an earlier row still has
+// the value that should carry forward.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getMostRecentWaterGoalBeforeDate(
+  userId: any,
+  selectedDate: any
+) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT water_goal_ml
+        FROM user_goals
+        WHERE user_id = $1
+          AND (goal_date < $2 OR goal_date IS NULL)
+          AND water_goal_ml IS NOT NULL
+        ORDER BY goal_date DESC NULLS LAST
+        LIMIT 1`,
+      [userId, selectedDate]
+    );
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function upsertGoal(goalData: any) {
   const client = await getClient(goalData.user_id); // User-specific operation
@@ -253,6 +280,7 @@ async function getGoalTimeline(userId: string) {
 
 export { getGoalByDate };
 export { getMostRecentGoalBeforeDate };
+export { getMostRecentWaterGoalBeforeDate };
 export { getAllHistoricalGoals };
 export { upsertGoal };
 export { deleteGoalsInRange };
@@ -262,6 +290,7 @@ export { getGoalTimeline };
 export default {
   getGoalByDate,
   getMostRecentGoalBeforeDate,
+  getMostRecentWaterGoalBeforeDate,
   getAllHistoricalGoals,
   upsertGoal,
   deleteGoalsInRange,
