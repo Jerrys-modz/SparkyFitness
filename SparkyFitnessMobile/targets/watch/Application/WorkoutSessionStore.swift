@@ -34,6 +34,15 @@ final class WorkoutSessionStore: ObservableObject {
     /// The rest's full length, so the progress bar has a denominator.
     @Published private(set) var restDurationSeconds: Int = 0
 
+    /// Called with the outgoing exercise's entry id just before the cursor
+    /// moves onto a set belonging to a different exercise, so the session
+    /// manager can send the heart rate and energy collected so far tagged
+    /// with the exercise they were actually measured during. Not called by
+    /// `start`, `reset` or `restoreSnapshot`, which place the cursor rather
+    /// than move it, nor when the last set completes — the final drain
+    /// already belongs to the last exercise.
+    var onExerciseWillChange: ((String) -> Void)?
+
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
     private var startedAt: Date?
@@ -157,7 +166,7 @@ final class WorkoutSessionStore: ObservableObject {
         completedSetIds.insert(step.plannedSet.setId)
 
         if currentStepIndex + 1 < steps.count {
-            currentStepIndex += 1
+            moveCursor(to: currentStepIndex + 1)
             // Phone rest is *before the next set* (`nextStep.restSec`). Using
             // the completed set's rest inverted per-set rest and supersets.
             let nextRest = steps[currentStepIndex].plannedSet.restSeconds
@@ -193,20 +202,31 @@ final class WorkoutSessionStore: ObservableObject {
         let owned = steps.indices.filter { steps[$0].exerciseEntryId == exerciseEntryId }
         guard let first = owned.first else { return }
         stopRestTimer()
-        currentStepIndex = owned.first { !isCompleted(steps[$0]) } ?? first
+        moveCursor(to: owned.first { !isCompleted(steps[$0]) } ?? first)
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
     func goToNextStep() {
         guard currentStepIndex + 1 < steps.count else { return }
         stopRestTimer()
-        currentStepIndex += 1
+        moveCursor(to: currentStepIndex + 1)
     }
 
     func goToPreviousStep() {
         guard currentStepIndex > 0 else { return }
         stopRestTimer()
-        currentStepIndex -= 1
+        moveCursor(to: currentStepIndex - 1)
+    }
+
+    /// The one way the wearer's actions move the cursor, so an exercise
+    /// boundary can never be crossed without `onExerciseWillChange` firing.
+    private func moveCursor(to index: Int) {
+        if let outgoing = currentStep?.exerciseEntryId,
+           steps.indices.contains(index),
+           steps[index].exerciseEntryId != outgoing {
+            onExerciseWillChange?(outgoing)
+        }
+        currentStepIndex = index
     }
 
     func skipRest() {
