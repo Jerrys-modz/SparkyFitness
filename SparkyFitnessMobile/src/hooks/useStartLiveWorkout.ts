@@ -155,14 +155,17 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
         let resolvedExercises = exercises;
         if (workoutFormat === 'tabata') {
           resolvedExercises = exercises.map((ex) => {
-            if (ex.sets.length === 1) {
-              const templateSet = ex.sets[0]!;
-              const expandedSets = Array.from({ length: 8 }, (_, i) => ({
-                ...templateSet,
-                set_number: i + 1,
-                duration: templateSet.duration ?? 20,
-                rest_time: templateSet.rest_time ?? 10,
-              }));
+            if (ex.sets.length < 8 && ex.sets.length > 0) {
+              const baseSets = ex.sets;
+              const expandedSets = Array.from({ length: 8 }, (_, i) => {
+                const templateSet = baseSets[i % baseSets.length]!;
+                return {
+                  ...templateSet,
+                  set_number: i + 1,
+                  duration: templateSet.duration ?? 20,
+                  rest_time: templateSet.rest_time ?? 10,
+                };
+              });
               return { ...ex, sets: expandedSets };
             }
             return ex;
@@ -175,14 +178,17 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           const emomRounds = Math.floor(timeCapSeconds / 60);
           if (emomRounds > 1) {
             resolvedExercises = exercises.map((ex) => {
-              if (ex.sets.length === 1) {
-                const templateSet = ex.sets[0]!;
+              if (ex.sets.length < emomRounds && ex.sets.length > 0) {
+                const baseSets = ex.sets;
                 const expandedSets = Array.from(
                   { length: emomRounds },
-                  (_, i) => ({
-                    ...templateSet,
-                    set_number: i + 1,
-                  })
+                  (_, i) => {
+                    const templateSet = baseSets[i % baseSets.length]!;
+                    return {
+                      ...templateSet,
+                      set_number: i + 1,
+                    };
+                  }
                 );
                 return { ...ex, sets: expandedSets };
               }

@@ -101,24 +101,32 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
 
       const prevPhase =
         prevPhaseIndex != null ? intervalPhases[prevPhaseIndex] : null;
-      if (prevPhase && prevPhase.kind === 'work' && session) {
-        let targetSetId: number | string | null = null;
-        if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
-          const exerciseIndex = prevPhase.stepIndex ?? 0;
-          const setIndex = prevPhase.round - 1;
-          const targetSet = session.exercises[exerciseIndex]?.sets[setIndex];
-          if (targetSet) {
-            targetSetId = targetSet.id;
+      if (prevPhase && prevPhase.kind === 'work') {
+        const state = useActiveWorkoutStore.getState();
+        const curSession = state.session;
+        if (curSession) {
+          if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
+            const exerciseIndex = prevPhase.stepIndex ?? 0;
+            const setIndex = prevPhase.round - 1;
+            const exercise = curSession.exercises[exerciseIndex];
+            if (exercise) {
+              while (exercise.sets.length <= setIndex) {
+                state.addSetToExercise(exercise.id);
+              }
+              const updatedSession = useActiveWorkoutStore.getState().session;
+              const targetSet =
+                updatedSession?.exercises[exerciseIndex]?.sets[setIndex];
+              if (targetSet) {
+                state.completeSet(String(targetSet.id));
+              }
+            }
+          } else if (workoutFormat === 'interval' || workoutFormat === 'hiit') {
+            const stepIdx = prevPhase.stepIndex ?? prevPhase.round - 1;
+            const targetStep = state.steps[stepIdx];
+            if (targetStep) {
+              state.completeSet(String(targetStep.setId));
+            }
           }
-        } else if (workoutFormat === 'interval' || workoutFormat === 'hiit') {
-          const stepIdx = prevPhase.stepIndex ?? prevPhase.round - 1;
-          const targetStep = steps[stepIdx];
-          if (targetStep) {
-            targetSetId = targetStep.setId;
-          }
-        }
-        if (targetSetId != null) {
-          completeSet(targetSetId);
         }
       }
 

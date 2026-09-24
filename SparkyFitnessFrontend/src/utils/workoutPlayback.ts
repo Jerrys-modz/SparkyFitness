@@ -371,26 +371,31 @@ export function createWorkoutPlaybackDraftFromPreset(
           : {}),
         sets: (() => {
           let baseSets = exercise.sets;
-          if (baseSets.length === 1) {
-            const templateSet = baseSets[0]!;
-            if (preset.workout_format === 'tabata') {
-              baseSets = Array.from({ length: 8 }, (_, i) => ({
-                ...templateSet,
-                set_number: i + 1,
-                duration: templateSet.duration ?? 20,
-                rest_time: templateSet.rest_time ?? 10,
-              }));
+          if (baseSets.length > 0) {
+            if (preset.workout_format === 'tabata' && baseSets.length < 8) {
+              baseSets = Array.from({ length: 8 }, (_, i) => {
+                const templateSet = baseSets[i % baseSets.length]!;
+                return {
+                  ...templateSet,
+                  set_number: i + 1,
+                  duration: templateSet.duration ?? 20,
+                  rest_time: templateSet.rest_time ?? 10,
+                };
+              });
             } else if (
               preset.workout_format === 'emom' &&
               preset.time_cap_seconds != null &&
               preset.time_cap_seconds >= 60
             ) {
               const emomRounds = Math.floor(preset.time_cap_seconds / 60);
-              if (emomRounds > 1) {
-                baseSets = Array.from({ length: emomRounds }, (_, i) => ({
-                  ...templateSet,
-                  set_number: i + 1,
-                }));
+              if (emomRounds > baseSets.length) {
+                baseSets = Array.from({ length: emomRounds }, (_, i) => {
+                  const templateSet = baseSets[i % baseSets.length]!;
+                  return {
+                    ...templateSet,
+                    set_number: i + 1,
+                  };
+                });
               }
             }
           }

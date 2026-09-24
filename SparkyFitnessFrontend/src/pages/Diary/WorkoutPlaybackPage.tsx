@@ -633,15 +633,21 @@ const WorkoutPlaybackPage = () => {
         if (format === 'tabata' || format === 'emom') {
           // In Tabata/EMOM, round maps to setIndex (round - 1) on the exercise (stepIndex ?? 0)
           const exerciseIndex = prevPhase.stepIndex ?? 0;
-          const exercise = currentDraft.exercises[exerciseIndex];
+          let nextDraft = currentDraft;
+          let exercise = nextDraft.exercises[exerciseIndex];
           if (!exercise) return currentDraft;
 
           const setIndex = prevPhase.round - 1;
+          while (exercise.sets.length <= setIndex) {
+            nextDraft = addWorkoutSetToExercise(nextDraft, exerciseIndex);
+            exercise = nextDraft.exercises[exerciseIndex]!;
+          }
+
           const set = exercise.sets[setIndex];
-          if (!set || set.completed) return currentDraft;
+          if (!set || set.completed) return nextDraft;
 
           return updateWorkoutSetAtPointer(
-            currentDraft,
+            nextDraft,
             { exerciseIndex, setIndex },
             {
               completed: true,
