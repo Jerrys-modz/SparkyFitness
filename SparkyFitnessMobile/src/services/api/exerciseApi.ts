@@ -438,6 +438,8 @@ export const attachExerciseEntryWatchTelemetry = async (
   telemetry: {
     hrSamples?: HeartRateSamplePayload[];
     activeEnergyKcal?: number;
+    /** Minutes the watch spent on this exercise. Replaces a zero duration. */
+    durationMinutes?: number;
   }
 ): Promise<void> => {
   return apiFetch<void>({

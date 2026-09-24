@@ -256,7 +256,8 @@ async function attachWatchTelemetryToExerciseEntry(
   actingUserId: string,
   exerciseEntryId: string,
   hrSamples: HeartRateSampleRequest[] | undefined,
-  activeEnergyKcal?: number
+  activeEnergyKcal?: number,
+  durationMinutes?: number
 ): Promise<void> {
   // Fail closed: family/delegate diary *read* can SELECT another user's
   // entry via RLS, but this route must not 204 after an UPDATE that
@@ -301,6 +302,9 @@ async function attachWatchTelemetryToExerciseEntry(
     // knows these calories were measured rather than derived.
     fields.calories_burned = measured;
     fields.active_calories = measured;
+  }
+  if (typeof durationMinutes === 'number' && durationMinutes > 0) {
+    fields.duration_minutes = Math.round(durationMinutes * 100) / 100;
   }
 
   // Zones need the series; a calories-only post has nothing to bucket.

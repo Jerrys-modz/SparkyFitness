@@ -73,6 +73,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       'actor-123',
       ENTRY_ID,
       hrSamples,
+      undefined,
       undefined
     );
   });
@@ -123,7 +124,14 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
 
     expect(
       exerciseEntryService.attachWatchTelemetryToExerciseEntry
-    ).toHaveBeenCalledWith('user-123', 'actor-123', ENTRY_ID, hrSamples, 87.4);
+    ).toHaveBeenCalledWith(
+      'user-123',
+      'actor-123',
+      ENTRY_ID,
+      hrSamples,
+      87.4,
+      undefined
+    );
   });
 
   it('accepts active energy on its own, with no heart-rate series', async () => {
@@ -134,7 +142,32 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
 
     expect(
       exerciseEntryService.attachWatchTelemetryToExerciseEntry
-    ).toHaveBeenCalledWith('user-123', 'actor-123', ENTRY_ID, undefined, 42);
+    ).toHaveBeenCalledWith(
+      'user-123',
+      'actor-123',
+      ENTRY_ID,
+      undefined,
+      42,
+      undefined
+    );
+  });
+
+  it('forwards the watch exercise duration', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({ durationMinutes: 12.5 })
+      .expect(204);
+
+    expect(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).toHaveBeenCalledWith(
+      'user-123',
+      'actor-123',
+      ENTRY_ID,
+      undefined,
+      undefined,
+      12.5
+    );
   });
 
   it('rejects a body carrying neither heart rate nor active energy', async () => {

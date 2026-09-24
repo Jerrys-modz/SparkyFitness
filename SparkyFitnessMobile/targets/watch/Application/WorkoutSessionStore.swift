@@ -46,6 +46,10 @@ final class WorkoutSessionStore: ObservableObject {
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
     private var startedAt: Date?
+    /// Open interval per exercise entry. Closed when the wearer leaves it.
+    private var exerciseWindowStartedAt: [String: Date] = [:]
+    /// Seconds already closed for each exercise. A return visit adds to this.
+    private var exerciseWindowSeconds: [String: TimeInterval] = [:]
 
     private let defaults = UserDefaults.standard
     private let snapshotKey = "sparky.watch.workoutSnapshot"
@@ -119,7 +123,10 @@ final class WorkoutSessionStore: ObservableObject {
         stopRestTimer()
         startedAt = Date()
         heartRateSentThrough = nil
+        exerciseWindowStartedAt = [:]
+        exerciseWindowSeconds = [:]
         startElapsedTimer()
+        openCurrentExerciseWindow()
         persistSnapshot(reportedEnergyKcal: 0)
     }
 
@@ -135,6 +142,8 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         startedAt = nil
+        exerciseWindowStartedAt = [:]
+        exerciseWindowSeconds = [:]
         stopElapsedTimer()
         stopRestTimer()
         clearSnapshot()
@@ -228,6 +237,39 @@ final class WorkoutSessionStore: ObservableObject {
             onExerciseWillChange?(outgoing)
         }
         currentStepIndex = index
+        openCurrentExerciseWindow()
+    }
+
+    /// Wall-clock time the wearer spent on each exercise, including rest
+    /// between its sets. Zone seconds are credited to whatever was on screen,
+    /// so the diary duration has to be this window rather than the sum of
+    /// set timers (those are often zero on a strength plan).
+    func openCurrentExerciseWindow() {
+        guard let id = currentStep?.exerciseEntryId else { return }
+        if exerciseWindowStartedAt[id] == nil {
+            exerciseWindowStartedAt[id] = Date()
+        }
+    }
+
+    /// Ends the open interval for `id` and returns the accumulated minutes,
+    /// rounded to the hundredth. A later visit adds to the same total.
+    func closeExerciseWindow(_ id: String) -> Double {
+        if let start = exerciseWindowStartedAt.removeValue(forKey: id) {
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed > 0 {
+                exerciseWindowSeconds[id, default: 0] += elapsed
+            }
+        }
+        let minutes = (exerciseWindowSeconds[id] ?? 0) / 60
+        return (minutes * 100).rounded() / 100
+    }
+
+    /// Closes whichever exercise is current. Nil when nothing is on screen.
+    func closeCurrentExerciseWindow() -> (id: String, minutes: Double)? {
+        guard let id = currentStep?.exerciseEntryId ?? steps.last?.exerciseEntryId else {
+            return nil
+        }
+        return (id, closeExerciseWindow(id))
     }
 
     func skipRest() {
@@ -320,8 +362,12 @@ final class WorkoutSessionStore: ObservableObject {
         else { return nil }
         start(with: snapshot.plan)
         // `start(with:)` resets cursor / completions / energy and writes a
-        // fresh snapshot; put the recovered progress back on top.
+        // fresh snapshot; put the recovered progress back on top. The window
+        // start() opened belongs to set 1, not necessarily where we resume.
+        exerciseWindowStartedAt = [:]
+        exerciseWindowSeconds = [:]
         currentStepIndex = min(snapshot.currentStepIndex, steps.count)
+        openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)
         editedValues = snapshot.editedValues
         startedAt = snapshot.startedAt

@@ -198,6 +198,9 @@ final class WorkoutHealthKitController: NSObject {
 
             session = newSession
             builder = newBuilder
+            pendingSamples = []
+            pendingSampleTimes = []
+            skipReadingsThrough = nil
 
             let now = Date()
             newSession.startActivity(with: now)
@@ -216,36 +219,50 @@ final class WorkoutHealthKitController: NSObject {
         }
     }
 
-    /// Ends the session and RETURNS whatever samples were still buffered,
-    /// rather than pushing them through `onBatchReady`.
+    /// Ends the session and returns the samples still held, plus any heart
+    /// rate HealthKit only saves when the workout is finished.
     ///
-    /// That callback hops to the main actor via `Task { @MainActor in }`, so
-    /// a final flush routed through it would run after the caller had already
-    /// torn the workout down — `WatchSessionManager.endWorkout` clears the
-    /// store synchronously, and the batch would then find no session to tag
-    /// itself with and be dropped. Handing the samples back lets the caller
-    /// send them while the session is still standing.
-    @discardableResult
-    func stop() -> [HeartRateSample] {
+    /// The anchored query has to stop before `finishWorkout`, and that is
+    /// when HealthKit writes the tail. Reading `predicateForObjects(from:)`
+    /// on the saved workout picks those up. Instants already flushed stay in
+    /// `pendingSampleTimes`, so the tail is only what the phone has not seen.
+    ///
+    /// The completion is always on the main queue. It can run after HealthKit
+    /// has finished the workout, so callers must not send `workoutStop` or
+    /// clear the plan until it fires — the tail still needs a session to tag.
+    func stop(completion: @escaping ([HeartRateSample]) -> Void) {
         stopBatchTimer()
         stopHeartRateSeriesQuery()
-        let remaining = pendingSamples
+        let buffered = pendingSamples
         pendingSamples = []
-        pendingSampleTimes = []
-        skipReadingsThrough = nil
-        guard let session else { return remaining }
-        // Keep the builder alive until finishWorkout runs. Nilling `self.builder`
-        // synchronously used to make the completion a no-op, so nothing was
-        // saved to Health and the own-write marker never persisted.
-        let endingBuilder = builder
+        let deliver: ([HeartRateSample]) -> Void = { samples in
+            DispatchQueue.main.async {
+                completion(samples)
+            }
+        }
+        guard let session, let endingBuilder = builder else {
+            deliver(buffered)
+            return
+        }
         let now = Date()
         session.end()
-        endingBuilder?.endCollection(withEnd: now) { _, _ in
-            endingBuilder?.finishWorkout { _, _ in }
-        }
         self.session = nil
         self.builder = nil
-        return remaining
+        endingBuilder.endCollection(withEnd: now) { [weak self] _, _ in
+            endingBuilder.finishWorkout { [weak self] workout, _ in
+                guard let self, let workout else {
+                    deliver(buffered)
+                    return
+                }
+                self.readFinishedHeartRate(of: workout) { extra in
+                    let novel = extra.filter { !self.pendingSampleTimes.contains($0.t) }
+                    for sample in novel {
+                        self.pendingSampleTimes.insert(sample.t)
+                    }
+                    deliver(buffered + novel)
+                }
+            }
+        }
     }
 
     /// Returns and clears whatever is buffered, WITHOUT stopping the session.
@@ -382,6 +399,92 @@ final class WorkoutHealthKitController: NSObject {
             healthStore.stop(hrSeriesQuery)
         }
         hrSeriesQuery = nil
+    }
+
+    /// Heart rate saved with the finished workout. These samples do not exist
+    /// until `finishWorkout` returns, which is after the live query has stopped.
+    private func readFinishedHeartRate(
+        of workout: HKWorkout,
+        completion: @escaping ([HeartRateSample]) -> Void
+    ) {
+        let query = HKSampleQuery(
+            sampleType: heartRateType,
+            predicate: HKQuery.predicateForObjects(from: workout),
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: nil
+        ) { [weak self] _, samples, _ in
+            guard let self else {
+                completion([])
+                return
+            }
+            let quantities = (samples as? [HKQuantitySample]) ?? []
+            let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+            let group = DispatchGroup()
+            let lock = NSLock()
+            var collected: [HeartRateSample] = []
+            for sample in quantities {
+                if sample.count <= 1 {
+                    let bpm = sample.quantity.doubleValue(for: bpmUnit)
+                    guard bpm > 0 else { continue }
+                    collected.append(contentsOf: self.expandedSamples(
+                        bpm: bpm,
+                        interval: DateInterval(start: sample.startDate, end: sample.endDate)
+                    ))
+                    continue
+                }
+                group.enter()
+                let series = HKQuantitySeriesSampleQuery(
+                    quantityType: self.heartRateType,
+                    predicate: HKQuery.predicateForObject(with: sample.uuid)
+                ) { _, quantity, interval, _, done, _ in
+                    if let quantity, let interval {
+                        let bpm = quantity.doubleValue(for: bpmUnit)
+                        if bpm > 0 {
+                            let expanded = self.expandedSamples(bpm: bpm, interval: interval)
+                            lock.lock()
+                            collected.append(contentsOf: expanded)
+                            lock.unlock()
+                        }
+                    }
+                    if done {
+                        group.leave()
+                    }
+                }
+                self.healthStore.execute(series)
+            }
+            group.notify(queue: .global()) {
+                completion(collected)
+            }
+        }
+        healthStore.execute(query)
+    }
+
+    /// Same expansion `ingestSeriesQuantity` uses, without touching the live
+    /// buffer or the on-screen BPM.
+    private func expandedSamples(bpm: Double, interval: DateInterval) -> [HeartRateSample] {
+        let duration = interval.end.timeIntervalSince(interval.start)
+        if duration <= 2 {
+            return sample(at: interval.end, bpm: bpm).map { [$0] } ?? []
+        }
+        var samples: [HeartRateSample] = []
+        var cursor = interval.start
+        while cursor < interval.end {
+            if let sample = sample(at: cursor, bpm: bpm) {
+                samples.append(sample)
+            }
+            cursor = cursor.addingTimeInterval(Self.seriesExpandStep)
+        }
+        if let sample = sample(at: interval.end, bpm: bpm) {
+            samples.append(sample)
+        }
+        return samples
+    }
+
+    private func sample(at date: Date, bpm: Double) -> HeartRateSample? {
+        if let skipReadingsThrough, date < skipReadingsThrough.addingTimeInterval(1) {
+            return nil
+        }
+        return HeartRateSample(t: instantFormatter.string(from: date), bpm: bpm)
     }
 
     private func ingestSeriesQuantity(bpm: Double, interval: DateInterval) {

@@ -206,7 +206,7 @@ export const wodScoreDetailDataSchema = z.object({
         round: z.number().int(),
         started_at_s: z.number().optional(),
         completed_at_s: z.number().optional(),
-      })
+      }),
     )
     .optional(),
 });
@@ -321,12 +321,23 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
      * is a formula rather than a measurement.
      */
     activeEnergyKcal: z.number().nonnegative().optional(),
+    /**
+     * Minutes the watch spent showing this exercise, including rest between
+     * its sets. The plan's set timers are often zero, so zone seconds had
+     * nothing on the entry to line up with.
+     */
+    durationMinutes: z.number().nonnegative().optional(),
   })
   .strict()
   .refine(
     (body) =>
-      body.hrSamples !== undefined || body.activeEnergyKcal !== undefined,
-    { message: "At least one of hrSamples or activeEnergyKcal is required." },
+      body.hrSamples !== undefined ||
+      body.activeEnergyKcal !== undefined ||
+      (body.durationMinutes !== undefined && body.durationMinutes > 0),
+    {
+      message:
+        "At least one of hrSamples, activeEnergyKcal, or durationMinutes is required.",
+    },
   );
 
 export const createExerciseEntryRequestSchema = z

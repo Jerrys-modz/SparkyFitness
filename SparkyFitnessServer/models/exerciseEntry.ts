@@ -375,6 +375,11 @@ export interface WatchTelemetryFields {
    * zones once a newer snapshot has committed.
    */
   watch_telemetry_observed_at?: string | Date | null;
+  /**
+   * Wall-clock minutes the watch spent on this exercise. A later flush must
+   * not replace a longer window with a shorter one.
+   */
+  duration_minutes?: number | null;
 }
 
 /**
@@ -431,6 +436,7 @@ export function filterStaleWatchTelemetryFields(
     max_heart_rate?: unknown;
     active_calories?: unknown;
     watch_telemetry_observed_at?: unknown;
+    duration_minutes?: unknown;
   },
   fields: WatchTelemetryFields
 ): { fields: WatchTelemetryFields; skipHr: boolean } {
@@ -465,6 +471,15 @@ export function filterStaleWatchTelemetryFields(
   ) {
     delete next.calories_burned;
     delete next.active_calories;
+  }
+  const proposedDuration = next.duration_minutes;
+  const storedDuration = Number(entry.duration_minutes);
+  if (
+    typeof proposedDuration === 'number' &&
+    Number.isFinite(storedDuration) &&
+    proposedDuration < storedDuration
+  ) {
+    delete next.duration_minutes;
   }
   return { fields: next, skipHr };
 }

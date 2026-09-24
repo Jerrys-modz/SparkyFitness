@@ -38,6 +38,9 @@ interface SessionTelemetry {
   // samples because a batch can carry energy with no samples, or samples with
   // no energy — HealthKit permissions are granted per type.
   energy: Map<string, number>;
+  // Largest duration the watch has reported for the exercise, in minutes.
+  // The watch sends the cumulative window when the exercise is left.
+  durations: Map<string, number>;
   // `transferUserInfo` can redeliver, and energy is a delta, so applying a
   // batch twice would double calories.
   handledBatchClientIds: Set<string>;
@@ -67,6 +70,7 @@ function createSessionTelemetry(entryDate: string | null): SessionTelemetry {
   return {
     samples: new Map(),
     energy: new Map(),
+    durations: new Map(),
     handledBatchClientIds: new Set(),
     entryDate,
     unposted: false,
@@ -260,6 +264,19 @@ export function useWatchWorkoutBridge(
         );
         session.unposted = true;
       }
+      if (
+        typeof payload.durationMinutes === 'number' &&
+        payload.durationMinutes > 0
+      ) {
+        const previous = session.durations.get(payload.exerciseEntryId) ?? 0;
+        if (payload.durationMinutes > previous) {
+          session.durations.set(
+            payload.exerciseEntryId,
+            payload.durationMinutes
+          );
+          session.unposted = true;
+        }
+      }
       syncPendingRef.current();
       // Arrived after the workout already ended, so nothing else is coming to
       // trigger a flush — attach it now. This is the ordinary path for a
@@ -294,21 +311,26 @@ export function useWatchWorkoutBridge(
       const entryIds = new Set([
         ...session.samples.keys(),
         ...session.energy.keys(),
+        ...session.durations.keys(),
       ]);
       for (const exerciseEntryId of entryIds) {
         const samples = session.samples.get(exerciseEntryId) ?? [];
         const kcal = session.energy.get(exerciseEntryId);
+        const minutes = session.durations.get(exerciseEntryId);
         // The zone calculator needs at least two samples to derive a duration
         // between them; a lone reading has nothing to attach, and the server
         // rejects a one-sample series outright.
         const hrSamples = samples.length >= 2 ? samples : undefined;
-        // Both absent means there is nothing to say; the server rejects that
+        const durationMinutes =
+          minutes != null && minutes > 0 ? minutes : undefined;
+        // All absent means there is nothing to say; the server rejects that
         // body, so don't spend a request discovering it.
-        if (!hrSamples && kcal == null) continue;
+        if (!hrSamples && kcal == null && durationMinutes == null) continue;
         try {
           await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
             ...(hrSamples ? { hrSamples } : {}),
             ...(kcal != null ? { activeEnergyKcal: kcal } : {}),
+            ...(durationMinutes != null ? { durationMinutes } : {}),
           });
         } catch (error) {
           const status =
@@ -324,6 +346,7 @@ export function useWatchWorkoutBridge(
             // retrying would keep the connection poll alive for nothing.
             session.samples.delete(exerciseEntryId);
             session.energy.delete(exerciseEntryId);
+            session.durations.delete(exerciseEntryId);
             addLog(
               `Dropped watch telemetry for exercise entry ${exerciseEntryId}: server rejected it (${status})`,
               'WARNING',

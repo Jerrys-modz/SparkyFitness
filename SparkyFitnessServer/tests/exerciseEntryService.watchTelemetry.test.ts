@@ -237,4 +237,14 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(fields.avg_heart_rate).toBe(145);
     expect(fields.watch_telemetry_observed_at).toBe('2026-01-01T12:01:00.000Z');
   });
+
+  it('keeps a longer stored exercise duration', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields } = filterStaleWatchTelemetryFields(
+      { duration_minutes: 14 },
+      { duration_minutes: 3.5 }
+    );
+    expect(fields.duration_minutes).toBeUndefined();
+  });
 });

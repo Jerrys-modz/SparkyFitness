@@ -878,7 +878,8 @@ router.post('/:id/watch-telemetry', authenticate, async (req, res, next) => {
       req.originalUserId || req.userId,
       id,
       parsed.data.hrSamples,
-      parsed.data.activeEnergyKcal
+      parsed.data.activeEnergyKcal,
+      parsed.data.durationMinutes
     );
     res.status(204).send();
   } catch (error) {

@@ -354,16 +354,27 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
 
-        workoutHealthKit.stop()
-        workoutStore.start(with: plan)
-        reportedEnergyKcal = 0
-        bindHealthKitCallbacks()
-        // Request the prompt, but do not treat its `success` as "granted" —
-        // Apple's completion only means the dialog finished. Start the
-        // session either way: a denied share still lets the tab run as a
-        // timer, and read access (HR) cannot be inspected up front.
-        workoutHealthKit.requestAuthorization { [weak workoutHealthKit] _ in
-            workoutHealthKit?.start(sessionId: plan.sessionId)
+        // Finish the previous workout's HealthKit session before arming the
+        // next one, and send whatever it writes at the end. The plan stays
+        // in place until that batch is tagged with the old session.
+        let previous = workoutStore.closeCurrentExerciseWindow()
+        workoutHealthKit.stop { [weak self] samples in
+            Task { @MainActor in
+                guard let self else { return }
+                if let previous {
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: previous.id,
+                        durationMinutes: previous.minutes
+                    )
+                }
+                self.workoutStore.start(with: plan)
+                self.reportedEnergyKcal = 0
+                self.bindHealthKitCallbacks()
+                self.workoutHealthKit.requestAuthorization { [weak self] _ in
+                    self?.workoutHealthKit.start(sessionId: plan.sessionId)
+                }
+            }
         }
     }
 
@@ -396,9 +407,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // actor, so this runs synchronously ahead of the move.
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
             guard let self else { return }
+            let minutes = self.workoutStore.closeExerciseWindow(outgoingExerciseEntryId)
             self.sendHeartRateBatch(
                 self.workoutHealthKit.drainPending(),
-                exerciseEntryId: outgoingExerciseEntryId
+                exerciseEntryId: outgoingExerciseEntryId,
+                durationMinutes: minutes
             )
         }
     }
@@ -415,7 +428,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             // Fitness does not keep a workout we can no longer attribute.
             workoutHealthKit.recoverIfNeeded { [weak self] recovered in
                 if recovered {
-                    _ = self?.workoutHealthKit.stop()
+                    self?.workoutHealthKit.stop { _ in }
                 }
             }
             return
@@ -447,8 +460,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload),
             workoutStore.plan?.sessionId == sessionId
         else { return }
-        sendFinalHeartRateBatch()
-        workoutStore.reset()
+        finishCollection(sendStop: false)
     }
 
     /// Sends one completed set, carrying whatever the wearer typed. Queued
@@ -478,17 +490,28 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// exercise change already sent what came before it
     /// (`onExerciseWillChange`) — whatever is buffered now was measured during
     /// the current exercise.
-    private func sendHeartRateBatchForCurrentExercise(_ samples: [HeartRateSample]) {
+    private func sendHeartRateBatchForCurrentExercise(
+        _ samples: [HeartRateSample],
+        durationMinutes: Double? = nil
+    ) {
         // After the last set, `currentStep` is nil so the UI can show
         // complete. The final drain still belongs to that last exercise.
         let exerciseEntryId =
             workoutStore.currentStep?.exerciseEntryId
             ?? workoutStore.steps.last?.exerciseEntryId
         guard let exerciseEntryId else { return }
-        sendHeartRateBatch(samples, exerciseEntryId: exerciseEntryId)
+        sendHeartRateBatch(
+            samples,
+            exerciseEntryId: exerciseEntryId,
+            durationMinutes: durationMinutes
+        )
     }
 
-    private func sendHeartRateBatch(_ samples: [HeartRateSample], exerciseEntryId: String) {
+    private func sendHeartRateBatch(
+        _ samples: [HeartRateSample],
+        exerciseEntryId: String,
+        durationMinutes: Double? = nil
+    ) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
         // `max(0, ...)` because the running total should only ever climb, but
         // a HealthKit session that restarts mid-workout would reset it, and a
@@ -505,7 +528,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // The one place that can see both halves of a batch, and so the only
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
-        guard !samples.isEmpty || (energyDelta ?? 0) > 0 else { return }
+        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 else {
+            return
+        }
         workoutStore.persistSnapshot(
             reportedEnergyKcal: reportedEnergyKcal,
             heartRateSentThrough: samples.compactMap { instantParser.date(from: $0.t) }.max()
@@ -515,37 +540,46 @@ final class WatchSessionManager: NSObject, ObservableObject {
             sessionId: sessionId,
             exerciseEntryId: exerciseEntryId,
             samples: samples,
-            activeEnergyKcal: energyDelta
+            activeEnergyKcal: energyDelta,
+            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil
         )
         transfer(OutboundPayloads.heartRateBatch(batch))
     }
 
-    /// Ends the workout: stops the HealthKit session, tells the phone to stop
-    /// expecting more and flush whatever heart rate it has buffered, then
-    /// clears local state. Queued like `sendSetCompleted` — the phone must
-    /// eventually hear this even if it isn't reachable right now, or the
-    /// heart rate captured this session never gets attached to anything.
+    /// Ends the workout. The stop signal waits until HealthKit has finished
+    /// the workout and the tail has been queued. See `finishCollection`.
     func endWorkout() {
-        // Order matters: the last batch has to be queued BEFORE the stop
-        // signal, because the phone flushes its buffer the moment that signal
-        // lands and transfers are delivered in the order they were queued.
-        // It also has to happen before `reset()`, which clears the session
-        // and exercise the batch tags itself with.
-        sendFinalHeartRateBatch()
-        if let sessionId = workoutStore.plan?.sessionId {
-            transfer(OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId)))
-        }
-        workoutStore.reset()
+        // The last batch has to be queued BEFORE the stop signal, because
+        // the phone flushes the moment that signal lands and transfers arrive
+        // in queue order. HealthKit writes the tail inside `finishWorkout`,
+        // so the stop waits until that read comes back. Reset waits with it:
+        // the batch still needs the plan's session id.
+        finishCollection(sendStop: true)
     }
 
-    /// Stops HealthKit and sends whatever it was still holding. Separate from
-    /// `endWorkout` because the phone-initiated stop needs the same drain
-    /// without sending a stop signal back.
-    private func sendFinalHeartRateBatch() {
-        // Sent unconditionally: `sendHeartRateBatch` drops a batch with
-        // nothing in either half, and a workout's last partial minute of
-        // energy is usually all this call has to report.
-        sendHeartRateBatchForCurrentExercise(workoutHealthKit.stop())
+    /// Stops HealthKit, sends the tail and the exercise's wall-clock duration,
+    /// then clears local state. `sendStop` is false when the phone already
+    /// ended the workout and is only waiting on the watch's last samples.
+    private func finishCollection(sendStop: Bool) {
+        let closing = workoutStore.closeCurrentExerciseWindow()
+        workoutHealthKit.stop { [weak self] samples in
+            Task { @MainActor in
+                guard let self else { return }
+                if let closing {
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        durationMinutes: closing.minutes
+                    )
+                }
+                if sendStop, let sessionId = self.workoutStore.plan?.sessionId {
+                    self.transfer(
+                        OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId))
+                    )
+                }
+                self.workoutStore.reset()
+            }
+        }
     }
 }
 

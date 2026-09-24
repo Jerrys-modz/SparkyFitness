@@ -139,6 +139,10 @@ struct HeartRateBatch: Codable, Equatable {
     /// workout total; a running total would have to be differenced somewhere,
     /// and doing it here keeps that arithmetic next to the reading.
     let activeEnergyKcal: Double?
+    /// Minutes the wearer has spent on this exercise so far, including rest
+    /// between its sets. Sent when the exercise is left and again at the end.
+    /// Cumulative across return visits. Nil on a batch that is only samples.
+    let durationMinutes: Double?
 }
 
 /// The wearer ended the workout on the watch. Carries no data of its own —
