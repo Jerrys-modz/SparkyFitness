@@ -511,6 +511,7 @@ async function updateExerciseEntry(
         updateData.exercise_id,
         authenticatedUserId
       );
+      let estimated = existingEntry.calories_burned ?? 0;
       if (exercise) {
         const caloriesPerHour =
           await calorieCalculationService.estimateCaloriesBurnedPerHour(
@@ -518,15 +519,20 @@ async function updateExerciseEntry(
             authenticatedUserId,
             updateData.sets
           );
-        updateData.calories_burned =
-          (caloriesPerHour / 60) * updateData.duration_minutes;
+        estimated = (caloriesPerHour / 60) * updateData.duration_minutes;
       } else {
         log(
           'warn',
           `Exercise ${updateData.exercise_id} not found. Cannot auto-calculate calories_burned.`
         );
-        updateData.calories_burned = 0;
       }
+      // A watch-measured figure (active_calories) beats the formula, same
+      // rule as the grouped-session edit path.
+      updateData.calories_burned = resolveEditedCaloriesBurned(
+        undefined,
+        existingEntry,
+        estimated
+      );
     } else if (updateData.calories_burned === undefined) {
       // If calories_burned is not in updateData, use existing value or 0
       updateData.calories_burned = existingEntry.calories_burned || 0;
@@ -2038,6 +2044,43 @@ async function createGroupedWorkoutSession(
     client.release();
   }
 }
+/**
+ * Picks the calorie figure an edited exercise entry should keep.
+ *
+ * Precedence: a value the client sent is a deliberate override and wins. A
+ * saved figure that already differs from `active_calories` is an earlier
+ * override — later edits omit `calories_burned` unless the user changes it
+ * again, and preferring the measurement would wipe it. Otherwise a device
+ * measurement beats the duration-and-sets estimate. Only an entry with no
+ * measurement re-derives.
+ *
+ * The measurement lives in `active_calories`, a telemetry column the entry
+ * update preserves. The watch writes the same number to both columns, so
+ * they diverge only after an explicit override. Postgres returns `numeric`
+ * as a string, hence the parse.
+ */
+function resolveEditedCaloriesBurned(
+  clientCalories: unknown,
+  existingEntry:
+    { active_calories?: unknown; calories_burned?: unknown } | null | undefined,
+  recomputed: number
+): number {
+  if (typeof clientCalories === 'number') return clientCalories;
+  const measured = parseMeasuredCalories(existingEntry?.active_calories);
+  const saved = parseMeasuredCalories(existingEntry?.calories_burned);
+  if (measured !== undefined && saved !== undefined && saved !== measured) {
+    return saved;
+  }
+  return measured !== undefined ? measured : recomputed;
+}
+
+/** Finite nonnegative device measurement. `null`/`''` must not become 0. */
+function parseMeasuredCalories(raw: unknown): number | undefined {
+  if (raw === null || raw === undefined || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
 async function updateGroupedWorkoutSession(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userId: any,
@@ -2054,7 +2097,10 @@ async function updateGroupedWorkoutSession(
     const existingSession = await getGroupedExerciseSessionByIdWithClient(
       client,
       userId,
-      presetEntryId
+      presetEntryId,
+      // Child rows are about to be rewritten from this snapshot. Lock them
+      // so a watch flush cannot commit newer HR or calories in between.
+      updateData.exercises !== undefined
     );
     if (!existingSession) {
       throw createServiceError(404, 'Exercise preset entry not found.');
@@ -2080,20 +2126,13 @@ async function updateGroupedWorkoutSession(
       }
 
       const incomingExercises = updateData.exercises;
-      const withId = incomingExercises.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e: any) => e.id !== undefined && e.id !== null
-      ).length;
-
-      if (withId !== 0 && withId !== incomingExercises.length) {
-        throw createServiceError(
-          400,
-          'exercises[].id must be provided for all entries or none.'
-        );
-      }
-
-      const useReconcile =
-        withId === incomingExercises.length && incomingExercises.length > 0;
+      // Any stable entry UUID is enough to reconcile in place. New
+      // occurrences omit id; mixed payloads used to 400 and force the
+      // client to strip every id, which then reattached telemetry by
+      // exercise_id. Keep ids that exist, create the ones that don't.
+      const useReconcile = incomingExercises.some(
+        (e: { id?: unknown }) => typeof e.id === 'string'
+      );
 
       // Capture the workout plan assignment before any child rows are deleted:
       // the assignment id lives on exercise_entries, so once delete-and-recreate
@@ -2107,6 +2146,30 @@ async function updateGroupedWorkoutSession(
         );
 
       if (!useReconcile) {
+        // No string ids means we cannot match replacements to prior rows.
+        // Deleting would drop measured calories / HR / zones. Current
+        // clients send ids (mixed is allowed); older all-id-absent payloads
+        // are refused when the session already has watch telemetry.
+        const hasWatchTelemetry = (existingSession.exercises || []).some(
+          (ex: {
+            avg_heart_rate?: unknown;
+            max_heart_rate?: unknown;
+            active_calories?: unknown;
+          }) =>
+            (ex?.avg_heart_rate !== null &&
+              ex?.avg_heart_rate !== undefined &&
+              ex?.avg_heart_rate !== '') ||
+            (ex?.max_heart_rate !== null &&
+              ex?.max_heart_rate !== undefined &&
+              ex?.max_heart_rate !== '') ||
+            parseMeasuredCalories(ex?.active_calories) !== undefined
+        );
+        if (hasWatchTelemetry) {
+          throw createServiceError(
+            409,
+            'Exercise entry ids are required to edit a session with watch telemetry.'
+          );
+        }
         await exerciseEntryDb.deleteExerciseEntriesByPresetEntryIdWithClient(
           client,
           userId,
@@ -2155,7 +2218,7 @@ async function updateGroupedWorkoutSession(
           // client uuid, then skip the update/reconcile-sets path below — the
           // create already inserts its sets, so falling through would
           // double-insert them.
-          if (!existingById.has(ex.id)) {
+          if (typeof ex.id !== 'string' || !existingById.has(ex.id)) {
             await createGroupedExerciseEntriesWithClient(
               client,
               userId,
@@ -2206,9 +2269,15 @@ async function updateGroupedWorkoutSession(
                 preparedEntry.distance ??
                 existingById.get(ex.id)?.distance ??
                 null,
-              avg_heart_rate: preparedEntry.avg_heart_rate,
+              avg_heart_rate:
+                existingById.get(ex.id)?.avg_heart_rate ??
+                preparedEntry.avg_heart_rate,
               duration_minutes: preparedEntry.duration_minutes,
-              calories_burned: preparedEntry.calories_burned,
+              calories_burned: resolveEditedCaloriesBurned(
+                ex.calories_burned,
+                existingById.get(ex.id),
+                preparedEntry.calories_burned
+              ),
               entry_date: targetEntryDate,
               entry_time: ex.entry_time ?? null,
             },

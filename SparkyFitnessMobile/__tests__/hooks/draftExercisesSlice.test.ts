@@ -31,6 +31,7 @@ describe('draftExercisesReducer REPLACE_EXERCISE', () => {
         category: 'strength',
       } as Exercise,
       setClientId: 'new-set',
+      serverId: 'new-entry',
       preserveSets: true,
     });
 
@@ -56,6 +57,7 @@ describe('draftExercisesReducer REPLACE_EXERCISE', () => {
         category: 'isometric',
       } as Exercise,
       setClientId: 'new-set',
+      serverId: 'new-entry',
       preserveSets: true,
     });
 
@@ -83,6 +85,7 @@ describe('draftExercisesReducer REPLACE_EXERCISE', () => {
         category: 'strength',
       } as Exercise,
       setClientId: 'new-set',
+      serverId: 'new-entry',
       preserveSets: false,
     });
 

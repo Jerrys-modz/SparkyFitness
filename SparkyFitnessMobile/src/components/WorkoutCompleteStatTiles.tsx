@@ -14,7 +14,11 @@ import { useCSSVariable } from 'uniwind';
 import Icon, { type IconName } from './Icon';
 import { formatLocalizedNumber } from '../localization';
 import { distanceFromKm, weightFromKg } from '../utils/unitConversions';
-import { formatDuration, getRpeTone } from '../utils/workoutSession';
+import {
+  formatDuration,
+  getRpeTone,
+  type WorkoutHeartRateSummary,
+} from '../utils/workoutSession';
 import { RPE_TONE_VARS } from './ActiveWorkoutSetRow';
 
 interface WorkoutCompleteStatTilesProps {
@@ -25,6 +29,7 @@ interface WorkoutCompleteStatTilesProps {
   skippedSetCount: number;
   caloriesValue: number | null;
   caloriesFailed: boolean;
+  heartRate: WorkoutHeartRateSummary | null;
   totalDistanceKm: number;
   averageRpe: number | null;
   weightUnit: 'kg' | 'lbs';
@@ -33,10 +38,14 @@ interface WorkoutCompleteStatTilesProps {
 
 function StatTile({
   icon,
+  iconColor,
   label,
   children,
 }: {
   icon: IconName;
+  // Tinted only for the physiological metrics (calories, heart rate), matching
+  // WorkoutDetailScreen's summary row; structural stats stay muted.
+  iconColor?: string;
   label: string;
   children: ReactNode;
 }) {
@@ -44,7 +53,7 @@ function StatTile({
   return (
     <View className="flex-1 bg-surface rounded-xl shadow-sm px-3.5 py-3">
       <View className="flex-row items-center gap-1">
-        <Icon name={icon} size={12} color={textMuted} />
+        <Icon name={icon} size={12} color={iconColor ?? textMuted} />
         <Text
           className="text-xs font-semibold uppercase text-text-muted"
           style={{ letterSpacing: 0.6 }}
@@ -113,6 +122,7 @@ export default function WorkoutCompleteStatTiles({
   skippedSetCount,
   caloriesValue,
   caloriesFailed,
+  heartRate,
   totalDistanceKm,
   averageRpe,
   weightUnit,
@@ -121,6 +131,10 @@ export default function WorkoutCompleteStatTiles({
   const { t } = useTranslation();
   const rpeTone = averageRpe != null ? getRpeTone(averageRpe) : null;
   const rpeToneColor = String(useCSSVariable(RPE_TONE_VARS[rpeTone ?? 'easy']));
+  const [heartRateColor, activeEnergyColor] = useCSSVariable([
+    '--color-heart-rate',
+    '--color-active-energy',
+  ]) as [string, string];
 
   return (
     <>
@@ -180,6 +194,7 @@ export default function WorkoutCompleteStatTiles({
         </StatTile>
         <StatTile
           icon="flame"
+          iconColor={activeEnergyColor}
           label={t('workoutComplete.stats.calories', {
             defaultValue: 'Calories',
           })}
@@ -196,6 +211,39 @@ export default function WorkoutCompleteStatTiles({
           )}
         </StatTile>
       </View>
+
+      {heartRate && (
+        <View className="flex-row gap-2 mt-2">
+          <StatTile
+            icon="heart-rate"
+            iconColor={heartRateColor}
+            label={t('workoutComplete.stats.avgHeartRate', {
+              defaultValue: 'Avg HR',
+            })}
+          >
+            <StatValue
+              value={formatLocalizedNumber(Math.round(heartRate.avgBpm))}
+              unit={t('workoutComplete.units.bpm', { defaultValue: 'bpm' })}
+            />
+          </StatTile>
+          {heartRate.maxBpm != null && (
+            <StatTile
+              icon="heart-rate"
+              iconColor={heartRateColor}
+              label={t('workoutComplete.stats.maxHeartRate', {
+                defaultValue: 'Max HR',
+              })}
+            >
+              <StatValue
+                value={formatLocalizedNumber(Math.round(heartRate.maxBpm))}
+                unit={t('workoutComplete.units.bpm', {
+                  defaultValue: 'bpm',
+                })}
+              />
+            </StatTile>
+          )}
+        </View>
+      )}
 
       {totalDistanceKm > 0 && (
         <View className="flex-row gap-2 mt-2">

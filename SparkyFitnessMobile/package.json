@@ -15,7 +15,7 @@
     "ios": "expo run:ios",
     "ios:device": "expo run:ios --device",
     "watch": "node scripts/run-watch.mjs",
-    "watch:device": "xcodebuild -workspace ios/SparkyFitness.xcworkspace -scheme 'SparkyFitness Watch' -destination 'generic/platform=watchOS' build",
+    "watch:device": "xcodebuild -workspace ios/SparkyFitness.xcworkspace -scheme 'SparkyFitnessWatch' -destination 'generic/platform=watchOS' build",
     "knip": "knip",
     "i18n:audit": "node scripts/audit-mobile-i18n.mjs",
     "prebuild": "expo prebuild --clean",

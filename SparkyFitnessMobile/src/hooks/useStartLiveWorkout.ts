@@ -8,6 +8,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type {
   PresetSessionExerciseRequest,
+  PresetSessionResponse,
   WorkoutFormat,
 } from '@workspace/shared';
 import { useCreateWorkout } from './useExerciseMutations';
@@ -15,6 +16,9 @@ import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import { serverConnectionQueryKey } from './queryKeys';
 import { defaultWorkoutName } from './useWorkoutForm';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import WatchConnectivity, {
+  type WatchWorkoutStartPayload,
+} from '../../modules/watch-connectivity';
 import {
   ensureNotificationPermission,
   maybePromptForExactAlarmPermission,
@@ -46,6 +50,61 @@ interface StartLiveWorkoutArgs {
   workoutPlanAssignmentId?: number;
   workoutFormat?: WorkoutFormat;
   timeCapSeconds?: number | null;
+}
+
+/**
+ * Builds the plan a paired Apple Watch's Workout tab is armed with, from the
+ * session and derived state `startWorkout` just committed to the store —
+ * read back rather than recomputed so the watch's targets and rest agree
+ * with whatever the phone's own active-workout screen would show for the
+ * same session.
+ */
+function buildWatchWorkoutStartPayload(
+  session: PresetSessionResponse,
+  t: TFunction
+): WatchWorkoutStartPayload {
+  const { steps, plannedSetValues } = useActiveWorkoutStore.getState();
+  const restSecBySetId = new Map(
+    steps.map((step) => [step.setId, step.restSec])
+  );
+
+  return {
+    sessionId: session.id,
+    workoutName: session.name,
+    exercises: session.exercises.map((exercise) => ({
+      exerciseEntryId: exercise.id,
+      name:
+        exercise.exercise_snapshot?.name ??
+        t('workout.exercise', { defaultValue: 'Exercise' }),
+      sets: exercise.sets.map((set) => {
+        const setId = String(set.id);
+        const planned = plannedSetValues[setId];
+        return {
+          setId,
+          targetReps: set.reps ?? planned?.reps ?? null,
+          targetWeightKg: set.weight ?? planned?.weight ?? null,
+          restSeconds: restSecBySetId.get(setId) ?? 0,
+          setType: set.set_type ?? null,
+        };
+      }),
+    })),
+    setOrder: steps.map((step) => step.setId),
+  };
+}
+
+/**
+ * Arms a paired watch with whatever session is currently live in the store.
+ * No-op off iOS / with no watch. Shared by the instant-start path and by
+ * WorkoutDetail's "Start workout here", which used to skip this and leave
+ * the watch on "Start a workout on your phone".
+ */
+export function armWatchForActiveSession(t: TFunction): void {
+  if (!WatchConnectivity?.isSupported()) return;
+  const { session } = useActiveWorkoutStore.getState();
+  if (session == null || session.type !== 'preset') return;
+  void WatchConnectivity.startWorkout(
+    buildWatchWorkoutStartPayload(session, t)
+  );
 }
 
 /**
@@ -227,6 +286,7 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           workoutFormat,
           timeCapSeconds,
         });
+        armWatchForActiveSession(t);
         if (navigation.isFocused()) {
           navigation.replace('ActiveWorkout');
           // The lock stays engaged: the replace unmounts the calling screen.

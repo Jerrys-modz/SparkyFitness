@@ -29,6 +29,7 @@ import {
   normalizeWeightUnit,
   resolveSnapshotModality,
   summarizeWorkoutSpan,
+  summarizeWorkoutHeartRate,
 } from '../utils/workoutSession';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -120,6 +121,15 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     queryKey: workoutSessionQueryKey(session.id),
     queryFn: () => getWorkout(session.id),
   });
+  // Heart rate comes from the same refetch as calories, and for the same
+  // reason: it is not in the snapshot this screen opens with. It arrives later
+  // still — the watch posts telemetry after the workout is saved — so the
+  // flush invalidates every `workoutSession` query and this re-renders when it
+  // lands. A workout with no watch behind it simply has no tiles here.
+  const heartRate = useMemo(
+    () => summarizeWorkoutHeartRate((refreshedSession ?? session).exercises),
+    [refreshedSession, session]
+  );
   const snapshotCalories = getSessionCalories(session);
   const caloriesValue =
     refreshedSession != null
@@ -202,6 +212,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
             skippedSetCount={summary.skippedSetCount}
             caloriesValue={caloriesValue}
             caloriesFailed={caloriesFailed}
+            heartRate={heartRate}
             totalDistanceKm={summary.totalDistanceKm}
             averageRpe={summary.averageRpe}
             weightUnit={weightUnit}

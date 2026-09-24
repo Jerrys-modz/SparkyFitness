@@ -27,6 +27,10 @@ import {
   mapDayStatisticsToMinMaxAvg,
 } from './dataAggregation';
 import { BLOOD_GLUCOSE_MG_DL_PER_MMOL_L } from '../shared/dataTransformation';
+import {
+  WATCH_SESSION_METADATA_KEY,
+  isOwnWatchWorkout,
+} from './dataTransformation';
 import { DIETARY_WRITE_IDENTIFIERS } from './writebackMappers';
 import {
   collectWorkoutTelemetry,
@@ -1090,7 +1094,12 @@ const handleWorkout: RecordHandler = async (
   const filteredWorkouts = workouts.filter((w) => {
     const workoutStart = new Date(w.startDate);
     const workoutEnd = new Date(w.endDate);
-    return overlapsDateRange(workoutStart, workoutEnd, startDate, endDate);
+    if (!overlapsDateRange(workoutStart, workoutEnd, startDate, endDate)) {
+      return false;
+    }
+    // Drop our own watch sessions before they claim telemetry-budget slots.
+    // The transformer still skips them as defense in depth.
+    return !isOwnWatchWorkout(w as unknown as Record<string, unknown>);
   });
 
   // Budget slots are assigned in list order (the query is newest-first) before
@@ -1253,6 +1262,22 @@ const handleWorkout: RecordHandler = async (
         .metadataTimeZone;
       if (tz) {
         record.metadata = { HKTimeZone: tz };
+      }
+
+      // Forward the marker our own watch app stamps on workouts it saves, so
+      // the transformer can skip them — the live-workout flow already logged
+      // those sets in the diary, and importing the HealthKit copy would file
+      // the same session twice. Forwarded key by key like the timezone above
+      // rather than by spreading the whole metadata dictionary: the reader
+      // here deliberately carries only what a transformer consumes.
+      const watchSessionId = (
+        w as unknown as { metadata?: Record<string, unknown> }
+      ).metadata?.[WATCH_SESSION_METADATA_KEY];
+      if (watchSessionId !== undefined) {
+        record.metadata = {
+          ...(record.metadata as Record<string, unknown> | undefined),
+          [WATCH_SESSION_METADATA_KEY]: watchSessionId,
+        };
       }
 
       // Elevation is not a totals field on the workout; it arrives as metadata.
