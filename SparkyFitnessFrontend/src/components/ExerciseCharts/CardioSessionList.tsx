@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useExerciseActivities } from '@/hooks/Reports/useExerciseStats';
@@ -64,6 +64,16 @@ export const CardioSessionList = ({
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
   const [earlier, setEarlier] = useState<ExerciseActivityQueryItem[]>([]);
+  // Closing the session above the tap shortens the list, so the row jumps
+  // up and the page looks like it scrolled down. Put the row back.
+  const stickRow = useRef<{ el: HTMLElement; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const stuck = stickRow.current;
+    if (!stuck) return;
+    stickRow.current = null;
+    const delta = stuck.el.getBoundingClientRect().top - stuck.top;
+    if (Math.abs(delta) > 1) window.scrollBy(0, delta);
+  }, [openId]);
   const { data, isLoading } = useExerciseActivities(
     startDate,
     endDate,
@@ -91,7 +101,7 @@ export const CardioSessionList = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 [overflow-anchor:none]">
       <div>
         <h2 className="text-lg font-semibold">
           {t('exerciseAnalytics.cardio.sessionsTitle', 'Sessions')}
@@ -127,7 +137,13 @@ export const CardioSessionList = ({
                     type="button"
                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                     aria-expanded={open}
-                    onClick={() => setOpenId(open ? null : item.id)}
+                    onClick={(event) => {
+                      stickRow.current = {
+                        el: event.currentTarget,
+                        top: event.currentTarget.getBoundingClientRect().top,
+                      };
+                      setOpenId(open ? null : item.id);
+                    }}
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm">
