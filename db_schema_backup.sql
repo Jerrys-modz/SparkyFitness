@@ -1977,6 +1977,7 @@ CREATE TABLE public.exercise_entries (
     weather_humidity_percentage numeric(5,2),
     gear_name text,
     gear_external_id text,
+    watch_telemetry_observed_at timestamp with time zone,
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
