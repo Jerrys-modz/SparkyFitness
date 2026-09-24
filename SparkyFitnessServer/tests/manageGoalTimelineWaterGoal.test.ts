@@ -1,8 +1,16 @@
 import { vi, beforeEach, describe, expect, it } from 'vitest';
 import goalService from '../services/goalService.js';
 import goalRepository from '../models/goalRepository.js';
+import weeklyGoalPlanRepository from '../models/weeklyGoalPlanRepository.js';
+import goalPresetRepository from '../models/goalPresetRepository.js';
 import customNutrientService from '../services/customNutrientService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+
+vi.mock('../models/goalPresetRepository.js', () => ({
+  default: {
+    getGoalPresetById: vi.fn(),
+  },
+}));
 
 vi.mock('../models/weeklyGoalPlanRepository.js', () => ({
   default: {
@@ -35,6 +43,13 @@ describe('manageGoalTimeline water_goal_ml persistence', () => {
     vi.clearAllMocks();
     vi.mocked(customNutrientService.getCustomNutrients).mockResolvedValue([]);
     vi.mocked(loadUserTimezone).mockResolvedValue('UTC');
+    vi.mocked(
+      weeklyGoalPlanRepository.getActiveWeeklyGoalPlan
+    ).mockResolvedValue(null);
+    vi.mocked(goalRepository.getGoalsInRange).mockResolvedValue([]);
+    vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue(
+      null
+    );
   });
 
   it('preserves null when water_goal_ml is omitted, instead of coercing to 0', async () => {
@@ -148,6 +163,39 @@ describe('manageGoalTimeline water_goal_ml persistence', () => {
         fat_percentage: null,
       },
     ] as never);
+
+    const result = await goalService.getUserGoalsForRange(
+      'user-1',
+      '2020-01-01',
+      '2020-01-01'
+    );
+
+    expect(
+      (result['2020-01-01'] as { water_goal_ml: number }).water_goal_ml
+    ).toBe(2500);
+  });
+
+  it('keeps a prior custom water goal when a weekly preset has none', async () => {
+    // 2020-01-01 is a Wednesday.
+    vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue({
+      calories: 2000,
+      water_goal_ml: 2500,
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+    });
+    vi.mocked(
+      weeklyGoalPlanRepository.getActiveWeeklyGoalPlan
+    ).mockResolvedValue({
+      wednesday_preset_id: 'preset-1',
+    } as never);
+    vi.mocked(goalPresetRepository.getGoalPresetById).mockResolvedValue({
+      calories: 1800,
+      water_goal_ml: null,
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+    } as never);
 
     const result = await goalService.getUserGoalsForRange(
       'user-1',

@@ -218,13 +218,15 @@ async function getUserGoalsForRange(
 
     // Clone to avoid mutating the source in the cache or repository
     let processedGoals = { ...goals };
-    // A cleared water goal is stored as null. Readers still need a goal,
-    // otherwise the diary shows nothing and the next save can write 0.
+    // A cleared water goal is stored as null. Prefer the carried goal (a
+    // weekly preset often has no water value) and only then the default,
+    // so a custom goal such as 2500 ml is not replaced by 1920.
     if (
       processedGoals.water_goal_ml === null ||
       processedGoals.water_goal_ml === undefined
     ) {
-      processedGoals.water_goal_ml = DEFAULT_GOALS.water_goal_ml ?? 1920;
+      processedGoals.water_goal_ml =
+        currentFallback.water_goal_ml ?? DEFAULT_GOALS.water_goal_ml ?? 1920;
     }
 
     if (adjust) {
