@@ -10,6 +10,7 @@ import {
   attachExerciseEntryWatchTelemetry,
 } from '../../src/services/api/exerciseApi';
 import { addLog } from '../../src/services/LogService';
+import { ApiError } from '../../src/services/api/errors';
 
 jest.mock('../../src/services/api/exerciseApi', () => ({
   updateWorkout: jest.fn(),
@@ -747,5 +748,258 @@ describe('useWatchWorkoutBridge', () => {
       await Promise.resolve();
     });
     expect(onPending).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe('useWatchWorkoutBridge across sessions, failures and watch finishes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockListeners.clear();
+    __resetActiveWorkoutStoreForTests();
+    mockUpdateWorkout.mockImplementation(async () => getStore().session!);
+    mockAttachTelemetry.mockResolvedValue(undefined);
+  });
+
+  const twoSamples = [
+    { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+    { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+  ];
+
+  it("still attaches a workout's final batch after the next workout has already started", async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    // Finished on the phone with nothing from the watch yet…
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+    // …and a new workout started before the watch's queued drain arrived.
+    act(() => {
+      getStore().startWorkout(
+        makeSession({ id: 'session-2', entry_date: '2026-09-17' })
+      );
+    });
+    expect(getStore().sessionId).toBe('session-2');
+
+    await act(async () => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-drain-1',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: twoSamples,
+        activeEnergyKcal: 12,
+      });
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      hrSamples: twoSamples,
+      activeEnergyKcal: 12,
+    });
+  });
+
+  it('drops an entry the server permanently rejects instead of retrying it forever', async () => {
+    const onPending = jest.fn();
+    renderHook(() => useWatchWorkoutBridge(true, true, onPending));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-404',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: twoSamples,
+      });
+    });
+    mockAttachTelemetry.mockRejectedValueOnce(
+      new ApiError('Server error: 404 - not found', 404)
+    );
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
+    expect(onPending).toHaveBeenLastCalledWith(false);
+    expect(mockAddLog).toHaveBeenCalledWith(
+      expect.stringContaining('server rejected it (404)'),
+      'WARNING',
+      expect.any(Array)
+    );
+
+    // Nothing left to post: another stop does not ask the server again.
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps retrying after a server fault', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-500',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: twoSamples,
+      });
+    });
+    mockAttachTelemetry.mockRejectedValueOnce(
+      new ApiError('Server error: 500 - boom', 500)
+    );
+
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+    expect(mockAttachTelemetry).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([401, 408, 429])(
+    'keeps telemetry for a retryable %i instead of dropping it',
+    async (status) => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      act(() => {
+        getStore().startWorkout(makeSession());
+      });
+      act(() => {
+        fire('onHeartRateBatch', {
+          clientId: `hr-${status}`,
+          sessionId: 'session-1',
+          exerciseEntryId: 'ex-uuid-1',
+          samples: twoSamples,
+        });
+      });
+      mockAttachTelemetry.mockRejectedValueOnce(
+        new ApiError(`Server error: ${status}`, status)
+      );
+
+      await act(async () => {
+        getStore().clearWorkout();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        fire('onWorkoutStop', { sessionId: 'session-1' });
+        await Promise.resolve();
+      });
+      expect(mockAttachTelemetry).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('keeps the phone workout open when a watch finish cannot save it', async () => {
+    const onWatchFinished = jest.fn();
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    mockUpdateWorkout.mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'set-offline',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBe('session-1');
+    expect(getStore().completedSetIds).toHaveProperty('101');
+    expect(onWatchFinished).not.toHaveBeenCalled();
+    expect(mockAddLog).toHaveBeenCalledWith(
+      expect.stringContaining('kept the phone workout open'),
+      'WARNING'
+    );
+  });
+
+  it('logs a batch for a session it has no record of instead of dropping it silently', () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-stranger',
+        sessionId: 'session-unknown',
+        exerciseEntryId: 'ex-uuid-9',
+        samples: twoSamples,
+      });
+    });
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+    expect(mockAddLog).toHaveBeenCalledWith(
+      expect.stringContaining('unknown session session-unknown'),
+      'WARNING',
+      expect.any(Array)
+    );
+  });
+
+  it('ends the phone workout and hands the completion params over when the wearer finishes on the watch', async () => {
+    const onWatchFinished = jest.fn();
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'set-1',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBeNull();
+    expect(onWatchFinished).toHaveBeenCalledTimes(1);
+    const celebration = onWatchFinished.mock.calls[0][0];
+    expect(celebration?.session.id).toBe('session-1');
+    expect(Object.keys(celebration?.completedSetIds ?? {})).toEqual(['101']);
+  });
+
+  it('does not report a watch finish for a stop the phone already handled', async () => {
+    const onWatchFinished = jest.fn();
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+    expect(onWatchFinished).not.toHaveBeenCalled();
   });
 });

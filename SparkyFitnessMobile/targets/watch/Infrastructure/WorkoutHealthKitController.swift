@@ -35,6 +35,9 @@ final class WorkoutHealthKitController: NSObject {
     private var pendingSampleTimes: Set<String> = []
     private var batchTimer: Timer?
     private var hrSeriesQuery: HKQuery?
+    /// Set on recovery: readings at or before this instant were already sent
+    /// before the relaunch and must not go out again. Nil for a fresh workout.
+    private var skipReadingsThrough: Date?
     private let instantFormatter = ISO8601DateFormatter()
 
     /// How often accumulated samples are flushed to `onBatchReady`.
@@ -114,7 +117,14 @@ final class WorkoutHealthKitController: NSObject {
     /// heart rate and never save the HKWorkout. Returns whether a session was
     /// recovered; the caller then either binds callbacks to it or starts a
     /// fresh one against the persisted plan.
-    func recoverIfNeeded(completion: @escaping (Bool) -> Void) {
+    /// - Parameter heartRateSentThrough: the last reading already sent before
+    ///   the relaunch. The HR query resumes there, including any sample that
+    ///   straddles it, and drops the readings up to it. Nil replays from the
+    ///   workout's start, which re-sends everything the phone already has.
+    func recoverIfNeeded(
+        heartRateSentThrough: Date? = nil,
+        completion: @escaping (Bool) -> Void
+    ) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else {
             DispatchQueue.main.async { completion(self.session != nil) }
             return
@@ -142,7 +152,18 @@ final class WorkoutHealthKitController: NSObject {
                 if state == .paused {
                     recovered.resume()
                 }
-                self.startHeartRateSeriesQuery(from: recovered.startDate ?? Date())
+                if let heartRateSentThrough {
+                    self.skipReadingsThrough = heartRateSentThrough
+                    // Overlapping rather than strict-start: a multi-reading
+                    // sample that began before the mark still holds readings
+                    // after it; `appendSample` drops the ones already sent.
+                    self.startHeartRateSeriesQuery(
+                        from: heartRateSentThrough,
+                        includeSamplesStartingEarlier: true
+                    )
+                } else {
+                    self.startHeartRateSeriesQuery(from: recovered.startDate ?? Date())
+                }
                 self.startBatchTimer()
                 completion(true)
             }
@@ -211,6 +232,7 @@ final class WorkoutHealthKitController: NSObject {
         let remaining = pendingSamples
         pendingSamples = []
         pendingSampleTimes = []
+        skipReadingsThrough = nil
         guard let session else { return remaining }
         // Keep the builder alive until finishWorkout runs. Nilling `self.builder`
         // synchronously used to make the completion a no-op, so nothing was
@@ -224,6 +246,19 @@ final class WorkoutHealthKitController: NSObject {
         self.session = nil
         self.builder = nil
         return remaining
+    }
+
+    /// Returns and clears whatever is buffered, WITHOUT stopping the session.
+    ///
+    /// Synchronous for the same reason `stop()` is: the caller tags the batch
+    /// with the exercise it belongs to, and routing it through `onBatchReady`
+    /// (which hops to the main actor) would read the exercise after the store
+    /// had already moved on. Used at every exercise boundary so a batch never
+    /// spans two exercises.
+    func drainPending() -> [HeartRateSample] {
+        let drained = pendingSamples
+        pendingSamples = []
+        return drained
     }
 
     private func startBatchTimer() {
@@ -267,32 +302,79 @@ final class WorkoutHealthKitController: NSObject {
     /// the interior. `HKQuantitySeriesSampleQuery` yields each interior
     /// quantity; a sample whose own interval is still wide is expanded at
     /// `seriesExpandStep` so the zone chart still has something to credit.
-    private func startHeartRateSeriesQuery(from start: Date) {
+    private func startHeartRateSeriesQuery(
+        from start: Date,
+        includeSamplesStartingEarlier: Bool = false
+    ) {
         stopHeartRateSeriesQuery()
-        let datePredicate = HKQuery.predicateForSamples(
+        // No source filter: heart rate sampled during the session is saved
+        // with the watch itself as its source, not this app, so restricting
+        // to `HKSource.default()` matched nothing on real hardware. Anything
+        // this watch measured after the workout began belongs to it.
+        // Strict-start for a fresh workout so readings from before it began
+        // cannot creep in; overlapping on recovery (see `recoverIfNeeded`).
+        let predicate = HKQuery.predicateForSamples(
             withStart: start,
             end: nil,
-            options: .strictStartDate
+            options: includeSamplesStartingEarlier ? [] : .strictStartDate
         )
-        let sourcePredicate = HKQuery.predicateForObjects(from: HKSource.default())
-        let predicate = NSCompoundPredicate(
-            andPredicateWithSubpredicates: [datePredicate, sourcePredicate]
-        )
-        let query = HKQuantitySeriesSampleQuery(
-            quantityType: heartRateType,
-            predicate: predicate
-        ) { [weak self] _, quantity, dateInterval, _, _, error in
-            guard error == nil, let self, let quantity, let dateInterval else { return }
-            let bpm = quantity.doubleValue(
-                for: HKUnit.count().unitDivided(by: .minute())
-            )
-            guard bpm > 0 else { return }
-            DispatchQueue.main.async {
-                self.ingestSeriesQuantity(bpm: bpm, interval: dateInterval)
+        // Long-running: `HKQuantitySeriesSampleQuery` on its own enumerates
+        // only the samples that exist when it executes and then completes,
+        // so started at workout begin it found nothing and the upload buffer
+        // stayed empty for the whole workout (the live BPM kept working
+        // because it comes from the builder's statistics instead). The
+        // anchored query's `updateHandler` keeps delivering every sample the
+        // live data source saves until the query is stopped.
+        let handleSamples: ([HKSample]?) -> Void = { [weak self] samples in
+            guard let self, let samples else { return }
+            for case let sample as HKQuantitySample in samples {
+                self.ingest(sample)
             }
+        }
+        let query = HKAnchoredObjectQuery(
+            type: heartRateType,
+            predicate: predicate,
+            anchor: nil,
+            limit: HKObjectQueryNoLimit
+        ) { _, samples, _, _, error in
+            guard error == nil else { return }
+            handleSamples(samples)
+        }
+        query.updateHandler = { _, samples, _, _, error in
+            guard error == nil else { return }
+            handleSamples(samples)
         }
         healthStore.execute(query)
         hrSeriesQuery = query
+    }
+
+    /// Feeds one saved heart-rate sample into the buffer. A sample holding
+    /// several readings is walked with a one-shot series query scoped to that
+    /// sample — correct here, unlike at workout start, because the sample
+    /// already exists — so the zone calculator gets each interior reading.
+    private func ingest(_ sample: HKQuantitySample) {
+        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+        guard sample.count > 1 else {
+            let bpm = sample.quantity.doubleValue(for: bpmUnit)
+            guard bpm > 0 else { return }
+            let interval = DateInterval(start: sample.startDate, end: sample.endDate)
+            DispatchQueue.main.async { [weak self] in
+                self?.ingestSeriesQuantity(bpm: bpm, interval: interval)
+            }
+            return
+        }
+        let seriesQuery = HKQuantitySeriesSampleQuery(
+            quantityType: heartRateType,
+            predicate: HKQuery.predicateForObject(with: sample.uuid)
+        ) { [weak self] _, quantity, dateInterval, _, _, error in
+            guard error == nil, let quantity, let dateInterval else { return }
+            let bpm = quantity.doubleValue(for: bpmUnit)
+            guard bpm > 0 else { return }
+            DispatchQueue.main.async {
+                self?.ingestSeriesQuantity(bpm: bpm, interval: dateInterval)
+            }
+        }
+        healthStore.execute(seriesQuery)
     }
 
     private func stopHeartRateSeriesQuery() {
@@ -317,6 +399,11 @@ final class WorkoutHealthKitController: NSObject {
     }
 
     private func appendSample(at date: Date, bpm: Double) {
+        // Instants go out at second precision, so anything within the same
+        // second as the last reading sent would re-send that reading.
+        if let skipReadingsThrough, date < skipReadingsThrough.addingTimeInterval(1) {
+            return
+        }
         let t = instantFormatter.string(from: date)
         if pendingSampleTimes.contains(t) { return }
         pendingSampleTimes.insert(t)
@@ -361,15 +448,22 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
         _ workoutBuilder: HKLiveWorkoutBuilder,
         didCollectDataOf collectedTypes: Set<HKSampleType>
     ) {
-        // Live BPM only. The series query is the source of the buffered
-        // samples; statistics.mostRecentQuantity() is one reading per burst
-        // and would re-introduce the sparse-series hole if it also appended.
+        // Drives the live BPM, AND feeds the upload buffer as a floor: the
+        // builder's statistics are what the wearer sees working, so a series
+        // the sample query cannot read (read access withheld, or samples
+        // attributed somewhere it does not look) still reaches the diary at
+        // one reading per burst. When the sample query does deliver, its
+        // denser readings join the same buffer and `appendSample` drops any
+        // instant already present.
         if collectedTypes.contains(heartRateType),
            let statistics = workoutBuilder.statistics(for: heartRateType),
-           let bpm = statistics.mostRecentQuantity()?
-               .doubleValue(for: HKUnit.count().unitDivided(by: .minute())) {
-            DispatchQueue.main.async { [weak self] in
-                self?.onHeartRate?(bpm)
+           let quantity = statistics.mostRecentQuantity(),
+           let interval = statistics.mostRecentQuantityDateInterval() {
+            let bpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            if bpm > 0 {
+                DispatchQueue.main.async { [weak self] in
+                    self?.appendSample(at: interval.end, bpm: bpm)
+                }
             }
         }
 

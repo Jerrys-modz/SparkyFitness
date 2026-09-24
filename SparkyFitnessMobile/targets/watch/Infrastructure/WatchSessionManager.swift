@@ -25,6 +25,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private let store = CheckInStore.shared
     private let workoutStore = WorkoutSessionStore.shared
     private let workoutHealthKit = WorkoutHealthKitController.shared
+    /// Reads back the instants `WorkoutHealthKitController` formats with its
+    /// own default `ISO8601DateFormatter`, to record how far HR was sent.
+    private let instantParser = ISO8601DateFormatter()
     /// Cumulative active energy already reported to the phone, so each batch
     /// can carry only what was burned since the last one. Reset whenever a
     /// workout starts — `WorkoutSessionStore.activeEnergyKcal` restarts from
@@ -379,13 +382,24 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         workoutHealthKit.onBatchReady = { [weak self] samples in
             Task { @MainActor in
-                self?.sendHeartRateBatch(samples)
+                self?.sendHeartRateBatchForCurrentExercise(samples)
             }
         }
         workoutHealthKit.onActiveEnergy = { [weak workoutStore] kcal in
             Task { @MainActor in
                 workoutStore?.recordActiveEnergy(kcal: kcal)
             }
+        }
+        // Close out the exercise being left before the cursor moves, so its
+        // readings and energy are not credited to whatever comes next when
+        // the minute timer (or the final drain) fires. Both sides are main
+        // actor, so this runs synchronously ahead of the move.
+        workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
+            guard let self else { return }
+            self.sendHeartRateBatch(
+                self.workoutHealthKit.drainPending(),
+                exerciseEntryId: outgoingExerciseEntryId
+            )
         }
     }
 
@@ -408,7 +422,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         reportedEnergyKcal = snapshot.reportedEnergyKcal
         bindHealthKitCallbacks()
-        workoutHealthKit.recoverIfNeeded { [weak self] recovered in
+        workoutHealthKit.recoverIfNeeded(
+            heartRateSentThrough: snapshot.heartRateSentThrough
+        ) { [weak self] recovered in
             guard let self else { return }
             if recovered { return }
             self.workoutHealthKit.requestAuthorization { _ in
@@ -457,14 +473,23 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// batches whenever it drifts out of range loses exactly the data this
     /// feature exists to capture. The flush interval is a minute
     /// (`WorkoutHealthKitController.batchInterval`) to keep the queue sane.
-    private func sendHeartRateBatch(_ samples: [HeartRateSample]) {
-        guard let sessionId = workoutStore.plan?.sessionId else { return }
+    ///
+    /// Tagged with the exercise on screen, which is right because every
+    /// exercise change already sent what came before it
+    /// (`onExerciseWillChange`) — whatever is buffered now was measured during
+    /// the current exercise.
+    private func sendHeartRateBatchForCurrentExercise(_ samples: [HeartRateSample]) {
         // After the last set, `currentStep` is nil so the UI can show
         // complete. The final drain still belongs to that last exercise.
         let exerciseEntryId =
             workoutStore.currentStep?.exerciseEntryId
             ?? workoutStore.steps.last?.exerciseEntryId
         guard let exerciseEntryId else { return }
+        sendHeartRateBatch(samples, exerciseEntryId: exerciseEntryId)
+    }
+
+    private func sendHeartRateBatch(_ samples: [HeartRateSample], exerciseEntryId: String) {
+        guard let sessionId = workoutStore.plan?.sessionId else { return }
         // `max(0, ...)` because the running total should only ever climb, but
         // a HealthKit session that restarts mid-workout would reset it, and a
         // negative delta would subtract calories the wearer really burned.
@@ -481,7 +506,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
         guard !samples.isEmpty || (energyDelta ?? 0) > 0 else { return }
-        workoutStore.persistSnapshot(reportedEnergyKcal: reportedEnergyKcal)
+        workoutStore.persistSnapshot(
+            reportedEnergyKcal: reportedEnergyKcal,
+            heartRateSentThrough: samples.compactMap { instantParser.date(from: $0.t) }.max()
+        )
         let batch = HeartRateBatch(
             clientId: UUID().uuidString,
             sessionId: sessionId,
@@ -517,7 +545,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // Sent unconditionally: `sendHeartRateBatch` drops a batch with
         // nothing in either half, and a workout's last partial minute of
         // energy is usually all this call has to report.
-        sendHeartRateBatch(workoutHealthKit.stop())
+        sendHeartRateBatchForCurrentExercise(workoutHealthKit.stop())
     }
 }
 

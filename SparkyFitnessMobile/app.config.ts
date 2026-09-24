@@ -215,6 +215,7 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       './plugins/withCalorieWidget',
       './plugins/withExactAlarmModule',
       './plugins/withEnrichedMarkdownNoMath',
+      './plugins/withSceneLifecycle',
       [
         'expo-localization',
         {

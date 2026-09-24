@@ -176,8 +176,20 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       return;
     }
     if (!storeHydrated) return;
-    if (!hadSessionRef.current) safeGoBack();
-  }, [sessionId, storeHydrated, safeGoBack]);
+    if (!hadSessionRef.current) {
+      safeGoBack();
+      return;
+    }
+    // The session was cleared from outside this screen — ended on the paired
+    // watch, or from the active-workout bar — while it was showing or while
+    // it sat further down the stack (`isFocused` re-runs this on return).
+    // This screen's own Finish/Discard navigate synchronously as they clear;
+    // `navigation.isFocused()` reads the live navigation state, so it is
+    // already false for them even if the hook value has not caught up.
+    // Without this the screen sat on "No active workout" with no header and
+    // no way back but force-quitting.
+    if (isFocused && navigation.isFocused()) safeGoBack();
+  }, [sessionId, storeHydrated, safeGoBack, navigation, isFocused]);
 
   const activeExerciseId = useMemo(() => {
     if (session == null || activeSetId == null) return null;
