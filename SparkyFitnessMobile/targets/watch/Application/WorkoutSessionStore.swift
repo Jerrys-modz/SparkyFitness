@@ -231,7 +231,7 @@ final class WorkoutSessionStore: ObservableObject {
     /// The one way the wearer's actions move the cursor, so an exercise
     /// boundary can never be crossed without `onExerciseWillChange` firing.
     private func moveCursor(to index: Int) {
-        if let outgoing = currentStep?.exerciseEntryId,
+        if let outgoing = currentStep?.exerciseEntryId ?? steps.last?.exerciseEntryId,
            steps.indices.contains(index),
            steps[index].exerciseEntryId != outgoing {
             onExerciseWillChange?(outgoing)
@@ -310,6 +310,10 @@ final class WorkoutSessionStore: ObservableObject {
         /// start would re-send every earlier exercise's readings tagged with
         /// the current one.
         var heartRateSentThrough: Date?
+        /// Closed seconds per exercise. Optional so a snapshot from before
+        /// this field still decodes. The open interval is not stored: time
+        /// while the process was dead is not time the exercise was on screen.
+        var exerciseWindowSeconds: [String: TimeInterval]?
     }
 
     /// Last energy high-water mark we persisted. WatchSessionManager reads
@@ -344,7 +348,8 @@ final class WorkoutSessionStore: ObservableObject {
             editedValues: editedValues,
             startedAt: startedAt,
             reportedEnergyKcal: energy,
-            heartRateSentThrough: heartRateSentThrough
+            heartRateSentThrough: heartRateSentThrough,
+            exerciseWindowSeconds: exerciseWindowSeconds
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -365,7 +370,7 @@ final class WorkoutSessionStore: ObservableObject {
         // fresh snapshot; put the recovered progress back on top. The window
         // start() opened belongs to set 1, not necessarily where we resume.
         exerciseWindowStartedAt = [:]
-        exerciseWindowSeconds = [:]
+        exerciseWindowSeconds = snapshot.exerciseWindowSeconds ?? [:]
         currentStepIndex = min(snapshot.currentStepIndex, steps.count)
         openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)

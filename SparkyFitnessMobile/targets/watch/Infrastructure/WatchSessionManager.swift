@@ -41,6 +41,16 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// phone-free glance at the watch would leave another request behind, and
     /// the phone would answer the lot in one burst the next time it woke.
     private var hasQueuedContextRequest = false
+    /// True from the moment a HealthKit stop is asked for until its tail has
+    /// been sent and the plan cleared. A second finish or a new plan that
+    /// arrives in that window is held, not run against a session that `stop`
+    /// has already nilled.
+    private var collectionInFlight = false
+    /// Newest plan that arrived while a finish was in flight. Started only
+    /// after the old tail has been tagged with the old session.
+    private var pendingPlan: ActiveWorkoutPlan?
+    /// A finish asked to tell the phone while another stop was already running.
+    private var pendingSendStop = false
 
     private override init() {
         super.init()
@@ -354,27 +364,38 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
 
-        // Finish the previous workout's HealthKit session before arming the
-        // next one, and send whatever it writes at the end. The plan stays
-        // in place until that batch is tagged with the old session.
-        let previous = workoutStore.closeCurrentExerciseWindow()
-        workoutHealthKit.stop { [weak self] samples in
-            Task { @MainActor in
-                guard let self else { return }
-                if let previous {
-                    self.sendHeartRateBatch(
-                        samples,
-                        exerciseEntryId: previous.id,
-                        durationMinutes: previous.minutes
-                    )
-                }
-                self.workoutStore.start(with: plan)
-                self.reportedEnergyKcal = 0
-                self.bindHealthKitCallbacks()
-                self.workoutHealthKit.requestAuthorization { [weak self] _ in
-                    self?.workoutHealthKit.start(sessionId: plan.sessionId)
+        if collectionInFlight {
+            pendingPlan = plan
+            return
+        }
+        if workoutStore.plan == nil {
+            // Nothing to tag, but a leftover HealthKit session still has to
+            // end before the new one starts.
+            collectionInFlight = true
+            workoutHealthKit.stop { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    let next = self.pendingPlan ?? plan
+                    self.pendingPlan = nil
+                    self.pendingSendStop = false
+                    self.collectionInFlight = false
+                    self.beginPlan(next)
                 }
             }
+            return
+        }
+        pendingPlan = plan
+        finishCollection(sendStop: false)
+    }
+
+    /// Arms a plan that is not replacing a live one. Authorization is asked
+    /// every time: the wearer can change it in Settings between workouts.
+    private func beginPlan(_ plan: ActiveWorkoutPlan) {
+        workoutStore.start(with: plan)
+        reportedEnergyKcal = 0
+        bindHealthKitCallbacks()
+        workoutHealthKit.requestAuthorization { [weak self] _ in
+            self?.workoutHealthKit.start(sessionId: plan.sessionId)
         }
     }
 
@@ -460,7 +481,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload),
             workoutStore.plan?.sessionId == sessionId
         else { return }
-        finishCollection(sendStop: false)
+        requestFinish(sendStop: false)
     }
 
     /// Sends one completed set, carrying whatever the wearer typed. Queued
@@ -549,19 +570,28 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Ends the workout. The stop signal waits until HealthKit has finished
     /// the workout and the tail has been queued. See `finishCollection`.
     func endWorkout() {
-        // The last batch has to be queued BEFORE the stop signal, because
-        // the phone flushes the moment that signal lands and transfers arrive
-        // in queue order. HealthKit writes the tail inside `finishWorkout`,
-        // so the stop waits until that read comes back. Reset waits with it:
-        // the batch still needs the plan's session id.
-        finishCollection(sendStop: true)
+        requestFinish(sendStop: true)
+    }
+
+    /// A second finish or a plan change while `stop` is already running is
+    /// remembered and applied after the first tail is sent. Running it now
+    /// would reset the plan, or replace it, before that batch could read the
+    /// session id it belongs to.
+    private func requestFinish(sendStop: Bool) {
+        if collectionInFlight {
+            if sendStop { pendingSendStop = true }
+            return
+        }
+        finishCollection(sendStop: sendStop)
     }
 
     /// Stops HealthKit, sends the tail and the exercise's wall-clock duration,
     /// then clears local state. `sendStop` is false when the phone already
     /// ended the workout and is only waiting on the watch's last samples.
     private func finishCollection(sendStop: Bool) {
+        collectionInFlight = true
         let closing = workoutStore.closeCurrentExerciseWindow()
+        let stopSessionId = workoutStore.plan?.sessionId
         workoutHealthKit.stop { [weak self] samples in
             Task { @MainActor in
                 guard let self else { return }
@@ -572,12 +602,21 @@ final class WatchSessionManager: NSObject, ObservableObject {
                         durationMinutes: closing.minutes
                     )
                 }
-                if sendStop, let sessionId = self.workoutStore.plan?.sessionId {
+                if (sendStop || self.pendingSendStop), let stopSessionId {
                     self.transfer(
-                        OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId))
+                        OutboundPayloads.workoutStop(
+                            WorkoutStopSignal(sessionId: stopSessionId)
+                        )
                     )
                 }
+                let next = self.pendingPlan
+                self.pendingPlan = nil
+                self.pendingSendStop = false
                 self.workoutStore.reset()
+                self.collectionInFlight = false
+                if let next {
+                    self.beginPlan(next)
+                }
             }
         }
     }

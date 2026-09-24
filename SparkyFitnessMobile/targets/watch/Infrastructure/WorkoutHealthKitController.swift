@@ -255,11 +255,16 @@ final class WorkoutHealthKitController: NSObject {
                     return
                 }
                 self.readFinishedHeartRate(of: workout) { extra in
-                    let novel = extra.filter { !self.pendingSampleTimes.contains($0.t) }
-                    for sample in novel {
-                        self.pendingSampleTimes.insert(sample.t)
+                    // The series query finishes on a background queue. The
+                    // live buffer is only touched on main, so the dedupe set
+                    // has to be too.
+                    DispatchQueue.main.async {
+                        let novel = extra.filter { !self.pendingSampleTimes.contains($0.t) }
+                        for sample in novel {
+                            self.pendingSampleTimes.insert(sample.t)
+                        }
+                        deliver(buffered + novel)
                     }
-                    deliver(buffered + novel)
                 }
             }
         }
@@ -426,17 +431,21 @@ final class WorkoutHealthKitController: NSObject {
                 if sample.count <= 1 {
                     let bpm = sample.quantity.doubleValue(for: bpmUnit)
                     guard bpm > 0 else { continue }
-                    collected.append(contentsOf: self.expandedSamples(
+                    let expanded = self.expandedSamples(
                         bpm: bpm,
                         interval: DateInterval(start: sample.startDate, end: sample.endDate)
-                    ))
+                    )
+                    lock.lock()
+                    collected.append(contentsOf: expanded)
+                    lock.unlock()
                     continue
                 }
                 group.enter()
+                let gate = LeaveOnce()
                 let series = HKQuantitySeriesSampleQuery(
                     quantityType: self.heartRateType,
                     predicate: HKQuery.predicateForObject(with: sample.uuid)
-                ) { _, quantity, interval, _, done, _ in
+                ) { _, quantity, interval, _, done, error in
                     if let quantity, let interval {
                         let bpm = quantity.doubleValue(for: bpmUnit)
                         if bpm > 0 {
@@ -446,7 +455,10 @@ final class WorkoutHealthKitController: NSObject {
                             lock.unlock()
                         }
                     }
-                    if done {
+                    lock.lock()
+                    let shouldLeave = (done || error != nil) && gate.claim()
+                    lock.unlock()
+                    if shouldLeave {
                         group.leave()
                     }
                 }
@@ -512,6 +524,18 @@ final class WorkoutHealthKitController: NSObject {
         pendingSampleTimes.insert(t)
         pendingSamples.append(HeartRateSample(t: t, bpm: bpm))
         onHeartRate?(bpm)
+    }
+}
+
+/// Leaves a DispatchGroup once even if HealthKit reports both an error and
+/// a final `done` callback for the same series query.
+private final class LeaveOnce {
+    private var left = false
+
+    func claim() -> Bool {
+        if left { return false }
+        left = true
+        return true
     }
 }
 
