@@ -111,7 +111,8 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
                 const setIndex = missedPhase.round - 1;
                 const exercise = curSession.exercises[exerciseIndex];
                 if (exercise) {
-                  while (exercise.sets.length <= setIndex) {
+                  const missingSets = setIndex + 1 - exercise.sets.length;
+                  for (let i = 0; i < missingSets; i++) {
                     state.addSetToExercise(exercise.id);
                   }
                   const updatedSession =
