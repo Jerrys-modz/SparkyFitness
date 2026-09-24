@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { paginationSchema } from "./Pagination.api.zod.ts";
 import { exerciseModalitySchema } from "./Exercises.api.zod.ts";
+import { workoutFormatSchema } from "./WorkoutPresets.api.zod.ts";
 
 // --- Query contracts ---
 
@@ -107,7 +108,10 @@ export const exerciseEntrySetResponseSchema = z
     // Km. Optional: pre-distance servers omit it.
     distance: z.number().nullable().optional(),
     // Progression & Equipment Fields
-    progression_mode: z.enum(["rep_goal", "fixed", "step_load", "manual"]).nullable().optional(),
+    progression_mode: z
+      .enum(["rep_goal", "fixed", "step_load", "manual"])
+      .nullable()
+      .optional(),
     rep_goal: z.number().int().nullable().optional(),
     increment_type: z.enum(["weight", "reps"]).nullable().optional(),
     increment_value: z.number().nullable().optional(),
@@ -180,6 +184,33 @@ export const presetSessionExerciseRequestSchema = z
   })
   .strict();
 
+export const activityDetailRequestItemSchema = z.object({
+  id: z.string().optional(),
+  provider_name: z.string().optional(),
+  detail_type: z.string().optional(),
+  detail_data: z.unknown().optional(),
+});
+
+export const wodScoreDetailDataSchema = z.object({
+  workout_format: workoutFormatSchema,
+  time_cap_seconds: z.number().int().nullable().optional(),
+  score_type: z.enum(["time", "rounds_reps", "total_reps", "completion"]),
+  rounds_completed: z.number().int().nullable().optional(),
+  reps_completed: z.number().int().nullable().optional(),
+  elapsed_seconds: z.number().int().nullable().optional(),
+  status: z.enum(["rx", "scaled"]).nullable().optional(),
+  scaling_notes: z.string().nullable().optional(),
+  rounds: z
+    .array(
+      z.object({
+        round: z.number().int(),
+        started_at_s: z.number().optional(),
+        completed_at_s: z.number().optional(),
+      })
+    )
+    .optional(),
+});
+
 // A workout session can be started in two ways:
 // 1. From a stored preset blueprint (workout_preset_id provided; exercises optional)
 // 2. As a freeform workout (no workout_preset_id; non-empty name and at least one exercise required)
@@ -197,6 +228,7 @@ export const createPresetSessionRequestSchema = z
       .union([z.string(), z.number()])
       .nullable()
       .optional(),
+    activity_details: z.array(activityDetailRequestItemSchema).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -235,6 +267,7 @@ export const updatePresetSessionRequestSchema = z
     notes: z.string().nullable().optional(),
     entry_date: dateStringSchema.optional(),
     exercises: z.array(presetSessionExerciseRequestSchema).min(1).optional(),
+    activity_details: z.array(activityDetailRequestItemSchema).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -243,7 +276,8 @@ export const updatePresetSessionRequestSchema = z
       data.description !== undefined ||
       data.notes !== undefined ||
       data.entry_date !== undefined ||
-      data.exercises !== undefined;
+      data.exercises !== undefined ||
+      data.activity_details !== undefined;
 
     if (!hasAnyField) {
       ctx.addIssue({
@@ -253,12 +287,47 @@ export const updatePresetSessionRequestSchema = z
     }
   });
 
-export const activityDetailRequestItemSchema = z.object({
-  id: z.string().optional(),
-  provider_name: z.string().optional(),
-  detail_type: z.string().optional(),
-  detail_data: z.unknown().optional(),
+// One heart-rate sample captured on a paired watch during a live workout.
+export const heartRateSampleRequestSchema = z.object({
+  /** ISO 8601 instant. */
+  t: z.iso.datetime(),
+  bpm: z.number().positive(),
 });
+
+// Attaches what a paired Apple Watch measured during a live workout to an
+// exercise entry that already exists (created by the live-workout
+// start/reconcile flow before any of this was known) rather than creating
+// one, unlike the HealthKit/Health Connect/Garmin sync path.
+//
+// Both fields are optional but at least one must be present: heart rate and
+// active energy come from the same HKLiveWorkoutBuilder, but the wearer can
+// grant one HealthKit permission and refuse the other, so either can be the
+// only thing a workout produced.
+export const attachExerciseEntryWatchTelemetryRequestSchema = z
+  .object({
+    // Two samples minimum: the zone calculator derives each zone's duration
+    // from the gaps between consecutive readings, so a lone sample spans no
+    // time and contributes nothing. Capped well above a long workout (the
+    // watch expands a series at 30s) so one post cannot exhaust the parser
+    // or the zone sort.
+    hrSamples: z
+      .array(heartRateSampleRequestSchema)
+      .min(2)
+      .max(10000)
+      .optional(),
+    /**
+     * Active energy the watch actually measured for this exercise, in kcal.
+     * Replaces the server's duration-and-sets estimate for this entry, which
+     * is a formula rather than a measurement.
+     */
+    activeEnergyKcal: z.number().nonnegative().optional(),
+  })
+  .strict()
+  .refine(
+    (body) =>
+      body.hrSamples !== undefined || body.activeEnergyKcal !== undefined,
+    { message: "At least one of hrSamples or activeEnergyKcal is required." },
+  );
 
 export const createExerciseEntryRequestSchema = z
   .object({
@@ -559,6 +628,12 @@ export type EntryExerciseSnapshotResponse = z.infer<
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
 >;
+export type HeartRateSampleRequest = z.infer<
+  typeof heartRateSampleRequestSchema
+>;
+export type AttachExerciseEntryWatchTelemetryRequest = z.infer<
+  typeof attachExerciseEntryWatchTelemetryRequestSchema
+>;
 export type PresetSessionExerciseRequest = z.infer<
   typeof presetSessionExerciseRequestSchema
 >;
@@ -602,3 +677,4 @@ export type ExerciseRecentSession = z.infer<typeof exerciseRecentSessionSchema>;
 export type ExerciseStatsResponse = z.infer<typeof exerciseStatsResponseSchema>;
 export type ImportFitFileResult = z.infer<typeof importFitFileResultSchema>;
 export type ImportFitResponse = z.infer<typeof importFitResponseSchema>;
+export type WodScoreDetailData = z.infer<typeof wodScoreDetailDataSchema>;

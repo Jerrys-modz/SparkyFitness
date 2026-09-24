@@ -192,6 +192,54 @@ enum ContextPayloadMapper {
         return GoalProgress(calories: calories, protein: protein, carbs: carbs, fat: fat)
     }
 
+    // MARK: - Workout
+
+    /// The session a phone-sent `workoutStop` names. Nil for a malformed
+    /// payload, which is dropped rather than ending whatever is running.
+    static func workoutStopSessionId(from payload: [String: Any]) -> String? {
+        payload["sessionId"] as? String
+    }
+
+    /// The workout plan the phone armed the watch with. Nil when the payload
+    /// is missing required fields — a malformed `workoutStart` is dropped
+    /// rather than starting a session with holes in it.
+    static func workoutPlan(from payload: [String: Any]) -> ActiveWorkoutPlan? {
+        guard
+            let sessionId = payload["sessionId"] as? String,
+            let workoutName = payload["workoutName"] as? String,
+            let rawExercises = dictionaryArray(payload["exercises"])
+        else { return nil }
+
+        let exercises: [PlannedExercise] = rawExercises.compactMap { raw in
+            guard
+                let exerciseEntryId = raw["exerciseEntryId"] as? String,
+                let name = raw["name"] as? String,
+                let rawSets = dictionaryArray(raw["sets"])
+            else { return nil }
+
+            let sets: [PlannedSet] = rawSets.compactMap { rawSet in
+                guard let setId = rawSet["setId"] as? String else { return nil }
+                return PlannedSet(
+                    setId: setId,
+                    targetReps: doubleValue(rawSet["targetReps"]),
+                    targetWeightKg: doubleValue(rawSet["targetWeightKg"]),
+                    restSeconds: intValue(rawSet["restSeconds"]) ?? 0,
+                    setType: rawSet["setType"] as? String
+                )
+            }
+            return PlannedExercise(exerciseEntryId: exerciseEntryId, name: name, sets: sets)
+        }
+        guard !exercises.isEmpty else { return nil }
+
+        let setOrder = stringArray(payload["setOrder"])
+        return ActiveWorkoutPlan(
+            sessionId: sessionId,
+            workoutName: workoutName,
+            exercises: exercises,
+            setOrder: setOrder
+        )
+    }
+
     // MARK: - Acks
 
     /// A server-write confirmation for one check-in.
@@ -206,5 +254,38 @@ enum ContextPayloadMapper {
     /// today when the phone didn't say.
     static func day(from payload: [String: Any]) -> String {
         payload["today"] as? String ?? CheckInDate.today()
+    }
+
+    /// JS numbers arrive as NSNumber / Double / Int depending on the bridge.
+    /// `as? Int` fails for a Double-boxed 90, which made every rest timer 0.
+    private static func intValue(_ raw: Any?) -> Int? {
+        if let i = raw as? Int { return i }
+        if let d = raw as? Double { return Int(d) }
+        if let n = raw as? NSNumber { return n.intValue }
+        return nil
+    }
+
+    private static func doubleValue(_ raw: Any?) -> Double? {
+        if let d = raw as? Double { return d }
+        if let i = raw as? Int { return Double(i) }
+        if let n = raw as? NSNumber { return n.doubleValue }
+        return nil
+    }
+
+    /// Same NSArray bridging as heart-rate samples: JS `string[]` arrives as
+    /// `NSArray` of `NSString`, and `as? [String]` can fail on that.
+    private static func stringArray(_ raw: Any?) -> [String] {
+        if let typed = raw as? [String] { return typed }
+        guard let any = raw as? [Any] else { return [] }
+        return any.compactMap { $0 as? String }
+    }
+
+    /// WatchConnectivity nested arrays arrive as `NSArray` of `NSDictionary`.
+    /// A direct `as? [[String: Any]]` frequently returns nil for that, which
+    /// would drop the whole workout (exercises) or an exercise (sets).
+    private static func dictionaryArray(_ raw: Any?) -> [[String: Any]]? {
+        if let typed = raw as? [[String: Any]] { return typed }
+        guard let any = raw as? [Any] else { return nil }
+        return any.compactMap { $0 as? [String: Any] }
     }
 }

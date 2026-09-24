@@ -252,6 +252,8 @@ describe('WorkoutPresetDetailScreen', () => {
       name: 'Push Day',
       exercises: buildPresetStartExercisesPayload(preset),
       sourcePresetId: 7,
+      workoutFormat: 'standard',
+      timeCapSeconds: null,
     });
     expect(navigation.navigate).not.toHaveBeenCalled();
   });
@@ -284,6 +286,8 @@ describe('WorkoutPresetDetailScreen', () => {
       name: 'Push Day (Copy)',
       description: 'Chest, shoulders, triceps',
       is_public: false,
+      workout_format: 'standard',
+      time_cap_seconds: null,
       exercises: [
         {
           exercise_id: 'ex-1',

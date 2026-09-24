@@ -21,6 +21,7 @@ import ExerciseEntryDisplay from './ExerciseEntryDisplay';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   formatMinutesToHHMM,
+  formatSecondsClock,
   formatTimeOfDayString,
 } from '@/utils/timeFormatters';
 import { Exercise, ExerciseEntry, PresetSessionEntry } from '@/types/exercises';
@@ -153,6 +154,72 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
                       {exerciseCount === 1 ? 'exercise' : 'exercises'}
                     </span>
                   )}
+                  {(() => {
+                    const wodDetail = presetEntry.activity_details?.find(
+                      (d) => d.detail_type === 'wod_score'
+                    );
+                    if (!wodDetail?.detail_data) return null;
+                    let data = wodDetail.detail_data;
+                    while (typeof data === 'string') {
+                      try {
+                        data = JSON.parse(data);
+                      } catch {
+                        return null;
+                      }
+                    }
+                    if (!data || typeof data !== 'object') return null;
+                    const wod = data as {
+                      workout_format?: string;
+                      format?: string;
+                      rounds_completed?: number;
+                      rounds?: number;
+                      reps_completed?: number;
+                      extra_reps?: number;
+                      reps?: number;
+                      elapsed_seconds?: number;
+                      time_seconds?: number;
+                      is_rx?: boolean;
+                      status?: string;
+                      scaling_status?: string;
+                    };
+                    const format = (wod.workout_format || wod.format || 'WOD')
+                      .toUpperCase()
+                      .replace('_', ' ');
+                    const rounds = wod.rounds_completed ?? wod.rounds ?? 0;
+                    const reps =
+                      wod.reps_completed ?? wod.extra_reps ?? wod.reps ?? 0;
+                    const isRx =
+                      wod.is_rx === true ||
+                      wod.status === 'rx' ||
+                      wod.scaling_status === 'rx';
+
+                    let scoreStr = '';
+                    if (
+                      wod.workout_format === 'amrap' ||
+                      wod.format === 'amrap'
+                    ) {
+                      scoreStr = `${rounds} rds${reps > 0 ? ` + ${reps} reps` : ''}`;
+                    } else if (
+                      wod.workout_format === 'for_time' ||
+                      wod.format === 'for_time'
+                    ) {
+                      const secs = wod.time_seconds ?? wod.elapsed_seconds;
+                      scoreStr =
+                        typeof secs === 'number'
+                          ? formatSecondsClock(secs)
+                          : 'Done';
+                    } else if (rounds > 0) {
+                      scoreStr = `${rounds} rds`;
+                    }
+
+                    return (
+                      <span className="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700/50">
+                        {format}
+                        {scoreStr ? ` • ${scoreStr}` : ''}
+                        {` (${isRx ? 'Rx' : 'Scaled'})`}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {presetEntry.exercise_snapshot?.category && (
                   <p className="text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-500 mt-0.5">

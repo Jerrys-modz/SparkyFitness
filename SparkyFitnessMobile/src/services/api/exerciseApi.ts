@@ -417,6 +417,38 @@ export const deleteWorkout = async (id: string): Promise<void> => {
   });
 };
 
+/** One heart-rate reading, as captured on a paired Apple Watch. */
+export interface HeartRateSamplePayload {
+  /** ISO 8601 instant. */
+  t: string;
+  bpm: number;
+}
+
+/**
+ * Fills in what a paired Apple Watch measured during a live workout on an
+ * exercise entry that already exists: avg/max heart rate, the HR-zone
+ * breakdown, and active energy. See `useWatchWorkoutBridge`.
+ *
+ * `activeEnergyKcal` replaces the server's duration-and-sets calorie
+ * estimate for that entry. Both fields are optional individually, but the
+ * server rejects a body carrying neither.
+ */
+export const attachExerciseEntryWatchTelemetry = async (
+  exerciseEntryId: string,
+  telemetry: {
+    hrSamples?: HeartRateSamplePayload[];
+    activeEnergyKcal?: number;
+  }
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/watch-telemetry`,
+    serviceName: 'Exercise API',
+    operation: 'attach exercise entry watch telemetry',
+    method: 'POST',
+    body: telemetry,
+  });
+};
+
 export const deleteExerciseEntry = async (id: string): Promise<void> => {
   return apiFetch<void>({
     endpoint: `/api/exercise-entries/${id}`,

@@ -4,6 +4,7 @@ import {
   setsDurationMinutes,
   type CreatePresetSessionRequest,
   type ExerciseModality,
+  type WorkoutFormat,
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 
@@ -37,6 +38,7 @@ export interface WorkoutPlaybackExerciseDraft {
   increment_type?: 'weight' | 'reps' | string | null;
   increment_value?: number | null;
   equipment_brand?: string | null;
+  round_sets_count?: number;
   sets: WorkoutPlaybackSetDraft[];
 }
 
@@ -54,6 +56,12 @@ export interface WorkoutPlaybackDraft {
   entry_date: string;
   notes: string | null;
   source: 'sparky';
+  workout_format?: WorkoutFormat;
+  time_cap_seconds?: number | null;
+  interval_rounds_completed?: number;
+  interval_reps_completed?: number;
+  interval_status?: 'rx' | 'scaled';
+  interval_scaling_notes?: string | null;
   active_exercise_index: number;
   active_set_index: number;
   rest_timer: WorkoutPlaybackRestTimer;
@@ -242,7 +250,7 @@ function fallbackPointer(draft: WorkoutPlaybackDraft): WorkoutSetPointer {
   return { exerciseIndex: 0, setIndex: 0 };
 }
 
-function getSetByPointer(
+export function getSetByPointer(
   draft: WorkoutPlaybackDraft,
   pointer: WorkoutSetPointer
 ): WorkoutPlaybackSetDraft | null {
@@ -361,25 +369,57 @@ export function createWorkoutPlaybackDraftFromPreset(
                 .equipment_brand,
             }
           : {}),
-        sets: exercise.sets.map((set, setIndex) => {
-          const initialWeight = set.weight ?? null;
-          // Initialize with the preset's programmed reps so un-typed sets don't submit as null
-          const initialReps = set.reps;
+        sets: (() => {
+          let baseSets = exercise.sets;
+          if (baseSets.length > 0) {
+            if (preset.workout_format === 'tabata' && baseSets.length < 8) {
+              baseSets = Array.from({ length: 8 }, (_, i) => {
+                const templateSet = baseSets[i % baseSets.length]!;
+                return {
+                  ...templateSet,
+                  set_number: i + 1,
+                  duration: templateSet.duration ?? 20,
+                  rest_time: templateSet.rest_time ?? 10,
+                };
+              });
+            } else if (
+              preset.workout_format === 'emom' &&
+              preset.time_cap_seconds != null &&
+              preset.time_cap_seconds >= 60
+            ) {
+              const emomRounds = Math.floor(preset.time_cap_seconds / 60);
+              if (emomRounds > baseSets.length) {
+                baseSets = Array.from({ length: emomRounds }, (_, i) => {
+                  const templateSet = baseSets[i % baseSets.length]!;
+                  return {
+                    ...templateSet,
+                    set_number: i + 1,
+                  };
+                });
+              }
+            }
+          }
 
-          return {
-            set_number: set.set_number ?? setIndex + 1,
-            set_type: set.set_type ?? 'Working Set',
-            reps: initialReps,
-            weight: initialWeight,
-            duration: set.duration ?? null,
-            distance: set.distance ?? null,
-            rest_time: set.rest_time ?? DEFAULT_REST_SECONDS,
-            notes: set.notes ?? null,
-            rpe: set.rpe ?? null,
-            completed: false,
-            completed_at: null,
-          };
-        }),
+          return baseSets.map((set, setIndex) => {
+            const initialWeight = set.weight ?? null;
+            const initialReps = set.reps;
+
+            return {
+              set_number: set.set_number ?? setIndex + 1,
+              set_type: set.set_type ?? 'Working Set',
+              reps: initialReps,
+              weight: initialWeight,
+              duration: set.duration ?? null,
+              distance: set.distance ?? null,
+              rest_time: set.rest_time ?? DEFAULT_REST_SECONDS,
+              notes: set.notes ?? null,
+              rpe: set.rpe ?? null,
+              completed: false,
+              completed_at: null,
+            };
+          });
+        })(),
+        round_sets_count: Math.max(1, exercise.sets.length),
       };
     }
   );
@@ -392,6 +432,12 @@ export function createWorkoutPlaybackDraftFromPreset(
     entry_date: entryDate,
     notes: null,
     source: 'sparky',
+    workout_format: preset.workout_format ?? 'standard',
+    time_cap_seconds: preset.time_cap_seconds ?? null,
+    interval_rounds_completed: 0,
+    interval_reps_completed: 0,
+    interval_status: 'rx',
+    interval_scaling_notes: null,
     active_exercise_index: 0,
     active_set_index: 0,
     rest_timer: DEFAULT_REST_TIMER,
@@ -721,6 +767,79 @@ function deriveExerciseDurationMinutes(
   return setsDurationMinutes(exercise.sets);
 }
 
+export function addRoundToWorkoutDraft(
+  draft: WorkoutPlaybackDraft
+): WorkoutPlaybackDraft {
+  const exercises = draft.exercises.map((exercise) => {
+    const roundSetsCount = Math.max(1, exercise.round_sets_count || 1);
+    const templateSets = exercise.sets.slice(-roundSetsCount);
+    const fallbackSet: WorkoutPlaybackSetDraft = {
+      set_number: 1,
+      set_type: 'Working Set',
+      reps: 10,
+      weight: 0,
+      duration: null,
+      distance: null,
+      rest_time: null,
+      notes: null,
+      rpe: null,
+      completed: false,
+      completed_at: null,
+    };
+
+    const sources = templateSets.length > 0 ? templateSets : [fallbackSet];
+    const newSets: WorkoutPlaybackSetDraft[] = sources.map((set, idx) => ({
+      ...set,
+      set_number: exercise.sets.length + idx + 1,
+      completed: false,
+      completed_at: null,
+    }));
+
+    return {
+      ...exercise,
+      sets: [...exercise.sets, ...newSets],
+    };
+  });
+
+  const nextRounds = (draft.interval_rounds_completed ?? 0) + 1;
+
+  return touchDraft({
+    ...draft,
+    exercises,
+    interval_rounds_completed: nextRounds,
+  });
+}
+
+export function decrementRoundFromWorkoutDraft(
+  draft: WorkoutPlaybackDraft
+): WorkoutPlaybackDraft {
+  const currentRounds = draft.interval_rounds_completed ?? 0;
+  if (currentRounds <= 0) return draft;
+
+  const exercises = draft.exercises.map((exercise) => {
+    const roundSetsCount = Math.max(1, exercise.round_sets_count || 1);
+    if (exercise.sets.length > roundSetsCount) {
+      return {
+        ...exercise,
+        sets: exercise.sets.slice(0, -roundSetsCount),
+      };
+    }
+    return exercise;
+  });
+
+  const nextDraft: WorkoutPlaybackDraft = {
+    ...draft,
+    exercises,
+    interval_rounds_completed: Math.max(0, currentRounds - 1),
+  };
+
+  const nextPointer = getCurrentWorkoutSetPointer(nextDraft);
+  nextDraft.active_exercise_index = nextPointer.exerciseIndex;
+  nextDraft.active_set_index = nextPointer.setIndex;
+
+  return touchDraft(nextDraft);
+}
+
 export function buildPresetSessionCreateRequestFromDraft(
   draft: WorkoutPlaybackDraft,
   timezone: string
@@ -776,7 +895,53 @@ export function buildPresetSessionCreateRequestFromDraft(
       ?.workout_plan_assignment_id ||
     null;
 
+  const numericPresetId =
+    draft.preset_id && !Number.isNaN(Number(draft.preset_id))
+      ? Number(draft.preset_id)
+      : null;
+
+  const activityDetails: NonNullable<
+    CreatePresetSessionRequest['activity_details']
+  > = [];
+  if (draft.workout_format && draft.workout_format !== 'standard') {
+    const elapsedSeconds = draft.started_at
+      ? Math.max(
+          0,
+          Math.floor((Date.now() - Date.parse(draft.started_at)) / 1000)
+        )
+      : 0;
+
+    let scoreType: 'time' | 'rounds_reps' | 'total_reps' | 'completion' =
+      'completion';
+    if (draft.workout_format === 'amrap') {
+      scoreType = 'rounds_reps';
+    } else if (draft.workout_format === 'for_time') {
+      scoreType = 'time';
+    } else if (
+      draft.workout_format === 'emom' ||
+      draft.workout_format === 'tabata'
+    ) {
+      scoreType = 'rounds_reps';
+    }
+
+    activityDetails.push({
+      provider_name: 'sparky',
+      detail_type: 'wod_score',
+      detail_data: {
+        workout_format: draft.workout_format,
+        time_cap_seconds: draft.time_cap_seconds ?? null,
+        score_type: scoreType,
+        rounds_completed: draft.interval_rounds_completed ?? 0,
+        reps_completed: draft.interval_reps_completed ?? 0,
+        elapsed_seconds: elapsedSeconds,
+        status: draft.interval_status ?? 'rx',
+        scaling_notes: draft.interval_scaling_notes ?? null,
+      },
+    });
+  }
+
   return {
+    workout_preset_id: numericPresetId,
     name: draft.name,
     description: draft.description,
     notes: draft.notes,
@@ -784,5 +949,6 @@ export function buildPresetSessionCreateRequestFromDraft(
     source: draft.source,
     exercises,
     workoutPlanAssignmentId: primaryPlanAssignmentId,
+    activity_details: activityDetails.length > 0 ? activityDetails : undefined,
   };
 }

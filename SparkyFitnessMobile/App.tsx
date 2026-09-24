@@ -1,5 +1,5 @@
 import './global.css'
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as SplashScreen from 'expo-splash-screen';
@@ -19,7 +19,8 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchWorkoutBridge } from './src/hooks';
+import WatchConnectivity from './modules/watch-connectivity';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
 import { useAppLanguageForegroundSync } from './src/hooks/useAppLanguageForegroundSync';
@@ -151,6 +152,23 @@ const androidModalAnimation =
 function WatchCheckInGate() {
   const { isConnected: isServerConnected } = useServerConnection();
   useWatchCheckInBridge(isServerConnected);
+  return null;
+}
+
+/**
+ * Unlike `WatchCheckInGate`, listeners stay up while the server is offline
+ * so a set or heart-rate batch is not dropped. The /health poll only runs
+ * when WatchConnectivity is available and a telemetry buffer still needs a
+ * flush. Android, and an idle iPhone, do not poll for a feature they are
+ * not using.
+ */
+function WatchWorkoutGate() {
+  const watchSupported = WatchConnectivity?.isSupported() === true;
+  const [telemetryPending, setTelemetryPending] = useState(false);
+  const { isConnected: isServerConnected } = useServerConnection({
+    enablePolling: watchSupported && telemetryPending,
+  });
+  useWatchWorkoutBridge(watchSupported, isServerConnected, setTelemetryPending);
   return null;
 }
 
@@ -320,6 +338,7 @@ function AppContent() {
       }}
     >
       <WatchCheckInGate />
+      <WatchWorkoutGate />
       <SafeAreaProvider>
         {/* Inside SafeAreaProvider on purpose: the viewer positions its close
             button against the insets, so mounting it at the app root crashes

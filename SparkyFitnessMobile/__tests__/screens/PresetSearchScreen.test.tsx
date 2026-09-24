@@ -249,6 +249,8 @@ describe('PresetSearchScreen', () => {
       name: 'Push Day',
       exercises: buildPresetStartExercisesPayload(preset),
       sourcePresetId: 7,
+      workoutFormat: 'standard',
+      timeCapSeconds: null,
     });
     expect(navigation.navigate).not.toHaveBeenCalled();
   });

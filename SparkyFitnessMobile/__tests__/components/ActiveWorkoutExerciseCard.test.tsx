@@ -562,6 +562,33 @@ describe('ActiveWorkoutExerciseCard', () => {
       expect(live.queryByText('150 kcal')).toBeNull();
     });
 
+    it('shows heart rate with the max in parentheses, view mode only', () => {
+      const exercise = makeExercise({
+        avg_heart_rate: 142,
+        max_heart_rate: 168,
+      });
+      const view = renderCard(true, { mode: 'view', exercise });
+      expect(view.getByText('142 (168) bpm')).toBeTruthy();
+
+      // Live mode has no HR chip: the watch reports it after the fact, so
+      // mid-workout there is nothing to show.
+      const live = renderCard(true, { mode: 'live', exercise });
+      expect(live.queryByText('142 (168) bpm')).toBeNull();
+    });
+
+    it('shows a lone figure when max matches the average', () => {
+      const view = renderCard(true, {
+        mode: 'view',
+        exercise: makeExercise({ avg_heart_rate: 140, max_heart_rate: 140 }),
+      });
+      expect(view.getByText('140 bpm')).toBeTruthy();
+    });
+
+    it('shows no heart rate chip when the entry carries none', () => {
+      const view = renderCard(true, { mode: 'view' });
+      expect(view.queryByText(/bpm/)).toBeNull();
+    });
+
     it('skips the exercise stats fetch', () => {
       renderCard(true, { mode: 'view' });
       expect(mockUseExerciseStats).toHaveBeenCalledWith(

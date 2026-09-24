@@ -13,6 +13,8 @@ import {
 } from '@workspace/shared';
 import {
   DEFAULT_REST_SECONDS,
+  addRoundToWorkoutDraft,
+  decrementRoundFromWorkoutDraft,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
@@ -31,11 +33,14 @@ import {
   type WorkoutPlaybackDraft,
   type WorkoutSetPointer,
   updateWorkoutSetAtPointer,
+  listWorkoutSetPointers,
+  getSetByPointer,
 } from '@/utils/workoutPlayback';
 import { formatSecondsClock } from '@/utils/timeFormatters';
 import { localDateTimeToUtc } from '@workspace/shared';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
+import WorkoutPlaybackIntervalHud from './WorkoutPlaybackIntervalHud';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 import { fetchExerciseProgressionStats } from '@/hooks/Exercises/useExerciseEntries';
 
@@ -574,6 +579,89 @@ const WorkoutPlaybackPage = () => {
     [updateDraft]
   );
 
+  const handleAddRound = useCallback(() => {
+    updateDraft((currentDraft) => addRoundToWorkoutDraft(currentDraft));
+  }, [updateDraft]);
+
+  const handleDecrementRound = useCallback(() => {
+    updateDraft((currentDraft) => decrementRoundFromWorkoutDraft(currentDraft));
+  }, [updateDraft]);
+
+  const handleSetIntervalReps = useCallback(
+    (reps: number) => {
+      updateDraft((currentDraft) => ({
+        ...currentDraft,
+        interval_reps_completed: Math.max(0, reps),
+      }));
+    },
+    [updateDraft]
+  );
+
+  const handleSetIntervalStatus = useCallback(
+    (status: 'rx' | 'scaled') => {
+      updateDraft((currentDraft) => ({
+        ...currentDraft,
+        interval_status: status,
+      }));
+    },
+    [updateDraft]
+  );
+
+  const handleCompleteIntervalPhase = useCallback(
+    (prevPhase: { kind: string; stepIndex: number | null; round: number }) => {
+      if (prevPhase.kind !== 'work') return;
+
+      updateDraft((currentDraft) => {
+        const format = currentDraft.workout_format;
+
+        if (format === 'interval') {
+          // Custom interval/HIIT steps map directly to the sequential set pointers
+          const pointers = listWorkoutSetPointers(currentDraft);
+          const stepIdx = prevPhase.stepIndex ?? prevPhase.round - 1;
+          const pointer = pointers[stepIdx];
+          if (!pointer) return currentDraft;
+
+          const set = getSetByPointer(currentDraft, pointer);
+          if (!set || set.completed) return currentDraft;
+
+          return updateWorkoutSetAtPointer(currentDraft, pointer, {
+            completed: true,
+            completed_at: new Date().toISOString(),
+          });
+        }
+
+        if (format === 'tabata' || format === 'emom') {
+          // In Tabata/EMOM, round maps to setIndex (round - 1) on the exercise (stepIndex ?? 0)
+          const exerciseIndex = prevPhase.stepIndex ?? 0;
+          let nextDraft = currentDraft;
+          let exercise = nextDraft.exercises[exerciseIndex];
+          if (!exercise) return currentDraft;
+
+          const setIndex = prevPhase.round - 1;
+          while (exercise.sets.length <= setIndex) {
+            nextDraft = addWorkoutSetToExercise(nextDraft, exerciseIndex);
+            exercise = nextDraft.exercises[exerciseIndex]!;
+          }
+
+          const set = exercise.sets[setIndex];
+          if (!set || set.completed) return nextDraft;
+
+          return updateWorkoutSetAtPointer(
+            nextDraft,
+            { exerciseIndex, setIndex },
+            {
+              completed: true,
+              completed_at: new Date().toISOString(),
+            }
+          );
+        }
+
+        return currentDraft;
+      });
+    },
+    [updateDraft]
+  );
+
   const handlePauseResumeRest = useCallback(() => {
     updateDraft((currentDraft) => {
       if (currentDraft.rest_timer.state === 'running') {
@@ -763,6 +851,23 @@ const WorkoutPlaybackPage = () => {
         onSessionNotesChange={handleSessionNotesChange}
         onStartTimeChange={handleStartTimeChange}
       />
+
+      {draft.workout_format && draft.workout_format !== 'standard' && (
+        <WorkoutPlaybackIntervalHud
+          workoutFormat={draft.workout_format}
+          timeCapSeconds={draft.time_cap_seconds}
+          startedAtIso={draft.started_at}
+          roundsCompleted={draft.interval_rounds_completed ?? 0}
+          repsCompleted={draft.interval_reps_completed ?? 0}
+          status={draft.interval_status ?? 'rx'}
+          exercises={draft.exercises}
+          onAddRound={handleAddRound}
+          onDecrementRound={handleDecrementRound}
+          onSetReps={handleSetIntervalReps}
+          onSetStatus={handleSetIntervalStatus}
+          onCompletePhaseWork={handleCompleteIntervalPhase}
+        />
+      )}
 
       <WorkoutPlaybackExercisesList
         exercises={draft.exercises}

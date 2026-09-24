@@ -6,6 +6,7 @@ import type {
   IndividualSessionResponse,
   PresetSessionResponse,
   SharedPregnancy,
+  WorkoutFormat,
 } from '@workspace/shared';
 import type { FoodFormData } from '../components/FoodForm';
 import type { SaveFoodPayload } from '../services/api/foodsApi';
@@ -287,6 +288,12 @@ export type RootStackParamList = {
     sourcePresetId: number | null;
     sourceServerConfigId: string | null;
     plannedSetValues: Record<string, AssumedSetValues>;
+    workoutFormat?: WorkoutFormat;
+    timeCapSeconds?: number | null;
+    intervalRoundsCompleted?: number;
+    intervalRepsCompleted?: number;
+    intervalStatus?: 'rx' | 'scaled';
+    intervalScalingNotes?: string;
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;

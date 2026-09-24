@@ -1977,6 +1977,7 @@ CREATE TABLE public.exercise_entries (
     weather_humidity_percentage numeric(5,2),
     gear_name text,
     gear_external_id text,
+    watch_telemetry_observed_at timestamp with time zone,
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -4604,12 +4605,14 @@ ALTER SEQUENCE public.workout_plan_assignment_sets_id_seq OWNED BY public.workou
 CREATE TABLE public.workout_plan_template_assignments (
     id integer NOT NULL,
     template_id integer NOT NULL,
-    day_of_week integer NOT NULL,
+    day_of_week integer,
     workout_preset_id integer,
     exercise_id uuid,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     sort_order integer DEFAULT 0,
+    session_index integer,
+    session_name character varying(100),
     CONSTRAINT chk_workout_assignment_type CHECK ((((workout_preset_id IS NOT NULL) AND (exercise_id IS NULL)) OR ((workout_preset_id IS NULL) AND (exercise_id IS NOT NULL))))
 );
 
@@ -4647,7 +4650,11 @@ CREATE TABLE public.workout_plan_templates (
     end_date date,
     is_active boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    schedule_type character varying(20) DEFAULT 'sequential'::character varying NOT NULL,
+    entry_mode character varying(20) DEFAULT 'prompt'::character varying NOT NULL,
+    CONSTRAINT chk_workout_plan_entry_mode CHECK (((entry_mode)::text = ANY ((ARRAY['prompt'::character varying, 'prefill'::character varying])::text[]))),
+    CONSTRAINT chk_workout_plan_schedule_type CHECK (((schedule_type)::text = ANY ((ARRAY['weekly'::character varying, 'sequential'::character varying])::text[])))
 );
 
 
@@ -4770,7 +4777,10 @@ CREATE TABLE public.workout_presets (
     description text,
     is_public boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    workout_format character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    time_cap_seconds integer,
+    CONSTRAINT chk_workout_presets_format CHECK (((workout_format)::text = ANY ((ARRAY['standard'::character varying, 'interval'::character varying, 'tabata'::character varying, 'amrap'::character varying, 'emom'::character varying, 'for_time'::character varying])::text[])))
 );
 
 
@@ -6772,6 +6782,13 @@ CREATE INDEX idx_water_intake_entries_user_date ON public.water_intake_entries U
 --
 
 CREATE UNIQUE INDEX idx_water_intake_entries_user_source_source_id ON public.water_intake_entries USING btree (user_id, source, source_id) WHERE ((source IS NOT NULL) AND (source_id IS NOT NULL));
+
+
+--
+-- Name: idx_workout_plan_assignments_template_session; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_workout_plan_assignments_template_session ON public.workout_plan_template_assignments USING btree (template_id, session_index);
 
 
 --

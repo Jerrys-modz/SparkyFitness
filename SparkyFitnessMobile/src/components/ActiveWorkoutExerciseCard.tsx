@@ -293,12 +293,21 @@ function ActiveWorkoutExerciseCard({
   const readOnly = mode === 'view';
   const isEdit = mode === 'edit';
   const isLive = mode === 'live';
-  const [textMuted, accentPrimary, textSecondary, prColor] = useCSSVariable([
+  const [
+    textMuted,
+    accentPrimary,
+    textSecondary,
+    prColor,
+    heartRateColor,
+    activeEnergyColor,
+  ] = useCSSVariable([
     '--color-text-muted',
     '--color-accent-primary',
     '--color-text-secondary',
     '--color-pr',
-  ]) as [string, string, string, string];
+    '--color-heart-rate',
+    '--color-active-energy',
+  ]) as [string, string, string, string, string, string];
 
   const name =
     exercise.exercise_snapshot?.name ??
@@ -526,6 +535,22 @@ function ActiveWorkoutExerciseCard({
     readOnly && exercise.calories_burned != null && exercise.calories_burned > 0
       ? String(Math.round(exercise.calories_burned))
       : null;
+
+  // Heart rate for this exercise, read-only: there is no UI for typing one,
+  // it only ever arrives from a paired watch or a synced workout. Max is
+  // appended in parentheses when it differs from the average, so a steady
+  // effort reads as one number instead of the same one twice.
+  const heartRateText = (() => {
+    if (!readOnly) return null;
+    const avg = exercise.avg_heart_rate;
+    if (avg == null || avg <= 0) return null;
+    const max = exercise.max_heart_rate;
+    const avgRounded = Math.round(avg);
+    const maxRounded = max != null && max > 0 ? Math.round(max) : null;
+    return maxRounded != null && maxRounded !== avgRounded
+      ? `${avgRounded} (${maxRounded})`
+      : String(avgRounded);
+  })();
 
   // Edit-only: seed the first still-empty set from "last time" once, when
   // stats arrive. Weight and reps fill independently — a null lastSet field
@@ -1088,7 +1113,8 @@ function ActiveWorkoutExerciseCard({
         {((showRestChip && !cardioForm) ||
           bestDisplay != null ||
           caloriesField ||
-          caloriesText != null) && (
+          caloriesText != null ||
+          heartRateText != null) && (
           <View className="flex-row flex-wrap items-center gap-x-4 gap-y-1 mt-2 mb-1 px-1">
             {showRestChip && !cardioForm && (
               <RestPeriodChip
@@ -1166,11 +1192,31 @@ function ActiveWorkoutExerciseCard({
               ))}
             {caloriesText != null && (
               <View className="flex-row items-center">
-                <Icon name="flame" size={14} color={textMuted} />
+                <Icon name="flame" size={14} color={activeEnergyColor} />
                 <Text className="text-sm text-text-secondary ml-1">
                   {caloriesText}{' '}
                   {t('activeWorkout.exercise.caloriesUnit', {
                     defaultValue: 'kcal',
+                  })}
+                </Text>
+              </View>
+            )}
+            {heartRateText != null && (
+              <View
+                className="flex-row items-center"
+                accessibilityLabel={t('activeWorkout.exercise.heartRateFor', {
+                  defaultValue: 'Average heart rate for {{name}}',
+                  name,
+                })}
+              >
+                <Icon name="heart-rate" size={14} color={heartRateColor} />
+                <Text
+                  className="text-sm text-text-secondary ml-1"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
+                  {heartRateText}{' '}
+                  {t('activeWorkout.exercise.heartRateUnit', {
+                    defaultValue: 'bpm',
                   })}
                 </Text>
               </View>

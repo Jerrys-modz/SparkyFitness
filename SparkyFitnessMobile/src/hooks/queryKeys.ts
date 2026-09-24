@@ -219,8 +219,9 @@ export const externalExerciseSearchQueryKey = (
     language,
   ] as const;
 
+export const workoutSessionQueryKeyRoot = ['workoutSession'] as const;
 export const workoutSessionQueryKey = (sessionId: string) =>
-  ['workoutSession', sessionId] as const;
+  [...workoutSessionQueryKeyRoot, sessionId] as const;
 
 export const workoutPresetsQueryKey = ['workoutPresets'] as const;
 
