@@ -35,6 +35,9 @@ final class WorkoutHealthKitController: NSObject {
     private var pendingSampleTimes: Set<String> = []
     private var batchTimer: Timer?
     private var hrSeriesQuery: HKQuery?
+    /// Set on recovery: readings at or before this instant were already sent
+    /// before the relaunch and must not go out again. Nil for a fresh workout.
+    private var skipReadingsThrough: Date?
     private let instantFormatter = ISO8601DateFormatter()
 
     /// How often accumulated samples are flushed to `onBatchReady`.
@@ -114,11 +117,12 @@ final class WorkoutHealthKitController: NSObject {
     /// heart rate and never save the HKWorkout. Returns whether a session was
     /// recovered; the caller then either binds callbacks to it or starts a
     /// fresh one against the persisted plan.
-    /// - Parameter resumeHeartRateFrom: where the HR query restarts. Pass the
-    ///   instant after the last reading already sent; nil replays from the
+    /// - Parameter heartRateSentThrough: the last reading already sent before
+    ///   the relaunch. The HR query resumes there, including any sample that
+    ///   straddles it, and drops the readings up to it. Nil replays from the
     ///   workout's start, which re-sends everything the phone already has.
     func recoverIfNeeded(
-        resumeHeartRateFrom: Date? = nil,
+        heartRateSentThrough: Date? = nil,
         completion: @escaping (Bool) -> Void
     ) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else {
@@ -148,9 +152,18 @@ final class WorkoutHealthKitController: NSObject {
                 if state == .paused {
                     recovered.resume()
                 }
-                self.startHeartRateSeriesQuery(
-                    from: resumeHeartRateFrom ?? recovered.startDate ?? Date()
-                )
+                if let heartRateSentThrough {
+                    self.skipReadingsThrough = heartRateSentThrough
+                    // Overlapping rather than strict-start: a multi-reading
+                    // sample that began before the mark still holds readings
+                    // after it; `appendSample` drops the ones already sent.
+                    self.startHeartRateSeriesQuery(
+                        from: heartRateSentThrough,
+                        includeSamplesStartingEarlier: true
+                    )
+                } else {
+                    self.startHeartRateSeriesQuery(from: recovered.startDate ?? Date())
+                }
                 self.startBatchTimer()
                 completion(true)
             }
@@ -219,6 +232,7 @@ final class WorkoutHealthKitController: NSObject {
         let remaining = pendingSamples
         pendingSamples = []
         pendingSampleTimes = []
+        skipReadingsThrough = nil
         guard let session else { return remaining }
         // Keep the builder alive until finishWorkout runs. Nilling `self.builder`
         // synchronously used to make the completion a no-op, so nothing was
@@ -288,16 +302,21 @@ final class WorkoutHealthKitController: NSObject {
     /// the interior. `HKQuantitySeriesSampleQuery` yields each interior
     /// quantity; a sample whose own interval is still wide is expanded at
     /// `seriesExpandStep` so the zone chart still has something to credit.
-    private func startHeartRateSeriesQuery(from start: Date) {
+    private func startHeartRateSeriesQuery(
+        from start: Date,
+        includeSamplesStartingEarlier: Bool = false
+    ) {
         stopHeartRateSeriesQuery()
         // No source filter: heart rate sampled during the session is saved
         // with the watch itself as its source, not this app, so restricting
         // to `HKSource.default()` matched nothing on real hardware. Anything
         // this watch measured after the workout began belongs to it.
+        // Strict-start for a fresh workout so readings from before it began
+        // cannot creep in; overlapping on recovery (see `recoverIfNeeded`).
         let predicate = HKQuery.predicateForSamples(
             withStart: start,
             end: nil,
-            options: .strictStartDate
+            options: includeSamplesStartingEarlier ? [] : .strictStartDate
         )
         // Long-running: `HKQuantitySeriesSampleQuery` on its own enumerates
         // only the samples that exist when it executes and then completes,
@@ -380,6 +399,11 @@ final class WorkoutHealthKitController: NSObject {
     }
 
     private func appendSample(at date: Date, bpm: Double) {
+        // Instants go out at second precision, so anything within the same
+        // second as the last reading sent would re-send that reading.
+        if let skipReadingsThrough, date < skipReadingsThrough.addingTimeInterval(1) {
+            return
+        }
         let t = instantFormatter.string(from: date)
         if pendingSampleTimes.contains(t) { return }
         pendingSampleTimes.insert(t)

@@ -422,10 +422,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         reportedEnergyKcal = snapshot.reportedEnergyKcal
         bindHealthKitCallbacks()
-        // One second past the last reading sent: instants go out at second
-        // precision, so resuming exactly on it would re-send that reading.
-        let resumeFrom = snapshot.heartRateSentThrough?.addingTimeInterval(1)
-        workoutHealthKit.recoverIfNeeded(resumeHeartRateFrom: resumeFrom) { [weak self] recovered in
+        workoutHealthKit.recoverIfNeeded(
+            heartRateSentThrough: snapshot.heartRateSentThrough
+        ) { [weak self] recovered in
             guard let self else { return }
             if recovered { return }
             self.workoutHealthKit.requestAuthorization { _ in
