@@ -156,6 +156,13 @@ private struct WorkoutCompleteView: View {
     }
 }
 
+/// Consecutive members of one superset, or a run of exercises that are not.
+private struct ExerciseBlock: Identifiable {
+    let id: String
+    let header: String?
+    var exercises: [PlannedExercise]
+}
+
 /// Every exercise in the preset, so the wearer can work out of order — skip
 /// ahead when a machine is taken, or come back to something left half done.
 /// Selecting one resumes it at its first unlogged set rather than restarting.
@@ -174,20 +181,68 @@ private struct ExerciseListView: View {
 
     private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
 
+    /// Consecutive members of one superset stay together under one header.
+    /// Solos stay in the plain list.
+    private var blocks: [ExerciseBlock] {
+        var blocks: [ExerciseBlock] = []
+        for exercise in exercises {
+            if let run = exercise.supersetRun,
+               let index = blocks.indices.last,
+               blocks[index].id == "superset-\(run)" {
+                blocks[index].exercises.append(exercise)
+                continue
+            }
+            if exercise.supersetRun == nil,
+               let index = blocks.indices.last,
+               blocks[index].header == nil {
+                blocks[index].exercises.append(exercise)
+                continue
+            }
+            let run = exercise.supersetRun
+            if let run {
+                blocks.append(
+                    ExerciseBlock(
+                        id: "superset-\(run)",
+                        header: "Superset",
+                        exercises: [exercise]
+                    )
+                )
+            } else {
+                blocks.append(
+                    ExerciseBlock(
+                        id: exercise.exerciseEntryId,
+                        header: nil,
+                        exercises: [exercise]
+                    )
+                )
+            }
+        }
+        return blocks
+    }
+
     var body: some View {
         List {
             Section {
-                ForEach(exercises) { exercise in
-                    Button {
-                        onSelect(exercise.exerciseEntryId)
-                        dismiss()
-                    } label: {
-                        ExerciseRow(exercise: exercise)
-                    }
-                    .buttonStyle(.plain)
-                }
-            } header: {
                 Text("\(exercises.count) Exercises")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(blocks) { block in
+                Section {
+                    ForEach(block.exercises) { exercise in
+                        Button {
+                            onSelect(exercise.exerciseEntryId)
+                            dismiss()
+                        } label: {
+                            ExerciseRow(exercise: exercise)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    if let header = block.header {
+                        Text(header)
+                    }
+                }
             }
 
             // Finishing lives here rather than on the set screen: this is the
@@ -324,6 +379,12 @@ private struct CurrentSetView: View {
                     .font(.headline)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                if let partners = step.supersetWith {
+                    Text("Superset · \(partners)")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 Text(step.label)
                     .font(.caption2)
                     .foregroundStyle(.orange)
@@ -485,7 +546,7 @@ private struct RestView: View {
 
             if let next = store.currentStep {
                 VStack(spacing: 0) {
-                    Text("Next set")
+                    Text(next.supersetWith == nil ? "Next set" : "Next in superset")
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                     Text(next.exerciseName)

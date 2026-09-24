@@ -32,6 +32,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// names, so the phone can attach the series to the right entry.
     let exerciseEntryId: String
     let name: String
+    /// Index of the valid superset run, shared with its partners. Nil when
+    /// this exercise is on its own. The phone only sets it for an adjacent
+    /// run of two or more, so the watch does not repeat that rule.
+    let supersetRun: Int?
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }
@@ -100,6 +104,30 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     }
 }
 
+extension ActiveWorkoutPlan {
+    /// Entry id to the other member names. A run of one is not a superset,
+    /// even if the phone sent an index for it.
+    func supersetPartners() -> [String: String] {
+        var grouped: [Int: [PlannedExercise]] = [:]
+        for exercise in exercises {
+            guard let run = exercise.supersetRun else { continue }
+            grouped[run, default: []].append(exercise)
+        }
+        var partners: [String: String] = [:]
+        for members in grouped.values where members.count >= 2 {
+            for member in members {
+                let others = members
+                    .filter { $0.exerciseEntryId != member.exerciseEntryId }
+                    .map(\.name)
+                if !others.isEmpty {
+                    partners[member.exerciseEntryId] = others.joined(separator: ", ")
+                }
+            }
+        }
+        return partners
+    }
+}
+
 /// One set of one exercise, as a position in the workout's flat running order.
 ///
 /// The watch shows a single set at a time and pages through them, so it walks
@@ -117,6 +145,9 @@ struct WorkoutStep: Identifiable, Equatable {
     /// that exercise has — the "1/2" in "Warmup 1/2".
     let setNumber: Int
     let setCount: Int
+    /// The other exercises in this set's superset, for the one-line caption.
+    /// Nil when the set is not part of a superset.
+    let supersetWith: String?
 
     var id: String { plannedSet.setId }
 

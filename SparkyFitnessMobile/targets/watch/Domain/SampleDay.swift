@@ -125,6 +125,7 @@ enum SampleDay {
             PlannedExercise(
                 exerciseEntryId: "preview-ex-1",
                 name: "Barbell Bench Press",
+                supersetRun: 0,
                 sets: [
                     // A warmup first, so the label above the values is
                     // exercised rather than always reading "Set n/m".
@@ -138,6 +139,7 @@ enum SampleDay {
             PlannedExercise(
                 exerciseEntryId: "preview-ex-2",
                 name: "Incline Dumbbell Shoulder Press",
+                supersetRun: 0,
                 sets: [
                     PlannedSet(setId: "4", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60, setType: "normal"),
                     PlannedSet(setId: "5", targetReps: 12, targetWeightKg: 22.5, restSeconds: 60, setType: "normal"),
@@ -146,6 +148,7 @@ enum SampleDay {
             PlannedExercise(
                 exerciseEntryId: "preview-ex-3",
                 name: "Press-ups",
+                supersetRun: nil,
                 sets: [
                     // Bodyweight: no target weight at all, so the KG box has
                     // to render its empty state.

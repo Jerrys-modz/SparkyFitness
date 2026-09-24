@@ -236,7 +236,12 @@ enum ContextPayloadMapper {
                     setType: rawSet["setType"] as? String
                 )
             }
-            return PlannedExercise(exerciseEntryId: exerciseEntryId, name: name, sets: sets)
+            return PlannedExercise(
+                exerciseEntryId: exerciseEntryId,
+                name: name,
+                supersetRun: intValue(raw["supersetRun"]),
+                sets: sets
+            )
         }
         guard !exercises.isEmpty else { return nil }
 

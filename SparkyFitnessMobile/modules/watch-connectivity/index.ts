@@ -194,6 +194,13 @@ export interface WatchPlannedExercisePayload {
   /** The exercise_entries id — what a heart-rate batch for this exercise names. */
   exerciseEntryId: string;
   name: string;
+  /**
+   * Index of the valid superset this exercise belongs to, shared with its
+   * partners. Null when it is not in a superset. A stored group id of one
+   * exercise, or the same id on exercises that are not next to each other,
+   * is not a superset and stays null.
+   */
+  supersetRun: number | null;
   sets: WatchPlannedSetPayload[];
 }
 

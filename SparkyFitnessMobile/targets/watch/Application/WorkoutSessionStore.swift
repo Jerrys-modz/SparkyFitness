@@ -94,6 +94,7 @@ final class WorkoutSessionStore: ObservableObject {
 
     func start(with plan: ActiveWorkoutPlan) {
         self.plan = plan
+        let partners = plan.supersetPartners()
         let flattened = plan.exercises.flatMap { exercise in
             exercise.sets.enumerated().map { index, set in
                 WorkoutStep(
@@ -101,7 +102,8 @@ final class WorkoutSessionStore: ObservableObject {
                     exerciseName: exercise.name,
                     plannedSet: set,
                     setNumber: index + 1,
-                    setCount: exercise.sets.count
+                    setCount: exercise.sets.count,
+                    supersetWith: partners[exercise.exerciseEntryId]
                 )
             }
         }
