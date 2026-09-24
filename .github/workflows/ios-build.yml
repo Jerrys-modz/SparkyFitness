@@ -5,26 +5,16 @@ name: Build iOS & watchOS
 # compiled the Swift until this existed — so a broken watch target or Expo
 # native module could land unnoticed.
 #
+# Manual only. A macOS runner plus Expo prebuild is too expensive to run on
+# every push or pull request. Start it from the Actions tab when the watch
+# or native iOS code needs a compile check.
+#
 # Builds Debug rather than Release on purpose: the watch target's SwiftUI
 # previews and its `SampleDay` fixtures are `#if DEBUG`, so a Release build
 # would skip exactly the code most likely to rot.
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "SparkyFitnessMobile/**"
-      - "shared/**"
-      - ".github/workflows/ios-build.yml"
-  pull_request:
-    paths:
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "SparkyFitnessMobile/**"
-      - "shared/**"
-      - ".github/workflows/ios-build.yml"
 
 # A second push to the same branch makes the first build irrelevant.
 concurrency:
