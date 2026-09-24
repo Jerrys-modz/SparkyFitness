@@ -172,20 +172,25 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
                       format?: string;
                       rounds_completed?: number;
                       rounds?: number;
+                      reps_completed?: number;
                       extra_reps?: number;
                       reps?: number;
                       elapsed_seconds?: number;
                       time_seconds?: number;
                       is_rx?: boolean;
+                      status?: string;
                       scaling_status?: string;
                     };
                     const format = (wod.workout_format || wod.format || 'WOD')
                       .toUpperCase()
                       .replace('_', ' ');
                     const rounds = wod.rounds_completed ?? wod.rounds ?? 0;
-                    const reps = wod.extra_reps ?? wod.reps ?? 0;
+                    const reps =
+                      wod.reps_completed ?? wod.extra_reps ?? wod.reps ?? 0;
                     const isRx =
-                      wod.is_rx === true || wod.scaling_status === 'rx';
+                      wod.is_rx === true ||
+                      wod.status === 'rx' ||
+                      wod.scaling_status === 'rx';
 
                     let scoreStr = '';
                     if (
