@@ -207,4 +207,39 @@ describe('manageGoalTimeline water_goal_ml persistence', () => {
       (result['2020-01-01'] as { water_goal_ml: number }).water_goal_ml
     ).toBe(2500);
   });
+
+  it('keeps an earlier water goal when a later daily goal omits it', async () => {
+    vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue({
+      calories: 2000,
+      water_goal_ml: 2500,
+      protein_percentage: null,
+      carbs_percentage: null,
+      fat_percentage: null,
+    });
+    vi.mocked(goalRepository.getGoalsInRange).mockResolvedValue([
+      {
+        goal_date: '2020-01-01',
+        calories: 2100,
+        water_goal_ml: null,
+        protein_percentage: null,
+        carbs_percentage: null,
+        fat_percentage: null,
+      },
+    ] as never);
+
+    const result = await goalService.getUserGoalsForRange(
+      'user-1',
+      '2020-01-01',
+      '2020-01-02'
+    );
+
+    expect(
+      (result['2020-01-01'] as { water_goal_ml: number }).water_goal_ml
+    ).toBe(2500);
+    expect(
+      (result['2020-01-02'] as { water_goal_ml: number }).water_goal_ml
+    ).toBe(2500);
+    expect((result['2020-01-01'] as { calories: number }).calories).toBe(2100);
+    expect((result['2020-01-02'] as { calories: number }).calories).toBe(2100);
+  });
 });

@@ -202,9 +202,16 @@ async function getUserGoalsForRange(
   while (!isAfter(cursor, end)) {
     const dateStr = format(cursor, 'yyyy-MM-dd');
     let goals = explicitByDate[dateStr] ?? null;
+    // Snapshot before an explicit row replaces the fallback. A daily goal
+    // with no water value must not wipe a custom goal for this day or later.
+    const carriedWater =
+      currentFallback.water_goal_ml ?? DEFAULT_GOALS.water_goal_ml ?? 1920;
 
     if (goals) {
-      currentFallback = goals;
+      currentFallback =
+        goals.water_goal_ml === null || goals.water_goal_ml === undefined
+          ? { ...goals, water_goal_ml: carriedWater }
+          : goals;
     } else if (activeWeeklyPlan) {
       const presetId = activeWeeklyPlan[DAY_PRESETS[getDay(cursor)]];
       if (presetId) {
@@ -218,15 +225,14 @@ async function getUserGoalsForRange(
 
     // Clone to avoid mutating the source in the cache or repository
     let processedGoals = { ...goals };
-    // A cleared water goal is stored as null. Prefer the carried goal (a
-    // weekly preset often has no water value) and only then the default,
-    // so a custom goal such as 2500 ml is not replaced by 1920.
+    // A cleared water goal is stored as null. Prefer the water goal already
+    // in effect (an earlier custom goal, or a weekly preset with no water
+    // value) and only then the default.
     if (
       processedGoals.water_goal_ml === null ||
       processedGoals.water_goal_ml === undefined
     ) {
-      processedGoals.water_goal_ml =
-        currentFallback.water_goal_ml ?? DEFAULT_GOALS.water_goal_ml ?? 1920;
+      processedGoals.water_goal_ml = carriedWater;
     }
 
     if (adjust) {
