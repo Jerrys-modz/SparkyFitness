@@ -6,7 +6,10 @@ import Toast from 'react-native-toast-message';
 import { useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { PresetSessionExerciseRequest } from '@workspace/shared';
+import type {
+  PresetSessionExerciseRequest,
+  WorkoutFormat,
+} from '@workspace/shared';
 import { useCreateWorkout } from './useExerciseMutations';
 import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import { serverConnectionQueryKey } from './queryKeys';
@@ -41,6 +44,8 @@ interface StartLiveWorkoutArgs {
   sourcePresetId?: number;
   /** Plan assignment id if starting from a workout plan session. */
   workoutPlanAssignmentId?: number;
+  workoutFormat?: WorkoutFormat;
+  timeCapSeconds?: number | null;
 }
 
 /**
@@ -119,6 +124,8 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
       exercises,
       sourcePresetId,
       workoutPlanAssignmentId,
+      workoutFormat,
+      timeCapSeconds,
     }: StartLiveWorkoutArgs) => {
       if (exercises.length === 0) {
         Toast.show({
@@ -145,15 +152,60 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           sourcePresetId != null
             ? (await getActiveServerConfig())?.id
             : undefined;
+        let resolvedExercises = exercises;
+        if (workoutFormat === 'tabata') {
+          resolvedExercises = exercises.map((ex) => {
+            if (ex.sets.length < 8 && ex.sets.length > 0) {
+              const baseSets = ex.sets;
+              const expandedSets = Array.from({ length: 8 }, (_, i) => {
+                const templateSet = baseSets[i % baseSets.length]!;
+                return {
+                  ...templateSet,
+                  set_number: i + 1,
+                  duration: templateSet.duration ?? 20,
+                  rest_time: templateSet.rest_time ?? 10,
+                };
+              });
+              return { ...ex, sets: expandedSets };
+            }
+            return ex;
+          });
+        } else if (
+          workoutFormat === 'emom' &&
+          timeCapSeconds != null &&
+          timeCapSeconds >= 60
+        ) {
+          const emomRounds = Math.floor(timeCapSeconds / 60);
+          if (emomRounds > 1) {
+            resolvedExercises = exercises.map((ex) => {
+              if (ex.sets.length < emomRounds && ex.sets.length > 0) {
+                const baseSets = ex.sets;
+                const expandedSets = Array.from(
+                  { length: emomRounds },
+                  (_, i) => {
+                    const templateSet = baseSets[i % baseSets.length]!;
+                    return {
+                      ...templateSet,
+                      set_number: i + 1,
+                    };
+                  }
+                );
+                return { ...ex, sets: expandedSets };
+              }
+              return ex;
+            });
+          }
+        }
+
         // Hevy-style start: sets are created with empty weight/reps — the
         // plan renders as gray placeholders and is only recorded when a set
         // is completed or typed over.
-        const plannedSetValues = extractPlannedSetValues(exercises);
+        const plannedSetValues = extractPlannedSetValues(resolvedExercises);
         const session = await createSession({
           name: name ?? defaultWorkoutName(entryDate),
           entry_date: entryDate,
           source: 'sparky',
-          exercises: stripPlannedSetValues(exercises),
+          exercises: stripPlannedSetValues(resolvedExercises),
           // Tags the created session to the preset (recentSessions stats
           // scoping, server-side) without changing how it's built — the
           // server keeps the client-supplied exercises verbatim when both
@@ -172,6 +224,8 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           plannedSetValues,
           sourcePresetId,
           sourceServerConfigId,
+          workoutFormat,
+          timeCapSeconds,
         });
         if (navigation.isFocused()) {
           navigation.replace('ActiveWorkout');

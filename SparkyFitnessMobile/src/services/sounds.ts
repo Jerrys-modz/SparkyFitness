@@ -73,8 +73,85 @@ export function playRestCompleteSound(): void {
   })();
 }
 
+let intervalWorkPlayer: AudioPlayer | null = null;
+let intervalRestPlayer: AudioPlayer | null = null;
+
+/**
+ * Starts an audio session configured for interval workouts (`playsInSilentMode: true`).
+ * This ensures cues are audible mid-workout even if the phone's silent switch is on.
+ */
+export async function startIntervalAudioSession(): Promise<void> {
+  try {
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      interruptionMode: 'mixWithOthers',
+    });
+    audioModeConfigured = true;
+  } catch (err) {
+    addLog(
+      `startIntervalAudioSession failed: ${(err as Error).message}`,
+      'WARNING'
+    );
+  }
+}
+
+/**
+ * Ends the interval audio session, restoring the standard audio mode.
+ */
+export async function stopIntervalAudioSession(): Promise<void> {
+  try {
+    await setAudioModeAsync({
+      playsInSilentMode: false,
+      interruptionMode: 'mixWithOthers',
+    });
+    audioModeConfigured = true;
+  } catch (err) {
+    addLog(
+      `stopIntervalAudioSession failed: ${(err as Error).message}`,
+      'WARNING'
+    );
+  }
+}
+
+/**
+ * Plays a sound cue for interval transitions (work, rest, countdown beep, or workout finish).
+ */
+export function playIntervalCue(
+  type: 'work' | 'rest' | 'countdown' | 'finish'
+): void {
+  if (!isRestTimerSoundEnabled()) return;
+  void (async () => {
+    try {
+      if (type === 'work' || type === 'finish') {
+        if (intervalWorkPlayer == null) {
+          intervalWorkPlayer = createAudioPlayer(
+            require('../../assets/sounds/rest-chime.wav')
+          );
+        }
+        await intervalWorkPlayer.seekTo(0);
+        intervalWorkPlayer.play();
+      } else {
+        if (intervalRestPlayer == null) {
+          intervalRestPlayer = createAudioPlayer(
+            require('../../assets/sounds/rest-chime-2.wav')
+          );
+        }
+        await intervalRestPlayer.seekTo(0);
+        intervalRestPlayer.play();
+      }
+    } catch (err) {
+      addLog(
+        `playIntervalCue (${type}) failed: ${(err as Error).message}`,
+        'ERROR'
+      );
+    }
+  })();
+}
+
 /** Test-only helper — drops the cached player and audio-mode flag. */
 export function __resetSoundsForTests(): void {
   restChimePlayer = null;
+  intervalWorkPlayer = null;
+  intervalRestPlayer = null;
   audioModeConfigured = false;
 }

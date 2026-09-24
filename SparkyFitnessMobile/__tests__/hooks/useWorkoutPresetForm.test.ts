@@ -836,6 +836,8 @@ describe('useWorkoutPresetForm', () => {
     expect(result.current.state).toEqual({
       name: '',
       description: '',
+      workoutFormat: 'standard',
+      timeCapSeconds: null,
       exercises: [],
     });
     expect(result.current.exercisesModifiedRef.current).toBe(false);

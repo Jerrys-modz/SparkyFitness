@@ -53,6 +53,26 @@ export async function saveActiveWorkoutSession(
   const sessionSource = state.session.source ?? 'unknown';
   try {
     const trimmedName = state.session.name.trim();
+    const activityDetails =
+      state.workoutFormat !== 'standard'
+        ? [
+            {
+              detail_type: 'wod_score' as const,
+              detail_data: {
+                format: state.workoutFormat,
+                rounds_completed: state.intervalRoundsCompleted,
+                reps_completed: state.intervalRepsCompleted,
+                time_cap_seconds: state.timeCapSeconds ?? undefined,
+                elapsed_seconds: state.startedAt
+                  ? Math.floor((Date.now() - state.startedAt) / 1000)
+                  : undefined,
+                status: state.intervalStatus,
+                scaling_notes: state.intervalScalingNotes || undefined,
+              },
+            },
+          ]
+        : undefined;
+
     const result = await updateWorkout(sessionId, {
       // Persist the (possibly renamed) session name; skip an empty string so
       // the server's min(1) name validation isn't tripped.
@@ -63,6 +83,7 @@ export async function saveActiveWorkoutSession(
         state.prSetIds,
         state.startedAt
       ),
+      activity_details: activityDetails,
     });
     useActiveWorkoutStore
       .getState()
