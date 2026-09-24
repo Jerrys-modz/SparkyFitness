@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { paginationSchema } from "./Pagination.api.zod.ts";
 import { exerciseModalitySchema } from "./Exercises.api.zod.ts";
+import { workoutFormatSchema } from "./WorkoutPresets.api.zod.ts";
 
 // --- Query contracts ---
 
@@ -183,6 +184,33 @@ export const presetSessionExerciseRequestSchema = z
   })
   .strict();
 
+export const activityDetailRequestItemSchema = z.object({
+  id: z.string().optional(),
+  provider_name: z.string().optional(),
+  detail_type: z.string().optional(),
+  detail_data: z.unknown().optional(),
+});
+
+export const wodScoreDetailDataSchema = z.object({
+  workout_format: workoutFormatSchema,
+  time_cap_seconds: z.number().int().nullable().optional(),
+  score_type: z.enum(["time", "rounds_reps", "total_reps", "completion"]),
+  rounds_completed: z.number().int().nullable().optional(),
+  reps_completed: z.number().int().nullable().optional(),
+  elapsed_seconds: z.number().int().nullable().optional(),
+  status: z.enum(["rx", "scaled"]).nullable().optional(),
+  scaling_notes: z.string().nullable().optional(),
+  rounds: z
+    .array(
+      z.object({
+        round: z.number().int(),
+        started_at_s: z.number().optional(),
+        completed_at_s: z.number().optional(),
+      })
+    )
+    .optional(),
+});
+
 // A workout session can be started in two ways:
 // 1. From a stored preset blueprint (workout_preset_id provided; exercises optional)
 // 2. As a freeform workout (no workout_preset_id; non-empty name and at least one exercise required)
@@ -200,6 +228,7 @@ export const createPresetSessionRequestSchema = z
       .union([z.string(), z.number()])
       .nullable()
       .optional(),
+    activity_details: z.array(activityDetailRequestItemSchema).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -238,6 +267,7 @@ export const updatePresetSessionRequestSchema = z
     notes: z.string().nullable().optional(),
     entry_date: dateStringSchema.optional(),
     exercises: z.array(presetSessionExerciseRequestSchema).min(1).optional(),
+    activity_details: z.array(activityDetailRequestItemSchema).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -246,7 +276,8 @@ export const updatePresetSessionRequestSchema = z
       data.description !== undefined ||
       data.notes !== undefined ||
       data.entry_date !== undefined ||
-      data.exercises !== undefined;
+      data.exercises !== undefined ||
+      data.activity_details !== undefined;
 
     if (!hasAnyField) {
       ctx.addIssue({
@@ -297,13 +328,6 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
       body.hrSamples !== undefined || body.activeEnergyKcal !== undefined,
     { message: "At least one of hrSamples or activeEnergyKcal is required." },
   );
-
-export const activityDetailRequestItemSchema = z.object({
-  id: z.string().optional(),
-  provider_name: z.string().optional(),
-  detail_type: z.string().optional(),
-  detail_data: z.unknown().optional(),
-});
 
 export const createExerciseEntryRequestSchema = z
   .object({
@@ -653,3 +677,4 @@ export type ExerciseRecentSession = z.infer<typeof exerciseRecentSessionSchema>;
 export type ExerciseStatsResponse = z.infer<typeof exerciseStatsResponseSchema>;
 export type ImportFitFileResult = z.infer<typeof importFitFileResultSchema>;
 export type ImportFitResponse = z.infer<typeof importFitResponseSchema>;
+export type WodScoreDetailData = z.infer<typeof wodScoreDetailDataSchema>;

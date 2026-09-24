@@ -186,7 +186,7 @@ const WorkoutPlaybackSetRow = ({
                   parseNullableInteger(event.target.value)
                 )
               }
-              placeholder={t('workout.durationSec', 'Duration (s)')}
+              placeholder={t('workout.durationSecShort', 'Sec')}
               className="col-span-2 w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:col-start-3 sm:col-span-2"
             />
           ) : (

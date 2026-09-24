@@ -2010,6 +2010,25 @@ async function createGroupedWorkoutSession(
         preserveLegacyPresetDurationFallback,
       }
     );
+    if (
+      sessionData.activity_details &&
+      sessionData.activity_details.length > 0
+    ) {
+      for (const detail of sessionData.activity_details) {
+        await activityDetailsRepository._createActivityDetailWithClient(
+          client,
+          {
+            exercise_entry_id: null,
+            exercise_preset_entry_id: presetEntry.id,
+            provider_name: detail.provider_name || 'SparkyFitness',
+            detail_type: detail.detail_type || 'wod_score',
+            detail_data: detail.detail_data,
+            created_by_user_id: actingUserId || userId,
+            updated_by_user_id: actingUserId || userId,
+          }
+        );
+      }
+    }
     const groupedSession = await getGroupedExerciseSessionByIdWithClient(
       client,
       userId,
@@ -2275,6 +2294,44 @@ async function updateGroupedWorkoutSession(
         updateData.entry_date,
         actingUserId
       );
+    }
+    if (updateData.activity_details !== undefined) {
+      const providersToReplace = new Set<string>();
+      if (updateData.activity_details.length > 0) {
+        for (const detail of updateData.activity_details) {
+          const providerName = detail.provider_name || 'SparkyFitness';
+          const detailType = detail.detail_type || 'wod_score';
+          providersToReplace.add(`${providerName}::${detailType}`);
+        }
+      } else {
+        providersToReplace.add('SparkyFitness::wod_score');
+      }
+      for (const item of providersToReplace) {
+        const [providerName, detailType] = item.split('::');
+        await activityDetailsRepository._deleteActivityDetailsByEntryIdAndProviderWithClient(
+          client,
+          userId,
+          presetEntryId,
+          providerName,
+          detailType
+        );
+      }
+      if (updateData.activity_details.length > 0) {
+        for (const detail of updateData.activity_details) {
+          await activityDetailsRepository._createActivityDetailWithClient(
+            client,
+            {
+              exercise_entry_id: null,
+              exercise_preset_entry_id: presetEntryId,
+              provider_name: detail.provider_name || 'SparkyFitness',
+              detail_type: detail.detail_type || 'wod_score',
+              detail_data: detail.detail_data,
+              created_by_user_id: actingUserId || userId,
+              updated_by_user_id: actingUserId || userId,
+            }
+          );
+        }
+      }
     }
     const groupedSession = await getGroupedExerciseSessionByIdWithClient(
       client,
