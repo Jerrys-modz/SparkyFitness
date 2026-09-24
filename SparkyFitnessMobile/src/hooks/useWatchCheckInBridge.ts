@@ -542,6 +542,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         payload.clientId &&
         handledWaterClientIdsRef.current.has(payload.clientId)
       ) {
+        // A resend of something we've already seen. Re-acknowledge it, the
+        // way `handleCheckIn` does: without this, a tap whose write landed but
+        // whose ack was lost would be deduped in silence on every retry and
+        // sit on the watch as `.queued` forever.
+        //
+        // Only when it actually landed, though. This set is reserved BEFORE
+        // the write, so an id in it may still be in flight — that attempt
+        // sends its own ack, success or failure, and claiming success here
+        // would be guessing at an outcome we don't have yet.
+        if (ackedClientIdsRef.current.includes(payload.clientId)) {
+          await WatchConnectivity.sendAck(payload.clientId, true);
+        }
         return;
       }
       // Reserved BEFORE the write rather than after it. `changeWaterIntake` is
@@ -625,9 +637,20 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         payload.clientId &&
         handledWaterClientIdsRef.current.has(payload.clientId)
       ) {
+        // A resend. Re-acknowledge one that already landed, so a watch whose
+        // ack was lost can settle it — same rule as `handleWaterTap`.
+        if (ackedClientIdsRef.current.includes(payload.clientId)) {
+          await WatchConnectivity.sendAck(payload.clientId, true);
+        }
         return;
       }
       if (!payload.entryId) return;
+      // Reserved before the write, like a tap's. A delete is idempotent at the
+      // server, but two in flight would have the second fail against a row
+      // that is already gone — reported to the watch as a failure it can do
+      // nothing about.
+      if (payload.clientId)
+        handledWaterClientIdsRef.current.add(payload.clientId);
 
       const today = getTodayDate();
       try {
@@ -635,7 +658,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // no separate total adjustment to make here.
         await deleteWaterIntakeLogEntry(payload.entryId);
 
-        handledWaterClientIdsRef.current.add(payload.clientId);
+        ackedClientIdsRef.current = [
+          ...ackedClientIdsRef.current,
+          payload.clientId,
+        ].slice(-20);
+        failedClientIdsRef.current = failedClientIdsRef.current.filter(
+          (id) => id !== payload.clientId
+        );
+        await WatchConnectivity.sendAck(payload.clientId, true);
+
         queryClient.invalidateQueries({
           queryKey: dailySummaryQueryKey(today),
         });
@@ -646,9 +677,19 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         addLog(`Watch deleted water log entry ${payload.entryId}`, 'INFO');
         await pushContextRef.current();
       } catch (error) {
+        // Released, so a resend can try again under the same id.
+        if (payload.clientId) {
+          handledWaterClientIdsRef.current.delete(payload.clientId);
+          failedClientIdsRef.current = [
+            ...failedClientIdsRef.current,
+            payload.clientId,
+          ].slice(-20);
+          await WatchConnectivity.sendAck(payload.clientId, false);
+        }
         addLog(`Watch water delete failed: ${String(error)}`, 'ERROR');
         // Re-push so the watch's optimistically-removed row comes back rather
-        // than staying gone on a screen that now disagrees with the server.
+        // than staying gone on a screen that now disagrees with the server,
+        // and so the failure reaches a watch that wasn't reachable above.
         await pushContextRef.current();
       }
     },

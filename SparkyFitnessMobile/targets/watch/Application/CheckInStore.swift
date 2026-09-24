@@ -23,12 +23,16 @@ final class CheckInStore: ObservableObject {
     /// can wait a long while for its confirmation, and until then this is the
     /// only record that it happened.
     @Published private(set) var pendingWaterTaps: [PendingWaterTap] = []
+    /// Deletes confirmed on the watch but not yet written by the phone. Same
+    /// lifecycle as `pendingWaterTaps`, and persisted for the same reason.
+    @Published private(set) var pendingWaterDeletes: [PendingWaterDelete] = []
 
     private let defaults = UserDefaults.standard
     private let contextKey = "sparky.watch.context"
     private let pendingKey = "sparky.watch.pending"
     private let lastCapturedKey = "sparky.watch.lastCaptured"
     private let pendingWaterKey = "sparky.watch.pendingWaterTaps"
+    private let pendingWaterDeleteKey = "sparky.watch.pendingWaterDeletes"
 
     private init() {
         load()
@@ -141,9 +145,50 @@ final class CheckInStore: ObservableObject {
     /// What the Water page's status pill shows: the worst outstanding state,
     /// since a single failure is the thing worth surfacing.
     var waterSyncState: SyncState {
-        if pendingWaterTaps.contains(where: { $0.state == .failed }) { return .failed }
-        if pendingWaterTaps.contains(where: { $0.state == .queued }) { return .queued }
+        let states = pendingWaterTaps.map(\.state) + pendingWaterDeletes.map(\.state)
+        if states.contains(.failed) { return .failed }
+        if states.contains(.queued) { return .queued }
         return .saved
+    }
+
+    /// Records a delete and returns the id to send. Same contract as
+    /// `recordWaterTap`: the caller must use this id as the `clientId`.
+    func recordWaterDelete(entryId: String) -> String {
+        let id = UUID().uuidString
+        pendingWaterDeletes.append(
+            PendingWaterDelete(
+                id: id,
+                entryId: entryId,
+                createdAt: Date(),
+                day: CheckInDate.today()
+            )
+        )
+        persist()
+        return id
+    }
+
+    func markWaterDelete(_ clientId: String, _ state: SyncState) {
+        guard let index = pendingWaterDeletes.firstIndex(where: { $0.id == clientId })
+        else { return }
+        guard pendingWaterDeletes[index].state != state else { return }
+        pendingWaterDeletes[index].state = state
+        persist()
+    }
+
+    /// Rows the log view should hide: the delete has been written, or is on its
+    /// way. A `.failed` delete deliberately isn't here — its row comes back.
+    var deletedWaterEntryIds: Set<String> {
+        Set(pendingWaterDeletes.filter { $0.state == .saved }.map(\.entryId))
+    }
+
+    /// Rows to draw dimmed: confirmed by the wearer, not yet by the phone.
+    var deletingWaterEntryIds: Set<String> {
+        Set(pendingWaterDeletes.filter { $0.state == .queued }.map(\.entryId))
+    }
+
+    /// Deletes to send again, oldest first.
+    var queuedWaterDeletes: [PendingWaterDelete] {
+        pendingWaterDeletes.filter { $0.state == .queued }
     }
 
     /// Taps to send again, oldest first.
@@ -169,8 +214,14 @@ final class CheckInStore: ObservableObject {
         // Acks first: the phone naming a tap is more specific than any
         // inference from the total, and a tap moved to `.saved` here is what
         // fills the bottle up to the line the queued state drew.
-        for clientId in incoming.ackedClientIds { markWaterTap(clientId, .saved) }
-        for clientId in incoming.failedClientIds { markWaterTap(clientId, .failed) }
+        for clientId in incoming.ackedClientIds {
+            markWaterTap(clientId, .saved)
+            markWaterDelete(clientId, .saved)
+        }
+        for clientId in incoming.failedClientIds {
+            markWaterTap(clientId, .failed)
+            markWaterDelete(clientId, .failed)
+        }
 
         // Then settle the resolved ones. A total the phone built after the tap
         // has had its chance to include it, so keeping our own copy would
@@ -198,10 +249,14 @@ final class CheckInStore: ObservableObject {
         if context.water?.isToday == true, !pendingWaterTaps.isEmpty {
             if let generatedAt = context.generatedAt {
                 pendingWaterTaps.removeAll { $0.state != .queued && $0.createdAt <= generatedAt }
+                pendingWaterDeletes.removeAll {
+                    $0.state != .queued && $0.createdAt <= generatedAt
+                }
             } else {
                 // A phone build from before `pushedAt` existed: no timestamp to
                 // reason with, so settle everything already resolved.
                 pendingWaterTaps.removeAll { $0.state != .queued }
+                pendingWaterDeletes.removeAll { $0.state != .queued }
             }
         }
 
@@ -320,6 +375,10 @@ final class CheckInStore: ObservableObject {
             pendingWaterTaps.removeAll { !$0.isToday }
             changed = true
         }
+        if pendingWaterDeletes.contains(where: { !$0.isToday }) {
+            pendingWaterDeletes.removeAll { !$0.isToday }
+            changed = true
+        }
 
         return changed
     }
@@ -335,6 +394,9 @@ final class CheckInStore: ObservableObject {
         }
         if let data = try? encoder.encode(pendingWaterTaps) {
             defaults.set(data, forKey: pendingWaterKey)
+        }
+        if let data = try? encoder.encode(pendingWaterDeletes) {
+            defaults.set(data, forKey: pendingWaterDeleteKey)
         }
     }
 
@@ -357,6 +419,10 @@ final class CheckInStore: ObservableObject {
         if let data = defaults.data(forKey: pendingWaterKey),
            let decoded = try? decoder.decode([PendingWaterTap].self, from: data) {
             pendingWaterTaps = decoded
+        }
+        if let data = defaults.data(forKey: pendingWaterDeleteKey),
+           let decoded = try? decoder.decode([PendingWaterDelete].self, from: data) {
+            pendingWaterDeletes = decoded
         }
 
         // What was just restored may describe a day that has since ended —
