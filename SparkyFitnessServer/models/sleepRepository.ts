@@ -1,6 +1,9 @@
 import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
-import { sleepStageMergeWindow } from '../utils/sleepStageAggregates.js';
+import {
+  sleepStageMergeWindow,
+  scoredStageRemaindersOutsideWindow,
+} from '../utils/sleepStageAggregates.js';
 
 async function upsertSleepEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -365,6 +368,71 @@ async function deleteSupersededSleepStagesWithClient(
       ? s.end_time.toISOString()
       : new Date(s.end_time).toISOString()
   );
+  const keptKeys = new Set(
+    keptStarts.map((start, index) => `${start}|${keptEnds[index]}`)
+  );
+  const crossing = await client.query(
+    `SELECT id, stage_type, start_time, end_time
+     FROM sleep_entry_stages
+     WHERE entry_id = $1
+       AND user_id = $2
+       AND start_time < $4
+       AND end_time > $3`,
+    [entryId, userId, windowStart, windowEnd]
+  );
+  for (const row of crossing.rows) {
+    const rowStart =
+      row.start_time instanceof Date
+        ? row.start_time.toISOString()
+        : new Date(row.start_time).toISOString();
+    const rowEnd =
+      row.end_time instanceof Date
+        ? row.end_time.toISOString()
+        : new Date(row.end_time).toISOString();
+    if (keptKeys.has(`${rowStart}|${rowEnd}`)) continue;
+    const remainders = scoredStageRemaindersOutsideWindow(
+      row,
+      new Date(windowStart),
+      new Date(windowEnd)
+    );
+    if (!remainders || remainders.length === 0) continue;
+    const [head, tail] = remainders;
+    await client.query(
+      `UPDATE sleep_entry_stages
+       SET start_time = $4,
+           end_time = $5,
+           duration_in_seconds = $6,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND entry_id = $2 AND user_id = $3`,
+      [
+        row.id,
+        entryId,
+        userId,
+        head.start_time,
+        head.end_time,
+        head.duration_in_seconds,
+      ]
+    );
+    if (tail) {
+      await client.query(
+        `INSERT INTO sleep_entry_stages
+           (entry_id, user_id, stage_type, start_time, end_time, duration_in_seconds)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (entry_id, start_time, end_time) DO UPDATE SET
+           stage_type = EXCLUDED.stage_type,
+           duration_in_seconds = EXCLUDED.duration_in_seconds,
+           updated_at = CURRENT_TIMESTAMP`,
+        [
+          entryId,
+          userId,
+          row.stage_type,
+          tail.start_time,
+          tail.end_time,
+          tail.duration_in_seconds,
+        ]
+      );
+    }
+  }
   const result = await client.query(
     `DELETE FROM sleep_entry_stages s
      WHERE s.entry_id = $1

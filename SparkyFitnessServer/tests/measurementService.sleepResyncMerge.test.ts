@@ -4,7 +4,10 @@ import sleepRepository from '../models/sleepRepository.js';
 import userRepository from '../models/userRepository.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
-import { sleepStageMergeWindow } from '../utils/sleepStageAggregates.js';
+import {
+  sleepStageMergeWindow,
+  reconcileStoredStagesForMerge,
+} from '../utils/sleepStageAggregates.js';
 vi.mock('../models/measurementRepository');
 vi.mock('../models/userRepository');
 vi.mock('../models/exerciseRepository');
@@ -70,23 +73,12 @@ describe('processHealthData sleep re-sync merge (issue #1180)', () => {
           };
         });
         const mergeWindow = sleepStageMergeWindow(normalizedStages);
-        const keptKeys = new Set(
-          normalizedStages.map(
-            (stage) => `${stage.start_time}|${stage.end_time}`
-          )
-        );
         if (mergeWindow) {
-          const ws = mergeWindow.start.getTime();
-          const we = mergeWindow.end.getTime();
-          storedStages = storedStages.filter((stored) => {
-            const ss = new Date(stored.start_time).getTime();
-            const se = new Date(stored.end_time).getTime();
-            const fullyContained = ss >= ws && se <= we;
-            const isKept = keptKeys.has(
-              `${new Date(stored.start_time).toISOString()}|${new Date(stored.end_time).toISOString()}`
-            );
-            return !fullyContained || isKept;
-          });
+          storedStages = reconcileStoredStagesForMerge(
+            storedStages,
+            normalizedStages,
+            mergeWindow
+          );
         }
         for (const stage of normalizedStages) {
           const idx = storedStages.findIndex(
@@ -775,9 +767,25 @@ describe('processHealthData sleep re-sync merge (issue #1180)', () => {
     expect(
       remStart.some((s) => s.start_time === '2026-09-22T06:20:00.000Z')
     ).toBe(true);
+    const trimmedLight = lightStart.find(
+      (s) => s.start_time === '2026-09-22T07:50:00.000Z'
+    );
+    expect(trimmedLight?.end_time).toBe('2026-09-22T09:18:00.000Z');
+    expect(trimmedLight?.duration_in_seconds).toBe(88 * 60);
     expect(
-      lightStart.some((s) => s.start_time === '2026-09-22T07:50:00.000Z')
-    ).toBe(true);
+      lightStart.some((s) => s.end_time === '2026-09-22T09:45:00.000Z')
+    ).toBe(false);
+
+    const scored = storedStages
+      .filter((s) => ['awake', 'rem', 'light', 'deep'].includes(s.stage_type))
+      .map((s) => ({
+        start: new Date(s.start_time).getTime(),
+        end: new Date(s.end_time).getTime(),
+      }))
+      .sort((a, b) => a.start - b.start);
+    for (let i = 1; i < scored.length; i++) {
+      expect(scored[i].start).toBeGreaterThanOrEqual(scored[i - 1].end);
+    }
 
     const aggCalls = (
       sleepRepository.updateSleepEntryAggregates as unknown as {
@@ -787,11 +795,8 @@ describe('processHealthData sleep re-sync merge (issue #1180)', () => {
     const lastAggregates = aggCalls[aggCalls.length - 1][3] as {
       time_asleep_in_seconds: number;
     };
-    // Original rem 5400 + original light 6900 (straddles the fragment window so it
-    // is kept) + fragment rem 1200. Fragment light 1500 is inside the original light
-    // span but a different natural key, so it is added rather than replacing it —
-    // time_asleep is still far above the 45-minute fragment.
-    expect(lastAggregates.time_asleep_in_seconds).toBeGreaterThan(45 * 60);
-    expect(lastAggregates.time_asleep_in_seconds).toBeGreaterThanOrEqual(5400);
+    // 06:20 rem (5400) + trimmed light 07:50–09:18 (5280) + fragment light
+    // 09:18–09:43 (1500) + fragment rem 09:43–10:03 (1200). No overlap.
+    expect(lastAggregates.time_asleep_in_seconds).toBe(13380);
   });
 });
