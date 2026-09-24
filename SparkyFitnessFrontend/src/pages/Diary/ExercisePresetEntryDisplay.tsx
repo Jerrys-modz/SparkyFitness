@@ -21,6 +21,7 @@ import ExerciseEntryDisplay from './ExerciseEntryDisplay';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   formatMinutesToHHMM,
+  formatSecondsClock,
   formatTimeOfDayString,
 } from '@/utils/timeFormatters';
 import { Exercise, ExerciseEntry, PresetSessionEntry } from '@/types/exercises';
@@ -203,9 +204,10 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
                       wod.format === 'for_time'
                     ) {
                       const secs = wod.time_seconds ?? wod.elapsed_seconds;
-                      scoreStr = secs
-                        ? formatMinutesToHHMM(Math.round(secs / 60))
-                        : 'Done';
+                      scoreStr =
+                        typeof secs === 'number'
+                          ? formatSecondsClock(secs)
+                          : 'Done';
                     } else if (rounds > 0) {
                       scoreStr = `${rounds} rds`;
                     }

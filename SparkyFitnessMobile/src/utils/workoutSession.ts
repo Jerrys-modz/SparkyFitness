@@ -339,7 +339,7 @@ export function buildSessionSubtitle(
         } else if (data.format === 'for_time') {
           scoreStr =
             typeof data.elapsed_seconds === 'number'
-              ? formatDuration(Math.floor(data.elapsed_seconds / 60))
+              ? formatDurationSeconds(data.elapsed_seconds)
               : 'Completed';
         } else {
           scoreStr = `${rounds} rds`;

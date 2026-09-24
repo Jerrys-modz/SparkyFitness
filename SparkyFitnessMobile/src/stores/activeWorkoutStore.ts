@@ -1203,6 +1203,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         }
 
         const renderKeys = { ...state.setRenderKeys };
+        let runningSession: PresetSessionResponse = {
+          ...session,
+          exercises: session.exercises,
+        };
+
         const updatedExercises = session.exercises.map((exercise) => {
           const roundSetsCount = Math.max(
             1,
@@ -1215,11 +1220,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
             templateSets.length > 0
               ? templateSets
               : [exercise.sets[exercise.sets.length - 1]!];
-
-          let runningSession: PresetSessionResponse = {
-            ...session,
-            exercises: session.exercises,
-          };
 
           const newSets: ExerciseEntrySetResponse[] = sources.map(
             (set, idx) => {

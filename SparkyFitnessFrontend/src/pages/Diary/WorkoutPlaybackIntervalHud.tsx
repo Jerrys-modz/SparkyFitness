@@ -152,10 +152,13 @@ export default function WorkoutPlaybackIntervalHud({
       lastCuePhaseIndexRef.current = phase.phaseIndex;
       lastCountdownSecRef.current = null;
 
-      const prevPhase =
-        prevPhaseIndex != null ? intervalPhases[prevPhaseIndex] : null;
-      if (prevPhase && prevPhase.kind === 'work') {
-        onCompletePhaseWork?.(prevPhase);
+      if (prevPhaseIndex != null && prevPhaseIndex < phase.phaseIndex) {
+        for (let idx = prevPhaseIndex; idx < phase.phaseIndex; idx++) {
+          const missedPhase = intervalPhases[idx];
+          if (missedPhase && missedPhase.kind === 'work') {
+            onCompletePhaseWork?.(missedPhase);
+          }
+        }
       }
 
       if (phase.kind === 'work') {

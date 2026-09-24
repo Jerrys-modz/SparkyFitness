@@ -2236,10 +2236,26 @@ async function updateGroupedWorkoutSession(
       );
     }
     if (updateData.activity_details !== undefined) {
-      await client.query(
-        'DELETE FROM exercise_entry_activity_details WHERE exercise_preset_entry_id = $1',
-        [presetEntryId]
-      );
+      const providersToReplace = new Set<string>();
+      if (updateData.activity_details.length > 0) {
+        for (const detail of updateData.activity_details) {
+          const providerName = detail.provider_name || 'SparkyFitness';
+          const detailType = detail.detail_type || 'wod_score';
+          providersToReplace.add(`${providerName}::${detailType}`);
+        }
+      } else {
+        providersToReplace.add('SparkyFitness::wod_score');
+      }
+      for (const item of providersToReplace) {
+        const [providerName, detailType] = item.split('::');
+        await activityDetailsRepository._deleteActivityDetailsByEntryIdAndProviderWithClient(
+          client,
+          userId,
+          presetEntryId,
+          providerName,
+          detailType
+        );
+      }
       if (updateData.activity_details.length > 0) {
         for (const detail of updateData.activity_details) {
           await activityDetailsRepository._createActivityDetailWithClient(

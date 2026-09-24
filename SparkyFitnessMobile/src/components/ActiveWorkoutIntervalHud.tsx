@@ -99,32 +99,36 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
       lastCuePhaseIndexRef.current = phase.phaseIndex;
       lastCountdownSecRef.current = null;
 
-      const prevPhase =
-        prevPhaseIndex != null ? intervalPhases[prevPhaseIndex] : null;
-      if (prevPhase && prevPhase.kind === 'work') {
-        const state = useActiveWorkoutStore.getState();
-        const curSession = state.session;
-        if (curSession) {
-          if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
-            const exerciseIndex = prevPhase.stepIndex ?? 0;
-            const setIndex = prevPhase.round - 1;
-            const exercise = curSession.exercises[exerciseIndex];
-            if (exercise) {
-              while (exercise.sets.length <= setIndex) {
-                state.addSetToExercise(exercise.id);
+      if (prevPhaseIndex != null && prevPhaseIndex < phase.phaseIndex) {
+        for (let idx = prevPhaseIndex; idx < phase.phaseIndex; idx++) {
+          const missedPhase = intervalPhases[idx];
+          if (missedPhase && missedPhase.kind === 'work') {
+            const state = useActiveWorkoutStore.getState();
+            const curSession = state.session;
+            if (curSession) {
+              if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
+                const exerciseIndex = missedPhase.stepIndex ?? 0;
+                const setIndex = missedPhase.round - 1;
+                const exercise = curSession.exercises[exerciseIndex];
+                if (exercise) {
+                  while (exercise.sets.length <= setIndex) {
+                    state.addSetToExercise(exercise.id);
+                  }
+                  const updatedSession =
+                    useActiveWorkoutStore.getState().session;
+                  const targetSet =
+                    updatedSession?.exercises[exerciseIndex]?.sets[setIndex];
+                  if (targetSet) {
+                    state.completeSet(String(targetSet.id));
+                  }
+                }
+              } else if (workoutFormat === 'interval') {
+                const stepIdx = missedPhase.stepIndex ?? missedPhase.round - 1;
+                const targetStep = state.steps[stepIdx];
+                if (targetStep) {
+                  state.completeSet(String(targetStep.setId));
+                }
               }
-              const updatedSession = useActiveWorkoutStore.getState().session;
-              const targetSet =
-                updatedSession?.exercises[exerciseIndex]?.sets[setIndex];
-              if (targetSet) {
-                state.completeSet(String(targetSet.id));
-              }
-            }
-          } else if (workoutFormat === 'interval' || workoutFormat === 'hiit') {
-            const stepIdx = prevPhase.stepIndex ?? prevPhase.round - 1;
-            const targetStep = state.steps[stepIdx];
-            if (targetStep) {
-              state.completeSet(String(targetStep.setId));
             }
           }
         }
