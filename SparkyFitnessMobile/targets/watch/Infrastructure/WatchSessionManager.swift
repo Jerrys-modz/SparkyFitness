@@ -25,6 +25,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private let store = CheckInStore.shared
     private let workoutStore = WorkoutSessionStore.shared
     private let workoutHealthKit = WorkoutHealthKitController.shared
+    /// Reads back the instants `WorkoutHealthKitController` formats with its
+    /// own default `ISO8601DateFormatter`, to record how far HR was sent.
+    private let instantParser = ISO8601DateFormatter()
     /// Cumulative active energy already reported to the phone, so each batch
     /// can carry only what was burned since the last one. Reset whenever a
     /// workout starts — `WorkoutSessionStore.activeEnergyKcal` restarts from
@@ -419,7 +422,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         reportedEnergyKcal = snapshot.reportedEnergyKcal
         bindHealthKitCallbacks()
-        workoutHealthKit.recoverIfNeeded { [weak self] recovered in
+        // One second past the last reading sent: instants go out at second
+        // precision, so resuming exactly on it would re-send that reading.
+        let resumeFrom = snapshot.heartRateSentThrough?.addingTimeInterval(1)
+        workoutHealthKit.recoverIfNeeded(resumeHeartRateFrom: resumeFrom) { [weak self] recovered in
             guard let self else { return }
             if recovered { return }
             self.workoutHealthKit.requestAuthorization { _ in
@@ -501,7 +507,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
         guard !samples.isEmpty || (energyDelta ?? 0) > 0 else { return }
-        workoutStore.persistSnapshot(reportedEnergyKcal: reportedEnergyKcal)
+        workoutStore.persistSnapshot(
+            reportedEnergyKcal: reportedEnergyKcal,
+            heartRateSentThrough: samples.compactMap { instantParser.date(from: $0.t) }.max()
+        )
         let batch = HeartRateBatch(
             clientId: UUID().uuidString,
             sessionId: sessionId,

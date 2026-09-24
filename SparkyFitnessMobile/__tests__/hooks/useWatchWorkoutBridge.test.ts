@@ -870,6 +870,72 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     expect(mockAttachTelemetry).toHaveBeenCalledTimes(2);
   });
 
+  it.each([401, 408, 429])(
+    'keeps telemetry for a retryable %i instead of dropping it',
+    async (status) => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      act(() => {
+        getStore().startWorkout(makeSession());
+      });
+      act(() => {
+        fire('onHeartRateBatch', {
+          clientId: `hr-${status}`,
+          sessionId: 'session-1',
+          exerciseEntryId: 'ex-uuid-1',
+          samples: twoSamples,
+        });
+      });
+      mockAttachTelemetry.mockRejectedValueOnce(
+        new ApiError(`Server error: ${status}`, status)
+      );
+
+      await act(async () => {
+        getStore().clearWorkout();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mockAttachTelemetry).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        fire('onWorkoutStop', { sessionId: 'session-1' });
+        await Promise.resolve();
+      });
+      expect(mockAttachTelemetry).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('keeps the phone workout open when a watch finish cannot save it', async () => {
+    const onWatchFinished = jest.fn();
+    renderHook(() =>
+      useWatchWorkoutBridge(true, true, undefined, onWatchFinished)
+    );
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    mockUpdateWorkout.mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'set-offline',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBe('session-1');
+    expect(getStore().completedSetIds).toHaveProperty('101');
+    expect(onWatchFinished).not.toHaveBeenCalled();
+    expect(mockAddLog).toHaveBeenCalledWith(
+      expect.stringContaining('kept the phone workout open'),
+      'WARNING'
+    );
+  });
+
   it('logs a batch for a session it has no record of instead of dropping it silently', () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

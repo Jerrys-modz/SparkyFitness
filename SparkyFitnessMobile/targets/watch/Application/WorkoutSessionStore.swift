@@ -118,6 +118,7 @@ final class WorkoutSessionStore: ObservableObject {
         elapsedSeconds = 0
         stopRestTimer()
         startedAt = Date()
+        heartRateSentThrough = nil
         startElapsedTimer()
         persistSnapshot(reportedEnergyKcal: 0)
     }
@@ -260,6 +261,13 @@ final class WorkoutSessionStore: ObservableObject {
         var editedValues: [String: SetValues]
         var startedAt: Date
         var reportedEnergyKcal: Double
+        /// Latest heart-rate instant already sent to the phone. Optional so a
+        /// snapshot written before this existed still decodes. On recover the
+        /// HR query resumes after it rather than from the workout's start —
+        /// the dedupe set is gone after a relaunch, so replaying from the
+        /// start would re-send every earlier exercise's readings tagged with
+        /// the current one.
+        var heartRateSentThrough: Date?
     }
 
     /// Last energy high-water mark we persisted. WatchSessionManager reads
@@ -267,10 +275,18 @@ final class WorkoutSessionStore: ObservableObject {
     /// UserDefaults key.
     private(set) var restoredReportedEnergyKcal: Double = 0
 
+    /// See `Snapshot.heartRateSentThrough`. Only ever moves forward.
+    private(set) var heartRateSentThrough: Date?
+
     /// Writes the live plan. Pass `reportedEnergyKcal` when the caller just
     /// sent a batch; pass nil to keep whatever was last stored (set complete,
     /// cursor move) so we do not zero the high-water mark from a UI event.
-    func persistSnapshot(reportedEnergyKcal: Double?) {
+    /// `heartRateSentThrough` works the same way: pass the latest instant of a
+    /// batch just sent, or nil to keep the stored one.
+    func persistSnapshot(reportedEnergyKcal: Double?, heartRateSentThrough sentThrough: Date? = nil) {
+        if let sentThrough, sentThrough > (heartRateSentThrough ?? .distantPast) {
+            heartRateSentThrough = sentThrough
+        }
         guard persistEnabled, let plan, let startedAt else { return }
         let energy: Double
         if let reportedEnergyKcal {
@@ -285,7 +301,8 @@ final class WorkoutSessionStore: ObservableObject {
             completedSetIds: Array(completedSetIds),
             editedValues: editedValues,
             startedAt: startedAt,
-            reportedEnergyKcal: energy
+            reportedEnergyKcal: energy,
+            heartRateSentThrough: heartRateSentThrough
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -310,12 +327,14 @@ final class WorkoutSessionStore: ObservableObject {
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
+        heartRateSentThrough = snapshot.heartRateSentThrough
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
     }
 
     func clearSnapshot() {
         restoredReportedEnergyKcal = 0
+        heartRateSentThrough = nil
         guard persistEnabled else { return }
         defaults.removeObject(forKey: snapshotKey)
     }

@@ -58,6 +58,10 @@ const ENDED_SESSION_RETENTION_MS = 10 * 60 * 1000;
 // Live + the one just finished + one more, for "finish, start another,
 // finish again" before the first drain arrives.
 const MAX_TRACKED_SESSIONS = 3;
+// 4xx answers that are about the request's circumstances, not its content,
+// so the same telemetry will be accepted later: an expired session (the user
+// signs back in), a timeout, or a rate limit from `authenticate`.
+const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
 
 function createSessionTelemetry(entryDate: string | null): SessionTelemetry {
   return {
@@ -309,7 +313,12 @@ export function useWatchWorkoutBridge(
         } catch (error) {
           const status =
             error instanceof ApiError ? error.statusCode : undefined;
-          if (status != null && status >= 400 && status < 500) {
+          if (
+            status != null &&
+            status >= 400 &&
+            status < 500 &&
+            !RETRYABLE_CLIENT_STATUSES.has(status)
+          ) {
             // The server will refuse this entry however often it is asked
             // (deleted entry → 404, malformed or oversized series → 400), and
             // retrying would keep the connection poll alive for nothing.
@@ -322,7 +331,8 @@ export function useWatchWorkoutBridge(
             );
             continue;
           }
-          // Offline or a server fault: left dirty so the next flush retries.
+          // Offline, a server fault, or a retryable 4xx: left dirty so the
+          // next flush retries.
           // The buffer still holds every sample, so that retry posts the full
           // series, not a remnant of it.
           session.unposted = true;
@@ -356,7 +366,17 @@ export function useWatchWorkoutBridge(
       // Finishing on the watch ends the phone's live session too, the same
       // way the phone's own Finish does: flush any dirty sets, snapshot the
       // completion screen's params before the store empties, then clear.
-      await saveActiveWorkoutSession(queryClient);
+      const outcome = await saveActiveWorkoutSession(queryClient);
+      if (outcome === 'failed') {
+        // Clearing now would throw away sets the server never received. Keep
+        // the session live so the wearer can finish it on the phone, whose
+        // Finish flow retries the save.
+        addLog(
+          `Watch finish kept the phone workout open: saving session ${payload.sessionId} failed`,
+          'WARNING'
+        );
+        return;
+      }
       const celebration = buildWorkoutCelebration(
         useActiveWorkoutStore.getState()
       );

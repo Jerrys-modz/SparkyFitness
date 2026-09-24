@@ -114,7 +114,13 @@ final class WorkoutHealthKitController: NSObject {
     /// heart rate and never save the HKWorkout. Returns whether a session was
     /// recovered; the caller then either binds callbacks to it or starts a
     /// fresh one against the persisted plan.
-    func recoverIfNeeded(completion: @escaping (Bool) -> Void) {
+    /// - Parameter resumeHeartRateFrom: where the HR query restarts. Pass the
+    ///   instant after the last reading already sent; nil replays from the
+    ///   workout's start, which re-sends everything the phone already has.
+    func recoverIfNeeded(
+        resumeHeartRateFrom: Date? = nil,
+        completion: @escaping (Bool) -> Void
+    ) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else {
             DispatchQueue.main.async { completion(self.session != nil) }
             return
@@ -142,7 +148,9 @@ final class WorkoutHealthKitController: NSObject {
                 if state == .paused {
                     recovered.resume()
                 }
-                self.startHeartRateSeriesQuery(from: recovered.startDate ?? Date())
+                self.startHeartRateSeriesQuery(
+                    from: resumeHeartRateFrom ?? recovered.startDate ?? Date()
+                )
                 self.startBatchTimer()
                 completion(true)
             }
