@@ -756,7 +756,8 @@ export async function getGroupedExerciseSessionByIdWithClient(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   client: { query: Function },
   targetUserId: string,
-  presetEntryId: string
+  presetEntryId: string,
+  lockExerciseEntries = false
 ): Promise<PresetSessionResponse | null> {
   const metaResult = await client.query(
     `SELECT id, workout_preset_id, name, description, notes, source, entry_date
@@ -774,7 +775,8 @@ export async function getGroupedExerciseSessionByIdWithClient(
       `SELECT ee.*, ${SETS_SUBQUERY}
        FROM exercise_entries ee
        WHERE ee.user_id = $1 AND ee.exercise_preset_entry_id = $2
-       ORDER BY ee.entry_time ASC NULLS LAST, ee.sort_order ASC, ee.created_at ASC`,
+       ORDER BY ee.entry_time ASC NULLS LAST, ee.sort_order ASC, ee.created_at ASC
+       ${lockExerciseEntries ? 'FOR UPDATE OF ee' : ''}`,
       [targetUserId, presetEntryId]
     ),
     client.query(

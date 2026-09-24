@@ -132,6 +132,8 @@ const PresetSearchScreen: React.FC<PresetSearchScreenProps> = ({
         name: preset.name,
         exercises: buildPresetStartExercisesPayload(preset),
         sourcePresetId: preset.id,
+        workoutFormat: preset.workout_format ?? 'standard',
+        timeCapSeconds: preset.time_cap_seconds ?? null,
       });
     },
     [startLiveWorkout]

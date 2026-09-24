@@ -76,6 +76,7 @@ interface MeasurementEntry {
 interface WorkoutEntry {
   entry_date: string | Date;
   exercise_name: string;
+  workout_format?: string;
   exercise_id?: string;
   exercise_category?: string;
   exercise_calories_per_hour?: number;
@@ -644,6 +645,10 @@ function calculatePrProgression(exerciseEntries: WorkoutEntry[]) {
       new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
   );
   sortedEntries.forEach((entry) => {
+    // Only standard strength sessions feed PR records; exclude interval / WOD formats (Tabata, EMOM, AMRAP, For Time).
+    const format = entry.workout_format ?? 'standard';
+    if (format !== 'standard') return;
+
     if (entry.sets && entry.sets.length > 0) {
       entry.sets.forEach((set) => {
         const weight = parseFloat(String(set.weight)) || 0;
@@ -761,12 +766,24 @@ async function getExerciseDashboardData(
     let totalVolume = 0;
     let totalReps = 0;
     const totalWorkouts = new Set(); // To count unique workout days
-    const prData = {}; // Stores max 1RM for each exercise
-    const bestSetRepRange = {}; // Stores max weight for each exercise and rep range
-    const muscleGroupVolume = {}; // Stores total volume per muscle group
+    const prData: Record<
+      string,
+      { oneRM: number; date: string | Date; weight: number; reps: number }
+    > = {};
+    const bestSetRepRange: Record<
+      string,
+      Record<string, { weight: number; reps: number; date: string | Date }>
+    > = {};
+    const muscleGroupVolume: Record<string, number> = {};
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     exerciseEntries.forEach((entry: any) => {
       totalWorkouts.add(entry.entry_date); // Add unique dates
+      // Interval / WOD formats (Tabata, EMOM, AMRAP, For Time) are high-fatigue conditioning
+      // sessions and must not feed 1RM PR calculations or best-set-per-rep-range records.
+      // They still count toward totalVolume, totalReps, and muscleGroupVolume.
+      const format = entry.workout_format ?? 'standard';
+      const isStrengthFormat = format === 'standard';
+
       if (entry.sets && entry.sets.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         entry.sets.forEach((set: any) => {
@@ -775,42 +792,37 @@ async function getExerciseDashboardData(
           // Calculate total volume and reps
           totalVolume += weight * reps;
           totalReps += reps;
-          // Calculate 1RM and track PRs
-          const oneRM = calculate1RM(weight, reps);
-          if (
-            // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-            !prData[entry.exercise_name] ||
-            // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-            oneRM > prData[entry.exercise_name].oneRM
-          ) {
-            // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-            prData[entry.exercise_name] = {
-              oneRM,
-              date: entry.entry_date,
-              weight,
-              reps,
-            };
-          }
-          // Best set per rep range
-          const repRange = getRepRangeCategory(reps);
-          if (repRange !== 'N/A') {
-            // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-            if (!bestSetRepRange[entry.exercise_name]) {
-              // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-              bestSetRepRange[entry.exercise_name] = {};
-            }
+
+          if (isStrengthFormat) {
+            // Calculate 1RM and track PRs
+            const oneRM = calculate1RM(weight, reps);
             if (
-              // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-              !bestSetRepRange[entry.exercise_name][repRange] ||
-              // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-              weight > bestSetRepRange[entry.exercise_name][repRange].weight
+              !prData[entry.exercise_name] ||
+              oneRM > prData[entry.exercise_name].oneRM
             ) {
-              // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-              bestSetRepRange[entry.exercise_name][repRange] = {
+              prData[entry.exercise_name] = {
+                oneRM,
+                date: entry.entry_date,
                 weight,
                 reps,
-                date: entry.entry_date,
               };
+            }
+            // Best set per rep range
+            const repRange = getRepRangeCategory(reps);
+            if (repRange !== 'N/A') {
+              if (!bestSetRepRange[entry.exercise_name]) {
+                bestSetRepRange[entry.exercise_name] = {};
+              }
+              if (
+                !bestSetRepRange[entry.exercise_name][repRange] ||
+                weight > bestSetRepRange[entry.exercise_name][repRange].weight
+              ) {
+                bestSetRepRange[entry.exercise_name][repRange] = {
+                  weight,
+                  reps,
+                  date: entry.entry_date,
+                };
+              }
             }
           }
           // Muscle group volume

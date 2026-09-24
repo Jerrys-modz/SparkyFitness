@@ -6,6 +6,7 @@ import format from 'pg-format';
 import { log } from '../config/logging.js';
 import exerciseRepository from './exercise.js';
 import activityDetailsRepository from './activityDetailsRepository.js';
+import * as workoutTelemetryRepository from './workoutTelemetryRepository.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -347,6 +348,202 @@ async function updateExerciseEntryTelemetryOnly(
     );
   } finally {
     client.release();
+  }
+}
+
+/** Partial payload accepted by applyWatchTelemetryAtomically. */
+export interface WatchTelemetryFields {
+  avg_heart_rate?: number | null;
+  max_heart_rate?: number | null;
+  /**
+   * Measured active energy, overriding the duration-and-sets estimate the
+   * server derives when an entry is saved without one.
+   */
+  calories_burned?: number | null;
+  /**
+   * The same measurement, kept in its own column as the durable record of
+   * provenance. `calories_burned` is the figure the diary totals and is
+   * recomputed whenever a session is edited; `active_calories` is a
+   * telemetry column, preserved across those edits, and is what lets the
+   * edit path tell a measurement apart from an estimate.
+   */
+  active_calories?: number | null;
+  /**
+   * Latest sample instant in the series this write came from. Later flushes
+   * of the same workout carry a later (or equal) value; an older in-flight
+   * request with the same max HR / calories must not overwrite avg HR or
+   * zones once a newer snapshot has committed.
+   */
+  watch_telemetry_observed_at?: string | Date | null;
+}
+
+/**
+ * Partial update of just avg/max heart rate on an existing exercise entry.
+ * Same "touch nothing else" contract as _updateExerciseEntryTelemetryOnlyWithClient
+ * rather than updateExerciseEntry, which merges the whole row and would need
+ * every other column resupplied. Used to fill in HR captured on a paired
+ * watch after the entry itself was already created by the live-workout
+ * start/reconcile flow.
+ */
+function watchTelemetrySetClause(fields: WatchTelemetryFields): {
+  columns: (keyof WatchTelemetryFields)[];
+  setClause: string;
+} {
+  const columns = (
+    Object.keys(fields) as (keyof WatchTelemetryFields)[]
+  ).filter((column) => fields[column] !== undefined);
+  return {
+    columns,
+    setClause: columns
+      .map((column, index) => `${column} = $${index + 1}`)
+      .join(', '),
+  };
+}
+
+async function _updateExerciseEntryWatchTelemetryWithClient(
+  client: workoutTelemetryRepository.TelemetryDbClient,
+  id: string,
+  userId: string,
+  fields: WatchTelemetryFields
+) {
+  const { columns, setClause } = watchTelemetrySetClause(fields);
+  if (columns.length === 0) return;
+  await client.query(
+    `UPDATE exercise_entries SET ${setClause}, updated_at = now()
+     WHERE id = $${columns.length + 1} AND user_id = $${columns.length + 2}`,
+    [...columns.map((column) => fields[column]), id, userId]
+  );
+}
+
+/**
+ * Drop proposed max-HR / calories that would roll a stored snapshot backwards.
+ * `skipHr` also means the caller must not replace zone rows from that series.
+ */
+function observedAtMs(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const ms =
+    value instanceof Date ? value.getTime() : Date.parse(String(value));
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export function filterStaleWatchTelemetryFields(
+  entry: {
+    max_heart_rate?: unknown;
+    active_calories?: unknown;
+    watch_telemetry_observed_at?: unknown;
+  },
+  fields: WatchTelemetryFields
+): { fields: WatchTelemetryFields; skipHr: boolean } {
+  const next: WatchTelemetryFields = { ...fields };
+  const incomingObserved = observedAtMs(next.watch_telemetry_observed_at);
+  const storedObserved = observedAtMs(entry.watch_telemetry_observed_at);
+  const staleSnapshot =
+    incomingObserved !== null &&
+    storedObserved !== null &&
+    incomingObserved <= storedObserved;
+  const storedMax = Number(entry.max_heart_rate);
+  const skipHr =
+    staleSnapshot ||
+    (typeof next.max_heart_rate === 'number' &&
+      entry.max_heart_rate !== null &&
+      entry.max_heart_rate !== undefined &&
+      Number.isFinite(storedMax) &&
+      next.max_heart_rate < storedMax);
+  if (skipHr) {
+    delete next.avg_heart_rate;
+    delete next.max_heart_rate;
+    delete next.watch_telemetry_observed_at;
+  }
+  const storedCalories = Number(entry.active_calories);
+  if (
+    typeof next.active_calories === 'number' &&
+    entry.active_calories !== null &&
+    entry.active_calories !== undefined &&
+    entry.active_calories !== '' &&
+    Number.isFinite(storedCalories) &&
+    next.active_calories < storedCalories
+  ) {
+    delete next.calories_burned;
+    delete next.active_calories;
+  }
+  return { fields: next, skipHr };
+}
+
+export type WatchTelemetryZoneSpec = {
+  zone_index: number;
+  zone_lower_bpm: number;
+  /** null for the open-ended top zone. */
+  zone_upper_bpm: number | null;
+  seconds_in_zone: number;
+};
+
+/**
+ * Lock the entry, reject a stale snapshot against that locked row, then write
+ * scalars and HR zones in the same transaction. Two flushes that both read
+ * the pre-lock snapshot can otherwise both pass and the older one commits last.
+ */
+async function applyWatchTelemetryAtomically(
+  id: string,
+  userId: string,
+  actingUserId: string,
+  proposed: WatchTelemetryFields,
+  zones: WatchTelemetryZoneSpec[] | null
+): Promise<void> {
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query('BEGIN');
+    try {
+      const locked = await client.query(
+        'SELECT * FROM exercise_entries WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, userId]
+      );
+      const entry = locked.rows[0] as
+        | {
+            entry_date: string;
+            max_heart_rate?: unknown;
+            active_calories?: unknown;
+            watch_telemetry_observed_at?: unknown;
+          }
+        | undefined;
+      if (!entry) {
+        const error = new Error('Exercise entry not found.');
+        // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+        error.status = 404;
+        throw error;
+      }
+      const { fields, skipHr } = filterStaleWatchTelemetryFields(
+        entry,
+        proposed
+      );
+      await _updateExerciseEntryWatchTelemetryWithClient(
+        client,
+        id,
+        userId,
+        fields
+      );
+      if (!skipHr && zones !== null) {
+        await workoutTelemetryRepository._replaceExerciseEntryHrZonesWithClient(
+          client,
+          userId,
+          id,
+          zones.map((zone) => ({
+            user_id: userId,
+            exercise_entry_id: id,
+            entry_date: entry.entry_date,
+            zone_index: zone.zone_index,
+            zone_lower_bpm: zone.zone_lower_bpm,
+            zone_upper_bpm: zone.zone_upper_bpm,
+            seconds_in_zone: zone.seconds_in_zone,
+          }))
+        );
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  } finally {
+    if (client && typeof client.release === 'function') client.release();
   }
 }
 
@@ -1979,6 +2176,8 @@ export default {
   updateExerciseEntry,
   updateExerciseEntryTelemetryOnly,
   _updateExerciseEntryTelemetryOnlyWithClient,
+  applyWatchTelemetryAtomically,
+  filterStaleWatchTelemetryFields,
   updateExerciseEntriesDateByPresetEntryIdWithClient,
   getWorkoutPlanAssignmentIdByPresetEntryIdWithClient,
   deleteExerciseEntriesByPresetEntryIdWithClient,

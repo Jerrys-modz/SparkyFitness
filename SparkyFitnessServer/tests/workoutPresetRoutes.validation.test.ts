@@ -52,7 +52,7 @@ async function invokeRoute(
     originalUserId: USER_ID,
   };
   let statusCode = 200;
-  let responseBody;
+  let responseBody: Record<string, unknown> | undefined;
   let finished = false;
   const res = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -295,5 +295,35 @@ describe('workoutPresetRoutes request validation', () => {
     expect(exercise).not.toHaveProperty('id');
     expect(exercise).not.toHaveProperty('exercise_name');
     expect(exercise.sets[0]).not.toHaveProperty('id');
+  });
+
+  it('accepts valid workout_format and time_cap_seconds on POST', async () => {
+    const { statusCode } = await invokeRoute('post', '/', {
+      body: {
+        name: '12-min AMRAP',
+        workout_format: 'amrap',
+        time_cap_seconds: 720,
+        exercises: [],
+      },
+    });
+
+    expect(statusCode).toBe(201);
+    const [, data] = vi.mocked(workoutPresetService.createWorkoutPreset).mock
+      .calls[0];
+    expect(data.workout_format).toBe('amrap');
+    expect(data.time_cap_seconds).toBe(720);
+  });
+
+  it('rejects invalid workout_format on POST', async () => {
+    const { statusCode, body } = await invokeRoute('post', '/', {
+      body: {
+        name: 'Invalid Format',
+        workout_format: 'invalid_format',
+        exercises: [],
+      },
+    });
+
+    expect(statusCode).toBe(400);
+    expect(body?.error).toBe('Invalid workout preset payload.');
   });
 });

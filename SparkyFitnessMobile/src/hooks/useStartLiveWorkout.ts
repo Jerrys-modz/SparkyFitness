@@ -6,12 +6,19 @@ import Toast from 'react-native-toast-message';
 import { useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { PresetSessionExerciseRequest } from '@workspace/shared';
+import type {
+  PresetSessionExerciseRequest,
+  PresetSessionResponse,
+  WorkoutFormat,
+} from '@workspace/shared';
 import { useCreateWorkout } from './useExerciseMutations';
 import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import { serverConnectionQueryKey } from './queryKeys';
 import { defaultWorkoutName } from './useWorkoutForm';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import WatchConnectivity, {
+  type WatchWorkoutStartPayload,
+} from '../../modules/watch-connectivity';
 import {
   ensureNotificationPermission,
   maybePromptForExactAlarmPermission,
@@ -41,6 +48,63 @@ interface StartLiveWorkoutArgs {
   sourcePresetId?: number;
   /** Plan assignment id if starting from a workout plan session. */
   workoutPlanAssignmentId?: number;
+  workoutFormat?: WorkoutFormat;
+  timeCapSeconds?: number | null;
+}
+
+/**
+ * Builds the plan a paired Apple Watch's Workout tab is armed with, from the
+ * session and derived state `startWorkout` just committed to the store —
+ * read back rather than recomputed so the watch's targets and rest agree
+ * with whatever the phone's own active-workout screen would show for the
+ * same session.
+ */
+function buildWatchWorkoutStartPayload(
+  session: PresetSessionResponse,
+  t: TFunction
+): WatchWorkoutStartPayload {
+  const { steps, plannedSetValues } = useActiveWorkoutStore.getState();
+  const restSecBySetId = new Map(
+    steps.map((step) => [step.setId, step.restSec])
+  );
+
+  return {
+    sessionId: session.id,
+    workoutName: session.name,
+    exercises: session.exercises.map((exercise) => ({
+      exerciseEntryId: exercise.id,
+      name:
+        exercise.exercise_snapshot?.name ??
+        t('workout.exercise', { defaultValue: 'Exercise' }),
+      sets: exercise.sets.map((set) => {
+        const setId = String(set.id);
+        const planned = plannedSetValues[setId];
+        return {
+          setId,
+          targetReps: set.reps ?? planned?.reps ?? null,
+          targetWeightKg: set.weight ?? planned?.weight ?? null,
+          restSeconds: restSecBySetId.get(setId) ?? 0,
+          setType: set.set_type ?? null,
+        };
+      }),
+    })),
+    setOrder: steps.map((step) => step.setId),
+  };
+}
+
+/**
+ * Arms a paired watch with whatever session is currently live in the store.
+ * No-op off iOS / with no watch. Shared by the instant-start path and by
+ * WorkoutDetail's "Start workout here", which used to skip this and leave
+ * the watch on "Start a workout on your phone".
+ */
+export function armWatchForActiveSession(t: TFunction): void {
+  if (!WatchConnectivity?.isSupported()) return;
+  const { session } = useActiveWorkoutStore.getState();
+  if (session == null || session.type !== 'preset') return;
+  void WatchConnectivity.startWorkout(
+    buildWatchWorkoutStartPayload(session, t)
+  );
 }
 
 /**
@@ -119,6 +183,8 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
       exercises,
       sourcePresetId,
       workoutPlanAssignmentId,
+      workoutFormat,
+      timeCapSeconds,
     }: StartLiveWorkoutArgs) => {
       if (exercises.length === 0) {
         Toast.show({
@@ -145,15 +211,60 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           sourcePresetId != null
             ? (await getActiveServerConfig())?.id
             : undefined;
+        let resolvedExercises = exercises;
+        if (workoutFormat === 'tabata') {
+          resolvedExercises = exercises.map((ex) => {
+            if (ex.sets.length < 8 && ex.sets.length > 0) {
+              const baseSets = ex.sets;
+              const expandedSets = Array.from({ length: 8 }, (_, i) => {
+                const templateSet = baseSets[i % baseSets.length]!;
+                return {
+                  ...templateSet,
+                  set_number: i + 1,
+                  duration: templateSet.duration ?? 20,
+                  rest_time: templateSet.rest_time ?? 10,
+                };
+              });
+              return { ...ex, sets: expandedSets };
+            }
+            return ex;
+          });
+        } else if (
+          workoutFormat === 'emom' &&
+          timeCapSeconds != null &&
+          timeCapSeconds >= 60
+        ) {
+          const emomRounds = Math.floor(timeCapSeconds / 60);
+          if (emomRounds > 1) {
+            resolvedExercises = exercises.map((ex) => {
+              if (ex.sets.length < emomRounds && ex.sets.length > 0) {
+                const baseSets = ex.sets;
+                const expandedSets = Array.from(
+                  { length: emomRounds },
+                  (_, i) => {
+                    const templateSet = baseSets[i % baseSets.length]!;
+                    return {
+                      ...templateSet,
+                      set_number: i + 1,
+                    };
+                  }
+                );
+                return { ...ex, sets: expandedSets };
+              }
+              return ex;
+            });
+          }
+        }
+
         // Hevy-style start: sets are created with empty weight/reps — the
         // plan renders as gray placeholders and is only recorded when a set
         // is completed or typed over.
-        const plannedSetValues = extractPlannedSetValues(exercises);
+        const plannedSetValues = extractPlannedSetValues(resolvedExercises);
         const session = await createSession({
           name: name ?? defaultWorkoutName(entryDate),
           entry_date: entryDate,
           source: 'sparky',
-          exercises: stripPlannedSetValues(exercises),
+          exercises: stripPlannedSetValues(resolvedExercises),
           // Tags the created session to the preset (recentSessions stats
           // scoping, server-side) without changing how it's built — the
           // server keeps the client-supplied exercises verbatim when both
@@ -172,7 +283,10 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           plannedSetValues,
           sourcePresetId,
           sourceServerConfigId,
+          workoutFormat,
+          timeCapSeconds,
         });
+        armWatchForActiveSession(t);
         if (navigation.isFocused()) {
           navigation.replace('ActiveWorkout');
           // The lock stays engaged: the replace unmounts the calling screen.

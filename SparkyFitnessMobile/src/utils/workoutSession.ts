@@ -300,6 +300,57 @@ export function buildSessionSubtitle(
     }
 
     const parts: string[] = [];
+
+    const wodScoreDetail = session.activity_details?.find(
+      (d) => d.detail_type === 'wod_score'
+    );
+    if (wodScoreDetail?.detail_data) {
+      let data: Record<string, unknown> | null = null;
+      if (typeof wodScoreDetail.detail_data === 'string') {
+        try {
+          data = JSON.parse(wodScoreDetail.detail_data) as Record<
+            string,
+            unknown
+          >;
+        } catch {
+          data = null;
+        }
+      } else if (
+        typeof wodScoreDetail.detail_data === 'object' &&
+        wodScoreDetail.detail_data !== null
+      ) {
+        data = wodScoreDetail.detail_data as Record<string, unknown>;
+      }
+      if (data) {
+        const formatStr =
+          typeof data.format === 'string'
+            ? data.format.toUpperCase().replace('_', ' ')
+            : 'WOD';
+        const rounds =
+          typeof data.rounds_completed === 'number' ? data.rounds_completed : 0;
+        const reps =
+          typeof data.reps_completed === 'number' ? data.reps_completed : 0;
+        const status =
+          typeof data.status === 'string' ? data.status.toUpperCase() : null;
+
+        let scoreStr = '';
+        if (data.format === 'amrap') {
+          scoreStr = `${rounds} + ${reps}`;
+        } else if (data.format === 'for_time') {
+          scoreStr =
+            typeof data.elapsed_seconds === 'number'
+              ? formatDurationSeconds(data.elapsed_seconds)
+              : 'Completed';
+        } else {
+          scoreStr = `${rounds} rds`;
+        }
+        if (status) {
+          scoreStr += ` (${status})`;
+        }
+        parts.push(`${formatStr}: ${scoreStr}`);
+      }
+    }
+
     parts.push(
       t('workout.exerciseCount', {
         count: exerciseCount,
@@ -392,14 +443,10 @@ export function buildExercisesPayload(
   weightUnit: 'kg' | 'lbs',
   distanceUnit: 'km' | 'miles'
 ) {
-  // Server enforces "all or none" for exercise IDs on preset-session update
-  // (exerciseService.js ~L1713). If any exercise is new, we strip IDs from all
-  // exercises AND all sets so the server takes its delete-and-recreate path.
-  // Set IDs within an exercise, by contrast, reconcile correctly with mixed
-  // IDs — update for present IDs, insert for absent, delete for omitted.
-  const allExercisesHaveServerId =
-    exercises.length > 0 && exercises.every((e) => e.serverId !== undefined);
-
+  // Send each exercise's serverId when we have one. Exercises added,
+  // replaced, or duplicated in the form carry a client-minted uuid, so a
+  // save that drops every prior row still reconciles instead of the id-less
+  // 409. Older drafts omit the id.
   return exercises.map((exercise, index) => {
     // The server recomputes calories from duration and sets whenever
     // calories_burned is omitted; a user-edited value is sent as a manual
@@ -416,9 +463,7 @@ export function buildExercisesPayload(
       // fields the form has no UI for must still be round-tripped
       // explicitly — omitting them silently wipes the stored values.
       return {
-        ...(allExercisesHaveServerId && set.serverId !== undefined
-          ? { id: set.serverId }
-          : {}),
+        ...(set.serverId !== undefined ? { id: set.serverId } : {}),
         set_number: setIndex + 1,
         set_type: set.setType ?? null,
         weight: isNaN(weight) ? null : weightToKg(weight, weightUnit),
@@ -439,9 +484,7 @@ export function buildExercisesPayload(
     });
 
     return {
-      ...(allExercisesHaveServerId && exercise.serverId !== undefined
-        ? { id: exercise.serverId }
-        : {}),
+      ...(exercise.serverId !== undefined ? { id: exercise.serverId } : {}),
       exercise_id: exercise.exerciseId,
       sort_order: index,
       // Cardio duration is the sum of its set durations — the sets are the
@@ -618,6 +661,14 @@ export interface WorkoutCardExercise {
   notes?: string | null;
   /** Present on session entries; absent on draft/preset sources. */
   calories_burned?: number | null;
+  /**
+   * Heart rate for this exercise, present on session entries once a paired
+   * watch has reported it (or a synced workout supplied it). Per exercise
+   * rather than per session because the watch tags each batch with whichever
+   * exercise was on screen when it was captured.
+   */
+  avg_heart_rate?: number | null;
+  max_heart_rate?: number | null;
   exercise_snapshot: {
     name?: string | null;
     category?: string | null;
@@ -1985,4 +2036,61 @@ export function buildPresetUpdateExercises(
       canonicalExercisesEqual(exercise, fromPreset[i])
     );
   return equivalent ? null : fromSession;
+}
+
+/** The heart-rate figures a workout can show, or null when it carries none. */
+export interface WorkoutHeartRateSummary {
+  avgBpm: number;
+  maxBpm: number | null;
+}
+
+/**
+ * Average and peak heart rate across a session's exercises.
+ *
+ * The average is duration-weighted, so a long cardio block is not pulled down
+ * by a short warmup that happened to average lower. Zero-duration entries are
+ * legal and would contribute nothing to a weighted mean, so the weighting only
+ * applies when every contributing exercise has a positive duration; otherwise
+ * it falls back to a plain mean of the per-exercise averages.
+ *
+ * Shared by the workout detail screen and the completion summary. Heart rate
+ * only ever arrives from a paired watch or a synced workout — there is no
+ * field for typing one — so both read it from the saved session.
+ */
+export function summarizeWorkoutHeartRate(
+  exercises: readonly {
+    avg_heart_rate?: number | null;
+    max_heart_rate?: number | null;
+    duration_minutes?: number | string | null;
+  }[]
+): WorkoutHeartRateSummary | null {
+  const withHr = exercises.filter(
+    (exercise) => exercise.avg_heart_rate != null && exercise.avg_heart_rate > 0
+  );
+  if (withHr.length === 0) return null;
+
+  const durations = withHr.map(
+    (exercise) => Number(exercise.duration_minutes) || 0
+  );
+  const totalDuration = durations.reduce((sum, value) => sum + value, 0);
+  const canWeightByDuration = durations.every((value) => value > 0);
+  const avgBpm = canWeightByDuration
+    ? withHr.reduce(
+        (sum, exercise, index) =>
+          sum + (exercise.avg_heart_rate as number) * durations[index],
+        0
+      ) / totalDuration
+    : withHr.reduce(
+        (sum, exercise) => sum + (exercise.avg_heart_rate as number),
+        0
+      ) / withHr.length;
+
+  const maxValues = exercises
+    .map((exercise) => exercise.max_heart_rate)
+    .filter((value): value is number => value != null && value > 0);
+
+  return {
+    avgBpm,
+    maxBpm: maxValues.length > 0 ? Math.max(...maxValues) : null,
+  };
 }

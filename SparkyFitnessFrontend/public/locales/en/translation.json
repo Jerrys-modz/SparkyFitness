@@ -3672,7 +3672,15 @@
     "backOff": "Back-off",
     "restPause": "Rest-Pause",
     "cluster": "Cluster",
-    "technique": "Technique"
+    "technique": "Technique",
+    "formatLabel": "Workout Format",
+    "formatStandard": "Standard (Sets & Reps)",
+    "formatInterval": "Interval / HIIT",
+    "formatTabata": "Tabata",
+    "formatEmom": "EMOM",
+    "formatAmrap": "AMRAP",
+    "formatForTime": "For Time",
+    "timeCapLabel": "Time Cap (minutes)"
   },
   "addWorkoutPlanDialog": {
     "editTitle": "Edit Workout Plan",
@@ -5588,6 +5596,7 @@
     "distance": "Distance",
     "durationMin": "Duration (min)",
     "durationSec": "Duration (s)",
+    "durationSecShort": "Sec",
     "durationSet": "Duration set {{setNumber}}",
     "notesPlaceholder": "Add a note for this set...",
     "reps": "Reps",
@@ -6103,5 +6112,23 @@
     "quickAdd": "Quick-Add Drinks",
     "caffeineBadge": "{{amount}} mg caffeine",
     "alcoholBadge": "{{abv}}% ABV"
+  },
+  "interval": {
+    "countdown": "Get Ready",
+    "decrementRound": "Undo 1 round",
+    "extraReps": "Additional Reps",
+    "finished": "Time Cap Reached",
+    "pause": "Pause",
+    "ready": "Ready",
+    "rest": "Rest",
+    "resume": "Resume",
+    "round": "Round {{current}}",
+    "roundOfTotal": "Round {{current}} of {{total}}",
+    "roundPlusOne": "+1 Round ({{current}} Completed)",
+    "rx": "Rx",
+    "scaled": "Scaled",
+    "timeCapLabel": "Cap: {{cap}}",
+    "wodScoring": "WOD Scoring",
+    "work": "Work"
   }
 }
