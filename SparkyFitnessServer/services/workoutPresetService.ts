@@ -1,4 +1,5 @@
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
+import type { WorkoutPresetExerciseProgressionUpdate } from '../models/workoutPresetRepository.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
@@ -117,6 +118,44 @@ async function deleteWorkoutPreset(userId: any, presetId: any) {
   }
   return { message: 'Workout preset deleted successfully.' };
 }
+
+async function updateWorkoutPresetExerciseProgressions(
+  userId: string,
+  presetId: number,
+  updates: WorkoutPresetExerciseProgressionUpdate[]
+) {
+  const ownerId = await workoutPresetRepository.getWorkoutPresetOwnerId(
+    userId,
+    presetId
+  );
+  if (ownerId !== userId) {
+    throw new Error(
+      'Forbidden: You do not have permission to update this workout preset.'
+    );
+  }
+  const rows =
+    await workoutPresetRepository.updateWorkoutPresetExerciseProgressions(
+      userId,
+      presetId,
+      updates
+    );
+  if (!rows || rows.length === 0) {
+    throw new Error('Workout preset exercise not found.');
+  }
+  return rows;
+}
+
+async function updateWorkoutPresetExerciseProgression(
+  userId: string,
+  presetId: number,
+  match: WorkoutPresetExerciseProgressionUpdate['match'],
+  fields: WorkoutPresetExerciseProgressionUpdate['fields']
+) {
+  return updateWorkoutPresetExerciseProgressions(userId, presetId, [
+    { match, fields },
+  ]);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function searchWorkoutPresets(searchTerm: any, userId: any, limit: any) {
   if (limit === null || limit === undefined) {
@@ -135,6 +174,8 @@ export { getWorkoutPresetById };
 export { updateWorkoutPreset };
 export { deleteWorkoutPreset };
 export { searchWorkoutPresets };
+export { updateWorkoutPresetExerciseProgression };
+export { updateWorkoutPresetExerciseProgressions };
 export default {
   createWorkoutPreset,
   getWorkoutPresets,
@@ -142,4 +183,6 @@ export default {
   updateWorkoutPreset,
   deleteWorkoutPreset,
   searchWorkoutPresets,
+  updateWorkoutPresetExerciseProgression,
+  updateWorkoutPresetExerciseProgressions,
 };

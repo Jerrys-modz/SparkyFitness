@@ -62,6 +62,7 @@ const EXPECTED_TOOLS = [
   'sparky_manage_progress_photos',
   'sparky_manage_water_containers',
   'sparky_manage_workout_plans',
+  'sparky_manage_workout_progression',
   'sparky_scan_label',
   'sparky_search_exercises',
   'sparky_search_foods',
@@ -104,6 +105,7 @@ const EXPECTED_CORE_TOOLS = [
   'sparky_manage_progress_photos',
   'sparky_manage_water_containers',
   'sparky_manage_workout_plans',
+  'sparky_manage_workout_progression',
   'sparky_search_exercises',
   'sparky_search_foods',
 ];
