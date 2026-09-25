@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import WorkoutHeatmap from '@/pages/Reports/WorkoutHeatmap';
 import { workoutHeatmapWindow } from '@/utils/workoutHeatmap';
@@ -55,5 +55,24 @@ describe('WorkoutHeatmap', () => {
       'data-in-range'
     );
     expect(screen.queryByTestId('heatmap-day-2025-09-30')).toBeNull();
+  });
+
+  it('pages one month at a time below the desktop grid, starting on the selected range', () => {
+    render(
+      <WorkoutHeatmap
+        today="2026-09-24"
+        workoutDays={[{ date: '2026-08-02', count: 1 }]}
+        rangeStart="2026-08-01"
+        rangeEnd="2026-08-31"
+      />
+    );
+
+    expect(screen.getByTestId('heatmap-mobile-month')).toHaveTextContent(
+      'Aug 2026'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByTestId('heatmap-mobile-month')).toHaveTextContent(
+      'Sep 2026'
+    );
   });
 });
