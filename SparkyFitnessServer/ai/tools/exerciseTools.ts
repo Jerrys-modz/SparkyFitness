@@ -1,6 +1,12 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { todayInZone } from '@workspace/shared';
+import {
+  RIR_MAX,
+  RIR_MIN,
+  todayInZone,
+  type ExerciseModality,
+  type WodScoreDetailData,
+} from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseService from '../../services/exerciseService.js';
 import workoutPresetService from '../../services/workoutPresetService.js';
@@ -8,6 +14,7 @@ import exerciseDb from '../../models/exercise.js';
 import exerciseEntryDb from '../../models/exerciseEntry.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
+import { findExerciseByExactName } from './exerciseLookup.js';
 import {
   compactRecord,
   dayString,
@@ -26,6 +33,8 @@ import {
   manageExerciseInput,
   type ManageExerciseInput,
   type PresetExerciseInput,
+  type WodScoreInput,
+  wodScoreInputSchema,
   presetExerciseSchema,
 } from './schemas/exercise.js';
 import { optionalDateSchema } from './schemas/common.js';
@@ -34,6 +43,7 @@ import { normalizeActionArgs, normalizeDayKeywords } from './dates.js';
 const VALID_ACTIONS = [
   'search_exercises',
   'create_exercise',
+  'duplicate_exercise',
   'log_exercise',
   'list_exercise_diary',
   'get_workout_presets',
@@ -65,12 +75,91 @@ type WorkoutPresetExerciseRow = {
   sets?: WorkoutPresetSetRow[] | null;
 };
 
+function formatSeconds(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60);
+  return `${mins}:${String(totalSeconds % 60).padStart(2, '0')}`;
+}
+
+// Mobile builds before the shared schema wrote `format` and no score_type.
+type WodScoreDetail = Partial<WodScoreDetailData> & { format?: string };
+
+// Minimal preset shape log_workout_preset needs to stamp a WOD score.
+interface PresetFormatRow {
+  id: number;
+  workout_format?: string | null;
+  time_cap_seconds?: number | null;
+}
+
+function findWodScore(
+  details: { detail_type?: string; detail_data?: unknown }[] | undefined
+): WodScoreDetail | undefined {
+  const data = details?.find((d) => d.detail_type === 'wod_score')?.detail_data;
+  return data && typeof data === 'object'
+    ? (data as WodScoreDetail)
+    : undefined;
+}
+
+function formatWodScore(detail: WodScoreDetail): string {
+  const workoutFormat = detail.workout_format ?? detail.format;
+  const formatName = workoutFormat
+    ? String(workoutFormat).toUpperCase()
+    : 'WOD';
+  // Infer the score shape for details that carry no score_type.
+  const scoreType =
+    detail.score_type ??
+    (workoutFormat === 'for_time' && isSet(detail.elapsed_seconds)
+      ? 'time'
+      : workoutFormat === 'amrap' || isSet(detail.rounds_completed)
+        ? 'rounds_reps'
+        : undefined);
+  const capStr = detail.time_cap_seconds
+    ? ` ${formatSeconds(detail.time_cap_seconds)} cap`
+    : '';
+  let scoreStr = '';
+  if (scoreType === 'rounds_reps') {
+    const r = detail.rounds_completed ?? 0;
+    const reps = detail.reps_completed ?? 0;
+    scoreStr = `${r} round${r === 1 ? '' : 's'} + ${reps} rep${reps === 1 ? '' : 's'}`;
+  } else if (scoreType === 'time' && isSet(detail.elapsed_seconds)) {
+    scoreStr = formatSeconds(detail.elapsed_seconds);
+  } else if (scoreType === 'total_reps' && isSet(detail.reps_completed)) {
+    scoreStr = `${detail.reps_completed} total reps`;
+  } else if (scoreType === 'completion') {
+    scoreStr = 'Completed';
+  } else if (scoreType) {
+    scoreStr = String(scoreType);
+  }
+  const statusStr = detail.status
+    ? ` (${detail.status === 'rx' ? 'Rx' : 'Scaled'})`
+    : '';
+  const notesStr = detail.scaling_notes ? ` — ${detail.scaling_notes}` : '';
+  return `${formatName}${capStr} — ${scoreStr}${statusStr}${notesStr}`;
+}
+
 // Optional inputs and nullable DB columns are treated alike: absent.
 function isSet<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
 }
 
 // Text columns may hold JSON arrays, comma-separated values, or plain strings.
+// The library fields duplicate_exercise copies. Array columns may come back
+// as JSON strings, so they are read through safeParseJson.
+interface ExerciseCopySource {
+  name: string;
+  category?: string | null;
+  modality?: ExerciseModality | null;
+  calories_per_hour?: number | null;
+  description?: string | null;
+  level?: string | null;
+  force?: string | null;
+  mechanic?: string | null;
+  equipment?: unknown;
+  primary_muscles?: unknown;
+  secondary_muscles?: unknown;
+  instructions?: unknown;
+  images?: unknown;
+}
+
 function safeParseJson(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -99,6 +188,7 @@ interface ExerciseSetInput {
   rest_time?: number;
   set_type?: string;
   rpe?: number;
+  rir?: number;
   notes?: string;
 }
 
@@ -116,6 +206,11 @@ function toRepoSets(sets: ExerciseSetInput[]) {
     distance: s.distance ?? null,
     rest_time: s.rest_time ?? null,
     rpe: s.rpe ?? null,
+    // JSON-string sets skip the schema, so clamp to the column's range here.
+    rir:
+      typeof s.rir === 'number'
+        ? Math.min(RIR_MAX, Math.max(RIR_MIN, s.rir))
+        : null,
     notes: s.notes ?? null,
   }));
 }
@@ -232,14 +327,66 @@ const EXERCISE_CATALOG_DROP: readonly string[] = [
   'updated_by_user_id',
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function projectExerciseEntry(row: any) {
+interface ExerciseCatalogRow {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  primary_muscles?: string[] | null;
+  equipment?: string[] | null;
+  level?: string | null;
+  calories_per_hour?: number | null;
+  description?: string | null;
+  is_custom?: boolean | null;
+  instructions?: string[] | string | null;
+  images?: string[] | string | null;
+}
+
+interface ProjectedExercise {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  muscle_groups?: string[] | null;
+  equipment?: string[] | null;
+  level?: string | null;
+  calories_per_hour?: number | null;
+  description?: string | null;
+  is_custom?: boolean | null;
+}
+
+interface DiaryEntryItem {
+  id: string | number;
+  name?: string;
+  type?: string;
+  duration_minutes?: number | null;
+  calories_burned?: number | null;
+  distance?: number | null;
+  avg_heart_rate?: number | null;
+  steps?: number | null;
+  notes?: string | null;
+  created_at?: string | Date;
+  sets?: ExerciseSetInput[];
+  activity_details?: { detail_type?: string; detail_data?: unknown }[];
+  preset_wod_score?: WodScoreDetail;
+  preset_location?: string;
+  exercises?: DiaryEntryItem[];
+  location?: string | null;
+}
+
+interface WorkoutPresetListItem {
+  id: number | string;
+  name: string;
+  workout_format?: string | null;
+  time_cap_seconds?: number | null;
+  exercises: unknown[];
+}
+
+function projectExerciseEntry(row: Record<string, unknown>) {
   return compactRecord(projectEntryDate(row), EXERCISE_ENTRY_DROP);
 }
 
 // The column set MCP's exercise search exposed; richer server rows are
 // projected down to it so the chat-visible output stays identical.
-function projectExercise(row: any) {
+function projectExercise(row: ExerciseCatalogRow): ProjectedExercise {
   return {
     id: row.id,
     name: row.name,
@@ -253,33 +400,23 @@ function projectExercise(row: any) {
   };
 }
 
-// Case-insensitive exact name lookup (MCP's `name ILIKE $1` without
-// wildcards). The server search returns substring matches; the exact match,
-// when present, is always among them.
-async function findExerciseByExactName(userId: string, name: string) {
-  const rows = await exerciseService.searchExercises(
-    userId,
-    name,
-    userId,
-    undefined,
-    undefined
-  );
-  return rows.find(
-    (e: any) => String(e.name).toLowerCase() === name.toLowerCase()
-  );
-}
-
 // Full details for one exercise by id or name, projected to MCP's shape.
 // Throws "not found" errors for the callers' catch blocks to map.
 async function getExerciseDetails(
   userId: string,
   params: { exercise_id?: string; exercise_name?: string }
 ) {
-  let row: any;
+  let row: ExerciseCatalogRow | null | undefined;
   if (params.exercise_id) {
-    row = await exerciseService.getExerciseById(userId, params.exercise_id);
+    row = (await exerciseService.getExerciseById(
+      userId,
+      params.exercise_id
+    )) as ExerciseCatalogRow | null;
   } else if (params.exercise_name) {
-    row = await findExerciseByExactName(userId, params.exercise_name);
+    row = (await findExerciseByExactName(
+      userId,
+      params.exercise_name
+    )) as ExerciseCatalogRow | null;
   } else {
     throw new Error('Either exercise_id or exercise_name must be provided');
   }
@@ -429,22 +566,31 @@ const exerciseProgressSchema = exerciseDateRangeSchema
 export function buildExerciseTools(userId: string, tz: string) {
   return {
     sparky_manage_exercise: tool({
-      description: `Fitness tracking: search exercises, log workouts with sets, manage presets.
+      description: `Fitness tracking: search exercises, log workouts with sets, manage workout presets and interval/WOD formats.
 
 Actions:
 - search_exercises(searchTerm, muscleGroup?, equipment?, limit?, offset?)
 - create_exercise(name, category?, calories_per_hour?, description?, modality?:weight_reps|reps_only|duration|duration_distance)
-- log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,notes}]) — distance/avg_heart_rate/steps are for cardio
-- list_exercise_diary(entry_date)
-- get_workout_presets()
-- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: every exercise's ID, its sets, and its superset_group. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
-- log_workout_preset(entry_date, preset_id?|preset_name?) — preset_name is own or family-shared only; public presets must use preset_id.
+- duplicate_exercise(exercise_id?|exercise_name?, name?) — copies any visible exercise (own, System or public) into a new private custom exercise, e.g. to make a variation; name defaults to "<original> (copy)"
+- log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,rir,notes}]) — distance/avg_heart_rate/steps are for cardio; rpe is effort 0-10, rir is reps in reserve (0 = failure)
+- list_exercise_diary(entry_date) — returns diary entries with sets and WOD scores
+- get_workout_presets() — lists saved workout presets with format and exercise counts
+- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: format, time cap, every exercise's ID, its sets, and its superset_group. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
+- log_workout_preset(entry_date, preset_id?|preset_name?, location?, wod_score?:{score_type:time|rounds_reps|total_reps|completion, rounds_completed?, reps_completed?, elapsed_seconds?, status?:rx|scaled, scaling_notes?}) — location is an optional gym name for the session. preset_name is own or family-shared only; public presets must use preset_id. wod_score is only for non-standard formats; the preset's format and time cap are copied onto the score. Typical score_type: AMRAP → rounds_reps; For Time → time (rounds_reps if the cap was hit); EMOM/Tabata/Interval → completion or total_reps.
 - update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
-- create_workout_preset(name, exercises, description?, is_public?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}]; items sharing the same superset_group are grouped as a superset
-- update_workout_preset(preset_id, confirmed, name?, description?, is_public?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. confirmed=true is required to apply; without it the tool returns a prompt and does not change anything. Get the user's go-ahead first, especially if YOU decided what to change (e.g. "review my workouts and improve them").
+- create_workout_preset(name, exercises, description?, is_public?, workout_format?, time_cap_seconds?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}]; items sharing the same superset_group are grouped as a superset
+- update_workout_preset(preset_id, confirmed, name?, description?, is_public?, workout_format?, time_cap_seconds?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. confirmed=true is required to apply; without it the tool returns a prompt and does not change anything. Get the user's go-ahead first, especially if YOU decided what to change (e.g. "review my workouts and improve them").
 - delete_workout_preset(preset_id, confirmed) — permanently deletes the preset. confirmed=true is required; without it the tool returns a prompt and does not delete. Confirm with the user first.
+
+Workout formats (workout_format, default standard) drive the in-app timer:
+- standard — normal sets and rest.
+- interval — each set's duration = work seconds, rest_time = rest seconds.
+- tabata — 20s work / 10s rest × 8 rounds by default.
+- emom — one round per minute; rounds = time_cap_seconds / 60, or the set count.
+- amrap — as many rounds as possible within time_cap_seconds (REQUIRED).
+- for_time — finish the work as fast as possible; time_cap_seconds is an optional cut-off.
 - get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
       inputSchema: manageExerciseInput,
       execute: async (rawArgs) => {
@@ -479,12 +625,13 @@ Actions:
             }
             return 'list_exercise_diary'; // fallback
           }
-        ) as any;
+        ) as Record<string, unknown>;
 
         // Default missing entry_date to today's date string for logging actions
         const loggingActions = ['log_exercise', 'log_workout_preset'];
         if (
           normalized.entry_date === undefined &&
+          typeof normalized.action === 'string' &&
           loggingActions.includes(normalized.action)
         ) {
           normalized.entry_date = todayInZone(tz);
@@ -520,8 +667,9 @@ Actions:
               return formatList(
                 result.data,
                 `Exercise Search: "${args.searchTerm}"`,
-                (e: any) =>
+                (e: ProjectedExercise) =>
                   `**${e.name}** (${e.category || 'Uncategorized'})\n  Muscles: ${e.muscle_groups?.join(', ') || 'N/A'} | Equipment: ${e.equipment?.join(', ') || 'None'}\n  ID: ${e.id}`,
+
                 {
                   total_count: result.total_count,
                   has_more: result.has_more,
@@ -549,6 +697,59 @@ Actions:
               return formatConfirmation(`Exercise "${exercise.name}" created.`);
             }
 
+            case 'duplicate_exercise': {
+              if (!args.exercise_id && !args.exercise_name) {
+                return ERRORS.VALIDATION(
+                  'Either exercise_id or exercise_name must be provided'
+                );
+              }
+              let original: ExerciseCopySource | undefined;
+              try {
+                original = args.exercise_id
+                  ? await exerciseService.getExerciseById(
+                      userId,
+                      args.exercise_id
+                    )
+                  : await findExerciseByExactName(
+                      userId,
+                      args.exercise_name as string
+                    );
+              } catch {
+                original = undefined;
+              }
+              if (!original) {
+                return ERRORS.NOT_FOUND(
+                  'Exercise',
+                  String(args.exercise_id ?? args.exercise_name)
+                );
+              }
+              // A copy is always the user's own private custom exercise: the
+              // library fields and image references carry over, but never the
+              // original's provider ids or public sharing.
+              const copy = await exerciseService.createExercise(userId, {
+                name: args.name ?? `${original.name} (copy)`,
+                category: original.category ?? 'general',
+                modality: original.modality ?? undefined,
+                calories_per_hour: original.calories_per_hour ?? 0,
+                description: original.description ?? null,
+                level: original.level ?? null,
+                force: original.force ?? null,
+                mechanic: original.mechanic ?? null,
+                equipment: safeParseJson(original.equipment),
+                primary_muscles: safeParseJson(original.primary_muscles),
+                secondary_muscles: safeParseJson(original.secondary_muscles),
+                instructions: safeParseJson(original.instructions),
+                images: safeParseJson(original.images),
+                source: 'custom',
+                source_id: null,
+                is_custom: true,
+                shared_with_public: false,
+              });
+              return formatConfirmation(
+                `Exercise "${copy.name}" created as a copy of "${original.name}" (ID: ${copy.id}).`
+              );
+            }
+
             case 'log_exercise': {
               if (!args.exercise_id && !args.exercise_name) {
                 args.exercise_name = 'General Exercise';
@@ -568,18 +769,17 @@ Actions:
               if (!exerciseId && args.exercise_name) {
                 // Exact match first, then fuzzy, then auto-create — MCP's
                 // resolution order.
-                const rows = await exerciseService.searchExercises(
+                const rows = (await exerciseService.searchExercises(
                   userId,
                   args.exercise_name,
                   userId,
                   undefined,
                   undefined
-                );
+                )) as Array<{ id: string; name: string }>;
                 const name = args.exercise_name.toLowerCase();
                 const found =
-                  rows.find(
-                    (e: any) => String(e.name).toLowerCase() === name
-                  ) ?? rows[0];
+                  rows.find((e) => String(e.name).toLowerCase() === name) ??
+                  rows[0];
                 if (found) {
                   exerciseId = found.id;
                 } else {
@@ -620,26 +820,39 @@ Actions:
             }
 
             case 'list_exercise_diary': {
-              const grouped = await exerciseService.getExerciseEntriesByDate(
+              const grouped = (await exerciseService.getExerciseEntriesByDate(
                 userId,
                 userId,
                 args.entry_date
-              );
-              // Flatten preset sessions into their member entries and render
-              // the flat per-entry list MCP produced (created_at ASC).
-              const entries = grouped
-                .flatMap((item: any) =>
-                  item.type === 'preset' ? item.exercises : [item]
-                )
-                .sort(
-                  (a: any, b: any) =>
-                    new Date(a.created_at).getTime() -
-                    new Date(b.created_at).getTime()
+              )) as DiaryEntryItem[];
+              // Flatten preset sessions into their member entries and attach preset WOD details
+              // The score lives on the preset session, so it is shown once, on
+              // the session's first exercise.
+              const entries = grouped.flatMap((item: DiaryEntryItem) => {
+                if (item.type !== 'preset') return [item];
+                const score = findWodScore(item.activity_details);
+                return (item.exercises ?? []).map(
+                  (ex: DiaryEntryItem, idx: number) =>
+                    idx === 0
+                      ? {
+                          ...ex,
+                          ...(score ? { preset_wod_score: score } : {}),
+                          ...(item.location
+                            ? { preset_location: item.location }
+                            : {}),
+                        }
+                      : ex
                 );
+              });
+              entries.sort(
+                (a: DiaryEntryItem, b: DiaryEntryItem) =>
+                  new Date(a.created_at ?? 0).getTime() -
+                  new Date(b.created_at ?? 0).getTime()
+              );
               return formatList(
                 entries,
                 `Exercise Diary: ${args.entry_date}`,
-                (e: any) => {
+                (e: DiaryEntryItem) => {
                   let text = `**${e.name}**`;
                   const sets: ExerciseSetInput[] = e.sets ?? [];
                   if (sets.length > 0) text += ` — ${sets.length} sets`;
@@ -659,6 +872,7 @@ Actions:
                         if (isSet(s.duration)) parts.push(`${s.duration}s`);
                         if (isSet(s.distance)) parts.push(`${s.distance}km`);
                         if (isSet(s.rpe)) parts.push(`RPE ${s.rpe}`);
+                        if (isSet(s.rir)) parts.push(`RIR ${s.rir}`);
                         let str = parts.join('×');
                         if (isSet(s.rest_time))
                           str += ` (rest ${s.rest_time}s)`;
@@ -669,6 +883,13 @@ Actions:
                       .join('; ');
                     if (setLine) text += `\n  Sets: ${setLine}`;
                   }
+                  const wodDetail: WodScoreDetail | undefined =
+                    e.preset_wod_score ?? findWodScore(e.activity_details);
+                  if (wodDetail) {
+                    text += `\n  Score: ${formatWodScore(wodDetail)}`;
+                  }
+                  if (e.preset_location)
+                    text += `\n  Location: ${e.preset_location}`;
                   if (e.notes) text += `\n  Notes: ${e.notes}`;
                   text += `\n  ID: ${e.id}`;
                   return text;
@@ -683,10 +904,18 @@ Actions:
                 1000
               );
               return formatList(
-                presets,
+                presets as WorkoutPresetListItem[],
                 'Workout Presets',
-                (p: any) =>
-                  `**${p.name}** — ${p.exercises.length} exercises\n  ID: ${p.id}`
+                (p: WorkoutPresetListItem) => {
+                  let formatStr = '';
+                  if (p.workout_format && p.workout_format !== 'standard') {
+                    const cap = p.time_cap_seconds
+                      ? `, ${formatSeconds(p.time_cap_seconds)} cap`
+                      : '';
+                    formatStr = ` (${p.workout_format}${cap})`;
+                  }
+                  return `**${p.name}**${formatStr} — ${p.exercises.length} exercises\n  ID: ${p.id}`;
+                }
               );
             }
 
@@ -725,6 +954,15 @@ Actions:
               }
               let text = `### ${preset.name} (ID: ${preset.id})\n\n`;
               if (preset.description) text += `${preset.description}\n\n`;
+              if (
+                preset.workout_format &&
+                preset.workout_format !== 'standard'
+              ) {
+                const cap = preset.time_cap_seconds
+                  ? ` (Cap: ${formatSeconds(preset.time_cap_seconds)})`
+                  : '';
+                text += `Format: **${preset.workout_format}**${cap}\n\n`;
+              }
               text += `Public: ${preset.is_public ? 'yes' : 'no'}\n\n`;
               if (!preset.exercises || preset.exercises.length === 0) {
                 return `${text}_No exercises in this preset._`;
@@ -761,23 +999,83 @@ Actions:
                   'Either preset_id or preset_name must be provided'
                 );
               }
+              // A JSON-string score skips the published schema; validate both forms.
+              let wodScore: WodScoreInput | undefined;
+              if (args.wod_score !== undefined) {
+                let raw: unknown = args.wod_score;
+                if (typeof raw === 'string') {
+                  try {
+                    raw = JSON.parse(raw);
+                  } catch {
+                    return ERRORS.VALIDATION(
+                      'Invalid JSON format for wod_score'
+                    );
+                  }
+                }
+                const scoreResult = wodScoreInputSchema.safeParse(raw);
+                if (!scoreResult.success) {
+                  return formatZodError(scoreResult.error);
+                }
+                wodScore = scoreResult.data;
+              }
+
               let presetId = args.preset_id;
+              let preset: PresetFormatRow | null = null;
               if (!presetId && args.preset_name) {
-                const preset =
-                  await workoutPresetRepository.getWorkoutPresetByName(
-                    userId,
-                    args.preset_name
-                  );
+                preset = await workoutPresetRepository.getWorkoutPresetByName(
+                  userId,
+                  args.preset_name
+                );
                 if (!preset) {
                   return ERRORS.NOT_FOUND('Resource', 'unknown');
                 }
                 presetId = preset.id;
+              } else if (presetId && wodScore) {
+                preset = await workoutPresetService.getWorkoutPresetById(
+                  userId,
+                  presetId
+                );
               }
+
+              let options: Record<string, unknown> = args.location
+                ? { location: args.location }
+                : {};
+              if (wodScore) {
+                const format = preset?.workout_format ?? 'standard';
+                if (format === 'standard') {
+                  return ERRORS.VALIDATION(
+                    'wod_score only applies to interval/WOD presets (interval, tabata, amrap, emom, for_time). This preset uses the standard format; log it without wod_score.'
+                  );
+                }
+                const detailData: WodScoreDetailData = {
+                  workout_format:
+                    format as WodScoreDetailData['workout_format'],
+                  time_cap_seconds: preset?.time_cap_seconds ?? null,
+                  score_type: wodScore.score_type,
+                  rounds_completed: wodScore.rounds_completed ?? null,
+                  reps_completed: wodScore.reps_completed ?? null,
+                  elapsed_seconds: wodScore.elapsed_seconds ?? null,
+                  status: wodScore.status ?? null,
+                  scaling_notes: wodScore.scaling_notes ?? null,
+                };
+                options = {
+                  ...options,
+                  activity_details: [
+                    {
+                      provider_name: 'SparkyFitness',
+                      detail_type: 'wod_score',
+                      detail_data: detailData,
+                    },
+                  ],
+                };
+              }
+
               const session = await exerciseService.logWorkoutPresetGrouped(
                 userId,
                 userId,
                 presetId,
-                args.entry_date
+                args.entry_date,
+                options
               );
               return formatConfirmation(
                 `Workout preset logged for ${args.entry_date}. ${session?.exercises.length ?? 0} exercises added.`
@@ -865,6 +1163,11 @@ Actions:
             }
 
             case 'create_workout_preset': {
+              if (args.workout_format === 'amrap' && !args.time_cap_seconds) {
+                return ERRORS.VALIDATION(
+                  'AMRAP workout presets require time_cap_seconds to be specified.'
+                );
+              }
               const parsed = parsePresetExercises(args.exercises);
               if (!parsed.ok) return parsed.error;
               const preset = await workoutPresetService.createWorkoutPreset(
@@ -874,6 +1177,8 @@ Actions:
                   name: args.name,
                   description: args.description ?? null,
                   is_public: args.is_public ?? false,
+                  workout_format: args.workout_format || 'standard',
+                  time_cap_seconds: args.time_cap_seconds ?? null,
                   exercises: toPresetExercises(parsed.exercises),
                 }
               );
@@ -895,6 +1200,31 @@ Actions:
                 if (!parsed.ok) return parsed.error;
                 exercises = parsed.exercises;
               }
+              if (args.workout_format === 'amrap' && !args.time_cap_seconds) {
+                try {
+                  const existing =
+                    await workoutPresetService.getWorkoutPresetById(
+                      userId,
+                      args.preset_id
+                    );
+                  if (!existing?.time_cap_seconds) {
+                    return ERRORS.VALIDATION(
+                      'AMRAP workout presets require time_cap_seconds to be specified.'
+                    );
+                  }
+                } catch (error) {
+                  if (
+                    error instanceof Error &&
+                    error.message.includes('not found')
+                  ) {
+                    return ERRORS.NOT_FOUND(
+                      'Workout preset',
+                      String(args.preset_id)
+                    );
+                  }
+                  throw error;
+                }
+              }
               try {
                 const preset = await workoutPresetService.updateWorkoutPreset(
                   userId,
@@ -903,6 +1233,8 @@ Actions:
                     name: args.name,
                     description: args.description,
                     is_public: args.is_public,
+                    workout_format: args.workout_format,
+                    time_cap_seconds: args.time_cap_seconds,
                     exercises: exercises
                       ? toPresetExercises(exercises)
                       : undefined,
@@ -915,6 +1247,15 @@ Actions:
                 if (
                   error instanceof Error &&
                   error.message.includes('Forbidden')
+                ) {
+                  return ERRORS.NOT_FOUND(
+                    'Workout preset',
+                    String(args.preset_id)
+                  );
+                }
+                if (
+                  error instanceof Error &&
+                  error.message.includes('not found')
                 ) {
                   return ERRORS.NOT_FOUND(
                     'Workout preset',
@@ -965,7 +1306,7 @@ Actions:
               return formatList(
                 progress.data,
                 `Exercise Progress: ${args.exercise_name || args.exercise_id}`,
-                (p: any) =>
+                (p: ProgressDay) =>
                   `**${p.entry_date}**: Max Weight: ${p.max_weight}kg | Max Reps: ${p.max_reps} | Volume: ${p.total_volume}kg`,
                 {
                   total_count: progress.total_count,
@@ -977,7 +1318,7 @@ Actions:
 
             default:
               return ERRORS.INVALID_ACTION(
-                String((args as any).action),
+                String((args as { action?: unknown }).action),
                 VALID_ACTIONS
               );
           }

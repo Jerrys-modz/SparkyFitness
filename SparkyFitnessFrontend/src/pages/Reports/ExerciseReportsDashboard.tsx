@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutDashboard, Dumbbell, Activity, ChevronDown } from 'lucide-react';
 import WorkoutHeatmap from './WorkoutHeatmap';
+import { workoutHeatmapWindow } from '@/utils/workoutHeatmap';
+import { useWorkoutDays } from '@/hooks/Reports/useReports';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
 import ExerciseVarietyScore from './ExerciseVarietyScore';
@@ -48,7 +50,7 @@ import {
   useMatchedCourses,
   queryExerciseActivities,
 } from '@/hooks/Reports/useExerciseStats';
-import type { ExerciseProgressResponse } from '@workspace/shared';
+import { todayInZone, type ExerciseProgressResponse } from '@workspace/shared';
 
 interface ExerciseReportsDashboardProps {
   exerciseDashboardData: ExerciseDashboardData | undefined;
@@ -101,7 +103,7 @@ const ExerciseReportsDashboard = ({
   endDate,
 }: ExerciseReportsDashboardProps) => {
   const { t } = useTranslation();
-  const { formatDateInUserTimezone, weightUnit, distanceUnit } =
+  const { formatDateInUserTimezone, weightUnit, distanceUnit, timezone } =
     usePreferences();
   const unitSystem: 'metric' | 'imperial' =
     distanceUnit === 'miles' ? 'imperial' : 'metric';
@@ -139,6 +141,19 @@ const ExerciseReportsDashboard = ({
   }, []);
 
   const { activeUserId } = useActiveUser();
+
+  // Follow the report range so a week or a month does not mean scrolling a
+  // year. With no range, fall back to the last 12 months (#2461).
+  const heatmapToday = todayInZone(timezone);
+  const fallbackWindow = workoutHeatmapWindow(heatmapToday);
+  const heatmapStart = startDate ?? fallbackWindow.start;
+  const heatmapEnd = endDate ?? heatmapToday;
+  const { data: workoutDaysData } = useWorkoutDays(
+    heatmapStart,
+    heatmapEnd,
+    activeUserId
+  );
+  const heatmapDates = (workoutDaysData?.days ?? []).map((day) => day.date);
 
   const { data: statsSummary } = useExerciseStatsSummary(
     statsInterval,
@@ -274,12 +289,6 @@ const ExerciseReportsDashboard = ({
     );
   }
 
-  const heatmapDates = Array.from(
-    new Set(
-      exerciseDashboardData.exerciseEntries.map((entry) => entry.entry_date)
-    )
-  );
-
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
       case 'keyStats':
@@ -289,28 +298,6 @@ const ExerciseReportsDashboard = ({
             data={exerciseDashboardData}
             weightUnit={weightUnit}
           />
-        );
-      case 'heatmap':
-        return exerciseDashboardData?.exerciseEntries &&
-          exerciseDashboardData.exerciseEntries.length > 0 ? (
-          <WorkoutHeatmap
-            key="heatmap"
-            workoutDates={heatmapDates}
-            startDate={startDate}
-            endDate={endDate}
-          />
-        ) : (
-          <Card
-            key="heatmap"
-            className="h-full border shadow-sm flex items-center justify-center p-6"
-          >
-            <p className="text-center text-muted-foreground text-xs">
-              {t(
-                'exerciseReportsDashboard.noWorkoutDataAvailableForHeatmap',
-                'No workout data available for heatmap.'
-              )}
-            </p>
-          </Card>
         );
       case 'filtersAggregation':
         return (
@@ -850,12 +837,11 @@ const ExerciseReportsDashboard = ({
 
         {/* Right Side: Workout Heatmap Calendar */}
         <div className="lg:col-span-5">
-          {exerciseDashboardData?.exerciseEntries &&
-          exerciseDashboardData.exerciseEntries.length > 0 ? (
+          {heatmapDates.length > 0 ? (
             <WorkoutHeatmap
               workoutDates={heatmapDates}
-              startDate={startDate}
-              endDate={endDate}
+              startDate={heatmapStart}
+              endDate={heatmapEnd}
             />
           ) : (
             <Card className="h-full border shadow-sm flex items-center justify-center p-6">

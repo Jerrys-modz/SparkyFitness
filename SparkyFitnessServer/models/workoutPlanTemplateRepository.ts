@@ -61,6 +61,7 @@ export interface WorkoutPlanAssignmentRow extends AssignmentProgressionInput {
   session_name?: string | null;
   workout_preset_id?: number | null;
   workout_preset_name?: string | null;
+  workout_preset_format?: string | null;
   exercise_id?: string | null;
   exercise_name?: string | null;
   modality?: string | null;
@@ -106,8 +107,10 @@ async function createWorkoutPlanTemplate(
       planData.start_date ?? new Date(),
       planData.end_date,
       planData.is_active ?? false,
-      planData.schedule_type || 'weekly',
-      planData.entry_mode || 'prompt',
+      planData.schedule_type || 'sequential',
+      (planData.schedule_type || 'sequential') === 'sequential'
+        ? 'prompt'
+        : planData.entry_mode || 'prompt',
     ];
     const templateResult = await client.query(
       insertTemplateQuery,
@@ -158,7 +161,7 @@ async function createWorkoutPlanTemplate(
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name, wp.workout_format as workout_preset_format,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -208,7 +211,7 @@ async function getWorkoutPlanTemplatesByUserId(
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name, wp.workout_format as workout_preset_format,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -434,7 +437,7 @@ async function updateWorkoutPlanTemplate(
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name, wp.workout_format as workout_preset_format,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)
@@ -524,7 +527,7 @@ async function getActiveWorkoutPlanForDate(
                         SELECT json_agg(assignment_data)
                         FROM (
                             SELECT 
-                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name,
+                                a.id, a.day_of_week, a.sort_order, a.session_index, a.session_name, a.workout_preset_id, wp.name as workout_preset_name, wp.workout_format as workout_preset_format,
                                 a.exercise_id, e.name as exercise_name, e.modality as modality,
                                 (
                                     SELECT COALESCE(json_agg(set_data ORDER BY set_data.set_number), '[]'::json)

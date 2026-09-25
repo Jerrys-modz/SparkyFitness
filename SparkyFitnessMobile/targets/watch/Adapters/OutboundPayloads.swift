@@ -112,6 +112,9 @@ enum OutboundPayloads {
         if let kcal = batch.activeEnergyKcal {
             payload["activeEnergyKcal"] = kcal
         }
+        if let minutes = batch.durationMinutes, minutes > 0 {
+            payload["durationMinutes"] = minutes
+        }
         return payload
     }
 

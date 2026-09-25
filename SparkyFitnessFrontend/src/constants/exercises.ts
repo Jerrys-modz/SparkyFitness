@@ -326,21 +326,33 @@ export type SetTableModality = Exclude<ExerciseModality, 'duration_distance'>;
 
 export const SET_TABLE_LAYOUT: Record<
   SetTableModality,
-  { gridClass: string; showReps: boolean; showWeight: boolean }
+  {
+    gridClass: string;
+    /** Same grid with one extra column for RIR (diary entries only). */
+    gridClassWithRir: string;
+    showReps: boolean;
+    showWeight: boolean;
+  }
 > = {
   weight_reps: {
     gridClass:
       'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
+    gridClassWithRir:
+      'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
     showReps: true,
     showWeight: true,
   },
   reps_only: {
     gridClass: 'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
+    gridClassWithRir:
+      'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
     showReps: true,
     showWeight: false,
   },
   duration: {
     gridClass: 'grid grid-cols-[20px_140px_1fr_1fr_1fr_72px] gap-1.5 grow',
+    gridClassWithRir:
+      'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
     showReps: false,
     showWeight: false,
   },

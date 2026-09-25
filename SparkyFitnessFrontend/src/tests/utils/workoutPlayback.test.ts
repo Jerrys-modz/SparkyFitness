@@ -1,11 +1,15 @@
 import type { WorkoutPreset } from '@/types/workout';
+import type { Exercise } from '@/types/exercises';
 import {
+  addDropSetsToWorkoutExercise,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
   completeCurrentWorkoutSet,
+  createWorkoutPlaybackDraftFromExercise,
   createWorkoutPlaybackDraftFromPreset,
   createWorkoutPlaybackRouteState,
+  createWorkoutPlaybackRouteStateFromExercise,
   getCurrentWorkoutSetPointer,
   getWorkoutPlaybackStats,
   getWorkoutPlaybackRestRemainingSeconds,
@@ -69,6 +73,53 @@ describe('workoutPlayback utils', () => {
     expect(routeState.returnTo).toBe('/diary');
     expect(routeState.draft?.entry_date).toBe('2026-04-27');
     expect(routeState.draft?.name).toBe('Upper Body');
+  });
+
+  it('creates a local draft from a single exercise', () => {
+    const exercise = {
+      id: 'ex-123',
+      name: 'Bicep Curl',
+      category: 'Strength',
+      modality: 'weight_reps',
+      images: ['https://example.com/bicep.png'],
+      primary_muscles: ['biceps'],
+      secondary_muscles: [],
+      equipment: ['dumbbell'],
+      instructions: [],
+    } as unknown as Exercise;
+
+    const draft = createWorkoutPlaybackDraftFromExercise(
+      exercise,
+      '2026-04-27'
+    );
+
+    expect(draft.name).toBe('Bicep Curl');
+    expect(draft.preset_id).toBe('quick-exercise-ex-123');
+    expect(draft.entry_date).toBe('2026-04-27');
+    expect(draft.exercises).toHaveLength(1);
+    expect(draft.exercises[0]?.exercise_id).toBe('ex-123');
+    expect(draft.exercises[0]?.exercise_name).toBe('Bicep Curl');
+    expect(draft.exercises[0]?.sets).toHaveLength(1);
+    expect(draft.exercises[0]?.sets[0]?.reps).toBe(10);
+    expect(draft.exercises[0]?.sets[0]?.completed).toBe(false);
+  });
+
+  it('builds a route state from a single exercise', () => {
+    const exercise = {
+      id: 'ex-123',
+      name: 'Bicep Curl',
+      category: 'Strength',
+    } as unknown as Exercise;
+
+    const routeState = createWorkoutPlaybackRouteStateFromExercise(
+      exercise,
+      '2026-04-27',
+      '/diary'
+    );
+
+    expect(routeState.returnTo).toBe('/diary');
+    expect(routeState.draft?.name).toBe('Bicep Curl');
+    expect(routeState.draft?.exercises[0]?.exercise_id).toBe('ex-123');
   });
 
   it('saves, loads, and clears a persisted draft by date', () => {
@@ -373,5 +424,57 @@ describe('workoutPlayback utils', () => {
       setIndex: 2,
     });
     expect(nextDraft.exercises[0]?.sets).toHaveLength(2);
+  });
+
+  it('appends drop sets from the last working set, rounded in the display unit', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const kg = addDropSetsToWorkoutExercise(draft, 0, 'kg');
+    const drops = kg.exercises[0]!.sets.slice(2);
+    expect(drops.map((set) => set.set_type)).toEqual([
+      'Drop Set',
+      'Drop Set',
+      'Drop Set',
+    ]);
+    expect(drops.map((set) => set.weight)).toEqual([64, 51.25, 41]);
+    expect(kg.exercises[0]!.sets.map((set) => set.set_number)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+
+    // Adding again drops from the working weight, not the last drop set.
+    const twice = addDropSetsToWorkoutExercise(kg, 0, 'kg');
+    expect(twice.exercises[0]!.sets[5]!.weight).toBe(64);
+
+    const lbs = addDropSetsToWorkoutExercise(draft, 0, 'lbs');
+    const lbWeights = lbs.exercises[0]!.sets.slice(2).map(
+      (set) => Math.round((Number(set.weight) / 0.45359237) * 10) / 10
+    );
+    // 80 kg ≈ 176.4 lb → 141.1 → 112.9 → 90.3, each snapped to 2.5 lb.
+    expect(lbWeights).toEqual([140, 112.5, 90]);
+  });
+
+  it('sends per-set RIR and the trimmed gym location, never the stopwatch', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const withRir = updateWorkoutSetAtPointer(
+      { ...draft, location: 'Home Gym' },
+      { exerciseIndex: 0, setIndex: 0 },
+      { rir: 2, timer_started_at_ms: 123 }
+    );
+    // Only completed sets are sent.
+    const completed = toggleWorkoutSetCompletion(withRir, {
+      exerciseIndex: 0,
+      setIndex: 0,
+    });
+    const payload = buildPresetSessionCreateRequestFromDraft(completed, 'UTC');
+    expect(payload.location).toBe('Home Gym');
+    expect(payload.exercises?.[0]?.sets?.[0]?.rir).toBe(2);
+    expect(payload.exercises?.[0]?.sets?.[0]).not.toHaveProperty(
+      'timer_started_at_ms'
+    );
   });
 });

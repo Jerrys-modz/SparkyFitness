@@ -260,6 +260,11 @@ export interface WatchHeartRateBatchPayload {
    * (permission refused, or nothing measured yet).
    */
   activeEnergyKcal?: number;
+  /**
+   * Minutes the watch spent showing this exercise, including rest between
+   * its sets. Cumulative. Absent on a batch that only carries samples.
+   */
+  durationMinutes?: number;
 }
 
 /** The wearer ended the workout on the watch. */

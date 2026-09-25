@@ -1931,6 +1931,7 @@ async function createGroupedWorkoutSession(
       name,
       description,
       notes,
+      location,
       source = 'manual',
       exercises,
       workoutPlanAssignmentId = null,
@@ -1961,6 +1962,7 @@ async function createGroupedWorkoutSession(
                 : workoutPreset.description,
             entry_date,
             notes,
+            location: location ?? null,
             source,
           },
           actingUserId
@@ -1990,6 +1992,7 @@ async function createGroupedWorkoutSession(
             description: description ?? null,
             entry_date,
             notes: notes ?? null,
+            location: location ?? null,
             source,
           },
           actingUserId
@@ -2113,6 +2116,7 @@ async function updateGroupedWorkoutSession(
         name: updateData.name,
         description: updateData.description,
         notes: updateData.notes,
+        location: updateData.location,
         entry_date: updateData.entry_date,
       }
     );

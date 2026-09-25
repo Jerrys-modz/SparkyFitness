@@ -81,6 +81,7 @@ const ICON_MAP = {
   globe: { sf: 'globe', ion: 'globe-outline' },
   people: { sf: 'person.2.fill', ion: 'people' },
   wifi: { sf: 'wifi', ion: 'wifi-outline' },
+  location: { sf: 'mappin.and.ellipse', ion: 'location-outline' },
 
   // Food
   food: { sf: 'fork.knife', ion: 'restaurant' },

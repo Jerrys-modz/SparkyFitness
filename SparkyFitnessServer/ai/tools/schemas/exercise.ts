@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { EXERCISE_MODALITIES } from '@workspace/shared';
+import {
+  EXERCISE_MODALITIES,
+  RIR_MAX,
+  RIR_MIN,
+  WORKOUT_LOCATION_MAX_LENGTH,
+  workoutFormatSchema,
+} from '@workspace/shared';
 import {
   dateSchema,
   optionalEntryTimeSchema,
@@ -40,6 +46,12 @@ const exerciseSetSchema = z
       .max(10)
       .optional()
       .describe('Rate of Perceived Exertion (0-10 scale, one decimal allowed)'),
+    rir: z.coerce
+      .number()
+      .min(RIR_MIN)
+      .max(RIR_MAX)
+      .optional()
+      .describe('Reps in reserve (0 = failure, 0-10, halves allowed)'),
     notes: z.string().max(1000).optional().describe('Note for this set'),
   })
   .strict();
@@ -240,6 +252,29 @@ const presetExercisesInputSchema = z
 
 export type PresetExerciseInput = z.infer<typeof presetExerciseSchema>;
 
+export const wodScoreInputSchema = z
+  .object({
+    score_type: z.enum(['time', 'rounds_reps', 'total_reps', 'completion']),
+    rounds_completed: z.coerce.number().int().min(0).optional().nullable(),
+    reps_completed: z.coerce.number().int().min(0).optional().nullable(),
+    elapsed_seconds: z.coerce.number().int().min(0).optional().nullable(),
+    status: z.enum(['rx', 'scaled']).optional().nullable(),
+    scaling_notes: z.string().max(1000).optional().nullable(),
+  })
+  .strict();
+
+export type WodScoreInput = z.infer<typeof wodScoreInputSchema>;
+
+const workoutLocationSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(WORKOUT_LOCATION_MAX_LENGTH)
+  .optional()
+  .describe(
+    'Gym / location name for this session (free text, e.g. "Home gym")'
+  );
+
 const logWorkoutPresetSchema = z
   .object({
     action: z.literal('log_workout_preset'),
@@ -251,6 +286,13 @@ const logWorkoutPresetSchema = z
       .optional()
       .describe(PRESET_NAME_LOOKUP),
     entry_date: dateSchema,
+    wod_score: z
+      .union([wodScoreInputSchema, z.string()])
+      .optional()
+      .describe(
+        'WOD / Interval result score (e.g. { score_type: "rounds_reps", rounds_completed: 7, reps_completed: 12, status: "rx" })'
+      ),
+    location: workoutLocationSchema,
   })
   .strict();
 
@@ -322,6 +364,25 @@ const getExerciseDetailsSchema = z
   })
   .strict();
 
+const duplicateExerciseSchema = z
+  .object({
+    action: z.literal('duplicate_exercise'),
+    exercise_id: uuidSchema.optional().describe('UUID of the exercise to copy'),
+    exercise_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Exact name of the exercise to copy (alternative to ID)'),
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name for the copy; defaults to "<original name> (copy)"'),
+  })
+  .strict();
+
 const createWorkoutPresetSchema = z
   .object({
     action: z.literal('create_workout_preset'),
@@ -335,6 +396,20 @@ const createWorkoutPresetSchema = z
       .boolean()
       .optional()
       .describe('Whether the preset is shared publicly'),
+    workout_format: workoutFormatSchema
+      .optional()
+      .default('standard')
+      .describe(
+        'Workout structure / timer format: "standard" (default), "interval", "tabata", "amrap", "emom", or "for_time"'
+      ),
+    time_cap_seconds: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe(
+        'Time cap in seconds (required for AMRAP, optional for For Time / EMOM)'
+      ),
     exercises: presetExercisesInputSchema,
   })
   .strict();
@@ -359,6 +434,17 @@ const updateWorkoutPresetSchema = z
       .boolean()
       .optional()
       .describe('Whether the preset is shared publicly'),
+    workout_format: workoutFormatSchema
+      .optional()
+      .describe(
+        'Workout structure / timer format: "standard", "interval", "tabata", "amrap", "emom", or "for_time"'
+      ),
+    time_cap_seconds: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('Time cap in seconds'),
     exercises: presetExercisesInputSchema
       .optional()
       .describe(
@@ -406,6 +492,7 @@ export const manageExerciseSchema = z.discriminatedUnion('action', [
   updateExerciseEntrySchema,
   deleteExerciseEntrySchema,
   getExerciseDetailsSchema,
+  duplicateExerciseSchema,
   createWorkoutPresetSchema,
   updateWorkoutPresetSchema,
   deleteWorkoutPresetSchema,
@@ -430,6 +517,7 @@ export const manageExerciseInput = z.object({
       'update_exercise_entry',
       'delete_exercise_entry',
       'get_exercise_details',
+      'duplicate_exercise',
       'create_workout_preset',
       'update_workout_preset',
       'delete_workout_preset',
@@ -586,6 +674,7 @@ export const manageExerciseInput = z.object({
           rest_time: z.coerce.number().min(0).optional(),
           set_type: setTypeEnum.optional(),
           rpe: z.coerce.number().min(0).max(10).optional(),
+          rir: z.coerce.number().min(RIR_MIN).max(RIR_MAX).optional(),
           notes: z.string().max(1000).optional(),
         })
       ),
@@ -593,7 +682,7 @@ export const manageExerciseInput = z.object({
     ])
     .optional()
     .describe(
-      'Set details as array of objects or JSON string; per-set fields include rpe and notes'
+      'Set details as array of objects or JSON string; per-set fields include rpe, rir and notes'
     ),
   // presets
   preset_id: z.coerce
@@ -616,6 +705,30 @@ export const manageExerciseInput = z.object({
     .describe(
       'Whether the workout preset is shared publicly — for create_workout_preset / update_workout_preset'
     ),
+  workout_format: workoutFormatSchema
+    .optional()
+    .describe(
+      'Workout structure / timer format ("standard", "interval", "tabata", "amrap", "emom", "for_time") — for create_workout_preset / update_workout_preset'
+    ),
+  time_cap_seconds: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      'Time cap in seconds — for create_workout_preset / update_workout_preset'
+    ),
+  wod_score: z
+    .union([wodScoreInputSchema, z.string()])
+    .optional()
+    .describe(
+      'WOD / Interval score results — for log_workout_preset ({score_type, rounds_completed?, reps_completed?, elapsed_seconds?, status?, scaling_notes?})'
+    ),
+  location: z
+    .string()
+    .max(WORKOUT_LOCATION_MAX_LENGTH)
+    .optional()
+    .describe('Gym / location name — for log_workout_preset'),
   confirmed: z
     .boolean()
     .optional()

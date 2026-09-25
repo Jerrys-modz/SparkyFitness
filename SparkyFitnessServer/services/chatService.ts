@@ -1458,7 +1458,7 @@ async function classifyUserIntent(
     const classificationPrompt = `Analyze the conversation history (especially the user's latest reply) and determine which of the following health tracking domains are relevant. Choose all that apply.
 
 Available domains:
-- exercise: tracking workouts, logging sets/reps, running, cardio, strength, steps, exercise stats, and workout plan templates.
+- exercise: tracking workouts, logging sets/reps, running, cardio, strength, steps, exercise stats, creating and managing workout plans, and checking next scheduled/sequential workouts.
 - food: logging meals, lookup foods/nutrition, tracking water intake, favorites, meal plans, custom nutrients, water containers, allergens, and barcode lookup.
 - checkin: logging daily check-ins, weight, height, body fat, other body measurements, progress photos, and sleep-science analytics.
 - goals: viewing or changing goals/targets.
