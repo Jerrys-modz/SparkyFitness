@@ -1,13 +1,37 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Pause, Plus, Minus, Flame } from 'lucide-react';
 import {
+  Play,
+  Pause,
+  Plus,
+  Minus,
+  Flame,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
+import {
+  buildGuidedIntervalPhaseCues,
   buildIntervalPhases,
+  resolveGuidedSetTarget,
   resolvePhaseAt,
+  type GuidedSetTarget,
   type WorkoutFormat,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { playIntervalCue } from '@/utils/workoutSounds';
+import { resolveExerciseImageSrc } from '@/utils/exercises';
+import { useGuidedWorkoutPreferences } from '@/utils/guidedWorkoutPreferences';
+import { useImageSlideshow } from '@/hooks/useImageSlideshow';
+import { guidedExerciseImages } from './useWorkoutPlaybackGuided';
+import {
+  renderGuidedCues,
+  resetGuidedSpeechSession,
+  setGuidedSpeechMuted,
+  speakGuided,
+  stopGuidedSpeech,
+  useGuidedCaption,
+  useGuidedSpeechMuted,
+} from '@/utils/guidedWorkoutSpeech';
 
 import type { WorkoutPlaybackExerciseDraft } from '@/utils/workoutPlayback';
 
@@ -28,6 +52,12 @@ interface WorkoutPlaybackIntervalHudProps {
     stepIndex: number | null;
     round: number;
   }) => void;
+}
+
+interface GuidedIntervalStep {
+  exerciseName: string;
+  images: string[];
+  target: GuidedSetTarget;
 }
 
 function formatClock(seconds: number): string {
@@ -51,7 +81,8 @@ export default function WorkoutPlaybackIntervalHud({
   onSetStatus,
   onCompletePhaseWork,
 }: WorkoutPlaybackIntervalHudProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { enabled: guidedEnabled } = useGuidedWorkoutPreferences();
   const [now, setNow] = useState<number>(() => Date.now());
   const [isPaused, setIsPaused] = useState(false);
   const [pauseStartedAt, setPauseStartedAt] = useState<number | null>(null);
@@ -61,6 +92,8 @@ export default function WorkoutPlaybackIntervalHud({
       setIsPaused(false);
       setPauseStartedAt(null);
     } else {
+      // A paused clock must not keep talking.
+      stopGuidedSpeech();
       setIsPaused(true);
       setPauseStartedAt(Date.now());
     }
@@ -104,6 +137,36 @@ export default function WorkoutPlaybackIntervalHud({
       }))
     );
   }, [exercises, workoutFormat]);
+
+  // Engine step index → exercise, mirroring `steps` above: one per exercise
+  // for Tabata/EMOM, one per set otherwise.
+  const getGuidedStep = useCallback(
+    (stepIndex: number): GuidedIntervalStep | null => {
+      if (!exercises) return null;
+      let exerciseIndex = stepIndex;
+      let setIndex = 0;
+      if (workoutFormat !== 'tabata' && workoutFormat !== 'emom') {
+        let remaining = stepIndex;
+        exerciseIndex = exercises.findIndex((ex) => {
+          if (remaining < ex.sets.length) return true;
+          remaining -= ex.sets.length;
+          return false;
+        });
+        setIndex = remaining;
+      }
+      const exercise = exercises[exerciseIndex];
+      if (!exercise) return null;
+      return {
+        exerciseName: exercise.exercise_name,
+        images: guidedExerciseImages(exercise),
+        target: resolveGuidedSetTarget(
+          exercise.modality ?? 'weight_reps',
+          exercise.sets[setIndex] ?? {}
+        ),
+      };
+    },
+    [exercises, workoutFormat]
+  );
 
   // Generate interval phases
   const intervalPhases = useMemo(() => {
@@ -161,6 +224,16 @@ export default function WorkoutPlaybackIntervalHud({
         }
       }
 
+      if (guidedEnabled) {
+        speakGuided(
+          renderGuidedCues(
+            buildGuidedIntervalPhaseCues(phase, intervalPhases, getGuidedStep),
+            t
+          ),
+          { interrupt: true, lang: i18n.language }
+        );
+      }
+
       if (phase.kind === 'work') {
         playIntervalCue('work');
       } else if (phase.kind === 'rest') {
@@ -180,7 +253,47 @@ export default function WorkoutPlaybackIntervalHud({
       lastCountdownSecRef.current = remainingSec;
       playIntervalCue('countdown');
     }
-  }, [phase, remainingSec, isPaused, intervalPhases, onCompletePhaseWork]);
+  }, [
+    phase,
+    remainingSec,
+    isPaused,
+    intervalPhases,
+    onCompletePhaseWork,
+    guidedEnabled,
+    getGuidedStep,
+    t,
+    i18n.language,
+  ]);
+
+  useEffect(() => {
+    if (!guidedEnabled) return;
+    return () => {
+      stopGuidedSpeech();
+      resetGuidedSpeechSession();
+    };
+  }, [guidedEnabled]);
+  const guidedMuted = useGuidedSpeechMuted();
+  const guidedCaption = useGuidedCaption();
+
+  // Guided mode shows the exercise being worked, or the one coming up.
+  let guidedStep: GuidedIntervalStep | null = null;
+  let guidedIsNext = false;
+  if (guidedEnabled && phase) {
+    if (phase.kind === 'work' && phase.stepIndex != null) {
+      guidedStep = getGuidedStep(phase.stepIndex);
+    } else if (phase.kind === 'rest' || phase.kind === 'countdown') {
+      const nextWork = intervalPhases.find(
+        (p) => p.phaseIndex > phase.phaseIndex && p.kind === 'work'
+      );
+      if (nextWork?.stepIndex != null) {
+        guidedStep = getGuidedStep(nextWork.stepIndex);
+        guidedIsNext = true;
+      }
+    }
+  }
+
+  const guidedImages = guidedStep?.images ?? [];
+  const guidedImage = guidedImages[useImageSlideshow(guidedImages.length)];
 
   if (workoutFormat === 'standard') {
     return null;
@@ -242,28 +355,51 @@ export default function WorkoutPlaybackIntervalHud({
           </span>
         </div>
 
-        <Button
-          variant={isPaused ? 'default' : 'outline'}
-          size="sm"
-          onClick={handleTogglePause}
-          className={`gap-1.5 font-semibold text-xs h-8 px-3 rounded-lg ${
-            isPaused
-              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              : 'text-gray-700 dark:text-gray-300'
-          }`}
-        >
-          {isPaused ? (
-            <>
-              <Play className="w-3.5 h-3.5 fill-current" />
-              {t('interval.resume', 'Resume')}
-            </>
-          ) : (
-            <>
-              <Pause className="w-3.5 h-3.5 fill-current" />
-              {t('interval.pause', 'Pause')}
-            </>
+        <div className="flex items-center gap-2">
+          {guidedEnabled && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setGuidedSpeechMuted(!guidedMuted)}
+              aria-label={
+                guidedMuted
+                  ? t('guidedWorkout.card.unmute', 'Unmute voice')
+                  : t('guidedWorkout.card.mute', 'Mute voice')
+              }
+              aria-pressed={guidedMuted}
+              className="h-8 w-8 p-0 rounded-lg"
+            >
+              {guidedMuted ? (
+                <VolumeX className="w-3.5 h-3.5 text-gray-400" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5" />
+              )}
+            </Button>
           )}
-        </Button>
+          <Button
+            variant={isPaused ? 'default' : 'outline'}
+            size="sm"
+            onClick={handleTogglePause}
+            className={`gap-1.5 font-semibold text-xs h-8 px-3 rounded-lg ${
+              isPaused
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            {isPaused ? (
+              <>
+                <Play className="w-3.5 h-3.5 fill-current" />
+                {t('interval.resume', 'Resume')}
+              </>
+            ) : (
+              <>
+                <Pause className="w-3.5 h-3.5 fill-current" />
+                {t('interval.pause', 'Pause')}
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Main HUD: Countdown Clock & Phase Pill */}
@@ -295,6 +431,50 @@ export default function WorkoutPlaybackIntervalHud({
           style={{ width: `${progressPercent}%` }}
         />
       </div>
+
+      {guidedStep && (
+        <div
+          data-testid="interval-guided-step"
+          className="flex flex-col items-center text-center mb-5"
+        >
+          {guidedImage ? (
+            <div className="relative w-full aspect-[3/2] max-h-[60vh] overflow-hidden rounded-xl bg-gray-50 dark:bg-gray-800">
+              <img
+                src={resolveExerciseImageSrc(guidedImage)}
+                alt={guidedStep.exerciseName}
+                className="h-full w-full object-contain"
+              />
+              {guidedCaption && (
+                <div className="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2">
+                  <p
+                    data-testid="guided-caption"
+                    className="text-sm sm:text-base font-medium text-white"
+                  >
+                    {guidedCaption}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            guidedCaption && (
+              <div className="w-full rounded-xl bg-black/70 px-3 py-2">
+                <p
+                  data-testid="guided-caption"
+                  className="text-sm sm:text-base font-medium text-white"
+                >
+                  {guidedCaption}
+                </p>
+              </div>
+            )
+          )}
+          {guidedIsNext && (
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-2">
+              {t('guidedWorkout.card.nextUp', 'Next up')}
+            </p>
+          )}
+          <p className="text-lg font-bold mt-1">{guidedStep.exerciseName}</p>
+        </div>
+      )}
 
       {/* WOD Scoring Controls */}
       <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">

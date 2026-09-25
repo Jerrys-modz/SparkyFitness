@@ -326,6 +326,11 @@ export interface ActiveWorkoutState {
   /** Start a timed/hold set's stopwatch. */
   startSetTimer: (setId: string) => void;
   /**
+   * Move a running stopwatch's start forward by `deltaMs`, so time spent
+   * paused (guided mode's Pause) is not counted. No-op when none is running.
+   */
+  shiftSetTimer: (setId: string, deltaMs: number) => void;
+  /**
    * Stop a running stopwatch and write the elapsed whole seconds (min 1) as
    * the set's duration. Returns the seconds written, or null if none ran.
    */
@@ -1827,6 +1832,18 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         if (setTimerStartedAt[setId] != null) return;
         set({
           setTimerStartedAt: { ...setTimerStartedAt, [setId]: Date.now() },
+        });
+      },
+
+      shiftSetTimer: (setId, deltaMs) => {
+        const { setTimerStartedAt } = get();
+        const startedAt = setTimerStartedAt[setId];
+        if (startedAt == null || deltaMs <= 0) return;
+        set({
+          setTimerStartedAt: {
+            ...setTimerStartedAt,
+            [setId]: startedAt + deltaMs,
+          },
         });
       },
 

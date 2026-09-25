@@ -38,6 +38,7 @@ import { DeveloperResources } from './DevloperResources';
 import { AccountSecurity } from './AccountSecurity';
 import { ApiSettings } from './ApiSettings';
 import { WaterTrackingSettings } from './WaterTrackingSettings';
+import { GuidedWorkoutSettings } from './GuidedWorkoutSettings';
 import CycleSettings from './CycleSettings';
 import { PreferenceSettings } from './PreferenceSettings';
 import { ProfileInformation } from './ProfileInformation';
@@ -356,6 +357,12 @@ const Settings = () => {
               className="border rounded-lg mb-4"
             >
               <CycleSettings />
+            </AccordionItem>
+            <AccordionItem
+              value="guided-workouts"
+              className="border rounded-lg mb-4"
+            >
+              <GuidedWorkoutSettings />
             </AccordionItem>
             <AccordionItem
               value="custom-categories"

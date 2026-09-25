@@ -43,9 +43,14 @@ import { localDateTimeToUtc } from '@workspace/shared';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackIntervalHud from './WorkoutPlaybackIntervalHud';
+import WorkoutPlaybackGuidedCard from './WorkoutPlaybackGuidedCard';
+import WorkoutPlaybackFinishDialog, {
+  type WorkoutFinishSummary,
+} from './WorkoutPlaybackFinishDialog';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 import { fetchExerciseProgressionStats } from '@/hooks/Exercises/useExerciseEntries';
 import { playIntervalCue } from '@/utils/workoutSounds';
+import { useGuidedWorkoutPreferences } from '@/utils/guidedWorkoutPreferences';
 
 function weightFromKg(weightKg: number, unit: string): number {
   if (!weightKg || weightKg <= 0) return 0;
@@ -164,6 +169,10 @@ const WorkoutPlaybackPage = () => {
     useState<WorkoutSetPointer | null>(null);
   const [restEditorCustomValue, setRestEditorCustomValue] = useState('');
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const { enabled: guidedWorkoutEnabled } = useGuidedWorkoutPreferences();
+  const [finishSummary, setFinishSummary] =
+    useState<WorkoutFinishSummary | null>(null);
+  const getDraft = useCallback(() => draftRef.current, []);
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
@@ -853,11 +862,24 @@ const WorkoutPlaybackPage = () => {
     }
 
     try {
-      await createPresetSession(payload);
+      const saved = await createPresetSession(payload);
+      const finalStats = getWorkoutPlaybackStats(draft);
       clearWorkoutPlaybackDraftFromStorage(draft.entry_date);
+      // The summary stays up over the cleared player; closing it returns to
+      // the diary the way finishing always has.
+      setFinishSummary({
+        name: draft.name,
+        durationSeconds: elapsedSeconds,
+        caloriesKcal: (saved?.exercises ?? []).reduce(
+          (sum, exercise) => sum + (Number(exercise.calories_burned) || 0),
+          0
+        ),
+        completedSets: finalStats.completedSets,
+        totalSets: finalStats.totalSets,
+        volume: totalVolume,
+      });
       setDraft(null);
       setSaveError(null);
-      navigate(returnPath, { replace: true });
     } catch {
       setSaveError(
         t(
@@ -866,9 +888,22 @@ const WorkoutPlaybackPage = () => {
         )
       );
     }
-  }, [createPresetSession, draft, navigate, returnPath, t, timezone]);
+  }, [createPresetSession, draft, elapsedSeconds, t, timezone, totalVolume]);
+
+  const handleCloseFinishSummary = useCallback(() => {
+    setFinishSummary(null);
+    navigate(returnPath, { replace: true });
+  }, [navigate, returnPath]);
 
   if (!draft) {
+    if (finishSummary) {
+      return (
+        <WorkoutPlaybackFinishDialog
+          summary={finishSummary}
+          onClose={handleCloseFinishSummary}
+        />
+      );
+    }
     return (
       <div className="mx-auto w-full max-w-4xl space-y-4">
         <Button
@@ -940,6 +975,17 @@ const WorkoutPlaybackPage = () => {
           onCompletePhaseWork={handleCompleteIntervalPhase}
         />
       )}
+
+      {guidedWorkoutEnabled &&
+        (!draft.workout_format || draft.workout_format === 'standard') && (
+          <WorkoutPlaybackGuidedCard
+            draft={draft}
+            getDraft={getDraft}
+            updateDraft={updateDraft}
+            onCompleteSet={handleCompleteSet}
+            onToggleRestPause={handlePauseResumeRest}
+          />
+        )}
 
       <WorkoutPlaybackExercisesList
         exercises={draft.exercises}
