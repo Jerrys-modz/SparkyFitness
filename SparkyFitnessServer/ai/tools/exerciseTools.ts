@@ -327,14 +327,66 @@ const EXERCISE_CATALOG_DROP: readonly string[] = [
   'updated_by_user_id',
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function projectExerciseEntry(row: any) {
+interface ExerciseCatalogRow {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  primary_muscles?: string[] | null;
+  equipment?: string[] | null;
+  level?: string | null;
+  calories_per_hour?: number | null;
+  description?: string | null;
+  is_custom?: boolean | null;
+  instructions?: string[] | string | null;
+  images?: string[] | string | null;
+}
+
+interface ProjectedExercise {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  muscle_groups?: string[] | null;
+  equipment?: string[] | null;
+  level?: string | null;
+  calories_per_hour?: number | null;
+  description?: string | null;
+  is_custom?: boolean | null;
+}
+
+interface DiaryEntryItem {
+  id: string | number;
+  name?: string;
+  type?: string;
+  duration_minutes?: number | null;
+  calories_burned?: number | null;
+  distance?: number | null;
+  avg_heart_rate?: number | null;
+  steps?: number | null;
+  notes?: string | null;
+  created_at?: string | Date;
+  sets?: ExerciseSetInput[];
+  activity_details?: { detail_type?: string; detail_data?: unknown }[];
+  preset_wod_score?: WodScoreDetail;
+  preset_location?: string;
+  exercises?: DiaryEntryItem[];
+  location?: string | null;
+}
+
+interface WorkoutPresetListItem {
+  id: number | string;
+  name: string;
+  workout_format?: string | null;
+  time_cap_seconds?: number | null;
+  exercises: unknown[];
+}
+
+function projectExerciseEntry(row: Record<string, unknown>) {
   return compactRecord(projectEntryDate(row), EXERCISE_ENTRY_DROP);
 }
 
 // The column set MCP's exercise search exposed; richer server rows are
 // projected down to it so the chat-visible output stays identical.
-function projectExercise(row: any) {
+function projectExercise(row: ExerciseCatalogRow): ProjectedExercise {
   return {
     id: row.id,
     name: row.name,
@@ -354,11 +406,17 @@ async function getExerciseDetails(
   userId: string,
   params: { exercise_id?: string; exercise_name?: string }
 ) {
-  let row: any;
+  let row: ExerciseCatalogRow | null | undefined;
   if (params.exercise_id) {
-    row = await exerciseService.getExerciseById(userId, params.exercise_id);
+    row = (await exerciseService.getExerciseById(
+      userId,
+      params.exercise_id
+    )) as ExerciseCatalogRow | null;
   } else if (params.exercise_name) {
-    row = await findExerciseByExactName(userId, params.exercise_name);
+    row = (await findExerciseByExactName(
+      userId,
+      params.exercise_name
+    )) as ExerciseCatalogRow | null;
   } else {
     throw new Error('Either exercise_id or exercise_name must be provided');
   }
@@ -567,12 +625,13 @@ Workout formats (workout_format, default standard) drive the in-app timer:
             }
             return 'list_exercise_diary'; // fallback
           }
-        ) as any;
+        ) as Record<string, unknown>;
 
         // Default missing entry_date to today's date string for logging actions
         const loggingActions = ['log_exercise', 'log_workout_preset'];
         if (
           normalized.entry_date === undefined &&
+          typeof normalized.action === 'string' &&
           loggingActions.includes(normalized.action)
         ) {
           normalized.entry_date = todayInZone(tz);
@@ -608,8 +667,9 @@ Workout formats (workout_format, default standard) drive the in-app timer:
               return formatList(
                 result.data,
                 `Exercise Search: "${args.searchTerm}"`,
-                (e: any) =>
+                (e: ProjectedExercise) =>
                   `**${e.name}** (${e.category || 'Uncategorized'})\n  Muscles: ${e.muscle_groups?.join(', ') || 'N/A'} | Equipment: ${e.equipment?.join(', ') || 'None'}\n  ID: ${e.id}`,
+
                 {
                   total_count: result.total_count,
                   has_more: result.has_more,
@@ -709,18 +769,17 @@ Workout formats (workout_format, default standard) drive the in-app timer:
               if (!exerciseId && args.exercise_name) {
                 // Exact match first, then fuzzy, then auto-create — MCP's
                 // resolution order.
-                const rows = await exerciseService.searchExercises(
+                const rows = (await exerciseService.searchExercises(
                   userId,
                   args.exercise_name,
                   userId,
                   undefined,
                   undefined
-                );
+                )) as Array<{ id: string; name: string }>;
                 const name = args.exercise_name.toLowerCase();
                 const found =
-                  rows.find(
-                    (e: any) => String(e.name).toLowerCase() === name
-                  ) ?? rows[0];
+                  rows.find((e) => String(e.name).toLowerCase() === name) ??
+                  rows[0];
                 if (found) {
                   exerciseId = found.id;
                 } else {
@@ -761,19 +820,19 @@ Workout formats (workout_format, default standard) drive the in-app timer:
             }
 
             case 'list_exercise_diary': {
-              const grouped = await exerciseService.getExerciseEntriesByDate(
+              const grouped = (await exerciseService.getExerciseEntriesByDate(
                 userId,
                 userId,
                 args.entry_date
-              );
+              )) as DiaryEntryItem[];
               // Flatten preset sessions into their member entries and attach preset WOD details
               // The score lives on the preset session, so it is shown once, on
               // the session's first exercise.
-              const entries = grouped.flatMap((item: any) => {
+              const entries = grouped.flatMap((item: DiaryEntryItem) => {
                 if (item.type !== 'preset') return [item];
                 const score = findWodScore(item.activity_details);
                 return (item.exercises ?? []).map(
-                  (ex: Record<string, unknown>, idx: number) =>
+                  (ex: DiaryEntryItem, idx: number) =>
                     idx === 0
                       ? {
                           ...ex,
@@ -786,14 +845,14 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                 );
               });
               entries.sort(
-                (a: any, b: any) =>
-                  new Date(a.created_at).getTime() -
-                  new Date(b.created_at).getTime()
+                (a: DiaryEntryItem, b: DiaryEntryItem) =>
+                  new Date(a.created_at ?? 0).getTime() -
+                  new Date(b.created_at ?? 0).getTime()
               );
               return formatList(
                 entries,
                 `Exercise Diary: ${args.entry_date}`,
-                (e: any) => {
+                (e: DiaryEntryItem) => {
                   let text = `**${e.name}**`;
                   const sets: ExerciseSetInput[] = e.sets ?? [];
                   if (sets.length > 0) text += ` — ${sets.length} sets`;
@@ -844,16 +903,20 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                 1,
                 1000
               );
-              return formatList(presets, 'Workout Presets', (p: any) => {
-                let formatStr = '';
-                if (p.workout_format && p.workout_format !== 'standard') {
-                  const cap = p.time_cap_seconds
-                    ? `, ${formatSeconds(p.time_cap_seconds)} cap`
-                    : '';
-                  formatStr = ` (${p.workout_format}${cap})`;
+              return formatList(
+                presets as WorkoutPresetListItem[],
+                'Workout Presets',
+                (p: WorkoutPresetListItem) => {
+                  let formatStr = '';
+                  if (p.workout_format && p.workout_format !== 'standard') {
+                    const cap = p.time_cap_seconds
+                      ? `, ${formatSeconds(p.time_cap_seconds)} cap`
+                      : '';
+                    formatStr = ` (${p.workout_format}${cap})`;
+                  }
+                  return `**${p.name}**${formatStr} — ${p.exercises.length} exercises\n  ID: ${p.id}`;
                 }
-                return `**${p.name}**${formatStr} — ${p.exercises.length} exercises\n  ID: ${p.id}`;
-              });
+              );
             }
 
             case 'get_workout_preset': {
@@ -1243,7 +1306,7 @@ Workout formats (workout_format, default standard) drive the in-app timer:
               return formatList(
                 progress.data,
                 `Exercise Progress: ${args.exercise_name || args.exercise_id}`,
-                (p: any) =>
+                (p: ProgressDay) =>
                   `**${p.entry_date}**: Max Weight: ${p.max_weight}kg | Max Reps: ${p.max_reps} | Volume: ${p.total_volume}kg`,
                 {
                   total_count: progress.total_count,
@@ -1255,7 +1318,7 @@ Workout formats (workout_format, default standard) drive the in-app timer:
 
             default:
               return ERRORS.INVALID_ACTION(
-                String((args as any).action),
+                String((args as { action?: unknown }).action),
                 VALID_ACTIONS
               );
           }

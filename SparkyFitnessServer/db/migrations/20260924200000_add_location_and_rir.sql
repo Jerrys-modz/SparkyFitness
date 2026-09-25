@@ -5,4 +5,4 @@ ALTER TABLE public.exercise_entry_sets
   ADD COLUMN IF NOT EXISTS rir numeric(3, 1);
 
 COMMENT ON COLUMN public.exercise_preset_entries.location IS 'Optional location or gym name for the workout session';
-COMMENT ON COLUMN public.exercise_entry_sets.rir IS 'Reps In Reserve (usually 0-5 scale)';
+COMMENT ON COLUMN public.exercise_entry_sets.rir IS 'Reps In Reserve (0-10 scale)';
