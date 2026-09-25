@@ -247,6 +247,27 @@ enum ContextPayloadMapper {
         )
     }
 
+    /// Pause or resume for the session already running. Nil when the payload
+    /// does not name a session. A resume carries `pauseDurationMs`; a pause
+    /// carries `pausedAt`.
+    static func intervalTiming(from payload: [String: Any]) -> (
+        sessionId: String, pausedAt: Date?, pauseDuration: TimeInterval
+    )? {
+        guard let sessionId = payload["sessionId"] as? String else { return nil }
+        let paused = (payload["paused"] as? Bool)
+            ?? (payload["paused"] as? NSNumber)?.boolValue
+            ?? false
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let pausedAt = paused
+            ? (payload["pausedAt"] as? String).flatMap { formatter.date(from: $0) }
+                ?? (payload["pausedAt"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+                ?? Date()
+            : nil
+        let pauseMs = (payload["pauseDurationMs"] as? NSNumber)?.doubleValue ?? 0
+        return (sessionId, pausedAt, paused ? 0 : pauseMs / 1000)
+    }
+
     // MARK: - Acks
 
     /// A server-write confirmation for one check-in.

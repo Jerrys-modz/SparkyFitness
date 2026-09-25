@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { resolvePhaseAt } from '@workspace/shared';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import { syncWatchIntervalTiming } from '../hooks/useStartLiveWorkout';
 import { playIntervalCue } from '../services/sounds';
 import { fireSelectionHaptic, fireImpactHaptic } from '../services/haptics';
 import Icon from './Icon';
@@ -240,9 +241,20 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
           }`}
           onPress={() => {
             if (isIntervalPaused) {
+              const pausedAt =
+                useActiveWorkoutStore.getState().intervalPauseStartedAt;
+              const pauseDurationMs =
+                pausedAt != null ? Math.max(0, Date.now() - pausedAt) : 0;
               resumeInterval();
+              syncWatchIntervalTiming({ paused: false, pauseDurationMs });
             } else {
               pauseInterval();
+              const pausedAt =
+                useActiveWorkoutStore.getState().intervalPauseStartedAt;
+              syncWatchIntervalTiming({
+                paused: true,
+                pausedAtMs: pausedAt ?? Date.now(),
+              });
             }
           }}
           accessibilityLabel={

@@ -261,6 +261,22 @@ public class WatchConnectivityModule: Module {
                 WCSession.default.transferUserInfo(payload)
             }
         }
+
+        /// Pause or resume the cap on the watch without sending a new
+        /// `workoutStart`, which would be ignored for the session already
+        /// running. Queued the same way so a pause still arrives out of range.
+        AsyncFunction("updateIntervalTiming") { (timing: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = timing
+            payload["type"] = "intervalTiming"
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
+                    WCSession.default.transferUserInfo(payload)
+                }
+            } else {
+                WCSession.default.transferUserInfo(payload)
+            }
+        }
     }
 }
 

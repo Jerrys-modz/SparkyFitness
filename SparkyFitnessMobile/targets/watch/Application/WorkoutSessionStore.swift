@@ -132,6 +132,28 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: 0)
     }
 
+    /// Pause or resume the cap countdown without restarting the workout.
+    /// A resume is applied only while a pause is open, so a redelivered
+    /// resume cannot add the same gap twice.
+    func applyIntervalTiming(sessionId: String, pausedAt: Date?, pauseDuration: TimeInterval) {
+        guard let plan, plan.sessionId == sessionId else { return }
+        let alreadyPaused = plan.pausedAt != nil
+        if pausedAt == nil && !alreadyPaused { return }
+        let added = pausedAt == nil ? max(0, Int(pauseDuration.rounded())) : 0
+        self.plan = ActiveWorkoutPlan(
+            sessionId: plan.sessionId,
+            workoutName: plan.workoutName,
+            exercises: plan.exercises,
+            setOrder: plan.setOrder,
+            workoutFormat: plan.workoutFormat,
+            timeCapSeconds: plan.timeCapSeconds,
+            startedAt: plan.startedAt,
+            pausedAt: pausedAt,
+            excludedPauseSeconds: (plan.excludedPauseSeconds ?? 0) + added
+        )
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {

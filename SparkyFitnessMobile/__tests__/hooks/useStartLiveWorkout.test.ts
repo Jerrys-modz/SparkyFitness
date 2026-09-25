@@ -2,7 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import type { PresetSessionResponse } from '@workspace/shared';
-import { useStartLiveWorkout } from '../../src/hooks/useStartLiveWorkout';
+import {
+  useStartLiveWorkout,
+  syncWatchIntervalTiming,
+} from '../../src/hooks/useStartLiveWorkout';
 import {
   __resetActiveWorkoutStoreForTests,
   useActiveWorkoutStore,
@@ -48,14 +51,17 @@ jest.mock('../../modules/watch-connectivity', () => ({
   default: {
     isSupported: jest.fn(() => true),
     startWorkout: jest.fn(),
+    updateIntervalTiming: jest.fn(),
   },
 }));
 
-const mockStartWorkout = (
+const mockWatch = (
   jest.requireMock('../../modules/watch-connectivity') as {
-    default: { startWorkout: jest.Mock };
+    default: { startWorkout: jest.Mock; updateIntervalTiming: jest.Mock };
   }
-).default.startWorkout;
+).default;
+const mockStartWorkout = mockWatch.startWorkout;
+const mockUpdateIntervalTiming = mockWatch.updateIntervalTiming;
 
 const mockCreateWorkout = createWorkout as jest.MockedFunction<
   typeof createWorkout
@@ -210,6 +216,29 @@ describe('useStartLiveWorkout', () => {
     );
     expect(startedAt).toBeGreaterThanOrEqual(before);
     expect(startedAt).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('freezes the watch cap on pause and sends the pause length on resume', () => {
+    act(() => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+    });
+
+    syncWatchIntervalTiming({
+      paused: true,
+      pausedAtMs: Date.parse('2026-09-25T15:00:00.000Z'),
+    });
+    expect(mockUpdateIntervalTiming).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      paused: true,
+      pausedAt: '2026-09-25T15:00:00.000Z',
+    });
+
+    syncWatchIntervalTiming({ paused: false, pauseDurationMs: 12_000 });
+    expect(mockUpdateIntervalTiming).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      paused: false,
+      pauseDurationMs: 12_000,
+    });
   });
 
   it('strips planned weight/reps/duration from the create payload and seeds them as the store plan', async () => {

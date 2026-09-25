@@ -56,8 +56,13 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     let workoutFormat: String?
     /// Cap for the interval, in seconds. Nil when the format has none.
     let timeCapSeconds: Int?
-    /// When the phone started the session. The cap counts from here.
+    /// When the phone started the session. The cap counts from here, minus
+    /// time the phone spent paused.
     let startedAt: Date?
+    /// Set while the phone interval is paused. The caption freezes here.
+    let pausedAt: Date?
+    /// Seconds already paused and then resumed. Not counted against the cap.
+    let excludedPauseSeconds: Int?
 
     init(
         sessionId: String,
@@ -66,7 +71,9 @@ struct ActiveWorkoutPlan: Codable, Equatable {
         setOrder: [String] = [],
         workoutFormat: String? = nil,
         timeCapSeconds: Int? = nil,
-        startedAt: Date? = nil
+        startedAt: Date? = nil,
+        pausedAt: Date? = nil,
+        excludedPauseSeconds: Int? = nil
     ) {
         self.sessionId = sessionId
         self.workoutName = workoutName
@@ -75,6 +82,8 @@ struct ActiveWorkoutPlan: Codable, Equatable {
         self.workoutFormat = workoutFormat
         self.timeCapSeconds = timeCapSeconds
         self.startedAt = startedAt
+        self.pausedAt = pausedAt
+        self.excludedPauseSeconds = excludedPauseSeconds
     }
 }
 

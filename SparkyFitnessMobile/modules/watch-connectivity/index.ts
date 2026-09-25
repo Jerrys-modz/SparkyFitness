@@ -313,6 +313,17 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * superseded workout can be ignored watch-side.
    */
   stopWorkout(sessionId: string): Promise<void>;
+  /**
+   * Freezes or resumes the watch cap for the live session. `pausedAt` is when
+   * the phone paused. `pauseDurationMs` is how long that pause lasted, sent
+   * on resume so the watch does not count it against the cap.
+   */
+  updateIntervalTiming(timing: {
+    sessionId: string;
+    paused: boolean;
+    pausedAt?: string;
+    pauseDurationMs?: number;
+  }): Promise<void>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to

@@ -112,6 +112,30 @@ export function armWatchForActiveSession(t: TFunction): void {
 }
 
 /**
+ * Freezes the watch cap while the phone interval is paused, and on resume
+ * tells it how long that pause lasted so the gap is not counted.
+ */
+export function syncWatchIntervalTiming(timing: {
+  paused: boolean;
+  pausedAtMs?: number;
+  pauseDurationMs?: number;
+}): void {
+  if (!WatchConnectivity?.isSupported()) return;
+  const { sessionId } = useActiveWorkoutStore.getState();
+  if (sessionId == null) return;
+  void WatchConnectivity.updateIntervalTiming({
+    sessionId,
+    paused: timing.paused,
+    ...(timing.paused && timing.pausedAtMs != null
+      ? { pausedAt: new Date(timing.pausedAtMs).toISOString() }
+      : {}),
+    ...(!timing.paused && timing.pauseDurationMs != null
+      ? { pauseDurationMs: timing.pauseDurationMs }
+      : {}),
+  });
+}
+
+/**
  * When another workout is already live, prompt before starting a new one:
  * go to the active workout screen, or clear it and start fresh (with a
  * best-effort save first, mirroring the HUD's Clear action). Returns true

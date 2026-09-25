@@ -359,6 +359,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "ack": handle(ack: payload)
         case "workoutStart": handle(workoutStart: payload)
         case "workoutStop": handle(workoutStopFromPhone: payload)
+        case "intervalTiming": handle(intervalTiming: payload)
         default: break
         }
     }
@@ -745,6 +746,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
         if let next {
             beginPlan(next)
         }
+    }
+
+    /// The phone paused or resumed an interval. Updates the cap only. A
+    /// redelivered resume is ignored once the pause is already closed.
+    private func handle(intervalTiming payload: [String: Any]) {
+        guard let timing = ContextPayloadMapper.intervalTiming(from: payload) else { return }
+        workoutStore.applyIntervalTiming(
+            sessionId: timing.sessionId,
+            pausedAt: timing.pausedAt,
+            pauseDuration: timing.pauseDuration
+        )
     }
 
     /// The wearer finished the workout on the PHONE. Tears down the same way
