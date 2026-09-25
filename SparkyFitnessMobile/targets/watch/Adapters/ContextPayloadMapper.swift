@@ -247,13 +247,15 @@ enum ContextPayloadMapper {
         )
     }
 
-    /// Pause or resume for the session already running. Nil when the payload
-    /// does not name a session. A resume carries `pauseDurationMs`; a pause
-    /// carries `pausedAt`.
+    /// Absolute pause snapshot for the session. `revision` only moves forward.
+    /// `excludedPauseMs` is time already resumed, not the open pause.
     static func intervalTiming(from payload: [String: Any]) -> (
-        sessionId: String, pausedAt: Date?, pauseDuration: TimeInterval
+        sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
     )? {
-        guard let sessionId = payload["sessionId"] as? String else { return nil }
+        guard
+            let sessionId = payload["sessionId"] as? String,
+            let revision = intValue(payload["revision"])
+        else { return nil }
         let paused = (payload["paused"] as? Bool)
             ?? (payload["paused"] as? NSNumber)?.boolValue
             ?? false
@@ -264,8 +266,8 @@ enum ContextPayloadMapper {
                 ?? (payload["pausedAt"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
                 ?? Date()
             : nil
-        let pauseMs = (payload["pauseDurationMs"] as? NSNumber)?.doubleValue ?? 0
-        return (sessionId, pausedAt, paused ? 0 : pauseMs / 1000)
+        let excludedMs = (payload["excludedPauseMs"] as? NSNumber)?.doubleValue ?? 0
+        return (sessionId, revision, pausedAt, Int((excludedMs / 1000).rounded()))
     }
 
     // MARK: - Acks

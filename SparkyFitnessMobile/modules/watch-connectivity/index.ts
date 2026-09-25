@@ -314,15 +314,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    */
   stopWorkout(sessionId: string): Promise<void>;
   /**
-   * Freezes or resumes the watch cap for the live session. `pausedAt` is when
-   * the phone paused. `pauseDurationMs` is how long that pause lasted, sent
-   * on resume so the watch does not count it against the cap.
+   * Absolute pause snapshot for the live session. `revision` only increases.
+   * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.
    */
   updateIntervalTiming(timing: {
     sessionId: string;
+    revision: number;
     paused: boolean;
     pausedAt?: string;
-    pauseDurationMs?: number;
+    excludedPauseMs: number;
   }): Promise<void>;
 }
 

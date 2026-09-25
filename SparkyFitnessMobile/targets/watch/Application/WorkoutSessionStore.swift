@@ -132,14 +132,18 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: 0)
     }
 
-    /// Pause or resume the cap countdown without restarting the workout.
-    /// A resume is applied only while a pause is open, so a redelivered
-    /// resume cannot add the same gap twice.
-    func applyIntervalTiming(sessionId: String, pausedAt: Date?, pauseDuration: TimeInterval) {
+    /// Replaces the cap's pause snapshot. `excludedPauseSeconds` is the total
+    /// already resumed, not a delta. A revision at or below the one already
+    /// applied is ignored, so a queued pause cannot undo a resume that arrived
+    /// first.
+    func applyIntervalTiming(
+        sessionId: String,
+        revision: Int,
+        pausedAt: Date?,
+        excludedPauseSeconds: Int
+    ) {
         guard let plan, plan.sessionId == sessionId else { return }
-        let alreadyPaused = plan.pausedAt != nil
-        if pausedAt == nil && !alreadyPaused { return }
-        let added = pausedAt == nil ? max(0, Int(pauseDuration.rounded())) : 0
+        if revision <= (plan.intervalRevision ?? 0) { return }
         self.plan = ActiveWorkoutPlan(
             sessionId: plan.sessionId,
             workoutName: plan.workoutName,
@@ -149,7 +153,8 @@ final class WorkoutSessionStore: ObservableObject {
             timeCapSeconds: plan.timeCapSeconds,
             startedAt: plan.startedAt,
             pausedAt: pausedAt,
-            excludedPauseSeconds: (plan.excludedPauseSeconds ?? 0) + added
+            excludedPauseSeconds: excludedPauseSeconds,
+            intervalRevision: revision
         )
         persistSnapshot(reportedEnergyKcal: nil)
     }

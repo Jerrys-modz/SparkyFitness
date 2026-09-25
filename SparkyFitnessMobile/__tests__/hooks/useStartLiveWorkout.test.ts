@@ -227,18 +227,27 @@ describe('useStartLiveWorkout', () => {
       paused: true,
       pausedAtMs: Date.parse('2026-09-25T15:00:00.000Z'),
     });
-    expect(mockUpdateIntervalTiming).toHaveBeenCalledWith({
-      sessionId: 'session-1',
-      paused: true,
-      pausedAt: '2026-09-25T15:00:00.000Z',
-    });
+    const paused = mockUpdateIntervalTiming.mock.calls.at(-1)?.[0];
+    expect(paused).toEqual(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        paused: true,
+        pausedAt: '2026-09-25T15:00:00.000Z',
+        excludedPauseMs: 0,
+      })
+    );
 
     syncWatchIntervalTiming({ paused: false, pauseDurationMs: 12_000 });
-    expect(mockUpdateIntervalTiming).toHaveBeenLastCalledWith({
-      sessionId: 'session-1',
-      paused: false,
-      pauseDurationMs: 12_000,
-    });
+    const resumed = mockUpdateIntervalTiming.mock.calls.at(-1)?.[0];
+    expect(resumed).toEqual(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        paused: false,
+        excludedPauseMs: 12_000,
+        revision: (paused.revision as number) + 1,
+      })
+    );
+    expect(resumed.pausedAt).toBeUndefined();
   });
 
   it('strips planned weight/reps/duration from the create payload and seeds them as the store plan', async () => {

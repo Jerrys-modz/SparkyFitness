@@ -63,6 +63,8 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     let pausedAt: Date?
     /// Seconds already paused and then resumed. Not counted against the cap.
     let excludedPauseSeconds: Int?
+    /// Phone's pause/resume counter. A lower number is an older message.
+    let intervalRevision: Int?
 
     init(
         sessionId: String,
@@ -73,7 +75,8 @@ struct ActiveWorkoutPlan: Codable, Equatable {
         timeCapSeconds: Int? = nil,
         startedAt: Date? = nil,
         pausedAt: Date? = nil,
-        excludedPauseSeconds: Int? = nil
+        excludedPauseSeconds: Int? = nil,
+        intervalRevision: Int? = nil
     ) {
         self.sessionId = sessionId
         self.workoutName = workoutName
@@ -84,6 +87,7 @@ struct ActiveWorkoutPlan: Codable, Equatable {
         self.startedAt = startedAt
         self.pausedAt = pausedAt
         self.excludedPauseSeconds = excludedPauseSeconds
+        self.intervalRevision = intervalRevision
     }
 }
 

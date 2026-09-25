@@ -111,9 +111,16 @@ export function armWatchForActiveSession(t: TFunction): void {
   );
 }
 
+let watchIntervalTiming = {
+  sessionId: null as string | null,
+  revision: 0,
+  excludedPauseMs: 0,
+};
+
 /**
- * Freezes the watch cap while the phone interval is paused, and on resume
- * tells it how long that pause lasted so the gap is not counted.
+ * Freezes the watch cap while the phone interval is paused. Each call sends
+ * the whole pause snapshot and a revision that only goes up, so a resume
+ * delivered before its queued pause still wins.
  */
 export function syncWatchIntervalTiming(timing: {
   paused: boolean;
@@ -123,14 +130,20 @@ export function syncWatchIntervalTiming(timing: {
   if (!WatchConnectivity?.isSupported()) return;
   const { sessionId } = useActiveWorkoutStore.getState();
   if (sessionId == null) return;
+  if (watchIntervalTiming.sessionId !== sessionId) {
+    watchIntervalTiming = { sessionId, revision: 0, excludedPauseMs: 0 };
+  }
+  if (!timing.paused) {
+    watchIntervalTiming.excludedPauseMs += timing.pauseDurationMs ?? 0;
+  }
+  watchIntervalTiming.revision += 1;
   void WatchConnectivity.updateIntervalTiming({
     sessionId,
+    revision: watchIntervalTiming.revision,
     paused: timing.paused,
+    excludedPauseMs: watchIntervalTiming.excludedPauseMs,
     ...(timing.paused && timing.pausedAtMs != null
       ? { pausedAt: new Date(timing.pausedAtMs).toISOString() }
-      : {}),
-    ...(!timing.paused && timing.pauseDurationMs != null
-      ? { pauseDurationMs: timing.pauseDurationMs }
       : {}),
   });
 }

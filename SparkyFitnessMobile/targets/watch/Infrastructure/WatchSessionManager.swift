@@ -49,6 +49,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Newest plan that arrived while a finish was in flight. Started only
     /// after the old tail has been tagged with the old session.
     private var pendingPlan: ActiveWorkoutPlan?
+    /// Pause snapshots that arrived before `beginPlan` started that session.
+    private var pendingIntervalTiming: [(
+        sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
+    )] = []
     /// A finish asked to tell the phone while another stop was already running.
     private var pendingSendStop = false
     /// Snapshot recovery and a `workoutStart` that arrives first both talk to
@@ -417,6 +421,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// every time: the wearer can change it in Settings between workouts.
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
         workoutStore.start(with: plan)
+        replayIntervalTiming(sessionId: plan.sessionId)
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
@@ -748,15 +753,36 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
-    /// The phone paused or resumed an interval. Updates the cap only. A
-    /// redelivered resume is ignored once the pause is already closed.
+    /// The phone paused or resumed an interval. The snapshot is absolute and
+    /// numbered, so a resume that beats its queued pause still wins. If the
+    /// session is only queued behind HealthKit recovery, keep the snapshot
+    /// and apply it once that plan starts.
     private func handle(intervalTiming payload: [String: Any]) {
         guard let timing = ContextPayloadMapper.intervalTiming(from: payload) else { return }
-        workoutStore.applyIntervalTiming(
-            sessionId: timing.sessionId,
-            pausedAt: timing.pausedAt,
-            pauseDuration: timing.pauseDuration
-        )
+        if workoutStore.plan?.sessionId == timing.sessionId {
+            workoutStore.applyIntervalTiming(
+                sessionId: timing.sessionId,
+                revision: timing.revision,
+                pausedAt: timing.pausedAt,
+                excludedPauseSeconds: timing.excludedPauseSeconds
+            )
+            return
+        }
+        guard pendingPlan?.sessionId == timing.sessionId else { return }
+        pendingIntervalTiming.append(timing)
+    }
+
+    private func replayIntervalTiming(sessionId: String) {
+        let queued = pendingIntervalTiming.filter { $0.sessionId == sessionId }
+        pendingIntervalTiming.removeAll { $0.sessionId == sessionId }
+        for timing in queued {
+            workoutStore.applyIntervalTiming(
+                sessionId: timing.sessionId,
+                revision: timing.revision,
+                pausedAt: timing.pausedAt,
+                excludedPauseSeconds: timing.excludedPauseSeconds
+            )
+        }
     }
 
     /// The wearer finished the workout on the PHONE. Tears down the same way
@@ -776,6 +802,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         if pendingPlan?.sessionId == sessionId {
             pendingPlan = nil
+            pendingIntervalTiming.removeAll { $0.sessionId == sessionId }
             return
         }
         guard workoutStore.plan?.sessionId == sessionId else { return }
