@@ -348,6 +348,9 @@ const WorkoutFormExerciseList = forwardRef<
       if (patch.rpe !== undefined) {
         updateSetMeta(owner, setId, { rpe: patch.rpe });
       }
+      if (patch.rir !== undefined) {
+        updateSetMeta(owner, setId, { rir: patch.rir });
+      }
       if (patch.notes !== undefined) {
         updateSetMeta(owner, setId, { notes: patch.notes });
       }
@@ -541,8 +544,11 @@ const WorkoutFormExerciseList = forwardRef<
   const metricColumn = useAppPreferencesStore(
     (s) => s.activeWorkoutMetricColumn
   );
+  // Presets store no RPE or RIR, so both effort columns fall back to volume.
   const effectiveMetricColumn =
-    !rpeEditable && metricColumn === 'rpe' ? 'volume' : metricColumn;
+    !rpeEditable && (metricColumn === 'rpe' || metricColumn === 'rir')
+      ? 'volume'
+      : metricColumn;
   const [metricMenu, setMetricMenu] = useState<{
     anchor: AnchorRect;
     clampedToRpe: boolean;

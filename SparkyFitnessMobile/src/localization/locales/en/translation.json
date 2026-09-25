@@ -322,6 +322,8 @@
       "endWorkout": "End workout",
       "exerciseProgress_one": "{{completed}} / {{count}} exercise",
       "exerciseProgress_other": "{{completed}} / {{count}} exercises",
+      "gymLocation": "Gym / Location",
+      "gymLocationSet": "Gym: {{location}}",
       "renameWorkout": "Rename workout",
       "reorderExercises": "Reorder exercises",
       "menu": "Workout menu",
@@ -385,7 +387,10 @@
       "incomplete": "Un-complete set {{setNumber}}",
       "weight": "Weight",
       "rpe": "RPE",
-      "fillFromPrevious": "Fill set {{setNumber}} from previous"
+      "rir": "RIR",
+      "fillFromPrevious": "Fill set {{setNumber}} from previous",
+      "startTimer": "Start stopwatch",
+      "stopTimer": "Stop stopwatch"
     },
     "columns": {
       "set": "Set",
@@ -395,6 +400,7 @@
     "exercise": {
       "expand": "Expand {{name}}",
       "viewDetails": "View {{name}} details",
+      "viewImages": "View {{name}} images",
       "collapse": "Collapse {{name}}",
       "moreOptions": "More options for {{name}}",
       "notePlaceholder": "Add a note for this exercise…",
@@ -442,6 +448,7 @@
     "barcodes": "Barcodes",
     "editExercise": "Edit Exercise",
     "newExercise": "New Exercise",
+    "duplicateExercise": "Duplicate Exercise",
     "editPreset": "Edit Preset",
     "newPreset": "New Preset",
     "scanFood": "Scan Food",
@@ -1400,7 +1407,14 @@
     }
   },
   "workout": {
+    "addDropSets": "Add {{sets}} drop sets (-{{percent}}%)",
     "couldNotSave": "Could not save your workout",
+    "dismissLocation": "Dismiss location",
+    "gymLocation": "Gym / Location",
+    "gymLocationDesc": "Tag this workout with your current gym or training facility",
+    "locationPlaceholder": "e.g. Planet Fitness - Downtown",
+    "metricRir": "RIR",
+    "recentLocations": "Recent Locations",
     "sets": "sets",
     "editActivity": "Edit activity",
     "durationTitle": "Workout duration",
@@ -2903,6 +2917,9 @@
     }
   },
   "exerciseDetail": {
+    "duplicate": "Duplicate exercise",
+    "viewImages": "View images full screen",
+    "duplicateName": "{{name}} (copy)",
     "sharedPublicly": "Exercise shared publicly",
     "madePrivate": "Exercise made private",
     "makePublicTitle": "Make public?",
@@ -3404,7 +3421,8 @@
     "labels": {
       "details": "Details",
       "name": "Name",
-      "notes": "Notes"
+      "notes": "Notes",
+      "location": "Gym / Location"
     },
     "placeholders": {
       "workoutName": "Workout Name",

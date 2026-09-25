@@ -19,6 +19,16 @@ import {
 import z from 'zod';
 import { parseJsonArray } from './exerciseService';
 
+/** The user's own previously logged workout locations, most recent first. */
+export const fetchWorkoutLocations = async (): Promise<string[]> => {
+  const data: unknown = await apiCall('/exercise-preset-entries/locations', {
+    method: 'GET',
+  });
+  return Array.isArray(data)
+    ? data.filter((value): value is string => typeof value === 'string')
+    : [];
+};
+
 export const fetchExerciseEntries = async (
   date: string,
   userId?: string

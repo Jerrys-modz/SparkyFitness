@@ -20,6 +20,16 @@ import type {
   Pagination,
 } from '@workspace/shared';
 
+/** The user's own previously logged workout locations, most recent first. */
+export const fetchWorkoutLocations = async (): Promise<string[]> => {
+  const data = await apiFetch<string[]>({
+    endpoint: '/api/exercise-preset-entries/locations',
+    serviceName: 'Exercise API',
+    operation: 'fetch workout locations',
+  });
+  return Array.isArray(data) ? data : [];
+};
+
 export const fetchExerciseHistory = async (
   page: number = 1,
   pageSize: number = 20,
@@ -150,6 +160,8 @@ export interface CreateExercisePayload {
   level?: string;
   force?: string;
   mechanic?: string;
+  /** Image references carried over when duplicating an exercise. */
+  images?: string[];
 }
 
 export interface UpdateExercisePayload {
@@ -438,6 +450,8 @@ export const attachExerciseEntryWatchTelemetry = async (
   telemetry: {
     hrSamples?: HeartRateSamplePayload[];
     activeEnergyKcal?: number;
+    /** Minutes the watch spent on this exercise. Replaces a zero duration. */
+    durationMinutes?: number;
   }
 ): Promise<void> => {
   return apiFetch<void>({

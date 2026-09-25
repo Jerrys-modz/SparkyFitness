@@ -2078,6 +2078,23 @@ describe('_reconcileExerciseEntrySetsWithClient', () => {
     expect(inserts).toHaveLength(1);
   });
 
+  it('writes rir on in-place updates of existing sets', async () => {
+    const client = makeClient([1]);
+    await reconcile(client, 'entry-a', [
+      { id: 1, set_number: 1, reps: 8, weight: 100, rir: 2 },
+    ]);
+
+    const update = client.calls.find(({ sql }) =>
+      /UPDATE exercise_entry_sets/.test(sql)
+    );
+    expect(update).toBeDefined();
+    expect(update!.sql).toMatch(/rir = \$12/);
+    expect(update!.params[11]).toBe(2);
+    // id and entry id follow the new column.
+    expect(update!.params[12]).toBe(1);
+    expect(update!.params[13]).toBe('entry-a');
+  });
+
   it('removes existing sets that are not referenced', async () => {
     const client = makeClient([1, 2, 3]);
     await reconcile(client, 'entry-a', [

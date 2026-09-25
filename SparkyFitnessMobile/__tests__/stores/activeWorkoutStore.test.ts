@@ -3924,4 +3924,68 @@ describe('activeWorkoutStore', () => {
       expect(st.prBaseline).toEqual({});
     });
   });
+
+  describe('drop sets, location, set timer, rest expiry (#1692)', () => {
+    beforeEach(() => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+    });
+
+    it('appends drop sets typed "drop" with unique temp ids across the session', () => {
+      // A pending temp set in another exercise must not collide.
+      useActiveWorkoutStore.getState().addSetToExercise('ex-uuid-2');
+      useActiveWorkoutStore
+        .getState()
+        .addDropSetsToExercise('ex-uuid-1', 70, 'kg');
+
+      const session = useActiveWorkoutStore.getState().session!;
+      const drops = session.exercises[0].sets.slice(2);
+      expect(drops.map((d) => d.set_type)).toEqual(['drop', 'drop', 'drop']);
+      expect(drops.map((d) => d.weight)).toEqual([56, 44.75, 35.75]);
+      expect(drops.every((d) => d.rir == null && d.duration == null)).toBe(
+        true
+      );
+
+      const allIds = session.exercises.flatMap((e) => e.sets.map((x) => x.id));
+      expect(new Set(allIds).size).toBe(allIds.length);
+      expect(drops.every((d) => d.id < 0)).toBe(true);
+    });
+
+    it('marks the session dirty when the location changes, so autosave runs', () => {
+      useActiveWorkoutStore.setState({ hasUnsavedChanges: false });
+      useActiveWorkoutStore.getState().setSessionLocation('Home Gym');
+      const state = useActiveWorkoutStore.getState();
+      expect(state.session!.location).toBe('Home Gym');
+      expect(state.hasUnsavedChanges).toBe(true);
+    });
+
+    it('times a hold set in the store and writes whole seconds on stop', () => {
+      const store = useActiveWorkoutStore.getState();
+      store.startSetTimer('101');
+      expect(useActiveWorkoutStore.getState().setTimerStartedAt['101']).toBe(
+        FIXED_NOW
+      );
+
+      jest.setSystemTime(new Date(FIXED_NOW + 45_400));
+      expect(useActiveWorkoutStore.getState().stopSetTimer('101')).toBe(45);
+
+      const state = useActiveWorkoutStore.getState();
+      expect(state.setTimerStartedAt['101']).toBeUndefined();
+      expect(state.session!.exercises[0].sets[0].duration).toBe(45);
+      expect(useActiveWorkoutStore.getState().stopSetTimer('101')).toBeNull();
+    });
+
+    it('stamps restExpiredAt only when a rest runs out, not on Skip', async () => {
+      useActiveWorkoutStore.getState().completeActiveSet(); // rest 60s
+      useActiveWorkoutStore.getState().dismissRest();
+      expect(useActiveWorkoutStore.getState().restExpiredAt).toBeNull();
+
+      useActiveWorkoutStore.getState().completeActiveSet(); // next rest
+      jest.setSystemTime(new Date(FIXED_NOW + 61_000));
+      useActiveWorkoutStore.getState().markRestReady();
+      expect(useActiveWorkoutStore.getState().restExpiredAt).toBe(
+        FIXED_NOW + 61_000
+      );
+      await flushPromises();
+    });
+  });
 });

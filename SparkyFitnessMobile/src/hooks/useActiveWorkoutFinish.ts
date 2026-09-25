@@ -7,6 +7,7 @@ import type { WorkoutDurationSheetRef } from '../components/WorkoutDurationSheet
 import type { CompletedSetMap } from '../stores/activeWorkoutStore';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { formatDuration, summarizeWorkoutSpan } from '../utils/workoutSession';
+import { buildWorkoutCelebration } from '../utils/workoutCelebration';
 import type { RootStackParamList } from '../types/navigation';
 
 interface UseActiveWorkoutFinishArgs {
@@ -90,28 +91,9 @@ export function useActiveWorkoutFinish({
         );
         return;
       }
-      const state = useActiveWorkoutStore.getState();
-      const isIntervalWorkout = state.workoutFormat !== 'standard';
-      const hasCompletedSets = Object.keys(state.completedSetIds).length > 0;
-      const celebration =
-        state.session != null && (hasCompletedSets || isIntervalWorkout)
-          ? {
-              session: state.session,
-              completedSetIds: state.completedSetIds,
-              prSetIds: state.prSetIds,
-              startedAt: state.startedAt,
-              finishedAt: Date.now(),
-              sourcePresetId: state.sourcePresetId,
-              sourceServerConfigId: state.sourceServerConfigId,
-              plannedSetValues: state.plannedSetValues,
-              workoutFormat: state.workoutFormat,
-              timeCapSeconds: state.timeCapSeconds,
-              intervalRoundsCompleted: state.intervalRoundsCompleted,
-              intervalRepsCompleted: state.intervalRepsCompleted,
-              intervalStatus: state.intervalStatus,
-              intervalScalingNotes: state.intervalScalingNotes,
-            }
-          : null;
+      const celebration = buildWorkoutCelebration(
+        useActiveWorkoutStore.getState()
+      );
       useActiveWorkoutStore.getState().clearWorkout();
       if (celebration != null) {
         navigation.replace('WorkoutComplete', celebration);

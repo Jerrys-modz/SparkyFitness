@@ -22,6 +22,7 @@ import {
 } from '@workspace/shared';
 import Icon from './Icon';
 import SafeImage from './SafeImage';
+import ImageLightbox from './ImageLightbox';
 import CompletionCheck from './CompletionCheck';
 import FormInput from './FormInput';
 import RestPeriodChip from './RestPeriodChip';
@@ -316,6 +317,8 @@ function ActiveWorkoutExerciseCard({
     switch (column) {
       case 'rpe':
         return t('workout.metricRpe', { defaultValue: 'RPE' });
+      case 'rir':
+        return t('workout.metricRir', { defaultValue: 'RIR' });
       case 'volume':
         return t('workout.metricVolumeShort', { defaultValue: 'Vol' });
       case 'e1rm':
@@ -335,10 +338,12 @@ function ActiveWorkoutExerciseCard({
     cardioFormEnabled &&
     rendersCardioEffortForm(exercise.exercise_snapshot, exercise.sets.length);
   // Vol/1RM/10RM are weight-derived and always empty on duration-like and
-  // reps-only tables (both keep weight null); clamp the display to RPE.
-  // Never written back to the shared preference.
+  // reps-only tables (both keep weight null); clamp the display to RPE, or
+  // keep RIR when that's the chosen effort column. Never written back to the
+  // shared preference.
   const clampedToRpe = durationLike || modality === 'reps_only';
-  const effectiveMetricColumn = clampedToRpe ? 'rpe' : metricColumn;
+  const effectiveMetricColumn =
+    clampedToRpe && metricColumn !== 'rir' ? 'rpe' : metricColumn;
   // Live, edit, and preview fetch the stats baseline so progression overload evaluates
   const shouldFetchStats = mode !== 'view' || Boolean(excludePresetEntryId);
   const { data: stats } = useExerciseStats(
@@ -409,6 +414,12 @@ function ActiveWorkoutExerciseCard({
 
   // Apple-style collapsible progression settings (Preset Edit Mode)
   const [progressionEditorOpen, setProgressionEditorOpen] = useState(false);
+  // Live workouts open the exercise's images full-screen from the thumbnail
+  // (#1691); "View exercise" stays in the ⋯ menu. Other modes keep the
+  // thumbnail → details behaviour.
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const thumbImages = exercise.exercise_snapshot?.images ?? [];
+  const opensImageViewer = isLive && thumbImages.length > 0;
   const [editMode, setEditMode] = useState<
     'rep_goal' | 'fixed' | 'step_load' | 'manual'
   >((exercise.progression_mode as any) ?? 'rep_goal');
@@ -746,20 +757,44 @@ function ActiveWorkoutExerciseCard({
     <View className="border-b border-border-subtle px-2 pt-3 pb-2">
       <View className="flex-row items-center gap-3">
         <Pressable
-          onPress={onPressThumb ? () => onPressThumb(exercise.id) : undefined}
-          accessible={onPressThumb != null}
-          accessibilityRole={onPressThumb != null ? 'button' : undefined}
+          onPress={
+            opensImageViewer
+              ? () => setImageViewerOpen(true)
+              : onPressThumb
+                ? () => onPressThumb(exercise.id)
+                : undefined
+          }
+          accessible={opensImageViewer || onPressThumb != null}
+          accessibilityRole={
+            opensImageViewer || onPressThumb != null ? 'button' : undefined
+          }
           accessibilityLabel={
-            onPressThumb != null
-              ? t('activeWorkout.exercise.viewDetails', {
-                  defaultValue: 'View {{name}} details',
+            opensImageViewer
+              ? t('activeWorkout.exercise.viewImages', {
+                  defaultValue: 'View {{name}} images',
                   name,
                 })
-              : undefined
+              : onPressThumb != null
+                ? t('activeWorkout.exercise.viewDetails', {
+                    defaultValue: 'View {{name}} details',
+                    name,
+                  })
+                : undefined
           }
         >
           {thumb}
         </Pressable>
+        {opensImageViewer ? (
+          <ImageLightbox
+            visible={imageViewerOpen}
+            images={thumbImages}
+            initialIndex={0}
+            title={name}
+            onClose={() => setImageViewerOpen(false)}
+            getImageSource={getImageSource}
+            autoPlay={false}
+          />
+        ) : null}
         <Pressable
           onPress={() => onToggleExpanded(exercise.id)}
           onLongPress={longPressMenu}

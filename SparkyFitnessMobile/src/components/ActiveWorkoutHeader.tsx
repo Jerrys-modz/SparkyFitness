@@ -37,6 +37,7 @@ export function buildExerciseProgress(
 
 interface ActiveWorkoutHeaderProps {
   name: string;
+  location?: string | null;
   startedAt: number | null;
   /** Epoch ms driving the elapsed clock — the screen's 1s tick. */
   now: number;
@@ -47,6 +48,8 @@ interface ActiveWorkoutHeaderProps {
   onEndWorkout?: () => void;
   /** Opens the rename dialog from a "Rename workout" menu action. */
   onRename?: () => void;
+  /** Opens the location modal from a "Gym / Location" menu action. */
+  onEditLocation?: () => void;
   /** When provided, adds an "Add exercise" action. */
   onAddExercise?: () => void;
   /** When provided, adds a "Reorder exercises" action. */
@@ -112,6 +115,7 @@ function HeaderIconButton({
  */
 function ActiveWorkoutHeader({
   name,
+  location,
   startedAt,
   now,
   progress,
@@ -119,6 +123,7 @@ function ActiveWorkoutHeader({
   onDiscard,
   onEndWorkout,
   onRename,
+  onEditLocation,
   onAddExercise,
   onReorder,
   onOpenSettings,
@@ -178,6 +183,21 @@ function ActiveWorkoutHeader({
       }),
       group: 'workout',
       onPress: onRename,
+    });
+  }
+  if (onEditLocation) {
+    menuItems.push({
+      key: 'location',
+      label: location
+        ? t('activeWorkout.header.gymLocationSet', {
+            defaultValue: 'Gym: {{location}}',
+            location,
+          })
+        : t('activeWorkout.header.gymLocation', {
+            defaultValue: 'Gym / Location',
+          }),
+      group: 'workout',
+      onPress: onEditLocation,
     });
   }
   if (onOpenSettings) {
@@ -242,15 +262,33 @@ function ActiveWorkoutHeader({
           >
             {name}
           </Text>
-          <Text
-            className="text-xs text-text-secondary"
-            style={{ fontVariant: ['tabular-nums'] }}
-          >
-            {t('activeWorkout.header.elapsedTime', {
-              defaultValue: '{{time}} elapsed',
-              time: formatElapsed(startedAt, now),
-            })}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Text
+              className="text-xs text-text-secondary"
+              style={{ fontVariant: ['tabular-nums'] }}
+            >
+              {t('activeWorkout.header.elapsedTime', {
+                defaultValue: '{{time}} elapsed',
+                time: formatElapsed(startedAt, now),
+              })}
+            </Text>
+            {location ? (
+              <Pressable
+                onPress={onEditLocation}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                className="flex-row items-center gap-0.5"
+              >
+                <Icon name="location" size={12} color={accentPrimary} />
+                <Text
+                  numberOfLines={1}
+                  className="text-xs font-medium"
+                  style={{ color: accentPrimary, maxWidth: 120 }}
+                >
+                  {location}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         {/* Glass chrome is monochrome (see resolveHeaderActionColors), so the

@@ -965,6 +965,22 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </FadeView>
         )}
 
+        {/* Gym / location (view mode) */}
+        {!isEditing && session.location && (
+          <FadeView>
+            <View className="mt-4 px-4">
+              <Text className="text-sm font-medium text-text-secondary mb-1">
+                {t('workoutDetail.labels.location', {
+                  defaultValue: 'Gym / Location',
+                })}
+              </Text>
+              <Text className="text-sm text-text-primary">
+                {session.location}
+              </Text>
+            </View>
+          </FadeView>
+        )}
+
         {/* Notes (view mode) */}
         {!isEditing && session.notes && (
           <FadeView>

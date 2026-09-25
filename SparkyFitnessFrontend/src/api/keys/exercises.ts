@@ -95,6 +95,8 @@ export const exerciseEntryKeys = {
       date,
       ...(userId ? [{ userId }] : []),
     ] as const,
+  /** Autocomplete source for the workout gym / location field. */
+  locations: () => [...exerciseEntryKeys.all, 'locations'] as const,
   history: (exerciseId: string, limit?: number) =>
     [
       ...exerciseEntryKeys.all,

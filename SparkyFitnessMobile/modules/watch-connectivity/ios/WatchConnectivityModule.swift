@@ -173,6 +173,7 @@ public class WatchConnectivityModule: Module {
                     // phone keeps buffering none, and calories silently stay
                     // derived-from-duration forever.
                     "activeEnergyKcal": payload["activeEnergyKcal"] as? Double,
+                    "durationMinutes": payload["durationMinutes"] as? Double,
                 ])
             }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in

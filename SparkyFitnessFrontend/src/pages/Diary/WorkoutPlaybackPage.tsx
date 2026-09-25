@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_REST_SECONDS,
   addRoundToWorkoutDraft,
+  addDropSetsToWorkoutExercise,
   decrementRoundFromWorkoutDraft,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
@@ -31,6 +32,7 @@ import {
   toggleWorkoutSetCompletion,
   type WorkoutPlaybackRouteState,
   type WorkoutPlaybackDraft,
+  type WorkoutSetEditableField,
   type WorkoutSetPointer,
   updateWorkoutSetAtPointer,
   listWorkoutSetPointers,
@@ -43,6 +45,7 @@ import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackIntervalHud from './WorkoutPlaybackIntervalHud';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 import { fetchExerciseProgressionStats } from '@/hooks/Exercises/useExerciseEntries';
+import { playIntervalCue } from '@/utils/workoutSounds';
 
 function weightFromKg(weightKg: number, unit: string): number {
   if (!weightKg || weightKg <= 0) return 0;
@@ -377,34 +380,83 @@ const WorkoutPlaybackPage = () => {
     draftRef.current = draft;
   }, [draft]);
 
-  // Combined interval for both rest timer and elapsed time
-  // Only update draft when timer expires; remaining time derives from target_end_timestamp_ms
+  const lastCountdownSecRef = useRef<number | null>(null);
+
+  // Combined interval for both rest timer and elapsed time.
+  // Only update draft when the timer expires; remaining time derives from
+  // target_end_timestamp_ms. Cues and focus run here in the tick, never inside
+  // the setDraft updater (StrictMode double-invokes updaters).
   useEffect(() => {
     const interval = window.setInterval(() => {
       setElapsedTickMs(Date.now());
 
-      setDraft((currentDraft) => {
-        if (!currentDraft || currentDraft.rest_timer.state !== 'running') {
-          return currentDraft;
+      const currentDraft = draftRef.current;
+      if (!currentDraft || currentDraft.rest_timer.state !== 'running') {
+        lastCountdownSecRef.current = null;
+        return;
+      }
+
+      const nextRemaining = getWorkoutPlaybackRestRemainingSeconds(
+        currentDraft.rest_timer
+      );
+      const pageVisible = document.visibilityState === 'visible';
+
+      if (
+        nextRemaining >= 1 &&
+        nextRemaining <= 3 &&
+        lastCountdownSecRef.current !== nextRemaining
+      ) {
+        lastCountdownSecRef.current = nextRemaining;
+        if (pageVisible) playIntervalCue('countdown');
+      }
+
+      if (nextRemaining > 0) return;
+
+      // The rest ran out on its own (Skip goes through handleSkipRest and
+      // never lands here): chime, then put the cursor in the next set.
+      lastCountdownSecRef.current = null;
+      const expiredEndMs = currentDraft.rest_timer.target_end_timestamp_ms;
+      const targetExIdx =
+        currentDraft.rest_timer.target_exercise_index ??
+        currentDraft.active_exercise_index;
+      const targetSetIdx =
+        currentDraft.rest_timer.target_set_index ??
+        currentDraft.active_set_index;
+
+      setDraft((latest) => {
+        if (
+          !latest ||
+          latest.rest_timer.state !== 'running' ||
+          latest.rest_timer.target_end_timestamp_ms !== expiredEndMs
+        ) {
+          return latest;
         }
-
-        const nextRemaining = getWorkoutPlaybackRestRemainingSeconds(
-          currentDraft.rest_timer
-        );
-
-        // Only update draft state when timer expires to avoid triggering localStorage saves
-        if (nextRemaining <= 0) {
-          return setWorkoutPlaybackRestTimer(currentDraft, {
-            ...currentDraft.rest_timer,
-            state: 'idle',
-            remaining_seconds: 0,
-            target_end_timestamp_ms: null,
-          });
-        }
-
-        // Don't update draft; remaining time is derived from target_end_timestamp_ms in render
-        return currentDraft;
+        return setWorkoutPlaybackRestTimer(latest, {
+          ...latest.rest_timer,
+          state: 'idle',
+          remaining_seconds: 0,
+          target_end_timestamp_ms: null,
+        });
       });
+
+      if (!pageVisible) return;
+      playIntervalCue('work');
+      if (targetExIdx != null && targetSetIdx != null) {
+        window.setTimeout(() => {
+          // First value cell the set renders: weight, else reps, else duration.
+          const el =
+            document.getElementById(
+              `set-weight-${targetExIdx}-${targetSetIdx}`
+            ) ??
+            document.getElementById(
+              `set-reps-${targetExIdx}-${targetSetIdx}`
+            ) ??
+            document.getElementById(
+              `set-duration-${targetExIdx}-${targetSetIdx}`
+            );
+          el?.focus();
+        }, 50);
+      }
     }, 1000);
 
     return () => window.clearInterval(interval);
@@ -508,8 +560,7 @@ const WorkoutPlaybackPage = () => {
   const handleSetFieldChange = useCallback(
     (
       pointer: WorkoutSetPointer,
-      field:
-        'reps' | 'weight' | 'duration' | 'rest_time' | 'set_type' | 'notes',
+      field: WorkoutSetEditableField,
       value: number | string | null
     ) => {
       updateDraft((currentDraft) =>
@@ -522,6 +573,13 @@ const WorkoutPlaybackPage = () => {
   const handleSessionNotesChange = useCallback(
     (value: string) => {
       updateDraft((currentDraft) => ({ ...currentDraft, notes: value }));
+    },
+    [updateDraft]
+  );
+
+  const handleLocationChange = useCallback(
+    (value: string) => {
+      updateDraft((currentDraft) => ({ ...currentDraft, location: value }));
     },
     [updateDraft]
   );
@@ -568,6 +626,19 @@ const WorkoutPlaybackPage = () => {
       );
     },
     [updateDraft]
+  );
+
+  const handleAddDropSets = useCallback(
+    (exerciseIndex: number) => {
+      updateDraft((currentDraft) =>
+        addDropSetsToWorkoutExercise(
+          currentDraft,
+          exerciseIndex,
+          weightUnit === 'kg' ? 'kg' : 'lbs'
+        )
+      );
+    },
+    [updateDraft, weightUnit]
   );
 
   const handleRemoveSet = useCallback(
@@ -849,6 +920,7 @@ const WorkoutPlaybackPage = () => {
         onPauseResumeRest={handlePauseResumeRest}
         onSkipRest={handleSkipRest}
         onSessionNotesChange={handleSessionNotesChange}
+        onLocationChange={handleLocationChange}
         onStartTimeChange={handleStartTimeChange}
       />
 
@@ -880,6 +952,7 @@ const WorkoutPlaybackPage = () => {
         onOpenRestEditor={handleOpenRestEditor}
         onRemoveSet={handleRemoveSet}
         onAddSet={handleAddSet}
+        onAddDropSets={handleAddDropSets}
         weightUnit={weightUnit}
       />
 

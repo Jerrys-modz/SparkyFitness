@@ -96,8 +96,9 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
   const metricColumn = useAppPreferencesStore(
     (s) => s.activeWorkoutMetricColumn
   );
+  // Presets store no RPE or RIR; fall both effort columns back to volume.
   const effectiveMetricColumn =
-    metricColumn === 'rpe' ? 'volume' : metricColumn;
+    metricColumn === 'rpe' || metricColumn === 'rir' ? 'volume' : metricColumn;
   const [metricMenu, setMetricMenu] = useState<{
     anchor: AnchorRect;
     clampedToRpe: boolean;

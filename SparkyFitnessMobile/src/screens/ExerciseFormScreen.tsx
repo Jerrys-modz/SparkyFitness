@@ -514,29 +514,63 @@ const buildCreatePayload = (
   return payload;
 };
 
+/** Form state seeded from an existing exercise (edit, or duplicate). */
+const formStateFromExercise = (
+  exercise: Exercise,
+  name: string = exercise.name
+): ExerciseFormState => ({
+  name,
+  category: exercise.category,
+  modality: exercise.modality ?? deriveExerciseModality(exercise.category),
+  modalityManuallySet: true,
+  caloriesPerHourText:
+    exercise.calories_per_hour > 0 ? String(exercise.calories_per_hour) : '',
+  description: exercise.description ?? '',
+  equipment: joinCsvList(exercise.equipment),
+  primaryMuscles: joinCsvList(exercise.primary_muscles),
+  secondaryMuscles: joinCsvList(exercise.secondary_muscles),
+  instructions: joinLines(exercise.instructions),
+  level: exercise.level ?? null,
+  force: exercise.force ?? null,
+  mechanic: exercise.mechanic ?? null,
+});
+
 interface CreateExerciseModeProps {
   navigation: Navigation;
+  /** When set, the form starts as a copy of this exercise. */
+  duplicateOf?: Exercise;
 }
 
 const CreateExerciseMode: React.FC<CreateExerciseModeProps> = ({
   navigation,
+  duplicateOf,
 }) => {
   const { t } = useTranslation();
-  const [state, setState] = useState<ExerciseFormState>({
-    name: '',
-    category: 'general',
-    modality: deriveExerciseModality('general'),
-    modalityManuallySet: false,
-    caloriesPerHourText: '',
-    description: '',
-    equipment: '',
-    primaryMuscles: '',
-    secondaryMuscles: '',
-    instructions: '',
-    level: null,
-    force: null,
-    mechanic: null,
-  });
+  const [state, setState] = useState<ExerciseFormState>(() =>
+    duplicateOf
+      ? formStateFromExercise(
+          duplicateOf,
+          t('exerciseDetail.duplicateName', {
+            name: duplicateOf.name,
+            defaultValue: '{{name}} (copy)',
+          })
+        )
+      : {
+          name: '',
+          category: 'general',
+          modality: deriveExerciseModality('general'),
+          modalityManuallySet: false,
+          caloriesPerHourText: '',
+          description: '',
+          equipment: '',
+          primaryMuscles: '',
+          secondaryMuscles: '',
+          instructions: '',
+          level: null,
+          force: null,
+          mechanic: null,
+        }
+  );
   const { createExerciseAsync, isPending } = useCreateExercise();
 
   const handleSave = async () => {
@@ -556,6 +590,10 @@ const CreateExerciseMode: React.FC<CreateExerciseModeProps> = ({
     if (!calories.ok) return;
 
     const payload = buildCreatePayload(trimmedName, state, calories.value);
+    // A copy keeps the original's images (by reference).
+    if (duplicateOf && duplicateOf.images.length > 0) {
+      payload.images = duplicateOf.images;
+    }
 
     try {
       const created = await createExerciseAsync(payload);
@@ -573,7 +611,13 @@ const CreateExerciseMode: React.FC<CreateExerciseModeProps> = ({
 
   return (
     <FormScreenChrome
-      title={t('screens.newExercise', { defaultValue: 'New Exercise' })}
+      title={
+        duplicateOf
+          ? t('screens.duplicateExercise', {
+              defaultValue: 'Duplicate Exercise',
+            })
+          : t('screens.newExercise', { defaultValue: 'New Exercise' })
+      }
       saveLabel={t('common.save', { defaultValue: 'Save' })}
       savingLabel={t('common.saving', { defaultValue: 'Saving…' })}
       isSaving={isPending}
@@ -682,22 +726,9 @@ const EditExerciseMode: React.FC<EditExerciseModeProps> = ({
 }) => {
   const { t } = useTranslation();
   const { exercise, returnKey } = params;
-  const [state, setState] = useState<ExerciseFormState>(() => ({
-    name: exercise.name,
-    category: exercise.category,
-    modality: exercise.modality ?? deriveExerciseModality(exercise.category),
-    modalityManuallySet: true,
-    caloriesPerHourText:
-      exercise.calories_per_hour > 0 ? String(exercise.calories_per_hour) : '',
-    description: exercise.description ?? '',
-    equipment: joinCsvList(exercise.equipment),
-    primaryMuscles: joinCsvList(exercise.primary_muscles),
-    secondaryMuscles: joinCsvList(exercise.secondary_muscles),
-    instructions: joinLines(exercise.instructions),
-    level: exercise.level ?? null,
-    force: exercise.force ?? null,
-    mechanic: exercise.mechanic ?? null,
-  }));
+  const [state, setState] = useState<ExerciseFormState>(() =>
+    formStateFromExercise(exercise)
+  );
   const { updateExerciseAsync, isPending } = useUpdateExercise();
 
   const handleSave = async () => {
@@ -764,7 +795,12 @@ const ExerciseFormScreen: React.FC<ExerciseFormScreenProps> = ({
   if (route.params.mode === 'edit-exercise') {
     return <EditExerciseMode navigation={navigation} params={route.params} />;
   }
-  return <CreateExerciseMode navigation={navigation} />;
+  return (
+    <CreateExerciseMode
+      navigation={navigation}
+      duplicateOf={route.params.duplicateOf}
+    />
+  );
 };
 
 export default ExerciseFormScreen;

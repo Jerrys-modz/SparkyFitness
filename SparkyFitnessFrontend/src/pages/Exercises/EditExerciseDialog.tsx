@@ -33,6 +33,7 @@ interface EditExerciseDialogProps {
 
 export default function EditExerciseDialog({ form }: EditExerciseDialogProps) {
   const { t } = useTranslation();
+  const isDuplicate = form.dialogMode === 'duplicate';
 
   return (
     <Dialog
@@ -42,16 +43,26 @@ export default function EditExerciseDialog({ form }: EditExerciseDialogProps) {
       <DialogContent className="sm:max-w-[625px] overflow-y-auto max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>
-            {t(
-              'exercise.databaseManager.editExerciseDialogTitle',
-              'Edit Exercise'
-            )}
+            {isDuplicate
+              ? t(
+                  'exercise.databaseManager.duplicateExerciseDialogTitle',
+                  'Duplicate Exercise'
+                )
+              : t(
+                  'exercise.databaseManager.editExerciseDialogTitle',
+                  'Edit Exercise'
+                )}
           </DialogTitle>
           <DialogDescription>
-            {t(
-              'exercise.databaseManager.editExerciseDialogDescription',
-              'Edit the details of the selected exercise.'
-            )}
+            {isDuplicate
+              ? t(
+                  'exercise.databaseManager.duplicateExerciseDialogDescription',
+                  'Save a copy as your own exercise. The original is not changed.'
+                )
+              : t(
+                  'exercise.databaseManager.editExerciseDialogDescription',
+                  'Edit the details of the selected exercise.'
+                )}
           </DialogDescription>
         </DialogHeader>
 
@@ -433,7 +444,9 @@ export default function EditExerciseDialog({ form }: EditExerciseDialogProps) {
         )}
 
         <Button onClick={form.handleEditExercise}>
-          {t('common.saveChanges', 'Save Changes')}
+          {isDuplicate
+            ? t('exercise.databaseManager.saveCopy', 'Save Copy')
+            : t('common.saveChanges', 'Save Changes')}
         </Button>
       </DialogContent>
     </Dialog>

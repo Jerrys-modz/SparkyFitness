@@ -59,6 +59,9 @@ export async function saveActiveWorkoutSession(
             {
               detail_type: 'wod_score' as const,
               detail_data: {
+                // Shared-schema key (read by web and the AI), plus the legacy
+                // `format` key older mobile builds read.
+                workout_format: state.workoutFormat,
                 format: state.workoutFormat,
                 rounds_completed: state.intervalRoundsCompleted,
                 reps_completed: state.intervalRepsCompleted,
@@ -77,6 +80,7 @@ export async function saveActiveWorkoutSession(
       // Persist the (possibly renamed) session name; skip an empty string so
       // the server's min(1) name validation isn't tripped.
       ...(trimmedName.length > 0 ? { name: trimmedName } : {}),
+      location: state.session.location ?? null,
       exercises: buildSessionExercisesPayload(
         state.session,
         state.completedSetIds,

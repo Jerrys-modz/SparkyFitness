@@ -1,4 +1,6 @@
 import {
+  calculateDropSetWeightsKg,
+  findDropSetBaseIndex,
   instantHourMinute,
   resolveExerciseModality,
   setsDurationMinutes,
@@ -7,6 +9,9 @@ import {
   type WorkoutFormat,
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
+import type { Exercise } from '@/types/exercises';
+import { defaultSetForModality } from '@/constants/exercises';
+import { generateClientId } from '@/utils/generateClientId';
 
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =
@@ -27,6 +32,8 @@ export interface WorkoutPlaybackExerciseDraft {
   exercise_name: string;
   modality?: ExerciseModality;
   image_url?: string;
+  /** All of the exercise's library images, for the full-screen viewer. */
+  images?: string[];
   notes: string | null;
   started_at?: string | null;
   ended_at?: string | null;
@@ -46,7 +53,23 @@ export interface WorkoutPlaybackSetDraft extends WorkoutPresetSet {
   completed: boolean;
   /** ISO timestamp of when the set was checked off; null while incomplete. */
   completed_at: string | null;
+  /**
+   * Epoch ms a timed/hold set's stopwatch was started. Lives on the draft so a
+   * running stopwatch survives re-renders and a page reload; never sent to
+   * the server.
+   */
+  timer_started_at_ms?: number | null;
 }
+
+/** Set fields the playback rows edit in place. */
+export type WorkoutSetEditableField =
+  | 'reps'
+  | 'weight'
+  | 'duration'
+  | 'rest_time'
+  | 'set_type'
+  | 'notes'
+  | 'timer_started_at_ms';
 
 export interface WorkoutPlaybackDraft {
   version: 1;
@@ -55,6 +78,7 @@ export interface WorkoutPlaybackDraft {
   description: string | null;
   entry_date: string;
   notes: string | null;
+  location?: string | null;
   source: 'sparky';
   workout_format?: WorkoutFormat;
   time_cap_seconds?: number | null;
@@ -324,6 +348,7 @@ export function createWorkoutPlaybackDraftFromPreset(
           exercise.exercise?.name ||
           `Exercise ${exerciseIndex + 1}`,
         image_url: exercise.image_url || exercise.exercise?.images?.[0],
+        images: exercise.exercise?.images ?? undefined,
         modality: resolveExerciseModality(
           exercise.modality ?? exercise.exercise?.modality,
           exercise.category ?? exercise.exercise?.category
@@ -469,6 +494,47 @@ export function createWorkoutPlaybackRouteState(
   };
 }
 
+export function createWorkoutPlaybackDraftFromExercise(
+  exercise: Exercise,
+  entryDate: string
+): WorkoutPlaybackDraft {
+  const modality = resolveExerciseModality(
+    exercise.modality,
+    exercise.category
+  );
+  const preset: WorkoutPreset = {
+    id: `quick-exercise-${exercise.id}`,
+    user_id: exercise.user_id || '',
+    name: exercise.name,
+    description: exercise.description || undefined,
+    exercises: [
+      {
+        id: generateClientId(),
+        exercise_id: exercise.id,
+        exercise_name: exercise.name,
+        exercise,
+        category: exercise.category ?? undefined,
+        modality,
+        superset_group: null,
+        sets: [defaultSetForModality(modality)],
+      },
+    ],
+  };
+
+  return createWorkoutPlaybackDraftFromPreset(preset, entryDate);
+}
+
+export function createWorkoutPlaybackRouteStateFromExercise(
+  exercise: Exercise,
+  entryDate: string,
+  returnTo?: string
+): WorkoutPlaybackRouteState {
+  return {
+    returnTo,
+    draft: createWorkoutPlaybackDraftFromExercise(exercise, entryDate),
+  };
+}
+
 export function getWorkoutPlaybackRestRemainingSeconds(
   restTimer: WorkoutPlaybackRestTimer,
   nowMs: number = Date.now()
@@ -610,6 +676,64 @@ export function addWorkoutSetToExercise(
   }
 
   return touchDraft(nextDraft);
+}
+
+/**
+ * Append drop sets after the exercise's last working set with a weight
+ * (warm-up and earlier drop sets are skipped), rounded in the lifter's
+ * display unit. Weights stay editable like any other set.
+ */
+export function addDropSetsToWorkoutExercise(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number,
+  weightUnit: 'kg' | 'lbs'
+): WorkoutPlaybackDraft {
+  const exercise = draft.exercises[exerciseIndex];
+  if (!exercise) {
+    return draft;
+  }
+  const baseSet = exercise.sets[findDropSetBaseIndex(exercise.sets)];
+  if (!baseSet) {
+    return draft;
+  }
+  const dropWeights = calculateDropSetWeightsKg(
+    Number(baseSet.weight),
+    weightUnit
+  );
+
+  const lastSet = exercise.sets[exercise.sets.length - 1];
+  const newSets: WorkoutPlaybackSetDraft[] = dropWeights.map((w, idx) => ({
+    set_number: exercise.sets.length + idx + 1,
+    set_type: 'Drop Set',
+    reps: lastSet?.reps ?? null,
+    weight: w,
+    duration: null,
+    distance: null,
+    rest_time: lastSet?.rest_time ?? DEFAULT_REST_SECONDS,
+    notes: null,
+    rpe: null,
+    rir: null,
+    completed: false,
+    completed_at: null,
+  }));
+
+  const exercises = draft.exercises.map((currentExercise, index) => {
+    if (index !== exerciseIndex) {
+      return currentExercise;
+    }
+    return {
+      ...currentExercise,
+      sets: [...currentExercise.sets, ...newSets].map((set, setIndex) => ({
+        ...set,
+        set_number: setIndex + 1,
+      })),
+    };
+  });
+
+  return touchDraft({
+    ...draft,
+    exercises,
+  });
 }
 
 export function removeWorkoutSetFromExercise(
@@ -879,6 +1003,7 @@ export function buildPresetSessionCreateRequestFromDraft(
           rest_time: toNullableNumber(set.rest_time),
           notes: set.notes ?? null,
           rpe: toNullableNumber(set.rpe),
+          rir: toNullableNumber(set.rir),
           // `?? null` also covers persisted drafts that predate the field.
           completed_at: set.completed_at ?? null,
           // Web playback makes no PR claims — drafts never carry PRs, and the
@@ -945,6 +1070,7 @@ export function buildPresetSessionCreateRequestFromDraft(
     name: draft.name,
     description: draft.description,
     notes: draft.notes,
+    location: draft.location?.trim().slice(0, 255) || null,
     entry_date: draft.entry_date,
     source: draft.source,
     exercises,

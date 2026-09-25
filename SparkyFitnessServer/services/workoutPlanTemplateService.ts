@@ -105,7 +105,9 @@ async function createWorkoutPlanTemplate(
     planData
   );
   // Validate assignments
-  const scheduleType = planData.schedule_type || 'weekly';
+  const scheduleType = planData.schedule_type || 'sequential';
+  const entryMode =
+    scheduleType === 'sequential' ? 'prompt' : planData.entry_mode || 'prompt';
   if (planData.assignments) {
     await validateAndNormalizeAssignments(
       planData.assignments,
@@ -118,7 +120,7 @@ async function createWorkoutPlanTemplate(
       await workoutPlanTemplateRepository.createWorkoutPlanTemplate({
         ...planData,
         schedule_type: scheduleType,
-        entry_mode: planData.entry_mode || 'prompt',
+        entry_mode: entryMode,
         user_id: userId,
       });
     log(
@@ -267,11 +269,15 @@ async function updateWorkoutPlanTemplate(
         `updateWorkoutPlanTemplate service - Unlinking historical exercise entries for template ${templateId} on transition to sequential`
       );
     }
+    const payload =
+      updateData.schedule_type === 'sequential'
+        ? { ...updateData, entry_mode: 'prompt' as const }
+        : updateData;
     const updatedPlan =
       await workoutPlanTemplateRepository.updateWorkoutPlanTemplate(
         templateId,
         userId,
-        updateData,
+        payload,
         shouldUnlinkHistoricalEntries
       );
     log(

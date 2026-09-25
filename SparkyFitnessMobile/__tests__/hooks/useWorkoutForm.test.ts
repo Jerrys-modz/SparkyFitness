@@ -1959,6 +1959,7 @@ describe('workoutFormReducer', () => {
               distance: null,
               notes: null,
               rpe: null,
+              rir: null,
               completed_at: null,
               is_pr: false,
             },

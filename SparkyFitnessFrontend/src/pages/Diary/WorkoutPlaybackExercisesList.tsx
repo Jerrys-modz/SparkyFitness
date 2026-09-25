@@ -1,14 +1,25 @@
 import { useState, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
+import {
+  DEFAULT_DROP_SET_COUNT,
+  DEFAULT_DROP_SET_PERCENT,
+  findDropSetBaseIndex,
+} from '@workspace/shared';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   WORKOUT_PLAYBACK_SET_GRID_CLASSES,
   type WorkoutPlaybackExerciseDraft,
+  type WorkoutSetEditableField,
   type WorkoutSetPointer,
 } from '@/utils/workoutPlayback';
 import WorkoutPlaybackSetRow from './WorkoutPlaybackSetRow';
+import ImageLightbox from '@/components/ImageLightbox';
+import {
+  filterValidExerciseImages,
+  resolveExerciseImageSrc,
+} from '@/utils/exercises';
 
 interface WorkoutPlaybackExercisesListProps {
   exercises: WorkoutPlaybackExerciseDraft[];
@@ -19,12 +30,13 @@ interface WorkoutPlaybackExercisesListProps {
   onUncompleteSet: (pointer: WorkoutSetPointer) => void;
   onSetFieldChange: (
     pointer: WorkoutSetPointer,
-    field: 'reps' | 'weight' | 'duration' | 'rest_time' | 'set_type' | 'notes',
+    field: WorkoutSetEditableField,
     value: number | string | null
   ) => void;
   onOpenRestEditor: (pointer: WorkoutSetPointer) => void;
   onRemoveSet: (pointer: WorkoutSetPointer) => void;
   onAddSet: (exerciseIndex: number) => void;
+  onAddDropSets?: (exerciseIndex: number) => void;
   weightUnit: WeightUnit;
 }
 
@@ -39,12 +51,18 @@ const WorkoutPlaybackExercisesList = ({
   onOpenRestEditor,
   onRemoveSet,
   onAddSet,
+  onAddDropSets,
   weightUnit,
 }: WorkoutPlaybackExercisesListProps) => {
   const { t } = useTranslation();
   const [expandedCompletedExercises, setExpandedCompletedExercises] = useState<
     Record<string, boolean>
   >({});
+  // Full-screen exercise images (#1691), opened from a header thumbnail.
+  const [imageViewer, setImageViewer] = useState<{
+    images: string[];
+    title: string;
+  } | null>(null);
 
   return (
     <div className="space-y-2">
@@ -63,6 +81,9 @@ const WorkoutPlaybackExercisesList = ({
         const exerciseKey = `${exercise.exercise_id}-${exerciseIndex}`;
         const isExpanded =
           !isComplete || expandedCompletedExercises[exerciseKey] === true;
+        const exerciseImages = filterValidExerciseImages(
+          exercise.images ?? (exercise.image_url ? [exercise.image_url] : [])
+        ).map((image) => resolveExerciseImageSrc(image));
         const toggleLabel = isExpanded
           ? t('common.collapse', 'Collapse')
           : t('common.expand', 'Expand');
@@ -74,7 +95,31 @@ const WorkoutPlaybackExercisesList = ({
           >
             <CardHeader className="px-3 py-2">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
+                {exerciseImages.length > 0 && (
+                  <button
+                    type="button"
+                    className="shrink-0 overflow-hidden rounded-md"
+                    aria-label={t(
+                      'exercise.workoutPlaybackPage.viewImages',
+                      'View {{name}} images',
+                      { name: exercise.exercise_name }
+                    )}
+                    onClick={() =>
+                      setImageViewer({
+                        images: exerciseImages,
+                        title: exercise.exercise_name,
+                      })
+                    }
+                  >
+                    <img
+                      src={exerciseImages[0]}
+                      alt=""
+                      className="h-10 w-10 object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
                   <h3 className="truncate text-sm font-medium">
                     {exercise.exercise_name}
                   </h3>
@@ -167,6 +212,7 @@ const WorkoutPlaybackExercisesList = ({
                         reps={set.reps}
                         weight={set.weight}
                         duration={set.duration}
+                        timerStartedAtMs={set.timer_started_at_ms ?? null}
                         restTime={set.rest_time}
                         notes={set.notes}
                         completed={set.completed}
@@ -188,7 +234,7 @@ const WorkoutPlaybackExercisesList = ({
                   })}
                 </div>
 
-                <div className="mt-2 flex justify-center">
+                <div className="mt-2 flex justify-center gap-3">
                   <button
                     type="button"
                     aria-label={`Add set for ${exercise.exercise_name}`}
@@ -197,12 +243,41 @@ const WorkoutPlaybackExercisesList = ({
                   >
                     {t('exercise.workoutPlaybackPage.addSet', 'Add Set')}
                   </button>
+                  {findDropSetBaseIndex(exercise.sets) >= 0 && (
+                    <button
+                      type="button"
+                      aria-label={t(
+                        'exercise.workoutPlaybackPage.addDropSetsFor',
+                        'Add drop sets for {{name}}',
+                        { name: exercise.exercise_name }
+                      )}
+                      className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => onAddDropSets?.(exerciseIndex)}
+                    >
+                      {t(
+                        'exercise.workoutPlaybackPage.addDropSets',
+                        'Add {{sets}} Drop Sets (-{{percent}}%)',
+                        {
+                          sets: DEFAULT_DROP_SET_COUNT,
+                          percent: DEFAULT_DROP_SET_PERCENT,
+                        }
+                      )}
+                    </button>
+                  )}
                 </div>
               </CardContent>
             )}
           </Card>
         );
       })}
+      <ImageLightbox
+        images={imageViewer?.images ?? []}
+        open={imageViewer != null}
+        onOpenChange={(open) => {
+          if (!open) setImageViewer(null);
+        }}
+        title={imageViewer?.title}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  StackActions,
   type LinkingOptions,
   type Theme,
 } from '@react-navigation/native';
@@ -111,6 +112,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import Toast from 'react-native-toast-message';
 import { FullWindowOverlay } from 'react-native-screens';
 import type { RootStackParamList } from './src/types/navigation';
+import type { WorkoutCelebration } from './src/utils/workoutCelebration';
 import AddSheet, { addSheetRef } from './src/components/AddSheet';
 import { toastConfig } from './src/components/ui/toastConfig';
 import { TabsLayout } from './src/components/TabsLayout';
@@ -162,13 +164,32 @@ function WatchCheckInGate() {
  * flush. Android, and an idle iPhone, do not poll for a feature they are
  * not using.
  */
+// A workout the wearer ended on the watch clears the phone's live session
+// from outside any screen. If the phone is sitting on that workout, move it
+// to the same completion screen the phone's own Finish lands on; anywhere
+// else, clearing is enough (the active-workout bar just disappears).
+function handleWatchFinishedWorkout(celebration: WorkoutCelebration | null) {
+  if (!rootNavigationRef.isReady()) return;
+  if (rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout') return;
+  if (celebration != null) {
+    rootNavigationRef.dispatch(StackActions.replace('WorkoutComplete', celebration));
+  } else if (rootNavigationRef.canGoBack()) {
+    rootNavigationRef.goBack();
+  }
+}
+
 function WatchWorkoutGate() {
   const watchSupported = WatchConnectivity?.isSupported() === true;
   const [telemetryPending, setTelemetryPending] = useState(false);
   const { isConnected: isServerConnected } = useServerConnection({
     enablePolling: watchSupported && telemetryPending,
   });
-  useWatchWorkoutBridge(watchSupported, isServerConnected, setTelemetryPending);
+  useWatchWorkoutBridge(
+    watchSupported,
+    isServerConnected,
+    setTelemetryPending,
+    handleWatchFinishedWorkout
+  );
   return null;
 }
 
