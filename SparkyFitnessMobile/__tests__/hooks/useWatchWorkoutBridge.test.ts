@@ -178,24 +178,30 @@ describe('useWatchWorkoutBridge', () => {
       });
       const startedAt = getStore().startedAt!;
       const tapped = startedAt + offsetMs;
+      const phoneNow = startedAt + 1_000;
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(phoneNow);
 
-      await act(async () => {
-        fire('onSetCompleted', {
-          clientId: 'client-1',
-          sessionId: 'session-1',
-          setId: '101',
-          completedAt: new Date(tapped).toISOString(),
+      try {
+        await act(async () => {
+          fire('onSetCompleted', {
+            clientId: 'client-1',
+            sessionId: 'session-1',
+            setId: '101',
+            completedAt: new Date(tapped).toISOString(),
+          });
+          await Promise.resolve();
+          await Promise.resolve();
         });
-        await Promise.resolve();
-        await Promise.resolve();
-      });
+      } finally {
+        nowSpy.mockRestore();
+      }
 
       const stamped = getStore().completedSetIds['101'];
       if (used) {
         expect(stamped).toBe(tapped);
       } else {
         // Ignored: the phone stamps its own clock instead.
-        expect(stamped).toBeGreaterThanOrEqual(startedAt);
+        expect(stamped).toBe(phoneNow);
       }
     }
   );
