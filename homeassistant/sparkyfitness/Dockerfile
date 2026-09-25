@@ -31,16 +31,15 @@ RUN apk add --no-cache \
     && sed -i 's|^[[:space:]]*user|#user|g' /etc/nginx/nginx.conf
 
 COPY --from=frontend /usr/share/nginx/html /usr/share/nginx/html
-# Rewrites the already-built frontend's root-absolute asset/API paths to be
-# relative to a <base href>, so it can be embedded under Home Assistant
-# Ingress. Only touches files inside this image layer; the
-# SparkyFitnessFrontend source (and the published codewithcj/sparkyfitness
+# Adapts the already-built frontend (root-absolute asset/API paths, no router
+# basename) so it can be embedded under Home Assistant Ingress. Only touches
+# files inside this image layer; the SparkyFitnessFrontend source (and the published codewithcj/sparkyfitness
 # image every other deployment uses) is never modified. See the script for
 # why, and nginx.conf for the matching <base href> rewrite.
-COPY patch-ingress-paths.sh /tmp/patch-ingress-paths.sh
+COPY patch-ingress-paths.sh ingress-shim.js /tmp/
 RUN chmod +x /tmp/patch-ingress-paths.sh \
-    && /tmp/patch-ingress-paths.sh /usr/share/nginx/html \
-    && rm /tmp/patch-ingress-paths.sh
+    && /tmp/patch-ingress-paths.sh /usr/share/nginx/html /tmp/ingress-shim.js \
+    && rm /tmp/patch-ingress-paths.sh /tmp/ingress-shim.js
 COPY --from=garmin /app /opt/garmin
 # garminconnect is installed from git; curl-cffi usually has a musllinux wheel.
 RUN apk add --no-cache --virtual .garmin-build git build-base libffi-dev openssl-dev \

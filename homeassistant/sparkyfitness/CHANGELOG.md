@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.1
+
+- Fix the Ingress sidebar panel, which showed "Unable to preload CSS" and
+  never loaded: lazily loaded chunks, translations, sign-in, images, and
+  page routing all still used root-absolute paths that resolved against
+  Home Assistant instead of the add-on. `ingress-shim.js` now prefixes
+  those at runtime, and the router and sign-out redirect use the Ingress
+  path as their base.
+- Fix sign-in through Ingress being rejected as an untrusted origin when
+  Home Assistant is reached by hostname or through Nabu Casa.
+- Only trust `X-Ingress-Path` from the Supervisor.
+- Fix boolean options (for example **Force email login**) being ignored
+  when switched off.
+- Stop the add-on when the API, database, or Garmin service exits, so the
+  watchdog restarts it instead of Nginx serving a UI with no backend.
+
 ## 1.3.0
 
 - Replace the **Show in sidebar** Lovelace-dashboard workaround with real

@@ -3,3 +3,4 @@
 !run.sh
 !nginx.conf
 !patch-ingress-paths.sh
+!ingress-shim.js

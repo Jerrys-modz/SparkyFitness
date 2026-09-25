@@ -35,9 +35,11 @@ if [ ! -f "${OPTIONS_FILE}" ]; then
   printf '%s\n' '{}' > "${OPTIONS_FILE}"
 fi
 
+# Not `.[$key] // $default`: jq's // also replaces `false`, which would make
+# a boolean option switched off in the UI fall back to its default.
 opt() {
   jq -r --arg key "$1" --arg default "$2" \
-    '.[$key] // $default' "${OPTIONS_FILE}"
+    'if .[$key] == null then $default else .[$key] end' "${OPTIONS_FILE}"
 }
 
 FRONTEND_URL=$(opt frontend_url "http://homeassistant.local:3004")
@@ -247,5 +249,18 @@ trap 'cleanup; exit 0' INT TERM
 log "SparkyFitness is up at ${FRONTEND_URL}"
 nginx -g "daemon off;" &
 NGINX_PID=$!
-wait "${NGINX_PID}"
-cleanup
+
+# Exit as soon as any service dies so the Supervisor watchdog restarts the
+# add-on. Waiting on Nginx alone would leave it answering /addon-health (and
+# serving the UI) with the API or database gone.
+while :; do
+  for pid in "${NGINX_PID}" "${SERVER_PID}" "${PG_PID}" ${GARMIN_PID}; do
+    if ! kill -0 "${pid}" 2>/dev/null; then
+      log "ERROR: a service exited (pid ${pid}); stopping add-on"
+      cleanup
+      exit 1
+    fi
+  done
+  sleep 5 &
+  wait $! || true
+done

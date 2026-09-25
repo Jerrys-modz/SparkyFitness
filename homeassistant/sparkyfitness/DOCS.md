@@ -91,12 +91,30 @@ entirely and 404ing.
 Rather than changing that shared frontend source, this add-on's own
 `Dockerfile` post-processes the already-built static files (copied from
 the published `codewithcj/sparkyfitness` image) with
-[`patch-ingress-paths.sh`](patch-ingress-paths.sh): it makes those paths
-relative to a `<base href="/">` tag, which `nginx.conf` then rewrites
-per-request using Home Assistant's `X-Ingress-Path` header. Direct port
-access never sends that header, so `<base href="/">` stays untouched and
-behaves exactly as before. No other deployment is affected, because
+[`patch-ingress-paths.sh`](patch-ingress-paths.sh):
+
+- `index.html` gets a `<base href="/">` tag, which `nginx.conf` rewrites
+  per request to the `X-Ingress-Path` prefix, and its asset references
+  become relative to it.
+- [`ingress-shim.js`](ingress-shim.js) loads before the app and, only
+  under Ingress, prefixes the bundle's remaining root-absolute requests
+  (API calls, sign-in, translations, images, lazily loaded CSS) with that
+  prefix.
+- React Router and the sign-out redirect get the prefix as their base
+  path, so pages, deep links, and reloads stay inside the panel.
+
+Nginx only honours `X-Ingress-Path` from the Supervisor (`172.30.32.2`).
+Under Ingress the browser's origin is Home Assistant's own URL, so nginx
+also presents **Public URL** as the origin on API calls; without that,
+sign-in would be rejected as coming from an untrusted origin. Direct port
+access never has the header, so `<base href="/">` stays untouched and the
+app behaves exactly as before. No other deployment is affected, because
 nothing outside this add-on's image runs that patch.
+
+Emailed links (password reset, magic link) and third-party OAuth callbacks
+(Fitbit, Withings, and so on) still point at the address the page was
+opened from, which under Ingress is Home Assistant. Start those flows from
+**Public URL** instead of the sidebar panel.
 
 This is intentionally brittle-but-loud: if a future frontend release
 changes how these paths get bundled, the patch script fails the Docker
