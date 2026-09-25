@@ -38,6 +38,10 @@ final class WorkoutHealthKitController: NSObject {
     /// Set on recovery: readings at or before this instant were already sent
     /// before the relaunch and must not go out again. Nil for a fresh workout.
     private var skipReadingsThrough: Date?
+    /// Bumped whenever a session takes over the buffer (`start`, a recovery),
+    /// so a late `stop` path can tell that `pendingSamples` and
+    /// `pendingSampleTimes` now belong to another session. Main queue only.
+    private var sessionGeneration = 0
     private let instantFormatter = ISO8601DateFormatter()
 
     /// How often accumulated samples are flushed to `onBatchReady`.
@@ -153,6 +157,7 @@ final class WorkoutHealthKitController: NSObject {
                 )
                 self.session = recovered
                 self.builder = recoveredBuilder
+                self.sessionGeneration += 1
                 if state == .paused {
                     recovered.resume()
                 }
@@ -205,6 +210,7 @@ final class WorkoutHealthKitController: NSObject {
             pendingSamples = []
             pendingSampleTimes = []
             skipReadingsThrough = nil
+            sessionGeneration += 1
 
             let now = Date()
             newSession.startActivity(with: now)
@@ -266,9 +272,15 @@ final class WorkoutHealthKitController: NSObject {
         // Whichever path runs takes them along. The completion is claimed
         // first, so a losing path cannot empty the buffer after it ran.
         // Both closures run on main only.
+        // Once another session has started (a queued plan after the timeout,
+        // or one resumed after recovery), the live buffer and dedupe set are
+        // its own: a late path must not drain them or filter against them.
+        let stopGeneration = sessionGeneration
+        let seenAtStop = pendingSampleTimes
         let drainLate: () -> [HeartRateSample] = { [weak self] in
-            let late = self?.pendingSamples ?? []
-            self?.pendingSamples = []
+            guard let self, self.sessionGeneration == stopGeneration else { return [] }
+            let late = self.pendingSamples
+            self.pendingSamples = []
             return late
         }
         // `tail` is only what HealthKit saved that nobody has seen: empty
@@ -315,9 +327,13 @@ final class WorkoutHealthKitController: NSObject {
                     // live buffer is only touched on main, so the dedupe set
                     // has to be too.
                     DispatchQueue.main.async {
-                        let novel = extra.filter { !self.pendingSampleTimes.contains($0.t) }
-                        for sample in novel {
-                            self.pendingSampleTimes.insert(sample.t)
+                        let current = self.sessionGeneration == stopGeneration
+                        let seen = current ? self.pendingSampleTimes : seenAtStop
+                        let novel = extra.filter { !seen.contains($0.t) }
+                        if current {
+                            for sample in novel {
+                                self.pendingSampleTimes.insert(sample.t)
+                            }
                         }
                         finishTail(novel)
                     }
