@@ -156,6 +156,7 @@ export default defineConfig({
             { text: 'Exercise Database Manager', link: '/features/exercises/exercise-database-manager' },
             { text: 'Exercise Search', link: '/features/exercises/exercise-search' },
             { text: 'Interval & WOD Workouts', link: '/features/exercises/interval-wod-workouts' },
+            { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
           ],
         },
         {
