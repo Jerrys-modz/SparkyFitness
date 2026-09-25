@@ -166,6 +166,40 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['inside the workout', 0, true],
+    ['an hour before the workout began', -60 * 60_000, false],
+  ])(
+    'uses the watch tap time only when it is %s',
+    async (_label, offsetMs, used) => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      act(() => {
+        getStore().startWorkout(makeSession());
+      });
+      const startedAt = getStore().startedAt!;
+      const tapped = startedAt + offsetMs;
+
+      await act(async () => {
+        fire('onSetCompleted', {
+          clientId: 'client-1',
+          sessionId: 'session-1',
+          setId: '101',
+          completedAt: new Date(tapped).toISOString(),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      const stamped = getStore().completedSetIds['101'];
+      if (used) {
+        expect(stamped).toBe(tapped);
+      } else {
+        // Ignored: the phone stamps its own clock instead.
+        expect(stamped).toBeGreaterThanOrEqual(startedAt);
+      }
+    }
+  );
+
   it('applies weight and reps typed on the watch before completing the set', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

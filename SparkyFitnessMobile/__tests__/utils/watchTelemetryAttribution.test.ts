@@ -1,4 +1,7 @@
-import { attributeWatchBatch } from '../../src/utils/watchTelemetryAttribution';
+import {
+  attributeWatchBatch,
+  boundedWatchCompletedAt,
+} from '../../src/utils/watchTelemetryAttribution';
 
 const steps = [
   { setId: 'a1', exerciseEntryId: 'bench' },
@@ -144,5 +147,34 @@ describe('attributeWatchBatch', () => {
     // the open stretch.
     expect(result.durationsByExercise?.get('row')).toBe(4);
     expect(result.durationsByExercise?.get('bench') ?? 0).toBe(0);
+  });
+});
+
+describe('boundedWatchCompletedAt', () => {
+  const now = Date.parse('2026-09-17T10:30:00.000Z');
+
+  it('uses a tap time inside the workout', () => {
+    expect(
+      boundedWatchCompletedAt('2026-09-17T10:20:00.000Z', startedAt, now)
+    ).toBe(Date.parse('2026-09-17T10:20:00.000Z'));
+  });
+
+  it('pulls a slightly fast watch clock back to now', () => {
+    expect(
+      boundedWatchCompletedAt('2026-09-17T10:31:00.000Z', startedAt, now)
+    ).toBe(now);
+  });
+
+  it('ignores a time outside the workout or unreadable', () => {
+    expect(
+      boundedWatchCompletedAt('2026-09-17T09:59:00.000Z', startedAt, now)
+    ).toBeUndefined();
+    expect(
+      boundedWatchCompletedAt('2026-09-17T11:30:00.000Z', startedAt, now)
+    ).toBeUndefined();
+    expect(
+      boundedWatchCompletedAt('not a date', startedAt, now)
+    ).toBeUndefined();
+    expect(boundedWatchCompletedAt(null, startedAt, now)).toBeUndefined();
   });
 });

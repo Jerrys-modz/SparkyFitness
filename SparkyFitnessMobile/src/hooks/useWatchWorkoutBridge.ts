@@ -16,7 +16,10 @@ import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { normalizeDate } from '../utils/dateUtils';
-import { attributeWatchBatch } from '../utils/watchTelemetryAttribution';
+import {
+  attributeWatchBatch,
+  boundedWatchCompletedAt,
+} from '../utils/watchTelemetryAttribution';
 import {
   buildWorkoutCelebration,
   type WorkoutCelebration,
@@ -249,10 +252,11 @@ export function useWatchWorkoutBridge(
 
       state.completeSet(
         payload.setId,
-        payload.completedAt != null &&
-          Number.isFinite(Date.parse(payload.completedAt))
-          ? Date.parse(payload.completedAt)
-          : undefined
+        boundedWatchCompletedAt(
+          payload.completedAt,
+          state.startedAt,
+          Date.now()
+        )
       );
       // Flushed immediately rather than left to the debounced autosave: the
       // phone screen that normally drives that debounce may not even be

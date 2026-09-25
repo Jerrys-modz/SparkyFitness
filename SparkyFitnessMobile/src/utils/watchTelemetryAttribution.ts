@@ -147,6 +147,34 @@ function durationsFromTimeline(
   return totals;
 }
 
+/**
+ * How far past the phone's own clock a watch tap time may read. The two
+ * clocks sync from the same source, so a legitimate gap is seconds.
+ */
+const WATCH_CLOCK_SKEW_MS = 2 * 60_000;
+
+/**
+ * The watch's tap time for a set, bounded to the live workout, or undefined
+ * so the phone stamps its own clock.
+ *
+ * The watch time decides which exercise heart rate is credited to and how
+ * long each exercise ran, so it is only used when it falls between the
+ * workout's start and now. A time slightly ahead of now (clock drift) is
+ * pulled back to now; anything further outside the workout is ignored.
+ */
+export function boundedWatchCompletedAt(
+  completedAt: string | null | undefined,
+  startedAt: number | null,
+  now: number
+): number | undefined {
+  if (completedAt == null) return undefined;
+  const at = Date.parse(completedAt);
+  if (!Number.isFinite(at)) return undefined;
+  if (startedAt != null && at < startedAt) return undefined;
+  if (at > now + WATCH_CLOCK_SKEW_MS) return undefined;
+  return Math.min(at, now);
+}
+
 export function attributeWatchBatch(input: {
   samples: WatchSample[];
   activeEnergyKcal?: number | null;
