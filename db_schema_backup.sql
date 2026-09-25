@@ -2107,7 +2107,8 @@ CREATE TABLE public.exercise_entry_sets (
     rpe numeric(3,1),
     completed_at timestamp with time zone,
     is_pr boolean DEFAULT false NOT NULL,
-    distance numeric
+    distance numeric,
+    rir numeric(3,1)
 );
 
 
@@ -2130,6 +2131,13 @@ COMMENT ON COLUMN public.exercise_entry_sets.completed_at IS 'Client-recorded mo
 --
 
 COMMENT ON COLUMN public.exercise_entry_sets.is_pr IS 'Whether this set was a personal record (heavier than the prior best weight, or more reps at the top weight) when checked off during a live workout. Warmup sets never earn PRs.';
+
+
+--
+-- Name: COLUMN exercise_entry_sets.rir; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_entry_sets.rir IS 'Reps In Reserve (0-10 scale)';
 
 
 --
@@ -2167,8 +2175,16 @@ CREATE TABLE public.exercise_preset_entries (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     created_by_user_id uuid,
     notes text,
-    source text DEFAULT 'manual'::text NOT NULL
+    source text DEFAULT 'manual'::text NOT NULL,
+    location character varying(255)
 );
+
+
+--
+-- Name: COLUMN exercise_preset_entries.location; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_preset_entries.location IS 'Optional location or gym name for the workout session';
 
 
 --
