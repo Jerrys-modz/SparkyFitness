@@ -372,14 +372,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
             // Nothing to tag, but a leftover HealthKit session still has to
             // end before the new one starts.
             collectionInFlight = true
+            pendingPlan = plan
             workoutHealthKit.stop { [weak self] _ in
                 Task { @MainActor in
                     guard let self else { return }
-                    let next = self.pendingPlan ?? plan
+                    let next = self.pendingPlan
                     self.pendingPlan = nil
                     self.pendingSendStop = false
                     self.collectionInFlight = false
-                    self.beginPlan(next)
+                    if let next {
+                        self.beginPlan(next)
+                    }
                 }
             }
             return
@@ -473,14 +476,20 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// session, so echoing `workoutStop` at it would be a second flush of an
     /// already-emptied buffer.
     ///
-    /// Ignores a stop naming a session we are not running: a queued transfer
-    /// can arrive after the next workout has already started, and tearing
-    /// that one down would look like the watch dropping a live workout.
+    /// Ignores a stop naming a session we are not running and not about to
+    /// start. A queued transfer can arrive after the next workout has already
+    /// started, and tearing that one down would look like the watch dropping
+    /// a live workout. A stop for a plan that is only queued must drop that
+    /// plan: otherwise the in-flight finish starts a workout the phone ended.
     private func handle(workoutStopFromPhone payload: [String: Any]) {
-        guard
-            let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload),
-            workoutStore.plan?.sessionId == sessionId
-        else { return }
+        guard let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload) else {
+            return
+        }
+        if pendingPlan?.sessionId == sessionId {
+            pendingPlan = nil
+            return
+        }
+        guard workoutStore.plan?.sessionId == sessionId else { return }
         requestFinish(sendStop: false)
     }
 

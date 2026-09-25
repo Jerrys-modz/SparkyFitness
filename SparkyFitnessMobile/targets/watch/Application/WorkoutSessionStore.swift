@@ -334,6 +334,14 @@ final class WorkoutSessionStore: ObservableObject {
             heartRateSentThrough = sentThrough
         }
         guard persistEnabled, let plan, let startedAt else { return }
+        // Include time on the exercise that is still open, but leave the live
+        // counters alone. A later close still measures from the original start.
+        var snapshotExerciseWindowSeconds = exerciseWindowSeconds
+        let captureDate = Date()
+        for (id, windowStartedAt) in exerciseWindowStartedAt {
+            snapshotExerciseWindowSeconds[id, default: 0] +=
+                max(0, captureDate.timeIntervalSince(windowStartedAt))
+        }
         let energy: Double
         if let reportedEnergyKcal {
             energy = reportedEnergyKcal
@@ -349,7 +357,7 @@ final class WorkoutSessionStore: ObservableObject {
             startedAt: startedAt,
             reportedEnergyKcal: energy,
             heartRateSentThrough: heartRateSentThrough,
-            exerciseWindowSeconds: exerciseWindowSeconds
+            exerciseWindowSeconds: snapshotExerciseWindowSeconds
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
