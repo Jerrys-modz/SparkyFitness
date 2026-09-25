@@ -63,7 +63,8 @@ function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
   t: TFunction
 ): WatchWorkoutStartPayload {
-  const { steps, plannedSetValues } = useActiveWorkoutStore.getState();
+  const { steps, plannedSetValues, workoutFormat, timeCapSeconds, startedAt } =
+    useActiveWorkoutStore.getState();
   const restSecBySetId = new Map(
     steps.map((step) => [step.setId, step.restSec])
   );
@@ -89,6 +90,9 @@ function buildWatchWorkoutStartPayload(
       }),
     })),
     setOrder: steps.map((step) => step.setId),
+    workoutFormat,
+    timeCapSeconds,
+    startedAt: startedAt != null ? new Date(startedAt).toISOString() : null,
   };
 }
 

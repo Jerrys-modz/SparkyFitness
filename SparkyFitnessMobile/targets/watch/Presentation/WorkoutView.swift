@@ -36,6 +36,32 @@ private struct WaitingForWorkoutView: View {
     }
 }
 
+/// Format name and time left on the cap. Nil for an ordinary set workout.
+/// Rounds added on the phone are not in this yet: the watch still has only
+/// the sets it was armed with.
+private func intervalCaption(plan: ActiveWorkoutPlan?, now: Date) -> String? {
+    guard let format = plan?.workoutFormat?.lowercased(), format != "standard" else {
+        return nil
+    }
+    let name: String
+    switch format {
+    case "amrap": name = "AMRAP"
+    case "emom": name = "EMOM"
+    case "tabata": name = "TABATA"
+    case "for_time": name = "FOR TIME"
+    default: name = format.uppercased()
+    }
+    guard
+        let cap = plan?.timeCapSeconds, cap > 0,
+        let started = plan?.startedAt
+    else { return name }
+    let elapsed = Int(now.timeIntervalSince(started))
+    let left = max(0, cap - elapsed)
+    let minutes = left / 60
+    let seconds = left % 60
+    return String(format: "%@ %d:%02d", name, minutes, seconds)
+}
+
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
@@ -51,6 +77,12 @@ private struct ActiveWorkoutView: View {
     var body: some View {
         VStack(spacing: 4) {
             MetricsStrip(onBack: openExerciseList)
+            if let caption = intervalCaption(plan: store.plan, now: Date()) {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
+                    .monospacedDigit()
+            }
 
             if store.isResting {
                 RestView()

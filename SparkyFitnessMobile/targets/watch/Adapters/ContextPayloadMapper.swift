@@ -232,11 +232,18 @@ enum ContextPayloadMapper {
         guard !exercises.isEmpty else { return nil }
 
         let setOrder = stringArray(payload["setOrder"])
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let startedAt = (payload["startedAt"] as? String).flatMap { formatter.date(from: $0) }
+            ?? (payload["startedAt"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
         return ActiveWorkoutPlan(
             sessionId: sessionId,
             workoutName: workoutName,
             exercises: exercises,
-            setOrder: setOrder
+            setOrder: setOrder,
+            workoutFormat: payload["workoutFormat"] as? String,
+            timeCapSeconds: intValue(payload["timeCapSeconds"]),
+            startedAt: startedAt
         )
     }
 

@@ -51,6 +51,31 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     /// Phone cursor order (set ids), including interleaved supersets. Empty
     /// means "flatten each exercise in library order", the pre-setOrder shape.
     let setOrder: [String]
+    /// `standard` or nil for an ordinary set workout. `amrap`, `emom`,
+    /// `tabata`, or `for_time` when the phone started an interval session.
+    let workoutFormat: String?
+    /// Cap for the interval, in seconds. Nil when the format has none.
+    let timeCapSeconds: Int?
+    /// When the phone started the session. The cap counts from here.
+    let startedAt: Date?
+
+    init(
+        sessionId: String,
+        workoutName: String,
+        exercises: [PlannedExercise],
+        setOrder: [String] = [],
+        workoutFormat: String? = nil,
+        timeCapSeconds: Int? = nil,
+        startedAt: Date? = nil
+    ) {
+        self.sessionId = sessionId
+        self.workoutName = workoutName
+        self.exercises = exercises
+        self.setOrder = setOrder
+        self.workoutFormat = workoutFormat
+        self.timeCapSeconds = timeCapSeconds
+        self.startedAt = startedAt
+    }
 }
 
 /// One set of one exercise, as a position in the workout's flat running order.

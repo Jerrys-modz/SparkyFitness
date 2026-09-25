@@ -209,6 +209,15 @@ export interface WatchWorkoutStartPayload {
    * sets in library order, so rest and next-set agree with the phone.
    */
   setOrder: string[];
+  /**
+   * `standard` when omitted. Interval formats still send the starting sets;
+   * the watch uses these to show the format and the time cap instead of
+   * looking like an ordinary set workout.
+   */
+  workoutFormat?: string | null;
+  timeCapSeconds?: number | null;
+  /** When the phone started the live session, ISO 8601. */
+  startedAt?: string | null;
 }
 
 /** One set logged on the watch during an active workout. */
