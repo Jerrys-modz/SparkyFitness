@@ -1978,6 +1978,7 @@ CREATE TABLE public.exercise_entries (
     gear_name text,
     gear_external_id text,
     watch_telemetry_observed_at timestamp with time zone,
+    watch_duration_minutes numeric,
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
