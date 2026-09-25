@@ -96,6 +96,24 @@ async function getUserGoalsForRange(
   ];
 
   let currentFallback = (fallback ?? DEFAULT_GOALS) as Record<string, unknown>;
+  if (
+    currentFallback.water_goal_ml === null ||
+    currentFallback.water_goal_ml === undefined
+  ) {
+    const priorWater = await goalRepository.getMostRecentWaterGoalBeforeDate(
+      userId,
+      startDate
+    );
+    if (
+      priorWater?.water_goal_ml !== null &&
+      priorWater?.water_goal_ml !== undefined
+    ) {
+      currentFallback = {
+        ...currentFallback,
+        water_goal_ml: priorWater.water_goal_ml,
+      };
+    }
+  }
   const result: Record<string, unknown> = {};
   let cursor = parseISO(startDate);
   const end = parseISO(endDate);
@@ -202,9 +220,16 @@ async function getUserGoalsForRange(
   while (!isAfter(cursor, end)) {
     const dateStr = format(cursor, 'yyyy-MM-dd');
     let goals = explicitByDate[dateStr] ?? null;
+    // Snapshot before an explicit row replaces the fallback. A daily goal
+    // with no water value must not wipe a custom goal for this day or later.
+    const carriedWater =
+      currentFallback.water_goal_ml ?? DEFAULT_GOALS.water_goal_ml ?? 1920;
 
     if (goals) {
-      currentFallback = goals;
+      currentFallback =
+        goals.water_goal_ml === null || goals.water_goal_ml === undefined
+          ? { ...goals, water_goal_ml: carriedWater }
+          : goals;
     } else if (activeWeeklyPlan) {
       const presetId = activeWeeklyPlan[DAY_PRESETS[getDay(cursor)]];
       if (presetId) {
@@ -218,6 +243,15 @@ async function getUserGoalsForRange(
 
     // Clone to avoid mutating the source in the cache or repository
     let processedGoals = { ...goals };
+    // A cleared water goal is stored as null. Prefer the water goal already
+    // in effect (an earlier custom goal, or a weekly preset with no water
+    // value) and only then the default.
+    if (
+      processedGoals.water_goal_ml === null ||
+      processedGoals.water_goal_ml === undefined
+    ) {
+      processedGoals.water_goal_ml = carriedWater;
+    }
 
     if (adjust) {
       let goalCalories =
@@ -546,6 +580,15 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
         );
         return allow_null ? null : 0;
       }
+      // Number('') and Number('  ') are 0. A cleared water goal (and other
+      // allow_null fields) must stay null instead of being saved as zero.
+      if (typeof value === 'string' && value.trim() === '') {
+        log(
+          'debug',
+          `cleanNumber: Value is blank, returning ${allow_null ? null : 0}`
+        );
+        return allow_null ? null : 0;
+      }
       const num = Number(value);
       if (isNaN(num)) {
         log(
@@ -582,7 +625,7 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       protein: cleanNumber(protein_to_store),
       carbs: cleanNumber(carbs_to_store),
       fat: cleanNumber(fat_to_store),
-      water_goal_ml: cleanNumber(p_water_goal_ml),
+      water_goal_ml: cleanNumber(p_water_goal_ml, true),
       saturated_fat: cleanNumber(p_saturated_fat),
       polyunsaturated_fat: cleanNumber(p_polyunsaturated_fat),
       monounsaturated_fat: cleanNumber(p_monounsaturated_fat),
