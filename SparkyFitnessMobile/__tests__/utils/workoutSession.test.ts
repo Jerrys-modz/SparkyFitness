@@ -59,7 +59,9 @@ import {
   effectiveSetDurationSec,
   formatDurationSeconds,
   buildActivitySetsPayload,
+  firstSetInputField,
 } from '../../src/utils/workoutSession';
+import { wodScoreFormat } from '../../src/utils/wodScore';
 import type {
   ExerciseEntryResponse,
   ExerciseSessionResponse,
@@ -1224,6 +1226,28 @@ describe('workoutSession', () => {
       expect(payload[1].sort_order).toBe(1);
     });
 
+    it('round-trips rir so an edit-save cannot wipe stored reps in reserve', () => {
+      const payload = buildExercisesPayload(
+        [
+          makeDraftExercise({
+            sets: [
+              {
+                clientId: 's1',
+                serverId: 11,
+                weight: '100',
+                reps: '8',
+                rpe: 8,
+                rir: 2,
+              },
+            ],
+          }),
+        ],
+        'kg',
+        'km'
+      );
+      expect(payload[0].sets[0]).toMatchObject({ id: 11, rpe: 8, rir: 2 });
+    });
+
     it('defaults duration_minutes to 0 when the draft has none', () => {
       const payload = buildExercisesPayload([makeDraftExercise()], 'kg', 'km');
       expect(payload[0].duration_minutes).toBe(0);
@@ -2176,6 +2200,7 @@ describe('workoutSession', () => {
         rest_time: 90,
         notes: null,
         rpe: null,
+        rir: null,
         completed_at: null,
         is_pr: false,
       });
@@ -2190,6 +2215,7 @@ describe('workoutSession', () => {
         rest_time: 90,
         notes: 'felt heavy',
         rpe: 9,
+        rir: null,
         completed_at: null,
         is_pr: false,
       });
@@ -5722,5 +5748,22 @@ describe('summarizeWorkoutHeartRate', () => {
     ]);
     expect(summary?.avgBpm).toBeCloseTo(120);
     expect(summary?.maxBpm).toBeNull();
+  });
+});
+
+describe('firstSetInputField', () => {
+  it('focuses the first value cell for each modality', () => {
+    expect(firstSetInputField('weight_reps')).toBe('weight');
+    expect(firstSetInputField('reps_only')).toBe('reps');
+    expect(firstSetInputField('duration')).toBe('duration');
+    expect(firstSetInputField('duration_distance')).toBe('duration');
+  });
+});
+
+describe('wodScoreFormat', () => {
+  it('reads the shared-schema key and the legacy mobile key', () => {
+    expect(wodScoreFormat({ workout_format: 'amrap' })).toBe('amrap');
+    expect(wodScoreFormat({ format: 'for_time' })).toBe('for_time');
+    expect(wodScoreFormat({})).toBeNull();
   });
 });

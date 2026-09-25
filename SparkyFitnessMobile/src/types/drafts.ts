@@ -13,6 +13,7 @@ export interface WorkoutDraftSet {
   setType?: DraftSetType;
   notes?: string | null;
   rpe?: number | null;
+  rir?: number | null;
   completedAt?: string | null;
   isPr?: boolean;
 }
@@ -22,6 +23,7 @@ export interface WorkoutSetMetaPatch {
   restTime?: number | null;
   notes?: string | null;
   rpe?: number | null;
+  rir?: number | null;
   completedAt?: string | null;
 }
 

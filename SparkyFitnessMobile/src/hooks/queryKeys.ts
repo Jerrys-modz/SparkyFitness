@@ -290,3 +290,6 @@ export const medicationEntriesQueryKey = (opts?: {
   toDate?: string;
   medicationId?: string;
 }) => ['medications', 'entries', opts ?? {}] as const;
+
+/** Autocomplete source for the live workout's gym / location prompt. */
+export const workoutLocationsQueryKey = ['workoutLocations'] as const;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
+  AppState,
   Keyboard,
   LayoutAnimation,
   Text,
@@ -14,6 +15,7 @@ import {
   KeyboardStickyView,
   type KeyboardAwareScrollViewRef,
 } from 'react-native-keyboard-controller';
+import { findDropSetBaseIndex } from '@workspace/shared';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,6 +48,7 @@ import WorkoutDurationSheet, {
 import WorkoutReorderList from '../components/WorkoutReorderList';
 import ActiveWorkoutIntervalHud from '../components/ActiveWorkoutIntervalHud';
 import ActiveWorkoutRenameModal from '../components/ActiveWorkoutRenameModal';
+import ActiveWorkoutLocationModal from '../components/ActiveWorkoutLocationModal';
 import ActiveWorkoutOverflowSheet, {
   type OverflowMenuState,
 } from '../components/ActiveWorkoutOverflowSheet';
@@ -66,8 +69,10 @@ import { runAfterKeyboardSettles } from '../utils/keyboardFocus';
 import {
   buildExerciseReorderItems,
   describeActiveSet,
+  firstSetInputField,
   formatSetLoad,
   rendersCardioEffortForm,
+  resolveSnapshotModality,
 } from '../utils/workoutSession';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useActiveWorkoutIntervalLifecycle } from '../hooks/useActiveWorkoutIntervalLifecycle';
@@ -92,6 +97,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const prSetIds = useActiveWorkoutStore((s) => s.prSetIds);
   const setRenderKeys = useActiveWorkoutStore((s) => s.setRenderKeys);
   const activeSetId = useActiveWorkoutStore((s) => s.activeSetId);
+  const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
   const {
     state: restState,
     remainingMs: restRemainingMs,
@@ -368,6 +374,12 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     setRenameVisible(false);
   }, []);
 
+  const [locationVisible, setLocationVisible] = useState(false);
+  const handleLocationSubmit = useCallback((location: string | null) => {
+    useActiveWorkoutStore.getState().setSessionLocation(location);
+    setLocationVisible(false);
+  }, []);
+
   const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null);
   const handleToggleSetDetail = useCallback((setKey: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -430,6 +442,43 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       else accessoryHandlesRef.current[key] = handle;
     },
     []
+  );
+
+  // When a rest runs out on its own, put the cursor in the next set's first
+  // value cell so the lifter can type without tapping. Skip / dismiss don't
+  // stamp restExpiredAt, so they never steal focus. A store subscription (not
+  // an effect on the value) because this reacts to an event, once.
+  const isFocusedRef = useRef(isFocused);
+  useEffect(() => {
+    isFocusedRef.current = isFocused;
+  }, [isFocused]);
+  useEffect(
+    () =>
+      useActiveWorkoutStore.subscribe((state, prev) => {
+        if (
+          state.restExpiredAt == null ||
+          state.restExpiredAt === prev.restExpiredAt
+        )
+          return;
+        if (
+          !isFocusedRef.current ||
+          AppState.currentState !== 'active' ||
+          state.activeSetId == null
+        )
+          return;
+        const setId = state.activeSetId;
+        const exercise = state.session?.exercises.find((e) =>
+          e.sets.some((s) => String(s.id) === setId)
+        );
+        if (!exercise) return;
+        handleActivateSet(
+          state.setRenderKeys[setId] ?? setId,
+          firstSetInputField(
+            resolveSnapshotModality(exercise.exercise_snapshot)
+          )
+        );
+      }),
+    [handleActivateSet]
   );
 
   useDeactivateOnKeyboardDismiss(useCallback(() => setFocusedSetKey(null), []));
@@ -656,6 +705,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <ActiveWorkoutHeader
         name={session.name}
+        location={session.location}
         startedAt={startedAt}
         now={now}
         progress={progress}
@@ -663,6 +713,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         onDiscard={handleDiscard}
         onEndWorkout={handleConfirmEnd}
         onRename={() => setRenameVisible(true)}
+        onEditLocation={() => setLocationVisible(true)}
         onAddExercise={handleAddExercise}
         onReorder={reorderItemCount >= 2 ? handleOpenReorder : undefined}
         onOpenSettings={handleOpenWorkoutSettings}
@@ -801,6 +852,13 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         onSubmit={handleRenameSubmit}
       />
 
+      <ActiveWorkoutLocationModal
+        visible={locationVisible}
+        initialLocation={session.location}
+        onCancel={() => setLocationVisible(false)}
+        onSubmit={handleLocationSubmit}
+      />
+
       <MetricColumnMenu
         anchor={metricMenu?.anchor ?? null}
         onClose={() => setMetricMenu(null)}
@@ -845,6 +903,30 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
               .updateSetField(setId, { set_type: type });
           }
         }}
+        onGenerateDropSets={(() => {
+          const setId = setTypeMenu?.setId;
+          if (setId == null) return undefined;
+          const ex = session.exercises.find((e) =>
+            e.sets.some((s) => String(s.id) === setId)
+          );
+          if (!ex) return undefined;
+          // Drop from the last working set with a weight, typed or assumed.
+          const baseIndex = findDropSetBaseIndex(
+            ex.sets,
+            (s) => s.weight ?? plannedSetValues[String(s.id)]?.weight
+          );
+          if (baseIndex < 0) return undefined;
+          const baseSet = ex.sets[baseIndex];
+          const weightKg = Number(
+            baseSet.weight ?? plannedSetValues[String(baseSet.id)]?.weight
+          );
+          return () => {
+            useActiveWorkoutStore
+              .getState()
+              .addDropSetsToExercise(ex.id, weightKg, weightUnit);
+            setSetTypeMenu(null);
+          };
+        })()}
       />
 
       <WorkoutReorderList

@@ -147,7 +147,7 @@ async function _getExerciseEntryByIdWithClient(client: any, id: any) {
              COALESCE(
                (SELECT json_agg(set_data ORDER BY set_data.set_number)
                 FROM (
-                  SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+                  SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
                   FROM exercise_entry_sets ees
                   WHERE ees.exercise_entry_id = ee.id
                 ) AS set_data
@@ -854,12 +854,13 @@ async function _updateExerciseEntryWithClient(
         set.rest_time,
         set.notes,
         set.rpe,
+        set.rir ?? null,
         set.completed_at ?? null,
         set.is_pr ?? false,
         set.distance ?? null,
       ]);
       const setsQuery = format(
-        'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, completed_at, is_pr, distance) VALUES %L',
+        'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, completed_at, is_pr, distance) VALUES %L',
         setsValues
       );
       await client.query(setsQuery);
@@ -1095,12 +1096,13 @@ async function _createExerciseEntryWithClient(
           set.rest_time,
           set.notes,
           set.rpe,
+          set.rir ?? null,
           set.completed_at ?? null,
           set.is_pr ?? false,
           set.distance ?? null,
         ]);
         const setsQuery = format(
-          'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, completed_at, is_pr, distance) VALUES %L',
+          'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, completed_at, is_pr, distance) VALUES %L',
           setsValues
         );
         await client.query(setsQuery);
@@ -1390,8 +1392,9 @@ async function _reconcileExerciseEntrySetsWithClient(
            rpe = $8,
            completed_at = $9,
            is_pr = $10,
-           distance = $11
-       WHERE id = $12 AND exercise_entry_id = $13`,
+           distance = $11,
+           rir = $12
+       WHERE id = $13 AND exercise_entry_id = $14`,
       [
         set.set_number,
         set.set_type ?? null,
@@ -1404,6 +1407,7 @@ async function _reconcileExerciseEntrySetsWithClient(
         set.completed_at ?? null,
         set.is_pr ?? false,
         set.distance ?? null,
+        set.rir ?? null,
         set.id,
         exerciseEntryId,
       ]
@@ -1422,12 +1426,13 @@ async function _reconcileExerciseEntrySetsWithClient(
       set.rest_time ?? null,
       set.notes ?? null,
       set.rpe ?? null,
+      set.rir ?? null,
       set.completed_at ?? null,
       set.is_pr ?? false,
       set.distance ?? null,
     ]);
     const setsQuery = format(
-      'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, completed_at, is_pr, distance) VALUES %L',
+      'INSERT INTO exercise_entry_sets (exercise_entry_id, set_number, set_type, reps, weight, duration, rest_time, notes, rpe, rir, completed_at, is_pr, distance) VALUES %L',
       setsValues
     );
     await client.query(setsQuery);
@@ -1453,7 +1458,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
   try {
     // 1. Fetch all exercise preset entries for the given date and user
     const presetEntriesResult = await client.query(
-      `SELECT id, workout_preset_id, name, description, notes, created_at, source
+      `SELECT id, workout_preset_id, name, description, notes, created_at, source, location
        FROM exercise_preset_entries
        WHERE user_id = $1 AND entry_date = $2
        ORDER BY created_at ASC`,
@@ -1467,7 +1472,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data
@@ -1493,6 +1498,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
         name: preset.name,
         description: preset.description,
         notes: preset.notes,
+        location: preset.location ?? null,
         created_at: preset.created_at,
         source: preset.source,
         exercises: [], // This will hold the individual exercise entries
@@ -1681,7 +1687,7 @@ async function getExerciseProgressData(
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data
@@ -1717,7 +1723,7 @@ async function getExerciseHistory(userId: any, exerciseId: any, limit = 5) {
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.rpe, ees.rir, to_char(ees.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS completed_at, ees.is_pr, ees.distance
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data
@@ -2010,6 +2016,36 @@ async function getDailyExerciseTotalsRange(
   }
 }
 
+/**
+ * Days with at least one logged workout in [startDate, endDate], with the
+ * entry count — the Reports workout heatmap's source (#2461). Device
+ * "Active Calories" summary rows are not workouts, matching the exercise
+ * dashboard's own filter; `IS DISTINCT FROM` keeps null-named rows counted.
+ */
+async function getWorkoutDayCounts(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ date: string; count: number }[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS date,
+              COUNT(*)::int AS count
+       FROM exercise_entries
+       WHERE user_id = $1
+         AND entry_date BETWEEN $2 AND $3
+         AND exercise_name IS DISTINCT FROM 'Active Calories'
+       GROUP BY entry_date
+       ORDER BY entry_date ASC`,
+      [userId, startDate, endDate]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
 export interface DailyExerciseCalorieSplit {
   entry_date: string;
   active_calories: number;
@@ -2216,6 +2252,7 @@ export { getRecentSessionsForExercise };
 export { deleteExerciseEntriesByEntrySourceAndDate };
 export { deleteExerciseEntriesByEntrySourceAndDateWithClient };
 export { getDailyExerciseTotalsRange };
+export { getWorkoutDayCounts };
 export { getDailyExerciseCalorieSplitRange };
 export { getExerciseDiaryRange };
 export { getRecentExerciseEntries };
@@ -2250,6 +2287,7 @@ export default {
   deleteExerciseEntriesByEntrySourceAndDate,
   deleteExerciseEntriesByEntrySourceAndDateWithClient,
   getDailyExerciseTotalsRange,
+  getWorkoutDayCounts,
   getExerciseDiaryRange,
   getRecentExerciseEntries,
   getExerciseUsage,

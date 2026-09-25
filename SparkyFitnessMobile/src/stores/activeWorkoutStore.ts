@@ -14,8 +14,13 @@ import type {
   IntervalPhase,
   PresetSessionResponse,
   WorkoutFormat,
+  DropSetWeightUnit,
 } from '@workspace/shared';
-import { buildIntervalPhases, shiftPhasesForPause } from '@workspace/shared';
+import {
+  buildIntervalPhases,
+  calculateDropSetWeightsKg,
+  shiftPhasesForPause,
+} from '@workspace/shared';
 import type { Exercise } from '../types/exercise';
 import {
   describeActiveSetAssumed,
@@ -130,6 +135,11 @@ export interface ActiveWorkoutState {
   activeSetId: string | null;
   rest: Rest;
   /**
+   * Stamped when a rest countdown runs out on its own (not Skip / not
+   * dismiss), so the screen can move focus to the next set. Transient.
+   */
+  restExpiredAt: number | null;
+  /**
    * Transient monotonic counter bumped on every local session edit (and on
    * `reconcileWithSession`). The autosave hook captures it at send time and
    * hands it back to `applyServerSession` so a response can tell whether
@@ -176,6 +186,13 @@ export interface ActiveWorkoutState {
    * stable across an autosave.
    */
   setRenderKeys: Record<string, string>;
+  /**
+   * Epoch ms a timed/hold set's stopwatch was started, by set id. Persisted so
+   * a running stopwatch survives the row unmounting, a collapsed card, and a
+   * cold start; remapped with the other set-keyed maps when autosave swaps
+   * temp ids for server ids.
+   */
+  setTimerStartedAt: Record<string, number>;
   /**
    * Planned weight/reps per set id, captured at live start from the preset
    * before the create payload is stripped (see `stripPlannedSetValues`). A
@@ -308,11 +325,27 @@ export interface ActiveWorkoutState {
 
   /** Patch value fields on a set. Weight is in kg — UI converts before calling. */
   updateSetField: (setId: string, patch: ActiveSetPatch) => void;
+  /** Start a timed/hold set's stopwatch. */
+  startSetTimer: (setId: string) => void;
+  /**
+   * Stop a running stopwatch and write the elapsed whole seconds (min 1) as
+   * the set's duration. Returns the seconds written, or null if none ran.
+   */
+  stopSetTimer: (setId: string) => number | null;
   /**
    * Append an empty set to an exercise, cloning the last set's structure
    * (rest/type/duration) but not its values. Uses a negative temp id.
    */
   addSetToExercise: (entryId: string) => void;
+  /**
+   * Append drop sets (3 × -20% by default) stepping down from the base working
+   * weight, rounded in the lifter's display unit. The new sets stay editable.
+   */
+  addDropSetsToExercise: (
+    entryId: string,
+    baseWeightKg: number,
+    unit: DropSetWeightUnit
+  ) => void;
   /**
    * Delete a set, renumbering the rest. Deleting an exercise's last remaining
    * set removes the exercise from the session entirely.
@@ -380,6 +413,8 @@ export interface ActiveWorkoutState {
    * move or a null session leaves state untouched.
    */
   reorderExercises: (fromItemIndex: number, toItemIndex: number) => void;
+  /** Update session location */
+  setSessionLocation: (location: string | null) => void;
   /**
    * Fold an autosave response back into the store. `sentRevision` is the
    * `sessionRevision` captured when the request's payload was built: if no
@@ -407,6 +442,7 @@ export type ActiveSetPatch = Partial<
     | 'duration'
     | 'distance'
     | 'rpe'
+    | 'rir'
     | 'set_type'
     | 'notes'
     | 'rest_time'
@@ -422,12 +458,14 @@ const initialData: Pick<
   | 'completedSetIds'
   | 'activeSetId'
   | 'rest'
+  | 'restExpiredAt'
   | 'sessionRevision'
   | 'hasUnsavedChanges'
   | 'createdByLiveStart'
   | 'prBaseline'
   | 'prSetIds'
   | 'setRenderKeys'
+  | 'setTimerStartedAt'
   | 'plannedSetValues'
   | 'previousSessionSets'
   | 'sourcePresetId'
@@ -450,12 +488,14 @@ const initialData: Pick<
   completedSetIds: {},
   activeSetId: null,
   rest: READY_REST,
+  restExpiredAt: null,
   sessionRevision: 0,
   hasUnsavedChanges: false,
   createdByLiveStart: false,
   prBaseline: {},
   prSetIds: {},
   setRenderKeys: {},
+  setTimerStartedAt: {},
   plannedSetValues: {},
   previousSessionSets: {},
   sourcePresetId: null,
@@ -1117,6 +1157,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           prSetIds: seedPrFromSession(session),
           // A fresh start has no id churn yet — every set keys by its own id.
           setRenderKeys: {},
+          setTimerStartedAt: {},
           plannedSetValues,
           // Previous-session sets are captured lazily per exercise by the
           // live card, like the PR baseline.
@@ -1173,6 +1214,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           prSetIds: seedPrFromSession(session),
           // A fresh start has no id churn yet — every set keys by its own id.
           setRenderKeys: {},
+          setTimerStartedAt: {},
           // A resumed diary workout has no live-start plan; its set values
           // are real. Previous-session sets re-capture lazily.
           plannedSetValues: {},
@@ -1716,7 +1758,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         if (AppState.currentState === 'active') {
           cancelCurrentRestNotification(rest);
         }
-        set({ rest: READY_REST });
+        set({ rest: READY_REST, restExpiredAt: Date.now() });
         fireRestCompleteCue();
       },
 
@@ -1785,6 +1827,29 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         });
       },
 
+      startSetTimer: (setId) => {
+        const { setTimerStartedAt } = get();
+        if (setTimerStartedAt[setId] != null) return;
+        set({
+          setTimerStartedAt: { ...setTimerStartedAt, [setId]: Date.now() },
+        });
+      },
+
+      stopSetTimer: (setId) => {
+        const { setTimerStartedAt } = get();
+        const startedAt = setTimerStartedAt[setId];
+        if (startedAt == null) return null;
+        const elapsedSec = Math.max(
+          1,
+          Math.floor((Date.now() - startedAt) / 1000)
+        );
+        const rest = { ...setTimerStartedAt };
+        delete rest[setId];
+        set({ setTimerStartedAt: rest });
+        get().updateSetField(setId, { duration: elapsedSec });
+        return elapsedSec;
+      },
+
       updateSetField: (setId, patch) => {
         const state = get();
         const session = state.session;
@@ -1847,6 +1912,49 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           ...session,
           exercises: session.exercises.map((e) =>
             e.id === entryId ? { ...e, sets: [...e.sets, newSet] } : e
+          ),
+        };
+        set(buildSessionEditState(state, next));
+      },
+
+      addDropSetsToExercise: (entryId, baseWeightKg, unit) => {
+        const state = get();
+        const session = state.session;
+        if (!session) return;
+        const exercise = session.exercises.find((e) => e.id === entryId);
+        if (!exercise) return;
+
+        const dropWeights = calculateDropSetWeightsKg(baseWeightKg, unit);
+        if (dropWeights.length === 0) return;
+
+        // Mint ids against the whole session so they can't collide with
+        // unsaved temp sets in other exercises; count down from there.
+        let tempId = nextTempSetId(session, state.setRenderKeys);
+        const lastSet = exercise.sets[exercise.sets.length - 1];
+        const newSets = [...exercise.sets];
+        for (const dropWeight of dropWeights) {
+          newSets.push({
+            id: tempId,
+            set_number: newSets.length + 1,
+            set_type: 'drop',
+            weight: dropWeight,
+            reps: lastSet?.reps ?? null,
+            duration: null,
+            distance: null,
+            rest_time: lastSet?.rest_time ?? null,
+            notes: null,
+            rpe: null,
+            rir: null,
+            is_pr: false,
+            completed_at: null,
+          });
+          tempId -= 1;
+        }
+
+        const next: PresetSessionResponse = {
+          ...session,
+          exercises: session.exercises.map((e) =>
+            e.id === entryId ? { ...e, sets: newSets } : e
           ),
         };
         set(buildSessionEditState(state, next));
@@ -2110,6 +2218,18 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         set(buildSessionEditState(state, { ...session, exercises: moved }));
       },
 
+      setSessionLocation: (location) => {
+        const state = get();
+        const session = state.session;
+        if (!session) return;
+        if (session.location === location) return;
+        set({
+          session: { ...session, location },
+          sessionRevision: state.sessionRevision + 1,
+          hasUnsavedChanges: true,
+        });
+      },
+
       applyServerSession: (serverSession, sentRevision, sentEntryIds) => {
         const state = get();
         // The workout may have been cleared or replaced while the save was in
@@ -2152,6 +2272,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           for (const id of Object.keys(state.prSetIds)) {
             nextPr[setIdMap.get(id) ?? id] = true;
           }
+          const nextTimers: Record<string, number> = {};
+          for (const id of Object.keys(state.setTimerStartedAt)) {
+            nextTimers[setIdMap.get(id) ?? id] = state.setTimerStartedAt[id];
+          }
 
           // Carry render keys across the graft: re-key each entry to its
           // server id, and give a churned set with no prior entry its birth
@@ -2181,6 +2305,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
             completedSetIds: nextCompleted,
             prSetIds: nextPr,
             setRenderKeys: nextRenderKeys,
+            setTimerStartedAt: nextTimers,
             activeSetId: nextActiveSetId,
             // hasUnsavedChanges stays true — the newer edits still need a save.
           });
@@ -2202,6 +2327,12 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         for (const id of Object.keys(state.prSetIds)) {
           const mapped = setIdMap.get(id) ?? id;
           if (newSetIds.has(mapped)) nextPr[mapped] = true;
+        }
+        const nextTimers: Record<string, number> = {};
+        for (const id of Object.keys(state.setTimerStartedAt)) {
+          const mapped = setIdMap.get(id) ?? id;
+          if (newSetIds.has(mapped))
+            nextTimers[mapped] = state.setTimerStartedAt[id];
         }
 
         // Carry render keys, pruned to the adopted session's set ids so the
@@ -2245,6 +2376,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           completedSetIds: nextCompleted,
           prSetIds: nextPr,
           setRenderKeys: nextRenderKeys,
+          setTimerStartedAt: nextTimers,
           activeSetId: nextActiveSetId,
           rest: nextRest,
           hasUnsavedChanges: false,
@@ -2263,6 +2395,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         completedSetIds: state.completedSetIds,
         activeSetId: state.activeSetId,
         rest: state.rest,
+        // A running set stopwatch survives a cold start.
+        setTimerStartedAt: state.setTimerStartedAt,
         // Persisted so edits made just before a cold exit are flushed on the
         // next launch. sessionRevision is deliberately transient.
         hasUnsavedChanges: state.hasUnsavedChanges,
