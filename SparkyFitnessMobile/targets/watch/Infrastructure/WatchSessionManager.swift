@@ -468,6 +468,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// before that pending plan is armed.
     private func recoverLiveWorkoutIfNeeded() {
         hkRecovery = .running
+        // A finish that was cut off is completed before anything else. It is
+        // older than any queued plan, and resuming it would restart a workout
+        // the wearer already ended.
+        if workoutStore.plan == nil,
+           let snapshot = workoutStore.storedSnapshot(),
+           let finishing = snapshot.finishing {
+            completeInterruptedFinish(snapshot, finishing: finishing)
+            return
+        }
         if collectionInFlight || pendingPlan != nil {
             stopLeftoverSessionThenResume()
             return
@@ -500,6 +509,70 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// The process stopped after a finish began but before its tail and stop
+    /// signal were queued. Ends any session HealthKit still has running, reads
+    /// the readings the phone has not seen back from Health, sends them with
+    /// the exercise's duration, then clears the snapshot and arms whatever
+    /// plan waited. Resending is harmless: batches past `heartRateSentThrough`
+    /// only, and the server keeps the longer duration.
+    private func completeInterruptedFinish(
+        _ snapshot: WorkoutSessionStore.Snapshot,
+        finishing: WorkoutSessionStore.Finishing
+    ) {
+        let sessionId = snapshot.plan.sessionId
+        let send: ([HeartRateSample]) -> Void = { [weak self] samples in
+            guard let self else { return }
+            if !samples.isEmpty || finishing.minutes > 0 {
+                self.transfer(
+                    OutboundPayloads.heartRateBatch(
+                        HeartRateBatch(
+                            clientId: UUID().uuidString,
+                            sessionId: sessionId,
+                            exerciseEntryId: finishing.exerciseEntryId,
+                            samples: samples,
+                            // The energy high-water mark HealthKit held is
+                            // gone with the session; a delta would be a guess.
+                            activeEnergyKcal: nil,
+                            durationMinutes: finishing.minutes > 0 ? finishing.minutes : nil
+                        )
+                    )
+                )
+            }
+            if finishing.sendStop {
+                self.transfer(
+                    OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId))
+                )
+            }
+            self.workoutStore.clearSnapshot()
+            self.hkRecovery = .finished
+            self.resumeQueuedPlan()
+        }
+        workoutHealthKit.recoverIfNeeded(
+            heartRateSentThrough: snapshot.heartRateSentThrough
+        ) { [weak self] recovered in
+            Task { @MainActor in
+                guard let self else { return }
+                if recovered {
+                    // Killed before HealthKit was told to end: the session
+                    // is still live, so stop it the normal way.
+                    // No `onBuffered`: the buffer and the tail arrive together.
+                    self.workoutHealthKit.stop { samples in
+                        Task { @MainActor in send(samples) }
+                    }
+                    return
+                }
+                self.workoutHealthKit.readSavedHeartRate(
+                    sessionId: sessionId,
+                    from: snapshot.startedAt,
+                    to: finishing.requestedAt,
+                    sentThrough: snapshot.heartRateSentThrough
+                ) { samples in
+                    Task { @MainActor in send(samples) }
+                }
+            }
+        }
+    }
+
     /// Ends a HealthKit session we are not going to keep, then arms whatever
     /// plan was queued while recovery ran.
     private func stopLeftoverSessionThenResume() {
@@ -525,15 +598,30 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// session was safe to replace. Send the old tail, then drop it.
     private func abandonRecoveredSessionThenResume() {
         let closing = workoutStore.closeCurrentExerciseWindow()
-        workoutHealthKit.stop { [weak self] samples in
+        if let closing {
+            workoutStore.markFinishing(
+                WorkoutSessionStore.Finishing(
+                    exerciseEntryId: closing.id,
+                    minutes: closing.minutes,
+                    sendStop: false,
+                    requestedAt: Date()
+                )
+            )
+        }
+        workoutHealthKit.stop(onBuffered: { [weak self] samples in
+            MainActor.assumeIsolated {
+                guard let self, let closing else { return }
+                self.sendHeartRateBatch(
+                    samples,
+                    exerciseEntryId: closing.id,
+                    durationMinutes: closing.minutes
+                )
+            }
+        }) { [weak self] samples in
             Task { @MainActor in
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(
-                        samples,
-                        exerciseEntryId: closing.id,
-                        durationMinutes: closing.minutes
-                    )
+                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
                 }
                 self.workoutStore.reset()
                 self.hkRecovery = .finished
@@ -673,7 +761,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// session id it belongs to.
     private func requestFinish(sendStop: Bool) {
         if collectionInFlight {
-            if sendStop { pendingSendStop = true }
+            if sendStop {
+                pendingSendStop = true
+                if var finishing = workoutStore.finishing, !finishing.sendStop {
+                    finishing.sendStop = true
+                    workoutStore.markFinishing(finishing)
+                }
+            }
             return
         }
         finishCollection(sendStop: sendStop)
@@ -682,19 +776,40 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Stops HealthKit, sends the tail and the exercise's wall-clock duration,
     /// then clears local state. `sendStop` is false when the phone already
     /// ended the workout and is only waiting on the watch's last samples.
+    ///
+    /// What HealthKit had already handed over is queued before anything waits
+    /// on the saved workout: `transferUserInfo` survives this process being
+    /// suspended or killed, a local buffer does not. The finish is recorded in
+    /// the snapshot first, so a relaunch that finds it reads the rest back
+    /// from Health (`completeInterruptedFinish`) instead of losing it.
     private func finishCollection(sendStop: Bool) {
         collectionInFlight = true
         let closing = workoutStore.closeCurrentExerciseWindow()
         let stopSessionId = workoutStore.plan?.sessionId
-        workoutHealthKit.stop { [weak self] samples in
+        if let closing {
+            workoutStore.markFinishing(
+                WorkoutSessionStore.Finishing(
+                    exerciseEntryId: closing.id,
+                    minutes: closing.minutes,
+                    sendStop: sendStop || pendingSendStop,
+                    requestedAt: Date()
+                )
+            )
+        }
+        workoutHealthKit.stop(onBuffered: { [weak self] samples in
+            MainActor.assumeIsolated {
+                guard let self, let closing else { return }
+                self.sendHeartRateBatch(
+                    samples,
+                    exerciseEntryId: closing.id,
+                    durationMinutes: closing.minutes
+                )
+            }
+        }) { [weak self] samples in
             Task { @MainActor in
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(
-                        samples,
-                        exerciseEntryId: closing.id,
-                        durationMinutes: closing.minutes
-                    )
+                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
                 }
                 if (sendStop || self.pendingSendStop), let stopSessionId {
                     self.transfer(

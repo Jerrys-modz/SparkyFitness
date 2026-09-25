@@ -123,6 +123,7 @@ final class WorkoutSessionStore: ObservableObject {
         stopRestTimer()
         startedAt = Date()
         heartRateSentThrough = nil
+        finishing = nil
         exerciseWindowStartedAt = [:]
         exerciseWindowSeconds = [:]
         startElapsedTimer()
@@ -314,6 +315,41 @@ final class WorkoutSessionStore: ObservableObject {
         /// this field still decodes. The open interval is not stored: time
         /// while the process was dead is not time the exercise was on screen.
         var exerciseWindowSeconds: [String: TimeInterval]?
+        /// Set once a finish has started. HealthKit only saves the workout's
+        /// last readings after `finishWorkout`, so a relaunch that finds this
+        /// reads them back from Health and completes the finish instead of
+        /// resuming the workout. Optional so older snapshots still decode.
+        var finishing: Finishing?
+    }
+
+    /// A finish that may not have reached the phone yet.
+    struct Finishing: Codable, Equatable {
+        /// The exercise the final readings belong to.
+        var exerciseEntryId: String
+        /// That exercise's wall-clock minutes, already closed.
+        var minutes: Double
+        /// Whether the phone still has to be told the workout ended.
+        var sendStop: Bool
+        /// When the finish began. Readings after this are not the workout's.
+        var requestedAt: Date
+    }
+
+    /// See `Snapshot.finishing`. Cleared by `reset`.
+    private(set) var finishing: Finishing?
+
+    /// Records that a finish began, so an interruption before the tail is
+    /// sent can be completed on the next launch.
+    func markFinishing(_ finishing: Finishing) {
+        self.finishing = finishing
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// The stored snapshot, without restoring it.
+    func storedSnapshot() -> Snapshot? {
+        guard persistEnabled,
+              let data = defaults.data(forKey: snapshotKey)
+        else { return nil }
+        return try? JSONDecoder().decode(Snapshot.self, from: data)
     }
 
     /// Last energy high-water mark we persisted. WatchSessionManager reads
@@ -357,7 +393,8 @@ final class WorkoutSessionStore: ObservableObject {
             startedAt: startedAt,
             reportedEnergyKcal: energy,
             heartRateSentThrough: heartRateSentThrough,
-            exerciseWindowSeconds: snapshotExerciseWindowSeconds
+            exerciseWindowSeconds: snapshotExerciseWindowSeconds,
+            finishing: finishing
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -369,10 +406,7 @@ final class WorkoutSessionStore: ObservableObject {
     /// No-op (and returns nil) when there is nothing stored.
     @discardableResult
     func restoreSnapshot() -> Snapshot? {
-        guard persistEnabled,
-              let data = defaults.data(forKey: snapshotKey),
-              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data)
-        else { return nil }
+        guard let snapshot = storedSnapshot() else { return nil }
         start(with: snapshot.plan)
         // `start(with:)` resets cursor / completions / energy and writes a
         // fresh snapshot; put the recovered progress back on top. The window
@@ -394,6 +428,7 @@ final class WorkoutSessionStore: ObservableObject {
     func clearSnapshot() {
         restoredReportedEnergyKcal = 0
         heartRateSentThrough = nil
+        finishing = nil
         guard persistEnabled else { return }
         defaults.removeObject(forKey: snapshotKey)
     }

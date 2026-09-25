@@ -54,6 +54,10 @@ final class WorkoutHealthKitController: NSObject {
     /// in zone instead of collapsing to one point and losing the gap.
     private static let seriesExpandStep: TimeInterval = 30
 
+    /// Longest `stop` holds its completion while HealthKit saves the workout
+    /// and the saved heart rate is read back.
+    private static let finishTailTimeout: TimeInterval = 20
+
     /// Stamped onto every workout this app saves to HealthKit, so the phone's
     /// inbound sync can recognise its own writes and skip them.
     ///
@@ -219,31 +223,59 @@ final class WorkoutHealthKitController: NSObject {
         }
     }
 
-    /// Ends the session and returns the samples still held, plus any heart
-    /// rate HealthKit only saves when the workout is finished.
+    /// Ends the session. Samples already held go to `onBuffered` before
+    /// anything waits on HealthKit; heart rate HealthKit only saves when the
+    /// workout is finished goes to `completion` afterwards.
     ///
     /// The anchored query has to stop before `finishWorkout`, and that is
     /// when HealthKit writes the tail. Reading `predicateForObjects(from:)`
     /// on the saved workout picks those up. Instants already flushed stay in
     /// `pendingSampleTimes`, so the tail is only what the phone has not seen.
     ///
-    /// The completion is always on the main queue. It can run after HealthKit
-    /// has finished the workout, so callers must not send `workoutStop` or
-    /// clear the plan until it fires — the tail still needs a session to tag.
-    func stop(completion: @escaping ([HeartRateSample]) -> Void) {
+    /// `onBuffered` runs synchronously on the caller's (main) queue, so those
+    /// readings can be queued for the phone before the process has a chance
+    /// to be suspended mid-finish. Passing nil folds them into `completion`.
+    ///
+    /// The completion is always on the main queue and fires exactly once, at
+    /// the latest `finishTailTimeout` after the call. It can run after
+    /// HealthKit has finished the workout, so callers must not send
+    /// `workoutStop` or clear the plan until it fires — the tail still needs a
+    /// session to tag.
+    func stop(
+        onBuffered: (([HeartRateSample]) -> Void)? = nil,
+        completion: @escaping ([HeartRateSample]) -> Void
+    ) {
         stopBatchTimer()
         stopHeartRateSeriesQuery()
-        let buffered = pendingSamples
+        let held = pendingSamples
         pendingSamples = []
+        let buffered: [HeartRateSample]
+        if let onBuffered {
+            onBuffered(held)
+            buffered = []
+        } else {
+            buffered = held
+        }
+        let gate = LeaveOnce()
         let deliver: ([HeartRateSample]) -> Void = { samples in
             DispatchQueue.main.async {
-                completion(samples)
+                if gate.claim() {
+                    completion(samples)
+                }
             }
         }
         guard let session, let endingBuilder = builder else {
             deliver(buffered)
             return
         }
+        // HealthKit can take a while to save, and a query can stall. The
+        // caller holds the plan, and any queued next workout, until this
+        // fires, so the wait is bounded. A tail that lands after it is
+        // dropped; what was buffered went out through `onBuffered` already.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.finishTailTimeout) {
+            deliver(buffered)
+        }
+        let skipThrough = skipReadingsThrough
         let now = Date()
         session.end()
         self.session = nil
@@ -254,7 +286,10 @@ final class WorkoutHealthKitController: NSObject {
                     deliver(buffered)
                     return
                 }
-                self.readFinishedHeartRate(of: workout) { extra in
+                self.readHeartRate(
+                    matching: HKQuery.predicateForObjects(from: workout),
+                    skipThrough: skipThrough
+                ) { extra in
                     // The series query finishes on a background queue. The
                     // live buffer is only touched on main, so the dedupe set
                     // has to be too.
@@ -268,6 +303,61 @@ final class WorkoutHealthKitController: NSObject {
                 }
             }
         }
+    }
+
+    /// Heart rate from a workout whose finish was interrupted before its tail
+    /// reached the phone. Prefers the saved workout carrying this session's
+    /// own-write marker; if HealthKit never saved one, falls back to this
+    /// watch's readings between `start` and `end`. Readings at or before
+    /// `sentThrough` were already sent and are skipped. Completion is on main.
+    func readSavedHeartRate(
+        sessionId: String,
+        from start: Date,
+        to end: Date,
+        sentThrough: Date?,
+        completion: @escaping ([HeartRateSample]) -> Void
+    ) {
+        let deliver: ([HeartRateSample]) -> Void = { samples in
+            DispatchQueue.main.async { completion(samples) }
+        }
+        guard HKHealthStore.isHealthDataAvailable() else {
+            deliver([])
+            return
+        }
+        let workoutQuery = HKSampleQuery(
+            sampleType: HKObjectType.workoutType(),
+            predicate: HKQuery.predicateForObjects(
+                withMetadataKey: Self.sessionMetadataKey,
+                allowedValues: [sessionId]
+            ),
+            limit: 1,
+            sortDescriptors: nil
+        ) { [weak self] _, samples, _ in
+            guard let self else {
+                deliver([])
+                return
+            }
+            let predicate: NSPredicate
+            if let workout = samples?.first as? HKWorkout {
+                predicate = HKQuery.predicateForObjects(from: workout)
+            } else {
+                predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                    HKQuery.predicateForSamples(
+                        withStart: sentThrough ?? start,
+                        end: end,
+                        options: []
+                    ),
+                    HKQuery.predicateForObjects(from: [HKDevice.local()]),
+                ])
+            }
+            self.readHeartRate(matching: predicate, skipThrough: sentThrough) { samples in
+                deliver(samples.filter { sample in
+                    guard let date = self.instantFormatter.date(from: sample.t) else { return true }
+                    return date <= end
+                })
+            }
+        }
+        healthStore.execute(workoutQuery)
     }
 
     /// Returns and clears whatever is buffered, WITHOUT stopping the session.
@@ -406,15 +496,18 @@ final class WorkoutHealthKitController: NSObject {
         hrSeriesQuery = nil
     }
 
-    /// Heart rate saved with the finished workout. These samples do not exist
-    /// until `finishWorkout` returns, which is after the live query has stopped.
-    private func readFinishedHeartRate(
-        of workout: HKWorkout,
+    /// Heart rate saved in Health, expanded the way the live query expands it.
+    /// For a finished workout these samples do not exist until `finishWorkout`
+    /// returns, which is after the live query has stopped. Completion runs on
+    /// a background queue.
+    private func readHeartRate(
+        matching predicate: NSPredicate,
+        skipThrough: Date?,
         completion: @escaping ([HeartRateSample]) -> Void
     ) {
         let query = HKSampleQuery(
             sampleType: heartRateType,
-            predicate: HKQuery.predicateForObjects(from: workout),
+            predicate: predicate,
             limit: HKObjectQueryNoLimit,
             sortDescriptors: nil
         ) { [weak self] _, samples, _ in
@@ -433,7 +526,8 @@ final class WorkoutHealthKitController: NSObject {
                     guard bpm > 0 else { continue }
                     let expanded = self.expandedSamples(
                         bpm: bpm,
-                        interval: DateInterval(start: sample.startDate, end: sample.endDate)
+                        interval: DateInterval(start: sample.startDate, end: sample.endDate),
+                        skipThrough: skipThrough
                     )
                     lock.lock()
                     collected.append(contentsOf: expanded)
@@ -449,7 +543,11 @@ final class WorkoutHealthKitController: NSObject {
                     if let quantity, let interval {
                         let bpm = quantity.doubleValue(for: bpmUnit)
                         if bpm > 0 {
-                            let expanded = self.expandedSamples(bpm: bpm, interval: interval)
+                            let expanded = self.expandedSamples(
+                                bpm: bpm,
+                                interval: interval,
+                                skipThrough: skipThrough
+                            )
                             lock.lock()
                             collected.append(contentsOf: expanded)
                             lock.unlock()
@@ -473,27 +571,33 @@ final class WorkoutHealthKitController: NSObject {
 
     /// Same expansion `ingestSeriesQuantity` uses, without touching the live
     /// buffer or the on-screen BPM.
-    private func expandedSamples(bpm: Double, interval: DateInterval) -> [HeartRateSample] {
+    private func expandedSamples(
+        bpm: Double,
+        interval: DateInterval,
+        skipThrough: Date?
+    ) -> [HeartRateSample] {
         let duration = interval.end.timeIntervalSince(interval.start)
         if duration <= 2 {
-            return sample(at: interval.end, bpm: bpm).map { [$0] } ?? []
+            return sample(at: interval.end, bpm: bpm, skipThrough: skipThrough).map { [$0] } ?? []
         }
         var samples: [HeartRateSample] = []
         var cursor = interval.start
         while cursor < interval.end {
-            if let sample = sample(at: cursor, bpm: bpm) {
+            if let sample = sample(at: cursor, bpm: bpm, skipThrough: skipThrough) {
                 samples.append(sample)
             }
             cursor = cursor.addingTimeInterval(Self.seriesExpandStep)
         }
-        if let sample = sample(at: interval.end, bpm: bpm) {
+        if let sample = sample(at: interval.end, bpm: bpm, skipThrough: skipThrough) {
             samples.append(sample)
         }
         return samples
     }
 
-    private func sample(at date: Date, bpm: Double) -> HeartRateSample? {
-        if let skipReadingsThrough, date < skipReadingsThrough.addingTimeInterval(1) {
+    /// `skipThrough` is passed in rather than read from `skipReadingsThrough`
+    /// because this runs on HealthKit's queue, after `stop` may have moved on.
+    private func sample(at date: Date, bpm: Double, skipThrough: Date?) -> HeartRateSample? {
+        if let skipThrough, date < skipThrough.addingTimeInterval(1) {
             return nil
         }
         return HeartRateSample(t: instantFormatter.string(from: date), bpm: bpm)
@@ -527,8 +631,9 @@ final class WorkoutHealthKitController: NSObject {
     }
 }
 
-/// Leaves a DispatchGroup once even if HealthKit reports both an error and
-/// a final `done` callback for the same series query.
+/// Lets one caller through. Leaves a DispatchGroup once even if HealthKit
+/// reports both an error and a final `done` callback for the same series
+/// query, and fires `stop`'s completion once when the timeout races the tail.
 private final class LeaveOnce {
     private var left = false
 
