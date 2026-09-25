@@ -166,6 +166,46 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['inside the workout', 0, true],
+    ['an hour before the workout began', -60 * 60_000, false],
+  ])(
+    'uses the watch tap time only when it is %s',
+    async (_label, offsetMs, used) => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      act(() => {
+        getStore().startWorkout(makeSession());
+      });
+      const startedAt = getStore().startedAt!;
+      const tapped = startedAt + offsetMs;
+      const phoneNow = startedAt + 1_000;
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(phoneNow);
+
+      try {
+        await act(async () => {
+          fire('onSetCompleted', {
+            clientId: 'client-1',
+            sessionId: 'session-1',
+            setId: '101',
+            completedAt: new Date(tapped).toISOString(),
+          });
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+      } finally {
+        nowSpy.mockRestore();
+      }
+
+      const stamped = getStore().completedSetIds['101'];
+      if (used) {
+        expect(stamped).toBe(tapped);
+      } else {
+        // Ignored: the phone stamps its own clock instead.
+        expect(stamped).toBe(phoneNow);
+      }
+    }
+  );
+
   it('applies weight and reps typed on the watch before completing the set', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
@@ -381,6 +421,168 @@ describe('useWatchWorkoutBridge', () => {
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
       ],
     });
+  });
+
+  it('attributes the watch drain that arrives after the phone ends the workout', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(
+        makeSession({
+          exercises: [
+            {
+              id: 'ex-uuid-1',
+              exercise_id: 'ex-1',
+              sets: [
+                {
+                  id: 101,
+                  set_number: 1,
+                  set_type: 'normal',
+                  reps: 10,
+                  weight: 60,
+                },
+              ],
+            } as any,
+            {
+              id: 'ex-uuid-2',
+              exercise_id: 'ex-2',
+              sets: [
+                {
+                  id: 201,
+                  set_number: 1,
+                  set_type: 'normal',
+                  reps: 8,
+                  weight: 40,
+                },
+              ],
+            } as any,
+          ],
+        })
+      );
+      useActiveWorkoutStore.setState({
+        startedAt: Date.parse('2026-09-17T10:00:00.000Z'),
+      });
+      getStore().completeSet('101', Date.parse('2026-09-17T10:03:00.000Z'));
+    });
+
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+    mockAttachTelemetry.mockClear();
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'late-1',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
+          { t: '2026-09-17T10:05:00.000Z', bpm: 144 },
+        ],
+        durationMinutes: 20,
+      });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith(
+      'ex-uuid-2',
+      expect.objectContaining({
+        hrSamples: [
+          { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
+          { t: '2026-09-17T10:05:00.000Z', bpm: 144 },
+        ],
+      })
+    );
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      durationMinutes: 3,
+    });
+    expect(mockAttachTelemetry).not.toHaveBeenCalledWith(
+      'ex-uuid-1',
+      expect.objectContaining({ durationMinutes: 20 })
+    );
+  });
+
+  it('does not let a later agreeing batch restore the watch duration', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(
+        makeSession({
+          exercises: [
+            {
+              id: 'ex-uuid-1',
+              exercise_id: 'ex-1',
+              sets: [
+                {
+                  id: 101,
+                  set_number: 1,
+                  set_type: 'normal',
+                  reps: 10,
+                  weight: 60,
+                },
+              ],
+            } as any,
+            {
+              id: 'ex-uuid-2',
+              exercise_id: 'ex-2',
+              sets: [
+                {
+                  id: 201,
+                  set_number: 1,
+                  set_type: 'normal',
+                  reps: 8,
+                  weight: 40,
+                },
+              ],
+            } as any,
+          ],
+        })
+      );
+      useActiveWorkoutStore.setState({
+        startedAt: Date.parse('2026-09-17T10:00:00.000Z'),
+      });
+      getStore().completeSet('101', Date.parse('2026-09-17T10:03:00.000Z'));
+    });
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-1',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
+          { t: '2026-09-17T10:04:10.000Z', bpm: 142 },
+        ],
+        durationMinutes: 999999,
+      });
+      fire('onHeartRateBatch', {
+        clientId: 'hr-2',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-2',
+        samples: [
+          { t: '2026-09-17T10:05:00.000Z', bpm: 150 },
+          { t: '2026-09-17T10:05:10.000Z', bpm: 151 },
+        ],
+        durationMinutes: 999999,
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    const posted = mockAttachTelemetry.mock.calls.map(
+      (call) => call[1].durationMinutes
+    );
+    expect(posted).not.toContain(999999);
+    expect(mockAttachTelemetry).toHaveBeenCalledWith(
+      'ex-uuid-1',
+      expect.objectContaining({ durationMinutes: 3 })
+    );
   });
 
   it('sums the per-batch energy deltas into one measured calorie figure', async () => {

@@ -153,6 +153,7 @@ public class WatchConnectivityModule: Module {
                     // clearing a planned one — same rule as body fat above.
                     "weightKg": payload["weightKg"] as? Double,
                     "reps": payload["reps"] as? Double,
+                    "completedAt": payload["completedAt"] as? String,
                 ])
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in

@@ -780,7 +780,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
             sessionId: sessionId,
             setId: step.plannedSet.setId,
             weightKg: values.weightKg,
-            reps: values.reps
+            reps: values.reps,
+            completedAt: Date()
         )
         transfer(OutboundPayloads.setCompleted(completed))
     }

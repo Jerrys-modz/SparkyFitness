@@ -225,6 +225,13 @@ export interface WatchSetCompletedPayload {
    */
   weightKg?: number | null;
   reps?: number | null;
+  /**
+   * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
+   * its own clock when this is absent (an older watch build, or a set logged
+   * here). Using arrival time instead pulls the next exercise's readings
+   * back onto the previous one for as long as the transfer took.
+   */
+  completedAt?: string | null;
 }
 
 /** One heart-rate reading captured on the watch. */

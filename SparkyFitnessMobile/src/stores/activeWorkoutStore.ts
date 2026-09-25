@@ -279,8 +279,10 @@ export interface ActiveWorkoutState {
    * the set right after it, starting the rest before that set. Sets log in any
    * order, so this can leave earlier sets unchecked (holes); each hole stays
    * re-loggable from its own row control.
+   * `completedAtMs` is the tap time when the watch logged the set. Omit it
+   * and the phone stamps now, which is the right time for a set logged here.
    */
-  completeSet: (setId: string) => void;
+  completeSet: (setId: string, completedAtMs?: number) => void;
   /** Complete the current cursor set. Thin wrapper over {@link completeSet}. */
   completeActiveSet: () => void;
   /**
@@ -1430,7 +1432,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         set({ ...initialData });
       },
 
-      completeSet: (setId) => {
+      completeSet: (setId, completedAtMs) => {
         const state = get();
         const targetIndex = state.steps.findIndex((s) => s.setId === setId);
         if (targetIndex < 0) return;
@@ -1447,7 +1449,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
 
         const completedSetIds: CompletedSetMap = {
           ...state.completedSetIds,
-          [setId]: Date.now(),
+          [setId]:
+            completedAtMs != null && Number.isFinite(completedAtMs)
+              ? completedAtMs
+              : Date.now(),
         };
 
         // PR detection runs against the pre-completion map (the candidate is
