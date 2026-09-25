@@ -226,21 +226,21 @@ public class WatchConnectivityModule: Module {
         /// started from. Deliberately NOT sent via `updateContext` above:
         /// application context is a single latest-value slot shared by the
         /// whole app, so a workout push would either be clobbered by the next
-        /// nutrition/water context push or clobber it right back. This uses
-        /// the same queued-message channel `sendAck` and the watch's own
-        /// check-ins use instead — `sendMessage` when reachable, falling back
-        /// to `transferUserInfo` (queued, delivered once the watch is back)
-        /// so a workout started with the watch out of range still arrives.
+        /// nutrition/water context push or clobber it right back.
+        ///
+        /// `workoutStart` and `intervalTiming` both go through
+        /// `transferUserInfo`, which delivers in send order. A reachable
+        /// `sendMessage` for the start is only a head start: if it fails, its
+        /// queued copy is already ahead of any timing update. Timing itself
+        /// is never `sendMessage` — that can arrive before a start whose
+        /// `sendMessage` failed and fell back to the queue.
         AsyncFunction("startWorkout") { (plan: [String: Any]) -> Void in
             guard WCSession.isSupported() else { return }
             var payload = plan.compactMapValues(withoutNulls)
             payload["type"] = "workoutStart"
+            WCSession.default.transferUserInfo(payload)
             if WCSession.default.isReachable {
-                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
-                    WCSession.default.transferUserInfo(payload)
-                }
-            } else {
-                WCSession.default.transferUserInfo(payload)
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
         }
 
@@ -264,18 +264,13 @@ public class WatchConnectivityModule: Module {
 
         /// Pause or resume the cap on the watch without sending a new
         /// `workoutStart`, which would be ignored for the session already
-        /// running. Queued the same way so a pause still arrives out of range.
+        /// running. Queued behind `workoutStart` on `transferUserInfo` so a
+        /// pause cannot arrive before the plan it belongs to.
         AsyncFunction("updateIntervalTiming") { (timing: [String: Any]) -> Void in
             guard WCSession.isSupported() else { return }
             var payload = timing
             payload["type"] = "intervalTiming"
-            if WCSession.default.isReachable {
-                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
-                    WCSession.default.transferUserInfo(payload)
-                }
-            } else {
-                WCSession.default.transferUserInfo(payload)
-            }
+            WCSession.default.transferUserInfo(payload)
         }
     }
 }

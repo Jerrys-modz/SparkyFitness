@@ -422,6 +422,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
         workoutStore.start(with: plan)
         replayIntervalTiming(sessionId: plan.sessionId)
+        pendingIntervalTiming.removeAll()
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
@@ -754,9 +755,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     }
 
     /// The phone paused or resumed an interval. The snapshot is absolute and
-    /// numbered, so a resume that beats its queued pause still wins. If the
-    /// session is only queued behind HealthKit recovery, keep the snapshot
-    /// and apply it once that plan starts.
+    /// numbered, so a resume that beats its queued pause still wins. A
+    /// snapshot that arrives before its plan is kept and applied in
+    /// `beginPlan` — dropping it here left the watch on a stale cap.
     private func handle(intervalTiming payload: [String: Any]) {
         guard let timing = ContextPayloadMapper.intervalTiming(from: payload) else { return }
         if workoutStore.plan?.sessionId == timing.sessionId {
@@ -768,7 +769,6 @@ final class WatchSessionManager: NSObject, ObservableObject {
             )
             return
         }
-        guard pendingPlan?.sessionId == timing.sessionId else { return }
         pendingIntervalTiming.append(timing)
     }
 

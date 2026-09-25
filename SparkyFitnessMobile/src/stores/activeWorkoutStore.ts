@@ -227,6 +227,13 @@ export interface ActiveWorkoutState {
   intervalPhaseIndex: number;
   isIntervalPaused: boolean;
   intervalPauseStartedAt: number | null;
+  /**
+   * Watch cap snapshot. Persisted so a JS restart does not send revision 1
+   * against a watch that already applied a higher one, or forget pauses that
+   * already happened. The revision is a counter, never a wall-clock value.
+   */
+  watchIntervalRevision: number;
+  watchExcludedPauseMs: number;
   intervalRoundsCompleted: number;
   intervalRepsCompleted: number;
   intervalStatus: 'rx' | 'scaled';
@@ -481,6 +488,8 @@ const initialData: Pick<
   | 'intervalPhaseIndex'
   | 'isIntervalPaused'
   | 'intervalPauseStartedAt'
+  | 'watchIntervalRevision'
+  | 'watchExcludedPauseMs'
   | 'intervalRoundsCompleted'
   | 'intervalRepsCompleted'
   | 'intervalStatus'
@@ -511,6 +520,8 @@ const initialData: Pick<
   intervalPhaseIndex: 0,
   isIntervalPaused: false,
   intervalPauseStartedAt: null,
+  watchIntervalRevision: 0,
+  watchExcludedPauseMs: 0,
   intervalRoundsCompleted: 0,
   intervalRepsCompleted: 0,
   intervalStatus: 'rx',
@@ -1175,6 +1186,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           intervalPhaseIndex: 0,
           isIntervalPaused: false,
           intervalPauseStartedAt: null,
+          watchIntervalRevision: 0,
+          watchExcludedPauseMs: 0,
           intervalRoundsCompleted: 0,
           intervalRepsCompleted: 0,
           intervalStatus: 'rx',
@@ -1234,6 +1247,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           intervalPhaseIndex: 0,
           isIntervalPaused: false,
           intervalPauseStartedAt: null,
+          watchIntervalRevision: 0,
+          watchExcludedPauseMs: 0,
           intervalRoundsCompleted: 0,
           intervalRepsCompleted: 0,
           intervalStatus: 'rx',
@@ -1385,7 +1400,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         const state = get();
         if (!state.isIntervalPaused || state.intervalPauseStartedAt == null)
           return;
-        const pauseDurationMs = Date.now() - state.intervalPauseStartedAt;
+        const pauseDurationMs = Math.max(
+          0,
+          Date.now() - state.intervalPauseStartedAt
+        );
         const nextPhases = shiftPhasesForPause(
           state.intervalPhases,
           state.intervalPhaseIndex,
@@ -2435,6 +2453,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         intervalPhaseIndex: state.intervalPhaseIndex,
         isIntervalPaused: state.isIntervalPaused,
         intervalPauseStartedAt: state.intervalPauseStartedAt,
+        watchIntervalRevision: state.watchIntervalRevision,
+        watchExcludedPauseMs: state.watchExcludedPauseMs,
         intervalRoundsCompleted: state.intervalRoundsCompleted,
         intervalRepsCompleted: state.intervalRepsCompleted,
         intervalStatus: state.intervalStatus,

@@ -248,6 +248,18 @@ describe('useStartLiveWorkout', () => {
       })
     );
     expect(resumed.pausedAt).toBeUndefined();
+    expect(useActiveWorkoutStore.getState().watchIntervalRevision).toBe(
+      resumed.revision
+    );
+    expect(useActiveWorkoutStore.getState().watchExcludedPauseMs).toBe(12_000);
+
+    syncWatchIntervalTiming({ paused: false, pauseDurationMs: -5_000 });
+    const afterRollback = mockUpdateIntervalTiming.mock.calls.at(-1)?.[0];
+    expect(afterRollback.excludedPauseMs).toBe(12_000);
+    expect(afterRollback.revision).toBe((resumed.revision as number) + 1);
+    expect(useActiveWorkoutStore.getState().watchIntervalRevision).toBe(
+      afterRollback.revision
+    );
   });
 
   it('strips planned weight/reps/duration from the create payload and seeds them as the store plan', async () => {

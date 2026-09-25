@@ -111,16 +111,12 @@ export function armWatchForActiveSession(t: TFunction): void {
   );
 }
 
-let watchIntervalTiming = {
-  sessionId: null as string | null,
-  revision: 0,
-  excludedPauseMs: 0,
-};
-
 /**
  * Freezes the watch cap while the phone interval is paused. Each call sends
  * the whole pause snapshot and a revision that only goes up, so a resume
- * delivered before its queued pause still wins.
+ * delivered before its queued pause still wins. The counter and the pause
+ * total live in the persisted store: a JS restart must not send revision 1
+ * against a watch that already stored a higher one.
  */
 export function syncWatchIntervalTiming(timing: {
   paused: boolean;
@@ -128,20 +124,22 @@ export function syncWatchIntervalTiming(timing: {
   pauseDurationMs?: number;
 }): void {
   if (!WatchConnectivity?.isSupported()) return;
-  const { sessionId } = useActiveWorkoutStore.getState();
-  if (sessionId == null) return;
-  if (watchIntervalTiming.sessionId !== sessionId) {
-    watchIntervalTiming = { sessionId, revision: 0, excludedPauseMs: 0 };
-  }
-  if (!timing.paused) {
-    watchIntervalTiming.excludedPauseMs += timing.pauseDurationMs ?? 0;
-  }
-  watchIntervalTiming.revision += 1;
+  const state = useActiveWorkoutStore.getState();
+  if (state.sessionId == null) return;
+  const revision = state.watchIntervalRevision + 1;
+  const addedPauseMs = timing.paused
+    ? 0
+    : Math.max(0, timing.pauseDurationMs ?? 0);
+  const excludedPauseMs = state.watchExcludedPauseMs + addedPauseMs;
+  useActiveWorkoutStore.setState({
+    watchIntervalRevision: revision,
+    watchExcludedPauseMs: excludedPauseMs,
+  });
   void WatchConnectivity.updateIntervalTiming({
-    sessionId,
-    revision: watchIntervalTiming.revision,
+    sessionId: state.sessionId,
+    revision,
     paused: timing.paused,
-    excludedPauseMs: watchIntervalTiming.excludedPauseMs,
+    excludedPauseMs,
     ...(timing.paused && timing.pausedAtMs != null
       ? { pausedAt: new Date(timing.pausedAtMs).toISOString() }
       : {}),
