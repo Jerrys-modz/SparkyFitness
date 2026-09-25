@@ -375,6 +375,16 @@ export interface WatchTelemetryFields {
    * zones once a newer snapshot has committed.
    */
   watch_telemetry_observed_at?: string | Date | null;
+  /**
+   * Wall-clock minutes the watch spent on this exercise. A later flush must
+   * not replace a longer window with a shorter one. When this measurement
+   * exists it is the exercise's duration: the phone's share of elapsed time
+   * must not sit underneath it, or the exercises add up to more than the
+   * workout lasted.
+   */
+  duration_minutes?: number | null;
+  /** High-water mark of `duration_minutes` reported by the watch. */
+  watch_duration_minutes?: number | null;
 }
 
 /**
@@ -431,6 +441,8 @@ export function filterStaleWatchTelemetryFields(
     max_heart_rate?: unknown;
     active_calories?: unknown;
     watch_telemetry_observed_at?: unknown;
+    duration_minutes?: unknown;
+    watch_duration_minutes?: unknown;
   },
   fields: WatchTelemetryFields
 ): { fields: WatchTelemetryFields; skipHr: boolean } {
@@ -466,7 +478,44 @@ export function filterStaleWatchTelemetryFields(
     delete next.calories_burned;
     delete next.active_calories;
   }
+  const proposedDuration = next.duration_minutes;
+  const storedWatchDuration = finiteNonNegative(entry.watch_duration_minutes);
+  if (
+    typeof proposedDuration === 'number' &&
+    Number.isFinite(proposedDuration)
+  ) {
+    const watchHigh =
+      storedWatchDuration === null
+        ? proposedDuration
+        : Math.max(storedWatchDuration, proposedDuration);
+    const measured = Math.round(watchHigh * 100) / 100;
+    next.watch_duration_minutes = measured;
+    next.duration_minutes = measured;
+  }
   return { fields: next, skipHr };
+}
+
+/** Finite minutes, or null when the column is empty. `''` must not become 0. */
+function finiteNonNegative(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Duration written by an ordinary entry save. A watch measurement, when one
+ * exists, is this exercise's duration. The phone's share of the workout is
+ * used only when the watch never measured it.
+ */
+export function ordinaryDurationMinutes(
+  proposed: unknown,
+  stored: unknown,
+  watchMeasured: unknown
+): unknown {
+  if (proposed === undefined) return stored;
+  const watchMinutes = finiteNonNegative(watchMeasured);
+  if (watchMinutes !== null) return watchMinutes;
+  return proposed;
 }
 
 export type WatchTelemetryZoneSpec = {
@@ -586,10 +635,11 @@ async function _updateExerciseEntryWithClient(
       updateData.exercise_id !== undefined
         ? updateData.exercise_id
         : currentEntry.exercise_id,
-    duration_minutes:
-      updateData.duration_minutes !== undefined
-        ? updateData.duration_minutes
-        : currentEntry.duration_minutes,
+    duration_minutes: ordinaryDurationMinutes(
+      updateData.duration_minutes,
+      currentEntry.duration_minutes,
+      currentEntry.watch_duration_minutes
+    ),
     calories_burned:
       updateData.calories_burned !== undefined
         ? updateData.calories_burned
@@ -688,6 +738,11 @@ async function _updateExerciseEntryWithClient(
         ? updateData[column]
         : currentEntry[column];
   }
+  // Resolved again in the UPDATE against the row's own
+  // watch_duration_minutes: telemetry can commit the measurement between the
+  // read above and this write. When that column is set it is the duration,
+  // not a floor under the phone's share of the workout. A null proposal with
+  // no measurement leaves the column null.
   const telemetryParams = telemetryValuesFrom(mergedData);
   const telemetrySetClause = EXERCISE_ENTRY_TELEMETRY_COLUMNS.map(
     (column, index) => `${column} = $${32 + index}`
@@ -695,7 +750,11 @@ async function _updateExerciseEntryWithClient(
   const updateResult = await client.query(
     `UPDATE exercise_entries SET
       exercise_id = $1,
-      duration_minutes = $2,
+      duration_minutes = CASE
+        WHEN watch_duration_minutes IS NOT NULL
+          THEN watch_duration_minutes
+        ELSE $2::numeric
+      END,
       calories_burned = $3,
       entry_date = $4,
       notes = $5,

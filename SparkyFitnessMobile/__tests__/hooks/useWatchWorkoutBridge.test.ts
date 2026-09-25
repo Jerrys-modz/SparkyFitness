@@ -424,6 +424,39 @@ describe('useWatchWorkoutBridge', () => {
     });
   });
 
+  it('posts the longest duration the watch reported for the exercise', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-1',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [],
+        durationMinutes: 4.5,
+      });
+      fire('onHeartRateBatch', {
+        clientId: 'hr-2',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [],
+        durationMinutes: 2,
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+      durationMinutes: 4.5,
+    });
+  });
+
   it('posts measured energy even when the series is too short to zone', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
