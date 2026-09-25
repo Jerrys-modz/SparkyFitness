@@ -560,7 +560,6 @@ describe('useStartLiveWorkout', () => {
   });
 
   it('tells the watch which exercises are a superset, and ignores a group of one', () => {
-    mockWatchIsSupported.mockReturnValue(true);
     const base = makeSession().exercises[0];
     const exercise = (
       id: string,
@@ -578,7 +577,7 @@ describe('useStartLiveWorkout', () => {
           id: setId,
           set_number: index + 1,
         })),
-      }) as (typeof base);
+      }) as typeof base;
 
     act(() => {
       useActiveWorkoutStore.getState().startWorkout({
@@ -598,7 +597,7 @@ describe('useStartLiveWorkout', () => {
         options?.defaultValue ?? key) as never
     );
 
-    expect(mockWatchStartWorkout).toHaveBeenCalledWith(
+    expect(mockStartWorkout).toHaveBeenCalledWith(
       expect.objectContaining({
         exercises: [
           expect.objectContaining({ name: 'Bench Press', supersetRun: 0 }),
