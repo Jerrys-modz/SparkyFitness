@@ -257,11 +257,17 @@ final class WorkoutHealthKitController: NSObject {
             buffered = held
         }
         let gate = LeaveOnce()
-        let deliver: ([HeartRateSample]) -> Void = { samples in
+        // Readings the anchored query or builder delegate had already queued
+        // on main still land in `pendingSamples` after the drain above, and
+        // `appendSample` marks them seen, so the saved-tail filter drops them.
+        // Whichever path wins takes them along. It claims first, so a losing
+        // timeout or tail cannot empty the buffer after completion ran.
+        let deliver: ([HeartRateSample]) -> Void = { [weak self] samples in
             DispatchQueue.main.async {
-                if gate.claim() {
-                    completion(samples)
-                }
+                guard gate.claim() else { return }
+                let late = self?.pendingSamples ?? []
+                self?.pendingSamples = []
+                completion(samples + late)
             }
         }
         guard let session, let endingBuilder = builder else {

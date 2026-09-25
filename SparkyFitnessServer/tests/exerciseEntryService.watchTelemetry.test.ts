@@ -307,5 +307,9 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(update?.sql).toMatch(
       /duration_minutes = CASE[\s\S]*GREATEST\(\$2::numeric, watch_duration_minutes\)/
     );
+    // A null duration keeps the measurement instead of erasing it.
+    expect(update?.sql).toMatch(
+      /WHEN \$2::numeric IS NULL AND watch_duration_minutes IS NOT NULL\s+THEN watch_duration_minutes/
+    );
   });
 });
