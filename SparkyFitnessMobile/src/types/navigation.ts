@@ -208,7 +208,11 @@ export type RootStackParamList = {
         customNutrients?: Record<string, string | number> | null;
       };
   ExerciseForm:
-    | { mode: 'create-exercise' }
+    | {
+        mode: 'create-exercise';
+        /** Seed the form from an existing exercise to save it as a copy. */
+        duplicateOf?: Exercise;
+      }
     | { mode: 'edit-exercise'; exercise: Exercise; returnKey: string };
   FoodScan:
     | {

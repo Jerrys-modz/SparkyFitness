@@ -30,7 +30,8 @@ const LEGACY_KEYS = {
 type LegacyKey = keyof typeof LEGACY_KEYS;
 
 /** Which stat the active-workout log shows in its per-set metric column. */
-export type ActiveWorkoutMetricColumn = 'rpe' | 'volume' | 'e1rm' | 'tenrm';
+export type ActiveWorkoutMetricColumn =
+  'rpe' | 'rir' | 'volume' | 'e1rm' | 'tenrm';
 
 /** Hours without a water log before a hydration reminder fires. */
 export const WATER_REMINDER_INTERVAL_OPTIONS = [1, 2, 3, 4] as const;

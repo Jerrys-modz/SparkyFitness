@@ -105,6 +105,7 @@ export const exerciseEntrySetResponseSchema = z
     rpe: z.number().nullable(),
     completed_at: z.string().nullable(),
     is_pr: z.boolean(),
+    rir: z.number().nullable().optional(),
     // Km. Optional: pre-distance servers omit it.
     distance: z.number().nullable().optional(),
     // Progression & Equipment Fields
@@ -131,6 +132,22 @@ export const activityDetailResponseSchema = z
 
 // --- Request contracts for grouped workout sessions ---
 
+/** exercise_preset_entries.location is varchar(255). */
+export const WORKOUT_LOCATION_MAX_LENGTH = 255;
+
+// Free-text gym name. Blank input clears the location rather than storing ''.
+const workoutLocationRequestSchema = z
+  .string()
+  .trim()
+  .max(WORKOUT_LOCATION_MAX_LENGTH)
+  .transform((value) => (value === "" ? null : value))
+  .nullable()
+  .optional();
+
+/** Reps in reserve: 0 = failure. exercise_entry_sets.rir is numeric(3,1). */
+export const RIR_MIN = 0;
+export const RIR_MAX = 10;
+
 export const exerciseEntrySetRequestSchema = z
   .object({
     id: z.union([z.string(), z.number()]).nullable().optional(),
@@ -143,6 +160,7 @@ export const exerciseEntrySetRequestSchema = z
     rest_time: z.number().nullable().optional(),
     notes: z.string().nullable().optional(),
     rpe: z.number().nullable().optional(),
+    rir: z.number().min(RIR_MIN).max(RIR_MAX).nullable().optional(),
     completed_at: z.iso.datetime().nullable().optional(),
     is_pr: z.boolean().optional(),
     // Km; only meaningful on duration_distance sets.
@@ -222,6 +240,7 @@ export const createPresetSessionRequestSchema = z
     name: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    location: workoutLocationRequestSchema,
     source: z.string().default("manual"),
     exercises: z.array(presetSessionExerciseRequestSchema).optional(),
     workoutPlanAssignmentId: z
@@ -265,6 +284,7 @@ export const updatePresetSessionRequestSchema = z
     name: z.string().min(1).optional(),
     description: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    location: workoutLocationRequestSchema,
     entry_date: dateStringSchema.optional(),
     exercises: z.array(presetSessionExerciseRequestSchema).min(1).optional(),
     activity_details: z.array(activityDetailRequestItemSchema).optional(),
@@ -275,6 +295,7 @@ export const updatePresetSessionRequestSchema = z
       data.name !== undefined ||
       data.description !== undefined ||
       data.notes !== undefined ||
+      data.location !== undefined ||
       data.entry_date !== undefined ||
       data.exercises !== undefined ||
       data.activity_details !== undefined;
@@ -511,6 +532,7 @@ export const presetSessionResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     notes: z.string().nullable(),
+    location: z.string().nullable().optional(),
     source: z.string(),
     created_at: z.string().nullable().optional(),
     total_duration_minutes: z.number(),

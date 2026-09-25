@@ -37,6 +37,7 @@ import {
 import { parseDecimalInput } from './numericInput';
 import { getDefaultRestSec } from './workoutSupersets';
 import { formatLocalizedNumber } from '../localization';
+import { wodScoreFormat } from './wodScore';
 
 // The superset/reorder algebra lives in its own module; re-exported here so
 // the many existing import sites keep working.
@@ -322,10 +323,10 @@ export function buildSessionSubtitle(
         data = wodScoreDetail.detail_data as Record<string, unknown>;
       }
       if (data) {
-        const formatStr =
-          typeof data.format === 'string'
-            ? data.format.toUpperCase().replace('_', ' ')
-            : 'WOD';
+        const wodFormat = wodScoreFormat(data);
+        const formatStr = wodFormat
+          ? wodFormat.toUpperCase().replace('_', ' ')
+          : 'WOD';
         const rounds =
           typeof data.rounds_completed === 'number' ? data.rounds_completed : 0;
         const reps =
@@ -334,9 +335,9 @@ export function buildSessionSubtitle(
           typeof data.status === 'string' ? data.status.toUpperCase() : null;
 
         let scoreStr = '';
-        if (data.format === 'amrap') {
+        if (wodFormat === 'amrap') {
           scoreStr = `${rounds} + ${reps}`;
-        } else if (data.format === 'for_time') {
+        } else if (wodFormat === 'for_time') {
           scoreStr =
             typeof data.elapsed_seconds === 'number'
               ? formatDurationSeconds(data.elapsed_seconds)
@@ -473,6 +474,7 @@ export function buildExercisesPayload(
         ...(set.restTime != null ? { rest_time: set.restTime } : {}),
         notes: set.notes ?? null,
         rpe: set.rpe ?? null,
+        rir: set.rir ?? null,
         completed_at: set.completedAt ?? null,
         is_pr: set.isPr ?? false,
       };
@@ -636,6 +638,7 @@ export interface WorkoutCardSet {
   weight: number | null;
   reps: number | null;
   rpe?: number | null;
+  rir?: number | null;
   rest_time?: number | null;
   notes?: string | null;
   duration?: number | null;
@@ -725,6 +728,7 @@ export function draftExerciseToCardExercise(
         weight: isNaN(weight) ? null : weightToKg(weight, weightUnit),
         reps: isNaN(reps) ? null : reps,
         rpe: set.rpe ?? null,
+        rir: set.rir ?? null,
         rest_time: set.restTime ?? null,
         notes: set.notes ?? null,
         duration: set.duration ?? null,
@@ -1100,6 +1104,7 @@ export function buildSessionExercisesPayload(
         rest_time: set.rest_time ?? null,
         notes: set.notes ?? null,
         rpe: set.rpe ?? null,
+        rir: set.rir ?? null,
         completed_at:
           completedMs != null ? new Date(completedMs).toISOString() : null,
         is_pr: prSetIds[String(set.id)] === true,
@@ -1195,6 +1200,17 @@ export const SET_TYPE_OPTIONS = [
   'drop',
   'failure',
 ] as const;
+
+/**
+ * The first value cell a set row takes focus on for its exercise's modality:
+ * duration for timed/cardio work, reps for bodyweight, else weight.
+ */
+export function firstSetInputField(
+  modality: ExerciseModality
+): 'duration' | 'reps' | 'weight' {
+  if (isDurationModality(modality)) return 'duration';
+  return modality === 'reps_only' ? 'reps' : 'weight';
+}
 
 export function isDropSetType(setType: string | null | undefined): boolean {
   return setType === 'drop';

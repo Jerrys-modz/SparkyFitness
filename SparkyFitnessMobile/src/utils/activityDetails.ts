@@ -1,6 +1,7 @@
 import type { ActivityDetailResponse } from '@workspace/shared';
 import type { TFunction } from 'i18next';
 import { formatLocalizedNumber } from '../localization';
+import { wodScoreFormat } from './wodScore';
 
 export interface ActivitySummaryItem {
   label: string;
@@ -138,10 +139,10 @@ export function extractActivitySummary(
     if (!record) continue;
 
     if (detail.detail_type === 'wod_score') {
-      const formatStr =
-        typeof record.format === 'string'
-          ? record.format.toUpperCase().replace('_', ' ')
-          : 'WOD';
+      const wodFormat = wodScoreFormat(record);
+      const formatStr = wodFormat
+        ? wodFormat.toUpperCase().replace('_', ' ')
+        : 'WOD';
       const rounds =
         typeof record.rounds_completed === 'number'
           ? record.rounds_completed
@@ -158,9 +159,9 @@ export function extractActivitySummary(
           : null;
 
       let scoreVal = '';
-      if (record.format === 'amrap') {
+      if (wodFormat === 'amrap') {
         scoreVal = `${rounds} rounds + ${reps} reps`;
-      } else if (record.format === 'for_time') {
+      } else if (wodFormat === 'for_time') {
         const elapsed =
           typeof record.elapsed_seconds === 'number'
             ? record.elapsed_seconds

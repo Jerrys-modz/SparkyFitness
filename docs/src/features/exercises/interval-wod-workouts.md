@@ -148,4 +148,4 @@ To create an interval workout preset:
    - **Rest Time (seconds)**: Duration of recovery between intervals.
    - **Time Cap (minutes)**: Global time limit (for AMRAP and For Time).
 5. Add your exercises and target reps / weights.
-6. Save the preset. You can now launch it directly from the preset menu or schedule it into your weekly **Workout Plan**.
+6. Save the preset. You can now launch it directly from the preset menu or schedule it into your sequential or weekly **Workout Plan**. The AI assistant and MCP tools can also create format presets, inspect timers, and record WOD scores directly.

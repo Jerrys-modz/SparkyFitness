@@ -1037,6 +1037,11 @@
       "workoutPlansCardTitle": "Workout Plans",
       "editExerciseDialogTitle": "Edit Exercise",
       "editExerciseDialogDescription": "Edit the details of the selected exercise.",
+      "duplicateExercise": "Duplicate",
+      "duplicateExerciseDialogTitle": "Duplicate Exercise",
+      "duplicateExerciseDialogDescription": "Save a copy as your own exercise. The original is not changed.",
+      "saveCopy": "Save Copy",
+      "copySuffix": "(copy)",
       "deleteConfirmationTitle": "Delete {{exerciseName}}?",
       "deleteUsedByOthersDescription": "This exercise is used by other users. Deleting it will affect their data and is not allowed; it will be hidden instead.",
       "deleteUsedByOthersEntries": "{{exerciseEntriesCount}} diary entries (across users)",
@@ -1217,12 +1222,17 @@
       "finish": "Finish Workout",
       "finishError": "Failed to save workout. Your local progress is still preserved, and you can retry.",
       "finishing": "Saving...",
+      "location": "Gym / Location",
+      "locationPlaceholder": "e.g., Downtown Equinox, Garage Gym",
       "noDraft": "No active workout draft was found for this date.",
       "setRow": "Set {{setNumber}}",
       "sets": "sets",
       "title": "Live Workout"
     },
     "workoutPlaybackPage": {
+      "addDropSets": "Add {{sets}} Drop Sets (-{{percent}}%)",
+      "addDropSetsFor": "Add drop sets for {{name}}",
+      "viewImages": "View {{name}} images",
       "addSet": "Add Set",
       "columnReps": "Reps",
       "columnRest": "Rest",
@@ -1309,6 +1319,7 @@
     "failedToLoadActivePlan": "Failed to load active workout plan."
   },
   "exerciseCard": {
+    "workoutLocation": "Gym / Location",
     "title": "Exercise",
     "addExercise": "Add Exercise",
     "noEntries": "No exercise entries for this day.",
@@ -3761,6 +3772,7 @@
     },
     "failedToLoadAlcoholWeek": "Failed to load weekly alcohol data.",
     "failedToLoadHydrationTrend": "Failed to load hydration trend data.",
+    "failedToLoadWorkoutHeatmap": "Failed to load workout heatmap data.",
     "errorToastTitle": "Error",
     "signInMessage": "Please sign in to view reports.",
     "loadingDateControls": "Loading date controls...",
@@ -4137,6 +4149,9 @@
     "sleepScore": "Sleep Score"
   },
   "exerciseReportsDashboard": {
+    "heatmapRangeHint": "Last 12 months. Outlined days are in the selected date range.",
+    "workoutCount_one": "{{count}} workout",
+    "workoutCount_other": "{{count}} workouts",
     "loadingExerciseData": "Loading exercise data...",
     "overallPerformanceSnapshot": "Overall Performance Snapshot",
     "totalWorkouts": "Total Workouts",
@@ -5590,6 +5605,9 @@
     "reps": "Reps",
     "restSec": "Rest (s)",
     "rpe": "RPE",
+    "rir": "RIR",
+    "startTimer": "Start timer",
+    "stopTimer": "Stop timer",
     "type": "Type",
     "weight": "weight"
   },
