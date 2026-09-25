@@ -41,7 +41,11 @@ interface SessionTelemetry {
   energy: Map<string, number>;
   // Largest duration the watch has reported for the exercise, in minutes.
   // The watch sends the cumulative window when the exercise is left.
+  // Once the phone's completion timeline has disagreed with that, durations
+  // come only from the timeline — a later batch must not put the watch's
+  // larger number back.
   durations: Map<string, number>;
+  durationFromTimeline: boolean;
   // `transferUserInfo` can redeliver, and energy is a delta, so applying a
   // batch twice would double calories.
   handledBatchClientIds: Set<string>;
@@ -52,6 +56,15 @@ interface SessionTelemetry {
   unposted: boolean;
   // When the phone stopped considering this session live; null while live.
   endedAt: number | null;
+  // Steps, completions and the active set, copied when the phone ends the
+  // session. The watch's last batch arrives after the live store is cleared,
+  // and that is the ordinary path for a workout finished on the phone.
+  attribution: {
+    steps: { setId: string; exerciseEntryId: string }[];
+    completedAtBySetId: Record<string, number>;
+    startedAt: number | null;
+    activeSetId: string | null;
+  } | null;
 }
 
 // Long enough for the watch's queued final drain to land after the phone has
@@ -72,10 +85,12 @@ function createSessionTelemetry(entryDate: string | null): SessionTelemetry {
     samples: new Map(),
     energy: new Map(),
     durations: new Map(),
+    durationFromTimeline: false,
     handledBatchClientIds: new Set(),
     entryDate,
     unposted: false,
     endedAt: null,
+    attribution: null,
   };
 }
 
@@ -232,7 +247,13 @@ export function useWatchWorkoutBridge(
         state.updateSetField(payload.setId, patch);
       }
 
-      state.completeSet(payload.setId);
+      state.completeSet(
+        payload.setId,
+        payload.completedAt != null &&
+          Number.isFinite(Date.parse(payload.completedAt))
+          ? Date.parse(payload.completedAt)
+          : undefined
+      );
       // Flushed immediately rather than left to the debounced autosave: the
       // phone screen that normally drives that debounce may not even be
       // open while the wearer is logging entirely from the watch.
@@ -267,18 +288,37 @@ export function useWatchWorkoutBridge(
         if (session.handledBatchClientIds.has(payload.clientId)) return;
         session.handledBatchClientIds.add(payload.clientId);
       }
-      // Only the live session still has its completion timestamps. A drain
-      // that arrives after the phone moved on keeps the watch's own tag.
+      // A drain that arrives after the phone ends the workout uses the copy
+      // taken as the store was cleared. While the session is live, the store
+      // itself is that copy.
       const live = payload.sessionId === liveState.sessionId ? liveState : null;
-      const attributed = live
+      const context = live
+        ? {
+            steps: attributionSteps(live),
+            completedAtBySetId: live.completedSetIds,
+            startedAt: live.startedAt,
+            activeSetId: live.activeSetId,
+            now: Date.now(),
+          }
+        : session.attribution
+          ? {
+              ...session.attribution,
+              // The open exercise ends when the phone ended the workout, not
+              // when this delayed batch happens to arrive.
+              now: session.endedAt ?? Date.now(),
+            }
+          : null;
+      const attributed = context
         ? attributeWatchBatch({
             samples: payload.samples,
             activeEnergyKcal: payload.activeEnergyKcal,
             taggedExerciseEntryId: payload.exerciseEntryId,
-            steps: attributionSteps(live),
-            completedAtBySetId: live.completedSetIds,
-            startedAt: live.startedAt,
-            now: Date.now(),
+            steps: context.steps,
+            completedAtBySetId: context.completedAtBySetId,
+            startedAt: context.startedAt,
+            activeSetId: context.activeSetId,
+            now: context.now,
+            forceTimeline: session.durationFromTimeline,
           })
         : null;
       const samplesByExercise =
@@ -310,16 +350,17 @@ export function useWatchWorkoutBridge(
         }
       }
       if (attributed?.durationsByExercise) {
+        session.durationFromTimeline = true;
+        session.durations = new Map();
         for (const [
           exerciseEntryId,
           minutes,
         ] of attributed.durationsByExercise) {
-          if (minutes > 0) {
-            session.durations.set(exerciseEntryId, minutes);
-            session.unposted = true;
-          }
+          if (minutes > 0) session.durations.set(exerciseEntryId, minutes);
         }
+        session.unposted = true;
       } else if (
+        !session.durationFromTimeline &&
         typeof payload.durationMinutes === 'number' &&
         payload.durationMinutes > 0
       ) {
@@ -554,7 +595,15 @@ export function useWatchWorkoutBridge(
       const ended = prevState.sessionId;
       if (ended !== null) {
         const endedSession = sessionsRef.current.get(ended);
-        if (endedSession) endedSession.endedAt = Date.now();
+        if (endedSession) {
+          endedSession.endedAt = Date.now();
+          endedSession.attribution = {
+            steps: attributionSteps(prevState),
+            completedAtBySetId: { ...prevState.completedSetIds },
+            startedAt: prevState.startedAt,
+            activeSetId: prevState.activeSetId,
+          };
+        }
         void WatchConnectivity?.stopWorkout(ended);
         // Posts what has arrived so far. The watch answers that stop signal
         // with its own final drain, which lands afterwards and re-posts the

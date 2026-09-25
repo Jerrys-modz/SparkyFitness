@@ -1,8 +1,17 @@
 /**
  * The watch tags a heart-rate batch with whichever exercise it is showing.
  * A set logged on the phone never moves that cursor, so the whole workout
- * would land on the first exercise. The phone's completion timestamps are
- * the record of which set was actually current, from either device.
+ * would land on the first exercise. Completion timestamps — from either
+ * device — say which set was actually current.
+ *
+ * A sample belongs to the exercise of the next set completed after it.
+ * Time after the last completion belongs to the phone's active set. That
+ * follows what was logged, including a skipped set, instead of stopping at
+ * the first hole in the plan.
+ *
+ * Durations include the rest between those completions, same as the watch's
+ * own per-exercise windows. Zone time is meant to line up with that, not
+ * with the seconds spent actually lifting.
  */
 
 export interface AttributionStep {
@@ -22,55 +31,101 @@ export interface AttributedWatchBatch {
   /**
    * Wall-clock minutes each exercise was the current one. Null when the
    * phone's timeline still agrees with the watch, so the watch's own
-   * duration should be kept.
+   * duration should be kept. Once a session has used this, keep using it:
+   * a later batch that happens to agree must not let the watch's larger
+   * number replace it.
    */
   durationsByExercise: Map<string, number> | null;
+}
+
+interface CompletedStep extends AttributionStep {
+  at: number;
+}
+
+function completedInTimeOrder(
+  steps: AttributionStep[],
+  completedAtBySetId: Record<string, number>
+): CompletedStep[] {
+  const order = new Map(steps.map((step, index) => [step.setId, index]));
+  return steps
+    .flatMap((step) => {
+      const at = completedAtBySetId[step.setId];
+      return at == null ? [] : [{ ...step, at }];
+    })
+    .sort(
+      (a, b) =>
+        a.at - b.at || (order.get(a.setId) ?? 0) - (order.get(b.setId) ?? 0)
+    );
+}
+
+function exerciseOfSet(
+  steps: AttributionStep[],
+  setId: string | null
+): string | null {
+  if (setId == null) return null;
+  return steps.find((step) => step.setId === setId)?.exerciseEntryId ?? null;
 }
 
 function exerciseEntryAt(
   atMs: number,
   steps: AttributionStep[],
-  completedAtBySetId: Record<string, number>,
+  completed: CompletedStep[],
+  activeSetId: string | null,
   fallback: string
 ): string {
-  for (const step of steps) {
-    const completed = completedAtBySetId[step.setId];
-    if (completed == null || completed > atMs) return step.exerciseEntryId;
-  }
-  return steps.length > 0 ? steps[steps.length - 1].exerciseEntryId : fallback;
+  const next = completed.find((step) => step.at > atMs);
+  if (next) return next.exerciseEntryId;
+  return (
+    exerciseOfSet(steps, activeSetId) ??
+    completed[completed.length - 1]?.exerciseEntryId ??
+    steps[0]?.exerciseEntryId ??
+    fallback
+  );
 }
 
 function minutesBetween(startMs: number, endMs: number): number {
   return Math.max(0, endMs - startMs) / 60_000;
 }
 
+function addMinutes(
+  totals: Map<string, number>,
+  exerciseEntryId: string,
+  startMs: number,
+  endMs: number
+): void {
+  const minutes = minutesBetween(startMs, endMs);
+  if (minutes <= 0) return;
+  const rounded = Math.round(minutes * 100) / 100;
+  totals.set(
+    exerciseEntryId,
+    Math.round(((totals.get(exerciseEntryId) ?? 0) + rounded) * 100) / 100
+  );
+}
+
 /**
- * Minutes each exercise was current: from the previous set's completion
- * (or the workout start) until its own, and the open set until `now`.
+ * Minutes each exercise was current, in completion order. A completion
+ * earlier than the cursor (a resumed workout, or a duration edit that
+ * moved the start later) does not pull the cursor backwards.
  */
 function durationsFromTimeline(
   steps: AttributionStep[],
-  completedAtBySetId: Record<string, number>,
+  completed: CompletedStep[],
   startedAt: number,
-  now: number
+  now: number,
+  activeSetId: string | null
 ): Map<string, number> {
   const totals = new Map<string, number>();
   let cursor = startedAt;
-  for (const step of steps) {
-    const completed = completedAtBySetId[step.setId];
-    const end = completed != null ? completed : now;
-    const minutes = minutesBetween(cursor, end);
-    if (minutes > 0) {
-      const rounded = Math.round(minutes * 100) / 100;
-      totals.set(
-        step.exerciseEntryId,
-        Math.round(((totals.get(step.exerciseEntryId) ?? 0) + rounded) * 100) /
-          100
-      );
-    }
-    if (completed == null) break;
-    cursor = completed;
+  for (const step of completed) {
+    const end = Math.max(cursor, step.at);
+    addMinutes(totals, step.exerciseEntryId, cursor, end);
+    cursor = end;
   }
+  const open =
+    exerciseOfSet(steps, activeSetId) ??
+    completed[completed.length - 1]?.exerciseEntryId ??
+    null;
+  if (open) addMinutes(totals, open, cursor, now);
   return totals;
 }
 
@@ -81,16 +136,15 @@ export function attributeWatchBatch(input: {
   steps: AttributionStep[];
   completedAtBySetId: Record<string, number>;
   startedAt: number | null;
+  /** The set the phone is on. Time after the last completion belongs here. */
+  activeSetId: string | null;
   now: number;
+  /** Keep the timeline even when this batch agrees with the watch. */
+  forceTimeline?: boolean;
 }): AttributedWatchBatch {
-  const {
-    samples,
-    taggedExerciseEntryId,
-    steps,
-    completedAtBySetId,
-    startedAt,
-    now,
-  } = input;
+  const { samples, taggedExerciseEntryId, steps, startedAt, activeSetId, now } =
+    input;
+  const completed = completedInTimeOrder(steps, input.completedAtBySetId);
   const samplesByExercise = new Map<string, WatchSample[]>();
   const push = (exerciseEntryId: string, sample: WatchSample) => {
     const list = samplesByExercise.get(exerciseEntryId);
@@ -106,7 +160,8 @@ export function attributeWatchBatch(input: {
         ? exerciseEntryAt(
             atMs,
             steps,
-            completedAtBySetId,
+            completed,
+            activeSetId,
             taggedExerciseEntryId
           )
         : taggedExerciseEntryId;
@@ -116,18 +171,27 @@ export function attributeWatchBatch(input: {
 
   const current =
     steps.length > 0
-      ? exerciseEntryAt(now, steps, completedAtBySetId, taggedExerciseEntryId)
+      ? exerciseEntryAt(
+          now,
+          steps,
+          completed,
+          activeSetId,
+          taggedExerciseEntryId
+        )
       : taggedExerciseEntryId;
   const durationsByExercise =
     startedAt != null &&
     steps.length > 0 &&
-    (moved || current !== taggedExerciseEntryId)
-      ? durationsFromTimeline(steps, completedAtBySetId, startedAt, now)
+    (moved || current !== taggedExerciseEntryId || input.forceTimeline)
+      ? durationsFromTimeline(steps, completed, startedAt, now, activeSetId)
       : null;
 
   const energyByExercise = new Map<string, number>();
   const kcal = input.activeEnergyKcal;
   if (typeof kcal === 'number' && Number.isFinite(kcal) && samples.length > 0) {
+    // By sample count, not by the gaps between them. Samples are usually a
+    // few seconds apart, so this is close to a time split without treating
+    // one long gap as most of the batch's calories.
     const groups = [...samplesByExercise.entries()];
     let assigned = 0;
     groups.forEach(([exerciseEntryId, group], index) => {

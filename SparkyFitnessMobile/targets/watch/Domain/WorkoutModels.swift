@@ -110,6 +110,8 @@ struct CompletedSet: Codable, Equatable {
     let setId: String
     let weightKg: Double?
     let reps: Double?
+    /// When the wearer tapped the set, not when the phone received it.
+    let completedAt: Date
 }
 
 /// One heart-rate reading captured during the workout.
