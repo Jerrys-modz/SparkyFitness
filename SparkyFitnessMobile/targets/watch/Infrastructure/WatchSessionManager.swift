@@ -449,8 +449,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
         guard !endedSessionIds.contains(plan.sessionId) else { return }
         workoutStore.start(with: plan)
+        // Only this session's snapshots. Another plan's pause may already be
+        // queued and has to survive until that plan starts.
         replayIntervalTiming(sessionId: plan.sessionId)
-        pendingIntervalTiming.removeAll()
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
