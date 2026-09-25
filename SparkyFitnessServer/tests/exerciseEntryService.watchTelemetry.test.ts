@@ -267,4 +267,45 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(ordinaryDurationMinutes(4.5, 20, 14)).toBe(14);
     expect(ordinaryDurationMinutes(4.5, 0, null)).toBe(4.5);
   });
+
+  it('resolves the watch floor against the row at write time', async () => {
+    const { _updateExerciseEntryWithClient } = exerciseEntryRepository;
+    const queries: { sql: string; params: unknown[] }[] = [];
+    const client = {
+      query: vi.fn(async (sql: string, params: unknown[] = []) => {
+        queries.push({ sql, params });
+        if (sql.startsWith('UPDATE exercise_entries')) {
+          return { rows: [{ id: entryId }], rowCount: 1 };
+        }
+        // The read sees no measurement yet; telemetry commits 14 minutes
+        // before the UPDATE runs, so only the UPDATE can see it.
+        return {
+          rows: [
+            {
+              id: entryId,
+              user_id: userId,
+              duration_minutes: 4,
+              watch_duration_minutes: null,
+            },
+          ],
+          rowCount: 1,
+        };
+      }),
+    };
+    await _updateExerciseEntryWithClient(
+      client,
+      entryId,
+      userId,
+      { duration_minutes: 4.5 },
+      userId,
+      undefined
+    );
+    const update = queries.find((q) =>
+      q.sql.startsWith('UPDATE exercise_entries')
+    );
+    expect(update?.params[1]).toBe(4.5);
+    expect(update?.sql).toMatch(
+      /duration_minutes = CASE[\s\S]*GREATEST\(\$2::numeric, watch_duration_minutes\)/
+    );
+  });
 });

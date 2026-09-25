@@ -739,6 +739,9 @@ async function _updateExerciseEntryWithClient(
         ? updateData[column]
         : currentEntry[column];
   }
+  // The floor is resolved again in the UPDATE against the row's own
+  // watch_duration_minutes: watch telemetry can commit a longer measurement
+  // between the read above and this write, and the value read here is stale.
   const telemetryParams = telemetryValuesFrom(mergedData);
   const telemetrySetClause = EXERCISE_ENTRY_TELEMETRY_COLUMNS.map(
     (column, index) => `${column} = $${32 + index}`
@@ -746,7 +749,11 @@ async function _updateExerciseEntryWithClient(
   const updateResult = await client.query(
     `UPDATE exercise_entries SET
       exercise_id = $1,
-      duration_minutes = $2,
+      duration_minutes = CASE
+        WHEN $2::numeric IS NULL OR watch_duration_minutes IS NULL
+          THEN $2::numeric
+        ELSE GREATEST($2::numeric, watch_duration_minutes)
+      END,
       calories_burned = $3,
       entry_date = $4,
       notes = $5,
