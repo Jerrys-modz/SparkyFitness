@@ -12,7 +12,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('@/contexts/PreferencesContext', () => ({
-  usePreferences: () => ({ firstDayOfWeek: 1, loggingLevel: 'silent' }),
+  usePreferences: () => ({ firstDayOfWeek: 1 }),
 }));
 
 describe('workoutHeatmapWindow (#2461)', () => {
@@ -29,18 +29,31 @@ describe('workoutHeatmapWindow (#2461)', () => {
 });
 
 describe('WorkoutHeatmap', () => {
-  it('shows the selected report range instead of a fixed year', () => {
+  it('shows 12 months and outlines only days inside the filtered range', () => {
     render(
       <WorkoutHeatmap
-        workoutDates={['2026-09-10']}
-        startDate="2026-09-08"
-        endDate="2026-09-22"
+        today="2026-09-24"
+        workoutDays={[
+          { date: '2025-10-03', count: 1 },
+          { date: '2026-09-10', count: 3 },
+        ]}
+        rangeStart="2026-09-10"
+        rangeEnd="2026-09-24"
       />
     );
 
-    expect(screen.getByLabelText(/2026-09-10/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/2026-09-08/)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/2026-08-01/)).toBeNull();
-    expect(screen.queryByLabelText(/2025-10-03/)).toBeNull();
+    // A workout outside the filter (11 months ago) is still shown.
+    const october = screen.getByTestId('heatmap-day-2025-10-03');
+    expect(october).toHaveClass('bg-green-500');
+    expect(october).not.toHaveAttribute('data-in-range');
+
+    const inRange = screen.getByTestId('heatmap-day-2026-09-10');
+    expect(inRange).toHaveClass('bg-green-700');
+    expect(inRange).toHaveAttribute('data-in-range', 'true');
+
+    expect(screen.getByTestId('heatmap-day-2026-09-09')).not.toHaveAttribute(
+      'data-in-range'
+    );
+    expect(screen.queryByTestId('heatmap-day-2025-09-30')).toBeNull();
   });
 });
