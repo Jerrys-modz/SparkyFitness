@@ -43,6 +43,20 @@ jest.mock('../../src/services/storage', () => ({
   getActiveServerConfig: jest.fn(),
 }));
 
+jest.mock('../../modules/watch-connectivity', () => ({
+  __esModule: true,
+  default: {
+    isSupported: jest.fn(() => true),
+    startWorkout: jest.fn(),
+  },
+}));
+
+const mockStartWorkout = (
+  jest.requireMock('../../modules/watch-connectivity') as {
+    default: { startWorkout: jest.Mock };
+  }
+).default.startWorkout;
+
 const mockCreateWorkout = createWorkout as jest.MockedFunction<
   typeof createWorkout
 >;
@@ -168,6 +182,34 @@ describe('useStartLiveWorkout', () => {
     expect(store.sessionId).toBe('session-1');
     expect(store.createdByLiveStart).toBe(true);
     expect(navigation.replace).toHaveBeenCalledWith('ActiveWorkout');
+  });
+
+  it('arms the watch with the interval format, cap, and start time', async () => {
+    const { result } = setup();
+    const before = Date.now();
+
+    await act(async () => {
+      await result.current.startLiveWorkout({
+        name: 'Push Day',
+        exercises: EXERCISES,
+        workoutFormat: 'amrap',
+        timeCapSeconds: 720,
+      });
+    });
+
+    expect(mockStartWorkout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        workoutFormat: 'amrap',
+        timeCapSeconds: 720,
+        startedAt: expect.any(String),
+      })
+    );
+    const startedAt = Date.parse(
+      mockStartWorkout.mock.calls[0][0].startedAt as string
+    );
+    expect(startedAt).toBeGreaterThanOrEqual(before);
+    expect(startedAt).toBeLessThanOrEqual(Date.now());
   });
 
   it('strips planned weight/reps/duration from the create payload and seeds them as the store plan', async () => {

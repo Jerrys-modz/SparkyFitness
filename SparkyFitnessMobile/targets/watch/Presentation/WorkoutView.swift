@@ -62,6 +62,28 @@ private func intervalCaption(plan: ActiveWorkoutPlan?, now: Date) -> String? {
     return String(format: "%@ %d:%02d", name, minutes, seconds)
 }
 
+/// Ticks once a second. `intervalCaption` reads `now` itself, so it has to
+/// live in a view that redraws on a timer — the parent only redraws when the
+/// store changes, which left the cap sitting still between sets.
+private struct IntervalCaptionView: View {
+    let plan: ActiveWorkoutPlan?
+
+    @State private var now = Date()
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Group {
+            if let caption = intervalCaption(plan: plan, now: now) {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
+                    .monospacedDigit()
+            }
+        }
+        .onReceive(ticker) { now = $0 }
+    }
+}
+
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
@@ -77,11 +99,8 @@ private struct ActiveWorkoutView: View {
     var body: some View {
         VStack(spacing: 4) {
             MetricsStrip(onBack: openExerciseList)
-            if let caption = intervalCaption(plan: store.plan, now: Date()) {
-                Text(caption)
-                    .font(.caption2)
-                    .foregroundStyle(.yellow)
-                    .monospacedDigit()
+            if let format = store.plan?.workoutFormat?.lowercased(), format != "standard" {
+                IntervalCaptionView(plan: store.plan)
             }
 
             if store.isResting {
