@@ -75,9 +75,8 @@ describe('attributeWatchBatch', () => {
         b1: Date.parse('2026-09-17T10:05:00.000Z'),
       },
       startedAt,
-      // The cursor has circled back to the hole. Time after the row still
-      // belongs there only until the row was logged; the samples during the
-      // row must not be pulled back onto the skipped bench set.
+      // The cursor has circled back to the hole. Samples during the row
+      // belong to the row, which is the next set that was actually logged.
       activeSetId: 'a2',
       now: Date.parse('2026-09-17T10:05:00.000Z'),
     });
@@ -90,6 +89,33 @@ describe('attributeWatchBatch', () => {
     ).toEqual([150, 152]);
     expect(result.durationsByExercise?.get('row')).toBe(3);
     expect(result.durationsByExercise?.get('bench')).toBe(2);
+  });
+
+  it('keeps the time after the last logged set off a skipped set', () => {
+    const result = attributeWatchBatch({
+      samples: [
+        { t: '2026-09-17T10:05:00.000Z', bpm: 150 },
+        { t: '2026-09-17T10:07:00.000Z', bpm: 155 },
+      ],
+      taggedExerciseEntryId: 'row',
+      steps,
+      completedAtBySetId: {
+        a1: Date.parse('2026-09-17T10:02:00.000Z'),
+        b1: Date.parse('2026-09-17T10:04:00.000Z'),
+      },
+      startedAt,
+      // Logging b1 with a2 still open sends the cursor back to a2.
+      activeSetId: 'a2',
+      now: Date.parse('2026-09-17T10:08:00.000Z'),
+      forceTimeline: true,
+    });
+
+    expect(result.samplesByExercise.get('bench')).toBeUndefined();
+    expect(
+      result.samplesByExercise.get('row')?.map((sample) => sample.bpm)
+    ).toEqual([150, 155]);
+    expect(result.durationsByExercise?.get('bench')).toBe(2);
+    expect(result.durationsByExercise?.get('row')).toBe(6);
   });
 
   it('does not count a completion that is earlier than the workout start', () => {
@@ -113,10 +139,10 @@ describe('attributeWatchBatch', () => {
       result.samplesByExercise.get('row')?.map((sample) => sample.bpm)
     ).toEqual([130, 132]);
     // The bench set was logged before this workout's start, so it adds no
-    // time. The row is the two minutes from the start until it was logged,
-    // not the twenty-two back to that earlier stamp. The open bench hole
-    // then runs from the row until now.
-    expect(result.durationsByExercise?.get('row')).toBe(2);
-    expect(result.durationsByExercise?.get('bench')).toBe(2);
+    // time. The row runs from the start until now: the cursor went back to
+    // the skipped bench set, which is behind the row, so it does not take
+    // the open stretch.
+    expect(result.durationsByExercise?.get('row')).toBe(4);
+    expect(result.durationsByExercise?.get('bench') ?? 0).toBe(0);
   });
 });

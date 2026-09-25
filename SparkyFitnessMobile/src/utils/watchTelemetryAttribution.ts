@@ -5,9 +5,10 @@
  * device — say which set was actually current.
  *
  * A sample belongs to the exercise of the next set completed after it.
- * Time after the last completion belongs to the phone's active set. That
- * follows what was logged, including a skipped set, instead of stopping at
- * the first hole in the plan.
+ * Time after the last completion belongs to the phone's active set only
+ * when that set is still ahead of the last one logged. If the store has
+ * gone back to fill a skipped set, the open stretch stays on the exercise
+ * that was just completed.
  *
  * Durations include the rest between those completions, same as the watch's
  * own per-exercise windows. Zone time is meant to line up with that, not
@@ -66,6 +67,27 @@ function exerciseOfSet(
   return steps.find((step) => step.setId === setId)?.exerciseEntryId ?? null;
 }
 
+/**
+ * Where the open stretch goes. `completeSet` sends the cursor back to an
+ * earlier hole after the last planned set is logged, and that hole is not
+ * what the wearer is doing. Use the active set only when it sits after the
+ * latest completion in plan order.
+ */
+function openExercise(
+  steps: AttributionStep[],
+  completed: CompletedStep[],
+  activeSetId: string | null
+): string | null {
+  const last = completed[completed.length - 1];
+  const active = exerciseOfSet(steps, activeSetId);
+  if (!last) return active;
+  if (activeSetId == null) return last.exerciseEntryId;
+  const activeIndex = steps.findIndex((step) => step.setId === activeSetId);
+  const lastIndex = steps.findIndex((step) => step.setId === last.setId);
+  if (activeIndex > lastIndex) return active;
+  return last.exerciseEntryId;
+}
+
 function exerciseEntryAt(
   atMs: number,
   steps: AttributionStep[],
@@ -76,8 +98,7 @@ function exerciseEntryAt(
   const next = completed.find((step) => step.at > atMs);
   if (next) return next.exerciseEntryId;
   return (
-    exerciseOfSet(steps, activeSetId) ??
-    completed[completed.length - 1]?.exerciseEntryId ??
+    openExercise(steps, completed, activeSetId) ??
     steps[0]?.exerciseEntryId ??
     fallback
   );
@@ -121,10 +142,7 @@ function durationsFromTimeline(
     addMinutes(totals, step.exerciseEntryId, cursor, end);
     cursor = end;
   }
-  const open =
-    exerciseOfSet(steps, activeSetId) ??
-    completed[completed.length - 1]?.exerciseEntryId ??
-    null;
+  const open = openExercise(steps, completed, activeSetId);
   if (open) addMinutes(totals, open, cursor, now);
   return totals;
 }
@@ -136,7 +154,7 @@ export function attributeWatchBatch(input: {
   steps: AttributionStep[];
   completedAtBySetId: Record<string, number>;
   startedAt: number | null;
-  /** The set the phone is on. Time after the last completion belongs here. */
+  /** The set the phone is on. Used for the open stretch only when it is still ahead of the last set logged. */
   activeSetId: string | null;
   now: number;
   /** Keep the timeline even when this batch agrees with the watch. */
