@@ -1,0 +1,61 @@
+import { attributeWatchBatch } from '../../src/utils/watchTelemetryAttribution';
+
+const steps = [
+  { setId: 'a1', exerciseEntryId: 'bench' },
+  { setId: 'a2', exerciseEntryId: 'bench' },
+  { setId: 'b1', exerciseEntryId: 'row' },
+];
+
+const startedAt = Date.parse('2026-09-17T10:00:00.000Z');
+
+describe('attributeWatchBatch', () => {
+  it('keeps a batch on the watch tag when the phone has not moved on', () => {
+    const result = attributeWatchBatch({
+      samples: [
+        { t: '2026-09-17T10:00:30.000Z', bpm: 120 },
+        { t: '2026-09-17T10:01:00.000Z', bpm: 128 },
+      ],
+      activeEnergyKcal: 12,
+      taggedExerciseEntryId: 'bench',
+      steps,
+      completedAtBySetId: {},
+      startedAt,
+      now: Date.parse('2026-09-17T10:01:00.000Z'),
+    });
+
+    expect(result.samplesByExercise.get('bench')).toHaveLength(2);
+    expect(result.samplesByExercise.has('row')).toBe(false);
+    expect(result.energyByExercise.get('bench')).toBe(12);
+    expect(result.durationsByExercise).toBeNull();
+  });
+
+  it('splits a watch batch once the phone has finished the earlier exercise', () => {
+    const result = attributeWatchBatch({
+      samples: [
+        { t: '2026-09-17T10:01:00.000Z', bpm: 110 },
+        { t: '2026-09-17T10:04:00.000Z', bpm: 140 },
+        { t: '2026-09-17T10:05:00.000Z', bpm: 142 },
+      ],
+      activeEnergyKcal: 30,
+      taggedExerciseEntryId: 'bench',
+      steps,
+      completedAtBySetId: {
+        a1: Date.parse('2026-09-17T10:02:00.000Z'),
+        a2: Date.parse('2026-09-17T10:03:00.000Z'),
+      },
+      startedAt,
+      now: Date.parse('2026-09-17T10:06:00.000Z'),
+    });
+
+    expect(
+      result.samplesByExercise.get('bench')?.map((sample) => sample.bpm)
+    ).toEqual([110]);
+    expect(
+      result.samplesByExercise.get('row')?.map((sample) => sample.bpm)
+    ).toEqual([140, 142]);
+    expect(result.energyByExercise.get('bench')).toBe(10);
+    expect(result.energyByExercise.get('row')).toBe(20);
+    expect(result.durationsByExercise?.get('bench')).toBe(3);
+    expect(result.durationsByExercise?.get('row')).toBe(3);
+  });
+});

@@ -16,6 +16,7 @@ import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { normalizeDate } from '../utils/dateUtils';
+import { attributeWatchBatch } from '../utils/watchTelemetryAttribution';
 import {
   buildWorkoutCelebration,
   type WorkoutCelebration,
@@ -82,6 +83,30 @@ function entryDateOf(
   session: { entry_date?: string | null } | null | undefined
 ): string | null {
   return session?.entry_date != null ? normalizeDate(session.entry_date) : null;
+}
+
+/** Set order → the exercise entry each set belongs to. */
+function attributionSteps(state: {
+  session: {
+    type?: string;
+    exercises?: { id: string; sets: { id: number | string }[] }[];
+  } | null;
+  steps: { setId: string }[];
+}): { setId: string; exerciseEntryId: string }[] {
+  const session = state.session;
+  if (session == null || session.type !== 'preset' || !session.exercises) {
+    return [];
+  }
+  const entryBySet = new Map<string, string>();
+  for (const exercise of session.exercises) {
+    for (const set of exercise.sets) {
+      entryBySet.set(String(set.id), exercise.id);
+    }
+  }
+  return state.steps.flatMap((step) => {
+    const exerciseEntryId = entryBySet.get(step.setId);
+    return exerciseEntryId ? [{ setId: step.setId, exerciseEntryId }] : [];
+  });
 }
 
 /**
@@ -242,14 +267,32 @@ export function useWatchWorkoutBridge(
         if (session.handledBatchClientIds.has(payload.clientId)) return;
         session.handledBatchClientIds.add(payload.clientId);
       }
-      if (payload.samples.length > 0) {
-        const existing = session.samples.get(payload.exerciseEntryId) ?? [];
+      // Only the live session still has its completion timestamps. A drain
+      // that arrives after the phone moved on keeps the watch's own tag.
+      const live = payload.sessionId === liveState.sessionId ? liveState : null;
+      const attributed = live
+        ? attributeWatchBatch({
+            samples: payload.samples,
+            activeEnergyKcal: payload.activeEnergyKcal,
+            taggedExerciseEntryId: payload.exerciseEntryId,
+            steps: attributionSteps(live),
+            completedAtBySetId: live.completedSetIds,
+            startedAt: live.startedAt,
+            now: Date.now(),
+          })
+        : null;
+      const samplesByExercise =
+        attributed?.samplesByExercise ??
+        new Map([[payload.exerciseEntryId, payload.samples]]);
+      for (const [exerciseEntryId, incoming] of samplesByExercise) {
+        if (incoming.length === 0) continue;
+        const existing = session.samples.get(exerciseEntryId) ?? [];
         const seen = new Set(existing.map((sample) => sample.t));
-        const added = payload.samples.filter(
+        const added = incoming.filter(
           (sample) => sample?.t && !seen.has(sample.t)
         );
         if (added.length > 0) {
-          session.samples.set(payload.exerciseEntryId, existing.concat(added));
+          session.samples.set(exerciseEntryId, existing.concat(added));
           session.unposted = true;
         }
       }
@@ -257,14 +300,26 @@ export function useWatchWorkoutBridge(
       // distinguished from a new one, so skip calories rather than double
       // them. Samples still merge via the timestamp set above.
       if (payload.clientId && payload.activeEnergyKcal != null) {
-        const existing = session.energy.get(payload.exerciseEntryId) ?? 0;
-        session.energy.set(
-          payload.exerciseEntryId,
-          existing + payload.activeEnergyKcal
-        );
-        session.unposted = true;
+        const shares =
+          attributed?.energyByExercise ??
+          new Map([[payload.exerciseEntryId, payload.activeEnergyKcal]]);
+        for (const [exerciseEntryId, kcal] of shares) {
+          const existing = session.energy.get(exerciseEntryId) ?? 0;
+          session.energy.set(exerciseEntryId, existing + kcal);
+          session.unposted = true;
+        }
       }
-      if (
+      if (attributed?.durationsByExercise) {
+        for (const [
+          exerciseEntryId,
+          minutes,
+        ] of attributed.durationsByExercise) {
+          if (minutes > 0) {
+            session.durations.set(exerciseEntryId, minutes);
+            session.unposted = true;
+          }
+        }
+      } else if (
         typeof payload.durationMinutes === 'number' &&
         payload.durationMinutes > 0
       ) {
