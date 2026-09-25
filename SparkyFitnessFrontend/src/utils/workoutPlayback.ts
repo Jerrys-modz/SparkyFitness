@@ -34,6 +34,11 @@ export interface WorkoutPlaybackExerciseDraft {
   image_url?: string;
   /** All of the exercise's library images, for the full-screen viewer. */
   images?: string[];
+  /**
+   * The exercise's library instruction lines, read aloud in guided mode.
+   * Optional so drafts saved before it existed still load.
+   */
+  instructions?: string[];
   notes: string | null;
   started_at?: string | null;
   ended_at?: string | null;
@@ -349,6 +354,7 @@ export function createWorkoutPlaybackDraftFromPreset(
           `Exercise ${exerciseIndex + 1}`,
         image_url: exercise.image_url || exercise.exercise?.images?.[0],
         images: exercise.exercise?.images ?? undefined,
+        instructions: exercise.exercise?.instructions ?? undefined,
         modality: resolveExerciseModality(
           exercise.modality ?? exercise.exercise?.modality,
           exercise.category ?? exercise.exercise?.category

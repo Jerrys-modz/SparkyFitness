@@ -1249,6 +1249,14 @@
       "restEditorTitle": "Edit Rest",
       "restTimer": "Rest",
       "volume": "Volume"
+    },
+    "workoutFinishSummary": {
+      "title": "Workout complete",
+      "duration": "Duration",
+      "calories": "Calories",
+      "sets": "Sets",
+      "volume": "Volume",
+      "done": "Done"
     }
   },
   "workoutPresetsManager": {
@@ -6131,5 +6139,61 @@
     "timeCapLabel": "Cap: {{cap}}",
     "wodScoring": "WOD Scoring",
     "work": "Work"
+  },
+  "guidedWorkout": {
+    "cue": {
+      "getReady": "Get ready. Starting {{name}}.",
+      "setStartReps_one": "{{name}}. {{count}} rep.",
+      "setStartReps_other": "{{name}}. {{count}} reps.",
+      "setStartSeconds_one": "{{name}}. {{count}} second.",
+      "setStartSeconds_other": "{{name}}. {{count}} seconds.",
+      "setStartOpen": "{{name}}.",
+      "halfway": "Halfway.",
+      "rest_one": "Rest. {{count}} second.",
+      "rest_other": "Rest. {{count}} seconds.",
+      "intervalRest": "Rest.",
+      "nextUp": "Next: {{name}}.",
+      "workoutComplete": "Workout complete."
+    },
+    "card": {
+      "badge": "GUIDED",
+      "getReady": "Get ready",
+      "setOfTotal": "Set {{current}} of {{total}}",
+      "rest": "Rest",
+      "nextUp": "Next up",
+      "targetReps_one": "{{count}} rep",
+      "targetReps_other": "{{count}} reps",
+      "targetSeconds_one": "{{count}} second",
+      "targetSeconds_other": "{{count}} seconds",
+      "doneWeb": "All sets done. Finish the workout to save it.",
+      "paused": "Paused",
+      "pause": "Pause",
+      "resume": "Resume",
+      "mute": "Mute voice",
+      "unmute": "Unmute voice",
+      "replay": "Replay instructions",
+      "doneNext": "DONE — NEXT",
+      "finished": "FINISHED",
+      "doneHintReps_one": "Tap when you've done {{count}} rep",
+      "doneHintReps_other": "Tap when you've done {{count}} reps",
+      "doneHint": "Tap when you're done"
+    },
+    "settings": {
+      "section": "Guided workouts",
+      "description": "Spoken cues, countdowns and automatic set changes in the workout player",
+      "enabled": "Guided mode",
+      "enabledSubtitleWeb": "Speaks each exercise and its target, counts you in, runs timed sets on their own, and moves to the next set. Saved in this browser only.",
+      "unsupported": "This browser cannot speak. The guided view still works, without narration.",
+      "voice": "Voice",
+      "voiceDefaultWeb": "Browser default",
+      "rate": "Speech rate",
+      "rateValue": "{{rate}}×",
+      "countdown": "Get-ready countdown",
+      "countdownSubtitle": "Before the first exercise and before each timed set.",
+      "countdownValue_one": "{{count}} s",
+      "countdownValue_other": "{{count}} s",
+      "sample": "This is how your guided workouts will sound.",
+      "test": "Test voice"
+    }
   }
 }

@@ -1,15 +1,44 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { resolvePhaseAt } from '@workspace/shared';
+import {
+  buildGuidedIntervalPhaseCues,
+  resolveGuidedSetTarget,
+  resolvePhaseAt,
+  type GuidedSetTarget,
+} from '@workspace/shared';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { syncWatchIntervalTiming } from '../hooks/useStartLiveWorkout';
 import { playIntervalCue } from '../services/sounds';
+import {
+  resetGuidedSpeechSession,
+  setGuidedSpeechMuted,
+  speakGuided,
+  stopGuidedSpeech,
+  useGuidedCaption,
+  useGuidedSpeechMuted,
+} from '../services/speech';
 import { fireSelectionHaptic, fireImpactHaptic } from '../services/haptics';
+import type { GetImageSource } from '../hooks/useExerciseImageSource';
+import { renderGuidedCues } from '../utils/guidedWorkoutSpeech';
+import { guidedExerciseImages } from '../hooks/useGuidedWorkout';
+import { useImageSlideshow } from '../hooks/useImageSlideshow';
+import { resolveSnapshotModality } from '../utils/workoutSession';
+import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
+import SafeImage from './SafeImage';
 
 interface Props {
   now: number;
+  /** Needed only for the guided-mode exercise image. */
+  getImageSource?: GetImageSource;
+}
+
+interface GuidedIntervalStep {
+  exerciseName: string;
+  images: string[];
+  target: GuidedSetTarget;
 }
 
 function formatClock(seconds: number): string {
@@ -19,8 +48,12 @@ function formatClock(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(remS).padStart(2, '0')}`;
 }
 
-export default function ActiveWorkoutIntervalHud({ now }: Props) {
-  const { t } = useTranslation();
+export default function ActiveWorkoutIntervalHud({
+  now,
+  getImageSource,
+}: Props) {
+  const { t, i18n } = useTranslation();
+  const guidedEnabled = useAppPreferencesStore((s) => s.guidedWorkoutEnabled);
 
   const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
   const timeCapSeconds = useActiveWorkoutStore((s) => s.timeCapSeconds);
@@ -56,6 +89,43 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
   const session = useActiveWorkoutStore((s) => s.session);
   const steps = useActiveWorkoutStore((s) => s.steps);
+
+  // Engine step index → exercise, mirroring how startWorkout built the
+  // steps: one per exercise for Tabata/EMOM, one per set otherwise.
+  const getGuidedStep = useCallback(
+    (stepIndex: number): GuidedIntervalStep | null => {
+      if (session == null) return null;
+      if (workoutFormat === 'tabata' || workoutFormat === 'emom') {
+        const exercise = session.exercises[stepIndex];
+        if (!exercise) return null;
+        const snapshot = exercise.exercise_snapshot;
+        return {
+          exerciseName: snapshot?.name ?? '',
+          images: guidedExerciseImages(snapshot?.images),
+          target: resolveGuidedSetTarget(
+            resolveSnapshotModality(snapshot),
+            exercise.sets[0] ?? {}
+          ),
+        };
+      }
+      const step = steps[stepIndex];
+      if (!step) return null;
+      const exercise = session.exercises.find((e) => e.id === step.exerciseId);
+      const set = exercise?.sets.find((x) => String(x.id) === step.setId);
+      return {
+        exerciseName: step.exerciseName,
+        images: guidedExerciseImages(
+          exercise?.exercise_snapshot?.images ??
+            (step.exerciseImage ? [step.exerciseImage] : [])
+        ),
+        target: resolveGuidedSetTarget(
+          resolveSnapshotModality(exercise?.exercise_snapshot),
+          set ?? {}
+        ),
+      };
+    },
+    [session, steps, workoutFormat]
+  );
 
   const effectiveNow =
     isIntervalPaused && intervalPauseStartedAt != null
@@ -136,6 +206,16 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
         }
       }
 
+      if (guidedEnabled) {
+        speakGuided(
+          renderGuidedCues(
+            buildGuidedIntervalPhaseCues(phase, intervalPhases, getGuidedStep),
+            t
+          ),
+          { interrupt: true, language: i18n.language }
+        );
+      }
+
       if (phase.kind === 'work') {
         void playIntervalCue('work');
         fireImpactHaptic();
@@ -168,7 +248,46 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
     session,
     steps,
     completeSet,
+    guidedEnabled,
+    getGuidedStep,
+    t,
+    i18n.language,
   ]);
+
+  useEffect(() => {
+    if (!guidedEnabled) return;
+    return () => {
+      stopGuidedSpeech();
+      resetGuidedSpeechSession();
+    };
+  }, [guidedEnabled]);
+  const guidedMuted = useGuidedSpeechMuted();
+  const guidedCaption = useGuidedCaption();
+  const [textMuted, textPrimary] = useCSSVariable([
+    '--color-text-muted',
+    '--color-text-primary',
+  ]) as [string, string];
+
+  // Guided mode shows the exercise being worked, or the one coming up.
+  let guidedStep: GuidedIntervalStep | null = null;
+  let guidedIsNext = false;
+  if (guidedEnabled && phase) {
+    if (phase.kind === 'work' && phase.stepIndex != null) {
+      guidedStep = getGuidedStep(phase.stepIndex);
+    } else if (phase.kind === 'rest' || phase.kind === 'countdown') {
+      const nextWork = intervalPhases.find(
+        (p) => p.phaseIndex > phase.phaseIndex && p.kind === 'work'
+      );
+      if (nextWork?.stepIndex != null) {
+        guidedStep = getGuidedStep(nextWork.stepIndex);
+        guidedIsNext = true;
+      }
+    }
+  }
+  const guidedImages = guidedStep?.images ?? [];
+  const guidedImage = guidedImages[useImageSlideshow(guidedImages.length)];
+  const guidedImageSource =
+    guidedImage && getImageSource ? getImageSource(guidedImage) : null;
 
   if (workoutFormat === 'standard') {
     return null;
@@ -176,7 +295,7 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
 
   const phaseKind = phase?.kind ?? (isFinished ? 'finished' : 'work');
 
-  let pillBg = 'bg-surface-elevated';
+  let pillBg = 'bg-raised';
   let pillText = 'text-text-secondary';
   let pillLabel = t('interval.ready', { defaultValue: 'Ready' });
 
@@ -193,8 +312,8 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
     pillText = 'text-sky-500 font-bold';
     pillLabel = t('interval.rest', { defaultValue: 'Rest' });
   } else if (phaseKind === 'finished') {
-    pillBg = 'bg-primary/20 border border-primary/40';
-    pillText = 'text-primary font-bold';
+    pillBg = 'bg-accent-primary/20 border border-accent-primary/40';
+    pillText = 'text-accent-primary font-bold';
     pillLabel = t('interval.finished', { defaultValue: 'Completed' });
   }
 
@@ -225,8 +344,8 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
       {/* Top Bar: Format & Round & Pause Button */}
       <View className="flex-row items-center justify-between mb-2">
         <View className="flex-row items-center gap-2">
-          <View className="bg-primary/10 px-2 py-0.5 rounded-md">
-            <Text className="text-xs font-bold text-primary tracking-wide">
+          <View className="bg-accent-primary/10 px-2 py-0.5 rounded-md">
+            <Text className="text-xs font-bold text-accent-primary tracking-wide">
               {formatTitle}
             </Text>
           </View>
@@ -235,49 +354,74 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
           </Text>
         </View>
 
-        <Pressable
-          className={`px-3 py-1.5 rounded-lg flex-row items-center gap-1.5 ${
-            isIntervalPaused ? 'bg-emerald-600' : 'bg-surface-elevated'
-          }`}
-          onPress={() => {
-            if (isIntervalPaused) {
-              const pausedAt =
-                useActiveWorkoutStore.getState().intervalPauseStartedAt;
-              const pauseDurationMs =
-                pausedAt != null ? Math.max(0, Date.now() - pausedAt) : 0;
-              resumeInterval();
-              syncWatchIntervalTiming({ paused: false, pauseDurationMs });
-            } else {
-              pauseInterval();
-              const pausedAt =
-                useActiveWorkoutStore.getState().intervalPauseStartedAt;
-              syncWatchIntervalTiming({
-                paused: true,
-                pausedAtMs: pausedAt ?? Date.now(),
-              });
-            }
-          }}
-          accessibilityLabel={
-            isIntervalPaused
-              ? t('interval.resume', { defaultValue: 'Resume' })
-              : t('interval.pause', { defaultValue: 'Pause' })
-          }
-        >
-          <Icon
-            name={isIntervalPaused ? 'play' : 'pause'}
-            size={14}
-            color={isIntervalPaused ? '#ffffff' : '#94a3b8'}
-          />
-          <Text
-            className={`text-xs font-semibold ${
-              isIntervalPaused ? 'text-white' : 'text-text-secondary'
+        <View className="flex-row items-center gap-2">
+          {guidedEnabled && (
+            <Pressable
+              onPress={() => setGuidedSpeechMuted(!guidedMuted)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                guidedMuted
+                  ? t('guidedWorkout.card.unmute', {
+                      defaultValue: 'Unmute voice',
+                    })
+                  : t('guidedWorkout.card.mute', { defaultValue: 'Mute voice' })
+              }
+              hitSlop={8}
+              className="w-8 h-8 rounded-full bg-raised items-center justify-center active:opacity-70"
+            >
+              <Icon
+                name={guidedMuted ? 'volume-off' : 'volume-on'}
+                size={16}
+                color={guidedMuted ? textMuted : textPrimary}
+              />
+            </Pressable>
+          )}
+          <Pressable
+            className={`px-3 py-1.5 rounded-lg flex-row items-center gap-1.5 ${
+              isIntervalPaused ? 'bg-emerald-600' : 'bg-raised'
             }`}
+            onPress={() => {
+              if (isIntervalPaused) {
+                const pausedAt =
+                  useActiveWorkoutStore.getState().intervalPauseStartedAt;
+                const pauseDurationMs =
+                  pausedAt != null ? Math.max(0, Date.now() - pausedAt) : 0;
+                resumeInterval();
+                syncWatchIntervalTiming({ paused: false, pauseDurationMs });
+              } else {
+                // A paused clock must not keep talking.
+                stopGuidedSpeech();
+                pauseInterval();
+                const pausedAt =
+                  useActiveWorkoutStore.getState().intervalPauseStartedAt;
+                syncWatchIntervalTiming({
+                  paused: true,
+                  pausedAtMs: pausedAt ?? Date.now(),
+                });
+              }
+            }}
+            accessibilityLabel={
+              isIntervalPaused
+                ? t('interval.resume', { defaultValue: 'Resume' })
+                : t('interval.pause', { defaultValue: 'Pause' })
+            }
           >
-            {isIntervalPaused
-              ? t('interval.resume', { defaultValue: 'Resume' })
-              : t('interval.pause', { defaultValue: 'Pause' })}
-          </Text>
-        </Pressable>
+            <Icon
+              name={isIntervalPaused ? 'play' : 'pause'}
+              size={14}
+              color={isIntervalPaused ? '#ffffff' : '#94a3b8'}
+            />
+            <Text
+              className={`text-xs font-semibold ${
+                isIntervalPaused ? 'text-white' : 'text-text-secondary'
+              }`}
+            >
+              {isIntervalPaused
+                ? t('interval.resume', { defaultValue: 'Resume' })
+                : t('interval.pause', { defaultValue: 'Pause' })}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Main HUD: Big Countdown Clock & Phase Pill */}
@@ -303,12 +447,65 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
       </View>
 
       {/* Progress Bar */}
-      <View className="w-full h-1.5 bg-surface-elevated rounded-full overflow-hidden mb-3">
+      <View className="w-full h-1.5 bg-raised rounded-full overflow-hidden mb-3">
         <View
-          className="h-full bg-primary rounded-full"
+          className="h-full bg-accent-primary rounded-full"
           style={{ width: `${progressPercent}%` }}
         />
       </View>
+
+      {guidedStep != null && (
+        <View testID="interval-guided-step" className="items-center mb-3">
+          {guidedImageSource != null ? (
+            <View
+              className="w-full rounded-xl overflow-hidden bg-raised"
+              style={{ aspectRatio: 3 / 2 }}
+            >
+              <SafeImage
+                source={guidedImageSource}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="contain"
+                autoplay
+                fallback={null}
+              />
+              {guidedCaption != null && (
+                <View className="absolute left-0 right-0 bottom-0 bg-black/60 px-3 py-2">
+                  <Text
+                    testID="guided-caption"
+                    className="text-sm font-medium text-white text-center"
+                    numberOfLines={3}
+                  >
+                    {guidedCaption}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            guidedCaption != null && (
+              <View className="w-full rounded-xl bg-black/70 px-3 py-2">
+                <Text
+                  testID="guided-caption"
+                  className="text-sm font-medium text-white text-center"
+                  numberOfLines={3}
+                >
+                  {guidedCaption}
+                </Text>
+              </View>
+            )
+          )}
+          {guidedIsNext && (
+            <Text className="text-xs font-semibold text-text-muted uppercase tracking-wider mt-2">
+              {t('guidedWorkout.card.nextUp', { defaultValue: 'Next up' })}
+            </Text>
+          )}
+          <Text
+            className="text-lg font-bold text-text-primary text-center mt-1"
+            numberOfLines={2}
+          >
+            {guidedStep.exerciseName}
+          </Text>
+        </View>
+      )}
 
       {/* WOD Scoring HUD Controls */}
       <View className="mt-2 pt-3 border-t border-border/30">
@@ -317,10 +514,10 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
           <Text className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
             {t('interval.wodScoring', { defaultValue: 'WOD Scoring' })}
           </Text>
-          <View className="flex-row bg-surface-elevated rounded-lg p-0.5 border border-border/30">
+          <View className="flex-row bg-raised rounded-lg p-0.5 border border-border/30">
             <Pressable
               className={`px-3 py-1 rounded-md ${
-                intervalStatus === 'rx' ? 'bg-primary' : ''
+                intervalStatus === 'rx' ? 'bg-accent-primary' : ''
               }`}
               onPress={() => setIntervalStatus('rx')}
             >
@@ -354,13 +551,13 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
           <>
             <View className="flex-row items-center gap-2 mb-2">
               <Pressable
-                className="flex-1 bg-primary/15 border border-primary/40 rounded-xl py-3 items-center justify-center active:opacity-70 active:scale-[0.99]"
+                className="flex-1 bg-accent-primary/15 border border-accent-primary/40 rounded-xl py-3 items-center justify-center active:opacity-70 active:scale-[0.99]"
                 onPress={() => {
                   fireSelectionHaptic();
                   incrementIntervalRound();
                 }}
               >
-                <Text className="text-sm font-bold text-primary">
+                <Text className="text-sm font-bold text-accent-primary">
                   {t('interval.roundPlusOne', {
                     defaultValue: '+1 Round ({{current}})',
                     current: intervalRoundsCompleted,
@@ -370,7 +567,7 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
 
               {intervalRoundsCompleted > 0 && (
                 <Pressable
-                  className="bg-surface-elevated border border-border/30 px-3 py-3 rounded-xl items-center justify-center active:opacity-70"
+                  className="bg-raised border border-border/30 px-3 py-3 rounded-xl items-center justify-center active:opacity-70"
                   onPress={() => {
                     fireSelectionHaptic();
                     decrementIntervalRound();
@@ -383,13 +580,13 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
               )}
             </View>
 
-            <View className="flex-row items-center justify-between bg-surface-elevated/60 px-3 py-2 rounded-xl">
+            <View className="flex-row items-center justify-between bg-raised/60 px-3 py-2 rounded-xl">
               <Text className="text-xs text-text-secondary font-medium">
                 {t('interval.extraReps', { defaultValue: 'Additional Reps' })}:
               </Text>
               <View className="flex-row items-center gap-1.5">
                 <Pressable
-                  className="w-7 h-7 bg-surface-elevated rounded-lg items-center justify-center border border-border/30"
+                  className="w-7 h-7 bg-raised rounded-lg items-center justify-center border border-border/30"
                   onPress={() =>
                     setIntervalReps(Math.max(0, intervalRepsCompleted - 5))
                   }
@@ -397,7 +594,7 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
                   <Text className="text-xs font-bold text-text-muted">-5</Text>
                 </Pressable>
                 <Pressable
-                  className="w-7 h-7 bg-surface-elevated rounded-lg items-center justify-center border border-border/30"
+                  className="w-7 h-7 bg-raised rounded-lg items-center justify-center border border-border/30"
                   onPress={() =>
                     setIntervalReps(Math.max(0, intervalRepsCompleted - 1))
                   }
@@ -408,7 +605,7 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
                   {intervalRepsCompleted}
                 </Text>
                 <Pressable
-                  className="w-7 h-7 bg-surface-elevated rounded-lg items-center justify-center border border-border/30"
+                  className="w-7 h-7 bg-raised rounded-lg items-center justify-center border border-border/30"
                   onPress={() => setIntervalReps(intervalRepsCompleted + 1)}
                 >
                   <Text className="text-xs font-bold text-text-primary">
@@ -416,7 +613,7 @@ export default function ActiveWorkoutIntervalHud({ now }: Props) {
                   </Text>
                 </Pressable>
                 <Pressable
-                  className="w-7 h-7 bg-surface-elevated rounded-lg items-center justify-center border border-border/30"
+                  className="w-7 h-7 bg-raised rounded-lg items-center justify-center border border-border/30"
                   onPress={() => setIntervalReps(intervalRepsCompleted + 5)}
                 >
                   <Text className="text-xs font-bold text-text-primary">
