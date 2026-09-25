@@ -377,9 +377,13 @@ export interface WatchTelemetryFields {
   watch_telemetry_observed_at?: string | Date | null;
   /**
    * Wall-clock minutes the watch spent on this exercise. A later flush must
-   * not replace a longer window with a shorter one.
+   * not replace a longer window with a shorter one. The diary column can
+   * still grow when a later save reports more; `watch_duration_minutes` is
+   * the measurement that shorter saves are not allowed to undercut.
    */
   duration_minutes?: number | null;
+  /** High-water mark of `duration_minutes` reported by the watch. */
+  watch_duration_minutes?: number | null;
 }
 
 /**
@@ -437,6 +441,7 @@ export function filterStaleWatchTelemetryFields(
     active_calories?: unknown;
     watch_telemetry_observed_at?: unknown;
     duration_minutes?: unknown;
+    watch_duration_minutes?: unknown;
   },
   fields: WatchTelemetryFields
 ): { fields: WatchTelemetryFields; skipHr: boolean } {
@@ -473,15 +478,45 @@ export function filterStaleWatchTelemetryFields(
     delete next.active_calories;
   }
   const proposedDuration = next.duration_minutes;
-  const storedDuration = Number(entry.duration_minutes);
+  const storedDuration = finiteNonNegative(entry.duration_minutes);
+  const storedWatchDuration = finiteNonNegative(entry.watch_duration_minutes);
   if (
     typeof proposedDuration === 'number' &&
-    Number.isFinite(storedDuration) &&
-    proposedDuration < storedDuration
+    Number.isFinite(proposedDuration)
   ) {
-    delete next.duration_minutes;
+    const watchHigh =
+      storedWatchDuration === null
+        ? proposedDuration
+        : Math.max(storedWatchDuration, proposedDuration);
+    next.watch_duration_minutes = Math.round(watchHigh * 100) / 100;
+    if (storedDuration !== null && proposedDuration < storedDuration) {
+      delete next.duration_minutes;
+    }
   }
   return { fields: next, skipHr };
+}
+
+/** Finite minutes, or null when the column is empty. `''` must not become 0. */
+function finiteNonNegative(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Duration written by an ordinary entry save. A longer value wins. A shorter
+ * one cannot undercut the watch measurement kept in `watch_duration_minutes`.
+ */
+export function ordinaryDurationMinutes(
+  proposed: unknown,
+  stored: unknown,
+  watchMeasured: unknown
+): unknown {
+  if (proposed === undefined) return stored;
+  const proposedMinutes = finiteNonNegative(proposed);
+  const watchMinutes = finiteNonNegative(watchMeasured);
+  if (proposedMinutes === null || watchMinutes === null) return proposed;
+  return Math.max(proposedMinutes, watchMinutes);
 }
 
 export type WatchTelemetryZoneSpec = {
@@ -601,10 +636,11 @@ async function _updateExerciseEntryWithClient(
       updateData.exercise_id !== undefined
         ? updateData.exercise_id
         : currentEntry.exercise_id,
-    duration_minutes:
-      updateData.duration_minutes !== undefined
-        ? updateData.duration_minutes
-        : currentEntry.duration_minutes,
+    duration_minutes: ordinaryDurationMinutes(
+      updateData.duration_minutes,
+      currentEntry.duration_minutes,
+      currentEntry.watch_duration_minutes
+    ),
     calories_burned:
       updateData.calories_burned !== undefined
         ? updateData.calories_burned

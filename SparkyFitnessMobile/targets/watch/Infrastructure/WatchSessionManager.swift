@@ -51,9 +51,21 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private var pendingPlan: ActiveWorkoutPlan?
     /// A finish asked to tell the phone while another stop was already running.
     private var pendingSendStop = false
+    /// Snapshot recovery and a `workoutStart` that arrives first both talk to
+    /// HealthKit. The start waits until this is `.finished`, or its session
+    /// can end up being the one recovery just reattached.
+    private enum HkRecovery {
+        case notStarted
+        case running
+        case finished
+    }
+    private var hkRecovery: HkRecovery = .notStarted
 
     private override init() {
         super.init()
+        if !WCSession.isSupported() {
+            hkRecovery = .finished
+        }
         activate()
     }
 
@@ -364,6 +376,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
 
+        // Recovery may still be reattaching the previous HealthKit session.
+        // Queue the plan and let that finish (and stop the old session)
+        // before this one starts, or `start` no-ops onto the old workout.
+        if hkRecovery != .finished {
+            pendingPlan = plan
+            collectionInFlight = true
+            return
+        }
+
         if collectionInFlight {
             pendingPlan = plan
             return
@@ -442,19 +463,21 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     /// Picks an HKWorkoutSession back up after jetsam, or starts a fresh one
     /// against the persisted plan if the system let the recovered session go.
+    /// A start or finish that is already pending is newer than the snapshot,
+    /// so the snapshot is not restored; the leftover session is still ended
+    /// before that pending plan is armed.
     private func recoverLiveWorkoutIfNeeded() {
-        // A queued `workoutStart` can land before activationDidCompleteWith.
-        // That is a live arm from the phone, newer than any snapshot, and
-        // restoring over it would resurrect the previous session on top.
-        if workoutStore.plan != nil { return }
+        hkRecovery = .running
+        if collectionInFlight || pendingPlan != nil {
+            stopLeftoverSessionThenResume()
+            return
+        }
+        if workoutStore.plan != nil {
+            hkRecovery = .finished
+            return
+        }
         guard let snapshot = workoutStore.restoreSnapshot() else {
-            // A recovered HK session with no plan is a ghost — end it so
-            // Fitness does not keep a workout we can no longer attribute.
-            workoutHealthKit.recoverIfNeeded { [weak self] recovered in
-                if recovered {
-                    self?.workoutHealthKit.stop { _ in }
-                }
-            }
+            stopLeftoverSessionThenResume()
             return
         }
         reportedEnergyKcal = snapshot.reportedEnergyKcal
@@ -462,11 +485,73 @@ final class WatchSessionManager: NSObject, ObservableObject {
         workoutHealthKit.recoverIfNeeded(
             heartRateSentThrough: snapshot.heartRateSentThrough
         ) { [weak self] recovered in
-            guard let self else { return }
-            if recovered { return }
-            self.workoutHealthKit.requestAuthorization { _ in
-                self.workoutHealthKit.start(sessionId: snapshot.plan.sessionId)
+            Task { @MainActor in
+                guard let self else { return }
+                if self.collectionInFlight || self.pendingPlan != nil {
+                    self.abandonRecoveredSessionThenResume()
+                    return
+                }
+                self.hkRecovery = .finished
+                if recovered { return }
+                self.workoutHealthKit.requestAuthorization { _ in
+                    self.workoutHealthKit.start(sessionId: snapshot.plan.sessionId)
+                }
             }
+        }
+    }
+
+    /// Ends a HealthKit session we are not going to keep, then arms whatever
+    /// plan was queued while recovery ran.
+    private func stopLeftoverSessionThenResume() {
+        workoutHealthKit.recoverIfNeeded { [weak self] recovered in
+            Task { @MainActor in
+                guard let self else { return }
+                let finish = {
+                    self.hkRecovery = .finished
+                    self.resumeQueuedPlan()
+                }
+                if recovered {
+                    self.workoutHealthKit.stop { _ in
+                        Task { @MainActor in finish() }
+                    }
+                } else {
+                    finish()
+                }
+            }
+        }
+    }
+
+    /// A new plan arrived after the snapshot was restored but before the old
+    /// session was safe to replace. Send the old tail, then drop it.
+    private func abandonRecoveredSessionThenResume() {
+        let closing = workoutStore.closeCurrentExerciseWindow()
+        workoutHealthKit.stop { [weak self] samples in
+            Task { @MainActor in
+                guard let self else { return }
+                if let closing {
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        durationMinutes: closing.minutes
+                    )
+                }
+                self.workoutStore.reset()
+                self.hkRecovery = .finished
+                self.resumeQueuedPlan()
+            }
+        }
+    }
+
+    /// Starts the plan that waited out recovery. A phone stop that cleared it
+    /// while we waited leaves the watch idle.
+    private func resumeQueuedPlan() {
+        guard hkRecovery == .finished, collectionInFlight else { return }
+        let next = pendingPlan
+        pendingPlan = nil
+        pendingSendStop = false
+        collectionInFlight = false
+        if let next {
+            beginPlan(next)
         }
     }
 

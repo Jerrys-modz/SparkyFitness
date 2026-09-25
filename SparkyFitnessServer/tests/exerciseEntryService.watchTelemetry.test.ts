@@ -247,4 +247,24 @@ describe('filterStaleWatchTelemetryFields', () => {
     );
     expect(fields.duration_minutes).toBeUndefined();
   });
+
+  it('records the watch duration separately from a longer stored duration', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields } = filterStaleWatchTelemetryFields(
+      { duration_minutes: 20, watch_duration_minutes: 14 },
+      { duration_minutes: 16 }
+    );
+    expect(fields.duration_minutes).toBeUndefined();
+    expect(fields.watch_duration_minutes).toBe(16);
+  });
+
+  it('does not let an ordinary save undercut the watch duration', async () => {
+    const { ordinaryDurationMinutes } =
+      await import('../models/exerciseEntry.js');
+    expect(ordinaryDurationMinutes(4.5, 14, 14)).toBe(14);
+    expect(ordinaryDurationMinutes(20, 14, 14)).toBe(20);
+    expect(ordinaryDurationMinutes(4.5, 20, 14)).toBe(14);
+    expect(ordinaryDurationMinutes(4.5, 0, null)).toBe(4.5);
+  });
 });
