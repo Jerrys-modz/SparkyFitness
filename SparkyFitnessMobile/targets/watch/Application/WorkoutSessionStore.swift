@@ -53,6 +53,7 @@ final class WorkoutSessionStore: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let snapshotKey = "sparky.watch.workoutSnapshot"
+    private let pendingTailsKey = "sparky.watch.pendingHeartRateTails"
     /// Previews share this process's UserDefaults; they must not write a
     /// snapshot that the next real launch would restore as a live workout.
     private let persistEnabled: Bool
@@ -423,6 +424,49 @@ final class WorkoutSessionStore: ObservableObject {
         heartRateSentThrough = snapshot.heartRateSentThrough
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
+    }
+
+    // MARK: - Pending tails
+
+    /// A finished workout whose saved heart-rate tail was still being read
+    /// when the finish timed out. Kept apart from the snapshot, which the
+    /// finish clears, so the tail can still be sent later in this process or
+    /// after a relaunch.
+    struct PendingTail: Codable, Equatable {
+        var sessionId: String
+        /// The exercise the final readings belong to.
+        var exerciseEntryId: String
+        /// Latest instant already sent. The tail is only what comes after.
+        var sentThrough: Date?
+        /// When the timeout gave up waiting. Old entries are abandoned.
+        var createdAt: Date
+    }
+
+    func pendingTails() -> [PendingTail] {
+        guard persistEnabled,
+              let data = defaults.data(forKey: pendingTailsKey),
+              let tails = try? JSONDecoder().decode([PendingTail].self, from: data)
+        else { return [] }
+        return tails
+    }
+
+    func addPendingTail(_ tail: PendingTail) {
+        var tails = pendingTails().filter { $0.sessionId != tail.sessionId }
+        tails.append(tail)
+        writePendingTails(tails)
+    }
+
+    func removePendingTail(sessionId: String) {
+        writePendingTails(pendingTails().filter { $0.sessionId != sessionId })
+    }
+
+    private func writePendingTails(_ tails: [PendingTail]) {
+        guard persistEnabled else { return }
+        if tails.isEmpty {
+            defaults.removeObject(forKey: pendingTailsKey)
+        } else if let data = try? JSONEncoder().encode(tails) {
+            defaults.set(data, forKey: pendingTailsKey)
+        }
     }
 
     func clearSnapshot() {

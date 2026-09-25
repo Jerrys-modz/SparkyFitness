@@ -237,13 +237,16 @@ final class WorkoutHealthKitController: NSObject {
     /// to be suspended mid-finish. Passing nil folds them into `completion`.
     ///
     /// The completion is always on the main queue and fires exactly once, at
-    /// the latest `finishTailTimeout` after the call. It can run after
-    /// HealthKit has finished the workout, so callers must not send
-    /// `workoutStop` or clear the plan until it fires — the tail still needs a
-    /// session to tag.
+    /// the latest `finishTailTimeout` after the call. Its second argument is
+    /// true when the timeout fired it: the saved tail was still outstanding,
+    /// and arrives later through `onLateTail` (possibly empty, which means
+    /// HealthKit is done and there was nothing more). Callers must not send
+    /// `workoutStop` or clear the plan until `completion` fires — the tail
+    /// still needs a session to tag.
     func stop(
         onBuffered: (([HeartRateSample]) -> Void)? = nil,
-        completion: @escaping ([HeartRateSample]) -> Void
+        onLateTail: (([HeartRateSample]) -> Void)? = nil,
+        completion: @escaping ([HeartRateSample], Bool) -> Void
     ) {
         stopBatchTimer()
         stopHeartRateSeriesQuery()
@@ -260,26 +263,38 @@ final class WorkoutHealthKitController: NSObject {
         // Readings the anchored query or builder delegate had already queued
         // on main still land in `pendingSamples` after the drain above, and
         // `appendSample` marks them seen, so the saved-tail filter drops them.
-        // Whichever path wins takes them along. It claims first, so a losing
-        // timeout or tail cannot empty the buffer after completion ran.
-        let deliver: ([HeartRateSample]) -> Void = { [weak self] samples in
+        // Whichever path runs takes them along. The completion is claimed
+        // first, so a losing path cannot empty the buffer after it ran.
+        // Both closures run on main only.
+        let drainLate: () -> [HeartRateSample] = { [weak self] in
+            let late = self?.pendingSamples ?? []
+            self?.pendingSamples = []
+            return late
+        }
+        // `tail` is only what HealthKit saved that nobody has seen: empty
+        // when it could not save. `buffered` rides with the completion, so a
+        // late tail after the timeout does not repeat it.
+        let finishTail: ([HeartRateSample]) -> Void = { tail in
             DispatchQueue.main.async {
-                guard gate.claim() else { return }
-                let late = self?.pendingSamples ?? []
-                self?.pendingSamples = []
-                completion(samples + late)
+                if gate.claim() {
+                    completion(buffered + tail + drainLate(), false)
+                } else {
+                    onLateTail?(tail + drainLate())
+                }
             }
         }
         guard let session, let endingBuilder = builder else {
-            deliver(buffered)
+            finishTail([])
             return
         }
         // HealthKit can take a while to save, and a query can stall. The
-        // caller holds the plan, and any queued next workout, until this
-        // fires, so the wait is bounded. A tail that lands after it is
-        // dropped; what was buffered went out through `onBuffered` already.
+        // caller holds the plan, and any queued next workout, until the
+        // completion fires, so the wait is bounded. The tail itself is not
+        // dropped: it goes to `onLateTail` whenever it does arrive.
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.finishTailTimeout) {
-            deliver(buffered)
+            if gate.claim() {
+                completion(buffered + drainLate(), true)
+            }
         }
         let skipThrough = skipReadingsThrough
         let now = Date()
@@ -289,7 +304,7 @@ final class WorkoutHealthKitController: NSObject {
         endingBuilder.endCollection(withEnd: now) { [weak self] _, _ in
             endingBuilder.finishWorkout { [weak self] workout, _ in
                 guard let self, let workout else {
-                    deliver(buffered)
+                    finishTail([])
                     return
                 }
                 self.readHeartRate(
@@ -304,30 +319,30 @@ final class WorkoutHealthKitController: NSObject {
                         for sample in novel {
                             self.pendingSampleTimes.insert(sample.t)
                         }
-                        deliver(buffered + novel)
+                        finishTail(novel)
                     }
                 }
             }
         }
     }
 
-    /// Heart rate from a workout whose finish was interrupted before its tail
-    /// reached the phone. Prefers the saved workout carrying this session's
-    /// own-write marker; if HealthKit never saved one, falls back to this
-    /// watch's readings between `start` and `end`. Readings at or before
-    /// `sentThrough` were already sent and are skipped. Completion is on main.
+    /// Heart rate saved with the workout carrying this session's own-write
+    /// marker, for a finish whose tail never reached the phone. Readings at or
+    /// before `sentThrough` were already sent and are skipped.
+    ///
+    /// Completion is on main with nil when HealthKit holds no such workout.
+    /// There is deliberately no fallback to other readings in the time window:
+    /// nothing ties those to this workout, let alone to one exercise.
     func readSavedHeartRate(
         sessionId: String,
-        from start: Date,
-        to end: Date,
         sentThrough: Date?,
-        completion: @escaping ([HeartRateSample]) -> Void
+        completion: @escaping ([HeartRateSample]?) -> Void
     ) {
-        let deliver: ([HeartRateSample]) -> Void = { samples in
+        let deliver: ([HeartRateSample]?) -> Void = { samples in
             DispatchQueue.main.async { completion(samples) }
         }
         guard HKHealthStore.isHealthDataAvailable() else {
-            deliver([])
+            deliver(nil)
             return
         }
         let workoutQuery = HKSampleQuery(
@@ -339,28 +354,15 @@ final class WorkoutHealthKitController: NSObject {
             limit: 1,
             sortDescriptors: nil
         ) { [weak self] _, samples, _ in
-            guard let self else {
-                deliver([])
+            guard let self, let workout = samples?.first as? HKWorkout else {
+                deliver(nil)
                 return
             }
-            let predicate: NSPredicate
-            if let workout = samples?.first as? HKWorkout {
-                predicate = HKQuery.predicateForObjects(from: workout)
-            } else {
-                predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                    HKQuery.predicateForSamples(
-                        withStart: sentThrough ?? start,
-                        end: end,
-                        options: []
-                    ),
-                    HKQuery.predicateForObjects(from: [HKDevice.local()]),
-                ])
-            }
-            self.readHeartRate(matching: predicate, skipThrough: sentThrough) { samples in
-                deliver(samples.filter { sample in
-                    guard let date = self.instantFormatter.date(from: sample.t) else { return true }
-                    return date <= end
-                })
+            self.readHeartRate(
+                matching: HKQuery.predicateForObjects(from: workout),
+                skipThrough: sentThrough
+            ) { samples in
+                deliver(samples)
             }
         }
         healthStore.execute(workoutQuery)

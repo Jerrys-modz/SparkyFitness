@@ -394,7 +394,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             // end before the new one starts.
             collectionInFlight = true
             pendingPlan = plan
-            workoutHealthKit.stop { [weak self] _ in
+            workoutHealthKit.stop { [weak self] _, _ in
                 Task { @MainActor in
                     guard let self else { return }
                     let next = self.pendingPlan
@@ -467,6 +467,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// so the snapshot is not restored; the leftover session is still ended
     /// before that pending plan is armed.
     private func recoverLiveWorkoutIfNeeded() {
+        retryPendingTails()
         hkRecovery = .running
         // A finish that was cut off is completed before anything else. It is
         // older than any queued plan, and resuming it would restart a workout
@@ -511,33 +512,27 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     /// The process stopped after a finish began but before its tail and stop
     /// signal were queued. Ends any session HealthKit still has running, reads
-    /// the readings the phone has not seen back from Health, sends them with
-    /// the exercise's duration, then clears the snapshot and arms whatever
-    /// plan waited. Resending is harmless: batches past `heartRateSentThrough`
-    /// only, and the server keeps the longer duration.
+    /// the readings the phone has not seen back from the saved workout, sends
+    /// them with the exercise's duration, then clears the snapshot and arms
+    /// whatever plan waited. Resending is harmless: only readings past
+    /// `heartRateSentThrough`, and the server keeps the longer duration.
+    ///
+    /// When HealthKit saved no workout for this session, only the duration and
+    /// stop go out. Other readings from the same stretch of time are not
+    /// guessed onto the exercise.
     private func completeInterruptedFinish(
         _ snapshot: WorkoutSessionStore.Snapshot,
         finishing: WorkoutSessionStore.Finishing
     ) {
         let sessionId = snapshot.plan.sessionId
-        let send: ([HeartRateSample]) -> Void = { [weak self] samples in
+        let complete: ([HeartRateSample]) -> Void = { [weak self] samples in
             guard let self else { return }
-            if !samples.isEmpty || finishing.minutes > 0 {
-                self.transfer(
-                    OutboundPayloads.heartRateBatch(
-                        HeartRateBatch(
-                            clientId: UUID().uuidString,
-                            sessionId: sessionId,
-                            exerciseEntryId: finishing.exerciseEntryId,
-                            samples: samples,
-                            // The energy high-water mark HealthKit held is
-                            // gone with the session; a delta would be a guess.
-                            activeEnergyKcal: nil,
-                            durationMinutes: finishing.minutes > 0 ? finishing.minutes : nil
-                        )
-                    )
-                )
-            }
+            self.sendDetachedBatch(
+                samples,
+                sessionId: sessionId,
+                exerciseEntryId: finishing.exerciseEntryId,
+                durationMinutes: finishing.minutes
+            )
             if finishing.sendStop {
                 self.transfer(
                     OutboundPayloads.workoutStop(WorkoutStopSignal(sessionId: sessionId))
@@ -556,22 +551,118 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     // Killed before HealthKit was told to end: the session
                     // is still live, so stop it the normal way.
                     // No `onBuffered`: the buffer and the tail arrive together.
-                    self.workoutHealthKit.stop { samples in
-                        Task { @MainActor in send(samples) }
+                    self.workoutHealthKit.stop(onLateTail: { [weak self] samples in
+                        MainActor.assumeIsolated {
+                            self?.deliverLateTail(
+                                samples,
+                                sessionId: sessionId,
+                                exerciseEntryId: finishing.exerciseEntryId
+                            )
+                        }
+                    }) { [weak self] samples, timedOut in
+                        MainActor.assumeIsolated {
+                            if timedOut {
+                                self?.parkLateTail(
+                                    sessionId: sessionId,
+                                    exerciseEntryId: finishing.exerciseEntryId,
+                                    sentThrough: snapshot.heartRateSentThrough
+                                )
+                            }
+                            complete(samples)
+                        }
                     }
                     return
                 }
                 self.workoutHealthKit.readSavedHeartRate(
                     sessionId: sessionId,
-                    from: snapshot.startedAt,
-                    to: finishing.requestedAt,
                     sentThrough: snapshot.heartRateSentThrough
                 ) { samples in
-                    Task { @MainActor in send(samples) }
+                    Task { @MainActor in complete(samples ?? []) }
                 }
             }
         }
     }
+
+    /// Queues a batch for a workout that is no longer the live plan, so it
+    /// cannot read its ids or energy from `workoutStore`. Energy is left out:
+    /// the running total it would be a delta against is gone.
+    private func sendDetachedBatch(
+        _ samples: [HeartRateSample],
+        sessionId: String,
+        exerciseEntryId: String,
+        durationMinutes: Double? = nil
+    ) {
+        let minutes = (durationMinutes ?? 0) > 0 ? durationMinutes : nil
+        guard !samples.isEmpty || minutes != nil else { return }
+        transfer(
+            OutboundPayloads.heartRateBatch(
+                HeartRateBatch(
+                    clientId: UUID().uuidString,
+                    sessionId: sessionId,
+                    exerciseEntryId: exerciseEntryId,
+                    samples: samples,
+                    activeEnergyKcal: nil,
+                    durationMinutes: minutes
+                )
+            )
+        )
+    }
+
+    /// The finish timed out before HealthKit's saved tail was read. Records
+    /// what is still owed so it goes out when `onLateTail` fires, or on the
+    /// next launch if this process does not live that long.
+    private func parkLateTail(
+        sessionId: String,
+        exerciseEntryId: String,
+        sentThrough: Date? = nil
+    ) {
+        workoutStore.addPendingTail(
+            WorkoutSessionStore.PendingTail(
+                sessionId: sessionId,
+                exerciseEntryId: exerciseEntryId,
+                sentThrough: sentThrough ?? workoutStore.heartRateSentThrough,
+                createdAt: Date()
+            )
+        )
+    }
+
+    /// A tail that arrived after its finish timed out.
+    private func deliverLateTail(
+        _ samples: [HeartRateSample],
+        sessionId: String,
+        exerciseEntryId: String
+    ) {
+        sendDetachedBatch(samples, sessionId: sessionId, exerciseEntryId: exerciseEntryId)
+        workoutStore.removePendingTail(sessionId: sessionId)
+    }
+
+    /// Tails parked by a finish that timed out, in a process that ended before
+    /// HealthKit handed them over. Read back from the saved workout. One that
+    /// HealthKit still has no workout for is kept for a later launch, up to a
+    /// day, in case the save is still pending.
+    private func retryPendingTails() {
+        for tail in workoutStore.pendingTails() {
+            workoutHealthKit.readSavedHeartRate(
+                sessionId: tail.sessionId,
+                sentThrough: tail.sentThrough
+            ) { [weak self] samples in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if let samples {
+                        self.deliverLateTail(
+                            samples,
+                            sessionId: tail.sessionId,
+                            exerciseEntryId: tail.exerciseEntryId
+                        )
+                    } else if Date().timeIntervalSince(tail.createdAt) > Self.pendingTailMaxAge {
+                        self.workoutStore.removePendingTail(sessionId: tail.sessionId)
+                    }
+                }
+            }
+        }
+    }
+
+    private static let pendingTailMaxAge: TimeInterval = 24 * 60 * 60
 
     /// Ends a HealthKit session we are not going to keep, then arms whatever
     /// plan was queued while recovery ran.
@@ -584,7 +675,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     self.resumeQueuedPlan()
                 }
                 if recovered {
-                    self.workoutHealthKit.stop { _ in
+                    self.workoutHealthKit.stop { _, _ in
                         Task { @MainActor in finish() }
                     }
                 } else {
@@ -598,6 +689,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// session was safe to replace. Send the old tail, then drop it.
     private func abandonRecoveredSessionThenResume() {
         let closing = workoutStore.closeCurrentExerciseWindow()
+        let abandonedSessionId = workoutStore.plan?.sessionId
         if let closing {
             workoutStore.markFinishing(
                 WorkoutSessionStore.Finishing(
@@ -617,11 +709,23 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     durationMinutes: closing.minutes
                 )
             }
-        }) { [weak self] samples in
-            Task { @MainActor in
+        }, onLateTail: { [weak self] samples in
+            MainActor.assumeIsolated {
+                guard let self, let closing, let abandonedSessionId else { return }
+                self.deliverLateTail(
+                    samples,
+                    sessionId: abandonedSessionId,
+                    exerciseEntryId: closing.id
+                )
+            }
+        }) { [weak self] samples, timedOut in
+            MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
                     self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    if timedOut, let abandonedSessionId {
+                        self.parkLateTail(sessionId: abandonedSessionId, exerciseEntryId: closing.id)
+                    }
                 }
                 self.workoutStore.reset()
                 self.hkRecovery = .finished
@@ -805,11 +909,25 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     durationMinutes: closing.minutes
                 )
             }
-        }) { [weak self] samples in
-            Task { @MainActor in
+        }, onLateTail: { [weak self] samples in
+            MainActor.assumeIsolated {
+                guard let self, let closing, let stopSessionId else { return }
+                self.deliverLateTail(
+                    samples,
+                    sessionId: stopSessionId,
+                    exerciseEntryId: closing.id
+                )
+            }
+        }) { [weak self] samples, timedOut in
+            // Synchronous, not a Task: a timed-out finish parks its tail here,
+            // and that has to happen before `onLateTail` can run.
+            MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
                     self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    if timedOut, let stopSessionId {
+                        self.parkLateTail(sessionId: stopSessionId, exerciseEntryId: closing.id)
+                    }
                 }
                 if (sendStop || self.pendingSendStop), let stopSessionId {
                     self.transfer(
