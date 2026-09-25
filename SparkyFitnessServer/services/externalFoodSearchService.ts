@@ -356,8 +356,10 @@ export async function searchProviderFoods(
         .filter(
           (x): x is NonNullable<typeof x> => x !== null && x !== undefined
         );
+      // Only the first few results get a detail call, so they must be the
+      // ones that will rank first.
       foods = await enrichFatSecretResults(
-        mapped,
+        rankProviderMatches(mapped as ProviderFoodItem[], query),
         credentials.app_id,
         credentials.app_key
       );
