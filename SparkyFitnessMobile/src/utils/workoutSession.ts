@@ -334,14 +334,27 @@ export function buildSessionSubtitle(
         const status =
           typeof data.status === 'string' ? data.status.toUpperCase() : null;
 
+        const scoreType =
+          typeof data.score_type === 'string' ? data.score_type : null;
+
         let scoreStr = '';
-        if (wodFormat === 'amrap') {
+        if (scoreType === 'total_reps') {
+          scoreStr = `${reps} reps`;
+        } else if (
+          scoreType === 'rounds_reps' ||
+          (!scoreType && wodFormat === 'amrap')
+        ) {
           scoreStr = `${rounds} + ${reps}`;
-        } else if (wodFormat === 'for_time') {
+        } else if (
+          scoreType === 'time' ||
+          (!scoreType && wodFormat === 'for_time')
+        ) {
           scoreStr =
             typeof data.elapsed_seconds === 'number'
               ? formatDurationSeconds(data.elapsed_seconds)
               : 'Completed';
+        } else if (scoreType === 'completion') {
+          scoreStr = 'Completed';
         } else {
           scoreStr = `${rounds} rds`;
         }

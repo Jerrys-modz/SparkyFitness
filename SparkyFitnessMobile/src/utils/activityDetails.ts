@@ -158,15 +158,28 @@ export function extractActivitySummary(
           ? record.time_cap_seconds
           : null;
 
+      const scoreType =
+        typeof record.score_type === 'string' ? record.score_type : null;
+
       let scoreVal = '';
-      if (wodFormat === 'amrap') {
+      if (scoreType === 'total_reps') {
+        scoreVal = `${reps} reps`;
+      } else if (
+        scoreType === 'rounds_reps' ||
+        (!scoreType && wodFormat === 'amrap')
+      ) {
         scoreVal = `${rounds} rounds + ${reps} reps`;
-      } else if (wodFormat === 'for_time') {
+      } else if (
+        scoreType === 'time' ||
+        (!scoreType && wodFormat === 'for_time')
+      ) {
         const elapsed =
           typeof record.elapsed_seconds === 'number'
             ? record.elapsed_seconds
             : null;
         scoreVal = elapsed ? formatDuration(elapsed, t) : 'Completed';
+      } else if (scoreType === 'completion') {
+        scoreVal = 'Completed';
       } else {
         scoreVal = `${rounds} rounds`;
       }

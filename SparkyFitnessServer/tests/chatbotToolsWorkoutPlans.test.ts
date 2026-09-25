@@ -592,10 +592,14 @@ describe('sparky_manage_workout_plans', () => {
   });
 
   describe('update_workout_plan on weekly plans', () => {
-    it('does not flip a weekly prefill plan to prompt on a rename', async () => {
+    it('does not flip a weekly prefill plan to prompt on a rename and preserves existing fields', async () => {
       svc.getWorkoutPlanTemplateById.mockResolvedValue({
         id: PLAN_ID,
         plan_name: 'Weekly 5x5',
+        description: 'Heavy strength',
+        is_active: true,
+        start_date: '2026-01-01',
+        end_date: '2026-12-31',
         schedule_type: 'weekly',
         entry_mode: 'prefill',
         assignments: [],
@@ -616,8 +620,12 @@ describe('sparky_manage_workout_plans', () => {
       );
 
       const payload = svc.updateWorkoutPlanTemplate.mock.calls[0][2];
-      expect(payload.entry_mode).toBeUndefined();
-      expect(payload.schedule_type).toBeUndefined();
+      expect(payload.entry_mode).toBe('prefill');
+      expect(payload.schedule_type).toBe('weekly');
+      expect(payload.is_active).toBe(true);
+      expect(payload.start_date).toBe('2026-01-01');
+      expect(payload.end_date).toBe('2026-12-31');
+      expect(payload.description).toBe('Heavy strength');
     });
 
     it('resolves new sessions against the existing weekly schedule', async () => {

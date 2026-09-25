@@ -1070,7 +1070,7 @@ export function buildPresetSessionCreateRequestFromDraft(
     name: draft.name,
     description: draft.description,
     notes: draft.notes,
-    location: draft.location ?? null,
+    location: draft.location?.trim().slice(0, 255) || null,
     entry_date: draft.entry_date,
     source: draft.source,
     exercises,

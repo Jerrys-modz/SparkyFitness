@@ -476,7 +476,9 @@ const ExerciseDetailScreen: React.FC<ExerciseDetailScreenProps> = ({
 
   // Tap the gallery to view the images full-screen (#1691).
   // Same non-empty paths the carousel pages over, so indexes line up.
-  const galleryImages = (exercise.images ?? []).filter(Boolean);
+  const galleryImages = (exercise.images ?? []).filter((path) =>
+    Boolean(path && getImageSource(path) !== null)
+  );
   const imageGallery = imageCarousel ? (
     <>
       <Pressable

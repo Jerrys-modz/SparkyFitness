@@ -73,6 +73,8 @@ interface WorkoutPlanTemplateRow {
   assignments?: WorkoutPlanAssignmentRow[];
   next_assignment?: WorkoutPlanAssignmentRow | null;
   next_assignments?: WorkoutPlanAssignmentRow[];
+  start_date?: string | null;
+  end_date?: string | null;
   sequence_position?: {
     current: number;
     total: number;
@@ -575,13 +577,15 @@ Actions:
                   userId,
                   args.plan_id,
                   {
-                    plan_name: args.plan_name,
-                    description: args.description,
-                    schedule_type: args.schedule_type,
-                    entry_mode: entryMode,
-                    is_active: args.is_active,
-                    start_date: args.start_date,
-                    end_date: args.end_date,
+                    plan_name: args.plan_name ?? existing.plan_name,
+                    description:
+                      args.description ?? existing.description ?? null,
+                    schedule_type:
+                      args.schedule_type ?? existing.schedule_type ?? undefined,
+                    entry_mode: entryMode ?? existing.entry_mode ?? undefined,
+                    is_active: args.is_active ?? existing.is_active ?? false,
+                    start_date: args.start_date ?? existing.start_date ?? null,
+                    end_date: args.end_date ?? existing.end_date ?? null,
                     assignments: resolvedAssignments,
                     currentClientDate: todayInZone(tz),
                   }
