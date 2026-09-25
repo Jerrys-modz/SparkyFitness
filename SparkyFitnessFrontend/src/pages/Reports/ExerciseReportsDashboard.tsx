@@ -142,18 +142,16 @@ const ExerciseReportsDashboard = ({
 
   const { activeUserId } = useActiveUser();
 
-  // Follow the report range so a week or a month does not mean scrolling a
-  // year. With no range, fall back to the last 12 months (#2461).
+  // The heatmap always covers the last 12 months on its own lightweight
+  // query; the report's date filter only outlines days inside it (#2461).
   const heatmapToday = todayInZone(timezone);
-  const fallbackWindow = workoutHeatmapWindow(heatmapToday);
-  const heatmapStart = startDate ?? fallbackWindow.start;
-  const heatmapEnd = endDate ?? heatmapToday;
+  const heatmapWindow = workoutHeatmapWindow(heatmapToday);
   const { data: workoutDaysData } = useWorkoutDays(
-    heatmapStart,
-    heatmapEnd,
+    heatmapWindow.start,
+    heatmapWindow.end,
     activeUserId
   );
-  const heatmapDates = (workoutDaysData?.days ?? []).map((day) => day.date);
+  const workoutDays = workoutDaysData?.days ?? [];
 
   const { data: statsSummary } = useExerciseStatsSummary(
     statsInterval,
@@ -837,11 +835,12 @@ const ExerciseReportsDashboard = ({
 
         {/* Right Side: Workout Heatmap Calendar */}
         <div className="lg:col-span-5">
-          {heatmapDates.length > 0 ? (
+          {workoutDays.length > 0 ? (
             <WorkoutHeatmap
-              workoutDates={heatmapDates}
-              startDate={heatmapStart}
-              endDate={heatmapEnd}
+              workoutDays={workoutDays}
+              today={heatmapToday}
+              rangeStart={startDate ?? undefined}
+              rangeEnd={endDate ?? undefined}
             />
           ) : (
             <Card className="h-full border shadow-sm flex items-center justify-center p-6">

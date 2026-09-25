@@ -1,58 +1,68 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { WorkoutDayCount } from '@workspace/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { info } from '@/utils/logging';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import {
-  buildWorkoutContributionGrid,
-  type HeatmapWeekdayKey,
-} from '@/utils/workoutHeatmap';
+import { dayString, heatmapMonthsEndingAt } from '@/utils/workoutHeatmap';
 
-interface WorkoutHeatmapProps {
-  workoutDates: string[];
-  startDate?: string | null;
-  endDate?: string | null;
+function intensityClass(count: number): string {
+  if (count >= 3) return 'bg-green-700 text-white';
+  if (count === 2) return 'bg-green-600 text-white';
+  return 'bg-green-500 text-white';
 }
 
-const WEEKDAY_SHORT: Record<HeatmapWeekdayKey, string> = {
-  sunday: 'S',
-  monday: 'M',
-  tuesday: 'Tu',
-  wednesday: 'W',
-  thursday: 'Th',
-  friday: 'F',
-  saturday: 'S',
-};
+interface WorkoutHeatmapProps {
+  /** Days with workouts in the heatmap window (sparse). */
+  workoutDays: WorkoutDayCount[];
+  /** Today (YYYY-MM-DD, user timezone); the heatmap ends on this month. */
+  today: string;
+  /** The report's filtered range; days inside it are outlined. */
+  rangeStart?: string;
+  rangeEnd?: string;
+}
 
 const WorkoutHeatmap = ({
-  workoutDates,
-  startDate,
-  endDate,
+  workoutDays,
+  today,
+  rangeStart,
+  rangeEnd,
 }: WorkoutHeatmapProps) => {
-  const { t } = useTranslation();
-  const { loggingLevel, firstDayOfWeek: prefFirstDayOfWeek } = usePreferences();
-  info(loggingLevel, 'WorkoutHeatmap: Rendering component.');
-  const scrollerRef = useRef<HTMLDivElement>(null);
+  const { t, i18n } = useTranslation();
+  const { firstDayOfWeek: prefFirstDayOfWeek } = usePreferences();
 
-  const grid = useMemo(
+  const countsByDay = useMemo(
+    () => new Map(workoutDays.map((d) => [d.date, d.count])),
+    [workoutDays]
+  );
+  const months = useMemo(() => heatmapMonthsEndingAt(today), [today]);
+  const monthFormatter = useMemo(
     () =>
-      buildWorkoutContributionGrid({
-        workoutDates,
-        today: new Date(),
-        firstDayOfWeek: prefFirstDayOfWeek,
-        startDate,
-        endDate,
+      new Intl.DateTimeFormat(i18n.language, {
+        month: 'short',
+        timeZone: 'UTC',
       }),
-    [workoutDates, startDate, endDate, prefFirstDayOfWeek]
+    [i18n.language]
   );
 
-  useLayoutEffect(() => {
-    const node = scrollerRef.current;
-    if (!node) return;
-    node.scrollLeft = node.scrollWidth;
-  }, [grid.weeks.length, startDate, endDate]);
+  const inRange = (day: string) =>
+    rangeStart != null &&
+    rangeEnd != null &&
+    day >= rangeStart &&
+    day <= rangeEnd;
 
-  const compact = grid.weeks.length > 12;
+  const baseDays = [
+    { key: 'sunday', label: 'S' },
+    { key: 'monday', label: 'M' },
+    { key: 'tuesday', label: 'Tu' },
+    { key: 'wednesday', label: 'W' },
+    { key: 'thursday', label: 'Th' },
+    { key: 'friday', label: 'F' },
+    { key: 'saturday', label: 'S' },
+  ];
+  const shiftedDays = [
+    ...baseDays.slice(prefFirstDayOfWeek),
+    ...baseDays.slice(0, prefFirstDayOfWeek),
+  ];
 
   return (
     <Card className="h-full border shadow-sm">
@@ -60,63 +70,85 @@ const WorkoutHeatmap = ({
         <CardTitle>
           {t('exerciseReportsDashboard.workoutHeatmap', 'Workout Heatmap')}
         </CardTitle>
+        {rangeStart && rangeEnd && (
+          <p className="text-xs text-muted-foreground">
+            {t(
+              'exerciseReportsDashboard.heatmapRangeHint',
+              'Last 12 months. Outlined days are in the selected date range.'
+            )}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
-        <div ref={scrollerRef} className="overflow-x-auto">
-          <div className="inline-flex gap-1">
-            <div className="flex flex-col gap-[3px] pt-5 shrink-0">
-              {grid.weekdayKeys.map((key) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+          {months.map(({ year, month }) => {
+            const daysInMonth = new Date(
+              Date.UTC(year, month + 1, 0)
+            ).getUTCDate();
+            const firstWeekday = new Date(Date.UTC(year, month, 1)).getUTCDay();
+            const leadingEmpty = (firstWeekday - prefFirstDayOfWeek + 7) % 7;
+            return (
+              <div
+                key={`${year}-${month}`}
+                className="flex flex-col items-center"
+              >
+                <h4 className="text-sm font-semibold mb-2">
+                  {monthFormatter.format(Date.UTC(year, month, 1))} {year}
+                </h4>
                 <div
-                  key={key}
-                  className={`${
-                    compact ? 'h-3' : 'h-4'
-                  } w-4 text-[9px] leading-none flex items-center text-muted-foreground`}
+                  className="grid grid-cols-7 gap-1"
+                  style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
                 >
-                  {t(`common.day_short.${key}`, WEEKDAY_SHORT[key])}
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-[3px]">
-              {grid.weeks.map((week, weekIndex) => (
-                <div
-                  key={week.days[0]?.dayKey ?? weekIndex}
-                  className="flex flex-col gap-[3px]"
-                >
-                  <div className="h-4 text-[10px] leading-4 text-muted-foreground whitespace-nowrap">
-                    {week.monthLabel ?? ''}
-                  </div>
-                  {week.days.map((cell) => {
-                    const title = cell.inRange
-                      ? `${cell.dayKey} (${
-                          cell.hasWorkout
-                            ? t('exerciseReportsDashboard.workout', 'Workout')
-                            : t(
-                                'exerciseReportsDashboard.noWorkout',
-                                'No Workout'
-                              )
-                        })`
-                      : '';
+                  {shiftedDays.map((day) => (
+                    <div
+                      key={day.key}
+                      className="text-xs text-center text-muted-foreground"
+                    >
+                      {t(`common.day_short.${day.key}`, day.label)}
+                    </div>
+                  ))}
+                  {Array.from({ length: leadingEmpty }, (_, i) => (
+                    <div
+                      key={`empty-${i}`}
+                      className="w-8 h-8 md:w-5 md:h-5 rounded-md bg-gray-100 dark:bg-gray-800"
+                    />
+                  ))}
+                  {Array.from({ length: daysInMonth }, (_, i) => {
+                    const day = dayString(year, month, i + 1);
+                    const count = countsByDay.get(day) ?? 0;
+                    const highlighted = inRange(day);
+                    const colour =
+                      count > 0
+                        ? intensityClass(count)
+                        : 'bg-gray-200 dark:bg-gray-700';
+                    const status =
+                      count > 0
+                        ? t('exerciseReportsDashboard.workoutCount', {
+                            defaultValue: '{{count}} workout',
+                            defaultValue_other: '{{count}} workouts',
+                            count,
+                          })
+                        : t('exerciseReportsDashboard.noWorkout', 'No Workout');
                     return (
                       <div
-                        key={cell.dayKey}
-                        title={title}
-                        aria-label={title || undefined}
-                        className={`${
-                          compact ? 'w-3 h-3' : 'w-4 h-4'
-                        } rounded-[3px] ${
-                          !cell.inRange
-                            ? 'bg-transparent'
-                            : cell.hasWorkout
-                              ? 'bg-green-500'
-                              : 'bg-muted'
+                        key={day}
+                        data-testid={`heatmap-day-${day}`}
+                        data-in-range={highlighted ? 'true' : undefined}
+                        className={`w-8 h-8 md:w-5 md:h-5 rounded-md flex items-center justify-center text-center text-[10px] md:text-[8px] ${colour} ${
+                          highlighted
+                            ? 'ring-1 ring-primary ring-offset-1 ring-offset-background'
+                            : ''
                         }`}
-                      />
+                        title={`${day} (${status})`}
+                      >
+                        {i + 1}
+                      </div>
                     );
                   })}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
