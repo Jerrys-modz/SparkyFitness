@@ -22,6 +22,7 @@ export const exercisePresetEntriesSchema = z.object({
   updated_at: z.date().nullable(),
   created_by_user_id: userIdSchema.nullable(),
   notes: z.string().nullable(),
+  location: z.string().nullable().optional(),
   source: z.string(),
 });
 
@@ -36,6 +37,7 @@ export const exercisePresetEntriesInitializerSchema = z.object({
   updated_at: z.date().optional().nullable(),
   created_by_user_id: userIdSchema.optional().nullable(),
   notes: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
   source: z.string().optional(),
 });
 
@@ -50,6 +52,7 @@ export const exercisePresetEntriesMutatorSchema = z.object({
   updated_at: z.date().optional().nullable(),
   created_by_user_id: userIdSchema.optional().nullable(),
   notes: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
   source: z.string().optional(),
 });
 

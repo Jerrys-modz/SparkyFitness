@@ -18,6 +18,7 @@ import {
   CheckSquare,
   X,
   Edit,
+  Copy,
   Trash2,
   Share2,
   Lock,
@@ -359,6 +360,17 @@ const ExerciseDatabaseManager = () => {
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   {t('common.edit', 'Edit')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    editForm.openDuplicateDialog(
+                      exercise,
+                      t('exercise.databaseManager.copySuffix', '(copy)')
+                    )
+                  }
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  {t('exercise.databaseManager.duplicateExercise', 'Duplicate')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!isOwned}

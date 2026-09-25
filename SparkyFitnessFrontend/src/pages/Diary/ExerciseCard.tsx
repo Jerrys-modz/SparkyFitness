@@ -65,7 +65,10 @@ import { defaultSetForModality } from '@/constants/exercises';
 import { generateClientId } from '@/utils/generateClientId';
 import { useQueryClient } from '@tanstack/react-query';
 import { exerciseByIdOptions } from '@/hooks/Exercises/useExercises';
-import { createWorkoutPlaybackRouteState } from '@/utils/workoutPlayback';
+import {
+  createWorkoutPlaybackRouteState,
+  createWorkoutPlaybackRouteStateFromExercise,
+} from '@/utils/workoutPlayback';
 import {
   Exercise,
   ExerciseEntry,
@@ -106,6 +109,9 @@ const ExerciseCard = ({
   const [addDialogInitialTab, setAddDialogInitialTab] = useState<
     'my-exercises' | 'workout-preset'
   >('my-exercises');
+  const [addDialogIntent, setAddDialogIntent] = useState<'log' | 'playback'>(
+    'log'
+  );
   const [editingEntry, setEditingEntry] = useState<ExerciseEntry | null>(null); // Use ExerciseEntry from service
   const [isPlaybackModalOpen, setIsPlaybackModalOpen] = useState(false); // State for playback modal
   const [exerciseToPlay, setExerciseToPlay] = useState<Exercise | null>(null); // State for exercise to play
@@ -338,12 +344,14 @@ const ExerciseCard = ({
   const handleOpenAddDialog = () => {
     debug(loggingLevel, 'Opening add exercise dialog.');
     setAddDialogInitialTab('my-exercises');
+    setAddDialogIntent('log');
     setIsAddDialogOpen(true);
   };
 
   const handleStartWorkoutPlayback = () => {
     debug(loggingLevel, 'Opening workout preset selector.');
     setAddDialogInitialTab('workout-preset');
+    setAddDialogIntent('playback');
     setIsAddDialogOpen(true);
   };
 
@@ -363,6 +371,25 @@ const ExerciseCard = ({
         'General refresh triggered (no specific exercise selected).'
       );
       handleCloseAddDialog(); // Close the add exercise dialog
+      return;
+    }
+
+    if (addDialogIntent === 'playback') {
+      debug(
+        loggingLevel,
+        `Exercise selected for workout playback from ${sourceMode}:`,
+        exercise.id
+      );
+      const routeState = createWorkoutPlaybackRouteStateFromExercise(
+        exercise,
+        selectedDate,
+        `${window.location.pathname}${window.location.search}`
+      );
+
+      handleCloseAddDialog();
+      navigate(`/workout-playback?date=${selectedDate}`, {
+        state: routeState,
+      });
       return;
     }
 

@@ -6,12 +6,16 @@ import {
   suggestedExercisesQueryKey,
   dailySummaryQueryKey,
   workoutSessionQueryKeyRoot,
+  workoutLocationsQueryKey,
 } from './queryKeys';
 
 export function invalidateExerciseCache(
   queryClient: QueryClient,
   entryDate: string
 ) {
+  void queryClient.invalidateQueries({
+    queryKey: [...workoutLocationsQueryKey],
+  });
   void queryClient.invalidateQueries({
     queryKey: [...exerciseHistoryQueryKey],
   });

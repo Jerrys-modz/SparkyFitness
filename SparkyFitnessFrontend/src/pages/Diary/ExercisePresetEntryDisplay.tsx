@@ -16,6 +16,7 @@ import {
   Clock,
   Activity,
   Layers,
+  MapPin,
 } from 'lucide-react';
 import ExerciseEntryDisplay from './ExerciseEntryDisplay';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -251,9 +252,20 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
             </TooltipProvider>
           </div>
 
-          {/* Description / notes */}
-          {(presetEntry.description || presetEntry.notes) && (
+          {/* Description / notes / gym */}
+          {(presetEntry.description ||
+            presetEntry.notes ||
+            presetEntry.location) && (
             <div className="px-4 pb-2 space-y-0.5">
+              {presetEntry.location && (
+                <p
+                  className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
+                  title={t('exerciseCard.workoutLocation', 'Gym / Location')}
+                >
+                  <MapPin className="w-3 h-3" />
+                  {presetEntry.location}
+                </p>
+              )}
               {presetEntry.description && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {presetEntry.description}
