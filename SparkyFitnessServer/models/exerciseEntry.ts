@@ -377,9 +377,10 @@ export interface WatchTelemetryFields {
   watch_telemetry_observed_at?: string | Date | null;
   /**
    * Wall-clock minutes the watch spent on this exercise. A later flush must
-   * not replace a longer window with a shorter one. The diary column can
-   * still grow when a later save reports more; `watch_duration_minutes` is
-   * the measurement that shorter saves are not allowed to undercut.
+   * not replace a longer window with a shorter one. When this measurement
+   * exists it is the exercise's duration: the phone's share of elapsed time
+   * must not sit underneath it, or the exercises add up to more than the
+   * workout lasted.
    */
   duration_minutes?: number | null;
   /** High-water mark of `duration_minutes` reported by the watch. */
@@ -478,7 +479,6 @@ export function filterStaleWatchTelemetryFields(
     delete next.active_calories;
   }
   const proposedDuration = next.duration_minutes;
-  const storedDuration = finiteNonNegative(entry.duration_minutes);
   const storedWatchDuration = finiteNonNegative(entry.watch_duration_minutes);
   if (
     typeof proposedDuration === 'number' &&
@@ -488,10 +488,9 @@ export function filterStaleWatchTelemetryFields(
       storedWatchDuration === null
         ? proposedDuration
         : Math.max(storedWatchDuration, proposedDuration);
-    next.watch_duration_minutes = Math.round(watchHigh * 100) / 100;
-    if (storedDuration !== null && proposedDuration < storedDuration) {
-      delete next.duration_minutes;
-    }
+    const measured = Math.round(watchHigh * 100) / 100;
+    next.watch_duration_minutes = measured;
+    next.duration_minutes = measured;
   }
   return { fields: next, skipHr };
 }
@@ -504,8 +503,9 @@ function finiteNonNegative(raw: unknown): number | null {
 }
 
 /**
- * Duration written by an ordinary entry save. A longer value wins. A shorter
- * one cannot undercut the watch measurement kept in `watch_duration_minutes`.
+ * Duration written by an ordinary entry save. A watch measurement, when one
+ * exists, is this exercise's duration. The phone's share of the workout is
+ * used only when the watch never measured it.
  */
 export function ordinaryDurationMinutes(
   proposed: unknown,
@@ -513,10 +513,9 @@ export function ordinaryDurationMinutes(
   watchMeasured: unknown
 ): unknown {
   if (proposed === undefined) return stored;
-  const proposedMinutes = finiteNonNegative(proposed);
   const watchMinutes = finiteNonNegative(watchMeasured);
-  if (proposedMinutes === null || watchMinutes === null) return proposed;
-  return Math.max(proposedMinutes, watchMinutes);
+  if (watchMinutes !== null) return watchMinutes;
+  return proposed;
 }
 
 export type WatchTelemetryZoneSpec = {
@@ -739,11 +738,11 @@ async function _updateExerciseEntryWithClient(
         ? updateData[column]
         : currentEntry[column];
   }
-  // The floor is resolved again in the UPDATE against the row's own
-  // watch_duration_minutes: watch telemetry can commit a longer measurement
-  // between the read above and this write, and the value read here is stale.
-  // A null duration (the route does not parse the body) falls back to the
-  // measurement rather than erasing it.
+  // Resolved again in the UPDATE against the row's own
+  // watch_duration_minutes: telemetry can commit the measurement between the
+  // read above and this write. When that column is set it is the duration,
+  // not a floor under the phone's share of the workout. A null proposal with
+  // no measurement leaves the column null.
   const telemetryParams = telemetryValuesFrom(mergedData);
   const telemetrySetClause = EXERCISE_ENTRY_TELEMETRY_COLUMNS.map(
     (column, index) => `${column} = $${32 + index}`
@@ -752,11 +751,9 @@ async function _updateExerciseEntryWithClient(
     `UPDATE exercise_entries SET
       exercise_id = $1,
       duration_minutes = CASE
-        WHEN $2::numeric IS NULL AND watch_duration_minutes IS NOT NULL
+        WHEN watch_duration_minutes IS NOT NULL
           THEN watch_duration_minutes
-        WHEN watch_duration_minutes IS NULL
-          THEN $2::numeric
-        ELSE GREATEST($2::numeric, watch_duration_minutes)
+        ELSE $2::numeric
       END,
       calories_burned = $3,
       entry_date = $4,

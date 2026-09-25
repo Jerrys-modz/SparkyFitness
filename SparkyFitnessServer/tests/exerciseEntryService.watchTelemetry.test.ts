@@ -238,14 +238,15 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(fields.watch_telemetry_observed_at).toBe('2026-01-01T12:01:00.000Z');
   });
 
-  it('keeps a longer stored exercise duration', async () => {
+  it('replaces a phone share with the watch measurement', async () => {
     const { filterStaleWatchTelemetryFields } =
       await import('../models/exerciseEntry.js');
     const { fields } = filterStaleWatchTelemetryFields(
       { duration_minutes: 14 },
       { duration_minutes: 3.5 }
     );
-    expect(fields.duration_minutes).toBeUndefined();
+    expect(fields.duration_minutes).toBe(3.5);
+    expect(fields.watch_duration_minutes).toBe(3.5);
   });
 
   it('records the watch duration separately from a longer stored duration', async () => {
@@ -255,17 +256,29 @@ describe('filterStaleWatchTelemetryFields', () => {
       { duration_minutes: 20, watch_duration_minutes: 14 },
       { duration_minutes: 16 }
     );
-    expect(fields.duration_minutes).toBeUndefined();
+    expect(fields.duration_minutes).toBe(16);
     expect(fields.watch_duration_minutes).toBe(16);
   });
 
-  it('does not let an ordinary save undercut the watch duration', async () => {
+  it('does not shrink a longer watch window with a later shorter flush', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields } = filterStaleWatchTelemetryFields(
+      { duration_minutes: 14, watch_duration_minutes: 14 },
+      { duration_minutes: 3.5 }
+    );
+    expect(fields.duration_minutes).toBe(14);
+    expect(fields.watch_duration_minutes).toBe(14);
+  });
+
+  it('prefers the watch duration over the phone share on an ordinary save', async () => {
     const { ordinaryDurationMinutes } =
       await import('../models/exerciseEntry.js');
     expect(ordinaryDurationMinutes(4.5, 14, 14)).toBe(14);
-    expect(ordinaryDurationMinutes(20, 14, 14)).toBe(20);
+    expect(ordinaryDurationMinutes(20, 14, 14)).toBe(14);
     expect(ordinaryDurationMinutes(4.5, 20, 14)).toBe(14);
     expect(ordinaryDurationMinutes(4.5, 0, null)).toBe(4.5);
+    expect(ordinaryDurationMinutes(undefined, 20, 14)).toBe(20);
   });
 
   it('resolves the watch floor against the row at write time', async () => {
@@ -305,11 +318,10 @@ describe('filterStaleWatchTelemetryFields', () => {
     );
     expect(update?.params[1]).toBe(4.5);
     expect(update?.sql).toMatch(
-      /duration_minutes = CASE[\s\S]*GREATEST\(\$2::numeric, watch_duration_minutes\)/
+      /duration_minutes = CASE[\s\S]*WHEN watch_duration_minutes IS NOT NULL\s+THEN watch_duration_minutes\s+ELSE \$2::numeric/
     );
-    // A null duration keeps the measurement instead of erasing it.
-    expect(update?.sql).toMatch(
-      /WHEN \$2::numeric IS NULL AND watch_duration_minutes IS NOT NULL\s+THEN watch_duration_minutes/
+    expect(update?.sql).not.toMatch(
+      /GREATEST\(\$2::numeric, watch_duration_minutes\)/
     );
   });
 });
