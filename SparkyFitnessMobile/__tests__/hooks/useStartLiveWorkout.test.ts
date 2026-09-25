@@ -22,17 +22,6 @@ import { getTodayDate } from '../../src/utils/dateUtils';
 import { buildSingleExerciseStartPayload } from '../../src/utils/workoutSession';
 import { createQueryWrapper, createTestQueryClient } from './queryTestUtils';
 
-const mockWatchStartWorkout = jest.fn();
-const mockWatchIsSupported = jest.fn(() => false);
-
-jest.mock('../../modules/watch-connectivity', () => ({
-  __esModule: true,
-  default: {
-    isSupported: () => mockWatchIsSupported(),
-    startWorkout: (...args: unknown[]) => mockWatchStartWorkout(...args),
-  },
-}));
-
 jest.mock('../../src/services/api/exerciseApi', () => ({
   createWorkout: jest.fn(),
 }));
@@ -168,7 +157,6 @@ describe('useStartLiveWorkout', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockWatchIsSupported.mockReturnValue(false);
     __resetActiveWorkoutStoreForTests();
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     mockCreateWorkout.mockResolvedValue(makeSession());

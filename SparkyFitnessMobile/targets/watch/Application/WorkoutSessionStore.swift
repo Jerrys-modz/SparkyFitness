@@ -103,7 +103,8 @@ final class WorkoutSessionStore: ObservableObject {
                     plannedSet: set,
                     setNumber: index + 1,
                     setCount: exercise.sets.count,
-                    supersetWith: partners[exercise.exerciseEntryId]
+                    supersetWith: partners[exercise.exerciseEntryId],
+                    supersetRun: exercise.supersetRun
                 )
             }
         }

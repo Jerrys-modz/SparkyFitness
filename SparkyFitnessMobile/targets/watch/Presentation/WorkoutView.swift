@@ -250,6 +250,7 @@ private struct ExerciseListView: View {
                 Text("\(exercises.count) Exercises")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
             }
             ForEach(blocks) { block in
                 Section {
@@ -400,9 +401,7 @@ private struct CurrentSetView: View {
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
 
     private var supersetColor: Color? {
-        guard let run = store.plan?.exercises.first(where: {
-            $0.exerciseEntryId == step.exerciseEntryId
-        })?.supersetRun else { return nil }
+        guard let run = step.supersetRun else { return nil }
         return SupersetPalette.color(for: run)
     }
 
@@ -585,7 +584,7 @@ private struct RestView: View {
 
             if let next = store.currentStep {
                 VStack(spacing: 0) {
-                    Text(next.supersetWith == nil ? "Next set" : "Next in superset")
+                    Text(continuesSuperset(next) ? "Next in superset" : "Next set")
                         .font(.system(size: 9))
                         .foregroundStyle(nextSupersetColor(next) ?? Color.secondary)
                     Text(next.exerciseName)
@@ -625,12 +624,17 @@ private struct RestView: View {
         return min(1, max(0, 1 - Double(remainingSeconds) / total))
     }
 
+    /// True only when this rest stays inside the superset just logged.
+    /// Entering a superset, or leaving one for another, is still "Next set".
+    private func continuesSuperset(_ next: WorkoutStep) -> Bool {
+        guard let nextRun = next.supersetRun, store.currentStepIndex > 0 else {
+            return false
+        }
+        return store.steps[store.currentStepIndex - 1].supersetRun == nextRun
+    }
+
     private func nextSupersetColor(_ step: WorkoutStep) -> Color? {
-        guard step.supersetWith != nil,
-              let run = store.plan?.exercises.first(where: {
-                  $0.exerciseEntryId == step.exerciseEntryId
-              })?.supersetRun
-        else { return nil }
+        guard continuesSuperset(step), let run = step.supersetRun else { return nil }
         return SupersetPalette.color(for: run)
     }
 

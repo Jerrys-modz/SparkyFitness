@@ -148,6 +148,9 @@ struct WorkoutStep: Identifiable, Equatable {
     /// The other exercises in this set's superset, for the one-line caption.
     /// Nil when the set is not part of a superset.
     let supersetWith: String?
+    /// Same index as `PlannedExercise.supersetRun`. Nil when this set is not
+    /// in a superset, so the caption and its colour share one source.
+    let supersetRun: Int?
 
     var id: String { plannedSet.setId }
 
