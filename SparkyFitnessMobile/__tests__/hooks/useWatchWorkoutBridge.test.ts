@@ -1,4 +1,5 @@
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PresetSessionResponse } from '@workspace/shared';
 import { useWatchWorkoutBridge } from '../../src/hooks/useWatchWorkoutBridge';
 import {
@@ -10,6 +11,10 @@ import {
   attachExerciseEntryWatchTelemetry,
 } from '../../src/services/api/exerciseApi';
 import { addLog } from '../../src/services/LogService';
+import {
+  readWatchTelemetry,
+  settleWatchTelemetryWrites,
+} from '../../src/utils/watchTelemetryPersistence';
 import { ApiError } from '../../src/services/api/errors';
 
 jest.mock('../../src/services/api/exerciseApi', () => ({
@@ -41,6 +46,8 @@ jest.mock('../../modules/watch-connectivity', () => {
   const mockModule = {
     isSupported: jest.fn(() => true),
     stopWorkout: jest.fn(),
+    pendingHeartRateBatches: jest.fn(async () => []),
+    ackHeartRateBatches: jest.fn(async () => undefined),
     addListener: jest.fn((event: string, callback: Listener) => {
       mockListeners.set(event, callback);
       const remove = jest.fn(() => mockListeners.delete(event));
@@ -63,6 +70,19 @@ const mockStopWorkout = (
     default: { stopWorkout: jest.Mock };
   }
 ).default.stopWorkout;
+const mockPendingHeartRateBatches = (
+  jest.requireMock('../../modules/watch-connectivity') as {
+    default: {
+      pendingHeartRateBatches: jest.Mock;
+      ackHeartRateBatches: jest.Mock;
+    };
+  }
+).default.pendingHeartRateBatches;
+const mockAckHeartRateBatches = (
+  jest.requireMock('../../modules/watch-connectivity') as {
+    default: { ackHeartRateBatches: jest.Mock };
+  }
+).default.ackHeartRateBatches;
 
 function fire(event: string, payload: unknown) {
   mockListeners.get(event)?.(payload);
@@ -125,9 +145,12 @@ function getStore() {
 }
 
 describe('useWatchWorkoutBridge', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     mockListeners.clear();
+    await settleWatchTelemetryWrites();
+    await AsyncStorage.clear();
+    mockPendingHeartRateBatches.mockResolvedValue([]);
     __resetActiveWorkoutStoreForTests();
     mockUpdateWorkout.mockImplementation(async () => getStore().session!);
     mockAttachTelemetry.mockResolvedValue(undefined);
@@ -990,9 +1013,12 @@ describe('useWatchWorkoutBridge', () => {
 });
 
 describe('useWatchWorkoutBridge across sessions, failures and watch finishes', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     mockListeners.clear();
+    await settleWatchTelemetryWrites();
+    await AsyncStorage.clear();
+    mockPendingHeartRateBatches.mockResolvedValue([]);
     __resetActiveWorkoutStoreForTests();
     mockUpdateWorkout.mockImplementation(async () => getStore().session!);
     mockAttachTelemetry.mockResolvedValue(undefined);
@@ -1185,11 +1211,105 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       });
     });
     expect(mockAttachTelemetry).not.toHaveBeenCalled();
+    expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-stranger']);
     expect(mockAddLog).toHaveBeenCalledWith(
       expect.stringContaining('unknown session session-unknown'),
       'WARNING',
       expect.any(Array)
     );
+  });
+
+  it('keeps an unposted batch across a remount and posts it when the server is back', async () => {
+    const first = renderHook(
+      ({ connected }: { connected: boolean }) =>
+        useWatchWorkoutBridge(true, connected),
+      { initialProps: { connected: false } }
+    );
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        clientId: 'hr-kept',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+        activeEnergyKcal: 9,
+      });
+    });
+
+    await waitFor(async () => {
+      const saved = await readWatchTelemetry(() => ({
+        samples: new Map(),
+        energy: new Map(),
+        durations: new Map(),
+        durationFromTimeline: false,
+        handledBatchClientIds: new Set(),
+        entryDate: null,
+        unposted: false,
+        endedAt: null,
+        attribution: null,
+      }));
+      expect(saved.get('session-1')?.unposted).toBe(true);
+    });
+    first.unmount();
+
+    renderHook(() => useWatchWorkoutBridge(true, true));
+    await waitFor(() => {
+      expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
+        hrSamples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+        activeEnergyKcal: 9,
+      });
+    });
+  });
+
+  it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    mockPendingHeartRateBatches.mockResolvedValue([
+      {
+        clientId: 'hr-queued',
+        sessionId: 'session-unknown',
+        exerciseEntryId: 'ex-uuid-9',
+        samples: [
+          { t: '2026-09-17T11:00:00.000Z', bpm: 110 },
+          { t: '2026-09-17T11:00:10.000Z', bpm: 118 },
+        ],
+        activeEnergyKcal: 4,
+      },
+    ]);
+
+    renderHook(() => useWatchWorkoutBridge(true, true));
+    await waitFor(async () => {
+      expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-9', {
+        hrSamples: [
+          { t: '2026-09-17T11:00:00.000Z', bpm: 110 },
+          { t: '2026-09-17T11:00:10.000Z', bpm: 118 },
+        ],
+        activeEnergyKcal: 4,
+      });
+      expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-queued']);
+      const saved = await readWatchTelemetry(() => ({
+        samples: new Map(),
+        energy: new Map(),
+        durations: new Map(),
+        durationFromTimeline: false,
+        handledBatchClientIds: new Set<string>(),
+        entryDate: null,
+        unposted: false,
+        endedAt: null,
+        attribution: null,
+      }));
+      expect(saved.get('session-unknown')?.endedAt).toEqual(expect.any(Number));
+      expect(saved.get('session-unknown')?.entryDate).toBeNull();
+    });
   });
 
   it('ends the phone workout and hands the completion params over when the wearer finishes on the watch', async () => {

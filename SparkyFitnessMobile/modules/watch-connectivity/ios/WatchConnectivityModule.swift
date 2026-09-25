@@ -97,6 +97,12 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
 /// acknowledgements and fresh seed data back.
 public class WatchConnectivityModule: Module {
     private let delegateHandler = WatchSessionDelegateHandler()
+    private let heartRateQueueKey = "sparky.pendingHeartRateBatches"
+    private let heartRateQueueLimit = 100
+    private var heartRateQueue: [[String: Any]] = []
+    /// The watch callback and this module's queue both touch `heartRateQueue`.
+    /// One serial queue so a drain and an ack can't interleave.
+    private let heartRateAccess = DispatchQueue(label: "sparky.watch.heartRateQueue")
 
     public func definition() -> ModuleDefinition {
         Name("WatchConnectivity")
@@ -113,6 +119,9 @@ public class WatchConnectivityModule: Module {
         )
 
         OnCreate {
+            self.heartRateAccess.sync {
+                self.loadHeartRateQueue()
+            }
             self.delegateHandler.onReachabilityChange = { [weak self] isReachable in
                 self?.sendEvent("onReachabilityChange", ["isReachable": isReachable])
             }
@@ -157,25 +166,12 @@ public class WatchConnectivityModule: Module {
                 ])
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in
-                self?.sendEvent("onHeartRateBatch", [
-                    "clientId": payload["clientId"] as? String ?? "",
-                    "sessionId": payload["sessionId"] as? String ?? "",
-                    "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
-                    // WatchConnectivity delivers nested dictionaries as NSArray
-                    // of NSDictionary. `as? [[String: Any]]` often fails on that
-                    // and would silently drop every sample (JS then posts
-                    // calories-only). Walk `[Any]` instead.
-                    "samples": dictionaryArray(payload["samples"]),
-                    // Absent (rather than null) when the batch measured no
-                    // energy, so JS can tell "nothing to add" from a zero —
-                    // same rule body fat and the set values above follow.
-                    // Forgetting this key is invisible in tests that fire the
-                    // JS event directly: the watch keeps sending energy, the
-                    // phone keeps buffering none, and calories silently stay
-                    // derived-from-duration forever.
-                    "activeEnergyKcal": payload["activeEnergyKcal"] as? Double,
-                    "durationMinutes": payload["durationMinutes"] as? Double,
-                ])
+                guard let self else { return }
+                let event = self.heartRateEvent(from: payload)
+                self.heartRateAccess.sync {
+                    self.rememberHeartRateBatch(event)
+                }
+                self.sendEvent("onHeartRateBatch", event)
             }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in
                 self?.sendEvent("onWorkoutStop", [
@@ -277,6 +273,96 @@ public class WatchConnectivityModule: Module {
                 WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
         }
+
+        /// Batches that arrived before JavaScript was listening. JS drains
+        /// these on startup and acks the ones it has stored. Async so the
+        /// read is not on the JS thread; the queue lock is the actual guard.
+        AsyncFunction("pendingHeartRateBatches") { () -> [[String: Any]] in
+            self.heartRateAccess.sync { self.heartRateQueue }
+        }
+
+        AsyncFunction("ackHeartRateBatches") { (clientIds: [String]) in
+            let ids = Set(clientIds)
+            self.heartRateAccess.sync {
+                self.heartRateQueue.removeAll { event in
+                    if let clientId = event["clientId"] as? String,
+                       !clientId.isEmpty,
+                       ids.contains(clientId) {
+                        return true
+                    }
+                    if let queueId = event["queueId"] as? String, ids.contains(queueId) {
+                        return true
+                    }
+                    return false
+                }
+                self.saveHeartRateQueue()
+            }
+        }
+    }
+
+    /// Caller holds `heartRateAccess`.
+    private func loadHeartRateQueue() {
+        guard
+            let text = UserDefaults.standard.string(forKey: heartRateQueueKey),
+            let data = text.data(using: .utf8),
+            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return }
+        heartRateQueue = parsed.map { self.withQueueId($0) }
+        saveHeartRateQueue()
+    }
+
+    /// Caller holds `heartRateAccess`.
+    private func saveHeartRateQueue() {
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: heartRateQueue),
+            let text = String(data: data, encoding: .utf8)
+        else { return }
+        UserDefaults.standard.set(text, forKey: heartRateQueueKey)
+    }
+
+    /// Same shape `sendEvent` used to build inline. Optional numbers are
+    /// omitted rather than stored as null so the queue survives JSON.
+    private func heartRateEvent(from payload: [String: Any]) -> [String: Any] {
+        var event: [String: Any] = [
+            "clientId": payload["clientId"] as? String ?? "",
+            "sessionId": payload["sessionId"] as? String ?? "",
+            "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
+            // WatchConnectivity delivers nested dictionaries as NSArray of
+            // NSDictionary. `as? [[String: Any]]` often fails on that and
+            // would silently drop every sample.
+            "samples": dictionaryArray(payload["samples"]),
+        ]
+        if let kcal = payload["activeEnergyKcal"] as? Double {
+            event["activeEnergyKcal"] = kcal
+        }
+        if let minutes = payload["durationMinutes"] as? Double {
+            event["durationMinutes"] = minutes
+        }
+        return withQueueId(event)
+    }
+
+    /// Older watch builds omit `clientId`. A generated id lets the phone ack
+    /// the queue entry without becoming the dedupe key JS uses for calories.
+    private func withQueueId(_ event: [String: Any]) -> [String: Any] {
+        var copy = event
+        let clientId = copy["clientId"] as? String ?? ""
+        if clientId.isEmpty, (copy["queueId"] as? String ?? "").isEmpty {
+            copy["queueId"] = UUID().uuidString
+        }
+        return copy
+    }
+
+    /// Caller holds `heartRateAccess`.
+    private func rememberHeartRateBatch(_ event: [String: Any]) {
+        if let clientId = event["clientId"] as? String, !clientId.isEmpty,
+           heartRateQueue.contains(where: { ($0["clientId"] as? String) == clientId }) {
+            return
+        }
+        heartRateQueue.append(event)
+        if heartRateQueue.count > heartRateQueueLimit {
+            heartRateQueue.removeFirst(heartRateQueue.count - heartRateQueueLimit)
+        }
+        saveHeartRateQueue()
     }
 }
 

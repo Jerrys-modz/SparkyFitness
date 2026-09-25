@@ -285,6 +285,12 @@ export interface WatchHeartRateBatchPayload {
    * would double the diary calories.
    */
   clientId?: string;
+  /**
+   * Present only when `clientId` is missing, so the phone can still remove
+   * the batch from the native queue. Not a dedupe key — a batch with no
+   * `clientId` must not apply `activeEnergyKcal`.
+   */
+  queueId?: string;
   sessionId: string;
   exerciseEntryId: string;
   samples: WatchHeartRateSamplePayload[];
@@ -343,6 +349,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     pausedAt?: string;
     excludedPauseMs: number;
   }): Promise<void>;
+  /**
+   * Heart-rate batches received before JavaScript was listening. Kept until
+   * `ackHeartRateBatches` says the phone has stored them. Async so the read
+   * is not on the JS thread.
+   */
+  pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
+  ackHeartRateBatches(clientIds: string[]): Promise<void>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
