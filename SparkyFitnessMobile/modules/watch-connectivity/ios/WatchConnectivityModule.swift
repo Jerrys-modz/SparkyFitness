@@ -228,12 +228,10 @@ public class WatchConnectivityModule: Module {
         /// whole app, so a workout push would either be clobbered by the next
         /// nutrition/water context push or clobber it right back.
         ///
-        /// `workoutStart` and `intervalTiming` both go through
-        /// `transferUserInfo`, which delivers in send order. A reachable
-        /// `sendMessage` for the start is only a head start: if it fails, its
-        /// queued copy is already ahead of any timing update. Timing itself
-        /// is never `sendMessage` — that can arrive before a start whose
-        /// `sendMessage` failed and fell back to the queue.
+        /// `workoutStart` is queued so it stays ahead of later `intervalTiming`
+        /// transfers, and also sent immediately when the watch is reachable.
+        /// The watch drops a start for a session it has already ended, so the
+        /// queued copy cannot restart a workout a faster `workoutStop` finished.
         AsyncFunction("startWorkout") { (plan: [String: Any]) -> Void in
             guard WCSession.isSupported() else { return }
             var payload = plan.compactMapValues(withoutNulls)
@@ -262,15 +260,18 @@ public class WatchConnectivityModule: Module {
             }
         }
 
-        /// Pause or resume the cap on the watch without sending a new
-        /// `workoutStart`, which would be ignored for the session already
-        /// running. Queued behind `workoutStart` on `transferUserInfo` so a
-        /// pause cannot arrive before the plan it belongs to.
+        /// Pause or resume the cap. Always queued, so a watch out of range
+        /// still hears it, and sent immediately when reachable so the cap
+        /// freezes without waiting for the queue. The watch keeps a snapshot
+        /// that arrives before the plan and ignores an older revision.
         AsyncFunction("updateIntervalTiming") { (timing: [String: Any]) -> Void in
             guard WCSession.isSupported() else { return }
             var payload = timing
             payload["type"] = "intervalTiming"
             WCSession.default.transferUserInfo(payload)
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
         }
     }
 }

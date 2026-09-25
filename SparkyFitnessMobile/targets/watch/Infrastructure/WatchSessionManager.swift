@@ -53,6 +53,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private var pendingIntervalTiming: [(
         sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
     )] = []
+    /// Sessions the phone or the wearer already ended. A `sendMessage` stop
+    /// can beat the queued copy of `workoutStart`, and that late start must
+    /// not bring the workout back. Kept across relaunch because the queued
+    /// copy can arrive in a later process.
+    private var endedSessionIds: Set<String> = []
+    private static let endedSessionsKey = "sparky.watch.endedWorkoutSessions"
+    private static let endedSessionLimit = 20
     /// A finish asked to tell the phone while another stop was already running.
     private var pendingSendStop = false
     /// Snapshot recovery and a `workoutStart` that arrives first both talk to
@@ -67,10 +74,27 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     private override init() {
         super.init()
+        endedSessionIds = Set(
+            UserDefaults.standard.stringArray(forKey: Self.endedSessionsKey) ?? []
+        )
         if !WCSession.isSupported() {
             hkRecovery = .finished
         }
         activate()
+    }
+
+    /// Remembers a session that must not be started again, including a stop
+    /// that arrives before its plan does.
+    private func rememberEndedSession(_ sessionId: String) {
+        endedSessionIds.insert(sessionId)
+        var stored = UserDefaults.standard.stringArray(forKey: Self.endedSessionsKey) ?? []
+        stored.removeAll { $0 == sessionId }
+        stored.append(sessionId)
+        if stored.count > Self.endedSessionLimit {
+            stored.removeFirst(stored.count - Self.endedSessionLimit)
+        }
+        endedSessionIds = Set(stored)
+        UserDefaults.standard.set(stored, forKey: Self.endedSessionsKey)
     }
 
     private func activate() {
@@ -377,6 +401,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// silently run with no heart rate.
     private func handle(workoutStart payload: [String: Any]) {
         guard let plan = ContextPayloadMapper.workoutPlan(from: payload) else { return }
+        // A stop can be delivered before the queued copy of this start. That
+        // copy must not start a workout the phone or the wearer already ended.
+        if endedSessionIds.contains(plan.sessionId) { return }
         // A redelivered `workoutStart` for the session already running must
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
@@ -420,6 +447,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Arms a plan that is not replacing a live one. Authorization is asked
     /// every time: the wearer can change it in Settings between workouts.
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
+        guard !endedSessionIds.contains(plan.sessionId) else { return }
         workoutStore.start(with: plan)
         replayIntervalTiming(sessionId: plan.sessionId)
         pendingIntervalTiming.removeAll()
@@ -760,6 +788,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// `beginPlan` — dropping it here left the watch on a stale cap.
     private func handle(intervalTiming payload: [String: Any]) {
         guard let timing = ContextPayloadMapper.intervalTiming(from: payload) else { return }
+        if endedSessionIds.contains(timing.sessionId) { return }
         if workoutStore.plan?.sessionId == timing.sessionId {
             workoutStore.applyIntervalTiming(
                 sessionId: timing.sessionId,
@@ -791,18 +820,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// session, so echoing `workoutStop` at it would be a second flush of an
     /// already-emptied buffer.
     ///
-    /// Ignores a stop naming a session we are not running and not about to
-    /// start. A queued transfer can arrive after the next workout has already
-    /// started, and tearing that one down would look like the watch dropping
-    /// a live workout. A stop for a plan that is only queued must drop that
-    /// plan: otherwise the in-flight finish starts a workout the phone ended.
+    /// A stop for a session we are not running does not tear anything down —
+    /// a queued stop must not cancel the next workout — but it is remembered,
+    /// so a start for that session still in the queue cannot revive it.
     private func handle(workoutStopFromPhone payload: [String: Any]) {
         guard let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload) else {
             return
         }
+        rememberEndedSession(sessionId)
+        pendingIntervalTiming.removeAll { $0.sessionId == sessionId }
         if pendingPlan?.sessionId == sessionId {
             pendingPlan = nil
-            pendingIntervalTiming.removeAll { $0.sessionId == sessionId }
             return
         }
         guard workoutStore.plan?.sessionId == sessionId else { return }
@@ -930,6 +958,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         collectionInFlight = true
         let closing = workoutStore.closeCurrentExerciseWindow()
         let stopSessionId = workoutStore.plan?.sessionId
+        if let stopSessionId {
+            rememberEndedSession(stopSessionId)
+        }
         if let closing {
             workoutStore.markFinishing(
                 WorkoutSessionStore.Finishing(
