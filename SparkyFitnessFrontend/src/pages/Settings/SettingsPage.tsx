@@ -64,6 +64,7 @@ const SECTION_TO_TAB_MAP: Record<string, string> = {
   'calculation-settings': 'nutrition-diet',
   'water-tracking': 'nutrition-diet',
   'cycle-settings': 'wellness',
+  'guided-workouts': 'wellness',
   'custom-categories': 'wellness',
   'food-and-exercise-data-providers': 'developer-integrations',
   'ai-service': 'developer-integrations',

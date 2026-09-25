@@ -30,12 +30,12 @@ A **guided card** sits at the top of the live workout, above the normal set list
 
 1. **Get ready.** At the start of the workout you hear *"Get ready. Starting Push-up."* while a countdown runs, with beeps at 3-2-1.
 2. **Each set is announced**, for example *"Push-up. 12 reps."* or *"Plank. 45 seconds."*. On the first set of each exercise, every instruction line from the exercise library is read while you work.
-3. **Rep-based sets** show a large **FINISHED** button. Tap it when you're done: the set is logged, the rest timer starts, and you hear *"Rest. 90 seconds. Next: Squat."*
+3. **Rep-based sets** show a large **DONE — NEXT** button (or **FINISHED** on web). Tap it when you're done: the set is logged, the rest timer starts, and you hear *"Rest. 90 seconds. Next: Squat."*
 4. **Timed sets** (holds, planks, cardio blocks) get their own get-ready countdown. Then the timer starts by itself, you hear *"Halfway"* on sets of 10 seconds or longer, the 3-2-1 beeps play, and the set logs itself when time is up. The target duration is what gets recorded.
 5. **When the rest ends**, the next set is announced and the cycle repeats.
 6. **At the end** you hear *"Workout complete."*
 
-The card shows the exercise image, the target, a large countdown, and a progress bar for the get-ready, the timed set, or the rest. Exercises with several library images (usually a start and an end position) flip between them every second as a movement demo; animated GIFs play as they are.
+The card shows the exercise image, current set details, target information, and on-screen captions. Exercises with several library images (usually a start and an end position) flip between them every second as a movement demo; animated GIFs play as they are.
 
 ### Captions, pause and mute
 

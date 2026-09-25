@@ -8,6 +8,8 @@ export interface SpeechSynthesisMock {
   cancel: jest.Mock;
   pause: jest.Mock;
   resume: jest.Mock;
+  addEventListener: jest.Mock;
+  removeEventListener: jest.Mock;
   voices: SpeechSynthesisVoice[];
 }
 
@@ -33,6 +35,8 @@ export function installSpeechSynthesisMock(
     cancel: jest.fn(),
     pause: jest.fn(),
     resume: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
     voices: voices as SpeechSynthesisVoice[],
   };
   mock.speak.mockImplementation((u: SpeechSynthesisUtterance) =>
@@ -45,6 +49,8 @@ export function installSpeechSynthesisMock(
       cancel: mock.cancel,
       pause: mock.pause,
       resume: mock.resume,
+      addEventListener: mock.addEventListener,
+      removeEventListener: mock.removeEventListener,
       paused: false,
       getVoices: () => mock.voices,
       onvoiceschanged: null,

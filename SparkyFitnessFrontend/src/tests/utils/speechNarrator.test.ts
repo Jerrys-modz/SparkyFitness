@@ -57,8 +57,15 @@ describe('speechNarrator', () => {
     const onVoices = jest.fn();
     const unsubscribe = subscribeToSpeechVoices(onVoices);
     expect(onVoices).toHaveBeenCalledWith(synth.voices);
+    expect(synth.addEventListener).toHaveBeenCalledWith(
+      'voiceschanged',
+      expect.any(Function)
+    );
     unsubscribe();
-    expect(window.speechSynthesis.onvoiceschanged).toBeNull();
+    expect(synth.removeEventListener).toHaveBeenCalledWith(
+      'voiceschanged',
+      expect.any(Function)
+    );
   });
 
   it('keeps the modal default of a female en-US voice', () => {

@@ -89,10 +89,18 @@ export function subscribeToSpeechVoices(
   const synth = getSynth();
   if (!synth) return () => {};
   const load = () => onVoices(synth.getVoices());
-  synth.onvoiceschanged = load;
+  if (typeof synth.addEventListener === 'function') {
+    synth.addEventListener('voiceschanged', load);
+  } else {
+    synth.onvoiceschanged = load;
+  }
   load();
   return () => {
-    synth.onvoiceschanged = null;
+    if (typeof synth.removeEventListener === 'function') {
+      synth.removeEventListener('voiceschanged', load);
+    } else if (synth.onvoiceschanged === load) {
+      synth.onvoiceschanged = null;
+    }
   };
 }
 
