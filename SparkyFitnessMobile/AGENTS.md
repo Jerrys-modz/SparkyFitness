@@ -106,6 +106,7 @@ npx expo prebuild --clean
 
 - Query setup lives in `src/hooks/queryClient.ts`; keys live in `src/hooks/queryKeys.ts`.
 - Default `staleTime` is `Infinity`, so mutations must explicitly invalidate or update affected caches.
+- `refreshHealthSyncCache` invalidates daily summary, measurements, sleep (`sleepDayQueryKey` / `sleepRangeQueryKey`), and exercise history after a health sync. Sleep is in that set because a partial observer upload would otherwise sit in the diary until the app is reloaded.
 - `useRefetchOnFocus(refetch, enabled)` is the standard focus-refresh hook.
 - `useFoodsLibrary` is an intentional exception with an infinite query, finite stale window, and `resetQueries(...)` refreshes so focus/pull refresh reloads page 1 instead of every cached page.
 - Meal mutations invalidate meals, recent meals, search, and details; food entry creation can affect recent meals.

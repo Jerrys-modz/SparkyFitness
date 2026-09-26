@@ -110,10 +110,13 @@ export const measurementsRangeQueryKey = (startDate: string, endDate: string) =>
 export const waterIntakeRangeQueryKey = (startDate: string, endDate: string) =>
   ['waterIntakeRange', startDate, endDate] as const;
 
+export const sleepRangeQueryKeyRoot = ['sleepRange'] as const;
 export const sleepRangeQueryKey = (startDate: string, endDate: string) =>
-  ['sleepRange', startDate, endDate] as const;
+  [...sleepRangeQueryKeyRoot, startDate, endDate] as const;
 
-export const sleepDayQueryKey = (day: string) => ['sleep', 'day', day] as const;
+export const sleepDayQueryKeyRoot = ['sleep'] as const;
+export const sleepDayQueryKey = (day: string) =>
+  [...sleepDayQueryKeyRoot, 'day', day] as const;
 
 // --- Check-in progress photos ---
 /** Root, so an upload/delete can invalidate the gallery and every per-day list. */
