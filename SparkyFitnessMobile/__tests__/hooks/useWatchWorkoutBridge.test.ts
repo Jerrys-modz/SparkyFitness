@@ -1217,6 +1217,9 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       samples: twoSamples,
     };
     mockPendingHeartRateBatches.mockResolvedValue([batch]);
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
 
     renderHook(() => useWatchWorkoutBridge(true, true));
     act(() => {
@@ -1230,7 +1233,8 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     await waitFor(() => {
       expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-early']);
     });
-    expect(mockAddLog).not.toHaveBeenCalledWith(
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+    expect(mockAddLog).toHaveBeenCalledWith(
       expect.stringContaining('unknown session'),
       'WARNING',
       expect.any(Array)
@@ -1443,29 +1447,22 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     ]);
 
     renderHook(() => useWatchWorkoutBridge(true, true));
-    await waitFor(async () => {
-      expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-9', {
-        hrSamples: [
-          { t: '2026-09-17T11:00:00.000Z', bpm: 110 },
-          { t: '2026-09-17T11:00:10.000Z', bpm: 118 },
-        ],
-        activeEnergyKcal: 4,
-      });
+    await waitFor(() => {
       expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-queued']);
-      const saved = await readWatchTelemetry(() => ({
-        samples: new Map(),
-        energy: new Map(),
-        durations: new Map(),
-        durationFromTimeline: false,
-        handledBatchClientIds: new Set<string>(),
-        entryDate: null,
-        unposted: false,
-        endedAt: null,
-        attribution: null,
-      }));
-      expect(saved.get('session-unknown')?.endedAt).toEqual(expect.any(Number));
-      expect(saved.get('session-unknown')?.entryDate).toBeNull();
     });
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+    const saved = await readWatchTelemetry(() => ({
+      samples: new Map(),
+      energy: new Map(),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set<string>(),
+      entryDate: null,
+      unposted: false,
+      endedAt: null,
+      attribution: null,
+    }));
+    expect(saved.has('session-unknown')).toBe(false);
   });
 
   it('ends the phone workout and hands the completion params over when the wearer finishes on the watch', async () => {

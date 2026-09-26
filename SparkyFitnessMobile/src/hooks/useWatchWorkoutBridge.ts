@@ -65,6 +65,22 @@ function entryDateOf(
   return session?.entry_date != null ? normalizeDate(session.entry_date) : null;
 }
 
+/** Exercise entries this phone has already bound to the session. */
+function phoneOwnedEntryIds(
+  session: SessionTelemetry,
+  liveExercises: { id: string }[] | undefined
+): Set<string> {
+  const ids = new Set<string>();
+  for (const id of session.samples.keys()) ids.add(id);
+  for (const id of session.energy.keys()) ids.add(id);
+  for (const id of session.durations.keys()) ids.add(id);
+  for (const step of session.attribution?.steps ?? []) {
+    ids.add(step.exerciseEntryId);
+  }
+  for (const exercise of liveExercises ?? []) ids.add(exercise.id);
+  return ids;
+}
+
 /** Set order → the exercise entry each set belongs to. */
 function attributionSteps(state: {
   session: {
@@ -233,7 +249,7 @@ export function useWatchWorkoutBridge(
   );
 
   const handleHeartRateBatch = useCallback(
-    (payload: WatchHeartRateBatchPayload, restore = false): void => {
+    (payload: WatchHeartRateBatchPayload): void => {
       const ackId = payload.clientId || payload.queueId;
       const persistHeartRate = (): void => {
         // The map may hold only this batch. Writing it replaces the saved
@@ -259,12 +275,16 @@ export function useWatchWorkoutBridge(
       const liveState = useActiveWorkoutStore.getState();
       let session = sessionsRef.current.get(payload.sessionId);
       if (session == null) {
-        if (!restore && payload.sessionId !== liveState.sessionId) {
-          if (!restoredRef.current) return;
-          // Neither live nor one this phone tracked — a workout from before
-          // an app restart, or one evicted after the retention window.
-          // Ack it. Leaving it in the native queue makes the next launch
-          // replay and accept the batch this pass just refused.
+        const isLive = payload.sessionId === liveState.sessionId;
+        if (!isLive) {
+          // The saved buffer may not be merged yet, or the workout store may
+          // still be rehydrating. Leave the batch queued until both are
+          // done. Once they are, a session this phone never tracked is
+          // dropped — the watch does not get to name an exercise entry.
+          const storeReady =
+            liveState.sessionId != null ||
+            useActiveWorkoutStore.persist.hasHydrated();
+          if (!restoredRef.current || !storeReady) return;
           addLog(
             `Watch heart-rate batch dropped: unknown session ${payload.sessionId}`,
             'WARNING',
@@ -277,14 +297,23 @@ export function useWatchWorkoutBridge(
           acknowledgeDropped();
           return;
         }
-        const isLive = payload.sessionId === liveState.sessionId;
-        session = createSessionTelemetry(
-          isLive ? entryDateOf(liveState.session) : null
-        );
-        // Not the live workout, so pruning has to be allowed to drop it.
-        // `endedAt == null` is treated as still in progress.
-        if (!isLive) session.endedAt = Date.now();
+        session = createSessionTelemetry(entryDateOf(liveState.session));
         sessionsRef.current.set(payload.sessionId, session);
+      }
+      const owned = phoneOwnedEntryIds(
+        session,
+        payload.sessionId === liveState.sessionId
+          ? liveState.session?.exercises
+          : undefined
+      );
+      if (owned.size === 0) {
+        addLog(
+          `Watch heart-rate batch dropped: session ${payload.sessionId} has no phone-owned exercise`,
+          'WARNING',
+          [`exerciseEntryId=${payload.exerciseEntryId}`]
+        );
+        acknowledgeDropped();
+        return;
       }
       if (payload.clientId) {
         if (session.handledBatchClientIds.has(payload.clientId)) {
@@ -331,6 +360,17 @@ export function useWatchWorkoutBridge(
       const samplesByExercise =
         attributed?.samplesByExercise ??
         new Map([[payload.exerciseEntryId, payload.samples]]);
+      for (const exerciseEntryId of [...samplesByExercise.keys()]) {
+        if (!owned.has(exerciseEntryId))
+          samplesByExercise.delete(exerciseEntryId);
+      }
+      const energyByExercise = attributed?.energyByExercise;
+      if (energyByExercise) {
+        for (const exerciseEntryId of [...energyByExercise.keys()]) {
+          if (!owned.has(exerciseEntryId))
+            energyByExercise.delete(exerciseEntryId);
+        }
+      }
       for (const [exerciseEntryId, incoming] of samplesByExercise) {
         if (incoming.length === 0) continue;
         const existing = session.samples.get(exerciseEntryId) ?? [];
@@ -348,8 +388,10 @@ export function useWatchWorkoutBridge(
       // them. Samples still merge via the timestamp set above.
       if (payload.clientId && payload.activeEnergyKcal != null) {
         const shares =
-          attributed?.energyByExercise ??
-          new Map([[payload.exerciseEntryId, payload.activeEnergyKcal]]);
+          energyByExercise ??
+          (owned.has(payload.exerciseEntryId)
+            ? new Map([[payload.exerciseEntryId, payload.activeEnergyKcal]])
+            : new Map());
         for (const [exerciseEntryId, kcal] of shares) {
           const existing = session.energy.get(exerciseEntryId) ?? 0;
           session.energy.set(exerciseEntryId, existing + kcal);
@@ -363,7 +405,8 @@ export function useWatchWorkoutBridge(
           exerciseEntryId,
           minutes,
         ] of attributed.durationsByExercise) {
-          if (minutes > 0) session.durations.set(exerciseEntryId, minutes);
+          if (minutes > 0 && owned.has(exerciseEntryId))
+            session.durations.set(exerciseEntryId, minutes);
         }
         session.unposted = true;
       } else if (
@@ -372,7 +415,10 @@ export function useWatchWorkoutBridge(
         payload.durationMinutes > 0
       ) {
         const previous = session.durations.get(payload.exerciseEntryId) ?? 0;
-        if (payload.durationMinutes > previous) {
+        if (
+          payload.durationMinutes > previous &&
+          owned.has(payload.exerciseEntryId)
+        ) {
           session.durations.set(
             payload.exerciseEntryId,
             payload.durationMinutes
@@ -574,6 +620,7 @@ export function useWatchWorkoutBridge(
     if (!enabled || !WatchConnectivity || !WatchConnectivity.isSupported())
       return;
     let cancelled = false;
+    let stopHydration: (() => void) | undefined;
     restoredRef.current = false;
     void (async () => {
       let saved: Awaited<ReturnType<typeof readWatchTelemetry>>;
@@ -616,16 +663,30 @@ export function useWatchWorkoutBridge(
         syncPendingRef.current();
         void handlersRef.current.flushHeartRate();
       }
-      if (typeof WatchConnectivity.pendingHeartRateBatches !== 'function')
-        return;
-      const pending = await WatchConnectivity.pendingHeartRateBatches();
-      if (cancelled) return;
-      for (const batch of pending) {
-        handlersRef.current.handleHeartRateBatch(batch, true);
+      const replayPending = async (): Promise<void> => {
+        if (cancelled || !WatchConnectivity) return;
+        if (typeof WatchConnectivity.pendingHeartRateBatches !== 'function')
+          return;
+        const pending = await WatchConnectivity.pendingHeartRateBatches();
+        if (cancelled) return;
+        for (const batch of pending) {
+          handlersRef.current.handleHeartRateBatch(batch);
+        }
+      };
+      await replayPending();
+      // A queued batch for the workout that is about to rehydrate has to
+      // wait until the phone's session id is known. It is not applied to a
+      // watch-supplied entry in the meantime.
+      if (!cancelled && !useActiveWorkoutStore.persist.hasHydrated()) {
+        stopHydration = useActiveWorkoutStore.persist.onFinishHydration(() => {
+          stopHydration?.();
+          void replayPending();
+        });
       }
     })();
     return () => {
       cancelled = true;
+      stopHydration?.();
     };
   }, [enabled]);
 
