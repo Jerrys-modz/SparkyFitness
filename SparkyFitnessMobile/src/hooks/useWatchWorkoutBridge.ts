@@ -236,6 +236,9 @@ export function useWatchWorkoutBridge(
     (payload: WatchHeartRateBatchPayload, restore = false): void => {
       const ackId = payload.clientId || payload.queueId;
       const persistHeartRate = (): void => {
+        // The map may hold only this batch. Writing it replaces the saved
+        // buffer, and acking drops the native copy the restore still needs.
+        if (!restoredRef.current) return;
         void writeWatchTelemetry(sessionsRef.current)
           .then(() => {
             if (!ackId) return undefined;
@@ -605,9 +608,9 @@ export function useWatchWorkoutBridge(
       }
       if (cancelled) return;
       restoredRef.current = true;
-      // A live batch that landed before this read saved a snapshot without
-      // these sessions. Write the merge even when there is nothing to post,
-      // or a kill here drops the stored samples.
+      // A live batch may already be in memory and must not have been written
+      // on its own. This write is the one that stores it with the saved
+      // sessions. Skipping it drops those samples if the process dies here.
       void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
       if (shouldFlush) {
         syncPendingRef.current();

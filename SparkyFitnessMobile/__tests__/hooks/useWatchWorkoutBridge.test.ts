@@ -16,6 +16,8 @@ import {
   __resetWatchTelemetryKeyForTests,
   readWatchTelemetry,
   settleWatchTelemetryWrites,
+  writeWatchTelemetry,
+  type WatchTelemetrySessionState,
 } from '../../src/utils/watchTelemetryPersistence';
 import { ApiError } from '../../src/services/api/errors';
 
@@ -1355,6 +1357,72 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     expect(await AsyncStorage.getItem('sparky.watchTelemetryBuffer')).toBe(
       'sealed-not-plaintext'
     );
+  });
+
+  it('does not let a live batch replace the saved buffer before restore finishes', async () => {
+    const empty = (): WatchTelemetrySessionState => ({
+      samples: new Map(),
+      energy: new Map(),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: 1_000,
+      attribution: null,
+    });
+    const older = empty();
+    older.endedAt = Date.now();
+    older.samples.set('ex-old', [
+      { t: '2026-09-17T09:00:00.000Z', bpm: 100 },
+      { t: '2026-09-17T09:00:10.000Z', bpm: 108 },
+    ]);
+    await writeWatchTelemetry(
+      new Map<string, WatchTelemetrySessionState>([['session-old', older]])
+    );
+    const stored = await AsyncStorage.getItem('sparky.watchTelemetryBuffer');
+    let releaseRead: (value: string | null) => void = () => {};
+    const gate = new Promise<string | null>((resolve) => {
+      releaseRead = resolve;
+    });
+    (AsyncStorage.getItem as jest.Mock).mockImplementationOnce(() => gate);
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+    (AsyncStorage.removeItem as jest.Mock).mockClear();
+    const batch = {
+      clientId: 'hr-live',
+      sessionId: 'session-1',
+      exerciseEntryId: 'ex-uuid-1',
+      samples: twoSamples,
+      activeEnergyKcal: 4,
+    };
+    mockPendingHeartRateBatches.mockResolvedValue([batch]);
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    renderHook(() => useWatchWorkoutBridge(true, true));
+    act(() => {
+      fire('onHeartRateBatch', batch);
+    });
+    expect(mockAckHeartRateBatches).not.toHaveBeenCalled();
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+      'sparky.watchTelemetryBuffer',
+      expect.anything()
+    );
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith(
+      'sparky.watchTelemetryBuffer'
+    );
+
+    await act(async () => {
+      releaseRead(stored);
+    });
+    await waitFor(() => {
+      expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-live']);
+    });
+    await settleWatchTelemetryWrites();
+    const saved = await readWatchTelemetry(empty);
+    expect(saved.get('session-old')?.samples.get('ex-old')).toHaveLength(2);
+    expect(saved.get('session-1')?.energy.get('ex-uuid-1')).toBe(4);
   });
 
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {

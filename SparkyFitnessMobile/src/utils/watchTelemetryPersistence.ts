@@ -309,6 +309,10 @@ function mergeEnergy(
     if (!incomingNovel && targetNovel) return false;
   }
 
+  // Both sides have an id the other lacks, so the totals are added. A batch
+  // that is already in both totals is counted twice. That takes a redelivery
+  // in the gap before restore finishes. Energy is a running total; storing
+  // it per batch would close this.
   let changed = false;
   for (const [exerciseEntryId, kcal] of incoming.energy) {
     const previous = target.energy.get(exerciseEntryId) ?? 0;
