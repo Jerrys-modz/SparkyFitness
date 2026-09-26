@@ -20,6 +20,7 @@ import {
   filterValidExerciseImages,
   resolveExerciseImageSrc,
 } from '@/utils/exercises';
+import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 
 interface ExerciseAlternativesPanelProps {
   replaceFor: ExerciseReplaceContext;
@@ -154,8 +155,12 @@ const ExerciseAlternativesPanel = ({
                   <div className="truncate font-medium">{alternative.name}</div>
                   <div className="truncate text-sm text-muted-foreground">
                     {[
-                      alternative.equipment.join(', '),
-                      alternative.primary_muscles.join(', '),
+                      alternative.equipment
+                        .map((eq) => localizeEquipment(t, eq))
+                        .join(', '),
+                      alternative.primary_muscles
+                        .map((m) => localizeMuscle(t, m))
+                        .join(', '),
                     ]
                       .filter(Boolean)
                       .join(' · ')}

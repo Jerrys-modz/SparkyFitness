@@ -23,6 +23,7 @@ import { useExerciseAlternatives } from '../hooks/useExerciseAlternatives';
 import { useExerciseImageSource } from '../hooks/useExerciseImageSource';
 import { CATEGORY_ICON_MAP } from '../utils/workoutSession';
 import type { ExerciseReplaceContext } from '../utils/exerciseReplace';
+import { localizeExerciseTaxonomyValue } from '../localization/exerciseTaxonomy';
 
 interface ExerciseAlternativesListProps {
   replaceFor: ExerciseReplaceContext;
@@ -121,8 +122,12 @@ const ExerciseAlternativesList: React.FC<ExerciseAlternativesListProps> = ({
         (item.category && CATEGORY_ICON_MAP[item.category]) ||
         'exercise-weights';
       const details = [
-        item.equipment.join(', '),
-        item.primary_muscles.join(', '),
+        item.equipment
+          .map((eq) => localizeExerciseTaxonomyValue(t, 'equipment', eq))
+          .join(', '),
+        item.primary_muscles
+          .map((m) => localizeExerciseTaxonomyValue(t, 'muscle', m))
+          .join(', '),
       ]
         .filter(Boolean)
         .join(' · ');
