@@ -54,6 +54,14 @@ describe('computeNiceYAxisScale', () => {
     });
   });
 
+  test('falls back to a safe scale instead of hanging when a bound is NaN', () => {
+    expect(computeNiceYAxisScale(NaN, NaN)).toEqual(
+      computeNiceYAxisScale(0, 0)
+    );
+    expect(computeNiceYAxisScale(NaN, 10)).toEqual(computeNiceYAxisScale(0, 0));
+    expect(computeNiceYAxisScale(5, NaN)).toEqual(computeNiceYAxisScale(0, 0));
+  });
+
   test('never returns fewer than 3 tick values, whatever the input scale', () => {
     const domains: [number, number][] = [
       [72, 72],

@@ -134,6 +134,12 @@ export function computeNiceYAxisScale(
   maxValue: number,
   tickCount: number = CHART_Y_TICK_COUNT
 ): NiceYAxisScale {
+  // A non-finite bound (e.g. NaN from an empty/invalid series) would make every step below
+  // NaN too, so buildNiceScale never returns a tick and the shrink loop spins forever.
+  if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+    return computeNiceYAxisScale(0, 0, tickCount);
+  }
+
   // A flat or near-flat series still needs at least one whole-number step to label.
   const safeMax = Math.max(maxValue, minValue + 1);
   const range = niceNumber(safeMax - minValue, false);
