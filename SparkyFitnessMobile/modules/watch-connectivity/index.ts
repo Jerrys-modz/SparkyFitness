@@ -285,6 +285,12 @@ export interface WatchHeartRateBatchPayload {
    * would double the diary calories.
    */
   clientId?: string;
+  /**
+   * Present only when `clientId` is missing, so the phone can still remove
+   * the batch from the native queue. Not a dedupe key — a batch with no
+   * `clientId` must not apply `activeEnergyKcal`.
+   */
+  queueId?: string;
   sessionId: string;
   exerciseEntryId: string;
   samples: WatchHeartRateSamplePayload[];
@@ -300,6 +306,13 @@ export interface WatchHeartRateBatchPayload {
    * its sets. Cumulative. Absent on a batch that only carries samples.
    */
   durationMinutes?: number;
+  /**
+   * Server config that was active when the phone received this batch. The
+   * phone only applies a batch whose owner is the active config; a batch for
+   * another config stays queued and is not posted or acked. Absent when no
+   * config was active, in which case the batch was not queued either.
+   */
+  ownerId?: string;
 }
 
 /** The wearer ended the workout on the watch. */
@@ -343,6 +356,25 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     pausedAt?: string;
     excludedPauseMs: number;
   }): Promise<void>;
+  /**
+   * Heart-rate batches received before JavaScript was listening. Kept until
+   * `ackHeartRateBatches` says the phone has stored them. Async so the read
+   * is not on the JS thread.
+   */
+  pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
+  ackHeartRateBatches(clientIds: string[]): Promise<void>;
+  /**
+   * Server config that owns batches received after this call. Persisted
+   * natively, so a batch that arrives on a cold start is stamped before
+   * JavaScript runs. An empty id means no config is active, and batches are
+   * then not queued.
+   */
+  setTelemetryOwner(ownerId: string): Promise<void>;
+  /**
+   * Batches the native queue evicted (over its cap) or refused (no owner, or
+   * malformed) since the last call. Resets to zero.
+   */
+  takeDroppedHeartRateBatchCount(): Promise<number>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
