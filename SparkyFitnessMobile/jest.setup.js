@@ -723,6 +723,7 @@ if (!testI18n.isInitialized) {
 // and breaks other suites.
 jest.mock('expo-crypto', () => {
   const { webcrypto } = require('crypto');
+  const { Buffer } = require('node:buffer');
 
   class WatchTelemetryTestKey {
     constructor(bytes) {

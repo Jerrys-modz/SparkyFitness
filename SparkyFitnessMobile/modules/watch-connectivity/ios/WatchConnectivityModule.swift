@@ -99,9 +99,6 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
 public class WatchConnectivityModule: Module {
     private let delegateHandler = WatchSessionDelegateHandler()
     private let heartRateQueueKey = "sparky.pendingHeartRateBatches"
-    /// One batch a minute. 100 is the longest backlog this queue keeps:
-    /// about an hour and forty minutes with nothing acknowledged.
-    private let heartRateQueueLimit = 100
     private var heartRateQueue: [[String: Any]] = []
     /// The watch callback and this module's queue both touch `heartRateQueue`.
     /// One serial queue so a drain and an ack can't interleave.
@@ -281,12 +278,18 @@ public class WatchConnectivityModule: Module {
         /// these on startup and acks the ones it has stored. Async so the
         /// read is not on the JS thread; the queue lock is the actual guard.
         AsyncFunction("pendingHeartRateBatches") { () -> [[String: Any]] in
-            self.heartRateAccess.sync { self.heartRateQueue }
+            self.heartRateAccess.sync {
+                // A batch can be in memory from a keychain write that failed.
+                // Try again before JS reads, so a later drain still sees it.
+                _ = self.saveHeartRateQueue()
+                return self.heartRateQueue
+            }
         }
 
         AsyncFunction("ackHeartRateBatches") { (clientIds: [String]) in
             let ids = Set(clientIds)
             self.heartRateAccess.sync {
+                let previous = self.heartRateQueue
                 self.heartRateQueue.removeAll { event in
                     if let clientId = event["clientId"] as? String,
                        !clientId.isEmpty,
@@ -298,7 +301,11 @@ public class WatchConnectivityModule: Module {
                     }
                     return false
                 }
-                self.saveHeartRateQueue()
+                // Leave the batch queued when the keychain write fails.
+                // JS will ack again after the next successful save.
+                if !self.saveHeartRateQueue() {
+                    self.heartRateQueue = previous
+                }
             }
         }
     }
@@ -323,10 +330,12 @@ public class WatchConnectivityModule: Module {
     }
 
     /// Caller holds `heartRateAccess`. The item is ThisDeviceOnly, so it is
-    /// encrypted by the keychain and left out of backups.
-    private func saveHeartRateQueue() {
+    /// encrypted by the keychain and left out of backups. False means the
+    /// in-memory queue is still the only copy.
+    @discardableResult
+    private func saveHeartRateQueue() -> Bool {
         guard let data = try? JSONSerialization.data(withJSONObject: heartRateQueue) else {
-            return
+            return false
         }
         var query = heartRateQueueQuery()
         let status: OSStatus
@@ -347,9 +356,10 @@ public class WatchConnectivityModule: Module {
         }
         guard status == errSecSuccess else {
             NSLog("Watch heart-rate queue keychain write failed: %d", Int(status))
-            return
+            return false
         }
         UserDefaults.standard.removeObject(forKey: heartRateQueueKey)
+        return true
     }
 
     private func heartRateQueueQuery() -> [String: Any] {
@@ -410,15 +420,8 @@ public class WatchConnectivityModule: Module {
             return
         }
         heartRateQueue.append(event)
-        if heartRateQueue.count > heartRateQueueLimit {
-            let dropped = heartRateQueue.count - heartRateQueueLimit
-            NSLog(
-                "Watch heart-rate queue over %d; dropping %d oldest batch(es)",
-                heartRateQueueLimit,
-                dropped
-            )
-            heartRateQueue.removeFirst(dropped)
-        }
+        // Unacknowledged batches stay until JS acks them. Dropping the
+        // oldest would lose samples from a long workout.
         saveHeartRateQueue()
     }
 }

@@ -7,6 +7,7 @@ import {
   readWatchTelemetry,
   serializeWatchTelemetry,
   writeWatchTelemetry,
+  __resetWatchTelemetryKeyForTests,
   type WatchTelemetrySessionState,
 } from '../../src/utils/watchTelemetryPersistence';
 
@@ -272,6 +273,22 @@ describe('watchTelemetryPersistence', () => {
 
     const restored = await readWatchTelemetry(create);
     expect(restored.get('session-1')?.samples.get('ex-1')).toHaveLength(1);
+  });
+
+  it('leaves the ciphertext in place when the key cannot be read', async () => {
+    await AsyncStorage.setItem(
+      'sparky.watchTelemetryBuffer',
+      'sealed-not-plaintext'
+    );
+    __resetWatchTelemetryKeyForTests();
+    (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(
+      new Error('locked')
+    );
+
+    await expect(readWatchTelemetry(create)).rejects.toThrow('locked');
+    expect(await AsyncStorage.getItem('sparky.watchTelemetryBuffer')).toBe(
+      'sealed-not-plaintext'
+    );
   });
 
   it('lets the later snapshot win when an earlier write is still in flight', async () => {

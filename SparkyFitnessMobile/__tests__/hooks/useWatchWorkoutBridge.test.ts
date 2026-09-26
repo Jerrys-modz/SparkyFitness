@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import type { PresetSessionResponse } from '@workspace/shared';
 import { useWatchWorkoutBridge } from '../../src/hooks/useWatchWorkoutBridge';
 import {
@@ -12,6 +13,7 @@ import {
 } from '../../src/services/api/exerciseApi';
 import { addLog } from '../../src/services/LogService';
 import {
+  __resetWatchTelemetryKeyForTests,
   readWatchTelemetry,
   settleWatchTelemetryWrites,
 } from '../../src/utils/watchTelemetryPersistence';
@@ -1328,6 +1330,31 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
     expect(mockAckHeartRateBatches).not.toHaveBeenCalled();
     view.unmount();
+  });
+
+  it('does not wipe saved telemetry when the keychain read fails', async () => {
+    await AsyncStorage.setItem(
+      'sparky.watchTelemetryBuffer',
+      'sealed-not-plaintext'
+    );
+    __resetWatchTelemetryKeyForTests();
+    (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(
+      new Error('locked')
+    );
+    (AsyncStorage.removeItem as jest.Mock).mockClear();
+
+    renderHook(() => useWatchWorkoutBridge(true, true));
+    await waitFor(() => {
+      expect(mockAddLog).toHaveBeenCalledWith(
+        expect.stringContaining('restore failed'),
+        'WARNING'
+      );
+    });
+    expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem('sparky.watchTelemetryBuffer')).toBe(
+      'sealed-not-plaintext'
+    );
   });
 
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {

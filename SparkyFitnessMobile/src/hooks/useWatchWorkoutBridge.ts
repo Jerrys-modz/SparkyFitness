@@ -472,7 +472,11 @@ export function useWatchWorkoutBridge(
     }
     syncPendingRef.current();
     pruneSessions();
-    void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
+    // Before restore finishes, the map does not yet hold the saved buffer.
+    // An empty write would delete that ciphertext.
+    if (restoredRef.current) {
+      void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
+    }
   }, [pruneSessions]);
 
   const handleWorkoutStop = useCallback(

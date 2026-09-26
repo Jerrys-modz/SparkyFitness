@@ -325,9 +325,9 @@ export async function readWatchTelemetry(
   const raw = await AsyncStorage.getItem(STORAGE_KEY);
   if (!raw) return new Map();
   // A value written before encryption starts with '{'. Read it once; the
-  // next write replaces it with ciphertext.
+  // next write replaces it with ciphertext. A keychain or decrypt failure
+  // throws, so the caller does not replace the stored buffer with empty.
   const json = raw.startsWith('{') ? raw : await openSealed(raw);
-  if (!json) return new Map();
   return deserializeWatchTelemetry(json, create);
 }
 
@@ -400,15 +400,22 @@ async function seal(plaintext: string): Promise<string> {
   return combined;
 }
 
-async function openSealed(stored: string): Promise<string | null> {
+/** Clears the cached key so a test can force the next read to hit SecureStore. */
+export function __resetWatchTelemetryKeyForTests(): void {
+  keyPromise = null;
+}
+
+async function openSealed(stored: string): Promise<string> {
+  // A keychain failure must reject. Returning null looks like an empty
+  // buffer, and the caller would then delete the ciphertext.
+  const key = await telemetryKey();
   try {
-    const key = await telemetryKey();
     const bytes = (await aesDecryptAsync(
       AESSealedData.fromCombined(stored),
       key
     )) as Uint8Array;
     return new TextDecoder().decode(bytes);
   } catch {
-    return null;
+    throw new Error('Watch telemetry could not be decrypted');
   }
 }
