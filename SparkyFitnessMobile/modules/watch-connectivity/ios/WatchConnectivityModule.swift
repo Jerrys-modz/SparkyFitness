@@ -90,6 +90,16 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     }
 }
 
+/// One heart-rate batch in the native queue, and the file that holds it.
+private struct QueuedHeartRateBatch {
+    var event: [String: Any]
+    let fileName: String
+    /// False until the file write succeeds. Before the first unlock after a
+    /// reboot the file cannot be written; the batch is retried on the next
+    /// queue access and is still in memory for JS until then.
+    var stored: Bool
+}
+
 /// Phone-side bridge exposed to JS as `WatchConnectivity`.
 ///
 /// The watch cannot reach the SparkyFitness server itself — authentication lives
@@ -98,19 +108,28 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
 /// acknowledgements and fresh seed data back.
 public class WatchConnectivityModule: Module {
     private let delegateHandler = WatchSessionDelegateHandler()
-    private let heartRateQueueKey = "sparky.pendingHeartRateBatches"
-    /// One batch a minute. Six hours is longer than a workout this queue is
-    /// meant to cover; the byte cap stops one huge payload from growing the
-    /// keychain item without a bound.
-    private let heartRateQueueBatchLimit = 360
-    private let heartRateQueueByteLimit = 1_048_576
+    /// Where development builds kept the queue, in UserDefaults and then the
+    /// keychain. Those batches carry no owner, so they are deleted on load.
+    private let legacyHeartRateQueueKey = "sparky.pendingHeartRateBatches"
+    /// The server config JS last reported as active. Persisted so a batch
+    /// that arrives on a cold start, before JS runs, is still stamped.
+    private let telemetryOwnerKey = "sparky.watchTelemetryOwner"
+    /// One batch a minute, so a week. Each batch is its own file, so a long
+    /// backlog costs one small write per batch rather than a rewrite of the
+    /// whole queue. The queue only grows while JS cannot store what it
+    /// receives, and JS retries that, so reaching this means the phone could
+    /// not save telemetry for a week. Evictions are counted and reported to
+    /// the app log through `takeDroppedHeartRateBatchCount`.
+    private let heartRateQueueBatchLimit = 10_080
+    /// A normal batch is about 3 KB. This only stops one malformed payload.
+    private let heartRateBatchByteLimit = 1_048_576
     private var telemetryOwnerId = ""
-    /// Ownerless batches loaded before any account was known. They must not
-    /// be claimed by whichever account opens the app next.
-    private var unclassifiedBatchIds = Set<String>()
-    private let telemetryOwnerAccount = "sparky.watchTelemetryOwner"
-    private var heartRateQueue: [[String: Any]] = []
-    private var heartRateQueueNeedsSave = false
+    private var heartRateQueue: [QueuedHeartRateBatch] = []
+    /// False while some batch file could not be read yet (the phone has not
+    /// been unlocked since boot). Reading is retried on each queue access.
+    private var heartRateQueueLoaded = false
+    private var heartRateQueueDirectoryReady = false
+    private var droppedHeartRateBatches = 0
     /// The watch callback and this module's queue both touch `heartRateQueue`.
     /// One serial queue so a drain and an ack can't interleave.
     private let heartRateAccess = DispatchQueue(label: "sparky.watch.heartRateQueue")
@@ -131,7 +150,9 @@ public class WatchConnectivityModule: Module {
 
         OnCreate {
             self.heartRateAccess.sync {
-                self.loadHeartRateQueue()
+                self.telemetryOwnerId =
+                    UserDefaults.standard.string(forKey: self.telemetryOwnerKey) ?? ""
+                self.prepareHeartRateQueue()
             }
             self.delegateHandler.onReachabilityChange = { [weak self] isReachable in
                 self?.sendEvent("onReachabilityChange", ["isReachable": isReachable])
@@ -178,7 +199,9 @@ public class WatchConnectivityModule: Module {
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in
                 guard let self else { return }
-                let event: [String: Any] = self.heartRateAccess.sync {
+                // Stamped and queued under one lock, so an owner change
+                // cannot land between the two.
+                let event = self.heartRateAccess.sync { () -> [String: Any] in
                     let event = self.heartRateEvent(from: payload)
                     self.rememberHeartRateBatch(event)
                     return event
@@ -286,28 +309,14 @@ public class WatchConnectivityModule: Module {
             }
         }
 
-        /// The account that owns batches queued from now on. The id is also
-        /// stored in the keychain, so a relaunch can still tell a queued
-        /// batch from the account that opens the app next. A batch whose
-        /// owner was never known is left unmarked.
-        Function("setTelemetryOwner") { (ownerId: String) in
+        /// The server config that owns batches queued from now on. Each batch
+        /// is stamped when it arrives, so a batch already queued keeps the
+        /// config that was active then. A batch that arrives while no config
+        /// is active is not queued: nothing could prove which one owns it.
+        AsyncFunction("setTelemetryOwner") { (ownerId: String) in
             self.heartRateAccess.sync {
-                let next = ownerId
-                let previous = self.telemetryOwnerId
-                if previous != next {
-                    let stamp = previous.isEmpty ? next : previous
-                    if self.stampOwnerlessBatches(
-                        with: stamp,
-                        excluding: self.unclassifiedBatchIds
-                    ) {
-                        self.heartRateQueueNeedsSave = true
-                        _ = self.saveHeartRateQueue()
-                    }
-                }
-                if self.telemetryOwnerId != next {
-                    self.telemetryOwnerId = next
-                    self.saveTelemetryOwner()
-                }
+                self.telemetryOwnerId = ownerId
+                UserDefaults.standard.set(ownerId, forKey: self.telemetryOwnerKey)
             }
         }
 
@@ -315,206 +324,204 @@ public class WatchConnectivityModule: Module {
         /// these on startup and acks the ones it has stored. Async so the
         /// read is not on the JS thread; the queue lock is the actual guard.
         AsyncFunction("pendingHeartRateBatches") { () -> [[String: Any]] in
-            self.heartRateAccess.sync {
-                // Retry a keychain write that failed. A clean queue is not
-                // rewritten on every read.
-                if self.heartRateQueueNeedsSave {
-                    _ = self.saveHeartRateQueue()
-                }
-                return self.heartRateQueue
+            self.heartRateAccess.sync { () -> [[String: Any]] in
+                self.prepareHeartRateQueue()
+                return self.heartRateQueue.map { $0.event }
             }
         }
 
         AsyncFunction("ackHeartRateBatches") { (clientIds: [String]) in
             let ids = Set(clientIds)
             self.heartRateAccess.sync {
-                let previous = self.heartRateQueue
-                self.heartRateQueue.removeAll { event in
-                    if let clientId = event["clientId"] as? String,
-                       !clientId.isEmpty,
-                       ids.contains(clientId) {
-                        return true
+                self.prepareHeartRateQueue()
+                // A batch whose file cannot be deleted stays queued. The next
+                // launch replays it, and JS acks it again once it is stored.
+                self.heartRateQueue.removeAll { batch in
+                    guard self.heartRateBatch(batch.event, matches: ids) else {
+                        return false
                     }
-                    if let queueId = event["queueId"] as? String, ids.contains(queueId) {
-                        return true
-                    }
-                    return false
+                    return self.deleteHeartRateBatchFile(batch.fileName)
                 }
-                // Leave the batch queued when the keychain write fails.
-                // JS will ack again after the next successful save.
-                if !self.saveHeartRateQueue() {
-                    self.heartRateQueue = previous
-                }
+            }
+        }
+
+        /// Batches evicted or refused since the last call, so JS can put the
+        /// loss in the app log rather than only the device console.
+        AsyncFunction("takeDroppedHeartRateBatchCount") { () -> Int in
+            self.heartRateAccess.sync { () -> Int in
+                let dropped = self.droppedHeartRateBatches
+                self.droppedHeartRateBatches = 0
+                return dropped
             }
         }
     }
 
-    /// Caller holds `heartRateAccess`. Reads the keychain copy. A leftover
-    /// UserDefaults value is from before the queue was encrypted; it is moved
-    /// once and then deleted so backups stop carrying the samples.
-    private func loadHeartRateQueue() {
-        loadTelemetryOwner()
-        defer { classifyLoadedQueue() }
-        if let data = heartRateQueueDataFromKeychain(),
-           let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            heartRateQueue = parsed.map { self.withQueueId($0) }
-            if !saveHeartRateQueue() {
-                heartRateQueueNeedsSave = true
+    private func heartRateBatch(_ event: [String: Any], matches ids: Set<String>) -> Bool {
+        if let clientId = event["clientId"] as? String, !clientId.isEmpty, ids.contains(clientId) {
+            return true
+        }
+        if let queueId = event["queueId"] as? String, ids.contains(queueId) {
+            return true
+        }
+        return false
+    }
+
+    /// Caller holds `heartRateAccess`. Reads batch files not read yet and
+    /// retries writes that failed.
+    private func prepareHeartRateQueue() {
+        loadHeartRateQueue()
+        storeUnsavedHeartRateBatches()
+    }
+
+    /// Caller holds `heartRateAccess`. The directory is excluded from
+    /// backups, and its files are encrypted until the first unlock after a
+    /// reboot.
+    private func heartRateQueueDirectory() -> URL? {
+        let fileManager = FileManager.default
+        guard let base = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else {
+            return nil
+        }
+        var directory = base.appendingPathComponent("WatchHeartRateQueue", isDirectory: true)
+        if heartRateQueueDirectoryReady {
+            return directory
+        }
+        do {
+            if !fileManager.fileExists(atPath: directory.path) {
+                try fileManager.createDirectory(
+                    at: directory,
+                    withIntermediateDirectories: true,
+                    attributes: [
+                        .protectionKey: FileProtectionType.completeUntilFirstUserAuthentication,
+                    ]
+                )
             }
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try directory.setResourceValues(values)
+            heartRateQueueDirectoryReady = true
+            return directory
+        } catch {
+            NSLog(
+                "Watch heart-rate queue directory unavailable: %@",
+                error.localizedDescription
+            )
+            return nil
+        }
+    }
+
+    /// Caller holds `heartRateAccess`. A file that cannot be read yet stays
+    /// on disk and is read on a later call. Writing a new batch never
+    /// touches another batch's file, so an unreadable file is never
+    /// overwritten.
+    private func loadHeartRateQueue() {
+        if heartRateQueueLoaded { return }
+        guard let directory = heartRateQueueDirectory() else { return }
+        migrateLegacyHeartRateQueue()
+        let fileManager = FileManager.default
+        guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
             return
         }
-        guard
-            let text = UserDefaults.standard.string(forKey: heartRateQueueKey),
-            let data = text.data(using: .utf8),
-            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-        else { return }
-        heartRateQueue = parsed.map { self.withQueueId($0) }
-        if !saveHeartRateQueue() {
-            heartRateQueueNeedsSave = true
+        let known = Set(heartRateQueue.map { $0.fileName })
+        var complete = true
+        var loaded: [QueuedHeartRateBatch] = []
+        for name in names where name.hasSuffix(".json") && !known.contains(name) {
+            let url = directory.appendingPathComponent(name)
+            guard let data = try? Data(contentsOf: url) else {
+                complete = false
+                continue
+            }
+            guard
+                let event = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                let ownerId = event["ownerId"] as? String,
+                !ownerId.isEmpty
+            else {
+                // Unreadable JSON, or a batch from a development build that
+                // queued without an owner. Neither can be replayed safely.
+                try? fileManager.removeItem(at: url)
+                droppedHeartRateBatches += 1
+                continue
+            }
+            loaded.append(QueuedHeartRateBatch(event: event, fileName: name, stored: true))
         }
+        heartRateQueue = (heartRateQueue + loaded).sorted { $0.fileName < $1.fileName }
+        heartRateQueueLoaded = complete
+        trimHeartRateQueue()
     }
 
-    /// Caller holds `heartRateAccess`. The item is ThisDeviceOnly, so it is
-    /// encrypted by the keychain and left out of backups. False means the
-    /// in-memory queue is still the only copy.
-    @discardableResult
-    private func saveHeartRateQueue() -> Bool {
-        guard let data = try? JSONSerialization.data(withJSONObject: heartRateQueue) else {
-            heartRateQueueNeedsSave = true
-            return false
+    /// Caller holds `heartRateAccess`. Development builds kept the queue in
+    /// one keychain item, and before that in UserDefaults. Those batches
+    /// carry no owner, so they are deleted rather than moved.
+    private func migrateLegacyHeartRateQueue() {
+        UserDefaults.standard.removeObject(forKey: legacyHeartRateQueueKey)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "sparky.watchTelemetry",
+            kSecAttrAccount as String: legacyHeartRateQueueKey,
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess, status != errSecItemNotFound {
+            NSLog("Watch heart-rate legacy queue delete failed: %d", Int(status))
         }
-        var query = heartRateQueueQuery()
-        let status: OSStatus
-        if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
-            status = SecItemUpdate(
-                query as CFDictionary,
-                [
-                    kSecValueData as String: data,
-                    kSecAttrAccessible as String:
-                        kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-                ] as CFDictionary
-            )
-        } else {
-            query[kSecValueData as String] = data
-            query[kSecAttrAccessible as String] =
-                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            status = SecItemAdd(query as CFDictionary, nil)
-        }
-        guard status == errSecSuccess else {
-            heartRateQueueNeedsSave = true
-            NSLog("Watch heart-rate queue keychain write failed: %d", Int(status))
-            return false
-        }
-        heartRateQueueNeedsSave = false
-        UserDefaults.standard.removeObject(forKey: heartRateQueueKey)
-        return true
-    }
-
-    /// Caller holds `heartRateAccess`. The account id is ThisDeviceOnly, same
-    /// as the queue, so a relaunch can still tell whose batches these were.
-    private func loadTelemetryOwner() {
-        var query = heartRateQueueQuery()
-        query[kSecAttrAccount as String] = telemetryOwnerAccount
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data,
-              let text = String(data: data, encoding: .utf8),
-              !text.isEmpty
-        else { return }
-        telemetryOwnerId = text
     }
 
     /// Caller holds `heartRateAccess`.
-    private func saveTelemetryOwner() {
-        let data = Data(telemetryOwnerId.utf8)
-        var query = heartRateQueueQuery()
-        query[kSecAttrAccount as String] = telemetryOwnerAccount
-        let status: OSStatus
-        if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
-            status = SecItemUpdate(
-                query as CFDictionary,
-                [
-                    kSecValueData as String: data,
-                    kSecAttrAccessible as String:
-                        kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-                ] as CFDictionary
+    private func storeUnsavedHeartRateBatches() {
+        guard heartRateQueue.contains(where: { !$0.stored }),
+              let directory = heartRateQueueDirectory()
+        else { return }
+        for index in heartRateQueue.indices where !heartRateQueue[index].stored {
+            heartRateQueue[index].stored = writeHeartRateBatch(heartRateQueue[index], in: directory)
+        }
+    }
+
+    /// Caller holds `heartRateAccess`.
+    private func writeHeartRateBatch(_ batch: QueuedHeartRateBatch, in directory: URL) -> Bool {
+        guard
+            JSONSerialization.isValidJSONObject(batch.event),
+            let data = try? JSONSerialization.data(withJSONObject: batch.event)
+        else {
+            return false
+        }
+        do {
+            try data.write(
+                to: directory.appendingPathComponent(batch.fileName),
+                options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
             )
-        } else {
-            query[kSecValueData as String] = data
-            query[kSecAttrAccessible as String] =
-                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            status = SecItemAdd(query as CFDictionary, nil)
-        }
-        if status != errSecSuccess {
-            NSLog("Watch telemetry owner keychain write failed: %d", Int(status))
+            return true
+        } catch {
+            NSLog("Watch heart-rate batch write failed: %@", error.localizedDescription)
+            return false
         }
     }
 
-    /// Caller holds `heartRateAccess`. A batch loaded with no owner, before
-    /// any account was saved, stays unmarked. Anything queued under the
-    /// saved account gets that account, including a batch that missed its
-    /// stamp because the process died first.
-    private func classifyLoadedQueue() {
-        if telemetryOwnerId.isEmpty {
-            for event in heartRateQueue where (event["ownerId"] as? String ?? "").isEmpty {
-                unclassifiedBatchIds.insert(batchIdentity(event))
-            }
-            return
-        }
-        if stampOwnerlessBatches(with: telemetryOwnerId, excluding: []) {
-            heartRateQueueNeedsSave = true
-            _ = saveHeartRateQueue()
+    /// Caller holds `heartRateAccess`. True when the file is gone.
+    private func deleteHeartRateBatchFile(_ fileName: String) -> Bool {
+        guard let directory = heartRateQueueDirectory() else { return false }
+        let url = directory.appendingPathComponent(fileName)
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: url.path) { return true }
+        do {
+            try fileManager.removeItem(at: url)
+            return true
+        } catch {
+            NSLog("Watch heart-rate batch delete failed: %@", error.localizedDescription)
+            return false
         }
     }
 
-    /// Caller holds `heartRateAccess`. Returns whether any batch changed.
-    private func stampOwnerlessBatches(
-        with owner: String,
-        excluding: Set<String>
-    ) -> Bool {
-        guard !owner.isEmpty else { return false }
-        var changed = false
-        heartRateQueue = heartRateQueue.map { event in
-            var copy = event
-            if !(copy["ownerId"] as? String ?? "").isEmpty { return copy }
-            if excluding.contains(batchIdentity(copy)) { return copy }
-            copy["ownerId"] = owner
-            changed = true
-            return copy
-        }
-        return changed
+    /// Sorts by arrival. Milliseconds stay 13 digits until the year 2286, so
+    /// the names sort as strings.
+    private func nextHeartRateFileName() -> String {
+        let millis = Int64(Date().timeIntervalSince1970 * 1000)
+        return "\(millis)-\(UUID().uuidString).json"
     }
 
-    private func batchIdentity(_ event: [String: Any]) -> String {
-        let clientId = event["clientId"] as? String ?? ""
-        if !clientId.isEmpty { return "c:" + clientId }
-        return "q:" + (event["queueId"] as? String ?? "")
-    }
-
-    private func heartRateQueueQuery() -> [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "sparky.watchTelemetry",
-            kSecAttrAccount as String: heartRateQueueKey,
-        ]
-    }
-
-    private func heartRateQueueDataFromKeychain() -> Data? {
-        var query = heartRateQueueQuery()
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else {
-            return nil
-        }
-        return item as? Data
-    }
-
-    /// Caller holds `heartRateAccess`. Optional numbers are omitted rather
-    /// than stored as null so the queue survives JSON. The owner id is read
-    /// here so it cannot change between the stamp and the queue insert.
+    /// Caller holds `heartRateAccess`. Same shape `sendEvent` used to build
+    /// inline. Optional numbers are omitted rather than stored as null so the
+    /// queue survives JSON.
     private func heartRateEvent(from payload: [String: Any]) -> [String: Any] {
         var event: [String: Any] = [
             "clientId": payload["clientId"] as? String ?? "",
@@ -552,20 +559,14 @@ public class WatchConnectivityModule: Module {
     private func trimHeartRateQueue() {
         var dropped = 0
         while heartRateQueue.count > heartRateQueueBatchLimit {
-            heartRateQueue.removeFirst()
-            dropped += 1
-        }
-        while heartRateQueue.count > 1 {
-            guard
-                let data = try? JSONSerialization.data(withJSONObject: heartRateQueue),
-                data.count > heartRateQueueByteLimit
-            else { break }
-            heartRateQueue.removeFirst()
+            let oldest = heartRateQueue.removeFirst()
+            _ = deleteHeartRateBatchFile(oldest.fileName)
             dropped += 1
         }
         if dropped > 0 {
+            droppedHeartRateBatches += dropped
             NSLog(
-                "Watch heart-rate queue over cap; dropping %d oldest batch(es)",
+                "Watch heart-rate queue over cap; dropped %d oldest batch(es)",
                 dropped
             )
         }
@@ -573,22 +574,38 @@ public class WatchConnectivityModule: Module {
 
     /// Caller holds `heartRateAccess`.
     private func rememberHeartRateBatch(_ event: [String: Any]) {
+        prepareHeartRateQueue()
         if let clientId = event["clientId"] as? String, !clientId.isEmpty,
-           heartRateQueue.contains(where: { ($0["clientId"] as? String) == clientId }) {
+           heartRateQueue.contains(where: { ($0.event["clientId"] as? String) == clientId }) {
             return
         }
-        if let encoded = try? JSONSerialization.data(withJSONObject: [event]),
-           encoded.count > heartRateQueueByteLimit {
+        guard let ownerId = event["ownerId"] as? String, !ownerId.isEmpty else {
+            droppedHeartRateBatches += 1
+            NSLog("Watch heart-rate batch not queued: no server config is active")
+            return
+        }
+        guard
+            JSONSerialization.isValidJSONObject(event),
+            let encoded = try? JSONSerialization.data(withJSONObject: event),
+            encoded.count <= heartRateBatchByteLimit
+        else {
+            droppedHeartRateBatches += 1
             NSLog(
-                "Watch heart-rate batch exceeds %d bytes; not queued",
-                heartRateQueueByteLimit
+                "Watch heart-rate batch not queued: invalid or over %d bytes",
+                heartRateBatchByteLimit
             )
             return
         }
-        heartRateQueue.append(event)
+        var batch = QueuedHeartRateBatch(
+            event: event,
+            fileName: nextHeartRateFileName(),
+            stored: false
+        )
+        if let directory = heartRateQueueDirectory() {
+            batch.stored = writeHeartRateBatch(batch, in: directory)
+        }
+        heartRateQueue.append(batch)
         trimHeartRateQueue()
-        heartRateQueueNeedsSave = true
-        _ = saveHeartRateQueue()
     }
 }
 

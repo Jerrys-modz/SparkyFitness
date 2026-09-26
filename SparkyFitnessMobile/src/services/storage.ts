@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { CATEGORY_ORDER } from '../HealthMetrics';
 import { addLog } from './LogService';
 import { getErrorMessage } from '../utils/errors';
+import { deleteWatchTelemetryForConfig } from '../utils/watchTelemetryPersistence';
 
 export interface ProxyHeader {
   name: string;
@@ -300,6 +301,16 @@ export const deleteServerConfig = async (configId: string): Promise<void> => {
     const activeId = await AsyncStorage.getItem(ACTIVE_SERVER_CONFIG_ID_KEY);
     if (activeId === configId) {
       await AsyncStorage.removeItem(ACTIVE_SERVER_CONFIG_ID_KEY);
+    }
+    // The config is already gone, so a failure here only leaves unreadable
+    // telemetry behind; it must not fail the delete.
+    try {
+      await deleteWatchTelemetryForConfig(configId);
+    } catch (e) {
+      addLog(
+        `[Storage] Failed to delete watch telemetry for config: ${getErrorMessage(e)}`,
+        'WARNING'
+      );
     }
   } catch (e) {
     const message = getErrorMessage(e);

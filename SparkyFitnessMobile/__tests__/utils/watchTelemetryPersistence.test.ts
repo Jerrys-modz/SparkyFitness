@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AESEncryptionKey, AESSealedData, aesDecryptAsync } from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import WatchConnectivity from '../../modules/watch-connectivity';
 import {
+  deleteWatchTelemetryForConfig,
   deserializeWatchTelemetry,
   mergeWatchTelemetry,
   readWatchTelemetry,
@@ -10,6 +12,17 @@ import {
   __resetWatchTelemetryKeyForTests,
   type WatchTelemetrySessionState,
 } from '../../src/utils/watchTelemetryPersistence';
+
+jest.mock('../../modules/watch-connectivity', () => ({
+  __esModule: true,
+  default: {
+    pendingHeartRateBatches: jest.fn(async () => []),
+    ackHeartRateBatches: jest.fn(async () => undefined),
+  },
+}));
+
+const OWNER = 'config-a';
+const BUFFER_KEY = `sparky.watchTelemetryBuffer.${OWNER}`;
 
 function create(entryDate: string | null): WatchTelemetrySessionState {
   return {
@@ -243,19 +256,20 @@ describe('watchTelemetryPersistence', () => {
             energy: new Map([['ex-1', 4]]),
           }),
         ],
-      ])
+      ]),
+      OWNER
     );
 
-    const stored = await AsyncStorage.getItem('sparky.watchTelemetryBuffer');
+    const stored = await AsyncStorage.getItem(BUFFER_KEY);
     expect(stored?.startsWith('{')).toBe(false);
-    const restored = await readWatchTelemetry(create);
+    const restored = await readWatchTelemetry(create, OWNER);
     expect(restored.get('session-1')?.energy.get('ex-1')).toBe(4);
     expect(restored.get('session-1')?.unposted).toBe(true);
   });
 
   it('still reads a buffer written before encryption', async () => {
     await AsyncStorage.setItem(
-      'sparky.watchTelemetryBuffer',
+      BUFFER_KEY,
       serializeWatchTelemetry(
         new Map([
           [
@@ -271,24 +285,111 @@ describe('watchTelemetryPersistence', () => {
       )
     );
 
-    const restored = await readWatchTelemetry(create);
+    const restored = await readWatchTelemetry(create, OWNER);
     expect(restored.get('session-1')?.samples.get('ex-1')).toHaveLength(1);
   });
 
   it('leaves the ciphertext in place when the key cannot be read', async () => {
-    await AsyncStorage.setItem(
-      'sparky.watchTelemetryBuffer',
-      'sealed-not-plaintext'
-    );
+    await AsyncStorage.setItem(BUFFER_KEY, 'sealed-not-plaintext');
     __resetWatchTelemetryKeyForTests();
     (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(
       new Error('locked')
     );
 
-    await expect(readWatchTelemetry(create)).rejects.toThrow('locked');
-    expect(await AsyncStorage.getItem('sparky.watchTelemetryBuffer')).toBe(
-      'sealed-not-plaintext'
+    await expect(readWatchTelemetry(create, OWNER)).rejects.toThrow('locked');
+    expect(await AsyncStorage.getItem(BUFFER_KEY)).toBe('sealed-not-plaintext');
+  });
+
+  it('deletes a buffer under the shared key instead of giving it to a config', async () => {
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(
+      'sparky.watchTelemetryBuffer',
+      serializeWatchTelemetry(
+        new Map([
+          [
+            'session-1',
+            session({ energy: new Map([['ex-1', 5]]), unposted: true }),
+          ],
+        ])
+      )
     );
+
+    const restored = await readWatchTelemetry(create, OWNER);
+    expect(restored.size).toBe(0);
+    expect(
+      await AsyncStorage.getItem('sparky.watchTelemetryBuffer')
+    ).toBeNull();
+    expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+  });
+
+  it('neither reads nor writes telemetry without a server config', async () => {
+    await AsyncStorage.clear();
+    await writeWatchTelemetry(
+      new Map([
+        [
+          'session-1',
+          session({ energy: new Map([['ex-1', 2]]), unposted: true }),
+        ],
+      ]),
+      OWNER
+    );
+
+    expect((await readWatchTelemetry(create, null)).size).toBe(0);
+    await expect(
+      writeWatchTelemetry(
+        new Map([['session-1', session({ unposted: true })]]),
+        null
+      )
+    ).rejects.toThrow('no owning server config');
+    const mine = await readWatchTelemetry(create, OWNER);
+    expect(mine.get('session-1')?.energy.get('ex-1')).toBe(2);
+  });
+
+  it("forgets a deleted config's buffer and its queued batches", async () => {
+    await AsyncStorage.clear();
+    await writeWatchTelemetry(
+      new Map([['session-1', session({ unposted: true })]]),
+      OWNER
+    );
+    await writeWatchTelemetry(
+      new Map([['session-2', session({ unposted: true })]]),
+      'config-b'
+    );
+    const native = WatchConnectivity as unknown as {
+      pendingHeartRateBatches: jest.Mock;
+      ackHeartRateBatches: jest.Mock;
+    };
+    native.pendingHeartRateBatches.mockResolvedValueOnce([
+      {
+        clientId: 'hr-a',
+        ownerId: OWNER,
+        sessionId: 's',
+        exerciseEntryId: 'e',
+        samples: [],
+      },
+      {
+        queueId: 'q-a',
+        ownerId: OWNER,
+        sessionId: 's',
+        exerciseEntryId: 'e',
+        samples: [],
+      },
+      {
+        clientId: 'hr-b',
+        ownerId: 'config-b',
+        sessionId: 's',
+        exerciseEntryId: 'e',
+        samples: [],
+      },
+    ]);
+
+    await deleteWatchTelemetryForConfig(OWNER);
+
+    expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+    expect(
+      await AsyncStorage.getItem('sparky.watchTelemetryBuffer.config-b')
+    ).not.toBeNull();
+    expect(native.ackHeartRateBatches).toHaveBeenCalledWith(['hr-a', 'q-a']);
   });
 
   it('keeps one account buffer when another account writes', async () => {
@@ -342,8 +443,8 @@ describe('watchTelemetryPersistence', () => {
     ]);
 
     try {
-      const first = writeWatchTelemetry(older);
-      const second = writeWatchTelemetry(newer);
+      const first = writeWatchTelemetry(older, OWNER);
+      const second = writeWatchTelemetry(newer, OWNER);
       await firstWriteStarted;
       release();
       await first;

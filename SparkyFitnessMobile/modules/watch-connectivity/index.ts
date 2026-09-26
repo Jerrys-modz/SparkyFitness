@@ -307,8 +307,10 @@ export interface WatchHeartRateBatchPayload {
    */
   durationMinutes?: number;
   /**
-   * Active server config that owned the phone when this batch was queued.
-   * A batch for another config stays queued and is not posted or acked.
+   * Server config that was active when the phone received this batch. The
+   * phone only applies a batch whose owner is the active config; a batch for
+   * another config stays queued and is not posted or acked. Absent when no
+   * config was active, in which case the batch was not queued either.
    */
   ownerId?: string;
 }
@@ -362,10 +364,17 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
   ackHeartRateBatches(clientIds: string[]): Promise<void>;
   /**
-   * Account that should own batches queued after this call. Batches already
-   * queued without an owner are stamped with the previous account.
+   * Server config that owns batches received after this call. Persisted
+   * natively, so a batch that arrives on a cold start is stamped before
+   * JavaScript runs. An empty id means no config is active, and batches are
+   * then not queued.
    */
   setTelemetryOwner(ownerId: string): Promise<void>;
+  /**
+   * Batches the native queue evicted (over its cap) or refused (no owner, or
+   * malformed) since the last call. Resets to zero.
+   */
+  takeDroppedHeartRateBatchCount(): Promise<number>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to

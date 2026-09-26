@@ -6,7 +6,9 @@ import {
   aesEncryptAsync,
 } from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
-import type { WatchHeartRateSamplePayload } from '../../modules/watch-connectivity';
+import WatchConnectivity, {
+  type WatchHeartRateSamplePayload,
+} from '../../modules/watch-connectivity';
 
 const STORAGE_KEY = 'sparky.watchTelemetryBuffer';
 const KEY_STORE = 'sparky.watchTelemetryKey';
@@ -14,8 +16,12 @@ const keyStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
 };
 
-function bufferKey(ownerId?: string | null): string {
-  return ownerId ? `${STORAGE_KEY}.${ownerId}` : STORAGE_KEY;
+/**
+ * One buffer per server config. There is no shared buffer: telemetry with no
+ * owner has nowhere it can be posted, so it is neither read nor written.
+ */
+function bufferKey(ownerId: string): string {
+  return `${STORAGE_KEY}.${ownerId}`;
 }
 
 let onAccountSwitch: (() => void) | null = null;
@@ -329,10 +335,10 @@ function mergeEnergy(
     if (!incomingNovel && targetNovel) return false;
   }
 
-  // Both sides have an id the other lacks, so the totals are added. A batch
-  // that is already in both totals is counted twice. That takes a redelivery
-  // in the gap before restore finishes. Energy is a running total; storing
-  // it per batch would close this.
+  // Both sides have an id the other lacks, so the totals are added. The
+  // bridge ignores batches until the saved buffer is merged, so the live side
+  // only holds batches the saved side never saw. A batch counted in both
+  // would need to reach the map before the merge, which the bridge prevents.
   let changed = false;
   for (const [exerciseEntryId, kcal] of incoming.energy) {
     const previous = target.energy.get(exerciseEntryId) ?? 0;
@@ -345,27 +351,46 @@ function mergeEnergy(
 
 export async function readWatchTelemetry(
   create: (entryDate: string | null) => WatchTelemetrySessionState,
-  ownerId?: string | null
+  ownerId: string | null
 ): Promise<Map<string, WatchTelemetrySessionState>> {
-  const key = bufferKey(ownerId);
-  let raw = await AsyncStorage.getItem(key);
-  if (!raw && ownerId) {
-    // Written before buffers were split per account. The first account to
-    // open the app claims it; it is not left where the next account can
-    // read it too.
-    const legacy = await AsyncStorage.getItem(STORAGE_KEY);
-    if (legacy) {
-      await AsyncStorage.setItem(key, legacy);
-      await AsyncStorage.removeItem(STORAGE_KEY);
-      raw = legacy;
-    }
-  }
+  // A buffer under the bare key came from a build before buffers were split
+  // per config. Nothing records which config wrote it, so no config may claim
+  // it. It only existed on development builds.
+  await AsyncStorage.removeItem(STORAGE_KEY);
+  if (!ownerId) return new Map();
+  const raw = await AsyncStorage.getItem(bufferKey(ownerId));
   if (!raw) return new Map();
   // A value written before encryption starts with '{'. Read it once; the
   // next write replaces it with ciphertext. A keychain or decrypt failure
   // throws, so the caller does not replace the stored buffer with empty.
   const json = raw.startsWith('{') ? raw : await openSealed(raw);
   return deserializeWatchTelemetry(json, create);
+}
+
+/**
+ * Forgets the telemetry of a server config that was deleted: its saved
+ * buffer, and the native-queue batches stamped with it. Nothing could post
+ * them again, and they would otherwise sit in the queue until the cap
+ * evicted them.
+ */
+export async function deleteWatchTelemetryForConfig(
+  ownerId: string
+): Promise<void> {
+  // A write already queued for this config would recreate the buffer.
+  await writeChain;
+  await AsyncStorage.removeItem(bufferKey(ownerId));
+  if (
+    !WatchConnectivity ||
+    typeof WatchConnectivity.pendingHeartRateBatches !== 'function'
+  ) {
+    return;
+  }
+  const pending = await WatchConnectivity.pendingHeartRateBatches();
+  const ids = pending
+    .filter((batch) => batch.ownerId === ownerId)
+    .map((batch) => batch.clientId || batch.queueId)
+    .filter((id): id is string => Boolean(id));
+  if (ids.length > 0) await WatchConnectivity.ackHeartRateBatches(ids);
 }
 
 let writeChain: Promise<void> = Promise.resolve();
@@ -377,12 +402,17 @@ export function settleWatchTelemetryWrites(): Promise<void> {
 
 export async function writeWatchTelemetry(
   sessions: Map<string, WatchTelemetrySessionState>,
-  ownerId?: string | null
+  ownerId: string | null
 ): Promise<void> {
+  // No active config means nowhere to post, so nothing is saved. The native
+  // queue keeps the batches, and none of them are acked.
+  if (!ownerId) {
+    throw new Error('Watch telemetry has no owning server config');
+  }
   // Snapshot now, but persist in call order. Two flushes in flight used to
   // race on AsyncStorage, and the older unposted snapshot could land last.
-  // The key is the account that owned the snapshot, so a switch cannot
-  // write this account's samples into the next one's buffer.
+  // The key is the config that owned the snapshot, so a switch cannot
+  // write this config's samples into the next one's buffer.
   const key = bufferKey(ownerId);
   const serialized = serializeWatchTelemetry(sessions);
   const run = writeChain.then(async () => {
