@@ -1,9 +1,12 @@
 import {
   calculateDropSetWeightsKg,
+  calculateRampedWeightKg,
   findDropSetBaseIndex,
   instantHourMinute,
+  isWeightRampActive,
   resolveExerciseModality,
   setsDurationMinutes,
+  weightRampStepIndexes,
   type CreatePresetSessionRequest,
   type ExerciseModality,
   type WorkoutFormat,
@@ -50,6 +53,13 @@ export interface WorkoutPlaybackExerciseDraft {
   increment_type?: 'weight' | 'reps' | string | null;
   increment_value?: number | null;
   equipment_brand?: string | null;
+  /** Within-session per-set ramp, kg (negative ramps down). Null = off. */
+  ramp_increment?: number | null;
+  /**
+   * The first working set's weight when the ramp was applied (kg). Sets added
+   * later continue the ramp from it, never from a weight typed today.
+   */
+  ramp_base_weight?: number | null;
   round_sets_count?: number;
   sets: WorkoutPlaybackSetDraft[];
 }
@@ -98,6 +108,12 @@ export interface WorkoutPlaybackDraft {
   started_at: string;
   updated_at: string;
   workout_plan_assignment_id?: string | number | null;
+  /**
+   * Set once the load-time progression and ramp pass has run, so reopening a
+   * saved draft doesn't re-apply them over the lifter's edits. Absent on
+   * drafts saved before it existed (they get one pass).
+   */
+  load_adjustments_applied?: boolean;
 }
 
 export interface WorkoutSetPointer {
@@ -400,6 +416,10 @@ export function createWorkoutPlaybackDraftFromPreset(
                 .equipment_brand,
             }
           : {}),
+        ramp_increment:
+          exercise.ramp_increment != null
+            ? Number(exercise.ramp_increment)
+            : null,
         sets: (() => {
           let baseSets = exercise.sets;
           if (baseSets.length > 0) {
@@ -634,9 +654,53 @@ export function updateWorkoutSetAtPointer(
   }));
 }
 
+/**
+ * The weight a set added at the end of the exercise takes from the per-set
+ * ramp: the next step from the base captured when the workout opened. Null
+ * when no ramp applies (off, non-standard format, no base, or the new set is
+ * a warm-up/drop set), in which case the set copies the one above.
+ */
+function nextRampedWeight(
+  draft: WorkoutPlaybackDraft,
+  exercise: WorkoutPlaybackExerciseDraft,
+  newSetType: string | null | undefined,
+  weightUnit: string | undefined
+): number | null {
+  const ramp = exercise.ramp_increment;
+  const base = exercise.ramp_base_weight;
+  if (
+    weightUnit === undefined ||
+    (draft.workout_format ?? 'standard') !== 'standard' ||
+    !isWeightRampActive(ramp) ||
+    base == null ||
+    base <= 0
+  ) {
+    return null;
+  }
+  const step = weightRampStepIndexes([
+    ...exercise.sets,
+    { set_type: newSetType },
+  ]).at(-1);
+  if (step == null || step === 0) {
+    return null;
+  }
+  return calculateRampedWeightKg(
+    base,
+    step,
+    ramp,
+    weightUnit === 'kg' ? 'kg' : 'lbs'
+  );
+}
+
+/**
+ * Append a set that copies the last one. With a per-set ramp (and the
+ * lifter's `weightUnit` for rounding), a working set instead continues the
+ * ramp: 10 / 12 → a new set at 14.
+ */
 export function addWorkoutSetToExercise(
   draft: WorkoutPlaybackDraft,
-  exerciseIndex: number
+  exerciseIndex: number,
+  weightUnit?: string
 ): WorkoutPlaybackDraft {
   const exercise = draft.exercises[exerciseIndex];
   if (!exercise) {
@@ -644,11 +708,15 @@ export function addWorkoutSetToExercise(
   }
 
   const lastSet = exercise.sets[exercise.sets.length - 1];
+  const setType = lastSet?.set_type ?? 'Working Set';
   const newSet: WorkoutPlaybackSetDraft = {
     set_number: exercise.sets.length + 1,
-    set_type: lastSet?.set_type ?? 'Working Set',
+    set_type: setType,
     reps: lastSet?.reps ?? null,
-    weight: lastSet?.weight ?? null,
+    weight:
+      nextRampedWeight(draft, exercise, setType, weightUnit) ??
+      lastSet?.weight ??
+      null,
     duration: lastSet?.duration ?? null,
     distance: lastSet?.distance ?? null,
     rest_time: lastSet?.rest_time ?? DEFAULT_REST_SECONDS,
@@ -682,6 +750,47 @@ export function addWorkoutSetToExercise(
   }
 
   return touchDraft(nextDraft);
+}
+
+/**
+ * Pre-fill the exercise's per-set ramp: the first working set keeps its
+ * weight (the preset's, or the progression-bumped one) and each later working
+ * set steps by `ramp_increment` kg from it, rounded to a loadable weight in
+ * the lifter's unit. Warm-up and drop sets are skipped, completed sets are
+ * never rewritten, and the base is never what was lifted today — this runs
+ * once when the draft loads, not as sets are logged. Returns the same object
+ * when nothing changes.
+ */
+export function applyWeightRampToDraftExercise(
+  exercise: WorkoutPlaybackExerciseDraft,
+  weightUnit: string
+): WorkoutPlaybackExerciseDraft {
+  const ramp = exercise.ramp_increment;
+  if (!isWeightRampActive(ramp)) {
+    return exercise;
+  }
+  const steps = weightRampStepIndexes(exercise.sets);
+  const baseWeight = exercise.sets[steps.indexOf(0)]?.weight;
+  if (baseWeight == null || baseWeight <= 0) {
+    return exercise;
+  }
+  const unit = weightUnit === 'kg' ? 'kg' : 'lbs';
+  let changed = exercise.ramp_base_weight !== baseWeight;
+  const sets = exercise.sets.map((set, index) => {
+    const step = steps[index];
+    if (step == null || step === 0 || set.completed) {
+      return set;
+    }
+    const weight = calculateRampedWeightKg(baseWeight, step, ramp, unit);
+    if (weight === set.weight) {
+      return set;
+    }
+    changed = true;
+    return { ...set, weight };
+  });
+  return changed
+    ? { ...exercise, sets, ramp_base_weight: baseWeight }
+    : exercise;
 }
 
 /**

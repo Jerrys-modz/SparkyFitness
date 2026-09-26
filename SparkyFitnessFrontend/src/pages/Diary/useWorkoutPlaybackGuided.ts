@@ -134,7 +134,7 @@ export interface WorkoutPlaybackGuided {
   resume: () => void;
   /** Reads the current set and all its instructions again. */
   replay: () => void;
-  /** FINISHED: logs the current set and ends any pause. */
+  /** DONE — NEXT: logs the current set and ends any pause. */
   finish: (pointer: WorkoutSetPointer) => void;
 }
 
@@ -142,7 +142,7 @@ export interface WorkoutPlaybackGuided {
  * Guided mode (#1507) for a standard web workout. Mount it only while guided
  * mode is on. It announces sets, runs the get-ready countdown, starts and
  * finishes timed sets on the clock, and narrates rests; rep-based sets wait
- * for `onCompleteSet` from the FINISHED button. It only ever writes through
+ * for `onCompleteSet` from the DONE — NEXT button. It only ever writes through
  * the runner's own draft helpers and completion handler, so drafts, rest
  * timers and saving behave exactly as for a manual log.
  */

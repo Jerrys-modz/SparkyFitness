@@ -182,7 +182,7 @@ describe('WorkoutPlaybackPage guided mode', () => {
     setGuidedWorkoutPreferences({ enabled: true, countdownSec: 3 });
     render(<WorkoutPlaybackPage />);
     tick(3250);
-    fireEvent.click(screen.getByRole('button', { name: 'FINISHED' }));
+    fireEvent.click(screen.getByRole('button', { name: 'DONE — NEXT' }));
     tick(250);
     const card = screen.getByTestId('guided-workout-card');
     expect(card).toHaveTextContent('Rest');
@@ -223,7 +223,7 @@ describe('WorkoutPlaybackPage guided mode', () => {
     setGuidedWorkoutPreferences({ enabled: true, countdownSec: 3 });
     render(<WorkoutPlaybackPage />);
     tick(3250);
-    fireEvent.click(screen.getByRole('button', { name: 'FINISHED' }));
+    fireEvent.click(screen.getByRole('button', { name: 'DONE — NEXT' }));
     tick(31_000);
     tick(250);
     // Set 2 skips the instructions; Replay reads them anyway.
@@ -259,7 +259,7 @@ describe('WorkoutPlaybackPage guided mode', () => {
       'Keep your core firm.',
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'FINISHED' }));
+    fireEvent.click(screen.getByRole('button', { name: 'DONE — NEXT' }));
     tick(250);
     expect(spoken().at(-1)).toEqual(['Rest. 30 seconds.', 'Next: Push-up.']);
     expect(screen.getByText('Next up')).toBeInTheDocument();
@@ -269,7 +269,7 @@ describe('WorkoutPlaybackPage guided mode', () => {
     tick(250);
     expect(spoken().at(-1)).toEqual(['Push-up. 10 reps.']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'FINISHED' }));
+    fireEvent.click(screen.getByRole('button', { name: 'DONE — NEXT' }));
     tick(250);
     expect(spoken().at(-1)).toEqual(['Rest. 30 seconds.', 'Next: Plank.']);
     tick(31_000);
@@ -281,7 +281,7 @@ describe('WorkoutPlaybackPage guided mode', () => {
     tick(250);
     expect(spoken().at(-1)).toEqual(['Plank. 20 seconds.']);
     expect(
-      screen.queryByRole('button', { name: 'FINISHED' })
+      screen.queryByRole('button', { name: 'DONE — NEXT' })
     ).not.toBeInTheDocument();
     tick(10_000);
     expect(spoken().at(-1)).toEqual(['Halfway.']);

@@ -2,6 +2,7 @@ import type { WorkoutPreset } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import {
   addDropSetsToWorkoutExercise,
+  applyWeightRampToDraftExercise,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
@@ -453,6 +454,172 @@ describe('workoutPlayback utils', () => {
     );
     // 80 kg ≈ 176.4 lb → 141.1 → 112.9 → 90.3, each snapped to 2.5 lb.
     expect(lbWeights).toEqual([140, 112.5, 90]);
+  });
+
+  describe('applyWeightRampToDraftExercise', () => {
+    const LB = 0.45359237;
+    const rampPreset = (
+      ramp: number | null,
+      sets: { set_type?: string; weight: number | null }[]
+    ): WorkoutPreset =>
+      ({
+        id: 'preset-ramp',
+        user_id: 'user-1',
+        name: 'Bench',
+        exercises: [
+          {
+            exercise_id: 'exercise-1',
+            exercise_name: 'Bench Press',
+            ramp_increment: ramp,
+            sets: sets.map((set, i) => ({
+              set_number: i + 1,
+              reps: 5,
+              rest_time: 90,
+              ...set,
+            })),
+          },
+        ],
+      }) as unknown as WorkoutPreset;
+    const rampedLbs = (preset: WorkoutPreset, unit = 'lbs') =>
+      applyWeightRampToDraftExercise(
+        createWorkoutPlaybackDraftFromPreset(preset, '2026-09-25')
+          .exercises[0]!,
+        unit
+      ).sets.map((set) =>
+        set.weight == null ? null : Math.round((set.weight / LB) * 100) / 100
+      );
+
+    it('carries ramp_increment from the preset onto the draft', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        rampPreset(4.54, [{ weight: 80 }]),
+        '2026-09-25'
+      );
+      expect(draft.exercises[0]!.ramp_increment).toBe(4.54);
+    });
+
+    it('ramps 185 lb by +10 lb to 185 / 195 / 205', () => {
+      expect(
+        rampedLbs(
+          rampPreset(4.54, [
+            { weight: 83.91 },
+            { weight: 83.91 },
+            { weight: 83.91 },
+          ])
+        )
+      ).toEqual([184.99, 195, 205]);
+    });
+
+    it('ramps down with a negative increment', () => {
+      expect(
+        rampedLbs(
+          rampPreset(-4.54, [
+            { weight: 185 * LB },
+            { weight: null },
+            { weight: null },
+          ])
+        )
+      ).toEqual([185, 175, 165]);
+    });
+
+    it('skips warm-up and drop sets, which neither ramp nor seed the base', () => {
+      const exercise = applyWeightRampToDraftExercise(
+        createWorkoutPlaybackDraftFromPreset(
+          rampPreset(5, [
+            { set_type: 'Warm-up', weight: 40 },
+            { set_type: 'Working Set', weight: 100 },
+            { set_type: 'Working Set', weight: 100 },
+            { set_type: 'Drop Set', weight: 80 },
+          ]),
+          '2026-09-25'
+        ).exercises[0]!,
+        'kg'
+      );
+      expect(exercise.sets.map((set) => set.weight)).toEqual([
+        40, 100, 105, 80,
+      ]);
+    });
+
+    it('never rewrites a completed set', () => {
+      const exercise = createWorkoutPlaybackDraftFromPreset(
+        rampPreset(5, [{ weight: 100 }, { weight: 100 }]),
+        '2026-09-25'
+      ).exercises[0]!;
+      const withDone = {
+        ...exercise,
+        sets: exercise.sets.map((set, i) =>
+          i === 1 ? { ...set, completed: true } : set
+        ),
+      };
+      expect(
+        applyWeightRampToDraftExercise(withDone, 'kg').sets[1]!.weight
+      ).toBe(100);
+    });
+
+    it('continues the ramp when a set is added mid-workout', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        rampPreset(2, [{ weight: 10 }, { weight: 10 }]),
+        '2026-09-25'
+      );
+      const ramped = {
+        ...draft,
+        exercises: [applyWeightRampToDraftExercise(draft.exercises[0]!, 'kg')],
+      };
+      // A heavier set 1 typed today doesn't move the ramp.
+      const typed = updateWorkoutSetAtPointer(
+        ramped,
+        { exerciseIndex: 0, setIndex: 0 },
+        { weight: 20 }
+      );
+      const added = addWorkoutSetToExercise(typed, 0, 'kg');
+      expect(added.exercises[0]!.sets.map((set) => set.weight)).toEqual([
+        20, 12, 14,
+      ]);
+    });
+
+    it('copies the set above when adding without a ramp base or unit', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        rampPreset(2, [{ weight: 10 }, { weight: 12 }]),
+        '2026-09-25'
+      );
+      // Never ramped (e.g. a draft opened before this change): copy.
+      expect(
+        addWorkoutSetToExercise(draft, 0, 'kg').exercises[0]!.sets[2]!.weight
+      ).toBe(12);
+      // Ramped, but no unit passed (interval rounds): copy.
+      const ramped = {
+        ...draft,
+        exercises: [applyWeightRampToDraftExercise(draft.exercises[0]!, 'kg')],
+      };
+      expect(
+        addWorkoutSetToExercise(ramped, 0).exercises[0]!.sets[2]!.weight
+      ).toBe(12);
+    });
+
+    it('adds a drop set after a drop set without ramping it', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        rampPreset(5, [
+          { weight: 100 },
+          { weight: 100 },
+          { set_type: 'Drop Set', weight: 80 },
+        ]),
+        '2026-09-25'
+      );
+      const ramped = {
+        ...draft,
+        exercises: [applyWeightRampToDraftExercise(draft.exercises[0]!, 'kg')],
+      };
+      expect(
+        addWorkoutSetToExercise(ramped, 0, 'kg').exercises[0]!.sets[3]!.weight
+      ).toBe(80);
+    });
+
+    it('returns the same exercise when the ramp is off', () => {
+      const exercise = createWorkoutPlaybackDraftFromPreset(
+        rampPreset(null, [{ weight: 100 }, { weight: 100 }]),
+        '2026-09-25'
+      ).exercises[0]!;
+      expect(applyWeightRampToDraftExercise(exercise, 'kg')).toBe(exercise);
+    });
   });
 
   it('sends per-set RIR and the trimmed gym location, never the stopwatch', () => {

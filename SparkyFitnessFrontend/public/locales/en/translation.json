@@ -3699,7 +3699,10 @@
     "formatEmom": "EMOM",
     "formatAmrap": "AMRAP",
     "formatForTime": "For Time",
-    "timeCapLabel": "Time Cap (minutes)"
+    "timeCapLabel": "Time Cap (minutes)",
+    "rampLabel": "Add per set (this workout, {{unit}})",
+    "rampPlaceholder": "Off",
+    "rampHint": "Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped."
   },
   "addWorkoutPlanDialog": {
     "editTitle": "Edit Workout Plan",
@@ -6173,7 +6176,6 @@
       "unmute": "Unmute voice",
       "replay": "Replay instructions",
       "doneNext": "DONE — NEXT",
-      "finished": "FINISHED",
       "doneHintReps_one": "Tap when you've done {{count}} rep",
       "doneHintReps_other": "Tap when you've done {{count}} reps",
       "doneHint": "Tap when you're done"

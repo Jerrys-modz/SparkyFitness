@@ -1158,6 +1158,54 @@ describe('activeWorkoutStore', () => {
         expect(set0.reps).toBe(5);
       });
 
+      it('adopts the ramped weight from the live-start preset config', () => {
+        useActiveWorkoutStore.getState().startWorkout(makeEmptySession(), {
+          createdByLiveStart: true,
+          plannedSetValues: [
+            [
+              { weight: 80, reps: 5 },
+              { weight: 80, reps: 5 },
+            ],
+            [{ weight: 120, reps: 3 }],
+          ],
+          exerciseConfigs: [{ ramp_increment: 5 }, {}],
+        });
+        expect(useActiveWorkoutStore.getState().exerciseConfigs).toEqual({
+          'ex-uuid-1': { ramp_increment: 5 },
+          'ex-uuid-2': {},
+        });
+        useActiveWorkoutStore.getState().capturePreviousSessionSets('ex-1', []);
+
+        useActiveWorkoutStore.getState().completeSet('102');
+
+        const set1 =
+          useActiveWorkoutStore.getState().session!.exercises[0].sets[1];
+        expect(set1.weight).toBe(85);
+      });
+
+      it('rounds an adopted ramp in the unit the live card synced', () => {
+        useActiveWorkoutStore.getState().setWeightUnit('lbs');
+        useActiveWorkoutStore.getState().startWorkout(makeEmptySession(), {
+          createdByLiveStart: true,
+          // 185 lb, +10 lb (4.54 kg as stored).
+          plannedSetValues: [
+            [
+              { weight: 83.91, reps: 5 },
+              { weight: 83.91, reps: 5 },
+            ],
+          ],
+          exerciseConfigs: [{ ramp_increment: 4.54 }],
+        });
+        useActiveWorkoutStore.getState().capturePreviousSessionSets('ex-1', []);
+
+        useActiveWorkoutStore.getState().completeSet('102');
+
+        const set1 =
+          useActiveWorkoutStore.getState().session!.exercises[0].sets[1];
+        expect(set1.weight! / 0.45359237).toBeCloseTo(195, 2);
+        useActiveWorkoutStore.getState().setWeightUnit('kg');
+      });
+
       it('completes with nothing to adopt when no source resolves', () => {
         useActiveWorkoutStore.getState().startWorkout(makeEmptySession());
 
@@ -2567,6 +2615,21 @@ describe('activeWorkoutStore', () => {
         expect(entry.sets[0].set_type).toBe('normal');
         expect(state.session!.exercises[1].id).toBe('ex-uuid-2'); // sibling untouched
         expect(state.hasUnsavedChanges).toBe(true);
+      });
+
+      it("drops the replaced exercise's preset progression/ramp settings", () => {
+        useActiveWorkoutStore.setState({
+          exerciseConfigs: {
+            'ex-uuid-1': { ramp_increment: 5 },
+            'ex-uuid-2': { ramp_increment: 2.5 },
+          },
+        });
+        useActiveWorkoutStore
+          .getState()
+          .replaceExercise('ex-uuid-1', replacement);
+        expect(useActiveWorkoutStore.getState().exerciseConfigs).toEqual({
+          'ex-uuid-2': { ramp_increment: 2.5 },
+        });
       });
 
       it('prunes completions for the replaced sets and repoints the cursor', async () => {

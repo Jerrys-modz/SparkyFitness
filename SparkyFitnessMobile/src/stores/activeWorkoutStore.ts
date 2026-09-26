@@ -34,7 +34,7 @@ import {
   isPrSet,
   moveSessionExerciseItem,
   normalizeSessionSupersetGroups,
-  resolveAssumedSetValues,
+  resolveLiveAssumedSetValues,
   resolveSnapshotModality,
   seedPrFromSession,
   supersetSessionExercises,
@@ -42,6 +42,7 @@ import {
 } from '../utils/workoutSession';
 import type {
   AssumedSetValues,
+  LiveExerciseConfig,
   PrBaselineEntry,
 } from '../utils/workoutSession';
 import { newUuid } from '../utils/ids';
@@ -246,6 +247,19 @@ export interface ActiveWorkoutState {
    */
   previousSessionSets: Record<string, ExerciseRecentSessionSet[]>;
   /**
+   * Preset progression and ramp settings per session exercise id, captured at
+   * live start — session entries on the server don't carry them. Persisted
+   * like `plannedSetValues`: the preset payload is gone after a cold start.
+   */
+  exerciseConfigs: Record<string, LiveExerciseConfig>;
+  /**
+   * The lifter's display unit, which ramp rounding and the progression engine
+   * work in. Kept current by the live cards (which render before any set can
+   * be completed) and kept across clears, so a lock-screen completion rounds
+   * the same way the row does.
+   */
+  weightUnit: 'kg' | 'lbs';
+  /**
    * Preset this live workout was started from, plus the server config it
    * lives on — preset ids are numeric and collide across configured servers,
    * and switching the active server doesn't clear this store. Both feed the
@@ -279,6 +293,8 @@ export interface ActiveWorkoutState {
     opts?: {
       createdByLiveStart?: boolean;
       plannedSetValues?: AssumedSetValues[][];
+      /** Positional with `session.exercises`, like `plannedSetValues`. */
+      exerciseConfigs?: LiveExerciseConfig[];
       sourcePresetId?: number;
       sourceServerConfigId?: string;
       workoutFormat?: WorkoutFormat;
@@ -315,6 +331,8 @@ export interface ActiveWorkoutState {
     exerciseId: string | null,
     sets: ExerciseRecentSessionSet[]
   ) => void;
+  /** Keep ramp rounding in step with a mid-workout unit preference change. */
+  setWeightUnit: (unit: 'kg' | 'lbs') => void;
   clearWorkout: () => void;
   /**
    * Complete any set — not just the cursor — and move the next-up highlight to
@@ -515,6 +533,8 @@ const initialData: Pick<
   | 'setTimerStartedAt'
   | 'plannedSetValues'
   | 'previousSessionSets'
+  | 'exerciseConfigs'
+  | 'weightUnit'
   | 'sourcePresetId'
   | 'sourceServerConfigId'
   | 'workoutFormat'
@@ -547,6 +567,8 @@ const initialData: Pick<
   setTimerStartedAt: {},
   plannedSetValues: {},
   previousSessionSets: {},
+  exerciseConfigs: {},
+  weightUnit: 'kg',
   sourcePresetId: null,
   sourceServerConfigId: null,
   workoutFormat: 'standard',
@@ -774,7 +796,12 @@ function locateSet(
 function adoptAssumedSetValues(
   state: Pick<
     ActiveWorkoutState,
-    'session' | 'previousSessionSets' | 'plannedSetValues'
+    | 'session'
+    | 'previousSessionSets'
+    | 'plannedSetValues'
+    | 'exerciseConfigs'
+    | 'weightUnit'
+    | 'workoutFormat'
   >,
   setId: string
 ): PresetSessionResponse | null {
@@ -800,10 +827,10 @@ function adoptAssumedSetValues(
         : target.weight != null && target.reps != null;
   if (relevantFilled) return session;
 
-  const assumed = resolveAssumedSetValues(
-    exercise.sets,
+  const assumed = resolveLiveAssumedSetValues(
+    exercise,
     historyForExercise(state.previousSessionSets, exercise.exercise_id),
-    state.plannedSetValues
+    state
   )[setIndex];
   const patch: ActiveSetPatch = cardio
     ? {
@@ -996,13 +1023,10 @@ export function buildRestNotificationContent(
 ): { title: string; body: string } {
   // Assumed-aware so an upcoming set with empty fields still announces its
   // placeholder rep target, matching what the row shows grayed-in.
-  const { previousSessionSets, plannedSetValues } =
-    useActiveWorkoutStore.getState();
   const desc = describeActiveSetAssumed(
     session,
     setId,
-    previousSessionSets,
-    plannedSetValues
+    useActiveWorkoutStore.getState()
   );
   if (desc != null) {
     const name = desc.exerciseName ?? fallbackExerciseName;
@@ -1146,6 +1170,12 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           });
         });
 
+        const exerciseConfigs: Record<string, LiveExerciseConfig> = {};
+        opts?.exerciseConfigs?.forEach((config, exerciseIndex) => {
+          const exercise = session.exercises[exerciseIndex];
+          if (exercise != null) exerciseConfigs[String(exercise.id)] = config;
+        });
+
         const workoutFormat = opts?.workoutFormat ?? 'standard';
         const timeCapSeconds = opts?.timeCapSeconds ?? null;
         const startedMs = Date.now();
@@ -1214,6 +1244,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           // Previous-session sets are captured lazily per exercise by the
           // live card, like the PR baseline.
           previousSessionSets: {},
+          exerciseConfigs,
           sourcePresetId: opts?.sourcePresetId ?? null,
           sourceServerConfigId: opts?.sourceServerConfigId ?? null,
           workoutFormat,
@@ -1273,6 +1304,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           // are real. Previous-session sets re-capture lazily.
           plannedSetValues: {},
           previousSessionSets: {},
+          // Nor its preset progression/ramp settings — same as the plan.
+          exerciseConfigs: {},
           // Nor was it started from a preset this session — no update-preset
           // prompt on finish.
           sourcePresetId: null,
@@ -1489,9 +1522,14 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         });
       },
 
+      setWeightUnit: (unit) => {
+        if (get().weightUnit !== unit) set({ weightUnit: unit });
+      },
+
       clearWorkout: () => {
         cancelCurrentRestNotification(get().rest);
-        set({ ...initialData });
+        // The unit is a preference, not workout state; keep it across clears.
+        set({ ...initialData, weightUnit: get().weightUnit });
       },
 
       completeSet: (setId, completedAtMs) => {
@@ -2249,7 +2287,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
               : e
           ),
         };
-        set(buildSessionEditState(state, next));
+        // The entry keeps its id, so drop the replaced exercise's preset
+        // progression/ramp settings rather than applying them to the new one.
+        const { [entryId]: _replaced, ...exerciseConfigs } =
+          state.exerciseConfigs;
+        set({ ...buildSessionEditState(state, next), exerciseConfigs });
       },
 
       supersetWith: (currentEntryId, pickedEntryId) => {
@@ -2483,6 +2525,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // may adopt before any card remounts to re-capture history.
         plannedSetValues: state.plannedSetValues,
         previousSessionSets: state.previousSessionSets,
+        exerciseConfigs: state.exerciseConfigs,
+        weightUnit: state.weightUnit,
         // The preset link feeds the finish prompt; survives a cold start.
         sourcePresetId: state.sourcePresetId,
         sourceServerConfigId: state.sourceServerConfigId,
