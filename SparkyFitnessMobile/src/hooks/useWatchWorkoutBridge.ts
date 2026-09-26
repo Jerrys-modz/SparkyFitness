@@ -25,6 +25,7 @@ import {
   type WorkoutCelebration,
 } from '../utils/workoutCelebration';
 import {
+  deleteWatchTelemetryForConfig,
   mergeWatchTelemetry,
   readWatchTelemetry,
   setWatchTelemetryAccountSwitchHandler,
@@ -184,6 +185,9 @@ export function useWatchWorkoutBridge(
   // account switch cannot land this snapshot in the next account's key.
   const ownerRef = useRef<string | null>(null);
   const [accountEpoch, setAccountEpoch] = useState(0);
+  // Purge of the outgoing account's telemetry. Restore waits for it, so the
+  // next account cannot read or replay what the purge is removing.
+  const purgeRef = useRef<Promise<void>>(Promise.resolve());
 
   // Drops ended sessions that have nothing left to post and are past the
   // retention window, then the oldest ended ones beyond the cap. A live
@@ -735,6 +739,8 @@ export function useWatchWorkoutBridge(
     };
 
     const attemptRestore = async (): Promise<void> => {
+      await purgeRef.current;
+      if (cancelled) return;
       let ownerId: string | null;
       try {
         ownerId = await getActiveServerConfigId();
@@ -835,6 +841,24 @@ export function useWatchWorkoutBridge(
 
   useEffect(() => {
     return setWatchTelemetryAccountSwitchHandler(() => {
+      // Telemetry is keyed by server config, not by person, and the next
+      // account may sign in to this same config. Drop the outgoing account's
+      // saved buffer and queued batches so they are not restored or posted
+      // under the new account's credentials. Unposted samples are lost; a
+      // person switching back does not get them either.
+      const outgoing = ownerRef.current;
+      if (outgoing) {
+        purgeRef.current = deleteWatchTelemetryForConfig(outgoing).catch(
+          (error: unknown) => {
+            addLog(
+              `Watch telemetry purge on account switch failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+              'WARNING'
+            );
+          }
+        );
+      }
       sessionsRef.current.clear();
       restoredRef.current = false;
       ownerRef.current = null;
