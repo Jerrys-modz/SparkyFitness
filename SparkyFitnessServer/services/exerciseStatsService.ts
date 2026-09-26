@@ -852,7 +852,11 @@ async function getPersonalRecordMatrix(
           e.entry_date as achieved_on
         FROM public.exercise_entry_sets s
         JOIN public.exercise_entries e ON s.exercise_entry_id = e.id
+        LEFT JOIN public.exercise_preset_entries epe ON epe.id = e.exercise_preset_entry_id
         WHERE e.user_id = $1 AND s.weight > 0 AND s.reps > 0
+          -- Sets done inside interval/WOD sessions aren't comparable strength
+          -- efforts; ad-hoc entries (no session) count as standard.
+          AND COALESCE(epe.workout_format, 'standard') = 'standard'
         -- Ties broken by the earliest date: that is when the record was first
         -- reached, not the last time it was equalled.
         ORDER BY e.exercise_name, estimated_one_rm DESC, e.entry_date ASC

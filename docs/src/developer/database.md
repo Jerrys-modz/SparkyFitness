@@ -101,9 +101,10 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `workout_presets` | Custom workout/preset templates |
 | `workout_preset_exercises` | Exercises assigned to presets |
 | `workout_preset_exercise_sets` | Reps/sets configured in presets |
-| `workout_plan_templates` | Templates for weekly workout schedules |
-| `workout_plan_template_assignments` | Scheduled workout templates to calendar |
+| `workout_plan_templates` | Templates for weekly and sequential workout schedules |
+| `workout_plan_template_assignments` | Scheduled workout templates (weekday or ordered sequence) |
 | `workout_plan_assignment_sets` | Sets within assigned workout plans |
+| `workout_feedback` | Session / per-exercise workout feedback (difficulty, pain flag and note) behind adaptive suggestions |
 
 ### Measurements & Health (Tier 1/3: Owner-Only or Delegate-Write)
 | Table | Purpose |

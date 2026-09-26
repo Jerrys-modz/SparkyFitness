@@ -296,6 +296,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
               if (set.distance != null)
                 parts.push(formatDistance(set.distance));
               if (Number.isFinite(set.rpe)) parts.push(`RPE ${set.rpe}`);
+              if (Number.isFinite(set.rir)) parts.push(`RIR ${set.rir}`);
               if (parts.length === 0) return null;
               return (
                 <span

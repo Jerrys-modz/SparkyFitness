@@ -1977,6 +1977,8 @@ CREATE TABLE public.exercise_entries (
     weather_humidity_percentage numeric(5,2),
     gear_name text,
     gear_external_id text,
+    watch_telemetry_observed_at timestamp with time zone,
+    watch_duration_minutes numeric,
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -2105,7 +2107,8 @@ CREATE TABLE public.exercise_entry_sets (
     rpe numeric(3,1),
     completed_at timestamp with time zone,
     is_pr boolean DEFAULT false NOT NULL,
-    distance numeric
+    distance numeric,
+    rir numeric(3,1)
 );
 
 
@@ -2128,6 +2131,13 @@ COMMENT ON COLUMN public.exercise_entry_sets.completed_at IS 'Client-recorded mo
 --
 
 COMMENT ON COLUMN public.exercise_entry_sets.is_pr IS 'Whether this set was a personal record (heavier than the prior best weight, or more reps at the top weight) when checked off during a live workout. Warmup sets never earn PRs.';
+
+
+--
+-- Name: COLUMN exercise_entry_sets.rir; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_entry_sets.rir IS 'Reps In Reserve (0-10 scale)';
 
 
 --
@@ -2165,8 +2175,25 @@ CREATE TABLE public.exercise_preset_entries (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     created_by_user_id uuid,
     notes text,
-    source text DEFAULT 'manual'::text NOT NULL
+    source text DEFAULT 'manual'::text NOT NULL,
+    location character varying(255),
+    workout_format character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    CONSTRAINT chk_exercise_preset_entries_format CHECK (((workout_format)::text = ANY ((ARRAY['standard'::character varying, 'interval'::character varying, 'tabata'::character varying, 'amrap'::character varying, 'emom'::character varying, 'for_time'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN exercise_preset_entries.location; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_preset_entries.location IS 'Optional location or gym name for the workout session';
+
+
+--
+-- Name: COLUMN exercise_preset_entries.workout_format; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_preset_entries.workout_format IS 'Workout format of the source preset at the time the session was logged; not updated when the preset is edited or deleted';
 
 
 --
@@ -4604,12 +4631,14 @@ ALTER SEQUENCE public.workout_plan_assignment_sets_id_seq OWNED BY public.workou
 CREATE TABLE public.workout_plan_template_assignments (
     id integer NOT NULL,
     template_id integer NOT NULL,
-    day_of_week integer NOT NULL,
+    day_of_week integer,
     workout_preset_id integer,
     exercise_id uuid,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     sort_order integer DEFAULT 0,
+    session_index integer,
+    session_name character varying(100),
     CONSTRAINT chk_workout_assignment_type CHECK ((((workout_preset_id IS NOT NULL) AND (exercise_id IS NULL)) OR ((workout_preset_id IS NULL) AND (exercise_id IS NOT NULL))))
 );
 
@@ -4647,7 +4676,11 @@ CREATE TABLE public.workout_plan_templates (
     end_date date,
     is_active boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    schedule_type character varying(20) DEFAULT 'sequential'::character varying NOT NULL,
+    entry_mode character varying(20) DEFAULT 'prompt'::character varying NOT NULL,
+    CONSTRAINT chk_workout_plan_entry_mode CHECK (((entry_mode)::text = ANY ((ARRAY['prompt'::character varying, 'prefill'::character varying])::text[]))),
+    CONSTRAINT chk_workout_plan_schedule_type CHECK (((schedule_type)::text = ANY ((ARRAY['weekly'::character varying, 'sequential'::character varying])::text[])))
 );
 
 
@@ -4728,7 +4761,8 @@ CREATE TABLE public.workout_preset_exercises (
     rep_goal integer,
     increment_type character varying(20) DEFAULT 'weight'::character varying,
     increment_value numeric(6,2) DEFAULT 2.5,
-    equipment_brand character varying(100) DEFAULT NULL::character varying
+    equipment_brand character varying(100) DEFAULT NULL::character varying,
+    ramp_increment numeric(6,2)
 );
 
 
@@ -4737,6 +4771,13 @@ CREATE TABLE public.workout_preset_exercises (
 --
 
 COMMENT ON COLUMN public.workout_preset_exercises.superset_group IS 'Client-assigned superset group key, scoped to the parent workout preset. NULL = not in a superset. Members share the value and are kept adjacent via sort_order.';
+
+
+--
+-- Name: COLUMN workout_preset_exercises.ramp_increment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workout_preset_exercises.ramp_increment IS 'Kg added to each successive working set within one session (negative ramps down); null = off';
 
 
 --
@@ -4770,7 +4811,10 @@ CREATE TABLE public.workout_presets (
     description text,
     is_public boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    workout_format character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    time_cap_seconds integer,
+    CONSTRAINT chk_workout_presets_format CHECK (((workout_format)::text = ANY ((ARRAY['standard'::character varying, 'interval'::character varying, 'tabata'::character varying, 'amrap'::character varying, 'emom'::character varying, 'for_time'::character varying])::text[])))
 );
 
 
@@ -6772,6 +6816,13 @@ CREATE INDEX idx_water_intake_entries_user_date ON public.water_intake_entries U
 --
 
 CREATE UNIQUE INDEX idx_water_intake_entries_user_source_source_id ON public.water_intake_entries USING btree (user_id, source, source_id) WHERE ((source IS NOT NULL) AND (source_id IS NOT NULL));
+
+
+--
+-- Name: idx_workout_plan_assignments_template_session; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_workout_plan_assignments_template_session ON public.workout_plan_template_assignments USING btree (template_id, session_index);
 
 
 --

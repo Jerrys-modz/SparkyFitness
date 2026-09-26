@@ -1,17 +1,22 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
+  ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
   PresetSessionResponse,
   SharedPregnancy,
+  WorkoutFormat,
 } from '@workspace/shared';
 import type { FoodFormData } from '../components/FoodForm';
 import type { SaveFoodPayload } from '../services/api/foodsApi';
 import type { CompletedSetMap, PrSetMap } from '../stores/activeWorkoutStore';
 import type { MealTypeKey } from '../utils/mealNutrition';
-import type { AssumedSetValues } from '../utils/workoutSession';
+import type {
+  AssumedSetValues,
+  LiveExerciseConfig,
+} from '../utils/workoutSession';
 import type { PhotoType } from './checkInPhotos';
 import type { Exercise } from './exercise';
 import type { FamilyDiaryUser } from './familyDiary';
@@ -26,6 +31,7 @@ import type {
 import type { Meal, MealIngredientDraft } from './meals';
 import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
+import type { ExerciseReplaceContext } from '../utils/exerciseReplace';
 
 export type FoodPickerMode =
   | 'log-entry'
@@ -207,7 +213,11 @@ export type RootStackParamList = {
         customNutrients?: Record<string, string | number> | null;
       };
   ExerciseForm:
-    | { mode: 'create-exercise' }
+    | {
+        mode: 'create-exercise';
+        /** Seed the form from an existing exercise to save it as a copy. */
+        duplicateOf?: Exercise;
+      }
     | { mode: 'edit-exercise'; exercise: Exercise; returnKey: string };
   FoodScan:
     | {
@@ -240,7 +250,11 @@ export type RootStackParamList = {
         ingredientIndex?: number;
       }
     | undefined;
-  ExerciseSearch: { returnKey: string };
+  ExerciseSearch: {
+    returnKey: string;
+    /** Set when replacing an exercise: opens on ranked alternatives. */
+    replaceFor?: ExerciseReplaceContext;
+  };
   PresetSearch:
     { selectedExercise?: Exercise; selectionNonce?: number } | undefined;
   WorkoutAdd:
@@ -287,6 +301,17 @@ export type RootStackParamList = {
     sourcePresetId: number | null;
     sourceServerConfigId: string | null;
     plannedSetValues: Record<string, AssumedSetValues>;
+    // The rest of the live placeholder inputs, so the prompt can ignore
+    // values the ramp or progression filled in. Optional: older snapshots.
+    previousSessionSets?: Record<string, ExerciseRecentSessionSet[]>;
+    exerciseConfigs?: Record<string, LiveExerciseConfig>;
+    weightUnit?: 'kg' | 'lbs';
+    workoutFormat?: WorkoutFormat;
+    timeCapSeconds?: number | null;
+    intervalRoundsCompleted?: number;
+    intervalRepsCompleted?: number;
+    intervalStatus?: 'rx' | 'scaled';
+    intervalScalingNotes?: string;
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;

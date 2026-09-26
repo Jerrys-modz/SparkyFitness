@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Dumbbell, Activity } from 'lucide-react';
 import WorkoutHeatmap from './WorkoutHeatmap';
+import { workoutHeatmapWindow } from '@/utils/workoutHeatmap';
+import { useWorkoutDays } from '@/hooks/Reports/useReports';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
 import ExerciseVarietyScore from './ExerciseVarietyScore';
@@ -48,7 +50,7 @@ import {
   useMatchedCourses,
   queryExerciseActivities,
 } from '@/hooks/Reports/useExerciseStats';
-import type { ExerciseProgressResponse } from '@workspace/shared';
+import { todayInZone, type ExerciseProgressResponse } from '@workspace/shared';
 
 interface ExerciseReportsDashboardProps {
   exerciseDashboardData: ExerciseDashboardData | undefined;
@@ -107,7 +109,7 @@ const ExerciseReportsDashboard = ({
   endDate,
 }: ExerciseReportsDashboardProps) => {
   const { t } = useTranslation();
-  const { formatDateInUserTimezone, weightUnit, distanceUnit } =
+  const { formatDateInUserTimezone, weightUnit, distanceUnit, timezone } =
     usePreferences();
   const unitSystem: 'metric' | 'imperial' =
     distanceUnit === 'miles' ? 'imperial' : 'metric';
@@ -130,6 +132,17 @@ const ExerciseReportsDashboard = ({
   >('day');
 
   const { activeUserId } = useActiveUser();
+
+  // The heatmap always covers the last 12 months on its own lightweight
+  // query; the report's date filter only outlines days inside it (#2461).
+  const heatmapToday = todayInZone(timezone);
+  const heatmapWindow = workoutHeatmapWindow(heatmapToday);
+  const { data: workoutDaysData } = useWorkoutDays(
+    heatmapWindow.start,
+    heatmapWindow.end,
+    activeUserId
+  );
+  const workoutDays = workoutDaysData?.days ?? [];
 
   const { data: statsSummary } = useExerciseStatsSummary(
     statsInterval,
@@ -275,40 +288,6 @@ const ExerciseReportsDashboard = ({
             totalTonnage={totalTonnage}
             weightUnit={weightUnit}
           />
-        );
-      case 'heatmap':
-        return (
-          <Card key="heatmap">
-            <CardHeader>
-              <CardTitle>
-                {t(
-                  'exerciseReportsDashboard.workoutHeatmap',
-                  'Workout Heatmap'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {exerciseDashboardData?.exerciseEntries &&
-              exerciseDashboardData.exerciseEntries.length > 0 ? (
-                <WorkoutHeatmap
-                  workoutDates={Array.from(
-                    new Set(
-                      exerciseDashboardData.exerciseEntries.map(
-                        (entry) => entry.entry_date
-                      )
-                    )
-                  )}
-                />
-              ) : (
-                <p className="text-center text-muted-foreground">
-                  {t(
-                    'exerciseReportsDashboard.noWorkoutDataAvailableForHeatmap',
-                    'No workout data available for heatmap.'
-                  )}
-                </p>
-              )}
-            </CardContent>
-          </Card>
         );
       case 'filtersAggregation':
         return (
@@ -701,16 +680,12 @@ const ExerciseReportsDashboard = ({
 
         {/* Right Side: Workout Heatmap Calendar */}
         <div className="lg:col-span-5">
-          {exerciseDashboardData?.exerciseEntries &&
-          exerciseDashboardData.exerciseEntries.length > 0 ? (
+          {workoutDays.length > 0 ? (
             <WorkoutHeatmap
-              workoutDates={Array.from(
-                new Set(
-                  exerciseDashboardData.exerciseEntries.map(
-                    (entry) => entry.entry_date
-                  )
-                )
-              )}
+              workoutDays={workoutDays}
+              today={heatmapToday}
+              rangeStart={startDate ?? undefined}
+              rangeEnd={endDate ?? undefined}
             />
           ) : (
             <Card className="h-full border shadow-sm flex items-center justify-center p-6">

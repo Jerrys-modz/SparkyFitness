@@ -255,6 +255,7 @@
     }
   },
   "activeWorkout": {
+    "failedToDeleteWorkout": "Failed to delete discarded workout session from diary.",
     "progression": {
       "toggleSettings": "Toggle progression settings",
       "title": "Progression",
@@ -272,7 +273,13 @@
       "incrementReps": "Increment (Reps)",
       "incrementWeight": "Increment ({{unit}})",
       "equipmentBrand": "Equipment / Machine Brand",
-      "equipmentBrandPlaceholder": "e.g. Hammer Strength, Cable Stack"
+      "equipmentBrandPlaceholder": "e.g. Hammer Strength, Cable Stack",
+      "rampTitle": "Add per set (this workout)",
+      "rampUp": "Up",
+      "rampDown": "Down",
+      "rampAmountLabel": "Weight added per set ({{unit}})",
+      "rampPlaceholder": "Off ({{unit}})",
+      "rampHint": "Each working set after the first pre-fills this much heavier (or lighter) in the same workout. Warm-up and drop sets are skipped."
     },
     "liveActivity": {
       "rest": "Rest",
@@ -321,6 +328,8 @@
       "endWorkout": "End workout",
       "exerciseProgress_one": "{{completed}} / {{count}} exercise",
       "exerciseProgress_other": "{{completed}} / {{count}} exercises",
+      "gymLocation": "Gym / Location",
+      "gymLocationSet": "Gym: {{location}}",
       "renameWorkout": "Rename workout",
       "reorderExercises": "Reorder exercises",
       "menu": "Workout menu",
@@ -384,7 +393,10 @@
       "incomplete": "Un-complete set {{setNumber}}",
       "weight": "Weight",
       "rpe": "RPE",
-      "fillFromPrevious": "Fill set {{setNumber}} from previous"
+      "rir": "RIR",
+      "fillFromPrevious": "Fill set {{setNumber}} from previous",
+      "startTimer": "Start stopwatch",
+      "stopTimer": "Stop stopwatch"
     },
     "columns": {
       "set": "Set",
@@ -394,6 +406,7 @@
     "exercise": {
       "expand": "Expand {{name}}",
       "viewDetails": "View {{name}} details",
+      "viewImages": "View {{name}} images",
       "collapse": "Collapse {{name}}",
       "moreOptions": "More options for {{name}}",
       "notePlaceholder": "Add a note for this exercise…",
@@ -405,7 +418,9 @@
       "notesForSet": "Notes for set {{number}}",
       "addSet": "Add set to {{name}}",
       "caloriesUnit": "kcal",
-      "addSetLabel": "Add set"
+      "addSetLabel": "Add set",
+      "heartRateFor": "Average heart rate for {{name}}",
+      "heartRateUnit": "bpm"
     },
     "nextSet": "Next Set"
   },
@@ -439,6 +454,7 @@
     "barcodes": "Barcodes",
     "editExercise": "Edit Exercise",
     "newExercise": "New Exercise",
+    "duplicateExercise": "Duplicate Exercise",
     "editPreset": "Edit Preset",
     "newPreset": "New Preset",
     "scanFood": "Scan Food",
@@ -1027,7 +1043,13 @@
     "keepAwake": "Keep screen awake",
     "keepAwakeSubtitle": "Prevent the screen from sleeping while a workout is active.",
     "restSoundAccessibility": "Rest timer sound",
-    "keepAwakeAccessibility": "Keep screen awake"
+    "keepAwakeAccessibility": "Keep screen awake",
+    "adaptiveCoaching": "Adaptive suggestions",
+    "adaptiveCoachingSubtitle": "Adapts upcoming sets and exercise suggestions based on your logged session feedback.",
+    "adaptiveCoachingAccessibility": "Adaptive suggestions",
+    "duckMusic": "Lower music during cues",
+    "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
+    "duckMusicAccessibility": "Lower music during cues"
   },
   "restPeriod": {
     "title": "Rest period",
@@ -1397,7 +1419,14 @@
     }
   },
   "workout": {
+    "addDropSets": "Add {{sets}} drop sets (-{{percent}}%)",
     "couldNotSave": "Could not save your workout",
+    "dismissLocation": "Dismiss location",
+    "gymLocation": "Gym / Location",
+    "gymLocationDesc": "Tag this workout with your current gym or training facility",
+    "locationPlaceholder": "e.g. Planet Fitness - Downtown",
+    "metricRir": "RIR",
+    "recentLocations": "Recent Locations",
     "sets": "sets",
     "editActivity": "Edit activity",
     "durationTitle": "Workout duration",
@@ -1951,7 +1980,15 @@
   "exerciseSummary": {
     "tapToAdd": "Tap to add exercise",
     "addExercise": "Add exercise",
-    "title": "Exercise"
+    "title": "Exercise",
+    "planUpNext": "Plan Up Next",
+    "sessionNumber": "Session {{current}} of {{total}}",
+    "sessionNumberIndex": "Session {{current}}",
+    "startWorkout": "Start",
+    "switchSession": "Switch",
+    "suggestedPlanSession": "Suggested",
+    "scheduledToday": "Scheduled Today",
+    "selectSession": "Select Session"
   },
   "foodRow": {
     "unknownFood": "Unknown food",
@@ -2892,6 +2929,9 @@
     }
   },
   "exerciseDetail": {
+    "duplicate": "Duplicate exercise",
+    "viewImages": "View images full screen",
+    "duplicateName": "{{name}} (copy)",
     "sharedPublicly": "Exercise shared publicly",
     "madePrivate": "Exercise made private",
     "makePublicTitle": "Make public?",
@@ -3203,7 +3243,8 @@
     "title": "Exercises",
     "tabs": {
       "search": "Search",
-      "online": "Online"
+      "online": "Online",
+      "suggested": "Suggested"
     },
     "sections": {
       "recent": "Recent",
@@ -3248,6 +3289,30 @@
     "accessibility": {
       "provider": "Exercise provider {{provider}}",
       "loadingMore": "Loading more exercises"
+    },
+    "replaceTitle": "Replace Exercise",
+    "alternatives": {
+      "heading": "Instead of {{name}}",
+      "modes": {
+        "similar": "Similar",
+        "differentEquipment": "Other equipment"
+      },
+      "reasons": {
+        "sameMuscles": "Same muscles",
+        "sharesMuscle": "Similar muscles",
+        "sameEquipment": "Same equipment",
+        "differentEquipment": "Different equipment",
+        "sameMovement": "Same movement",
+        "recent": "Done recently",
+        "inLibrary": "In your library"
+      },
+      "newBadge": "New",
+      "searchAll": "Search all exercises",
+      "failed": "Could not load alternatives",
+      "noMuscles": "No muscles recorded for {{name}}",
+      "noMusclesHint": "Add its primary muscles in the exercise library to get suggestions.",
+      "empty": "No alternatives found",
+      "catalogUnavailable": "Free Exercise DB is unavailable, so only your library is shown."
     }
   },
   "foodSearch": {
@@ -3381,7 +3446,9 @@
       "exercise_other": "Exercises",
       "sets": "Sets",
       "volume": "Volume",
-      "calories": "Calories"
+      "calories": "Calories",
+      "avgHeartRate": "Avg HR",
+      "maxHeartRate": "Max HR"
     },
     "errors": {
       "needsExercise": "Workout needs an exercise",
@@ -3391,7 +3458,8 @@
     "labels": {
       "details": "Details",
       "name": "Name",
-      "notes": "Notes"
+      "notes": "Notes",
+      "location": "Gym / Location"
     },
     "placeholders": {
       "workoutName": "Workout Name",
@@ -3480,8 +3548,13 @@
       "volume": "Volume",
       "sets": "Sets",
       "calories": "Calories",
+      "avgHeartRate": "Avg HR",
+      "maxHeartRate": "Max HR",
       "distance": "Distance",
       "averageRpe": "Average RPE"
+    },
+    "units": {
+      "bpm": "bpm"
     },
     "labels": {
       "todayAt": " · Today at ",
@@ -3638,6 +3711,15 @@
     "description": "Description",
     "descriptionPlaceholder": "Optional notes about this routine",
     "reorderExercises": "Reorder exercises",
+    "format": "Format",
+    "formatStandard": "Standard",
+    "formatInterval": "Interval / HIIT",
+    "formatTabata": "Tabata",
+    "formatEmom": "EMOM",
+    "formatAmrap": "AMRAP",
+    "formatForTime": "For Time",
+    "timeCapMinutes": "Time Cap (minutes)",
+    "timeCapPlaceholder": "e.g. 20",
     "newTitle": "New Preset",
     "editTitle": "Edit Preset",
     "created": "Workout preset created",
@@ -3648,6 +3730,28 @@
       "addExercise": "Add an exercise",
       "addExerciseSet": "Add at least one exercise with a set before saving."
     }
+  },
+  "interval": {
+    "ready": "Ready",
+    "countdown": "Get Ready",
+    "work": "Work",
+    "rest": "Rest",
+    "finished": "Completed",
+    "roundOfTotal": "Round {{current}} of {{total}}",
+    "round": "Round {{current}}",
+    "roundPlusOne": "+1 Round ({{current}})",
+    "resume": "Resume",
+    "pause": "Pause",
+    "timeCap": "Time Cap",
+    "timeCapLabel": "Cap: {{cap}}",
+    "wodScoring": "WOD Scoring",
+    "rx": "Rx",
+    "scaled": "Scaled",
+    "extraReps": "Additional Reps",
+    "wodScore": "WOD Score",
+    "amrapScore": "{{rounds}} rounds + {{reps}} reps",
+    "completed": "Completed",
+    "roundsCompleted": "{{rounds}} rounds completed"
   },
   "logScreen": {
     "title": "Logs",
@@ -4400,6 +4504,9 @@
     "heartRateZoneModerate": "Moderate",
     "heartRateZoneIntense": "Intense",
     "heartRateZonePeak": "Peak",
+    "wodScoreFormat": "{{format}} Score",
+    "timeCap": "Time Cap",
+    "scalingNotes": "Scaling Notes",
     "durationMinutesSeconds": "{{minutes}}m {{seconds}}s"
   },
   "copyMeal": {
@@ -5235,5 +5342,92 @@
     "legendCurve": "Active caffeine",
     "legendThreshold": "{{threshold}}mg threshold",
     "unitMg": "mg"
+  },
+  "guidedWorkout": {
+    "cue": {
+      "getReady": "Get ready. Starting {{name}}.",
+      "setStartReps_one": "{{name}}. {{count}} rep.",
+      "setStartReps_other": "{{name}}. {{count}} reps.",
+      "setStartSeconds_one": "{{name}}. {{count}} second.",
+      "setStartSeconds_other": "{{name}}. {{count}} seconds.",
+      "setStartOpen": "{{name}}.",
+      "halfway": "Halfway.",
+      "rest_one": "Rest. {{count}} second.",
+      "rest_other": "Rest. {{count}} seconds.",
+      "intervalRest": "Rest.",
+      "nextUp": "Next: {{name}}.",
+      "workoutComplete": "Workout complete."
+    },
+    "card": {
+      "badge": "GUIDED",
+      "getReady": "Get ready",
+      "setOfTotal": "Set {{current}} of {{total}}",
+      "rest": "Rest",
+      "nextUp": "Next up",
+      "targetReps_one": "{{count}} rep",
+      "targetReps_other": "{{count}} reps",
+      "targetSeconds_one": "{{count}} second",
+      "targetSeconds_other": "{{count}} seconds",
+      "done": "All sets done. End the workout to save it.",
+      "paused": "Paused",
+      "pause": "Pause",
+      "resume": "Resume",
+      "mute": "Mute voice",
+      "unmute": "Unmute voice",
+      "replay": "Replay instructions",
+      "doneNext": "DONE — NEXT",
+      "doneHintReps_one": "Tap when you've done {{count}} rep",
+      "doneHintReps_other": "Tap when you've done {{count}} reps",
+      "doneHint": "Tap when you're done"
+    },
+    "settings": {
+      "section": "Guided workouts",
+      "enabled": "Guided mode",
+      "enabledSubtitle": "Speaks each exercise and its target, counts you in, runs timed sets on their own, and moves to the next set. Cues play with the phone on silent, and the screen stays on during the workout.",
+      "voice": "Voice",
+      "voiceDefault": "Device default",
+      "rate": "Speech rate",
+      "rateValue": "{{rate}}×",
+      "countdown": "Get-ready countdown",
+      "countdownSubtitle": "Before the first exercise and before each timed set.",
+      "countdownValue_one": "{{count}} s",
+      "countdownValue_other": "{{count}} s",
+      "sample": "This is how your guided workouts will sound.",
+      "test": "Test voice"
+    }
+  },
+  "workoutFeedback": {
+    "title": "How did it feel?",
+    "subtitle": "Your next suggestions adjust to this.",
+    "difficulty": {
+      "tooEasy": "Too easy",
+      "justRight": "Just right",
+      "tooHard": "Too hard"
+    },
+    "painQuestion": "Any pain or discomfort?",
+    "painWhere": "During which exercises? (optional)",
+    "painNotePlaceholder": "What hurt? (optional)",
+    "painPrivacy": "Suggestions for these exercises get lighter, never heavier.",
+    "rateExercises": "Rate each exercise",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save your feedback. Tap to retry.",
+    "loadFailed": "Couldn't load your feedback. Tap to try again."
+  },
+  "adaptiveCoaching": {
+    "reasons": {
+      "painReported": "Lighter today: you reported pain here last time.",
+      "painRepeated": "Lighter today: pain here two sessions running. Consider an alternative.",
+      "sessionPain": "Holding weight: you reported discomfort in your last workout.",
+      "tooHard": "Holding weight: last time felt too hard.",
+      "tooHardRepeated": "Lighter today: too hard two sessions running.",
+      "highEffort": "Holding weight: your last sets were near max effort.",
+      "tooEasyRepeated": "A step heavier: too easy two sessions running."
+    },
+    "declined": "Using your usual suggestion.",
+    "variation": "You've done this in most recent workouts. Try a variation?",
+    "useUsual": "Use my usual",
+    "useAdjusted": "Use the adjusted suggestion",
+    "seeAlternatives": "See alternatives"
   }
 }

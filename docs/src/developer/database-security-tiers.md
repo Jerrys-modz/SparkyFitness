@@ -76,7 +76,7 @@ These tables contain user profiles, layouts, display settings, and custom databa
 | `workout_presets` | Custom workouts/presets created by the user | **Owner-Only** | Delegate with `can_view_exercise_library`, `can_manage_diary`, or `can_view_reports` |
 | `workout_preset_exercises` | Exercises assigned inside a workout preset | **Owner-Only** | Delegate with `can_view_exercise_library`, `can_manage_diary`, or `can_view_reports` |
 | `workout_preset_exercise_sets` | Reps/sets configured inside a preset exercise | **Owner-Only** | Delegate with `can_view_exercise_library`, `can_manage_diary`, or `can_view_reports` |
-| `workout_plan_templates` | Templates for weekly workout schedules | **Owner-Only** | Delegate with `can_view_exercise_library`, `can_manage_diary`, or `can_view_reports` |
+| `workout_plan_templates` | Templates for weekly and sequential workout schedules | **Owner-Only** | Delegate with `can_view_exercise_library`, `can_manage_diary`, or `can_view_reports` |
 | `external_data_providers` | Configured API integration credentials, including personal or global Open Food Facts accounts | **Owner-Only** | Delegate with `share_external_providers` for search only; contribution credentials are not shared. Manual contribution endpoints require the food owner to be the authenticated actor and require separate data/photo confirmation for the exact preview. |
 | `family_access` | Sharing rules & delegation credentials | **Owner-Only** | Owner or Switched Delegate |
 | `user_goals` | Active daily calorie/macro goals | **Owner-Only** | Delegate with `can_manage_diary` or `can_view_reports` |
@@ -117,6 +117,7 @@ These tables contain daily diaries, logging entries, and scheduler items. **Care
 | `meal_plan_template_assignments` | Active meal templates scheduled to the calendar | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 | `workout_plan_template_assignments` | Active workout templates scheduled to the calendar | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 | `workout_plan_assignment_sets` | Active sets scheduled in workout plans | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
+| `workout_feedback` | How a logged workout (or one exercise in it) felt: `difficulty` (`too_easy` / `just_right` / `too_hard`), a `pain` flag and optional `pain_note`; drives adaptive workout suggestions. Writes must reference the same user's session/exercise entry | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 
 #### B. Medication & Symptom Logs (Writable by delegates with `can_manage_medications` / Readable by `can_view_reports` or `can_manage_medications`)
 

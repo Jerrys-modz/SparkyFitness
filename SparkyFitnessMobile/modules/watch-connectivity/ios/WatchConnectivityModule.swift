@@ -15,6 +15,12 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterIntake: (([String: Any]) -> Void)?
     /// A request from the watch to delete one logged drink.
     var onWaterDelete: (([String: Any]) -> Void)?
+    /// One set logged during an active workout on the watch.
+    var onSetCompleted: (([String: Any]) -> Void)?
+    /// A batch of heart-rate samples for one exercise, captured on the watch.
+    var onHeartRateBatch: (([String: Any]) -> Void)?
+    /// The wearer ended the workout on the watch.
+    var onWorkoutStop: (([String: Any]) -> Void)?
 
     func activate() {
         guard WCSession.isSupported() else { return }
@@ -33,6 +39,12 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterIntake?(payload)
         case "waterDelete":
             onWaterDelete?(payload)
+        case "setCompleted":
+            onSetCompleted?(payload)
+        case "heartRateBatch":
+            onHeartRateBatch?(payload)
+        case "workoutStop":
+            onWorkoutStop?(payload)
         default:
             break
         }
@@ -94,7 +106,10 @@ public class WatchConnectivityModule: Module {
             "onCheckIn",
             "onContextRequest",
             "onWaterIntake",
-            "onWaterDelete"
+            "onWaterDelete",
+            "onSetCompleted",
+            "onHeartRateBatch",
+            "onWorkoutStop"
         )
 
         OnCreate {
@@ -126,6 +141,45 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onWaterDelete", [
                     "clientId": payload["clientId"] as? String ?? "",
                     "entryId": payload["entryId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onSetCompleted = { [weak self] payload in
+                self?.sendEvent("onSetCompleted", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
+                    // Absent (rather than null) when the watch had no value,
+                    // so JS can omit the field from the set patch instead of
+                    // clearing a planned one — same rule as body fat above.
+                    "weightKg": payload["weightKg"] as? Double,
+                    "reps": payload["reps"] as? Double,
+                    "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onHeartRateBatch = { [weak self] payload in
+                self?.sendEvent("onHeartRateBatch", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
+                    // WatchConnectivity delivers nested dictionaries as NSArray
+                    // of NSDictionary. `as? [[String: Any]]` often fails on that
+                    // and would silently drop every sample (JS then posts
+                    // calories-only). Walk `[Any]` instead.
+                    "samples": dictionaryArray(payload["samples"]),
+                    // Absent (rather than null) when the batch measured no
+                    // energy, so JS can tell "nothing to add" from a zero —
+                    // same rule body fat and the set values above follow.
+                    // Forgetting this key is invisible in tests that fire the
+                    // JS event directly: the watch keeps sending energy, the
+                    // phone keeps buffering none, and calories silently stay
+                    // derived-from-duration forever.
+                    "activeEnergyKcal": payload["activeEnergyKcal"] as? Double,
+                    "durationMinutes": payload["durationMinutes"] as? Double,
+                ])
+            }
+            self.delegateHandler.onWorkoutStop = { [weak self] payload in
+                self?.sendEvent("onWorkoutStop", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.activate()
@@ -167,6 +221,62 @@ public class WatchConnectivityModule: Module {
                 errorHandler: nil
             )
         }
+
+        /// Arms the watch with the workout plan a live session was just
+        /// started from. Deliberately NOT sent via `updateContext` above:
+        /// application context is a single latest-value slot shared by the
+        /// whole app, so a workout push would either be clobbered by the next
+        /// nutrition/water context push or clobber it right back.
+        ///
+        /// `workoutStart` is queued so it stays ahead of later `intervalTiming`
+        /// transfers, and also sent immediately when the watch is reachable.
+        /// The watch drops a start for a session it has already ended, so the
+        /// queued copy cannot restart a workout a faster `workoutStop` finished.
+        AsyncFunction("startWorkout") { (plan: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = plan.compactMapValues(withoutNulls)
+            payload["type"] = "workoutStart"
+            WCSession.default.transferUserInfo(payload)
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+        }
+
+        /// Tells the watch the workout it was armed with is over, because it
+        /// was finished (or discarded) on the phone. Without this the watch
+        /// keeps an `HKWorkoutSession` running against a session the phone
+        /// has already closed — a dead workout on screen and the sensor
+        /// still sampling. Queued like `startWorkout` for the same reason: a
+        /// watch out of range must still hear it eventually.
+        AsyncFunction("stopWorkout") { (sessionId: String, stoppedAt: String) -> Void in
+            guard WCSession.isSupported() else { return }
+            let payload: [String: Any] = [
+                "type": "workoutStop",
+                "sessionId": sessionId,
+                "stoppedAt": stoppedAt,
+            ]
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
+                    WCSession.default.transferUserInfo(payload)
+                }
+            } else {
+                WCSession.default.transferUserInfo(payload)
+            }
+        }
+
+        /// Pause or resume the cap. Always queued, so a watch out of range
+        /// still hears it, and sent immediately when reachable so the cap
+        /// freezes without waiting for the queue. The watch keeps a snapshot
+        /// that arrives before the plan and ignores an older revision.
+        AsyncFunction("updateIntervalTiming") { (timing: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = timing
+            payload["type"] = "intervalTiming"
+            WCSession.default.transferUserInfo(payload)
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+        }
     }
 }
 
@@ -194,4 +304,13 @@ private func withoutNulls(_ value: Any) -> Any? {
         return array.compactMap(withoutNulls)
     }
     return value
+}
+
+/// WatchConnectivity nested arrays arrive as `NSArray` of `NSDictionary`.
+/// A direct `as? [[String: Any]]` frequently returns nil for that, which
+/// would drop heart-rate samples while still forwarding energy.
+private func dictionaryArray(_ value: Any?) -> [[String: Any]] {
+    if let typed = value as? [[String: Any]] { return typed }
+    guard let any = value as? [Any] else { return [] }
+    return any.compactMap { $0 as? [String: Any] }
 }

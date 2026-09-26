@@ -206,6 +206,14 @@ jest.mock('expo-audio', () => ({
     remove: jest.fn(),
   })),
   setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
+  setIsAudioActiveAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock expo-speech (guided workout narration)
+jest.mock('expo-speech', () => ({
+  speak: jest.fn(),
+  stop: jest.fn().mockResolvedValue(undefined),
+  getAvailableVoicesAsync: jest.fn().mockResolvedValue([]),
 }));
 
 // Mock expo-camera
