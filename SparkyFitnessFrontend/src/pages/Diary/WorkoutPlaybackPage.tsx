@@ -266,9 +266,10 @@ const WorkoutPlaybackPage = () => {
                 repGoal: effectiveRepGoal,
                 incrementType,
                 // Weight increments are stored kg; the engine works in the
-                // display unit like the weights above.
+                // display unit like the weights above. Step-load raises reps,
+                // so its increment is a count whatever increment_type says.
                 incrementValue:
-                  incrementType === 'weight'
+                  incrementType === 'weight' && progressionMode !== 'step_load'
                     ? weightFromKg(
                         Number(exercise.increment_value) || 2.5,
                         weightUnit

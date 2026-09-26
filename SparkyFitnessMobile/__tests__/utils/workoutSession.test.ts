@@ -4305,6 +4305,28 @@ describe('workoutSession', () => {
           expect(result?.suggestedWeight).toBeCloseTo(105, 5);
         });
 
+        it('treats a step-load increment as reps even when stored as weight', () => {
+          // AI-created step-load presets default increment_type to weight.
+          const result = evaluateExerciseProgression(
+            {
+              progression_mode: 'step_load',
+              rep_goal: 24,
+              increment_type: 'weight',
+              increment_value: 5,
+            },
+            [
+              { set_type: 'normal' },
+              { set_type: 'normal' },
+              { set_type: 'normal' },
+            ],
+            [prev(100, 8), prev(100, 8), prev(100, 8)],
+            'lbs'
+          );
+          expect(result?.status).toBe('PROGRESSION_REPS_INCREASE');
+          // 24 + 5 reps, not 24 + 11.02 (5 "kg" read as pounds).
+          expect(result?.suggestedRepGoal).toBe(29);
+        });
+
         it('is null when nothing is configured', () => {
           expect(
             evaluateExerciseProgression({}, [], [prev(100, 8)], 'kg')

@@ -1164,6 +1164,55 @@ describe('workout presets', () => {
     );
   });
 
+  it('create_workout_preset rejects a fractional rep increment', async () => {
+    for (const exercise of [
+      {
+        exercise_id: EXERCISE_ID,
+        increment_type: 'reps' as const,
+        increment_value: 1.5,
+      },
+      {
+        exercise_id: EXERCISE_ID,
+        progression_mode: 'step_load' as const,
+        increment_value: 2.5,
+      },
+    ]) {
+      const result = await tools.sparky_manage_exercise.execute!(
+        {
+          action: 'create_workout_preset',
+          name: 'Bench',
+          exercises: [exercise],
+        },
+        opts
+      );
+      expect(String(result)).toContain('Rep increment must be a whole number');
+    }
+    expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
+  });
+
+  it('create_workout_preset accepts a fractional weight increment', async () => {
+    vi.mocked(workoutPresetService.createWorkoutPreset).mockResolvedValue({
+      id: 9,
+      name: 'Bench',
+      exercises: [{}],
+    });
+    await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Bench',
+        exercises: [
+          {
+            exercise_id: EXERCISE_ID,
+            increment_type: 'weight',
+            increment_value: 2.5,
+          },
+        ],
+      },
+      opts
+    );
+    expect(workoutPresetService.createWorkoutPreset).toHaveBeenCalled();
+  });
+
   it('create_workout_preset passes ramp_increment (kg, negative allowed) through', async () => {
     vi.mocked(workoutPresetService.createWorkoutPreset).mockResolvedValue({
       id: 9,

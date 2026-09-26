@@ -292,7 +292,24 @@ export const presetExerciseSchema = z
       .optional()
       .describe('Planned sets for this exercise in the preset'),
   })
-  .strict();
+  .strict()
+  // Same rule as the REST preset schema: a rep increment is a whole number.
+  // Step-load always raises reps, whatever increment_type says.
+  .superRefine((val, ctx) => {
+    const repsIncrement =
+      val.increment_type === 'reps' || val.progression_mode === 'step_load';
+    if (
+      repsIncrement &&
+      typeof val.increment_value === 'number' &&
+      !Number.isInteger(val.increment_value)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Rep increment must be a whole number',
+        path: ['increment_value'],
+      });
+    }
+  });
 
 const presetExercisesInputSchema = z
   .union([z.array(presetExerciseSchema), z.string()])

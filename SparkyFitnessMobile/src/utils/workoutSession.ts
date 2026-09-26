@@ -1092,8 +1092,13 @@ export function evaluateExerciseProgression(
 ): ProgressionEvaluationResult | null {
   if (!config.rep_goal && config.progression_mode !== 'fixed') return null;
   const workingSets = sets.filter((s) => !isWarmupSetType(s.set_type));
+  const progressionMode = config.progression_mode ?? 'rep_goal';
   const incrementType = config.increment_type ?? 'weight';
   const incrementValue = config.increment_value ?? 2.5;
+  // Step-load always raises reps, so its increment is a count even when the
+  // stored increment_type says weight (the repository's default).
+  const incrementIsWeight =
+    incrementType === 'weight' && progressionMode !== 'step_load';
   const workingPreviousSets = (previousSets ?? []).filter((s) => {
     const setType = (s as ProgressionPreviousSet).set_type ?? s.setType;
     return !isWarmupSetType(setType);
@@ -1101,14 +1106,13 @@ export function evaluateExerciseProgression(
   const firstWorking = workingPreviousSets[0];
   return evaluateProgression(
     {
-      progressionMode: config.progression_mode ?? 'rep_goal',
+      progressionMode,
       targetSets: workingSets.length || 3,
       repGoal: config.rep_goal,
       incrementType,
-      incrementValue:
-        incrementType === 'weight'
-          ? weightFromKg(incrementValue, weightUnit)
-          : incrementValue,
+      incrementValue: incrementIsWeight
+        ? weightFromKg(incrementValue, weightUnit)
+        : incrementValue,
       equipmentBrand: config.equipment_brand ?? null,
     },
     workingPreviousSets.length > 0
