@@ -397,7 +397,9 @@ async function deleteSupersededSleepStagesWithClient(
     );
     if (!remainders || remainders.length === 0) continue;
     // Delete first. Updating the crossing row onto a remainder can land on a
-    // stage that already has that (entry_id, start_time, end_time).
+    // stage that already has that (entry_id, start_time, end_time). Leave that
+    // existing row alone: it sits outside the window and the incoming upsert
+    // is what replaces an exact interval.
     await client.query(
       `DELETE FROM sleep_entry_stages
        WHERE id = $1 AND entry_id = $2 AND user_id = $3`,
@@ -408,10 +410,7 @@ async function deleteSupersededSleepStagesWithClient(
         `INSERT INTO sleep_entry_stages
            (entry_id, user_id, stage_type, start_time, end_time, duration_in_seconds)
          VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (entry_id, start_time, end_time) DO UPDATE SET
-           stage_type = EXCLUDED.stage_type,
-           duration_in_seconds = EXCLUDED.duration_in_seconds,
-           updated_at = CURRENT_TIMESTAMP`,
+         ON CONFLICT (entry_id, start_time, end_time) DO NOTHING`,
         [
           entryId,
           userId,

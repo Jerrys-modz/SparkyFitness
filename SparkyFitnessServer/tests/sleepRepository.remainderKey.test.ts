@@ -100,7 +100,10 @@ describe('mergeSleepStageEvents remainder keys', () => {
             duration_in_seconds: Number(values[5]),
           };
           const existing = rows.find((row) => keyOf(row) === keyOf(incoming));
-          if (existing && text.includes('ON CONFLICT')) {
+          if (existing && text.includes('DO NOTHING')) {
+            return { rows: [] };
+          }
+          if (existing && text.includes('DO UPDATE')) {
             existing.stage_type = incoming.stage_type;
             existing.duration_in_seconds = incoming.duration_in_seconds;
             return { rows: [{ id: existing.id }] };
@@ -164,10 +167,10 @@ describe('mergeSleepStageEvents remainder keys', () => {
         id: 'short',
         entry_id: entryId,
         user_id: userId,
-        stage_type: 'light',
+        stage_type: 'deep',
         start_time: at('2024-01-16T00:00:00.000Z'),
         end_time: at('2024-01-16T05:00:00.000Z'),
-        duration_in_seconds: 18000,
+        duration_in_seconds: 12345,
       }
     );
 
@@ -183,6 +186,9 @@ describe('mergeSleepStageEvents remainder keys', () => {
     ).resolves.toBeDefined();
 
     expect(rows.map((row) => row.id)).not.toContain('long');
+    const kept = rows.find((row) => row.id === 'short');
+    expect(kept?.stage_type).toBe('deep');
+    expect(kept?.duration_in_seconds).toBe(12345);
     expect(
       rows
         .map((row) => [
