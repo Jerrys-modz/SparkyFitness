@@ -1704,7 +1704,11 @@ const workoutHandler: HealthTypeHandler = {
           duration_minutes: duration ? duration / 60 : 0,
           calories_burned: caloriesBurned,
           entry_date: ctx.parsedDate,
-          ...(entryTime ? { entry_time: entryTime } : {}),
+          // The zone travels with entry_time so a later read converts it
+          // back in the zone it was taken in, not the viewer's current one.
+          ...(entryTime
+            ? { entry_time: entryTime, record_timezone: zone }
+            : {}),
           notes: `Source: ${source}, Activity Type: ${activityType}`,
           distance: distance,
           sets, // Pass sets if present for mobile workout sync

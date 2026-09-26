@@ -37,7 +37,7 @@ import WorkoutSessionBreakdown from '@/components/ExerciseCharts/WorkoutSessionB
 import ActivityReportMap from './ActivityReportMap';
 import WorkoutReportVisualizer from './WorkoutReportVisualizer';
 import { ChartDataPoint } from '@/types/reports';
-import { localDateTimeToUtc } from '@workspace/shared';
+import { isValidTimeZone, localDateTimeToUtc } from '@workspace/shared';
 
 interface ActivityReportVisualizerProps {
   exerciseEntryId: string;
@@ -79,6 +79,7 @@ const ActivityReportVisualizer = ({
     | {
         entry_date?: string;
         entry_time?: string | null;
+        record_timezone?: string | null;
         duration_minutes?: number | null;
       }
     | undefined;
@@ -107,13 +108,17 @@ const ActivityReportVisualizer = ({
     });
     const tagged: ChartDataPoint[] = [];
     const during: ChartDataPoint[] = [];
-    // entry_time is the wall-clock start in the user's timezone, not the
-    // browser's, so convert it in that zone before comparing to samples.
+    // entry_time is wall-clock time in the zone the workout was recorded
+    // in. Older and manual entries have no zone, and those were written in
+    // the user's timezone, not the browser's.
+    const recordZone = entryRecord?.record_timezone;
+    const entryZone =
+      recordZone && isValidTimeZone(recordZone) ? recordZone : timezone;
     const startMs =
       entryDate && entryRecord?.entry_time
         ? localDateTimeToUtc(
             `${entryDate}T${entryRecord.entry_time}`,
-            timezone
+            entryZone
           ).getTime()
         : NaN;
     const endMs =

@@ -585,3 +585,35 @@ describe('workoutHandler — failure isolation', () => {
     expect(result.status).toBe('error');
   });
 });
+
+describe('workoutHandler — start time zone', () => {
+  it('stores the zone the phone recorded the workout in with entry_time', async () => {
+    await workoutHandler.handle(
+      baseEntry({ record_timezone: 'America/New_York' }),
+      makeCtx()
+    );
+
+    const data = (exerciseEntryDb.createExerciseEntry as Mock).mock.calls[0][1];
+    expect(data.entry_time).toBe('05:00:00');
+    expect(data.record_timezone).toBe('America/New_York');
+  });
+
+  it('stores the profile zone when the phone sent none', async () => {
+    await workoutHandler.handle(baseEntry(), makeCtx());
+
+    const data = (exerciseEntryDb.createExerciseEntry as Mock).mock.calls[0][1];
+    expect(data.entry_time).toBe('09:00:00');
+    expect(data.record_timezone).toBe('UTC');
+  });
+
+  it('stores no zone when the start time could not be resolved', async () => {
+    await workoutHandler.handle(
+      baseEntry({ record_timezone: 'Not/AZone' }),
+      makeCtx()
+    );
+
+    const data = (exerciseEntryDb.createExerciseEntry as Mock).mock.calls[0][1];
+    expect(data.entry_time).toBeUndefined();
+    expect(data.record_timezone).toBeUndefined();
+  });
+});
