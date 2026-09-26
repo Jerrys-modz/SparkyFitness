@@ -4752,7 +4752,8 @@ CREATE TABLE public.workout_preset_exercises (
     rep_goal integer,
     increment_type character varying(20) DEFAULT 'weight'::character varying,
     increment_value numeric(6,2) DEFAULT 2.5,
-    equipment_brand character varying(100) DEFAULT NULL::character varying
+    equipment_brand character varying(100) DEFAULT NULL::character varying,
+    ramp_increment numeric(6,2)
 );
 
 
@@ -4761,6 +4762,13 @@ CREATE TABLE public.workout_preset_exercises (
 --
 
 COMMENT ON COLUMN public.workout_preset_exercises.superset_group IS 'Client-assigned superset group key, scoped to the parent workout preset. NULL = not in a superset. Members share the value and are kept adjacent via sort_order.';
+
+
+--
+-- Name: COLUMN workout_preset_exercises.ramp_increment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workout_preset_exercises.ramp_increment IS 'Kg added to each successive working set within one session (negative ramps down); null = off';
 
 
 --
