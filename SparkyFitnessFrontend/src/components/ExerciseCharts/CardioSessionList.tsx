@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useExerciseActivities } from '@/hooks/Reports/useExerciseStats';
 import ActivityReportVisualizer from '@/pages/Reports/ActivityReportVisualizer';
+import { addDays, daysBetween } from '@workspace/shared';
 import type { ExerciseActivityQueryItem } from '@workspace/shared';
 
 interface CardioSessionListProps {
@@ -22,15 +23,10 @@ function dayLabel(
 ): string {
   const date = parseISO(entryDate);
   const today = formatDate(new Date(), 'yyyy-MM-dd');
-  const yesterday = formatDate(
-    new Date(Date.now() - 24 * 60 * 60 * 1000),
-    'yyyy-MM-dd'
-  );
   const key = formatDate(date, 'yyyy-MM-dd');
   if (key === today) return todayWord;
-  if (key === yesterday) return yesterdayWord;
-  const ageDays =
-    (parseISO(today).getTime() - parseISO(key).getTime()) / 86_400_000;
+  if (key === addDays(today, -1)) return yesterdayWord;
+  const ageDays = daysBetween(key, today);
   if (ageDays > 0 && ageDays < 7) return formatDate(date, 'EEEE');
   return formatDate(date, 'MMM d');
 }

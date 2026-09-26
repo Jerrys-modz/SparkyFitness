@@ -296,6 +296,7 @@ describe('exerciseStatsService', () => {
       expect(sql).toContain("<> 'weight_reps'");
       expect(sql).toContain('\\m(strength|crunch');
       expect(sql).not.toContain('(run|walk|cycle');
+      expect(sql).toContain('OR COALESCE(distance, 0) > 0');
     });
   });
 

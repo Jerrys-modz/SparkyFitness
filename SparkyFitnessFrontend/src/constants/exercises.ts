@@ -434,6 +434,20 @@ export function setsForMuscleKey(
   return total;
 }
 
+/** Largest per-path total on the body map, with aliases combined as drawn. */
+export function maxDrawnMuscleSets(
+  setsByMuscle: Record<string, number>
+): number {
+  const keys = new Set(
+    Object.keys(svgClassToSchemaName).map(svgClassToMuscleKey)
+  );
+  let max = 0;
+  for (const key of keys) {
+    max = Math.max(max, setsForMuscleKey(key, setsByMuscle));
+  }
+  return max;
+}
+
 export function unmappedMuscleSets(
   setsByMuscle: Record<string, number>
 ): { muscle: string; sets: number }[] {

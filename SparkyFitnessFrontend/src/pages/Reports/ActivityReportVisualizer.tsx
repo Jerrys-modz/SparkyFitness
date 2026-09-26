@@ -37,6 +37,7 @@ import WorkoutSessionBreakdown from '@/components/ExerciseCharts/WorkoutSessionB
 import ActivityReportMap from './ActivityReportMap';
 import WorkoutReportVisualizer from './WorkoutReportVisualizer';
 import { ChartDataPoint } from '@/types/reports';
+import { localDateTimeToUtc } from '@workspace/shared';
 
 interface ActivityReportVisualizerProps {
   exerciseEntryId: string;
@@ -66,6 +67,7 @@ const ActivityReportVisualizer = ({
     energyUnit,
     convertEnergy,
     water_display_unit,
+    timezone,
   } = usePreferences();
 
   // useWorkoutGpsPoints returns one row for the whole workout (its `points`
@@ -105,9 +107,15 @@ const ActivityReportVisualizer = ({
     });
     const tagged: ChartDataPoint[] = [];
     const during: ChartDataPoint[] = [];
-    const startMs = entryRecord?.entry_time
-      ? Date.parse(`${entryDate}T${entryRecord.entry_time}`)
-      : NaN;
+    // entry_time is the wall-clock start in the user's timezone, not the
+    // browser's, so convert it in that zone before comparing to samples.
+    const startMs =
+      entryDate && entryRecord?.entry_time
+        ? localDateTimeToUtc(
+            `${entryDate}T${entryRecord.entry_time}`,
+            timezone
+          ).getTime()
+        : NaN;
     const endMs =
       Number.isFinite(startMs) &&
       typeof entryRecord?.duration_minutes === 'number'
@@ -140,7 +148,7 @@ const ActivityReportVisualizer = ({
       }
     }
     return points;
-  }, [hrBuckets, exerciseEntryId, entryDate, entryRecord]);
+  }, [hrBuckets, exerciseEntryId, entryDate, entryRecord, timezone]);
   const { data: dbLaps } = useWorkoutLaps(exerciseEntryId);
   const { data: dbHrZones } = useWorkoutHrZones(exerciseEntryId);
 

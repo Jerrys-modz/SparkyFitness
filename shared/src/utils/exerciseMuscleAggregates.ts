@@ -1,4 +1,7 @@
+import { isWarmupSetType } from "./dropSetCalculator.ts";
+
 export interface MuscleSet {
+  set_type?: string | null;
   reps?: number | null;
   weight?: number | null;
   duration?: number | null;
@@ -44,7 +47,9 @@ function parseJsonArray(value: unknown): unknown[] {
 function workingSetCount(sets: MuscleSet[] | null | undefined): number {
   if (!Array.isArray(sets) || sets.length === 0) return 0;
   return sets.filter(
-    (set) => (Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0,
+    (set) =>
+      !isWarmupSetType(set.set_type) &&
+      ((Number(set.reps) || 0) > 0 || (Number(set.duration) || 0) > 0),
   ).length;
 }
 

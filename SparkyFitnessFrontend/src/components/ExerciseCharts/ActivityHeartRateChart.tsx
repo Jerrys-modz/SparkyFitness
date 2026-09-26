@@ -62,9 +62,9 @@ export const ActivityHeartRateChart = ({
                   minTickGap={24}
                   tickFormatter={(value) => {
                     if (xAxisMode === 'activityDuration')
-                      return `${Number(value).toFixed(0)}`;
+                      return `${Number(value).toFixed(0)} ${t('common.min', 'min')}`;
                     if (xAxisMode === 'distance')
-                      return `${Number(value).toFixed(1)}`;
+                      return `${Number(value).toFixed(1)} ${distanceUnit === 'km' ? 'km' : 'mi'}`;
                     if (xAxisMode === 'timeOfDay')
                       return formatTimeWithPreference(
                         new Date(axisLabelValue(value)),

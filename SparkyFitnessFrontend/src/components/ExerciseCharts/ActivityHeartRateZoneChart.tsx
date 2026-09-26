@@ -38,6 +38,15 @@ const formatZoneDuration = (seconds: number) => {
   return `${mins}m ${secs}s`;
 };
 
+// Seconds under a minute, else minutes with a decimal when needed, so ticks
+// a few seconds apart never round to the same label.
+const zoneAxisTick = (seconds: number) => {
+  const total = Math.max(0, Math.round(seconds));
+  if (total < 60) return `${total}s`;
+  const mins = total / 60;
+  return Number.isInteger(mins) ? `${mins}m` : `${mins.toFixed(1)}m`;
+};
+
 interface ActivityHeartRateZonesChartProps {
   data: HeartRateZoneData[];
   /** exercise_entries.source (case-insensitive) — determines whether these
@@ -100,11 +109,9 @@ export const ActivityHeartRateZonesChart = ({
                   tickFormatter={(value: string) => zoneTick(String(value))}
                 />
                 <YAxis
-                  width={32}
+                  width={40}
                   tick={{ fontSize: 11 }}
-                  tickFormatter={(value: number) =>
-                    String(Math.round(Number(value) / 60))
-                  }
+                  tickFormatter={(value: number) => zoneAxisTick(Number(value))}
                 />
                 <Tooltip
                   cursor={{ fill: 'hsl(var(--muted))' }}

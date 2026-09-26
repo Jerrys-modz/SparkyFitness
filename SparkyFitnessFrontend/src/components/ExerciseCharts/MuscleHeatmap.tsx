@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBodyMapSvgQuery } from '@/hooks/Exercises/useExercises';
 import {
   heatLevel,
+  maxDrawnMuscleSets,
   setsForMuscleKey,
   svgClassToMuscleKey,
   unmappedMuscleSets,
@@ -24,7 +25,7 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const { data: svgContent } = useBodyMapSvgQuery();
   const [pickedKey, setPickedKey] = useState<string | null>(null);
-  const maxSets = Math.max(0, ...Object.values(setsByMuscle));
+  const maxSets = maxDrawnMuscleSets(setsByMuscle);
   const extra = unmappedMuscleSets(setsByMuscle);
   const setsLabel = t('muscleHeatmap.sets', 'sets');
   const picked: PickedMuscle | null = pickedKey

@@ -492,7 +492,9 @@ async function queryExerciseActivities(
       // Word boundaries, not substrings: "crunch" contains "run" and was
       // showing up as cardio. Strength is out even when an old row was
       // stored with category Cardio, or when a gym session has a little
-      // distance from walking between sets.
+      // distance from walking between sets. Past those exclusions, any
+      // positive distance counts: a synced paddle can reuse a "General"
+      // reps-only custom exercise and still carry a route.
       whereClauses.push(`(
         COALESCE(modality, '') <> 'weight_reps'
         AND LOWER(COALESCE(category, '')) NOT IN ('strength', 'powerlifting', 'olympic weightlifting', 'strongman')
@@ -501,6 +503,7 @@ async function queryExerciseActivities(
           COALESCE(modality, '') IN ('duration', 'duration_distance')
           OR LOWER(COALESCE(category, '')) IN ('cardio', 'running', 'cycling', 'walking', 'swimming', 'endurance', 'garmin')
           OR LOWER(exercise_name) ~* '\\m(run(ning|s)?|walk(ing|s)?|cycl(e|ing)|bike|biking|swim(ming)?|hik(e|ing)|treadmill|elliptical|rower|rowing|cardio|stairs?)\\M'
+          OR COALESCE(distance, 0) > 0
         )
       )`);
     }

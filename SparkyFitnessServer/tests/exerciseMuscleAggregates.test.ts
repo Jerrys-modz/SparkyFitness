@@ -126,4 +126,20 @@ describe('muscle-group aggregates from flat exercise entries', () => {
       ])
     ).toEqual({ Chest: 3, Triceps: 2 });
   });
+
+  it('leaves warm-up sets out of the count', () => {
+    expect(
+      calculateMuscleGroupSets([
+        {
+          exercise_primary_muscles: '["Chest"]',
+          sets: [
+            { set_type: 'Warm-up', reps: 10, weight: 20 },
+            { set_type: 'warmup', reps: 8, weight: 40 },
+            { set_type: 'Working Set', reps: 5, weight: 80 },
+            { set_type: 'Drop Set', reps: 8, weight: 60 },
+          ],
+        },
+      ])
+    ).toEqual({ Chest: 2 });
+  });
 });
