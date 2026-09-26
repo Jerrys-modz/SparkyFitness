@@ -33,8 +33,12 @@ async function createExercisePresetEntryWithClient(
   createdByUserId: any
 ) {
   const result = await client.query(
-    `INSERT INTO exercise_preset_entries (user_id, workout_preset_id, name, description, entry_date, created_by_user_id, notes, source, location)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    // workout_format is snapshotted from the preset so later preset edits or
+    // deletes don't reclassify this session's sets.
+    `INSERT INTO exercise_preset_entries (user_id, workout_preset_id, name, description, entry_date, created_by_user_id, notes, source, location, workout_format)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+             COALESCE((SELECT wp.workout_format FROM workout_presets wp WHERE wp.id = $2), 'standard'))
+     RETURNING id`,
     [
       userId,
       entryData.workout_preset_id ?? null,
@@ -157,6 +161,11 @@ async function updateExercisePresetEntryWithClient(
        notes = $5,
        source = $6,
        location = $7,
+       workout_format = CASE
+         WHEN workout_preset_id IS DISTINCT FROM $1
+           THEN COALESCE((SELECT wp.workout_format FROM workout_presets wp WHERE wp.id = $1), 'standard')
+         ELSE workout_format
+       END,
        updated_at = now()
      WHERE id = $8 AND user_id = $9
      RETURNING id`,

@@ -1754,10 +1754,14 @@ async function getBestSetForExercise(
       `SELECT ee.entry_date::TEXT AS entry_date, ees.weight, ees.reps, ees.set_number
          FROM exercise_entries ee
          JOIN exercise_entry_sets ees ON ees.exercise_entry_id = ee.id
+         -- LEFT JOIN: ad-hoc and imported entries have no session and count
+         -- as standard work.
+         LEFT JOIN exercise_preset_entries epe ON epe.id = ee.exercise_preset_entry_id
         WHERE ee.user_id = $1
           AND ee.exercise_id = $2
           AND ees.weight IS NOT NULL
           AND (ees.set_type IS NULL OR regexp_replace(LOWER(ees.set_type), '[^a-z0-9]', '', 'g') NOT LIKE 'warmup%')
+          AND COALESCE(epe.workout_format, 'standard') = 'standard'
           AND ($3::uuid IS NULL OR ee.exercise_preset_entry_id IS DISTINCT FROM $3)
         ORDER BY ees.weight DESC,
                  ees.reps DESC NULLS LAST,

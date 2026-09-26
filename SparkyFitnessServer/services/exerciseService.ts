@@ -257,8 +257,11 @@ async function getExerciseStats(
   presetId: number | null = null
 ) {
   const [bestRow, lastRow, recentRows] = await Promise.all([
-    // Best/last stay exercise-global by design: a heavier lift is a PR
-    // regardless of which preset it was performed under.
+    // Best/last stay exercise-global across presets by design: a heavier lift
+    // is a PR regardless of which preset it was performed under. Best alone
+    // skips sets done inside interval/WOD sessions — it is also the live PR
+    // baseline, so a metcon set must not raise the bar for strength work.
+    // Last stays unfiltered: it records what was done most recently.
     exerciseEntryDb.getBestSetForExercise(
       userId,
       exerciseId,
