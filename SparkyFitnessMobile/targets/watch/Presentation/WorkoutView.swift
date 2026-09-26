@@ -36,6 +36,63 @@ private struct WaitingForWorkoutView: View {
     }
 }
 
+/// Format name and time left on the cap. Nil for an ordinary set workout.
+/// Rounds added on the phone are not in this yet: the watch still has only
+/// the sets it was armed with.
+private func intervalCaption(plan: ActiveWorkoutPlan?, now: Date) -> String? {
+    guard let format = plan?.workoutFormat?.lowercased(), format != "standard" else {
+        return nil
+    }
+    let name: String
+    switch format {
+    case "amrap": name = "AMRAP"
+    case "emom": name = "EMOM"
+    case "tabata": name = "TABATA"
+    case "for_time": name = "FOR TIME"
+    default: name = format.uppercased()
+    }
+    guard
+        let cap = plan?.timeCapSeconds, cap > 0
+    else { return name }
+    let clock = plan?.pausedAt ?? now
+    let pausedAlready = plan?.excludedPauseSeconds ?? 0
+    let left: Int
+    if let capEnds = plan?.capEndsAt {
+        let end = capEnds.addingTimeInterval(TimeInterval(pausedAlready))
+        left = max(0, Int(end.timeIntervalSince(clock).rounded()))
+    } else if let started = plan?.startedAt {
+        let elapsed = Int(clock.timeIntervalSince(started)) - pausedAlready
+        left = max(0, cap - max(0, elapsed))
+    } else {
+        return name
+    }
+    let minutes = left / 60
+    let seconds = left % 60
+    return String(format: "%@ %d:%02d", name, minutes, seconds)
+}
+
+/// Ticks once a second. `intervalCaption` reads `now` itself, so it has to
+/// live in a view that redraws on a timer — the parent only redraws when the
+/// store changes, which left the cap sitting still between sets.
+private struct IntervalCaptionView: View {
+    let plan: ActiveWorkoutPlan?
+
+    @State private var now = Date()
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Group {
+            if let caption = intervalCaption(plan: plan, now: now) {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
+                    .monospacedDigit()
+            }
+        }
+        .onReceive(ticker) { now = $0 }
+    }
+}
+
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
@@ -51,6 +108,9 @@ private struct ActiveWorkoutView: View {
     var body: some View {
         VStack(spacing: 4) {
             MetricsStrip(onBack: openExerciseList)
+            if let format = store.plan?.workoutFormat?.lowercased(), format != "standard" {
+                IntervalCaptionView(plan: store.plan)
+            }
 
             if store.isResting {
                 RestView()

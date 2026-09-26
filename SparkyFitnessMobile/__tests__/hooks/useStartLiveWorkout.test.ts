@@ -2,7 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import type { PresetSessionResponse } from '@workspace/shared';
-import { useStartLiveWorkout } from '../../src/hooks/useStartLiveWorkout';
+import {
+  useStartLiveWorkout,
+  syncWatchIntervalTiming,
+} from '../../src/hooks/useStartLiveWorkout';
 import {
   __resetActiveWorkoutStoreForTests,
   useActiveWorkoutStore,
@@ -42,6 +45,23 @@ jest.mock('../../src/services/storage', () => ({
   ...jest.requireActual('../../src/services/storage'),
   getActiveServerConfig: jest.fn(),
 }));
+
+jest.mock('../../modules/watch-connectivity', () => ({
+  __esModule: true,
+  default: {
+    isSupported: jest.fn(() => true),
+    startWorkout: jest.fn(),
+    updateIntervalTiming: jest.fn(),
+  },
+}));
+
+const mockWatch = (
+  jest.requireMock('../../modules/watch-connectivity') as {
+    default: { startWorkout: jest.Mock; updateIntervalTiming: jest.Mock };
+  }
+).default;
+const mockStartWorkout = mockWatch.startWorkout;
+const mockUpdateIntervalTiming = mockWatch.updateIntervalTiming;
 
 const mockCreateWorkout = createWorkout as jest.MockedFunction<
   typeof createWorkout
@@ -168,6 +188,108 @@ describe('useStartLiveWorkout', () => {
     expect(store.sessionId).toBe('session-1');
     expect(store.createdByLiveStart).toBe(true);
     expect(navigation.replace).toHaveBeenCalledWith('ActiveWorkout');
+  });
+
+  it('arms the watch with the interval format, cap, and start time', async () => {
+    const { result } = setup();
+    const before = Date.now();
+
+    await act(async () => {
+      await result.current.startLiveWorkout({
+        name: 'Push Day',
+        exercises: EXERCISES,
+        workoutFormat: 'amrap',
+        timeCapSeconds: 720,
+      });
+    });
+
+    expect(mockStartWorkout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        workoutFormat: 'amrap',
+        timeCapSeconds: 720,
+        startedAt: expect.any(String),
+        armedAt: expect.any(String),
+        capEndsAt: expect.any(String),
+      })
+    );
+    const payload = mockStartWorkout.mock.calls[0][0];
+    const startedAt = Date.parse(payload.startedAt as string);
+    expect(startedAt).toBeGreaterThanOrEqual(before);
+    expect(startedAt).toBeLessThanOrEqual(Date.now());
+    // The phone leads the cap with a 5s countdown, so 0:00 is cap + 5s.
+    expect(Date.parse(payload.capEndsAt as string) - startedAt).toBe(
+      (720 + 5) * 1000
+    );
+  });
+
+  it('freezes the watch cap on pause and sends the pause length on resume', () => {
+    act(() => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+    });
+
+    syncWatchIntervalTiming({
+      paused: true,
+      pausedAtMs: Date.parse('2026-09-25T15:00:00.000Z'),
+    });
+    const paused = mockUpdateIntervalTiming.mock.calls.at(-1)?.[0];
+    expect(paused).toEqual(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        paused: true,
+        pausedAt: '2026-09-25T15:00:00.000Z',
+        excludedPauseMs: 0,
+      })
+    );
+
+    syncWatchIntervalTiming({ paused: false, pauseDurationMs: 12_000 });
+    const resumed = mockUpdateIntervalTiming.mock.calls.at(-1)?.[0];
+    expect(resumed).toEqual(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        paused: false,
+        excludedPauseMs: 12_000,
+        revision: (paused.revision as number) + 1,
+      })
+    );
+    expect(resumed.pausedAt).toBeUndefined();
+    expect(useActiveWorkoutStore.getState().watchIntervalRevision).toBe(
+      resumed.revision
+    );
+    expect(useActiveWorkoutStore.getState().watchExcludedPauseMs).toBe(12_000);
+
+    syncWatchIntervalTiming({ paused: false, pauseDurationMs: -5_000 });
+    const afterRollback = mockUpdateIntervalTiming.mock.calls.at(-1)?.[0];
+    expect(afterRollback.excludedPauseMs).toBe(12_000);
+    expect(afterRollback.revision).toBe((resumed.revision as number) + 1);
+    expect(useActiveWorkoutStore.getState().watchIntervalRevision).toBe(
+      afterRollback.revision
+    );
+  });
+
+  it('tells the watch when the store pauses and resumes', () => {
+    act(() => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession(), {
+        workoutFormat: 'amrap',
+        timeCapSeconds: 60,
+      });
+      useActiveWorkoutStore.getState().pauseInterval();
+    });
+
+    expect(mockUpdateIntervalTiming).toHaveBeenCalledWith(
+      expect.objectContaining({ paused: true, sessionId: 'session-1' })
+    );
+
+    act(() => {
+      useActiveWorkoutStore.getState().resumeInterval();
+    });
+
+    expect(mockUpdateIntervalTiming).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        paused: false,
+        sessionId: 'session-1',
+      })
+    );
   });
 
   it('strips planned weight/reps/duration from the create payload and seeds them as the store plan', async () => {

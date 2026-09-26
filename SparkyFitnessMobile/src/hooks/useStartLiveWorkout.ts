@@ -31,6 +31,8 @@ import {
 } from '../utils/workoutSession';
 import type { RootStackParamList } from '../types/navigation';
 
+export { syncWatchIntervalTiming } from '../stores/activeWorkoutStore';
+
 type StartLiveWorkoutNavigation = Pick<
   NativeStackNavigationProp<RootStackParamList>,
   'replace' | 'isFocused' | 'navigate'
@@ -63,10 +65,21 @@ function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
   t: TFunction
 ): WatchWorkoutStartPayload {
-  const { steps, plannedSetValues } = useActiveWorkoutStore.getState();
+  const {
+    steps,
+    plannedSetValues,
+    workoutFormat,
+    timeCapSeconds,
+    startedAt,
+    intervalPhases,
+  } = useActiveWorkoutStore.getState();
   const restSecBySetId = new Map(
     steps.map((step) => [step.setId, step.restSec])
   );
+  const capEndsAtMs =
+    timeCapSeconds != null && intervalPhases.length > 0
+      ? Math.max(...intervalPhases.map((phase) => phase.endsAt))
+      : null;
 
   return {
     sessionId: session.id,
@@ -89,6 +102,11 @@ function buildWatchWorkoutStartPayload(
       }),
     })),
     setOrder: steps.map((step) => step.setId),
+    workoutFormat,
+    timeCapSeconds,
+    startedAt: startedAt != null ? new Date(startedAt).toISOString() : null,
+    armedAt: new Date().toISOString(),
+    capEndsAt: capEndsAtMs != null ? new Date(capEndsAtMs).toISOString() : null,
   };
 }
 

@@ -132,6 +132,35 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: 0)
     }
 
+    /// Replaces the cap's pause snapshot. `excludedPauseSeconds` is the total
+    /// already resumed, not a delta. A revision at or below the one already
+    /// applied is ignored, so a queued pause cannot undo a resume that arrived
+    /// first.
+    func applyIntervalTiming(
+        sessionId: String,
+        revision: Int,
+        pausedAt: Date?,
+        excludedPauseSeconds: Int
+    ) {
+        guard let plan, plan.sessionId == sessionId else { return }
+        if revision <= (plan.intervalRevision ?? 0) { return }
+        self.plan = ActiveWorkoutPlan(
+            sessionId: plan.sessionId,
+            workoutName: plan.workoutName,
+            exercises: plan.exercises,
+            setOrder: plan.setOrder,
+            workoutFormat: plan.workoutFormat,
+            timeCapSeconds: plan.timeCapSeconds,
+            startedAt: plan.startedAt,
+            armedAt: plan.armedAt,
+            capEndsAt: plan.capEndsAt,
+            pausedAt: pausedAt,
+            excludedPauseSeconds: excludedPauseSeconds,
+            intervalRevision: revision
+        )
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {

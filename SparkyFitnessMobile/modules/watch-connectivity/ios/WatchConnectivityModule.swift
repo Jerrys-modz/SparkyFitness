@@ -226,21 +226,19 @@ public class WatchConnectivityModule: Module {
         /// started from. Deliberately NOT sent via `updateContext` above:
         /// application context is a single latest-value slot shared by the
         /// whole app, so a workout push would either be clobbered by the next
-        /// nutrition/water context push or clobber it right back. This uses
-        /// the same queued-message channel `sendAck` and the watch's own
-        /// check-ins use instead — `sendMessage` when reachable, falling back
-        /// to `transferUserInfo` (queued, delivered once the watch is back)
-        /// so a workout started with the watch out of range still arrives.
+        /// nutrition/water context push or clobber it right back.
+        ///
+        /// `workoutStart` is queued so it stays ahead of later `intervalTiming`
+        /// transfers, and also sent immediately when the watch is reachable.
+        /// The watch drops a start for a session it has already ended, so the
+        /// queued copy cannot restart a workout a faster `workoutStop` finished.
         AsyncFunction("startWorkout") { (plan: [String: Any]) -> Void in
             guard WCSession.isSupported() else { return }
             var payload = plan.compactMapValues(withoutNulls)
             payload["type"] = "workoutStart"
+            WCSession.default.transferUserInfo(payload)
             if WCSession.default.isReachable {
-                WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
-                    WCSession.default.transferUserInfo(payload)
-                }
-            } else {
-                WCSession.default.transferUserInfo(payload)
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
         }
 
@@ -250,15 +248,33 @@ public class WatchConnectivityModule: Module {
         /// has already closed — a dead workout on screen and the sensor
         /// still sampling. Queued like `startWorkout` for the same reason: a
         /// watch out of range must still hear it eventually.
-        AsyncFunction("stopWorkout") { (sessionId: String) -> Void in
+        AsyncFunction("stopWorkout") { (sessionId: String, stoppedAt: String) -> Void in
             guard WCSession.isSupported() else { return }
-            let payload: [String: Any] = ["type": "workoutStop", "sessionId": sessionId]
+            let payload: [String: Any] = [
+                "type": "workoutStop",
+                "sessionId": sessionId,
+                "stoppedAt": stoppedAt,
+            ]
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
                     WCSession.default.transferUserInfo(payload)
                 }
             } else {
                 WCSession.default.transferUserInfo(payload)
+            }
+        }
+
+        /// Pause or resume the cap. Always queued, so a watch out of range
+        /// still hears it, and sent immediately when reachable so the cap
+        /// freezes without waiting for the queue. The watch keeps a snapshot
+        /// that arrives before the plan and ignores an older revision.
+        AsyncFunction("updateIntervalTiming") { (timing: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = timing
+            payload["type"] = "intervalTiming"
+            WCSession.default.transferUserInfo(payload)
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
         }
     }

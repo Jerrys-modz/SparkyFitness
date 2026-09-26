@@ -49,6 +49,16 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Newest plan that arrived while a finish was in flight. Started only
     /// after the old tail has been tagged with the old session.
     private var pendingPlan: ActiveWorkoutPlan?
+    /// Pause snapshots that arrived before `beginPlan` started that session.
+    private var pendingIntervalTiming: [(
+        sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
+    )] = []
+    /// When each session was stopped, on the phone's clock when the phone
+    /// sent it. A start whose `armedAt` is at or before that is the queued
+    /// copy. A later arm of the same session id is a new workout.
+    private var endedAtBySession: [String: Date] = [:]
+    private static let endedSessionsKey = "sparky.watch.endedWorkoutSessions"
+    private static let endedSessionLimit = 20
     /// A finish asked to tell the phone while another stop was already running.
     private var pendingSendStop = false
     /// Snapshot recovery and a `workoutStart` that arrives first both talk to
@@ -63,10 +73,52 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     private override init() {
         super.init()
+        endedAtBySession = Self.loadEndedSessions()
         if !WCSession.isSupported() {
             hkRecovery = .finished
         }
         activate()
+    }
+
+    /// Remembers a stop. A later value wins so a second stop of a re-armed
+    /// session does not keep the earlier threshold.
+    private func rememberEnded(_ sessionId: String, at endedAt: Date) {
+        let kept = max(endedAtBySession[sessionId] ?? .distantPast, endedAt)
+        endedAtBySession[sessionId] = kept
+        let newest = endedAtBySession.sorted { $0.value < $1.value }
+        if newest.count > Self.endedSessionLimit {
+            for entry in newest.prefix(newest.count - Self.endedSessionLimit) {
+                endedAtBySession.removeValue(forKey: entry.key)
+            }
+        }
+        let raw = endedAtBySession.mapValues { $0.timeIntervalSince1970 }
+        if let data = try? JSONEncoder().encode(raw) {
+            UserDefaults.standard.set(data, forKey: Self.endedSessionsKey)
+        }
+    }
+
+    private static func loadEndedSessions() -> [String: Date] {
+        let defaults = UserDefaults.standard
+        if let data = defaults.data(forKey: endedSessionsKey),
+           let raw = try? JSONDecoder().decode([String: TimeInterval].self, from: data) {
+            return raw.mapValues { Date(timeIntervalSince1970: $0) }
+        }
+        // The previous build stored ids and rejected every future start.
+        // Stamp them ended as of this launch so a queued copy is still
+        // dropped and a later re-arm is not.
+        guard let ids = defaults.stringArray(forKey: endedSessionsKey) else { return [:] }
+        let now = Date()
+        var migrated: [String: Date] = [:]
+        for id in ids {
+            migrated[id] = now
+        }
+        return migrated
+    }
+
+    /// True when this start is the queued copy of an arm that already stopped.
+    private func startIsStale(_ plan: ActiveWorkoutPlan) -> Bool {
+        guard let endedAt = endedAtBySession[plan.sessionId] else { return false }
+        return (plan.armedAt ?? .distantPast) <= endedAt
     }
 
     private func activate() {
@@ -359,6 +411,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "ack": handle(ack: payload)
         case "workoutStart": handle(workoutStart: payload)
         case "workoutStop": handle(workoutStopFromPhone: payload)
+        case "intervalTiming": handle(intervalTiming: payload)
         default: break
         }
     }
@@ -372,6 +425,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// silently run with no heart rate.
     private func handle(workoutStart payload: [String: Any]) {
         guard let plan = ContextPayloadMapper.workoutPlan(from: payload) else { return }
+        // A stop can be delivered before the queued copy of this start. That
+        // copy must not start a workout the phone or the wearer already ended.
+        if startIsStale(plan) { return }
         // A redelivered `workoutStart` for the session already running must
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
@@ -415,7 +471,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Arms a plan that is not replacing a live one. Authorization is asked
     /// every time: the wearer can change it in Settings between workouts.
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
+        guard !startIsStale(plan) else { return }
         workoutStore.start(with: plan)
+        // Only this session's snapshots. Another plan's pause may already be
+        // queued and has to survive until that plan starts.
+        replayIntervalTiming(sessionId: plan.sessionId)
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
@@ -747,26 +807,69 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// The phone paused or resumed an interval. The snapshot is absolute and
+    /// numbered, so a resume that beats its queued pause still wins. A
+    /// snapshot that arrives before its plan is kept and applied in
+    /// `beginPlan` — dropping it here left the watch on a stale cap.
+    private func handle(intervalTiming payload: [String: Any]) {
+        guard let timing = ContextPayloadMapper.intervalTiming(from: payload) else { return }
+        if endedAtBySession[timing.sessionId] != nil,
+           workoutStore.plan?.sessionId != timing.sessionId,
+           pendingPlan?.sessionId != timing.sessionId {
+            return
+        }
+        if workoutStore.plan?.sessionId == timing.sessionId {
+            workoutStore.applyIntervalTiming(
+                sessionId: timing.sessionId,
+                revision: timing.revision,
+                pausedAt: timing.pausedAt,
+                excludedPauseSeconds: timing.excludedPauseSeconds
+            )
+            return
+        }
+        pendingIntervalTiming.append(timing)
+    }
+
+    private func replayIntervalTiming(sessionId: String) {
+        let queued = pendingIntervalTiming.filter { $0.sessionId == sessionId }
+        pendingIntervalTiming.removeAll { $0.sessionId == sessionId }
+        for timing in queued {
+            workoutStore.applyIntervalTiming(
+                sessionId: timing.sessionId,
+                revision: timing.revision,
+                pausedAt: timing.pausedAt,
+                excludedPauseSeconds: timing.excludedPauseSeconds
+            )
+        }
+    }
+
     /// The wearer finished the workout on the PHONE. Tears down the same way
     /// `endWorkout` does but sends nothing back — the phone is the one that
     /// told us, and it flushes its own heart-rate buffer when it ends a
     /// session, so echoing `workoutStop` at it would be a second flush of an
     /// already-emptied buffer.
     ///
-    /// Ignores a stop naming a session we are not running and not about to
-    /// start. A queued transfer can arrive after the next workout has already
-    /// started, and tearing that one down would look like the watch dropping
-    /// a live workout. A stop for a plan that is only queued must drop that
-    /// plan: otherwise the in-flight finish starts a workout the phone ended.
+    /// A stop for a session we are not running does not tear anything down —
+    /// a queued stop must not cancel the next workout — but it is remembered,
+    /// so a start for that session still in the queue cannot revive it.
     private func handle(workoutStopFromPhone payload: [String: Any]) {
-        guard let sessionId = ContextPayloadMapper.workoutStopSessionId(from: payload) else {
+        guard let stop = ContextPayloadMapper.workoutStop(from: payload) else {
             return
         }
-        if pendingPlan?.sessionId == sessionId {
+        var endedAt = stop.stoppedAt ?? Date()
+        if workoutStore.plan?.sessionId == stop.sessionId, let armedAt = workoutStore.plan?.armedAt {
+            endedAt = max(endedAt, armedAt)
+        }
+        if pendingPlan?.sessionId == stop.sessionId, let armedAt = pendingPlan?.armedAt {
+            endedAt = max(endedAt, armedAt)
+        }
+        rememberEnded(stop.sessionId, at: endedAt)
+        pendingIntervalTiming.removeAll { $0.sessionId == stop.sessionId }
+        if pendingPlan?.sessionId == stop.sessionId {
             pendingPlan = nil
             return
         }
-        guard workoutStore.plan?.sessionId == sessionId else { return }
+        guard workoutStore.plan?.sessionId == stop.sessionId else { return }
         requestFinish(sendStop: false)
     }
 
@@ -891,6 +994,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         collectionInFlight = true
         let closing = workoutStore.closeCurrentExerciseWindow()
         let stopSessionId = workoutStore.plan?.sessionId
+        if let stopSessionId {
+            rememberEnded(stopSessionId, at: workoutStore.plan?.armedAt ?? Date())
+        }
         if let closing {
             workoutStore.markFinishing(
                 WorkoutSessionStore.Finishing(
