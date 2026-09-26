@@ -209,3 +209,60 @@ export function muscleSpellings(muscles: readonly CanonicalMuscle[]): string[] {
   }
   return [...spellings];
 }
+
+/** Whether the given string matches a canonical muscle name (case-insensitive). */
+export function isCanonicalMuscle(
+  value: string | null | undefined,
+): value is CanonicalMuscle {
+  if (!value) return false;
+  return (CANONICAL_MUSCLES as readonly string[]).includes(clean(value));
+}
+
+/** Whether the given string matches a canonical equipment name (case-insensitive). */
+export function isCanonicalEquipment(
+  value: string | null | undefined,
+): value is CanonicalEquipment {
+  if (!value) return false;
+  return (CANONICAL_EQUIPMENT as readonly string[]).includes(clean(value));
+}
+
+/**
+ * Standard English fallback display label for a canonical muscle or equipment.
+ * E.g. "lower back" -> "Lower Back", "e-z curl bar" -> "E-Z Curl Bar".
+ */
+export function formatTaxonomyFallback(value: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase() === "e-z curl bar") {
+    return "E-Z Curl Bar";
+  }
+  return trimmed
+    .split(" ")
+    .map((word) =>
+      word.length > 0
+        ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        : "",
+    )
+    .join(" ");
+}
+
+/**
+ * If the input normalizes or matches a canonical muscle (e.g. "Quads" -> "quadriceps", "Chest" -> "chest"),
+ * returns the canonical lowercase form. Otherwise returns the trimmed original input preserving casing.
+ */
+export function resolveCanonicalOrCustomMuscle(input: string): string {
+  const normalized = normalizeMuscle(input);
+  if (normalized) return normalized;
+  return input.trim();
+}
+
+/**
+ * If the input normalizes or matches a canonical equipment (e.g. "Dumbbells" -> "dumbbell", "Barbell" -> "barbell"),
+ * returns the canonical lowercase form. Otherwise returns the trimmed original input preserving casing.
+ */
+export function resolveCanonicalOrCustomEquipment(input: string): string {
+  const normalized = normalizeEquipment(input);
+  if (normalized) return normalized;
+  return input.trim();
+}
+

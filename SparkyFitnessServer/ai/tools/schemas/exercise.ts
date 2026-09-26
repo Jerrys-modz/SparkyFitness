@@ -71,11 +71,15 @@ const searchExercisesSchema = z
     muscleGroup: z
       .string()
       .optional()
-      .describe("Muscle group filter (e.g., 'Chest', 'Biceps')"),
+      .describe(
+        "Muscle group filter (canonical: 'abdominals', 'biceps', 'chest', 'quadriceps', etc.)"
+      ),
     equipment: z
       .string()
       .optional()
-      .describe("Equipment filter (e.g., 'Dumbbell', 'None')"),
+      .describe(
+        "Equipment filter (canonical: 'barbell', 'dumbbell', 'cable', 'machine', 'body only', etc.)"
+      ),
     ...paginationSchema.shape,
   })
   .strict();
