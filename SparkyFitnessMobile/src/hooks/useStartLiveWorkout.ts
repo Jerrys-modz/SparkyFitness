@@ -30,6 +30,7 @@ import {
   stripPlannedSetValues,
 } from '../utils/workoutSession';
 import type { LiveExerciseConfig } from '../utils/workoutSession';
+import { getSupersetRuns } from '../utils/workoutSupersets';
 import type { RootStackParamList } from '../types/navigation';
 
 export { syncWatchIntervalTiming } from '../stores/activeWorkoutStore';
@@ -86,6 +87,12 @@ function buildWatchWorkoutStartPayload(
     timeCapSeconds != null && intervalPhases.length > 0
       ? Math.max(...intervalPhases.map((phase) => phase.endsAt))
       : null;
+  const supersetRunByEntryId = new Map<string, number>();
+  getSupersetRuns(session.exercises).forEach((run, index) => {
+    for (const entryId of run.entryIds) {
+      supersetRunByEntryId.set(entryId, index);
+    }
+  });
 
   return {
     sessionId: session.id,
@@ -95,6 +102,7 @@ function buildWatchWorkoutStartPayload(
       name:
         exercise.exercise_snapshot?.name ??
         t('workout.exercise', { defaultValue: 'Exercise' }),
+      supersetRun: supersetRunByEntryId.get(exercise.id) ?? null,
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const planned = plannedSetValues[setId];

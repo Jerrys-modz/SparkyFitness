@@ -1,5 +1,26 @@
 import SwiftUI
 
+/// Dark-theme category colours, in the same order as `SUPERSET_PALETTE_VARS`
+/// (`workoutSupersets.ts`). Run 0 is blue, then orange, violet, green, pink,
+/// teal, amber, slate. Values are the dark `--color-cat-*` tokens from
+/// `global.css`, not the light ones — the watch UI is always dark.
+private enum SupersetPalette {
+    private static let colors: [Color] = [
+        Color(red: 105 / 255, green: 146 / 255, blue: 211 / 255),
+        Color(red: 209 / 255, green: 138 / 255, blue: 97 / 255),
+        Color(red: 145 / 255, green: 102 / 255, blue: 204 / 255),
+        Color(red: 106 / 255, green: 164 / 255, blue: 111 / 255),
+        Color(red: 204 / 255, green: 102 / 255, blue: 136 / 255),
+        Color(red: 90 / 255, green: 173 / 255, blue: 175 / 255),
+        Color(red: 212 / 255, green: 169 / 255, blue: 84 / 255),
+        Color(red: 110 / 255, green: 118 / 255, blue: 135 / 255),
+    ]
+
+    static func color(for run: Int) -> Color {
+        colors[abs(run) % colors.count]
+    }
+}
+
 /// The Workout tab. Nothing here starts a workout — the phone arms it by
 /// pushing `workoutStart` for a preset session already begun there.
 ///
@@ -156,6 +177,14 @@ private struct WorkoutCompleteView: View {
     }
 }
 
+/// Consecutive members of one superset, or a run of exercises that are not.
+private struct ExerciseBlock: Identifiable {
+    let id: String
+    let header: String?
+    let supersetRun: Int?
+    var exercises: [PlannedExercise]
+}
+
 /// Every exercise in the preset, so the wearer can work out of order — skip
 /// ahead when a machine is taken, or come back to something left half done.
 /// Selecting one resumes it at its first unlogged set rather than restarting.
@@ -174,20 +203,72 @@ private struct ExerciseListView: View {
 
     private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
 
+    /// Consecutive members of one superset stay together under one header.
+    /// Solos stay in the plain list.
+    private var blocks: [ExerciseBlock] {
+        var blocks: [ExerciseBlock] = []
+        for exercise in exercises {
+            if let run = exercise.supersetRun,
+               let index = blocks.indices.last,
+               blocks[index].id == "superset-\(run)" {
+                blocks[index].exercises.append(exercise)
+                continue
+            }
+            if exercise.supersetRun == nil,
+               let index = blocks.indices.last,
+               blocks[index].header == nil {
+                blocks[index].exercises.append(exercise)
+                continue
+            }
+            let run = exercise.supersetRun
+            if let run {
+                blocks.append(
+                    ExerciseBlock(
+                        id: "superset-\(run)",
+                        header: "Superset",
+                        supersetRun: run,
+                        exercises: [exercise]
+                    )
+                )
+            } else {
+                blocks.append(
+                    ExerciseBlock(
+                        id: exercise.exerciseEntryId,
+                        header: nil,
+                        supersetRun: nil,
+                        exercises: [exercise]
+                    )
+                )
+            }
+        }
+        return blocks
+    }
+
     var body: some View {
         List {
             Section {
-                ForEach(exercises) { exercise in
-                    Button {
-                        onSelect(exercise.exerciseEntryId)
-                        dismiss()
-                    } label: {
-                        ExerciseRow(exercise: exercise)
-                    }
-                    .buttonStyle(.plain)
-                }
-            } header: {
                 Text("\(exercises.count) Exercises")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+            }
+            ForEach(blocks) { block in
+                Section {
+                    ForEach(block.exercises) { exercise in
+                        Button {
+                            onSelect(exercise.exerciseEntryId)
+                            dismiss()
+                        } label: {
+                            ExerciseRow(exercise: exercise)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    if let header = block.header, let run = block.supersetRun {
+                        Text(header)
+                            .foregroundStyle(SupersetPalette.color(for: run))
+                    }
+                }
             }
 
             // Finishing lives here rather than on the set screen: this is the
@@ -240,6 +321,13 @@ private struct ExerciseRow: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption2)
                     .foregroundStyle(.green)
+            }
+        }
+        .padding(.leading, exercise.supersetRun == nil ? 0 : 8)
+        .background(alignment: .leading) {
+            if let run = exercise.supersetRun {
+                SupersetPalette.color(for: run)
+                    .frame(width: 3)
             }
         }
     }
@@ -312,6 +400,11 @@ private struct CurrentSetView: View {
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
 
+    private var supersetColor: Color? {
+        guard let run = step.supersetRun else { return nil }
+        return SupersetPalette.color(for: run)
+    }
+
     private enum EditableField: Identifiable {
         case weight, reps
         var id: Int { self == .weight ? 0 : 1 }
@@ -324,6 +417,12 @@ private struct CurrentSetView: View {
                     .font(.headline)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                if let partners = step.supersetWith {
+                    Text("Superset · \(partners)")
+                        .font(.system(size: 9))
+                        .foregroundStyle(supersetColor ?? Color.secondary)
+                        .lineLimit(1)
+                }
                 Text(step.label)
                     .font(.caption2)
                     .foregroundStyle(.orange)
@@ -485,9 +584,9 @@ private struct RestView: View {
 
             if let next = store.currentStep {
                 VStack(spacing: 0) {
-                    Text("Next set")
+                    Text(continuesSuperset(next) ? "Next in superset" : "Next set")
                         .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(nextSupersetColor(next) ?? Color.secondary)
                     Text(next.exerciseName)
                         .font(.caption2)
                         .lineLimit(1)
@@ -523,6 +622,20 @@ private struct RestView: View {
         let total = Double(store.restDurationSeconds)
         guard total > 0 else { return 0 }
         return min(1, max(0, 1 - Double(remainingSeconds) / total))
+    }
+
+    /// True only when this rest stays inside the superset just logged.
+    /// Entering a superset, or leaving one for another, is still "Next set".
+    private func continuesSuperset(_ next: WorkoutStep) -> Bool {
+        guard let nextRun = next.supersetRun, store.currentStepIndex > 0 else {
+            return false
+        }
+        return store.steps[store.currentStepIndex - 1].supersetRun == nextRun
+    }
+
+    private func nextSupersetColor(_ step: WorkoutStep) -> Color? {
+        guard continuesSuperset(step), let run = step.supersetRun else { return nil }
+        return SupersetPalette.color(for: run)
     }
 
     private func nextTargetLabel(for step: WorkoutStep) -> String {

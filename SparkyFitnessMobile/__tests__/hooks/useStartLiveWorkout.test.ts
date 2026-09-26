@@ -3,8 +3,9 @@ import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import type { PresetSessionResponse } from '@workspace/shared';
 import {
-  useStartLiveWorkout,
+  armWatchForActiveSession,
   syncWatchIntervalTiming,
+  useStartLiveWorkout,
 } from '../../src/hooks/useStartLiveWorkout';
 import {
   __resetActiveWorkoutStoreForTests,
@@ -544,5 +545,57 @@ describe('useStartLiveWorkout', () => {
     expect(useActiveWorkoutStore.getState().sessionId).toBe('session-1');
     expect(useActiveWorkoutStore.getState().createdByLiveStart).toBe(true);
     expect(navigation.replace).not.toHaveBeenCalled();
+  });
+
+  it('tells the watch which exercises are a superset, and ignores a group of one', () => {
+    const base = makeSession().exercises[0];
+    const exercise = (
+      id: string,
+      name: string,
+      supersetGroup: number | null,
+      setIds: number[]
+    ) =>
+      ({
+        ...base,
+        id,
+        superset_group: supersetGroup,
+        exercise_snapshot: { ...base.exercise_snapshot, name },
+        sets: setIds.map((setId, index) => ({
+          ...base.sets[0],
+          id: setId,
+          set_number: index + 1,
+        })),
+      }) as typeof base;
+
+    act(() => {
+      useActiveWorkoutStore.getState().startWorkout({
+        ...makeSession(),
+        exercises: [
+          exercise('bench', 'Bench Press', 1, [1, 2]),
+          exercise('row', 'Barbell Row', 1, [3, 4]),
+          exercise('curl', 'Curl', 9, [5]),
+          exercise('squat', 'Squat', 2, [6]),
+          exercise('lunge', 'Lunge', 2, [7]),
+        ],
+      });
+    });
+
+    armWatchForActiveSession(
+      ((key: string, options?: { defaultValue?: string }) =>
+        options?.defaultValue ?? key) as never
+    );
+
+    expect(mockStartWorkout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exercises: [
+          expect.objectContaining({ name: 'Bench Press', supersetRun: 0 }),
+          expect.objectContaining({ name: 'Barbell Row', supersetRun: 0 }),
+          expect.objectContaining({ name: 'Curl', supersetRun: null }),
+          expect.objectContaining({ name: 'Squat', supersetRun: 1 }),
+          expect.objectContaining({ name: 'Lunge', supersetRun: 1 }),
+        ],
+        setOrder: ['1', '3', '2', '4', '5', '6', '7'],
+      })
+    );
   });
 });
