@@ -35,6 +35,6 @@ Once every instance runs the new configuration, they all agree again. No action 
 
 ## Things that are per instance
 
-- **Sign-in rate limits** are counted by each instance separately, so the effective limit from one IP address is the configured value times the number of instances.
+- **Sign-in rate limits** are counted by each instance separately, so the effective limit from one IP address can be up to the configured value times the number of instances.
 - **Scheduled jobs** (nightly cleanup and hourly integration syncs) currently run on every instance, so each one runs once per instance.
 - **Automatic backups** also run on every instance, all writing to the same backup folder at the same moment, which can produce duplicate or damaged backups. With more than one instance, turn off automatic backups in the admin settings and back up the database (for example with the Helm chart's `databaseBackup` job or your own `pg_dump` schedule) and the uploads folder separately.
