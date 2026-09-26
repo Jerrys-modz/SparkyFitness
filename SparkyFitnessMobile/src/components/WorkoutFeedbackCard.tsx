@@ -91,13 +91,30 @@ const WorkoutFeedbackCard: React.FC<WorkoutFeedbackCardProps> = ({
     '--color-accent-primary',
     '--color-text-muted',
   ]) as [string, string];
-  const { draft, update, retry, saveState, isLoading } =
+  const { draft, update, retry, saveState, isLoading, isError, reload } =
     useWorkoutSessionFeedback(presetEntryId);
   const [showPerExercise, setShowPerExercise] = useState(
     () => Object.keys(draft.exerciseDifficulty).length > 0
   );
 
   if (isLoading) return null;
+  // Every save replaces the whole session's feedback, so answering from an
+  // empty form after a failed load would erase what is already saved.
+  if (isError) {
+    return (
+      <Pressable
+        className="bg-surface rounded-2xl p-4 mt-4"
+        onPress={() => void reload()}
+        accessibilityRole="button"
+      >
+        <Text className="text-sm text-text-secondary">
+          {t('workoutFeedback.loadFailed', {
+            defaultValue: "Couldn't load your feedback. Tap to try again.",
+          })}
+        </Text>
+      </Pressable>
+    );
+  }
 
   const toggle = <T,>(current: T | null, value: T): T | null =>
     current === value ? null : value;

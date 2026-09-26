@@ -6242,7 +6242,9 @@
     "rateExercises": "Rate each exercise",
     "saving": "Saving…",
     "saved": "Saved",
-    "saveFailed": "Couldn't save your feedback. Try again."
+    "saveFailed": "Couldn't save your feedback. Try again.",
+    "loadFailed": "Couldn't load your feedback.",
+    "tryAgain": "Try again"
   },
   "workoutCoaching": {
     "settingsTitle": "Adaptive workout suggestions",

@@ -49,10 +49,11 @@ COMMENT ON TABLE public.workout_feedback IS
 COMMENT ON COLUMN public.workout_feedback.difficulty IS
   'too_easy | just_right | too_hard; null when only pain was reported.';
 COMMENT ON COLUMN public.workout_feedback.pain_note IS
-  'Free-text pain/discomfort detail (health data, owner + diary managers only).';
+  'Free-text pain/discomfort detail. Shared like the diary it describes.';
 
--- Adaptive suggestions are on by default: they only change anything once the
--- user has left feedback, and every change states its reason.
+-- Adaptive suggestions are on by default. Without feedback the only possible
+-- change is holding weight after near-max logged effort (RPE/RIR), and every
+-- change states its reason.
 ALTER TABLE public.user_preferences
   ADD COLUMN IF NOT EXISTS adaptive_workout_suggestions BOOLEAN NOT NULL DEFAULT TRUE;
 

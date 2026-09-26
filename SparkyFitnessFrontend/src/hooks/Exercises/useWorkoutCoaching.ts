@@ -29,7 +29,7 @@ export type FeedbackSaveState = 'idle' | 'saving' | 'saved' | 'error';
  */
 export const useWorkoutSessionFeedback = (presetEntryId: string) => {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: workoutCoachingKeys.feedback(presetEntryId),
     queryFn: () => getWorkoutSessionFeedback(presetEntryId),
   });
@@ -110,7 +110,15 @@ export const useWorkoutSessionFeedback = (presetEntryId: string) => {
     [flush]
   );
 
-  return { draft, update, retry: flush, saveState, isLoading };
+  return {
+    draft,
+    update,
+    retry: flush,
+    saveState,
+    isLoading,
+    isError,
+    reload: refetch,
+  };
 };
 
 export const useWorkoutCoachingSettings = () => {

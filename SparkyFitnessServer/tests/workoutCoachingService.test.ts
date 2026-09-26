@@ -203,4 +203,54 @@ describe('setWorkoutFeedbackForEntry', () => {
       })
     ).rejects.toBeInstanceOf(WorkoutSessionNotFoundError);
   });
+
+  it('keeps recorded pain when only the difficulty changes', async () => {
+    vi.mocked(getSessionFeedbackRows).mockResolvedValue([
+      {
+        exercise_preset_entry_id: SESSION,
+        exercise_entry_id: null,
+        difficulty: 'just_right',
+        pain: true,
+        pain_note: 'knee',
+        updated_at: updatedAt,
+      },
+    ]);
+    await setWorkoutFeedbackForEntry('owner-1', 'owner-1', 'e1', 'session', {
+      difficulty: 'too_hard',
+    });
+    expect(vi.mocked(replaceSessionFeedback).mock.calls[0][3]).toEqual({
+      difficulty: 'too_hard',
+      pain: true,
+      painNote: 'knee',
+    });
+  });
+
+  it('clears pain and its note on pain=false, and a lone note implies pain', async () => {
+    vi.mocked(getSessionFeedbackRows).mockResolvedValue([
+      {
+        exercise_preset_entry_id: SESSION,
+        exercise_entry_id: null,
+        difficulty: 'too_hard',
+        pain: true,
+        pain_note: 'knee',
+        updated_at: updatedAt,
+      },
+    ]);
+    await setWorkoutFeedbackForEntry('owner-1', 'owner-1', 'e1', 'session', {
+      pain: false,
+    });
+    expect(vi.mocked(replaceSessionFeedback).mock.calls[0][3]).toEqual({
+      difficulty: 'too_hard',
+      pain: false,
+      painNote: null,
+    });
+
+    vi.mocked(getSessionFeedbackRows).mockResolvedValue([]);
+    await setWorkoutFeedbackForEntry('owner-1', 'owner-1', 'e1', 'exercise', {
+      pain_note: 'wrist',
+    });
+    expect(vi.mocked(replaceSessionFeedback).mock.calls[1][4]).toEqual(
+      new Map([['e1', { difficulty: null, pain: true, painNote: 'wrist' }]])
+    );
+  });
 });

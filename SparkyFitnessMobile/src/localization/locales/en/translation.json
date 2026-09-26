@@ -5411,7 +5411,8 @@
     "rateExercises": "Rate each exercise",
     "saving": "Saving…",
     "saved": "Saved",
-    "saveFailed": "Couldn't save your feedback. Tap to retry."
+    "saveFailed": "Couldn't save your feedback. Tap to retry.",
+    "loadFailed": "Couldn't load your feedback. Tap to try again."
   },
   "adaptiveCoaching": {
     "reasons": {

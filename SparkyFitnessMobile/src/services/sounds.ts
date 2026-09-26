@@ -2,7 +2,6 @@ import { AppState } from 'react-native';
 import {
   createAudioPlayer,
   setAudioModeAsync,
-  setIsAudioActiveAsync,
   type AudioPlayer,
 } from 'expo-audio';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -82,9 +81,12 @@ let intervalRestPlayer: AudioPlayer | null = null;
 // Opt-in: with `duckMusicDuringCues` off, nothing below runs and the audio
 // session behaves exactly as before (cues mix over music at full volume).
 // With it on, the session switches to `duckOthers` while a cue or guided
-// line is sounding, then back to `mixWithOthers` and releases audio focus so
-// the music comes back up. Depth-counted so overlapping cues (a beep during a
-// spoken line) duck once and restore once.
+// line is sounding, then back to `mixWithOthers`. The session itself is never
+// deactivated here: expo-audio already deactivates it (notifying other apps,
+// which brings their volume back) once its players finish, and a manual
+// `setIsAudioActiveAsync(false)` would pause and block the next cue.
+// Depth-counted so overlapping cues (a beep during a spoken line) duck once
+// and restore once.
 
 /** Interval cue sounds are about a second; keep music low a touch longer. */
 const CUE_DUCK_MS = 1200;
@@ -94,6 +96,9 @@ const UNDUCK_DELAY_MS = 600;
 let intervalSessionActive = false;
 let duckDepth = 0;
 let unduckTimer: ReturnType<typeof setTimeout> | null = null;
+// Pending per-cue releases, cancelled on reset so a timer from a stopped
+// session can't release a cue that belongs to the next one.
+const cueReleaseTimers = new Set<ReturnType<typeof setTimeout>>();
 
 function isDuckingEnabled(): boolean {
   return useAppPreferencesStore.getState().duckMusicDuringCues;
@@ -105,7 +110,6 @@ async function applyDuckMode(duck: boolean): Promise<void> {
       playsInSilentMode: intervalSessionActive,
       interruptionMode: duck ? 'duckOthers' : 'mixWithOthers',
     });
-    if (!duck) await setIsAudioActiveAsync(false);
   } catch (err) {
     addLog(`music ducking failed: ${(err as Error).message}`, 'WARNING');
   }
@@ -138,6 +142,8 @@ export function endCueDucking(): void {
 }
 
 function resetDucking(): void {
+  cueReleaseTimers.forEach((timer) => clearTimeout(timer));
+  cueReleaseTimers.clear();
   duckDepth = 0;
   if (unduckTimer != null) {
     clearTimeout(unduckTimer);
@@ -192,7 +198,13 @@ export function playIntervalCue(
   type: 'work' | 'rest' | 'countdown' | 'finish'
 ): void {
   if (!isRestTimerSoundEnabled()) return;
-  if (beginCueDucking()) setTimeout(endCueDucking, CUE_DUCK_MS);
+  if (beginCueDucking()) {
+    const release = setTimeout(() => {
+      cueReleaseTimers.delete(release);
+      endCueDucking();
+    }, CUE_DUCK_MS);
+    cueReleaseTimers.add(release);
+  }
   void (async () => {
     try {
       if (type === 'work' || type === 'finish') {

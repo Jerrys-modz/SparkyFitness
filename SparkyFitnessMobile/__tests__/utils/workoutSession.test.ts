@@ -4320,6 +4320,24 @@ describe('workoutSession', () => {
             expect(result.map((r) => r.weight)).toEqual([90, 90]);
           });
 
+          it('lightens planned weights when this preset has no history yet', () => {
+            const result = resolveLiveAssumedSetValues(
+              adaptiveExercise,
+              undefined,
+              {
+                plannedSetValues: {
+                  '1': { weight: 100, reps: 5 },
+                  '2': { weight: 100, reps: 5 },
+                },
+                weightUnit: 'kg',
+                coachingSignals: {
+                  'lib-1': { ...baseSignal, last_pain: 'exercise' },
+                },
+              }
+            );
+            expect(result.map((r) => r.weight)).toEqual([90, 90]);
+          });
+
           it('holds after "too hard" even when the rep goal was met', () => {
             const result = resolveLiveAssumedSetValues(
               adaptiveExercise,

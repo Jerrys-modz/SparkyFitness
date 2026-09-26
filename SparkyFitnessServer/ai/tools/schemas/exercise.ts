@@ -602,16 +602,21 @@ const rateWorkoutSchema = z
       .nullable()
       .optional()
       .describe('too_easy | just_right | too_hard'),
-    pain: z.boolean().default(false).describe('Pain or discomfort was felt'),
+    pain: z
+      .boolean()
+      .optional()
+      .describe(
+        'Pain or discomfort was felt; omit to keep what is already recorded'
+      ),
     pain_note: z
       .string()
       .max(WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH)
       .optional()
-      .describe('What hurt — only with pain=true'),
+      .describe('What hurt (implies pain=true)'),
   })
   .strict()
-  .refine((value) => value.pain || !value.pain_note, {
-    message: 'pain_note requires pain=true',
+  .refine((value) => value.pain !== false || !value.pain_note, {
+    message: 'pain_note cannot be combined with pain=false',
     path: ['pain_note'],
   });
 

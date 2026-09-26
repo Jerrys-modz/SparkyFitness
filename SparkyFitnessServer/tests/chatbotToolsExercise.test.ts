@@ -2891,13 +2891,40 @@ describe('rate_workout (manage action)', () => {
     expect(result).toContain('Exercise feedback saved (too easy).');
   });
 
-  it('rejects a note without pain', async () => {
+  it('rejects a note together with pain=false', async () => {
     const result = await tools.sparky_manage_exercise.execute!(
-      { action: 'rate_workout', entry_id: ENTRY_ID, pain_note: 'sore' },
+      {
+        action: 'rate_workout',
+        entry_id: ENTRY_ID,
+        pain: false,
+        pain_note: 'sore',
+      },
       opts
     );
-    expect(result).toContain('pain_note requires pain=true');
+    expect(result).toContain('pain_note cannot be combined with pain=false');
     expect(setWorkoutFeedbackForEntry).not.toHaveBeenCalled();
+  });
+
+  it('passes omitted fields through so saved pain is kept', async () => {
+    vi.mocked(setWorkoutFeedbackForEntry).mockResolvedValue({
+      exercise_preset_entry_id: 'session-1',
+      session: {
+        difficulty: 'too_hard',
+        pain: true,
+        pain_note: 'knee',
+        updated_at: 'x',
+      },
+      exercises: [],
+    });
+    await tools.sparky_manage_exercise.execute!(
+      { action: 'rate_workout', entry_id: ENTRY_ID, difficulty: 'too_hard' },
+      opts
+    );
+    expect(vi.mocked(setWorkoutFeedbackForEntry).mock.calls[0][4]).toEqual({
+      difficulty: 'too_hard',
+      pain: undefined,
+      pain_note: undefined,
+    });
   });
 
   it('explains when the entry is not part of a session', async () => {

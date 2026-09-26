@@ -53,7 +53,7 @@ describe('music ducking during cues (#1560)', () => {
     expect(mockSetActive).not.toHaveBeenCalled();
   });
 
-  it('ducks for a cue, then restores mixing and releases focus', async () => {
+  it('ducks for a cue, then restores mixing without deactivating audio', async () => {
     useAppPreferencesStore.getState().setDuckMusicDuringCues(true);
     await startIntervalAudioSession();
     mockSetAudioMode.mockClear();
@@ -69,7 +69,9 @@ describe('music ducking during cues (#1560)', () => {
       playsInSilentMode: true,
       interruptionMode: 'mixWithOthers',
     });
-    expect(mockSetActive).toHaveBeenCalledWith(false);
+    // Deactivating would pause and block the next cue; expo-audio releases
+    // the session itself once its players finish.
+    expect(mockSetActive).not.toHaveBeenCalled();
   });
 
   it('ducks once for overlapping cues and restores after the last', async () => {
@@ -83,10 +85,11 @@ describe('music ducking during cues (#1560)', () => {
         ([mode]) => mode.interruptionMode === 'duckOthers'
       )
     ).toHaveLength(1);
-    expect(mockSetActive).not.toHaveBeenCalled();
     endCueDucking();
     await jest.advanceTimersByTimeAsync(600);
-    expect(mockSetActive).toHaveBeenCalledWith(false);
+    expect(mockSetAudioMode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ interruptionMode: 'mixWithOthers' })
+    );
     // An extra release is harmless.
     endCueDucking();
   });
@@ -102,15 +105,22 @@ describe('music ducking during cues (#1560)', () => {
     );
     options.onDone?.();
     await jest.advanceTimersByTimeAsync(600);
-    expect(mockSetActive).toHaveBeenCalledWith(false);
+    expect(mockSetAudioMode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ interruptionMode: 'mixWithOthers' })
+    );
   });
 
-  it('stopping the interval session cancels a pending restore', async () => {
+  it("a stopped session's cue timer can't release the next session's cue", async () => {
     useAppPreferencesStore.getState().setDuckMusicDuringCues(true);
-    beginCueDucking();
-    endCueDucking();
+    await startIntervalAudioSession();
+    playIntervalCue('work'); // its release is due in 1200 ms
     await stopIntervalAudioSession();
-    await jest.advanceTimersByTimeAsync(1000);
-    expect(mockSetActive).not.toHaveBeenCalled();
+    await startIntervalAudioSession();
+    mockSetAudioMode.mockClear();
+    expect(beginCueDucking()).toBe(true); // a new, still-playing cue
+    await jest.advanceTimersByTimeAsync(2000);
+    expect(mockSetAudioMode).not.toHaveBeenCalledWith(
+      expect.objectContaining({ interruptionMode: 'mixWithOthers' })
+    );
   });
 });

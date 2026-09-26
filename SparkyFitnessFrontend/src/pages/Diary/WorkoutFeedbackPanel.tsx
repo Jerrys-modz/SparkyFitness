@@ -47,11 +47,28 @@ const WorkoutFeedbackPanel = ({
   exercises,
 }: WorkoutFeedbackPanelProps) => {
   const { t } = useTranslation();
-  const { draft, update, retry, saveState, isLoading } =
+  const { draft, update, retry, saveState, isLoading, isError, reload } =
     useWorkoutSessionFeedback(presetEntryId);
   const [showPerExercise, setShowPerExercise] = useState(false);
 
   if (isLoading) return null;
+  // Every save replaces the whole session's feedback, so answering from an
+  // empty form after a failed load would erase what is already saved.
+  if (isError) {
+    return (
+      <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+        {t('workoutFeedback.loadFailed', "Couldn't load your feedback.")}{' '}
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0"
+          onClick={() => void reload()}
+        >
+          {t('workoutFeedback.tryAgain', 'Try again')}
+        </Button>
+      </div>
+    );
+  }
 
   const toggle = <T,>(current: T | null, value: T): T | null =>
     current === value ? null : value;

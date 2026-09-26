@@ -994,20 +994,22 @@ export function resolveAssumedSetValues(
       previous.weight > 0
         ? previous.weight + progressionIncrementKg
         : previous?.weight;
+    // A lighter adaptive day applies to whatever the working set would
+    // otherwise start from — history, or the plan when this preset has no
+    // history yet — but never to the carried-forward value, which already
+    // holds an adapted weight.
     const adaptiveLoadFactor = overrides?.adaptiveLoadFactor;
-    const effectivePreviousWeight =
-      tier === 'working' &&
-      adaptiveLoadFactor != null &&
-      progressedPreviousWeight != null
+    const sourceWeight = progressedPreviousWeight ?? planned?.weight;
+    const adaptedSourceWeight =
+      tier === 'working' && adaptiveLoadFactor != null && sourceWeight != null
         ? applyAdaptiveLoadFactorKg(
-            progressedPreviousWeight,
+            sourceWeight,
             adaptiveLoadFactor,
             overrides?.weightUnit ?? 'kg'
           )
-        : progressedPreviousWeight;
+        : sourceWeight;
 
-    let weight =
-      effectivePreviousWeight ?? planned?.weight ?? lastEffective[tier].weight;
+    let weight = adaptedSourceWeight ?? lastEffective[tier].weight;
     const rampStep = rampSteps?.[index] ?? null;
     if (rampStep === 0) {
       rampBaseKg = weight != null && weight > 0 ? weight : null;

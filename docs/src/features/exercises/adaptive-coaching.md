@@ -6,9 +6,9 @@ SparkyFitness can help during and after a workout, not just plan it:
 - **How did it feel?** feedback after a workout: too easy, just right or too hard, plus pain or discomfort.
 - **Adaptive suggestions** that use that feedback for the next session, and always say why.
 - **Variation hints** when an accessory exercise shows up in almost every workout.
-- **Lower music during cues** so beeps and spoken cues are easy to hear over your own music.
+- **Lower music during cues** (mobile app) so beeps and spoken cues are easy to hear over your own music.
 
-Everything here works on the web and in the mobile app, and through the [AI assistant and MCP server](/features/mcp-server).
+Alternatives, feedback and adaptive suggestions work on the web and in the mobile app, and through the [AI assistant and MCP server](/features/mcp-server). Lowering music during cues is a mobile app setting.
 
 ---
 
@@ -86,7 +86,7 @@ When you start a workout, each exercise's suggested weight takes your recent fee
 
 ### Turning it off
 
-Adaptive suggestions are **on by default**, but nothing changes until you've given feedback. To turn them off:
+Adaptive suggestions are **on by default**. Until you give feedback, the only thing that can change is holding the weight when your last sets were logged at near-max effort (RPE 9.5+ or 0 RIR). To turn them off:
 
 | Where | How |
 | :--- | :--- |

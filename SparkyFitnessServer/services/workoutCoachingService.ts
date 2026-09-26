@@ -189,12 +189,43 @@ export class WorkoutEntryNotInSessionError extends Error {
  * recorded for the session. Used by the AI assistant, which addresses
  * workouts through the exercise entry ids the diary listing shows.
  */
+/**
+ * A partial answer from the assistant: omitted fields keep what is already
+ * recorded, `difficulty: null` clears it, and `pain: false` clears pain and
+ * its note. A note on its own implies pain.
+ */
+export interface PartialFeedback {
+  difficulty?: WorkoutFeedbackDifficulty | null;
+  pain?: boolean;
+  pain_note?: string | null;
+}
+
+function mergeFeedback(
+  existing: ParsedFeedback | null | undefined,
+  change: PartialFeedback
+): ParsedFeedback {
+  const pain =
+    change.pain ?? (change.pain_note ? true : (existing?.pain ?? false));
+  return {
+    difficulty:
+      change.difficulty !== undefined
+        ? change.difficulty
+        : (existing?.difficulty ?? null),
+    pain,
+    pain_note: pain
+      ? change.pain_note !== undefined
+        ? change.pain_note
+        : (existing?.pain_note ?? null)
+      : null,
+  };
+}
+
 export async function setWorkoutFeedbackForEntry(
   userId: string,
   authenticatedUserId: string,
   exerciseEntryId: string,
   scope: 'session' | 'exercise',
-  feedback: ParsedFeedback
+  change: PartialFeedback
 ): Promise<WorkoutSessionFeedbackResponse> {
   const entry = await getExerciseEntrySessionId(
     userId,
@@ -207,6 +238,13 @@ export async function setWorkoutFeedbackForEntry(
     userId,
     authenticatedUserId,
     entry.presetEntryId
+  );
+  const existingExercise = current.exercises.find(
+    (exercise) => exercise.exercise_entry_id === exerciseEntryId
+  );
+  const feedback = mergeFeedback(
+    scope === 'session' ? current.session : existingExercise,
+    change
   );
   const keepExercise = current.exercises.filter(
     (exercise) =>

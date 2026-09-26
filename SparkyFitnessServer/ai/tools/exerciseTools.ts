@@ -797,7 +797,7 @@ Workout formats (workout_format, default standard) drive the in-app timer:
 - amrap — as many rounds as possible within time_cap_seconds (REQUIRED).
 - for_time — finish the work as fast as possible; time_cap_seconds is an optional cut-off.
 - get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history
-- rate_workout(entry_id, scope?:session|exercise, difficulty?:too_easy|just_right|too_hard, pain?, pain_note?) — records how a logged workout felt; entry_id is any exercise entry ID from list_exercise_diary (scope=session rates its whole workout, scope=exercise just that exercise). Keeps other feedback already recorded for the session. Adaptive suggestions learn from it: pain makes that exercise lighter next time, never heavier. Only workouts logged as sessions (presets / live workouts) can be rated.
+- rate_workout(entry_id, scope?:session|exercise, difficulty?:too_easy|just_right|too_hard, pain?, pain_note?) — records how a logged workout felt; entry_id is any exercise entry ID from list_exercise_diary (scope=session rates its whole workout, scope=exercise just that exercise). Only the fields given change: omitted fields keep what is already recorded (difficulty=null clears it, pain=false clears pain and its note). Adaptive suggestions learn from it: pain makes that exercise lighter next time, never heavier. Only workouts logged as sessions (presets / live workouts) can be rated.
 - get_workout_coaching(exercise_id?|exercise_name?|preset_id?|preset_name?) — how the next session's suggestions will adapt to recent feedback for one exercise or every exercise in a preset, with the reason for each (lighter after pain, hold after "too hard", a step up after "too easy" twice, variation hints). Changes are suggestions the user can decline in the app.
 - suggest_alternatives(exercise_id?|exercise_name?, alternative_mode?:similar|different_equipment, equipment?, avoid_muscles?, limit?) — ranked substitutes that train the same primary muscles, with the reason for each. Use for "what can I do instead of X", a busy machine, missing equipment (equipment = comma-separated list of what they have), or an injury (avoid_muscles, or alternative_mode=different_equipment). Results marked "Free Exercise DB" are not in the user's library yet; they can add one from exercise search in the app.`,
       inputSchema: manageExerciseInput,
@@ -1569,9 +1569,9 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                   args.entry_id,
                   args.scope,
                   {
-                    difficulty: args.difficulty ?? null,
+                    difficulty: args.difficulty,
                     pain: args.pain,
-                    pain_note: args.pain ? (args.pain_note ?? null) : null,
+                    pain_note: args.pain_note,
                   }
                 );
                 return formatConfirmation(

@@ -114,4 +114,19 @@ describe('WorkoutFeedbackPanel', () => {
       })
     );
   });
+
+  it('shows a retry instead of the form when loading fails', async () => {
+    mockGet.mockRejectedValueOnce(new Error('offline'));
+    renderPanel();
+    expect(
+      await screen.findByText(/Couldn't load your feedback/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Too easy' })).toBeNull();
+    mockGet.mockResolvedValueOnce(empty);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    expect(await screen.findByText('How did it feel?')).toBeInTheDocument();
+    expect(mockSave).not.toHaveBeenCalled();
+  });
 });

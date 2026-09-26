@@ -144,4 +144,25 @@ describe('WorkoutFeedbackCard', () => {
       ).toBeTruthy()
     );
   });
+
+  it('shows a retry instead of an editable form when loading fails', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('offline'));
+    const screen = renderCard();
+    await waitFor(() =>
+      expect(
+        screen.getByText("Couldn't load your feedback. Tap to try again.")
+      ).toBeTruthy()
+    );
+    expect(screen.queryByText('Too hard')).toBeNull();
+    mockFetch.mockResolvedValueOnce(empty);
+    await act(async () => {
+      fireEvent.press(
+        screen.getByText("Couldn't load your feedback. Tap to try again.")
+      );
+    });
+    await waitFor(() =>
+      expect(screen.getByText('How did it feel?')).toBeTruthy()
+    );
+    expect(mockSave).not.toHaveBeenCalled();
+  });
 });

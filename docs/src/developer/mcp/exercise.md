@@ -117,13 +117,13 @@ The `sparky_manage_exercise` tool supports the following actions:
 
 ### `rate_workout`
 
-- **Description:** Records how a logged workout felt. The workout is identified by any exercise entry ID from `list_exercise_diary`. Other feedback already recorded for the session is kept. Adaptive suggestions use it next time; pain only ever makes that exercise lighter. Only workouts logged as sessions (presets or live workouts) can be rated.
+- **Description:** Records how a logged workout felt. The workout is identified by any exercise entry ID from `list_exercise_diary`. Only the fields given change; omitted fields keep what is already recorded (`difficulty: null` clears it, `pain: false` clears pain and its note). Adaptive suggestions use it next time: pain on a named exercise (`scope: exercise`) makes that exercise lighter, while pain on the whole workout without naming an exercise holds weight instead. Pain never adds load. Only workouts logged as sessions (presets or live workouts) can be rated.
 - **Parameters:**
   - `entry_id` (string): UUID of an exercise entry in the workout.
   - `scope` (string, optional): `session` (default) rates the whole workout; `exercise` rates only this exercise.
   - `difficulty` (string, optional): `too_easy`, `just_right` or `too_hard`.
-  - `pain` (boolean, optional): Pain or discomfort was felt.
-  - `pain_note` (string, optional): What hurt (max 500 characters; requires `pain=true`).
+  - `pain` (boolean, optional): Pain or discomfort was felt; omit to keep what is recorded.
+  - `pain_note` (string, optional): What hurt (max 500 characters; implies `pain=true`, cannot be combined with `pain=false`).
 
 ### `get_workout_coaching`
 
