@@ -37,91 +37,78 @@ export function setWatchTelemetryAccountSwitchHandler(
   };
 }
 
-// Configs whose telemetry must be purged because the signed-in identity
-// changed. Module state, so the purge is queued even when the bridge is not
-// mounted or has not learned its owner yet. A config leaves the set only
-// when its purge succeeded.
+/** Reads the configs an identity change must purge. Safe to call again. */
+type WatchTelemetryPurgeIdReader = () => Promise<Iterable<string>>;
+
+// Work left over from identity changes. Module state, so it runs whether or
+// not the bridge is mounted. A reader leaves the list only once it has read
+// its ids, and a config leaves the set only once its purge succeeded.
+const pendingIdReaders: WatchTelemetryPurgeIdReader[] = [];
 const pendingPurges = new Set<string>();
-let purgeRun: Promise<boolean> | null = null;
+let settleRun: Promise<boolean> | null = null;
+
+function logPurgeFailure(what: string, error: unknown): void {
+  addLog(
+    `Watch telemetry ${what} on account switch failed: ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+    'WARNING'
+  );
+}
 
 /**
- * Purges every pending config. Resolves false when any purge failed; those
- * stay pending. Restore must not read or replay anything until this has
- * resolved true with nothing left pending.
+ * Resolves true once every identity change so far has had its configs read
+ * and purged. False means a read or a purge failed; it stays pending, and
+ * restore must stop and call this again later. Work added while this runs
+ * is finished before it resolves true.
  */
-function runPendingWatchTelemetryPurges(): Promise<boolean> {
-  if (purgeRun) return purgeRun;
+export function settleWatchTelemetryPurges(): Promise<boolean> {
+  if (settleRun) return settleRun;
   const run = (async (): Promise<boolean> => {
-    let purgedAll = true;
-    for (const ownerId of [...pendingPurges]) {
-      try {
-        await deleteWatchTelemetryForConfig(ownerId);
-        pendingPurges.delete(ownerId);
-      } catch (error) {
-        purgedAll = false;
-        addLog(
-          `Watch telemetry purge on account switch failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          'WARNING'
-        );
+    for (;;) {
+      while (pendingIdReaders.length > 0) {
+        const read = pendingIdReaders[0];
+        try {
+          for (const id of await read()) {
+            if (id) pendingPurges.add(id);
+          }
+        } catch (error) {
+          logPurgeFailure('config read', error);
+          return false;
+        }
+        pendingIdReaders.splice(pendingIdReaders.indexOf(read), 1);
+      }
+      if (pendingPurges.size === 0) return true;
+      for (const ownerId of [...pendingPurges]) {
+        try {
+          await deleteWatchTelemetryForConfig(ownerId);
+          pendingPurges.delete(ownerId);
+        } catch (error) {
+          logPurgeFailure('purge', error);
+          return false;
+        }
       }
     }
-    return purgedAll;
   })();
-  purgeRun = run;
+  settleRun = run;
   void run.finally(() => {
-    if (purgeRun === run) purgeRun = null;
+    if (settleRun === run) settleRun = null;
   });
   return run;
 }
 
-// Resolves once every identity change so far has put its configs in
-// `pendingPurges`. The ids are read asynchronously, and restore must not
-// start before they are known.
-let identityChangesQueued: Promise<void> = Promise.resolve();
-
-/**
- * Resolves true once every config named by an identity change so far has
- * been purged. False means a purge failed; restore must stop and retry.
- */
-export async function settleWatchTelemetryPurges(): Promise<boolean> {
-  await identityChangesQueued;
-  while (pendingPurges.size > 0) {
-    if (!(await runPendingWatchTelemetryPurges())) return false;
-  }
-  return true;
-}
-
 /**
  * Telemetry is keyed by server config, not by person, and the next account
- * may use the same config. Purges the named configs' saved buffers and
- * queued batches so they are not restored or posted under the new
- * account's credentials. The bridge drops what it holds synchronously; the
- * ids may still be loading, and restore waits for them.
+ * may use the same config. Queues a purge of the configs `readConfigIds`
+ * names: their saved buffers and queued batches, so nothing is restored or
+ * posted under the new account's credentials. The bridge drops what it
+ * holds now; restore waits until the read and every purge have succeeded.
  */
 export function notifyWatchTelemetryAccountSwitch(
-  configIds: Iterable<string> | Promise<Iterable<string>>
+  readConfigIds: WatchTelemetryPurgeIdReader
 ): void {
-  const queued = Promise.resolve(configIds).then(
-    (ids) => {
-      for (const id of ids) {
-        if (id) pendingPurges.add(id);
-      }
-    },
-    (error: unknown) => {
-      addLog(
-        `Could not read configs to purge watch telemetry: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        'WARNING'
-      );
-    }
-  );
-  identityChangesQueued = Promise.all([identityChangesQueued, queued]).then(
-    () => undefined
-  );
-  void queued.then(() => runPendingWatchTelemetryPurges());
+  pendingIdReaders.push(readConfigIds);
+  void settleWatchTelemetryPurges();
   onAccountSwitch?.();
 }
 

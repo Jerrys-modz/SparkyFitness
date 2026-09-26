@@ -1864,7 +1864,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
 
     // Same server config, different person: the config id does not change.
     await act(async () => {
-      notifyWatchTelemetryAccountSwitch([OWNER]);
+      notifyWatchTelemetryAccountSwitch(async () => [OWNER]);
     });
     await waitFor(() => {
       expect(mockPendingHeartRateBatches).toHaveBeenCalledTimes(2);
@@ -1922,7 +1922,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       getItem.mockClear();
 
       await act(async () => {
-        notifyWatchTelemetryAccountSwitch([OWNER]);
+        notifyWatchTelemetryAccountSwitch(async () => [OWNER]);
       });
       await waitFor(() => {
         expect(mockAddLog).toHaveBeenCalledWith(
@@ -1980,7 +1980,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
 
     // No bridge mounted, so nothing knows the owner. The purge still runs
     // for the config the identity change names.
-    notifyWatchTelemetryAccountSwitch([OWNER]);
+    notifyWatchTelemetryAccountSwitch(async () => [OWNER]);
     await waitFor(() => {
       expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-queued-old']);
     });
@@ -2022,7 +2022,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       releaseIds = resolve;
     });
     await act(async () => {
-      notifyWatchTelemetryAccountSwitch(ids);
+      notifyWatchTelemetryAccountSwitch(() => ids);
     });
     // The ids are still loading, so restore has not read anything yet.
     expect(getItem).not.toHaveBeenCalledWith(BUFFER_KEY);
@@ -2036,6 +2036,82 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     });
     expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
     expect(mockAttachTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('keeps restore blocked until the configs of an identity change can be read', async () => {
+    const appStateListeners: ((state: AppStateStatus) => void)[] = [];
+    const addEventListener = AppState.addEventListener as jest.Mock;
+    const originalAddEventListener = addEventListener.getMockImplementation();
+    addEventListener.mockImplementation(
+      (_type: string, listener: (state: AppStateStatus) => void) => {
+        appStateListeners.push(listener);
+        return { remove: jest.fn() };
+      }
+    );
+    const previous: WatchTelemetrySessionState = {
+      samples: new Map([['ex-old', twoSamples]]),
+      energy: new Map([['ex-old', 7]]),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(['hr-old']),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: Date.now(),
+      attribution: null,
+    };
+    await writeWatchTelemetry(new Map([['session-old', previous]]), OWNER);
+    mockAttachTelemetry.mockRejectedValue(new Error('offline'));
+
+    try {
+      const view = renderHook(() => useWatchWorkoutBridge(true, false));
+      await waitFor(() => {
+        expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+      });
+      mockPendingHeartRateBatches.mockClear();
+      mockAttachTelemetry.mockReset();
+      mockAttachTelemetry.mockResolvedValue(undefined);
+      const getItem = AsyncStorage.getItem as jest.Mock;
+      getItem.mockClear();
+      // Storage fails until the test says otherwise, however often the
+      // reader is retried.
+      let storageWorks = false;
+      const readIds = jest.fn(async (): Promise<string[]> => {
+        if (!storageWorks) throw new Error('disk');
+        return [OWNER];
+      });
+
+      await act(async () => {
+        notifyWatchTelemetryAccountSwitch(readIds);
+      });
+      await waitFor(() => {
+        expect(mockAddLog).toHaveBeenCalledWith(
+          expect.stringContaining('config read on account switch failed'),
+          'WARNING'
+        );
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      // The ids could not be read, so nothing counts as purged yet.
+      expect(getItem).not.toHaveBeenCalledWith(BUFFER_KEY);
+      expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
+
+      storageWorks = true;
+      await act(async () => {
+        for (const listener of appStateListeners) listener('active');
+      });
+      await waitFor(() => {
+        expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+      });
+      expect(readIds.mock.calls.length).toBeGreaterThan(1);
+      expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+      expect(mockAttachTelemetry).not.toHaveBeenCalled();
+      view.unmount();
+    } finally {
+      if (originalAddEventListener) {
+        addEventListener.mockImplementation(originalAddEventListener);
+      }
+    }
   });
 
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {

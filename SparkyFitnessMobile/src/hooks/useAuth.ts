@@ -54,9 +54,9 @@ export function useAuth() {
     setOnIdentityChanged(async () => {
       // Watch telemetry is kept per config, so every config the old identity
       // may have used is purged: the ones switched away from, captured
-      // before the switch, and the active one. The bridge drops its memory
-      // now; restore waits until the ids are read and purged.
-      notifyWatchTelemetryAccountSwitch(takeIdentityChangeServerConfigIds());
+      // before the switch, and the active one. The reader is retried until it
+      // succeeds; restore waits until the ids are read and purged.
+      notifyWatchTelemetryAccountSwitch(takeIdentityChangeServerConfigIds);
       queryClient.clear();
       // The multi-select food basket store is the same kind of identity-
       // carrying global as the caches and the cookie jar below: it holds the
