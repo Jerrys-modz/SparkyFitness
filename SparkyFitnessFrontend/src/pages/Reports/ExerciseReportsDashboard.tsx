@@ -188,9 +188,11 @@ const ExerciseReportsDashboard = ({
   );
 
   const selectedExercisesForChart = useMemo(() => {
-    const needsProgress =
-      viewMode === 'strength' || viewMode === 'cardio' || showMoreAnalysis;
-    if (!needsProgress) return [];
+    // All and Strength feed the activity list from these progress queries,
+    // so they stay selected with the extra charts closed. Cardio has its
+    // own session list and must not query, even if that flag is still set
+    // from the view the user just left.
+    if (viewMode === 'cardio') return [];
 
     if (selectedExercise && selectedExercise !== 'All') {
       return [selectedExercise];
@@ -216,7 +218,7 @@ const ExerciseReportsDashboard = ({
       );
     }
     return [];
-  }, [selectedExercise, availableExercises, viewMode, showMoreAnalysis]);
+  }, [selectedExercise, availableExercises, viewMode]);
 
   const { mainQueries, comparisonQueries } = useExerciseProgressQueries({
     selectedExercisesForChart,
