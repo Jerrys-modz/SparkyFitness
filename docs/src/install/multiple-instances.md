@@ -16,7 +16,7 @@ A single Kubernetes Deployment or Helm release already guarantees this. With Doc
 
 If `SPARKY_FITNESS_APP_DB_PASSWORD` is unset, each server generates its own password at startup and resets the app database role to match, which locks the other instances out of new connections. Set it explicitly (see [Database Names & Connection](./environment-variables.md#module-8-database-names-connection)).
 
-The Helm chart already does this for you: it generates the password once, stores it in a Secret, and passes the same value to every replica.
+The Helm chart handles this when Helm can read the cluster: it generates the password once, stores it in a Secret and reuses it on later upgrades. If your manifests are rendered without cluster access (for example `helm template` or Argo CD), set `server.appDatabase.password` or `server.appDatabase.existingSecret`, or enable both `externalSecrets.enabled` and `externalSecrets.appdb.enabled`, or each render generates a new password.
 
 ## Share the uploads and backup folders
 
@@ -29,9 +29,9 @@ With Helm, the chart's default volumes are `ReadWriteOnce`, which usually cannot
 When you change an environment variable and redeploy one instance at a time, old and new instances run side by side for a short while. During that window:
 
 - **Login options** (such as `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`) can differ between instances, so the login page may briefly show the old or new options depending on which instance answers.
-- **The OIDC provider** from `SPARKY_FITNESS_OIDC_*` is written to the database at startup, so the newest instances win and it settles on the new configuration.
+- **The OIDC provider** from `SPARKY_FITNESS_OIDC_*` is written to the database by each instance when it starts, so the most recently started instance wins. In a normal rolling update that is a new instance. If an old instance restarts partway through, restart one new instance after the update finishes to put the new configuration back.
 
-Once every instance runs the new configuration, they all agree again. No action is needed.
+Once every instance runs the new configuration, they all agree again.
 
 ## Things that are per instance
 
