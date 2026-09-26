@@ -63,13 +63,22 @@ export const TagInput: React.FC<TagInputProps> = ({
   }, [inputValue, resolveValue, selectedSet, filteredSuggestions]);
 
   const addTag = (tagToAdd: string) => {
-    const resolved = resolveValue(tagToAdd);
-    if (!resolved) return;
-    if (selectedSet.has(resolved.toLowerCase())) {
+    const resolvedTags = tagToAdd
+      .split(',')
+      .map((tag) => resolveValue(tag))
+      .filter(Boolean);
+    const tagsToAdd = resolvedTags.filter(
+      (tag, index) =>
+        !selectedSet.has(tag.toLowerCase()) &&
+        resolvedTags.findIndex(
+          (candidate) => candidate.toLowerCase() === tag.toLowerCase()
+        ) === index
+    );
+    if (tagsToAdd.length === 0) {
       setInputValue('');
       return;
     }
-    onChange([...value, resolved]);
+    onChange([...value, ...tagsToAdd]);
     setInputValue('');
   };
 
@@ -94,9 +103,9 @@ export const TagInput: React.FC<TagInputProps> = ({
                 <Pressable
                   hitSlop={8}
                   onPress={() => removeTag(index)}
-                  accessibilityLabel={t('common.remove', {
+                  accessibilityLabel={`${t('common.remove', {
                     defaultValue: 'Remove',
-                  })}
+                  })} ${getLabel(tag)}`}
                 >
                   <Icon name="close" size={12} color={textMuted} />
                 </Pressable>

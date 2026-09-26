@@ -68,13 +68,24 @@ export const TagInput: React.FC<TagInputProps> = ({
     filteredSuggestions.length + (hasCustomAdd ? 1 : 0);
 
   const addTag = (tagToAdd: string) => {
-    const resolved = resolveValue(tagToAdd);
-    if (!resolved) return;
-    if (selectedSet.has(resolved.toLowerCase())) {
+    const resolvedTags = tagToAdd
+      .split(',')
+      .map((tag) => resolveValue(tag))
+      .filter(Boolean);
+    const tagsToAdd = resolvedTags.filter(
+      (tag, index) =>
+        !selectedSet.has(tag.toLowerCase()) &&
+        resolvedTags.findIndex(
+          (candidate) => candidate.toLowerCase() === tag.toLowerCase()
+        ) === index
+    );
+    if (tagsToAdd.length === 0) {
       setInputValue('');
+      setIsOpen(false);
+      setHighlightedIndex(-1);
       return;
     }
-    onChange([...value, resolved]);
+    onChange([...value, ...tagsToAdd]);
     setInputValue('');
     setIsOpen(false);
     setHighlightedIndex(-1);

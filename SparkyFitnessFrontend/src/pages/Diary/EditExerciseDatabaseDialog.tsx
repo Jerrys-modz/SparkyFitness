@@ -312,11 +312,12 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
 
           {/* Primary Muscles */}
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right mt-1">
+            <Label htmlFor="db-primary-muscles" className="text-right mt-1">
               {t('exerciseCard.primaryMuscles', 'Primary Muscles')}
             </Label>
             <div className="col-span-3">
               <TagInput
+                id="db-primary-muscles"
                 value={formData.primary_muscles || []}
                 onChange={(tags) => handleFieldChange('primary_muscles', tags)}
                 suggestions={CANONICAL_MUSCLES}
@@ -330,11 +331,12 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
 
           {/* Secondary Muscles */}
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right mt-1">
+            <Label htmlFor="db-secondary-muscles" className="text-right mt-1">
               {t('exerciseCard.secondaryMuscles', 'Secondary Muscles')}
             </Label>
             <div className="col-span-3">
               <TagInput
+                id="db-secondary-muscles"
                 value={formData.secondary_muscles || []}
                 onChange={(tags) =>
                   handleFieldChange('secondary_muscles', tags)
@@ -350,11 +352,12 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
 
           {/* Equipment */}
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right mt-1">
+            <Label htmlFor="db-equipment" className="text-right mt-1">
               {t('exerciseCard.equipment', 'Equipment')}
             </Label>
             <div className="col-span-3">
               <TagInput
+                id="db-equipment"
                 value={formData.equipment || []}
                 onChange={(tags) => handleFieldChange('equipment', tags)}
                 suggestions={CANONICAL_EQUIPMENT}

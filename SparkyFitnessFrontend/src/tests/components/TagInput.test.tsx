@@ -71,4 +71,23 @@ describe('TagInput', () => {
       screen.queryByText("Custom muscles won't appear on the body map.")
     ).not.toBeInTheDocument();
   });
+
+  it('splits comma-separated input into multiple resolved tags', () => {
+    const onChange = jest.fn();
+    const resolveValue = (input: string) => input.trim().toLowerCase();
+
+    render(
+      <TagInput
+        value={['chest']}
+        onChange={onChange}
+        resolveValue={resolveValue}
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'triceps, shoulders, chest' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith(['chest', 'triceps', 'shoulders']);
+  });
 });
