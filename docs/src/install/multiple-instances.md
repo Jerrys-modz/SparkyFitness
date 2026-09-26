@@ -29,7 +29,7 @@ With Helm, the chart's default volumes are `ReadWriteOnce`, which usually cannot
 When you change an environment variable and redeploy one instance at a time, old and new instances run side by side for a short while. During that window:
 
 - **Login options** (such as `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN`) can differ between instances, so the login page may briefly show the old or new options depending on which instance answers.
-- **The OIDC provider** from `SPARKY_FITNESS_OIDC_*` is written to the database by each instance when it starts, so the most recently started instance wins. In a normal rolling update that is a new instance. If an old instance restarts partway through, restart one new instance after the update finishes to put the new configuration back.
+- **The OIDC provider** from `SPARKY_FITNESS_OIDC_*` is written to the database by each instance when it starts, so whichever instance writes it last wins. In a normal rolling update that is a new instance. If an old instance restarts partway through, restart one new instance after the update finishes to put the new configuration back.
 
 Once every instance runs the new configuration, they all agree again.
 
