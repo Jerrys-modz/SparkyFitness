@@ -291,6 +291,23 @@ describe('watchTelemetryPersistence', () => {
     );
   });
 
+  it('keeps one account buffer when another account writes', async () => {
+    await AsyncStorage.clear();
+    const saved = new Map<string, WatchTelemetrySessionState>([
+      [
+        'session-a',
+        session({ energy: new Map([['ex-a', 3]]), unposted: true }),
+      ],
+    ]);
+    await writeWatchTelemetry(saved, 'account-a');
+    await writeWatchTelemetry(new Map(), 'account-b');
+
+    const other = await readWatchTelemetry(session, 'account-b');
+    const mine = await readWatchTelemetry(session, 'account-a');
+    expect(other.size).toBe(0);
+    expect(mine.get('session-a')?.energy.get('ex-a')).toBe(3);
+  });
+
   it('lets the later snapshot win when an earlier write is still in flight', async () => {
     const written: string[] = [];
     let release: () => void = () => {};

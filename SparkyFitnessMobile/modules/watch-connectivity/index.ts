@@ -306,6 +306,11 @@ export interface WatchHeartRateBatchPayload {
    * its sets. Cumulative. Absent on a batch that only carries samples.
    */
   durationMinutes?: number;
+  /**
+   * Active server config that owned the phone when this batch was queued.
+   * A batch for another config stays queued and is not posted or acked.
+   */
+  ownerId?: string;
 }
 
 /** The wearer ended the workout on the watch. */
@@ -356,6 +361,11 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    */
   pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
   ackHeartRateBatches(clientIds: string[]): Promise<void>;
+  /**
+   * Account that should own batches queued after this call. Batches already
+   * queued without an owner are stamped with the previous account.
+   */
+  setTelemetryOwner(ownerId: string): Promise<void>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to

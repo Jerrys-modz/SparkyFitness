@@ -14,6 +14,26 @@ const keyStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
 };
 
+function bufferKey(ownerId?: string | null): string {
+  return ownerId ? `${STORAGE_KEY}.${ownerId}` : STORAGE_KEY;
+}
+
+let onAccountSwitch: (() => void) | null = null;
+
+/** The hook drops its in-memory sessions when the signed-in account changes. */
+export function setWatchTelemetryAccountSwitchHandler(
+  handler: () => void
+): () => void {
+  onAccountSwitch = handler;
+  return () => {
+    if (onAccountSwitch === handler) onAccountSwitch = null;
+  };
+}
+
+export function notifyWatchTelemetryAccountSwitch(): void {
+  onAccountSwitch?.();
+}
+
 export interface WatchTelemetryAttribution {
   steps: { setId: string; exerciseEntryId: string }[];
   completedAtBySetId: Record<string, number>;
@@ -324,9 +344,22 @@ function mergeEnergy(
 }
 
 export async function readWatchTelemetry(
-  create: (entryDate: string | null) => WatchTelemetrySessionState
+  create: (entryDate: string | null) => WatchTelemetrySessionState,
+  ownerId?: string | null
 ): Promise<Map<string, WatchTelemetrySessionState>> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const key = bufferKey(ownerId);
+  let raw = await AsyncStorage.getItem(key);
+  if (!raw && ownerId) {
+    // Written before buffers were split per account. The first account to
+    // open the app claims it; it is not left where the next account can
+    // read it too.
+    const legacy = await AsyncStorage.getItem(STORAGE_KEY);
+    if (legacy) {
+      await AsyncStorage.setItem(key, legacy);
+      await AsyncStorage.removeItem(STORAGE_KEY);
+      raw = legacy;
+    }
+  }
   if (!raw) return new Map();
   // A value written before encryption starts with '{'. Read it once; the
   // next write replaces it with ciphertext. A keychain or decrypt failure
@@ -343,17 +376,21 @@ export function settleWatchTelemetryWrites(): Promise<void> {
 }
 
 export async function writeWatchTelemetry(
-  sessions: Map<string, WatchTelemetrySessionState>
+  sessions: Map<string, WatchTelemetrySessionState>,
+  ownerId?: string | null
 ): Promise<void> {
   // Snapshot now, but persist in call order. Two flushes in flight used to
   // race on AsyncStorage, and the older unposted snapshot could land last.
+  // The key is the account that owned the snapshot, so a switch cannot
+  // write this account's samples into the next one's buffer.
+  const key = bufferKey(ownerId);
   const serialized = serializeWatchTelemetry(sessions);
   const run = writeChain.then(async () => {
     if (serialized === '{}') {
-      await AsyncStorage.removeItem(STORAGE_KEY);
+      await AsyncStorage.removeItem(key);
       return;
     }
-    await AsyncStorage.setItem(STORAGE_KEY, await seal(serialized));
+    await AsyncStorage.setItem(key, await seal(serialized));
   });
   writeChain = run.then(
     () => undefined,

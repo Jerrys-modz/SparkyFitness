@@ -104,6 +104,7 @@ public class WatchConnectivityModule: Module {
     /// keychain item without a bound.
     private let heartRateQueueBatchLimit = 360
     private let heartRateQueueByteLimit = 1_048_576
+    private var telemetryOwnerId = ""
     private var heartRateQueue: [[String: Any]] = []
     private var heartRateQueueNeedsSave = false
     /// The watch callback and this module's queue both touch `heartRateQueue`.
@@ -280,6 +281,32 @@ public class WatchConnectivityModule: Module {
             }
         }
 
+        /// The account that owns batches queued from now on. Batches already
+        /// queued without an owner are stamped with the previous account so
+        /// a switch cannot replay them into the new one.
+        Function("setTelemetryOwner") { (ownerId: String) in
+            self.heartRateAccess.sync {
+                let next = ownerId
+                if !self.telemetryOwnerId.isEmpty, self.telemetryOwnerId != next {
+                    var changed = false
+                    self.heartRateQueue = self.heartRateQueue.map { event in
+                        var copy = event
+                        let owner = copy["ownerId"] as? String ?? ""
+                        if owner.isEmpty {
+                            copy["ownerId"] = self.telemetryOwnerId
+                            changed = true
+                        }
+                        return copy
+                    }
+                    if changed {
+                        self.heartRateQueueNeedsSave = true
+                        _ = self.saveHeartRateQueue()
+                    }
+                }
+                self.telemetryOwnerId = next
+            }
+        }
+
         /// Batches that arrived before JavaScript was listening. JS drains
         /// these on startup and acks the ones it has stored. Async so the
         /// read is not on the JS thread; the queue lock is the actual guard.
@@ -413,6 +440,9 @@ public class WatchConnectivityModule: Module {
         }
         if let minutes = payload["durationMinutes"] as? Double {
             event["durationMinutes"] = minutes
+        }
+        if !telemetryOwnerId.isEmpty {
+            event["ownerId"] = telemetryOwnerId
         }
         return withQueueId(event)
     }

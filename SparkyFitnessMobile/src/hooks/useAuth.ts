@@ -11,6 +11,7 @@ import {
 import { clearServerConfigCache } from '../services/storage';
 import type { ServerConfig } from '../services/storage';
 import { addLog } from '../services/LogService';
+import { notifyWatchTelemetryAccountSwitch } from '../utils/watchTelemetryPersistence';
 import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 
 export type AuthModalReason = 'session_expired' | 'no_configs' | null;
@@ -41,6 +42,7 @@ export function useAuth() {
     // Everything cached under the previous account has to go, or the new one
     // reads it until each query happens to refetch.
     setOnIdentityChanged(async () => {
+      notifyWatchTelemetryAccountSwitch();
       queryClient.clear();
       // The multi-select food basket store is the same kind of identity-
       // carrying global as the caches and the cookie jar below: it holds the

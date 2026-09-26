@@ -110,6 +110,23 @@ function fire(event: string, payload: unknown) {
   mockListeners.get(event)?.(payload);
 }
 
+/** Hold the telemetry read without also swallowing the account-id lookup. */
+function deferTelemetryRead(gate: Promise<string | null>): void {
+  const getItem = AsyncStorage.getItem as jest.Mock;
+  const previous = getItem.getMockImplementation();
+  getItem.mockImplementation(async (key: string) => {
+    if (
+      key === 'sparky.watchTelemetryBuffer' ||
+      key.startsWith('sparky.watchTelemetryBuffer.')
+    ) {
+      getItem.mockImplementation(previous ?? (() => Promise.resolve(null)));
+      return gate;
+    }
+    if (previous) return previous(key);
+    return null;
+  });
+}
+
 function makeSession(
   overrides: Partial<PresetSessionResponse> = {}
 ): PresetSessionResponse {
@@ -1239,7 +1256,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     const gate = new Promise<string | null>((resolve) => {
       releaseRead = resolve;
     });
-    (AsyncStorage.getItem as jest.Mock).mockImplementationOnce(() => gate);
+    deferTelemetryRead(gate);
     const batch = {
       clientId: 'hr-early',
       sessionId: 'session-unknown',
@@ -1344,9 +1361,18 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
   });
 
   it('leaves the native queue when restoring saved telemetry fails', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(
-      new Error('disk')
-    );
+    const getItem = AsyncStorage.getItem as jest.Mock;
+    const previous = getItem.getMockImplementation();
+    getItem.mockImplementation(async (key: string) => {
+      if (
+        key === 'sparky.watchTelemetryBuffer' ||
+        key.startsWith('sparky.watchTelemetryBuffer.')
+      ) {
+        throw new Error('disk');
+      }
+      if (previous) return previous(key);
+      return null;
+    });
     mockPendingHeartRateBatches.mockResolvedValue([
       {
         clientId: 'hr-queued',
@@ -1365,6 +1391,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     });
     expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
     expect(mockAckHeartRateBatches).not.toHaveBeenCalled();
+    getItem.mockImplementation(previous ?? (() => Promise.resolve(null)));
     view.unmount();
   });
 
@@ -1419,7 +1446,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     const gate = new Promise<string | null>((resolve) => {
       releaseRead = resolve;
     });
-    (AsyncStorage.getItem as jest.Mock).mockImplementationOnce(() => gate);
+    deferTelemetryRead(gate);
     (AsyncStorage.setItem as jest.Mock).mockClear();
     (AsyncStorage.removeItem as jest.Mock).mockClear();
     const batch = {
