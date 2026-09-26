@@ -4168,6 +4168,7 @@ CREATE TABLE public.user_preferences (
     weekly_alcohol_limit_g numeric(7,2),
     caffeine_half_life_hours numeric(3,1) DEFAULT 5.0 NOT NULL,
     target_bedtime time without time zone DEFAULT '22:30:00'::time without time zone NOT NULL,
+    adaptive_workout_suggestions boolean DEFAULT true NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4278,6 +4279,13 @@ COMMENT ON COLUMN public.user_preferences.caffeine_half_life_hours IS 'Eliminati
 --
 
 COMMENT ON COLUMN public.user_preferences.target_bedtime IS 'The user''s intended bedtime, local wall-clock. First consumer is the caffeine cutoff; deliberately generic so a future sleep-goal feature reuses it rather than adding a second bedtime.';
+
+
+--
+-- Name: COLUMN user_preferences.adaptive_workout_suggestions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.adaptive_workout_suggestions IS 'When true, workout suggestions adapt to session feedback (difficulty, pain). When false, progression behaves exactly as before feedback existed.';
 
 
 --
@@ -4583,6 +4591,50 @@ CREATE TABLE public.weekly_goal_plans (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: workout_feedback; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workout_feedback (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    exercise_preset_entry_id uuid,
+    exercise_entry_id uuid,
+    difficulty text,
+    pain boolean DEFAULT false NOT NULL,
+    pain_note text,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT workout_feedback_difficulty_check CHECK (((difficulty IS NULL) OR (difficulty = ANY (ARRAY['too_easy'::text, 'just_right'::text, 'too_hard'::text])))),
+    CONSTRAINT workout_feedback_one_target CHECK (((exercise_preset_entry_id IS NULL) <> (exercise_entry_id IS NULL))),
+    CONSTRAINT workout_feedback_pain_note_length CHECK (((pain_note IS NULL) OR (char_length(pain_note) <= 500))),
+    CONSTRAINT workout_feedback_pain_note_requires_pain CHECK (((pain_note IS NULL) OR pain))
+);
+
+
+--
+-- Name: TABLE workout_feedback; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.workout_feedback IS 'How a logged workout (or one exercise in it) felt: difficulty and an optional pain flag/note. Drives adaptive workout suggestions.';
+
+
+--
+-- Name: COLUMN workout_feedback.difficulty; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workout_feedback.difficulty IS 'too_easy | just_right | too_hard; null when only pain was reported.';
+
+
+--
+-- Name: COLUMN workout_feedback.pain_note; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workout_feedback.pain_note IS 'Free-text pain/discomfort detail. Shared like the diary it describes.';
 
 
 --
@@ -6012,6 +6064,14 @@ ALTER TABLE ONLY public.weekly_goal_plans
 
 
 --
+-- Name: workout_feedback workout_feedback_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workout_feedback
+    ADD CONSTRAINT workout_feedback_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: workout_plan_assignment_sets workout_plan_assignment_sets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6865,6 +6925,27 @@ CREATE UNIQUE INDEX unique_active_pregnancy ON public.pregnancies USING btree (u
 --
 
 CREATE UNIQUE INDEX unique_backup_settings_row ON public.backup_settings USING btree (((id IS NOT NULL)));
+
+
+--
+-- Name: workout_feedback_exercise_entry_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workout_feedback_exercise_entry_unique ON public.workout_feedback USING btree (exercise_entry_id) WHERE (exercise_entry_id IS NOT NULL);
+
+
+--
+-- Name: workout_feedback_preset_entry_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workout_feedback_preset_entry_unique ON public.workout_feedback USING btree (exercise_preset_entry_id) WHERE (exercise_preset_entry_id IS NOT NULL);
+
+
+--
+-- Name: workout_feedback_user_created_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workout_feedback_user_created_idx ON public.workout_feedback USING btree (user_id, created_at DESC);
 
 
 --
@@ -8717,6 +8798,46 @@ ALTER TABLE ONLY public.weekly_goal_plans
 
 
 --
+-- Name: workout_feedback workout_feedback_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workout_feedback
+    ADD CONSTRAINT workout_feedback_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workout_feedback workout_feedback_exercise_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workout_feedback
+    ADD CONSTRAINT workout_feedback_exercise_entry_id_fkey FOREIGN KEY (exercise_entry_id) REFERENCES public.exercise_entries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workout_feedback workout_feedback_exercise_preset_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workout_feedback
+    ADD CONSTRAINT workout_feedback_exercise_preset_entry_id_fkey FOREIGN KEY (exercise_preset_entry_id) REFERENCES public.exercise_preset_entries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workout_feedback workout_feedback_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workout_feedback
+    ADD CONSTRAINT workout_feedback_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workout_feedback workout_feedback_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workout_feedback
+    ADD CONSTRAINT workout_feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: workout_plan_assignment_sets workout_plan_assignment_sets_assignment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9591,6 +9712,17 @@ CREATE POLICY modify_policy ON public.weekly_goal_plans USING (public.has_diary_
 
 
 --
+-- Name: workout_feedback modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.workout_feedback USING (public.has_diary_access(user_id)) WITH CHECK ((public.has_diary_access(user_id) AND (((exercise_preset_entry_id IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM public.exercise_preset_entries epe
+  WHERE ((epe.id = workout_feedback.exercise_preset_entry_id) AND (epe.user_id = workout_feedback.user_id))))) OR ((exercise_entry_id IS NOT NULL) AND (EXISTS ( SELECT 1
+   FROM public.exercise_entries ee
+  WHERE ((ee.id = workout_feedback.exercise_entry_id) AND (ee.user_id = workout_feedback.user_id))))))));
+
+
+--
 -- Name: workout_plan_templates modify_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10316,6 +10448,13 @@ CREATE POLICY select_policy ON public.weekly_goal_plans FOR SELECT USING (public
 
 
 --
+-- Name: workout_feedback select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.workout_feedback FOR SELECT USING (public.has_diary_read_access(user_id));
+
+
+--
 -- Name: workout_plan_templates select_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10516,6 +10655,12 @@ ALTER TABLE public.water_intake_entries ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.weekly_goal_plans ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: workout_feedback; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workout_feedback ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: workout_plan_assignment_sets; Type: ROW SECURITY; Schema: public; Owner: -
@@ -11734,6 +11879,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.water_intake_entries TO sparky
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.weekly_goal_plans TO sparky_app;
+
+
+--
+-- Name: TABLE workout_feedback; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.workout_feedback TO sparky_app;
 
 
 --
