@@ -31,6 +31,8 @@ import {
 } from '../utils/workoutSession';
 import type { RootStackParamList } from '../types/navigation';
 
+export { syncWatchIntervalTiming } from '../stores/activeWorkoutStore';
+
 type StartLiveWorkoutNavigation = Pick<
   NativeStackNavigationProp<RootStackParamList>,
   'replace' | 'isFocused' | 'navigate'
@@ -63,11 +65,21 @@ function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
   t: TFunction
 ): WatchWorkoutStartPayload {
-  const { steps, plannedSetValues, workoutFormat, timeCapSeconds, startedAt } =
-    useActiveWorkoutStore.getState();
+  const {
+    steps,
+    plannedSetValues,
+    workoutFormat,
+    timeCapSeconds,
+    startedAt,
+    intervalPhases,
+  } = useActiveWorkoutStore.getState();
   const restSecBySetId = new Map(
     steps.map((step) => [step.setId, step.restSec])
   );
+  const capEndsAtMs =
+    timeCapSeconds != null && intervalPhases.length > 0
+      ? Math.max(...intervalPhases.map((phase) => phase.endsAt))
+      : null;
 
   return {
     sessionId: session.id,
@@ -93,6 +105,8 @@ function buildWatchWorkoutStartPayload(
     workoutFormat,
     timeCapSeconds,
     startedAt: startedAt != null ? new Date(startedAt).toISOString() : null,
+    armedAt: new Date().toISOString(),
+    capEndsAt: capEndsAtMs != null ? new Date(capEndsAtMs).toISOString() : null,
   };
 }
 
@@ -109,41 +123,6 @@ export function armWatchForActiveSession(t: TFunction): void {
   void WatchConnectivity.startWorkout(
     buildWatchWorkoutStartPayload(session, t)
   );
-}
-
-/**
- * Freezes the watch cap while the phone interval is paused. Each call sends
- * the whole pause snapshot and a revision that only goes up, so a resume
- * delivered before its queued pause still wins. The counter and the pause
- * total live in the persisted store: a JS restart must not send revision 1
- * against a watch that already stored a higher one.
- */
-export function syncWatchIntervalTiming(timing: {
-  paused: boolean;
-  pausedAtMs?: number;
-  pauseDurationMs?: number;
-}): void {
-  if (!WatchConnectivity?.isSupported()) return;
-  const state = useActiveWorkoutStore.getState();
-  if (state.sessionId == null) return;
-  const revision = state.watchIntervalRevision + 1;
-  const addedPauseMs = timing.paused
-    ? 0
-    : Math.max(0, timing.pauseDurationMs ?? 0);
-  const excludedPauseMs = state.watchExcludedPauseMs + addedPauseMs;
-  useActiveWorkoutStore.setState({
-    watchIntervalRevision: revision,
-    watchExcludedPauseMs: excludedPauseMs,
-  });
-  void WatchConnectivity.updateIntervalTiming({
-    sessionId: state.sessionId,
-    revision,
-    paused: timing.paused,
-    excludedPauseMs,
-    ...(timing.paused && timing.pausedAtMs != null
-      ? { pausedAt: new Date(timing.pausedAtMs).toISOString() }
-      : {}),
-  });
 }
 
 /**

@@ -152,6 +152,8 @@ final class WorkoutSessionStore: ObservableObject {
             workoutFormat: plan.workoutFormat,
             timeCapSeconds: plan.timeCapSeconds,
             startedAt: plan.startedAt,
+            armedAt: plan.armedAt,
+            capEndsAt: plan.capEndsAt,
             pausedAt: pausedAt,
             excludedPauseSeconds: excludedPauseSeconds,
             intervalRevision: revision

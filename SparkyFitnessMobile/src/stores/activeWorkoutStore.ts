@@ -55,8 +55,43 @@ import {
 } from '../services/notifications';
 import { fireSelectionHaptic, fireSuccessHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
+import WatchConnectivity from '../../modules/watch-connectivity';
 
 const STORAGE_KEY = '@SparkyFitness/active-workout';
+
+/**
+ * Freezes the watch cap while the phone interval is paused. Owned by the
+ * store so every pause path tells the watch, not only the HUD button.
+ * The revision only goes up and lives in the persisted store, so a JS
+ * restart does not send revision 1 against a watch that already applied more.
+ */
+export function syncWatchIntervalTiming(timing: {
+  paused: boolean;
+  pausedAtMs?: number;
+  pauseDurationMs?: number;
+}): void {
+  if (!WatchConnectivity?.isSupported()) return;
+  const state = useActiveWorkoutStore.getState();
+  if (state.sessionId == null) return;
+  const revision = state.watchIntervalRevision + 1;
+  const addedPauseMs = timing.paused
+    ? 0
+    : Math.max(0, timing.pauseDurationMs ?? 0);
+  const excludedPauseMs = state.watchExcludedPauseMs + addedPauseMs;
+  useActiveWorkoutStore.setState({
+    watchIntervalRevision: revision,
+    watchExcludedPauseMs: excludedPauseMs,
+  });
+  void WatchConnectivity.updateIntervalTiming({
+    sessionId: state.sessionId,
+    revision,
+    paused: timing.paused,
+    excludedPauseMs,
+    ...(timing.paused && timing.pausedAtMs != null
+      ? { pausedAt: new Date(timing.pausedAtMs).toISOString() }
+      : {}),
+  });
+}
 
 /** Monotonic counter used to reject stale async schedule resolutions. */
 let restInstanceCounter = 0;
@@ -1113,6 +1148,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
 
         const workoutFormat = opts?.workoutFormat ?? 'standard';
         const timeCapSeconds = opts?.timeCapSeconds ?? null;
+        const startedMs = Date.now();
         let intervalPhases: IntervalPhase[] = [];
         if (workoutFormat !== 'standard') {
           let engineSteps: IntervalEngineStep[] = [];
@@ -1151,14 +1187,14 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
               timeCapSeconds,
               steps: engineSteps,
             },
-            Date.now()
+            startedMs
           );
         }
 
         set({
           sessionId: session.id,
           session,
-          startedAt: Date.now(),
+          startedAt: startedMs,
           steps,
           completedSetIds,
           activeSetId:
@@ -1390,10 +1426,12 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         const state = get();
         if (state.isIntervalPaused || state.workoutFormat === 'standard')
           return;
+        const pausedAt = Date.now();
         set({
           isIntervalPaused: true,
-          intervalPauseStartedAt: Date.now(),
+          intervalPauseStartedAt: pausedAt,
         });
+        syncWatchIntervalTiming({ paused: true, pausedAtMs: pausedAt });
       },
 
       resumeInterval: () => {
@@ -1414,6 +1452,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           intervalPauseStartedAt: null,
           intervalPhases: nextPhases,
         });
+        syncWatchIntervalTiming({ paused: false, pauseDurationMs });
       },
 
       updateIntervalPhaseIndex: (index) => {

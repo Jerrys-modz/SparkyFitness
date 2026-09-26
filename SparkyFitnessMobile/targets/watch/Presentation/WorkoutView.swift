@@ -52,13 +52,20 @@ private func intervalCaption(plan: ActiveWorkoutPlan?, now: Date) -> String? {
     default: name = format.uppercased()
     }
     guard
-        let cap = plan?.timeCapSeconds, cap > 0,
-        let started = plan?.startedAt
+        let cap = plan?.timeCapSeconds, cap > 0
     else { return name }
     let clock = plan?.pausedAt ?? now
     let pausedAlready = plan?.excludedPauseSeconds ?? 0
-    let elapsed = Int(clock.timeIntervalSince(started)) - pausedAlready
-    let left = max(0, cap - max(0, elapsed))
+    let left: Int
+    if let capEnds = plan?.capEndsAt {
+        let end = capEnds.addingTimeInterval(TimeInterval(pausedAlready))
+        left = max(0, Int(end.timeIntervalSince(clock).rounded()))
+    } else if let started = plan?.startedAt {
+        let elapsed = Int(clock.timeIntervalSince(started)) - pausedAlready
+        left = max(0, cap - max(0, elapsed))
+    } else {
+        return name
+    }
     let minutes = left / 60
     let seconds = left % 60
     return String(format: "%@ %d:%02d", name, minutes, seconds)

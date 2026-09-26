@@ -414,7 +414,10 @@ describe('useWatchWorkoutBridge', () => {
       await Promise.resolve();
     });
 
-    expect(mockStopWorkout).toHaveBeenCalledWith('session-1');
+    expect(mockStopWorkout).toHaveBeenCalledWith(
+      'session-1',
+      expect.any(String)
+    );
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
       hrSamples: [
         { t: '2026-09-17T10:00:00.000Z', bpm: 120 },

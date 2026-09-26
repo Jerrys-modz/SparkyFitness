@@ -9,7 +9,6 @@ import {
 } from '@workspace/shared';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { syncWatchIntervalTiming } from '../hooks/useStartLiveWorkout';
 import { playIntervalCue } from '../services/sounds';
 import {
   resetGuidedSpeechSession,
@@ -382,22 +381,11 @@ export default function ActiveWorkoutIntervalHud({
             }`}
             onPress={() => {
               if (isIntervalPaused) {
-                const pausedAt =
-                  useActiveWorkoutStore.getState().intervalPauseStartedAt;
-                const pauseDurationMs =
-                  pausedAt != null ? Math.max(0, Date.now() - pausedAt) : 0;
                 resumeInterval();
-                syncWatchIntervalTiming({ paused: false, pauseDurationMs });
               } else {
                 // A paused clock must not keep talking.
                 stopGuidedSpeech();
                 pauseInterval();
-                const pausedAt =
-                  useActiveWorkoutStore.getState().intervalPauseStartedAt;
-                syncWatchIntervalTiming({
-                  paused: true,
-                  pausedAtMs: pausedAt ?? Date.now(),
-                });
               }
             }}
             accessibilityLabel={

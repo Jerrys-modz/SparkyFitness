@@ -218,6 +218,18 @@ export interface WatchWorkoutStartPayload {
   timeCapSeconds?: number | null;
   /** When the phone started the live session, ISO 8601. */
   startedAt?: string | null;
+  /**
+   * When this arm was sent, ISO 8601. A saved workout reuses `sessionId`,
+   * so the watch rejects only a start at or before the stop, not a later
+   * "Start workout here".
+   */
+  armedAt?: string | null;
+  /**
+   * When the cap reaches 0:00, ISO 8601, already past the phone's lead-in
+   * countdown. Pauses are added on top of this rather than recomputed from
+   * `startedAt`.
+   */
+  capEndsAt?: string | null;
 }
 
 /** One set logged on the watch during an active workout. */
@@ -312,7 +324,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * session id rather than being argument-less so a stop for an already
    * superseded workout can be ignored watch-side.
    */
-  stopWorkout(sessionId: string): Promise<void>;
+  stopWorkout(sessionId: string, stoppedAt: string): Promise<void>;
   /**
    * Absolute pause snapshot for the live session. `revision` only increases.
    * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.

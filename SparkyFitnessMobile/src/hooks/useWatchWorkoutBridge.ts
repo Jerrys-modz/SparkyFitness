@@ -608,7 +608,7 @@ export function useWatchWorkoutBridge(
             activeSetId: prevState.activeSetId,
           };
         }
-        void WatchConnectivity?.stopWorkout(ended);
+        void WatchConnectivity?.stopWorkout(ended, new Date().toISOString());
         // Posts what has arrived so far. The watch answers that stop signal
         // with its own final drain, which lands afterwards and re-posts the
         // completed series — see `handleHeartRateBatch`.

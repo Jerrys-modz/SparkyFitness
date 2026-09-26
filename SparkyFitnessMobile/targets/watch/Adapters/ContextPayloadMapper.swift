@@ -194,10 +194,19 @@ enum ContextPayloadMapper {
 
     // MARK: - Workout
 
-    /// The session a phone-sent `workoutStop` names. Nil for a malformed
-    /// payload, which is dropped rather than ending whatever is running.
-    static func workoutStopSessionId(from payload: [String: Any]) -> String? {
-        payload["sessionId"] as? String
+    /// The session a phone-sent `workoutStop` names, and when the phone sent
+    /// it. Nil session for a malformed payload, which is dropped rather than
+    /// ending whatever is running.
+    static func workoutStop(from payload: [String: Any]) -> (sessionId: String, stoppedAt: Date?)? {
+        guard let sessionId = payload["sessionId"] as? String else { return nil }
+        return (sessionId, isoDate(from: payload["stoppedAt"]))
+    }
+
+    static func isoDate(from value: Any?) -> Date? {
+        guard let string = value as? String else { return nil }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: string) ?? ISO8601DateFormatter().date(from: string)
     }
 
     /// The workout plan the phone armed the watch with. Nil when the payload
@@ -232,10 +241,7 @@ enum ContextPayloadMapper {
         guard !exercises.isEmpty else { return nil }
 
         let setOrder = stringArray(payload["setOrder"])
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let startedAt = (payload["startedAt"] as? String).flatMap { formatter.date(from: $0) }
-            ?? (payload["startedAt"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+        let startedAt = isoDate(from: payload["startedAt"])
         return ActiveWorkoutPlan(
             sessionId: sessionId,
             workoutName: workoutName,
@@ -243,7 +249,9 @@ enum ContextPayloadMapper {
             setOrder: setOrder,
             workoutFormat: payload["workoutFormat"] as? String,
             timeCapSeconds: intValue(payload["timeCapSeconds"]),
-            startedAt: startedAt
+            startedAt: startedAt,
+            armedAt: isoDate(from: payload["armedAt"]),
+            capEndsAt: isoDate(from: payload["capEndsAt"])
         )
     }
 
