@@ -34,7 +34,7 @@ interface WorkoutPlaybackGuidedCardProps {
 
 /**
  * Guided mode (#1507) for standard workouts: one set at a time with the
- * exercise image (captioned with what is being said) and a FINISHED button
+ * exercise image (captioned with what is being said) and a DONE — NEXT button
  * for rep-based sets. Pause freezes the session; Replay reads the set and its
  * instructions again; the speaker mutes the voice for this workout while the
  * captions carry on. Sits above the normal set list, which stays editable.
@@ -238,7 +238,7 @@ export default function WorkoutPlaybackGuidedCard({
           className="mt-4 w-full h-16 text-xl font-black tracking-wider"
           onClick={() => finish(phase.set.pointer)}
         >
-          {t('guidedWorkout.card.finished', 'FINISHED')}
+          {t('guidedWorkout.card.doneNext', 'DONE — NEXT')}
         </Button>
       )}
     </div>

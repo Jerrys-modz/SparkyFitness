@@ -1018,12 +1018,14 @@ describe('workout presets', () => {
             exercise_id: EXERCISE_ID,
             sort_order: 0,
             superset_group: null,
+            ramp_increment: null,
             sets: undefined,
           },
           {
             exercise_id: EXERCISE_ID_2,
             sort_order: 1,
             superset_group: null,
+            ramp_increment: null,
             sets: undefined,
           },
         ],
@@ -1077,6 +1079,7 @@ describe('workout presets', () => {
             exercise_id: EXERCISE_ID,
             sort_order: 0,
             superset_group: 1,
+            ramp_increment: null,
             sets: [
               {
                 set_number: 1,
@@ -1108,6 +1111,7 @@ describe('workout presets', () => {
             exercise_id: EXERCISE_ID_2,
             sort_order: 1,
             superset_group: 1,
+            ramp_increment: null,
             sets: [
               {
                 set_number: 1,
@@ -1152,11 +1156,65 @@ describe('workout presets', () => {
             exercise_id: EXERCISE_ID,
             sort_order: 0,
             superset_group: null,
+            ramp_increment: null,
             sets: undefined,
           },
         ],
       })
     );
+  });
+
+  it('create_workout_preset passes ramp_increment (kg, negative allowed) through', async () => {
+    vi.mocked(workoutPresetService.createWorkoutPreset).mockResolvedValue({
+      id: 9,
+      name: 'Bench',
+      exercises: [{}, {}],
+    });
+
+    await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'create_workout_preset',
+        name: 'Bench',
+        exercises: [
+          { exercise_id: EXERCISE_ID, ramp_increment: 4.54 },
+          { exercise_id: EXERCISE_ID_2, ramp_increment: -2.5 },
+        ],
+      },
+      opts
+    );
+
+    const [, data] = vi.mocked(workoutPresetService.createWorkoutPreset).mock
+      .calls[0];
+    expect(
+      data.exercises.map(
+        (e: { ramp_increment?: number | null }) => e.ramp_increment
+      )
+    ).toEqual([4.54, -2.5]);
+  });
+
+  it('get_workout_preset renders a ramp_increment so updates can round-trip it', async () => {
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Bench',
+      description: null,
+      is_public: false,
+      exercises: [
+        {
+          exercise_id: EXERCISE_ID,
+          exercise_name: 'Bench Press',
+          superset_group: null,
+          ramp_increment: 4.54,
+          sets: [],
+        },
+      ],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+
+    expect(result).toContain('   ramp_increment: +4.54kg per working set\n');
   });
 
   it('create_workout_preset rejects malformed JSON exercises', async () => {
@@ -1645,6 +1703,108 @@ describe('workout presets', () => {
     );
   });
 
+  it('update_workout_preset keeps progression and ramp settings the model left out', async () => {
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockResolvedValueOnce({
+      id: PRESET_ID,
+      name: 'Bench',
+      exercises: [
+        {
+          exercise_id: EXERCISE_ID,
+          progression_mode: 'fixed',
+          rep_goal: 8,
+          increment_type: 'weight',
+          increment_value: 2.5,
+          equipment_brand: 'Rogue',
+          ramp_increment: 4.54,
+          sets: [],
+        },
+        {
+          exercise_id: EXERCISE_ID_2,
+          progression_mode: 'rep_goal',
+          rep_goal: 30,
+          ramp_increment: -2.5,
+          sets: [],
+        },
+      ],
+    });
+    vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
+      id: PRESET_ID,
+      name: 'Bench',
+    });
+
+    await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'update_workout_preset',
+        preset_id: PRESET_ID,
+        confirmed: true,
+        exercises: [
+          // Only sets change: settings carry over.
+          { exercise_id: EXERCISE_ID, sets: [{ reps: 5, weight: 100 }] },
+          // Explicit values win; an explicit null clears the ramp.
+          { exercise_id: EXERCISE_ID_2, rep_goal: 36, ramp_increment: null },
+        ],
+      },
+      opts
+    );
+
+    const [, , data] = vi.mocked(workoutPresetService.updateWorkoutPreset).mock
+      .calls[0];
+    expect(data.exercises[0]).toMatchObject({
+      progression_mode: 'fixed',
+      rep_goal: 8,
+      increment_type: 'weight',
+      increment_value: 2.5,
+      equipment_brand: 'Rogue',
+      ramp_increment: 4.54,
+    });
+    expect(data.exercises[1]).toMatchObject({
+      progression_mode: 'rep_goal',
+      rep_goal: 36,
+      ramp_increment: null,
+    });
+  });
+
+  it('get_workout_preset renders an active progression configuration', async () => {
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockResolvedValueOnce({
+      id: PRESET_ID,
+      name: 'Bench',
+      description: null,
+      is_public: false,
+      exercises: [
+        {
+          exercise_id: EXERCISE_ID,
+          exercise_name: 'Bench Press',
+          progression_mode: 'fixed',
+          rep_goal: 8,
+          increment_type: 'weight',
+          increment_value: 2.5,
+          equipment_brand: 'Rogue',
+          sets: [],
+        },
+        {
+          // Stored defaults with no rep goal never fire: not rendered.
+          exercise_id: EXERCISE_ID_2,
+          exercise_name: 'Row',
+          progression_mode: 'rep_goal',
+          rep_goal: null,
+          increment_type: 'weight',
+          increment_value: 5,
+          sets: [],
+        },
+      ],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_preset', preset_id: PRESET_ID },
+      opts
+    );
+
+    expect(result).toContain(
+      '   progression: progression_mode fixed, rep_goal 8, increment_type weight, increment_value 2.5kg\n   equipment_brand: Rogue\n'
+    );
+    expect(String(result).match(/progression:/g)).toHaveLength(1);
+  });
+
   it('update_workout_preset replaces the exercise list, sets, and superset groups when exercises is provided', async () => {
     vi.mocked(workoutPresetService.updateWorkoutPreset).mockResolvedValue({
       id: PRESET_ID,
@@ -1681,6 +1841,7 @@ describe('workout presets', () => {
             exercise_id: EXERCISE_ID,
             sort_order: 0,
             superset_group: 2,
+            ramp_increment: null,
             sets: [
               {
                 set_number: 1,
@@ -1700,6 +1861,7 @@ describe('workout presets', () => {
             exercise_id: EXERCISE_ID_2,
             sort_order: 1,
             superset_group: null,
+            ramp_increment: null,
             sets: undefined,
           },
         ],

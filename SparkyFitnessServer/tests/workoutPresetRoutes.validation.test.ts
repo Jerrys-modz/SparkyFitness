@@ -211,6 +211,34 @@ describe('workoutPresetRoutes request validation', () => {
     expect(data.exercises[0].sets[0].distance).toBe(5.2);
   });
 
+  it('passes a negative ramp_increment (back-off ramp) through on create', async () => {
+    const base = validCreateBody();
+    const body = {
+      ...base,
+      exercises: [{ ...base.exercises[0], ramp_increment: -4.54 }],
+    };
+
+    const { statusCode } = await invokeRoute('post', '/', { body });
+
+    expect(statusCode).toBe(201);
+    const [, data] = vi.mocked(workoutPresetService.createWorkoutPreset).mock
+      .calls[0];
+    expect(data.exercises[0].ramp_increment).toBe(-4.54);
+  });
+
+  it('rejects a ramp_increment outside numeric(6,2) with 400', async () => {
+    const base = validCreateBody();
+    const body = {
+      ...base,
+      exercises: [{ ...base.exercises[0], ramp_increment: 10000 }],
+    };
+
+    const { statusCode } = await invokeRoute('post', '/', { body });
+
+    expect(statusCode).toBe(400);
+    expect(workoutPresetService.createWorkoutPreset).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-numeric distance with 400', async () => {
     const body = validCreateBody();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

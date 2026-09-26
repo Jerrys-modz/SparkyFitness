@@ -188,3 +188,4 @@ export * from "./utils/progressionEngine.ts";
 export * from "./utils/intervalEngine.ts";
 export * from "./utils/guidedWorkoutCues.ts";
 export * from "./utils/dropSetCalculator.ts";
+export * from "./utils/weightRamp.ts";

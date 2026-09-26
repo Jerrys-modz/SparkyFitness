@@ -61,6 +61,8 @@ export interface WorkoutDraftExercise {
   incrementType?: 'weight' | 'reps' | null;
   incrementValue?: number | null;
   equipmentBrand?: string | null;
+  /** Within-session per-set ramp, kg (negative ramps down). Null = off. */
+  rampIncrement?: number | null;
 }
 
 export interface WorkoutDraft {

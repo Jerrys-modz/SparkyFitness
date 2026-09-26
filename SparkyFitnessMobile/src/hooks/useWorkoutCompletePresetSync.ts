@@ -11,6 +11,7 @@ import { getActiveServerConfig } from '../services/storage';
 import {
   buildPresetUpdateExercises,
   type AssumedSetValues,
+  type AssumedValueSources,
 } from '../utils/workoutSession';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import type { CompletedSetMap } from '../stores/activeWorkoutStore';
@@ -23,6 +24,8 @@ interface UseWorkoutCompletePresetSyncArgs {
   sourceServerConfigId?: string | null;
   completedSetIds: CompletedSetMap;
   plannedSetValues: Record<string, AssumedSetValues>;
+  /** Live placeholder inputs; see buildPresetUpdateExercises. */
+  assumeSources?: Omit<AssumedValueSources, 'plannedSetValues'>;
 }
 
 export function useWorkoutCompletePresetSync({
@@ -31,6 +34,7 @@ export function useWorkoutCompletePresetSync({
   sourceServerConfigId,
   completedSetIds,
   plannedSetValues,
+  assumeSources,
 }: UseWorkoutCompletePresetSyncArgs) {
   const { t } = useTranslation();
   const { profile } = useProfile();
@@ -64,8 +68,9 @@ export function useWorkoutCompletePresetSync({
         : buildPresetUpdateExercises(session, sourcePreset, {
             completedSetIds,
             plannedSetValues,
+            assumeSources,
           }),
-    [sourcePreset, session, completedSetIds, plannedSetValues]
+    [sourcePreset, session, completedSetIds, plannedSetValues, assumeSources]
   );
 
   useEffect(() => {

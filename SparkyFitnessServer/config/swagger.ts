@@ -814,6 +814,14 @@ const options = {
                   exercise_name: { type: 'string' },
                   image_url: { type: 'string', nullable: true },
                   superset_group: { type: 'integer', nullable: true },
+                  ramp_increment: {
+                    type: 'number',
+                    nullable: true,
+                    minimum: -9999.99,
+                    maximum: 9999.99,
+                    description:
+                      'Kg added to each successive working set within one session (negative ramps down; warm-up and drop sets skipped). Null = off. Separate from the between-session progression increment.',
+                  },
                   sets: {
                     type: 'array',
                     items: { $ref: '#/components/schemas/WorkoutSet' },

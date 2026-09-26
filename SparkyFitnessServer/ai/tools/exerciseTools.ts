@@ -72,8 +72,34 @@ type WorkoutPresetExerciseRow = {
   exercise_name?: string;
   exercise_id?: string;
   superset_group?: number | null;
+  progression_mode?: PresetProgressionSettings['progression_mode'];
+  rep_goal?: number | null;
+  increment_type?: PresetProgressionSettings['increment_type'];
+  increment_value?: number | null;
+  equipment_brand?: string | null;
+  ramp_increment?: number | null;
   sets?: WorkoutPresetSetRow[] | null;
 };
+
+// Only an effective configuration is shown: without a rep goal (and outside
+// fixed mode) the engine never fires, so the stored defaults would be noise.
+function formatPresetProgression(ex: WorkoutPresetExerciseRow): string | null {
+  const mode = ex.progression_mode ?? 'rep_goal';
+  if (mode === 'manual' || (!isSet(ex.rep_goal) && mode !== 'fixed')) {
+    return null;
+  }
+  const parts = [`progression_mode ${mode}`];
+  if (isSet(ex.rep_goal)) parts.push(`rep_goal ${ex.rep_goal}`);
+  if (isSet(ex.increment_value)) {
+    const unit =
+      ex.increment_type === 'reps' || mode === 'step_load' ? ' reps' : 'kg';
+    parts.push(
+      `increment_type ${ex.increment_type ?? 'weight'}`,
+      `increment_value ${ex.increment_value}${unit}`
+    );
+  }
+  return parts.join(', ');
+}
 
 function formatSeconds(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60);
@@ -215,16 +241,54 @@ function toRepoSets(sets: ExerciseSetInput[]) {
   }));
 }
 
+const PRESET_PROGRESSION_KEYS = [
+  'progression_mode',
+  'rep_goal',
+  'increment_type',
+  'increment_value',
+  'equipment_brand',
+  'ramp_increment',
+] as const;
+
+type PresetProgressionSettings = Pick<
+  PresetExerciseInput,
+  (typeof PRESET_PROGRESSION_KEYS)[number]
+>;
+
 // Maps create/update_workout_preset's exercise input into the shape
 // workoutPresetRepository expects: sort_order from array position, sets run
 // through toRepoSets (rpe is silently dropped — presets have no rpe column).
-function toPresetExercises(exercises: PresetExerciseInput[]) {
-  return exercises.map((ex, i) => ({
-    exercise_id: ex.exercise_id,
-    sort_order: i,
-    superset_group: ex.superset_group ?? null,
-    sets: ex.sets ? toRepoSets(ex.sets) : undefined,
-  }));
+// `existing` (update only) is the preset's current exercise list: a
+// progression or ramp field the model left out is carried over from the
+// first not-yet-used existing exercise with the same exercise_id, so an edit
+// that only touches sets doesn't reset them. An explicit null clears.
+function toPresetExercises(
+  exercises: PresetExerciseInput[],
+  existing: readonly WorkoutPresetExerciseRow[] = []
+) {
+  const consumed = new Set<number>();
+  return exercises.map((ex, i) => {
+    const matchIndex = existing.findIndex(
+      (candidate, j) =>
+        !consumed.has(j) && candidate.exercise_id === ex.exercise_id
+    );
+    if (matchIndex >= 0) consumed.add(matchIndex);
+    const matched = matchIndex >= 0 ? existing[matchIndex] : undefined;
+    const settings: PresetProgressionSettings = {};
+    for (const key of PRESET_PROGRESSION_KEYS) {
+      const value = ex[key] !== undefined ? ex[key] : matched?.[key];
+      if (value !== undefined) Object.assign(settings, { [key]: value });
+    }
+    return {
+      exercise_id: ex.exercise_id,
+      sort_order: i,
+      superset_group: ex.superset_group ?? null,
+      ...settings,
+      // Zero means off; store null so it reads as "no ramp" everywhere.
+      ramp_increment: settings.ramp_increment ? settings.ramp_increment : null,
+      sets: ex.sets ? toRepoSets(ex.sets) : undefined,
+    };
+  });
 }
 
 function parsePresetExercises(
@@ -575,13 +639,13 @@ Actions:
 - log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,rir,notes}]) — distance/avg_heart_rate/steps are for cardio; rpe is effort 0-10, rir is reps in reserve (0 = failure)
 - list_exercise_diary(entry_date) — returns diary entries with sets and WOD scores
 - get_workout_presets() — lists saved workout presets with format and exercise counts
-- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: format, time cap, every exercise's ID, its sets, and its superset_group. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
+- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: format, time cap, every exercise's ID, its sets, its superset_group, and its progression and ramp_increment settings. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
 - log_workout_preset(entry_date, preset_id?|preset_name?, location?, wod_score?:{score_type:time|rounds_reps|total_reps|completion, rounds_completed?, reps_completed?, elapsed_seconds?, status?:rx|scaled, scaling_notes?}) — location is an optional gym name for the session. preset_name is own or family-shared only; public presets must use preset_id. wod_score is only for non-standard formats; the preset's format and time cap are copied onto the score. Typical score_type: AMRAP → rounds_reps; For Time → time (rounds_reps if the cap was hit); EMOM/Tabata/Interval → completion or total_reps.
 - update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
-- create_workout_preset(name, exercises, description?, is_public?, workout_format?, time_cap_seconds?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}]; items sharing the same superset_group are grouped as a superset
-- update_workout_preset(preset_id, confirmed, name?, description?, is_public?, workout_format?, time_cap_seconds?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. confirmed=true is required to apply; without it the tool returns a prompt and does not change anything. Get the user's go-ahead first, especially if YOU decided what to change (e.g. "review my workouts and improve them").
+- create_workout_preset(name, exercises, description?, is_public?, workout_format?, time_cap_seconds?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?, progression_mode?, rep_goal?, increment_type?, increment_value?, equipment_brand?, ramp_increment?}]; items sharing the same superset_group are grouped as a superset; progression_mode/rep_goal/increment_type/increment_value (kg for weight) are between-session overload; ramp_increment (kg, may be negative) pre-fills each successive working set that much heavier within one session — e.g. "+10 lb per set" is 4.54 — distinct from between-session progression
+- update_workout_preset(preset_id, confirmed, name?, description?, is_public?, workout_format?, time_cap_seconds?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. Progression and ramp fields left out on an exercise keep their current values; send null to clear one. confirmed=true is required to apply; without it the tool returns a prompt and does not change anything. Get the user's go-ahead first, especially if YOU decided what to change (e.g. "review my workouts and improve them").
 - delete_workout_preset(preset_id, confirmed) — permanently deletes the preset. confirmed=true is required; without it the tool returns a prompt and does not delete. Confirm with the user first.
 
 Workout formats (workout_format, default standard) drive the in-app timer:
@@ -973,6 +1037,14 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                     ? ` [superset group ${ex.superset_group}]`
                     : '';
                   text += `${i + 1}. **${ex.exercise_name}**${superset}\n   exercise_id: ${ex.exercise_id}\n`;
+                  const progression = formatPresetProgression(ex);
+                  if (progression) text += `   progression: ${progression}\n`;
+                  if (ex.equipment_brand) {
+                    text += `   equipment_brand: ${ex.equipment_brand}\n`;
+                  }
+                  if (ex.ramp_increment) {
+                    text += `   ramp_increment: ${ex.ramp_increment > 0 ? '+' : ''}${ex.ramp_increment}kg per working set\n`;
+                  }
                   if (ex.sets && ex.sets.length > 0) {
                     ex.sets.forEach((s: WorkoutPresetSetRow, si: number) => {
                       const details: string[] = [];
@@ -1236,7 +1308,15 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                     workout_format: args.workout_format,
                     time_cap_seconds: args.time_cap_seconds,
                     exercises: exercises
-                      ? toPresetExercises(exercises)
+                      ? toPresetExercises(
+                          exercises,
+                          (
+                            await workoutPresetService.getWorkoutPresetById(
+                              userId,
+                              args.preset_id
+                            )
+                          )?.exercises ?? []
+                        )
                       : undefined,
                   }
                 );

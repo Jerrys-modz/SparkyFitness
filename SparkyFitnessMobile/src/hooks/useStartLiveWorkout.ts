@@ -29,6 +29,7 @@ import {
   extractPlannedSetValues,
   stripPlannedSetValues,
 } from '../utils/workoutSession';
+import type { LiveExerciseConfig } from '../utils/workoutSession';
 import type { RootStackParamList } from '../types/navigation';
 
 type StartLiveWorkoutNavigation = Pick<
@@ -40,6 +41,11 @@ interface StartLiveWorkoutArgs {
   /** Session name; defaults to the form path's dated name ("Workout - Jul 6"). */
   name?: string;
   exercises: PresetSessionExerciseRequest[];
+  /**
+   * Preset progression/ramp settings, positional with `exercises`. The server
+   * session doesn't store them, so the live store keeps them client-side.
+   */
+  exerciseConfigs?: LiveExerciseConfig[];
   /**
    * Preset the exercises came from. Recorded in the store (with the active
    * server config id, since preset ids collide across servers) so the finish
@@ -181,6 +187,7 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
     async ({
       name,
       exercises,
+      exerciseConfigs,
       sourcePresetId,
       workoutPlanAssignmentId,
       workoutFormat,
@@ -281,6 +288,7 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
         useActiveWorkoutStore.getState().startWorkout(session, {
           createdByLiveStart: true,
           plannedSetValues,
+          exerciseConfigs,
           sourcePresetId,
           sourceServerConfigId,
           workoutFormat,

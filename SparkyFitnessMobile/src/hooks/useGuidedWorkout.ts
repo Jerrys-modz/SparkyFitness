@@ -73,7 +73,12 @@ export function guidedExerciseImages(
 
 type DescribeSource = Pick<
   ActiveWorkoutState,
-  'session' | 'previousSessionSets' | 'plannedSetValues'
+  | 'session'
+  | 'previousSessionSets'
+  | 'plannedSetValues'
+  | 'exerciseConfigs'
+  | 'weightUnit'
+  | 'workoutFormat'
 >;
 
 function describeGuidedSet(
@@ -86,12 +91,7 @@ function describeGuidedSet(
     e.sets.some((s) => String(s.id) === setId)
   );
   if (!exercise) return null;
-  const desc = describeActiveSetAssumed(
-    session,
-    setId,
-    state.previousSessionSets,
-    state.plannedSetValues
-  );
+  const desc = describeActiveSetAssumed(session, setId, state);
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
   const snapshot = exercise.exercise_snapshot;
   return {
@@ -165,6 +165,9 @@ export function useGuidedWorkout(onCompleteSet: (setId: string) => void): {
     (s) => s.previousSessionSets
   );
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
+  const exerciseConfigs = useActiveWorkoutStore((s) => s.exerciseConfigs);
+  const weightUnit = useActiveWorkoutStore((s) => s.weightUnit);
+  const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
   const timerStartedAt = useActiveWorkoutStore((s) =>
     s.activeSetId != null ? s.setTimerStartedAt[s.activeSetId] : undefined
   );
@@ -181,10 +184,25 @@ export function useGuidedWorkout(onCompleteSet: (setId: string) => void): {
   const activeSet = useMemo(
     () =>
       describeGuidedSet(
-        { session, previousSessionSets, plannedSetValues },
+        {
+          session,
+          previousSessionSets,
+          plannedSetValues,
+          exerciseConfigs,
+          weightUnit,
+          workoutFormat,
+        },
         activeSetId
       ),
-    [session, previousSessionSets, plannedSetValues, activeSetId]
+    [
+      session,
+      previousSessionSets,
+      plannedSetValues,
+      exerciseConfigs,
+      weightUnit,
+      workoutFormat,
+      activeSetId,
+    ]
   );
 
   // Latest render values for the long-lived ticker and store subscription.

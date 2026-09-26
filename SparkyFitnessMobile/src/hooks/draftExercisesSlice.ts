@@ -33,6 +33,7 @@ export type ExerciseProgressionPatch = {
   incrementType?: 'weight' | 'reps' | null;
   incrementValue?: number | null;
   equipmentBrand?: string | null;
+  rampIncrement?: number | null;
 };
 
 export type DraftExercisesAction =
@@ -119,6 +120,7 @@ export function draftExercisesReducer(
           incrementType: 'weight',
           incrementValue: 5,
           equipmentBrand: null,
+          rampIncrement: null,
           sets: [
             {
               clientId: action.setClientId,

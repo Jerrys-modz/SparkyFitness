@@ -273,7 +273,13 @@
       "incrementReps": "Increment (Reps)",
       "incrementWeight": "Increment ({{unit}})",
       "equipmentBrand": "Equipment / Machine Brand",
-      "equipmentBrandPlaceholder": "e.g. Hammer Strength, Cable Stack"
+      "equipmentBrandPlaceholder": "e.g. Hammer Strength, Cable Stack",
+      "rampTitle": "Add per set (this workout)",
+      "rampUp": "Up",
+      "rampDown": "Down",
+      "rampAmountLabel": "Weight added per set ({{unit}})",
+      "rampPlaceholder": "Off ({{unit}})",
+      "rampHint": "Each working set after the first pre-fills this much heavier (or lighter) in the same workout. Warm-up and drop sets are skipped."
     },
     "liveActivity": {
       "rest": "Rest",

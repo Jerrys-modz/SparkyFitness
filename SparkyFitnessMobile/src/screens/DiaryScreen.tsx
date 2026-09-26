@@ -80,7 +80,11 @@ import {
   getHistoricalMealTypeLabel,
   getMealTypeDisplayLabel,
 } from '../utils/mealNutrition';
-import { makeDefaultStartSet } from '../utils/workoutSession';
+import {
+  liveExerciseConfigFromPreset,
+  makeDefaultStartSet,
+} from '../utils/workoutSession';
+import type { LiveExerciseConfig } from '../utils/workoutSession';
 import {
   setNativeHeaderDatePickerOptions,
   type NativeHeaderDatePickerNavigation,
@@ -337,6 +341,9 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           ) || [assignment];
 
       const startExercises: PresetSessionExerciseRequest[] = [];
+      // Positional with startExercises: the preset's progression/ramp
+      // settings, which the server session doesn't carry.
+      const startConfigs: LiveExerciseConfig[] = [];
 
       for (let i = 0; i < sessionAssignments.length; i++) {
         const a = sessionAssignments[i]!;
@@ -357,6 +364,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 ex.modality,
                 ex.category
               );
+              startConfigs.push(liveExerciseConfigFromPreset(ex));
               startExercises.push({
                 exercise_id: ex.exercise_id,
                 sort_order: startExercises.length,
@@ -388,6 +396,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           }
         } else if (a.exercise_id) {
           const modality = resolveExerciseModality(a.modality, a.category);
+          startConfigs.push(liveExerciseConfigFromPreset({}));
           startExercises.push({
             exercise_id: a.exercise_id,
             sort_order: startExercises.length,
@@ -436,6 +445,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       await startLiveWorkout({
         name: sessionName,
         exercises: startExercises,
+        exerciseConfigs: startConfigs,
         sourcePresetId: singlePresetId,
         workoutPlanAssignmentId: assignment.id
           ? Number(assignment.id)

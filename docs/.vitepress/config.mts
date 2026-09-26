@@ -157,6 +157,7 @@ export default defineConfig({
             { text: 'Exercise Search', link: '/features/exercises/exercise-search' },
             { text: 'Interval & WOD Workouts', link: '/features/exercises/interval-wod-workouts' },
             { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
+            { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
           ],
         },
         {
