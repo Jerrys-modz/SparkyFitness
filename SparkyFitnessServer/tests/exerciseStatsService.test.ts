@@ -287,6 +287,8 @@ describe('exerciseStatsService', () => {
       await exerciseStatsService.queryExerciseActivities('user-123', {
         page: 1,
         pageSize: 10,
+        sortBy: 'entry_date',
+        sortOrder: 'desc',
         unitSystem: 'metric',
       });
 
