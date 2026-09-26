@@ -6,6 +6,7 @@ import {
   aesEncryptAsync,
 } from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import { addLog } from '../services/LogService';
 import WatchConnectivity, {
   type WatchHeartRateSamplePayload,
 } from '../../modules/watch-connectivity';
@@ -36,7 +37,91 @@ export function setWatchTelemetryAccountSwitchHandler(
   };
 }
 
-export function notifyWatchTelemetryAccountSwitch(): void {
+// Configs whose telemetry must be purged because the signed-in identity
+// changed. Module state, so the purge is queued even when the bridge is not
+// mounted or has not learned its owner yet. A config leaves the set only
+// when its purge succeeded.
+const pendingPurges = new Set<string>();
+let purgeRun: Promise<boolean> | null = null;
+
+/**
+ * Purges every pending config. Resolves false when any purge failed; those
+ * stay pending. Restore must not read or replay anything until this has
+ * resolved true with nothing left pending.
+ */
+function runPendingWatchTelemetryPurges(): Promise<boolean> {
+  if (purgeRun) return purgeRun;
+  const run = (async (): Promise<boolean> => {
+    let purgedAll = true;
+    for (const ownerId of [...pendingPurges]) {
+      try {
+        await deleteWatchTelemetryForConfig(ownerId);
+        pendingPurges.delete(ownerId);
+      } catch (error) {
+        purgedAll = false;
+        addLog(
+          `Watch telemetry purge on account switch failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          'WARNING'
+        );
+      }
+    }
+    return purgedAll;
+  })();
+  purgeRun = run;
+  void run.finally(() => {
+    if (purgeRun === run) purgeRun = null;
+  });
+  return run;
+}
+
+// Resolves once every identity change so far has put its configs in
+// `pendingPurges`. The ids are read asynchronously, and restore must not
+// start before they are known.
+let identityChangesQueued: Promise<void> = Promise.resolve();
+
+/**
+ * Resolves true once every config named by an identity change so far has
+ * been purged. False means a purge failed; restore must stop and retry.
+ */
+export async function settleWatchTelemetryPurges(): Promise<boolean> {
+  await identityChangesQueued;
+  while (pendingPurges.size > 0) {
+    if (!(await runPendingWatchTelemetryPurges())) return false;
+  }
+  return true;
+}
+
+/**
+ * Telemetry is keyed by server config, not by person, and the next account
+ * may use the same config. Purges the named configs' saved buffers and
+ * queued batches so they are not restored or posted under the new
+ * account's credentials. The bridge drops what it holds synchronously; the
+ * ids may still be loading, and restore waits for them.
+ */
+export function notifyWatchTelemetryAccountSwitch(
+  configIds: Iterable<string> | Promise<Iterable<string>>
+): void {
+  const queued = Promise.resolve(configIds).then(
+    (ids) => {
+      for (const id of ids) {
+        if (id) pendingPurges.add(id);
+      }
+    },
+    (error: unknown) => {
+      addLog(
+        `Could not read configs to purge watch telemetry: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        'WARNING'
+      );
+    }
+  );
+  identityChangesQueued = Promise.all([identityChangesQueued, queued]).then(
+    () => undefined
+  );
+  void queued.then(() => runPendingWatchTelemetryPurges());
   onAccountSwitch?.();
 }
 

@@ -11,6 +11,7 @@ import {
 import {
   clearServerConfigCache,
   setOnServerConfigDeleted,
+  takeIdentityChangeServerConfigIds,
 } from '../services/storage';
 import type { ServerConfig } from '../services/storage';
 import { addLog } from '../services/LogService';
@@ -51,7 +52,11 @@ export function useAuth() {
     // Everything cached under the previous account has to go, or the new one
     // reads it until each query happens to refetch.
     setOnIdentityChanged(async () => {
-      notifyWatchTelemetryAccountSwitch();
+      // Watch telemetry is kept per config, so every config the old identity
+      // may have used is purged: the ones switched away from, captured
+      // before the switch, and the active one. The bridge drops its memory
+      // now; restore waits until the ids are read and purged.
+      notifyWatchTelemetryAccountSwitch(takeIdentityChangeServerConfigIds());
       queryClient.clear();
       // The multi-select food basket store is the same kind of identity-
       // carrying global as the caches and the cookie jar below: it holds the

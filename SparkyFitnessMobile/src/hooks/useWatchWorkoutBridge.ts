@@ -25,10 +25,10 @@ import {
   type WorkoutCelebration,
 } from '../utils/workoutCelebration';
 import {
-  deleteWatchTelemetryForConfig,
   mergeWatchTelemetry,
   readWatchTelemetry,
   setWatchTelemetryAccountSwitchHandler,
+  settleWatchTelemetryPurges,
   writeWatchTelemetry,
   type WatchTelemetrySessionState,
 } from '../utils/watchTelemetryPersistence';
@@ -185,38 +185,6 @@ export function useWatchWorkoutBridge(
   // account switch cannot land this snapshot in the next account's key.
   const ownerRef = useRef<string | null>(null);
   const [accountEpoch, setAccountEpoch] = useState(0);
-  // Configs whose telemetry must be purged after an account switch, and the
-  // purge running now. Restore waits until the set is empty, so the next
-  // account cannot read or replay what is still waiting to be removed. A
-  // config leaves the set only when its purge succeeded.
-  const pendingPurgesRef = useRef<Set<string>>(new Set());
-  const purgeRunRef = useRef<Promise<boolean> | null>(null);
-  const runPendingPurges = useCallback((): Promise<boolean> => {
-    if (purgeRunRef.current) return purgeRunRef.current;
-    const run = (async (): Promise<boolean> => {
-      let purgedAll = true;
-      for (const ownerId of [...pendingPurgesRef.current]) {
-        try {
-          await deleteWatchTelemetryForConfig(ownerId);
-          pendingPurgesRef.current.delete(ownerId);
-        } catch (error) {
-          purgedAll = false;
-          addLog(
-            `Watch telemetry purge on account switch failed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-            'WARNING'
-          );
-        }
-      }
-      return purgedAll;
-    })();
-    purgeRunRef.current = run;
-    void run.finally(() => {
-      if (purgeRunRef.current === run) purgeRunRef.current = null;
-    });
-    return run;
-  }, []);
   // Set while replay applies the native queue. Batches then collect their
   // acks here instead of each writing the whole buffer and acking alone;
   // replay writes once and acks them together.
@@ -815,15 +783,15 @@ export function useWatchWorkoutBridge(
     };
 
     const attemptRestore = async (): Promise<void> => {
-      // A switch added while a purge ran is picked up by the next pass.
-      while (pendingPurgesRef.current.size > 0) {
-        const purged = await runPendingPurges();
-        if (cancelled) return;
-        if (!purged) {
+      // Nothing may be read or replayed until the previous identity's
+      // telemetry is gone.
+      if (!(await settleWatchTelemetryPurges())) {
+        if (!cancelled) {
           scheduleRetry("the previous account's telemetry could not be purged");
-          return;
         }
+        return;
       }
+      if (cancelled) return;
       let ownerId: string | null;
       try {
         ownerId = await getActiveServerConfigId();
@@ -920,26 +888,18 @@ export function useWatchWorkoutBridge(
       stopHydration?.();
       appStateSub.remove();
     };
-  }, [enabled, accountEpoch, runPendingPurges]);
+  }, [enabled, accountEpoch]);
 
   useEffect(() => {
     return setWatchTelemetryAccountSwitchHandler(() => {
-      // Telemetry is keyed by server config, not by person, and the next
-      // account may sign in to this same config. Drop the outgoing account's
-      // saved buffer and queued batches so they are not restored or posted
-      // under the new account's credentials. Unposted samples are lost; a
-      // person switching back does not get them either.
-      const outgoing = ownerRef.current;
-      if (outgoing) {
-        pendingPurgesRef.current.add(outgoing);
-        void runPendingPurges();
-      }
+      // The purge of the outgoing configs is already queued by the time this
+      // runs, and restore waits for it. Drop what memory holds.
       sessionsRef.current.clear();
       restoredRef.current = false;
       ownerRef.current = null;
       setAccountEpoch((epoch) => epoch + 1);
     });
-  }, [runPendingPurges]);
+  }, []);
 
   // Listeners stay on while offline so batches are not dropped. Attach
   // cannot succeed until the API is reachable, so retry the buffered series

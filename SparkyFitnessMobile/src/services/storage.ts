@@ -268,12 +268,44 @@ export const getAllServerConfigs = async (): Promise<ServerConfig[]> => {
 };
 
 /**
+ * Configs that stopped being active since the last identity change. Captured
+ * here, before the active id is overwritten, because every caller announces
+ * the identity change only after the switch, when the outgoing id is gone.
+ */
+const outgoingServerConfigIds = new Set<string>();
+
+const rememberOutgoingServerConfig = async (
+  nextId: string | null
+): Promise<void> => {
+  const current = await AsyncStorage.getItem(ACTIVE_SERVER_CONFIG_ID_KEY);
+  if (current && current !== nextId) outgoingServerConfigIds.add(current);
+};
+
+/**
+ * Every config whose data may belong to the identity that just changed: the
+ * configs switched away from, and the one active now (signing in again on
+ * the same config can be a different person). Clears the outgoing set.
+ */
+export const takeIdentityChangeServerConfigIds = async (): Promise<
+  string[]
+> => {
+  // Read before clearing, so a failed read keeps the outgoing ids for the
+  // next identity change.
+  const active = await AsyncStorage.getItem(ACTIVE_SERVER_CONFIG_ID_KEY);
+  const ids = new Set(outgoingServerConfigIds);
+  outgoingServerConfigIds.clear();
+  if (active) ids.add(active);
+  return [...ids];
+};
+
+/**
  * Sets a specific server configuration as the active one.
  */
 export const setActiveServerConfig = async (
   configId: string
 ): Promise<void> => {
   try {
+    await rememberOutgoingServerConfig(configId);
     await AsyncStorage.setItem(ACTIVE_SERVER_CONFIG_ID_KEY, configId);
     activeServerConfigCache = undefined;
   } catch (e) {
@@ -312,6 +344,7 @@ export const deleteServerConfig = async (configId: string): Promise<void> => {
 
     const activeId = await AsyncStorage.getItem(ACTIVE_SERVER_CONFIG_ID_KEY);
     if (activeId === configId) {
+      await rememberOutgoingServerConfig(null);
       await AsyncStorage.removeItem(ACTIVE_SERVER_CONFIG_ID_KEY);
     }
     // The config is already gone, so a failure here only leaves unreadable

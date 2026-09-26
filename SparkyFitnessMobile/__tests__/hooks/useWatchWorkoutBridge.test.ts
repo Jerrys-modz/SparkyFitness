@@ -1864,7 +1864,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
 
     // Same server config, different person: the config id does not change.
     await act(async () => {
-      notifyWatchTelemetryAccountSwitch();
+      notifyWatchTelemetryAccountSwitch([OWNER]);
     });
     await waitFor(() => {
       expect(mockPendingHeartRateBatches).toHaveBeenCalledTimes(2);
@@ -1922,7 +1922,7 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       getItem.mockClear();
 
       await act(async () => {
-        notifyWatchTelemetryAccountSwitch();
+        notifyWatchTelemetryAccountSwitch([OWNER]);
       });
       await waitFor(() => {
         expect(mockAddLog).toHaveBeenCalledWith(
@@ -1954,6 +1954,88 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
         addEventListener.mockImplementation(originalAddEventListener);
       }
     }
+  });
+
+  it('purges a config after an account switch even when the bridge is not running', async () => {
+    const previous: WatchTelemetrySessionState = {
+      samples: new Map([['ex-old', twoSamples]]),
+      energy: new Map([['ex-old', 7]]),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(['hr-old']),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: Date.now(),
+      attribution: null,
+    };
+    await writeWatchTelemetry(new Map([['session-old', previous]]), OWNER);
+    queuedHeartRateBatches.push(
+      stamp({
+        clientId: 'hr-queued-old',
+        sessionId: 'session-old',
+        exerciseEntryId: 'ex-old',
+        samples: twoSamples,
+      })
+    );
+
+    // No bridge mounted, so nothing knows the owner. The purge still runs
+    // for the config the identity change names.
+    notifyWatchTelemetryAccountSwitch([OWNER]);
+    await waitFor(() => {
+      expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-queued-old']);
+    });
+    expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+
+    renderHook(() => useWatchWorkoutBridge(true, true));
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('waits for the configs of an identity change before restoring', async () => {
+    const previous: WatchTelemetrySessionState = {
+      samples: new Map([['ex-old', twoSamples]]),
+      energy: new Map([['ex-old', 7]]),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(['hr-old']),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: Date.now(),
+      attribution: null,
+    };
+    await writeWatchTelemetry(new Map([['session-old', previous]]), OWNER);
+    mockAttachTelemetry.mockRejectedValue(new Error('offline'));
+    renderHook(() => useWatchWorkoutBridge(true, false));
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
+    mockPendingHeartRateBatches.mockClear();
+    mockAttachTelemetry.mockReset();
+    mockAttachTelemetry.mockResolvedValue(undefined);
+    const getItem = AsyncStorage.getItem as jest.Mock;
+    getItem.mockClear();
+
+    let releaseIds: (ids: string[]) => void = () => {};
+    const ids = new Promise<string[]>((resolve) => {
+      releaseIds = resolve;
+    });
+    await act(async () => {
+      notifyWatchTelemetryAccountSwitch(ids);
+    });
+    // The ids are still loading, so restore has not read anything yet.
+    expect(getItem).not.toHaveBeenCalledWith(BUFFER_KEY);
+    expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
+
+    await act(async () => {
+      releaseIds([OWNER]);
+    });
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
+    expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
   });
 
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {
