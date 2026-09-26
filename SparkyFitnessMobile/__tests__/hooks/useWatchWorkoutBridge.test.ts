@@ -1648,6 +1648,119 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     }
   });
 
+  it('holds a batch for a known session until the workout store has loaded', async () => {
+    jest.useFakeTimers();
+    const base = makeSession();
+    const session = makeSession({
+      exercises: [base.exercises[0], { ...base.exercises[0], id: 'ex-uuid-2' }],
+    });
+    const saved: WatchTelemetrySessionState = {
+      samples: new Map([['ex-uuid-1', twoSamples]]),
+      energy: new Map(),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(['hr-earlier']),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: null,
+      attribution: null,
+    };
+    await writeWatchTelemetry(new Map([['session-1', saved]]), OWNER);
+    let finishHydration: (() => void) | undefined;
+    const hasHydrated = jest
+      .spyOn(useActiveWorkoutStore.persist, 'hasHydrated')
+      .mockReturnValue(false);
+    const onFinishHydration = jest
+      .spyOn(useActiveWorkoutStore.persist, 'onFinishHydration')
+      .mockImplementation((listener) => {
+        finishHydration = () => listener(useActiveWorkoutStore.getState());
+        return () => undefined;
+      });
+    const later = [
+      { t: '2026-09-17T10:05:00.000Z', bpm: 131 },
+      { t: '2026-09-17T10:05:10.000Z', bpm: 135 },
+    ];
+    mockPendingHeartRateBatches.mockResolvedValue([
+      stamp({
+        clientId: 'hr-second-exercise',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-2',
+        samples: later,
+      }),
+    ]);
+
+    try {
+      const view = renderHook(() => useWatchWorkoutBridge(true, false));
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10_000);
+      });
+      // Restore went ahead without the store. The session is known from the
+      // saved buffer, but not which exercises it has, so nothing is applied.
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+      expect(mockAckHeartRateBatches).not.toHaveBeenCalled();
+
+      hasHydrated.mockReturnValue(true);
+      await act(async () => {
+        getStore().startWorkout(session);
+        finishHydration?.();
+        await jest.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        await settleWatchTelemetryWrites();
+        await jest.advanceTimersByTimeAsync(0);
+      });
+      expect(mockAckHeartRateBatches).toHaveBeenCalledWith([
+        'hr-second-exercise',
+      ]);
+      const stored = await readWatchTelemetry(
+        (): WatchTelemetrySessionState => ({ ...saved, samples: new Map() }),
+        OWNER
+      );
+      expect(stored.get('session-1')?.samples.get('ex-uuid-2')).toEqual(later);
+      view.unmount();
+    } finally {
+      hasHydrated.mockRestore();
+      onFinishHydration.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('saves once and acks once when replaying a backlog', async () => {
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    mockPendingHeartRateBatches.mockResolvedValue(
+      [0, 1, 2].map((minute) =>
+        stamp({
+          clientId: `hr-backlog-${minute}`,
+          sessionId: 'session-1',
+          exerciseEntryId: 'ex-uuid-1',
+          samples: [
+            { t: `2026-09-17T10:0${minute}:00.000Z`, bpm: 120 + minute },
+            { t: `2026-09-17T10:0${minute}:10.000Z`, bpm: 125 + minute },
+          ],
+        })
+      )
+    );
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+
+    renderHook(() => useWatchWorkoutBridge(true, false));
+    await waitFor(() => {
+      expect(mockAckHeartRateBatches).toHaveBeenCalled();
+    });
+
+    expect(mockAckHeartRateBatches).toHaveBeenCalledTimes(1);
+    expect(mockAckHeartRateBatches).toHaveBeenCalledWith([
+      'hr-backlog-0',
+      'hr-backlog-1',
+      'hr-backlog-2',
+    ]);
+    const bufferWrites = (AsyncStorage.setItem as jest.Mock).mock.calls.filter(
+      ([key]) => key === BUFFER_KEY
+    );
+    expect(bufferWrites).toHaveLength(1);
+  });
+
   it('restores without the workout store when it never loads, and replays once it does', async () => {
     jest.useFakeTimers();
     let finishHydration: (() => void) | undefined;
