@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import Security
 import WatchConnectivity
 
 /// `WCSessionDelegate` extends `NSObjectProtocol`, which Swift only allows an
@@ -302,8 +303,16 @@ public class WatchConnectivityModule: Module {
         }
     }
 
-    /// Caller holds `heartRateAccess`.
+    /// Caller holds `heartRateAccess`. Reads the keychain copy. A leftover
+    /// UserDefaults value is from before the queue was encrypted; it is moved
+    /// once and then deleted so backups stop carrying the samples.
     private func loadHeartRateQueue() {
+        if let data = heartRateQueueDataFromKeychain(),
+           let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            heartRateQueue = parsed.map { self.withQueueId($0) }
+            saveHeartRateQueue()
+            return
+        }
         guard
             let text = UserDefaults.standard.string(forKey: heartRateQueueKey),
             let data = text.data(using: .utf8),
@@ -313,13 +322,53 @@ public class WatchConnectivityModule: Module {
         saveHeartRateQueue()
     }
 
-    /// Caller holds `heartRateAccess`.
+    /// Caller holds `heartRateAccess`. The item is ThisDeviceOnly, so it is
+    /// encrypted by the keychain and left out of backups.
     private func saveHeartRateQueue() {
-        guard
-            let data = try? JSONSerialization.data(withJSONObject: heartRateQueue),
-            let text = String(data: data, encoding: .utf8)
-        else { return }
-        UserDefaults.standard.set(text, forKey: heartRateQueueKey)
+        guard let data = try? JSONSerialization.data(withJSONObject: heartRateQueue) else {
+            return
+        }
+        var query = heartRateQueueQuery()
+        let status: OSStatus
+        if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
+            status = SecItemUpdate(
+                query as CFDictionary,
+                [
+                    kSecValueData as String: data,
+                    kSecAttrAccessible as String:
+                        kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+                ] as CFDictionary
+            )
+        } else {
+            query[kSecValueData as String] = data
+            query[kSecAttrAccessible as String] =
+                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            status = SecItemAdd(query as CFDictionary, nil)
+        }
+        guard status == errSecSuccess else {
+            NSLog("Watch heart-rate queue keychain write failed: %d", Int(status))
+            return
+        }
+        UserDefaults.standard.removeObject(forKey: heartRateQueueKey)
+    }
+
+    private func heartRateQueueQuery() -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "sparky.watchTelemetry",
+            kSecAttrAccount as String: heartRateQueueKey,
+        ]
+    }
+
+    private func heartRateQueueDataFromKeychain() -> Data? {
+        var query = heartRateQueueQuery()
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else {
+            return nil
+        }
+        return item as? Data
     }
 
     /// Same shape `sendEvent` used to build inline. Optional numbers are

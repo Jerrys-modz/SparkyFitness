@@ -1,7 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  AESEncryptionKey,
+  AESSealedData,
+  aesDecryptAsync,
+  aesEncryptAsync,
+} from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import type { WatchHeartRateSamplePayload } from '../../modules/watch-connectivity';
 
 const STORAGE_KEY = 'sparky.watchTelemetryBuffer';
+const KEY_STORE = 'sparky.watchTelemetryKey';
+const keyStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
 
 export interface WatchTelemetryAttribution {
   steps: { setId: string; exerciseEntryId: string }[];
@@ -312,7 +323,12 @@ export async function readWatchTelemetry(
   create: (entryDate: string | null) => WatchTelemetrySessionState
 ): Promise<Map<string, WatchTelemetrySessionState>> {
   const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  return deserializeWatchTelemetry(raw, create);
+  if (!raw) return new Map();
+  // A value written before encryption starts with '{'. Read it once; the
+  // next write replaces it with ciphertext.
+  const json = raw.startsWith('{') ? raw : await openSealed(raw);
+  if (!json) return new Map();
+  return deserializeWatchTelemetry(json, create);
 }
 
 let writeChain: Promise<void> = Promise.resolve();
@@ -333,11 +349,66 @@ export async function writeWatchTelemetry(
       await AsyncStorage.removeItem(STORAGE_KEY);
       return;
     }
-    await AsyncStorage.setItem(STORAGE_KEY, serialized);
+    await AsyncStorage.setItem(STORAGE_KEY, await seal(serialized));
   });
   writeChain = run.then(
     () => undefined,
     () => undefined
   );
   return run;
+}
+
+let keyPromise: Promise<AESEncryptionKey> | null = null;
+
+/**
+ * The buffer is a whole workout of samples, which is too large for
+ * SecureStore. The AES key lives in the keychain (and is not backed up);
+ * AsyncStorage holds only the ciphertext.
+ */
+function telemetryKey(): Promise<AESEncryptionKey> {
+  if (!keyPromise) {
+    keyPromise = loadOrCreateKey().catch((error) => {
+      keyPromise = null;
+      throw error;
+    });
+  }
+  return keyPromise;
+}
+
+async function loadOrCreateKey(): Promise<AESEncryptionKey> {
+  const existing = await SecureStore.getItemAsync(KEY_STORE, keyStoreOptions);
+  if (existing) return AESEncryptionKey.import(existing, 'base64');
+  const key = await AESEncryptionKey.generate();
+  await SecureStore.setItemAsync(
+    KEY_STORE,
+    await key.encoded('base64'),
+    keyStoreOptions
+  );
+  return key;
+}
+
+async function seal(plaintext: string): Promise<string> {
+  const key = await telemetryKey();
+  const sealed = await aesEncryptAsync(
+    new TextEncoder().encode(plaintext),
+    key
+  );
+  const combined = await sealed.combined('base64');
+  if (typeof combined !== 'string') {
+    throw new Error('Watch telemetry seal was not base64');
+  }
+  return combined;
+}
+
+async function openSealed(stored: string): Promise<string | null> {
+  try {
+    const key = await telemetryKey();
+    const bytes = (await aesDecryptAsync(
+      AESSealedData.fromCombined(stored),
+      key
+    )) as Uint8Array;
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
 }

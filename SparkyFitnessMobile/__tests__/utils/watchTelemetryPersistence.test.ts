@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AESEncryptionKey, AESSealedData, aesDecryptAsync } from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import {
   deserializeWatchTelemetry,
   mergeWatchTelemetry,
+  readWatchTelemetry,
   serializeWatchTelemetry,
   writeWatchTelemetry,
   type WatchTelemetrySessionState,
@@ -229,6 +232,48 @@ describe('watchTelemetryPersistence', () => {
     expect(live.get('session-1')?.energy.get('ex-1')).toBe(9);
   });
 
+  it('stores ciphertext and reads it back', async () => {
+    await writeWatchTelemetry(
+      new Map([
+        [
+          'session-1',
+          session({
+            unposted: true,
+            energy: new Map([['ex-1', 4]]),
+          }),
+        ],
+      ])
+    );
+
+    const stored = await AsyncStorage.getItem('sparky.watchTelemetryBuffer');
+    expect(stored?.startsWith('{')).toBe(false);
+    const restored = await readWatchTelemetry(create);
+    expect(restored.get('session-1')?.energy.get('ex-1')).toBe(4);
+    expect(restored.get('session-1')?.unposted).toBe(true);
+  });
+
+  it('still reads a buffer written before encryption', async () => {
+    await AsyncStorage.setItem(
+      'sparky.watchTelemetryBuffer',
+      serializeWatchTelemetry(
+        new Map([
+          [
+            'session-1',
+            session({
+              samples: new Map([
+                ['ex-1', [{ t: '2026-09-25T15:00:00.000Z', bpm: 120 }]],
+              ]),
+              unposted: true,
+            }),
+          ],
+        ])
+      )
+    );
+
+    const restored = await readWatchTelemetry(create);
+    expect(restored.get('session-1')?.samples.get('ex-1')).toHaveLength(1);
+  });
+
   it('lets the later snapshot win when an earlier write is still in flight', async () => {
     const written: string[] = [];
     let release: () => void = () => {};
@@ -271,9 +316,21 @@ describe('watchTelemetryPersistence', () => {
       await second;
 
       expect(written).toHaveLength(2);
-      expect(JSON.parse(written[1])['session-1'].unposted).toBe(false);
+      const plain = await openStored(written[1]);
+      expect(written[1].includes('"unposted"')).toBe(false);
+      expect(JSON.parse(plain)['session-1'].unposted).toBe(false);
     } finally {
       setItem.mockRestore();
     }
   });
 });
+
+async function openStored(stored: string): Promise<string> {
+  const encoded = await SecureStore.getItemAsync('sparky.watchTelemetryKey');
+  const key = await AESEncryptionKey.import(encoded ?? '', 'base64');
+  const bytes = (await aesDecryptAsync(
+    AESSealedData.fromCombined(stored),
+    key
+  )) as Uint8Array;
+  return new TextDecoder().decode(bytes);
+}
