@@ -60,6 +60,17 @@ export const CardioSessionList = ({
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
   const [earlier, setEarlier] = useState<ExerciseActivityQueryItem[]>([]);
+  // Older pages belong to one account and date range. Drop them the moment
+  // either changes, so another selection's sessions are never shown or merged
+  // in, even by a parent that does not remount this list.
+  const selection = `${activeUserId ?? ''}|${startDate ?? ''}|${endDate ?? ''}|${unitSystem}`;
+  const [loadedFor, setLoadedFor] = useState(selection);
+  if (loadedFor !== selection) {
+    setLoadedFor(selection);
+    setPage(1);
+    setEarlier([]);
+    setOpenId(null);
+  }
   // Closing the session above the tap shortens the list, so the row jumps
   // up and the page looks like it scrolled down. Put the row back.
   const stickRow = useRef<{ el: HTMLElement; top: number } | null>(null);
