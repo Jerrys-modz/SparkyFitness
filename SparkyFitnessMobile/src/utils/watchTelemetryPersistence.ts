@@ -368,10 +368,10 @@ export async function readWatchTelemetry(
 }
 
 /**
- * Forgets the telemetry of a server config that was deleted: its saved
- * buffer, and the native-queue batches stamped with it. Nothing could post
- * them again, and they would otherwise sit in the queue until the cap
- * evicted them.
+ * Forgets a server config's telemetry: its saved buffer, and the native-queue
+ * batches stamped with it. Used when the config is deleted, and when the
+ * signed-in account changes, since the next account may use the same config
+ * and must not restore or post the previous account's samples.
  */
 export async function deleteWatchTelemetryForConfig(
   ownerId: string

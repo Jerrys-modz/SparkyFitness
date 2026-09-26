@@ -15,6 +15,7 @@ import {
 import { addLog } from '../../src/services/LogService';
 import {
   __resetWatchTelemetryKeyForTests,
+  notifyWatchTelemetryAccountSwitch,
   readWatchTelemetry,
   settleWatchTelemetryWrites,
   writeWatchTelemetry,
@@ -1703,6 +1704,61 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
         'WARNING'
       );
     });
+  });
+
+  it("purges the previous account's telemetry when the account changes on the same config", async () => {
+    const previous: WatchTelemetrySessionState = {
+      samples: new Map([['ex-old', twoSamples]]),
+      energy: new Map([['ex-old', 7]]),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(['hr-old']),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: Date.now(),
+      attribution: null,
+    };
+    await writeWatchTelemetry(new Map([['session-old', previous]]), OWNER);
+    // The server is unreachable, so the samples are still unposted when the
+    // account changes.
+    mockAttachTelemetry.mockRejectedValue(new Error('offline'));
+    const view = renderHook(
+      ({ connected }: { connected: boolean }) =>
+        useWatchWorkoutBridge(true, connected),
+      { initialProps: { connected: false } }
+    );
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
+    queuedHeartRateBatches.push(
+      stamp({
+        clientId: 'hr-queued-old',
+        sessionId: 'session-old',
+        exerciseEntryId: 'ex-old',
+        samples: twoSamples,
+      })
+    );
+    mockPendingHeartRateBatches.mockClear();
+    mockAttachTelemetry.mockReset();
+    mockAttachTelemetry.mockResolvedValue(undefined);
+
+    // Same server config, different person: the config id does not change.
+    await act(async () => {
+      notifyWatchTelemetryAccountSwitch();
+    });
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalledTimes(2);
+    });
+    await settleWatchTelemetryWrites();
+
+    expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+    expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-queued-old']);
+    expect(queuedHeartRateBatches).toHaveLength(0);
+    view.rerender({ connected: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
   });
 
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {
