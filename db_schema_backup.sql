@@ -2176,7 +2176,9 @@ CREATE TABLE public.exercise_preset_entries (
     created_by_user_id uuid,
     notes text,
     source text DEFAULT 'manual'::text NOT NULL,
-    location character varying(255)
+    location character varying(255),
+    workout_format character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    CONSTRAINT chk_exercise_preset_entries_format CHECK (((workout_format)::text = ANY ((ARRAY['standard'::character varying, 'interval'::character varying, 'tabata'::character varying, 'amrap'::character varying, 'emom'::character varying, 'for_time'::character varying])::text[])))
 );
 
 
@@ -2185,6 +2187,13 @@ CREATE TABLE public.exercise_preset_entries (
 --
 
 COMMENT ON COLUMN public.exercise_preset_entries.location IS 'Optional location or gym name for the workout session';
+
+
+--
+-- Name: COLUMN exercise_preset_entries.workout_format; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_preset_entries.workout_format IS 'Workout format of the source preset at the time the session was logged; not updated when the preset is edited or deleted';
 
 
 --
