@@ -260,13 +260,10 @@ export function useWatchWorkoutBridge(
       // be in that buffer. Mutating now lets mergeEnergy add it twice.
       // The native queue keeps it for the replay after the merge.
       if (!restoredRef.current) return;
-      // Queued for a different account. Leave it in the native queue so the
-      // account that owns it can replay it; acking would discard it.
-      if (
-        payload.ownerId &&
-        ownerRef.current &&
-        payload.ownerId !== ownerRef.current
-      ) {
+      // Another account's batch, or one whose account was never recorded.
+      // Leave it queued. Acking would discard it, and applying it would
+      // write it onto the account that happens to be signed in.
+      if (ownerRef.current && payload.ownerId !== ownerRef.current) {
         return;
       }
       const ackId = payload.clientId || payload.queueId;

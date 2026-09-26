@@ -105,6 +105,10 @@ public class WatchConnectivityModule: Module {
     private let heartRateQueueBatchLimit = 360
     private let heartRateQueueByteLimit = 1_048_576
     private var telemetryOwnerId = ""
+    /// Ownerless batches loaded before any account was known. They must not
+    /// be claimed by whichever account opens the app next.
+    private var unclassifiedBatchIds = Set<String>()
+    private let telemetryOwnerAccount = "sparky.watchTelemetryOwner"
     private var heartRateQueue: [[String: Any]] = []
     private var heartRateQueueNeedsSave = false
     /// The watch callback and this module's queue both touch `heartRateQueue`.
@@ -174,9 +178,10 @@ public class WatchConnectivityModule: Module {
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in
                 guard let self else { return }
-                let event = self.heartRateEvent(from: payload)
-                self.heartRateAccess.sync {
+                let event: [String: Any] = self.heartRateAccess.sync {
+                    let event = self.heartRateEvent(from: payload)
                     self.rememberHeartRateBatch(event)
+                    return event
                 }
                 self.sendEvent("onHeartRateBatch", event)
             }
@@ -281,29 +286,28 @@ public class WatchConnectivityModule: Module {
             }
         }
 
-        /// The account that owns batches queued from now on. Batches already
-        /// queued without an owner are stamped with the previous account so
-        /// a switch cannot replay them into the new one.
+        /// The account that owns batches queued from now on. The id is also
+        /// stored in the keychain, so a relaunch can still tell a queued
+        /// batch from the account that opens the app next. A batch whose
+        /// owner was never known is left unmarked.
         Function("setTelemetryOwner") { (ownerId: String) in
             self.heartRateAccess.sync {
                 let next = ownerId
-                if !self.telemetryOwnerId.isEmpty, self.telemetryOwnerId != next {
-                    var changed = false
-                    self.heartRateQueue = self.heartRateQueue.map { event in
-                        var copy = event
-                        let owner = copy["ownerId"] as? String ?? ""
-                        if owner.isEmpty {
-                            copy["ownerId"] = self.telemetryOwnerId
-                            changed = true
-                        }
-                        return copy
-                    }
-                    if changed {
+                let previous = self.telemetryOwnerId
+                if previous != next {
+                    let stamp = previous.isEmpty ? next : previous
+                    if self.stampOwnerlessBatches(
+                        with: stamp,
+                        excluding: self.unclassifiedBatchIds
+                    ) {
                         self.heartRateQueueNeedsSave = true
                         _ = self.saveHeartRateQueue()
                     }
                 }
-                self.telemetryOwnerId = next
+                if self.telemetryOwnerId != next {
+                    self.telemetryOwnerId = next
+                    self.saveTelemetryOwner()
+                }
             }
         }
 
@@ -349,6 +353,8 @@ public class WatchConnectivityModule: Module {
     /// UserDefaults value is from before the queue was encrypted; it is moved
     /// once and then deleted so backups stop carrying the samples.
     private func loadHeartRateQueue() {
+        loadTelemetryOwner()
+        defer { classifyLoadedQueue() }
         if let data = heartRateQueueDataFromKeychain(),
            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             heartRateQueue = parsed.map { self.withQueueId($0) }
@@ -404,6 +410,89 @@ public class WatchConnectivityModule: Module {
         return true
     }
 
+    /// Caller holds `heartRateAccess`. The account id is ThisDeviceOnly, same
+    /// as the queue, so a relaunch can still tell whose batches these were.
+    private func loadTelemetryOwner() {
+        var query = heartRateQueueQuery()
+        query[kSecAttrAccount as String] = telemetryOwnerAccount
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data,
+              let text = String(data: data, encoding: .utf8),
+              !text.isEmpty
+        else { return }
+        telemetryOwnerId = text
+    }
+
+    /// Caller holds `heartRateAccess`.
+    private func saveTelemetryOwner() {
+        let data = Data(telemetryOwnerId.utf8)
+        var query = heartRateQueueQuery()
+        query[kSecAttrAccount as String] = telemetryOwnerAccount
+        let status: OSStatus
+        if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
+            status = SecItemUpdate(
+                query as CFDictionary,
+                [
+                    kSecValueData as String: data,
+                    kSecAttrAccessible as String:
+                        kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+                ] as CFDictionary
+            )
+        } else {
+            query[kSecValueData as String] = data
+            query[kSecAttrAccessible as String] =
+                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            status = SecItemAdd(query as CFDictionary, nil)
+        }
+        if status != errSecSuccess {
+            NSLog("Watch telemetry owner keychain write failed: %d", Int(status))
+        }
+    }
+
+    /// Caller holds `heartRateAccess`. A batch loaded with no owner, before
+    /// any account was saved, stays unmarked. Anything queued under the
+    /// saved account gets that account, including a batch that missed its
+    /// stamp because the process died first.
+    private func classifyLoadedQueue() {
+        if telemetryOwnerId.isEmpty {
+            for event in heartRateQueue where (event["ownerId"] as? String ?? "").isEmpty {
+                unclassifiedBatchIds.insert(batchIdentity(event))
+            }
+            return
+        }
+        if stampOwnerlessBatches(with: telemetryOwnerId, excluding: []) {
+            heartRateQueueNeedsSave = true
+            _ = saveHeartRateQueue()
+        }
+    }
+
+    /// Caller holds `heartRateAccess`. Returns whether any batch changed.
+    private func stampOwnerlessBatches(
+        with owner: String,
+        excluding: Set<String>
+    ) -> Bool {
+        guard !owner.isEmpty else { return false }
+        var changed = false
+        heartRateQueue = heartRateQueue.map { event in
+            var copy = event
+            if !(copy["ownerId"] as? String ?? "").isEmpty { return copy }
+            if excluding.contains(batchIdentity(copy)) { return copy }
+            copy["ownerId"] = owner
+            changed = true
+            return copy
+        }
+        return changed
+    }
+
+    private func batchIdentity(_ event: [String: Any]) -> String {
+        let clientId = event["clientId"] as? String ?? ""
+        if !clientId.isEmpty { return "c:" + clientId }
+        return "q:" + (event["queueId"] as? String ?? "")
+    }
+
     private func heartRateQueueQuery() -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
@@ -423,8 +512,9 @@ public class WatchConnectivityModule: Module {
         return item as? Data
     }
 
-    /// Same shape `sendEvent` used to build inline. Optional numbers are
-    /// omitted rather than stored as null so the queue survives JSON.
+    /// Caller holds `heartRateAccess`. Optional numbers are omitted rather
+    /// than stored as null so the queue survives JSON. The owner id is read
+    /// here so it cannot change between the stamp and the queue insert.
     private func heartRateEvent(from payload: [String: Any]) -> [String: Any] {
         var event: [String: Any] = [
             "clientId": payload["clientId"] as? String ?? "",
