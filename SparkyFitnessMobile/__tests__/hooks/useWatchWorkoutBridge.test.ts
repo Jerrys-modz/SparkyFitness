@@ -1200,8 +1200,44 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     );
   });
 
-  it('logs a batch for a session it has no record of instead of dropping it silently', () => {
+  it('leaves an unknown-session batch queued until restore has finished', async () => {
+    let releaseRead: (value: string | null) => void = () => {};
+    const gate = new Promise<string | null>((resolve) => {
+      releaseRead = resolve;
+    });
+    (AsyncStorage.getItem as jest.Mock).mockImplementationOnce(() => gate);
+    const batch = {
+      clientId: 'hr-early',
+      sessionId: 'session-unknown',
+      exerciseEntryId: 'ex-uuid-9',
+      samples: twoSamples,
+    };
+    mockPendingHeartRateBatches.mockResolvedValue([batch]);
+
+    renderHook(() => useWatchWorkoutBridge(true, true));
+    act(() => {
+      fire('onHeartRateBatch', batch);
+    });
+    expect(mockAckHeartRateBatches).not.toHaveBeenCalled();
+
+    await act(async () => {
+      releaseRead(null);
+    });
+    await waitFor(() => {
+      expect(mockAckHeartRateBatches).toHaveBeenCalledWith(['hr-early']);
+    });
+    expect(mockAddLog).not.toHaveBeenCalledWith(
+      expect.stringContaining('unknown session'),
+      'WARNING',
+      expect.any(Array)
+    );
+  });
+
+  it('logs a batch for a session it has no record of instead of dropping it silently', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
     act(() => {
       fire('onHeartRateBatch', {
         clientId: 'hr-stranger',

@@ -150,6 +150,10 @@ export function useWatchWorkoutBridge(
   const flushHeartRateRef = useRef<() => Promise<void>>(() =>
     Promise.resolve()
   );
+  // False until the saved buffer has been merged. A batch for a session that
+  // is not live yet has to stay in the native queue so that replay can apply
+  // it; acking it here drops samples the restore has not loaded.
+  const restoredRef = useRef(false);
 
   // Drops ended sessions that have nothing left to post and are past the
   // retention window, then the oldest ended ones beyond the cap. A live
@@ -253,6 +257,7 @@ export function useWatchWorkoutBridge(
       let session = sessionsRef.current.get(payload.sessionId);
       if (session == null) {
         if (!restore && payload.sessionId !== liveState.sessionId) {
+          if (!restoredRef.current) return;
           // Neither live nor one this phone tracked — a workout from before
           // an app restart, or one evicted after the retention window.
           // Ack it. Leaving it in the native queue makes the next launch
@@ -467,7 +472,7 @@ export function useWatchWorkoutBridge(
     }
     syncPendingRef.current();
     pruneSessions();
-    void writeWatchTelemetry(sessionsRef.current);
+    void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
   }, [pruneSessions]);
 
   const handleWorkoutStop = useCallback(
@@ -562,6 +567,7 @@ export function useWatchWorkoutBridge(
     if (!enabled || !WatchConnectivity || !WatchConnectivity.isSupported())
       return;
     let cancelled = false;
+    restoredRef.current = false;
     void (async () => {
       let saved: Awaited<ReturnType<typeof readWatchTelemetry>>;
       try {
@@ -593,10 +599,12 @@ export function useWatchWorkoutBridge(
           session.endedAt = Date.now();
         }
       }
+      if (cancelled) return;
+      restoredRef.current = true;
       // A live batch that landed before this read saved a snapshot without
       // these sessions. Write the merge even when there is nothing to post,
       // or a kill here drops the stored samples.
-      void writeWatchTelemetry(sessionsRef.current);
+      void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
       if (shouldFlush) {
         syncPendingRef.current();
         void handlersRef.current.flushHeartRate();
@@ -645,7 +653,7 @@ export function useWatchWorkoutBridge(
         // Restore may have marked it ended before the store rehydrated.
         if (existing.endedAt != null) {
           existing.endedAt = null;
-          void writeWatchTelemetry(sessionsRef.current);
+          void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
         }
         return;
       }
