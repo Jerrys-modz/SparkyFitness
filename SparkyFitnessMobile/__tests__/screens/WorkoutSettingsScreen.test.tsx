@@ -110,6 +110,37 @@ describe('WorkoutSettingsScreen', () => {
     );
   });
 
+  it('shows guided workout options only once guided mode is on', async () => {
+    const Speech = require('expo-speech');
+    const { AppState } = require('react-native');
+    Object.defineProperty(AppState, 'currentState', {
+      get: () => 'active',
+      configurable: true,
+    });
+    const { getAllByRole, getAllByText, getByText, queryByText } =
+      renderScreen();
+    expect(queryByText('Speech rate')).toBeNull();
+
+    const guidedToggle = getAllByRole('switch')[2];
+    expect(guidedToggle.props.value).toBe(false);
+    await act(async () => {
+      fireEvent(guidedToggle, 'valueChange', true);
+    });
+    expect(useAppPreferencesStore.getState().guidedWorkoutEnabled).toBe(true);
+
+    // Each row title also heads its picker sheet.
+    expect(getAllByText('Voice').length).toBeGreaterThan(0);
+    expect(getAllByText('Speech rate').length).toBeGreaterThan(0);
+    expect(getAllByText('Get-ready countdown').length).toBeGreaterThan(0);
+    expect(Speech.getAvailableVoicesAsync).toHaveBeenCalled();
+
+    fireEvent.press(getByText('Test voice'));
+    expect(Speech.speak).toHaveBeenCalledWith(
+      'This is how your guided workouts will sound.',
+      expect.objectContaining({ rate: 1 })
+    );
+  });
+
   it('localizes the Polish labels and rest accessibility fallback', async () => {
     const {
       default: i18n,

@@ -1,6 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
+  ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
@@ -12,7 +13,10 @@ import type { FoodFormData } from '../components/FoodForm';
 import type { SaveFoodPayload } from '../services/api/foodsApi';
 import type { CompletedSetMap, PrSetMap } from '../stores/activeWorkoutStore';
 import type { MealTypeKey } from '../utils/mealNutrition';
-import type { AssumedSetValues } from '../utils/workoutSession';
+import type {
+  AssumedSetValues,
+  LiveExerciseConfig,
+} from '../utils/workoutSession';
 import type { PhotoType } from './checkInPhotos';
 import type { Exercise } from './exercise';
 import type { FamilyDiaryUser } from './familyDiary';
@@ -292,6 +296,11 @@ export type RootStackParamList = {
     sourcePresetId: number | null;
     sourceServerConfigId: string | null;
     plannedSetValues: Record<string, AssumedSetValues>;
+    // The rest of the live placeholder inputs, so the prompt can ignore
+    // values the ramp or progression filled in. Optional: older snapshots.
+    previousSessionSets?: Record<string, ExerciseRecentSessionSet[]>;
+    exerciseConfigs?: Record<string, LiveExerciseConfig>;
+    weightUnit?: 'kg' | 'lbs';
     workoutFormat?: WorkoutFormat;
     timeCapSeconds?: number | null;
     intervalRoundsCompleted?: number;

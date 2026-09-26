@@ -9,6 +9,7 @@ import RestPeriodSheet, {
 import { PickerTrigger } from '../components/BottomSheetPicker';
 import { formatRestLabel } from '../components/RestPeriodChip';
 import SettingsRow from '../components/SettingsRow';
+import GuidedWorkoutSettingsSection from '../components/GuidedWorkoutSettingsSection';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Switch from '../components/ui/Switch';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -128,6 +129,8 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
             />
           }
         />
+
+        <GuidedWorkoutSettingsSection />
       </ScrollView>
 
       <RestPeriodSheet ref={restSheetRef} onChange={setDefaultRestSec} />

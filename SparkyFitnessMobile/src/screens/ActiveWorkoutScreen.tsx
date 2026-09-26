@@ -47,6 +47,7 @@ import WorkoutDurationSheet, {
 } from '../components/WorkoutDurationSheet';
 import WorkoutReorderList from '../components/WorkoutReorderList';
 import ActiveWorkoutIntervalHud from '../components/ActiveWorkoutIntervalHud';
+import ActiveWorkoutGuidedCard from '../components/ActiveWorkoutGuidedCard';
 import ActiveWorkoutRenameModal from '../components/ActiveWorkoutRenameModal';
 import ActiveWorkoutLocationModal from '../components/ActiveWorkoutLocationModal';
 import ActiveWorkoutOverflowSheet, {
@@ -110,6 +111,9 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const metricColumn = useAppPreferencesStore(
     (s) => s.activeWorkoutMetricColumn
   );
+  const guidedWorkoutEnabled = useAppPreferencesStore(
+    (s) => s.guidedWorkoutEnabled
+  );
 
   const { preferences } = usePreferences();
   const weightUnit = (preferences?.default_weight_unit ?? 'kg') as 'kg' | 'lbs';
@@ -118,7 +122,10 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const { getImageSource } = useExerciseImageSource();
 
   const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
-  const { now } = useActiveWorkoutIntervalLifecycle(workoutFormat);
+  const { now } = useActiveWorkoutIntervalLifecycle(
+    workoutFormat,
+    guidedWorkoutEnabled
+  );
 
   const isFocused = useIsFocused();
   const [verifiedSourcePresetId, setVerifiedSourcePresetId] = useState<
@@ -749,7 +756,14 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         bottomOffset={80}
         disableScrollOnKeyboardHide
       >
-        <ActiveWorkoutIntervalHud now={now} />
+        <ActiveWorkoutIntervalHud now={now} getImageSource={getImageSource} />
+
+        {guidedWorkoutEnabled && workoutFormat === 'standard' && (
+          <ActiveWorkoutGuidedCard
+            getImageSource={getImageSource}
+            onCompleteSet={handleCompleteSet}
+          />
+        )}
 
         <ActiveWorkoutExerciseList
           session={session}

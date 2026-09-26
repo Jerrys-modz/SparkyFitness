@@ -8,12 +8,19 @@ import type {
   ExerciseSessionResponse,
   PresetSessionExerciseRequest,
   PresetSessionResponse,
+  ProgressionEvaluationResult,
+  WorkoutFormat,
 } from '@workspace/shared';
 import {
+  calculateRampedWeightKg,
+  distributeProgressionReps,
+  evaluateProgression,
   isCardioModality,
   isExerciseModality,
+  isWeightRampActive,
   resolveExerciseModality,
   setsDurationMinutes,
+  weightRampStepIndexes,
 } from '@workspace/shared';
 import type { IconName } from '../components/Icon';
 // Type-only, so the store's runtime import of this module stays acyclic.
@@ -701,6 +708,8 @@ export interface WorkoutCardExercise {
   increment_type?: 'weight' | 'reps' | null;
   increment_value?: number | null;
   equipment_brand?: string | null;
+  /** Within-session per-set ramp, kg. Null = off. */
+  ramp_increment?: number | null;
 }
 
 /**
@@ -724,6 +733,7 @@ export function draftExerciseToCardExercise(
     increment_type: exercise.incrementType ?? 'weight',
     increment_value: exercise.incrementValue ?? 5,
     equipment_brand: exercise.equipmentBrand ?? null,
+    ramp_increment: exercise.rampIncrement ?? null,
     exercise_snapshot: exercise.snapshot ?? {
       name: exercise.exerciseName,
       category: exercise.exerciseCategory,
@@ -766,6 +776,7 @@ export function presetExerciseToCardExercise(
     increment_type: exercise.increment_type ?? 'weight',
     increment_value: exercise.increment_value ?? 5,
     equipment_brand: exercise.equipment_brand ?? null,
+    ramp_increment: exercise.ramp_increment ?? null,
     exercise_snapshot: {
       name: exercise.exercise_name,
       category: exercise.category ?? null,
@@ -891,6 +902,27 @@ type AssumableSet = Pick<
   'id' | 'set_type' | 'weight' | 'reps' | 'duration' | 'distance'
 >;
 
+/** Optional adjustments layered onto the placeholder resolution. */
+export interface AssumedSetOverrides {
+  /**
+   * Kg added to each working set's prior weight when between-session
+   * progression says to go up (weight-progression overload is active).
+   */
+  progressionIncrementKg?: number | null;
+  /**
+   * Rep targets per working set (warm-ups not counted) when progression
+   * raised reps; they replace each working set's history/plan reps.
+   */
+  progressionRepTargets?: readonly number[] | null;
+  /**
+   * Within-session ramp, kg per step. Working sets after the first step from
+   * the first working set's placeholder; see {@link resolveAssumedSetValues}.
+   */
+  rampIncrementKg?: number | null;
+  /** Display unit the ramp rounds in (0.25 kg / 2.5 lb). Defaults to kg. */
+  weightUnit?: 'kg' | 'lbs';
+}
+
 /**
  * Resolve the assumed (placeholder) weight/reps for every set of one exercise
  * in a live workout. Each field resolves independently, first match wins:
@@ -903,13 +935,26 @@ type AssumableSet = Pick<
  *   2. The planned value captured at live start (the preset's programmed set).
  *   3. The preceding row's effective value — its entered value, else its
  *      resolved placeholder.
+ *
+ * With a ramp, the first ramp-eligible set (working or failure — warm-ups and
+ * drop sets are skipped) resolves as above and becomes the base; each later
+ * eligible set's weight is base + step × increment, rounded to a loadable
+ * weight. The base is the first set's *placeholder*, never what was typed or
+ * logged into it, so lifting heavier on set 1 does not move later sets.
  */
 export function resolveAssumedSetValues(
   sets: readonly AssumableSet[],
   previousSets: readonly ExerciseRecentSessionSet[] | undefined,
   plannedBySetId?: Record<string, AssumedSetValues>,
-  progressionIncrementKg?: number | null
+  overrides?: AssumedSetOverrides
 ): AssumedSetValues[] {
+  const progressionIncrementKg = overrides?.progressionIncrementKg;
+  const rampIncrementKg = overrides?.rampIncrementKg;
+  const rampSteps = isWeightRampActive(rampIncrementKg)
+    ? weightRampStepIndexes(sets)
+    : null;
+  let rampBaseKg: number | null = null;
+  let workingIndex = 0;
   const lastEffective = {
     warmup: {
       weight: null,
@@ -938,12 +983,35 @@ export function resolveAssumedSetValues(
         ? previous.weight + progressionIncrementKg
         : previous?.weight;
 
+    let weight =
+      effectivePreviousWeight ?? planned?.weight ?? lastEffective[tier].weight;
+    const rampStep = rampSteps?.[index] ?? null;
+    if (rampStep === 0) {
+      rampBaseKg = weight != null && weight > 0 ? weight : null;
+    } else if (
+      rampStep != null &&
+      rampBaseKg != null &&
+      isWeightRampActive(rampIncrementKg)
+    ) {
+      weight = calculateRampedWeightKg(
+        rampBaseKg,
+        rampStep,
+        rampIncrementKg,
+        overrides?.weightUnit ?? 'kg'
+      );
+    }
+
+    const progressionReps =
+      tier === 'working'
+        ? overrides?.progressionRepTargets?.[workingIndex++]
+        : undefined;
     const assumed: AssumedSetValues = {
-      weight:
-        effectivePreviousWeight ??
-        planned?.weight ??
-        lastEffective[tier].weight,
-      reps: previous?.reps ?? planned?.reps ?? lastEffective[tier].reps,
+      weight,
+      reps:
+        progressionReps ??
+        previous?.reps ??
+        planned?.reps ??
+        lastEffective[tier].reps,
       duration:
         previous?.duration ??
         planned?.duration ??
@@ -964,15 +1032,183 @@ export function resolveAssumedSetValues(
 }
 
 /**
+ * The preset exercise settings a live workout needs but the server's session
+ * entries don't carry: between-session progression and the within-session
+ * ramp. Captured from the preset at live start, keyed by session exercise id.
+ * Increments that are weights are kg.
+ */
+export interface LiveExerciseConfig {
+  progression_mode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
+  rep_goal?: number | null;
+  increment_type?: 'weight' | 'reps' | null;
+  increment_value?: number | null;
+  equipment_brand?: string | null;
+  ramp_increment?: number | null;
+}
+
+/** Pick the live-relevant settings off a preset exercise. */
+export function liveExerciseConfigFromPreset(
+  exercise: Partial<LiveExerciseConfig>
+): LiveExerciseConfig {
+  return {
+    progression_mode: exercise.progression_mode ?? null,
+    rep_goal: exercise.rep_goal ?? null,
+    increment_type: exercise.increment_type ?? null,
+    increment_value:
+      exercise.increment_value != null
+        ? Number(exercise.increment_value)
+        : null,
+    equipment_brand: exercise.equipment_brand ?? null,
+    ramp_increment:
+      exercise.ramp_increment != null ? Number(exercise.ramp_increment) : null,
+  };
+}
+
+/**
+ * Positional live configs for {@link buildPresetStartExercisesPayload}'s
+ * exercises (same order), for `startWorkout` to key by session exercise id.
+ */
+export function buildPresetLiveExerciseConfigs(
+  preset: WorkoutPreset
+): LiveExerciseConfig[] {
+  return preset.exercises.map(liveExerciseConfigFromPreset);
+}
+
+type ProgressionPreviousSet = ExerciseRecentSessionSet & {
+  set_type?: string | null;
+};
+
+/**
+ * Evaluate between-session progression for one exercise against its most
+ * recent prior session. Null when the exercise has no rep goal and isn't in
+ * fixed mode (nothing configured). The engine works in the display unit, so
+ * weights and a weight increment (stored kg) are converted in.
+ */
+export function evaluateExerciseProgression(
+  config: LiveExerciseConfig,
+  sets: readonly Pick<WorkoutCardSet, 'set_type'>[],
+  previousSets: readonly ExerciseRecentSessionSet[] | undefined,
+  weightUnit: 'kg' | 'lbs'
+): ProgressionEvaluationResult | null {
+  if (!config.rep_goal && config.progression_mode !== 'fixed') return null;
+  const workingSets = sets.filter((s) => !isWarmupSetType(s.set_type));
+  const progressionMode = config.progression_mode ?? 'rep_goal';
+  const incrementType = config.increment_type ?? 'weight';
+  const incrementValue = config.increment_value ?? 2.5;
+  // Step-load always raises reps, so its increment is a count even when the
+  // stored increment_type says weight (the repository's default).
+  const incrementIsWeight =
+    incrementType === 'weight' && progressionMode !== 'step_load';
+  const workingPreviousSets = (previousSets ?? []).filter((s) => {
+    const setType = (s as ProgressionPreviousSet).set_type ?? s.setType;
+    return !isWarmupSetType(setType);
+  });
+  const firstWorking = workingPreviousSets[0];
+  return evaluateProgression(
+    {
+      progressionMode,
+      targetSets: workingSets.length || 3,
+      repGoal: config.rep_goal,
+      incrementType,
+      incrementValue: incrementIsWeight
+        ? weightFromKg(incrementValue, weightUnit)
+        : incrementValue,
+      equipmentBrand: config.equipment_brand ?? null,
+    },
+    workingPreviousSets.length > 0
+      ? {
+          baseWeight: firstWorking?.weight
+            ? weightFromKg(firstWorking.weight, weightUnit)
+            : 0,
+          sets: workingPreviousSets.map((s, idx) => ({
+            setNumber: idx + 1,
+            reps: s.reps ?? 0,
+            weight: s.weight ? weightFromKg(s.weight, weightUnit) : 0,
+          })),
+        }
+      : null
+  );
+}
+
+/** The kg bump placeholders take when progression says to add weight. */
+export function progressionIncrementKgFor(
+  config: LiveExerciseConfig,
+  result: ProgressionEvaluationResult | null
+): number | null {
+  return result?.goalAchieved && result.status === 'PROGRESSION_WEIGHT_INCREASE'
+    ? Number(config.increment_value) || 2.5
+    : null;
+}
+
+/** The live-start settings a placeholder resolves against. */
+export interface LiveAssumeSources {
+  plannedSetValues: Record<string, AssumedSetValues>;
+  exerciseConfigs?: Record<string, LiveExerciseConfig>;
+  weightUnit?: 'kg' | 'lbs';
+  workoutFormat?: WorkoutFormat;
+}
+
+/** {@link LiveAssumeSources} plus the history map, as the store holds it. */
+export interface AssumedValueSources extends LiveAssumeSources {
+  previousSessionSets: Record<string, ExerciseRecentSessionSet[]>;
+}
+
+/**
+ * {@link resolveAssumedSetValues} for one live session exercise with its
+ * progression bump and ramp applied — the single resolution the live row, a
+ * no-typing completion, the HUD and the rest notification all share, so what
+ * a row shows is what logging it records. The ramp is standard-format only:
+ * interval/WOD sets are clock-driven.
+ */
+export function resolveLiveAssumedSetValues(
+  exercise: Pick<WorkoutCardExercise, 'id' | 'sets'>,
+  previousSets: readonly ExerciseRecentSessionSet[] | undefined,
+  sources: LiveAssumeSources
+): AssumedSetValues[] {
+  const weightUnit = sources.weightUnit ?? 'kg';
+  const config = sources.exerciseConfigs?.[String(exercise.id)];
+  const progression =
+    config == null
+      ? null
+      : evaluateExerciseProgression(
+          config,
+          exercise.sets,
+          previousSets,
+          weightUnit
+        );
+  const progressionIncrementKg =
+    config == null ? null : progressionIncrementKgFor(config, progression);
+  const progressionRepTargets = distributeProgressionReps(
+    progression,
+    config?.progression_mode ?? 'rep_goal',
+    exercise.sets.filter((s) => !isWarmupSetType(s.set_type)).length
+  );
+  const rampIncrementKg =
+    (sources.workoutFormat ?? 'standard') === 'standard'
+      ? (config?.ramp_increment ?? null)
+      : null;
+  return resolveAssumedSetValues(
+    exercise.sets,
+    previousSets,
+    sources.plannedSetValues,
+    {
+      progressionIncrementKg,
+      progressionRepTargets,
+      rampIncrementKg,
+      weightUnit,
+    }
+  );
+}
+
+/**
  * {@link describeActiveSet} with empty weight/reps backfilled from
- * {@link resolveAssumedSetValues}, so the HUD bar and the rest-complete
+ * {@link resolveLiveAssumedSetValues}, so the HUD bar and the rest-complete
  * notification describe the set the user is assumed to perform.
  */
 export function describeActiveSetAssumed(
   session: PresetSessionResponse | null,
   setId: string | null,
-  previousSetsByExerciseId: Record<string, ExerciseRecentSessionSet[]>,
-  plannedBySetId: Record<string, AssumedSetValues>
+  sources: AssumedValueSources
 ): ActiveSetDescription | null {
   const desc = describeActiveSet(session, setId);
   if (desc == null || session == null) return desc;
@@ -985,10 +1221,10 @@ export function describeActiveSetAssumed(
     } else if (desc.weightKg != null && desc.reps != null) {
       return desc;
     }
-    const assumed = resolveAssumedSetValues(
-      exercise.sets,
-      historyForExercise(previousSetsByExerciseId, exercise.exercise_id),
-      plannedBySetId
+    const assumed = resolveLiveAssumedSetValues(
+      exercise,
+      historyForExercise(sources.previousSessionSets, exercise.exercise_id),
+      sources
     )[setIndex];
     if (isDurationModality(modality)) {
       return { ...desc, durationSec: assumed.duration ?? null };
@@ -1791,6 +2027,7 @@ export function buildPresetExercisesPayload(
         increment_type: exercise.incrementType ?? 'weight',
         increment_value: exercise.incrementValue ?? 5,
         equipment_brand: exercise.equipmentBrand ?? null,
+        ramp_increment: exercise.rampIncrement ?? null,
         sets: exercise.sets.map((set, setIndex) => {
           const weight = parseDecimalInput(set.weight);
           const reps = parseInt(set.reps, 10);
@@ -1839,6 +2076,7 @@ interface CanonicalPresetExercise {
   increment_type?: 'weight' | 'reps' | null;
   increment_value?: number | null;
   equipment_brand?: string | null;
+  ramp_increment?: number | null;
   sets: CanonicalPresetSet[];
 }
 
@@ -1846,19 +2084,84 @@ function canonicalDecimal(value: number | null): number | null {
   return value == null ? null : Number(value.toFixed(3));
 }
 
+/**
+ * A value the ramp or progression put into a set's placeholder, and what the
+ * set would have shown without them (the preset's own value when it has one).
+ */
+interface AutoAppliedSetValues {
+  weight: number | null;
+  reps: number | null;
+  presetWeight: number | null;
+  presetReps: number | null;
+}
+
+// Server weights are numeric(10,2), so an adopted 83.9146 kg reads back as
+// 83.91; anything within that rounding is the same value.
+function sameLoggedValue(logged: number | null, auto: number | null): boolean {
+  return logged != null && auto != null && Math.abs(logged - auto) < 0.01;
+}
+
+/**
+ * Per set of one exercise: the ramp/progression-applied placeholder values,
+ * found by resolving with and without them. Undefined where they changed
+ * nothing.
+ */
+function autoAppliedSetValues(
+  exercise: Pick<WorkoutCardExercise, 'id' | 'sets'> & {
+    exercise_id: string | null;
+  },
+  sources: AssumedValueSources
+): (AutoAppliedSetValues | undefined)[] {
+  const previous = historyForExercise(
+    sources.previousSessionSets,
+    exercise.exercise_id
+  );
+  const adjusted = resolveLiveAssumedSetValues(exercise, previous, sources);
+  const base = resolveAssumedSetValues(
+    exercise.sets,
+    previous,
+    sources.plannedSetValues
+  );
+  return exercise.sets.map((set, i) => {
+    const weight =
+      adjusted[i].weight !== base[i].weight ? adjusted[i].weight : null;
+    const reps = adjusted[i].reps !== base[i].reps ? adjusted[i].reps : null;
+    if (weight == null && reps == null) return undefined;
+    const planned = sources.plannedSetValues[String(set.id)];
+    return {
+      weight,
+      reps,
+      presetWeight: planned?.weight ?? base[i].weight,
+      presetReps: planned?.reps ?? base[i].reps,
+    };
+  });
+}
+
 function canonicalizeSessionSet(
   set: ExerciseEntrySetResponse,
   setNumber: number,
   modality: ExerciseModality,
   completed: boolean,
-  plannedValues: AssumedSetValues | undefined
+  plannedValues: AssumedSetValues | undefined,
+  autoApplied?: AutoAppliedSetValues
 ): CanonicalPresetSet {
   const planned = completed ? undefined : plannedValues;
+  // Logged exactly as the ramp or progression pre-filled it: not a change
+  // the lifter made, so it neither triggers the prompt nor overwrites the
+  // preset's stored value.
+  const weight =
+    autoApplied != null && sameLoggedValue(set.weight, autoApplied.weight)
+      ? autoApplied.presetWeight
+      : (set.weight ?? planned?.weight ?? null);
+  const reps =
+    autoApplied != null && sameLoggedValue(set.reps, autoApplied.reps)
+      ? autoApplied.presetReps
+      : (set.reps ?? planned?.reps ?? null);
   return {
     set_number: setNumber,
     set_type: set.set_type ?? 'normal',
-    reps: set.reps ?? planned?.reps ?? null,
-    weight: canonicalDecimal(set.weight ?? planned?.weight ?? null),
+    reps,
+    weight: canonicalDecimal(weight),
     duration: isDurationModality(modality)
       ? (set.duration ?? planned?.duration ?? null)
       : null,
@@ -1917,6 +2220,7 @@ function canonicalExercisesEqual(
     a.increment_type === b.increment_type &&
     a.increment_value === b.increment_value &&
     a.equipment_brand === b.equipment_brand &&
+    a.ramp_increment === b.ramp_increment &&
     a.sets.length === b.sets.length &&
     a.sets.every((set, i) => canonicalSetsEqual(set, b.sets[i]))
   );
@@ -1928,6 +2232,12 @@ export function buildPresetUpdateExercises(
   opts: {
     completedSetIds: CompletedSetMap;
     plannedSetValues: Record<string, AssumedSetValues>;
+    /**
+     * The live placeholder inputs, so values the ramp or progression filled
+     * in can be told apart from the lifter's own changes. Omitted: every
+     * difference from the preset counts.
+     */
+    assumeSources?: Omit<AssumedValueSources, 'plannedSetValues'>;
   }
 ): WorkoutPresetExercisePayload[] | null {
   // An exercise whose library row has been deleted cannot go into a preset at
@@ -1965,6 +2275,13 @@ export function buildPresetUpdateExercises(
       const matchedIdx = matchedPresetIndex[index];
       const matched = matchedIdx == null ? null : preset.exercises[matchedIdx];
       const rawMatched = matched as Partial<CanonicalPresetExercise> | null;
+      const autoApplied =
+        opts.assumeSources == null
+          ? undefined
+          : autoAppliedSetValues(exercise, {
+              ...opts.assumeSources,
+              plannedSetValues: opts.plannedSetValues,
+            });
       const [only] = exercise.sets;
       const untouchedFabricatedSet =
         matched != null &&
@@ -2000,6 +2317,9 @@ export function buildPresetUpdateExercises(
         ...(rawMatched?.equipment_brand
           ? { equipment_brand: rawMatched.equipment_brand }
           : {}),
+        ...(rawMatched?.ramp_increment != null
+          ? { ramp_increment: Number(rawMatched.ramp_increment) }
+          : {}),
         sets: untouchedFabricatedSet
           ? []
           : exercise.sets.map((set, setIndex) =>
@@ -2008,7 +2328,8 @@ export function buildPresetUpdateExercises(
                 setIndex + 1,
                 modality,
                 opts.completedSetIds[String(set.id)] != null,
-                opts.plannedSetValues[String(set.id)]
+                opts.plannedSetValues[String(set.id)],
+                autoApplied?.[setIndex]
               )
             ),
       };
@@ -2051,6 +2372,9 @@ export function buildPresetUpdateExercises(
           : {}),
         ...(rawExercise.equipment_brand
           ? { equipment_brand: rawExercise.equipment_brand }
+          : {}),
+        ...(rawExercise.ramp_increment != null
+          ? { ramp_increment: Number(rawExercise.ramp_increment) }
           : {}),
         sets: exercise.sets.map((set, setIndex) =>
           canonicalizePresetSet(set, setIndex + 1, modality)

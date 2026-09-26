@@ -102,7 +102,7 @@ export const logWorkoutPreset = async (
 
 export const createPresetSession = async (
   payload: CreatePresetSessionRequest
-): Promise<void> => {
+): Promise<PresetSessionResponse> => {
   return apiCall('/exercise-preset-entries', {
     method: 'POST',
     body: JSON.stringify(payload),

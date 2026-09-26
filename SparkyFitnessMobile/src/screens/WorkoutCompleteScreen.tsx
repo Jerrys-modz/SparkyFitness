@@ -71,6 +71,9 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     sourcePresetId,
     sourceServerConfigId,
     plannedSetValues,
+    previousSessionSets,
+    exerciseConfigs,
+    weightUnit: sessionWeightUnit,
     workoutFormat,
     timeCapSeconds,
     intervalRoundsCompleted,
@@ -142,12 +145,26 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     if (hasRecords) fireSuccessHaptic();
   }, [hasRecords]);
 
+  // Stable identity: the prompt's memo and timer effect key off it.
+  const assumeSources = useMemo(
+    () =>
+      previousSessionSets != null && exerciseConfigs != null
+        ? {
+            previousSessionSets,
+            exerciseConfigs,
+            weightUnit: sessionWeightUnit,
+            workoutFormat,
+          }
+        : undefined,
+    [previousSessionSets, exerciseConfigs, sessionWeightUnit, workoutFormat]
+  );
   useWorkoutCompletePresetSync({
     session,
     sourcePresetId,
     sourceServerConfigId,
     completedSetIds,
     plannedSetValues,
+    assumeSources,
   });
 
   const finishedTimeText = formatDateToTimeLabel(

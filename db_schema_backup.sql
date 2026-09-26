@@ -2176,7 +2176,9 @@ CREATE TABLE public.exercise_preset_entries (
     created_by_user_id uuid,
     notes text,
     source text DEFAULT 'manual'::text NOT NULL,
-    location character varying(255)
+    location character varying(255),
+    workout_format character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    CONSTRAINT chk_exercise_preset_entries_format CHECK (((workout_format)::text = ANY ((ARRAY['standard'::character varying, 'interval'::character varying, 'tabata'::character varying, 'amrap'::character varying, 'emom'::character varying, 'for_time'::character varying])::text[])))
 );
 
 
@@ -2185,6 +2187,13 @@ CREATE TABLE public.exercise_preset_entries (
 --
 
 COMMENT ON COLUMN public.exercise_preset_entries.location IS 'Optional location or gym name for the workout session';
+
+
+--
+-- Name: COLUMN exercise_preset_entries.workout_format; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_preset_entries.workout_format IS 'Workout format of the source preset at the time the session was logged; not updated when the preset is edited or deleted';
 
 
 --
@@ -4752,7 +4761,8 @@ CREATE TABLE public.workout_preset_exercises (
     rep_goal integer,
     increment_type character varying(20) DEFAULT 'weight'::character varying,
     increment_value numeric(6,2) DEFAULT 2.5,
-    equipment_brand character varying(100) DEFAULT NULL::character varying
+    equipment_brand character varying(100) DEFAULT NULL::character varying,
+    ramp_increment numeric(6,2)
 );
 
 
@@ -4761,6 +4771,13 @@ CREATE TABLE public.workout_preset_exercises (
 --
 
 COMMENT ON COLUMN public.workout_preset_exercises.superset_group IS 'Client-assigned superset group key, scoped to the parent workout preset. NULL = not in a superset. Members share the value and are kept adjacent via sort_order.';
+
+
+--
+-- Name: COLUMN workout_preset_exercises.ramp_increment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workout_preset_exercises.ramp_increment IS 'Kg added to each successive working set within one session (negative ramps down); null = off';
 
 
 --

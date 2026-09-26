@@ -1,4 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  DEFAULT_GUIDED_COUNTDOWN_SEC,
+  DEFAULT_GUIDED_SPEECH_RATE,
+  clampGuidedCountdownSec,
+  clampGuidedSpeechRate,
+} from '@workspace/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
@@ -68,6 +74,10 @@ export const PREFERENCE_DEFAULTS = {
   defaultRestSec: DEFAULT_REST_SEC as number,
   restTimerSoundEnabled: true,
   workoutKeepAwakeEnabled: false,
+  guidedWorkoutEnabled: false,
+  guidedVoiceId: null as string | null,
+  guidedSpeechRate: DEFAULT_GUIDED_SPEECH_RATE as number,
+  guidedCountdownSec: DEFAULT_GUIDED_COUNTDOWN_SEC as number,
   languagePreference: 'system' as LanguagePreference,
   healthTrendOrder: [...HEALTH_TREND_KEYS] as HealthTrendKey[],
   hiddenHealthTrends: [] as HealthTrendKey[],
@@ -107,6 +117,12 @@ export type AppPreferencesData = {
   defaultRestSec: number;
   restTimerSoundEnabled: boolean;
   workoutKeepAwakeEnabled: boolean;
+  /** Guided workout mode (#1507): spoken cues + guided card. Off by default. */
+  guidedWorkoutEnabled: boolean;
+  /** expo-speech voice identifier; null uses the device default for the app language. */
+  guidedVoiceId: string | null;
+  guidedSpeechRate: number;
+  guidedCountdownSec: number;
   languagePreference: LanguagePreference;
   healthTrendOrder: HealthTrendKey[];
   hiddenHealthTrends: HealthTrendKey[];
@@ -145,6 +161,10 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDefaultRestSec: (value: number) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
+  setGuidedWorkoutEnabled: (value: boolean) => void;
+  setGuidedVoiceId: (value: string | null) => void;
+  setGuidedSpeechRate: (value: number) => void;
+  setGuidedCountdownSec: (value: number) => void;
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendLayout: (
     order: HealthTrendKey[],
@@ -240,6 +260,12 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ restTimerSoundEnabled: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
+      setGuidedWorkoutEnabled: (value) => set({ guidedWorkoutEnabled: value }),
+      setGuidedVoiceId: (value) => set({ guidedVoiceId: value }),
+      setGuidedSpeechRate: (value) =>
+        set({ guidedSpeechRate: clampGuidedSpeechRate(value) }),
+      setGuidedCountdownSec: (value) =>
+        set({ guidedCountdownSec: clampGuidedCountdownSec(value) }),
       setLanguagePreference: (value) => set({ languagePreference: value }),
       setHealthTrendLayout: (order, hiddenKeys) =>
         set({ healthTrendOrder: order, hiddenHealthTrends: hiddenKeys }),
@@ -291,6 +317,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         defaultRestSec: state.defaultRestSec,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
+        guidedWorkoutEnabled: state.guidedWorkoutEnabled,
+        guidedVoiceId: state.guidedVoiceId,
+        guidedSpeechRate: state.guidedSpeechRate,
+        guidedCountdownSec: state.guidedCountdownSec,
         languagePreference: state.languagePreference,
         healthTrendOrder: state.healthTrendOrder,
         hiddenHealthTrends: state.hiddenHealthTrends,

@@ -100,6 +100,7 @@ describe('presetFormReducer', () => {
       incrementType: 'weight',
       incrementValue: 5,
       equipmentBrand: null,
+      rampIncrement: null,
       sets: [
         {
           clientId: 's1',

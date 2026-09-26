@@ -52,6 +52,7 @@ import type {
 } from '../types/drafts';
 import type { Exercise } from '../types/exercise';
 import type { GetImageSource } from '../hooks/useExerciseImageSource';
+import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
 
 interface WorkoutFormExerciseListProps {
   exercises: WorkoutDraftExercise[];
@@ -99,7 +100,10 @@ interface WorkoutFormExerciseListProps {
   onAddSet: (exerciseClientId: string) => void;
   onRemoveExercise: (exercise: WorkoutDraftExercise) => void;
   setExerciseRest: (exerciseClientId: string, seconds: number) => void;
-  setExerciseProgression?: (exerciseClientId: string, patch: any) => void;
+  setExerciseProgression?: (
+    exerciseClientId: string,
+    patch: ExerciseProgressionPatch
+  ) => void;
   /**
    * Enables the per-exercise inline calories field (workout edit). Absent for
    * the create and preset forms, which have no stored calories to override.

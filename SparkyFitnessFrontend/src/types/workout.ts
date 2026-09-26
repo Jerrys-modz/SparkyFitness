@@ -29,6 +29,8 @@ export interface WorkoutPresetExercise {
   category?: string;
   modality?: ExerciseModality | null; // Populated from backend join
   superset_group?: number | null;
+  /** Within-session per-set ramp, kg. Null = off. */
+  ramp_increment?: number | null;
   workout_plan_assignment_id?: string | number | null;
 }
 

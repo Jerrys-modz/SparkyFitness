@@ -22,7 +22,7 @@ describe('reportRepository.getExerciseEntries — format selection and preset jo
 
   afterEach(() => vi.clearAllMocks());
 
-  it('selects COALESCE(wp.workout_format, standard) and LEFT JOINs exercise_preset_entries and workout_presets', async () => {
+  it('selects the session-snapshotted COALESCE(epe.workout_format, standard) via a LEFT JOIN on exercise_preset_entries', async () => {
     await getExerciseEntries(
       TEST_USER_ID,
       '2026-09-01',
@@ -37,14 +37,14 @@ describe('reportRepository.getExerciseEntries — format selection and preset jo
     const params = mockClient.query.mock.calls[0][1];
 
     expect(sql).toContain(
-      "COALESCE(wp.workout_format, 'standard') AS workout_format"
+      "COALESCE(epe.workout_format, 'standard') AS workout_format"
     );
     expect(sql).toContain(
       'LEFT JOIN exercise_preset_entries epe ON ee.exercise_preset_entry_id = epe.id'
     );
-    expect(sql).toContain(
-      'LEFT JOIN workout_presets wp ON epe.workout_preset_id = wp.id'
-    );
+    // Format comes from the session snapshot, not the live preset, so a
+    // later preset edit or delete can't reclassify history.
+    expect(sql).not.toContain('workout_presets');
     expect(params).toEqual([
       TEST_USER_ID,
       '2026-09-01',

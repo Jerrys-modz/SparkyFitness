@@ -53,7 +53,7 @@ It stores and manages health data on infrastructure you control, without relying
 
 ## How SparkyFitness Compares
 
-**SparkyFitness is source-available, not open source** — the [licence](LICENSE) is non-commercial and requires permission for commercial use.
+**SparkyFitness is source-available, not open source** — the [license](LICENSE) is non-commercial and requires permission for commercial use.
 
 Most apps do one thing. One good nutrition app runs $40–$100 a year; covering everything SparkyFitness covers means three or four subscriptions, per person, and still no single report across them. SparkyFitness does it in one app, free, for the whole household.
 

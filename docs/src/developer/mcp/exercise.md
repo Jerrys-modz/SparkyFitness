@@ -58,7 +58,7 @@ The `sparky_manage_exercise` tool supports the following actions:
 
 ### `get_workout_preset`
 
-- **Description:** Returns one preset in full: every exercise's ID, its sets, and its superset group. Call this before `update_workout_preset` so the replacement list includes every exercise that should remain.
+- **Description:** Returns one preset in full: every exercise's ID, its sets, its superset group, and its progression and per-set ramp settings. Call this before `update_workout_preset` so the replacement list includes every exercise that should remain.
 - **Parameters:**
   - `preset_id` (number, optional): Numeric ID of the workout preset.
   - `preset_name` (string, optional): Name of a preset you own or that is family-shared. Public presets outside those scopes must use `preset_id`.
@@ -80,7 +80,16 @@ The `sparky_manage_exercise` tool supports the following actions:
   - `name` (string, optional): New name.
   - `description` (string, optional): New description.
   - `is_public` (boolean, optional): Whether the preset is shared publicly.
-  - `exercises` (array or JSON string, optional): Replacement list of `{exercise_id, sets?, superset_group?}`.
+  - `exercises` (array or JSON string, optional): Replacement list of `{exercise_id, sets?, superset_group?, progression_mode?, rep_goal?, increment_type?, increment_value?, equipment_brand?, ramp_increment?}`. A progression or ramp field left out keeps the exercise's current value (matched by `exercise_id`); `null` clears it.
+
+  Progression and ramp fields (also accepted by `create_workout_preset`):
+
+  - `progression_mode`: `rep_goal`, `fixed`, `step_load`, or `manual` (off).
+  - `rep_goal`: total reps (`rep_goal`, `step_load`) or reps per set (`fixed`).
+  - `increment_type`: `weight` or `reps`.
+  - `increment_value`: amount added once the goal is met; kilograms for `weight`, a rep count for `reps`.
+  - `equipment_brand`: optional equipment or machine brand.
+  - `ramp_increment`: kilograms added to each successive working set within one workout (negative ramps down). See [Progression & Per-Set Ramp](/features/exercises/progression-and-per-set-ramp).
 
 ### `delete_workout_preset`
 

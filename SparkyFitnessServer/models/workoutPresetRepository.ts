@@ -38,9 +38,10 @@ async function createWorkoutPreset(presetData: any) {
             rep_goal,
             increment_type,
             increment_value,
-            equipment_brand
+            equipment_brand,
+            ramp_increment
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
           [
             newPreset.id,
             exercise.exercise_id,
@@ -52,6 +53,7 @@ async function createWorkoutPreset(presetData: any) {
             exercise.increment_type ?? 'weight',
             exercise.increment_value ?? 5.0,
             exercise.equipment_brand ?? null,
+            exercise.ramp_increment ?? null,
           ]
         );
         const newExerciseId = exerciseResult.rows[0].id;
@@ -114,6 +116,7 @@ async function getWorkoutPresetByName(userId: any, name: any) {
                wpe.increment_type,
                wpe.increment_value,
                wpe.equipment_brand,
+               wpe.ramp_increment,
                e.name as exercise_name,
                e.category as category,
                e.modality as modality,
@@ -179,6 +182,7 @@ async function getWorkoutPresets(userId: any, page = 1, limit = 10) {
                 wpe.increment_type,
                 wpe.increment_value,
                 wpe.equipment_brand,
+                wpe.ramp_increment,
                 e.name as exercise_name,
                 e.category as category,
                 e.modality as modality,
@@ -236,6 +240,7 @@ async function getWorkoutPresetById(presetId: any, userId: any) {
                 wpe.increment_type,
                 wpe.increment_value,
                 wpe.equipment_brand,
+                wpe.ramp_increment,
                 e.name as exercise_name,
                 e.category as category,
                 e.modality as modality,
@@ -318,9 +323,10 @@ async function updateWorkoutPreset(
               rep_goal,
               increment_type,
               increment_value,
-              equipment_brand
+              equipment_brand,
+              ramp_increment
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
             [
               presetId,
               exercise.exercise_id,
@@ -332,6 +338,7 @@ async function updateWorkoutPreset(
               exercise.increment_type ?? 'weight',
               exercise.increment_value ?? 5.0,
               exercise.equipment_brand ?? null,
+              exercise.ramp_increment ?? null,
             ]
           );
           const newExerciseId = exerciseResult.rows[0].id;
@@ -554,6 +561,7 @@ async function searchWorkoutPresets(
                wpe.increment_type,
                wpe.increment_value,
                wpe.equipment_brand,
+               wpe.ramp_increment,
                e.name as exercise_name,
                e.category as category,
                e.modality as modality,
