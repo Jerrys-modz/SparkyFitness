@@ -17,6 +17,7 @@ import {
   __resetWatchTelemetryKeyForTests,
   notifyWatchTelemetryAccountSwitch,
   readWatchTelemetry,
+  serializeWatchTelemetry,
   settleWatchTelemetryWrites,
   writeWatchTelemetry,
   type WatchTelemetrySessionState,
@@ -1665,7 +1666,12 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       endedAt: null,
       attribution: null,
     };
-    await writeWatchTelemetry(new Map([['session-1', saved]]), OWNER);
+    // Plain JSON, which restore still reads, so nothing waits on real crypto
+    // while the clock is fake.
+    await AsyncStorage.setItem(
+      BUFFER_KEY,
+      serializeWatchTelemetry(new Map([['session-1', saved]]))
+    );
     let finishHydration: (() => void) | undefined;
     const hasHydrated = jest
       .spyOn(useActiveWorkoutStore.persist, 'hasHydrated')
@@ -1873,6 +1879,81 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       await Promise.resolve();
     });
     expect(mockAttachTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('does not restore the previous account when its telemetry purge fails', async () => {
+    const appStateListeners: ((state: AppStateStatus) => void)[] = [];
+    const addEventListener = AppState.addEventListener as jest.Mock;
+    const originalAddEventListener = addEventListener.getMockImplementation();
+    addEventListener.mockImplementation(
+      (_type: string, listener: (state: AppStateStatus) => void) => {
+        appStateListeners.push(listener);
+        return { remove: jest.fn() };
+      }
+    );
+    const previous: WatchTelemetrySessionState = {
+      samples: new Map([['ex-old', twoSamples]]),
+      energy: new Map([['ex-old', 7]]),
+      durations: new Map(),
+      durationFromTimeline: false,
+      handledBatchClientIds: new Set(['hr-old']),
+      entryDate: '2026-09-17',
+      unposted: true,
+      endedAt: Date.now(),
+      attribution: null,
+    };
+    await writeWatchTelemetry(new Map([['session-old', previous]]), OWNER);
+    mockAttachTelemetry.mockRejectedValue(new Error('offline'));
+
+    try {
+      const view = renderHook(() => useWatchWorkoutBridge(true, false));
+      await waitFor(() => {
+        expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+      });
+      mockPendingHeartRateBatches.mockClear();
+      mockAttachTelemetry.mockReset();
+      mockAttachTelemetry.mockResolvedValue(undefined);
+      const removeItem = AsyncStorage.removeItem as jest.Mock;
+      const originalRemoveItem = removeItem.getMockImplementation();
+      removeItem.mockImplementationOnce(async () => {
+        throw new Error('disk');
+      });
+      const getItem = AsyncStorage.getItem as jest.Mock;
+      getItem.mockClear();
+
+      await act(async () => {
+        notifyWatchTelemetryAccountSwitch();
+      });
+      await waitFor(() => {
+        expect(mockAddLog).toHaveBeenCalledWith(
+          expect.stringContaining('purge on account switch failed'),
+          'WARNING'
+        );
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      // The purge failed, so the buffer is still there, and nothing reads it.
+      expect(getItem).not.toHaveBeenCalledWith(BUFFER_KEY);
+      expect(await AsyncStorage.getItem(BUFFER_KEY)).not.toBeNull();
+      expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
+      getItem.mockClear();
+      if (originalRemoveItem) removeItem.mockImplementation(originalRemoveItem);
+
+      await act(async () => {
+        for (const listener of appStateListeners) listener('active');
+      });
+      await waitFor(() => {
+        expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+      });
+      expect(await AsyncStorage.getItem(BUFFER_KEY)).toBeNull();
+      expect(mockAttachTelemetry).not.toHaveBeenCalled();
+      view.unmount();
+    } finally {
+      if (originalAddEventListener) {
+        addEventListener.mockImplementation(originalAddEventListener);
+      }
+    }
   });
 
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {

@@ -185,9 +185,38 @@ export function useWatchWorkoutBridge(
   // account switch cannot land this snapshot in the next account's key.
   const ownerRef = useRef<string | null>(null);
   const [accountEpoch, setAccountEpoch] = useState(0);
-  // Purge of the outgoing account's telemetry. Restore waits for it, so the
-  // next account cannot read or replay what the purge is removing.
-  const purgeRef = useRef<Promise<void>>(Promise.resolve());
+  // Configs whose telemetry must be purged after an account switch, and the
+  // purge running now. Restore waits until the set is empty, so the next
+  // account cannot read or replay what is still waiting to be removed. A
+  // config leaves the set only when its purge succeeded.
+  const pendingPurgesRef = useRef<Set<string>>(new Set());
+  const purgeRunRef = useRef<Promise<boolean> | null>(null);
+  const runPendingPurges = useCallback((): Promise<boolean> => {
+    if (purgeRunRef.current) return purgeRunRef.current;
+    const run = (async (): Promise<boolean> => {
+      let purgedAll = true;
+      for (const ownerId of [...pendingPurgesRef.current]) {
+        try {
+          await deleteWatchTelemetryForConfig(ownerId);
+          pendingPurgesRef.current.delete(ownerId);
+        } catch (error) {
+          purgedAll = false;
+          addLog(
+            `Watch telemetry purge on account switch failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            'WARNING'
+          );
+        }
+      }
+      return purgedAll;
+    })();
+    purgeRunRef.current = run;
+    void run.finally(() => {
+      if (purgeRunRef.current === run) purgeRunRef.current = null;
+    });
+    return run;
+  }, []);
   // Set while replay applies the native queue. Batches then collect their
   // acks here instead of each writing the whole buffer and acking alone;
   // replay writes once and acks them together.
@@ -786,8 +815,15 @@ export function useWatchWorkoutBridge(
     };
 
     const attemptRestore = async (): Promise<void> => {
-      await purgeRef.current;
-      if (cancelled) return;
+      // A switch added while a purge ran is picked up by the next pass.
+      while (pendingPurgesRef.current.size > 0) {
+        const purged = await runPendingPurges();
+        if (cancelled) return;
+        if (!purged) {
+          scheduleRetry("the previous account's telemetry could not be purged");
+          return;
+        }
+      }
       let ownerId: string | null;
       try {
         ownerId = await getActiveServerConfigId();
@@ -884,7 +920,7 @@ export function useWatchWorkoutBridge(
       stopHydration?.();
       appStateSub.remove();
     };
-  }, [enabled, accountEpoch]);
+  }, [enabled, accountEpoch, runPendingPurges]);
 
   useEffect(() => {
     return setWatchTelemetryAccountSwitchHandler(() => {
@@ -895,23 +931,15 @@ export function useWatchWorkoutBridge(
       // person switching back does not get them either.
       const outgoing = ownerRef.current;
       if (outgoing) {
-        purgeRef.current = deleteWatchTelemetryForConfig(outgoing).catch(
-          (error: unknown) => {
-            addLog(
-              `Watch telemetry purge on account switch failed: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-              'WARNING'
-            );
-          }
-        );
+        pendingPurgesRef.current.add(outgoing);
+        void runPendingPurges();
       }
       sessionsRef.current.clear();
       restoredRef.current = false;
       ownerRef.current = null;
       setAccountEpoch((epoch) => epoch + 1);
     });
-  }, []);
+  }, [runPendingPurges]);
 
   // Listeners stay on while offline so batches are not dropped. Attach
   // cannot succeed until the API is reachable, so retry the buffered series
