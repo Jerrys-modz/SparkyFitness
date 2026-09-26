@@ -78,11 +78,64 @@ function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
   };
 }
 
+function isSample(value: unknown): value is WatchHeartRateSamplePayload {
+  if (value == null || typeof value !== 'object') return false;
+  const sample = value as WatchHeartRateSamplePayload;
+  return typeof sample.t === 'string' && typeof sample.bpm === 'number';
+}
+
+function isPairList(
+  value: unknown,
+  valueOk: (item: unknown) => boolean
+): boolean {
+  if (value == null) return true;
+  if (!Array.isArray(value)) return false;
+  return value.every(
+    (entry) =>
+      Array.isArray(entry) &&
+      entry.length === 2 &&
+      typeof entry[0] === 'string' &&
+      valueOk(entry[1])
+  );
+}
+
+function isPersistedSession(value: unknown): value is PersistedSession {
+  if (value == null || typeof value !== 'object') return false;
+  const session = value as PersistedSession;
+  if (
+    !isPairList(
+      session.samples,
+      (samples) => Array.isArray(samples) && samples.every(isSample)
+    )
+  ) {
+    return false;
+  }
+  if (!isPairList(session.energy, (kcal) => typeof kcal === 'number')) {
+    return false;
+  }
+  if (
+    !isPairList(session.durations, (minutes) => typeof minutes === 'number')
+  ) {
+    return false;
+  }
+  if (
+    session.handledBatchClientIds != null &&
+    (!Array.isArray(session.handledBatchClientIds) ||
+      session.handledBatchClientIds.some((id) => typeof id !== 'string'))
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function fromPersisted(
   session: PersistedSession,
   create: (entryDate: string | null) => WatchTelemetrySessionState
-): WatchTelemetrySessionState {
-  const next = create(session.entryDate);
+): WatchTelemetrySessionState | null {
+  if (!isPersistedSession(session)) return null;
+  const next = create(
+    typeof session.entryDate === 'string' ? session.entryDate : null
+  );
   next.samples = new Map(session.samples ?? []);
   next.energy = new Map(session.energy ?? []);
   next.durations = new Map(session.durations ?? []);
@@ -129,16 +182,17 @@ export function deserializeWatchTelemetry(
     parsed as Record<string, PersistedSession>
   )) {
     if (value == null || typeof value !== 'object') continue;
-    sessions.set(sessionId, fromPersisted(value, create));
+    const restored = fromPersisted(value, create);
+    if (restored) sessions.set(sessionId, restored);
   }
   return sessions;
 }
 
 /**
- * Copies saved sessions into the live map. Returns true when an empty live
- * session gained samples the server has not accepted, so the caller should
- * flush. A session that already has data is left unposted as it is, so a
- * late read of storage cannot undo a flush that just succeeded.
+ * Copies saved sessions into the live map. Returns true when the merge
+ * leaves telemetry the server has not accepted. A saved snapshot that adds
+ * nothing new does not re-arm `unposted`, so a late read cannot undo a
+ * flush that just succeeded.
  */
 export function mergeWatchTelemetry(
   sessions: Map<string, WatchTelemetrySessionState>,
@@ -157,6 +211,7 @@ export function mergeWatchTelemetry(
       target.samples.size === 0 &&
       target.energy.size === 0 &&
       target.durations.size === 0;
+    let mergedNewTelemetry = false;
 
     for (const [exerciseEntryId, samples] of incoming.samples) {
       const existing = target.samples.get(exerciseEntryId) ?? [];
@@ -166,16 +221,21 @@ export function mergeWatchTelemetry(
       );
       if (added.length > 0) {
         target.samples.set(exerciseEntryId, existing.concat(added));
+        mergedNewTelemetry = true;
       }
     }
-    mergeEnergy(target, incoming);
+    if (mergeEnergy(target, incoming)) mergedNewTelemetry = true;
     if (incoming.durationFromTimeline && !target.durationFromTimeline) {
       target.durationFromTimeline = true;
       target.durations = new Map(incoming.durations);
+      mergedNewTelemetry = true;
     } else if (!target.durationFromTimeline) {
       for (const [exerciseEntryId, minutes] of incoming.durations) {
         const previous = target.durations.get(exerciseEntryId) ?? 0;
-        if (minutes > previous) target.durations.set(exerciseEntryId, minutes);
+        if (minutes > previous) {
+          target.durations.set(exerciseEntryId, minutes);
+          mergedNewTelemetry = true;
+        }
       }
     }
     for (const clientId of incoming.handledBatchClientIds) {
@@ -184,7 +244,7 @@ export function mergeWatchTelemetry(
     if (target.entryDate == null) target.entryDate = incoming.entryDate;
     if (target.endedAt == null) target.endedAt = incoming.endedAt;
     if (target.attribution == null) target.attribution = incoming.attribution;
-    if (incoming.unposted && (created || empty)) {
+    if (incoming.unposted && (created || empty || mergedNewTelemetry)) {
       target.unposted = true;
       shouldFlush = true;
     }
@@ -201,7 +261,7 @@ export function mergeWatchTelemetry(
 function mergeEnergy(
   target: WatchTelemetrySessionState,
   incoming: WatchTelemetrySessionState
-): void {
+): boolean {
   const incomingHasIds = incoming.handledBatchClientIds.size > 0;
   const targetHasIds = target.handledBatchClientIds.size > 0;
   let incomingNovel = false;
@@ -214,28 +274,38 @@ function mergeEnergy(
       if (!incoming.handledBatchClientIds.has(id)) targetNovel = true;
     }
     if (!incomingNovel && !targetNovel) {
+      let changed = false;
       for (const [exerciseEntryId, kcal] of incoming.energy) {
-        if ((target.energy.get(exerciseEntryId) ?? 0) === 0) {
+        if ((target.energy.get(exerciseEntryId) ?? 0) === 0 && kcal !== 0) {
           target.energy.set(exerciseEntryId, kcal);
+          changed = true;
         }
       }
-      return;
+      return changed;
     }
     // Saved total already includes the live batches, or the reverse.
     // Adding would count those batches twice.
     if (incomingNovel && !targetNovel) {
+      let changed = false;
       for (const [exerciseEntryId, kcal] of incoming.energy) {
-        target.energy.set(exerciseEntryId, kcal);
+        if (target.energy.get(exerciseEntryId) !== kcal) {
+          target.energy.set(exerciseEntryId, kcal);
+          changed = true;
+        }
       }
-      return;
+      return changed;
     }
-    if (!incomingNovel && targetNovel) return;
+    if (!incomingNovel && targetNovel) return false;
   }
 
+  let changed = false;
   for (const [exerciseEntryId, kcal] of incoming.energy) {
     const previous = target.energy.get(exerciseEntryId) ?? 0;
+    if (kcal === 0) continue;
     target.energy.set(exerciseEntryId, previous + kcal);
+    changed = true;
   }
+  return changed;
 }
 
 export async function readWatchTelemetry(

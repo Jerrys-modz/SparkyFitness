@@ -563,7 +563,20 @@ export function useWatchWorkoutBridge(
       return;
     let cancelled = false;
     void (async () => {
-      const saved = await readWatchTelemetry(createSessionTelemetry);
+      let saved: Awaited<ReturnType<typeof readWatchTelemetry>>;
+      try {
+        saved = await readWatchTelemetry(createSessionTelemetry);
+      } catch (error) {
+        // A failed read must not replay or ack the native queue. Those
+        // batches are the copy that survives until storage works again.
+        addLog(
+          `Watch telemetry restore failed; native queue left for retry: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          'WARNING'
+        );
+        return;
+      }
       if (cancelled) return;
       const shouldFlush = mergeWatchTelemetry(
         sessionsRef.current,

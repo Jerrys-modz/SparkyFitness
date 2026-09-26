@@ -98,6 +98,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
 public class WatchConnectivityModule: Module {
     private let delegateHandler = WatchSessionDelegateHandler()
     private let heartRateQueueKey = "sparky.pendingHeartRateBatches"
+    /// One batch a minute. 100 is the longest backlog this queue keeps:
+    /// about an hour and forty minutes with nothing acknowledged.
     private let heartRateQueueLimit = 100
     private var heartRateQueue: [[String: Any]] = []
     /// The watch callback and this module's queue both touch `heartRateQueue`.
@@ -360,7 +362,13 @@ public class WatchConnectivityModule: Module {
         }
         heartRateQueue.append(event)
         if heartRateQueue.count > heartRateQueueLimit {
-            heartRateQueue.removeFirst(heartRateQueue.count - heartRateQueueLimit)
+            let dropped = heartRateQueue.count - heartRateQueueLimit
+            NSLog(
+                "Watch heart-rate queue over %d; dropping %d oldest batch(es)",
+                heartRateQueueLimit,
+                dropped
+            )
+            heartRateQueue.removeFirst(dropped)
         }
         saveHeartRateQueue()
     }

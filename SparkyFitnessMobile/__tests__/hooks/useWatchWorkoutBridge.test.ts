@@ -1269,6 +1269,31 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
     });
   });
 
+  it('leaves the native queue when restoring saved telemetry fails', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(
+      new Error('disk')
+    );
+    mockPendingHeartRateBatches.mockResolvedValue([
+      {
+        clientId: 'hr-queued',
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: twoSamples,
+      },
+    ]);
+
+    const view = renderHook(() => useWatchWorkoutBridge(true, true));
+    await waitFor(() => {
+      expect(mockAddLog).toHaveBeenCalledWith(
+        expect.stringContaining('restore failed'),
+        'WARNING'
+      );
+    });
+    expect(mockPendingHeartRateBatches).not.toHaveBeenCalled();
+    expect(mockAckHeartRateBatches).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
   it('applies a heart-rate batch that was queued before JavaScript was listening', async () => {
     act(() => {
       getStore().startWorkout(makeSession());

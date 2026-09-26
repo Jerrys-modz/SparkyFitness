@@ -130,6 +130,56 @@ describe('watchTelemetryPersistence', () => {
     expect(live.get('session-1')?.unposted).toBe(false);
   });
 
+  it('re-arms a session when the saved buffer still has samples the live one does not', () => {
+    const live = new Map<string, WatchTelemetrySessionState>([
+      [
+        'session-1',
+        session({
+          samples: new Map([
+            ['ex-1', [{ t: '2026-09-25T15:00:00.000Z', bpm: 120 }]],
+          ]),
+          unposted: false,
+        }),
+      ],
+    ]);
+    const saved = new Map<string, WatchTelemetrySessionState>([
+      [
+        'session-1',
+        session({
+          samples: new Map([
+            [
+              'ex-1',
+              [
+                { t: '2026-09-25T15:00:00.000Z', bpm: 120 },
+                { t: '2026-09-25T15:01:00.000Z', bpm: 140 },
+              ],
+            ],
+          ]),
+          unposted: true,
+        }),
+      ],
+    ]);
+
+    expect(mergeWatchTelemetry(live, saved, create)).toBe(true);
+    expect(live.get('session-1')?.unposted).toBe(true);
+    expect(live.get('session-1')?.samples.get('ex-1')).toHaveLength(2);
+  });
+
+  it('skips a corrupt session and still restores the valid one', () => {
+    const raw = JSON.stringify({
+      good: {
+        samples: [['ex-1', [{ t: '2026-09-25T15:00:00.000Z', bpm: 120 }]]],
+        unposted: true,
+      },
+      bad: { samples: { 'ex-1': [{ t: 'nope' }] } },
+    });
+
+    const restored = deserializeWatchTelemetry(raw, create);
+
+    expect([...restored.keys()]).toEqual(['good']);
+    expect(restored.get('good')?.samples.get('ex-1')).toHaveLength(1);
+  });
+
   it('adds a live batch onto the saved energy instead of keeping the larger', () => {
     const live = new Map<string, WatchTelemetrySessionState>([
       [
