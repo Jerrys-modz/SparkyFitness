@@ -250,6 +250,10 @@ export function useWatchWorkoutBridge(
 
   const handleHeartRateBatch = useCallback(
     (payload: WatchHeartRateBatchPayload): void => {
+      // A batch delivered while the saved buffer is still loading may already
+      // be in that buffer. Mutating now lets mergeEnergy add it twice.
+      // The native queue keeps it for the replay after the merge.
+      if (!restoredRef.current) return;
       const ackId = payload.clientId || payload.queueId;
       const persistHeartRate = (): void => {
         // The map may hold only this batch. Writing it replaces the saved
@@ -655,9 +659,8 @@ export function useWatchWorkoutBridge(
       }
       if (cancelled) return;
       restoredRef.current = true;
-      // A live batch may already be in memory and must not have been written
-      // on its own. This write is the one that stores it with the saved
-      // sessions. Skipping it drops those samples if the process dies here.
+      // Persist the merged buffer before replay. A batch still in the native
+      // queue is applied by that replay, which writes again once stored.
       void writeWatchTelemetry(sessionsRef.current).catch(() => undefined);
       if (shouldFlush) {
         syncPendingRef.current();

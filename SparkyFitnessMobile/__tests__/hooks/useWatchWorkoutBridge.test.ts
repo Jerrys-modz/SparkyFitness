@@ -45,13 +45,26 @@ jest.mock('../../src/services/LogService', () => ({
  */
 type Listener = (payload: unknown) => void;
 const mockListeners = new Map<string, Listener>();
+// The native module queues a batch before it emits the event. Tests that
+// fire during restore rely on that queue for the replay.
+const queuedHeartRateBatches: {
+  clientId?: string;
+  queueId?: string;
+}[] = [];
 
 jest.mock('../../modules/watch-connectivity', () => {
   const mockModule = {
     isSupported: jest.fn(() => true),
     stopWorkout: jest.fn(),
-    pendingHeartRateBatches: jest.fn(async () => []),
-    ackHeartRateBatches: jest.fn(async () => undefined),
+    pendingHeartRateBatches: jest.fn(async () => [...queuedHeartRateBatches]),
+    ackHeartRateBatches: jest.fn(async (ids: string[]) => {
+      const drop = new Set(ids);
+      for (let i = queuedHeartRateBatches.length - 1; i >= 0; i -= 1) {
+        const batch = queuedHeartRateBatches[i];
+        const id = batch.clientId || batch.queueId;
+        if (id && drop.has(id)) queuedHeartRateBatches.splice(i, 1);
+      }
+    }),
     addListener: jest.fn((event: string, callback: Listener) => {
       mockListeners.set(event, callback);
       const remove = jest.fn(() => mockListeners.delete(event));
@@ -89,6 +102,11 @@ const mockAckHeartRateBatches = (
 ).default.ackHeartRateBatches;
 
 function fire(event: string, payload: unknown) {
+  if (event === 'onHeartRateBatch') {
+    queuedHeartRateBatches.push(
+      payload as { clientId?: string; queueId?: string }
+    );
+  }
   mockListeners.get(event)?.(payload);
 }
 
@@ -152,9 +170,12 @@ describe('useWatchWorkoutBridge', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockListeners.clear();
+    queuedHeartRateBatches.length = 0;
     await settleWatchTelemetryWrites();
     await AsyncStorage.clear();
-    mockPendingHeartRateBatches.mockResolvedValue([]);
+    mockPendingHeartRateBatches.mockImplementation(async () => [
+      ...queuedHeartRateBatches,
+    ]);
     __resetActiveWorkoutStoreForTests();
     mockUpdateWorkout.mockImplementation(async () => getStore().session!);
     mockAttachTelemetry.mockResolvedValue(undefined);
@@ -950,6 +971,9 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockListeners.has('onSetCompleted')).toBe(true);
     expect(mockListeners.has('onHeartRateBatch')).toBe(true);
     expect(mockListeners.has('onWorkoutStop')).toBe(true);
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
 
     act(() => {
       getStore().startWorkout(makeSession());
@@ -989,6 +1013,9 @@ describe('useWatchWorkoutBridge', () => {
         useWatchWorkoutBridge(true, connected, onPending),
       { initialProps: { connected: false } }
     );
+    await waitFor(() => {
+      expect(mockPendingHeartRateBatches).toHaveBeenCalled();
+    });
 
     act(() => {
       getStore().startWorkout(makeSession());
@@ -1020,9 +1047,12 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
   beforeEach(async () => {
     jest.clearAllMocks();
     mockListeners.clear();
+    queuedHeartRateBatches.length = 0;
     await settleWatchTelemetryWrites();
     await AsyncStorage.clear();
-    mockPendingHeartRateBatches.mockResolvedValue([]);
+    mockPendingHeartRateBatches.mockImplementation(async () => [
+      ...queuedHeartRateBatches,
+    ]);
     __resetActiveWorkoutStoreForTests();
     mockUpdateWorkout.mockImplementation(async () => getStore().session!);
     mockAttachTelemetry.mockResolvedValue(undefined);
