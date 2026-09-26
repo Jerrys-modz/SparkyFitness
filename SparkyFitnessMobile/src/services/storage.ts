@@ -3,7 +3,6 @@ import * as SecureStore from 'expo-secure-store';
 import { CATEGORY_ORDER } from '../HealthMetrics';
 import { addLog } from './LogService';
 import { getErrorMessage } from '../utils/errors';
-import { deleteWatchTelemetryForConfig } from '../utils/watchTelemetryPersistence';
 
 export interface ProxyHeader {
   name: string;
@@ -284,6 +283,19 @@ export const setActiveServerConfig = async (
   }
 };
 
+let onServerConfigDeleted: ((configId: string) => Promise<void>) | null = null;
+
+/**
+ * Runs after a server config is deleted, for data kept per config outside
+ * this module (watch telemetry). Registered by the app rather than imported
+ * here, so storage does not load native modules.
+ */
+export const setOnServerConfigDeleted = (
+  callback: ((configId: string) => Promise<void>) | null
+): void => {
+  onServerConfigDeleted = callback;
+};
+
 /**
  * Deletes a specific server configuration and its SecureStore key.
  * If the deleted config was active, it clears the active config.
@@ -303,12 +315,12 @@ export const deleteServerConfig = async (configId: string): Promise<void> => {
       await AsyncStorage.removeItem(ACTIVE_SERVER_CONFIG_ID_KEY);
     }
     // The config is already gone, so a failure here only leaves unreadable
-    // telemetry behind; it must not fail the delete.
+    // data behind; it must not fail the delete.
     try {
-      await deleteWatchTelemetryForConfig(configId);
+      await onServerConfigDeleted?.(configId);
     } catch (e) {
       addLog(
-        `[Storage] Failed to delete watch telemetry for config: ${getErrorMessage(e)}`,
+        `[Storage] Failed to clean up data for deleted config: ${getErrorMessage(e)}`,
         'WARNING'
       );
     }
