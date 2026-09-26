@@ -42,6 +42,7 @@ import type {
   WorkoutPresetCreatePayload,
   WorkoutPresetUpdatePayload,
 } from '../services/api/workoutPresetsApi';
+import { buildExerciseReplaceContext } from '../utils/exerciseReplace';
 
 type CreateParams = Extract<
   RootStackParamList['WorkoutPresetForm'],
@@ -436,7 +437,13 @@ const CreatePresetMode: React.FC<CreatePresetModeProps> = ({
   // place instead of appending.
   const handleReplaceExercise = (clientId: string) => {
     exerciseSetEditing.setReplaceTarget(clientId);
-    navigation.navigate('ExerciseSearch', { returnKey: route.key });
+    navigation.navigate('ExerciseSearch', {
+      returnKey: route.key,
+      replaceFor: buildExerciseReplaceContext(
+        state.exercises.find((e) => e.clientId === clientId),
+        state.exercises
+      ),
+    });
   };
 
   const handleSave = async () => {
@@ -725,7 +732,13 @@ const EditPresetMode: React.FC<EditPresetModeProps> = ({
   // place instead of appending.
   const handleReplaceExercise = (clientId: string) => {
     exerciseSetEditing.setReplaceTarget(clientId);
-    navigation.navigate('ExerciseSearch', { returnKey: route.key });
+    navigation.navigate('ExerciseSearch', {
+      returnKey: route.key,
+      replaceFor: buildExerciseReplaceContext(
+        state.exercises.find((e) => e.clientId === clientId),
+        state.exercises
+      ),
+    });
   };
 
   const handleSave = async () => {

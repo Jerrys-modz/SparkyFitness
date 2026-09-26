@@ -100,6 +100,8 @@ jest.mock('../../src/stores/activeWorkoutStore', () => {
     plannedSetValues: {},
     exerciseConfigs: {},
     workoutFormat: 'standard',
+    coachingSignals: {},
+    declinedAdaptive: {},
   };
   return {
     __esModule: true,

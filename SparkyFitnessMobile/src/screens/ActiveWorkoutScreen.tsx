@@ -80,11 +80,13 @@ import { useActiveWorkoutIntervalLifecycle } from '../hooks/useActiveWorkoutInte
 import { useActiveWorkoutDiscard } from '../hooks/useActiveWorkoutDiscard';
 import { useActiveWorkoutFinish } from '../hooks/useActiveWorkoutFinish';
 import { useActiveWorkoutExerciseActions } from '../hooks/useActiveWorkoutExerciseActions';
+import { useLiveCoachingSignals } from '../hooks/useLiveCoachingSignals';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'ActiveWorkout'>;
 
 function ActiveWorkoutScreen({ navigation, route }: Props) {
+  useLiveCoachingSignals();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const session = useActiveWorkoutStore((s) => s.session);
@@ -790,6 +792,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           onPressRestChip={handlePressRestChip}
           onPressMetricHeader={handlePressMetricHeader}
           onPressOverflow={handlePressOverflow}
+          onSeeAlternatives={handleReplaceExercise}
           onCompleteSet={handleCompleteSet}
           onUncomplete={handleUncomplete}
           onCommitField={handleCommitField}

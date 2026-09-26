@@ -20,6 +20,10 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
+  useWorkoutCoachingSettings,
+  useUpdateWorkoutCoachingSettings,
+} from '@/hooks/Exercises/useWorkoutCoaching';
+import {
   setGuidedWorkoutPreferences,
   useGuidedWorkoutPreferences,
 } from '@/utils/guidedWorkoutPreferences';
@@ -51,12 +55,18 @@ for (
 }
 
 /**
- * Settings → Guided workouts (#1507). Stored in this browser only: installed
- * voices differ per browser and device.
+ * Settings → Guided workouts (#1507) and adaptive suggestions (#1560).
+ * Guided-workout preferences are stored in this browser only (installed
+ * voices differ per browser and device); the adaptive-suggestions switch is
+ * an account setting shared with the mobile app.
  */
 export const GuidedWorkoutSettings = () => {
   const { t, i18n } = useTranslation();
   const prefs = useGuidedWorkoutPreferences();
+  const { data: coachingSettings, isLoading: coachingLoading } =
+    useWorkoutCoachingSettings();
+  const { mutate: updateCoachingSettings, isPending: isUpdatingCoaching } =
+    useUpdateWorkoutCoachingSettings();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const supported = isSpeechSynthesisSupported();
 
@@ -229,6 +239,31 @@ export const GuidedWorkoutSettings = () => {
             {t('guidedWorkout.settings.test', 'Test voice')}
           </Button>
         )}
+
+        <div className="flex items-start justify-between gap-4 pt-4 border-t">
+          <div className="space-y-1">
+            <Label htmlFor="adaptive-coaching-enabled">
+              {t(
+                'workoutCoaching.settingsTitle',
+                'Adaptive workout suggestions'
+              )}
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                'workoutCoaching.settingsSubtitle',
+                'Adapts upcoming sets and exercise suggestions based on your logged session feedback (difficulty, pain flags).'
+              )}
+            </p>
+          </div>
+          <Switch
+            id="adaptive-coaching-enabled"
+            checked={coachingSettings?.adaptive_suggestions ?? true}
+            disabled={coachingLoading || isUpdatingCoaching}
+            onCheckedChange={(checked) =>
+              updateCoachingSettings({ adaptive_suggestions: checked })
+            }
+          />
+        </div>
       </AccordionContent>
     </>
   );

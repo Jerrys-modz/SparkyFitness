@@ -10,6 +10,8 @@ import type {
 } from '../../types/exercise';
 import { isExerciseModality } from '@workspace/shared';
 import type {
+  ExerciseAlternativeMode,
+  ExerciseAlternativesResponse,
   ExerciseHistoryResponse,
   ExerciseModality,
   ExerciseStatsResponse,
@@ -64,6 +66,24 @@ export const fetchExerciseStats = async (
     endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/stats${query}`,
     serviceName: 'Exercise API',
     operation: 'fetch exercise stats',
+  });
+};
+
+/**
+ * Ranked substitutes for an exercise (issue #1560). `excludeIds` keeps
+ * exercises already in the workout out of the list.
+ */
+export const fetchExerciseAlternatives = async (
+  exerciseId: string,
+  mode: ExerciseAlternativeMode,
+  excludeIds: readonly string[] = []
+): Promise<ExerciseAlternativesResponse> => {
+  const params = new URLSearchParams({ mode });
+  if (excludeIds.length > 0) params.set('excludeIds', excludeIds.join(','));
+  return apiFetch<ExerciseAlternativesResponse>({
+    endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/alternatives?${params.toString()}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise alternatives',
   });
 };
 

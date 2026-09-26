@@ -4272,6 +4272,137 @@ describe('workoutSession', () => {
           expect(result.map((r) => r.weight)).toEqual([40, 100, 100]);
         });
 
+        describe('adaptive coaching (#1560)', () => {
+          const adaptiveExercise = {
+            id: 'ex-1',
+            exercise_id: 'lib-1',
+            sets: [makeSet(1), makeSet(2)],
+          };
+          const baseSignal = {
+            exercise_id: 'lib-1',
+            last_performed_date: '2026-03-18',
+            days_since_last_performed: 2,
+            last_difficulty: null,
+            last_pain: null,
+            too_easy_streak: 0,
+            too_hard_streak: 0,
+            pain_streak: 0,
+            avg_rpe: null,
+            avg_rir: null,
+            sessions_in_variation_window: 1,
+          };
+          const progressing = {
+            'ex-1': {
+              progression_mode: 'rep_goal' as const,
+              rep_goal: 16,
+              increment_type: 'weight' as const,
+              increment_value: 2.5,
+            },
+          };
+
+          it('lightens the day after pain and cancels the progression bump', () => {
+            const result = resolveLiveAssumedSetValues(
+              adaptiveExercise,
+              [prev(100, 8), prev(100, 8)],
+              {
+                plannedSetValues: {},
+                exerciseConfigs: progressing,
+                weightUnit: 'kg',
+                coachingSignals: {
+                  'lib-1': {
+                    ...baseSignal,
+                    last_pain: 'exercise',
+                    pain_streak: 1,
+                  },
+                },
+              }
+            );
+            expect(result.map((r) => r.weight)).toEqual([90, 90]);
+          });
+
+          it('lightens planned weights when this preset has no history yet', () => {
+            const result = resolveLiveAssumedSetValues(
+              adaptiveExercise,
+              undefined,
+              {
+                plannedSetValues: {
+                  '1': { weight: 100, reps: 5 },
+                  '2': { weight: 100, reps: 5 },
+                },
+                weightUnit: 'kg',
+                coachingSignals: {
+                  'lib-1': { ...baseSignal, last_pain: 'exercise' },
+                },
+              }
+            );
+            expect(result.map((r) => r.weight)).toEqual([90, 90]);
+          });
+
+          it('holds after "too hard" even when the rep goal was met', () => {
+            const result = resolveLiveAssumedSetValues(
+              adaptiveExercise,
+              [prev(100, 8), prev(100, 8)],
+              {
+                plannedSetValues: {},
+                exerciseConfigs: progressing,
+                weightUnit: 'kg',
+                coachingSignals: {
+                  'lib-1': {
+                    ...baseSignal,
+                    last_difficulty: 'too_hard',
+                    too_hard_streak: 1,
+                  },
+                },
+              }
+            );
+            expect(result.map((r) => r.weight)).toEqual([100, 100]);
+          });
+
+          it('adds a step after "too easy" twice without a preset config', () => {
+            const result = resolveLiveAssumedSetValues(
+              adaptiveExercise,
+              [prev(100, 8), prev(100, 8)],
+              {
+                plannedSetValues: {},
+                weightUnit: 'kg',
+                coachingSignals: {
+                  'lib-1': {
+                    ...baseSignal,
+                    last_difficulty: 'too_easy',
+                    too_easy_streak: 2,
+                  },
+                },
+              }
+            );
+            expect(result.map((r) => r.weight)).toEqual([102.5, 102.5]);
+          });
+
+          it('uses the usual suggestion once declined, and in interval formats', () => {
+            const sources = {
+              plannedSetValues: {},
+              exerciseConfigs: progressing,
+              weightUnit: 'kg' as const,
+              coachingSignals: {
+                'lib-1': { ...baseSignal, last_pain: 'exercise' as const },
+              },
+            };
+            expect(
+              resolveLiveAssumedSetValues(
+                adaptiveExercise,
+                [prev(100, 8), prev(100, 8)],
+                { ...sources, declinedAdaptive: { 'ex-1': true } }
+              ).map((r) => r.weight)
+            ).toEqual([102.5, 102.5]);
+            expect(
+              resolveLiveAssumedSetValues(
+                adaptiveExercise,
+                [prev(100, 8), prev(100, 8)],
+                { ...sources, workoutFormat: 'emom' }
+              ).map((r) => r.weight)
+            ).toEqual([102.5, 102.5]);
+          });
+        });
+
         it('holds weight when the rep goal was missed', () => {
           const result = resolveLiveAssumedSetValues(
             exercise,

@@ -435,6 +435,7 @@ export function useWorkoutPresetForm({
     handleAddExercise,
     handleOpenAddExercise,
     handleOpenReplaceExercise,
+    replaceTargetIndex,
     handleExerciseFieldChange,
     handleRemoveExercise,
     handleDuplicateExercise,

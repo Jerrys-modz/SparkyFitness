@@ -7,6 +7,9 @@ import exerciseDb from '../models/exercise.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import { getResolvedExerciseCaloriesRange } from '../services/exerciseCalorieRangeService.js';
+import { getExerciseAlternatives } from '../services/exerciseAlternativesService.js';
+import { setWorkoutFeedbackForEntry } from '../services/workoutCoachingService.js';
+import { getWorkoutCoachingSignals } from '../services/adaptiveWorkoutService.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
 vi.mock('../services/exerciseService', () => ({
@@ -54,6 +57,25 @@ vi.mock('../models/workoutPresetRepository', () => ({
 vi.mock('../services/exerciseCalorieRangeService', () => ({
   getResolvedExerciseCaloriesRange: vi.fn(),
   getResolvedExerciseCaloriesTotal: vi.fn(),
+}));
+vi.mock('../services/exerciseAlternativesService', () => ({
+  getExerciseAlternatives: vi.fn(),
+}));
+vi.mock('../services/workoutCoachingService', () => {
+  class WorkoutEntryNotInSessionError extends Error {
+    constructor() {
+      super('This exercise entry is not part of a logged workout session');
+    }
+  }
+  class WorkoutSessionNotFoundError extends Error {}
+  return {
+    setWorkoutFeedbackForEntry: vi.fn(),
+    WorkoutEntryNotInSessionError,
+    WorkoutSessionNotFoundError,
+  };
+});
+vi.mock('../services/adaptiveWorkoutService', () => ({
+  getWorkoutCoachingSignals: vi.fn(),
 }));
 vi.mock('../config/logging', () => ({
   log: vi.fn(),
@@ -2672,6 +2694,342 @@ describe('sparky_get_exercise_progress', () => {
         next_offset: null,
         total_count: 1,
       })
+    );
+  });
+});
+
+describe('suggest_alternatives (manage action)', () => {
+  const benchRow = {
+    id: EXERCISE_ID,
+    name: 'Bench Press',
+    category: 'Strength',
+    equipment: '["barbell"]',
+    primary_muscles: '["chest"]',
+  };
+  const alternative = {
+    origin: 'library' as const,
+    id: EXERCISE_ID_2,
+    name: 'Dumbbell Bench Press',
+    source: 'custom',
+    category: 'strength',
+    modality: 'weight_reps' as const,
+    level: null,
+    mechanic: null,
+    force: null,
+    equipment: ['dumbbell'],
+    primary_muscles: ['chest'],
+    secondary_muscles: [],
+    images: [],
+    instructions: [],
+    description: null,
+    calories_per_hour: 300,
+    score: 70,
+    reasons: ['same_primary_muscles' as const, 'recently_performed' as const],
+    last_performed_date: '2026-09-20',
+  };
+
+  it('resolves by name and passes filters through', async () => {
+    vi.mocked(exerciseService.searchExercises).mockResolvedValue([benchRow]);
+    vi.mocked(getExerciseAlternatives).mockResolvedValue({
+      source: {
+        id: EXERCISE_ID,
+        name: 'Bench Press',
+        primary_muscles: ['chest'],
+        equipment: ['barbell'],
+      },
+      alternatives: [
+        alternative,
+        {
+          ...alternative,
+          origin: 'catalog',
+          id: 'Cable_Crossover',
+          name: 'Cable Crossover',
+          equipment: ['cable'],
+          reasons: ['same_primary_muscles', 'different_equipment'],
+          last_performed_date: null,
+        },
+      ],
+      rankable: true,
+      catalog_available: false,
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'suggest_alternatives',
+        exercise_name: 'bench press',
+        alternative_mode: 'different_equipment',
+        equipment: 'dumbbell, cable',
+        avoid_muscles: 'shoulders',
+        limit: 5,
+      },
+      opts
+    );
+
+    expect(getExerciseAlternatives).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      EXERCISE_ID,
+      {
+        mode: 'different_equipment',
+        equipment: ['dumbbell', 'cable'],
+        excludeMuscles: ['shoulders'],
+        excludeIds: [],
+        includeCatalog: true,
+        limit: 5,
+      }
+    );
+    expect(result).toBe(
+      '### Alternatives to Bench Press\n\n' +
+        '1. **Dumbbell Bench Press**\n' +
+        '   Muscles: chest | Equipment: dumbbell | Last done: 2026-09-20\n' +
+        '   Why: same primary muscles, done recently\n' +
+        `   ID: ${EXERCISE_ID_2}\n` +
+        '2. **Cable Crossover**\n' +
+        '   Muscles: chest | Equipment: cable\n' +
+        '   Why: same primary muscles, different equipment\n' +
+        '   Free Exercise DB (not in library yet), catalog ID: Cable_Crossover\n\n' +
+        '_Free Exercise DB is unavailable right now, so only library exercises are listed._'
+    );
+  });
+
+  it('explains when the exercise has no muscles to rank against', async () => {
+    vi.mocked(exerciseService.getExerciseById).mockResolvedValue(benchRow);
+    vi.mocked(getExerciseAlternatives).mockResolvedValue({
+      source: {
+        id: EXERCISE_ID,
+        name: 'Bench Press',
+        primary_muscles: [],
+        equipment: [],
+      },
+      alternatives: [],
+      rankable: false,
+      catalog_available: true,
+    });
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'suggest_alternatives', exercise_id: EXERCISE_ID },
+      opts
+    );
+    expect(result).toBe(
+      '### Alternatives to Bench Press\n\nBench Press has no primary muscles recorded, so alternatives cannot be ranked. Use search_exercises instead.'
+    );
+    expect(vi.mocked(getExerciseAlternatives).mock.calls[0][3]).toMatchObject({
+      mode: 'similar',
+      limit: 10,
+    });
+  });
+
+  it('maps an unknown exercise to the generic not-found text', async () => {
+    vi.mocked(exerciseService.searchExercises).mockResolvedValue([]);
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'suggest_alternatives', exercise_name: 'Nope' },
+      opts
+    );
+    expect(result).toBe(NOT_FOUND_RESOURCE_TEXT);
+  });
+});
+
+describe('rate_workout (manage action)', () => {
+  it('rates the whole session and confirms what was saved', async () => {
+    vi.mocked(setWorkoutFeedbackForEntry).mockResolvedValue({
+      exercise_preset_entry_id: 'session-1',
+      session: {
+        difficulty: 'too_hard',
+        pain: true,
+        pain_note: 'left knee',
+        updated_at: 'x',
+      },
+      exercises: [],
+    });
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'rate_workout',
+        entry_id: ENTRY_ID,
+        difficulty: 'too_hard',
+        pain: true,
+        pain_note: 'left knee',
+      },
+      opts
+    );
+    expect(setWorkoutFeedbackForEntry).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      ENTRY_ID,
+      'session',
+      { difficulty: 'too_hard', pain: true, pain_note: 'left knee' }
+    );
+    expect(result).toContain(
+      'Workout feedback saved (too hard, pain: left knee). Adaptive suggestions will use it next time.'
+    );
+  });
+
+  it('rates a single exercise', async () => {
+    vi.mocked(setWorkoutFeedbackForEntry).mockResolvedValue({
+      exercise_preset_entry_id: 'session-1',
+      session: null,
+      exercises: [
+        {
+          exercise_entry_id: ENTRY_ID,
+          difficulty: 'too_easy',
+          pain: false,
+          pain_note: null,
+          updated_at: 'x',
+        },
+      ],
+    });
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'rate_workout',
+        entry_id: ENTRY_ID,
+        scope: 'exercise',
+        difficulty: 'too_easy',
+      },
+      opts
+    );
+    expect(vi.mocked(setWorkoutFeedbackForEntry).mock.calls[0][3]).toBe(
+      'exercise'
+    );
+    expect(result).toContain('Exercise feedback saved (too easy).');
+  });
+
+  it('rejects a note together with pain=false', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'rate_workout',
+        entry_id: ENTRY_ID,
+        pain: false,
+        pain_note: 'sore',
+      },
+      opts
+    );
+    expect(result).toContain('pain_note cannot be combined with pain=false');
+    expect(setWorkoutFeedbackForEntry).not.toHaveBeenCalled();
+  });
+
+  it('passes omitted fields through so saved pain is kept', async () => {
+    vi.mocked(setWorkoutFeedbackForEntry).mockResolvedValue({
+      exercise_preset_entry_id: 'session-1',
+      session: {
+        difficulty: 'too_hard',
+        pain: true,
+        pain_note: 'knee',
+        updated_at: 'x',
+      },
+      exercises: [],
+    });
+    await tools.sparky_manage_exercise.execute!(
+      { action: 'rate_workout', entry_id: ENTRY_ID, difficulty: 'too_hard' },
+      opts
+    );
+    expect(vi.mocked(setWorkoutFeedbackForEntry).mock.calls[0][4]).toEqual({
+      difficulty: 'too_hard',
+      pain: undefined,
+      pain_note: undefined,
+    });
+  });
+
+  it('explains when the entry is not part of a session', async () => {
+    const { WorkoutEntryNotInSessionError } =
+      await import('../services/workoutCoachingService.js');
+    vi.mocked(setWorkoutFeedbackForEntry).mockRejectedValue(
+      new WorkoutEntryNotInSessionError()
+    );
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'rate_workout', entry_id: ENTRY_ID, difficulty: 'just_right' },
+      opts
+    );
+    expect(result).toContain(
+      'This exercise entry is not part of a logged workout session'
+    );
+  });
+});
+
+describe('get_workout_coaching (manage action)', () => {
+  const baseSignal = {
+    exercise_id: EXERCISE_ID,
+    last_performed_date: '2026-09-24',
+    days_since_last_performed: 2,
+    last_difficulty: null,
+    last_pain: null,
+    too_easy_streak: 0,
+    too_hard_streak: 0,
+    pain_streak: 0,
+    avg_rpe: null,
+    avg_rir: null,
+    sessions_in_variation_window: 1,
+  };
+
+  it('explains the adjustment for each exercise of a preset', async () => {
+    vi.mocked(workoutPresetService.getWorkoutPresetById).mockResolvedValue({
+      id: PRESET_ID,
+      exercises: [
+        { exercise_id: EXERCISE_ID, exercise_name: 'Bench Press' },
+        {
+          exercise_id: EXERCISE_ID_2,
+          exercise_name: 'Cable Fly',
+          exercise: { mechanic: 'isolation' },
+        },
+      ],
+    } as never);
+    vi.mocked(getWorkoutCoachingSignals).mockResolvedValue({
+      adaptive_suggestions: true,
+      signals: [
+        { ...baseSignal, last_pain: 'exercise', pain_streak: 1 },
+        {
+          ...baseSignal,
+          exercise_id: EXERCISE_ID_2,
+          sessions_in_variation_window: 7,
+        },
+      ],
+    });
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_coaching', preset_id: PRESET_ID },
+      opts
+    );
+    expect(getWorkoutCoachingSignals).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      [EXERCISE_ID, EXERCISE_ID_2],
+      null
+    );
+    expect(result).toBe(
+      '### Adaptive coaching\n\n' +
+        '- **Bench Press** (last done 2026-09-24): lighter (-10%): pain was reported in this exercise last time\n' +
+        '- **Cable Fly** (last done 2026-09-24): done in most recent workouts; consider a variation (suggest_alternatives)\n\n' +
+        'The user can decline any change in the app ("Use my usual").'
+    );
+  });
+
+  it('says when adaptive suggestions are off', async () => {
+    vi.mocked(exerciseService.getExerciseById).mockResolvedValue({
+      id: EXERCISE_ID,
+      name: 'Bench Press',
+    });
+    vi.mocked(getWorkoutCoachingSignals).mockResolvedValue({
+      adaptive_suggestions: false,
+      signals: [],
+    });
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_coaching', exercise_id: EXERCISE_ID },
+      opts
+    );
+    expect(result).toContain('Adaptive suggestions are turned off');
+  });
+
+  it('reports normal progression without recent history', async () => {
+    vi.mocked(exerciseService.getExerciseById).mockResolvedValue({
+      id: EXERCISE_ID,
+      name: 'Bench Press',
+    });
+    vi.mocked(getWorkoutCoachingSignals).mockResolvedValue({
+      adaptive_suggestions: true,
+      signals: [],
+    });
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'get_workout_coaching', exercise_id: EXERCISE_ID },
+      opts
+    );
+    expect(result).toContain(
+      '- **Bench Press**: no recent history: normal progression'
     );
   });
 });

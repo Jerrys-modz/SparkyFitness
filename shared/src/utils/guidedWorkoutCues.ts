@@ -91,10 +91,28 @@ export interface GuidedSetInfo {
 
 /** Instruction lines worth speaking: trimmed, empties dropped. */
 export function normalizeGuidedInstructions(
-  lines: readonly string[] | null | undefined,
+  lines: readonly string[] | string | null | undefined,
 ): string[] {
   if (!lines) return [];
-  return lines.map((line) => line.trim()).filter((line) => line.length > 0);
+  if (typeof lines === 'string') {
+    try {
+      const parsed = JSON.parse(lines);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((line): line is string => typeof line === 'string')
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+      }
+    } catch {
+      // not JSON array
+    }
+    const trimmed = lines.trim();
+    return trimmed.length > 0 ? [trimmed] : [];
+  }
+  if (!Array.isArray(lines)) return [];
+  return lines
+    .map((line) => (typeof line === 'string' ? line.trim() : ''))
+    .filter((line) => line.length > 0);
 }
 
 /** Spoken once, as a guided session begins its first get-ready. */

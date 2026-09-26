@@ -2,6 +2,8 @@ import type { WorkoutPreset } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
 import {
   addDropSetsToWorkoutExercise,
+  adaptDraftExerciseSets,
+  setWorkoutAdaptiveDeclined,
   applyWeightRampToDraftExercise,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
@@ -17,6 +19,7 @@ import {
   getWorkoutPlaybackDraftStorageKey,
   loadWorkoutPlaybackDraftFromStorage,
   removeWorkoutSetFromExercise,
+  replaceExerciseInWorkoutDraft,
   saveWorkoutPlaybackDraftToStorage,
   setWorkoutPlaybackPointer,
   toggleWorkoutSetCompletion,
@@ -643,5 +646,162 @@ describe('workoutPlayback utils', () => {
     expect(payload.exercises?.[0]?.sets?.[0]).not.toHaveProperty(
       'timer_started_at_ms'
     );
+  });
+});
+
+describe('replaceExerciseInWorkoutDraft', () => {
+  const dumbbellPress = {
+    id: 'exercise-9',
+    name: 'Dumbbell Press',
+    category: 'strength',
+    modality: 'weight_reps',
+    images: ['db.png'],
+    instructions: ['Press.'],
+    primary_muscles: ['chest'],
+    secondary_muscles: [],
+    equipment: ['dumbbell'],
+    force: null,
+    level: null,
+    mechanic: null,
+  } as Exercise;
+
+  it('swaps the exercise in place and resets its sets', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const next = replaceExerciseInWorkoutDraft(draft, 0, dumbbellPress);
+
+    expect(next.exercises).toHaveLength(2);
+    expect(next.exercises[0]).toMatchObject({
+      exercise_id: 'exercise-9',
+      exercise_name: 'Dumbbell Press',
+      image_url: 'db.png',
+      instructions: ['Press.'],
+      ramp_increment: null,
+    });
+    expect(next.exercises[0]?.sets).toHaveLength(1);
+    expect(next.exercises[0]?.sets[0]).toMatchObject({
+      reps: 10,
+      weight: null,
+      completed: false,
+      rest_time: 90,
+    });
+    expect(next.exercises[1]).toBe(draft.exercises[1]);
+    expect(next.active_exercise_index).toBe(0);
+    expect(next.active_set_index).toBe(0);
+  });
+
+  it('uses a timed set for a duration exercise', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const plank = {
+      ...dumbbellPress,
+      id: 'plank',
+      name: 'Plank',
+      modality: 'duration',
+    } as Exercise;
+    const next = replaceExerciseInWorkoutDraft(draft, 1, plank);
+    expect(next.exercises[1]?.modality).toBe('duration');
+    expect(next.exercises[1]?.sets[0]).toMatchObject({
+      reps: null,
+      duration: null,
+    });
+  });
+
+  it('ignores an index outside the workout', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    expect(replaceExerciseInWorkoutDraft(draft, 5, dumbbellPress)).toBe(draft);
+  });
+});
+
+describe('adaptive draft helpers', () => {
+  const lighter = {
+    kind: 'reduce' as const,
+    loadFactor: 0.9,
+    blockIncrease: true,
+    addIncrement: false,
+    suggestAlternative: true,
+    reason: 'pain_reported' as const,
+  };
+
+  it('lightens working sets only, rounding to a loadable step', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const exercise = {
+      ...draft.exercises[0]!,
+      sets: [
+        { ...draft.exercises[0]!.sets[0]!, set_type: 'Warm-up', weight: 40 },
+        ...draft.exercises[0]!.sets,
+      ],
+    };
+    const adapted = adaptDraftExerciseSets(exercise, lighter, null, 'kg');
+    expect(adapted.sets.map((set) => set.weight)).toEqual([40, 70, 70]);
+  });
+
+  it('adds a step for a "too easy" increase and rounds lbs in pounds', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const up = adaptDraftExerciseSets(
+      draft.exercises[0]!,
+      { ...lighter, kind: 'increase', loadFactor: 1, addIncrement: true },
+      2.5,
+      'kg'
+    );
+    expect(up.sets.map((set) => set.weight)).toEqual([82.5, 82.5]);
+    const lbs = adaptDraftExerciseSets(
+      draft.exercises[0]!,
+      lighter,
+      null,
+      'lbs'
+    );
+    // 80 kg = 176.4 lb -> 90% = 158.7 -> 155 lb = 70.3068 kg
+    expect(lbs.sets[0]!.weight).toBeCloseTo(70.3068, 3);
+  });
+
+  it('switches between usual and adapted sets, sparing completed ones', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const exercise = draft.exercises[0]!;
+    const adaptedSets = exercise.sets.map((set) => ({ ...set, weight: 72.5 }));
+    const withAdaptive = {
+      ...draft,
+      exercises: [
+        {
+          ...exercise,
+          sets: [{ ...adaptedSets[0]!, completed: true }, adaptedSets[1]!],
+          adaptive: {
+            reason: 'pain_reported' as const,
+            kind: 'reduce' as const,
+            suggest_alternative: true,
+            declined: false,
+            usual: { sets: exercise.sets, ramp_base_weight: null },
+            adapted: { sets: adaptedSets, ramp_base_weight: null },
+          },
+        },
+        draft.exercises[1]!,
+      ],
+    };
+    const usual = setWorkoutAdaptiveDeclined(withAdaptive, 0, true);
+    expect(usual.exercises[0]!.sets.map((set) => set.weight)).toEqual([
+      72.5, 80,
+    ]);
+    expect(usual.exercises[0]!.adaptive?.declined).toBe(true);
+    const back = setWorkoutAdaptiveDeclined(usual, 0, false);
+    expect(back.exercises[0]!.sets.map((set) => set.weight)).toEqual([
+      72.5, 72.5,
+    ]);
+    expect(setWorkoutAdaptiveDeclined(back, 1, true)).toBe(back);
   });
 });

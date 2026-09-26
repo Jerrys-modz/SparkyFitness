@@ -1,4 +1,6 @@
 import {
+  adaptiveWeightStepKg,
+  applyAdaptiveLoadFactorKg,
   calculateDropSetWeightsKg,
   calculateRampedWeightKg,
   findDropSetBaseIndex,
@@ -7,6 +9,9 @@ import {
   resolveExerciseModality,
   setsDurationMinutes,
   weightRampStepIndexes,
+  type AdaptiveAdjustment,
+  type AdaptiveAdjustmentKind,
+  type AdaptiveReason,
   type CreatePresetSessionRequest,
   type ExerciseModality,
   type WorkoutFormat,
@@ -62,6 +67,32 @@ export interface WorkoutPlaybackExerciseDraft {
   ramp_base_weight?: number | null;
   round_sets_count?: number;
   sets: WorkoutPlaybackSetDraft[];
+  /** Library mechanic (compound/isolation), for variation hints. */
+  mechanic?: string | null;
+  /** Adaptive coaching applied at load (#1560); null/absent = none. */
+  adaptive?: WorkoutPlaybackAdaptiveInfo | null;
+  /** Done in most recent sessions; suggest a variation (#1560). */
+  suggest_variation?: boolean;
+}
+
+/** One version of an exercise's prescribed sets (usual or adapted). */
+export interface WorkoutPlaybackAdaptiveVariant {
+  sets: WorkoutPlaybackSetDraft[];
+  ramp_base_weight: number | null;
+}
+
+/**
+ * Why and how today's sets differ from the usual suggestion, with both
+ * versions kept so "use my usual" can switch back (and forth) without
+ * recomputing anything.
+ */
+export interface WorkoutPlaybackAdaptiveInfo {
+  reason: AdaptiveReason;
+  kind: AdaptiveAdjustmentKind;
+  suggest_alternative: boolean;
+  declined: boolean;
+  usual: WorkoutPlaybackAdaptiveVariant;
+  adapted: WorkoutPlaybackAdaptiveVariant;
 }
 
 export interface WorkoutPlaybackSetDraft extends WorkoutPresetSet {
@@ -371,6 +402,7 @@ export function createWorkoutPlaybackDraftFromPreset(
         image_url: exercise.image_url || exercise.exercise?.images?.[0],
         images: exercise.exercise?.images ?? undefined,
         instructions: exercise.exercise?.instructions ?? undefined,
+        mechanic: exercise.exercise?.mechanic ?? null,
         modality: resolveExerciseModality(
           exercise.modality ?? exercise.exercise?.modality,
           exercise.category ?? exercise.exercise?.category
@@ -954,6 +986,138 @@ function getNextIncompletePointer(
   }
 
   return null;
+}
+
+function isWarmupSet(setType: string | null | undefined): boolean {
+  return !!setType && setType.toLowerCase().includes('warm');
+}
+
+/**
+ * The adapted working-set weights for one exercise (#1560), in kg: one step
+ * heavier for a "too easy twice" increase the engine didn't already make,
+ * and a load factor (rounded down to a loadable step in the lifter's unit)
+ * for a lighter day. Warm-ups, completed sets and unweighted sets are left
+ * alone.
+ */
+export function adaptDraftExerciseSets(
+  exercise: WorkoutPlaybackExerciseDraft,
+  adjustment: AdaptiveAdjustment,
+  addIncrementKg: number | null,
+  weightUnit: string
+): WorkoutPlaybackExerciseDraft {
+  const unit = weightUnit === 'kg' ? 'kg' : 'lbs';
+  let changed = false;
+  const sets = exercise.sets.map((set) => {
+    if (set.completed || isWarmupSet(set.set_type)) return set;
+    if (set.weight == null || set.weight <= 0) return set;
+    let weightKg = set.weight;
+    if (addIncrementKg != null && addIncrementKg > 0) {
+      weightKg += addIncrementKg;
+    }
+    weightKg = applyAdaptiveLoadFactorKg(weightKg, adjustment.loadFactor, unit);
+    if (weightKg === set.weight) return set;
+    changed = true;
+    return { ...set, weight: weightKg };
+  });
+  return changed ? { ...exercise, sets } : exercise;
+}
+
+/** The kg a "too easy twice" increase adds when the preset sets none. */
+export function adaptiveDefaultIncrementKg(weightUnit: string): number {
+  return adaptiveWeightStepKg(weightUnit === 'kg' ? 'kg' : 'lbs');
+}
+
+/**
+ * Switch one exercise between its adapted and usual sets ("use my usual").
+ * Only sets not yet completed change; a completed set keeps what was done.
+ */
+export function setWorkoutAdaptiveDeclined(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number,
+  declined: boolean
+): WorkoutPlaybackDraft {
+  const exercise = draft.exercises[exerciseIndex];
+  const adaptive = exercise?.adaptive;
+  if (!exercise || !adaptive || adaptive.declined === declined) return draft;
+  const variant = declined ? adaptive.usual : adaptive.adapted;
+  const sets = exercise.sets.map((set, index) => {
+    const target = variant.sets[index];
+    if (set.completed || !target) return set;
+    return { ...set, weight: target.weight, reps: target.reps };
+  });
+  const exercises = draft.exercises.map((entry, index) =>
+    index === exerciseIndex
+      ? {
+          ...entry,
+          sets,
+          ramp_base_weight: variant.ramp_base_weight,
+          adaptive: { ...adaptive, declined },
+        }
+      : entry
+  );
+  return touchDraft({ ...draft, exercises });
+}
+
+/**
+ * Swap the exercise at `exerciseIndex` for `exercise` in place, keeping its
+ * position and notes. Mirrors mobile's `replaceExercise`: the
+ * old sets described a different movement, so they reset to one default set
+ * for the new exercise's modality, and the replaced exercise's progression
+ * and ramp settings are dropped rather than applied to the new one.
+ */
+export function replaceExerciseInWorkoutDraft(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number,
+  exercise: Exercise
+): WorkoutPlaybackDraft {
+  const current = draft.exercises[exerciseIndex];
+  if (!current) return draft;
+  const modality = resolveExerciseModality(
+    exercise.modality,
+    exercise.category
+  );
+  const defaultSet = defaultSetForModality(modality);
+  const replaced: WorkoutPlaybackExerciseDraft = {
+    exercise_id: exercise.id,
+    exercise_name: exercise.name,
+    modality,
+    image_url: exercise.images?.[0],
+    images: exercise.images ?? undefined,
+    instructions: exercise.instructions ?? undefined,
+    notes: current.notes,
+    started_at: current.started_at,
+    ended_at: current.ended_at,
+    workout_plan_assignment_id: current.workout_plan_assignment_id,
+    ramp_increment: null,
+    ramp_base_weight: null,
+    mechanic: exercise.mechanic ?? null,
+    adaptive: null,
+    suggest_variation: false,
+    round_sets_count: 1,
+    sets: [
+      {
+        ...defaultSet,
+        set_number: 1,
+        set_type: defaultSet.set_type ?? 'Working Set',
+        duration: defaultSet.duration ?? null,
+        distance: null,
+        rest_time: current.sets[0]?.rest_time ?? DEFAULT_REST_SECONDS,
+        notes: null,
+        rpe: null,
+        completed: false,
+        completed_at: null,
+      },
+    ],
+  };
+  const exercises = draft.exercises.map((entry, index) =>
+    index === exerciseIndex ? replaced : entry
+  );
+  const isActive = draft.active_exercise_index === exerciseIndex;
+  return touchDraft({
+    ...draft,
+    exercises,
+    active_set_index: isActive ? 0 : draft.active_set_index,
+  });
 }
 
 export function completeCurrentWorkoutSet(

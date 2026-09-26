@@ -3,13 +3,28 @@ import { z } from 'zod';
 import {
   RIR_MAX,
   RIR_MIN,
+  decideAdaptiveAdjustment,
+  shouldSuggestVariation,
   todayInZone,
+  type AdaptiveReason,
+  type ExerciseAlternativeReason,
+  type WorkoutFeedbackDifficulty,
+  type ExerciseAlternativesResponse,
+  type WorkoutCoachingSignalsResponse,
+  type WorkoutSessionFeedbackResponse,
   type ExerciseModality,
   type WodScoreDetailData,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseService from '../../services/exerciseService.js';
 import workoutPresetService from '../../services/workoutPresetService.js';
+import { getExerciseAlternatives } from '../../services/exerciseAlternativesService.js';
+import {
+  WorkoutEntryNotInSessionError,
+  WorkoutSessionNotFoundError,
+  setWorkoutFeedbackForEntry,
+} from '../../services/workoutCoachingService.js';
+import { getWorkoutCoachingSignals } from '../../services/adaptiveWorkoutService.js';
 import exerciseDb from '../../models/exercise.js';
 import exerciseEntryDb from '../../models/exerciseEntry.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
@@ -56,6 +71,9 @@ const VALID_ACTIONS = [
   'update_workout_preset',
   'delete_workout_preset',
   'get_exercise_progress',
+  'suggest_alternatives',
+  'rate_workout',
+  'get_workout_coaching',
 ];
 
 type WorkoutPresetSetRow = {
@@ -398,6 +416,7 @@ interface ExerciseCatalogRow {
   primary_muscles?: string[] | null;
   equipment?: string[] | null;
   level?: string | null;
+  mechanic?: string | null;
   calories_per_hour?: number | null;
   description?: string | null;
   is_custom?: boolean | null;
@@ -466,6 +485,128 @@ function projectExercise(row: ExerciseCatalogRow): ProjectedExercise {
 
 // Full details for one exercise by id or name, projected to MCP's shape.
 // Throws "not found" errors for the callers' catch blocks to map.
+const DIFFICULTY_TEXT: Record<WorkoutFeedbackDifficulty, string> = {
+  too_easy: 'too easy',
+  just_right: 'just right',
+  too_hard: 'too hard',
+};
+
+function describeSavedFeedback(
+  saved: WorkoutSessionFeedbackResponse,
+  scope: 'session' | 'exercise',
+  entryId: string
+): string {
+  const item =
+    scope === 'session'
+      ? saved.session
+      : saved.exercises.find(
+          (exercise) => exercise.exercise_entry_id === entryId
+        );
+  if (!item) {
+    return scope === 'session'
+      ? 'Workout feedback cleared.'
+      : 'Exercise feedback cleared.';
+  }
+  const parts: string[] = [];
+  if (item.difficulty) parts.push(DIFFICULTY_TEXT[item.difficulty]);
+  if (item.pain) {
+    parts.push(item.pain_note ? `pain: ${item.pain_note}` : 'pain reported');
+  }
+  const subject = scope === 'session' ? 'Workout' : 'Exercise';
+  return `${subject} feedback saved (${parts.join(', ')}). Adaptive suggestions will use it next time.`;
+}
+
+const ADAPTIVE_REASON_TEXT: Record<AdaptiveReason, string> = {
+  pain_reported: 'lighter (-10%): pain was reported in this exercise last time',
+  pain_repeated:
+    'lighter (-10%): pain two sessions running; an alternative is recommended (suggest_alternatives)',
+  session_pain: 'hold weight: discomfort was reported in the last workout',
+  too_hard: 'hold weight: last session felt too hard',
+  too_hard_repeated: 'lighter (-10%): too hard two sessions running',
+  high_effort: 'hold weight: last sets were logged at near-max effort',
+  too_easy_repeated: 'one step heavier: too easy two sessions running',
+};
+
+function formatCoaching(
+  result: WorkoutCoachingSignalsResponse,
+  targets: { id: string; name: string; mechanic: string | null }[]
+): string {
+  const heading = '### Adaptive coaching';
+  if (!result.adaptive_suggestions) {
+    return `${heading}\n\nAdaptive suggestions are turned off in workout settings, so suggestions follow normal progression.`;
+  }
+  const signals = new Map(result.signals.map((s) => [s.exercise_id, s]));
+  const lines = targets.map((target) => {
+    const signal = signals.get(target.id) ?? null;
+    const adjustment = decideAdaptiveAdjustment(signal);
+    const notes: string[] = [];
+    if (adjustment.reason) notes.push(ADAPTIVE_REASON_TEXT[adjustment.reason]);
+    if (shouldSuggestVariation(signal, target.mechanic)) {
+      notes.push(
+        'done in most recent workouts; consider a variation (suggest_alternatives)'
+      );
+    }
+    if (notes.length === 0) {
+      notes.push(
+        signal
+          ? 'no change: normal progression'
+          : 'no recent history: normal progression'
+      );
+    }
+    const last = signal ? ` (last done ${signal.last_performed_date})` : '';
+    return `- **${target.name}**${last}: ${notes.join('; ')}`;
+  });
+  return `${heading}\n\n${lines.join('\n')}\n\nThe user can decline any change in the app ("Use my usual").`;
+}
+
+function splitCommaList(value: string | undefined): string[] {
+  return value
+    ? value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+}
+
+const ALTERNATIVE_REASON_TEXT: Record<ExerciseAlternativeReason, string> = {
+  same_primary_muscles: 'same primary muscles',
+  shares_primary_muscle: 'shares a primary muscle',
+  same_equipment: 'same equipment',
+  different_equipment: 'different equipment',
+  same_movement: 'same movement pattern',
+  recently_performed: 'done recently',
+  in_library: 'in your library',
+};
+
+function formatAlternatives(result: ExerciseAlternativesResponse): string {
+  const heading = `### Alternatives to ${result.source.name}`;
+  if (!result.rankable) {
+    return `${heading}\n\n${result.source.name} has no primary muscles recorded, so alternatives cannot be ranked. Use search_exercises instead.`;
+  }
+  if (result.alternatives.length === 0) {
+    return `${heading}\n\nNo alternatives match these filters.`;
+  }
+  const lines = result.alternatives.map((alt, index) => {
+    const origin =
+      alt.origin === 'library'
+        ? `ID: ${alt.id}`
+        : `Free Exercise DB (not in library yet), catalog ID: ${alt.id}`;
+    const lastDone = alt.last_performed_date
+      ? ` | Last done: ${alt.last_performed_date}`
+      : '';
+    return (
+      `${index + 1}. **${alt.name}**\n` +
+      `   Muscles: ${alt.primary_muscles.join(', ') || 'N/A'} | Equipment: ${alt.equipment.join(', ') || 'None'}${lastDone}\n` +
+      `   Why: ${alt.reasons.map((reason) => ALTERNATIVE_REASON_TEXT[reason]).join(', ')}\n` +
+      `   ${origin}`
+    );
+  });
+  const note = result.catalog_available
+    ? ''
+    : '\n\n_Free Exercise DB is unavailable right now, so only library exercises are listed._';
+  return `${heading}\n\n${lines.join('\n')}${note}`;
+}
+
 async function getExerciseDetails(
   userId: string,
   params: { exercise_id?: string; exercise_name?: string }
@@ -655,7 +796,10 @@ Workout formats (workout_format, default standard) drive the in-app timer:
 - emom — one round per minute; rounds = time_cap_seconds / 60, or the set count.
 - amrap — as many rounds as possible within time_cap_seconds (REQUIRED).
 - for_time — finish the work as fast as possible; time_cap_seconds is an optional cut-off.
-- get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
+- get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history
+- rate_workout(entry_id, scope?:session|exercise, difficulty?:too_easy|just_right|too_hard, pain?, pain_note?) — records how a logged workout felt; entry_id is any exercise entry ID from list_exercise_diary (scope=session rates its whole workout, scope=exercise just that exercise). Only the fields given change: omitted fields keep what is already recorded (difficulty=null clears it, pain=false clears pain and its note). Adaptive suggestions learn from it: pain makes that exercise lighter next time, never heavier. Only workouts logged as sessions (presets / live workouts) can be rated.
+- get_workout_coaching(exercise_id?|exercise_name?|preset_id?|preset_name?) — how the next session's suggestions will adapt to recent feedback for one exercise or every exercise in a preset, with the reason for each (lighter after pain, hold after "too hard", a step up after "too easy" twice, variation hints). Changes are suggestions the user can decline in the app.
+- suggest_alternatives(exercise_id?|exercise_name?, alternative_mode?:similar|different_equipment, equipment?, avoid_muscles?, limit?) — ranked substitutes that train the same primary muscles, with the reason for each. Use for "what can I do instead of X", a busy machine, missing equipment (equipment = comma-separated list of what they have), or an injury (avoid_muscles, or alternative_mode=different_equipment). Results marked "Free Exercise DB" are not in the user's library yet; they can add one from exercise search in the app.`,
       inputSchema: manageExerciseInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -1394,6 +1538,137 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                   next_offset: progress.next_offset,
                 }
               );
+            }
+
+            case 'suggest_alternatives': {
+              const exercise = await getExerciseDetails(userId, {
+                exercise_id: args.exercise_id,
+                exercise_name: args.exercise_name,
+              });
+              const result = await getExerciseAlternatives(
+                userId,
+                userId,
+                String(exercise.id),
+                {
+                  mode: args.alternative_mode ?? 'similar',
+                  equipment: splitCommaList(args.equipment),
+                  excludeMuscles: splitCommaList(args.avoid_muscles),
+                  excludeIds: [],
+                  includeCatalog: true,
+                  limit: args.limit ?? 10,
+                }
+              );
+              return formatAlternatives(result);
+            }
+
+            case 'rate_workout': {
+              try {
+                const saved = await setWorkoutFeedbackForEntry(
+                  userId,
+                  userId,
+                  args.entry_id,
+                  args.scope,
+                  {
+                    difficulty: args.difficulty,
+                    pain: args.pain,
+                    pain_note: args.pain_note,
+                  }
+                );
+                return formatConfirmation(
+                  describeSavedFeedback(saved, args.scope, args.entry_id)
+                );
+              } catch (error) {
+                if (error instanceof WorkoutEntryNotInSessionError) {
+                  return ERRORS.VALIDATION(error.message);
+                }
+                if (error instanceof WorkoutSessionNotFoundError) {
+                  return ERRORS.NOT_FOUND('Exercise entry', args.entry_id);
+                }
+                throw error;
+              }
+            }
+
+            case 'get_workout_coaching': {
+              let targets: {
+                id: string;
+                name: string;
+                mechanic: string | null;
+              }[];
+              if (args.preset_id || args.preset_name) {
+                let presetId = args.preset_id;
+                if (!presetId && args.preset_name) {
+                  const found =
+                    await workoutPresetRepository.getWorkoutPresetByName(
+                      userId,
+                      args.preset_name
+                    );
+                  if (!found) return ERRORS.NOT_FOUND('Resource', 'unknown');
+                  presetId = found.id;
+                }
+                const preset = (await workoutPresetService.getWorkoutPresetById(
+                  userId,
+                  presetId
+                )) as {
+                  exercises?: {
+                    exercise_id: string;
+                    exercise_name?: string | null;
+                    exercise?: {
+                      name?: string;
+                      mechanic?: string | null;
+                    } | null;
+                  }[];
+                };
+                targets = (preset.exercises ?? []).map((exercise) => ({
+                  id: exercise.exercise_id,
+                  name:
+                    exercise.exercise_name ??
+                    exercise.exercise?.name ??
+                    'Exercise',
+                  mechanic: exercise.exercise?.mechanic ?? null,
+                }));
+              } else {
+                // The raw row, not getExerciseDetails' projection: the
+                // variation hint needs `mechanic`, and that projection is an
+                // MCP parity contract.
+                const row = (
+                  args.exercise_id
+                    ? await exerciseService.getExerciseById(
+                        userId,
+                        args.exercise_id
+                      )
+                    : args.exercise_name
+                      ? await findExerciseByExactName(
+                          userId,
+                          args.exercise_name
+                        )
+                      : null
+                ) as ExerciseCatalogRow | null | undefined;
+                if (!row) {
+                  if (!args.exercise_id && !args.exercise_name) {
+                    return ERRORS.VALIDATION(
+                      'Provide exercise_id, exercise_name, preset_id or preset_name'
+                    );
+                  }
+                  return ERRORS.NOT_FOUND('Resource', 'unknown');
+                }
+                targets = [
+                  {
+                    id: String(row.id),
+                    name: row.name,
+                    mechanic: row.mechanic ?? null,
+                  },
+                ];
+              }
+              if (targets.length === 0) {
+                return 'This preset has no exercises.';
+              }
+              const result = await getWorkoutCoachingSignals(
+                userId,
+                userId,
+                targets.map((target) => target.id),
+                null
+              );
+              return formatCoaching(result, targets);
             }
 
             default:

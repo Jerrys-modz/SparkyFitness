@@ -31,6 +31,7 @@ import type {
 import type { Meal, MealIngredientDraft } from './meals';
 import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
+import type { ExerciseReplaceContext } from '../utils/exerciseReplace';
 
 export type FoodPickerMode =
   | 'log-entry'
@@ -249,7 +250,11 @@ export type RootStackParamList = {
         ingredientIndex?: number;
       }
     | undefined;
-  ExerciseSearch: { returnKey: string };
+  ExerciseSearch: {
+    returnKey: string;
+    /** Set when replacing an exercise: opens on ranked alternatives. */
+    replaceFor?: ExerciseReplaceContext;
+  };
   PresetSearch:
     { selectedExercise?: Exercise; selectionNonce?: number } | undefined;
   WorkoutAdd:

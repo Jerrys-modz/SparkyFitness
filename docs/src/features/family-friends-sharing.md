@@ -55,13 +55,16 @@ The following data can be **read** by delegates who hold at least one of `can_ma
 
 Delegates with only library permissions **cannot** read or write any of the above.
 
-### 3. Context-Switched Library Isolation
+### 3. Workout Feedback (Pain & Difficulty)
+After a workout you can say how it felt (too easy / just right / too hard) and flag pain or discomfort with a note. Adaptive suggestions learn from this. This feedback (`workout_feedback` table) is shared like the rest of your diary: delegates with **Manage Diary** (`can_manage_diary`) can see and record it for you, and delegates with **View Reports** (`can_view_reports`) can see it. Pain notes are health information, so keep that in mind when choosing who gets these permissions.
+
+### 4. Context-Switched Library Isolation
 Your custom food library, recipes, custom exercises, and medication inventory are only visible to delegates when they have switched their active profile context to your profile. This prevents their personal libraries/cabinets from being cluttered with your items.
 
-### 4. Automatic Token Validation & Expiry
+### 5. Automatic Token Validation & Expiry
 If you set an **Access End Date** for a connection, the database automatically revokes all database read/write access the moment that timestamp passes. No manual action is needed.
 
-### 5. Deleting a Shared Food or Exercise
+### 6. Deleting a Shared Food or Exercise
 
 A diary entry keeps its own copy of everything it needs to display itself — the food's name, brand and full nutrition, or the exercise's name, category, muscles, equipment and images. It does not depend on the library item it was logged from, so removing that item never erases anyone's history.
 
@@ -77,5 +80,5 @@ When you delete a food or exercise from your library you are offered up to three
 
 If someone else still uses the item — they have logged it, or it sits in their meals, meal plans, presets or workout plans — **Hide is the only option offered**. Meals, meal plans, presets and workout plans are linked to the library item itself rather than snapshotted, so genuinely deleting it would silently strip the item out of their templates too. Hiding removes it from search for everyone from that point on while leaving all existing history and templates intact.
 
-### 6. Meal-to-Meal Composition
+### 7. Meal-to-Meal Composition
 A meal's ingredient list can link another reusable meal (e.g. a sauce or side) instead of a plain food. Linking a sub-meal into a parent meal requires the same library access to the sub-meal that reading it directly would require — you cannot link a sub-meal you cannot otherwise view. This check applies independently of, and in addition to, owning the parent meal.

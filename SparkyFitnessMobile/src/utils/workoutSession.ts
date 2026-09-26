@@ -1,5 +1,7 @@
 import type { TFunction } from 'i18next';
 import type {
+  AdaptiveAdjustment,
+  ExerciseCoachingSignal,
   ExerciseEntrySetRequest,
   ExerciseEntrySetResponse,
   ExerciseModality,
@@ -12,7 +14,11 @@ import type {
   WorkoutFormat,
 } from '@workspace/shared';
 import {
+  NO_ADAPTIVE_ADJUSTMENT,
+  adaptiveWeightStepKg,
+  applyAdaptiveLoadFactorKg,
   calculateRampedWeightKg,
+  decideAdaptiveAdjustment,
   distributeProgressionReps,
   evaluateProgression,
   isCardioModality,
@@ -697,6 +703,7 @@ export interface WorkoutCardExercise {
     category?: string | null;
     modality?: string | null;
     images?: string[] | null;
+    mechanic?: string | null;
   } | null;
   sets: WorkoutCardSet[];
   /** Raw draft string backing the edit-mode calories input (draft mapper only). */
@@ -921,6 +928,11 @@ export interface AssumedSetOverrides {
   rampIncrementKg?: number | null;
   /** Display unit the ramp rounds in (0.25 kg / 2.5 lb). Defaults to kg. */
   weightUnit?: 'kg' | 'lbs';
+  /**
+   * Adaptive "lighter day" multiplier for working-set weights from history
+   * (issue #1560). Rounded down to a loadable step in `weightUnit`.
+   */
+  adaptiveLoadFactor?: number | null;
 }
 
 /**
@@ -974,7 +986,7 @@ export function resolveAssumedSetValues(
     const previous = previousSets?.[index];
     const planned = plannedBySetId?.[String(set.id)];
 
-    const effectivePreviousWeight =
+    const progressedPreviousWeight =
       tier === 'working' &&
       progressionIncrementKg != null &&
       progressionIncrementKg > 0 &&
@@ -982,9 +994,22 @@ export function resolveAssumedSetValues(
       previous.weight > 0
         ? previous.weight + progressionIncrementKg
         : previous?.weight;
+    // A lighter adaptive day applies to whatever the working set would
+    // otherwise start from — history, or the plan when this preset has no
+    // history yet — but never to the carried-forward value, which already
+    // holds an adapted weight.
+    const adaptiveLoadFactor = overrides?.adaptiveLoadFactor;
+    const sourceWeight = progressedPreviousWeight ?? planned?.weight;
+    const adaptedSourceWeight =
+      tier === 'working' && adaptiveLoadFactor != null && sourceWeight != null
+        ? applyAdaptiveLoadFactorKg(
+            sourceWeight,
+            adaptiveLoadFactor,
+            overrides?.weightUnit ?? 'kg'
+          )
+        : sourceWeight;
 
-    let weight =
-      effectivePreviousWeight ?? planned?.weight ?? lastEffective[tier].weight;
+    let weight = adaptedSourceWeight ?? lastEffective[tier].weight;
     const rampStep = rampSteps?.[index] ?? null;
     if (rampStep === 0) {
       rampBaseKg = weight != null && weight > 0 ? weight : null;
@@ -1146,6 +1171,34 @@ export interface LiveAssumeSources {
   exerciseConfigs?: Record<string, LiveExerciseConfig>;
   weightUnit?: 'kg' | 'lbs';
   workoutFormat?: WorkoutFormat;
+  /** Adaptive signals per library `exercise_id` (issue #1560). */
+  coachingSignals?: Record<string, ExerciseCoachingSignal | null>;
+  /** Session exercise ids whose adaptive adjustment the user declined. */
+  declinedAdaptive?: Record<string, true>;
+}
+
+/**
+ * The adaptive adjustment in force for one live session exercise: none when
+ * the user declined it, when the workout is clock-driven (interval/WOD sets
+ * aren't load-prescribed), or when there is no recent signal.
+ */
+export function liveAdaptiveAdjustment(
+  exercise: Pick<WorkoutCardExercise, 'id' | 'exercise_id'>,
+  sources: Pick<
+    LiveAssumeSources,
+    'coachingSignals' | 'declinedAdaptive' | 'workoutFormat'
+  >
+): AdaptiveAdjustment {
+  if ((sources.workoutFormat ?? 'standard') !== 'standard') {
+    return NO_ADAPTIVE_ADJUSTMENT;
+  }
+  if (sources.declinedAdaptive?.[String(exercise.id)]) {
+    return NO_ADAPTIVE_ADJUSTMENT;
+  }
+  if (exercise.exercise_id == null) return NO_ADAPTIVE_ADJUSTMENT;
+  return decideAdaptiveAdjustment(
+    sources.coachingSignals?.[exercise.exercise_id]
+  );
 }
 
 /** {@link LiveAssumeSources} plus the history map, as the store holds it. */
@@ -1161,7 +1214,7 @@ export interface AssumedValueSources extends LiveAssumeSources {
  * interval/WOD sets are clock-driven.
  */
 export function resolveLiveAssumedSetValues(
-  exercise: Pick<WorkoutCardExercise, 'id' | 'sets'>,
+  exercise: Pick<WorkoutCardExercise, 'id' | 'exercise_id' | 'sets'>,
   previousSets: readonly ExerciseRecentSessionSet[] | undefined,
   sources: LiveAssumeSources
 ): AssumedSetValues[] {
@@ -1176,13 +1229,23 @@ export function resolveLiveAssumedSetValues(
           previousSets,
           weightUnit
         );
-  const progressionIncrementKg =
+  // Adaptive coaching (#1560) nudges the engine's output: it can cancel an
+  // increase, add one step, or lighten the day. Pain never adds load.
+  const adaptive = liveAdaptiveAdjustment(exercise, sources);
+  const engineIncrementKg =
     config == null ? null : progressionIncrementKgFor(config, progression);
-  const progressionRepTargets = distributeProgressionReps(
-    progression,
-    config?.progression_mode ?? 'rep_goal',
-    exercise.sets.filter((s) => !isWarmupSetType(s.set_type)).length
-  );
+  const progressionIncrementKg = adaptive.blockIncrease
+    ? null
+    : adaptive.addIncrement && engineIncrementKg == null
+      ? adaptiveIncrementKgFor(config, weightUnit)
+      : engineIncrementKg;
+  const progressionRepTargets = adaptive.blockIncrease
+    ? null
+    : distributeProgressionReps(
+        progression,
+        config?.progression_mode ?? 'rep_goal',
+        exercise.sets.filter((s) => !isWarmupSetType(s.set_type)).length
+      );
   const rampIncrementKg =
     (sources.workoutFormat ?? 'standard') === 'standard'
       ? (config?.ramp_increment ?? null)
@@ -1196,8 +1259,28 @@ export function resolveLiveAssumedSetValues(
       progressionRepTargets,
       rampIncrementKg,
       weightUnit,
+      adaptiveLoadFactor: adaptive.loadFactor,
     }
   );
+}
+
+/**
+ * The kg step a "too easy twice" adaptive increase adds: the preset's own
+ * weight increment when it has one, else one loadable step in the lifter's
+ * unit (2.5 kg / 5 lb).
+ */
+function adaptiveIncrementKgFor(
+  config: LiveExerciseConfig | undefined,
+  weightUnit: 'kg' | 'lbs'
+): number {
+  if (
+    config?.increment_value != null &&
+    (config.increment_type ?? 'weight') === 'weight' &&
+    config.progression_mode !== 'step_load'
+  ) {
+    return Number(config.increment_value);
+  }
+  return adaptiveWeightStepKg(weightUnit);
 }
 
 /**

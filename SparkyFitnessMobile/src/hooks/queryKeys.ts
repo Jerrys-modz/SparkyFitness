@@ -188,6 +188,32 @@ export const exerciseStatsQueryKey = (
     presetId ?? null,
   ] as const;
 
+export const workoutSessionFeedbackQueryKey = (presetEntryId: string) =>
+  ['workoutSessionFeedback', presetEntryId] as const;
+
+export const workoutCoachingSettingsQueryKey = [
+  'workoutCoachingSettings',
+] as const;
+
+/** Root for adaptive suggestions; feedback saves invalidate it. */
+export const workoutSuggestionsQueryKeyRoot = ['workoutSuggestions'] as const;
+
+export const exerciseAlternativesQueryKeyRoot = [
+  'exerciseAlternatives',
+] as const;
+
+export const exerciseAlternativesQueryKey = (
+  exerciseId: string,
+  mode: string,
+  excludeIds: readonly string[]
+) =>
+  [
+    ...exerciseAlternativesQueryKeyRoot,
+    exerciseId,
+    mode,
+    [...excludeIds].sort().join(','),
+  ] as const;
+
 export const exerciseDetailQueryKey = (exerciseId: string) =>
   ['exerciseDetail', exerciseId] as const;
 
