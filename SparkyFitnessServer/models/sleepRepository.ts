@@ -396,24 +396,14 @@ async function deleteSupersededSleepStagesWithClient(
       new Date(windowEnd)
     );
     if (!remainders || remainders.length === 0) continue;
-    const [head, tail] = remainders;
+    // Delete first. Updating the crossing row onto a remainder can land on a
+    // stage that already has that (entry_id, start_time, end_time).
     await client.query(
-      `UPDATE sleep_entry_stages
-       SET start_time = $4,
-           end_time = $5,
-           duration_in_seconds = $6,
-           updated_at = CURRENT_TIMESTAMP
+      `DELETE FROM sleep_entry_stages
        WHERE id = $1 AND entry_id = $2 AND user_id = $3`,
-      [
-        row.id,
-        entryId,
-        userId,
-        head.start_time,
-        head.end_time,
-        head.duration_in_seconds,
-      ]
+      [row.id, entryId, userId]
     );
-    if (tail) {
+    for (const remainder of remainders) {
       await client.query(
         `INSERT INTO sleep_entry_stages
            (entry_id, user_id, stage_type, start_time, end_time, duration_in_seconds)
@@ -426,9 +416,9 @@ async function deleteSupersededSleepStagesWithClient(
           entryId,
           userId,
           row.stage_type,
-          tail.start_time,
-          tail.end_time,
-          tail.duration_in_seconds,
+          remainder.start_time,
+          remainder.end_time,
+          remainder.duration_in_seconds,
         ]
       );
     }
