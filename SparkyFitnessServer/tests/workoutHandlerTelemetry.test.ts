@@ -179,6 +179,18 @@ describe('workoutHandler — backward compatibility', () => {
     expect(payload.entry_time).toBe('09:00:00');
   });
 
+  it('still saves the workout when record_timezone is not a real zone', async () => {
+    const result = await workoutHandler.handle(
+      baseEntry({ record_timezone: 'Not/AZone' }),
+      makeCtx()
+    );
+
+    expect(result.status).toBe('success');
+    const payload = (exerciseEntryDb.createExerciseEntry as Mock).mock
+      .calls[0][1];
+    expect(payload.entry_time).toBeUndefined();
+  });
+
   it('persists provider-associated workout steps for calorie deduplication', async () => {
     await workoutHandler.handle(baseEntry({ steps: 6123 }), makeCtx());
 

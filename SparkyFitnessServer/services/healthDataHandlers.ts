@@ -1610,8 +1610,12 @@ async function persistWorkoutTelemetry(
 function localEntryTime(iso: string, tz: string): string | null {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms) || !tz) return null;
-  const { hour, minute } = instantHourMinute(ms, tz);
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+  try {
+    const { hour, minute } = instantHourMinute(ms, tz);
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+  } catch {
+    return null;
+  }
 }
 
 const workoutHandler: HealthTypeHandler = {

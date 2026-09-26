@@ -884,7 +884,7 @@ const ExerciseReportsDashboard = ({
       {viewMode === 'cardio' && (
         <div className="space-y-6">
           <CardioSessionList
-            key={`${startDate ?? ''}-${endDate ?? ''}-${unitSystem}`}
+            key={`${startDate ?? ''}-${endDate ?? ''}-${unitSystem}-${activeUserId ?? ''}`}
             startDate={startDate}
             endDate={endDate}
             unitSystem={unitSystem}

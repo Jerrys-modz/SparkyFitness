@@ -785,6 +785,7 @@ async function getExerciseDashboardData(
       const isStrengthFormat = format === 'standard';
 
       if (entry.sets && entry.sets.length > 0) {
+        const primaryMuscles = primaryMusclesOf(entry);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         entry.sets.forEach((set: any) => {
           const weight = parseFloat(set.weight) || 0;
@@ -825,8 +826,6 @@ async function getExerciseDashboardData(
               }
             }
           }
-          // Muscle group volume
-          const primaryMuscles = primaryMusclesOf(entry);
           for (const muscle of primaryMuscles) {
             // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
             muscleGroupVolume[muscle] =
