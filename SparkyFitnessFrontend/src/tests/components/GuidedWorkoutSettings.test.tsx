@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Accordion, AccordionItem } from '@/components/ui/accordion';
@@ -16,13 +17,29 @@ jest.mock('react-i18next', () =>
   jest.requireActual('@/tests/mocks/reactI18next')
 );
 
+jest.mock('@/hooks/Exercises/useWorkoutCoaching', () => ({
+  useWorkoutCoachingSettings: () => ({
+    data: { adaptive_suggestions: true },
+    isLoading: false,
+  }),
+  useUpdateWorkoutCoachingSettings: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}));
+
 function renderSettings() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <Accordion type="multiple" defaultValue={['guided-workouts']}>
-      <AccordionItem value="guided-workouts">
-        <GuidedWorkoutSettings />
-      </AccordionItem>
-    </Accordion>
+    <QueryClientProvider client={queryClient}>
+      <Accordion type="multiple" defaultValue={['guided-workouts']}>
+        <AccordionItem value="guided-workouts">
+          <GuidedWorkoutSettings />
+        </AccordionItem>
+      </Accordion>
+    </QueryClientProvider>
   );
 }
 
@@ -42,13 +59,13 @@ describe('GuidedWorkoutSettings', () => {
 
   it('starts off, with the options hidden', () => {
     renderSettings();
-    expect(screen.getByRole('switch')).not.toBeChecked();
+    expect(screen.getByLabelText('Guided mode')).not.toBeChecked();
     expect(screen.queryByText('Speech rate')).not.toBeInTheDocument();
   });
 
   it('turns guided mode on and reveals voice, rate, countdown and a test', () => {
     renderSettings();
-    fireEvent.click(screen.getByRole('switch'));
+    fireEvent.click(screen.getByLabelText('Guided mode'));
     expect(getGuidedWorkoutPreferences().enabled).toBe(true);
 
     expect(screen.getByText('Voice')).toBeInTheDocument();
@@ -64,7 +81,7 @@ describe('GuidedWorkoutSettings', () => {
   it('warns when the browser cannot speak', () => {
     removeSpeechSynthesisMock();
     renderSettings();
-    fireEvent.click(screen.getByRole('switch'));
+    fireEvent.click(screen.getByLabelText('Guided mode'));
     expect(
       screen.getByText(
         'This browser cannot speak. The guided view still works, without narration.'

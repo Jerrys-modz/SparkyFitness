@@ -11,6 +11,7 @@ import type {
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { exerciseFromSnapshot, getSupersetRuns } from '../utils/workoutSession';
 import type { RootStackParamList } from '../types/navigation';
+import { buildExerciseReplaceContext } from '../utils/exerciseReplace';
 
 interface UseActiveWorkoutExerciseActionsArgs {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ActiveWorkout'>;
@@ -74,8 +75,22 @@ export function useActiveWorkoutExerciseActions({
   const handleReplaceExercise = useCallback(
     (entryId: string) => {
       replaceTargetEntryIdRef.current = entryId;
+      const entries = (
+        useActiveWorkoutStore.getState().session?.exercises ?? []
+      ).map((e) => ({
+        id: e.id,
+        exerciseId: e.exercise_id,
+        exerciseName: e.exercise_snapshot?.name ?? '',
+      }));
+      const replaceFor = buildExerciseReplaceContext(
+        entries.find((e) => e.id === entryId),
+        entries
+      );
       runNavigationAction(() => {
-        navigation.navigate('ExerciseSearch', { returnKey: route.key });
+        navigation.navigate('ExerciseSearch', {
+          returnKey: route.key,
+          replaceFor,
+        });
       });
     },
     [navigation, route.key, runNavigationAction]

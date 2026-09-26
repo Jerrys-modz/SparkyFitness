@@ -2617,6 +2617,18 @@ describe('activeWorkoutStore', () => {
         expect(state.hasUnsavedChanges).toBe(true);
       });
 
+      it('forgets a declined adaptive suggestion for the replaced entry', () => {
+        useActiveWorkoutStore.setState({
+          declinedAdaptive: { 'ex-uuid-1': true, 'ex-uuid-2': true },
+        });
+        useActiveWorkoutStore
+          .getState()
+          .replaceExercise('ex-uuid-1', replacement);
+        expect(useActiveWorkoutStore.getState().declinedAdaptive).toEqual({
+          'ex-uuid-2': true,
+        });
+      });
+
       it("drops the replaced exercise's preset progression/ramp settings", () => {
         useActiveWorkoutStore.setState({
           exerciseConfigs: {
@@ -4049,6 +4061,65 @@ describe('activeWorkoutStore', () => {
         FIXED_NOW + 61_000
       );
       await flushPromises();
+    });
+  });
+
+  describe('adaptive coaching state (#1560)', () => {
+    const signal = {
+      exercise_id: 'ex-1',
+      last_performed_date: '2026-03-18',
+      days_since_last_performed: 2,
+      last_difficulty: 'too_hard' as const,
+      last_pain: null,
+      too_easy_streak: 0,
+      too_hard_streak: 1,
+      pain_streak: 0,
+      avg_rpe: null,
+      avg_rir: null,
+      sessions_in_variation_window: 2,
+    };
+
+    it('captures signals once per exercise, recording "no history" as null', () => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      useActiveWorkoutStore
+        .getState()
+        .captureCoachingSignals(['ex-1', 'ex-2'], [signal]);
+      expect(useActiveWorkoutStore.getState().coachingSignals).toEqual({
+        'ex-1': signal,
+        'ex-2': null,
+      });
+      // A later answer never shifts a captured suggestion mid-workout.
+      useActiveWorkoutStore
+        .getState()
+        .captureCoachingSignals(['ex-1'], [{ ...signal, too_hard_streak: 3 }]);
+      expect(useActiveWorkoutStore.getState().coachingSignals['ex-1']).toBe(
+        signal
+      );
+    });
+
+    it('ignores signals outside a live workout and resets on a new one', () => {
+      useActiveWorkoutStore
+        .getState()
+        .captureCoachingSignals(['ex-1'], [signal]);
+      expect(useActiveWorkoutStore.getState().coachingSignals).toEqual({});
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      useActiveWorkoutStore
+        .getState()
+        .captureCoachingSignals(['ex-1'], [signal]);
+      useActiveWorkoutStore.getState().setAdaptiveDeclined('ex-uuid-1', true);
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      expect(useActiveWorkoutStore.getState().coachingSignals).toEqual({});
+      expect(useActiveWorkoutStore.getState().declinedAdaptive).toEqual({});
+    });
+
+    it('declines and restores an adjustment per entry', () => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      useActiveWorkoutStore.getState().setAdaptiveDeclined('ex-uuid-1', true);
+      expect(useActiveWorkoutStore.getState().declinedAdaptive).toEqual({
+        'ex-uuid-1': true,
+      });
+      useActiveWorkoutStore.getState().setAdaptiveDeclined('ex-uuid-1', false);
+      expect(useActiveWorkoutStore.getState().declinedAdaptive).toEqual({});
     });
   });
 });

@@ -2,6 +2,7 @@ import { AppState } from 'react-native';
 import {
   createAudioPlayer,
   setAudioModeAsync,
+  setIsAudioActiveAsync,
   type AudioPlayer,
 } from 'expo-audio';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -76,11 +77,80 @@ export function playRestCompleteSound(): void {
 let intervalWorkPlayer: AudioPlayer | null = null;
 let intervalRestPlayer: AudioPlayer | null = null;
 
+// --- Music ducking (#1560) ---------------------------------------------
+//
+// Opt-in: with `duckMusicDuringCues` off, nothing below runs and the audio
+// session behaves exactly as before (cues mix over music at full volume).
+// With it on, the session switches to `duckOthers` while a cue or guided
+// line is sounding, then back to `mixWithOthers` and releases audio focus so
+// the music comes back up. Depth-counted so overlapping cues (a beep during a
+// spoken line) duck once and restore once.
+
+/** Interval cue sounds are about a second; keep music low a touch longer. */
+const CUE_DUCK_MS = 1200;
+/** Grace period so back-to-back cues don't pump the music up and down. */
+const UNDUCK_DELAY_MS = 600;
+
+let intervalSessionActive = false;
+let duckDepth = 0;
+let unduckTimer: ReturnType<typeof setTimeout> | null = null;
+
+function isDuckingEnabled(): boolean {
+  return useAppPreferencesStore.getState().duckMusicDuringCues;
+}
+
+async function applyDuckMode(duck: boolean): Promise<void> {
+  try {
+    await setAudioModeAsync({
+      playsInSilentMode: intervalSessionActive,
+      interruptionMode: duck ? 'duckOthers' : 'mixWithOthers',
+    });
+    if (!duck) await setIsAudioActiveAsync(false);
+  } catch (err) {
+    addLog(`music ducking failed: ${(err as Error).message}`, 'WARNING');
+  }
+}
+
+/**
+ * Lower other apps' audio for a cue about to play. Returns true when ducking
+ * started (the caller must then call {@link endCueDucking} exactly once).
+ */
+export function beginCueDucking(): boolean {
+  if (!isDuckingEnabled()) return false;
+  if (unduckTimer != null) {
+    clearTimeout(unduckTimer);
+    unduckTimer = null;
+  }
+  duckDepth += 1;
+  if (duckDepth === 1) void applyDuckMode(true);
+  return true;
+}
+
+/** Release one {@link beginCueDucking}; the last release restores the music. */
+export function endCueDucking(): void {
+  if (duckDepth === 0) return;
+  duckDepth -= 1;
+  if (duckDepth > 0) return;
+  unduckTimer = setTimeout(() => {
+    unduckTimer = null;
+    if (duckDepth === 0) void applyDuckMode(false);
+  }, UNDUCK_DELAY_MS);
+}
+
+function resetDucking(): void {
+  duckDepth = 0;
+  if (unduckTimer != null) {
+    clearTimeout(unduckTimer);
+    unduckTimer = null;
+  }
+}
+
 /**
  * Starts an audio session configured for interval workouts (`playsInSilentMode: true`).
  * This ensures cues are audible mid-workout even if the phone's silent switch is on.
  */
 export async function startIntervalAudioSession(): Promise<void> {
+  intervalSessionActive = true;
   try {
     await setAudioModeAsync({
       playsInSilentMode: true,
@@ -99,6 +169,8 @@ export async function startIntervalAudioSession(): Promise<void> {
  * Ends the interval audio session, restoring the standard audio mode.
  */
 export async function stopIntervalAudioSession(): Promise<void> {
+  intervalSessionActive = false;
+  resetDucking();
   try {
     await setAudioModeAsync({
       playsInSilentMode: false,
@@ -120,6 +192,7 @@ export function playIntervalCue(
   type: 'work' | 'rest' | 'countdown' | 'finish'
 ): void {
   if (!isRestTimerSoundEnabled()) return;
+  if (beginCueDucking()) setTimeout(endCueDucking, CUE_DUCK_MS);
   void (async () => {
     try {
       if (type === 'work' || type === 'finish') {
@@ -154,4 +227,6 @@ export function __resetSoundsForTests(): void {
   intervalWorkPlayer = null;
   intervalRestPlayer = null;
   audioModeConfigured = false;
+  intervalSessionActive = false;
+  resetDucking();
 }

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-08-22*
+*Last updated: 2026-09-26*
 
 This is the repo-root monorepo guide for SparkyFitness. Use it to choose the right package, understand shared repo-level rules, and find the next guide to read.
 
@@ -61,8 +61,8 @@ Do not read or search these paths; they burn context for nothing:
 
 Cheap ways to learn things:
 
-- Database table index: read `docs/content/8.developer/4.database.md` (quick reference of all ~120 tables with one-line purpose). For detailed schema, read `shared/src/schemas/database/<Table>.zod.ts` (one small Zod file per table).
-- Database security & permissions: `docs/content/8.developer/11.database-security-tiers.md` (security tier, permission type, and RLS rules for every table).
+- Database table index: read `docs/src/developer/database.md` (quick reference of all ~120 tables with one-line purpose). For detailed schema, read `shared/src/schemas/database/<Table>.zod.ts` (one small Zod file per table).
+- Database security & permissions: `docs/src/developer/database-security-tiers.md` (security tier, permission type, and RLS rules for every table).
 - API request/response contract: `shared/src/schemas/api/<Name>.api.zod.ts`.
 - Definition of done: CI (`.github/workflows/ci-tests.yml`) runs `pnpm run validate` (which includes Knip unused export & dead code checks in frontend and mobile) plus the package's CI test script for each changed package. Run those locally before declaring work complete.
 
@@ -74,8 +74,8 @@ Cheap ways to learn things:
   3. **Restart the server** (`pnpm start` from `SparkyFitnessServer/`) to apply the migration.
   4. Leave `db_schema_backup.sql` alone — after merge, CI regenerates it from the migrations and opens an automated sync PR (`.github/workflows/schema-backup.yml`). Never manually edit the backup file or commit a locally generated copy.
   5. Add or update the matching Zod schema in `shared/src/schemas/database/`.
-  6. Update the user-facing documentation in `docs/content/2.features/9.family-friends-sharing.md`.
-  7. Update the developer documentation in `docs/content/8.developer/11.database-security-tiers.md` to classify the table as Tier 1, Tier 2, or Tier 3.
+  6. Update the user-facing documentation in `docs/src/features/family-friends-sharing.md`.
+  7. Update the developer documentation in `docs/src/developer/database-security-tiers.md` to classify the table as Tier 1, Tier 2, or Tier 3.
 - Prefer the shared timezone helpers from `@workspace/shared` and `SparkyFitnessServer/utils/timezoneLoader.ts` for day-string logic. Avoid `toISOString().split('T')[0]` for user-facing or business-logic dates.
 - Keep `YYYY-MM-DD` values as calendar-day strings until you reach a database or external API boundary that needs UTC instants.
 - Auth or API contract changes usually need a quick check in both web and mobile because they share the same backend.

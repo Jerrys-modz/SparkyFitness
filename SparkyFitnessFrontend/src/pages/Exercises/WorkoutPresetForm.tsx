@@ -20,6 +20,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 import { SortableExerciseItem } from './SortableExerciseItem';
 import { useWorkoutPresetForm } from '@/hooks/Exercises/useWorkoutPresetForm';
+import { buildExerciseReplaceContext } from '@/utils/exerciseAlternatives';
 
 interface WorkoutPresetFormProps {
   isOpen: boolean;
@@ -57,6 +58,7 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
     handleAddExercise,
     handleOpenAddExercise,
     handleOpenReplaceExercise,
+    replaceTargetIndex,
     handleRemoveExercise,
     handleDuplicateExercise,
     handleSetChange,
@@ -68,6 +70,18 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
     handleDragEnd,
     handleSubmit,
   } = useWorkoutPresetForm({ onSave, initialPreset });
+
+  const replaceCandidates = exercises.map((exercise) => ({
+    exerciseId: exercise.exercise_id,
+    exerciseName: exercise.exercise_name,
+  }));
+  const replaceForTarget =
+    replaceTargetIndex === null
+      ? undefined
+      : buildExerciseReplaceContext(
+          replaceCandidates[replaceTargetIndex],
+          replaceCandidates
+        );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -203,6 +217,7 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
               onOpenChange={setIsAddExerciseDialogOpen}
               onExerciseAdded={handleAddExercise}
               mode="preset"
+              replaceFor={replaceForTarget}
             />
 
             <DndContext

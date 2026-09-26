@@ -103,3 +103,32 @@ The `sparky_manage_exercise` tool supports the following actions:
 - **Description:** Deletes a specific exercise entry from the user's diary.
 - **Parameters:**
   - `entry_id` (string): UUID of the exercise entry to delete.
+
+### `suggest_alternatives`
+
+- **Description:** Ranked substitutes for an exercise that train the same primary muscles, with the reason for each (same muscles, same equipment, same movement, done recently, in library). Draws on the user's library and, when their Free Exercise DB provider is active, the Free Exercise DB catalog (catalog results are not in the library yet; the user adds them from exercise search). See [Adaptive Coaching](/features/exercises/adaptive-coaching).
+- **Parameters:**
+  - `exercise_id` (string, optional): UUID of the exercise.
+  - `exercise_name` (string, optional): Exact name, alternative to the ID.
+  - `alternative_mode` (string, optional): `similar` (default, prefers the same equipment) or `different_equipment` (only exercises using none of its equipment).
+  - `equipment` (string, optional): Comma-separated equipment the user has; results need nothing else.
+  - `avoid_muscles` (string, optional): Comma-separated muscles to avoid, e.g. for an injury.
+  - `limit` (number, optional): Maximum results (1–50, default 10).
+
+### `rate_workout`
+
+- **Description:** Records how a logged workout felt. The workout is identified by any exercise entry ID from `list_exercise_diary`. Other feedback already recorded for the session is kept. Adaptive suggestions use it next time; pain only ever makes that exercise lighter. Only workouts logged as sessions (presets or live workouts) can be rated.
+- **Parameters:**
+  - `entry_id` (string): UUID of an exercise entry in the workout.
+  - `scope` (string, optional): `session` (default) rates the whole workout; `exercise` rates only this exercise.
+  - `difficulty` (string, optional): `too_easy`, `just_right` or `too_hard`.
+  - `pain` (boolean, optional): Pain or discomfort was felt.
+  - `pain_note` (string, optional): What hurt (max 500 characters; requires `pain=true`).
+
+### `get_workout_coaching`
+
+- **Description:** How the next session's suggestions will adapt to recent feedback, for one exercise or every exercise in a preset, with the reason for each (lighter after pain, hold after "too hard", a step up after "too easy" twice, variation hints). Reports when the user has turned adaptive suggestions off.
+- **Parameters:**
+  - `exercise_id` / `exercise_name` (string, optional): One exercise.
+  - `preset_id` (number) / `preset_name` (string), optional: Every exercise in a workout preset.
+

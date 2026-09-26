@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CheckCircle2,
@@ -66,6 +67,10 @@ export default function WorkoutPlaybackGuidedCard({
         : phase.set;
   const images = phaseSet?.images ?? [];
   const imageIndex = useImageSlideshow(images.length);
+  const image = images[imageIndex];
+  const imageSrc = image ? resolveExerciseImageSrc(image) : null;
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
+  const isImageValid = imageSrc != null && failedImageSrc !== imageSrc;
 
   const describeTarget = (target: GuidedSetTarget): string | null => {
     if (target.kind === 'reps') {
@@ -121,8 +126,7 @@ export default function WorkoutPlaybackGuidedCard({
   if (paused) label = t('guidedWorkout.card.paused', 'Paused');
 
   const target = set ? describeTarget(set.target) : null;
-  const image = images[imageIndex];
-  const imageSrc = image ? resolveExerciseImageSrc(image) : null;
+
   const captionText = caption ? (
     <p
       data-testid="guided-caption"
@@ -196,11 +200,12 @@ export default function WorkoutPlaybackGuidedCard({
         </button>
       </div>
 
-      {imageSrc ? (
+      {isImageValid ? (
         <div className="relative w-full aspect-[3/2] max-h-[60vh] overflow-hidden rounded-xl bg-gray-50 dark:bg-gray-800">
           <img
             src={imageSrc}
             alt={set?.exerciseName ?? ''}
+            onError={() => setFailedImageSrc(imageSrc)}
             className="h-full w-full object-contain"
           />
           {captionText && (

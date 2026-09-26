@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
+  EXERCISE_ALTERNATIVE_MODES,
   EXERCISE_MODALITIES,
+  WORKOUT_FEEDBACK_DIFFICULTIES,
+  WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH,
   RAMP_INCREMENT_MAX_KG,
   RIR_MAX,
   RIR_MIN,
@@ -548,6 +551,95 @@ const getExerciseProgressSchema = z
   })
   .strict();
 
+const suggestAlternativesSchema = z
+  .object({
+    action: z.literal('suggest_alternatives'),
+    exercise_id: uuidSchema.optional().describe('UUID of the exercise'),
+    exercise_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name of the exercise (alternative to ID)'),
+    alternative_mode: z
+      .enum(EXERCISE_ALTERNATIVE_MODES)
+      .optional()
+      .describe(
+        'similar (default) prefers the same equipment; different_equipment only returns exercises using none of its equipment'
+      ),
+    equipment: z
+      .string()
+      .max(500)
+      .optional()
+      .describe(
+        "Comma-separated equipment the user has (e.g. 'dumbbell, bands'); results need nothing else"
+      ),
+    avoid_muscles: z
+      .string()
+      .max(500)
+      .optional()
+      .describe(
+        "Comma-separated muscles to avoid, e.g. for an injury ('shoulders')"
+      ),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
+const rateWorkoutSchema = z
+  .object({
+    action: z.literal('rate_workout'),
+    entry_id: uuidSchema.describe(
+      'Exercise diary entry UUID (from list_exercise_diary); identifies the workout session it belongs to'
+    ),
+    scope: z
+      .enum(['session', 'exercise'])
+      .default('session')
+      .describe(
+        'session (default) rates the whole workout; exercise rates only this exercise'
+      ),
+    difficulty: z
+      .enum(WORKOUT_FEEDBACK_DIFFICULTIES)
+      .nullable()
+      .optional()
+      .describe('too_easy | just_right | too_hard'),
+    pain: z.boolean().default(false).describe('Pain or discomfort was felt'),
+    pain_note: z
+      .string()
+      .max(WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH)
+      .optional()
+      .describe('What hurt — only with pain=true'),
+  })
+  .strict()
+  .refine((value) => value.pain || !value.pain_note, {
+    message: 'pain_note requires pain=true',
+    path: ['pain_note'],
+  });
+
+const getWorkoutCoachingSchema = z
+  .object({
+    action: z.literal('get_workout_coaching'),
+    exercise_id: uuidSchema.optional().describe('UUID of one exercise'),
+    exercise_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name of one exercise (alternative to ID)'),
+    preset_id: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Workout preset ID — coaching for every exercise in it'),
+    preset_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe(PRESET_NAME_LOOKUP),
+  })
+  .strict();
+
 export const manageExerciseSchema = z.discriminatedUnion('action', [
   searchExercisesSchema,
   createExerciseSchema,
@@ -564,6 +656,9 @@ export const manageExerciseSchema = z.discriminatedUnion('action', [
   updateWorkoutPresetSchema,
   deleteWorkoutPresetSchema,
   getExerciseProgressSchema,
+  suggestAlternativesSchema,
+  rateWorkoutSchema,
+  getWorkoutCoachingSchema,
 ]);
 
 export type ManageExerciseInput = z.infer<typeof manageExerciseSchema>;
@@ -589,6 +684,9 @@ export const manageExerciseInput = z.object({
       'update_workout_preset',
       'delete_workout_preset',
       'get_exercise_progress',
+      'suggest_alternatives',
+      'rate_workout',
+      'get_workout_coaching',
     ])
     .optional()
     .describe(
@@ -662,7 +760,42 @@ export const manageExerciseInput = z.object({
   equipment: z
     .string()
     .optional()
-    .describe("Equipment filter (e.g., 'Dumbbell', 'None')"),
+    .describe(
+      "Equipment filter (e.g., 'Dumbbell', 'None') for search_exercises; comma-separated equipment the user has for suggest_alternatives"
+    ),
+  alternative_mode: z
+    .enum(EXERCISE_ALTERNATIVE_MODES)
+    .optional()
+    .describe(
+      'For suggest_alternatives: similar (default) or different_equipment'
+    ),
+  avoid_muscles: z
+    .string()
+    .optional()
+    .describe(
+      'For suggest_alternatives: comma-separated muscles to avoid (injury)'
+    ),
+  // workout feedback
+  scope: z
+    .enum(['session', 'exercise'])
+    .optional()
+    .describe(
+      'For rate_workout: session (default) rates the whole workout, exercise only this entry'
+    ),
+  difficulty: z
+    .enum(WORKOUT_FEEDBACK_DIFFICULTIES)
+    .nullable()
+    .optional()
+    .describe('For rate_workout: too_easy | just_right | too_hard'),
+  pain: z
+    .boolean()
+    .optional()
+    .describe('For rate_workout: pain or discomfort was felt'),
+  pain_note: z
+    .string()
+    .max(WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH)
+    .optional()
+    .describe('For rate_workout: what hurt (only with pain=true)'),
   limit: z.coerce
     .number()
     .int()
@@ -761,7 +894,7 @@ export const manageExerciseInput = z.object({
     .positive()
     .optional()
     .describe(
-      'Workout preset ID — for log_workout_preset / update_workout_preset / delete_workout_preset'
+      'Workout preset ID — for log_workout_preset / update_workout_preset / delete_workout_preset / get_workout_coaching'
     ),
   preset_name: z
     .string()
@@ -809,7 +942,7 @@ export const manageExerciseInput = z.object({
   entry_id: uuidSchema
     .optional()
     .describe(
-      'Exercise diary entry UUID — for update_exercise_entry / delete_exercise_entry'
+      'Exercise diary entry UUID — for update_exercise_entry / delete_exercise_entry / rate_workout'
     ),
   // progress range
   start_date: dateSchema

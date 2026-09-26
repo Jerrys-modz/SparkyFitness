@@ -8,6 +8,7 @@ import type {
   ExerciseEntryResponse,
   ExerciseEntrySetResponse,
   ExerciseModality,
+  ExerciseCoachingSignal,
   ExerciseRecentSessionSet,
   ExerciseSnapshotResponse,
   IntervalEngineStep,
@@ -253,6 +254,18 @@ export interface ActiveWorkoutState {
    */
   exerciseConfigs: Record<string, LiveExerciseConfig>;
   /**
+   * Adaptive coaching signals per library `exercise_id` (issue #1560),
+   * captured once per exercise at live start like `previousSessionSets`.
+   * `null` = asked, no recent history. Persisted so a cold-start resume
+   * keeps suggesting the same values.
+   */
+  coachingSignals: Record<string, ExerciseCoachingSignal | null>;
+  /**
+   * Session exercise ids whose adaptive adjustment the lifter declined
+   * ("use my usual"); their placeholders fall back to plain progression.
+   */
+  declinedAdaptive: Record<string, true>;
+  /**
    * The lifter's display unit, which ramp rounding and the progression engine
    * work in. Kept current by the live cards (which render before any set can
    * be completed) and kept across clears, so a lock-screen completion rounds
@@ -331,6 +344,17 @@ export interface ActiveWorkoutState {
     exerciseId: string | null,
     sets: ExerciseRecentSessionSet[]
   ) => void;
+  /**
+   * Record adaptive signals for exercises not captured yet. No-op outside a
+   * live workout; an exercise already captured keeps its first signal so a
+   * suggestion doesn't shift mid-workout.
+   */
+  captureCoachingSignals: (
+    exerciseIds: readonly string[],
+    signals: readonly ExerciseCoachingSignal[]
+  ) => void;
+  /** Decline (or restore) the adaptive adjustment for one session exercise. */
+  setAdaptiveDeclined: (entryId: string, declined: boolean) => void;
   /** Keep ramp rounding in step with a mid-workout unit preference change. */
   setWeightUnit: (unit: 'kg' | 'lbs') => void;
   clearWorkout: () => void;
@@ -534,6 +558,8 @@ const initialData: Pick<
   | 'plannedSetValues'
   | 'previousSessionSets'
   | 'exerciseConfigs'
+  | 'coachingSignals'
+  | 'declinedAdaptive'
   | 'weightUnit'
   | 'sourcePresetId'
   | 'sourceServerConfigId'
@@ -568,6 +594,8 @@ const initialData: Pick<
   plannedSetValues: {},
   previousSessionSets: {},
   exerciseConfigs: {},
+  coachingSignals: {},
+  declinedAdaptive: {},
   weightUnit: 'kg',
   sourcePresetId: null,
   sourceServerConfigId: null,
@@ -800,6 +828,8 @@ function adoptAssumedSetValues(
     | 'previousSessionSets'
     | 'plannedSetValues'
     | 'exerciseConfigs'
+    | 'coachingSignals'
+    | 'declinedAdaptive'
     | 'weightUnit'
     | 'workoutFormat'
   >,
@@ -1245,6 +1275,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           // live card, like the PR baseline.
           previousSessionSets: {},
           exerciseConfigs,
+          // Adaptive signals are fetched after start, like the history.
+          coachingSignals: {},
+          declinedAdaptive: {},
           sourcePresetId: opts?.sourcePresetId ?? null,
           sourceServerConfigId: opts?.sourceServerConfigId ?? null,
           workoutFormat,
@@ -1306,6 +1339,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           previousSessionSets: {},
           // Nor its preset progression/ramp settings — same as the plan.
           exerciseConfigs: {},
+          coachingSignals: {},
+          declinedAdaptive: {},
           // Nor was it started from a preset this session — no update-preset
           // prompt on finish.
           sourcePresetId: null,
@@ -1519,6 +1554,30 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
             ...state.previousSessionSets,
             [exerciseId]: sets,
           },
+        });
+      },
+
+      captureCoachingSignals: (exerciseIds, signals) => {
+        const state = get();
+        if (state.sessionId == null) return;
+        const byId = new Map(signals.map((s) => [s.exercise_id, s]));
+        const next = { ...state.coachingSignals };
+        let changed = false;
+        for (const exerciseId of exerciseIds) {
+          if (exerciseId in next) continue;
+          next[exerciseId] = byId.get(exerciseId) ?? null;
+          changed = true;
+        }
+        if (changed) set({ coachingSignals: next });
+      },
+
+      setAdaptiveDeclined: (entryId, declined) => {
+        const state = get();
+        const isDeclined = state.declinedAdaptive[entryId] === true;
+        if (isDeclined === declined) return;
+        const { [entryId]: _removed, ...rest } = state.declinedAdaptive;
+        set({
+          declinedAdaptive: declined ? { ...rest, [entryId]: true } : rest,
         });
       },
 
@@ -2291,7 +2350,15 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // progression/ramp settings rather than applying them to the new one.
         const { [entryId]: _replaced, ...exerciseConfigs } =
           state.exerciseConfigs;
-        set({ ...buildSessionEditState(state, next), exerciseConfigs });
+        // Same for a declined adaptive suggestion: it was about the old
+        // exercise (#1560).
+        const { [entryId]: _declined, ...declinedAdaptive } =
+          state.declinedAdaptive;
+        set({
+          ...buildSessionEditState(state, next),
+          exerciseConfigs,
+          declinedAdaptive,
+        });
       },
 
       supersetWith: (currentEntryId, pickedEntryId) => {
@@ -2526,6 +2593,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         plannedSetValues: state.plannedSetValues,
         previousSessionSets: state.previousSessionSets,
         exerciseConfigs: state.exerciseConfigs,
+        coachingSignals: state.coachingSignals,
+        declinedAdaptive: state.declinedAdaptive,
         weightUnit: state.weightUnit,
         // The preset link feeds the finish prompt; survives a cold start.
         sourcePresetId: state.sourcePresetId,

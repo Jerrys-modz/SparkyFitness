@@ -1043,7 +1043,13 @@
     "keepAwake": "Keep screen awake",
     "keepAwakeSubtitle": "Prevent the screen from sleeping while a workout is active.",
     "restSoundAccessibility": "Rest timer sound",
-    "keepAwakeAccessibility": "Keep screen awake"
+    "keepAwakeAccessibility": "Keep screen awake",
+    "adaptiveCoaching": "Adaptive suggestions",
+    "adaptiveCoachingSubtitle": "Adapts upcoming sets and exercise suggestions based on your logged session feedback.",
+    "adaptiveCoachingAccessibility": "Adaptive suggestions",
+    "duckMusic": "Lower music during cues",
+    "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
+    "duckMusicAccessibility": "Lower music during cues"
   },
   "restPeriod": {
     "title": "Rest period",
@@ -3237,7 +3243,8 @@
     "title": "Exercises",
     "tabs": {
       "search": "Search",
-      "online": "Online"
+      "online": "Online",
+      "suggested": "Suggested"
     },
     "sections": {
       "recent": "Recent",
@@ -3282,6 +3289,30 @@
     "accessibility": {
       "provider": "Exercise provider {{provider}}",
       "loadingMore": "Loading more exercises"
+    },
+    "replaceTitle": "Replace Exercise",
+    "alternatives": {
+      "heading": "Instead of {{name}}",
+      "modes": {
+        "similar": "Similar",
+        "differentEquipment": "Other equipment"
+      },
+      "reasons": {
+        "sameMuscles": "Same muscles",
+        "sharesMuscle": "Similar muscles",
+        "sameEquipment": "Same equipment",
+        "differentEquipment": "Different equipment",
+        "sameMovement": "Same movement",
+        "recent": "Done recently",
+        "inLibrary": "In your library"
+      },
+      "newBadge": "New",
+      "searchAll": "Search all exercises",
+      "failed": "Could not load alternatives",
+      "noMuscles": "No muscles recorded for {{name}}",
+      "noMusclesHint": "Add its primary muscles in the exercise library to get suggestions.",
+      "empty": "No alternatives found",
+      "catalogUnavailable": "Free Exercise DB is unavailable, so only your library is shown."
     }
   },
   "foodSearch": {
@@ -5364,5 +5395,38 @@
       "sample": "This is how your guided workouts will sound.",
       "test": "Test voice"
     }
+  },
+  "workoutFeedback": {
+    "title": "How did it feel?",
+    "subtitle": "Your next suggestions adjust to this.",
+    "difficulty": {
+      "tooEasy": "Too easy",
+      "justRight": "Just right",
+      "tooHard": "Too hard"
+    },
+    "painQuestion": "Any pain or discomfort?",
+    "painWhere": "During which exercises? (optional)",
+    "painNotePlaceholder": "What hurt? (optional)",
+    "painPrivacy": "Suggestions for these exercises get lighter, never heavier.",
+    "rateExercises": "Rate each exercise",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save your feedback. Tap to retry."
+  },
+  "adaptiveCoaching": {
+    "reasons": {
+      "painReported": "Lighter today: you reported pain here last time.",
+      "painRepeated": "Lighter today: pain here two sessions running. Consider an alternative.",
+      "sessionPain": "Holding weight: you reported discomfort in your last workout.",
+      "tooHard": "Holding weight: last time felt too hard.",
+      "tooHardRepeated": "Lighter today: too hard two sessions running.",
+      "highEffort": "Holding weight: your last sets were near max effort.",
+      "tooEasyRepeated": "A step heavier: too easy two sessions running."
+    },
+    "declined": "Using your usual suggestion.",
+    "variation": "You've done this in most recent workouts. Try a variation?",
+    "useUsual": "Use my usual",
+    "useAdjusted": "Use the adjusted suggestion",
+    "seeAlternatives": "See alternatives"
   }
 }

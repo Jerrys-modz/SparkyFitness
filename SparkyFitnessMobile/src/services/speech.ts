@@ -3,16 +3,18 @@ import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { addLog } from './LogService';
+import { beginCueDucking, endCueDucking } from './sounds';
 
 /**
  * Guided workout narration (#1507). Mirrors `sounds.ts`: a preference check,
  * fire-and-forget calls, failures logged and never thrown into workout state.
  *
- * Speech never touches the audio mode. It speaks through the app's audio
- * session (`useApplicationAudioSession`), which the active workout configures
- * with `startIntervalAudioSession()` while guided mode or an interval format is
- * running — so it follows that session's silent-mode and mix-with-music
- * behaviour instead of reconfiguring it underneath the interval cues.
+ * Speech never configures the audio mode itself. It speaks through the app's
+ * audio session (`useApplicationAudioSession`), which the active workout
+ * configures with `startIntervalAudioSession()` while guided mode or an
+ * interval format is running — so it follows that session's silent-mode and
+ * mix-with-music behaviour. The one exception is the opt-in music ducking
+ * (`beginCueDucking` in sounds.ts), held for as long as each line is spoken.
  */
 
 /** A queue deeper than this is dropped rather than read late. */
@@ -95,15 +97,23 @@ export function speakGuided(
         return;
       }
       pending += 1;
+      let ducked = false;
       const settle = () => {
         pending = Math.max(0, pending - 1);
+        if (ducked) {
+          ducked = false;
+          endCueDucking();
+        }
       };
       Speech.speak(text, {
         language: options.language,
         voice: guidedVoiceId ?? undefined,
         rate: guidedSpeechRate,
         useApplicationAudioSession: true,
-        onStart: () => setCaption(text),
+        onStart: () => {
+          setCaption(text);
+          ducked = beginCueDucking();
+        },
         onDone: settle,
         onStopped: settle,
         onError: (err) => {

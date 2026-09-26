@@ -73,6 +73,7 @@ export const PREFERENCE_DEFAULTS = {
   diarySummaryExpanded: false,
   defaultRestSec: DEFAULT_REST_SEC as number,
   restTimerSoundEnabled: true,
+  duckMusicDuringCues: false,
   workoutKeepAwakeEnabled: false,
   guidedWorkoutEnabled: false,
   guidedVoiceId: null as string | null,
@@ -116,6 +117,11 @@ export type AppPreferencesData = {
   diarySummaryExpanded: boolean;
   defaultRestSec: number;
   restTimerSoundEnabled: boolean;
+  /**
+   * Lower other apps' music while an interval cue or guided line plays
+   * (#1560). Off by default: cues normally mix over music untouched.
+   */
+  duckMusicDuringCues: boolean;
   workoutKeepAwakeEnabled: boolean;
   /** Guided workout mode (#1507): spoken cues + guided card. Off by default. */
   guidedWorkoutEnabled: boolean;
@@ -160,6 +166,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDiarySummaryExpanded: (value: boolean) => void;
   setDefaultRestSec: (value: number) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
+  setDuckMusicDuringCues: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
   setGuidedWorkoutEnabled: (value: boolean) => void;
   setGuidedVoiceId: (value: string | null) => void;
@@ -258,6 +265,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setRestTimerSoundEnabled: (value) =>
         set({ restTimerSoundEnabled: value }),
+      setDuckMusicDuringCues: (value) => set({ duckMusicDuringCues: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
       setGuidedWorkoutEnabled: (value) => set({ guidedWorkoutEnabled: value }),
@@ -316,6 +324,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         diarySummaryExpanded: state.diarySummaryExpanded,
         defaultRestSec: state.defaultRestSec,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
+        duckMusicDuringCues: state.duckMusicDuringCues,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
         guidedWorkoutEnabled: state.guidedWorkoutEnabled,
         guidedVoiceId: state.guidedVoiceId,

@@ -866,7 +866,10 @@
       "importSuccess": "Exercise data imported successfully",
       "importDuplicateTitle": "Import Failed: Duplicate Items Found",
       "importDuplicateDescription": "The following items already exist: {{duplicateList}}. Please remove them from your file and try again.",
-      "importError": "Failed to import exercise data. Please try again."
+      "importError": "Failed to import exercise data. Please try again.",
+      "replaceTitle": "Replace Exercise",
+      "replaceSuccess": "Exercise replaced",
+      "suggestedTab": "Suggested"
     },
     "modality": {
       "weightReps": "Weight & Reps",
@@ -1248,7 +1251,9 @@
       "restEditorDescription": "Pick a rest duration for this set.",
       "restEditorTitle": "Edit Rest",
       "restTimer": "Rest",
-      "volume": "Volume"
+      "volume": "Volume",
+      "replaceExercise": "Replace exercise",
+      "replaceExerciseNamed": "Replace {{name}}"
     },
     "workoutFinishSummary": {
       "title": "Workout complete",
@@ -1257,6 +1262,30 @@
       "sets": "Sets",
       "volume": "Volume",
       "done": "Done"
+    },
+    "alternatives": {
+      "heading": "Instead of {{name}}",
+      "modes": {
+        "similar": "Similar",
+        "differentEquipment": "Other equipment"
+      },
+      "reasons": {
+        "sameMuscles": "Same muscles",
+        "sharesMuscle": "Similar muscles",
+        "sameEquipment": "Same equipment",
+        "differentEquipment": "Different equipment",
+        "sameMovement": "Same movement",
+        "recent": "Done recently",
+        "inLibrary": "In your library"
+      },
+      "newBadge": "New",
+      "searchAll": "Search all exercises",
+      "failed": "Could not load alternatives",
+      "noMuscles": "No muscles recorded for {{name}}",
+      "noMusclesHint": "Add its primary muscles in the exercise library to get suggestions.",
+      "empty": "No alternatives found",
+      "retry": "Retry",
+      "catalogUnavailable": "Free Exercise DB is unavailable, so only your library is shown."
     }
   },
   "workoutPresetsManager": {
@@ -6197,5 +6226,45 @@
       "sample": "This is how your guided workouts will sound.",
       "test": "Test voice"
     }
+  },
+  "workoutFeedback": {
+    "title": "How did it feel?",
+    "subtitle": "Your next suggestions adjust to this.",
+    "difficulty": {
+      "tooEasy": "Too easy",
+      "justRight": "Just right",
+      "tooHard": "Too hard"
+    },
+    "painQuestion": "Any pain or discomfort?",
+    "painWhere": "During which exercises? (optional)",
+    "painNotePlaceholder": "What hurt? (optional)",
+    "painPrivacy": "Suggestions for these exercises get lighter, never heavier.",
+    "rateExercises": "Rate each exercise",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save your feedback. Try again."
+  },
+  "workoutCoaching": {
+    "settingsTitle": "Adaptive workout suggestions",
+    "settingsSubtitle": "Adapts upcoming sets and exercise suggestions based on your logged session feedback (difficulty, pain flags).",
+    "settingsLoadFailed": "Could not load workout coaching settings",
+    "settingsSaved": "Settings saved",
+    "settingsSaveFailed": "Could not save workout coaching settings"
+  },
+  "adaptiveCoaching": {
+    "reasons": {
+      "painReported": "Lighter today: you reported pain here last time.",
+      "painRepeated": "Lighter today: pain here two sessions running. Consider an alternative.",
+      "sessionPain": "Holding weight: you reported discomfort in your last workout.",
+      "tooHard": "Holding weight: last time felt too hard.",
+      "tooHardRepeated": "Lighter today: too hard two sessions running.",
+      "highEffort": "Holding weight: your last sets were near max effort.",
+      "tooEasyRepeated": "A step heavier: too easy two sessions running."
+    },
+    "declined": "Using your usual suggestion.",
+    "variation": "You've done this in most recent workouts. Try a variation?",
+    "useUsual": "Use my usual",
+    "useAdjusted": "Use the adjusted suggestion",
+    "seeAlternatives": "See alternatives"
   }
 }

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { View, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import RestPeriodSheet, {
   type RestPeriodSheetRef,
 } from '../components/RestPeriodSheet';
@@ -15,6 +17,14 @@ import Switch from '../components/ui/Switch';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import {
+  fetchWorkoutCoachingSettings,
+  saveWorkoutCoachingSettings,
+} from '../services/api/workoutCoachingApi';
+import {
+  workoutCoachingSettingsQueryKey,
+  workoutSuggestionsQueryKeyRoot,
+} from '../hooks/queryKeys';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type WorkoutSettingsScreenProps = RootStackScreenProps<'WorkoutSettings'>;
@@ -22,13 +32,36 @@ type WorkoutSettingsScreenProps = RootStackScreenProps<'WorkoutSettings'>;
 const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
+
+  const { data: coachingSettings, isLoading: coachingLoading } = useQuery({
+    queryKey: workoutCoachingSettingsQueryKey,
+    queryFn: fetchWorkoutCoachingSettings,
+  });
+
+  const { mutate: updateCoachingSettings, isPending: isUpdatingCoaching } =
+    useMutation({
+      mutationFn: saveWorkoutCoachingSettings,
+      onSuccess: (saved) => {
+        queryClient.setQueryData(workoutCoachingSettingsQueryKey, saved);
+        queryClient.invalidateQueries({
+          queryKey: workoutSuggestionsQueryKeyRoot,
+        });
+      },
+    });
 
   const defaultRestSec = useAppPreferencesStore((s) => s.defaultRestSec);
   const setDefaultRestSec = useAppPreferencesStore((s) => s.setDefaultRestSec);
   const restTimerSoundEnabled = useAppPreferencesStore(
     (s) => s.restTimerSoundEnabled
+  );
+  const duckMusicDuringCues = useAppPreferencesStore(
+    (s) => s.duckMusicDuringCues
+  );
+  const setDuckMusicDuringCues = useAppPreferencesStore(
+    (s) => s.setDuckMusicDuringCues
   );
   const setRestTimerSoundEnabled = useAppPreferencesStore(
     (s) => s.setRestTimerSoundEnabled
@@ -111,6 +144,26 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
         />
 
         <SettingsRow
+          title={t('workoutSettings.duckMusic', {
+            defaultValue: 'Lower music during cues',
+          })}
+          subtitle={t('workoutSettings.duckMusicSubtitle', {
+            defaultValue:
+              'Briefly turn down music from other apps while a workout beep or spoken cue plays.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              value={duckMusicDuringCues}
+              onValueChange={setDuckMusicDuringCues}
+              accessibilityLabel={t('workoutSettings.duckMusicAccessibility', {
+                defaultValue: 'Lower music during cues',
+              })}
+            />
+          }
+        />
+
+        <SettingsRow
           title={t('workoutSettings.keepAwake', {
             defaultValue: 'Keep screen awake',
           })}
@@ -126,6 +179,32 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
               accessibilityLabel={t('workoutSettings.keepAwakeAccessibility', {
                 defaultValue: 'Keep screen awake',
               })}
+            />
+          }
+        />
+
+        <SettingsRow
+          title={t('workoutSettings.adaptiveCoaching', {
+            defaultValue: 'Adaptive suggestions',
+          })}
+          subtitle={t('workoutSettings.adaptiveCoachingSubtitle', {
+            defaultValue:
+              'Adapts upcoming sets and exercise suggestions based on your logged session feedback.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              value={coachingSettings?.adaptive_suggestions ?? true}
+              disabled={coachingLoading || isUpdatingCoaching}
+              onValueChange={(value) =>
+                updateCoachingSettings({ adaptive_suggestions: value })
+              }
+              accessibilityLabel={t(
+                'workoutSettings.adaptiveCoachingAccessibility',
+                {
+                  defaultValue: 'Adaptive suggestions',
+                }
+              )}
             />
           }
         />

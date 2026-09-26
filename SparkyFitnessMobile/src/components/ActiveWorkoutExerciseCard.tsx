@@ -47,6 +47,7 @@ import {
   formatVolume,
   getExerciseVolumeKg,
   evaluateExerciseProgression,
+  liveAdaptiveAdjustment,
   isDurationModality,
   rendersCardioEffortForm,
   resolveLiveAssumedSetValues,
@@ -56,8 +57,13 @@ import {
   type WorkoutCardExercise,
   type WorkoutCardSet,
 } from '../utils/workoutSession';
+import {
+  NO_ADAPTIVE_ADJUSTMENT,
+  shouldSuggestVariation,
+} from '@workspace/shared';
 import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
 import type {
   ActiveSetPatch,
   CompletedSetMap,
@@ -143,6 +149,8 @@ interface ActiveWorkoutExerciseCardProps {
    */
   onPressMetricHeader: (anchor: AnchorRect, clampedToRpe: boolean) => void;
   onPressOverflow?: (entryId: string) => void;
+  /** Live only: open ranked alternatives for this exercise (#1560). */
+  onSeeAlternatives?: (entryId: string) => void;
   onComplete?: (setId: string) => void;
   onUncomplete?: (setId: string) => void;
   onCommitField?: (setId: string, patch: ActiveSetPatch) => void;
@@ -278,6 +286,7 @@ function ActiveWorkoutExerciseCard({
   onPressRestChip,
   onPressMetricHeader,
   onPressOverflow,
+  onSeeAlternatives,
   onComplete,
   onUncomplete,
   onCommitField,
@@ -387,6 +396,33 @@ function ActiveWorkoutExerciseCard({
     );
   }, [isLive, liveConfig, exercise, previousSessionSets, weightUnit]);
 
+  // Adaptive coaching (#1560) for this exercise, from the store's signals.
+  const coachingSignals = useActiveWorkoutStore((s) => s.coachingSignals);
+  const declinedAdaptive = useActiveWorkoutStore((s) => s.declinedAdaptive);
+  const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
+  const adaptiveDeclined = declinedAdaptive[String(exercise.id)] === true;
+  const adaptiveAdjustment = useMemo(
+    () =>
+      isLive
+        ? liveAdaptiveAdjustment(exercise, {
+            coachingSignals,
+            workoutFormat,
+          })
+        : NO_ADAPTIVE_ADJUSTMENT,
+    [isLive, exercise, coachingSignals, workoutFormat]
+  );
+  const suggestVariation =
+    isLive &&
+    (workoutFormat ?? 'standard') === 'standard' &&
+    exercise.exercise_id != null &&
+    shouldSuggestVariation(
+      coachingSignals[exercise.exercise_id],
+      exercise.exercise_snapshot?.mechanic
+    );
+  const adaptiveOverridesProgression =
+    !adaptiveDeclined &&
+    (adaptiveAdjustment.blockIncrease || adaptiveAdjustment.addIncrement);
+
   // Apple-style collapsible progression settings (Preset Edit Mode)
   const [progressionEditorOpen, setProgressionEditorOpen] = useState(false);
   // Live workouts open the exercise's images full-screen from the thumbnail
@@ -467,7 +503,6 @@ function ActiveWorkoutExerciseCard({
   // same sources completion adoption uses in the store, so the gray value a
   // row shows is exactly what logging it would record.
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
-  const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
   const exerciseConfigs = useActiveWorkoutStore((s) => s.exerciseConfigs);
   const assumedSetValues = useMemo(
     () =>
@@ -477,6 +512,8 @@ function ActiveWorkoutExerciseCard({
             exerciseConfigs,
             weightUnit,
             workoutFormat,
+            coachingSignals,
+            declinedAdaptive,
           })
         : null,
     [
@@ -487,6 +524,8 @@ function ActiveWorkoutExerciseCard({
       exerciseConfigs,
       weightUnit,
       workoutFormat,
+      coachingSignals,
+      declinedAdaptive,
     ]
   );
   // Ramp rounding for store-side resolution (lock-screen completes, the HUD)
@@ -1195,8 +1234,33 @@ function ActiveWorkoutExerciseCard({
           </View>
         )}
 
-        {/* Live Progression Overload Banner */}
-        {isLive && progressionResult && (
+        {/* Adaptive coaching (#1560): why today's suggestion changed */}
+        {isLive && (
+          <AdaptiveSuggestionBanner
+            adjustment={adaptiveAdjustment}
+            declined={adaptiveDeclined}
+            suggestVariation={suggestVariation}
+            onDecline={() =>
+              useActiveWorkoutStore
+                .getState()
+                .setAdaptiveDeclined(String(exercise.id), true)
+            }
+            onRestore={() =>
+              useActiveWorkoutStore
+                .getState()
+                .setAdaptiveDeclined(String(exercise.id), false)
+            }
+            onSeeAlternatives={
+              onSeeAlternatives
+                ? () => onSeeAlternatives(String(exercise.id))
+                : undefined
+            }
+          />
+        )}
+
+        {/* Live Progression Overload Banner — replaced by the adaptive one
+            when feedback cancelled or changed the increase it describes */}
+        {isLive && progressionResult && !adaptiveOverridesProgression && (
           <View className="mt-2.5 mb-1 px-2.5 py-1.5 rounded-lg bg-raised flex-row items-center justify-between border border-border-subtle">
             <View className="flex-row items-center gap-1.5 flex-1 mr-2">
               <Icon

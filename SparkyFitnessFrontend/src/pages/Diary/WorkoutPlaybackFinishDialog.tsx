@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { formatSecondsClock } from '@/utils/timeFormatters';
+import WorkoutFeedbackPanel from './WorkoutFeedbackPanel';
 
 export interface WorkoutFinishSummary {
   name: string;
@@ -20,6 +21,9 @@ export interface WorkoutFinishSummary {
   completedSets: number;
   totalSets: number;
   volume: number;
+  /** The saved session, for end-of-workout feedback (#1560). */
+  sessionId?: string;
+  exercises?: { id: string; name: string }[];
 }
 
 interface WorkoutPlaybackFinishDialogProps {
@@ -70,7 +74,7 @@ export default function WorkoutPlaybackFinishDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader className="items-center text-center">
           <Trophy className="h-8 w-8 text-amber-500" />
           <DialogTitle>
@@ -93,6 +97,12 @@ export default function WorkoutPlaybackFinishDialog({
             </div>
           ))}
         </div>
+        {summary?.sessionId && (
+          <WorkoutFeedbackPanel
+            presetEntryId={summary.sessionId}
+            exercises={summary.exercises ?? []}
+          />
+        )}
         <DialogFooter>
           <Button type="button" className="w-full" onClick={onClose}>
             {t('exercise.workoutFinishSummary.done', 'Done')}
