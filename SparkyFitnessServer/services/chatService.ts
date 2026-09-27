@@ -1663,7 +1663,7 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
   {
     category: 'profile',
     keywords:
-      /\b(profile|habit|habits|preference|preferences|settings|timezone|unit|units|integration\w*|connected\s+(app|service|device|provider)\w*|external\s+provider\w*|wearable\w*|garmin|withings|fitbit|oura|polar|strava|hevy|synced\s+data|delete\s+synced|imported\s+data)\b/i,
+      /\b(profile|habit|habits|preference|preferences|settings|timezone|unit|units|integration\w*|connected\s+(app|service|device|provider)\w*|external\s+provider\w*|wearable\w*|garmin|withings|fitbit|oura|polar|coros|strava|hevy|synced\s+data|delete\s+synced|imported\s+data)\b/i,
   },
 ];
 

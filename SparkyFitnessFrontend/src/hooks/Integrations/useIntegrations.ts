@@ -3,6 +3,7 @@ import {
   linkOuraAccount,
   linkGoogleHealthAccount,
   linkPolarFlowAccount,
+  linkCorosAccount,
   linkWithingsAccount,
   linkStravaAccount,
   syncHevyData,
@@ -30,6 +31,9 @@ import {
   handleConnectPolar,
   handleDisconnectPolar,
   handleManualSyncPolar,
+  handleConnectCoros,
+  handleDisconnectCoros,
+  handleManualSyncCoros,
   handleConnectGoogleHealth,
   handleDisconnectGoogleHealth,
   handleManualSyncGoogleHealth,
@@ -159,6 +163,32 @@ export const usePolarFlowMutation = () => {
       errorMessage: t(
         'integrations.polarError',
         'Failed to link Polar account. Please try again.'
+      ),
+    },
+  });
+};
+
+export const useCorosMutation = () => {
+  const { t } = useTranslation();
+  const invalidate = useDiaryInvalidation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: linkCorosAccount,
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({
+        queryKey: externalProviderKeys.lists(),
+      });
+    },
+    meta: {
+      successMessage: t(
+        'integrations.corosLinkSuccess',
+        'Your COROS account has been successfully linked.'
+      ),
+      errorMessage: t(
+        'integrations.corosLinkError',
+        'Failed to link COROS account. Please try again.'
       ),
     },
   });
@@ -415,6 +445,80 @@ export const useManualSyncPolarMutation = () => {
       handleManualSyncPolar(providerId, startDate, endDate, mock),
     onSuccess: () => {
       invalidateSyncData();
+    },
+  });
+};
+
+export const useConnectCorosMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (providerId?: string) => handleConnectCoros(providerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: externalProviderKeys.lists(),
+      });
+    },
+  });
+};
+
+export const useDisconnectCorosMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (providerId?: string) => handleDisconnectCoros(providerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: externalProviderKeys.lists(),
+      });
+    },
+  });
+};
+
+interface SyncCorosVariables extends SyncVariables {
+  providerId?: string;
+}
+
+export const useManualSyncCorosMutation = () => {
+  const invalidateSyncData = useDiaryInvalidation();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: ({
+      providerId,
+      startDate,
+      endDate,
+      ...mock
+    }: SyncCorosVariables) =>
+      handleManualSyncCoros({ providerId, startDate, endDate, mock }),
+    onSuccess: (data) => {
+      invalidateSyncData();
+      if (data) {
+        const parts: string[] = [];
+        if (data.imported > 0) parts.push(`Imported ${data.imported}`);
+        if (data.updated > 0) parts.push(`Updated ${data.updated}`);
+        if (data.skippedExisting > 0)
+          parts.push(`Skipped ${data.skippedExisting} existing`);
+        if (data.deferred > 0) parts.push(`Deferred ${data.deferred}`);
+        if (data.summaryOnly > 0)
+          parts.push(`Summary only: ${data.summaryOnly}`);
+        const summary =
+          parts.length > 0
+            ? parts.join(', ')
+            : t('integrations.corosNoNew', 'No new activities found.');
+        toast({
+          title: t('integrations.corosSyncSuccess', 'COROS Sync Completed'),
+          description: summary,
+        });
+        if (data.warnings && data.warnings.length > 0) {
+          for (const w of data.warnings) {
+            toast({
+              title: t('warning', 'Warning'),
+              description: w,
+              variant: 'destructive',
+            });
+          }
+        }
+      }
     },
   });
 };

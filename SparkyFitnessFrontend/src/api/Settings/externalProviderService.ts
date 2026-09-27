@@ -1,7 +1,7 @@
 import { ExternalDataProvider } from '@/pages/Settings/ExternalProviderSettings';
 import { apiCall } from '@/api/api';
 import { DataProvider } from '@/types/settings';
-import { ExternalProviderTypes } from '@workspace/shared';
+import { ExternalProviderTypes, CorosSyncResult } from '@workspace/shared';
 
 export const getExternalDataProviders = async (): Promise<DataProvider[]> => {
   return apiCall('/external-providers', {
@@ -62,6 +62,7 @@ export const createExternalProvider = async (
         'yazio',
         'norish',
         'openfoodfacts',
+        'coros_mcp',
       ].includes(payload.provider_type)
         ? payload.base_url || null
         : null,
@@ -73,6 +74,7 @@ export const createExternalProvider = async (
         'googlehealth',
         'strava',
         'polar',
+        'coros_mcp',
       ].includes(payload.provider_type)
         ? payload.sync_frequency
         : null,
@@ -324,6 +326,85 @@ export const handleManualSyncPolar = async (
     });
   } catch (error: unknown) {
     console.error('Error initiating manual Polar sync:', error);
+    throw error;
+  }
+};
+
+export const handleConnectCoros = async (providerId?: string) => {
+  try {
+    const response = await apiCall<{ authUrl: string }>(
+      `/integrations/coros/authorize`,
+      {
+        method: 'GET',
+        params: providerId ? { providerId } : undefined,
+      }
+    );
+    if (response && response.authUrl) {
+      window.location.href = response.authUrl;
+    } else {
+      throw new Error('Failed to get COROS authorization URL.');
+    }
+  } catch (error: unknown) {
+    console.error('Error connecting to COROS:', error);
+    throw error;
+  }
+};
+
+export const handleDisconnectCoros = async (providerId?: string) => {
+  if (
+    !confirm(
+      'Are you sure you want to disconnect from COROS? This will revoke access and delete all associated tokens.'
+    )
+  )
+    return;
+
+  try {
+    await apiCall(`/integrations/coros/disconnect`, {
+      method: 'POST',
+      body: JSON.stringify({ providerId }),
+    });
+  } catch (error: unknown) {
+    console.error('Error disconnecting from COROS:', error);
+    throw error;
+  }
+};
+
+export const handleManualSyncCoros = async (options: {
+  providerId?: string;
+  startDate?: string;
+  endDate?: string;
+  mock?: SyncMockOptions;
+}): Promise<CorosSyncResult> => {
+  try {
+    return await apiCall<CorosSyncResult>(`/integrations/coros/sync`, {
+      method: 'POST',
+      body: JSON.stringify({
+        providerId: options.providerId,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        ...options.mock,
+      }),
+    });
+  } catch (error: unknown) {
+    console.error('Error initiating manual COROS sync:', error);
+    throw error;
+  }
+};
+
+export const fetchCorosStatus = async (providerId?: string) => {
+  try {
+    return await apiCall<{
+      connected: boolean;
+      isActive: boolean;
+      lastSyncAt: string | null;
+      tokenExpiresAt: string | null;
+      externalUserId: string | null;
+    }>(`/integrations/coros/status`, {
+      method: 'GET',
+      params: providerId ? { providerId } : undefined,
+    });
+  } catch (error: unknown) {
+    console.error('Error fetching COROS status:', error);
     throw error;
   }
 };
@@ -601,6 +682,14 @@ export const getEnrichedProviders = async (): Promise<
               const status = await fetchStravaStatus();
               enriched.strava_last_sync_at = status.lastSyncAt;
               enriched.strava_token_expires = status.tokenExpiresAt;
+            }
+            break;
+          }
+          case 'coros_mcp': {
+            if (provider.has_token) {
+              const status = await fetchCorosStatus(provider.id);
+              enriched.coros_last_sync_at = status.lastSyncAt;
+              enriched.coros_token_expires = status.tokenExpiresAt;
             }
             break;
           }

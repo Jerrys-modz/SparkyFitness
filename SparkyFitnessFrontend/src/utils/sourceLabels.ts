@@ -6,6 +6,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   withings: 'Withings',
   fitbit: 'Fitbit',
   googlehealth: 'Google Health',
+  coros_mcp: 'COROS (MCP)',
   imported: 'Imported',
   CSV: 'CSV Import',
   CSV_Import: 'CSV Import',

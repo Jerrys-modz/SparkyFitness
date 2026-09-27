@@ -175,6 +175,7 @@ export default defineConfig({
             { text: 'Login Management', link: '/features/settings/login-management' },
             { text: 'Google Health Connect', link: '/features/settings/google-health' },
             { text: 'Polar', link: '/features/settings/polar' },
+            { text: 'COROS (MCP)', link: '/features/settings/coros' },
           ],
         },
         {

@@ -301,8 +301,31 @@ function extractProviderSport(
 
   switch (providerName.toLowerCase()) {
     case "garmin":
-    case "garmin_fit": {
-      // garmin_fit nests the same shape one level down under `activity`.
+    case "garmin_fit":
+      {
+        const activity = asRecord(data["activity"]) ?? data;
+        const activityType = asRecord(activity["activityType"]);
+        return (
+          asString(activityType?.["typeKey"]) ?? asString(activity["sport"])
+        );
+      }
+    case "coros_mcp": {
+      if (typeof data["sportType"] === "number" || typeof data["sportType"] === "string") {
+        const COROS_SPORT_TYPES: Record<number, string> = {
+          100: 'running',
+          200: 'cycling',
+          300: 'swimming',
+          400: 'walking',
+          500: 'hiking',
+          600: 'fitness_equipment',
+          700: 'rowing',
+          800: 'strength',
+        };
+        const num = typeof data["sportType"] === "number" ? data["sportType"] : parseInt(data["sportType"], 10);
+        if (COROS_SPORT_TYPES[num]) {
+          return COROS_SPORT_TYPES[num];
+        }
+      }
       const activity = asRecord(data["activity"]) ?? data;
       const activityType = asRecord(activity["activityType"]);
       return (
@@ -384,6 +407,7 @@ function sportFromWithingsSourceId(
 const NOTES_SPORT_PATTERNS: readonly RegExp[] = [
   /^garmin activity:.*\(([^)]+)\)\s*$/i,
   /^garmin fit import:.*\(([^)]+)\)\s*$/i,
+  /logged from coros(?: \(summary only\))?:\s*([^.(]+)/i,
   /synced from strava\.\s*type:\s*([^.]+)\./i,
   /logged from polar flow:\s*([^.]+)\./i,
   /logged from oura workout:\s*([^.]+)\./i,
