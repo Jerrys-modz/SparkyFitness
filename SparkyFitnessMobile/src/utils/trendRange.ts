@@ -10,12 +10,14 @@ export const TREND_RANGE_DAYS: Record<TrendRange, number> = {
   '90d': 90,
 };
 
-/** Inclusive `YYYY-MM-DD` bounds ending today. */
-export function trendRangeBounds(range: TrendRange): {
+/** Inclusive `YYYY-MM-DD` bounds ending on `endDate` (today by default). */
+export function trendRangeBounds(
+  range: TrendRange,
+  endDate: string = getTodayDate()
+): {
   startDate: string;
   endDate: string;
 } {
-  const endDate = getTodayDate();
   return {
     startDate: addDays(endDate, -(TREND_RANGE_DAYS[range] - 1)),
     endDate,
