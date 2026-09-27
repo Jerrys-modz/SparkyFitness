@@ -7,6 +7,7 @@ import { setsForMuscleKey, unmappedMuscleSets } from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
+import { useCardioSessions } from '../hooks/useCardioSessions';
 import { usePreferences } from '../hooks/usePreferences';
 import { formatLocalizedNumber } from '../localization';
 import { localizeExerciseTaxonomyValue } from '../localization/exerciseTaxonomy';
@@ -15,6 +16,7 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import SegmentedControl from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import CollapsibleSection from '../components/CollapsibleSection';
+import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import MuscleFigure, {
   MUSCLE_HEAT_COLORS,
 } from '../components/exerciseStats/MuscleFigure';
@@ -31,6 +33,7 @@ import type { RootStackScreenProps } from '../types/navigation';
 type ExerciseStatisticsScreenProps = RootStackScreenProps<'ExerciseStatistics'>;
 
 type AnalysisSection = 'recovery' | 'variety' | 'volume';
+type StatisticsView = 'strength' | 'cardio';
 
 const muscleLabel = (t: TFunction, name: string) =>
   localizeExerciseTaxonomyValue(t, 'muscle', name);
@@ -84,9 +87,9 @@ const ValueRow: React.FC<{ label: string; value: string; last?: boolean }> = ({
   </View>
 );
 
-const ExerciseStatisticsScreen: React.FC<
-  ExerciseStatisticsScreenProps
-> = () => {
+const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
+  navigation,
+}) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
@@ -94,6 +97,7 @@ const ExerciseStatisticsScreen: React.FC<
   const [range, setRange] = useState<TrendRange>('30d');
   const [pickedMuscle, setPickedMuscle] = useState<string | null>(null);
   const [openSection, setOpenSection] = useState<AnalysisSection | null>(null);
+  const [view, setView] = useState<StatisticsView>('strength');
 
   const header = useScreenHeader({
     title: t('exerciseStatistics.title', {
@@ -103,6 +107,7 @@ const ExerciseStatisticsScreen: React.FC<
   });
 
   const { data, isLoading } = useExerciseDashboard(range);
+  const cardio = useCardioSessions(range, view === 'cardio');
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
@@ -147,6 +152,59 @@ const ExerciseStatisticsScreen: React.FC<
   const maxRowSets = setRows[0]?.sets ?? 0;
   const hasActivity =
     (data?.keyStats.totalWorkouts ?? 0) > 0 || setRows.length > 0;
+
+  const renderCardio = () => {
+    if (cardio.isLoading) {
+      return <StatusView inline loading />;
+    }
+    if (cardio.sessions.length === 0) {
+      return cardio.isError ? (
+        <StatusView
+          inline
+          icon="alert-circle"
+          iconTone="danger"
+          title={t('exerciseStatistics.cardio.loadFailed', {
+            defaultValue: 'Failed to load cardio sessions',
+          })}
+          subtitle={t('common.connectionRetry', {
+            defaultValue: 'Please check your connection and try again.',
+          })}
+        />
+      ) : (
+        <StatusView
+          inline
+          icon="exercise-running"
+          iconTone="muted"
+          title={t('exerciseStatistics.cardio.empty', {
+            defaultValue: 'No cardio workouts in this range',
+          })}
+        />
+      );
+    }
+    return (
+      <>
+        <Text className="text-text-secondary text-xs mb-3">
+          {t('exerciseStatistics.cardio.hint', {
+            defaultValue: 'Tap a workout for its route and heart rate.',
+          })}
+        </Text>
+        <CardioSessionList
+          sessions={cardio.sessions}
+          distanceUnit={cardio.distanceUnit}
+          today={getTodayDate()}
+          hasMore={cardio.hasNextPage}
+          isLoadingMore={cardio.isFetchingNextPage}
+          onLoadMore={() => void cardio.fetchNextPage()}
+          onOpen={(session) =>
+            navigation.navigate('CardioSession', {
+              session,
+              distanceUnit: cardio.distanceUnit,
+            })
+          }
+        />
+      </>
+    );
+  };
 
   const renderBody = () => {
     if (isLoading) {
@@ -424,7 +482,27 @@ const ExerciseStatisticsScreen: React.FC<
             onSelect={selectRange}
           />
         </View>
-        {renderBody()}
+        <View className="mb-4">
+          <SegmentedControl
+            segments={[
+              {
+                key: 'strength',
+                label: t('exerciseStatistics.views.strength', {
+                  defaultValue: 'Strength',
+                }),
+              },
+              {
+                key: 'cardio',
+                label: t('exerciseStatistics.views.cardio', {
+                  defaultValue: 'Cardio',
+                }),
+              },
+            ]}
+            activeKey={view}
+            onSelect={setView}
+          />
+        </View>
+        {view === 'strength' ? renderBody() : renderCardio()}
       </ScrollView>
     </View>
   );

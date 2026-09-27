@@ -5,11 +5,16 @@ import type { ExerciseDashboardSummary } from '@workspace/shared';
 import ExerciseStatisticsScreen from '../../src/screens/ExerciseStatisticsScreen';
 import { useExerciseDashboard } from '../../src/hooks/useExerciseDashboard';
 import { usePreferences } from '../../src/hooks/usePreferences';
+import { useCardioSessions } from '../../src/hooks/useCardioSessions';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/hooks/useExerciseDashboard', () => ({
   useExerciseDashboard: jest.fn(),
+}));
+
+jest.mock('../../src/hooks/useCardioSessions', () => ({
+  useCardioSessions: jest.fn(),
 }));
 
 jest.mock('../../src/hooks/usePreferences', () => ({
@@ -55,6 +60,9 @@ jest.mock('../../src/utils/dateUtils', () => ({
 const mockUseExerciseDashboard = useExerciseDashboard as jest.MockedFunction<
   typeof useExerciseDashboard
 >;
+const mockUseCardioSessions = useCardioSessions as jest.MockedFunction<
+  typeof useCardioSessions
+>;
 const mockUsePreferences = usePreferences as jest.MockedFunction<
   typeof usePreferences
 >;
@@ -74,6 +82,37 @@ const DASHBOARD: ExerciseDashboardSummary = {
 };
 
 type DashboardResult = ReturnType<typeof useExerciseDashboard>;
+type CardioResult = ReturnType<typeof useCardioSessions>;
+
+const RUN = {
+  id: 'run-1',
+  exerciseName: 'Morning Run',
+  entryDate: '2026-09-26',
+  distanceFormatted: 5.2,
+  caloriesBurned: 400,
+  durationMinutes: 31,
+} as CardioResult['sessions'][number];
+const BIKE = {
+  id: 'bike-1',
+  exerciseName: 'Indoor Bike',
+  entryDate: '2026-08-14',
+  distanceFormatted: null,
+  caloriesBurned: 0,
+  durationMinutes: 45,
+} as CardioResult['sessions'][number];
+
+function cardioResult(overrides: Partial<CardioResult> = {}): CardioResult {
+  return {
+    sessions: [RUN, BIKE],
+    distanceUnit: 'km',
+    isLoading: false,
+    isError: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: jest.fn(),
+    ...overrides,
+  } as CardioResult;
+}
 
 function dashboardResult(
   overrides: Partial<DashboardResult> = {}
@@ -87,8 +126,9 @@ function dashboardResult(
   } as DashboardResult;
 }
 
+const navigation = { navigate: jest.fn() };
 const props = {
-  navigation: {},
+  navigation,
   route: { key: 'ExerciseStatistics', name: 'ExerciseStatistics' },
 } as unknown as RootStackScreenProps<'ExerciseStatistics'>;
 
@@ -100,6 +140,8 @@ describe('ExerciseStatisticsScreen', () => {
   beforeEach(() => {
     mockUseExerciseDashboard.mockReset();
     mockUseExerciseDashboard.mockReturnValue(dashboardResult());
+    navigation.navigate.mockReset();
+    mockUseCardioSessions.mockReturnValue(cardioResult());
     mockUsePreferences.mockReturnValue({
       preferences: { default_weight_unit: 'kg' },
     } as ReturnType<typeof usePreferences>);
@@ -157,6 +199,45 @@ describe('ExerciseStatisticsScreen', () => {
     expect(mockUseExerciseDashboard).toHaveBeenLastCalledWith('30d');
     fireEvent.press(screen.getByText('7d'));
     expect(mockUseExerciseDashboard).toHaveBeenLastCalledWith('7d');
+  });
+
+  it('lists cardio sessions by month and opens one', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(mockUseCardioSessions).toHaveBeenLastCalledWith('30d', false);
+
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(mockUseCardioSessions).toHaveBeenLastCalledWith('30d', true);
+    expect(screen.queryByText('Sets per Muscle')).toBeNull();
+    expect(screen.getByText('September 2026')).toBeTruthy();
+    expect(screen.getByText('August 2026')).toBeTruthy();
+    expect(screen.getByText('5.20 km')).toBeTruthy();
+    expect(screen.getByText('Yesterday')).toBeTruthy();
+    // No distance or calories, so the session leads with its minutes.
+    expect(screen.getByText('45 min')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Morning Run'));
+    expect(navigation.navigate).toHaveBeenCalledWith('CardioSession', {
+      session: RUN,
+      distanceUnit: 'km',
+    });
+  });
+
+  it('loads older cardio sessions on request', () => {
+    const fetchNextPage = jest.fn();
+    mockUseCardioSessions.mockReturnValue(
+      cardioResult({ hasNextPage: true, fetchNextPage })
+    );
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+    fireEvent.press(screen.getByText('Older sessions'));
+    expect(fetchNextPage).toHaveBeenCalled();
+  });
+
+  it('says when the range has no cardio', () => {
+    mockUseCardioSessions.mockReturnValue(cardioResult({ sessions: [] }));
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(screen.getByText('No cardio workouts in this range')).toBeTruthy();
   });
 
   it('shows an empty state when the range has no workouts', () => {

@@ -565,7 +565,8 @@
     "progressPhotos": "Progress Photos",
     "progressPhotoCompare": "Compare",
     "progressPhotoTimelapse": "Time-lapse",
-    "exerciseStatistics": "Exercise Statistics"
+    "exerciseStatistics": "Exercise Statistics",
+    "cardioSession": "Cardio Session"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5510,6 +5511,39 @@
       "loadFailed": "Failed to load exercise statistics",
       "empty": "No workouts in this range",
       "emptyHint": "Log a workout and its sets will show up here by muscle."
+    },
+    "views": {
+      "strength": "Strength",
+      "cardio": "Cardio"
+    },
+    "cardio": {
+      "hint": "Tap a workout for its route and heart rate.",
+      "empty": "No cardio workouts in this range",
+      "loadFailed": "Failed to load cardio sessions",
+      "olderSessions": "Older sessions",
+      "unitKm": "km",
+      "unitMi": "mi",
+      "calories": "{{value}} Cal",
+      "minutes_one": "{{formattedCount}} min",
+      "minutes_other": "{{formattedCount}} min",
+      "bpm": "{{value}} bpm",
+      "distance": "Distance",
+      "duration": "Duration",
+      "pace": "Pace",
+      "avgHeartRate": "Avg heart rate",
+      "caloriesLabel": "Calories",
+      "route": "Route",
+      "routeA11y": "Route of this workout, from the green dot to the red ring",
+      "noRoute": "No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.",
+      "heartRate": "Heart Rate",
+      "average": "Avg {{value}}",
+      "peak": "Max {{value}}",
+      "onlyAverage": "Average heart rate {{value}}. Beat-by-beat samples were not stored.",
+      "noHeartRate": "No heart-rate samples for this workout.",
+      "zones": "Heart Rate Zones",
+      "zone": "Zone {{zone}}",
+      "zoneFrom": "from {{bpm}} bpm",
+      "minutesAxis": "Minutes from start"
     }
   }
 }
