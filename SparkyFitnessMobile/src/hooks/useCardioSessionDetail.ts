@@ -46,8 +46,10 @@ export function useCardioSessionDetail(
     () => gpsHeartRateSeries(trackpoints),
     [trackpoints]
   );
-  // Only look past the route once it is known to carry no heart rate.
-  const needsSamples = gpsQuery.isSuccess && trackHeartRate.length === 0;
+  // Look past the route once it is known to carry no heart rate, or once it
+  // failed to load, so stored samples still give the session a graph.
+  const needsSamples =
+    gpsQuery.isError || (gpsQuery.isSuccess && trackHeartRate.length === 0);
 
   const entryQuery = useQuery({
     queryKey: cardioSessionDetailQueryKey('entry', exerciseEntryId),

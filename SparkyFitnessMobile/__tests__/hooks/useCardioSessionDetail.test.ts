@@ -67,8 +67,14 @@ describe('useCardioSessionDetail', () => {
     expect(mockSamples).not.toHaveBeenCalled();
   });
 
-  test('falls back to stored samples for an indoor session', async () => {
-    mockGps.mockResolvedValue(null);
+  test.each([
+    ['an indoor session', () => mockGps.mockResolvedValue(null)],
+    [
+      'a route that fails to load',
+      () => mockGps.mockRejectedValue(new Error('network')),
+    ],
+  ])('falls back to stored samples for %s', async (_label, arrangeGps) => {
+    arrangeGps();
     mockEntry.mockResolvedValue({
       id: 'bike-1',
       entry_date: '2026-09-20',
