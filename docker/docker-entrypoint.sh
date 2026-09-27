@@ -30,10 +30,18 @@ mkdir -p /var/run/nginx \
 # guards someone passing the variable through explicitly empty.
 export NGINX_RATE_LIMIT="${NGINX_RATE_LIMIT:-5r/s}"
 
+# Auto-detect DNS resolver from /etc/resolv.conf if NGINX_RESOLVER is not explicitly provided.
+# Defaults to 127.0.0.11 (Docker's default embedded DNS).
+if [ -z "${NGINX_RESOLVER}" ]; then
+    RESOLVER_FROM_CONF=$(awk '/^nameserver/{print $2}' /etc/resolv.conf 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+    export NGINX_RESOLVER="${RESOLVER_FROM_CONF:-127.0.0.11}"
+fi
+
 echo "Starting SparkyFitness Frontend as ${NGINX_PERMISSION_MODE} with environment variables:"
 echo "  SPARKY_FITNESS_SERVER_HOST=${SPARKY_FITNESS_SERVER_HOST}"
 echo "  SPARKY_FITNESS_SERVER_PORT=${SPARKY_FITNESS_SERVER_PORT}"
 echo "  NGINX_RATE_LIMIT=${NGINX_RATE_LIMIT}"
+echo "  NGINX_RESOLVER=${NGINX_RESOLVER}"
 echo "  NGINX_LISTEN_PORT=${NGINX_LISTEN_PORT}"
 echo "  NGINX_ACCESS_LOG=${NGINX_ACCESS_LOG}"
 echo "  NGINX_ERROR_LOG=${NGINX_ERROR_LOG}"
@@ -42,7 +50,7 @@ echo "  SPARKY_FITNESS_FRONTEND_URL=${SPARKY_FITNESS_FRONTEND_URL}"
 
 # Substitute environment variables in the nginx template
 echo "Generating nginx configuration from template..."
-envsubst "\$SPARKY_FITNESS_SERVER_HOST \$SPARKY_FITNESS_SERVER_PORT \$NGINX_RATE_LIMIT \$SPARKY_FITNESS_FRONTEND_URL \$NGINX_LISTEN_PORT \$NGINX_ACCESS_LOG \$NGINX_ERROR_LOG" < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+envsubst "\$SPARKY_FITNESS_SERVER_HOST \$SPARKY_FITNESS_SERVER_PORT \$NGINX_RATE_LIMIT \$SPARKY_FITNESS_FRONTEND_URL \$NGINX_LISTEN_PORT \$NGINX_ACCESS_LOG \$NGINX_ERROR_LOG \$NGINX_RESOLVER" < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Test that substitution worked properly
 echo "Testing nginx configuration substitution..."

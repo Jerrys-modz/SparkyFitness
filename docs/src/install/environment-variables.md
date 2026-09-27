@@ -163,6 +163,7 @@ Controls web access ports, Nginx brute-force protection, and client IP resolutio
 
 - **`SPARKY_FITNESS_FRONTEND_PORT`**: Port exposed on your host machine for web access. Defaults to `3004`.
 - **`NGINX_RATE_LIMIT`**: Rate limit on `/api/auth/*` routes to prevent brute-force attacks (e.g., `5r/s`). Defaults to `5r/s`.
+- **`NGINX_RESOLVER`**: DNS resolver used by Nginx to dynamically resolve upstream hostnames (e.g. when backend containers are restarted or recreated). Defaults to auto-detecting nameservers from `/etc/resolv.conf`, falling back to `127.0.0.11` (Docker embedded DNS).
 - **`SPARKY_FITNESS_REAL_IP_HEADER`**: Name of the trusted proxy header containing the real client IP (e.g., `CF-Connecting-IP` for Cloudflare Tunnel / CDN, `X-Forwarded-For` for NPM/Traefik, `True-Client-IP` for Akamai).
 - **`SPARKY_FITNESS_TRUSTED_PROXY_HOPS`**: Number of proxy layers between client and server when not using a named header. Defaults to `1`.
 - **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated list of additional local IP origins trusted by Better Auth (e.g., `http://192.168.1.100:3004`).
