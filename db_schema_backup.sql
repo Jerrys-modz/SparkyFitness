@@ -1979,6 +1979,7 @@ CREATE TABLE public.exercise_entries (
     gear_external_id text,
     watch_telemetry_observed_at timestamp with time zone,
     watch_duration_minutes numeric,
+    record_timezone text,
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -2002,6 +2003,13 @@ COMMENT ON COLUMN public.exercise_entries.superset_group IS 'Client-assigned sup
 --
 
 COMMENT ON COLUMN public.exercise_entries.entry_time IS 'Optional wall-clock local start time of the exercise session (no timezone). NULL = not recorded.';
+
+
+--
+-- Name: COLUMN exercise_entries.record_timezone; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.exercise_entries.record_timezone IS 'IANA timezone entry_time is expressed in (e.g. America/New_York). NULL when unknown; read paths fall back to the profile timezone.';
 
 
 --
