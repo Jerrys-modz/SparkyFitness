@@ -1,14 +1,40 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type AccessibilityActionEvent,
+} from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useDerivedValue,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import Icon from '../components/Icon';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
 import Switch from '../components/ui/Switch';
+import {
+  computeReorderTargetIndex,
+  createReorderRowPanGesture,
+  resetReorderDragPreview,
+  useReorderRowGeometry,
+  useReorderRowPreviewStyle,
+} from '../components/WorkoutReorderList';
+import {
+  DASHBOARD_CARD_SUBTITLES,
+  DASHBOARD_CARD_TITLES,
+  type DashboardCardKey,
+} from '../constants/dashboardCards';
 import {
   useCustomNutrients,
   useNutrientDisplayPreferences,
@@ -23,16 +49,18 @@ import {
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { RootStackScreenProps } from '../types/navigation';
+import {
+  applyDashboardCardMove,
+  resolveDashboardCardOrder,
+} from '../utils/dashboardCardPreferences';
 import { toggleNutrientVisibility } from '../utils/nutrientUtils';
 
 type DashboardSettingsScreenProps = RootStackScreenProps<'DashboardSettings'>;
 
 const SUMMARY_VIEW_GROUP = 'summary';
 const MOBILE_PLATFORM = 'mobile';
+const DASHBOARD_CARD_ROW_HEIGHT = 72;
 
-// Matches what the server synthesizes for the summary/mobile row when the user
-// has never customized it. Only used defensively if the row is somehow absent
-// after the preferences query has resolved — the real row is the merge base.
 const SERVER_DEFAULT_SUMMARY_NUTRIENTS = [
   'calories',
   'protein',
@@ -41,6 +69,157 @@ const SERVER_DEFAULT_SUMMARY_NUTRIENTS = [
   'dietary_fiber',
 ];
 
+const DashboardCardListRow: React.FC<{
+  cardKey: DashboardCardKey;
+  index: number;
+  lastIndex: number;
+  title: string;
+  subtitle: string;
+  isEnabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  onMove: (fromIndex: number, toIndex: number) => void;
+  onConfigure?: () => void;
+  textMuted: string;
+  accentColor: string;
+  activeDragIndex: SharedValue<number>;
+  panY: SharedValue<number>;
+  committingTranslate: SharedValue<number>;
+  targetIndex: SharedValue<number>;
+  strides: number[];
+}> = ({
+  cardKey,
+  index,
+  lastIndex,
+  title,
+  subtitle,
+  isEnabled,
+  onToggle,
+  onMove,
+  onConfigure,
+  textMuted,
+  accentColor,
+  activeDragIndex,
+  panY,
+  committingTranslate,
+  targetIndex,
+  strides,
+}) => {
+  const { t } = useTranslation();
+
+  const dragGesture = createReorderRowPanGesture({
+    index,
+    activeDragIndex,
+    panY,
+    committingTranslate,
+    targetIndex,
+    onMove,
+  });
+
+  const previewStyle = useReorderRowPreviewStyle(
+    index,
+    activeDragIndex,
+    panY,
+    committingTranslate,
+    targetIndex,
+    strides
+  );
+
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    if (event.nativeEvent.actionName === 'increment') {
+      onMove(index, Math.min(index + 1, lastIndex));
+      return;
+    }
+    if (event.nativeEvent.actionName === 'decrement') {
+      onMove(index, Math.max(index - 1, 0));
+    }
+  };
+
+  return (
+    <Animated.View
+      testID={`dashboard-card-row-${cardKey}`}
+      className="flex-row items-center bg-surface border-b border-border/40 pr-4"
+      style={[previewStyle, { height: DASHBOARD_CARD_ROW_HEIGHT }]}
+    >
+      <GestureDetector gesture={dragGesture}>
+        <View
+          testID={`dashboard-card-drag-handle-${cardKey}`}
+          className="px-4 py-3"
+          accessibilityRole="adjustable"
+          accessibilityLabel={t('dashboardSettings.reorder', {
+            defaultValue: 'Reorder {{name}}',
+            name: title,
+          })}
+          accessibilityValue={{
+            text: isEnabled
+              ? t('dashboardSettings.stateShown', { defaultValue: 'Shown' })
+              : t('dashboardSettings.stateHidden', {
+                  defaultValue: 'Hidden',
+                }),
+          }}
+          accessibilityHint={t('dashboardSettings.reorderHint', {
+            defaultValue: 'Reorder this card on your Dashboard',
+          })}
+          accessibilityActions={[
+            {
+              name: 'decrement',
+              label: t('dashboardSettings.moveUp', {
+                defaultValue: 'Move up',
+              }),
+            },
+            {
+              name: 'increment',
+              label: t('dashboardSettings.moveDown', {
+                defaultValue: 'Move down',
+              }),
+            },
+          ]}
+          onAccessibilityAction={handleAccessibilityAction}
+        >
+          <Icon name="reorder-handle" size={22} color={textMuted} />
+        </View>
+      </GestureDetector>
+
+      <View className="flex-1 pr-3 justify-center">
+        <View className="flex-row items-center">
+          <Text
+            className={`text-base font-medium ${
+              isEnabled ? 'text-text-primary' : 'text-text-muted'
+            }`}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          {onConfigure && (
+            <Pressable
+              onPress={onConfigure}
+              testID={`dashboard-card-configure-${cardKey}`}
+              hitSlop={8}
+              className="ml-2 px-1 py-0.5"
+              accessibilityRole="button"
+              accessibilityLabel={t('dashboardSettings.configureCard', {
+                defaultValue: 'Configure {{name}}',
+                name: title,
+              })}
+            >
+              <Icon name="chevron-forward" size={16} color={accentColor} />
+            </Pressable>
+          )}
+        </View>
+        <Text className="text-xs text-text-secondary mt-0.5" numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+
+      <Switch
+        accessibilityLabel={title}
+        value={isEnabled}
+        onValueChange={onToggle}
+        testID={`dashboard-card-switch-${cardKey}`}
+      />
+    </Animated.View>
+  );
+};
+
 const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   navigation,
 }) => {
@@ -48,7 +227,25 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
+  const textMuted = String(useCSSVariable('--color-text-muted'));
+  const accentColor = String(useCSSVariable('--color-accent-primary'));
 
+  const calorieRingCardVisible = useAppPreferencesStore(
+    (s) => s.calorieRingCardVisible
+  );
+  const setCalorieRingCardVisible = useAppPreferencesStore(
+    (s) => s.setCalorieRingCardVisible
+  );
+  const macrosCardVisible = useAppPreferencesStore((s) => s.macrosCardVisible);
+  const setMacrosCardVisible = useAppPreferencesStore(
+    (s) => s.setMacrosCardVisible
+  );
+  const exerciseCardVisible = useAppPreferencesStore(
+    (s) => s.exerciseCardVisible
+  );
+  const setExerciseCardVisible = useAppPreferencesStore(
+    (s) => s.setExerciseCardVisible
+  );
   const fastingCardVisible = useAppPreferencesStore(
     (s) => s.fastingCardVisible
   );
@@ -78,15 +275,137 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
   );
+  const setMedicationsCardVisible = useAppPreferencesStore(
+    (s) => s.setMedicationsCardVisible
+  );
   const progressPhotosCardVisible = useAppPreferencesStore(
     (s) => s.progressPhotosCardVisible
   );
   const setProgressPhotosCardVisible = useAppPreferencesStore(
     (s) => s.setProgressPhotosCardVisible
   );
-  const setMedicationsCardVisible = useAppPreferencesStore(
-    (s) => s.setMedicationsCardVisible
+  const healthTrendsCardVisible = useAppPreferencesStore(
+    (s) => s.healthTrendsCardVisible
   );
+  const setHealthTrendsCardVisible = useAppPreferencesStore(
+    (s) => s.setHealthTrendsCardVisible
+  );
+
+  const dashboardCardOrder = useAppPreferencesStore(
+    (s) => s.dashboardCardOrder
+  );
+  const setDashboardCardOrder = useAppPreferencesStore(
+    (s) => s.setDashboardCardOrder
+  );
+
+  const orderedCards = useMemo(
+    () => resolveDashboardCardOrder(dashboardCardOrder),
+    [dashboardCardOrder]
+  );
+
+  const cardVisibilityMap: Record<DashboardCardKey, boolean> = {
+    calorieRing: calorieRingCardVisible,
+    askSparky: askSparkyVisible,
+    macros: macrosCardVisible,
+    exercise: exerciseCardVisible,
+    hydration: hydrationCardVisible,
+    caffeine: caffeineCardVisible,
+    fasting: fastingCardVisible,
+    cycle: cycleCardVisible,
+    medications: medicationsCardVisible,
+    progressPhotos: progressPhotosCardVisible,
+    healthTrends: healthTrendsCardVisible,
+  };
+
+  const setCardVisibility = useCallback(
+    (key: DashboardCardKey, isVisible: boolean) => {
+      switch (key) {
+        case 'calorieRing':
+          setCalorieRingCardVisible(isVisible);
+          break;
+        case 'askSparky':
+          setAskSparkyVisible(isVisible);
+          break;
+        case 'macros':
+          setMacrosCardVisible(isVisible);
+          break;
+        case 'exercise':
+          setExerciseCardVisible(isVisible);
+          break;
+        case 'hydration':
+          setHydrationCardVisible(isVisible);
+          break;
+        case 'caffeine':
+          setCaffeineCardVisible(isVisible);
+          break;
+        case 'fasting':
+          setFastingCardVisible(isVisible);
+          break;
+        case 'cycle':
+          setCycleCardVisible(isVisible);
+          break;
+        case 'medications':
+          setMedicationsCardVisible(isVisible);
+          break;
+        case 'progressPhotos':
+          setProgressPhotosCardVisible(isVisible);
+          break;
+        case 'healthTrends':
+          setHealthTrendsCardVisible(isVisible);
+          break;
+      }
+    },
+    [
+      setCalorieRingCardVisible,
+      setAskSparkyVisible,
+      setMacrosCardVisible,
+      setExerciseCardVisible,
+      setHydrationCardVisible,
+      setCaffeineCardVisible,
+      setFastingCardVisible,
+      setCycleCardVisible,
+      setMedicationsCardVisible,
+      setProgressPhotosCardVisible,
+      setHealthTrendsCardVisible,
+    ]
+  );
+
+  const { strides, offsets } = useReorderRowGeometry(
+    orderedCards.length,
+    DASHBOARD_CARD_ROW_HEIGHT
+  );
+
+  const activeDragIndex = useSharedValue(-1);
+  const panY = useSharedValue(0);
+  const committingTranslate = useSharedValue(0);
+  const pendingDragResetRef = useRef(false);
+
+  const targetIndex = useDerivedValue(() =>
+    activeDragIndex.value < 0
+      ? -1
+      : computeReorderTargetIndex(
+          strides,
+          offsets,
+          activeDragIndex.value,
+          panY.value
+        )
+  );
+
+  const handleMove = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) return;
+      const newOrder = applyDashboardCardMove(orderedCards, fromIndex, toIndex);
+      pendingDragResetRef.current = true;
+      setDashboardCardOrder(newOrder);
+    },
+    [orderedCards, setDashboardCardOrder]
+  );
+
+  useEffect(() => {
+    if (!pendingDragResetRef.current) return;
+    pendingDragResetRef.current = false;
+    resetReorderDragPreview(activeDragIndex, panY, committingTranslate);
+  }, [orderedCards, committingTranslate, activeDragIndex, panY]);
 
   const queryClient = useQueryClient();
   const { isConnected } = useServerConnection();
@@ -98,10 +417,6 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
 
   const isLoading = isConnected && (isCustomLoading || isPrefsLoading);
 
-  // Base array is the raw summary/mobile row (NOT the summaryNutrients getter,
-  // which strips 'calories' — using it as the merge base would silently drop
-  // calories from the stored row on every PUT). The server guarantees this row
-  // exists once preferences resolve; the default is defensive only.
   const summaryRow = preferences.find(
     (p) => p.view_group === SUMMARY_VIEW_GROUP && p.platform === MOBILE_PLATFORM
   );
@@ -240,138 +555,40 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
           usesNativeHeader ? 'automatic' : 'never'
         }
       >
-        <SettingsRowGroup>
-          <SettingsRow
-            title={t('dashboardSettings.askSparky', {
-              defaultValue: 'Ask Sparky',
-            })}
-            subtitle={t('dashboardSettings.askSparkySubtitle', {
-              defaultValue:
-                'Show the Ask Sparky chat launcher on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.askSparky', {
-                  defaultValue: 'Ask Sparky',
-                })}
-                value={askSparkyVisible}
-                onValueChange={setAskSparkyVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.hydration', {
-              defaultValue: 'Hydration',
-            })}
-            subtitle={t('dashboardSettings.hydrationSubtitle', {
-              defaultValue: 'Show the hydration card on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.hydration', {
-                  defaultValue: 'Hydration',
-                })}
-                value={hydrationCardVisible}
-                onValueChange={setHydrationCardVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.caffeine', {
-              defaultValue: 'Caffeine',
-            })}
-            subtitle={t('dashboardSettings.caffeineSubtitle', {
-              defaultValue: 'Show the active caffeine card on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.caffeine', {
-                  defaultValue: 'Caffeine',
-                })}
-                value={caffeineCardVisible}
-                onValueChange={setCaffeineCardVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.fasting', { defaultValue: 'Fasting' })}
-            subtitle={t('dashboardSettings.fastingSubtitle', {
-              defaultValue: 'Show the fasting card on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.fasting', {
-                  defaultValue: 'Fasting',
-                })}
-                value={fastingCardVisible}
-                onValueChange={setFastingCardVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.cyclePregnancy', {
-              defaultValue: 'Cycle & Pregnancy',
-            })}
-            subtitle={t('dashboardSettings.cyclePregnancySubtitle', {
-              defaultValue: 'Show the wellness card on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.cyclePregnancy', {
-                  defaultValue: 'Cycle & Pregnancy',
-                })}
-                value={cycleCardVisible}
-                onValueChange={setCycleCardVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.medications', {
-              defaultValue: 'Medications',
-            })}
-            subtitle={t('dashboardSettings.medicationsSubtitle', {
-              defaultValue: 'Show the medications card on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.medications', {
-                  defaultValue: 'Medications',
-                })}
-                value={medicationsCardVisible}
-                onValueChange={setMedicationsCardVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.progressPhotos', {
-              defaultValue: 'Progress Photos',
-            })}
-            subtitle={t('dashboardSettings.progressPhotosSubtitle', {
-              defaultValue: 'Show the progress photos card on the Dashboard',
-            })}
-            rightAccessory={
-              <Switch
-                accessibilityLabel={t('dashboardSettings.progressPhotos', {
-                  defaultValue: 'Progress Photos',
-                })}
-                value={progressPhotosCardVisible}
-                onValueChange={setProgressPhotosCardVisible}
-              />
-            }
-          />
-          <SettingsRow
-            title={t('dashboardSettings.healthTrends', {
-              defaultValue: 'Health Trends',
-            })}
-            subtitle={t('dashboardSettings.healthTrendsSubtitle', {
-              defaultValue:
-                'Choose which graphs show on the Dashboard and their order',
-            })}
-            subtitleNumberOfLines={2}
-            onPress={() => navigation.navigate('HealthTrendsSettings')}
-            testID="dashboard-settings-health-trends"
-          />
-        </SettingsRowGroup>
+        <Text className="text-text-secondary text-sm mb-4">
+          {t('dashboardSettings.description', {
+            defaultValue:
+              'Drag a card by its handle to reorder your Dashboard. Toggle off to hide cards you do not use.',
+          })}
+        </Text>
+
+        <View className="bg-surface rounded-xl overflow-hidden shadow-sm mb-6">
+          {orderedCards.map((cardKey, index) => (
+            <DashboardCardListRow
+              key={cardKey}
+              cardKey={cardKey}
+              index={index}
+              lastIndex={orderedCards.length - 1}
+              title={DASHBOARD_CARD_TITLES[cardKey](t)}
+              subtitle={DASHBOARD_CARD_SUBTITLES[cardKey](t)}
+              isEnabled={cardVisibilityMap[cardKey]}
+              onToggle={(enabled) => setCardVisibility(cardKey, enabled)}
+              onMove={handleMove}
+              onConfigure={
+                cardKey === 'healthTrends'
+                  ? () => navigation.navigate('HealthTrendsSettings')
+                  : undefined
+              }
+              textMuted={textMuted}
+              accentColor={accentColor}
+              activeDragIndex={activeDragIndex}
+              panY={panY}
+              committingTranslate={committingTranslate}
+              targetIndex={targetIndex}
+              strides={strides}
+            />
+          ))}
+        </View>
 
         <Text className="text-base font-semibold text-text-primary mb-4">
           {t('dashboardSettings.customNutrientDisplay', {

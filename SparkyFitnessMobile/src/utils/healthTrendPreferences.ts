@@ -3,7 +3,7 @@ import {
   type HealthTrendKey,
 } from '../constants/healthTrends';
 
-/** The row separating shown graphs from hidden ones in the settings list. */
+/** The row separating shown graphs from hidden ones in the settings list (legacy). */
 export const HEALTH_TREND_DIVIDER = 'divider';
 
 export type HealthTrendRow = HealthTrendKey | typeof HEALTH_TREND_DIVIDER;
@@ -46,7 +46,28 @@ export function selectVisibleHealthTrends(
   return order.filter((key) => !hiddenKeys.includes(key));
 }
 
-/** The settings list: shown graphs, the divider, then hidden graphs. */
+/**
+ * Moves one trend within the ordered list.
+ */
+export function applyHealthTrendOrderMove(
+  order: readonly HealthTrendKey[],
+  fromIndex: number,
+  toIndex: number
+): HealthTrendKey[] {
+  const movedKey = order[fromIndex];
+  if (movedKey === undefined) return [...order];
+
+  const remaining = order.filter((_, index) => index !== fromIndex);
+  const insertIndex = Math.max(0, Math.min(toIndex, remaining.length));
+
+  return [
+    ...remaining.slice(0, insertIndex),
+    movedKey,
+    ...remaining.slice(insertIndex),
+  ];
+}
+
+/** The settings list: shown graphs, the divider, then hidden graphs (legacy support). */
 export function buildHealthTrendRows(
   order: readonly HealthTrendKey[],
   hiddenKeys: readonly string[]
@@ -57,7 +78,7 @@ export function buildHealthTrendRows(
   return [...shownKeys, HEALTH_TREND_DIVIDER, ...hiddenInOrder];
 }
 
-/** Which side of the divider each graph ended up on. */
+/** Which side of the divider each graph ended up on (legacy support). */
 export function splitHealthTrendRows(rows: readonly HealthTrendRow[]): {
   order: HealthTrendKey[];
   hiddenKeys: HealthTrendKey[];
@@ -70,12 +91,7 @@ export function splitHealthTrendRows(rows: readonly HealthTrendRow[]): {
 }
 
 /**
- * Moves one row within the settings list, remove-then-insert — the convention
- * `computeReorderTargetIndex` reports its drop target in.
- *
- * Crossing the divider is what hides or shows a graph, so a move returns both the new
- * order and the new hidden set rather than just a reordering. The divider itself cannot
- * be dragged; a move that names it is returned unchanged.
+ * Moves one row within the settings list, remove-then-insert (legacy support).
  */
 export function applyHealthTrendRowMove(
   rows: readonly HealthTrendRow[],
