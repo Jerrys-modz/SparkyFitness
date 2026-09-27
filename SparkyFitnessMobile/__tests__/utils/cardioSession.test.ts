@@ -3,6 +3,8 @@ import {
   gpsHeartRateSeries,
   heartRateZoneRows,
   projectRoute,
+  routeRegion,
+  usableRoutePoints,
 } from '../../src/utils/cardioSession';
 
 const point = (lat: number, lon: number, t = '2026-09-20T12:00:00Z') =>
@@ -43,6 +45,49 @@ describe('projectRoute', () => {
       10
     );
     expect(route!.start).toEqual({ x: 100, y: 50 });
+  });
+});
+
+describe('usableRoutePoints', () => {
+  it('drops 0,0 and non-finite fixes and keeps order', () => {
+    expect(
+      usableRoutePoints([
+        point(0, 0),
+        point(51.5, -0.1),
+        point(Number.NaN, 1),
+        point(51.6, -0.2),
+      ])
+    ).toEqual([point(51.5, -0.1), point(51.6, -0.2)]);
+  });
+
+  it('thins a long track and keeps its last point', () => {
+    const track = Array.from({ length: 4000 }, (_, i) =>
+      point(51 + i / 10000, 0.5)
+    );
+    const kept = usableRoutePoints(track);
+    expect(kept.length).toBeLessThanOrEqual(1500);
+    expect(kept[kept.length - 1]).toBe(track[track.length - 1]);
+  });
+});
+
+describe('routeRegion', () => {
+  it('centers on the route with a margin around it', () => {
+    expect(routeRegion([point(51.5, -0.2), point(51.6, -0.1)])).toEqual({
+      latitude: expect.closeTo(51.55),
+      longitude: expect.closeTo(-0.15),
+      latitudeDelta: expect.closeTo(0.13),
+      longitudeDelta: expect.closeTo(0.13),
+    });
+  });
+
+  it('keeps some context around a track that barely moves', () => {
+    const region = routeRegion([point(51.5, -0.1), point(51.5, -0.1)]);
+    expect(region?.latitudeDelta).toBe(0.002);
+    expect(region?.longitudeDelta).toBe(0.002);
+  });
+
+  it('needs two usable points', () => {
+    expect(routeRegion([point(0, 0), point(51.5, -0.1)])).toBeNull();
   });
 });
 
