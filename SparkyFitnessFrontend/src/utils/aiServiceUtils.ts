@@ -93,6 +93,8 @@ export const getModelOptions = (serviceType: string): string[] => {
         'anthropic/claude-haiku-4.5',
         'anthropic/claude-sonnet-4.6',
         'deepseek/deepseek-chat',
+        'perplexity/sonar',
+        'perplexity/sonar-pro',
         'meta-llama/llama-3.1-8b-instruct:free',
       ];
     case 'xai':

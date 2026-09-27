@@ -60,6 +60,15 @@ These usually run without an API key — leave the **API Key** field blank. Use 
 
 Local/private AI URLs are resolved from the backend server's network, not from the browser. To prevent regular users from turning the server into a private-network proxy, private AI URLs are allowed for current admins, global admin-created AI settings, or deployments that explicitly set [`ALLOW_PRIVATE_NETWORK_AI=true`](/install/environment-variables).
 
+### Perplexity AI: "Sonar is now the Agent API" / 403 `chat_completions_not_available`
+
+Perplexity has retired the legacy OpenAI-compatible Chat Completions API (`/v1/chat/completions` and `/v1/sonar`) in favor of their new Agent API (`/v1/responses`). Direct connections to `https://api.perplexity.ai` via the **OpenAI Compatible** service type return HTTP 403 because Perplexity no longer accepts chat completions requests.
+
+**How to use Perplexity models in SparkyFitness:**
+1. Select **OpenRouter** as your AI service provider in AI Settings.
+2. Enter your OpenRouter API key.
+3. Select `perplexity/sonar` or `perplexity/sonar-pro` from the model options (or enter any Perplexity model ID). OpenRouter provides a full OpenAI-compatible interface with streaming and tool support for Perplexity models.
+
 ### Running the chatbot on small local models (Ollama)
 
 Small local models (roughly 3B–8B, e.g. an 8 GB Mac) can drive the chatbot's tools well, but two settings make the difference between "works great" and "acts dumb":

@@ -102,7 +102,8 @@ function mockFetch(
   const m = vi.fn().mockResolvedValue({
     ok: init.ok ?? true,
     status: init.status ?? 200,
-    text: async () => (typeof jsonBody === 'string' ? jsonBody : ''),
+    text: async () =>
+      typeof jsonBody === 'string' ? jsonBody : JSON.stringify(jsonBody),
     json: async () => jsonBody,
   });
   global.fetch = m as typeof global.fetch;
@@ -1812,5 +1813,39 @@ describe('dispatchAiRequest — default request timeout', () => {
       })
     );
     expect(timeoutSpy).toHaveBeenCalledWith(1_000);
+  });
+});
+
+describe('dispatchAiRequest — Perplexity 403 deprecation handling', () => {
+  it('translates Sonar chat completions deprecation 403 into a user-friendly message', async () => {
+    mockFetch(
+      {
+        error: {
+          message:
+            'Sonar is now the Agent API. Use /v1/responses instead of /v1/sonar. Migrate here: https://docs.perplexity.ai/docs/agent-api/migrate-from-sonar/overview',
+          type: 'chat_completions_not_available',
+          code: 403,
+        },
+      },
+      { ok: false, status: 403 }
+    );
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://api.perplexity.ai',
+          model_name: 'sonar-pro',
+        }),
+      })
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.category).toBe('upstream_error');
+      expect(result.status).toBe(403);
+      expect(result.detail).toContain(
+        'Perplexity has retired the OpenAI-compatible Chat Completions API'
+      );
+      expect(result.detail).toContain('Use OpenRouter with a Perplexity model');
+    }
   });
 });

@@ -859,11 +859,21 @@ async function readResponse(response: Response): Promise<HttpOutcome> {
     // A 400 naming a request parameter is otherwise surfaced as raw JSON the
     // user has to decode; say it in a sentence instead.
     const rejected = describeRejectedParam(response.status, body);
-    const detail = rejected
-      ? `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`
-      : `AI service returned status ${response.status}${
-          body ? `: ${truncateBody(body)}` : ''
-        }`;
+    let detail: string;
+    if (rejected) {
+      detail = `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`;
+    } else if (
+      response.status === 403 &&
+      (body.includes('chat_completions_not_available') ||
+        body.includes('Sonar is now the Agent API'))
+    ) {
+      detail =
+        'Perplexity has retired the OpenAI-compatible Chat Completions API (/chat/completions) in favor of the Agent API (/v1/responses). Direct connections via OpenAI-compatible endpoints are not supported. Use OpenRouter with a Perplexity model (e.g., perplexity/sonar or perplexity/sonar-pro) instead.';
+    } else {
+      detail = `AI service returned status ${response.status}${
+        body ? `: ${truncateBody(body)}` : ''
+      }`;
+    }
     return {
       error: {
         ok: false,
