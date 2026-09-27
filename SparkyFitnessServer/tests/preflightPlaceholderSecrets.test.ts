@@ -117,3 +117,33 @@ describe('preflight rejects template placeholder secrets', () => {
     );
   });
 });
+
+describe('preflight checks the decoded BETTER_AUTH_SECRET length', () => {
+  // auth.ts decodes the value as base64, dropping characters outside it
+  for (const value of ['...', '!!!!', '   ']) {
+    it(`refuses to start when "${value}" decodes to an empty key`, async () => {
+      process.env.BETTER_AUTH_SECRET = value;
+      const runPreflightChecks = await loadPreflight();
+      expect(() => runPreflightChecks()).toThrow(/empty key/);
+    });
+  }
+
+  it('starts but warns when the key is under 32 bytes', async () => {
+    process.env.BETTER_AUTH_SECRET = 'correct horse battery staple';
+    const runPreflightChecks = await loadPreflight();
+    expect(() => runPreflightChecks()).not.toThrow();
+    expect(log).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('18 bytes')
+    );
+  });
+
+  it('does not warn for a generated 32-byte key', async () => {
+    const runPreflightChecks = await loadPreflight();
+    runPreflightChecks();
+    expect(log).not.toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('BETTER_AUTH_SECRET')
+    );
+  });
+});

@@ -130,6 +130,38 @@ function runPreflightChecks() {
       'Preflight checks failed: Environment variables still hold example placeholder values.'
     );
   }
+  // auth.ts decodes BETTER_AUTH_SECRET as base64, which silently drops every
+  // character outside that alphabet. A value made only of such characters (a
+  // docs example like "..." pasted as-is) decodes to an empty key, which Better
+  // Auth accepts, so it has to be caught here.
+  const authKeyBytes = Buffer.from(
+    process.env.BETTER_AUTH_SECRET ?? '',
+    'base64'
+  ).length;
+  if (authKeyBytes === 0) {
+    console.error(
+      '\x1b[31m%s\x1b[0m',
+      'FATAL: BETTER_AUTH_SECRET decodes to an empty key.'
+    );
+    console.error(
+      'The value is read as base64, and it contains no base64 characters.\n' +
+        'Generate one with:  openssl rand -base64 32\n'
+    );
+    console.error('Update your .env file and restart the server.\n');
+    log('error', 'FATAL: BETTER_AUTH_SECRET decodes to an empty key.');
+    throw new Error(
+      'Preflight checks failed: BETTER_AUTH_SECRET decodes to an empty key.'
+    );
+  }
+  if (authKeyBytes < 32) {
+    log(
+      'warn',
+      `BETTER_AUTH_SECRET decodes to only ${authKeyBytes} bytes; 32 or more is recommended. ` +
+        'The value is read as base64, so a passphrase yields fewer bytes than it has characters. ' +
+        'Changing it signs everyone out and locks 2FA users out until an admin resets their MFA, ' +
+        'so only replace it (with openssl rand -base64 32) if you can accept that.'
+    );
+  }
   for (const varName of PLACEHOLDER_WARN) {
     if (process.env[varName] && isPlaceholder(process.env[varName])) {
       log(
