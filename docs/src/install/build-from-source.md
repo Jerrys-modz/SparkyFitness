@@ -47,7 +47,7 @@ Required values to set in `.env`:
 | `SPARKY_FITNESS_APP_DB_PASSWORD` | App user password |
 | `SPARKY_FITNESS_FRONTEND_URL` | Set to `http://localhost:8080` for local builds |
 | `SPARKY_FITNESS_API_ENCRYPTION_KEY` | 64-character hex string — generate with `openssl rand -hex 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `BETTER_AUTH_SECRET` | Strongly recommended — auto-generated if absent but sessions will not survive server restarts. Signs sessions and encrypts 2FA/TOTP data. **Never change after users have enabled 2FA or they will be locked out.** |
+| `BETTER_AUTH_SECRET` | Required — generate with `openssl rand -base64 32`. The server will not start if it is missing or still the `.env.example` placeholder. Signs sessions and encrypts 2FA/TOTP data. **Never change after users have enabled 2FA or they will be locked out.** |
 
 > **Note:** The default `SPARKY_FITNESS_DB_HOST` in the example file is set to a Docker service name. Change it to `localhost` for a local install.
 

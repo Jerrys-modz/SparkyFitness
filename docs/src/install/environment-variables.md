@@ -43,10 +43,11 @@ SparkyFitness uses a two-tier database model: a superuser for migrations and sch
 - **`SPARKY_FITNESS_API_ENCRYPTION_KEY`**: A 64-character hex string (256-bit AES) for encrypting stored external provider API keys and tokens in Postgres. (Can also be supplied via **`SPARKY_FITNESS_API_ENCRYPTION_KEY_FILE`**).
   - Generate with: `openssl rand -hex 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - **`BETTER_AUTH_SECRET`**: A secret key used by Better Auth to sign session JWTs and encrypt TOTP 2-Factor Authentication keys in the database. (Can also be supplied via **`BETTER_AUTH_SECRET_FILE`**).
-  - Generate with: `openssl rand -base64 32`
+  - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
   - Use **base64**, not hex. The server decodes this value as base64 and silently drops anything outside that alphabet, so a passphrase containing `!@#$%` yields a shorter key than it appears to.
   - > [!CAUTION]
     > **CRITICAL for 2FA/TOTP:** If you change this variable after users have enabled 2FA, the server will lose access to their secret keys and **all 2FA users will be locked out**. Keep this value persistent and back it up.
+  - The server refuses to start while this is still the placeholder from `.env.example` or `.env.simple.example` (any value starting with `changeme` or `replace_with`). Every install that copied a template shares those values, so each server needs its own. If an existing install stops at this check, generate a real secret and accept the one-time cost: every user is signed out, and users with 2FA must have it cleared under **Admin > User Management > Reset MFA** and re-enroll. Passkeys, passwords and data are unaffected. If the only admin is locked out, follow the recovery steps in the [FAQ](/faq#troubleshooting).
 
 ---
 

@@ -17,7 +17,7 @@ try {
   runPreflightChecks();
 } catch (error) {
   console.error(
-    'PreflightChecks failed due to missing environment variables.',
+    'PreflightChecks failed due to missing or placeholder environment variables.',
     error
   );
   // eslint-disable-next-line n/no-process-exit
