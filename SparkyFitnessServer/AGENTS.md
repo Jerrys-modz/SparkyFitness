@@ -151,6 +151,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 
 - Use `log(level, message, ...args)` from `config/logging.ts`; levels are `'debug'`, `'info'`, `'warn'`, and `'error'`
 - Never use `console.error` (or other `console.*`) in application code
+- Exception: fatal boot diagnostics in `index.ts` and `utils/preflightChecks.ts` print with `console.error` (alongside `log('error', ...)`), because `log()` is suppressed at `SILENT` and the operator must still see why the server refused to start
 - `SPARKY_FITNESS_LOG_LEVEL` controls verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`)
 
 ### Database and RLS
