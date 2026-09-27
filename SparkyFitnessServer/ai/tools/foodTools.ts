@@ -704,7 +704,8 @@ function projectFoodDiaryEntry(
     typeof row.serving_unit === 'string' ? row.serving_unit : null;
   const compatibleUnit =
     isServingCount ||
-    normalizeServingUnit(storedUnit) === normalizeServingUnit(servingUnit);
+    (servingUnit !== null &&
+      normalizeServingUnit(storedUnit) === normalizeServingUnit(servingUnit));
 
   const parsedServingSize = Number(row.serving_size);
   const hasValidServingSize =
