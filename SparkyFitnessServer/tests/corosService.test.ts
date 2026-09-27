@@ -4,10 +4,25 @@ import {
   corosIssuerFromMcpUrl,
 } from '../integrations/coros/corosConstants.js';
 
+process.env.SPARKY_FITNESS_ENCRYPTION_KEY =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+process.env.SPARKY_FITNESS_FRONTEND_URL = 'https://app.example.com';
+
 const mockDb = {
   query: vi.fn(),
   release: vi.fn(),
 };
+
+const { mockAxiosPost } = vi.hoisted(() => ({
+  mockAxiosPost: vi.fn(),
+}));
+
+vi.mock('axios', () => ({
+  default: {
+    post: mockAxiosPost,
+    isAxiosError: () => false,
+  },
+}));
 
 vi.mock('../db/poolManager.js', () => ({
   getSystemClient: vi.fn(async () => mockDb),
@@ -70,6 +85,9 @@ describe('corosService authorization', () => {
     process.env.SPARKY_FITNESS_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.SPARKY_FITNESS_FRONTEND_URL = 'https://app.example.com';
+    mockAxiosPost.mockResolvedValue({
+      data: { client_id: 'dcr-client-id' },
+    });
     mockDb.query.mockImplementation(async (sql: string) => {
       if (typeof sql === 'string' && sql.includes('external_data_providers')) {
         return {
@@ -92,12 +110,6 @@ describe('corosService authorization', () => {
   });
 
   it('generates authorization URL with PKCE and state', async () => {
-    // Mock global fetch for DCR if called
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ client_id: 'dcr-client-id' }),
-    } as Response);
-
     const result = await corosService.getAuthorizationUrl(
       '11111111-1111-4111-8111-111111111111',
       'https://app.example.com/coros/callback'

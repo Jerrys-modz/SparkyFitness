@@ -49,6 +49,12 @@ vi.mock('../integrations/coros/corosService.js', () => ({
 vi.mock('../services/corosService.js', () => ({
   default: corosSyncService,
 }));
+vi.mock('../utils/mockDataOptions.js', () => ({
+  resolveMockDataOptions: vi.fn(async () => ({
+    dataSource: undefined,
+    saveMockData: false,
+  })),
+}));
 
 const { default: corosRoutes } = await import('../routes/corosRoutes.js');
 

@@ -48,7 +48,8 @@ export const PROVIDER_SYNC_CONFIGS: readonly ProviderSyncConfig[] = [
           new Date()
         );
       } else {
-        console.warn(
+        log(
+          'warn',
           `[CRON] Garmin sync completed with failed phases for user ${p.user_id}; last_sync_at not updated: ${failedPhases.join(', ')}`
         );
       }
