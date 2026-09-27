@@ -17,15 +17,18 @@ export interface ProjectedRoute {
 type LatLon = Pick<GpsTrackPoint, 'lat' | 'lon'>;
 
 /**
- * The fixes worth drawing, in order: finite, not 0,0 (what a sensor reports
- * before it has a fix, not a place), and thinned to at most
- * MAX_ROUTE_POINTS while keeping the last one.
+ * The fixes worth drawing, in order: finite, on the globe (maps clamp or
+ * wrap anything else, so the map and the plain line would disagree), not 0,0
+ * (what a sensor reports before it has a fix, not a place), and thinned to
+ * at most MAX_ROUTE_POINTS while keeping the last one.
  */
 export function usableRoutePoints(points: readonly LatLon[]): LatLon[] {
   const usable = points.filter(
     (p) =>
       Number.isFinite(p.lat) &&
       Number.isFinite(p.lon) &&
+      Math.abs(p.lat) <= 90 &&
+      Math.abs(p.lon) <= 180 &&
       !(p.lat === 0 && p.lon === 0)
   );
   const step = Math.ceil(usable.length / MAX_ROUTE_POINTS);
@@ -58,14 +61,34 @@ export function routeRegion(
   const lons = usable.map((p) => p.lon);
   const minLat = Math.min(...lats);
   const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
+  const lon = longitudeSpan(lons);
   return {
     latitude: (minLat + maxLat) / 2,
-    longitude: (minLon + maxLon) / 2,
+    longitude: lon.center,
     latitudeDelta: Math.max((maxLat - minLat) * margin, MIN_REGION_DELTA),
-    longitudeDelta: Math.max((maxLon - minLon) * margin, MIN_REGION_DELTA),
+    longitudeDelta: Math.max(lon.span * margin, MIN_REGION_DELTA),
   };
+}
+
+/**
+ * The narrower of the two ways to bound a set of longitudes: straight, or
+ * across the ±180° line (read on 0-360). A route over the date line is a few
+ * degrees wide the second way and nearly the whole globe the first.
+ */
+function longitudeSpan(lons: readonly number[]): {
+  center: number;
+  span: number;
+} {
+  const straightMin = Math.min(...lons);
+  const straightSpan = Math.max(...lons) - straightMin;
+  const wrapped = lons.map((lon) => (lon < 0 ? lon + 360 : lon));
+  const wrappedMin = Math.min(...wrapped);
+  const wrappedSpan = Math.max(...wrapped) - wrappedMin;
+  if (straightSpan <= wrappedSpan) {
+    return { center: straightMin + straightSpan / 2, span: straightSpan };
+  }
+  const center = wrappedMin + wrappedSpan / 2;
+  return { center: center > 180 ? center - 360 : center, span: wrappedSpan };
 }
 
 /**
