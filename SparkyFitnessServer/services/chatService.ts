@@ -938,6 +938,159 @@ interface ChatAiServiceConfig {
   custom_url?: string | null;
 }
 
+function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
+  return async (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ): Promise<Response> => {
+    let url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+    if (url.includes('api.perplexity.ai')) {
+      url = url.replace(/\/chat\/completions$/, '/responses');
+    }
+
+    const response = await baseFetch(url, init);
+    if (!response.ok) {
+      return response;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/event-stream') && response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      const encoder = new TextEncoder();
+      let buffer = '';
+
+      const transformedStream = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const dataStr = trimmed.slice(5).trim();
+              if (dataStr === '[DONE]') {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                continue;
+              }
+              try {
+                const parsed = JSON.parse(dataStr) as {
+                  type?: string;
+                  delta?: string;
+                  choices?: unknown;
+                };
+                if (
+                  parsed.type === 'response.output_text.delta' &&
+                  typeof parsed.delta === 'string'
+                ) {
+                  const chunk = {
+                    choices: [
+                      {
+                        index: 0,
+                        delta: { content: parsed.delta },
+                        finish_reason: null,
+                      },
+                    ],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                } else if (parsed.type === 'response.completed') {
+                  const chunk = {
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {},
+                        finish_reason: 'stop',
+                      },
+                    ],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                } else if (parsed.choices) {
+                  controller.enqueue(encoder.encode(`${line}\n\n`));
+                }
+              } catch {
+                // Skip unparseable lines
+              }
+            }
+          }
+        },
+        cancel(reason) {
+          return reader.cancel(reason);
+        },
+      });
+
+      return new Response(transformedStream, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    }
+
+    if (contentType.includes('application/json')) {
+      try {
+        const data = (await response.json()) as {
+          id?: string;
+          model?: string;
+          output_text?: string;
+          choices?: unknown;
+          usage?: unknown;
+        };
+        if (typeof data?.output_text === 'string' && !data.choices) {
+          const adapted = {
+            id: data.id || `pplx-${Date.now()}`,
+            object: 'chat.completion',
+            created: Math.floor(Date.now() / 1000),
+            model: data.model || 'sonar',
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: 'assistant',
+                  content: data.output_text,
+                },
+                finish_reason: 'stop',
+              },
+            ],
+            usage: data.usage || null,
+          };
+          return new Response(JSON.stringify(adapted), {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+        }
+        return new Response(JSON.stringify(data), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      } catch {
+        // Return original on error
+      }
+    }
+
+    return response;
+  };
+}
+
 // Resolves the AI SDK model instance for a chat service: native adapters for
 // openai/anthropic/google, and the OpenAI-compatible base-URL ladder for
 // everything else. Self-hosted types get the SSRF-guarded fetch.
@@ -965,6 +1118,7 @@ function createChatModelInstance(
     aiService.service_type === 'groq' ||
     aiService.service_type === 'openrouter' ||
     aiService.service_type === 'xai' ||
+    aiService.service_type === 'perplexity' ||
     aiService.service_type === 'meta'
   ) {
     if (
@@ -984,7 +1138,12 @@ function createChatModelInstance(
       baseURL,
       apiKey: apiKey || 'no-key',
     };
-    if (requiresUserSuppliedAiUrl(aiService.service_type)) {
+    if (aiService.service_type === 'perplexity') {
+      const baseFetch = requiresUserSuppliedAiUrl(aiService.service_type)
+        ? createGuardedFetch(networkPolicy)
+        : fetch;
+      providerOptions.fetch = createPerplexityFetch(baseFetch);
+    } else if (requiresUserSuppliedAiUrl(aiService.service_type)) {
       providerOptions.fetch = createGuardedFetch(networkPolicy);
     }
     return createOpenAI(providerOptions).chat(modelName);

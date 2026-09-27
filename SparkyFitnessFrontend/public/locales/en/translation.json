@@ -2086,6 +2086,7 @@
         "ollama": "Ollama",
         "openrouter": "OpenRouter",
         "xai": "xAI (Grok)",
+        "perplexity": "Perplexity AI",
         "meta": "Meta",
         "custom": "Custom"
       }

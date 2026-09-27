@@ -161,6 +161,7 @@ const STRICT_SCHEMA_PROVIDERS = new Set([
   'groq',
   'openrouter',
   'xai',
+  'perplexity',
 ]);
 
 function providerFamily(serviceType: string): ProviderFamily | null {
@@ -173,6 +174,7 @@ function providerFamily(serviceType: string): ProviderFamily | null {
     case 'groq':
     case 'openrouter':
     case 'xai':
+    case 'perplexity':
     case 'meta': // Muse Spark's OpenAI-compatible endpoint; see openAiFamilyUrl.
     case 'custom':
       return 'openai';
@@ -454,6 +456,9 @@ function openAiFamilyUrl(provider: ProviderConfig): string {
   if (provider.service_type === 'custom') {
     return provider.custom_url as string;
   }
+  if (provider.service_type === 'perplexity') {
+    return 'https://api.perplexity.ai/v1/responses';
+  }
   const baseUrl = getOpenAiCompatibleBaseUrl(
     provider.service_type,
     provider.custom_url
@@ -691,7 +696,26 @@ function extractOpenAiFamily(data: unknown): ExtractResult {
       finish_reason?: string;
       message?: { content?: unknown; refusal?: unknown };
     }>;
+    output_text?: unknown;
+    output?: Array<{ type?: string; text?: string; content?: unknown }>;
   };
+  // Perplexity Agent API responses (/v1/responses) return `output_text` or `output`
+  if (typeof d?.output_text === 'string' && d.output_text.trim() !== '') {
+    return { kind: 'text', text: d.output_text };
+  }
+  if (Array.isArray(d?.output)) {
+    const textBlock = d.output.find(
+      (item) =>
+        typeof item?.text === 'string' || typeof item?.content === 'string'
+    );
+    const text =
+      textBlock?.text ??
+      (typeof textBlock?.content === 'string' ? textBlock.content : null);
+    if (text && text.trim() !== '') {
+      return { kind: 'text', text };
+    }
+  }
+
   const choice = d?.choices?.[0];
   const message = choice?.message;
   if (message?.refusal) {

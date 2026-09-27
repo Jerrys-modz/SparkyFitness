@@ -567,6 +567,20 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(body.provider).toBeUndefined();
   });
 
+  it('perplexity routes to api.perplexity.ai/v1/responses and uses strict json_schema', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'perplexity' }) })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.perplexity.ai/v1/responses');
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.json).toEqual(SAMPLE);
+    }
+  });
+
   it('meta routes to api.meta.ai and uses json_object fallback (not strict schema)', async () => {
     const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
     await dispatchAiRequest(

@@ -31,6 +31,14 @@ describe('getModelOptions', () => {
     expect(getModelOptions('meta')).toEqual(['muse-spark-1.1']);
   });
 
+  it('returns presets for perplexity', () => {
+    expect(getModelOptions('perplexity')).toEqual([
+      'sonar',
+      'sonar-pro',
+      'sonar-reasoning',
+    ]);
+  });
+
   it('includes Perplexity models in the OpenRouter preset list', () => {
     const options = getModelOptions('openrouter');
     expect(options).toContain('perplexity/sonar');
@@ -58,6 +66,7 @@ describe('requiresApiKey', () => {
     'groq',
     'openrouter',
     'xai',
+    'perplexity',
     'meta',
   ])('requires a key for cloud provider %s', (serviceType) => {
     expect(requiresApiKey(serviceType)).toBe(true);
