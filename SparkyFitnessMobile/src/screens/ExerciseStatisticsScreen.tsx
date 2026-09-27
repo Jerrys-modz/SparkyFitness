@@ -102,6 +102,8 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const usesNativeHeader = useNativeIOSHeadersActive();
   const [range, setRange] = useState<TrendRange>('30d');
   const [pickedMuscle, setPickedMuscle] = useState<string | null>(null);
+  const togglePickedMuscle = (key: string) =>
+    setPickedMuscle((current) => (current === key ? null : key));
   // Starts from the gender stored for BMR. Switching here is a view choice
   // and is never written back to the profile.
   const [chosenFigure, setChosenFigure] = useState<BodyFigure | null>(null);
@@ -300,9 +302,28 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
             </Text>
           ) : (
             setRows.map((row) => (
-              <View key={row.key} className="mb-2.5">
+              // A figure muscle's row picks it on the figure too. The figure's
+              // regions are too small and repeated (left, right, front, back)
+              // to be screen-reader targets, so the rows are.
+              <Pressable
+                key={row.key}
+                className="mb-2.5"
+                disabled={!row.onFigure}
+                onPress={() => togglePickedMuscle(row.key)}
+                accessibilityRole={row.onFigure ? 'button' : undefined}
+                accessibilityState={
+                  row.onFigure
+                    ? { selected: pickedMuscle === row.key }
+                    : undefined
+                }
+                testID={`muscle-row-${row.key}`}
+              >
                 <View className="flex-row justify-between mb-1">
-                  <Text className="text-text-primary text-sm">
+                  <Text
+                    className={`text-sm text-text-primary ${
+                      pickedMuscle === row.key ? 'font-semibold' : ''
+                    }`}
+                  >
                     {muscleLabel(t, row.name)}
                   </Text>
                   <Text className="text-text-secondary text-sm">
@@ -317,7 +338,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
                     }}
                   />
                 </View>
-              </View>
+              </Pressable>
             ))
           )}
         </View>
@@ -360,12 +381,10 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
             figure={figure}
             setsByMuscle={setsByMuscle}
             selectedKey={pickedMuscle}
-            onSelect={(key) =>
-              setPickedMuscle((current) => (current === key ? null : key))
-            }
+            onSelect={togglePickedMuscle}
             accessibilityLabel={t('exerciseStatistics.heatMap.a11y', {
               defaultValue:
-                'Body figure tinted by working sets. The same counts are listed under Sets per Muscle.',
+                'Body figure tinted by working sets. The same counts are listed under Sets per Muscle, where selecting a muscle highlights it here.',
             })}
           />
           {pickedMuscle ? (

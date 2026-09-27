@@ -179,6 +179,30 @@ describe('ExerciseStatisticsScreen', () => {
     expect(screen.getByText('Tap a muscle')).toBeTruthy();
   });
 
+  it('picks a muscle from its set row, for screen readers', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    const row = screen.getByTestId('muscle-row-abdominals');
+    expect(row.props.accessibilityRole).toBe('button');
+    expect(row.props.accessibilityState).toMatchObject({ selected: false });
+
+    fireEvent.press(row);
+    expect(screen.getByText(' · 5 sets')).toBeTruthy();
+    expect(
+      screen.getByTestId('muscle-row-abdominals').props.accessibilityState
+    ).toMatchObject({ selected: true });
+
+    fireEvent.press(screen.getByTestId('muscle-row-abdominals'));
+    expect(screen.getByText('Tap a muscle')).toBeTruthy();
+  });
+
+  it('leaves rows for muscles off the figure inert', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    const row = screen.getByTestId('muscle-row-neck');
+    expect(row.props.accessibilityRole).toBeUndefined();
+    fireEvent.press(row);
+    expect(screen.getByText('Tap a muscle')).toBeTruthy();
+  });
+
   it('starts on the figure for the stored gender', () => {
     mockGender = 'female';
     const screen = render(<ExerciseStatisticsScreen {...props} />);

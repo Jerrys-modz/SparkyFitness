@@ -53,4 +53,16 @@ describe('MuscleHeatmap', () => {
       'false'
     );
   });
+
+  it('drops the previous figure while the next one loads', () => {
+    mockProfile.mockReturnValue({ data: { gender: null } });
+    mockSvg.mockImplementation((figure: string) => ({
+      data: figure === 'male' ? SVG('male') : undefined,
+    }));
+    const { container } = render(<MuscleHeatmap setsByMuscle={{ Chest: 4 }} />);
+    expect(container.querySelector('svg[data-figure="male"]')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Female' }));
+    expect(container.querySelector('svg[data-figure]')).toBeNull();
+  });
 });
