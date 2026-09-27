@@ -2,6 +2,7 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import goalService from '../services/goalService.js';
 import goalRepository from '../models/goalRepository.js';
 import weeklyGoalPlanRepository from '../models/weeklyGoalPlanRepository.js';
+import goalPresetRepository from '../models/goalPresetRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import userRepository from '../models/userRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
@@ -139,6 +140,55 @@ describe('Water goal adjustment by exercise water loss', () => {
     // Should use 1920 (default) + 300
     expect((result[testDate] as Record<string, unknown>).water_goal_ml).toBe(
       2220
+    );
+  });
+
+  it('maps a weekly plan preset water_goal column to water_goal_ml', async () => {
+    // 2026-06-22 is a Monday.
+    vi.mocked(
+      weeklyGoalPlanRepository.getActiveWeeklyGoalPlan
+    ).mockResolvedValue({ monday_preset_id: 'preset-1' });
+    vi.mocked(goalPresetRepository.getGoalPresetById).mockResolvedValue({
+      id: 'preset-1',
+      calories: 2000,
+      water_goal: 3000,
+    });
+
+    const result = await goalService.getUserGoalsForRange(
+      userId,
+      testDate,
+      testDate,
+      false
+    );
+
+    const goals = result[testDate] as Record<string, unknown>;
+    expect(goals.water_goal_ml).toBe(3000);
+    expect(goals).not.toHaveProperty('water_goal');
+    expect(goalPresetRepository.getGoalPresetById).toHaveBeenCalledWith(
+      'preset-1',
+      userId
+    );
+  });
+
+  it('falls back to the default water goal when a weekly plan preset has none', async () => {
+    vi.mocked(
+      weeklyGoalPlanRepository.getActiveWeeklyGoalPlan
+    ).mockResolvedValue({ monday_preset_id: 'preset-1' });
+    vi.mocked(goalPresetRepository.getGoalPresetById).mockResolvedValue({
+      id: 'preset-1',
+      calories: 2000,
+      water_goal: null,
+    });
+
+    const result = await goalService.getUserGoalsForRange(
+      userId,
+      testDate,
+      testDate,
+      false
+    );
+
+    expect((result[testDate] as Record<string, unknown>).water_goal_ml).toBe(
+      1920
     );
   });
 });

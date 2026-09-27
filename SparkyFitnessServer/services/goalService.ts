@@ -1,11 +1,11 @@
 import goalRepository from '../models/goalRepository.js';
 import weeklyGoalPlanRepository from '../models/weeklyGoalPlanRepository.js';
-import goalPresetRepository from '../models/goalPresetRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import bmrService from './bmrService.js';
+import goalPresetService from './goalPresetService.js';
 import adaptiveTdeeService from './AdaptiveTdeeService.js';
 import { userAge } from '../utils/dateHelpers.js';
 import { log } from '../config/logging.js';
@@ -72,7 +72,9 @@ async function getUserGoalsForRange(
   const presetCache: Record<string, unknown> = {};
   const getPreset = async (presetId: string) => {
     if (!presetCache[presetId]) {
-      presetCache[presetId] = await goalPresetRepository.getGoalPresetById(
+      // Go through the service so the preset's `water_goal` column is mapped to
+      // the `water_goal_ml` field every other goal source uses.
+      presetCache[presetId] = await goalPresetService.getGoalPreset(
         presetId,
         userId
       );
@@ -218,6 +220,12 @@ async function getUserGoalsForRange(
 
     // Clone to avoid mutating the source in the cache or repository
     let processedGoals = { ...goals };
+    if (
+      processedGoals.water_goal_ml === null ||
+      processedGoals.water_goal_ml === undefined
+    ) {
+      processedGoals.water_goal_ml = DEFAULT_GOALS.water_goal_ml;
+    }
 
     if (adjust) {
       let goalCalories =
@@ -582,7 +590,7 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       protein: cleanNumber(protein_to_store),
       carbs: cleanNumber(carbs_to_store),
       fat: cleanNumber(fat_to_store),
-      water_goal_ml: cleanNumber(p_water_goal_ml),
+      water_goal_ml: cleanNumber(p_water_goal_ml, true),
       saturated_fat: cleanNumber(p_saturated_fat),
       polyunsaturated_fat: cleanNumber(p_polyunsaturated_fat),
       monounsaturated_fat: cleanNumber(p_monounsaturated_fat),
