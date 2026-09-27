@@ -1,4 +1,5 @@
 import {
+  defaultBodyFigure,
   figureKeyForMuscle,
   heatLevel,
   setsForMuscleKey,
@@ -29,6 +30,14 @@ describe('muscle heatmap matching', () => {
     expect(figureKeyForMuscle('Latissimus Dorsi')).toBe('lats');
     expect(figureKeyForMuscle('Lower Back')).toBe('lower back');
     expect(figureKeyForMuscle('Neck')).toBeNull();
+  });
+
+  it('starts on the female figure only for a stored female', () => {
+    expect(defaultBodyFigure('female')).toBe('female');
+    expect(defaultBodyFigure(' Female ')).toBe('female');
+    expect(defaultBodyFigure('male')).toBe('male');
+    expect(defaultBodyFigure(null)).toBe('male');
+    expect(defaultBodyFigure(undefined)).toBe('male');
   });
 
   it('buckets set counts into four heat levels', () => {
