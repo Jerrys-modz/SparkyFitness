@@ -652,6 +652,10 @@ async function _updateExerciseEntryWithClient(
       updateData.entry_time !== undefined
         ? updateData.entry_time
         : currentEntry.entry_time,
+    record_timezone:
+      updateData.record_timezone !== undefined
+        ? updateData.record_timezone
+        : currentEntry.record_timezone,
     notes:
       updateData.notes !== undefined ? updateData.notes : currentEntry.notes,
     workout_plan_assignment_id:
@@ -783,6 +787,7 @@ async function _updateExerciseEntryWithClient(
       entry_time = $30,
       modality = $31,
       ${telemetrySetClause},
+      record_timezone = $${32 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length},
       updated_at = now()
     WHERE id = $28 AND user_id = $29
     RETURNING id`,
@@ -819,6 +824,7 @@ async function _updateExerciseEntryWithClient(
       mergedData.entry_time ?? null,
       mergedData.modality ?? null,
       ...telemetryParams,
+      mergedData.record_timezone ?? null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
@@ -1063,6 +1069,7 @@ async function _createExerciseEntryWithClient(
         entryData.entry_time ?? null,
         snapshot.modality,
         ...telemetryValuesFrom(entryData),
+        entryData.record_timezone ?? null,
       ];
       const hasClientId = entryData.id !== undefined && entryData.id !== null;
       const idColumn = hasClientId ? ', id' : '';
@@ -1074,7 +1081,7 @@ async function _createExerciseEntryWithClient(
         'equipment, primary_muscles, secondary_muscles, instructions, images, ' +
         'distance, avg_heart_rate, exercise_preset_entry_id, sort_order, steps, water_estimated, ' +
         'superset_group, entry_time, modality';
-      const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}${idColumn}`;
+      const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}, record_timezone${idColumn}`;
       const placeholders = entryValues
         .map((_, index) => `$${index + 1}`)
         .join(', ');

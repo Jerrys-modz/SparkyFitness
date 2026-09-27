@@ -2846,6 +2846,7 @@
     "next": "Next",
     "outOfTotal": "out of {{totalCount}} items",
     "pause": "Pause",
+    "previous": "Previous",
     "processing": "Processing...",
     "reps": "reps",
     "resume": "Resume",
@@ -4224,7 +4225,9 @@
     "allMuscles": "All Muscles",
     "selectExercises": "Select exercises",
     "allExercises": "All Exercises",
+    "personalRecordsTitle": "Personal Records",
     "prProgression": "PR Progression - {{exerciseName}}",
+    "prProgressionTitle": "PR Progression",
     "exerciseVarietyScore": "Exercise Variety Score",
     "uniqueExercises": "Unique Exercises",
     "volumeTrend": "Volume Trend",
@@ -4240,6 +4243,7 @@
     "bestSetByRepRangeTitle": "Best Set by Rep Range",
     "trainingVolumeByMuscleGroup": "Training Volume by Muscle Group",
     "repsVsWeight": "Reps vs Weight - {{exerciseName}}",
+    "repsVsWeightTitle": "Reps vs Weight",
     "reps": "Reps",
     "averageWeight": "Average Weight",
     "timeUnderTensionTrend": "Time Under Tension Trend - {{exerciseName}}",
@@ -4350,9 +4354,21 @@
     "calcium": "Calcium",
     "iron": "Iron"
   },
+  "muscleHeatmap": {
+    "title": "Muscle Heat Map",
+    "subtitle": "Working sets on primary muscles in this date range",
+    "sets": "sets",
+    "fewer": "Fewer",
+    "more": "More",
+    "tap": "Tap a muscle",
+    "notOnFigure": "Not on the figure"
+  },
   "muscleGroupRecovery": {
     "title": "Muscle Group Recovery",
-    "noRecoveryData": "No muscle group recovery data available."
+    "noRecoveryData": "No muscle group recovery data available.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}} days ago"
   },
   "prProgressionChart": {
     "title": "Personal Record Progression",
@@ -6061,6 +6077,15 @@
       "avgHeartRate": "Avg HR",
       "noMatches": "No activities matched the query filters."
     },
+    "cardio": {
+      "sessionsTitle": "Sessions",
+      "sessionsHint": "Tap a workout for its route and heart rate.",
+      "noSessions": "No cardio workouts in this date range.",
+      "moreSessions": "Older sessions",
+      "noRoute": "No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.",
+      "avgHeartRate": "Average heart rate {{bpm}} bpm. Beat-by-beat samples were not stored.",
+      "noHeartRate": "No heart-rate samples for this workout."
+    },
     "matchedCourses": {
       "title": "Matched Courses & Route History (\"Matched Runs\")",
       "description": "Activities on recurring route loops grouped together to compare pace over time.",
@@ -6101,10 +6126,15 @@
     },
     "views": {
       "all": "All Workouts",
+      "allShort": "All",
       "strength": "Strength & Resistance",
-      "cardio": "Cardio & GPS"
+      "strengthShort": "Strength",
+      "cardio": "Cardio & GPS",
+      "cardioShort": "Cardio"
     },
-    "interval": "Interval:",
+    "interval": "Group by:",
+    "moreAnalysis": "More analysis",
+    "hideAnalysis": "Hide extra charts",
     "intervals": {
       "day": "day",
       "week": "week",

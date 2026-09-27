@@ -263,7 +263,9 @@ export const importFitFiles = async (
 };
 
 export const getBodyMapSvg = async (): Promise<string> => {
-  const response = await fetch('/images/muscle-male.svg');
+  // The file lives in /public, so the URL is not content-hashed. Bump the
+  // query when the drawing changes or browsers keep the previous body map.
+  const response = await fetch('/images/muscle-male.svg?v=lats1');
   if (!response.ok) {
     throw new Error('Failed to fetch SVG');
   }
