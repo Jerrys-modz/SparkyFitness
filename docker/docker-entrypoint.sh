@@ -50,6 +50,18 @@ export NGINX_RESOLVER=$(echo "${NGINX_RESOLVER}" | awk '{
     print "";
 }')
 
+# If SPARKY_FITNESS_SERVER_HOST is defined in /etc/hosts (extra_hosts, localhost, --link),
+# resolve it to its IP address directly so Nginx dynamic resolver doesn't fail querying DNS.
+case "${SPARKY_FITNESS_SERVER_HOST}" in
+  *[!0-9.]*)
+    HOSTS_IP=$(awk -v h="${SPARKY_FITNESS_SERVER_HOST}" '$0 !~ /^[[:space:]]*#/ { for (i = 2; i <= NF; i++) if ($i == h) { print $1; exit } }' /etc/hosts 2>/dev/null)
+    case "${HOSTS_IP}" in
+      *:*) export SPARKY_FITNESS_SERVER_HOST="[${HOSTS_IP}]" ;;
+      ?*) export SPARKY_FITNESS_SERVER_HOST="${HOSTS_IP}" ;;
+    esac
+    ;;
+esac
+
 echo "Starting SparkyFitness Frontend as ${NGINX_PERMISSION_MODE} with environment variables:"
 echo "  SPARKY_FITNESS_SERVER_HOST=${SPARKY_FITNESS_SERVER_HOST}"
 echo "  SPARKY_FITNESS_SERVER_PORT=${SPARKY_FITNESS_SERVER_PORT}"
