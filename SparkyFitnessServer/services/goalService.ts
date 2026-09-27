@@ -220,11 +220,14 @@ async function getUserGoalsForRange(
 
     // Clone to avoid mutating the source in the cache or repository
     let processedGoals = { ...goals };
+    // A preset may omit the water goal; keep the one already in effect before
+    // falling back to the default.
     if (
       processedGoals.water_goal_ml === null ||
       processedGoals.water_goal_ml === undefined
     ) {
-      processedGoals.water_goal_ml = DEFAULT_GOALS.water_goal_ml;
+      processedGoals.water_goal_ml =
+        currentFallback.water_goal_ml ?? DEFAULT_GOALS.water_goal_ml;
     }
 
     if (adjust) {
@@ -590,7 +593,13 @@ async function manageGoalTimeline(authenticatedUserId: string, goalData: any) {
       protein: cleanNumber(protein_to_store),
       carbs: cleanNumber(carbs_to_store),
       fat: cleanNumber(fat_to_store),
-      water_goal_ml: cleanNumber(p_water_goal_ml, true),
+      // A blank input means "no water goal", not 0.
+      water_goal_ml: cleanNumber(
+        typeof p_water_goal_ml === 'string' && p_water_goal_ml.trim() === ''
+          ? null
+          : p_water_goal_ml,
+        true
+      ),
       saturated_fat: cleanNumber(p_saturated_fat),
       polyunsaturated_fat: cleanNumber(p_polyunsaturated_fat),
       monounsaturated_fat: cleanNumber(p_monounsaturated_fat),
