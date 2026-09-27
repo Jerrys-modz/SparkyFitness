@@ -531,6 +531,7 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
   const body: Record<string, unknown> = {
     model: ctx.model,
     messages: [{ role: 'user', content }],
+    ...(ctx.provider.service_type === 'perplexity' && { input: content }),
   };
   if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;
@@ -690,6 +691,45 @@ function extractGoogle(data: unknown): ExtractResult {
   return { kind: 'text', text };
 }
 
+function extractTextFromAgentOutput(output: unknown): string | null {
+  if (!Array.isArray(output)) return null;
+  const texts: string[] = [];
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as {
+      type?: string;
+      text?: unknown;
+      output_text?: unknown;
+      content?: unknown;
+    };
+    if (typeof obj.text === 'string') {
+      texts.push(obj.text);
+    } else if (typeof obj.output_text === 'string') {
+      texts.push(obj.output_text);
+    } else if (typeof obj.content === 'string') {
+      texts.push(obj.content);
+    } else if (Array.isArray(obj.content)) {
+      for (const block of obj.content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as {
+          type?: string;
+          text?: unknown;
+          output_text?: unknown;
+        };
+        if (typeof b.text === 'string') {
+          texts.push(b.text);
+        } else if (typeof b.output_text === 'string') {
+          texts.push(b.output_text);
+        }
+      }
+    }
+  }
+
+  const combined = texts.join('\n').trim();
+  return combined.length > 0 ? combined : null;
+}
+
 function extractOpenAiFamily(data: unknown): ExtractResult {
   const d = data as {
     choices?: Array<{
@@ -697,23 +737,15 @@ function extractOpenAiFamily(data: unknown): ExtractResult {
       message?: { content?: unknown; refusal?: unknown };
     }>;
     output_text?: unknown;
-    output?: Array<{ type?: string; text?: string; content?: unknown }>;
+    output?: unknown;
   };
   // Perplexity Agent API responses (/v1/responses) return `output_text` or `output`
   if (typeof d?.output_text === 'string' && d.output_text.trim() !== '') {
     return { kind: 'text', text: d.output_text };
   }
-  if (Array.isArray(d?.output)) {
-    const textBlock = d.output.find(
-      (item) =>
-        typeof item?.text === 'string' || typeof item?.content === 'string'
-    );
-    const text =
-      textBlock?.text ??
-      (typeof textBlock?.content === 'string' ? textBlock.content : null);
-    if (text && text.trim() !== '') {
-      return { kind: 'text', text };
-    }
+  const agentText = extractTextFromAgentOutput(d?.output);
+  if (agentText) {
+    return { kind: 'text', text: agentText };
   }
 
   const choice = d?.choices?.[0];

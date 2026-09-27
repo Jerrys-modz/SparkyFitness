@@ -60,14 +60,21 @@ These usually run without an API key — leave the **API Key** field blank. Use 
 
 Local/private AI URLs are resolved from the backend server's network, not from the browser. To prevent regular users from turning the server into a private-network proxy, private AI URLs are allowed for current admins, global admin-created AI settings, or deployments that explicitly set [`ALLOW_PRIVATE_NETWORK_AI=true`](/install/environment-variables).
 
-### Perplexity AI: "Sonar is now the Agent API" / 403 `chat_completions_not_available`
+### Perplexity AI Setup and Troubleshooting
 
-Perplexity has retired the legacy OpenAI-compatible Chat Completions API (`/v1/chat/completions` and `/v1/sonar`) in favor of their new Agent API (`/v1/responses`). Direct connections to `https://api.perplexity.ai` via the **OpenAI Compatible** service type return HTTP 403 because Perplexity no longer accepts chat completions requests.
+Perplexity has retired the legacy OpenAI-compatible Chat Completions API (`/v1/chat/completions` and `/v1/sonar`) in favor of their new Agent API (`/v1/responses`). Attempting to connect to `api.perplexity.ai` under the generic **OpenAI Compatible** type returns HTTP 403 `chat_completions_not_available`.
 
 **How to use Perplexity models in SparkyFitness:**
-1. Select **OpenRouter** as your AI service provider in AI Settings.
-2. Enter your OpenRouter API key.
-3. Select `perplexity/sonar` or `perplexity/sonar-pro` from the model options (or enter any Perplexity model ID). OpenRouter provides a full OpenAI-compatible interface with streaming and tool support for Perplexity models.
+
+1. **Direct Perplexity Setup (Recommended):**
+   - In **AI Settings**, select **Perplexity AI** from the provider dropdown.
+   - Enter your Perplexity API key from `console.perplexity.ai`.
+   - Select your preferred model (`sonar`, `sonar-pro`, or `sonar-reasoning`). SparkyFitness automatically connects to Perplexity's Agent API (`/v1/responses`).
+
+2. **Via OpenRouter (Alternative):**
+   - In **AI Settings**, select **OpenRouter** as the provider.
+   - Enter your OpenRouter API key.
+   - Select `perplexity/sonar` or `perplexity/sonar-pro` from the model presets. OpenRouter translates requests into standard chat completions.
 
 ### Running the chatbot on small local models (Ollama)
 

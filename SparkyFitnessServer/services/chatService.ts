@@ -954,7 +954,31 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
       url = url.replace(/\/chat\/completions$/, '/responses');
     }
 
-    const response = await baseFetch(url, init);
+    let modifiedInit = init;
+    if (init?.body && typeof init.body === 'string') {
+      try {
+        const bodyObj = JSON.parse(init.body) as {
+          messages?: Array<{ role?: string; content?: unknown }>;
+          input?: unknown;
+          [k: string]: unknown;
+        };
+        // Perplexity Agent API requires `input`
+        if (!bodyObj.input && Array.isArray(bodyObj.messages)) {
+          const lastUser = [...bodyObj.messages]
+            .reverse()
+            .find((m) => m.role === 'user');
+          bodyObj.input = lastUser?.content ?? bodyObj.messages;
+          modifiedInit = {
+            ...init,
+            body: JSON.stringify(bodyObj),
+          };
+        }
+      } catch {
+        // Keep original init if body is not JSON
+      }
+    }
+
+    const response = await baseFetch(url, modifiedInit);
     if (!response.ok) {
       return response;
     }
@@ -965,13 +989,17 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
       const decoder = new TextDecoder();
       const encoder = new TextEncoder();
       let buffer = '';
+      let hasError = false;
+      let hasToolCalls = false;
 
       const transformedStream = new ReadableStream<Uint8Array>({
         async pull(controller) {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              if (!hasError) {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              }
               controller.close();
               break;
             }
@@ -985,15 +1013,45 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
               if (!trimmed.startsWith('data:')) continue;
               const dataStr = trimmed.slice(5).trim();
               if (dataStr === '[DONE]') {
-                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                if (!hasError) {
+                  controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                }
                 continue;
               }
               try {
                 const parsed = JSON.parse(dataStr) as {
                   type?: string;
                   delta?: string;
+                  call_id?: string;
+                  id?: string;
+                  name?: string;
+                  arguments?: string;
+                  item?: {
+                    type?: string;
+                    id?: string;
+                    name?: string;
+                    arguments?: string;
+                    call_id?: string;
+                  };
+                  error?: { message?: string };
                   choices?: unknown;
                 };
+
+                // Upstream stream failure / error events
+                if (
+                  parsed.type === 'response.failed' ||
+                  parsed.type === 'error' ||
+                  parsed.error
+                ) {
+                  hasError = true;
+                  const errorMsg =
+                    parsed.error?.message ??
+                    'Perplexity Agent API stream failed.';
+                  controller.error(new Error(errorMsg));
+                  return;
+                }
+
+                // Text deltas
                 if (
                   parsed.type === 'response.output_text.delta' &&
                   typeof parsed.delta === 'string'
@@ -1010,13 +1068,59 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
                   controller.enqueue(
                     encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
                   );
-                } else if (parsed.type === 'response.completed') {
+                }
+                // Function / Tool call deltas
+                else if (
+                  parsed.type === 'response.function_call_arguments.delta' ||
+                  parsed.type === 'response.output_item.added'
+                ) {
+                  hasToolCalls = true;
+                  const toolId =
+                    parsed.call_id ??
+                    parsed.id ??
+                    parsed.item?.call_id ??
+                    parsed.item?.id ??
+                    'call_0';
+                  const toolName = parsed.name ?? parsed.item?.name ?? '';
+                  const argsDelta =
+                    parsed.delta ??
+                    parsed.arguments ??
+                    parsed.item?.arguments ??
+                    '';
+
+                  const chunk = {
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          tool_calls: [
+                            {
+                              index: 0,
+                              id: toolId,
+                              type: 'function',
+                              function: {
+                                name: toolName,
+                                arguments: argsDelta,
+                              },
+                            },
+                          ],
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                }
+                // Completion event
+                else if (parsed.type === 'response.completed') {
                   const chunk = {
                     choices: [
                       {
                         index: 0,
                         delta: {},
-                        finish_reason: 'stop',
+                        finish_reason: hasToolCalls ? 'tool_calls' : 'stop',
                       },
                     ],
                   };
@@ -1050,6 +1154,7 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
           id?: string;
           model?: string;
           output_text?: string;
+          output?: unknown;
           choices?: unknown;
           usage?: unknown;
         };
@@ -2513,6 +2618,7 @@ export { processChatMessage };
 export { processFoodOptionsRequest };
 export { testAiServiceConnection };
 export { processChatMessageStream };
+export { createPerplexityFetch };
 export default {
   handleAiServiceSettings,
   getAiServiceSettings,
@@ -2529,4 +2635,5 @@ export default {
   processFoodOptionsRequest,
   testAiServiceConnection,
   processChatMessageStream,
+  createPerplexityFetch,
 };

@@ -1662,4 +1662,77 @@ describe('chatService', () => {
       });
     });
   });
+
+  describe('createPerplexityFetch', () => {
+    it('rewrites /chat/completions to /responses and populates input from messages', async () => {
+      let capturedUrl = '';
+      let capturedBody: Record<string, unknown> = {};
+
+      const mockBaseFetch = vi.fn(async (url: string, init?: RequestInit) => {
+        capturedUrl = url;
+        if (typeof init?.body === 'string') {
+          capturedBody = JSON.parse(init.body);
+        }
+        return new Response(
+          JSON.stringify({ output_text: 'Hello from Sonar' }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      });
+
+      const perplexityFetch = chatService.createPerplexityFetch(
+        mockBaseFetch as typeof fetch
+      );
+      const res = await perplexityFetch(
+        'https://api.perplexity.ai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [{ role: 'user', content: 'What is protein?' }],
+          }),
+        }
+      );
+
+      expect(capturedUrl).toBe('https://api.perplexity.ai/v1/responses');
+      expect(capturedBody.input).toBe('What is protein?');
+      expect(res.ok).toBe(true);
+
+      const json = await res.json();
+      expect(json.choices[0].message.content).toBe('Hello from Sonar');
+    });
+
+    it('transforms SSE output_text and function_call events into OpenAI chunks', async () => {
+      const ssePayload = [
+        'data: {"type":"response.output_text.delta","delta":"Hello "}\n\n',
+        'data: {"type":"response.function_call_arguments.delta","call_id":"call_123","name":"get_info","delta":"{\\"q\\":\\"hi\\"}"}\n\n',
+        'data: {"type":"response.completed","response":{"usage":{"input_tokens":10,"output_tokens":5}}}\n\n',
+      ].join('');
+
+      const mockBaseFetch = vi.fn(async () => {
+        return new Response(ssePayload, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream' },
+        });
+      });
+
+      const perplexityFetch = chatService.createPerplexityFetch(
+        mockBaseFetch as typeof fetch
+      );
+      const res = await perplexityFetch(
+        'https://api.perplexity.ai/v1/chat/completions',
+        { method: 'POST' }
+      );
+
+      expect(res.ok).toBe(true);
+      const text = await res.text();
+      expect(text).toContain('Hello ');
+      expect(text).toContain('tool_calls');
+      expect(text).toContain('call_123');
+      expect(text).toContain('[DONE]');
+    });
+  });
 });

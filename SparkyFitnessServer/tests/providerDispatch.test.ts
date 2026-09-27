@@ -575,6 +575,30 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     const { url, body } = captured(m);
     expect(url).toBe('https://api.perplexity.ai/v1/responses');
     expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(body.input).toBeDefined();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.json).toEqual(SAMPLE);
+    }
+  });
+
+  it('perplexity extracts text from nested Agent API output message content blocks', async () => {
+    mockFetch({
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: JSON.stringify(SAMPLE),
+            },
+          ],
+        },
+      ],
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'perplexity' }) })
+    );
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.json).toEqual(SAMPLE);
