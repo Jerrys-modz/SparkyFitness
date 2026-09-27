@@ -66,8 +66,8 @@ describe.each(['male', 'female'] as const)('%s figure paths', (figure) => {
     );
   });
 
-  it('has body to draw under the regions', () => {
-    expect(paths.some((path) => path.outline)).toBe(true);
+  it('draws untinted parts besides the regions', () => {
+    expect(paths.some((path) => path.svgClass === null)).toBe(true);
   });
 
   it('matches the male figure height so strokes scale alike', () => {
