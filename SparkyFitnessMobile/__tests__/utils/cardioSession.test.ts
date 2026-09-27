@@ -60,6 +60,17 @@ describe('usableRoutePoints', () => {
     ).toEqual([point(51.5, -0.1), point(51.6, -0.2)]);
   });
 
+  it('drops fixes off the globe', () => {
+    expect(
+      usableRoutePoints([
+        point(91, 0.5),
+        point(51.5, -0.1),
+        point(51.6, 181),
+        point(51.6, -0.2),
+      ])
+    ).toEqual([point(51.5, -0.1), point(51.6, -0.2)]);
+  });
+
   it('thins a long track and keeps its last point', () => {
     const track = Array.from({ length: 4000 }, (_, i) =>
       point(51 + i / 10000, 0.5)
@@ -78,6 +89,12 @@ describe('routeRegion', () => {
       latitudeDelta: expect.closeTo(0.13),
       longitudeDelta: expect.closeTo(0.13),
     });
+  });
+
+  it('frames a route over the date line narrowly, not around the globe', () => {
+    const region = routeRegion([point(-17, 179.9), point(-17.1, -179.9)]);
+    expect(region?.longitude).toBeCloseTo(180);
+    expect(region?.longitudeDelta).toBeCloseTo(0.26);
   });
 
   it('keeps some context around a track that barely moves', () => {
