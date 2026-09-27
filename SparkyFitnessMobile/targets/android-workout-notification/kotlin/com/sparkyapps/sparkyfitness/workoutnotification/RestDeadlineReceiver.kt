@@ -1,7 +1,9 @@
 package com.sparkyapps.sparkyfitness.workoutnotification
 
-import android.app.NotificationManager
+import android.app.AlarmManager
 import android.app.Notification
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -13,7 +15,17 @@ class RestDeadlineReceiver : BroadcastReceiver() {
         val expected = intent.getLongExtra("restEndsAt", 0L)
         val stored = context.getSharedPreferences("workout-notification", Context.MODE_PRIVATE)
             .getLong("restEndsAt", 0L)
-        if (expected == 0L || expected != stored || System.currentTimeMillis() < expected) return
+        if (expected == 0L || expected != stored) return
+        if (System.currentTimeMillis() < expected) {
+            val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pending = PendingIntent.getBroadcast(
+                context, 1,
+                Intent(context, RestDeadlineReceiver::class.java).putExtra("restEndsAt", expected),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, expected, pending)
+            return
+        }
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val notification = manager.activeNotifications
