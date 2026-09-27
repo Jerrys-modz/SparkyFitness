@@ -37,7 +37,7 @@ A single blanket location covers every auth endpoint:
 ```nginx
 location ^~ /api/auth/ {
     limit_req zone=login_signup_zone burst=10 nodelay;
-    proxy_pass http://${SPARKY_FITNESS_SERVER_HOST}:${SPARKY_FITNESS_SERVER_PORT};
+    proxy_pass http://$backend;
     # ... proxy headers ...
 }
 ```
