@@ -8,7 +8,7 @@ import {
   setsForMuscleKey,
   svgClassToMuscleKey,
   unmappedMuscleSets,
-} from '@/constants/exercises';
+} from '@workspace/shared';
 import './MuscleHeatmap.css';
 
 interface MuscleHeatmapProps {
