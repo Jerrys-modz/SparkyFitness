@@ -33,16 +33,22 @@ export NGINX_RATE_LIMIT="${NGINX_RATE_LIMIT:-5r/s}"
 # Auto-detect DNS resolver from /etc/resolv.conf if NGINX_RESOLVER is not explicitly provided.
 # Defaults to 127.0.0.11 (Docker's default embedded DNS).
 if [ -z "${NGINX_RESOLVER}" ]; then
-    RESOLVER_FROM_CONF=$(awk '/^nameserver/{
-        ip = $2;
-        sub(/%.*$/, "", ip);
-        if (ip ~ /:/) {
-            ip = "[" ip "]";
-        }
-        print ip
-    }' /etc/resolv.conf 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
-    export NGINX_RESOLVER="${RESOLVER_FROM_CONF:-127.0.0.11}"
+    RESOLVER_FROM_CONF=$(awk '/^nameserver/{print $2}' /etc/resolv.conf 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+    NGINX_RESOLVER="${RESOLVER_FROM_CONF:-127.0.0.11}"
 fi
+
+# Normalize resolver addresses (strip interface/zone scopes and wrap bare IPv6 in brackets for nginx)
+export NGINX_RESOLVER=$(echo "${NGINX_RESOLVER}" | awk '{
+    for (i = 1; i <= NF; i++) {
+        val = $i;
+        sub(/%.*$/, "", val);
+        if (val ~ /:/ && val !~ /^\[/) {
+            val = "[" val "]";
+        }
+        printf "%s%s", (i == 1 ? "" : " "), val;
+    }
+    print "";
+}')
 
 echo "Starting SparkyFitness Frontend as ${NGINX_PERMISSION_MODE} with environment variables:"
 echo "  SPARKY_FITNESS_SERVER_HOST=${SPARKY_FITNESS_SERVER_HOST}"
