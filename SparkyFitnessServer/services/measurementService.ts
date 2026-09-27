@@ -4,6 +4,7 @@ import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   pickMealTypeForTime,
   userHourMinute,
+  clockInZone,
   instantToDay,
   instantHourMinute,
   instantToDayWithOffset,
@@ -641,7 +642,10 @@ async function upsertWaterIntake(
       const hasVolumeOverride =
         Number(containerRow?.volume) > 0 && !!containerRow?.linked_food_id;
 
+      let userTz: string | null = null;
       if (containerRow && containerRow.linked_food_id) {
+        const tz = await loadUserTimezone(authenticatedUserId);
+        userTz = tz;
         linkedFood = await foodRepository.getFoodById(
           containerRow.linked_food_id,
           authenticatedUserId
@@ -678,7 +682,6 @@ async function upsertWaterIntake(
           // The meal times are wall-clock times in the user's own day, so
           // "now" has to be read in their zone. Taking the server's clock put
           // a 15:16 drink for a UTC-4 user at 19:16, a whole meal away.
-          const tz = await loadUserTimezone(authenticatedUserId);
           targetMealTypeId =
             pickMealTypeForTime(mealTypes, userHourMinute(tz))?.id ?? null;
         }
@@ -695,6 +698,7 @@ async function upsertWaterIntake(
 
         if (linkedFood && linkedVariant) {
           const snapshot = buildFoodEntrySnapshot(linkedFood, linkedVariant);
+          const entryTime = userTz ? clockInZone(userTz) : null;
           const foodEntryInput = {
             user_id: authenticatedUserId,
             food_id: linkedFood.id,
@@ -707,6 +711,7 @@ async function upsertWaterIntake(
             quantity: linkedQuantity,
             unit: linkedVariant.serving_unit || 'serving',
             entry_date: entryDate,
+            entry_time: entryTime,
             food_entry_meal_id: null,
             meal_plan_template_id: null,
             ...snapshot,
@@ -2098,6 +2103,24 @@ async function updateWaterIntakeLogTime(
     authenticatedUserId,
     loggedAt
   );
+  if (updated?.food_entry_id) {
+    try {
+      const tz = await loadUserTimezone(authenticatedUserId);
+      const { hour, minute } = instantHourMinute(loggedAt, tz);
+      const entryTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      await foodRepository.updateFoodEntryTime(
+        updated.food_entry_id,
+        authenticatedUserId,
+        entryTime
+      );
+    } catch (err) {
+      log(
+        'warn',
+        `Could not update linked food entry time ${updated.food_entry_id}:`,
+        err
+      );
+    }
+  }
   return updated;
 }
 

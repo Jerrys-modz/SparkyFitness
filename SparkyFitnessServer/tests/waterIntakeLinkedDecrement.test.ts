@@ -425,7 +425,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         10
       );
 
-      // Food entry was created with food nutrition snapshot
+      // Food entry was created with food nutrition snapshot and local entry_time
       expect(foodRepository.createFoodEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: mockUserId,
@@ -433,6 +433,7 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
           variant_id: 'var-uuid-1',
           meal_type_id: 'meal-type-uuid-1',
           calories: 120,
+          entry_time: expect.stringMatching(/^\d{2}:\d{2}$/),
         }),
         mockUserId
       );
@@ -511,6 +512,41 @@ describe('Linked Water Container Increment/Decrement (#2115)', () => {
         food_ml: 0,
         removedFoodEntryIds: ['food-entry-to-remove-123'],
       });
+    });
+  });
+
+  describe('updateWaterIntakeLogTime - syncs linked food entry time', () => {
+    it('updates linked food entry entry_time when logged_at is updated', async () => {
+      // @ts-expect-error TS mock
+      measurementRepository.getWaterIntakeLogEntryOwnerId.mockResolvedValue(
+        mockUserId
+      );
+      // @ts-expect-error TS mock
+      measurementRepository.updateWaterIntakeLogTime.mockResolvedValue({
+        id: 'log-entry-1',
+        user_id: mockUserId,
+        food_entry_id: 'food-entry-linked-1',
+        logged_at: '2026-09-05T08:42:00.000Z',
+      });
+      // @ts-expect-error TS mock
+      loadUserTimezone.mockResolvedValue('UTC');
+      // @ts-expect-error TS mock
+      foodRepository.updateFoodEntryTime.mockResolvedValue({
+        id: 'food-entry-linked-1',
+        entry_time: '08:42',
+      });
+
+      await measurementService.updateWaterIntakeLogTime(
+        'log-entry-1',
+        '2026-09-05T08:42:00.000Z',
+        mockUserId
+      );
+
+      expect(foodRepository.updateFoodEntryTime).toHaveBeenCalledWith(
+        'food-entry-linked-1',
+        mockUserId,
+        '08:42'
+      );
     });
   });
 });
