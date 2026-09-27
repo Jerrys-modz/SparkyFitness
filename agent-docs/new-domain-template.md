@@ -54,6 +54,7 @@ Use this checklist when adding a major feature area (e.g., symptom tracking, wor
 ## Phase 5: Documentation & Cross-Package Validation
 
 - [ ] Update `docs/src/features/` with user-facing feature description
+- [ ] If new environment variables were introduced: update all downstream locations in tandem: `docker/.env.example` (and `docker/.env.simple.example` if mandatory), `docker/docker-compose.*.yml`, `docs/src/install/environment-variables.md`, `docs/components/EnvGenerator.vue`, and `helm/chart/` (templates and `values.yaml` if applicable)
 - [ ] Update root `AGENTS.md` with new domain in Source Map and Quick Routing
 - [ ] Update package guides (frontend, server, mobile) if adding a complex pattern
 - [ ] Set the `Last updated` date

@@ -506,7 +506,10 @@ const ACTIVITY_MAP: Record<number, string> = {
   82: 'Swim Bike Run',
   83: 'Transition',
   84: 'Underwater Diving',
-} as const;
+  2998: 'Rest',
+  2999: 'Group',
+  3000: 'Other',
+};
 
 // Food correlations carry only an instant, not a meal label, so we infer the meal type
 // from the local time of day (fallback 'snacks'; the server also defaults to snacks).

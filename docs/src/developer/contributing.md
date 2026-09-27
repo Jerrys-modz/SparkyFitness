@@ -21,6 +21,9 @@ cp docker/.env.example .env
 # generate and set it without manually editing the .env file
 sed "s/SPARKY_FITNESS_API_ENCRYPTION_KEY=changeme_replace_with_a_64_character_hex_string/SPARKY_FITNESS_API_ENCRYPTION_KEY=$(openssl rand -hex 32)/" .env > .env.tmp && mv .env.tmp .env
 
+# BETTER_AUTH_SECRET must also be replaced; the server refuses to start on the placeholder
+sed "s|BETTER_AUTH_SECRET=changeme_replace_with_a_strong_better_auth_secret|BETTER_AUTH_SECRET=$(openssl rand -base64 32)|" .env > .env.tmp && mv .env.tmp .env
+
 # Edit any other environment variables as needed
 # If you are running Docker on another machine, you will need to update the
 # SPARKY_FITNESS_FRONTEND_URL variable

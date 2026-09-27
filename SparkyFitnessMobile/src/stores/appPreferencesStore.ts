@@ -8,6 +8,10 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
+  DASHBOARD_CARD_KEYS,
+  type DashboardCardKey,
+} from '../constants/dashboardCards';
+import {
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
 } from '../constants/healthTrends';
@@ -53,6 +57,9 @@ export const PREFERENCE_DEFAULTS = {
   notificationsEnabled: true,
   restTimerNotificationsEnabled: true,
   fastingGoalNotificationsEnabled: true,
+  calorieRingCardVisible: true,
+  macrosCardVisible: true,
+  exerciseCardVisible: true,
   hydrationCardVisible: true,
   caffeineCardVisible: true,
   fastingCardVisible: true,
@@ -60,6 +67,8 @@ export const PREFERENCE_DEFAULTS = {
   askSparkyVisible: true,
   medicationsCardVisible: true,
   progressPhotosCardVisible: true,
+  healthTrendsCardVisible: true,
+  dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
@@ -97,6 +106,9 @@ export type AppPreferencesData = {
   notificationsEnabled: boolean;
   restTimerNotificationsEnabled: boolean;
   fastingGoalNotificationsEnabled: boolean;
+  calorieRingCardVisible: boolean;
+  macrosCardVisible: boolean;
+  exerciseCardVisible: boolean;
   hydrationCardVisible: boolean;
   caffeineCardVisible: boolean;
   fastingCardVisible: boolean;
@@ -104,6 +116,8 @@ export type AppPreferencesData = {
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
   progressPhotosCardVisible: boolean;
+  healthTrendsCardVisible: boolean;
+  dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
@@ -147,6 +161,9 @@ export interface AppPreferencesState extends AppPreferencesData {
   setNotificationsEnabled: (value: boolean) => void;
   setRestTimerNotificationsEnabled: (value: boolean) => void;
   setFastingGoalNotificationsEnabled: (value: boolean) => void;
+  setCalorieRingCardVisible: (value: boolean) => void;
+  setMacrosCardVisible: (value: boolean) => void;
+  setExerciseCardVisible: (value: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
   setCaffeineCardVisible: (value: boolean) => void;
   setFastingCardVisible: (value: boolean) => void;
@@ -154,6 +171,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
+  setHealthTrendsCardVisible: (value: boolean) => void;
+  setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
@@ -173,10 +192,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setGuidedSpeechRate: (value: number) => void;
   setGuidedCountdownSec: (value: number) => void;
   setLanguagePreference: (value: LanguagePreference) => void;
-  setHealthTrendLayout: (
-    order: HealthTrendKey[],
-    hiddenKeys: HealthTrendKey[]
-  ) => void;
+  setHealthTrendOrder: (order: HealthTrendKey[]) => void;
+  setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
   setFoodSearchOwnershipFilter: (value: OwnershipFilter) => void;
   setFoodsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
   setMealsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
@@ -236,6 +253,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ restTimerNotificationsEnabled: value }),
       setFastingGoalNotificationsEnabled: (value) =>
         set({ fastingGoalNotificationsEnabled: value }),
+      setCalorieRingCardVisible: (value) =>
+        set({ calorieRingCardVisible: value }),
+      setMacrosCardVisible: (value) => set({ macrosCardVisible: value }),
+      setExerciseCardVisible: (value) => set({ exerciseCardVisible: value }),
       setHydrationCardVisible: (value) => set({ hydrationCardVisible: value }),
       setCaffeineCardVisible: (value) => set({ caffeineCardVisible: value }),
       setFastingCardVisible: (value) => set({ fastingCardVisible: value }),
@@ -245,6 +266,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ medicationsCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
+      setHealthTrendsCardVisible: (value) =>
+        set({ healthTrendsCardVisible: value }),
+      setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
       setMedicationReminderRepeats: (value) =>
@@ -275,8 +299,17 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setGuidedCountdownSec: (value) =>
         set({ guidedCountdownSec: clampGuidedCountdownSec(value) }),
       setLanguagePreference: (value) => set({ languagePreference: value }),
-      setHealthTrendLayout: (order, hiddenKeys) =>
-        set({ healthTrendOrder: order, hiddenHealthTrends: hiddenKeys }),
+      setHealthTrendOrder: (order) => set({ healthTrendOrder: order }),
+      setHealthTrendHidden: (key, isHidden) =>
+        set((state) => {
+          const currentHidden = new Set(state.hiddenHealthTrends);
+          if (isHidden) {
+            currentHidden.add(key);
+          } else {
+            currentHidden.delete(key);
+          }
+          return { hiddenHealthTrends: Array.from(currentHidden) };
+        }),
       setFoodSearchOwnershipFilter: (value) =>
         set({ foodSearchOwnershipFilter: value }),
       setFoodsLibraryOwnershipFilter: (value) =>
@@ -302,6 +335,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         notificationsEnabled: state.notificationsEnabled,
         restTimerNotificationsEnabled: state.restTimerNotificationsEnabled,
         fastingGoalNotificationsEnabled: state.fastingGoalNotificationsEnabled,
+        calorieRingCardVisible: state.calorieRingCardVisible,
+        macrosCardVisible: state.macrosCardVisible,
+        exerciseCardVisible: state.exerciseCardVisible,
         hydrationCardVisible: state.hydrationCardVisible,
         caffeineCardVisible: state.caffeineCardVisible,
         fastingCardVisible: state.fastingCardVisible,
@@ -309,6 +345,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
+        healthTrendsCardVisible: state.healthTrendsCardVisible,
+        dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,

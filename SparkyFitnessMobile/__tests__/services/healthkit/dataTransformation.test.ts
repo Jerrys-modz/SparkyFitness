@@ -492,6 +492,27 @@ describe('transformHealthRecords', () => {
       expect(result).toHaveLength(1);
     });
 
+    test('maps HKWorkoutActivityType other (3000) to "Other"', () => {
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 3000,
+          duration: 3600,
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'Workout',
+        unit: '',
+        type: 'workout',
+      });
+
+      expect((result[0] as TransformedExerciseSession).activityType).toBe(
+        'Other'
+      );
+      expect((result[0] as TransformedExerciseSession).title).toBe('Other');
+    });
+
     test('falls back to "Workout type {code}" for unknown codes', () => {
       const records = [
         {
