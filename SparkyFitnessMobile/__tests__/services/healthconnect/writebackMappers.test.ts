@@ -179,6 +179,21 @@ describe('foodEntryToNutritionRecord', () => {
       )
     ).not.toBeNull();
   });
+
+  it('clamps interval end to now when the 1-minute window extends past now', () => {
+    // start is 14:25:45, now is 14:26:00 -> 15 seconds after start
+    const now = new Date('2026-06-01T14:26:00');
+    const record = foodEntryToNutritionRecord(
+      { ...baseEntry, entry_date: '2026-06-01', entry_time: '14:25:45' },
+      1,
+      now
+    )!;
+    expect(record).not.toBeNull();
+    expect(new Date(field(record, 'endTime')).getTime()).toBe(now.getTime());
+    expect(new Date(field(record, 'startTime')).getTime()).toBeLessThan(
+      new Date(field(record, 'endTime')).getTime()
+    );
+  });
 });
 
 describe('waterMlToHydrationRecord', () => {

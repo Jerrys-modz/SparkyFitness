@@ -134,8 +134,9 @@ const recordInterval = (
 ): { start: string; end: string } | null => {
   const start = localDayInstant(date, hour, minute, second);
   const end = new Date(start.getTime() + MINUTE_MS);
-  if (end.getTime() > now.getTime()) return null;
-  return { start: start.toISOString(), end: end.toISOString() };
+  if (start.getTime() >= now.getTime()) return null;
+  const boundedEnd = end.getTime() > now.getTime() ? now : end;
+  return { start: start.toISOString(), end: boundedEnd.toISOString() };
 };
 
 /**
