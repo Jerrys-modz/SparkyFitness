@@ -938,6 +938,44 @@ interface ChatAiServiceConfig {
   custom_url?: string | null;
 }
 
+function extractTextFromAgentOutput(output: unknown): string | null {
+  if (!Array.isArray(output)) return null;
+  const texts: string[] = [];
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as {
+      type?: string;
+      text?: unknown;
+      output_text?: unknown;
+      content?: unknown;
+    };
+    if (typeof obj.text === 'string') {
+      texts.push(obj.text);
+    } else if (typeof obj.output_text === 'string') {
+      texts.push(obj.output_text);
+    } else if (typeof obj.content === 'string') {
+      texts.push(obj.content);
+    } else if (Array.isArray(obj.content)) {
+      for (const block of obj.content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as {
+          type?: string;
+          text?: unknown;
+          output_text?: unknown;
+        };
+        if (typeof b.text === 'string') {
+          texts.push(b.text);
+        } else if (typeof b.output_text === 'string') {
+          texts.push(b.output_text);
+        }
+      }
+    }
+  }
+
+  return texts.length > 0 ? texts.join('\n\n') : null;
+}
+
 function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
   return async (
     input: RequestInfo | URL,
@@ -962,12 +1000,9 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
           input?: unknown;
           [k: string]: unknown;
         };
-        // Perplexity Agent API requires `input`
+        // Perplexity Agent API requires `input` (array of messages or text)
         if (!bodyObj.input && Array.isArray(bodyObj.messages)) {
-          const lastUser = [...bodyObj.messages]
-            .reverse()
-            .find((m) => m.role === 'user');
-          bodyObj.input = lastUser?.content ?? bodyObj.messages;
+          bodyObj.input = bodyObj.messages;
           modifiedInit = {
             ...init,
             body: JSON.stringify(bodyObj),
@@ -991,6 +1026,7 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
       let buffer = '';
       let hasError = false;
       let hasToolCalls = false;
+      const toolCallIndices = new Map<string, number>();
 
       const transformedStream = new ReadableStream<Uint8Array>({
         async pull(controller) {
@@ -1069,10 +1105,14 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
                     encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
                   );
                 }
-                // Function / Tool call deltas
+                // Function / Tool call deltas (only for function items, not plain messages)
                 else if (
                   parsed.type === 'response.function_call_arguments.delta' ||
-                  parsed.type === 'response.output_item.added'
+                  (parsed.type === 'response.output_item.added' &&
+                    (parsed.item?.type === 'function_call' ||
+                      parsed.item?.type === 'custom_tool_call' ||
+                      (typeof parsed.item?.name === 'string' &&
+                        parsed.item.name.length > 0)))
                 ) {
                   hasToolCalls = true;
                   const toolId =
@@ -1081,6 +1121,11 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
                     parsed.item?.call_id ??
                     parsed.item?.id ??
                     'call_0';
+                  let toolCallIndex = toolCallIndices.get(toolId);
+                  if (toolCallIndex === undefined) {
+                    toolCallIndex = toolCallIndices.size;
+                    toolCallIndices.set(toolId, toolCallIndex);
+                  }
                   const toolName = parsed.name ?? parsed.item?.name ?? '';
                   const argsDelta =
                     parsed.delta ??
@@ -1095,7 +1140,7 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
                         delta: {
                           tool_calls: [
                             {
-                              index: 0,
+                              index: toolCallIndex,
                               id: toolId,
                               type: 'function',
                               function: {
@@ -1158,7 +1203,12 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
           choices?: unknown;
           usage?: unknown;
         };
-        if (typeof data?.output_text === 'string' && !data.choices) {
+        const resolvedText =
+          typeof data?.output_text === 'string'
+            ? data.output_text
+            : extractTextFromAgentOutput(data?.output);
+
+        if (resolvedText !== null && !data.choices) {
           const adapted = {
             id: data.id || `pplx-${Date.now()}`,
             object: 'chat.completion',
@@ -1169,7 +1219,7 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
                 index: 0,
                 message: {
                   role: 'assistant',
-                  content: data.output_text,
+                  content: resolvedText,
                 },
                 finish_reason: 'stop',
               },
