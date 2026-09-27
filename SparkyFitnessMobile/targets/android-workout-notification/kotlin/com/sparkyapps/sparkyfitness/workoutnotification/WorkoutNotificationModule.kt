@@ -72,7 +72,7 @@ class WorkoutNotificationModule(reactContext: ReactApplicationContext) :
             "$exercise · $setPosition"
         }
         val builder = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(context.applicationInfo.icon)
+            .setSmallIcon(android.R.drawable.ic_menu_recent_history)
             .setContentTitle(name)
             .setContentText(contentText)
             .setSubText(if (phase == "paused") payload.getString("restText") else progressText)
