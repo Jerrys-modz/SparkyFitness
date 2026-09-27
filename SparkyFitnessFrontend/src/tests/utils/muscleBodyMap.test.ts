@@ -1,8 +1,10 @@
 import {
+  defaultBodyFigure,
+  figureKeyForMuscle,
   heatLevel,
   setsForMuscleKey,
   unmappedMuscleSets,
-} from '@/constants/exercises';
+} from '@workspace/shared';
 
 describe('muscle heatmap matching', () => {
   it('matches HealthKit title case onto SVG schema names', () => {
@@ -21,6 +23,21 @@ describe('muscle heatmap matching', () => {
     expect(
       unmappedMuscleSets({ Biceps: 4, Lats: 6, Chest: 2, Neck: 3 })
     ).toEqual([{ muscle: 'Neck', sets: 3 }]);
+  });
+
+  it('resolves stored names and aliases to the region they tint', () => {
+    expect(figureKeyForMuscle('Abs')).toBe('abdominals');
+    expect(figureKeyForMuscle('Latissimus Dorsi')).toBe('lats');
+    expect(figureKeyForMuscle('Lower Back')).toBe('lower back');
+    expect(figureKeyForMuscle('Neck')).toBeNull();
+  });
+
+  it('starts on the female figure only for a stored female', () => {
+    expect(defaultBodyFigure('female')).toBe('female');
+    expect(defaultBodyFigure(' Female ')).toBe('female');
+    expect(defaultBodyFigure('male')).toBe('male');
+    expect(defaultBodyFigure(null)).toBe('male');
+    expect(defaultBodyFigure(undefined)).toBe('male');
   });
 
   it('buckets set counts into four heat levels', () => {

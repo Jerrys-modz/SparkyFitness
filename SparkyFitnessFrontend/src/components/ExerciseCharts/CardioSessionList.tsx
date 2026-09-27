@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useExerciseActivities } from '@/hooks/Reports/useExerciseStats';
 import ActivityReportVisualizer from '@/pages/Reports/ActivityReportVisualizer';
-import { addDays, daysBetween } from '@workspace/shared';
+import { addDays, cardioSessionHeadline, daysBetween } from '@workspace/shared';
 import type { ExerciseActivityQueryItem } from '@workspace/shared';
 
 interface CardioSessionListProps {
@@ -35,17 +35,17 @@ function headline(
   item: ExerciseActivityQueryItem,
   distanceUnit: string
 ): { value: string; unit: string } {
-  if (item.distanceFormatted != null && item.distanceFormatted > 0) {
-    const n = item.distanceFormatted;
+  const stat = cardioSessionHeadline(item);
+  if (stat.kind === 'distance') {
     return {
-      value: n >= 10 ? n.toFixed(1) : n.toFixed(2),
+      value: stat.value >= 10 ? stat.value.toFixed(1) : stat.value.toFixed(2),
       unit: distanceUnit === 'miles' ? 'MI' : 'KM',
     };
   }
-  if (item.caloriesBurned > 0) {
-    return { value: String(Math.round(item.caloriesBurned)), unit: 'CAL' };
-  }
-  return { value: String(Math.round(item.durationMinutes)), unit: 'MIN' };
+  return {
+    value: String(stat.value),
+    unit: stat.kind === 'calories' ? 'CAL' : 'MIN',
+  };
 }
 
 export const CardioSessionList = ({

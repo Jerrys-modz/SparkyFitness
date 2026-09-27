@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBodyMapSvgQuery } from '@/hooks/Exercises/useExercises';
+import { useProfileQuery } from '@/hooks/Settings/useProfile';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 import {
+  defaultBodyFigure,
   heatLevel,
   maxDrawnMuscleSets,
   setsForMuscleKey,
   svgClassToMuscleKey,
   unmappedMuscleSets,
-} from '@/constants/exercises';
+  type BodyFigure,
+} from '@workspace/shared';
 import './MuscleHeatmap.css';
 
 interface MuscleHeatmapProps {
@@ -23,7 +27,15 @@ interface PickedMuscle {
 export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
   const { t } = useTranslation();
   const svgContainerRef = useRef<HTMLDivElement>(null);
-  const { data: svgContent } = useBodyMapSvgQuery();
+  // The report can be a family member's, so the figure starts from the
+  // viewed user's profile, not the signed-in one.
+  const { activeUserId } = useActiveUser();
+  const { data: profile } = useProfileQuery(activeUserId ?? undefined);
+  // Starts from the gender stored for BMR. Switching here is a view choice
+  // and is never written back to the profile.
+  const [chosenFigure, setChosenFigure] = useState<BodyFigure | null>(null);
+  const figure = chosenFigure ?? defaultBodyFigure(profile?.gender);
+  const { data: svgContent } = useBodyMapSvgQuery(figure);
   const [pickedKey, setPickedKey] = useState<string | null>(null);
   const maxSets = maxDrawnMuscleSets(setsByMuscle);
   const extra = unmappedMuscleSets(setsByMuscle);
@@ -33,8 +45,14 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
     : null;
 
   useEffect(() => {
-    if (!svgContent || !svgContainerRef.current) return;
     const container = svgContainerRef.current;
+    if (!container) return;
+    // While a newly picked figure loads, or if it fails, show nothing rather
+    // than leave the previous figure under the new selection.
+    if (!svgContent) {
+      container.replaceChildren();
+      return;
+    }
     container.innerHTML = svgContent;
 
     const svgElement = container.querySelector('svg');
@@ -109,6 +127,32 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center">
+          <div
+            role="group"
+            aria-label={t('muscleHeatmap.figure', 'Body figure')}
+            className="mb-3 inline-flex rounded-md border bg-muted p-0.5 text-xs"
+          >
+            {(['male', 'female'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={figure === option}
+                onClick={() => {
+                  setChosenFigure(option);
+                  setPickedKey(null);
+                }}
+                className={`rounded px-3 py-1 font-medium ${
+                  figure === option
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {option === 'male'
+                  ? t('muscleHeatmap.male', 'Male')
+                  : t('muscleHeatmap.female', 'Female')}
+              </button>
+            ))}
+          </div>
           <div
             ref={svgContainerRef}
             className="muscle-heatmap w-full flex justify-center overflow-hidden max-w-[280px]"

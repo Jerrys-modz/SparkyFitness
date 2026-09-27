@@ -37,7 +37,7 @@ import WorkoutSessionBreakdown from '@/components/ExerciseCharts/WorkoutSessionB
 import ActivityReportMap from './ActivityReportMap';
 import WorkoutReportVisualizer from './WorkoutReportVisualizer';
 import { ChartDataPoint } from '@/types/reports';
-import { isValidTimeZone, localDateTimeToUtc } from '@workspace/shared';
+import { buildWorkoutHeartRateSeries } from '@workspace/shared';
 
 interface ActivityReportVisualizerProps {
   exerciseEntryId: string;
@@ -95,65 +95,25 @@ const ActivityReportVisualizer = ({
     entryDate,
     sampleEndDate
   );
-  const workoutHrSeries = useMemo(() => {
-    const toPoint = (timestamp: number, bpm: number): ChartDataPoint => ({
-      timestamp,
-      activityDuration: 0,
-      distance: 0,
-      speed: 0,
-      pace: 0,
-      heartRate: bpm,
-      runCadence: 0,
-      elevation: null,
-    });
-    const tagged: ChartDataPoint[] = [];
-    const during: ChartDataPoint[] = [];
-    // entry_time is wall-clock time in the zone the workout was recorded
-    // in. Older and manual entries have no zone, and those were written in
-    // the user's timezone, not the browser's.
-    const recordZone = entryRecord?.record_timezone;
-    const entryZone =
-      recordZone && isValidTimeZone(recordZone) ? recordZone : timezone;
-    const startMs =
-      entryDate && entryRecord?.entry_time
-        ? localDateTimeToUtc(
-            `${entryDate}T${entryRecord.entry_time}`,
-            entryZone
-          ).getTime()
-        : NaN;
-    const endMs =
-      Number.isFinite(startMs) &&
-      typeof entryRecord?.duration_minutes === 'number'
-        ? startMs + entryRecord.duration_minutes * 60_000
-        : NaN;
-    for (const bucket of hrBuckets ?? []) {
-      if (bucket.metric !== 'heart_rate') continue;
-      for (const sample of bucket.samples) {
-        if (typeof sample.bpm !== 'number') continue;
-        const timestamp = Date.parse(sample.t);
-        if (!Number.isFinite(timestamp)) continue;
-        if (sample.ex === exerciseEntryId) {
-          tagged.push(toPoint(timestamp, sample.bpm));
-        } else if (
-          !sample.ex &&
-          Number.isFinite(endMs) &&
-          timestamp >= startMs &&
-          timestamp <= endMs
-        ) {
-          during.push(toPoint(timestamp, sample.bpm));
-        }
-      }
-    }
-    const points = tagged.length > 0 ? tagged : during;
-    points.sort((a, b) => a.timestamp - b.timestamp);
-    const start = points[0]?.timestamp;
-    if (start != null) {
-      for (const point of points) {
-        point.activityDuration = (point.timestamp - start) / 60000;
-      }
-    }
-    return points;
-  }, [hrBuckets, exerciseEntryId, entryDate, entryRecord, timezone]);
+  const workoutHrSeries = useMemo(
+    () =>
+      buildWorkoutHeartRateSeries(
+        hrBuckets,
+        exerciseEntryId,
+        entryRecord,
+        timezone
+      ).map((point): ChartDataPoint => ({
+        timestamp: point.timestamp,
+        activityDuration: point.elapsedMinutes,
+        distance: 0,
+        speed: 0,
+        pace: 0,
+        heartRate: point.bpm,
+        runCadence: 0,
+        elevation: null,
+      })),
+    [hrBuckets, exerciseEntryId, entryRecord, timezone]
+  );
   const { data: dbLaps } = useWorkoutLaps(exerciseEntryId);
   const { data: dbHrZones } = useWorkoutHrZones(exerciseEntryId);
 

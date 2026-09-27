@@ -706,6 +706,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   exerciseMinutesGoal={summary.exerciseMinutesGoal}
                   exerciseCalories={summary.otherExerciseCalories}
                   exerciseCaloriesGoal={summary.exerciseCaloriesGoal}
+                  onPressDetails={() =>
+                    navigation.navigate('ExerciseStatistics')
+                  }
                 />
               ) : null;
             case 'hydration':
