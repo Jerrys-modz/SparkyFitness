@@ -10,8 +10,9 @@ import type { RootStackScreenProps } from '../../src/types/navigation';
 jest.mock('../../src/hooks/useCardioSessionDetail', () => ({
   useCardioSessionDetail: jest.fn(),
 }));
+const mockUseScreenHeader = jest.fn((_config: object) => null);
 jest.mock('../../src/hooks/useScreenHeader', () => ({
-  useScreenHeader: () => null,
+  useScreenHeader: (config: object) => mockUseScreenHeader(config),
 }));
 jest.mock('../../src/services/nativeTabBarPreference', () => ({
   useNativeIOSHeadersActive: () => false,
@@ -107,6 +108,32 @@ describe('CardioSessionScreen', () => {
     expect(screen.getByText('Max 170 bpm')).toBeTruthy();
     expect(screen.getByText('Heart Rate Zones')).toBeTruthy();
     expect(screen.getByText('15 min')).toBeTruthy();
+  });
+
+  it('titles the native header with the workout name', () => {
+    mockDetail.mockReturnValue(detail());
+    render(<CardioSessionScreen {...props()} />);
+    expect(mockUseScreenHeader).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Morning Run',
+        nativeTitle: 'Morning Run',
+      })
+    );
+  });
+
+  it('shows a brief zone as under a minute, not zero', () => {
+    mockDetail.mockReturnValue(
+      detail({
+        zones: [
+          { zone: 2, lowerBpm: 116, upperBpm: 134, seconds: 20, share: 0.02 },
+          { zone: 4, lowerBpm: 154, upperBpm: 173, seconds: 1020, share: 0.98 },
+        ],
+      })
+    );
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.getByText('<1 min')).toBeTruthy();
+    expect(screen.getByText('17 min')).toBeTruthy();
+    expect(screen.queryByText('0 min')).toBeNull();
   });
 
   it('explains a missing route and still shows heart rate', () => {

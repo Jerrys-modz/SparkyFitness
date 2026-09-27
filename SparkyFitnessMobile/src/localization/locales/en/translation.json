@@ -5545,7 +5545,8 @@
       "zones": "Heart Rate Zones",
       "zone": "Zone {{zone}}",
       "zoneFrom": "from {{bpm}} bpm",
-      "minutesAxis": "Minutes from start"
+      "minutesAxis": "Minutes from start",
+      "underOneMinute": "<1 min"
     }
   }
 }

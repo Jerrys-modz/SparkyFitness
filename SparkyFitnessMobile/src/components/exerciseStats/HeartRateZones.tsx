@@ -36,13 +36,18 @@ const HeartRateZones: React.FC<{ zones: readonly HeartRateZoneRow[] }> = ({
                 ) : null}
               </Text>
               <Text className="text-text-secondary text-sm">
-                {t('exerciseStatistics.cardio.minutes', {
-                  count: minutes,
-                  formattedCount: formatLocalizedNumber(minutes),
-                  defaultValue: '{{formattedCount}} min',
-                  defaultValue_one: '{{formattedCount}} min',
-                  defaultValue_other: '{{formattedCount}} min',
-                })}
+                {/* Under a minute would round to "0 min" and read as none. */}
+                {zone.seconds > 0 && zone.seconds < 60
+                  ? t('exerciseStatistics.cardio.underOneMinute', {
+                      defaultValue: '<1 min',
+                    })
+                  : t('exerciseStatistics.cardio.minutes', {
+                      count: minutes,
+                      formattedCount: formatLocalizedNumber(minutes),
+                      defaultValue: '{{formattedCount}} min',
+                      defaultValue_one: '{{formattedCount}} min',
+                      defaultValue_other: '{{formattedCount}} min',
+                    })}
               </Text>
             </View>
             <View className="h-2 rounded-full bg-progress-track overflow-hidden">
