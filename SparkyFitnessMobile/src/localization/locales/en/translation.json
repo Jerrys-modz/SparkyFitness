@@ -5295,15 +5295,12 @@
   },
   "healthTrendsSettings": {
     "description": "Drag a graph by its handle to reorder it. Toggle off to hide it from your Dashboard.",
-    "hiddenLabel": "Hidden",
     "reorder": "Reorder {{name}}",
     "reorderHint": "Reorder this graph in your Dashboard health trends",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "stateShown": "Shown",
-    "stateHidden": "Hidden",
-    "emptyShown": "No graphs are shown. Drag one above the line to bring it back.",
-    "emptyHidden": "Drop a graph here to hide it."
+    "stateHidden": "Hidden"
   },
   "progressPhotos": {
     "card": {

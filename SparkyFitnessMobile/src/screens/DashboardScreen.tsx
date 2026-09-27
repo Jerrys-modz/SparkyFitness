@@ -500,7 +500,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           />
         }
       >
-        {/* Headless reconcilers mounted once regardless of card position/visibility */}
+        {/* Goal-notification reconciliation is owned here (headless, always
+            mounted) so it survives the card being hidden. Fasting is "now"-based,
+            so the card is deliberately date-independent — it always reflects the
+            current/active fast regardless of the date navigator. Do not wire it
+            to `selectedDate`. Visibility is a local app setting toggled from
+            Dashboard Settings. */}
         <FastingGoalReconciler />
         {orderedDashboardCards.map((cardKey) => {
           switch (cardKey) {

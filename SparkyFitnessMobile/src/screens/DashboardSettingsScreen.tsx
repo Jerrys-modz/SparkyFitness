@@ -1,34 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  type AccessibilityActionEvent,
-} from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  useDerivedValue,
-  useSharedValue,
-  type SharedValue,
-} from 'react-native-reanimated';
+import { ScrollView, Text, View } from 'react-native';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
-import Icon from '../components/Icon';
+import { ReorderSwitchRow } from '../components/ReorderSwitchRow';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import StatusView from '../components/StatusView';
 import Switch from '../components/ui/Switch';
 import {
   computeReorderTargetIndex,
-  createReorderRowPanGesture,
   resetReorderDragPreview,
   useReorderRowGeometry,
-  useReorderRowPreviewStyle,
 } from '../components/WorkoutReorderList';
 import {
   DASHBOARD_CARD_SUBTITLES,
@@ -49,11 +35,9 @@ import {
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { RootStackScreenProps } from '../types/navigation';
-import {
-  applyDashboardCardMove,
-  resolveDashboardCardOrder,
-} from '../utils/dashboardCardPreferences';
+import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import { toggleNutrientVisibility } from '../utils/nutrientUtils';
+import { moveItem } from '../utils/reorderUtils';
 
 type DashboardSettingsScreenProps = RootStackScreenProps<'DashboardSettings'>;
 
@@ -61,6 +45,9 @@ const SUMMARY_VIEW_GROUP = 'summary';
 const MOBILE_PLATFORM = 'mobile';
 const DASHBOARD_CARD_ROW_HEIGHT = 72;
 
+// Matches what the server synthesizes for the summary/mobile row when the user
+// has never customized it. Only used defensively if the row is somehow absent
+// after the preferences query has resolved — the real row is the merge base.
 const SERVER_DEFAULT_SUMMARY_NUTRIENTS = [
   'calories',
   'protein',
@@ -69,157 +56,6 @@ const SERVER_DEFAULT_SUMMARY_NUTRIENTS = [
   'dietary_fiber',
 ];
 
-const DashboardCardListRow: React.FC<{
-  cardKey: DashboardCardKey;
-  index: number;
-  lastIndex: number;
-  title: string;
-  subtitle: string;
-  isEnabled: boolean;
-  onToggle: (enabled: boolean) => void;
-  onMove: (fromIndex: number, toIndex: number) => void;
-  onConfigure?: () => void;
-  textMuted: string;
-  accentColor: string;
-  activeDragIndex: SharedValue<number>;
-  panY: SharedValue<number>;
-  committingTranslate: SharedValue<number>;
-  targetIndex: SharedValue<number>;
-  strides: number[];
-}> = ({
-  cardKey,
-  index,
-  lastIndex,
-  title,
-  subtitle,
-  isEnabled,
-  onToggle,
-  onMove,
-  onConfigure,
-  textMuted,
-  accentColor,
-  activeDragIndex,
-  panY,
-  committingTranslate,
-  targetIndex,
-  strides,
-}) => {
-  const { t } = useTranslation();
-
-  const dragGesture = createReorderRowPanGesture({
-    index,
-    activeDragIndex,
-    panY,
-    committingTranslate,
-    targetIndex,
-    onMove,
-  });
-
-  const previewStyle = useReorderRowPreviewStyle(
-    index,
-    activeDragIndex,
-    panY,
-    committingTranslate,
-    targetIndex,
-    strides
-  );
-
-  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
-    if (event.nativeEvent.actionName === 'increment') {
-      onMove(index, Math.min(index + 1, lastIndex));
-      return;
-    }
-    if (event.nativeEvent.actionName === 'decrement') {
-      onMove(index, Math.max(index - 1, 0));
-    }
-  };
-
-  return (
-    <Animated.View
-      testID={`dashboard-card-row-${cardKey}`}
-      className="flex-row items-center bg-surface border-b border-border/40 pr-4"
-      style={[previewStyle, { height: DASHBOARD_CARD_ROW_HEIGHT }]}
-    >
-      <GestureDetector gesture={dragGesture}>
-        <View
-          testID={`dashboard-card-drag-handle-${cardKey}`}
-          className="px-4 py-3"
-          accessibilityRole="adjustable"
-          accessibilityLabel={t('dashboardSettings.reorder', {
-            defaultValue: 'Reorder {{name}}',
-            name: title,
-          })}
-          accessibilityValue={{
-            text: isEnabled
-              ? t('dashboardSettings.stateShown', { defaultValue: 'Shown' })
-              : t('dashboardSettings.stateHidden', {
-                  defaultValue: 'Hidden',
-                }),
-          }}
-          accessibilityHint={t('dashboardSettings.reorderHint', {
-            defaultValue: 'Reorder this card on your Dashboard',
-          })}
-          accessibilityActions={[
-            {
-              name: 'decrement',
-              label: t('dashboardSettings.moveUp', {
-                defaultValue: 'Move up',
-              }),
-            },
-            {
-              name: 'increment',
-              label: t('dashboardSettings.moveDown', {
-                defaultValue: 'Move down',
-              }),
-            },
-          ]}
-          onAccessibilityAction={handleAccessibilityAction}
-        >
-          <Icon name="reorder-handle" size={22} color={textMuted} />
-        </View>
-      </GestureDetector>
-
-      <View className="flex-1 pr-3 justify-center">
-        <View className="flex-row items-center">
-          <Text
-            className={`text-base font-medium ${
-              isEnabled ? 'text-text-primary' : 'text-text-muted'
-            }`}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
-          {onConfigure && (
-            <Pressable
-              onPress={onConfigure}
-              testID={`dashboard-card-configure-${cardKey}`}
-              hitSlop={8}
-              className="ml-2 px-1 py-0.5"
-              accessibilityRole="button"
-              accessibilityLabel={t('dashboardSettings.configureCard', {
-                defaultValue: 'Configure {{name}}',
-                name: title,
-              })}
-            >
-              <Icon name="chevron-forward" size={16} color={accentColor} />
-            </Pressable>
-          )}
-        </View>
-        <Text className="text-xs text-text-secondary mt-0.5" numberOfLines={1}>
-          {subtitle}
-        </Text>
-      </View>
-
-      <Switch
-        accessibilityLabel={title}
-        value={isEnabled}
-        onValueChange={onToggle}
-        testID={`dashboard-card-switch-${cardKey}`}
-      />
-    </Animated.View>
-  );
-};
-
 const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   navigation,
 }) => {
@@ -227,8 +63,6 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const textMuted = String(useCSSVariable('--color-text-muted'));
-  const accentColor = String(useCSSVariable('--color-accent-primary'));
 
   const calorieRingCardVisible = useAppPreferencesStore(
     (s) => s.calorieRingCardVisible
@@ -394,13 +228,15 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const handleMove = useCallback(
     (fromIndex: number, toIndex: number) => {
       if (fromIndex === toIndex) return;
-      const newOrder = applyDashboardCardMove(orderedCards, fromIndex, toIndex);
+      const newOrder = moveItem(orderedCards, fromIndex, toIndex);
       pendingDragResetRef.current = true;
       setDashboardCardOrder(newOrder);
     },
     [orderedCards, setDashboardCardOrder]
   );
 
+  // Release the floating transform only once the reordered rows have rendered, so
+  // clearing it is a visual no-op instead of a one-frame snap-back.
   useEffect(() => {
     if (!pendingDragResetRef.current) return;
     pendingDragResetRef.current = false;
@@ -417,6 +253,10 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
 
   const isLoading = isConnected && (isCustomLoading || isPrefsLoading);
 
+  // Base array is the raw summary/mobile row (NOT the summaryNutrients getter,
+  // which strips 'calories' — using it as the merge base would silently drop
+  // calories from the stored row on every PUT). The server guarantees this row
+  // exists once preferences resolve; the default is defensive only.
   const summaryRow = preferences.find(
     (p) => p.view_group === SUMMARY_VIEW_GROUP && p.platform === MOBILE_PLATFORM
   );
@@ -563,31 +403,48 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         </Text>
 
         <View className="bg-surface rounded-xl overflow-hidden shadow-sm mb-6">
-          {orderedCards.map((cardKey, index) => (
-            <DashboardCardListRow
-              key={cardKey}
-              cardKey={cardKey}
-              index={index}
-              lastIndex={orderedCards.length - 1}
-              title={DASHBOARD_CARD_TITLES[cardKey](t)}
-              subtitle={DASHBOARD_CARD_SUBTITLES[cardKey](t)}
-              isEnabled={cardVisibilityMap[cardKey]}
-              onToggle={(enabled) => setCardVisibility(cardKey, enabled)}
-              onMove={handleMove}
-              onConfigure={
-                cardKey === 'healthTrends'
-                  ? () => navigation.navigate('HealthTrendsSettings')
-                  : undefined
-              }
-              textMuted={textMuted}
-              accentColor={accentColor}
-              activeDragIndex={activeDragIndex}
-              panY={panY}
-              committingTranslate={committingTranslate}
-              targetIndex={targetIndex}
-              strides={strides}
-            />
-          ))}
+          {orderedCards.map((cardKey, index) => {
+            const title = DASHBOARD_CARD_TITLES[cardKey](t);
+            const subtitle = DASHBOARD_CARD_SUBTITLES[cardKey](t);
+            return (
+              <ReorderSwitchRow
+                key={cardKey}
+                testID={`dashboard-card-row-${cardKey}`}
+                dragHandleTestID={`dashboard-card-drag-handle-${cardKey}`}
+                switchTestID={`dashboard-card-switch-${cardKey}`}
+                index={index}
+                lastIndex={orderedCards.length - 1}
+                title={title}
+                subtitle={subtitle}
+                isEnabled={cardVisibilityMap[cardKey]}
+                onToggle={(enabled) => setCardVisibility(cardKey, enabled)}
+                onMove={handleMove}
+                onConfigure={
+                  cardKey === 'healthTrends'
+                    ? () => navigation.navigate('HealthTrendsSettings')
+                    : undefined
+                }
+                configureTestID={`dashboard-card-configure-${cardKey}`}
+                configureA11yLabel={t('dashboardSettings.configureCard', {
+                  defaultValue: 'Configure {{name}}',
+                  name: title,
+                })}
+                rowHeight={DASHBOARD_CARD_ROW_HEIGHT}
+                reorderA11yLabel={t('dashboardSettings.reorder', {
+                  defaultValue: 'Reorder {{name}}',
+                  name: title,
+                })}
+                reorderA11yHint={t('dashboardSettings.reorderHint', {
+                  defaultValue: 'Reorder this card on your Dashboard',
+                })}
+                activeDragIndex={activeDragIndex}
+                panY={panY}
+                committingTranslate={committingTranslate}
+                targetIndex={targetIndex}
+                strides={strides}
+              />
+            );
+          })}
         </View>
 
         <Text className="text-base font-semibold text-text-primary mb-4">

@@ -100,27 +100,6 @@ describe('appPreferencesStore', () => {
       expect(useAppPreferencesStore.getState().hiddenHealthTrends).toEqual([]);
     });
 
-    it('writes order and hidden keys together', () => {
-      useAppPreferencesStore
-        .getState()
-        .setHealthTrendLayout(['weight', 'sleep', 'steps'], ['steps']);
-
-      const state = useAppPreferencesStore.getState();
-      expect(state.healthTrendOrder).toEqual(['weight', 'sleep', 'steps']);
-      expect(state.hiddenHealthTrends).toEqual(['steps']);
-    });
-
-    it('clears hidden keys when every graph is shown again', () => {
-      const store = useAppPreferencesStore.getState();
-
-      store.setHealthTrendLayout(['steps', 'weight', 'sleep'], ['sleep']);
-      useAppPreferencesStore
-        .getState()
-        .setHealthTrendLayout(['steps', 'weight', 'sleep'], []);
-
-      expect(useAppPreferencesStore.getState().hiddenHealthTrends).toEqual([]);
-    });
-
     it('backfills both fields from a persisted blob written before they existed', async () => {
       // Proves the shallow-merge rehydrate covers these keys, so registering them
       // needed no STORE_VERSION bump.

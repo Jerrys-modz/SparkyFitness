@@ -33,34 +33,3 @@ export function resolveDashboardCardOrder(
 
   return resolvedOrder;
 }
-
-/**
- * Returns the ordered dashboard cards with hidden ones filtered out.
- */
-export function selectVisibleDashboardCards(
-  order: readonly DashboardCardKey[],
-  hiddenKeys: readonly string[]
-): DashboardCardKey[] {
-  return order.filter((key) => !hiddenKeys.includes(key));
-}
-
-/**
- * Moves one card within the order array using remove-then-insert semantics.
- */
-export function applyDashboardCardMove(
-  order: readonly DashboardCardKey[],
-  fromIndex: number,
-  toIndex: number
-): DashboardCardKey[] {
-  const movedCard = order[fromIndex];
-  if (movedCard === undefined) return [...order];
-
-  const remaining = order.filter((_, idx) => idx !== fromIndex);
-  const insertIndex = Math.max(0, Math.min(toIndex, remaining.length));
-
-  return [
-    ...remaining.slice(0, insertIndex),
-    movedCard,
-    ...remaining.slice(insertIndex),
-  ];
-}

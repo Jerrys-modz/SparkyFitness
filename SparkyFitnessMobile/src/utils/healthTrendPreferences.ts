@@ -3,11 +3,6 @@ import {
   type HealthTrendKey,
 } from '../constants/healthTrends';
 
-/** The row separating shown graphs from hidden ones in the settings list (legacy). */
-export const HEALTH_TREND_DIVIDER = 'divider';
-
-export type HealthTrendRow = HealthTrendKey | typeof HEALTH_TREND_DIVIDER;
-
 const isHealthTrendKey = (value: string): value is HealthTrendKey =>
   (HEALTH_TREND_KEYS as readonly string[]).includes(value);
 
@@ -44,71 +39,4 @@ export function selectVisibleHealthTrends(
   hiddenKeys: readonly string[]
 ): HealthTrendKey[] {
   return order.filter((key) => !hiddenKeys.includes(key));
-}
-
-/**
- * Moves one trend within the ordered list.
- */
-export function applyHealthTrendOrderMove(
-  order: readonly HealthTrendKey[],
-  fromIndex: number,
-  toIndex: number
-): HealthTrendKey[] {
-  const movedKey = order[fromIndex];
-  if (movedKey === undefined) return [...order];
-
-  const remaining = order.filter((_, index) => index !== fromIndex);
-  const insertIndex = Math.max(0, Math.min(toIndex, remaining.length));
-
-  return [
-    ...remaining.slice(0, insertIndex),
-    movedKey,
-    ...remaining.slice(insertIndex),
-  ];
-}
-
-/** The settings list: shown graphs, the divider, then hidden graphs (legacy support). */
-export function buildHealthTrendRows(
-  order: readonly HealthTrendKey[],
-  hiddenKeys: readonly string[]
-): HealthTrendRow[] {
-  const shownKeys = order.filter((key) => !hiddenKeys.includes(key));
-  const hiddenInOrder = order.filter((key) => hiddenKeys.includes(key));
-
-  return [...shownKeys, HEALTH_TREND_DIVIDER, ...hiddenInOrder];
-}
-
-/** Which side of the divider each graph ended up on (legacy support). */
-export function splitHealthTrendRows(rows: readonly HealthTrendRow[]): {
-  order: HealthTrendKey[];
-  hiddenKeys: HealthTrendKey[];
-} {
-  const dividerIndex = rows.indexOf(HEALTH_TREND_DIVIDER);
-  const keysBefore = rows.slice(0, dividerIndex).filter(isHealthTrendKey);
-  const keysAfter = rows.slice(dividerIndex + 1).filter(isHealthTrendKey);
-
-  return { order: [...keysBefore, ...keysAfter], hiddenKeys: keysAfter };
-}
-
-/**
- * Moves one row within the settings list, remove-then-insert (legacy support).
- */
-export function applyHealthTrendRowMove(
-  rows: readonly HealthTrendRow[],
-  fromIndex: number,
-  toIndex: number
-): { order: HealthTrendKey[]; hiddenKeys: HealthTrendKey[] } {
-  const movedRow = rows[fromIndex];
-  if (movedRow === undefined || movedRow === HEALTH_TREND_DIVIDER) {
-    return splitHealthTrendRows(rows);
-  }
-
-  const remainingRows = rows.filter((_, index) => index !== fromIndex);
-  const insertIndex = Math.max(0, Math.min(toIndex, remainingRows.length));
-
-  return splitHealthTrendRows([
-    ...remainingRows.slice(0, insertIndex),
-    movedRow,
-    ...remainingRows.slice(insertIndex),
-  ]);
 }

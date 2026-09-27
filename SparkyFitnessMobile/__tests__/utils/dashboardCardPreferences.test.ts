@@ -1,9 +1,5 @@
 import { DASHBOARD_CARD_KEYS } from '../../src/constants/dashboardCards';
-import {
-  applyDashboardCardMove,
-  resolveDashboardCardOrder,
-  selectVisibleDashboardCards,
-} from '../../src/utils/dashboardCardPreferences';
+import { resolveDashboardCardOrder } from '../../src/utils/dashboardCardPreferences';
 
 describe('resolveDashboardCardOrder', () => {
   test('returns saved order verbatim when complete', () => {
@@ -38,35 +34,5 @@ describe('resolveDashboardCardOrder', () => {
   test('returns default order for null or empty input', () => {
     expect(resolveDashboardCardOrder([])).toEqual([...DASHBOARD_CARD_KEYS]);
     expect(resolveDashboardCardOrder(null)).toEqual([...DASHBOARD_CARD_KEYS]);
-  });
-});
-
-describe('selectVisibleDashboardCards', () => {
-  test('filters out hidden cards while maintaining order', () => {
-    const order = ['fasting', 'hydration', 'caffeine'] as const;
-    expect(selectVisibleDashboardCards(order, ['hydration'])).toEqual([
-      'fasting',
-      'caffeine',
-    ]);
-  });
-});
-
-describe('applyDashboardCardMove', () => {
-  test('moves a card from one position to another', () => {
-    const order = ['calorieRing', 'askSparky', 'hydration'] as const;
-    expect(applyDashboardCardMove(order, 0, 1)).toEqual([
-      'askSparky',
-      'calorieRing',
-      'hydration',
-    ]);
-  });
-
-  test('clamps out-of-bounds destination index', () => {
-    const order = ['calorieRing', 'askSparky', 'hydration'] as const;
-    expect(applyDashboardCardMove(order, 0, 99)).toEqual([
-      'askSparky',
-      'hydration',
-      'calorieRing',
-    ]);
   });
 });

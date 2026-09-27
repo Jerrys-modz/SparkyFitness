@@ -194,10 +194,6 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendOrder: (order: HealthTrendKey[]) => void;
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
-  setHealthTrendLayout: (
-    order: HealthTrendKey[],
-    hiddenKeys: HealthTrendKey[]
-  ) => void;
   setFoodSearchOwnershipFilter: (value: OwnershipFilter) => void;
   setFoodsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
   setMealsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
@@ -314,8 +310,6 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           }
           return { hiddenHealthTrends: Array.from(currentHidden) };
         }),
-      setHealthTrendLayout: (order, hiddenKeys) =>
-        set({ healthTrendOrder: order, hiddenHealthTrends: hiddenKeys }),
       setFoodSearchOwnershipFilter: (value) =>
         set({ foodSearchOwnershipFilter: value }),
       setFoodsLibraryOwnershipFilter: (value) =>
