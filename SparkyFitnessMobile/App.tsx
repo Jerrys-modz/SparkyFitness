@@ -90,6 +90,7 @@ import {
   SafeWhatsNew,
   SafeDailyNutritionDetails,
   SafeNutrientTrends,
+  SafeExerciseStatistics,
   SafeFamilyMembers,
   SafeFamilyDiary,
   SafeFamilyMealDetail,
@@ -647,6 +648,11 @@ function AppContent() {
             name="NutrientTrends"
             component={SafeNutrientTrends}
             options={createStackScreenOptions(t('screens.trends', { defaultValue: 'Trends' }), { headerBackTitle: t('navigation.details', { defaultValue: 'Details' }) })}
+          />
+          <Stack.Screen
+            name="ExerciseStatistics"
+            component={SafeExerciseStatistics}
+            options={createStackScreenOptions(t('screens.exerciseStatistics', { defaultValue: 'Exercise Statistics' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="ExerciseSearch"

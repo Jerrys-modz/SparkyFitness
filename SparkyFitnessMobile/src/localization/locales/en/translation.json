@@ -556,13 +556,16 @@
       "loadingRecentItems": "Loading recent items...",
       "failedRecentItems": "Failed to load recent items.",
       "noRecentItems": "No recent items yet",
-      "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access."
+      "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
+      "exerciseStatistics": "Exercise statistics",
+      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
     "progressPhotos": "Progress Photos",
     "progressPhotoCompare": "Compare",
-    "progressPhotoTimelapse": "Time-lapse"
+    "progressPhotoTimelapse": "Time-lapse",
+    "exerciseStatistics": "Exercise Statistics"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -787,7 +790,8 @@
     "quickAddDrinks": "Quick add",
     "logDrink": "Log {{drink}}",
     "perPress": "{{value}} {{unit}}",
-    "logDrinkFailed": "Could not log that drink"
+    "logDrinkFailed": "Could not log that drink",
+    "exerciseStatistics": "Statistics"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -5464,5 +5468,48 @@
     "useUsual": "Use my usual",
     "useAdjusted": "Use the adjusted suggestion",
     "seeAlternatives": "See alternatives"
+  },
+  "exerciseStatistics": {
+    "title": "Exercise Statistics",
+    "sets_one": "{{formattedCount}} set",
+    "sets_other": "{{formattedCount}} sets",
+    "stats": {
+      "workouts": "Workouts",
+      "volume": "Volume",
+      "reps": "Reps"
+    },
+    "setsPerMuscle": {
+      "title": "Sets per Muscle",
+      "subtitle": "Working sets on primary muscles in this range",
+      "none": "No working sets with a primary muscle yet."
+    },
+    "heatMap": {
+      "title": "Muscle Heat Map",
+      "subtitle": "Front and back, tinted by working sets",
+      "a11y": "Body figure tinted by working sets. The same counts are listed under Sets per Muscle.",
+      "tap": "Tap a muscle",
+      "fewer": "Fewer",
+      "more": "More",
+      "notOnFigure": "Not on the figure"
+    },
+    "analysis": {
+      "title": "More Analysis",
+      "recovery": "Last Trained",
+      "variety": "Exercise Variety",
+      "volume": "Volume by Muscle",
+      "exerciseCount_one": "{{count}} exercise",
+      "exerciseCount_other": "{{count}} exercises"
+    },
+    "recovery": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago"
+    },
+    "states": {
+      "loadFailed": "Failed to load exercise statistics",
+      "empty": "No workouts in this range",
+      "emptyHint": "Log a workout and its sets will show up here by muscle."
+    }
   }
 }

@@ -288,6 +288,9 @@ export const chatHistoryQueryKey = ['chatHistory'] as const;
 export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
   ['nutritionTrends', startDate, endDate] as const;
 
+export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
+  ['exerciseDashboard', startDate, endDate] as const;
+
 // --- Cycle & Pregnancy ---
 export const cycleSettingsQueryKey = ['cycleSettings'] as const;
 export const cycleLogQueryKey = (date: string) => ['cycleLog', date] as const;

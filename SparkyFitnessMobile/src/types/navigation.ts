@@ -179,6 +179,7 @@ export type RootStackParamList = {
     unit: string;
     goal?: number;
   };
+  ExerciseStatistics: undefined;
   FoodForm:
     | {
         mode: 'create-food';

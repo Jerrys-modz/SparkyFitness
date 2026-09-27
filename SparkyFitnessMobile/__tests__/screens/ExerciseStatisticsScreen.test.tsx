@@ -1,0 +1,193 @@
+import React from 'react';
+import { fireEvent, render } from '@testing-library/react-native';
+import type { ExerciseDashboardSummary } from '@workspace/shared';
+
+import ExerciseStatisticsScreen from '../../src/screens/ExerciseStatisticsScreen';
+import { useExerciseDashboard } from '../../src/hooks/useExerciseDashboard';
+import { usePreferences } from '../../src/hooks/usePreferences';
+import { initializeI18n } from '../../src/localization/i18n';
+import type { RootStackScreenProps } from '../../src/types/navigation';
+
+jest.mock('../../src/hooks/useExerciseDashboard', () => ({
+  useExerciseDashboard: jest.fn(),
+}));
+
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: jest.fn(() => ({
+    preferences: { default_weight_unit: 'kg' },
+  })),
+}));
+
+jest.mock('../../src/hooks/useScreenHeader', () => ({
+  useScreenHeader: () => null,
+}));
+
+jest.mock('../../src/services/nativeTabBarPreference', () => ({
+  useNativeIOSHeadersActive: () => false,
+}));
+
+jest.mock('../../src/components/ActiveWorkoutBar', () => ({
+  useActiveWorkoutBarPadding: () => 0,
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
+jest.mock('uniwind', () => ({
+  useCSSVariable: (keys: string | string[]) =>
+    Array.isArray(keys) ? keys.map(() => '#111827') : '#111827',
+}));
+
+jest.mock('../../src/components/Icon', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ name }: { name: string }) => <View testID={`icon-${name}`} />,
+  };
+});
+
+jest.mock('../../src/utils/dateUtils', () => ({
+  ...jest.requireActual('../../src/utils/dateUtils'),
+  getTodayDate: () => '2026-09-27',
+}));
+
+const mockUseExerciseDashboard = useExerciseDashboard as jest.MockedFunction<
+  typeof useExerciseDashboard
+>;
+const mockUsePreferences = usePreferences as jest.MockedFunction<
+  typeof usePreferences
+>;
+
+const DASHBOARD: ExerciseDashboardSummary = {
+  keyStats: { totalWorkouts: 6, totalVolume: 12000, totalReps: 480 },
+  muscleGroupVolume: { Chest: 5000, Quadriceps: 7000 },
+  muscleGroupSets: { Chest: 12, Abs: 3, Abdominals: 2, Neck: 4 },
+  consistencyData: {
+    currentStreak: 2,
+    longestStreak: 4,
+    weeklyFrequency: 3,
+    monthlyFrequency: 6,
+  },
+  recoveryData: { Chest: '2026-09-26', Quadriceps: '2026-09-20' },
+  exerciseVarietyData: { Chest: 3, Quadriceps: 1 },
+};
+
+type DashboardResult = ReturnType<typeof useExerciseDashboard>;
+
+function dashboardResult(
+  overrides: Partial<DashboardResult> = {}
+): DashboardResult {
+  return {
+    data: DASHBOARD,
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
+    ...overrides,
+  } as DashboardResult;
+}
+
+const props = {
+  navigation: {},
+  route: { key: 'ExerciseStatistics', name: 'ExerciseStatistics' },
+} as unknown as RootStackScreenProps<'ExerciseStatistics'>;
+
+describe('ExerciseStatisticsScreen', () => {
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+
+  beforeEach(() => {
+    mockUseExerciseDashboard.mockReset();
+    mockUseExerciseDashboard.mockReturnValue(dashboardResult());
+    mockUsePreferences.mockReturnValue({
+      preferences: { default_weight_unit: 'kg' },
+    } as ReturnType<typeof usePreferences>);
+  });
+
+  it('lists set counts per muscle, combining aliases the figure shares', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('Sets per Muscle')).toBeTruthy();
+    expect(screen.getAllByText('12 sets').length).toBeGreaterThan(0);
+    // Abs + Abdominals tint one region, so they are one row.
+    expect(screen.getByText('5 sets')).toBeTruthy();
+  });
+
+  it('keeps muscles the figure does not draw in their own list', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('Not on the figure')).toBeTruthy();
+    expect(screen.getAllByText('Neck')).toHaveLength(2);
+  });
+
+  it('shows a tapped muscle and its sets, and clears on a second tap', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('Tap a muscle')).toBeTruthy();
+
+    fireEvent.press(screen.getAllByTestId('muscle-figure-abdominals')[0]);
+    expect(screen.queryByText('Tap a muscle')).toBeNull();
+    expect(screen.getByText(' · 5 sets')).toBeTruthy();
+
+    fireEvent.press(screen.getAllByTestId('muscle-figure-abdominals')[0]);
+    expect(screen.getByText('Tap a muscle')).toBeTruthy();
+  });
+
+  it('opens one extra analysis section at a time', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.queryByText('Yesterday')).toBeNull();
+
+    fireEvent.press(screen.getByText('Last Trained'));
+    expect(screen.getByText('Yesterday')).toBeTruthy();
+    expect(screen.getByText('7 days ago')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Exercise Variety'));
+    expect(screen.queryByText('Yesterday')).toBeNull();
+    expect(screen.getByText('3 exercises')).toBeTruthy();
+  });
+
+  it('converts volume to the preferred weight unit', () => {
+    mockUsePreferences.mockReturnValue({
+      preferences: { default_weight_unit: 'lbs' },
+    } as ReturnType<typeof usePreferences>);
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('26,455 lbs')).toBeTruthy();
+  });
+
+  it('drives the query from the range control', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(mockUseExerciseDashboard).toHaveBeenLastCalledWith('30d');
+    fireEvent.press(screen.getByText('7d'));
+    expect(mockUseExerciseDashboard).toHaveBeenLastCalledWith('7d');
+  });
+
+  it('shows an empty state when the range has no workouts', () => {
+    mockUseExerciseDashboard.mockReturnValue(
+      dashboardResult({
+        data: {
+          ...DASHBOARD,
+          keyStats: { totalWorkouts: 0, totalVolume: 0, totalReps: 0 },
+          muscleGroupSets: {},
+        },
+      })
+    );
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('No workouts in this range')).toBeTruthy();
+    expect(screen.queryByText('Sets per Muscle')).toBeNull();
+  });
+
+  it('keeps showing cached stats when a refetch fails', () => {
+    mockUseExerciseDashboard.mockReturnValue(
+      dashboardResult({ isError: true })
+    );
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('Sets per Muscle')).toBeTruthy();
+    expect(screen.queryByText('Failed to load exercise statistics')).toBeNull();
+  });
+
+  it('shows an error state when the dashboard fails to load', () => {
+    mockUseExerciseDashboard.mockReturnValue(
+      dashboardResult({ data: undefined, isError: true })
+    );
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('Failed to load exercise statistics')).toBeTruthy();
+  });
+});
