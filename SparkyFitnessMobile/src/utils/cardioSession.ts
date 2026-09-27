@@ -14,6 +14,60 @@ export interface ProjectedRoute {
   end: { x: number; y: number };
 }
 
+type LatLon = Pick<GpsTrackPoint, 'lat' | 'lon'>;
+
+/**
+ * The fixes worth drawing, in order: finite, not 0,0 (what a sensor reports
+ * before it has a fix, not a place), and thinned to at most
+ * MAX_ROUTE_POINTS while keeping the last one.
+ */
+export function usableRoutePoints(points: readonly LatLon[]): LatLon[] {
+  const usable = points.filter(
+    (p) =>
+      Number.isFinite(p.lat) &&
+      Number.isFinite(p.lon) &&
+      !(p.lat === 0 && p.lon === 0)
+  );
+  const step = Math.ceil(usable.length / MAX_ROUTE_POINTS);
+  return usable.filter(
+    (_, index) => index % step === 0 || index === usable.length - 1
+  );
+}
+
+export interface RouteRegion {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
+/** Smallest span shown, about 200 m, so a short or stationary track has context. */
+const MIN_REGION_DELTA = 0.002;
+
+/**
+ * A map region around the route with a margin on every side, for the map's
+ * first frame. Returns null for fewer than two usable points.
+ */
+export function routeRegion(
+  points: readonly LatLon[],
+  margin = 1.3
+): RouteRegion | null {
+  const usable = usableRoutePoints(points);
+  if (usable.length < 2) return null;
+  const lats = usable.map((p) => p.lat);
+  const lons = usable.map((p) => p.lon);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLon + maxLon) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * margin, MIN_REGION_DELTA),
+    longitudeDelta: Math.max((maxLon - minLon) * margin, MIN_REGION_DELTA),
+  };
+}
+
 /**
  * Projects a GPS track into a box for drawing without map tiles. Longitude
  * is scaled by the cosine of the mean latitude so the shape is not stretched
@@ -21,24 +75,13 @@ export interface ProjectedRoute {
  * Returns null for fewer than two usable points.
  */
 export function projectRoute(
-  points: readonly Pick<GpsTrackPoint, 'lat' | 'lon'>[],
+  points: readonly LatLon[],
   width: number,
   height: number,
   padding = 12
 ): ProjectedRoute | null {
-  // 0,0 is what a sensor reports before it has a fix, not a place.
-  const usable = points.filter(
-    (p) =>
-      Number.isFinite(p.lat) &&
-      Number.isFinite(p.lon) &&
-      !(p.lat === 0 && p.lon === 0)
-  );
-  if (usable.length < 2) return null;
-
-  const step = Math.ceil(usable.length / MAX_ROUTE_POINTS);
-  const sampled = usable.filter(
-    (_, index) => index % step === 0 || index === usable.length - 1
-  );
+  const sampled = usableRoutePoints(points);
+  if (sampled.length < 2) return null;
 
   const meanLat = sampled.reduce((sum, p) => sum + p.lat, 0) / sampled.length;
   const lonScale = Math.cos((meanLat * Math.PI) / 180);
