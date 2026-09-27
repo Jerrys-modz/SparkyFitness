@@ -29,6 +29,7 @@ class WorkoutNotificationModule(reactContext: ReactApplicationContext) :
             val context = reactApplicationContext
             val manager = NotificationManagerCompat.from(context)
             if (!manager.areNotificationsEnabled()) {
+                cancelRestDeadline(context)
                 promise.resolve(null)
                 return
             }
