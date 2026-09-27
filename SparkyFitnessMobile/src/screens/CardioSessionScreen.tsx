@@ -118,6 +118,9 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
 
   const header = useScreenHeader({
     title: session.exerciseName,
+    // The native iOS header only takes a title through nativeTitle; without
+    // it the route's static "Cardio Session" shows instead.
+    nativeTitle: session.exerciseName,
     left: { kind: 'back' },
   });
 
