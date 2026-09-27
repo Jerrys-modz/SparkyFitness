@@ -43,8 +43,8 @@ function readFigure(name, svg) {
     if (!d) continue;
     paths.push({
       svgClass: attribute(tag, 'class'),
-      // Unclassed paths with a visible stroke are body (the male outlines,
-      // the female head, hands and feet). Everything else is a filled region.
+      // Unclassed paths with a visible stroke are body outlines (the male
+      // figure's front and back). Everything else is a filled region.
       outline: Number(attribute(tag, 'stroke-width') ?? '0') > 0,
       d: d.replace(/\s+/g, ' ').trim(),
     });
