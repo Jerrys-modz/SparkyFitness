@@ -251,6 +251,7 @@
     "title": "Notifications",
     "channels": {
       "medicationReminders": "Medication reminders",
+      "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
       "hydration": "Hydration reminders"
