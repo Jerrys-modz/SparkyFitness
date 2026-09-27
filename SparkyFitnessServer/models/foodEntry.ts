@@ -605,17 +605,19 @@ async function updateFoodEntry(
 async function updateFoodEntryTime(
   entryId: string,
   userId: string,
-  entryTime: string | null
+  entryTime: string | null,
+  client?: PoolClient
 ) {
-  const client = await getClient(userId);
+  const ownClient = !client;
+  const activeClient = client ?? (await getClient(userId));
   try {
-    const result = await client.query(
+    const result = await activeClient.query(
       'UPDATE food_entries SET entry_time = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
       [entryTime, entryId, userId]
     );
     return result.rows[0] || null;
   } finally {
-    client.release();
+    if (ownClient) activeClient.release();
   }
 }
 

@@ -1,4 +1,5 @@
 import { log } from '../config/logging.js';
+import { getClient } from '../db/poolManager.js';
 import measurementRepository from '../models/measurementRepository.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
@@ -2098,30 +2099,47 @@ async function updateWaterIntakeLogTime(
   if (!ownerId) {
     throw new Error('Water intake log entry not found or access denied');
   }
-  const updated = await measurementRepository.updateWaterIntakeLogTime(
-    logId,
-    authenticatedUserId,
-    loggedAt
-  );
-  if (updated?.food_entry_id) {
-    try {
+
+  const client = await getClient(authenticatedUserId);
+  try {
+    await client.query('BEGIN');
+
+    const updated = await measurementRepository.updateWaterIntakeLogTime(
+      logId,
+      authenticatedUserId,
+      loggedAt,
+      client
+    );
+    if (!updated) {
+      throw new Error('Water intake log entry not found');
+    }
+
+    if (updated.food_entry_id) {
       const tz = await loadUserTimezone(authenticatedUserId);
       const { hour, minute } = instantHourMinute(loggedAt, tz);
       const entryTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      await foodRepository.updateFoodEntryTime(
+      const foodUpdated = await foodRepository.updateFoodEntryTime(
         updated.food_entry_id,
         authenticatedUserId,
-        entryTime
+        entryTime,
+        client
       );
-    } catch (err) {
-      log(
-        'warn',
-        `Could not update linked food entry time ${updated.food_entry_id}:`,
-        err
-      );
+      if (!foodUpdated) {
+        throw new Error(
+          `Linked food entry ${updated.food_entry_id} not found or update failed`
+        );
+      }
     }
+
+    await client.query('COMMIT');
+    return updated;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    log('error', `Error updating water intake log time for ${logId}:`, err);
+    throw err;
+  } finally {
+    client.release();
   }
-  return updated;
 }
 
 export { updateWaterIntakeLogTime };
