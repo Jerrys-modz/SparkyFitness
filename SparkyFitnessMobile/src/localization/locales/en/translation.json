@@ -5491,7 +5491,9 @@
       "tap": "Tap a muscle",
       "fewer": "Fewer",
       "more": "More",
-      "notOnFigure": "Not on the figure"
+      "notOnFigure": "Not on the figure",
+      "male": "Male",
+      "female": "Female"
     },
     "analysis": {
       "title": "More Analysis",

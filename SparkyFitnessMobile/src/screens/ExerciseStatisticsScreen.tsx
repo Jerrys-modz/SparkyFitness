@@ -3,12 +3,18 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { setsForMuscleKey, unmappedMuscleSets } from '@workspace/shared';
+import {
+  defaultBodyFigure,
+  setsForMuscleKey,
+  unmappedMuscleSets,
+  type BodyFigure,
+} from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
 import { useCardioSessions } from '../hooks/useCardioSessions';
 import { usePreferences } from '../hooks/usePreferences';
+import { useProfile } from '../hooks/useProfile';
 import { formatLocalizedNumber } from '../localization';
 import { localizeExerciseTaxonomyValue } from '../localization/exerciseTaxonomy';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -96,6 +102,11 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const usesNativeHeader = useNativeIOSHeadersActive();
   const [range, setRange] = useState<TrendRange>('30d');
   const [pickedMuscle, setPickedMuscle] = useState<string | null>(null);
+  // Starts from the gender stored for BMR. Switching here is a view choice
+  // and is never written back to the profile.
+  const [chosenFigure, setChosenFigure] = useState<BodyFigure | null>(null);
+  const { profile } = useProfile();
+  const figure = chosenFigure ?? defaultBodyFigure(profile?.gender);
   const [openSection, setOpenSection] = useState<AnalysisSection | null>(null);
   const [view, setView] = useState<StatisticsView>('strength');
 
@@ -322,7 +333,31 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
               defaultValue: 'Front and back, tinted by working sets',
             })}
           </Text>
+          <View className="self-stretch mb-3">
+            <SegmentedControl
+              segments={[
+                {
+                  key: 'male',
+                  label: t('exerciseStatistics.heatMap.male', {
+                    defaultValue: 'Male',
+                  }),
+                },
+                {
+                  key: 'female',
+                  label: t('exerciseStatistics.heatMap.female', {
+                    defaultValue: 'Female',
+                  }),
+                },
+              ]}
+              activeKey={figure}
+              onSelect={(next) => {
+                setChosenFigure(next);
+                setPickedMuscle(null);
+              }}
+            />
+          </View>
           <MuscleFigure
+            figure={figure}
             setsByMuscle={setsByMuscle}
             selectedKey={pickedMuscle}
             onSelect={(key) =>

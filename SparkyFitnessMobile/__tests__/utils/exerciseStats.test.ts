@@ -4,7 +4,7 @@ import {
   muscleSetRows,
   rankedMuscleValues,
 } from '../../src/utils/exerciseStats';
-import { MUSCLE_FIGURE_PATHS } from '../../src/components/exerciseStats/muscleFigurePaths';
+import { MUSCLE_FIGURES } from '../../src/components/exerciseStats/muscleFigurePaths';
 
 describe('muscleSetRows', () => {
   it('combines names that tint the same figure region, largest first', () => {
@@ -52,19 +52,25 @@ describe('rankedMuscleValues', () => {
   });
 });
 
-describe('muscle figure paths', () => {
-  it('only uses region classes the shared map knows', () => {
+describe.each(['male', 'female'] as const)('%s figure paths', (figure) => {
+  const { paths, viewBox } = MUSCLE_FIGURES[figure];
+
+  it('draws every region class the shared map knows, and no others', () => {
     const classes = new Set(
-      MUSCLE_FIGURE_PATHS.map((path) => path.svgClass).filter(
-        (svgClass): svgClass is string => svgClass !== null
-      )
+      paths
+        .map((path) => path.svgClass)
+        .filter((svgClass): svgClass is string => svgClass !== null)
     );
     expect([...classes].sort()).toEqual(
       Object.keys(svgClassToSchemaName).sort()
     );
   });
 
-  it('has the front and back outlines', () => {
-    expect(MUSCLE_FIGURE_PATHS.filter((path) => path.outline)).toHaveLength(2);
+  it('has body to draw under the regions', () => {
+    expect(paths.some((path) => path.outline)).toBe(true);
+  });
+
+  it('matches the male figure height so strokes scale alike', () => {
+    expect(viewBox.split(' ')[3]).toBe('462');
   });
 });

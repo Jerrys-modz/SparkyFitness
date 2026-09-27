@@ -7,11 +7,9 @@ import {
   maxDrawnMuscleSets,
   setsForMuscleKey,
   svgClassToMuscleKey,
+  type BodyFigure,
 } from '@workspace/shared';
-import {
-  MUSCLE_FIGURE_PATHS,
-  MUSCLE_FIGURE_VIEWBOX,
-} from './muscleFigurePaths';
+import { MUSCLE_FIGURES } from './muscleFigurePaths';
 
 /** Heat levels 1-4, shared with the web heat map's legend. */
 export const MUSCLE_HEAT_COLORS = [
@@ -20,9 +18,6 @@ export const MUSCLE_HEAT_COLORS = [
   '#eab308',
   '#e11d48',
 ] as const;
-
-const [, , VIEWBOX_WIDTH, VIEWBOX_HEIGHT] =
-  MUSCLE_FIGURE_VIEWBOX.split(' ').map(Number);
 
 interface DrawnPath {
   d: string;
@@ -33,6 +28,7 @@ interface DrawnPath {
 }
 
 interface MuscleFigureProps {
+  figure: BodyFigure;
   setsByMuscle: Record<string, number>;
   selectedKey: string | null;
   onSelect: (key: string) => void;
@@ -40,10 +36,12 @@ interface MuscleFigureProps {
 }
 
 /**
- * Front and back body figure tinted by working sets on primary muscles.
+ * Front and back body figure, male or female, tinted by working sets on
+ * primary muscles.
  * Each region is its own <Path> so a tap knows which muscle it hit.
  */
 const MuscleFigure: React.FC<MuscleFigureProps> = ({
+  figure,
   setsByMuscle,
   selectedKey,
   onSelect,
@@ -60,7 +58,7 @@ const MuscleFigure: React.FC<MuscleFigureProps> = ({
 
   const paths = useMemo<DrawnPath[]>(() => {
     const max = maxDrawnMuscleSets(setsByMuscle);
-    const drawn = MUSCLE_FIGURE_PATHS.map((path) => {
+    const drawn = MUSCLE_FIGURES[figure].paths.map((path) => {
       const muscle = path.svgClass ? svgClassToMuscleKey(path.svgClass) : null;
       return {
         d: path.d,
@@ -77,19 +75,25 @@ const MuscleFigure: React.FC<MuscleFigureProps> = ({
       ...drawn.filter((path) => path.muscle !== 'lats'),
       ...drawn.filter((path) => path.muscle === 'lats'),
     ];
-  }, [setsByMuscle]);
+  }, [figure, setsByMuscle]);
+
+  const { viewBox } = MUSCLE_FIGURES[figure];
+  const [, , viewBoxWidth = 1, viewBoxHeight = 1] = viewBox
+    .split(' ')
+    .map(Number);
 
   return (
     <View
       style={{
         width: '100%',
         maxWidth: 420,
-        aspectRatio: VIEWBOX_WIDTH / VIEWBOX_HEIGHT,
+        aspectRatio: viewBoxWidth / viewBoxHeight,
       }}
       accessible
       accessibilityLabel={accessibilityLabel}
+      testID={`muscle-figure-${figure}-body`}
     >
-      <Svg width="100%" height="100%" viewBox={MUSCLE_FIGURE_VIEWBOX}>
+      <Svg width="100%" height="100%" viewBox={viewBox}>
         {paths.map((path, index) => {
           if (path.outline) {
             return (
