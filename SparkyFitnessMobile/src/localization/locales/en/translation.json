@@ -5487,7 +5487,7 @@
     "heatMap": {
       "title": "Muscle Heat Map",
       "subtitle": "Front and back, tinted by working sets",
-      "a11y": "Body figure tinted by working sets. The same counts are listed under Sets per Muscle.",
+      "a11y": "Body figure tinted by working sets. The same counts are listed under Sets per Muscle, where selecting a muscle highlights it here.",
       "tap": "Tap a muscle",
       "fewer": "Fewer",
       "more": "More",

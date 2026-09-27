@@ -43,8 +43,14 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
     : null;
 
   useEffect(() => {
-    if (!svgContent || !svgContainerRef.current) return;
     const container = svgContainerRef.current;
+    if (!container) return;
+    // While a newly picked figure loads, or if it fails, show nothing rather
+    // than leave the previous figure under the new selection.
+    if (!svgContent) {
+      container.replaceChildren();
+      return;
+    }
     container.innerHTML = svgContent;
 
     const svgElement = container.querySelector('svg');

@@ -89,7 +89,10 @@ const MuscleFigure: React.FC<MuscleFigureProps> = ({
         maxWidth: 420,
         aspectRatio: viewBoxWidth / viewBoxHeight,
       }}
+      // One image to a screen reader; its muscles are picked from the
+      // Sets per Muscle rows, which the label points to.
       accessible
+      accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}
       testID={`muscle-figure-${figure}-body`}
     >
