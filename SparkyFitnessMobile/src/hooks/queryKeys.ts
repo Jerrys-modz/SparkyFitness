@@ -291,6 +291,20 @@ export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
 export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
   ['exerciseDashboard', startDate, endDate] as const;
 
+export const cardioSessionsQueryKey = (
+  startDate: string,
+  endDate: string,
+  unitSystem: 'metric' | 'imperial'
+) => ['cardioSessions', startDate, endDate, unitSystem] as const;
+
+export const cardioSessionDetailQueryKey = (
+  part: 'entry' | 'gps' | 'hrZones',
+  exerciseEntryId: string
+) => ['cardioSessionDetail', part, exerciseEntryId] as const;
+
+export const heartRateSamplesQueryKey = (startDate: string, endDate: string) =>
+  ['heartRateSamples', startDate, endDate] as const;
+
 // --- Cycle & Pregnancy ---
 export const cycleSettingsQueryKey = ['cycleSettings'] as const;
 export const cycleLogQueryKey = (date: string) => ['cycleLog', date] as const;

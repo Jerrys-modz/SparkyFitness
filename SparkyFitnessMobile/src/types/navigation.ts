@@ -1,6 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
+  ExerciseActivityQueryItem,
   ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
@@ -180,6 +181,10 @@ export type RootStackParamList = {
     goal?: number;
   };
   ExerciseStatistics: undefined;
+  CardioSession: {
+    session: ExerciseActivityQueryItem;
+    distanceUnit: 'km' | 'miles';
+  };
   FoodForm:
     | {
         mode: 'create-food';
