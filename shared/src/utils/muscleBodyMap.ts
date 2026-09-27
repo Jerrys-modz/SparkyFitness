@@ -100,3 +100,17 @@ export function heatLevel(count: number, max: number): number {
   if (t <= 0.75) return 3;
   return 4;
 }
+
+/** Which drawn body the heat map shows. Both use the same region classes. */
+export type BodyFigure = "male" | "female";
+
+/**
+ * The figure to start on, from the gender stored for BMR. Only a stored
+ * female picks the female figure; the choice on screen is never written
+ * back to the profile.
+ */
+export function defaultBodyFigure(
+  gender: string | null | undefined,
+): BodyFigure {
+  return gender?.trim().toLowerCase() === "female" ? "female" : "male";
+}

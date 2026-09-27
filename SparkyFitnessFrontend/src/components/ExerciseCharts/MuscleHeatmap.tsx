@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBodyMapSvgQuery } from '@/hooks/Exercises/useExercises';
+import { useProfileQuery } from '@/hooks/Settings/useProfile';
+import { useAuth } from '@/hooks/useAuth';
 import {
+  defaultBodyFigure,
   heatLevel,
   maxDrawnMuscleSets,
   setsForMuscleKey,
   svgClassToMuscleKey,
   unmappedMuscleSets,
+  type BodyFigure,
 } from '@workspace/shared';
 import './MuscleHeatmap.css';
 
@@ -23,7 +27,13 @@ interface PickedMuscle {
 export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
   const { t } = useTranslation();
   const svgContainerRef = useRef<HTMLDivElement>(null);
-  const { data: svgContent } = useBodyMapSvgQuery();
+  const { user } = useAuth();
+  const { data: profile } = useProfileQuery(user?.id);
+  // Starts from the gender stored for BMR. Switching here is a view choice
+  // and is never written back to the profile.
+  const [chosenFigure, setChosenFigure] = useState<BodyFigure | null>(null);
+  const figure = chosenFigure ?? defaultBodyFigure(profile?.gender);
+  const { data: svgContent } = useBodyMapSvgQuery(figure);
   const [pickedKey, setPickedKey] = useState<string | null>(null);
   const maxSets = maxDrawnMuscleSets(setsByMuscle);
   const extra = unmappedMuscleSets(setsByMuscle);
@@ -109,6 +119,32 @@ export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center">
+          <div
+            role="group"
+            aria-label={t('muscleHeatmap.figure', 'Body figure')}
+            className="mb-3 inline-flex rounded-md border bg-muted p-0.5 text-xs"
+          >
+            {(['male', 'female'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={figure === option}
+                onClick={() => {
+                  setChosenFigure(option);
+                  setPickedKey(null);
+                }}
+                className={`rounded px-3 py-1 font-medium ${
+                  figure === option
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {option === 'male'
+                  ? t('muscleHeatmap.male', 'Male')
+                  : t('muscleHeatmap.female', 'Female')}
+              </button>
+            ))}
+          </div>
           <div
             ref={svgContainerRef}
             className="muscle-heatmap w-full flex justify-center overflow-hidden max-w-[280px]"
