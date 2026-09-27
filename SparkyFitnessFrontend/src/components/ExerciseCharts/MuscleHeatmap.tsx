@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBodyMapSvgQuery } from '@/hooks/Exercises/useExercises';
 import { useProfileQuery } from '@/hooks/Settings/useProfile';
-import { useAuth } from '@/hooks/useAuth';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 import {
   defaultBodyFigure,
   heatLevel,
@@ -27,8 +27,10 @@ interface PickedMuscle {
 export const MuscleHeatmap = ({ setsByMuscle }: MuscleHeatmapProps) => {
   const { t } = useTranslation();
   const svgContainerRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
-  const { data: profile } = useProfileQuery(user?.id);
+  // The report can be a family member's, so the figure starts from the
+  // viewed user's profile, not the signed-in one.
+  const { activeUserId } = useActiveUser();
+  const { data: profile } = useProfileQuery(activeUserId ?? undefined);
   // Starts from the gender stored for BMR. Switching here is a view choice
   // and is never written back to the profile.
   const [chosenFigure, setChosenFigure] = useState<BodyFigure | null>(null);

@@ -9,8 +9,9 @@ jest.mock('react-i18next', () => ({
     t: (_key: string, defaultValue?: string) => defaultValue,
   }),
 }));
-jest.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'user-1' } }),
+let mockActiveUserId = 'user-1';
+jest.mock('@/contexts/ActiveUserContext', () => ({
+  useActiveUser: () => ({ activeUserId: mockActiveUserId }),
 }));
 jest.mock('@/hooks/Settings/useProfile', () => ({
   useProfileQuery: jest.fn(),
@@ -27,6 +28,7 @@ const SVG = (figure: string) =>
 
 describe('MuscleHeatmap', () => {
   beforeEach(() => {
+    mockActiveUserId = 'user-1';
     mockSvg.mockImplementation((figure: string) => ({ data: SVG(figure) }));
   });
 
@@ -64,5 +66,15 @@ describe('MuscleHeatmap', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Female' }));
     expect(container.querySelector('svg[data-figure]')).toBeNull();
+  });
+
+  it("starts on the viewed family member's figure, not the signed-in user's", () => {
+    mockActiveUserId = 'family-member';
+    mockProfile.mockImplementation((userId?: string) => ({
+      data: { gender: userId === 'family-member' ? 'female' : 'male' },
+    }));
+    render(<MuscleHeatmap setsByMuscle={{ Chest: 4 }} />);
+    expect(mockProfile).toHaveBeenLastCalledWith('family-member');
+    expect(mockSvg).toHaveBeenLastCalledWith('female');
   });
 });
