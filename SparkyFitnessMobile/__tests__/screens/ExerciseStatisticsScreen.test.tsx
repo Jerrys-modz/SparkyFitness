@@ -13,6 +13,11 @@ jest.mock('../../src/hooks/useExerciseDashboard', () => ({
   useExerciseDashboard: jest.fn(),
 }));
 
+let mockGender: 'male' | 'female' | null = null;
+jest.mock('../../src/hooks/useProfile', () => ({
+  useProfile: () => ({ profile: { gender: mockGender } }),
+}));
+
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
 }));
@@ -141,6 +146,7 @@ describe('ExerciseStatisticsScreen', () => {
     mockUseExerciseDashboard.mockReset();
     mockUseExerciseDashboard.mockReturnValue(dashboardResult());
     navigation.navigate.mockReset();
+    mockGender = null;
     mockUseCardioSessions.mockReturnValue(cardioResult());
     mockUsePreferences.mockReturnValue({
       preferences: { default_weight_unit: 'kg' },
@@ -171,6 +177,28 @@ describe('ExerciseStatisticsScreen', () => {
 
     fireEvent.press(screen.getAllByTestId('muscle-figure-abdominals')[0]);
     expect(screen.getByText('Tap a muscle')).toBeTruthy();
+  });
+
+  it('starts on the figure for the stored gender', () => {
+    mockGender = 'female';
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByTestId('muscle-figure-female-body')).toBeTruthy();
+    expect(screen.queryByTestId('muscle-figure-male-body')).toBeNull();
+  });
+
+  it('switches figures without clearing the counts', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByTestId('muscle-figure-male-body')).toBeTruthy();
+
+    fireEvent.press(screen.getAllByTestId('muscle-figure-abdominals')[0]);
+    expect(screen.getByText(' · 5 sets')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Female'));
+    expect(screen.getByTestId('muscle-figure-female-body')).toBeTruthy();
+    // The pick belongs to the figure it was made on.
+    expect(screen.getByText('Tap a muscle')).toBeTruthy();
+    fireEvent.press(screen.getAllByTestId('muscle-figure-abdominals')[0]);
+    expect(screen.getByText(' · 5 sets')).toBeTruthy();
   });
 
   it('opens one extra analysis section at a time', () => {
