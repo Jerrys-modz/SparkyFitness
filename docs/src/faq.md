@@ -113,8 +113,27 @@ https://developer.apple.com/documentation/healthkit/protecting-user-privacy
     node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
     ```
 
+*   **Server refuses to start: "BETTER_AUTH_SECRET is still set to the example placeholder"**
+    Your `.env` still has the example value from `.env.example` or `.env.simple.example`. Every install that copied the template shares that value, so the server requires one generated for it. Replace it with a generated secret and restart:
+    ```bash
+    openssl rand -base64 32
+    ```
+    Alternatively, using Node:
+    ```bash
+    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+    ```
+    This signs everyone out. Users with two-factor authentication (authenticator app or backup codes) can no longer complete 2FA until it is reset; see the next entry. Passkeys, passwords, and all fitness and health data are unaffected.
+
 *   **Locked out due to MFA/2FA issues or invalid recovery codes**
-    If you are locked out of your account, you can disable MFA directly via your database. Connect to your database container (`psql`) and run:
+    Resetting MFA turns 2FA off for that account, so the user can sign in with their password and set it up again. Use the first option that applies:
+
+    1. **An admin can still sign in:** open **Admin > User Management** and choose **Reset MFA** for the locked-out user.
+    2. **The only admin is locked out:** make a temporary admin, then use option 1.
+        - Sign up a new account. If sign-ups are off, set `SPARKY_FITNESS_DISABLE_SIGNUP=false` for now.
+        - Set `SPARKY_FITNESS_ADMIN_EMAIL` to the new account's email and restart; the server promotes it to admin on startup.
+        - If `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true` hides password sign-in, also set `SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true`.
+        - When you are back in as your original admin, delete the temporary account and revert those variables. Removing `SPARKY_FITNESS_ADMIN_EMAIL` alone does not demote the account.
+    3. **No way into the app:** clear MFA directly in the database. Connect to your database container (`psql`) and run the following. It turns MFA off for **every** user:
     ```sql
     -- 1. Disable MFA flags on users
     UPDATE "user" 

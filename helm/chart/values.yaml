@@ -26,6 +26,8 @@ global:
   # -- Master toggle: create ServiceAccounts for all services
   serviceAccount:
     create: true
+  # -- Cluster domain for in-cluster DNS resolution
+  clusterDomain: "cluster.local"
 
 # ========================== 2. APP CONFIGURATION =============================
 # Feature toggles, non-secret runtime settings.
