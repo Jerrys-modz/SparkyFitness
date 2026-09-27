@@ -41,7 +41,7 @@ fi
 export NGINX_RESOLVER=$(echo "${NGINX_RESOLVER}" | awk '{
     for (i = 1; i <= NF; i++) {
         val = $i;
-        sub(/%.*$/, "", val);
+        sub(/%[^]: ]*/, "", val);
         if (val ~ /:.*:/ && val !~ /^\[/) {
             val = "[" val "]";
         }
