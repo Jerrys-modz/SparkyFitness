@@ -5,7 +5,11 @@ import Toast from 'react-native-toast-message';
 import { addLog } from './LogService';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
-import { playRestCompleteSound, willPlayRestCompleteSound } from './sounds';
+import {
+  isBackgroundRestChimeEnabled,
+  playRestCompleteSound,
+  willPlayRestCompleteSound,
+} from './sounds';
 import { ExactAlarmBridge } from './ExactAlarmBridge';
 import {
   useAppPreferencesStore,
@@ -360,7 +364,9 @@ export async function scheduleRestNotification(
           content?.title ??
           notificationCopy('notifications.rest.title', 'Rest complete'),
         body: content?.body ?? exerciseName,
-        sound: true,
+        // With the background chime on, the chime is the sound and the ping
+        // only shows the banner, so the two never ding together.
+        sound: !isBackgroundRestChimeEnabled(),
         categoryIdentifier: REST_COMPLETE_CATEGORY,
         // At the default `active` level a Focus mode delivers the alert
         // silently, which defeats the point of a rest timer. Needs the

@@ -180,6 +180,11 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
         // The localized InfoPlist permission strings come from `locales`; this
         // allows the generated app metadata to use the selected localization.
         CFBundleAllowMixedLocalizations: true,
+        // Lets the opt-in "Play through silent mode" rest chime (#2506) keep a
+        // silent track playing during a rest, so the chime still sounds with
+        // the app in the background. Nothing plays in the background unless
+        // that setting is on and a rest is running.
+        UIBackgroundModes: ['audio'],
       },
       entitlements: {
         'com.apple.security.application-groups': [getIosAppGroup()],
@@ -203,8 +208,10 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       ...(config.plugins ?? []),
       'expo-image',
       [
-        // Foreground playback only (rest-timer chime): no mic permission, no
-        // background-audio mode, no Android record/foreground-service perms.
+        // No mic permission and no Android record/foreground-service perms.
+        // iOS background audio for the rest chime comes from `UIBackgroundModes`
+        // above; the plugin flag would also add Android's media-playback
+        // foreground service, which the chime doesn't use.
         'expo-audio',
         {
           microphonePermission: false,
