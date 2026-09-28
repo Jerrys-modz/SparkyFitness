@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   schedule: vi.fn(),
@@ -7,10 +7,12 @@ const mocks = vi.hoisted(() => ({
   providerSyncs: vi.fn(),
   cleanupSessions: vi.fn(),
   deleteExpiredTickets: vi.fn(),
+  demoReset: vi.fn(),
+  log: vi.fn(),
 }));
 
 vi.mock('node-cron', () => ({ default: { schedule: mocks.schedule } }));
-vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+vi.mock('../config/logging.js', () => ({ log: mocks.log }));
 vi.mock('../auth.js', () => ({ cleanupSessions: mocks.cleanupSessions }));
 vi.mock('../services/passkeyTicketService.js', () => ({
   deleteExpiredTickets: mocks.deleteExpiredTickets,
@@ -24,11 +26,18 @@ vi.mock('../services/openFoodFactsAutoSyncScheduler.js', () => ({
 vi.mock('../services/providerSyncScheduler.js', () => ({
   startProviderSyncSchedulers: mocks.providerSyncs,
 }));
+vi.mock('../services/demoSeedService.js', () => ({
+  scheduleDemoMidnightReset: mocks.demoReset,
+}));
 
 import { scheduleBackgroundJobs } from '../services/backgroundJobScheduler.js';
 
 beforeEach(() => {
   vi.resetAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('scheduleBackgroundJobs', () => {
@@ -37,6 +46,7 @@ describe('scheduleBackgroundJobs', () => {
     expect(mocks.backups).toHaveBeenCalledExactlyOnceWith();
     expect(mocks.openFoodFacts).toHaveBeenCalledExactlyOnceWith();
     expect(mocks.providerSyncs).toHaveBeenCalledExactlyOnceWith();
+    expect(mocks.demoReset).toHaveBeenCalledExactlyOnceWith();
     expect(mocks.schedule).toHaveBeenCalledExactlyOnceWith(
       '0 3 * * *',
       expect.any(Function)
@@ -57,6 +67,31 @@ describe('scheduleBackgroundJobs', () => {
     await registration;
     expect(mocks.providerSyncs).toHaveBeenCalledOnce();
   });
+
+  it('starts no jobs on an instance with scheduled jobs disabled', async () => {
+    vi.stubEnv('SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS', 'true');
+    await scheduleBackgroundJobs();
+    expect(mocks.schedule).not.toHaveBeenCalled();
+    expect(mocks.backups).not.toHaveBeenCalled();
+    expect(mocks.openFoodFacts).not.toHaveBeenCalled();
+    expect(mocks.providerSyncs).not.toHaveBeenCalled();
+    expect(mocks.demoReset).not.toHaveBeenCalled();
+    expect(mocks.log).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining('SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true')
+    );
+  });
+
+  it.each(['false', ''])(
+    'starts every job when the setting is %j',
+    async (value) => {
+      vi.stubEnv('SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS', value);
+      await scheduleBackgroundJobs();
+      expect(mocks.backups).toHaveBeenCalledOnce();
+      expect(mocks.providerSyncs).toHaveBeenCalledOnce();
+      expect(mocks.demoReset).toHaveBeenCalledOnce();
+    }
+  );
 
   it('runs session and passkey ticket cleanup nightly', async () => {
     mocks.deleteExpiredTickets.mockResolvedValue(2);

@@ -24,7 +24,6 @@ import {
 import {
   seedDemoUser,
   purgeDemoUserIfExists,
-  scheduleDemoMidnightReset,
 } from './services/demoSeedService.js';
 import { fromNodeHeaders } from 'better-auth/node';
 import foodRoutes from './routes/foodRoutes.js';
@@ -783,7 +782,6 @@ app.get('/api/api-docs', (_req, res) => res.redirect('/api/api-docs/swagger'));
   if (process.env.SPARKY_FITNESS_DEMO_MODE === 'true') {
     try {
       await seedDemoUser();
-      scheduleDemoMidnightReset();
     } catch (err) {
       log('error', '[DEMO] Demo mode initialization failed:', err);
     }

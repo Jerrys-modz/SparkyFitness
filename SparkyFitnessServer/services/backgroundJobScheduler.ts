@@ -4,7 +4,9 @@ import { scheduleOpenFoodFactsAutoSyncOnStartup } from './openFoodFactsAutoSyncS
 import { startProviderSyncSchedulers } from './providerSyncScheduler.js';
 import { cleanupSessions } from '../auth.js';
 import { deleteExpiredTickets } from './passkeyTicketService.js';
+import { scheduleDemoMidnightReset } from './demoSeedService.js';
 import { log } from '../config/logging.js';
+import { scheduledJobsDisabled } from '../utils/scheduledJobs.js';
 
 // Backup scheduling is handled by services/backupScheduler.ts
 // Session cleanup scheduling
@@ -32,8 +34,16 @@ const scheduleSessionCleanup = async () => {
 
 /** Registers every scheduled background job after the database is initialized. */
 export async function scheduleBackgroundJobs(): Promise<void> {
+  if (scheduledJobsDisabled()) {
+    log(
+      'info',
+      '[CRON] Scheduled jobs disabled on this instance (SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true).'
+    );
+    return;
+  }
   scheduleBackupsOnStartup();
   await scheduleOpenFoodFactsAutoSyncOnStartup();
   scheduleSessionCleanup();
   startProviderSyncSchedulers();
+  scheduleDemoMidnightReset();
 }

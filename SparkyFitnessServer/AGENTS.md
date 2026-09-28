@@ -58,7 +58,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 
 - `index.ts` - real dev entrypoint; loads env, secrets, and preflight checks before booting the app
 - `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, startup, graceful shutdown
-- `services/backgroundJobScheduler.ts` - starts every scheduled background job at startup; provider syncs are listed in `services/providerSyncScheduler.ts`
+- `services/backgroundJobScheduler.ts` - starts every scheduled background job at startup, including the demo reset; provider syncs are listed in `services/providerSyncScheduler.ts`; `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true` skips them all
 - `auth.ts` - Better Auth configuration, plugins, session behavior, SSO provider syncing
 - `routes/` - primary HTTP route surface
 - `routes/v2/` - newer typed route surface; pair these changes with `schemas/`
