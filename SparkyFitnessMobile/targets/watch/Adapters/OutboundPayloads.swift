@@ -90,6 +90,9 @@ enum OutboundPayloads {
         if let reps = completedSet.reps {
             payload["reps"] = reps
         }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        payload["completedAt"] = formatter.string(from: completedSet.completedAt)
         return payload
     }
 
@@ -111,6 +114,9 @@ enum OutboundPayloads {
         // means this batch has no energy reading at all.
         if let kcal = batch.activeEnergyKcal {
             payload["activeEnergyKcal"] = kcal
+        }
+        if let minutes = batch.durationMinutes, minutes > 0 {
+            payload["durationMinutes"] = minutes
         }
         return payload
     }

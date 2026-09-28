@@ -51,8 +51,8 @@ describe('reportService: interval/WOD format strength PR exclusion', () => {
     expect(report.keyStats.totalVolume).toBe(expectedVolume);
     expect(report.keyStats.totalReps).toBe(35);
     expect(report.keyStats.totalWorkouts).toBe(1);
-    expect(report.muscleGroupVolume['quadriceps']).toBe(expectedVolume);
-    expect(report.muscleGroupVolume['shoulders']).toBe(expectedVolume);
+    expect(report.muscleGroupVolume['Quadriceps']).toBe(expectedVolume);
+    expect(report.muscleGroupVolume['Shoulders']).toBe(expectedVolume);
   });
 
   it('excludes Tabata, EMOM, and For Time formats from PR calculations', async () => {

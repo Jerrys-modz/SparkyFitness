@@ -207,6 +207,23 @@ describe('chatService.testAiServiceConnection', () => {
     });
   });
 
+  it('dispatches a connection test for perplexity with default model resolution', async () => {
+    mockDispatch.mockResolvedValue(okDispatch);
+
+    const result = await chatService.testAiServiceConnection(
+      { service_type: 'perplexity', api_key: 'pplx-key' },
+      USER_ID,
+      false
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(mockDispatch.mock.calls[0][0]).toMatchObject({
+      provider: { service_type: 'perplexity', api_key: 'pplx-key' },
+      temperature: 0,
+      timeoutMs: 15000,
+    });
+  });
+
   it('passes through api_key_missing for a cloud type with no id and no key', async () => {
     mockDispatch.mockResolvedValue({
       ok: false,

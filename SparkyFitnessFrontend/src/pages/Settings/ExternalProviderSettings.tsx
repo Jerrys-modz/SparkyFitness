@@ -57,6 +57,8 @@ export interface ExternalDataProvider {
   oura_token_expires?: string | null;
   polar_last_sync_at?: string | null;
   polar_token_expires?: string | null;
+  coros_last_sync_at?: string | null;
+  coros_token_expires?: string | null;
   hevy_last_sync_at?: string | null;
   hevy_connect_status?: 'connected' | 'disconnected';
   liftosaur_last_sync_at?: string | null;

@@ -2078,6 +2078,23 @@ describe('_reconcileExerciseEntrySetsWithClient', () => {
     expect(inserts).toHaveLength(1);
   });
 
+  it('writes rir on in-place updates of existing sets', async () => {
+    const client = makeClient([1]);
+    await reconcile(client, 'entry-a', [
+      { id: 1, set_number: 1, reps: 8, weight: 100, rir: 2 },
+    ]);
+
+    const update = client.calls.find(({ sql }) =>
+      /UPDATE exercise_entry_sets/.test(sql)
+    );
+    expect(update).toBeDefined();
+    expect(update!.sql).toMatch(/rir = \$12/);
+    expect(update!.params[11]).toBe(2);
+    // id and entry id follow the new column.
+    expect(update!.params[12]).toBe(1);
+    expect(update!.params[13]).toBe('entry-a');
+  });
+
   it('removes existing sets that are not referenced', async () => {
     const client = makeClient([1, 2, 3]);
     await reconcile(client, 'entry-a', [
@@ -2317,8 +2334,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
     sets: [],
   };
 
-  // Base columns (31) + telemetry columns (40) = 71; the id column, when a
-  // client uuid is supplied, is appended as the 72nd placeholder.
+  // Base columns (31) + telemetry columns (40) + record_timezone = 72; the id
+  // column, when a client uuid is supplied, is appended as the 73rd placeholder.
   it('inserts the client-provided uuid into the id column as the last placeholder', async () => {
     const client = makeClient();
     await create(
@@ -2333,12 +2350,12 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).toContain('$72');
+    expect(insert!.sql).toContain('$73');
     expect(insert!.sql).toContain('modality');
     expect(insert!.sql).toContain(', id)');
-    // $72 is the last param — the client uuid.
-    expect(insert!.params).toHaveLength(72);
-    expect(insert!.params[71]).toBe('client-uuid-1');
+    // $73 is the last param — the client uuid.
+    expect(insert!.params).toHaveLength(73);
+    expect(insert!.params[72]).toBe('client-uuid-1');
   });
 
   it('omits the id column when no id is provided (defaults to gen_random_uuid)', async () => {
@@ -2355,8 +2372,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).not.toContain('$72');
-    expect(insert!.sql).not.toMatch(/modality, id\)/);
-    expect(insert!.params).toHaveLength(71);
+    expect(insert!.sql).not.toContain('$73');
+    expect(insert!.sql).not.toMatch(/record_timezone, id\)/);
+    expect(insert!.params).toHaveLength(72);
   });
 });

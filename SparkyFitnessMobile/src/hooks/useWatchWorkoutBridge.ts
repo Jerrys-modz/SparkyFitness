@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchHeartRateBatchPayload,
-  type WatchHeartRateSamplePayload,
   type WatchWorkoutStopPayload,
 } from '../../modules/watch-connectivity';
 import {
@@ -17,38 +17,24 @@ import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { normalizeDate } from '../utils/dateUtils';
 import {
+  attributeWatchBatch,
+  boundedWatchCompletedAt,
+} from '../utils/watchTelemetryAttribution';
+import {
   buildWorkoutCelebration,
   type WorkoutCelebration,
 } from '../utils/workoutCelebration';
+import {
+  mergeWatchTelemetry,
+  readWatchTelemetry,
+  setWatchTelemetryAccountSwitchHandler,
+  settleWatchTelemetryPurges,
+  writeWatchTelemetry,
+  type WatchTelemetrySessionState,
+} from '../utils/watchTelemetryPersistence';
+import { getActiveServerConfigId } from '../services/storage';
 
-/**
- * Heart rate and energy the watch reported for ONE live-workout session,
- * keyed by exercise_entries id.
- *
- * The samples are NOT cleared by a flush: every field the server derives
- * from a post (avg, max, calories, the zone rows it replaces) is computed
- * from the whole payload, so re-posting the accumulated series overwrites the
- * earlier, shorter one with a strictly better answer. Posting only the part
- * that arrived since would instead clobber an exercise's avg HR with its last
- * minute's.
- */
-interface SessionTelemetry {
-  samples: Map<string, WatchHeartRateSamplePayload[]>;
-  // Summed from the per-batch deltas the watch sends. Separate from the
-  // samples because a batch can carry energy with no samples, or samples with
-  // no energy — HealthKit permissions are granted per type.
-  energy: Map<string, number>;
-  // `transferUserInfo` can redeliver, and energy is a delta, so applying a
-  // batch twice would double calories.
-  handledBatchClientIds: Set<string>;
-  // Captured when the session goes live so a flush after the store is
-  // cleared can still invalidate the diary for the right day.
-  entryDate: string | null;
-  // Holds something the server has not accepted yet.
-  unposted: boolean;
-  // When the phone stopped considering this session live; null while live.
-  endedAt: number | null;
-}
+type SessionTelemetry = WatchTelemetrySessionState;
 
 // Long enough for the watch's queued final drain to land after the phone has
 // moved on (it rides `transferUserInfo`, which can take minutes when the
@@ -62,15 +48,25 @@ const MAX_TRACKED_SESSIONS = 3;
 // so the same telemetry will be accepted later: an expired session (the user
 // signs back in), a timeout, or a rate limit from `authenticate`.
 const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
+// Delays between restore attempts after the saved buffer could not be read.
+// Every batch stays in the native queue until then, so this only decides how
+// soon the phone catches up. The last delay repeats.
+const RESTORE_RETRY_DELAYS_MS = [2_000, 10_000, 30_000, 60_000, 300_000];
+// How long restore waits for the workout store to load before going on
+// without it. zustand never reports a load that failed as finished.
+const HYDRATION_WAIT_MS = 10_000;
 
 function createSessionTelemetry(entryDate: string | null): SessionTelemetry {
   return {
     samples: new Map(),
     energy: new Map(),
+    durations: new Map(),
+    durationFromTimeline: false,
     handledBatchClientIds: new Set(),
     entryDate,
     unposted: false,
     endedAt: null,
+    attribution: null,
   };
 }
 
@@ -78,6 +74,46 @@ function entryDateOf(
   session: { entry_date?: string | null } | null | undefined
 ): string | null {
   return session?.entry_date != null ? normalizeDate(session.entry_date) : null;
+}
+
+/** Exercise entries this phone has already bound to the session. */
+function phoneOwnedEntryIds(
+  session: SessionTelemetry,
+  liveExercises: { id: string }[] | undefined
+): Set<string> {
+  const ids = new Set<string>();
+  for (const id of session.samples.keys()) ids.add(id);
+  for (const id of session.energy.keys()) ids.add(id);
+  for (const id of session.durations.keys()) ids.add(id);
+  for (const step of session.attribution?.steps ?? []) {
+    ids.add(step.exerciseEntryId);
+  }
+  for (const exercise of liveExercises ?? []) ids.add(exercise.id);
+  return ids;
+}
+
+/** Set order → the exercise entry each set belongs to. */
+function attributionSteps(state: {
+  session: {
+    type?: string;
+    exercises?: { id: string; sets: { id: number | string }[] }[];
+  } | null;
+  steps: { setId: string }[];
+}): { setId: string; exerciseEntryId: string }[] {
+  const session = state.session;
+  if (session == null || session.type !== 'preset' || !session.exercises) {
+    return [];
+  }
+  const entryBySet = new Map<string, string>();
+  for (const exercise of session.exercises) {
+    for (const set of exercise.sets) {
+      entryBySet.set(String(set.id), exercise.id);
+    }
+  }
+  return state.steps.flatMap((step) => {
+    const exerciseEntryId = entryBySet.get(step.setId);
+    return exerciseEntryId ? [{ setId: step.setId, exerciseEntryId }] : [];
+  });
 }
 
 /**
@@ -141,6 +177,22 @@ export function useWatchWorkoutBridge(
   const flushHeartRateRef = useRef<() => Promise<void>>(() =>
     Promise.resolve()
   );
+  // False until the saved buffer has been merged. A batch for a session that
+  // is not live yet has to stay in the native queue so that replay can apply
+  // it; acking it here drops samples the restore has not loaded.
+  const restoredRef = useRef(false);
+  // Active server config that owns the buffer. Writes close over it so an
+  // account switch cannot land this snapshot in the next account's key.
+  const ownerRef = useRef<string | null>(null);
+  const [accountEpoch, setAccountEpoch] = useState(0);
+  // Set while replay applies the native queue. Batches then collect their
+  // acks here instead of each writing the whole buffer and acking alone;
+  // replay writes once and acks them together.
+  const replayRef = useRef<{
+    stored: string[];
+    dropped: string[];
+    flush: boolean;
+  } | null>(null);
 
   // Drops ended sessions that have nothing left to post and are past the
   // retention window, then the oldest ended ones beyond the cap. A live
@@ -203,7 +255,14 @@ export function useWatchWorkoutBridge(
         state.updateSetField(payload.setId, patch);
       }
 
-      state.completeSet(payload.setId);
+      state.completeSet(
+        payload.setId,
+        boundedWatchCompletedAt(
+          payload.completedAt,
+          state.startedAt,
+          Date.now()
+        )
+      );
       // Flushed immediately rather than left to the debounced autosave: the
       // phone screen that normally drives that debounce may not even be
       // open while the wearer is logging entirely from the watch.
@@ -214,12 +273,63 @@ export function useWatchWorkoutBridge(
 
   const handleHeartRateBatch = useCallback(
     (payload: WatchHeartRateBatchPayload): void => {
+      // A batch delivered while the saved buffer is still loading may already
+      // be in that buffer. Mutating now lets mergeEnergy add it twice.
+      // The native queue keeps it for the replay after the merge.
+      if (!restoredRef.current) return;
+      // Only a batch stamped with the active server config is applied. One
+      // for another config stays in the native queue for that config to
+      // replay; acking would discard it. The native module stamps every
+      // batch it receives, so a batch with no owner arrived while no config
+      // was active, and nothing can prove which config it belongs to.
+      if (!ownerRef.current || payload.ownerId !== ownerRef.current) return;
+      const ackId = payload.clientId || payload.queueId;
+      const persistHeartRate = (): void => {
+        // The map may hold only this batch. Writing it replaces the saved
+        // buffer, and acking drops the native copy the restore still needs.
+        if (!restoredRef.current) return;
+        if (replayRef.current) {
+          if (ackId) replayRef.current.stored.push(ackId);
+          return;
+        }
+        void writeWatchTelemetry(sessionsRef.current, ownerRef.current)
+          .then(() => {
+            if (!ackId) return undefined;
+            return WatchConnectivity?.ackHeartRateBatches?.([ackId]);
+          })
+          .catch(() => {
+            // Save or ack failed. The native queue still has the batch when
+            // the ack did not land. A stored client id keeps its energy from
+            // being added twice on the next launch.
+          });
+      };
+      const acknowledgeDropped = (): void => {
+        if (!ackId) return;
+        if (replayRef.current) {
+          replayRef.current.dropped.push(ackId);
+          return;
+        }
+        const ack = WatchConnectivity?.ackHeartRateBatches?.([ackId]);
+        if (ack) void ack.catch(() => undefined);
+      };
       const liveState = useActiveWorkoutStore.getState();
+      // Restore can go ahead without the workout store when that store never
+      // finishes loading. Until it has, the phone cannot tell which session
+      // is live or which exercises belong to it, so any batch could be
+      // filtered wrongly and then acked. Leave it in the native queue; the
+      // replay after the store loads applies it.
+      if (
+        liveState.sessionId == null &&
+        !useActiveWorkoutStore.persist.hasHydrated()
+      ) {
+        return;
+      }
       let session = sessionsRef.current.get(payload.sessionId);
       if (session == null) {
-        if (payload.sessionId !== liveState.sessionId) {
-          // Neither live nor one this phone tracked — a workout from before
-          // an app restart, or one evicted after the retention window.
+        const isLive = payload.sessionId === liveState.sessionId;
+        if (!isLive) {
+          // Neither live nor tracked: the watch does not get to name an
+          // exercise entry, so the batch is dropped.
           addLog(
             `Watch heart-rate batch dropped: unknown session ${payload.sessionId}`,
             'WARNING',
@@ -229,23 +339,92 @@ export function useWatchWorkoutBridge(
               `activeEnergyKcal=${payload.activeEnergyKcal ?? 'none'}`,
             ]
           );
+          acknowledgeDropped();
           return;
         }
         session = createSessionTelemetry(entryDateOf(liveState.session));
         sessionsRef.current.set(payload.sessionId, session);
       }
+      const owned = phoneOwnedEntryIds(
+        session,
+        payload.sessionId === liveState.sessionId
+          ? liveState.session?.exercises
+          : undefined
+      );
+      if (owned.size === 0) {
+        addLog(
+          `Watch heart-rate batch dropped: session ${payload.sessionId} has no phone-owned exercise`,
+          'WARNING',
+          [`exerciseEntryId=${payload.exerciseEntryId}`]
+        );
+        acknowledgeDropped();
+        return;
+      }
       if (payload.clientId) {
-        if (session.handledBatchClientIds.has(payload.clientId)) return;
+        if (session.handledBatchClientIds.has(payload.clientId)) {
+          // Already applied. Ack only after this snapshot is stored, so a
+          // kill during the original write still leaves the native queue.
+          persistHeartRate();
+          return;
+        }
         session.handledBatchClientIds.add(payload.clientId);
       }
-      if (payload.samples.length > 0) {
-        const existing = session.samples.get(payload.exerciseEntryId) ?? [];
+      // A drain that arrives after the phone ends the workout uses the copy
+      // taken as the store was cleared. While the session is live, the store
+      // itself is that copy.
+      const live = payload.sessionId === liveState.sessionId ? liveState : null;
+      const context = live
+        ? {
+            steps: attributionSteps(live),
+            completedAtBySetId: live.completedSetIds,
+            startedAt: live.startedAt,
+            activeSetId: live.activeSetId,
+            now: Date.now(),
+          }
+        : session.attribution
+          ? {
+              ...session.attribution,
+              // The open exercise ends when the phone ended the workout, not
+              // when this delayed batch happens to arrive.
+              now: session.endedAt ?? Date.now(),
+            }
+          : null;
+      const attributed = context
+        ? attributeWatchBatch({
+            samples: payload.samples,
+            activeEnergyKcal: payload.activeEnergyKcal,
+            taggedExerciseEntryId: payload.exerciseEntryId,
+            steps: context.steps,
+            completedAtBySetId: context.completedAtBySetId,
+            startedAt: context.startedAt,
+            activeSetId: context.activeSetId,
+            now: context.now,
+            forceTimeline: session.durationFromTimeline,
+          })
+        : null;
+      const samplesByExercise =
+        attributed?.samplesByExercise ??
+        new Map([[payload.exerciseEntryId, payload.samples]]);
+      for (const exerciseEntryId of [...samplesByExercise.keys()]) {
+        if (!owned.has(exerciseEntryId))
+          samplesByExercise.delete(exerciseEntryId);
+      }
+      const energyByExercise = attributed?.energyByExercise;
+      if (energyByExercise) {
+        for (const exerciseEntryId of [...energyByExercise.keys()]) {
+          if (!owned.has(exerciseEntryId))
+            energyByExercise.delete(exerciseEntryId);
+        }
+      }
+      for (const [exerciseEntryId, incoming] of samplesByExercise) {
+        if (incoming.length === 0) continue;
+        const existing = session.samples.get(exerciseEntryId) ?? [];
         const seen = new Set(existing.map((sample) => sample.t));
-        const added = payload.samples.filter(
+        const added = incoming.filter(
           (sample) => sample?.t && !seen.has(sample.t)
         );
         if (added.length > 0) {
-          session.samples.set(payload.exerciseEntryId, existing.concat(added));
+          session.samples.set(exerciseEntryId, existing.concat(added));
           session.unposted = true;
         }
       }
@@ -253,20 +432,54 @@ export function useWatchWorkoutBridge(
       // distinguished from a new one, so skip calories rather than double
       // them. Samples still merge via the timestamp set above.
       if (payload.clientId && payload.activeEnergyKcal != null) {
-        const existing = session.energy.get(payload.exerciseEntryId) ?? 0;
-        session.energy.set(
-          payload.exerciseEntryId,
-          existing + payload.activeEnergyKcal
-        );
+        const shares =
+          energyByExercise ??
+          (owned.has(payload.exerciseEntryId)
+            ? new Map([[payload.exerciseEntryId, payload.activeEnergyKcal]])
+            : new Map());
+        for (const [exerciseEntryId, kcal] of shares) {
+          const existing = session.energy.get(exerciseEntryId) ?? 0;
+          session.energy.set(exerciseEntryId, existing + kcal);
+          session.unposted = true;
+        }
+      }
+      if (attributed?.durationsByExercise) {
+        session.durationFromTimeline = true;
+        session.durations = new Map();
+        for (const [
+          exerciseEntryId,
+          minutes,
+        ] of attributed.durationsByExercise) {
+          if (minutes > 0 && owned.has(exerciseEntryId))
+            session.durations.set(exerciseEntryId, minutes);
+        }
         session.unposted = true;
+      } else if (
+        !session.durationFromTimeline &&
+        typeof payload.durationMinutes === 'number' &&
+        payload.durationMinutes > 0
+      ) {
+        const previous = session.durations.get(payload.exerciseEntryId) ?? 0;
+        if (
+          payload.durationMinutes > previous &&
+          owned.has(payload.exerciseEntryId)
+        ) {
+          session.durations.set(
+            payload.exerciseEntryId,
+            payload.durationMinutes
+          );
+          session.unposted = true;
+        }
       }
       syncPendingRef.current();
+      persistHeartRate();
       // Arrived after the workout already ended, so nothing else is coming to
       // trigger a flush — attach it now. This is the ordinary path for a
       // workout finished on the PHONE: the stop signal and the flush both go
       // out before the watch has had a chance to answer with its last minute.
       if (payload.sessionId !== liveState.sessionId) {
-        void flushHeartRateRef.current();
+        if (replayRef.current) replayRef.current.flush = true;
+        else void flushHeartRateRef.current();
       }
     },
     []
@@ -294,21 +507,26 @@ export function useWatchWorkoutBridge(
       const entryIds = new Set([
         ...session.samples.keys(),
         ...session.energy.keys(),
+        ...session.durations.keys(),
       ]);
       for (const exerciseEntryId of entryIds) {
         const samples = session.samples.get(exerciseEntryId) ?? [];
         const kcal = session.energy.get(exerciseEntryId);
+        const minutes = session.durations.get(exerciseEntryId);
         // The zone calculator needs at least two samples to derive a duration
         // between them; a lone reading has nothing to attach, and the server
         // rejects a one-sample series outright.
         const hrSamples = samples.length >= 2 ? samples : undefined;
-        // Both absent means there is nothing to say; the server rejects that
+        const durationMinutes =
+          minutes != null && minutes > 0 ? minutes : undefined;
+        // All absent means there is nothing to say; the server rejects that
         // body, so don't spend a request discovering it.
-        if (!hrSamples && kcal == null) continue;
+        if (!hrSamples && kcal == null && durationMinutes == null) continue;
         try {
           await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
             ...(hrSamples ? { hrSamples } : {}),
             ...(kcal != null ? { activeEnergyKcal: kcal } : {}),
+            ...(durationMinutes != null ? { durationMinutes } : {}),
           });
         } catch (error) {
           const status =
@@ -324,6 +542,7 @@ export function useWatchWorkoutBridge(
             // retrying would keep the connection poll alive for nothing.
             session.samples.delete(exerciseEntryId);
             session.energy.delete(exerciseEntryId);
+            session.durations.delete(exerciseEntryId);
             addLog(
               `Dropped watch telemetry for exercise entry ${exerciseEntryId}: server rejected it (${status})`,
               'WARNING',
@@ -348,6 +567,13 @@ export function useWatchWorkoutBridge(
     }
     syncPendingRef.current();
     pruneSessions();
+    // Before restore finishes, the map does not yet hold the saved buffer.
+    // An empty write would delete that ciphertext.
+    if (restoredRef.current) {
+      void writeWatchTelemetry(sessionsRef.current, ownerRef.current).catch(
+        () => undefined
+      );
+    }
   }, [pruneSessions]);
 
   const handleWorkoutStop = useCallback(
@@ -434,6 +660,247 @@ export function useWatchWorkoutBridge(
     };
   }, [enabled]);
 
+  // A batch can arrive before this hook is listening, and the in-memory
+  // buffer dies with the process. The native queue and the saved buffer
+  // cover those two gaps. Listeners are attached above, synchronously, so
+  // this restore cannot miss one that lands while storage is being read.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity || !WatchConnectivity.isSupported())
+      return;
+    const native = WatchConnectivity;
+    let cancelled = false;
+    // True once the saved buffer is in the map. A retry must not merge it
+    // a second time.
+    let merged = false;
+    let running = false;
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let hydrationTimer: ReturnType<typeof setTimeout> | undefined;
+    let stopHydration: (() => void) | undefined;
+    restoredRef.current = false;
+
+    const errorText = (error: unknown): string =>
+      error instanceof Error ? error.message : String(error);
+
+    const replayPending = async (): Promise<void> => {
+      if (cancelled || !restoredRef.current) return;
+      if (typeof native.pendingHeartRateBatches !== 'function') return;
+      try {
+        const pending = await native.pendingHeartRateBatches();
+        if (cancelled) return;
+        // Apply everything, then write once and ack once. Writing per batch
+        // re-encrypts the whole buffer each time, so a large backlog would
+        // cost time quadratic in its size.
+        const replay = {
+          stored: [] as string[],
+          dropped: [] as string[],
+          flush: false,
+        };
+        replayRef.current = replay;
+        try {
+          for (const batch of pending) {
+            handlersRef.current.handleHeartRateBatch(batch);
+          }
+        } finally {
+          replayRef.current = null;
+        }
+        // One flush for every late batch replay applied. It posts from the
+        // map, so it does not wait for the save below.
+        if (replay.flush) void handlersRef.current.flushHeartRate();
+        if (replay.dropped.length > 0) {
+          await native.ackHeartRateBatches(replay.dropped);
+        }
+        if (replay.stored.length > 0) {
+          // Ack only once the buffer that holds these batches is saved. If
+          // the write fails they stay queued, and their stored client ids
+          // keep a later replay from adding their energy twice.
+          await writeWatchTelemetry(sessionsRef.current, ownerRef.current);
+          if (cancelled) return;
+          await native.ackHeartRateBatches(replay.stored);
+        }
+        if (typeof native.takeDroppedHeartRateBatchCount !== 'function') return;
+        const dropped = await native.takeDroppedHeartRateBatchCount();
+        if (dropped > 0) {
+          addLog(
+            `Watch heart-rate queue dropped ${dropped} batch(es): over the queue cap, malformed, or received with no active server config`,
+            'WARNING'
+          );
+        }
+      } catch (error) {
+        addLog(
+          `Watch heart-rate replay failed; batches stay queued: ${errorText(error)}`,
+          'WARNING'
+        );
+      }
+    };
+
+    // A failed read must not replay or ack the native queue. Those batches
+    // are the copy that survives until storage works again, so try again.
+    const scheduleRetry = (reason: string): void => {
+      if (cancelled) return;
+      const delay =
+        RESTORE_RETRY_DELAYS_MS[
+          Math.min(attempt, RESTORE_RETRY_DELAYS_MS.length - 1)
+        ];
+      attempt += 1;
+      addLog(
+        `Watch telemetry restore failed; native queue kept, retrying in ${Math.round(
+          delay / 1000
+        )}s: ${reason}`,
+        'WARNING'
+      );
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        void restore();
+      }, delay);
+    };
+
+    const finishRestore = (shouldFlush: boolean): void => {
+      if (cancelled || restoredRef.current) return;
+      if (hydrationTimer) clearTimeout(hydrationTimer);
+      const liveId = useActiveWorkoutStore.getState().sessionId;
+      for (const [sessionId, session] of sessionsRef.current) {
+        if (sessionId === liveId) {
+          session.endedAt = null;
+        } else if (session.endedAt == null) {
+          // Killed while this workout was live. Leaving endedAt null makes
+          // pruning treat it as still in progress. If the store loads late
+          // and this is the live session, tracking it clears endedAt again.
+          session.endedAt = Date.now();
+        }
+      }
+      restoredRef.current = true;
+      // Persist the merged buffer before replay. A batch still in the
+      // native queue is applied by that replay, which writes again.
+      void writeWatchTelemetry(sessionsRef.current, ownerRef.current).catch(
+        () => undefined
+      );
+      if (shouldFlush) {
+        syncPendingRef.current();
+        void handlersRef.current.flushHeartRate();
+      }
+      void replayPending();
+    };
+
+    const attemptRestore = async (): Promise<void> => {
+      // Nothing may be read or replayed until the previous identity's
+      // telemetry is gone.
+      if (!(await settleWatchTelemetryPurges())) {
+        if (!cancelled) {
+          scheduleRetry("the previous account's telemetry could not be purged");
+        }
+        return;
+      }
+      if (cancelled) return;
+      let ownerId: string | null;
+      try {
+        ownerId = await getActiveServerConfigId();
+      } catch (error) {
+        scheduleRetry(errorText(error));
+        return;
+      }
+      if (cancelled) return;
+      ownerRef.current = ownerId;
+      if (typeof native.setTelemetryOwner === 'function') {
+        try {
+          await native.setTelemetryOwner(ownerId ?? '');
+        } catch (error) {
+          // A stale native owner would stamp new batches for the wrong
+          // config, so do not go on until it has taken the new one.
+          scheduleRetry(errorText(error));
+          return;
+        }
+      }
+      if (cancelled) return;
+      // No active config: nothing can be posted or saved. An account switch
+      // runs this again.
+      if (!ownerId) return;
+      let saved: Awaited<ReturnType<typeof readWatchTelemetry>>;
+      try {
+        saved = await readWatchTelemetry(createSessionTelemetry, ownerId);
+      } catch (error) {
+        scheduleRetry(errorText(error));
+        return;
+      }
+      if (cancelled) return;
+      const shouldFlush = mergeWatchTelemetry(
+        sessionsRef.current,
+        saved,
+        createSessionTelemetry
+      );
+      merged = true;
+      // Subscribe before the hydrated check. A finish that lands in between
+      // still runs the restore once, and not before the phone knows which
+      // session is live.
+      stopHydration = useActiveWorkoutStore.persist.onFinishHydration(() => {
+        if (restoredRef.current) {
+          // Restore went ahead without the store. Batches it left queued
+          // for a session it could not recognise yet can be applied now.
+          void replayPending();
+        } else {
+          finishRestore(shouldFlush);
+        }
+      });
+      if (useActiveWorkoutStore.persist.hasHydrated()) {
+        finishRestore(shouldFlush);
+        return;
+      }
+      hydrationTimer = setTimeout(() => {
+        hydrationTimer = undefined;
+        if (restoredRef.current) return;
+        addLog(
+          'Workout store has not loaded; restoring watch telemetry without it',
+          'WARNING'
+        );
+        finishRestore(shouldFlush);
+      }, HYDRATION_WAIT_MS);
+    };
+
+    const restore = async (): Promise<void> => {
+      if (cancelled || running || merged) return;
+      running = true;
+      try {
+        await attemptRestore();
+      } finally {
+        running = false;
+      }
+    };
+
+    // Coming back to the foreground is when a failed read is most likely to
+    // work (the phone was unlocked), and when batch files that could not be
+    // read before the first unlock become readable.
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || cancelled) return;
+      if (restoredRef.current) {
+        void replayPending();
+      } else if (!merged && !running) {
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = undefined;
+        void restore();
+      }
+    });
+
+    void restore();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (hydrationTimer) clearTimeout(hydrationTimer);
+      stopHydration?.();
+      appStateSub.remove();
+    };
+  }, [enabled, accountEpoch]);
+
+  useEffect(() => {
+    return setWatchTelemetryAccountSwitchHandler(() => {
+      // The purge of the outgoing configs is already queued by the time this
+      // runs, and restore waits for it. Drop what memory holds.
+      sessionsRef.current.clear();
+      restoredRef.current = false;
+      ownerRef.current = null;
+      setAccountEpoch((epoch) => epoch + 1);
+    });
+  }, []);
+
   // Listeners stay on while offline so batches are not dropped. Attach
   // cannot succeed until the API is reachable, so retry the buffered series
   // the moment the server comes back.
@@ -460,7 +927,17 @@ export function useWatchWorkoutBridge(
       sessionId: string,
       session: { entry_date?: string | null } | null | undefined
     ): void => {
-      if (sessionsRef.current.has(sessionId)) return;
+      const existing = sessionsRef.current.get(sessionId);
+      if (existing) {
+        // Restore may have marked it ended before the store rehydrated.
+        if (existing.endedAt != null) {
+          existing.endedAt = null;
+          void writeWatchTelemetry(sessionsRef.current, ownerRef.current).catch(
+            () => undefined
+          );
+        }
+        return;
+      }
       sessionsRef.current.set(
         sessionId,
         createSessionTelemetry(entryDateOf(session))
@@ -476,8 +953,16 @@ export function useWatchWorkoutBridge(
       const ended = prevState.sessionId;
       if (ended !== null) {
         const endedSession = sessionsRef.current.get(ended);
-        if (endedSession) endedSession.endedAt = Date.now();
-        void WatchConnectivity?.stopWorkout(ended);
+        if (endedSession) {
+          endedSession.endedAt = Date.now();
+          endedSession.attribution = {
+            steps: attributionSteps(prevState),
+            completedAtBySetId: { ...prevState.completedSetIds },
+            startedAt: prevState.startedAt,
+            activeSetId: prevState.activeSetId,
+          };
+        }
+        void WatchConnectivity?.stopWorkout(ended, new Date().toISOString());
         // Posts what has arrived so far. The watch answers that stop signal
         // with its own final drain, which lands afterwards and re-posts the
         // completed series — see `handleHeartRateBatch`.

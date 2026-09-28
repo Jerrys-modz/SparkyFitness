@@ -10,6 +10,8 @@ import type {
 } from '../../types/exercise';
 import { isExerciseModality } from '@workspace/shared';
 import type {
+  ExerciseAlternativeMode,
+  ExerciseAlternativesResponse,
   ExerciseHistoryResponse,
   ExerciseModality,
   ExerciseStatsResponse,
@@ -19,6 +21,16 @@ import type {
   ExerciseEntryResponse,
   Pagination,
 } from '@workspace/shared';
+
+/** The user's own previously logged workout locations, most recent first. */
+export const fetchWorkoutLocations = async (): Promise<string[]> => {
+  const data = await apiFetch<string[]>({
+    endpoint: '/api/exercise-preset-entries/locations',
+    serviceName: 'Exercise API',
+    operation: 'fetch workout locations',
+  });
+  return Array.isArray(data) ? data : [];
+};
 
 export const fetchExerciseHistory = async (
   page: number = 1,
@@ -54,6 +66,24 @@ export const fetchExerciseStats = async (
     endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/stats${query}`,
     serviceName: 'Exercise API',
     operation: 'fetch exercise stats',
+  });
+};
+
+/**
+ * Ranked substitutes for an exercise (issue #1560). `excludeIds` keeps
+ * exercises already in the workout out of the list.
+ */
+export const fetchExerciseAlternatives = async (
+  exerciseId: string,
+  mode: ExerciseAlternativeMode,
+  excludeIds: readonly string[] = []
+): Promise<ExerciseAlternativesResponse> => {
+  const params = new URLSearchParams({ mode });
+  if (excludeIds.length > 0) params.set('excludeIds', excludeIds.join(','));
+  return apiFetch<ExerciseAlternativesResponse>({
+    endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/alternatives?${params.toString()}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise alternatives',
   });
 };
 
@@ -150,6 +180,8 @@ export interface CreateExercisePayload {
   level?: string;
   force?: string;
   mechanic?: string;
+  /** Image references carried over when duplicating an exercise. */
+  images?: string[];
 }
 
 export interface UpdateExercisePayload {
@@ -438,6 +470,8 @@ export const attachExerciseEntryWatchTelemetry = async (
   telemetry: {
     hrSamples?: HeartRateSamplePayload[];
     activeEnergyKcal?: number;
+    /** Minutes the watch spent on this exercise. Replaces a zero duration. */
+    durationMinutes?: number;
   }
 ): Promise<void> => {
   return apiFetch<void>({

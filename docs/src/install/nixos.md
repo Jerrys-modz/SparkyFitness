@@ -57,9 +57,13 @@ automatically, or `nixosModules.default` and set `backendPackage` /
 ```
 SPARKY_FITNESS_DB_PASSWORD=...
 SPARKY_FITNESS_APP_DB_PASSWORD=...
-SPARKY_FITNESS_API_ENCRYPTION_KEY=...   # openssl rand -hex 32
+# SPARKY_FITNESS_API_ENCRYPTION_KEY: openssl rand -hex 32
+SPARKY_FITNESS_API_ENCRYPTION_KEY=...
+# BETTER_AUTH_SECRET: openssl rand -base64 32
 BETTER_AUTH_SECRET=...
 ```
+
+systemd does not support trailing comments; a `# ...` after a value becomes part of the value.
 
 Keep this file out of the Nix store (e.g. via `sops-nix` or `agenix`). When
 `database.createLocally = true` (the default), `SPARKY_FITNESS_DB_PASSWORD` is

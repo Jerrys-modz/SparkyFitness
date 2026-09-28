@@ -257,8 +257,11 @@ async function getExerciseStats(
   presetId: number | null = null
 ) {
   const [bestRow, lastRow, recentRows] = await Promise.all([
-    // Best/last stay exercise-global by design: a heavier lift is a PR
-    // regardless of which preset it was performed under.
+    // Best/last stay exercise-global across presets by design: a heavier lift
+    // is a PR regardless of which preset it was performed under. Best alone
+    // skips sets done inside interval/WOD sessions — it is also the live PR
+    // baseline, so a metcon set must not raise the bar for strength work.
+    // Last stays unfiltered: it records what was done most recently.
     exerciseEntryDb.getBestSetForExercise(
       userId,
       exerciseId,
@@ -1931,6 +1934,7 @@ async function createGroupedWorkoutSession(
       name,
       description,
       notes,
+      location,
       source = 'manual',
       exercises,
       workoutPlanAssignmentId = null,
@@ -1961,6 +1965,7 @@ async function createGroupedWorkoutSession(
                 : workoutPreset.description,
             entry_date,
             notes,
+            location: location ?? null,
             source,
           },
           actingUserId
@@ -1990,6 +1995,7 @@ async function createGroupedWorkoutSession(
             description: description ?? null,
             entry_date,
             notes: notes ?? null,
+            location: location ?? null,
             source,
           },
           actingUserId
@@ -2113,6 +2119,7 @@ async function updateGroupedWorkoutSession(
         name: updateData.name,
         description: updateData.description,
         notes: updateData.notes,
+        location: updateData.location,
         entry_date: updateData.entry_date,
       }
     );

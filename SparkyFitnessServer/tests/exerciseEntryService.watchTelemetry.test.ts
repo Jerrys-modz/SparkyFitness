@@ -237,4 +237,91 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(fields.avg_heart_rate).toBe(145);
     expect(fields.watch_telemetry_observed_at).toBe('2026-01-01T12:01:00.000Z');
   });
+
+  it('replaces a phone share with the watch measurement', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields } = filterStaleWatchTelemetryFields(
+      { duration_minutes: 14 },
+      { duration_minutes: 3.5 }
+    );
+    expect(fields.duration_minutes).toBe(3.5);
+    expect(fields.watch_duration_minutes).toBe(3.5);
+  });
+
+  it('records the watch duration separately from a longer stored duration', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields } = filterStaleWatchTelemetryFields(
+      { duration_minutes: 20, watch_duration_minutes: 14 },
+      { duration_minutes: 16 }
+    );
+    expect(fields.duration_minutes).toBe(16);
+    expect(fields.watch_duration_minutes).toBe(16);
+  });
+
+  it('does not shrink a longer watch window with a later shorter flush', async () => {
+    const { filterStaleWatchTelemetryFields } =
+      await import('../models/exerciseEntry.js');
+    const { fields } = filterStaleWatchTelemetryFields(
+      { duration_minutes: 14, watch_duration_minutes: 14 },
+      { duration_minutes: 3.5 }
+    );
+    expect(fields.duration_minutes).toBe(14);
+    expect(fields.watch_duration_minutes).toBe(14);
+  });
+
+  it('prefers the watch duration over the phone share on an ordinary save', async () => {
+    const { ordinaryDurationMinutes } =
+      await import('../models/exerciseEntry.js');
+    expect(ordinaryDurationMinutes(4.5, 14, 14)).toBe(14);
+    expect(ordinaryDurationMinutes(20, 14, 14)).toBe(14);
+    expect(ordinaryDurationMinutes(4.5, 20, 14)).toBe(14);
+    expect(ordinaryDurationMinutes(4.5, 0, null)).toBe(4.5);
+    expect(ordinaryDurationMinutes(undefined, 20, 14)).toBe(20);
+  });
+
+  it('resolves the watch floor against the row at write time', async () => {
+    const { _updateExerciseEntryWithClient } = exerciseEntryRepository;
+    const queries: { sql: string; params: unknown[] }[] = [];
+    const client = {
+      query: vi.fn(async (sql: string, params: unknown[] = []) => {
+        queries.push({ sql, params });
+        if (sql.startsWith('UPDATE exercise_entries')) {
+          return { rows: [{ id: entryId }], rowCount: 1 };
+        }
+        // The read sees no measurement yet; telemetry commits 14 minutes
+        // before the UPDATE runs, so only the UPDATE can see it.
+        return {
+          rows: [
+            {
+              id: entryId,
+              user_id: userId,
+              duration_minutes: 4,
+              watch_duration_minutes: null,
+            },
+          ],
+          rowCount: 1,
+        };
+      }),
+    };
+    await _updateExerciseEntryWithClient(
+      client,
+      entryId,
+      userId,
+      { duration_minutes: 4.5 },
+      userId,
+      undefined
+    );
+    const update = queries.find((q) =>
+      q.sql.startsWith('UPDATE exercise_entries')
+    );
+    expect(update?.params[1]).toBe(4.5);
+    expect(update?.sql).toMatch(
+      /duration_minutes = CASE[\s\S]*WHEN watch_duration_minutes IS NOT NULL\s+THEN watch_duration_minutes\s+ELSE \$2::numeric/
+    );
+    expect(update?.sql).not.toMatch(
+      /GREATEST\(\$2::numeric, watch_duration_minutes\)/
+    );
+  });
 });

@@ -55,6 +55,9 @@ const ICON_MAP = {
   'photo-library': { sf: 'photo.on.rectangle', ion: 'images-outline' },
   pencil: { sf: 'pencil', ion: 'create-outline' },
   pause: { sf: 'pause.fill', ion: 'pause' },
+  replay: { sf: 'arrow.counterclockwise', ion: 'refresh' },
+  'volume-on': { sf: 'speaker.wave.2.fill', ion: 'volume-high' },
+  'volume-off': { sf: 'speaker.slash.fill', ion: 'volume-mute' },
   play: { sf: 'play.fill', ion: 'play' },
   stop: { sf: 'stop.fill', ion: 'stop' },
   forward: { sf: 'forward.fill', ion: 'play-skip-forward' },
@@ -81,6 +84,7 @@ const ICON_MAP = {
   globe: { sf: 'globe', ion: 'globe-outline' },
   people: { sf: 'person.2.fill', ion: 'people' },
   wifi: { sf: 'wifi', ion: 'wifi-outline' },
+  location: { sf: 'mappin.and.ellipse', ion: 'location-outline' },
 
   // Food
   food: { sf: 'fork.knife', ion: 'restaurant' },

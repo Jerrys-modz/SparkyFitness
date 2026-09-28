@@ -32,7 +32,7 @@ SparkyFitness uses 7 granular permissions to determine exactly what a connected 
 | **View Reports**<br>`can_view_reports` | ❌ **No write privileges** | 📖 All wellness, check-in, diary, and medication logs to display on charts, graphs, and the dashboard. Also includes read-only access to profile, dashboard layout, and onboarding data. |
 | **View Food Library**<br>`can_view_food_library` | ❌ **No write privileges** | 📖 User's custom food list, recipes, and custom meals — including any reusable sub-meals a meal links as ingredients, and the freeform markdown **notes** saved on a food or meal — (isolated to when context is switched). Notes are read-only to delegates; only the owner can edit them.<br><br>❌ *Profile, dashboard layout, and onboarding data are **not** readable — this permission alone is insufficient.* |
 | **View Exercise Library**<br>`can_view_exercise_library` | ❌ **No write privileges** | 📖 User's custom exercise database and workout presets (isolated to when context is switched).<br><br>❌ *Profile, dashboard layout, and onboarding data are **not** readable — this permission alone is insufficient.* |
-| **Share Integrations**<br>`share_external_providers` | ❌ **No write privileges** (cannot add, edit, or delete provider configurations — owner-only). | 📖 Allows the family & friends to use the owner's non-private search provider configurations (e.g., FatSecret, USDA, OpenFoodFacts) to search for food and exercise items and add them to their own library.<br><br>❌ *Shared personal provider credentials are never used for Open Food Facts contributions. Manual contributions require the server-wide administrator gate and the food owner acting as themselves. The owner must review one product and separately confirm the packaging data and rights to their own photo for that exact preview; this sharing permission grants neither consent. Preview and confirmation product reads share the server-wide safety budget.*<br><br>❌ *Health integrations (Garmin, Fitbit, Withings, Google Health, Polar, Strava, Hevy, Liftosaur) are strictly private and **never** shared — this permission does not grant access to them.* |
+| **Share Integrations**<br>`share_external_providers` | ❌ **No write privileges** (cannot add, edit, or delete provider configurations — owner-only). | 📖 Allows the family & friends to use the owner's non-private search provider configurations (e.g., FatSecret, USDA, OpenFoodFacts) to search for food and exercise items and add them to their own library.<br><br>❌ *Shared personal provider credentials are never used for Open Food Facts contributions. Manual contributions require the server-wide administrator gate and the food owner acting as themselves. The owner must review one product and separately confirm the packaging data and rights to their own photo for that exact preview; this sharing permission grants neither consent. Preview and confirmation product reads share the server-wide safety budget.*<br><br>❌ *Health integrations (Garmin, Fitbit, Withings, Google Health, Polar, Strava, COROS, Hevy, Liftosaur) are strictly private and **never** shared — this permission does not grant access to them.* |
 
 ---
 
@@ -55,13 +55,16 @@ The following data can be **read** by delegates who hold at least one of `can_ma
 
 Delegates with only library permissions **cannot** read or write any of the above.
 
-### 3. Context-Switched Library Isolation
+### 3. Workout Feedback (Pain & Difficulty)
+After a workout you can say how it felt (too easy / just right / too hard) and flag pain or discomfort with a note. Adaptive suggestions learn from this. This feedback (`workout_feedback` table) is shared like the rest of your diary: delegates with **Manage Diary** (`can_manage_diary`) can see and record it for you, and delegates with **View Reports** (`can_view_reports`) can see it. Pain notes are health information, so keep that in mind when choosing who gets these permissions.
+
+### 4. Context-Switched Library Isolation
 Your custom food library, recipes, custom exercises, and medication inventory are only visible to delegates when they have switched their active profile context to your profile. This prevents their personal libraries/cabinets from being cluttered with your items.
 
-### 4. Automatic Token Validation & Expiry
+### 5. Automatic Token Validation & Expiry
 If you set an **Access End Date** for a connection, the database automatically revokes all database read/write access the moment that timestamp passes. No manual action is needed.
 
-### 5. Deleting a Shared Food or Exercise
+### 6. Deleting a Shared Food or Exercise
 
 A diary entry keeps its own copy of everything it needs to display itself — the food's name, brand and full nutrition, or the exercise's name, category, muscles, equipment and images. It does not depend on the library item it was logged from, so removing that item never erases anyone's history.
 
@@ -77,5 +80,5 @@ When you delete a food or exercise from your library you are offered up to three
 
 If someone else still uses the item — they have logged it, or it sits in their meals, meal plans, presets or workout plans — **Hide is the only option offered**. Meals, meal plans, presets and workout plans are linked to the library item itself rather than snapshotted, so genuinely deleting it would silently strip the item out of their templates too. Hiding removes it from search for everyone from that point on while leaving all existing history and templates intact.
 
-### 6. Meal-to-Meal Composition
+### 7. Meal-to-Meal Composition
 A meal's ingredient list can link another reusable meal (e.g. a sauce or side) instead of a plain food. Linking a sub-meal into a parent meal requires the same library access to the sub-meal that reading it directly would require — you cannot link a sub-meal you cannot otherwise view. This check applies independently of, and in addition to, owning the parent meal.

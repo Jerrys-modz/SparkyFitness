@@ -18,6 +18,10 @@ import {
   FOOD_VARIANT_NUTRIENT_FIELDS,
   todayInZone,
   isUsableMeasuredBmr,
+  calculateExerciseVariety,
+  calculateMuscleGroupRecovery,
+  calculateMuscleGroupSets,
+  primaryMusclesOf,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -632,55 +636,7 @@ function calculateWorkoutConsistency(
     monthlyFrequency: isNaN(monthlyFrequency) ? 0 : monthlyFrequency,
   };
 }
-// Helper function to calculate muscle group recovery
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function calculateMuscleGroupRecovery(exerciseEntries: any) {
-  const recoveryData = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseEntries.forEach((entry: any) => {
-    const muscles = entry.exercises
-      ? JSON.parse(entry.exercises.primary_muscles || '[]')
-      : [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    muscles.forEach((muscle: any) => {
-      // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-      if (!recoveryData[muscle] || entry.entry_date > recoveryData[muscle]) {
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        recoveryData[muscle] = entry.entry_date;
-      }
-    });
-  });
-  return recoveryData;
-}
-// Helper function to calculate exercise variety
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function calculateExerciseVariety(exerciseEntries: any) {
-  const varietyData = {};
-  const muscleExerciseMap = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseEntries.forEach((entry: any) => {
-    if (entry.exercises && entry.exercises.primary_muscles) {
-      const primaryMuscles = JSON.parse(
-        entry.exercises.primary_muscles || '[]'
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      primaryMuscles.forEach((muscle: any) => {
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        if (!muscleExerciseMap[muscle]) {
-          // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-          muscleExerciseMap[muscle] = new Set();
-        }
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        muscleExerciseMap[muscle].add(entry.exercise_name);
-      });
-    }
-  });
-  for (const muscle in muscleExerciseMap) {
-    // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-    varietyData[muscle] = muscleExerciseMap[muscle].size;
-  }
-  return varietyData;
-}
+// Helper function to calculate PR progression
 function calculatePrProgression(exerciseEntries: WorkoutEntry[]) {
   const progression: Record<string, PrRecord[]> = {};
   // Sort entries by date ascending to process in chronological order
@@ -829,6 +785,7 @@ async function getExerciseDashboardData(
       const isStrengthFormat = format === 'standard';
 
       if (entry.sets && entry.sets.length > 0) {
+        const primaryMuscles = primaryMusclesOf(entry);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         entry.sets.forEach((set: any) => {
           const weight = parseFloat(set.weight) || 0;
@@ -869,16 +826,9 @@ async function getExerciseDashboardData(
               }
             }
           }
-          // Muscle group volume
-          const rawMuscles = parseJsonArrayField(
-            entry.exercises?.primary_muscles ?? entry.exercise_primary_muscles
-          );
-          if (Array.isArray(rawMuscles)) {
-            rawMuscles.forEach((muscle) => {
-              const muscleKey = String(muscle);
-              muscleGroupVolume[muscleKey] =
-                (muscleGroupVolume[muscleKey] || 0) + weight * reps;
-            });
+          for (const muscle of primaryMuscles) {
+            muscleGroupVolume[muscle] =
+              (muscleGroupVolume[muscle] || 0) + weight * reps;
           }
         });
       }
@@ -891,6 +841,7 @@ async function getExerciseDashboardData(
       timezone
     );
     const recoveryData = calculateMuscleGroupRecovery(exerciseEntries);
+    const muscleGroupSets = calculateMuscleGroupSets(exerciseEntries);
     const prProgressionData = calculatePrProgression(exerciseEntries);
     const exerciseVarietyData = calculateExerciseVariety(exerciseEntries);
     const setPerformanceData = calculateSetPerformance(exerciseEntries);
@@ -903,6 +854,7 @@ async function getExerciseDashboardData(
       prData,
       bestSetRepRange,
       muscleGroupVolume,
+      muscleGroupSets,
       consistencyData, // Add consistency data to the response
       recoveryData, // Add recovery data to the response
       prProgressionData, // Add PR progression data to the response

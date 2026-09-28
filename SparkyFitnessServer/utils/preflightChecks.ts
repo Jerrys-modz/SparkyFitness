@@ -13,6 +13,58 @@ const DEFAULTED_VARS: Record<string, string> = {
   SPARKY_FITNESS_DB_USER: 'sparky',
 };
 
+/**
+ * The tracked .env templates fill secrets with values starting with these
+ * prefixes. A value that still does was copied without being replaced and is
+ * shared with every other install that did the same. Matching the prefix, not a substring, keeps a real passphrase that happens to contain
+ * "replace" from being rejected.
+ */
+const PLACEHOLDER_PREFIXES = ['changeme', 'replace_with'];
+const isPlaceholder = (value: string) =>
+  PLACEHOLDER_PREFIXES.some((prefix) =>
+    value.trim().toLowerCase().startsWith(prefix)
+  );
+
+/**
+ * Secrets that must not run on a template placeholder, with what the operator
+ * needs to know before replacing it.
+ */
+const PLACEHOLDER_FATAL: Record<string, string> = {
+  BETTER_AUTH_SECRET: [
+    'Every install that copied the template shares this value, so it must be',
+    'replaced with one generated for this server.',
+    '',
+    'Generate a new one with:  openssl rand -base64 32',
+    "                     or:  node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+    '',
+    'What changes when you replace it:',
+    '  - Every user is signed out and must log in again.',
+    '  - Users with two-factor authentication (authenticator app / backup codes)',
+    '    can no longer complete 2FA. An admin can clear it for them under',
+    '    Admin > User Management > Reset MFA, after which they re-enroll.',
+    '  - Passkeys, passwords, and all fitness/health data are unaffected.',
+    '',
+    'If the only admin is locked out by 2FA, see the recovery steps at:',
+    '  https://codewithcj.github.io/SparkyFitness/faq#troubleshooting',
+    '',
+    'This is a one-time cost. Once set, never change this value again.',
+  ].join('\n'),
+  SPARKY_FITNESS_API_ENCRYPTION_KEY: [
+    'Every install that copied the template shares this value, so it must be',
+    'replaced with one generated for this server.',
+    '',
+    'Generate a new one with:  openssl rand -hex 32',
+    "                     or:  node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+  ].join('\n'),
+};
+
+/**
+ * Placeholders that only warrant a warning. Compose initialises Postgres with
+ * the template's password on first run, so refusing to start would break a
+ * working install, and the database is not normally reachable from outside.
+ */
+const PLACEHOLDER_WARN = ['SPARKY_FITNESS_DB_PASSWORD'];
+
 function runPreflightChecks() {
   // Connection details that docker-compose already supplies, so they only ever
   // fall back here on a bare-metal or external-database install. Defaulting
@@ -57,6 +109,67 @@ function runPreflightChecks() {
     throw new Error(
       'Preflight checks failed: Missing mandatory environment variables.'
     );
+  }
+  const placeholderFatal = Object.keys(PLACEHOLDER_FATAL).filter((varName) =>
+    isPlaceholder(process.env[varName] ?? '')
+  );
+  if (placeholderFatal.length > 0) {
+    for (const varName of placeholderFatal) {
+      console.error(
+        '\x1b[31m%s\x1b[0m',
+        `FATAL: ${varName} is still set to the example placeholder.`
+      );
+      console.error(`${PLACEHOLDER_FATAL[varName]}\n`);
+    }
+    console.error('Update your .env file and restart the server.\n');
+    log(
+      'error',
+      `FATAL: Placeholder values in env vars: ${placeholderFatal.join(', ')}`
+    );
+    throw new Error(
+      'Preflight checks failed: Environment variables still hold example placeholder values.'
+    );
+  }
+  // auth.ts decodes BETTER_AUTH_SECRET as base64, which silently drops every
+  // character outside that alphabet. A value made only of such characters (a
+  // docs example like "..." pasted as-is) decodes to an empty key, which Better
+  // Auth accepts, so it has to be caught here.
+  const authKeyBytes = Buffer.from(
+    process.env.BETTER_AUTH_SECRET ?? '',
+    'base64'
+  ).length;
+  if (authKeyBytes === 0) {
+    console.error(
+      '\x1b[31m%s\x1b[0m',
+      'FATAL: BETTER_AUTH_SECRET decodes to an empty key.'
+    );
+    console.error(
+      'The value is read as base64, and it contains no base64 characters.\n' +
+        'Generate one with:  openssl rand -base64 32\n'
+    );
+    console.error('Update your .env file and restart the server.\n');
+    log('error', 'FATAL: BETTER_AUTH_SECRET decodes to an empty key.');
+    throw new Error(
+      'Preflight checks failed: BETTER_AUTH_SECRET decodes to an empty key.'
+    );
+  }
+  if (authKeyBytes < 32) {
+    log(
+      'warn',
+      `BETTER_AUTH_SECRET decodes to only ${authKeyBytes} bytes; 32 or more is recommended. ` +
+        'The value is read as base64, so a passphrase yields fewer bytes than it has characters. ' +
+        'Changing it signs everyone out and locks 2FA users out until an admin resets their MFA, ' +
+        'so only replace it (with openssl rand -base64 32) if you can accept that.'
+    );
+  }
+  for (const varName of PLACEHOLDER_WARN) {
+    if (process.env[varName] && isPlaceholder(process.env[varName])) {
+      log(
+        'warn',
+        `${varName} is still set to the example placeholder from the .env template. ` +
+          'Change it to a strong password (in both .env and the database) if the database is reachable from other hosts.'
+      );
+    }
   }
   // The application database role is provisioned by the server itself, so both
   // of these are soft requirements: when absent we pick a default name and mint

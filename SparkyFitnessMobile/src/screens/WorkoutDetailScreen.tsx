@@ -83,6 +83,8 @@ import { useSupersetBorders } from '../components/ActiveWorkoutRail';
 import type { RootStackScreenProps } from '../types/navigation';
 import type { UpdatePresetSessionRequest } from '@workspace/shared';
 import { canEditGroupedWorkout } from '@workspace/shared';
+import { buildExerciseReplaceContext } from '../utils/exerciseReplace';
+import WorkoutFeedbackCard from '../components/WorkoutFeedbackCard';
 
 type Props = RootStackScreenProps<'WorkoutDetail'>;
 
@@ -417,9 +419,15 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleReplaceExercise = useCallback(
     (clientId: string) => {
       setReplaceTarget(clientId);
-      navigation.navigate('ExerciseSearch', { returnKey: route.key });
+      navigation.navigate('ExerciseSearch', {
+        returnKey: route.key,
+        replaceFor: buildExerciseReplaceContext(
+          formState.exercises.find((e) => e.clientId === clientId),
+          formState.exercises
+        ),
+      });
     },
-    [setReplaceTarget, navigation, route.key]
+    [setReplaceTarget, navigation, route.key, formState.exercises]
   );
 
   // Tap an exercise thumbnail → its library detail. Session entries carry a
@@ -945,6 +953,16 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </View>
 
+        {!isEditing && canEdit && (
+          <WorkoutFeedbackCard
+            presetEntryId={session.id}
+            exercises={session.exercises.map((exercise) => ({
+              id: exercise.id,
+              name: exercise.exercise_snapshot?.name ?? '',
+            }))}
+          />
+        )}
+
         {/* Edit controls */}
         {isEditing && (
           <FadeView>
@@ -961,6 +979,22 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 multiline
                 style={{ minHeight: 60 }}
               />
+            </View>
+          </FadeView>
+        )}
+
+        {/* Gym / location (view mode) */}
+        {!isEditing && session.location && (
+          <FadeView>
+            <View className="mt-4 px-4">
+              <Text className="text-sm font-medium text-text-secondary mb-1">
+                {t('workoutDetail.labels.location', {
+                  defaultValue: 'Gym / Location',
+                })}
+              </Text>
+              <Text className="text-sm text-text-primary">
+                {session.location}
+              </Text>
             </View>
           </FadeView>
         )}

@@ -12,6 +12,7 @@ import WorkoutCompleteWodCard from '../components/WorkoutCompleteWodCard';
 import WorkoutCompleteStatTiles from '../components/WorkoutCompleteStatTiles';
 import WorkoutCompletePrCard from '../components/WorkoutCompletePrCard';
 import WorkoutCompleteExerciseList from '../components/WorkoutCompleteExerciseList';
+import WorkoutFeedbackCard from '../components/WorkoutFeedbackCard';
 import { workoutSessionQueryKey } from '../hooks/queryKeys';
 import { useExerciseImageSource } from '../hooks/useExerciseImageSource';
 import { useNavigationActionGuard } from '../hooks/useNavigationActionGuard';
@@ -71,6 +72,9 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     sourcePresetId,
     sourceServerConfigId,
     plannedSetValues,
+    previousSessionSets,
+    exerciseConfigs,
+    weightUnit: sessionWeightUnit,
     workoutFormat,
     timeCapSeconds,
     intervalRoundsCompleted,
@@ -142,12 +146,26 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     if (hasRecords) fireSuccessHaptic();
   }, [hasRecords]);
 
+  // Stable identity: the prompt's memo and timer effect key off it.
+  const assumeSources = useMemo(
+    () =>
+      previousSessionSets != null && exerciseConfigs != null
+        ? {
+            previousSessionSets,
+            exerciseConfigs,
+            weightUnit: sessionWeightUnit,
+            workoutFormat,
+          }
+        : undefined,
+    [previousSessionSets, exerciseConfigs, sessionWeightUnit, workoutFormat]
+  );
   useWorkoutCompletePresetSync({
     session,
     sourcePresetId,
     sourceServerConfigId,
     completedSetIds,
     plannedSetValues,
+    assumeSources,
   });
 
   const finishedTimeText = formatDateToTimeLabel(
@@ -174,6 +192,15 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
   };
 
   const allSetsLogged = summary.completedSetCount === summary.totalSetCount;
+
+  const feedbackExercises = useMemo(
+    () =>
+      session.exercises.map((exercise) => ({
+        id: exercise.id,
+        name: exercise.exercise_snapshot?.name ?? '',
+      })),
+    [session.exercises]
+  );
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -222,6 +249,11 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
           <WorkoutCompletePrCard
             prRows={summary.prRows}
             weightUnit={weightUnit}
+          />
+
+          <WorkoutFeedbackCard
+            presetEntryId={session.id}
+            exercises={feedbackExercises}
           />
         </View>
 

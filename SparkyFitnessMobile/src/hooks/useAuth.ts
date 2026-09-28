@@ -8,9 +8,17 @@ import {
   setOnIdentityChanged,
   suppressSessionExpired,
 } from '../services/api/authService';
-import { clearServerConfigCache } from '../services/storage';
+import {
+  clearServerConfigCache,
+  setOnServerConfigDeleted,
+  takeIdentityChangeServerConfigIds,
+} from '../services/storage';
 import type { ServerConfig } from '../services/storage';
 import { addLog } from '../services/LogService';
+import {
+  deleteWatchTelemetryForConfig,
+  notifyWatchTelemetryAccountSwitch,
+} from '../utils/watchTelemetryPersistence';
 import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
 
 export type AuthModalReason = 'session_expired' | 'no_configs' | null;
@@ -38,9 +46,17 @@ export function useAuth() {
       setSwitchToApiKeyConfig(null);
       setAuthModalReason('no_configs');
     });
+    // A deleted config's saved watch telemetry and queued batches can never
+    // be posted again.
+    setOnServerConfigDeleted(deleteWatchTelemetryForConfig);
     // Everything cached under the previous account has to go, or the new one
     // reads it until each query happens to refetch.
     setOnIdentityChanged(async () => {
+      // Watch telemetry is kept per config, so every config the old identity
+      // may have used is purged: the ones switched away from, captured
+      // before the switch, and the active one. The reader is retried until it
+      // succeeds; restore waits until the ids are read and purged.
+      notifyWatchTelemetryAccountSwitch(takeIdentityChangeServerConfigIds);
       queryClient.clear();
       // The multi-select food basket store is the same kind of identity-
       // carrying global as the caches and the cookie jar below: it holds the

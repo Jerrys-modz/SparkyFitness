@@ -16,6 +16,7 @@ import {
   Clock,
   Activity,
   Layers,
+  MapPin,
 } from 'lucide-react';
 import ExerciseEntryDisplay from './ExerciseEntryDisplay';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -26,6 +27,8 @@ import {
 } from '@/utils/timeFormatters';
 import { Exercise, ExerciseEntry, PresetSessionEntry } from '@/types/exercises';
 import { earliestEntryTime, setsDurationMinutes } from '@workspace/shared';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
+import WorkoutFeedbackPanel from './WorkoutFeedbackPanel';
 
 interface ExercisePresetEntryDisplayProps {
   presetEntry: PresetSessionEntry;
@@ -61,6 +64,10 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
   const { t } = useTranslation();
   const { timeFormat } = usePreferences();
   const [isExpanded, setIsExpanded] = useState(false);
+  // The feedback panel autosaves, so only people who can write the diary
+  // get it (#1560); report-only viewers can't save and don't see it here.
+  const { hasWritePermission } = useActiveUser();
+  const canGiveFeedback = hasWritePermission('diary');
 
   const toggleExpansion = useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -251,9 +258,20 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
             </TooltipProvider>
           </div>
 
-          {/* Description / notes */}
-          {(presetEntry.description || presetEntry.notes) && (
+          {/* Description / notes / gym */}
+          {(presetEntry.description ||
+            presetEntry.notes ||
+            presetEntry.location) && (
             <div className="px-4 pb-2 space-y-0.5">
+              {presetEntry.location && (
+                <p
+                  className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
+                  title={t('exerciseCard.workoutLocation', 'Gym / Location')}
+                >
+                  <MapPin className="w-3 h-3" />
+                  {presetEntry.location}
+                </p>
+              )}
               {presetEntry.description && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {presetEntry.description}
@@ -326,6 +344,15 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
                   'No exercises in this preset.'
                 )}
               </p>
+            )}
+            {hasExercises && canGiveFeedback && (
+              <WorkoutFeedbackPanel
+                presetEntryId={presetEntry.id}
+                exercises={presetEntry.exercises!.map((exerciseEntry) => ({
+                  id: exerciseEntry.id,
+                  name: exerciseEntry.exercise_snapshot?.name ?? '',
+                }))}
+              />
             )}
           </div>
         </CardContent>

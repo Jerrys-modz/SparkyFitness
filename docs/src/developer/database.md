@@ -104,6 +104,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `workout_plan_templates` | Templates for weekly and sequential workout schedules |
 | `workout_plan_template_assignments` | Scheduled workout templates (weekday or ordered sequence) |
 | `workout_plan_assignment_sets` | Sets within assigned workout plans |
+| `workout_feedback` | Session / per-exercise workout feedback (difficulty, pain flag and note) behind adaptive suggestions |
 
 ### Measurements & Health (Tier 1/3: Owner-Only or Delegate-Write)
 | Table | Purpose |

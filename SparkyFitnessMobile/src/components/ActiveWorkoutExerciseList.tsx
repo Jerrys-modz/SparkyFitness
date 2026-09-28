@@ -40,6 +40,8 @@ interface ActiveWorkoutExerciseListProps {
   onPressRestChip: (entryId: string, currentSec: number | null) => void;
   onPressMetricHeader: (anchor: AnchorRect, clampedToRpe: boolean) => void;
   onPressOverflow: (entryId: string) => void;
+  /** Opens ranked alternatives from the adaptive banner (#1560). */
+  onSeeAlternatives?: (entryId: string) => void;
   onCompleteSet: (setId: string) => void;
   onUncomplete: (setId: string) => void;
   onCommitField: (setId: string, patch: ActiveSetPatch) => void;
@@ -81,6 +83,7 @@ function ActiveWorkoutExerciseList({
   onPressRestChip,
   onPressMetricHeader,
   onPressOverflow,
+  onSeeAlternatives,
   onCompleteSet,
   onUncomplete,
   onCommitField,
@@ -120,6 +123,7 @@ function ActiveWorkoutExerciseList({
             onPressRestChip={onPressRestChip}
             onPressMetricHeader={onPressMetricHeader}
             onPressOverflow={onPressOverflow}
+            onSeeAlternatives={onSeeAlternatives}
             onComplete={onCompleteSet}
             onUncomplete={onUncomplete}
             onCommitField={onCommitField}

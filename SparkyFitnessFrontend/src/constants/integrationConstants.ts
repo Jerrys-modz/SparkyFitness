@@ -3,6 +3,7 @@ export const MANUAL_SYNC_PROVIDERS = [
   'fitbit',
   'oura',
   'polar',
+  'coros_mcp',
   'withings',
   'garmin',
   'hevy',

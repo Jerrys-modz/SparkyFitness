@@ -46,9 +46,14 @@ final class WorkoutSessionStore: ObservableObject {
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
     private var startedAt: Date?
+    /// Open interval per exercise entry. Closed when the wearer leaves it.
+    private var exerciseWindowStartedAt: [String: Date] = [:]
+    /// Seconds already closed for each exercise. A return visit adds to this.
+    private var exerciseWindowSeconds: [String: TimeInterval] = [:]
 
     private let defaults = UserDefaults.standard
     private let snapshotKey = "sparky.watch.workoutSnapshot"
+    private let pendingTailsKey = "sparky.watch.pendingHeartRateTails"
     /// Previews share this process's UserDefaults; they must not write a
     /// snapshot that the next real launch would restore as a live workout.
     private let persistEnabled: Bool
@@ -89,6 +94,7 @@ final class WorkoutSessionStore: ObservableObject {
 
     func start(with plan: ActiveWorkoutPlan) {
         self.plan = plan
+        let partners = plan.supersetPartners()
         let flattened = plan.exercises.flatMap { exercise in
             exercise.sets.enumerated().map { index, set in
                 WorkoutStep(
@@ -96,7 +102,9 @@ final class WorkoutSessionStore: ObservableObject {
                     exerciseName: exercise.name,
                     plannedSet: set,
                     setNumber: index + 1,
-                    setCount: exercise.sets.count
+                    setCount: exercise.sets.count,
+                    supersetWith: partners[exercise.exerciseEntryId],
+                    supersetRun: exercise.supersetRun
                 )
             }
         }
@@ -119,8 +127,41 @@ final class WorkoutSessionStore: ObservableObject {
         stopRestTimer()
         startedAt = Date()
         heartRateSentThrough = nil
+        finishing = nil
+        exerciseWindowStartedAt = [:]
+        exerciseWindowSeconds = [:]
         startElapsedTimer()
+        openCurrentExerciseWindow()
         persistSnapshot(reportedEnergyKcal: 0)
+    }
+
+    /// Replaces the cap's pause snapshot. `excludedPauseSeconds` is the total
+    /// already resumed, not a delta. A revision at or below the one already
+    /// applied is ignored, so a queued pause cannot undo a resume that arrived
+    /// first.
+    func applyIntervalTiming(
+        sessionId: String,
+        revision: Int,
+        pausedAt: Date?,
+        excludedPauseSeconds: Int
+    ) {
+        guard let plan, plan.sessionId == sessionId else { return }
+        if revision <= (plan.intervalRevision ?? 0) { return }
+        self.plan = ActiveWorkoutPlan(
+            sessionId: plan.sessionId,
+            workoutName: plan.workoutName,
+            exercises: plan.exercises,
+            setOrder: plan.setOrder,
+            workoutFormat: plan.workoutFormat,
+            timeCapSeconds: plan.timeCapSeconds,
+            startedAt: plan.startedAt,
+            armedAt: plan.armedAt,
+            capEndsAt: plan.capEndsAt,
+            pausedAt: pausedAt,
+            excludedPauseSeconds: excludedPauseSeconds,
+            intervalRevision: revision
+        )
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     /// Clears local state. Does not itself notify the phone — callers that
@@ -135,6 +176,8 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         startedAt = nil
+        exerciseWindowStartedAt = [:]
+        exerciseWindowSeconds = [:]
         stopElapsedTimer()
         stopRestTimer()
         clearSnapshot()
@@ -222,12 +265,45 @@ final class WorkoutSessionStore: ObservableObject {
     /// The one way the wearer's actions move the cursor, so an exercise
     /// boundary can never be crossed without `onExerciseWillChange` firing.
     private func moveCursor(to index: Int) {
-        if let outgoing = currentStep?.exerciseEntryId,
+        if let outgoing = currentStep?.exerciseEntryId ?? steps.last?.exerciseEntryId,
            steps.indices.contains(index),
            steps[index].exerciseEntryId != outgoing {
             onExerciseWillChange?(outgoing)
         }
         currentStepIndex = index
+        openCurrentExerciseWindow()
+    }
+
+    /// Wall-clock time the wearer spent on each exercise, including rest
+    /// between its sets. Zone seconds are credited to whatever was on screen,
+    /// so the diary duration has to be this window rather than the sum of
+    /// set timers (those are often zero on a strength plan).
+    func openCurrentExerciseWindow() {
+        guard let id = currentStep?.exerciseEntryId else { return }
+        if exerciseWindowStartedAt[id] == nil {
+            exerciseWindowStartedAt[id] = Date()
+        }
+    }
+
+    /// Ends the open interval for `id` and returns the accumulated minutes,
+    /// rounded to the hundredth. A later visit adds to the same total.
+    func closeExerciseWindow(_ id: String) -> Double {
+        if let start = exerciseWindowStartedAt.removeValue(forKey: id) {
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed > 0 {
+                exerciseWindowSeconds[id, default: 0] += elapsed
+            }
+        }
+        let minutes = (exerciseWindowSeconds[id] ?? 0) / 60
+        return (minutes * 100).rounded() / 100
+    }
+
+    /// Closes whichever exercise is current. Nil when nothing is on screen.
+    func closeCurrentExerciseWindow() -> (id: String, minutes: Double)? {
+        guard let id = currentStep?.exerciseEntryId ?? steps.last?.exerciseEntryId else {
+            return nil
+        }
+        return (id, closeExerciseWindow(id))
     }
 
     func skipRest() {
@@ -268,6 +344,45 @@ final class WorkoutSessionStore: ObservableObject {
         /// start would re-send every earlier exercise's readings tagged with
         /// the current one.
         var heartRateSentThrough: Date?
+        /// Closed seconds per exercise. Optional so a snapshot from before
+        /// this field still decodes. The open interval is not stored: time
+        /// while the process was dead is not time the exercise was on screen.
+        var exerciseWindowSeconds: [String: TimeInterval]?
+        /// Set once a finish has started. HealthKit only saves the workout's
+        /// last readings after `finishWorkout`, so a relaunch that finds this
+        /// reads them back from Health and completes the finish instead of
+        /// resuming the workout. Optional so older snapshots still decode.
+        var finishing: Finishing?
+    }
+
+    /// A finish that may not have reached the phone yet.
+    struct Finishing: Codable, Equatable {
+        /// The exercise the final readings belong to.
+        var exerciseEntryId: String
+        /// That exercise's wall-clock minutes, already closed.
+        var minutes: Double
+        /// Whether the phone still has to be told the workout ended.
+        var sendStop: Bool
+        /// When the finish began. Readings after this are not the workout's.
+        var requestedAt: Date
+    }
+
+    /// See `Snapshot.finishing`. Cleared by `reset`.
+    private(set) var finishing: Finishing?
+
+    /// Records that a finish began, so an interruption before the tail is
+    /// sent can be completed on the next launch.
+    func markFinishing(_ finishing: Finishing) {
+        self.finishing = finishing
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// The stored snapshot, without restoring it.
+    func storedSnapshot() -> Snapshot? {
+        guard persistEnabled,
+              let data = defaults.data(forKey: snapshotKey)
+        else { return nil }
+        return try? JSONDecoder().decode(Snapshot.self, from: data)
     }
 
     /// Last energy high-water mark we persisted. WatchSessionManager reads
@@ -288,6 +403,14 @@ final class WorkoutSessionStore: ObservableObject {
             heartRateSentThrough = sentThrough
         }
         guard persistEnabled, let plan, let startedAt else { return }
+        // Include time on the exercise that is still open, but leave the live
+        // counters alone. A later close still measures from the original start.
+        var snapshotExerciseWindowSeconds = exerciseWindowSeconds
+        let captureDate = Date()
+        for (id, windowStartedAt) in exerciseWindowStartedAt {
+            snapshotExerciseWindowSeconds[id, default: 0] +=
+                max(0, captureDate.timeIntervalSince(windowStartedAt))
+        }
         let energy: Double
         if let reportedEnergyKcal {
             energy = reportedEnergyKcal
@@ -302,7 +425,9 @@ final class WorkoutSessionStore: ObservableObject {
             editedValues: editedValues,
             startedAt: startedAt,
             reportedEnergyKcal: energy,
-            heartRateSentThrough: heartRateSentThrough
+            heartRateSentThrough: heartRateSentThrough,
+            exerciseWindowSeconds: snapshotExerciseWindowSeconds,
+            finishing: finishing
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -314,14 +439,15 @@ final class WorkoutSessionStore: ObservableObject {
     /// No-op (and returns nil) when there is nothing stored.
     @discardableResult
     func restoreSnapshot() -> Snapshot? {
-        guard persistEnabled,
-              let data = defaults.data(forKey: snapshotKey),
-              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data)
-        else { return nil }
+        guard let snapshot = storedSnapshot() else { return nil }
         start(with: snapshot.plan)
         // `start(with:)` resets cursor / completions / energy and writes a
-        // fresh snapshot; put the recovered progress back on top.
+        // fresh snapshot; put the recovered progress back on top. The window
+        // start() opened belongs to set 1, not necessarily where we resume.
+        exerciseWindowStartedAt = [:]
+        exerciseWindowSeconds = snapshot.exerciseWindowSeconds ?? [:]
         currentStepIndex = min(snapshot.currentStepIndex, steps.count)
+        openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)
         editedValues = snapshot.editedValues
         startedAt = snapshot.startedAt
@@ -332,9 +458,53 @@ final class WorkoutSessionStore: ObservableObject {
         return snapshot
     }
 
+    // MARK: - Pending tails
+
+    /// A finished workout whose saved heart-rate tail was still being read
+    /// when the finish timed out. Kept apart from the snapshot, which the
+    /// finish clears, so the tail can still be sent later in this process or
+    /// after a relaunch.
+    struct PendingTail: Codable, Equatable {
+        var sessionId: String
+        /// The exercise the final readings belong to.
+        var exerciseEntryId: String
+        /// Latest instant already sent. The tail is only what comes after.
+        var sentThrough: Date?
+        /// When the timeout gave up waiting. Old entries are abandoned.
+        var createdAt: Date
+    }
+
+    func pendingTails() -> [PendingTail] {
+        guard persistEnabled,
+              let data = defaults.data(forKey: pendingTailsKey),
+              let tails = try? JSONDecoder().decode([PendingTail].self, from: data)
+        else { return [] }
+        return tails
+    }
+
+    func addPendingTail(_ tail: PendingTail) {
+        var tails = pendingTails().filter { $0.sessionId != tail.sessionId }
+        tails.append(tail)
+        writePendingTails(tails)
+    }
+
+    func removePendingTail(sessionId: String) {
+        writePendingTails(pendingTails().filter { $0.sessionId != sessionId })
+    }
+
+    private func writePendingTails(_ tails: [PendingTail]) {
+        guard persistEnabled else { return }
+        if tails.isEmpty {
+            defaults.removeObject(forKey: pendingTailsKey)
+        } else if let data = try? JSONEncoder().encode(tails) {
+            defaults.set(data, forKey: pendingTailsKey)
+        }
+    }
+
     func clearSnapshot() {
         restoredReportedEnergyKcal = 0
         heartRateSentThrough = nil
+        finishing = nil
         guard persistEnabled else { return }
         defaults.removeObject(forKey: snapshotKey)
     }

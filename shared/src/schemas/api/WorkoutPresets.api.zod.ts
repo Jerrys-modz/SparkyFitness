@@ -40,6 +40,12 @@ export const workoutPresetExerciseResponseSchema = z.object({
   increment_type: z.enum(["weight", "reps"]).nullable().optional(),
   increment_value: z.number().nullable().optional(),
   equipment_brand: z.string().nullable().optional(),
+  /**
+   * Within-session ramp in kg: each successive working set steps by this much
+   * (negative ramps down). Null = off. Unrelated to increment_value, which is
+   * the between-session progression step. Optional: older servers omit it.
+   */
+  ramp_increment: z.number().nullable().optional(),
   sets: z.array(workoutPresetSetResponseSchema),
 });
 
@@ -92,6 +98,9 @@ export const workoutPresetSetRequestSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+/** workout_preset_exercises.ramp_increment is numeric(6,2). */
+export const RAMP_INCREMENT_MAX_KG = 9999.99;
+
 export const workoutPresetExerciseRequestSchema = z
   .object({
     /** UUID, or an external source id resolved server-side (free-exercise-db). */
@@ -108,6 +117,13 @@ export const workoutPresetExerciseRequestSchema = z
     increment_type: z.enum(["weight", "reps"]).nullable().optional(),
     increment_value: z.number().positive().nullable().optional(),
     equipment_brand: z.string().nullable().optional(),
+    // Kg per working set within one session; bounded by numeric(6,2).
+    ramp_increment: z
+      .number()
+      .min(-RAMP_INCREMENT_MAX_KG)
+      .max(RAMP_INCREMENT_MAX_KG)
+      .nullable()
+      .optional(),
     sets: z.array(workoutPresetSetRequestSchema).optional(),
   })
   .superRefine((val, ctx) => {

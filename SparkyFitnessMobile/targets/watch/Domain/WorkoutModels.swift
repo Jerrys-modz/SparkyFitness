@@ -32,6 +32,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// names, so the phone can attach the series to the right entry.
     let exerciseEntryId: String
     let name: String
+    /// Index of the valid superset run, shared with its partners. Nil when
+    /// this exercise is on its own. The phone only sets it for an adjacent
+    /// run of two or more, so the watch does not repeat that rule.
+    let supersetRun: Int?
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }
@@ -51,6 +55,77 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     /// Phone cursor order (set ids), including interleaved supersets. Empty
     /// means "flatten each exercise in library order", the pre-setOrder shape.
     let setOrder: [String]
+    /// `standard` or nil for an ordinary set workout. `amrap`, `emom`,
+    /// `tabata`, or `for_time` when the phone started an interval session.
+    let workoutFormat: String?
+    /// Cap for the interval, in seconds. Nil when the format has none.
+    let timeCapSeconds: Int?
+    /// When the phone started the session. Used only when `capEndsAt` is absent.
+    let startedAt: Date?
+    /// When this arm was sent. A later arm of the same session id is a new
+    /// workout; a start at or before the stop is a queued duplicate.
+    let armedAt: Date?
+    /// When the cap reaches 0:00, already past the phone's countdown.
+    /// Pauses add to this instead of being subtracted from `startedAt`.
+    let capEndsAt: Date?
+    /// Set while the phone interval is paused. The caption freezes here.
+    let pausedAt: Date?
+    /// Seconds already paused and then resumed. Not counted against the cap.
+    let excludedPauseSeconds: Int?
+    /// Phone's pause/resume counter. A lower number is an older message.
+    let intervalRevision: Int?
+
+    init(
+        sessionId: String,
+        workoutName: String,
+        exercises: [PlannedExercise],
+        setOrder: [String] = [],
+        workoutFormat: String? = nil,
+        timeCapSeconds: Int? = nil,
+        startedAt: Date? = nil,
+        armedAt: Date? = nil,
+        capEndsAt: Date? = nil,
+        pausedAt: Date? = nil,
+        excludedPauseSeconds: Int? = nil,
+        intervalRevision: Int? = nil
+    ) {
+        self.sessionId = sessionId
+        self.workoutName = workoutName
+        self.exercises = exercises
+        self.setOrder = setOrder
+        self.workoutFormat = workoutFormat
+        self.timeCapSeconds = timeCapSeconds
+        self.startedAt = startedAt
+        self.armedAt = armedAt
+        self.capEndsAt = capEndsAt
+        self.pausedAt = pausedAt
+        self.excludedPauseSeconds = excludedPauseSeconds
+        self.intervalRevision = intervalRevision
+    }
+}
+
+extension ActiveWorkoutPlan {
+    /// Entry id to the other member names. A run of one is not a superset,
+    /// even if the phone sent an index for it.
+    func supersetPartners() -> [String: String] {
+        var grouped: [Int: [PlannedExercise]] = [:]
+        for exercise in exercises {
+            guard let run = exercise.supersetRun else { continue }
+            grouped[run, default: []].append(exercise)
+        }
+        var partners: [String: String] = [:]
+        for members in grouped.values where members.count >= 2 {
+            for member in members {
+                let others = members
+                    .filter { $0.exerciseEntryId != member.exerciseEntryId }
+                    .map(\.name)
+                if !others.isEmpty {
+                    partners[member.exerciseEntryId] = others.joined(separator: ", ")
+                }
+            }
+        }
+        return partners
+    }
 }
 
 /// One set of one exercise, as a position in the workout's flat running order.
@@ -70,6 +145,12 @@ struct WorkoutStep: Identifiable, Equatable {
     /// that exercise has — the "1/2" in "Warmup 1/2".
     let setNumber: Int
     let setCount: Int
+    /// The other exercises in this set's superset, for the one-line caption.
+    /// Nil when the set is not part of a superset.
+    let supersetWith: String?
+    /// Same index as `PlannedExercise.supersetRun`. Nil when this set is not
+    /// in a superset, so the caption and its colour share one source.
+    let supersetRun: Int?
 
     var id: String { plannedSet.setId }
 
@@ -110,6 +191,8 @@ struct CompletedSet: Codable, Equatable {
     let setId: String
     let weightKg: Double?
     let reps: Double?
+    /// When the wearer tapped the set, not when the phone received it.
+    let completedAt: Date
 }
 
 /// One heart-rate reading captured during the workout.
@@ -139,6 +222,10 @@ struct HeartRateBatch: Codable, Equatable {
     /// workout total; a running total would have to be differenced somewhere,
     /// and doing it here keeps that arithmetic next to the reading.
     let activeEnergyKcal: Double?
+    /// Minutes the wearer has spent on this exercise so far, including rest
+    /// between its sets. Sent when the exercise is left and again at the end.
+    /// Cumulative across return visits. Nil on a batch that is only samples.
+    let durationMinutes: Double?
 }
 
 /// The wearer ended the workout on the watch. Carries no data of its own —
