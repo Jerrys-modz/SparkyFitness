@@ -109,6 +109,16 @@ describe('routeRegion', () => {
     expect(region?.longitude).toBeCloseTo(95);
   });
 
+  it('keeps the spans under a full turn for a route around the globe', () => {
+    // A 288° arc plus the margin would be 374°; at 360° the region's edges
+    // are one meridian and the map cannot fit it.
+    const region = routeRegion(
+      [-144, -72, 0, 72, 144].map((lon) => point(lon / 2, lon))
+    );
+    expect(region?.longitudeDelta).toBeLessThan(360);
+    expect(region?.latitudeDelta).toBeLessThan(180);
+  });
+
   it("keeps an ordinary route's plain span", () => {
     const region = routeRegion([point(51.5, -0.2), point(51.6, 0.1)]);
     expect(region?.longitude).toBeCloseTo(-0.05);

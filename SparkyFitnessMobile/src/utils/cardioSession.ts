@@ -46,6 +46,13 @@ export interface RouteRegion {
 
 /** Smallest span shown, about 200 m, so a short or stationary track has context. */
 const MIN_REGION_DELTA = 0.002;
+/**
+ * Largest spans shown, just under a full turn. At exactly 360° of longitude
+ * the region's two edges are the same meridian, and Google Maps cannot fit
+ * bounds between them; latitude gets the same margin below 180°.
+ */
+const MAX_LONGITUDE_DELTA = 359;
+const MAX_LATITUDE_DELTA = 179;
 
 /**
  * A map region around the route with a margin on every side, for the map's
@@ -65,10 +72,13 @@ export function routeRegion(
   return {
     latitude: (minLat + maxLat) / 2,
     longitude: lon.center,
-    latitudeDelta: Math.max((maxLat - minLat) * margin, MIN_REGION_DELTA),
+    latitudeDelta: Math.min(
+      Math.max((maxLat - minLat) * margin, MIN_REGION_DELTA),
+      MAX_LATITUDE_DELTA
+    ),
     longitudeDelta: Math.min(
       Math.max(lon.span * margin, MIN_REGION_DELTA),
-      360
+      MAX_LONGITUDE_DELTA
     ),
   };
 }
