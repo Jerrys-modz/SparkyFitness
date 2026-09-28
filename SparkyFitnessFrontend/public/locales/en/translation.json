@@ -1881,6 +1881,14 @@
         "allFieldsRequired": "All fields (Email/Username, Password, Client ID, and Client Secret) are required.",
         "languageSupportHelp": "YAZIO food searches automatically adjust to your active language preference in SparkyFitness (supporting English, German, French, Russian, Spanish, Italian, Dutch, Polish, Portuguese, Danish, Finnish, Swedish, Czech, Hungarian, Greek, Norwegian, Turkish, Chinese, Japanese, and Korean). Other languages default to standard international database parameters."
       },
+      "coros": {
+        "regionLabel": "COROS Region",
+        "regionUs": "United States (mcpus.coros.com)",
+        "regionEu": "Europe (mcpeu.coros.com)",
+        "regionCn": "Mainland China (mcpcn.coros.com)",
+        "notTested": "not yet tested",
+        "infoText": "No API keys needed. You'll sign in with your COROS account. Your SparkyFitness address must be https:// (or localhost) for COROS to accept the connection."
+      },
       "oauthDashboards": {
         "fallback": "provider's developer dashboard",
         "withings": "Withings Developer Dashboard",
@@ -5420,6 +5428,21 @@
     "locale": "en-US"
   },
   "integrations": {
+    "corosLinkError": "Failed to link COROS account.",
+    "corosLinkSuccess": "COROS account successfully linked!",
+    "corosSyncSuccess": "COROS Sync Completed",
+    "corosNoNew": "No new activities found.",
+    "corosProcessingAuth": "Processing COROS authorization...",
+    "corosMissingCodeOrState": "Error: Missing COROS authorization code or state.",
+    "corosOAuthError": "COROS OAuth Error",
+    "corosMissingParams": "Missing authorization code or state in callback.",
+    "corosLinkSuccessMsg": "COROS account successfully linked!",
+    "corosLinkErrorMsg": "Error linking COROS account.",
+    "syncImported": "Imported {{count}}",
+    "syncUpdated": "Updated {{count}}",
+    "syncSkipped": "Skipped {{count}} existing",
+    "syncDeferred": "Deferred {{count}}",
+    "syncSummaryOnly": "Summary only: {{count}}",
     "fitbitLinkError": "Failed to link Fitbit account.",
     "fitbitLinkSuccess": "Fitbit account successfully linked!",
     "garminLoginError": "Failed to connect to Garmin.",
@@ -5682,6 +5705,8 @@
     "last365Days": "Last 365 Days",
     "last7Days": "Last 7 Days",
     "last90Days": "Last 90 Days",
+    "corosWarning": "Note: Daily FIT file downloads are subject to COROS rate limits (up to 50/day; remaining activities are deferred to subsequent syncs). Activity workouts are synced; daily health/sleep metrics are not yet imported.",
+    "capturePrivacyNote": "Warning: Raw diagnostic capture files contain your personal activity, GPS track, and health data. Review and redact any sensitive information before sharing.",
     "polarWarning": "Note: Polar only allows syncing data recorded after you connected your account to SparkyFitness.",
     "startDate": "Start Date",
     "syncNow": "Start Sync",

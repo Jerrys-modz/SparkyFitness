@@ -24,6 +24,7 @@ import {
   OutboundUrlShapeError,
 } from '../utils/outboundUrlPolicy.js';
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
+import { resolveCorosMcpUrl } from '../integrations/coros/corosConstants.js';
 
 // Provider types whose stored base_url is fetched server-side, making it an
 // SSRF surface. Their base_url is validated against the food-provider network
@@ -366,6 +367,17 @@ async function createExternalDataProvider(
         providerData.app_key
       );
     }
+    if (providerData.provider_type === 'coros_mcp') {
+      try {
+        providerData.base_url = resolveCorosMcpUrl(providerData.base_url);
+      } catch (err: unknown) {
+        throw badRequest(
+          err instanceof Error ? err.message : 'Invalid COROS MCP URL'
+        );
+      }
+      delete providerData.app_id;
+      delete providerData.app_key;
+    }
     const newProvider =
       await externalProviderRepository.createExternalDataProvider(providerData);
     if (
@@ -430,6 +442,21 @@ async function updateExternalDataProvider(
     // Credential validation follows the post-update provider type. The old
     // type is relevant only for invalidating an existing OFF session below.
     const isYazio = openFoodFactsCredentials.finalProviderType === 'yazio';
+    const effectiveProviderType =
+      updateData.provider_type ?? existingProvider?.provider_type;
+    if (effectiveProviderType === 'coros_mcp') {
+      if (updateData.base_url !== undefined) {
+        try {
+          updateData.base_url = resolveCorosMcpUrl(updateData.base_url);
+        } catch (err: unknown) {
+          throw badRequest(
+            err instanceof Error ? err.message : 'Invalid COROS MCP URL'
+          );
+        }
+      }
+      delete updateData.app_id;
+      delete updateData.app_key;
+    }
     if (isYazio) {
       // Only preserve stored credentials when the row is already YAZIO. When the
       // type is being changed to YAZIO from another provider, the stored
