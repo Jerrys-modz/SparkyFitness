@@ -37,6 +37,15 @@ export const linkPolarFlowAccount = async (
   });
 };
 
+export const linkCorosAccount = async (
+  data: IntegrationPayload
+): Promise<void> => {
+  return apiCall('/integrations/coros/callback', {
+    method: 'POST',
+    body: data,
+  });
+};
+
 export const linkStravaAccount = async (
   data: IntegrationPayload
 ): Promise<void> => {

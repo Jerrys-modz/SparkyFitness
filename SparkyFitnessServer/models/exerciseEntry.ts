@@ -922,6 +922,7 @@ async function _createExerciseEntryWithClient(
       'Health Connect',
       'Fitbit',
       'Strava',
+      'coros_mcp',
     ].includes(entrySource);
     // Both deduplication lookups live behind one function so that the update
     // path can re-run exactly the lookup that produced its match. Returns the
@@ -2242,6 +2243,35 @@ async function getWaterEstimatedSumForDateRange(
   }
 }
 
+/**
+ * Queries which sourceIds already exist for a given user and source.
+ */
+async function getExistingSourceIds(
+  userId: string,
+  source: string,
+  sourceIds: string[]
+): Promise<Set<string>> {
+  if (sourceIds.length === 0) {
+    return new Set<string>();
+  }
+  const client = await getClient(userId);
+  try {
+    const res = await client.query(
+      'SELECT source_id FROM exercise_entries WHERE user_id = $1 AND source = $2 AND source_id = ANY($3::text[])',
+      [userId, source, sourceIds]
+    );
+    const existing = new Set<string>();
+    for (const row of res.rows as Array<{ source_id: string | null }>) {
+      if (row.source_id) {
+        existing.add(row.source_id);
+      }
+    }
+    return existing;
+  } finally {
+    client.release();
+  }
+}
+
 export { upsertExerciseEntryData };
 export { _createExerciseEntryWithClient };
 export { createExerciseEntry };
@@ -2270,6 +2300,7 @@ export { getRecentExerciseEntries };
 export { getExerciseUsage };
 export { getWaterEstimatedSumForDate };
 export { getWaterEstimatedSumForDateRange };
+export { getExistingSourceIds };
 export default {
   getDailyExerciseCalorieSplitRange,
   upsertExerciseEntryData,
@@ -2304,4 +2335,5 @@ export default {
   getExerciseUsage,
   getWaterEstimatedSumForDate,
   getWaterEstimatedSumForDateRange,
+  getExistingSourceIds,
 };

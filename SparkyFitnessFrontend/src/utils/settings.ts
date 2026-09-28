@@ -17,6 +17,7 @@ export const providerRequirements: Record<string, string[]> = {
   hevy: ['app_key'],
   liftosaur: ['app_key'],
   yazio: ['app_id', 'app_key', 'yazio_client_id', 'yazio_client_secret'],
+  coros_mcp: [],
 };
 
 const providerFieldLabels: Record<string, Record<string, string>> = {
@@ -54,6 +55,7 @@ const OAUTH_TOKEN_PROVIDERS = [
   'withings',
   'strava',
   'polar',
+  'coros_mcp',
 ];
 
 export const encodeYazioAppId = (

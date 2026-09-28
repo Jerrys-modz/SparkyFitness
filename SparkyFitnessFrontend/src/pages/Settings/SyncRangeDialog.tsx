@@ -107,6 +107,8 @@ const SyncRangeDialog = ({
         return 'Withings';
       case 'googlehealth':
         return 'Google Health';
+      case 'coros_mcp':
+        return 'COROS';
       default:
         return type;
     }
@@ -140,6 +142,18 @@ const SyncRangeDialog = ({
               {t(
                 'syncRangeDialog.polarWarning',
                 'Note: Polar only allows syncing data recorded after you connected your account to SparkyFitness.'
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {providerType === 'coros_mcp' && (
+          <Alert variant="default" className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-xs text-blue-700">
+              {t(
+                'syncRangeDialog.corosWarning',
+                'Note: COROS MCP supports syncing activities and workouts within a 90-day window per request. Daily FIT file downloads are subject to rate limits.'
               )}
             </AlertDescription>
           </Alert>
@@ -343,6 +357,14 @@ const SyncRangeDialog = ({
                 {t(
                   'syncRangeDialog.replayIgnoresDates',
                   'The date range does not apply here — the saved file is replayed in full, covering whatever period it was captured over.'
+                )}
+              </p>
+            )}
+            {syncMode === 'capture' && (
+              <p className="text-xs text-muted-foreground italic">
+                {t(
+                  'syncRangeDialog.capturePrivacyNote',
+                  'Warning: Raw diagnostic capture files contain your personal activity, GPS track, and health data. Review and redact any sensitive information before sharing.'
                 )}
               </p>
             )}
