@@ -98,7 +98,7 @@ SparkyFitness can sync data from multiple health and fitness platforms:
 - **Mealie**
 - **Tandoor**
 - **Strava** (partially tested)
-- **COROS (MCP)**
+- **COROS**
 - **Norish**
 - **Yazio** (uses unofficial API)
 - **Swiss Food Database**

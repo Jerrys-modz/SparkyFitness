@@ -24,7 +24,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Mealie
 - Tandoor
 - Strava (partially tested)
-- COROS (MCP)
+- [COROS](/features/settings/coros)
 
 ## Open Food Facts Accounts and Contributions
 

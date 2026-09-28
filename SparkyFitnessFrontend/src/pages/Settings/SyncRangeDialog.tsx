@@ -108,7 +108,7 @@ const SyncRangeDialog = ({
       case 'googlehealth':
         return 'Google Health';
       case 'coros_mcp':
-        return 'COROS (MCP)';
+        return 'COROS';
       default:
         return type;
     }
