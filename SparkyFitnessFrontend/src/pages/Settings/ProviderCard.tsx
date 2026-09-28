@@ -100,10 +100,6 @@ const PROVIDER_PORTALS: Record<string, { label: string; url: string }> = {
     label: 'Open Food Facts Portal',
     url: 'https://world.openfoodfacts.org/',
   },
-  coros: {
-    label: 'COROS Training Hub',
-    url: 'https://t.coros.com',
-  },
   coros_mcp: {
     label: 'COROS Training Hub',
     url: 'https://t.coros.com',

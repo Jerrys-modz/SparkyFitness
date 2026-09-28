@@ -65,16 +65,16 @@ You can backfill or manually trigger a sync at any time:
 
 > [!IMPORTANT]
 > **Daily FIT File Quota**:
-> COROS enforces a rate limit of **45 FIT file downloads per day** per user account.
+> COROS enforces a rate limit of **50 FIT file downloads per day** per user account (SparkyFitness uses a conservative safety buffer of 45).
 > 
-> * If you sync more than 45 activities in a single 24-hour period, SparkyFitness will download FIT files for the first 45 activities and automatically import remaining activities as **summaries**.
-> * The next day's sync can backfill any remaining full FIT files.
+> * If you sync more than 45 activities in a single 24-hour period, SparkyFitness will download FIT files for the first 45 activities and automatically **defer** remaining activities to subsequent syncs to preserve full telemetry.
+> * The next sync will continue downloading and importing remaining activities.
 
 ---
 
-## Contributing & Community
+## Contributing & Diagnostics
 
 If you encounter an unsupported sport type or format, you can share diagnostic data to help improve the integration:
-1. An admin can enable **Allow Local Provider Response Capture** in **Admin → Global Provider Settings**.
+1. An administrator can enable **Allow Local Provider Response Capture** in **Admin → Global Provider Settings**.
 2. Open the **Sync Range** dialog on your COROS provider card and check **Capture raw provider response**.
-3. After syncing, download the diagnostic bundle from **Admin → Diagnostic Logs** and share it with the **CodeWithCJ** community on [Discord](https://discord.gg/vcnMT5cPEA) to help add new metrics!
+3. After syncing, the server saves the raw bundle to `SparkyFitnessServer/mock_data/coros_raw.json`. You can redact sensitive GPS coordinates and share it with the **CodeWithCJ** community on [Discord](https://discord.gg/vcnMT5cPEA) to help add new metrics!

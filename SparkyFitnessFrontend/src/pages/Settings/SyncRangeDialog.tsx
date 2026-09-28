@@ -360,11 +360,11 @@ const SyncRangeDialog = ({
                 )}
               </p>
             )}
-            {syncMode === 'capture' && providerType === 'coros_mcp' && (
+            {syncMode === 'capture' && (
               <p className="text-xs text-muted-foreground italic">
                 {t(
                   'syncRangeDialog.capturePrivacyNote',
-                  'Note: COROS MCP returns raw workout metrics and metadata. GPS/track data from downloaded FIT files are preserved locally.'
+                  'Warning: Raw diagnostic capture files contain your personal activity, GPS track, and health data. Review and redact any sensitive information before sharing.'
                 )}
               </p>
             )}

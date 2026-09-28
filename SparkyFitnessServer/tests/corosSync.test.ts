@@ -93,6 +93,7 @@ describe('corosService syncCorosData', () => {
               client_id: 'test-client',
               provider_type: 'coros_mcp',
               is_active: true,
+              encrypted_access_token: 'enc-token',
             },
           ],
         };

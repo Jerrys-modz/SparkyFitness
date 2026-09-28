@@ -494,13 +494,36 @@ export const useManualSyncCorosMutation = () => {
       invalidateSyncData();
       if (data) {
         const parts: string[] = [];
-        if (data.imported > 0) parts.push(`Imported ${data.imported}`);
-        if (data.updated > 0) parts.push(`Updated ${data.updated}`);
+        if (data.imported > 0)
+          parts.push(
+            t('integrations.syncImported', 'Imported {{count}}', {
+              count: data.imported,
+            })
+          );
+        if (data.updated > 0)
+          parts.push(
+            t('integrations.syncUpdated', 'Updated {{count}}', {
+              count: data.updated,
+            })
+          );
         if (data.skippedExisting > 0)
-          parts.push(`Skipped ${data.skippedExisting} existing`);
-        if (data.deferred > 0) parts.push(`Deferred ${data.deferred}`);
+          parts.push(
+            t('integrations.syncSkipped', 'Skipped {{count}} existing', {
+              count: data.skippedExisting,
+            })
+          );
+        if (data.deferred > 0)
+          parts.push(
+            t('integrations.syncDeferred', 'Deferred {{count}}', {
+              count: data.deferred,
+            })
+          );
         if (data.summaryOnly > 0)
-          parts.push(`Summary only: ${data.summaryOnly}`);
+          parts.push(
+            t('integrations.syncSummaryOnly', 'Summary only: {{count}}', {
+              count: data.summaryOnly,
+            })
+          );
         const summary =
           parts.length > 0
             ? parts.join(', ')
@@ -510,13 +533,11 @@ export const useManualSyncCorosMutation = () => {
           description: summary,
         });
         if (data.warnings && data.warnings.length > 0) {
-          for (const w of data.warnings) {
-            toast({
-              title: t('warning', 'Warning'),
-              description: w,
-              variant: 'destructive',
-            });
-          }
+          toast({
+            title: t('warning', 'Warning'),
+            description: data.warnings.join('\n'),
+            variant: 'destructive',
+          });
         }
       }
     },

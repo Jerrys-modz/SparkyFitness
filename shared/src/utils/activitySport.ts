@@ -24,6 +24,8 @@
  * exists to prevent.
  */
 
+import { COROS_SPORT_TYPES } from '../constants/corosSportTypes.ts';
+
 /** Canonical sports, named after the ANT+/FIT SDK `sport` enum. */
 export const ACTIVITY_SPORTS = [
   "running",
@@ -309,21 +311,19 @@ function extractProviderSport(
           asString(activityType?.["typeKey"]) ?? asString(activity["sport"])
         );
       }
+    case "coros":
     case "coros_mcp": {
-      if (typeof data["sportType"] === "number" || typeof data["sportType"] === "string") {
-        const COROS_SPORT_TYPES: Record<number, string> = {
-          100: 'running',
-          200: 'cycling',
-          300: 'swimming',
-          400: 'walking',
-          500: 'hiking',
-          600: 'fitness_equipment',
-          700: 'rowing',
-          800: 'strength',
-        };
-        const num = typeof data["sportType"] === "number" ? data["sportType"] : parseInt(data["sportType"], 10);
-        if (COROS_SPORT_TYPES[num]) {
-          return COROS_SPORT_TYPES[num];
+      if (
+        typeof data["sportType"] === "number" ||
+        typeof data["sportType"] === "string"
+      ) {
+        const num =
+          typeof data["sportType"] === "number"
+            ? data["sportType"]
+            : parseInt(data["sportType"], 10);
+        const match = COROS_SPORT_TYPES[num];
+        if (match) {
+          return match.sport;
         }
       }
       const activity = asRecord(data["activity"]) ?? data;

@@ -141,10 +141,18 @@ export function detectCorosToolError(
   if (isError) {
     return 'COROS tool returned isError=true';
   }
+  const lower = text.toLowerCase();
   for (const phrase of COROS_ERROR_PHRASES) {
-    if (text.includes(phrase)) {
+    if (lower.includes(phrase.toLowerCase())) {
       return `COROS tool error detected: ${phrase}`;
     }
+  }
+  if (
+    /tool call anomalies|rate limit exceeded|quota exceeded|limit exceeded/i.test(
+      text
+    )
+  ) {
+    return 'COROS tool error detected';
   }
   return null;
 }

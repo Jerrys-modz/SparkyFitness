@@ -718,7 +718,6 @@ app.use('/api/integrations/oura', ouraRoutes);
 app.use('/api/integrations/googlehealth', googleHealthRoutes);
 app.use('/api/integrations/polar', polarRoutes);
 app.use('/api/integrations/coros', corosRoutes);
-app.use('/api/integrations/coros-mcp', corosRoutes);
 app.use('/api/integrations/strava', stravaRoutes);
 app.use('/api/integrations/hevy', hevyRoutes);
 app.use('/api/integrations/liftosaur', liftosaurRoutes);

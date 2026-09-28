@@ -117,7 +117,6 @@ const AddExternalProviderForm = ({
     fitbit: () => handleConnectFitbit(),
     oura: () => handleConnectOura(),
     polar: (id) => handleConnectPolar(id),
-    coros: (id) => handleConnectCoros(id),
     coros_mcp: (id) => handleConnectCoros(id),
     strava: () => handleConnectStrava(),
   };

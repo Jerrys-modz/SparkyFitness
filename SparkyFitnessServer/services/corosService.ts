@@ -8,7 +8,9 @@ import {
 } from '../utils/mockDataContext.js';
 import { loadRawBundle } from '../utils/diagnosticLogger.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
-import corosIntegrationService from '../integrations/coros/corosService.js';
+import corosIntegrationService, {
+  CorosReauthRequiredError,
+} from '../integrations/coros/corosService.js';
 import {
   importCorosActivityFromFit,
   importCorosActivitySummary,
@@ -67,7 +69,7 @@ export async function syncCorosData(
   dataSource: string | null = null,
   saveMockData = false
 ): Promise<CorosSyncResult> {
-  const corosDataSource = dataSource || 'coros';
+  const corosDataSource = dataSource || 'coros_mcp';
   setMockDataContext({ dataSource, saveMockData });
 
   log(
@@ -123,7 +125,7 @@ export async function syncCorosData(
       'info',
       `[corosService] Replaying COROS sync from raw diagnostic bundle for user ${userId}`
     );
-    const bundle = loadRawBundle('coros');
+    const bundle = loadRawBundle('coros_mcp');
     if (!bundle || !bundle.responses) {
       throw new Error(
         'Raw diagnostic bundle not found. Run a sync with "Sync and save this sync\'s raw responses" selected first to capture one.'
@@ -205,13 +207,12 @@ export async function syncCorosData(
   }
 
   // --- LIVE API BRANCH ---
-  // Ensure provider exists
   const client = await getSystemClient();
   let finalProviderId: string;
   let externalUserId = '';
   try {
     let q =
-      'SELECT id, external_user_id FROM external_data_providers WHERE user_id = $1 AND provider_type = $2';
+      'SELECT id, external_user_id, encrypted_access_token, encrypted_refresh_token, is_active FROM external_data_providers WHERE user_id = $1 AND provider_type = $2';
     const qParams: (string | null)[] = [userId, COROS_PROVIDER_TYPE];
     if (providerId) {
       q += ' AND id = $3';
@@ -220,9 +221,60 @@ export async function syncCorosData(
     q += ' ORDER BY created_at DESC LIMIT 1';
     const rowRes = await client.query(q, qParams);
     const row = rowRes.rows[0] as
-      { id: string; external_user_id?: string | null } | undefined;
+      | {
+          id: string;
+          external_user_id?: string | null;
+          encrypted_access_token?: string | null;
+          encrypted_refresh_token?: string | null;
+          is_active?: boolean;
+        }
+      | undefined;
     if (!row) {
+      if (syncType === 'scheduled') {
+        log(
+          'info',
+          `[corosService] Skipping scheduled sync for user ${userId}: no COROS provider registered`
+        );
+        return {
+          success: true,
+          source: 'live_api',
+          range: { startDate, endDate },
+          found: 0,
+          imported: 0,
+          updated: 0,
+          skippedExisting: 0,
+          deferred: 0,
+          summaryOnly: 0,
+          warnings: [],
+        };
+      }
       throw new Error(`No COROS provider found for user ${userId}`);
+    }
+    if (
+      !row.is_active ||
+      (!row.encrypted_access_token && !row.encrypted_refresh_token)
+    ) {
+      if (syncType === 'scheduled') {
+        log(
+          'info',
+          `[corosService] Skipping scheduled sync for user ${userId}: provider is inactive or disconnected`
+        );
+        return {
+          success: true,
+          source: 'live_api',
+          range: { startDate, endDate },
+          found: 0,
+          imported: 0,
+          updated: 0,
+          skippedExisting: 0,
+          deferred: 0,
+          summaryOnly: 0,
+          warnings: [],
+        };
+      }
+      throw new CorosReauthRequiredError(
+        'COROS account is not connected. Click Connect to authorize.'
+      );
     }
     finalProviderId = row.id;
     externalUserId = row.external_user_id || '';
@@ -384,28 +436,6 @@ export async function syncCorosData(
 
           budget.used++;
 
-          // Check for limit-like error response
-          const textPayloads = extractTextPayloads(fitResult);
-          let isLimitError = fitResult.isError === true;
-          for (const tp of textPayloads) {
-            if (tp.kind === 'report') {
-              const err = detectCorosToolError(tp.text, fitResult.isError);
-              if (err || /limit/i.test(tp.text)) {
-                isLimitError = true;
-                break;
-              }
-            }
-          }
-
-          if (isLimitError) {
-            hitDailyLimit = true;
-            deferred++;
-            warnings.push(
-              'COROS allows 50 activity file downloads per day. Remaining activities will be imported on the next sync.'
-            );
-            continue;
-          }
-
           const fitResources = extractFitResources(fitResult);
           if (fitResources.length > 0) {
             const fit = fitResources[0];
@@ -430,6 +460,28 @@ export async function syncCorosData(
               );
             }
           } else {
+            // Check for limit-like error response
+            const textPayloads = extractTextPayloads(fitResult);
+            let isLimitError = fitResult.isError === true;
+            for (const tp of textPayloads) {
+              if (tp.kind === 'report') {
+                const err = detectCorosToolError(tp.text, fitResult.isError);
+                if (err || /limit|quota|exceeded/i.test(tp.text)) {
+                  isLimitError = true;
+                  break;
+                }
+              }
+            }
+
+            if (isLimitError) {
+              hitDailyLimit = true;
+              deferred++;
+              warnings.push(
+                'COROS allows 50 activity file downloads per day. Remaining activities will be imported on the next sync.'
+              );
+              continue;
+            }
+
             log(
               'warn',
               `No FIT resource returned for ${record.labelId}. Falling back to summary.`
@@ -443,20 +495,12 @@ export async function syncCorosData(
         } catch (err) {
           log(
             'warn',
-            `Error importing activity ${record.labelId} for user ${userId}: ${err}`
+            `Transient error downloading FIT for ${record.labelId} (${record.name}): ${err}. Deferring to next sync.`
           );
-          try {
-            await importCorosActivitySummary(userId, record);
-            summaryOnly++;
-            warnings.push(
-              `Error downloading FIT for ${record.name} (${record.date}); imported summary only.`
-            );
-          } catch (sumErr) {
-            log(
-              'error',
-              `Summary fallback also failed for ${record.labelId}: ${sumErr}`
-            );
-          }
+          deferred++;
+          warnings.push(
+            `Network error downloading FIT for ${record.name} (${record.date}); deferred to next sync.`
+          );
         }
       }
 

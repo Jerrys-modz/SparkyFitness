@@ -71,6 +71,48 @@ describe('corosMcpText parser', () => {
     expect(records[0].sportType).toBe(101);
   });
 
+  it('correctly parses meters distance and multi-hour durations with odd line breaks', () => {
+    const rawReport = `Sport Records — 2025-11-01 to 2025-11-30 (2 records)
+========================
+
+1. Strength — 2025-11-10
+   Location: Gym
+   Time Window: startTimestamp=1762770000 | endTimestamp=1762774500
+   Duration: 1:15:00
+   Distance: 218 m
+   Avg HR: 120 bpm | Calories: 450 kcal
+   LabelId: 480644884506640999
+   SportType: 402
+
+2. Outdoor Run — 2025-11-12
+   Time Window: startTimestamp=1762940000 | endTimestamp=1762943600
+   Duration: 45:10 | Distance: 6.25 km
+   LabelId: 480644884506640888 | SportType: 100`;
+
+    const { records, returnedCount } = parseSportRecords(rawReport);
+    expect(returnedCount).toBe(2);
+    expect(records.length).toBe(2);
+
+    expect(records[0].labelId).toBe('480644884506640999');
+    expect(records[0].sportType).toBe(402);
+    expect(records[0].durationSeconds).toBe(4500);
+    expect(records[0].distanceMeters).toBe(218);
+
+    expect(records[1].labelId).toBe('480644884506640888');
+    expect(records[1].sportType).toBe(100);
+    expect(records[1].durationSeconds).toBe(2710);
+    expect(records[1].distanceMeters).toBe(6250);
+  });
+
+  it('detects tool call anomaly text', () => {
+    expect(
+      detectCorosToolError('Tool call anomalies: query limit exceeded')
+    ).not.toBeNull();
+    expect(
+      detectCorosToolError('Rate limit exceeded: 50 requests per day')
+    ).not.toBeNull();
+  });
+
   it('extracts FIT file resources from embedded data', () => {
     const resources = extractFitResources(MOCK_FIT_FILE_RESULT);
     expect(resources.length).toBeGreaterThan(0);

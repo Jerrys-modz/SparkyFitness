@@ -120,24 +120,17 @@ describe('providerSyncScheduler', () => {
     ).toHaveBeenCalledWith('p-1', expect.any(Date));
   });
 
-  it('handles multi-type providers such as COROS', async () => {
-    vi.mocked(externalProviderRepository.getProvidersByType)
-      .mockResolvedValueOnce([
-        {
-          id: 'p-mcp',
-          user_id: 'u-1',
-          is_active: true,
-          sync_frequency: 'hourly',
-        } as never,
-      ])
-      .mockResolvedValueOnce([
-        {
-          id: 'p-legacy',
-          user_id: 'u-2',
-          is_active: true,
-          sync_frequency: 'daily',
-        } as never,
-      ]);
+  it('handles provider syncing for COROS', async () => {
+    vi.mocked(
+      externalProviderRepository.getProvidersByType
+    ).mockResolvedValueOnce([
+      {
+        id: 'p-mcp',
+        user_id: 'u-1',
+        is_active: true,
+        sync_frequency: 'hourly',
+      } as never,
+    ]);
 
     const corosConfig = PROVIDER_SYNC_CONFIGS.find(
       (c) => c.name === 'COROS'
@@ -148,19 +141,11 @@ describe('providerSyncScheduler', () => {
     expect(externalProviderRepository.getProvidersByType).toHaveBeenCalledWith(
       'coros_mcp'
     );
-    expect(externalProviderRepository.getProvidersByType).toHaveBeenCalledWith(
-      'coros'
-    );
-    expect(corosService.syncCorosData).toHaveBeenCalledTimes(2);
+    expect(corosService.syncCorosData).toHaveBeenCalledTimes(1);
     expect(corosService.syncCorosData).toHaveBeenCalledWith(
       'u-1',
       'scheduled',
       'p-mcp'
-    );
-    expect(corosService.syncCorosData).toHaveBeenCalledWith(
-      'u-2',
-      'scheduled',
-      'p-legacy'
     );
   });
 

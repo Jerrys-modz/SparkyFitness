@@ -922,7 +922,7 @@ async function _createExerciseEntryWithClient(
       'Health Connect',
       'Fitbit',
       'Strava',
-      'COROS',
+      'coros_mcp',
     ].includes(entrySource);
     // Both deduplication lookups live behind one function so that the update
     // path can re-run exactly the lookup that produced its match. Returns the

@@ -35,7 +35,7 @@ interface PersistedFitEntry {
 }
 
 export interface FitBufferImportOptions {
-  source?: string; // 'garmin_fit' (default) | 'COROS'
+  source?: string; // 'garmin_fit' (default) | 'coros_mcp'
   sourceIdOverride?: string; // COROS: the labelId
   notesLabel?: string; // COROS: 'Logged from COROS'
 }
