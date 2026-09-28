@@ -298,7 +298,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
   //
   // Text labels ("-15s", "+15s") rather than SF Symbols: the goforward.15
   // family means media seek, which reads as skipping rest, not extending it.
-  const restButtonFont = font({ weight: 'semibold', size: 16 });
+  const restButtonFont = font({ weight: 'semibold', size: 15 });
   const restStepModifiers = (a11y: string) => [
     buttonStyle('bordered'),
     buttonBorderShape('capsule'),
@@ -344,7 +344,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
       modifiers={[
         buttonStyle('bordered'),
         buttonBorderShape('capsule'),
-        controlSize('large'),
+        controlSize('regular'),
         accessibilityLabel(props.labels.complete),
       ]}
     >
@@ -382,7 +382,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
         }`
       : props.setProgress;
     return (
-      <Text modifiers={[secondaryText(), font({ size: 15 }), lineLimit(1)]}>
+      <Text modifiers={[secondaryText(), font({ size: 14 }), lineLimit(1)]}>
         {text}
       </Text>
     );
@@ -391,15 +391,15 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
   // Small caption row: app identity + workout name, elapsed clock trailing.
   const header = () => (
     <HStack spacing={6}>
-      {appIcon(18) ?? icon()}
-      <Text modifiers={[secondaryText(), font({ size: 14 }), lineLimit(1)]}>
+      {appIcon(16)}
+      <Text modifiers={[secondaryText(), font({ size: 13 }), lineLimit(1)]}>
         {props.workoutName}
       </Text>
       <Spacer />
       <HStack modifiers={[layoutPriority(1)]}>
         {props.phase === 'complete' ? (
           <Text
-            modifiers={[secondaryText(), font({ size: 14 }), monospacedDigit()]}
+            modifiers={[secondaryText(), font({ size: 13 }), monospacedDigit()]}
           >
             {props.elapsedLabel ?? ''}
           </Text>
@@ -409,7 +409,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
             dateStyle="timer"
             modifiers={[
               secondaryText(),
-              font({ size: 14 }),
+              font({ size: 13 }),
               monospacedDigit(),
               multilineTextAlignment('trailing'),
               frame({ maxWidth: 64, alignment: 'trailing' }),
@@ -436,7 +436,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
             timerInterval={restInterval}
             countsDown
             modifiers={[
-              font({ weight: 'semibold', size: 30 }),
+              font({ weight: 'semibold', size: 26 }),
               monospacedDigit(),
               multilineTextAlignment('center'),
               minimumScaleFactor(0.8),
@@ -457,7 +457,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
         <Spacer />
         <Text
           modifiers={[
-            font({ weight: 'semibold', size: 30 }),
+            font({ weight: 'semibold', size: 26 }),
             monospacedDigit(),
           ]}
         >
@@ -472,7 +472,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
     if (props.phase === 'complete' || props.exerciseName == null) {
       return (
         <Text
-          modifiers={[font({ weight: 'semibold', size: 18 }), lineLimit(1)]}
+          modifiers={[font({ weight: 'semibold', size: 17 }), lineLimit(1)]}
         >
           {props.phase === 'complete'
             ? props.labels.workoutComplete
@@ -483,7 +483,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
     const titleBlock = (
       <VStack alignment="leading" spacing={2}>
         <Text
-          modifiers={[font({ weight: 'semibold', size: 18 }), lineLimit(1)]}
+          modifiers={[font({ weight: 'semibold', size: 17 }), lineLimit(1)]}
         >
           {props.exerciseName}
         </Text>
@@ -492,7 +492,7 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
     );
     if (props.phase === 'resting' || props.phase === 'paused') {
       return (
-        <VStack alignment="leading" spacing={8}>
+        <VStack alignment="leading" spacing={6}>
           {titleBlock}
           {restProgress()}
           {restRow()}
@@ -500,13 +500,13 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
       );
     }
     return (
-      <VStack alignment="leading" spacing={8}>
+      <VStack alignment="leading" spacing={6}>
         {titleBlock}
         <HStack>
           {props.targetLine != null ? (
             <Text
               modifiers={[
-                font({ weight: 'semibold', size: 26 }),
+                font({ weight: 'semibold', size: 24 }),
                 monospacedDigit(),
                 lineLimit(1),
                 minimumScaleFactor(0.7),
@@ -526,8 +526,8 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
     banner: (
       <VStack
         alignment="leading"
-        spacing={8}
-        modifiers={[padding({ all: 16 })]}
+        spacing={6}
+        modifiers={[padding({ horizontal: 16, vertical: 12 })]}
       >
         {header()}
         {bannerBody()}
