@@ -466,7 +466,11 @@ export async function syncCorosData(
             let otherToolError: string | null = null;
             for (const tp of textPayloads) {
               if (tp.kind === 'report') {
-                if (/limit|quota|exceeded|rate\s*limit/i.test(tp.text)) {
+                if (
+                  /(?:download|daily|file|request)\s*(?:limit|quota)|rate\s*limit|too\s*many\s*requests|429/i.test(
+                    tp.text
+                  )
+                ) {
                   isLimitError = true;
                   break;
                 }
@@ -523,7 +527,10 @@ export async function syncCorosData(
         }
       }
 
-      if (hitDailyLimit || budget.used >= COROS_FIT_BUDGET_PER_DAY) {
+      if (
+        (hitDailyLimit || budget.used >= COROS_FIT_BUDGET_PER_DAY) &&
+        deferred > 0
+      ) {
         warnings.push(
           'Daily COROS file download limit reached. Remaining activities will be imported after the limit resets (next UTC day).'
         );
