@@ -530,8 +530,9 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
       : prompt;
   const body: Record<string, unknown> = {
     model: ctx.model,
-    messages: [{ role: 'user', content }],
-    ...(ctx.provider.service_type === 'perplexity' && { input: content }),
+    ...(ctx.provider.service_type === 'perplexity'
+      ? { input: content }
+      : { messages: [{ role: 'user', content }] }),
   };
   if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;

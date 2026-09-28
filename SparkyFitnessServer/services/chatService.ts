@@ -1000,9 +1000,10 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
           input?: unknown;
           [k: string]: unknown;
         };
-        // Perplexity Agent API requires `input` (array of messages or text)
+        // Perplexity Agent API requires `input` (array of messages or text) and rejects `messages`
         if (!bodyObj.input && Array.isArray(bodyObj.messages)) {
           bodyObj.input = bodyObj.messages;
+          delete bodyObj.messages;
           modifiedInit = {
             ...init,
             body: JSON.stringify(bodyObj),

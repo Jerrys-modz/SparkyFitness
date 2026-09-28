@@ -576,6 +576,7 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(url).toBe('https://api.perplexity.ai/v1/responses');
     expect((body.response_format as { type: string }).type).toBe('json_schema');
     expect(body.input).toBeDefined();
+    expect(body.messages).toBeUndefined();
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.json).toEqual(SAMPLE);
