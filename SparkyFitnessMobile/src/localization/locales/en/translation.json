@@ -4312,7 +4312,7 @@
       "empty": "No sleep data for this period",
       "avgTimeInBed": "Avg time in bed",
       "avgTimeAsleep": "Avg time asleep",
-      "rangeLabel": "{{startDate}} – {{endDate}}"
+      "tooltip": "{{timeInBed}} in bed · {{timeAsleep}} asleep"
     },
     "hydration": {
       "title": "Hydration",

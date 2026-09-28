@@ -20,7 +20,7 @@ import {
   formatHourLabel,
   type EntryTimeFormat,
 } from '../utils/entryTimeDisplay';
-import { formatClockTime, formatSleepDuration } from '../utils/sleepDay';
+import { formatSleepDuration } from '../utils/sleepDay';
 import { localizeSleepStage } from '../utils/sleepLocalization';
 import ChartTouchOverlay, {
   EMPTY_CHART_TOUCH_LAYOUT,
@@ -31,6 +31,7 @@ import {
   formatTooltipDate,
   formatXLabel30d90d,
   formatXLabel7d,
+  makeChartFont,
 } from './charts/chartFormatting';
 import {
   buildSleepTimelineLayout,
@@ -48,11 +49,29 @@ type SleepTimelineChartProps = SleepTimelineAggregates &
 const PLOT_HEIGHT = 150;
 
 /**
- * Wide enough for the longest label the axis can produce, "12 AM". Dropping the ":00"
- * from the hour labels is what let this shrink from 72px — the difference goes to the
- * plot, which is the part worth the horizontal space.
+ * Fallback label column width, used only before the real one is measured (never in
+ * practice, since `layout.ticks` is empty only for a zero-span domain `buildTicks` already
+ * guards against). The real width is measured against the axis font every render, so a
+ * 24-hour "23" and a 12-hour "12 AM" each get a column sized to what they actually draw
+ * instead of one sized for the longest label across every locale/time format.
  */
-const TICK_LABEL_WIDTH = 44;
+const FALLBACK_LABEL_COLUMN_WIDTH = 44;
+
+/** Small gap so the widest label doesn't sit flush against the plot. */
+const LABEL_COLUMN_GAP = 6;
+
+const axisFont = makeChartFont(CHART_LABEL_FONT_SIZE);
+
+/** The widest of the given labels as drawn in the axis font, plus a small gap. */
+export const measureLabelColumnWidth = (
+  labels: string[],
+  measureText: (text: string) => number,
+  fallbackWidth: number
+): number => {
+  if (labels.length === 0) return fallbackWidth;
+  const widest = Math.max(...labels.map((label) => measureText(label)));
+  return Math.ceil(widest) + LABEL_COLUMN_GAP;
+};
 
 /** Wide enough for `formatXLabel30d90d`'s "Aug 28" without truncating. */
 const X_LABEL_WIDTH = 56;
@@ -94,13 +113,10 @@ export interface SleepStatLabel {
   value: string;
 }
 
-export interface SelectedNightLabels {
-  stats: [SleepStatLabel, SleepStatLabel];
-  clockRange: string | null;
-}
-
 /**
- * The two headline tiles.
+ * The two headline tiles. Always the window's averages -- selecting a night shows that
+ * night's own numbers in the tooltip below instead, matching every other Health Trends
+ * card, rather than swapping the persistent tiles out from under the user.
  *
  * Derived from `t` on every render rather than memoised, so a language switch is reflected
  * in already-visible copy immediately.
@@ -119,44 +135,23 @@ export const buildSleepAverageLabels = (
   },
 ];
 
-/** The same two tiles, showing one selected night instead of the window's averages. */
-export const buildSelectedNightLabels = (
-  day: SleepTimelineDay,
-  t: TFunction,
-  timeFormat?: EntryTimeFormat | null
-): SelectedNightLabels => {
-  const stats: [SleepStatLabel, SleepStatLabel] = [
-    {
-      title: t('sleep.timeInBed', { defaultValue: 'Time in bed' }),
-      value: formatSleepDuration(day.timeInBedSeconds, t),
-    },
-    {
-      title: t('sleep.timeAsleep', { defaultValue: 'Time asleep' }),
-      value: formatSleepDuration(day.timeAsleepSeconds, t),
-    },
-  ];
+const DEFAULT_TOOLTIP = '';
 
-  if (day.segments.length === 0) return { stats, clockRange: null };
+/**
+ * Builds the single-line tooltip for a selected night's column, matching every other
+ * Health Trends chart's "metric(s) · date" tooltip shape.
+ */
+export const buildSleepTooltipText = (
+  day: SleepTimelineDay | undefined,
+  t: TFunction
+): string => {
+  if (!day) return DEFAULT_TOOLTIP;
 
-  const bedtimeMs = day.segments[0].startMs;
-  const wakeTimeMs = Math.max(...day.segments.map((segment) => segment.endMs));
-
-  return {
-    stats,
-    clockRange: t('sleep.bedtimeToWake', {
-      bedtime: formatClockTime(
-        new Date(bedtimeMs).toISOString(),
-        timeFormat,
-        day.zone
-      ),
-      wakeTime: formatClockTime(
-        new Date(wakeTimeMs).toISOString(),
-        timeFormat,
-        day.zone
-      ),
-      defaultValue: '{{bedtime}} – {{wakeTime}}',
-    }),
-  };
+  return `${t('charts.sleep.tooltip', {
+    timeInBed: formatSleepDuration(day.timeInBedSeconds, t),
+    timeAsleep: formatSleepDuration(day.timeAsleepSeconds, t),
+    defaultValue: '{{timeInBed}} in bed · {{timeAsleep}} asleep',
+  })} · ${formatTooltipDate(day.day)}`;
 };
 
 /**
@@ -231,7 +226,7 @@ const SleepStageLegend: React.FC<{
 };
 
 /**
- * The Dashboard sleep trend: a clock axis down the right, one column per day, and the
+ * The Dashboard sleep trend: a clock axis down the left, one column per day, and the
  * night's stages drawn as blocks at the times they happened.
  *
  * A thin shell over `buildSleepTimelineLayout` — this component measures width, picks
@@ -323,27 +318,35 @@ const SleepTimelineChart: React.FC<SleepTimelineChartProps> = ({
   }, []);
 
   const selectedDay = selectedIndex !== null ? data[selectedIndex] : undefined;
-  const selectedLabels = selectedDay
-    ? buildSelectedNightLabels(selectedDay, t, preferences?.time_format)
-    : null;
-  const statLabels =
-    selectedLabels?.stats ??
-    buildSleepAverageLabels(
-      { averageTimeInBedSeconds, averageTimeAsleepSeconds, nightsWithData },
-      t
-    );
-
-  const rangeLabel =
-    data.length > 0
-      ? t('charts.sleep.rangeLabel', {
-          startDate: formatTooltipDate(data[0].day),
-          endDate: formatTooltipDate(data[data.length - 1].day),
-          defaultValue: '{{startDate}} – {{endDate}}',
-        })
-      : '';
+  const statLabels = buildSleepAverageLabels(
+    { averageTimeInBedSeconds, averageTimeAsleepSeconds, nightsWithData },
+    t
+  );
+  const tooltipText = buildSleepTooltipText(selectedDay, t);
 
   const formatXLabel = range === '7d' ? formatXLabel7d : formatXLabel30d90d;
   const xLabelIndices = buildXLabelIndices(data.length, X_TICK_COUNT[range]);
+
+  const tickLabels = useMemo(
+    () =>
+      layout.ticks.map((tick) =>
+        formatAxisClockLabel(
+          tick.minutes,
+          anchorMinutes,
+          preferences?.time_format
+        )
+      ),
+    [layout.ticks, anchorMinutes, preferences?.time_format]
+  );
+  const labelColumnWidth = useMemo(
+    () =>
+      measureLabelColumnWidth(
+        tickLabels,
+        (text) => axisFont.getTextWidth(text),
+        FALLBACK_LABEL_COLUMN_WIDTH
+      ),
+    [tickLabels]
+  );
 
   const renderPlaceholder = (message: string) => (
     <View className="h-50 justify-center items-center">
@@ -362,13 +365,16 @@ const SleepTimelineChart: React.FC<SleepTimelineChartProps> = ({
         <SleepStatTile label={statLabels[1]} testID="sleep-stat-time-asleep" />
       </View>
 
-      {/* Fixed height so selecting a night swaps the copy without reflowing the plot. */}
-      <View className="h-5 justify-center mb-1">
+      {/* Fixed height so selecting a night shows its tooltip without reflowing the
+          plot -- blank until selected, matching every other Health Trends card's
+          tooltip line (same wrapper/text styling as Calories/Steps/Hydration/Weight),
+          rather than a persistent window date range. */}
+      <View className="h-6 justify-center mt-3 mb-1">
         <Text
-          className="text-text-muted text-xs"
+          className="text-text-secondary text-sm text-center"
           testID="sleep-timeline-subtitle"
         >
-          {selectedLabels?.clockRange ?? rangeLabel}
+          {tooltipText}
         </Text>
       </View>
 
@@ -389,6 +395,21 @@ const SleepTimelineChart: React.FC<SleepTimelineChartProps> = ({
       ) : (
         <>
           <View className="flex-row">
+            <View style={{ width: labelColumnWidth, height: PLOT_HEIGHT }}>
+              {layout.ticks.map((tick, tickIndex) => (
+                <Text
+                  key={tick.minutes}
+                  className="text-text-muted absolute right-0"
+                  numberOfLines={1}
+                  allowFontScaling={false}
+                  // Nudged up by half a line so the label reads as centred on its gridline.
+                  style={{ top: tick.y - 7, fontSize: CHART_LABEL_FONT_SIZE }}
+                >
+                  {tickLabels[tickIndex]}
+                </Text>
+              ))}
+            </View>
+
             <View
               className="flex-1"
               style={{ height: PLOT_HEIGHT }}
@@ -425,30 +446,11 @@ const SleepTimelineChart: React.FC<SleepTimelineChartProps> = ({
                 testIDPrefix="sleep-timeline-touch-overlay"
               />
             </View>
-
-            <View style={{ width: TICK_LABEL_WIDTH, height: PLOT_HEIGHT }}>
-              {layout.ticks.map((tick) => (
-                <Text
-                  key={tick.minutes}
-                  className="text-text-muted absolute right-0"
-                  numberOfLines={1}
-                  allowFontScaling={false}
-                  // Nudged up by half a line so the label reads as centred on its gridline.
-                  style={{ top: tick.y - 7, fontSize: CHART_LABEL_FONT_SIZE }}
-                >
-                  {formatAxisClockLabel(
-                    tick.minutes,
-                    anchorMinutes,
-                    preferences?.time_format
-                  )}
-                </Text>
-              ))}
-            </View>
           </View>
 
           <View
             className="flex-row"
-            style={{ marginRight: TICK_LABEL_WIDTH, height: 16 }}
+            style={{ marginLeft: labelColumnWidth, height: 16 }}
           >
             {xLabelIndices.map((dayIndex) => {
               const column = layout.columns[dayIndex];
