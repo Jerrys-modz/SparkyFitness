@@ -93,24 +93,24 @@ private func intervalCaption(plan: ActiveWorkoutPlan?, now: Date) -> String? {
 }
 
 /// Ticks once a second. `intervalCaption` reads `now` itself, so it has to
-/// live in a view that redraws on a timer — the parent only redraws when the
+/// live in a view that redraws on a clock — the parent only redraws when the
 /// store changes, which left the cap sitting still between sets.
+///
+/// Uses `TimelineView` rather than a `Timer.publish` stored on the view: the
+/// store republishes `elapsedSeconds` every second, which re-creates this
+/// struct and with it a fresh publisher that never gets to fire.
 private struct IntervalCaptionView: View {
     let plan: ActiveWorkoutPlan?
 
-    @State private var now = Date()
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     var body: some View {
-        Group {
-            if let caption = intervalCaption(plan: plan, now: now) {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            if let caption = intervalCaption(plan: plan, now: context.date) {
                 Text(caption)
                     .font(.caption2)
                     .foregroundStyle(.yellow)
                     .monospacedDigit()
             }
         }
-        .onReceive(ticker) { now = $0 }
     }
 }
 
@@ -561,10 +561,16 @@ private struct RestView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var checkIn: CheckInStore
 
-    @State private var now = Date()
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
+    /// `TimelineView`, not a stored `Timer.publish`: the store republishes
+    /// every second, re-creating this struct and its publisher before it can
+    /// fire, which left the countdown frozen at its starting value.
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            content(now: context.date)
+        }
+    }
+
+    private func content(now: Date) -> some View {
         VStack(spacing: 3) {
             HStack {
                 Button("Skip") { store.skipRest() }
@@ -574,12 +580,12 @@ private struct RestView: View {
                 Spacer()
             }
 
-            Text(remainingLabel)
+            Text(remainingLabel(now: now))
                 .font(.title2)
                 .fontWeight(.semibold)
                 .monospacedDigit()
 
-            ProgressView(value: progress)
+            ProgressView(value: progress(now: now))
                 .tint(.blue)
 
             if let next = store.currentStep {
@@ -604,24 +610,24 @@ private struct RestView: View {
             .font(.caption2)
             .buttonStyle(.bordered)
         }
-        .onReceive(ticker) { value in now = value }
     }
 
-    private var remainingSeconds: Int {
+    private func remainingSeconds(now: Date) -> Int {
         guard let endsAt = store.restEndsAt else { return 0 }
         return max(0, Int(endsAt.timeIntervalSince(now).rounded()))
     }
 
-    private var remainingLabel: String {
-        String(format: "%d:%02d", remainingSeconds / 60, remainingSeconds % 60)
+    private func remainingLabel(now: Date) -> String {
+        let remaining = remainingSeconds(now: now)
+        return String(format: "%d:%02d", remaining / 60, remaining % 60)
     }
 
     /// Fills as the rest runs down. Guards the denominator: `adjustRest` can
     /// only ever raise it, but a zero would still be a divide by zero here.
-    private var progress: Double {
+    private func progress(now: Date) -> Double {
         let total = Double(store.restDurationSeconds)
         guard total > 0 else { return 0 }
-        return min(1, max(0, 1 - Double(remainingSeconds) / total))
+        return min(1, max(0, 1 - Double(remainingSeconds(now: now)) / total))
     }
 
     /// True only when this rest stays inside the superset just logged.
