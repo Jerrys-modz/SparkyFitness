@@ -248,6 +248,15 @@ describe('notifications service', () => {
       expect(result.shouldShowList).toBe(true);
     });
 
+    it('mutes the ping off screen when the iOS background chime owns the cue', async () => {
+      useAppPreferencesStore.getState().setRestChimeThroughSilent(true);
+      setAppState('inactive');
+      const handler = await getHandler();
+      const result = await handler(notificationWith('rest-complete'));
+      expect(result.shouldPlaySound).toBe(false);
+      expect(result.shouldShowBanner).toBe(true);
+    });
+
     it('keeps sound for non-rest notifications regardless of the chime preference', async () => {
       const handler = await getHandler();
       const medReminder = await handler(
@@ -313,6 +322,18 @@ describe('notifications service', () => {
           channelId: 'workout-timer',
         }),
       });
+    });
+
+    it('schedules a silent ping when the iOS background chime is on', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'granted' } as any);
+      mockSchedule.mockResolvedValue('mock-id' as any);
+      useAppPreferencesStore.getState().setRestChimeThroughSilent(true);
+      await scheduleRestNotification('Bench Press', 60);
+      expect(mockSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({ sound: false }),
+        })
+      );
     });
 
     it('sweeps stale delivered rest pings, leaving other notifications alone', async () => {
