@@ -34,6 +34,7 @@ import { scheduleBackgroundJobs } from '../services/backgroundJobScheduler.js';
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubEnv('SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS', 'false');
 });
 
 afterEach(() => {

@@ -23,6 +23,7 @@ import { rescheduleBackups } from '../services/backupScheduler.js';
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubEnv('SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS', 'false');
   mocks.validate.mockReturnValue(true);
   mocks.schedule.mockReturnValue({ stop: vi.fn(), destroy: vi.fn() });
   mocks.getBackupSettings.mockResolvedValue({
