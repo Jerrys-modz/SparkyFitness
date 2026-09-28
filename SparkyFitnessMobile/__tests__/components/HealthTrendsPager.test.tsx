@@ -46,6 +46,16 @@ jest.mock('../../src/components/HydrationBarChart', () => {
   };
 });
 
+jest.mock('../../src/components/CaloriesBarChart', () => {
+  const ReactModule = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: () =>
+      ReactModule.createElement(View, { testID: 'calories-chart' }),
+  };
+});
+
 type PagerProps = React.ComponentProps<typeof HealthTrendsPager>;
 
 const emptySeries = <TPoint,>(): HealthTrendSeries<TPoint> => ({
@@ -105,11 +115,20 @@ const sleepSeries = sleepTrend({
 
 const hydrationSeries = populated({ day: '2026-06-03', milliliters: 1500 });
 
+const caloriesSeries = populated({
+  day: '2026-06-03',
+  calories: 1850,
+  protein: 100,
+  carbs: 200,
+  fat: 60,
+});
+
 const baseProps = (): PagerProps => ({
   steps: stepsSeries,
   weight: emptySeries(),
   sleep: sleepTrend(),
   hydration: emptySeries(),
+  calories: emptySeries(),
   range: '7d',
   weightUnit: 'kg',
   waterUnit: 'ml',
@@ -462,6 +481,64 @@ describe('HealthTrendsPager', () => {
     ]);
     expect(pagerMock.setPageWithoutAnimation).toHaveBeenCalledWith(0);
     expect(onPageSelected).toHaveBeenCalledWith(0);
+  });
+
+  test('renders calories when the window has a logged day', () => {
+    renderPager({
+      calories: caloriesSeries,
+      visibleTrends: ['steps', 'calories'],
+    });
+
+    expect(chartOrder()).toEqual(['steps-chart', 'calories-chart']);
+  });
+
+  // `useCaloriesRange` zero-fills every day in the window, so calories' `data` is never
+  // empty and a `data.length` check would show the page to someone who has never logged
+  // food — the same trap hydration's zero-fill gating already sidesteps.
+  test('hides calories when every day in the window is a zero fill', () => {
+    renderPager({
+      calories: {
+        data: [
+          {
+            day: '2026-06-01',
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+          },
+        ],
+        isLoading: false,
+        isError: false,
+      },
+      visibleTrends: ['steps', 'calories'],
+    });
+
+    expect(chartOrder()).toEqual(['steps-chart']);
+  });
+
+  // `buildCaloriesStackDays` derives `hasData` from macro grams, not the API's raw
+  // `calories` (see caloriesStackLayout.ts), so a day logged with calories but no macros
+  // draws no bar. Gating on the same macros here keeps the page from showing only for the
+  // chart underneath to render its own empty placeholder.
+  test('hides calories when every day has calories but no macros', () => {
+    renderPager({
+      calories: {
+        data: [
+          {
+            day: '2026-06-01',
+            calories: 120,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+          },
+        ],
+        isLoading: false,
+        isError: false,
+      },
+      visibleTrends: ['steps', 'calories'],
+    });
+
+    expect(chartOrder()).toEqual(['steps-chart']);
   });
 
   test('forwards the selected page position', () => {

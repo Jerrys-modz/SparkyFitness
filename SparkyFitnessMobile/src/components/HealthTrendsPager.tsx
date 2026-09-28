@@ -9,10 +9,12 @@ import type {
   WeightDataPoint,
 } from '../hooks/useMeasurementsRange';
 import type {
+  CaloriesDataPoint,
   HealthTrendDateRange,
   HealthTrendSeries,
   HydrationDataPoint,
 } from '../types/healthTrends';
+import CaloriesBarChart from './CaloriesBarChart';
 import HydrationBarChart from './HydrationBarChart';
 import SleepTimelineChart from './SleepTimelineChart';
 import StepsBarChart from './StepsBarChart';
@@ -23,11 +25,14 @@ type HealthTrendsPagerProps = {
   weight: HealthTrendSeries<WeightDataPoint>;
   sleep: SleepTrendSeries;
   hydration: HealthTrendSeries<HydrationDataPoint>;
+  calories: HealthTrendSeries<CaloriesDataPoint>;
   range: HealthTrendDateRange;
   weightUnit: string;
   waterUnit: string;
   weightGoal?: number | null;
   hydrationGoal?: number | null;
+  /** Today's daily calorie goal, passed through to the reference line. 0/undefined draws none. */
+  calorieGoal?: number;
   visibleTrends: readonly HealthTrendKey[];
   activePage: number;
   onPageSelected: (page: number) => void;
@@ -53,11 +58,13 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
   weight,
   sleep,
   hydration,
+  calories,
   range,
   weightUnit,
   waterUnit,
   weightGoal,
   hydrationGoal,
+  calorieGoal,
   visibleTrends,
   activePage,
   onPageSelected,
@@ -83,6 +90,9 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
         goal={hydrationGoal}
       />
     ),
+    calories: () => (
+      <CaloriesBarChart {...calories} range={range} goal={calorieGoal} />
+    ),
   };
 
   const hasTrendData: Record<HealthTrendKey, () => boolean> = {
@@ -98,6 +108,17 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
       hydration.isLoading ||
       hydration.isError ||
       hydration.data.some((point) => point.milliliters > 0),
+    // Same reasoning as hydration: `useCaloriesRange` zero-fills every day too. Checked by
+    // macro grams rather than `point.calories` to match `buildCaloriesStackDays`'s
+    // `hasData` -- an entry logged with calories but no macros (e.g. alcohol-only) draws no
+    // bar there, so counting it here would show this page only for the chart to render its
+    // own empty placeholder.
+    calories: () =>
+      calories.isLoading ||
+      calories.isError ||
+      calories.data.some(
+        (point) => point.protein > 0 || point.carbs > 0 || point.fat > 0
+      ),
   };
 
   // A trend the user configured to show but that has no data for in this window still hides itself

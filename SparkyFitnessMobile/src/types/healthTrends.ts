@@ -22,3 +22,17 @@ export type HydrationDataPoint = {
   day: string;
   milliliters: number;
 };
+
+/**
+ * A day's calorie total plus the protein/carbs/fat grams needed to break it into segments.
+ * `calories` is the API's raw daily total (used to decide whether the day has any food
+ * logged at all); the chart's own displayed total is the sum of the three macros below,
+ * computed in `caloriesStackLayout.ts`.
+ */
+export type CaloriesDataPoint = {
+  day: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};

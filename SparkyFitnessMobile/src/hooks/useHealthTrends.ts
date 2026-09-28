@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { HealthTrendKey } from '../constants/healthTrends';
 import type {
+  CaloriesDataPoint,
   HealthTrendDateRange,
   HealthTrendSeries,
   HydrationDataPoint,
@@ -11,6 +12,7 @@ import {
   type StepsDataPoint,
   type WeightDataPoint,
 } from './useMeasurementsRange';
+import { useCaloriesRange } from './useCaloriesRange';
 import { useHydrationRange } from './useHydrationRange';
 import { useSleepRange } from './useSleepRange';
 
@@ -33,6 +35,7 @@ interface HealthTrends {
   weight: HealthTrendSeries<WeightDataPoint>;
   sleep: SleepTrendSeries;
   hydration: HealthTrendSeries<HydrationDataPoint>;
+  calories: HealthTrendSeries<CaloriesDataPoint>;
   refetch: () => Promise<void>;
 }
 
@@ -49,6 +52,7 @@ export function useHealthTrends({
     (activeTrends.includes('steps') || activeTrends.includes('weight'));
   const isSleepEnabled = enabled && activeTrends.includes('sleep');
   const isHydrationEnabled = enabled && activeTrends.includes('hydration');
+  const isCaloriesEnabled = enabled && activeTrends.includes('calories');
 
   const {
     stepsData,
@@ -72,19 +76,29 @@ export function useHealthTrends({
     refetch: refetchHydration,
   } = useHydrationRange({ range, enabled: isHydrationEnabled });
 
+  const {
+    caloriesData,
+    isLoading: isCaloriesLoading,
+    isError: isCaloriesError,
+    refetch: refetchCalories,
+  } = useCaloriesRange({ range, enabled: isCaloriesEnabled });
+
   const refetch = useCallback(async () => {
     await Promise.all([
       isMeasurementsEnabled ? refetchMeasurements() : Promise.resolve(),
       isSleepEnabled ? refetchSleep() : Promise.resolve(),
       isHydrationEnabled ? refetchHydration() : Promise.resolve(),
+      isCaloriesEnabled ? refetchCalories() : Promise.resolve(),
     ]);
   }, [
     isMeasurementsEnabled,
     isSleepEnabled,
     isHydrationEnabled,
+    isCaloriesEnabled,
     refetchMeasurements,
     refetchSleep,
     refetchHydration,
+    refetchCalories,
   ]);
 
   return {
@@ -111,6 +125,11 @@ export function useHealthTrends({
       data: hydrationData,
       isLoading: isHydrationLoading,
       isError: isHydrationError,
+    },
+    calories: {
+      data: caloriesData,
+      isLoading: isCaloriesLoading,
+      isError: isCaloriesError,
     },
     refetch,
   };

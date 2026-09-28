@@ -32,6 +32,7 @@ import {
   formatXLabel30d90d,
   formatXLabel7d,
   makeChartFont,
+  measureLabelColumnWidth,
 } from './charts/chartFormatting';
 import {
   buildSleepTimelineLayout,
@@ -57,21 +58,7 @@ const PLOT_HEIGHT = 150;
  */
 const FALLBACK_LABEL_COLUMN_WIDTH = 44;
 
-/** Small gap so the widest label doesn't sit flush against the plot. */
-const LABEL_COLUMN_GAP = 6;
-
 const axisFont = makeChartFont(CHART_LABEL_FONT_SIZE);
-
-/** The widest of the given labels as drawn in the axis font, plus a small gap. */
-export const measureLabelColumnWidth = (
-  labels: string[],
-  measureText: (text: string) => number,
-  fallbackWidth: number
-): number => {
-  if (labels.length === 0) return fallbackWidth;
-  const widest = Math.max(...labels.map((label) => measureText(label)));
-  return Math.ceil(widest) + LABEL_COLUMN_GAP;
-};
 
 /** Wide enough for `formatXLabel30d90d`'s "Aug 28" without truncating. */
 const X_LABEL_WIDTH = 56;
