@@ -680,16 +680,18 @@ private struct NumericKeypadView: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            HStack {
+            // Centered, not leading: the sheet's close button sits in the
+            // top-leading corner and covered a left-aligned number.
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(entry.isEmpty ? placeholder : entry)
                     .font(.title3)
                     .monospacedDigit()
                     .foregroundStyle(entry.isEmpty ? Color.secondary : Color.primary)
-                Spacer()
                 Text(title)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity)
 
             LazyVGrid(columns: Array(repeating: GridItem(spacing: 2), count: 3), spacing: 2) {
                 ForEach(keys, id: \.self) { key in
