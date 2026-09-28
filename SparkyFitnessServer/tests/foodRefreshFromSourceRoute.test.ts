@@ -10,6 +10,7 @@ import {
   enrichWithCustomNutrients,
 } from '../services/foodProviderDetailService.js';
 import foodCrudRoutes from '../routes/foodCrudRoutes.js';
+import { log } from '../config/logging.js';
 
 vi.mock('../middleware/authMiddleware.js', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,14 +188,65 @@ describe('POST /foods/:id/refresh-from-source', () => {
     expect(enrichWithCustomNutrients).not.toHaveBeenCalled();
   });
 
-  it('surfaces provider fetch errors carrying an HTTP status', async () => {
+  it('masks 5xx provider fetch errors with a generic message', async () => {
     vi.mocked(fetchProviderFoodDetails).mockRejectedValue(
-      Object.assign(new Error('Upstream is down'), { status: 502 })
+      Object.assign(
+        new Error('Upstream is down at https://internal.example.com/x'),
+        { status: 502 }
+      )
     );
 
     const res = await request(app).post('/foods/food-1/refresh-from-source');
 
     expect(res.status).toBe(502);
-    expect(res.body.error).toBe('Upstream is down');
+    expect(res.body.error).toBe('Failed to refresh food from source.');
+  });
+
+  it('passes through 4xx provider fetch error messages unchanged', async () => {
+    vi.mocked(fetchProviderFoodDetails).mockRejectedValue(
+      Object.assign(new Error('Subscription expired'), { status: 403 })
+    );
+
+    const res = await request(app).post('/foods/food-1/refresh-from-source');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Subscription expired');
+  });
+
+  it('uses the first matching active provider and warns when several match', async () => {
+    vi.mocked(
+      externalProviderService.getExternalDataProvidersForUser
+    ).mockResolvedValue([
+      {
+        id: 'prov-1',
+        provider_type: 'usda',
+        provider_name: 'USDA A',
+        is_active: true,
+      },
+      {
+        id: 'prov-2',
+        provider_type: 'usda',
+        provider_name: 'USDA B',
+        is_active: true,
+      },
+    ]);
+
+    const res = await request(app).post('/foods/food-1/refresh-from-source');
+
+    expect(res.status).toBe(200);
+    expect(fetchProviderFoodDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerType: 'usda',
+        providerId: 'prov-1',
+      })
+    );
+    expect(vi.mocked(log)).toHaveBeenCalledWith(
+      'warning',
+      expect.stringContaining('Multiple active usda providers'),
+      [
+        { id: 'prov-1', provider_name: 'USDA A' },
+        { id: 'prov-2', provider_name: 'USDA B' },
+      ]
+    );
   });
 });

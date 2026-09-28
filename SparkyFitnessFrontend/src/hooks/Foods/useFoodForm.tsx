@@ -142,6 +142,52 @@ function scaleVariantNutrition(
   return scaledVariant;
 }
 
+/**
+ * Keep every variant consistent after the default variant was replaced from a
+ * data source: re-derive each non-default variant from the new default using
+ * the same unit-conversion rules the form uses for manual edits
+ * (getConversionFactor + scaleVariantNutrition). Variants whose unit is not
+ * compatible with the refreshed default's unit (e.g. g vs tbsp) are left
+ * untouched — the form treats those as manual-conversion cases too.
+ */
+function rescaleVariantsFromRefreshedDefault(
+  variants: FormFoodVariantWithEquivalents[],
+  refreshedDefault: FormFoodVariant
+): FormFoodVariantWithEquivalents[] {
+  const baseSize = toPositiveNumber(refreshedDefault.serving_size);
+  if (baseSize === null) return variants;
+  return variants.map((variant) => {
+    if (variant.is_default) return variant;
+    const factor = getConversionFactor(
+      String(refreshedDefault.serving_unit ?? ''),
+      String(variant.serving_unit ?? '')
+    );
+    const size = toPositiveNumber(variant.serving_size);
+    if (factor === null || size === null) return variant;
+    const scaled = scaleVariantNutrition(
+      refreshedDefault,
+      (size / baseSize) * factor
+    );
+    return {
+      ...variant,
+      ...scaled,
+      // Keep this variant's identity, serving data, and provenance intact —
+      // `scaled` is derived from the refreshed default and would otherwise
+      // clobber these with the default's values.
+      id: variant.id,
+      is_default: variant.is_default,
+      equivalents: variant.equivalents,
+      is_locked: variant.is_locked,
+      serving_size: variant.serving_size,
+      serving_unit: variant.serving_unit,
+      source: variant.source,
+      ai_confidence: variant.ai_confidence,
+      provider_nutrients: variant.provider_nutrients,
+      provider_nutrient_units: variant.provider_nutrient_units,
+    };
+  });
+}
+
 function buildExactVariantSnapshot(
   exactVariant: FormFoodVariant,
   currentVariant: GroupedFormFoodVariant,
@@ -1125,6 +1171,10 @@ export function useCustomFoodForm({
    * name/brand and the default variant's serving and nutrition. Nothing is
    * persisted until the user saves; saving then routes through the normal
    * post-save sync prompt so logged diary entries can optionally be updated.
+   *
+   * Non-default variants are scaled snapshots of the default (the app creates
+   * them via unit conversion / serving-size edits), so the refresh re-derives
+   * them from the refreshed default to keep every variant consistent.
    */
   const applyProviderRefresh = useCallback(
     (refreshed: Food) => {
@@ -1171,14 +1221,37 @@ export function useCustomFoodForm({
       if (defaultIndex === -1) return;
 
       const merged = nextVariants[defaultIndex];
-      setVariants(nextVariants);
+      if (!merged) return;
+      // Re-derive non-default variants from the refreshed default so every
+      // variant stays consistent — the app is the scaling authority.
+      const rescaledVariants = rescaleVariantsFromRefreshedDefault(
+        nextVariants,
+        merged
+      );
+      setVariants(rescaledVariants);
       setOriginalVariants((orig) =>
-        orig.map((o, i) => (i === defaultIndex ? { ...o, ...merged } : o))
+        orig.map((o, i) => {
+          const target = rescaledVariants[i];
+          if (!target) return o;
+          return i === defaultIndex ? { ...o, ...merged } : { ...o, ...target };
+        })
       );
       setLoadedVariants((loaded) =>
-        loaded.map((l, i) =>
-          i === defaultIndex && l ? { ...l, ...merged } : l
-        )
+        loaded.map((l, i) => {
+          if (!l) return l;
+          const target = rescaledVariants[i];
+          if (!target) return l;
+          return i === defaultIndex ? { ...l, ...merged } : { ...l, ...target };
+        })
+      );
+      // Update the serving-size scaling bases so post-refresh serving-size
+      // edits scale from the refreshed values.
+      setServingSizeScalingBaseVariants((prev) =>
+        prev.map((b, i) => {
+          const target = rescaledVariants[i];
+          if (!target) return b;
+          return i === defaultIndex ? deepClone(merged) : deepClone(target);
+        })
       );
       // Refreshed values are no longer an AI estimate, so drop its unit badge.
       setVariantMeta((meta) =>

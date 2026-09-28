@@ -144,8 +144,13 @@ export function DataTable<TData extends RowData>({
   // bubble to the row's onClick, so menu items (divs with role="menuitem")
   // must be excluded explicitly or a menu click also triggers the row action
   // (e.g. the foods row opened the edit dialog before the chosen action ran).
+  // When only onRowDoubleClick is provided, a single tap/row click falls back
+  // to it so touch devices (where dblclick is unreliable) can still open the
+  // row's detail view — this is how every consumer that passes only
+  // onRowDoubleClick opens items on mobile.
   const handleRowClick = (event: ReactMouseEvent, row: TData) => {
-    if (!onRowClick) return;
+    const handler = onRowClick ?? onRowDoubleClick;
+    if (!handler) return;
     if (
       event.target instanceof HTMLElement &&
       event.target.closest(
@@ -154,7 +159,7 @@ export function DataTable<TData extends RowData>({
     ) {
       return;
     }
-    onRowClick(row);
+    handler(row);
   };
 
   const resolvedTitleColumnId = useMemo(() => {

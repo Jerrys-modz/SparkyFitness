@@ -616,7 +616,10 @@ const FoodDatabaseManager = () => {
                     setRowSelection({});
                   }}
                 >
-                  <SelectTrigger className="w-44">
+                  <SelectTrigger
+                    className="w-44"
+                    aria-label={t('common.source', 'Data source')}
+                  >
                     <SelectValue
                       placeholder={t('common.source', 'Data source')}
                     />
@@ -686,8 +689,13 @@ const FoodDatabaseManager = () => {
             titleColumnId="name"
             getRowId={(row) => row.id}
             onRowClick={(food) => {
-              if (!isEditMode && canEdit(food)) {
+              if (isEditMode) return;
+              if (canEdit(food)) {
                 handleEdit(food);
+              } else {
+                // Rows the user can't edit (public/family foods) open the
+                // read-only view panel instead.
+                setViewingFood(food);
               }
             }}
             onSortingChange={(sorting) => {

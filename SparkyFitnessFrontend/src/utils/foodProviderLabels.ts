@@ -15,19 +15,11 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
 
 /**
  * Active provider types that can be used to filter the food list.
- * Mirrors the backend `VALID_PROVIDER_TYPES` (legacy `nutritionix` excluded
- * from filtering since no active backend import path exists for it).
+ * Shared with the backend (`VALID_PROVIDER_TYPES`) via `@workspace/shared`;
+ * legacy `nutritionix` is excluded since no active backend import path
+ * exists for it.
  */
-export const FOOD_PROVIDER_TYPES = [
-  'openfoodfacts',
-  'usda',
-  'fatsecret',
-  'mealie',
-  'tandoor',
-  'yazio',
-  'norish',
-  'swissfood',
-] as const;
+export { FOOD_PROVIDER_TYPES } from '@workspace/shared';
 
 /**
  * Maps a food `provider_type` value to a display name.

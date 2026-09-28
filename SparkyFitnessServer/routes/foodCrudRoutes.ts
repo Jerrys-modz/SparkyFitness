@@ -1271,18 +1271,33 @@ router.post(
       );
       const language = userPrefs?.language || 'en';
 
-      // The foods table only stores the source type and external id, so resolve
-      // the caller's active provider row for that type to pass along as providerId.
+      // The foods table only stores the source type and external id, so
+      // resolve the caller's active provider row for that type to pass along
+      // as providerId. If the user has more than one active provider of the
+      // same type, there is no way to tell which one the food was imported
+      // from; the first match wins and a warning is logged for visibility.
       const providers =
         await externalProviderService.getExternalDataProvidersForUser(
           req.authenticatedUserId,
           req.authenticatedUserId
         );
-      const activeProvider = providers.find(
+      const activeProviders = providers.filter(
         (p) => p.provider_type === food.provider_type && p.is_active
       );
+      if (activeProviders.length > 1) {
+        log(
+          'warning',
+          `Multiple active ${food.provider_type} providers for user ${req.authenticatedUserId}; using the first match.`,
+          activeProviders.map((p) => ({
+            id: p.id,
+            provider_name: p.provider_name,
+          }))
+        );
+      }
       const providerId =
-        typeof activeProvider?.id === 'string' ? activeProvider.id : undefined;
+        typeof activeProviders[0]?.id === 'string'
+          ? activeProviders[0].id
+          : undefined;
       if (
         food.provider_type !== 'openfoodfacts' &&
         food.provider_type !== 'swissfood' &&
@@ -1330,11 +1345,19 @@ router.post(
         error instanceof Error &&
         typeof (error as unknown as Record<string, unknown>).status === 'number'
       ) {
-        res
-          .status(
-            (error as unknown as Record<string, unknown>).status as number
-          )
-          .json({ error: error.message });
+        const status = (error as unknown as Record<string, unknown>)
+          .status as number;
+        if (status >= 500) {
+          // Server-side/upstream failure: keep the full error server-side and
+          // return a generic message so internal details (URLs, provider
+          // payloads) are not leaked to the client.
+          log('error', 'refresh-from-source upstream failure:', error);
+          res.status(status).json({
+            error: 'Failed to refresh food from source.',
+          });
+          return;
+        }
+        res.status(status).json({ error: error.message });
         return;
       }
       next(error);
