@@ -57,7 +57,8 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 ## Source Map
 
 - `index.ts` - real dev entrypoint; loads env, secrets, and preflight checks before booting the app
-- `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, cron setup, graceful shutdown
+- `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, startup, graceful shutdown
+- `services/backgroundJobScheduler.ts` - starts every scheduled background job at startup; provider syncs are listed in `services/providerSyncScheduler.ts`
 - `auth.ts` - Better Auth configuration, plugins, session behavior, SSO provider syncing
 - `routes/` - primary HTTP route surface
 - `routes/v2/` - newer typed route surface; pair these changes with `schemas/`
@@ -101,7 +102,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 ### Boot and App Shell
 
 - `index.ts` is the true local boot path used by `pnpm start`; do not bypass it for normal development because it performs env loading and preflight work
-- `SparkyFitnessServer.ts` creates the Express app, configures static upload serving, mounts auth interception, registers routes, exposes API docs, schedules cron jobs, and handles graceful shutdown
+- `SparkyFitnessServer.ts` creates the Express app, configures static upload serving, mounts auth interception, registers routes, exposes API docs, starts background jobs through `services/backgroundJobScheduler.ts`, and handles graceful shutdown
 - Startup order matters:
   - `index.ts`: await `initializeDatabase()`, which applies pending migrations and then reapplies `db/rls_policies.sql` under a PostgreSQL advisory lock, **before** importing `SparkyFitnessServer.ts` (and therefore `auth.ts`)
   - upsert env-configured OIDC provider

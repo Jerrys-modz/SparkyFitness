@@ -97,10 +97,7 @@ import nutritionKineticsRoutesV2 from './routes/v2/nutritionKineticsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import reviewRoutes from './routes/reviewRoutes.js';
-import cron from 'node-cron';
-import { scheduleBackupsOnStartup } from './services/backupScheduler.js';
-import { scheduleOpenFoodFactsAutoSyncOnStartup } from './services/openFoodFactsAutoSyncScheduler.js';
-import { startProviderSyncSchedulers } from './services/providerSyncScheduler.js';
+import { scheduleBackgroundJobs } from './services/backgroundJobScheduler.js';
 // @ts-expect-error TS1192
 import dailySummaryRoutes from './routes/dailySummaryRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
@@ -121,8 +118,6 @@ import oidcSettingsRoutes from './routes/oidcSettingsRoutes.js';
 import adminAuthRoutes from './routes/adminAuthRoutes.js';
 import workoutPresetRoutes from './routes/workoutPresetRoutes.js';
 import workoutPlanTemplateRoutes from './routes/workoutPlanTemplateRoutes.js';
-import { cleanupSessions } from './auth.js';
-import { deleteExpiredTickets } from './services/passkeyTicketService.js';
 import { upsertEnvOidcProvider } from './utils/oidcEnvConfig.js';
 import userRepository from './models/userRepository.js';
 import genericHealthRoutes from './routes/genericHealthRoutes.js';
@@ -753,29 +748,6 @@ app.get(
 );
 app.get('/api/api-docs/json', (_req, res) => res.json(swaggerSpecs));
 app.get('/api/api-docs', (_req, res) => res.redirect('/api/api-docs/swagger'));
-// Backup scheduling is handled by services/backupScheduler.ts
-// Session cleanup scheduling
-const scheduleSessionCleanup = async () => {
-  // Run every day at 3 AM
-  cron.schedule('0 3 * * *', async () => {
-    try {
-      await cleanupSessions();
-    } catch (error) {
-      console.error('[CRON] Session cleanup failed:', error);
-    }
-    try {
-      const removed = await deleteExpiredTickets();
-      if (removed > 0) {
-        log(
-          'info',
-          `[CRON] Removed ${removed} used/expired passkey ticket(s).`
-        );
-      }
-    } catch (error) {
-      console.error('[CRON] Passkey ticket cleanup failed:', error);
-    }
-  });
-};
 // Migrations and RLS policies are applied by index.ts before this module is
 // imported, so that Better Auth's eager schema validation (run at auth.ts
 // module scope) sees the migrated schema. Do not move them back in here.
@@ -793,10 +765,7 @@ const scheduleSessionCleanup = async () => {
       console.error('[AUTH] Post-init SSO sync failed:', err)
     );
   }
-  scheduleBackupsOnStartup();
-  await scheduleOpenFoodFactsAutoSyncOnStartup();
-  scheduleSessionCleanup();
-  startProviderSyncSchedulers();
+  await scheduleBackgroundJobs();
   if (process.env.SPARKY_FITNESS_ADMIN_EMAIL) {
     // A demo account promoted to admin would hand every anonymous visitor the
     // admin panel. Refuse the promotion rather than start up compromised.
