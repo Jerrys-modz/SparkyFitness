@@ -154,6 +154,7 @@ const SOURCE_DISPLAY_NAMES: Record<string, string> = {
   strava: 'Strava',
   fitbit: 'Fitbit',
   withings: 'Withings',
+  coros_mcp: 'COROS',
 };
 
 /**
