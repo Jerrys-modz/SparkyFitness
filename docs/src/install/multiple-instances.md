@@ -8,7 +8,7 @@ SparkyFitness runs as a single server by default, and most installs never need m
 
 ## Use identical environment variables
 
-Every instance must run with the same environment variables. Each server reads its settings from its own environment at startup, and nothing keeps them in sync, so two instances with different values will behave differently depending on which one answers a request.
+Every instance must run with the same environment variables. Each server reads its settings from its own environment at startup, and nothing keeps them in sync, so two instances with different values will behave differently depending on which one answers a request. The one exception is `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS`, described below.
 
 A single Kubernetes Deployment or Helm release already guarantees this. With Docker Compose or a manual setup, point every instance at the same `.env` file.
 
@@ -24,6 +24,14 @@ Uploaded images and backups are stored on the server's disk. Every instance must
 
 With Helm, the chart's default volumes are `ReadWriteOnce`, which usually cannot be attached to pods on different nodes. Set `server.persistence.uploads.accessMode` and `server.persistence.backup.accessMode` to `ReadWriteMany` with a StorageClass that supports it, and switch `server.strategy.type` to `RollingUpdate`. The access mode is fixed when a volume is created, so an existing install needs new volumes with its data copied over.
 
+## Run scheduled jobs on one instance
+
+Scheduled jobs (nightly cleanup, hourly integration syncs, automatic backups, Open Food Facts syncing and the demo reset) run on every instance by default. Set `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true` on every instance except one, so exactly one instance runs them. With `SPARKY_FITNESS_LOG_LEVEL` set to `INFO` or `DEBUG`, each instance with jobs disabled says so in its startup log.
+
+With Kubernetes, run the jobs instance as its own Deployment with `replicas: 1` and the `Recreate` strategy, sharing the same ConfigMap and Secrets, and set the variable on the Deployment you scale. With Docker Compose, keep scaling `sparkyfitness-server`, the service the frontend sends requests to, and add `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS: "true"` under its `environment:`. Then add a copy of that service under a new name, such as `sparkyfitness-jobs`, without the variable, to run the jobs. Do not put it in the shared `.env` file, or no instance will run the jobs.
+
+After changing the backup schedule in the admin settings, restart the jobs instance so it picks up the new schedule.
+
 ## What to expect during a rolling update
 
 When you change an environment variable and redeploy one instance at a time, old and new instances run side by side for a short while. During that window:
@@ -36,5 +44,3 @@ Once every instance runs the new configuration, they all agree again.
 ## Things that are per instance
 
 - **Sign-in rate limits** are counted by each instance separately, so the effective limit from one IP address can be up to the configured value times the number of instances.
-- **Scheduled jobs** (nightly cleanup and hourly integration syncs) currently run on every instance, so each one runs once per instance.
-- **Automatic backups** also run on every instance, all writing to the same backup folder at the same moment, which can produce duplicate or damaged backups. With more than one instance, turn off automatic backups in the admin settings and back up the database (for example with the Helm chart's `databaseBackup` job or your own `pg_dump` schedule) and the uploads folder separately.

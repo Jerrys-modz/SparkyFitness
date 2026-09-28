@@ -84,6 +84,7 @@ Always written by the generator. These have working defaults, but the timezone i
 - **`SPARKY_FITNESS_SERVER_HOST`**: Hostname or IP the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name. It is resolved dynamically from inside the frontend container via DNS. If pointing to a host defined in `/etc/hosts` (such as `host.docker.internal` on Linux, `localhost`, or `--link` aliases), the frontend entrypoint automatically detects it and resolves it to its IP address directly. When deploying with custom Kubernetes manifests without the bundled Helm chart, specify the full in-cluster service FQDN (e.g., `sparkyfitness-server.default.svc.cluster.local`) since dynamic DNS resolution queries DNS directly without `/etc/resolv.conf` search domains.
 - **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated additional origins Better Auth should trust. Leave blank unless you reach the app on more than one URL.
 - **`BETTER_AUTH_URL`**: Overrides the base URL Better Auth builds callback links from. Only needed when it cannot be derived from `SPARKY_FITNESS_FRONTEND_URL`.
+- **`SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS`**: Set to `true` on every instance except one when [running multiple instances](./multiple-instances.md#run-scheduled-jobs-on-one-instance), so a single instance runs the scheduled jobs. Set it on each instance's own environment, not in a shared `.env` file, or no instance will run them. Leave it unset on a single-container install.
 
 ### Module 3: 🛡️ Admin Email, Public Signups & Access Policy `[Backend]`
 
