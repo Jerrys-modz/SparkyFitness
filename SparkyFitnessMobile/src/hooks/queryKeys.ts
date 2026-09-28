@@ -110,10 +110,13 @@ export const measurementsRangeQueryKey = (startDate: string, endDate: string) =>
 export const waterIntakeRangeQueryKey = (startDate: string, endDate: string) =>
   ['waterIntakeRange', startDate, endDate] as const;
 
+export const sleepRangeQueryKeyRoot = ['sleepRange'] as const;
 export const sleepRangeQueryKey = (startDate: string, endDate: string) =>
-  ['sleepRange', startDate, endDate] as const;
+  [...sleepRangeQueryKeyRoot, startDate, endDate] as const;
 
-export const sleepDayQueryKey = (day: string) => ['sleep', 'day', day] as const;
+export const sleepDayQueryKeyRoot = ['sleep'] as const;
+export const sleepDayQueryKey = (day: string) =>
+  [...sleepDayQueryKeyRoot, 'day', day] as const;
 
 // --- Check-in progress photos ---
 /** Root, so an upload/delete can invalidate the gallery and every per-day list. */
@@ -188,6 +191,32 @@ export const exerciseStatsQueryKey = (
     presetId ?? null,
   ] as const;
 
+export const workoutSessionFeedbackQueryKey = (presetEntryId: string) =>
+  ['workoutSessionFeedback', presetEntryId] as const;
+
+export const workoutCoachingSettingsQueryKey = [
+  'workoutCoachingSettings',
+] as const;
+
+/** Root for adaptive suggestions; feedback saves invalidate it. */
+export const workoutSuggestionsQueryKeyRoot = ['workoutSuggestions'] as const;
+
+export const exerciseAlternativesQueryKeyRoot = [
+  'exerciseAlternatives',
+] as const;
+
+export const exerciseAlternativesQueryKey = (
+  exerciseId: string,
+  mode: string,
+  excludeIds: readonly string[]
+) =>
+  [
+    ...exerciseAlternativesQueryKeyRoot,
+    exerciseId,
+    mode,
+    [...excludeIds].sort().join(','),
+  ] as const;
+
 export const exerciseDetailQueryKey = (exerciseId: string) =>
   ['exerciseDetail', exerciseId] as const;
 
@@ -219,8 +248,9 @@ export const externalExerciseSearchQueryKey = (
     language,
   ] as const;
 
+export const workoutSessionQueryKeyRoot = ['workoutSession'] as const;
 export const workoutSessionQueryKey = (sessionId: string) =>
-  ['workoutSession', sessionId] as const;
+  [...workoutSessionQueryKeyRoot, sessionId] as const;
 
 export const workoutPresetsQueryKey = ['workoutPresets'] as const;
 
@@ -258,6 +288,23 @@ export const chatHistoryQueryKey = ['chatHistory'] as const;
 export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
   ['nutritionTrends', startDate, endDate] as const;
 
+export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
+  ['exerciseDashboard', startDate, endDate] as const;
+
+export const cardioSessionsQueryKey = (
+  startDate: string,
+  endDate: string,
+  unitSystem: 'metric' | 'imperial'
+) => ['cardioSessions', startDate, endDate, unitSystem] as const;
+
+export const cardioSessionDetailQueryKey = (
+  part: 'entry' | 'gps' | 'hrZones',
+  exerciseEntryId: string
+) => ['cardioSessionDetail', part, exerciseEntryId] as const;
+
+export const heartRateSamplesQueryKey = (startDate: string, endDate: string) =>
+  ['heartRateSamples', startDate, endDate] as const;
+
 // --- Cycle & Pregnancy ---
 export const cycleSettingsQueryKey = ['cycleSettings'] as const;
 export const cycleLogQueryKey = (date: string) => ['cycleLog', date] as const;
@@ -289,3 +336,6 @@ export const medicationEntriesQueryKey = (opts?: {
   toDate?: string;
   medicationId?: string;
 }) => ['medications', 'entries', opts ?? {}] as const;
+
+/** Autocomplete source for the live workout's gym / location prompt. */
+export const workoutLocationsQueryKey = ['workoutLocations'] as const;

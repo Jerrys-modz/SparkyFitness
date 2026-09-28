@@ -4,6 +4,7 @@ import {
   ExerciseEntrySetResponse,
   ExerciseModality,
   PresetSessionResponse,
+  WorkoutFormat,
 } from '@workspace/shared';
 import { Exercise } from './exercises';
 
@@ -28,6 +29,8 @@ export interface WorkoutPresetExercise {
   category?: string;
   modality?: ExerciseModality | null; // Populated from backend join
   superset_group?: number | null;
+  /** Within-session per-set ramp, kg. Null = off. */
+  ramp_increment?: number | null;
   workout_plan_assignment_id?: string | number | null;
 }
 
@@ -37,6 +40,8 @@ export interface WorkoutPreset {
   name: string;
   description?: string;
   is_public?: boolean;
+  workout_format?: WorkoutFormat;
+  time_cap_seconds?: number | null;
   created_at?: string;
   updated_at?: string;
   exercises: WorkoutPresetExercise[];

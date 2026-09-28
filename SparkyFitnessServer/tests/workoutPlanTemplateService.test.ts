@@ -304,6 +304,38 @@ describe('workoutPlanTemplateService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('defaults omitted schedule_type to sequential and entry_mode to prompt', async () => {
+      const mockCreated = {
+        id: TEMPLATE_ID,
+        user_id: USER_ID,
+        plan_name: 'Default Plan',
+        is_active: false,
+        schedule_type: 'sequential' as const,
+        entry_mode: 'prompt' as const,
+      };
+      vi.mocked(
+        workoutPlanTemplateRepository.createWorkoutPlanTemplate
+      ).mockResolvedValue(mockCreated);
+
+      const result = await workoutPlanTemplateService.createWorkoutPlanTemplate(
+        USER_ID,
+        {
+          plan_name: 'Default Plan',
+          assignments: [{ day_of_week: null, sort_order: 0 }],
+        }
+      );
+
+      expect(result).toEqual(mockCreated);
+      expect(
+        workoutPlanTemplateRepository.createWorkoutPlanTemplate
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule_type: 'sequential',
+          entry_mode: 'prompt',
+        })
+      );
+    });
+
     it('throws error when weekly plan has invalid day_of_week', async () => {
       await expect(
         workoutPlanTemplateService.createWorkoutPlanTemplate(USER_ID, {
@@ -396,6 +428,7 @@ describe('workoutPlanTemplateService', () => {
           plan_name: 'Switched to Sequential',
           is_active: true,
           schedule_type: 'sequential',
+          entry_mode: 'prompt',
           assignments: [{ session_index: 0, sort_order: 0, day_of_week: null }],
         },
         true

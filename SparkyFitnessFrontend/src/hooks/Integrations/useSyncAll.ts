@@ -11,6 +11,7 @@ import {
   handleManualSyncGarmin,
   handleManualSyncOura,
   handleManualSyncPolar,
+  handleManualSyncCoros,
   handleManualSyncStrava,
   handleManualSync,
 } from '@/api/Settings/externalProviderService';
@@ -59,6 +60,9 @@ export const useSyncAllMutation = () => {
               break;
             case 'polar':
               await handleManualSyncPolar(provider.id);
+              break;
+            case 'coros_mcp':
+              await handleManualSyncCoros({ providerId: provider.id });
               break;
             case 'withings':
               await handleManualSync();

@@ -161,6 +161,7 @@ const STRICT_SCHEMA_PROVIDERS = new Set([
   'groq',
   'openrouter',
   'xai',
+  'perplexity',
 ]);
 
 function providerFamily(serviceType: string): ProviderFamily | null {
@@ -173,6 +174,7 @@ function providerFamily(serviceType: string): ProviderFamily | null {
     case 'groq':
     case 'openrouter':
     case 'xai':
+    case 'perplexity':
     case 'meta': // Muse Spark's OpenAI-compatible endpoint; see openAiFamilyUrl.
     case 'custom':
       return 'openai';
@@ -454,6 +456,9 @@ function openAiFamilyUrl(provider: ProviderConfig): string {
   if (provider.service_type === 'custom') {
     return provider.custom_url as string;
   }
+  if (provider.service_type === 'perplexity') {
+    return 'https://api.perplexity.ai/v1/responses';
+  }
   const baseUrl = getOpenAiCompatibleBaseUrl(
     provider.service_type,
     provider.custom_url
@@ -526,6 +531,7 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
   const body: Record<string, unknown> = {
     model: ctx.model,
     messages: [{ role: 'user', content }],
+    ...(ctx.provider.service_type === 'perplexity' && { input: content }),
   };
   if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;
@@ -685,13 +691,63 @@ function extractGoogle(data: unknown): ExtractResult {
   return { kind: 'text', text };
 }
 
+function extractTextFromAgentOutput(output: unknown): string | null {
+  if (!Array.isArray(output)) return null;
+  const texts: string[] = [];
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as {
+      type?: string;
+      text?: unknown;
+      output_text?: unknown;
+      content?: unknown;
+    };
+    if (typeof obj.text === 'string') {
+      texts.push(obj.text);
+    } else if (typeof obj.output_text === 'string') {
+      texts.push(obj.output_text);
+    } else if (typeof obj.content === 'string') {
+      texts.push(obj.content);
+    } else if (Array.isArray(obj.content)) {
+      for (const block of obj.content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as {
+          type?: string;
+          text?: unknown;
+          output_text?: unknown;
+        };
+        if (typeof b.text === 'string') {
+          texts.push(b.text);
+        } else if (typeof b.output_text === 'string') {
+          texts.push(b.output_text);
+        }
+      }
+    }
+  }
+
+  const combined = texts.join('\n').trim();
+  return combined.length > 0 ? combined : null;
+}
+
 function extractOpenAiFamily(data: unknown): ExtractResult {
   const d = data as {
     choices?: Array<{
       finish_reason?: string;
       message?: { content?: unknown; refusal?: unknown };
     }>;
+    output_text?: unknown;
+    output?: unknown;
   };
+  // Perplexity Agent API responses (/v1/responses) return `output_text` or `output`
+  if (typeof d?.output_text === 'string' && d.output_text.trim() !== '') {
+    return { kind: 'text', text: d.output_text };
+  }
+  const agentText = extractTextFromAgentOutput(d?.output);
+  if (agentText) {
+    return { kind: 'text', text: agentText };
+  }
+
   const choice = d?.choices?.[0];
   const message = choice?.message;
   if (message?.refusal) {
@@ -859,11 +915,21 @@ async function readResponse(response: Response): Promise<HttpOutcome> {
     // A 400 naming a request parameter is otherwise surfaced as raw JSON the
     // user has to decode; say it in a sentence instead.
     const rejected = describeRejectedParam(response.status, body);
-    const detail = rejected
-      ? `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`
-      : `AI service returned status ${response.status}${
-          body ? `: ${truncateBody(body)}` : ''
-        }`;
+    let detail: string;
+    if (rejected) {
+      detail = `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`;
+    } else if (
+      response.status === 403 &&
+      (body.includes('chat_completions_not_available') ||
+        body.includes('Sonar is now the Agent API'))
+    ) {
+      detail =
+        'Perplexity has retired the OpenAI-compatible Chat Completions API (/chat/completions) in favor of the Agent API (/v1/responses). Direct connections via OpenAI-compatible endpoints are not supported. Use OpenRouter with a Perplexity model (e.g., perplexity/sonar or perplexity/sonar-pro) instead.';
+    } else {
+      detail = `AI service returned status ${response.status}${
+        body ? `: ${truncateBody(body)}` : ''
+      }`;
+    }
     return {
       error: {
         ok: false,

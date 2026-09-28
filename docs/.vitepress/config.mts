@@ -53,6 +53,7 @@ export default defineConfig({
           { text: 'Build from Source', link: '/install/build-from-source' },
           { text: 'Environment Variables', link: '/install/environment-variables' },
           { text: 'External Database', link: '/install/external-database' },
+          { text: 'Multiple Instances', link: '/install/multiple-instances' },
           { text: 'Postgres Upgrade', link: '/install/postgres-upgrade' },
           { text: 'NixOS', link: '/install/nixos' },
           { text: 'Coolify', link: '/install/coolify' },
@@ -104,6 +105,7 @@ export default defineConfig({
             { text: 'Build from Source', link: '/install/build-from-source' },
             { text: 'Environment Variables Reference', link: '/install/environment-variables' },
             { text: 'External Database Setup', link: '/install/external-database' },
+            { text: 'Running Multiple Instances', link: '/install/multiple-instances' },
             { text: 'PostgreSQL Major Upgrade', link: '/install/postgres-upgrade' },
             { text: 'NixOS', link: '/install/nixos' },
             { text: 'Coolify', link: '/install/coolify' },
@@ -155,6 +157,10 @@ export default defineConfig({
           items: [
             { text: 'Exercise Database Manager', link: '/features/exercises/exercise-database-manager' },
             { text: 'Exercise Search', link: '/features/exercises/exercise-search' },
+            { text: 'Interval & WOD Workouts', link: '/features/exercises/interval-wod-workouts' },
+            { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
+            { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
+            { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
           ],
         },
         {
@@ -169,6 +175,7 @@ export default defineConfig({
             { text: 'Login Management', link: '/features/settings/login-management' },
             { text: 'Google Health Connect', link: '/features/settings/google-health' },
             { text: 'Polar', link: '/features/settings/polar' },
+            { text: 'COROS (MCP)', link: '/features/settings/coros' },
           ],
         },
         {

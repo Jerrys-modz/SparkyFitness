@@ -27,6 +27,10 @@ import {
   mapDayStatisticsToMinMaxAvg,
 } from './dataAggregation';
 import { BLOOD_GLUCOSE_MG_DL_PER_MMOL_L } from '../shared/dataTransformation';
+import {
+  WATCH_SESSION_METADATA_KEY,
+  isOwnWatchWorkout,
+} from './dataTransformation';
 import { DIETARY_WRITE_IDENTIFIERS } from './writebackMappers';
 import {
   collectWorkoutTelemetry,
@@ -71,7 +75,11 @@ const limitTelemetry = createConcurrencyLimiter(TELEMETRY_CONCURRENCY);
 const workoutCacheKey = (workout: unknown): string | null => {
   const w = workout as { uuid?: string; endDate?: string | Date };
   const end = w.endDate instanceof Date ? w.endDate.toISOString() : w.endDate;
-  return sessionTelemetryKey(w.uuid, end);
+  const key = sessionTelemetryKey(w.uuid, end);
+  // v2: walks collected before route access was granted were cached with an
+  // empty track, and the cache then skipped them forever. The suffix makes
+  // the next sync read each workout once more.
+  return key ? `${key}:v2` : null;
 };
 
 // Track if HealthKit is available on this device
@@ -1090,7 +1098,12 @@ const handleWorkout: RecordHandler = async (
   const filteredWorkouts = workouts.filter((w) => {
     const workoutStart = new Date(w.startDate);
     const workoutEnd = new Date(w.endDate);
-    return overlapsDateRange(workoutStart, workoutEnd, startDate, endDate);
+    if (!overlapsDateRange(workoutStart, workoutEnd, startDate, endDate)) {
+      return false;
+    }
+    // Drop our own watch sessions before they claim telemetry-budget slots.
+    // The transformer still skips them as defense in depth.
+    return !isOwnWatchWorkout(w as unknown as Record<string, unknown>);
   });
 
   // Budget slots are assigned in list order (the query is newest-first) before
@@ -1253,6 +1266,22 @@ const handleWorkout: RecordHandler = async (
         .metadataTimeZone;
       if (tz) {
         record.metadata = { HKTimeZone: tz };
+      }
+
+      // Forward the marker our own watch app stamps on workouts it saves, so
+      // the transformer can skip them — the live-workout flow already logged
+      // those sets in the diary, and importing the HealthKit copy would file
+      // the same session twice. Forwarded key by key like the timezone above
+      // rather than by spreading the whole metadata dictionary: the reader
+      // here deliberately carries only what a transformer consumes.
+      const watchSessionId = (
+        w as unknown as { metadata?: Record<string, unknown> }
+      ).metadata?.[WATCH_SESSION_METADATA_KEY];
+      if (watchSessionId !== undefined) {
+        record.metadata = {
+          ...(record.metadata as Record<string, unknown> | undefined),
+          [WATCH_SESSION_METADATA_KEY]: watchSessionId,
+        };
       }
 
       // Elevation is not a totals field on the workout; it arrives as metadata.

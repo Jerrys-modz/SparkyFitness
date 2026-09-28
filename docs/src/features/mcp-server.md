@@ -39,6 +39,9 @@ Manage your workouts, track strength progress, and use presets.
 | **Exercise Details**  | `get_exercise_details`  | "How do I perform a Bulgarian Split Squat?"            |
 | **Progress Tracking** | `get_exercise_progress` | "Show me my Bench Press progress over the last month." |
 | **Search Library**    | `search_exercises`      | "Find some advanced chest exercises using dumbbells."  |
+| **Alternatives**      | `suggest_alternatives`  | "What can I do instead of bench press? Only dumbbells." |
+| **Rate a Workout**    | `rate_workout`          | "Yesterday's workout felt too hard; my knee hurt."     |
+| **Adaptive Coaching** | `get_workout_coaching`  | "Will my Push Day change next time, and why?"          |
 
 ### 📈 Biometrics & Check-ins
 
