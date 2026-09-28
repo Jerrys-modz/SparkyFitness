@@ -454,6 +454,9 @@ export function classifyActivitySport(
   if (input.providerName) {
     const raw = extractProviderSport(input.providerName, input.detailData);
     if (raw) {
+      if ((ACTIVITY_SPORTS as readonly string[]).includes(raw)) {
+        return { sport: raw as ActivitySport, confidence: "declared" };
+      }
       const sport = mapRawSportValue(raw);
       if (sport !== "other") return { sport, confidence: "declared" };
     }

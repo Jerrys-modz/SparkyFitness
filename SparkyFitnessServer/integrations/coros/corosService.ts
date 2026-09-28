@@ -363,7 +363,7 @@ function isAuthError(err: unknown): boolean {
   }
   const str = String(err);
   return (
-    str.includes('401') ||
+    /\b401\b/.test(str) ||
     str.includes('Unauthorized') ||
     str.includes('invalid_token') ||
     str.includes('invalid_grant')

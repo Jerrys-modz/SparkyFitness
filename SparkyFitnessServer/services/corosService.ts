@@ -462,13 +462,17 @@ export async function syncCorosData(
           } else {
             // Check for limit-like error response
             const textPayloads = extractTextPayloads(fitResult);
-            let isLimitError = fitResult.isError === true;
+            let isLimitError = false;
+            let otherToolError: string | null = null;
             for (const tp of textPayloads) {
               if (tp.kind === 'report') {
-                const err = detectCorosToolError(tp.text, fitResult.isError);
-                if (err || /limit|quota|exceeded/i.test(tp.text)) {
+                if (/limit|quota|exceeded|rate\s*limit/i.test(tp.text)) {
                   isLimitError = true;
                   break;
+                }
+                const err = detectCorosToolError(tp.text, fitResult.isError);
+                if (err) {
+                  otherToolError = err;
                 }
               }
             }
@@ -476,8 +480,17 @@ export async function syncCorosData(
             if (isLimitError) {
               hitDailyLimit = true;
               deferred++;
+              continue;
+            }
+
+            if (otherToolError || fitResult.isError) {
+              log(
+                'warn',
+                `Tool error downloading FIT for ${record.labelId}: ${otherToolError || 'unknown error'}. Deferring.`
+              );
+              deferred++;
               warnings.push(
-                'COROS allows 50 activity file downloads per day. Remaining activities will be imported on the next sync.'
+                `Failed to download FIT for ${record.name} (${record.date}): ${otherToolError || 'provider error'}; deferred to next sync.`
               );
               continue;
             }
@@ -508,6 +521,12 @@ export async function syncCorosData(
             `Network error downloading FIT for ${record.name} (${record.date}); deferred to next sync.`
           );
         }
+      }
+
+      if (hitDailyLimit || budget.used >= COROS_FIT_BUDGET_PER_DAY) {
+        warnings.push(
+          'Daily COROS file download limit reached. Remaining activities will be imported after the limit resets (next UTC day).'
+        );
       }
 
       // Step 3: Raw Health Capture (Phase 1 mock capture ONLY; does not write to DB)
