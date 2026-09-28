@@ -528,10 +528,27 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
           { type: 'text', text: prompt },
         ]
       : prompt;
+  const perplexityInput =
+    ctx.images.length > 0
+      ? [
+          {
+            role: 'user',
+            content: [
+              ...ctx.images.map((img) => ({
+                type: 'input_image',
+                image_url: `data:${img.mimeType};base64,${img.base64}`,
+              })),
+              { type: 'input_text', text: prompt },
+            ],
+          },
+        ]
+      : prompt;
+
   const body: Record<string, unknown> = {
     model: ctx.model,
-    messages: [{ role: 'user', content }],
-    ...(ctx.provider.service_type === 'perplexity' && { input: content }),
+    ...(ctx.provider.service_type === 'perplexity'
+      ? { input: perplexityInput }
+      : { messages: [{ role: 'user', content }] }),
   };
   if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;

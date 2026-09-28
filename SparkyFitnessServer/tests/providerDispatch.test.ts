@@ -576,10 +576,40 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(url).toBe('https://api.perplexity.ai/v1/responses');
     expect((body.response_format as { type: string }).type).toBe('json_schema');
     expect(body.input).toBeDefined();
+    expect(body.messages).toBeUndefined();
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.json).toEqual(SAMPLE);
     }
+  });
+
+  it('perplexity formats vision requests with input_image and input_text in Responses schema', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'perplexity' }),
+        images: [{ mimeType: 'image/jpeg', base64: 'abc123xyz' }],
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.perplexity.ai/v1/responses');
+    expect(body.messages).toBeUndefined();
+    expect(body.input).toEqual([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_image',
+            image_url: 'data:image/jpeg;base64,abc123xyz',
+          },
+          {
+            type: 'input_text',
+            text: 'Do the thing.',
+          },
+        ],
+      },
+    ]);
+    expect(result.ok).toBe(true);
   });
 
   it('perplexity extracts text from nested Agent API output message content blocks', async () => {
