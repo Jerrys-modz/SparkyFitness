@@ -241,7 +241,7 @@ describe('POST /foods/:id/refresh-from-source', () => {
       })
     );
     expect(vi.mocked(log)).toHaveBeenCalledWith(
-      'warning',
+      'warn',
       expect.stringContaining('Multiple active usda providers'),
       [
         { id: 'prov-1', provider_name: 'USDA A' },
