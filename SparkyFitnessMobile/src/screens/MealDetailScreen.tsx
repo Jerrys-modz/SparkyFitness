@@ -519,6 +519,7 @@ const MealDetailScreen: React.FC<MealDetailScreenProps> = ({
 
         <Button
           variant="secondary"
+          textClassName="text-text-primary"
           onPress={() =>
             navigation.navigate('MealPlanForm', { initialMeal: meal })
           }
