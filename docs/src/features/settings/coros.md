@@ -1,4 +1,4 @@
-# COROS Integration (MCP)
+# COROS Integration
 
 The COROS integration allows you to sync workouts, sports telemetry, and activity sessions from your COROS account directly to SparkyFitness using the official **COROS Model Context Protocol (MCP)** over OAuth 2.0.
 
@@ -19,7 +19,7 @@ Unlike traditional API integrations that require manual developer account approv
 Connecting your COROS account is simple:
 
 1. In SparkyFitness, navigate to **Settings → External Providers**.
-2. Click **Add Provider** and select **COROS (MCP)**.
+2. Click **Add Provider** and select **COROS**.
 3. Choose your regional MCP server:
    * **Global / US (Default):** `https://mcpus.coros.com/mcp`
    * **Europe:** `https://mcpeu.coros.com/mcp`
@@ -76,5 +76,5 @@ You can backfill or manually trigger a sync at any time:
 
 If you encounter an unsupported sport type or format, you can share diagnostic data to help improve the integration:
 1. An administrator can enable **Allow Local Provider Response Capture** in **Admin → Global Provider Settings**.
-2. Open the **Sync Range** dialog on your COROS provider card and check **Capture raw provider response**.
-3. After syncing, the server saves the raw bundle to `SparkyFitnessServer/mock_data/coros_raw.json`. You can redact sensitive GPS coordinates and share it with the **CodeWithCJ** community on [Discord](https://discord.gg/vcnMT5cPEA) to help add new metrics!
+2. Open the **Sync Range** dialog on your COROS provider card and select **Sync and save this sync's raw responses to a file on the server**.
+3. After syncing, the server saves the raw bundle to `SparkyFitnessServer/mock_data/coros_mcp_raw.json`. You can redact sensitive GPS coordinates and share it with the **CodeWithCJ** community on [Discord](https://discord.gg/vcnMT5cPEA) to help add new metrics!

@@ -493,6 +493,12 @@ export async function syncCorosData(
             );
           }
         } catch (err) {
+          if (
+            err instanceof CorosReauthRequiredError ||
+            (err as { name?: string })?.name === 'CorosReauthRequiredError'
+          ) {
+            throw err;
+          }
           log(
             'warn',
             `Transient error downloading FIT for ${record.labelId} (${record.name}): ${err}. Deferring to next sync.`
@@ -502,12 +508,6 @@ export async function syncCorosData(
             `Network error downloading FIT for ${record.name} (${record.date}); deferred to next sync.`
           );
         }
-      }
-
-      if (deferred > 0 && !hitDailyLimit) {
-        warnings.push(
-          `COROS allows 50 activity file downloads per day. ${deferred} activities will be imported on the next sync.`
-        );
       }
 
       // Step 3: Raw Health Capture (Phase 1 mock capture ONLY; does not write to DB)
