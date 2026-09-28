@@ -152,7 +152,7 @@ export function DataTable<TData extends RowData>({
     const handler = onRowClick ?? onRowDoubleClick;
     if (!handler) return;
     if (
-      event.target instanceof HTMLElement &&
+      event.target instanceof Element &&
       event.target.closest(
         'button, a, input, [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="menu"], [data-radix-popper-content-wrapper]'
       )
