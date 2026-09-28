@@ -66,29 +66,40 @@ export function routeRegion(
     latitude: (minLat + maxLat) / 2,
     longitude: lon.center,
     latitudeDelta: Math.max((maxLat - minLat) * margin, MIN_REGION_DELTA),
-    longitudeDelta: Math.max(lon.span * margin, MIN_REGION_DELTA),
+    longitudeDelta: Math.min(
+      Math.max(lon.span * margin, MIN_REGION_DELTA),
+      360
+    ),
   };
 }
 
 /**
- * The narrower of the two ways to bound a set of longitudes: straight, or
- * across the ±180° line (read on 0-360). A route over the date line is a few
- * degrees wide the second way and nearly the whole globe the first.
+ * The shortest arc of longitude holding every point. Sorted around the
+ * circle, the points leave one widest empty gap; the route is the rest. For
+ * an ordinary route that gap is the one across ±180°, which gives the plain
+ * min-to-max span; for a route over the date line it is somewhere else.
  */
 function longitudeSpan(lons: readonly number[]): {
   center: number;
   span: number;
 } {
-  const straightMin = Math.min(...lons);
-  const straightSpan = Math.max(...lons) - straightMin;
-  const wrapped = lons.map((lon) => (lon < 0 ? lon + 360 : lon));
-  const wrappedMin = Math.min(...wrapped);
-  const wrappedSpan = Math.max(...wrapped) - wrappedMin;
-  if (straightSpan <= wrappedSpan) {
-    return { center: straightMin + straightSpan / 2, span: straightSpan };
+  const sorted = [...lons].sort((a, b) => a - b);
+  const last = sorted.length - 1;
+  // The gap after sorted[i] up to the next point, wrapping after the last.
+  let gapIndex = last;
+  let widestGap = (sorted[0] ?? 0) + 360 - (sorted[last] ?? 0);
+  for (let i = 0; i < last; i++) {
+    const gap = (sorted[i + 1] ?? 0) - (sorted[i] ?? 0);
+    if (gap > widestGap) {
+      widestGap = gap;
+      gapIndex = i;
+    }
   }
-  const center = wrappedMin + wrappedSpan / 2;
-  return { center: center > 180 ? center - 360 : center, span: wrappedSpan };
+  const start = sorted[(gapIndex + 1) % sorted.length] ?? 0;
+  const span = 360 - widestGap;
+  let center = start + span / 2;
+  if (center >= 180) center -= 360;
+  return { center, span };
 }
 
 /**

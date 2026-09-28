@@ -93,8 +93,26 @@ describe('routeRegion', () => {
 
   it('frames a route over the date line narrowly, not around the globe', () => {
     const region = routeRegion([point(-17, 179.9), point(-17.1, -179.9)]);
-    expect(region?.longitude).toBeCloseTo(180);
+    // ±180 is the same meridian.
+    expect(Math.abs(region?.longitude ?? 0)).toBeCloseTo(180);
     expect(region?.longitudeDelta).toBeCloseTo(0.26);
+  });
+
+  it('frames the shortest arc when the points spread over the globe', () => {
+    // Both the plain and the date-line span are 340°; the points leave a
+    // 150° gap between -160 and -10, so they fit in 210°, from -10 east
+    // through 170 to -160.
+    const region = routeRegion(
+      [-170, -160, -10, 10, 20, 170].map((lon) => point(10, lon))
+    );
+    expect(region?.longitudeDelta).toBeCloseTo(210 * 1.3);
+    expect(region?.longitude).toBeCloseTo(95);
+  });
+
+  it("keeps an ordinary route's plain span", () => {
+    const region = routeRegion([point(51.5, -0.2), point(51.6, 0.1)]);
+    expect(region?.longitude).toBeCloseTo(-0.05);
+    expect(region?.longitudeDelta).toBeCloseTo(0.39);
   });
 
   it('keeps some context around a track that barely moves', () => {
