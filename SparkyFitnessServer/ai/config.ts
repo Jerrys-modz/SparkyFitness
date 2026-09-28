@@ -86,11 +86,30 @@ function getOpenAiCompatibleBaseUrl(
       return customUrl ?? undefined;
   }
 }
+const PERPLEXITY_PRESET_MAP = new Map<string, string>([
+  ['sonar', 'fast'],
+  ['sonar-pro', 'low'],
+  ['sonar-reasoning', 'medium'],
+  ['sonar-reasoning-pro', 'high'],
+  ['fast', 'fast'],
+  ['low', 'low'],
+  ['medium', 'medium'],
+  ['high', 'high'],
+  ['xhigh', 'xhigh'],
+]);
+
+function getPerplexityPreset(modelName?: string | null): string | undefined {
+  if (!modelName) return 'fast';
+  return PERPLEXITY_PRESET_MAP.get(modelName.toLowerCase());
+}
+
 export { getDefaultModel };
 export { getDefaultVisionModel };
 export { getOpenAiCompatibleBaseUrl };
+export { getPerplexityPreset };
 export default {
   getDefaultModel,
   getDefaultVisionModel,
   getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
 };

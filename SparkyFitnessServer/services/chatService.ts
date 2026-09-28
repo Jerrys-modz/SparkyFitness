@@ -2,7 +2,11 @@ import chatRepository from '../models/chatRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { log } from '../config/logging.js';
-import { getDefaultModel, getOpenAiCompatibleBaseUrl } from '../ai/config.js';
+import {
+  getDefaultModel,
+  getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
+} from '../ai/config.js';
 import {
   dispatchAiRequest,
   requiresApiKey,
@@ -1030,26 +1034,14 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
           });
           delete bodyObj.messages;
 
-          const PERPLEXITY_PRESET_MAP: Record<string, string> = {
-            sonar: 'fast',
-            'sonar-pro': 'low',
-            'sonar-reasoning': 'medium',
-            'sonar-reasoning-pro': 'high',
-            fast: 'fast',
-            low: 'low',
-            medium: 'medium',
-            high: 'high',
-            xhigh: 'xhigh',
-          };
-
           const rawModel =
             typeof bodyObj.model === 'string' ? bodyObj.model : 'fast';
-          const modelLower = rawModel.toLowerCase();
-          const preset = PERPLEXITY_PRESET_MAP[modelLower];
+          const preset = getPerplexityPreset(rawModel);
           if (preset) {
             bodyObj.preset = preset;
             delete bodyObj.model;
           } else {
+            const modelLower = rawModel.toLowerCase();
             if (
               modelLower.startsWith('anthropic/') ||
               modelLower.includes('claude')

@@ -5,6 +5,7 @@ import {
   getDefaultModel,
   getDefaultVisionModel,
   getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
 } from './config.js';
 import {
   createGuardedDispatcher,
@@ -553,25 +554,13 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
     delete body.messages;
     body.input = perplexityInput;
 
-    const PERPLEXITY_PRESET_MAP: Record<string, string> = {
-      sonar: 'fast',
-      'sonar-pro': 'low',
-      'sonar-reasoning': 'medium',
-      'sonar-reasoning-pro': 'high',
-      fast: 'fast',
-      low: 'low',
-      medium: 'medium',
-      high: 'high',
-      xhigh: 'xhigh',
-    };
-
-    const modelLower = (ctx.model ?? 'fast').toLowerCase();
-    const preset = PERPLEXITY_PRESET_MAP[modelLower];
+    const preset = getPerplexityPreset(ctx.model);
     if (preset) {
       body.preset = preset;
       delete body.model;
     } else {
       body.model = ctx.model;
+      const modelLower = (ctx.model ?? '').toLowerCase();
       if (
         modelLower.startsWith('anthropic/') ||
         modelLower.includes('claude')
