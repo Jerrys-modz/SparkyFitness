@@ -1029,6 +1029,35 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
             };
           });
           delete bodyObj.messages;
+
+          const PERPLEXITY_PRESET_MAP: Record<string, string> = {
+            sonar: 'fast',
+            'sonar-pro': 'low',
+            'sonar-reasoning': 'medium',
+            'sonar-reasoning-pro': 'high',
+            fast: 'fast',
+            low: 'low',
+            medium: 'medium',
+            high: 'high',
+            xhigh: 'xhigh',
+          };
+
+          const rawModel =
+            typeof bodyObj.model === 'string' ? bodyObj.model : 'fast';
+          const modelLower = rawModel.toLowerCase();
+          const preset = PERPLEXITY_PRESET_MAP[modelLower];
+          if (preset) {
+            bodyObj.preset = preset;
+            delete bodyObj.model;
+          } else {
+            if (
+              modelLower.startsWith('anthropic/') ||
+              modelLower.includes('claude')
+            ) {
+              bodyObj.max_output_tokens = bodyObj.max_output_tokens ?? 4096;
+            }
+          }
+
           modifiedInit = {
             ...init,
             body: JSON.stringify(bodyObj),

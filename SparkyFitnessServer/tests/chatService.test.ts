@@ -1704,6 +1704,8 @@ describe('chatService', () => {
       expect(capturedUrl).toBe('https://api.perplexity.ai/v1/responses');
       expect(capturedBody.input).toEqual(messages);
       expect(capturedBody.messages).toBeUndefined();
+      expect(capturedBody.preset).toBe('fast');
+      expect(capturedBody.model).toBeUndefined();
       expect(res.ok).toBe(true);
 
       const json = await res.json();

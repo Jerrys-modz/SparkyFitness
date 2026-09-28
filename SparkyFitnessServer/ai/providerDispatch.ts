@@ -546,10 +546,40 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
 
   const body: Record<string, unknown> = {
     model: ctx.model,
-    ...(ctx.provider.service_type === 'perplexity'
-      ? { input: perplexityInput }
-      : { messages: [{ role: 'user', content }] }),
+    messages: [{ role: 'user', content }],
   };
+
+  if (ctx.provider.service_type === 'perplexity') {
+    delete body.messages;
+    body.input = perplexityInput;
+
+    const PERPLEXITY_PRESET_MAP: Record<string, string> = {
+      sonar: 'fast',
+      'sonar-pro': 'low',
+      'sonar-reasoning': 'medium',
+      'sonar-reasoning-pro': 'high',
+      fast: 'fast',
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: 'xhigh',
+    };
+
+    const modelLower = (ctx.model ?? 'fast').toLowerCase();
+    const preset = PERPLEXITY_PRESET_MAP[modelLower];
+    if (preset) {
+      body.preset = preset;
+      delete body.model;
+    } else {
+      body.model = ctx.model;
+      if (
+        modelLower.startsWith('anthropic/') ||
+        modelLower.includes('claude')
+      ) {
+        body.max_output_tokens = 4096;
+      }
+    }
+  }
   if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;
   }

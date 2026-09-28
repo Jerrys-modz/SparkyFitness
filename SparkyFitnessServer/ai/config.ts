@@ -17,7 +17,7 @@ function getDefaultModel(serviceType: any) {
     case 'xai':
       return 'grok-4.3';
     case 'perplexity':
-      return 'sonar';
+      return 'fast';
     case 'meta':
       return 'muse-spark-1.1';
     case 'ollama':
@@ -45,7 +45,7 @@ function getDefaultVisionModel(serviceType: any) {
     case 'xai':
       return 'grok-4.3';
     case 'perplexity':
-      return 'sonar-pro';
+      return 'fast';
     case 'meta':
       return 'muse-spark-1.1';
     case 'ollama':
