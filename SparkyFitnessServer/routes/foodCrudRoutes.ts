@@ -1286,7 +1286,7 @@ router.post(
       );
       if (activeProviders.length > 1) {
         log(
-          'warning',
+          'warn',
           `Multiple active ${food.provider_type} providers for user ${req.authenticatedUserId}; using the first match.`,
           activeProviders.map((p) => ({
             id: p.id,

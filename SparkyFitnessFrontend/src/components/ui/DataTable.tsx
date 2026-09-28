@@ -144,12 +144,16 @@ export function DataTable<TData extends RowData>({
   // bubble to the row's onClick, so menu items (divs with role="menuitem")
   // must be excluded explicitly or a menu click also triggers the row action
   // (e.g. the foods row opened the edit dialog before the chosen action ran).
-  // When only onRowDoubleClick is provided, a single tap/row click falls back
-  // to it so touch devices (where dblclick is unreliable) can still open the
-  // row's detail view — this is how every consumer that passes only
-  // onRowDoubleClick opens items on mobile.
-  const handleRowClick = (event: ReactMouseEvent, row: TData) => {
-    const handler = onRowClick ?? onRowDoubleClick;
+  // On the mobile card view, a single tap falls back to onRowDoubleClick when
+  // no onRowClick is given, because dblclick is unreliable on touch devices.
+  // The desktop table keeps double-click for those consumers.
+  const handleRowClick = (
+    event: ReactMouseEvent,
+    row: TData,
+    fallbackToDoubleClick: boolean
+  ) => {
+    const handler =
+      onRowClick ?? (fallbackToDoubleClick ? onRowDoubleClick : undefined);
     if (!handler) return;
     if (
       event.target instanceof Element &&
@@ -266,7 +270,9 @@ export function DataTable<TData extends RowData>({
                     key={row.id}
                     data-state={row.getIsSelected() && 'selected'}
                     onDoubleClick={() => onRowDoubleClick?.(row.original)}
-                    onClick={(event) => handleRowClick(event, row.original)}
+                    onClick={(event) =>
+                      handleRowClick(event, row.original, false)
+                    }
                     className={cn(
                       (onRowClick || onRowDoubleClick) &&
                         'cursor-pointer select-none transition-colors hover:bg-muted/50',
@@ -322,7 +328,7 @@ export function DataTable<TData extends RowData>({
               <Card
                 key={row.id}
                 onDoubleClick={() => onRowDoubleClick?.(row.original)}
-                onClick={(event) => handleRowClick(event, row.original)}
+                onClick={(event) => handleRowClick(event, row.original, true)}
                 className={`transition-all duration-200 border-2 overflow-hidden shadow-sm ${
                   row.getIsSelected()
                     ? 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/10'
