@@ -479,7 +479,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
-            self?.workoutHealthKit.start(sessionId: plan.sessionId)
+            self?.workoutHealthKit.start(sessionId: plan.sessionId, workoutName: plan.workoutName)
         }
     }
 
@@ -564,7 +564,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 self.hkRecovery = .finished
                 if recovered { return }
                 self.workoutHealthKit.requestAuthorization { _ in
-                    self.workoutHealthKit.start(sessionId: snapshot.plan.sessionId)
+                    self.workoutHealthKit.start(sessionId: snapshot.plan.sessionId, workoutName: snapshot.plan.workoutName)
                 }
             }
         }
