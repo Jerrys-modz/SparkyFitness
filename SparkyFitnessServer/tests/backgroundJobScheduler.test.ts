@@ -108,5 +108,10 @@ describe('scheduleBackgroundJobs', () => {
     await scheduleBackgroundJobs();
     await expect(mocks.schedule.mock.calls[0][1]()).resolves.toBeUndefined();
     expect(mocks.deleteExpiredTickets).toHaveBeenCalledExactlyOnceWith();
+    expect(mocks.log).toHaveBeenCalledWith(
+      'error',
+      '[CRON] Session cleanup failed:',
+      expect.any(Error)
+    );
   });
 });

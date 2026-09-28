@@ -16,7 +16,7 @@ const scheduleSessionCleanup = async () => {
     try {
       await cleanupSessions();
     } catch (error) {
-      console.error('[CRON] Session cleanup failed:', error);
+      log('error', '[CRON] Session cleanup failed:', error);
     }
     try {
       const removed = await deleteExpiredTickets();
@@ -27,7 +27,7 @@ const scheduleSessionCleanup = async () => {
         );
       }
     } catch (error) {
-      console.error('[CRON] Passkey ticket cleanup failed:', error);
+      log('error', '[CRON] Passkey ticket cleanup failed:', error);
     }
   });
 };
