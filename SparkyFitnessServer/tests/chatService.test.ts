@@ -1710,6 +1710,70 @@ describe('chatService', () => {
       expect(json.choices[0].message.content).toBe('Hello from Sonar');
     });
 
+    it('converts multi-part messages with image_url and text to input_image and input_text', async () => {
+      let capturedBody: Record<string, unknown> = {};
+
+      const mockBaseFetch = vi.fn(async (_url: string, init?: RequestInit) => {
+        capturedBody = JSON.parse((init?.body as string) || '{}');
+        return new Response(
+          JSON.stringify({
+            output_text: 'I see a banana.',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      });
+
+      const perplexityFetch = chatService.createPerplexityFetch(
+        mockBaseFetch as typeof fetch
+      );
+      const res = await perplexityFetch(
+        'https://api.perplexity.ai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image_url',
+                    image_url: { url: 'https://example.com/food.jpg' },
+                  },
+                  {
+                    type: 'text',
+                    text: 'Identify this food',
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      expect(capturedBody.messages).toBeUndefined();
+      expect(capturedBody.input).toEqual([
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_image',
+              image_url: 'https://example.com/food.jpg',
+            },
+            {
+              type: 'input_text',
+              text: 'Identify this food',
+            },
+          ],
+        },
+      ]);
+      expect(res.ok).toBe(true);
+    });
+
     it('extracts text from nested output message content blocks in JSON responses', async () => {
       const mockBaseFetch = vi.fn(async () => {
         return new Response(

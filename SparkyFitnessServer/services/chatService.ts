@@ -1002,7 +1002,32 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
         };
         // Perplexity Agent API requires `input` (array of messages or text) and rejects `messages`
         if (!bodyObj.input && Array.isArray(bodyObj.messages)) {
-          bodyObj.input = bodyObj.messages;
+          bodyObj.input = bodyObj.messages.map((msg) => {
+            if (!Array.isArray(msg.content)) return msg;
+            return {
+              ...msg,
+              content: msg.content.map((part) => {
+                if (typeof part === 'object' && part !== null) {
+                  const p = part as {
+                    type?: string;
+                    text?: string;
+                    image_url?: { url?: string } | string;
+                  };
+                  if (p.type === 'text' && typeof p.text === 'string') {
+                    return { type: 'input_text', text: p.text };
+                  }
+                  if (p.type === 'image_url') {
+                    const url =
+                      typeof p.image_url === 'object' && p.image_url !== null
+                        ? p.image_url.url
+                        : p.image_url;
+                    return { type: 'input_image', image_url: url };
+                  }
+                }
+                return part;
+              }),
+            };
+          });
           delete bodyObj.messages;
           modifiedInit = {
             ...init,
