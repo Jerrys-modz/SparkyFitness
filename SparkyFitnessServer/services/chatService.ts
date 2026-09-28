@@ -2,7 +2,11 @@ import chatRepository from '../models/chatRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { log } from '../config/logging.js';
-import { getDefaultModel, getOpenAiCompatibleBaseUrl } from '../ai/config.js';
+import {
+  getDefaultModel,
+  getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
+} from '../ai/config.js';
 import {
   dispatchAiRequest,
   requiresApiKey,
@@ -1029,6 +1033,23 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
             };
           });
           delete bodyObj.messages;
+
+          const rawModel =
+            typeof bodyObj.model === 'string' ? bodyObj.model : 'fast';
+          const preset = getPerplexityPreset(rawModel);
+          if (preset) {
+            bodyObj.preset = preset;
+            delete bodyObj.model;
+          } else {
+            const modelLower = rawModel.toLowerCase();
+            if (
+              modelLower.startsWith('anthropic/') ||
+              modelLower.includes('claude')
+            ) {
+              bodyObj.max_output_tokens = bodyObj.max_output_tokens ?? 4096;
+            }
+          }
+
           modifiedInit = {
             ...init,
             body: JSON.stringify(bodyObj),

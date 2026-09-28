@@ -5,6 +5,7 @@ import {
   getDefaultModel,
   getDefaultVisionModel,
   getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
 } from './config.js';
 import {
   createGuardedDispatcher,
@@ -546,10 +547,28 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
 
   const body: Record<string, unknown> = {
     model: ctx.model,
-    ...(ctx.provider.service_type === 'perplexity'
-      ? { input: perplexityInput }
-      : { messages: [{ role: 'user', content }] }),
+    messages: [{ role: 'user', content }],
   };
+
+  if (ctx.provider.service_type === 'perplexity') {
+    delete body.messages;
+    body.input = perplexityInput;
+
+    const preset = getPerplexityPreset(ctx.model);
+    if (preset) {
+      body.preset = preset;
+      delete body.model;
+    } else {
+      body.model = ctx.model;
+      const modelLower = (ctx.model ?? '').toLowerCase();
+      if (
+        modelLower.startsWith('anthropic/') ||
+        modelLower.includes('claude')
+      ) {
+        body.max_output_tokens = 4096;
+      }
+    }
+  }
   if (ctx.temperature !== undefined) {
     body.temperature = ctx.temperature;
   }
