@@ -54,7 +54,8 @@ export function resolveWatchSetTargets(
 }
 
 /**
- * Keeps a paired watch's set targets and completions in step with the phone.
+ * Keeps a paired watch's set targets, completions and rest in step with the
+ * phone.
  * The plan the watch is armed with is built at live start, before each
  * exercise's history has loaded, so it only carries the preset's planned
  * values — without this a progression bump shown on the phone never reaches
@@ -81,7 +82,14 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         });
       }
       const completedSetIds = Object.keys(state.completedSetIds).sort();
-      const key = JSON.stringify([targets, completedSetIds]);
+      const rest =
+        state.rest.state === 'resting' && state.rest.endsAt != null
+          ? {
+              restEndsAt: state.rest.endsAt,
+              restDurationSeconds: state.rest.durationSec,
+            }
+          : {};
+      const key = JSON.stringify([targets, completedSetIds, rest]);
       if (lastSent?.sessionId === session.id && lastSent.key === key) return;
       lastSent = { sessionId: session.id, key };
       // Wall-clock based so a JS restart cannot send a revision the watch
@@ -92,6 +100,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         revision: lastRevision,
         targets,
         completedSetIds,
+        ...rest,
       });
     };
 
@@ -100,6 +109,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       if (
         state.session === prev.session &&
         state.completedSetIds === prev.completedSetIds &&
+        state.rest === prev.rest &&
         state.previousSessionSets === prev.previousSessionSets &&
         state.plannedSetValues === prev.plannedSetValues &&
         state.exerciseConfigs === prev.exerciseConfigs &&

@@ -56,7 +56,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Newest set targets for a session whose plan has not started yet,
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
-        revision: Double, targets: [String: SetValues], completedSetIds: Set<String>
+        revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
+        rest: (endsAt: Date, durationSeconds: Int)?
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
@@ -487,7 +488,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 sessionId: plan.sessionId,
                 revision: pending.revision,
                 targets: pending.targets,
-                completedSetIds: pending.completedSetIds
+                completedSetIds: pending.completedSetIds,
+                phoneRest: pending.rest
             )
         }
         // Only this session's: another plan's targets may already be held
@@ -858,7 +860,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 sessionId: update.sessionId,
                 revision: update.revision,
                 targets: update.targets,
-                completedSetIds: update.completedSetIds
+                completedSetIds: update.completedSetIds,
+                phoneRest: update.rest
             )
             return
         }
@@ -870,7 +873,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             return
         }
         pendingSetTargets[update.sessionId] = (
-            update.revision, update.targets, update.completedSetIds
+            update.revision, update.targets, update.completedSetIds, update.rest
         )
     }
 

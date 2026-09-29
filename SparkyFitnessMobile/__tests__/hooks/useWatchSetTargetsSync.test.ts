@@ -129,6 +129,39 @@ describe('useWatchSetTargetsSync', () => {
     ]);
   });
 
+  it("sends the phone's running rest, and omits it when none is running", () => {
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0]).not.toHaveProperty(
+      'restEndsAt'
+    );
+
+    act(() => {
+      useActiveWorkoutStore.setState({
+        completedSetIds: { '101': 1000 },
+        rest: {
+          state: 'resting',
+          durationSec: 90,
+          endsAt: 1_790_000_090_000,
+          pausedRemainingMs: null,
+          scheduledNotificationId: null,
+          instanceToken: 1,
+        },
+      });
+    });
+
+    expect(mockUpdateSetTargets.mock.calls[1][0]).toMatchObject({
+      completedSetIds: ['101'],
+      restEndsAt: 1_790_000_090_000,
+      restDurationSeconds: 90,
+    });
+  });
+
   it('does not resend when the resolved targets are unchanged', () => {
     act(() => {
       useActiveWorkoutStore.setState({

@@ -382,6 +382,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      * (never removes one) and moves past the set on screen if it is listed.
      */
     completedSetIds: string[];
+    /**
+     * The phone's running rest, as an epoch-ms deadline. Omitted when no
+     * rest is running. The watch shows it only when this update moves it off
+     * the set on screen, so both countdowns end together.
+     */
+    restEndsAt?: number;
+    restDurationSeconds?: number;
   }): Promise<void>;
   /**
    * Heart-rate batches received before JavaScript was listening. Kept until
