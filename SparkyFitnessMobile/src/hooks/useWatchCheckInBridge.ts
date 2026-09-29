@@ -115,6 +115,7 @@ const STORED_HANDLED_ID_LIMIT = 200;
 
 /** Ids the watch may still ask about after a restart. */
 type StoredAckState = {
+  handledClientIds?: string[];
   handledWaterClientIds?: string[];
   ackedClientIds?: string[];
   failedClientIds?: string[];
@@ -529,6 +530,13 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const persistAckState = useCallback(async (): Promise<void> => {
     const acked = new Set(ackedClientIdsRef.current);
     const stored: StoredAckState = {
+      // Check-in ids are only ever added after a successful upsert, so unlike
+      // the water set they hold no reservations. Restoring them stops a resent
+      // check-in from re-running the upsert after a restart and overwriting a
+      // newer weight the wearer has since entered on the phone.
+      handledClientIds: [...handledClientIdsRef.current]
+        .filter((id) => acked.has(id))
+        .slice(-STORED_HANDLED_ID_LIMIT),
       handledWaterClientIds: [...handledWaterClientIdsRef.current]
         .filter((id) => acked.has(id))
         .slice(-STORED_HANDLED_ID_LIMIT),
@@ -554,6 +562,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // Merged rather than assigned. A transfer can be handled while this read
         // is still in flight, and an id recorded by that handler must not be
         // dropped on the floor by a snapshot taken before it existed.
+        for (const id of stored.handledClientIds ?? []) {
+          handledClientIdsRef.current.add(id);
+        }
         for (const id of stored.handledWaterClientIds ?? []) {
           handledWaterClientIdsRef.current.add(id);
         }
