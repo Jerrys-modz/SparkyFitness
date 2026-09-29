@@ -18,6 +18,7 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterDelete: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
+    var onRestChanged: (([String: Any]) -> Void)?
     /// A batch of heart-rate samples for one exercise, captured on the watch.
     var onHeartRateBatch: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
@@ -66,6 +67,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterDelete?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
+        case "restChanged":
+            onRestChanged?(payload)
         case "heartRateBatch":
             onHeartRateBatch?(payload)
         case "workoutStop":
@@ -175,6 +178,7 @@ public class WatchConnectivityModule: Module {
             "onWaterIntake",
             "onWaterDelete",
             "onSetCompleted",
+            "onRestChanged",
             "onHeartRateBatch",
             "onWorkoutStop"
         )
@@ -227,6 +231,20 @@ public class WatchConnectivityModule: Module {
                     "reps": payload["reps"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
                 ])
+            }
+            self.delegateHandler.onRestChanged = { [weak self] payload in
+                // Epoch ms as Doubles, like the phone's own rest deadline.
+                // `endsAt` is absent when the rest was skipped on the watch.
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                ]
+                if let previous = (payload["previousEndsAt"] as? NSNumber)?.doubleValue {
+                    event["previousEndsAt"] = previous
+                }
+                if let endsAt = (payload["endsAt"] as? NSNumber)?.doubleValue {
+                    event["endsAt"] = endsAt
+                }
+                self?.sendEvent("onRestChanged", event)
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in
                 guard let self else { return }

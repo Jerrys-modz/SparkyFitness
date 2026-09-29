@@ -24,6 +24,7 @@ enum OutboundPayloads {
         static let setCompleted = "setCompleted"
         static let heartRateBatch = "heartRateBatch"
         static let workoutStop = "workoutStop"
+        static let restChanged = "restChanged"
     }
 
     /// A morning check-in awaiting a server write.
@@ -130,5 +131,22 @@ enum OutboundPayloads {
             "type": Kind.workoutStop,
             "sessionId": signal.sessionId,
         ]
+    }
+
+    /// The wearer skipped or moved the rest on the watch. Both deadlines are
+    /// epoch ms, the same form the phone sends its own rest in: the phone only
+    /// applies this to a rest still ending at `previousEndsAt`, so a copy that
+    /// arrives twice, or late after that rest is over, changes nothing.
+    /// `endsAt` is omitted when the rest was skipped.
+    static func restChanged(sessionId: String, previousEndsAt: Date, endsAt: Date?) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.restChanged,
+            "sessionId": sessionId,
+            "previousEndsAt": previousEndsAt.timeIntervalSince1970 * 1000,
+        ]
+        if let endsAt {
+            payload["endsAt"] = endsAt.timeIntervalSince1970 * 1000
+        }
+        return payload
     }
 }

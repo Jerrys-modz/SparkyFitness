@@ -53,6 +53,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// than move it, nor when the last set completes — the final drain
     /// already belongs to the last exercise.
     var onExerciseWillChange: ((String) -> Void)?
+    /// The wearer skipped (`endsAt` nil) or moved the rest here, so the phone
+    /// can do the same. Not fired when the rest follows the phone's.
+    var onRestChangedHere: ((_ previousEndsAt: Date, _ endsAt: Date?) -> Void)?
 
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
@@ -416,7 +419,9 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     func skipRest() {
+        guard let previous = restEndsAt else { return }
         stopRestTimer()
+        onRestChangedHere?(previous, nil)
     }
 
     /// The ±15s controls on the rest screen. Dropping to zero or below just
@@ -426,10 +431,12 @@ final class WorkoutSessionStore: ObservableObject {
         let newEndsAt = endsAt.addingTimeInterval(TimeInterval(delta))
         guard newEndsAt > Date() else {
             stopRestTimer()
+            onRestChangedHere?(endsAt, nil)
             return
         }
         restEndsAt = newEndsAt
         restDurationSeconds = max(1, restDurationSeconds + delta)
+        onRestChangedHere?(endsAt, newEndsAt)
     }
 
     // MARK: - Jetsam snapshot
