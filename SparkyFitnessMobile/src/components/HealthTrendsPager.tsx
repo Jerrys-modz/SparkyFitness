@@ -31,7 +31,9 @@ type HealthTrendsPagerProps = {
   waterUnit: string;
   weightGoal?: number | null;
   hydrationGoal?: number | null;
-  /** Today's daily calorie goal, passed through to the reference line. 0/undefined draws none. */
+  /** The calorie goal for the Dashboard's currently selected date, passed through as one flat
+   * reference line across the whole window -- not re-adjusted per day like the bars are.
+   * 0/undefined draws none. */
   calorieGoal?: number;
   visibleTrends: readonly HealthTrendKey[];
   activePage: number;

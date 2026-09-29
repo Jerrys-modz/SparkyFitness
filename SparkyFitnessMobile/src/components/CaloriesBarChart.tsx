@@ -42,7 +42,8 @@ type CaloriesBarChartProps = {
   isLoading: boolean;
   isError: boolean;
   range: HealthTrendDateRange;
-  /** Today's daily calorie goal. Omitted (no reference line) when unset or <= 0. */
+  /** The calorie goal for the Dashboard's currently selected date, drawn as one flat
+   * reference line across the whole window. Omitted (no reference line) when unset or <= 0. */
   goal?: number;
 };
 
