@@ -3,11 +3,9 @@ import { log } from '../config/logging.js';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import { isEmailLoginDisabled } from '../utils/emailLogin.js';
 
+// Ends at "email" so email OTP sign-in (/sign-in/email-otp) stays available.
 function isPasswordRoute(path: string): boolean {
-  return (
-    path.startsWith('/api/auth/sign-in/email') ||
-    path.startsWith('/api/auth/sign-up/email')
-  );
+  return /^\/api\/auth\/sign-(in|up)\/email(\/|$)/.test(path);
 }
 
 /**

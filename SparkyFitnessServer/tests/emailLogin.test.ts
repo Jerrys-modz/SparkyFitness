@@ -178,6 +178,8 @@ describe('email login environment precedence', () => {
       '/api/auth/demo-login',
       '/api/auth/settings',
       '/api/auth/sign-in/sso',
+      '/api/auth/sign-in/email-otp',
+      '/api/auth/email-otp/send-verification-otp',
       '/api/foods',
     ])('leaves %s to its own handler', async (path) => {
       setLoginEnv('false', 'true');
