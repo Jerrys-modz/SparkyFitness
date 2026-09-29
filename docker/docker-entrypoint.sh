@@ -73,9 +73,12 @@ esac
 # path need the name qualified here -- on Kubernetes "sparkyfitness-server" is only
 # reachable as "<service>.<namespace>.svc.cluster.local".
 #
-# Every probe appends a trailing dot to force an absolute lookup. Without it musl
-# applies the search list first, and a genuine FQDN can fail when ndots is high
-# (Kubernetes sets ndots:5).
+# Every probe appends a trailing dot, which does two things and must not be dropped.
+# It forces an absolute lookup: without it musl applies the search list first, and a
+# genuine FQDN can fail when ndots is high (Kubernetes sets ndots:5). It also stops an
+# /etc/hosts entry from satisfying the probe, because those are matched only without
+# the trailing dot -- nginx resolves upstreams through DNS alone, so a name that exists
+# only in /etc/hosts would be exported here and then fail to resolve at request time.
 #
 # The result stays a NAME rather than an IP, so nginx keeps re-resolving it on the
 # "valid=" interval instead of caching a stale address.
