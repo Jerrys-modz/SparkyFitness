@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import HealthKit
 import Security
 import WatchConnectivity
 
@@ -165,6 +166,23 @@ public class WatchConnectivityModule: Module {
     /// One serial queue so a drain and an ack can't interleave.
     private let heartRateAccess = DispatchQueue(label: "sparky.watch.heartRateQueue")
 
+    /// Opens the watch app for the workout the phone just started, the same
+    /// way the system Workout app does. Without it the queued plan waits
+    /// until the wearer opens the watch app by hand. watchOS only launches it
+    /// while the watch is on the wrist, unlocked and paired; otherwise this
+    /// quietly does nothing and the plan still arrives on the next open.
+    private static func launchWatchApp() {
+        guard HKHealthStore.isHealthDataAvailable(),
+              WCSession.isSupported(),
+              WCSession.default.isPaired,
+              WCSession.default.isWatchAppInstalled
+        else { return }
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .traditionalStrengthTraining
+        configuration.locationType = .indoor
+        HKHealthStore().startWatchApp(with: configuration) { _, _ in }
+    }
+
     public func definition() -> ModuleDefinition {
         Name("WatchConnectivity")
 
@@ -302,6 +320,7 @@ public class WatchConnectivityModule: Module {
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
+            Self.launchWatchApp()
         }
 
         /// Tells the watch the workout it was armed with is over, because it

@@ -56,6 +56,7 @@ import {
   scheduleRestNotification,
 } from '../services/notifications';
 import { fireSelectionHaptic, fireSuccessHaptic } from '../services/haptics';
+import { setRestKeepAlive } from '../services/sounds';
 import { addLog } from '../services/LogService';
 import WatchConnectivity from '../../modules/watch-connectivity';
 
@@ -2677,7 +2678,10 @@ function syncRestDeadlineTimer(rest: Rest): void {
     clearTimeout(restDeadlineTimerId);
     restDeadlineTimerId = null;
   }
-  if (rest.state !== 'resting' || rest.endsAt == null) return;
+  const running = rest.state === 'resting' && rest.endsAt != null;
+  // Keeps this timer firing off screen when the background chime is on.
+  setRestKeepAlive(running);
+  if (!running || rest.endsAt == null) return;
   restDeadlineTimerId = setTimeout(
     () => {
       restDeadlineTimerId = null;
