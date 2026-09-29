@@ -184,7 +184,7 @@ final class WorkoutSessionStore: ObservableObject {
         switch phoneRest {
         case let .resting(endsAt, durationSeconds):
             guard endsAt > Date() else {
-                stopRestTimer()
+                endRestFromPhone()
                 return
             }
             // No rest to show once the workout is done.
@@ -203,8 +203,20 @@ final class WorkoutSessionStore: ObservableObject {
             restTimer?.invalidate()
             restTimer = nil
         case .ready:
-            stopRestTimer()
+            endRestFromPhone()
         }
+    }
+
+    /// Ends the rest on screen because the phone's has ended. A rest that was
+    /// due anyway ran out rather than being skipped, so it still buzzes the
+    /// wrist: the timer here only checks once a second, and the phone's
+    /// update often lands first, which would otherwise end it silently
+    /// while the phone's own ping is hidden on the watch.
+    private func endRestFromPhone() {
+        guard let restEndsAt else { return }
+        let ranOut = restEndsAt.timeIntervalSinceNow <= 1.5
+        stopRestTimer()
+        if ranOut { onRestFinished?() }
     }
 
     /// Next set still to do after the cursor, else the first one left
