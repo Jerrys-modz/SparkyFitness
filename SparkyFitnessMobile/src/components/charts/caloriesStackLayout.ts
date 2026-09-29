@@ -8,7 +8,11 @@ import type { CaloriesDataPoint } from '../../types/healthTrends';
  * it can be tested, and the component is left to measure, pick colours, and draw.
  */
 
-export type CaloriesMacroKey = 'protein' | 'carbs' | 'fat';
+/** `other` is the slice of a day's logged calories that protein/carbs/fat grams don't
+ * account for -- alcohol, a calories-only quick add, or just fiber/rounding drift. Rather
+ * than stretch the macro segments to cover it (which would misrepresent how much of each
+ * macro was actually eaten), it gets its own neutral segment for the difference. */
+export type CaloriesMacroKey = 'protein' | 'carbs' | 'fat' | 'other';
 
 export interface CaloriesStackSegment {
   macro: CaloriesMacroKey;
@@ -17,40 +21,69 @@ export interface CaloriesStackSegment {
 
 export interface CaloriesStackDay {
   day: string;
-  /** The sum of the three segments below -- what the bar actually draws, not the API's
-   * `total_calories` (which can include alcohol and other calorie sources this chart
-   * doesn't track). */
+  /** The day's logged calories -- what the bar height and tooltip are driven by, matching
+   * the Dashboard's "eaten" figure. The segments below are each macro's true gram-derived
+   * calories, plus an `other` segment for whatever's left over, so they always sum to this
+   * without inflating any one macro's true size. */
   totalCalories: number;
-  /** In `SEGMENT_ORDER` (carbs, fat, protein); the layout stacks these bottom-to-top. */
+  /** In `MACRO_SEGMENT_ORDER` (carbs, fat, protein), then `other` last if there's a
+   * leftover; the layout stacks these bottom-to-top. */
   segments: CaloriesStackSegment[];
 }
 
-const CALORIES_PER_GRAM: Record<CaloriesMacroKey, number> = {
+const CALORIES_PER_GRAM: Record<'protein' | 'carbs' | 'fat', number> = {
   protein: 4,
   carbs: 4,
   fat: 9,
 };
 
-/** Fixed stacking order, not sorted by size, so a macro's position is predictable day to day. */
-const SEGMENT_ORDER: CaloriesMacroKey[] = ['carbs', 'fat', 'protein'];
+/** Below this, a macro/total mismatch reads as float noise, not a real leftover to draw. */
+const LEFTOVER_ROUNDING_TOLERANCE = 0.5;
 
-/** Turns a day's protein/carbs/fat grams into calorie segments. */
+/** Fixed stacking order, not sorted by size, so a macro's position is predictable day to day. */
+const MACRO_SEGMENT_ORDER: readonly ('protein' | 'carbs' | 'fat')[] = [
+  'carbs',
+  'fat',
+  'protein',
+];
+
+/**
+ * Turns a day's logged calories into stacked segments: each macro at its true gram-derived
+ * size, plus an `other` segment for any calories they don't account for -- never scaled up
+ * to cover it, which would draw more of a macro than was actually eaten. The segments' sum
+ * always equals the day's logged calories, which is also the bar height and tooltip total,
+ * matching the Dashboard's "eaten" figure and keeping the goal-line comparison honest.
+ */
 export function buildCaloriesStackDays(
   points: CaloriesDataPoint[]
 ): CaloriesStackDay[] {
   return points.map((point) => {
-    const caloriesByMacro: Record<CaloriesMacroKey, number> = {
-      protein: point.protein * CALORIES_PER_GRAM.protein,
-      carbs: point.carbs * CALORIES_PER_GRAM.carbs,
-      fat: point.fat * CALORIES_PER_GRAM.fat,
+    const totalCalories = Math.max(0, point.calories);
+
+    const caloriesByMacro: Record<'protein' | 'carbs' | 'fat', number> = {
+      protein: Math.max(0, point.protein) * CALORIES_PER_GRAM.protein,
+      carbs: Math.max(0, point.carbs) * CALORIES_PER_GRAM.carbs,
+      fat: Math.max(0, point.fat) * CALORIES_PER_GRAM.fat,
     };
+    const macroCalories =
+      caloriesByMacro.protein + caloriesByMacro.carbs + caloriesByMacro.fat;
 
-    const segments: CaloriesStackSegment[] = SEGMENT_ORDER.map((macro) => ({
-      macro,
-      calories: caloriesByMacro[macro],
-    })).filter((segment) => segment.calories > 0);
+    const segments: CaloriesStackSegment[] = MACRO_SEGMENT_ORDER.map(
+      (macro) => ({
+        macro,
+        calories: caloriesByMacro[macro],
+      })
+    ).filter((segment) => segment.calories > 0);
 
-    const totalCalories = segments.reduce((sum, s) => sum + s.calories, 0);
+    // Never negative: an overshoot only happens from float rounding in the grams -> calories
+    // conversion, not a real skew, since macros are components of the logged total. The
+    // tolerance keeps that same float noise from the other direction manifesting as an
+    // invisible sub-calorie `other` sliver (and a stray legend dot for it) on a day whose
+    // macros genuinely do account for the full total.
+    const leftover = totalCalories - macroCalories;
+    if (leftover > LEFTOVER_ROUNDING_TOLERANCE) {
+      segments.push({ macro: 'other', calories: leftover });
+    }
 
     return { day: point.day, totalCalories, segments };
   });
@@ -78,7 +111,7 @@ export interface CaloriesBarLayoutOptions {
 
 /**
  * Lays the window's days out as evenly spaced columns, each day's segments stacked
- * bottom-to-top in the order given (`SEGMENT_ORDER`, from `buildCaloriesStackDays`).
+ * bottom-to-top in the order given (see `CaloriesStackDay.segments`, from `buildCaloriesStackDays`).
  */
 export function buildCaloriesBarLayout(
   days: CaloriesStackDay[],

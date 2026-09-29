@@ -16,9 +16,9 @@ const point = (overrides: Partial<CaloriesDataPoint>): CaloriesDataPoint => ({
 
 describe('buildCaloriesStackDays', () => {
   test('splits a day into protein/carbs/fat segments in the fixed carbs/fat/protein order', () => {
-    // protein 20g*4=80, carbs 50g*4=200, fat 10g*9=90 -> 370 total.
+    // protein 20g*4=80, carbs 50g*4=200, fat 10g*9=90 -> 370, matching logged calories.
     const [day] = buildCaloriesStackDays([
-      point({ protein: 20, carbs: 50, fat: 10 }),
+      point({ protein: 20, carbs: 50, fat: 10, calories: 370 }),
     ]);
 
     expect(day.totalCalories).toBe(370);
@@ -31,7 +31,7 @@ describe('buildCaloriesStackDays', () => {
 
   test('keeps the fixed carbs/fat/protein order regardless of which macro is largest', () => {
     const [day] = buildCaloriesStackDays([
-      point({ protein: 100, carbs: 10, fat: 5 }),
+      point({ protein: 100, carbs: 10, fat: 5, calories: 485 }),
     ]);
 
     expect(day.segments.map((segment) => segment.macro)).toEqual([
@@ -42,19 +42,42 @@ describe('buildCaloriesStackDays', () => {
   });
 
   test('omits a macro with no calories rather than drawing a zero-height segment', () => {
-    const [day] = buildCaloriesStackDays([point({ protein: 10 })]);
+    const [day] = buildCaloriesStackDays([
+      point({ protein: 10, calories: 40 }),
+    ]);
 
     expect(day.segments).toEqual([{ macro: 'protein', calories: 40 }]);
   });
 
-  test('totalCalories is the sum of the three tracked macros, not the raw API total', () => {
-    // A day with alcohol logged has more true calories than protein/carbs/fat account for;
-    // the chart intentionally only speaks for what it draws.
+  test("adds an `other` segment for calories the macros don't account for, at their true size", () => {
+    // Macro grams only account for 200 kcal (protein 10g*4=40, carbs 40g*4=160), but the day
+    // logged 300 -- e.g. alcohol, which this chart doesn't track by macro. The macro segments
+    // keep their true gram-derived size; the other 100 kcal gets its own segment rather than
+    // inflating carbs/protein to cover it.
     const [day] = buildCaloriesStackDays([
-      point({ protein: 10, carbs: 20, fat: 5, calories: 300 }),
+      point({ protein: 10, carbs: 40, calories: 300 }),
     ]);
 
-    expect(day.totalCalories).toBe(165);
+    expect(day.totalCalories).toBe(300);
+    expect(day.segments).toEqual([
+      { macro: 'carbs', calories: 160 },
+      { macro: 'protein', calories: 40 },
+      { macro: 'other', calories: 100 },
+    ]);
+  });
+
+  test('draws a single neutral `other` segment for calories logged with no macros', () => {
+    const [day] = buildCaloriesStackDays([point({ calories: 120 })]);
+
+    expect(day.totalCalories).toBe(120);
+    expect(day.segments).toEqual([{ macro: 'other', calories: 120 }]);
+  });
+
+  test('draws no segments for a zero-calorie day', () => {
+    const [day] = buildCaloriesStackDays([point({})]);
+
+    expect(day.totalCalories).toBe(0);
+    expect(day.segments).toEqual([]);
   });
 });
 

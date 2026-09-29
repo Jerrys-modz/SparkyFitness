@@ -516,11 +516,9 @@ describe('HealthTrendsPager', () => {
     expect(chartOrder()).toEqual(['steps-chart']);
   });
 
-  // `buildCaloriesStackDays` derives `hasData` from macro grams, not the API's raw
-  // `calories` (see caloriesStackLayout.ts), so a day logged with calories but no macros
-  // draws no bar. Gating on the same macros here keeps the page from showing only for the
-  // chart underneath to render its own empty placeholder.
-  test('hides calories when every day has calories but no macros', () => {
+  // `buildCaloriesStackDays` draws a neutral `other` segment for logged calories with no
+  // macro breakdown (see caloriesStackLayout.ts), so this page should show rather than hide.
+  test('shows calories when a day has calories but no macros', () => {
     renderPager({
       calories: {
         data: [
@@ -538,7 +536,7 @@ describe('HealthTrendsPager', () => {
       visibleTrends: ['steps', 'calories'],
     });
 
-    expect(chartOrder()).toEqual(['steps-chart']);
+    expect(chartOrder()).toEqual(['steps-chart', 'calories-chart']);
   });
 
   test('forwards the selected page position', () => {

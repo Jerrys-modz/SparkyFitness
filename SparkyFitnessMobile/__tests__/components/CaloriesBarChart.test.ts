@@ -41,4 +41,21 @@ describe('CaloriesBarChart buildCaloriesTooltipText (locale-aware)', () => {
   test('returns empty copy for no selection', () => {
     expect(buildCaloriesTooltipText(undefined, undefined, i18n.t)).toBe('');
   });
+
+  test('labels the neutral segment "Other" for a day logged with no macros', () => {
+    const otherDay: CaloriesStackDay = {
+      day: '2026-06-04',
+      totalCalories: 120,
+      segments: [{ macro: 'other', calories: 120 }],
+    };
+
+    const text = buildCaloriesTooltipText(
+      otherDay,
+      otherDay.segments[0],
+      i18n.t
+    );
+
+    expect(text).toContain('100%');
+    expect(text).toContain('Other');
+  });
 });

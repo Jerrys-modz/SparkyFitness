@@ -108,17 +108,11 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
       hydration.isLoading ||
       hydration.isError ||
       hydration.data.some((point) => point.milliliters > 0),
-    // Same reasoning as hydration: `useCaloriesRange` zero-fills every day too. Checked by
-    // macro grams rather than `point.calories` to match `buildCaloriesStackDays`'s
-    // `hasData` -- an entry logged with calories but no macros (e.g. alcohol-only) draws no
-    // bar there, so counting it here would show this page only for the chart to render its
-    // own empty placeholder.
+    // Same reasoning as hydration: `useCaloriesRange` zero-fills every day too.
     calories: () =>
       calories.isLoading ||
       calories.isError ||
-      calories.data.some(
-        (point) => point.protein > 0 || point.carbs > 0 || point.fat > 0
-      ),
+      calories.data.some((point) => point.calories > 0),
   };
 
   // A trend the user configured to show but that has no data for in this window still hides itself

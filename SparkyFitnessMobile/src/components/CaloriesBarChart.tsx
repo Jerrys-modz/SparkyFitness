@@ -82,12 +82,27 @@ const MACRO_COLOR_VARIABLES: Record<CaloriesMacroKey, string> = {
   protein: '--color-macro-protein',
   carbs: '--color-macro-carbs',
   fat: '--color-macro-fat',
+  // Reuses the general calories color rather than a dedicated macro one: `other` isn't a
+  // macro, it's "logged calories with nothing to break down" (e.g. a calories-only quick
+  // add or alcohol).
+  other: '--color-calories',
 };
 
-/** Matches the fixed stacking order in `caloriesStackLayout.ts`'s `SEGMENT_ORDER`. */
-const MACRO_ORDER: CaloriesMacroKey[] = ['carbs', 'fat', 'protein'];
+/** Matches the fixed stacking order in `caloriesStackLayout.ts`'s `MACRO_SEGMENT_ORDER`,
+ * with `other` last for whatever leftover calories the macros don't account for. */
+const MACRO_ORDER: CaloriesMacroKey[] = ['carbs', 'fat', 'protein', 'other'];
 
 const DEFAULT_TOOLTIP = '';
+
+/** `getNutrientLabel` covers the three real macros; `other` is chart-specific, not a
+ * nutrient, so it isn't a case there. */
+const getCaloriesSegmentLabel = (
+  t: ReturnType<typeof useTranslation>['t'],
+  macro: CaloriesMacroKey
+): string =>
+  macro === 'other'
+    ? t('charts.calories.otherMacro', { defaultValue: 'Other' })
+    : getNutrientLabel(t, macro);
 
 /**
  * Builds the tooltip copy from the selected day's total and date, plus the pressed macro's
@@ -117,7 +132,7 @@ export const buildCaloriesTooltipText = (
   );
   const macroPart = t('charts.calories.tooltipMacro', {
     percent,
-    macroLabel: getNutrientLabel(t, selectedSegment.macro),
+    macroLabel: getCaloriesSegmentLabel(t, selectedSegment.macro),
     defaultValue: '{{percent}}% {{macroLabel}}',
   });
 
@@ -155,17 +170,20 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedPointY, setSelectedPointY] = useState<number | null>(null);
 
-  const [proteinColor, carbsColor, fatColor, textMuted] = useCSSVariable([
-    MACRO_COLOR_VARIABLES.protein,
-    MACRO_COLOR_VARIABLES.carbs,
-    MACRO_COLOR_VARIABLES.fat,
-    '--color-text-muted',
-  ]) as [string, string, string, string];
+  const [proteinColor, carbsColor, fatColor, otherColor, textMuted] =
+    useCSSVariable([
+      MACRO_COLOR_VARIABLES.protein,
+      MACRO_COLOR_VARIABLES.carbs,
+      MACRO_COLOR_VARIABLES.fat,
+      MACRO_COLOR_VARIABLES.other,
+      '--color-text-muted',
+    ]) as [string, string, string, string, string];
 
   const macroColors: Record<CaloriesMacroKey, string> = {
     protein: proteinColor,
     carbs: carbsColor,
     fat: fatColor,
+    other: otherColor,
   };
 
   const days = useMemo(() => buildCaloriesStackDays(data), [data]);
@@ -416,7 +434,7 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
                     style={{ backgroundColor: macroColors[macro] }}
                   />
                   <Text className="text-text-muted text-xs">
-                    {getNutrientLabel(t, macro)}
+                    {getCaloriesSegmentLabel(t, macro)}
                   </Text>
                 </View>
               ))}

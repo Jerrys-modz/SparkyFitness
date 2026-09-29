@@ -4435,7 +4435,8 @@
       "loadFailed": "Failed to load calorie data",
       "empty": "No calorie data for this period",
       "tooltip": "{{formattedCount}} kcal consumed",
-      "tooltipMacro": "{{percent}}% {{macroLabel}}"
+      "tooltipMacro": "{{percent}}% {{macroLabel}}",
+      "otherMacro": "Other"
     },
     "loading": "Loading chart...",
     "weightLoadFailed": "Failed to load weight data",
