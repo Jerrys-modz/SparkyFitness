@@ -5,7 +5,7 @@
 ### Features
 
 - **Scheduled jobs run on one replica when `server.replicas` > 1** — one replica is rendered as a separate `-jobs` Deployment (`replicas: 1`, `Recreate`) that runs the scheduled jobs; the other `-server` replicas set `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true`. Total pod count still equals `server.replicas`, and all pods serve traffic. Default is unchanged for `replicas: 1`. Scale through `server.replicas` rather than `kubectl scale`. Requires a server image that supports `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS`.
-- **Server Service, NetworkPolicies and PodDisruptionBudget now select on `sparkyfitness.io/server: "true"`** instead of `app.kubernetes.io/component: server`, so they also cover the `-jobs` pod. The label is added to all server pods.
+- **Server Service, NetworkPolicies and PodDisruptionBudget now select on `sparkyfitness.io/server: "true"`** instead of `app.kubernetes.io/component: server`, so they also cover the `-jobs` pod. The label is added to all server pods. Upgrading from an earlier chart briefly leaves the server Service without endpoints when `server.strategy` is `RollingUpdate`, since existing pods lack the label until they are replaced; the default `Recreate` is unaffected.
 
 ## 0.3.0 — 2026-05-08
 
