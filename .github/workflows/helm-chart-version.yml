@@ -1,0 +1,55 @@
+name: Update Helm Chart Version
+
+# The published chart is stamped with each release's version at packaging time
+# (helm-release.yml), but helm/chart/Chart.yaml in the repo is not, so installs
+# from source drift to an old image. After each release this opens a PR that
+# writes the same version into Chart.yaml, converted the same way.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-chart-version:
+    name: Sync Chart.yaml with the release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Write the release version into Chart.yaml
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          RAW_VERSION="${TAG#v}"
+          if [[ "$RAW_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.(.+)$ ]]; then
+            CHART_VERSION="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+          else
+            CHART_VERSION="$RAW_VERSION"
+          fi
+          sed -i -E \
+            -e "s/^version: .*/version: ${CHART_VERSION}/" \
+            -e "s/^appVersion: .*/appVersion: \"${TAG}\"/" \
+            helm/chart/Chart.yaml
+          git diff -- helm/chart/Chart.yaml
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(helm): update chart version to ${{ github.event.release.tag_name }}"
+          branch: helm/update-chart-version
+          delete-branch: true
+          base: main
+          title: "chore(helm): update chart version to ${{ github.event.release.tag_name }}"
+          body: |
+            This pull request was automatically created by the **Update Helm Chart Version** workflow after release `${{ github.event.release.tag_name }}` was published.
+
+            It sets `version` and `appVersion` in `helm/chart/Chart.yaml` to match the chart that was just published, so installs from source use the current release image.
