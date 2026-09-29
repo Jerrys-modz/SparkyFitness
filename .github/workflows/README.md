@@ -99,6 +99,43 @@ hasUIChanges = .tsx/.jsx/.css files in components/screens/pages/
 
 ---
 
+#### `umbrel-app-update.yml`
+
+**Purpose**: Keep the [Umbrel App Store](https://github.com/getumbrel/umbrel-apps) package in `umbrel/sparkyfitness/` in step with releases.
+
+**Triggers**: Completion of `Publish Docker Images` for an actual `release` event, and manual workflow dispatch (optional `version` input)
+
+**What it does**:
+
+- Runs `umbrel/update-package.mjs`, which re-pins the frontend, server, Garmin, and PostgreSQL images to their current multi-arch manifest-list digests and rewrites `version` and `releaseNotes` from the GitHub release body
+- Lints the result against a fresh `getumbrel/umbrel-apps` checkout with `npm run lint:apps -- sparkyfitness --check-images`, in a separate, tokenless job — the App Store's own install/lint scripts never run in a job that can write to this repository
+- Opens a PR here on `umbrel/update-app-package`
+
+It runs after `Publish Docker Images` rather than on `release: published` because the package pins image digests, and those images do not exist until that workflow has pushed them. A `workflow_dispatch` re-run of `Publish Docker Images` (which rebuilds the current branch under the latest tag rather than a new release) is excluded, so a manual rebuild can't be mistaken for a new release.
+
+Submitting to the App Store is a separate workflow (`umbrel-app-submit.yml`) that only runs once this PR is merged — that merge is the human review gate, not something this workflow bypasses by opening both PRs in the same run.
+
+---
+
+#### `umbrel-app-submit.yml`
+
+**Purpose**: Carry an already-merged `umbrel/sparkyfitness/` change to the Umbrel App Store pull request.
+
+**Triggers**: Push to `main` touching `umbrel/sparkyfitness/**` or `umbrel/update-package.mjs`, and manual workflow dispatch
+
+**What it does**:
+
+- Reads the version from the just-merged `umbrel-app.yml`
+- Forks `getumbrel/umbrel-apps` on first run (polling until the fork is ready before pushing to it)
+- Clones the upstream App Store and patches its **existing** copy of the package in place with `update-package.mjs --target`, touching only `version`, `releaseNotes`, and the pinned image lines — never replacing the whole directory, so anything the Umbrel team has since added (gallery images, an icon, a category change) survives
+- Opens or reuses the App Store pull request
+
+The initial App Store submission stays manual (see `umbrel/README.md`): `submission:` has to name a PR that doesn't exist yet, and the Umbrel team wants screenshots on it. This workflow only ever patches a package that already exists upstream, so it is a no-op until that first PR has been merged by the Umbrel team.
+
+**Requires**: the `UMBREL_APPS_TOKEN` secret (a PAT with `public_repo` scope). Without it, the step is skipped with a warning.
+
+---
+
 ### Documentation Workflows
 
 #### `docs-test.yml`
@@ -170,6 +207,10 @@ Only locales listed in `SparkyFitnessMobile/src/localization/localeRegistry.json
 #### `auto-merge-bot-prs.yml`
 
 **Purpose**: Automatically and safely merges clean automated PRs for Translations (`i18n/*`) and Nix hashes (`nix/*`) once all CI checks pass. If there are any merge conflicts, the PR is held untouched for manual review.
+
+Umbrel package-update PRs (`umbrel/*`, from `umbrel-app-update.yml`) are **not** in the allowlist, deliberately: merging that PR is what triggers the App Store submission in `umbrel-app-submit.yml`, so it stays a manual review step. Add `'umbrel/'` to `ALLOWED_BRANCH_PREFIXES` and `'umbrel'` to `ALLOWED_LABELS` only if that gate should be removed.
+
+Umbrel package PRs (`umbrel/*`) are **not** in the allowlist. Add `'umbrel/'` to `ALLOWED_BRANCH_PREFIXES` and `'umbrel'` to `ALLOWED_LABELS` if those should merge themselves too.
 
 **Triggers**: Pull requests (opened, synchronize, labeled, ready_for_review), Check suites completed, and manual workflow dispatch
 
@@ -262,4 +303,4 @@ This document should be updated when:
 - Trigger conditions change
 - Validation rules change
 
-Last updated: 2026-04-05
+Last updated: 2026-09-25
