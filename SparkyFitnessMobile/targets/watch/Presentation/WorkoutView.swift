@@ -168,6 +168,7 @@ private struct WorkoutCompleteView: View {
             Text("Workout complete")
                 .font(.headline)
             Button("Finish") {
+                Haptics.tap()
                 session.endWorkout()
             }
             .font(.caption)
@@ -256,6 +257,7 @@ private struct ExerciseListView: View {
                 Section {
                     ForEach(block.exercises) { exercise in
                         Button {
+                            Haptics.tap()
                             onSelect(exercise.exerciseEntryId)
                             dismiss()
                         } label: {
@@ -276,6 +278,7 @@ private struct ExerciseListView: View {
             // the tick that logs a set is a mis-tap waiting to happen.
             Section {
                 Button(role: .destructive) {
+                    Haptics.tap()
                     confirmingFinish = true
                 } label: {
                     Label("Finish Workout", systemImage: "flag.checkered")
@@ -289,12 +292,13 @@ private struct ExerciseListView: View {
             titleVisibility: .visible
         ) {
             Button("Finish", role: .destructive) {
+                Haptics.tap()
                 // Dismissed first so the sheet is not re-rendering against a
                 // plan that `endWorkout` has already cleared.
                 dismiss()
                 session.endWorkout()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) { Haptics.tap() }
         } message: {
             Text("Heart rate for this session is sent to your phone.")
         }
@@ -355,7 +359,7 @@ private struct MetricsStrip: View {
     var body: some View {
         HStack(spacing: 6) {
             if let onBack = onBack {
-                Button(action: onBack) {
+                Button(action: Haptics.tapping(onBack)) {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.plain)
@@ -503,7 +507,7 @@ private struct ValueBox: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: Haptics.tapping(onTap)) {
             VStack(spacing: 0) {
                 Text(value)
                     .font(.title3)
@@ -536,7 +540,7 @@ private struct StepControls: View {
 
     var body: some View {
         HStack {
-            Button(action: onPrevious) {
+            Button(action: Haptics.tapping(onPrevious)) {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.plain)
@@ -544,7 +548,10 @@ private struct StepControls: View {
 
             Spacer()
 
-            Button(action: onComplete) {
+            Button {
+                Haptics.setLogged()
+                onComplete()
+            } label: {
                 Image(systemName: isCompleted ? "checkmark.circle.fill" : "checkmark")
                     .font(.title3)
                     // Spelled `Color.x` rather than `.x`: the parameter is an
@@ -562,7 +569,7 @@ private struct StepControls: View {
 
             Spacer()
 
-            Button(action: onNext) {
+            Button(action: Haptics.tapping(onNext)) {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.plain)
@@ -589,7 +596,7 @@ private struct RestView: View {
     private func content(now: Date) -> some View {
         VStack(spacing: 3) {
             HStack {
-                Button("Skip") { store.skipRest() }
+                Button("Skip", action: Haptics.tapping { store.skipRest() })
                     .font(.caption2)
                     .buttonStyle(.plain)
                     .foregroundStyle(.blue)
@@ -620,8 +627,8 @@ private struct RestView: View {
             }
 
             HStack(spacing: 4) {
-                Button("-15s") { store.adjustRest(bySeconds: -15) }
-                Button("+15s") { store.adjustRest(bySeconds: 15) }
+                Button("-15s", action: Haptics.tapping { store.adjustRest(bySeconds: -15) })
+                Button("+15s", action: Haptics.tapping { store.adjustRest(bySeconds: 15) })
             }
             .font(.caption2)
             .buttonStyle(.bordered)
@@ -714,7 +721,7 @@ private struct NumericKeypadView: View {
                     if key.isEmpty {
                         Color.clear.frame(height: 26)
                     } else {
-                        Button(key) { press(key) }
+                        Button(key, action: Haptics.tapping { press(key) })
                             .font(.body)
                             .frame(maxWidth: .infinity, minHeight: 26)
                             .buttonStyle(.plain)
@@ -724,6 +731,7 @@ private struct NumericKeypadView: View {
             }
 
             Button("OK") {
+                Haptics.tap()
                 if let value = Double(entry) { onCommit(value) } else { dismiss() }
             }
             .font(.caption)
