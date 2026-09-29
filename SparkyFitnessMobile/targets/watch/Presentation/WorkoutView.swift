@@ -362,20 +362,36 @@ private struct MetricsStrip: View {
                 .foregroundStyle(.blue)
             }
             if let kcal = store.activeEnergyKcal {
-                Label("\(Int(kcal))", systemImage: "flame.fill")
+                Self.metric("\(Int(kcal))", systemImage: "flame.fill")
                     .foregroundStyle(.orange)
+                    .minimumScaleFactor(0.7)
             }
             Text(Self.elapsed(store.elapsedSeconds))
                 .foregroundStyle(.secondary)
+                .minimumScaleFactor(0.7)
             Spacer(minLength: 0)
             if let bpm = store.latestBpm {
-                Label("\(Int(bpm.rounded()))", systemImage: "heart.fill")
+                // Never truncated: a three-digit rate used to lose its last
+                // digits to the calories and clock beside it. Those shrink
+                // first instead.
+                Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
                     .foregroundStyle(.red)
+                    .fixedSize()
+                    .layoutPriority(1)
             }
         }
         .font(.caption2)
         .monospacedDigit()
         .lineLimit(1)
+    }
+
+    /// Icon and value with a tighter gap than `Label`'s, which is sized for
+    /// list rows and left too little room on this strip.
+    private static func metric(_ value: String, systemImage: String) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: systemImage)
+            Text(value)
+        }
     }
 
     private static func elapsed(_ seconds: Int) -> String {
