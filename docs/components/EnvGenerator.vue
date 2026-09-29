@@ -1104,8 +1104,8 @@ onMounted(() => {
               </span>
             </label>
             <span class="field-hint" style="margin-left: 26px"
-              >Removes passkey sign-in and adding new passkeys. Existing
-              passkeys stay stored.</span
+              >Removes passkey sign-in and adding new passkeys, overriding the
+              admin switch. Existing passkeys stay stored.</span
             >
           </div>
 
