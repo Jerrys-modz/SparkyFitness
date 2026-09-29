@@ -50,6 +50,8 @@ function makeSession(): PresetSessionResponse {
   } as unknown as PresetSessionResponse;
 }
 
+const ARMED_AT = 1_790_000_000_000;
+
 const previousSets = [
   { setNumber: 1, setType: 'normal', weight: 100, reps: 8 },
   { setNumber: 2, setType: 'normal', weight: 100, reps: 8 },
@@ -66,6 +68,7 @@ describe('useWatchSetTargetsSync', () => {
       useActiveWorkoutStore.setState({
         session: makeSession(),
         sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
         weightUnit: 'lbs',
         plannedSetValues: {
           '101': { weight: 100, reps: 8, duration: null, distance: null },
@@ -86,6 +89,7 @@ describe('useWatchSetTargetsSync', () => {
     expect(mockUpdateSetTargets).toHaveBeenCalledTimes(1);
     expect(mockUpdateSetTargets.mock.calls[0][0]).toMatchObject({
       sessionId: 'session-1',
+      armedAt: ARMED_AT,
       targets: [
         { setId: '101', targetWeightKg: 100, targetReps: 8 },
         { setId: '102', targetWeightKg: 100, targetReps: 8 },
@@ -114,6 +118,7 @@ describe('useWatchSetTargetsSync', () => {
       useActiveWorkoutStore.setState({
         session: makeSession(),
         sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
       });
     });
     renderHook(() => useWatchSetTargetsSync(true));
@@ -134,6 +139,7 @@ describe('useWatchSetTargetsSync', () => {
       useActiveWorkoutStore.setState({
         session: makeSession(),
         sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
       });
     });
     renderHook(() => useWatchSetTargetsSync(true));
@@ -167,6 +173,7 @@ describe('useWatchSetTargetsSync', () => {
       useActiveWorkoutStore.setState({
         session: makeSession(),
         sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
       });
     });
     renderHook(() => useWatchSetTargetsSync(true));
@@ -182,7 +189,11 @@ describe('useWatchSetTargetsSync', () => {
     const session = makeSession();
     session.exercises[0].sets[0].weight = 110;
     act(() => {
-      useActiveWorkoutStore.setState({ session, sessionId: 'session-1' });
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
     });
     renderHook(() => useWatchSetTargetsSync(true));
 
@@ -200,9 +211,41 @@ describe('useWatchSetTargetsSync', () => {
       useActiveWorkoutStore.setState({
         session: makeSession(),
         sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
       });
     });
     renderHook(() => useWatchSetTargetsSync(false));
     expect(mockUpdateSetTargets).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the watch to be armed, and resends everything on a re-arm', () => {
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+        completedSetIds: { '101': 1000 },
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets).not.toHaveBeenCalled();
+
+    act(() => {
+      useActiveWorkoutStore.setState({ watchArmedAt: ARMED_AT });
+    });
+    expect(mockUpdateSetTargets).toHaveBeenCalledTimes(1);
+    expect(mockUpdateSetTargets.mock.calls[0][0]).toMatchObject({
+      armedAt: ARMED_AT,
+      completedSetIds: ['101'],
+    });
+
+    // Same targets and completions, but a fresh plan on the watch.
+    act(() => {
+      useActiveWorkoutStore.setState({ watchArmedAt: ARMED_AT + 5_000 });
+    });
+    expect(mockUpdateSetTargets).toHaveBeenCalledTimes(2);
+    expect(mockUpdateSetTargets.mock.calls[1][0]).toMatchObject({
+      armedAt: ARMED_AT + 5_000,
+      completedSetIds: ['101'],
+    });
   });
 });

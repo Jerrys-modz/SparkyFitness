@@ -57,7 +57,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
         revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
-        rest: (endsAt: Date, durationSeconds: Int)?
+        rest: (endsAt: Date, durationSeconds: Int)?, armedAt: Date?
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
@@ -483,7 +483,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // Only this session's snapshots. Another plan's pause may already be
         // queued and has to survive until that plan starts.
         replayIntervalTiming(sessionId: plan.sessionId)
-        if let pending = pendingSetTargets[plan.sessionId] {
+        if let pending = pendingSetTargets[plan.sessionId],
+           Self.sameArm(pending.armedAt, plan.armedAt) {
             workoutStore.applyTargets(
                 sessionId: plan.sessionId,
                 revision: pending.revision,
@@ -855,7 +856,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// can send these before a queued `workoutStart` has been delivered.
     private func handle(setTargets payload: [String: Any]) {
         guard let update = ContextPayloadMapper.setTargets(from: payload) else { return }
-        if workoutStore.plan?.sessionId == update.sessionId {
+        if let plan = workoutStore.plan, plan.sessionId == update.sessionId {
+            // A saved session can be armed again under the same id; a queued
+            // update from the earlier arm must not land on this one.
+            guard Self.sameArm(update.armedAt, plan.armedAt) else { return }
             workoutStore.applyTargets(
                 sessionId: update.sessionId,
                 revision: update.revision,
@@ -865,16 +869,29 @@ final class WatchSessionManager: NSObject, ObservableObject {
             )
             return
         }
-        if endedAtBySession[update.sessionId] != nil,
-           pendingPlan?.sessionId != update.sessionId {
+        // Held until its plan starts. Only an update from an arm at or before
+        // the session's last stop is dead; a later arm's plan may still be
+        // queued behind it.
+        if let endedAt = endedAtBySession[update.sessionId],
+           pendingPlan?.sessionId != update.sessionId,
+           update.armedAt.map({ $0 <= endedAt }) ?? true {
             return
         }
         if let held = pendingSetTargets[update.sessionId], held.revision >= update.revision {
             return
         }
         pendingSetTargets[update.sessionId] = (
-            update.revision, update.targets, update.completedSetIds, update.rest
+            update.revision, update.targets, update.completedSetIds, update.rest,
+            update.armedAt
         )
+    }
+
+    /// Whether an update belongs to the plan's arm. Either side missing the
+    /// stamp (an older phone) is treated as a match, as before this existed.
+    /// ISO strings keep milliseconds, so a small tolerance absorbs rounding.
+    private static func sameArm(_ update: Date?, _ plan: Date?) -> Bool {
+        guard let update, let plan else { return true }
+        return abs(update.timeIntervalSince(plan)) < 0.01
     }
 
     private func replayIntervalTiming(sessionId: String) {
@@ -912,7 +929,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         rememberEnded(stop.sessionId, at: endedAt)
         pendingIntervalTiming.removeAll { $0.sessionId == stop.sessionId }
-        pendingSetTargets[stop.sessionId] = nil
+        if let held = pendingSetTargets[stop.sessionId],
+           held.armedAt.map({ $0 <= endedAt }) ?? true {
+            pendingSetTargets[stop.sessionId] = nil
+        }
         if pendingPlan?.sessionId == stop.sessionId {
             pendingPlan = nil
             return

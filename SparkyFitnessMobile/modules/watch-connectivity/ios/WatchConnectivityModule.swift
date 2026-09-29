@@ -23,6 +23,30 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
 
+    /// The newest `setTargets` update sent before the session finished
+    /// activating. Apple only queues `transferUserInfo` on an activated
+    /// session, and the phone treats an update as sent, so it is held here
+    /// and queued on activation. Each update is a full snapshot, so only the
+    /// latest one matters.
+    private var heldSetTargets: [String: Any]?
+    private let heldLock = NSLock()
+
+    /// Queues `payload` now if the session is activated, else holds it for
+    /// `activationDidCompleteWith`.
+    func transferSetTargets(_ payload: [String: Any]) {
+        heldLock.lock()
+        defer { heldLock.unlock() }
+        guard WCSession.default.activationState == .activated else {
+            heldSetTargets = payload
+            return
+        }
+        heldSetTargets = nil
+        WCSession.default.transferUserInfo(payload)
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
+    }
+
     func activate() {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
@@ -58,6 +82,13 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
+        if activationState == .activated {
+            heldLock.lock()
+            let held = heldSetTargets
+            heldSetTargets = nil
+            heldLock.unlock()
+            if let held { session.transferUserInfo(held) }
+        }
         onReachabilityChange?(session.isReachable)
     }
 
@@ -316,10 +347,7 @@ public class WatchConnectivityModule: Module {
             guard WCSession.isSupported() else { return }
             var payload = update.compactMapValues(withoutNulls)
             payload["type"] = "setTargets"
-            WCSession.default.transferUserInfo(payload)
-            if WCSession.default.isReachable {
-                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
-            }
+            self.delegateHandler.transferSetTargets(payload)
         }
 
         /// The server config that owns batches queued from now on. Each batch

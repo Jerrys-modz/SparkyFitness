@@ -71,7 +71,8 @@ interface StartLiveWorkoutArgs {
  */
 function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
-  t: TFunction
+  t: TFunction,
+  armedAtMs: number
 ): WatchWorkoutStartPayload {
   const state = useActiveWorkoutStore.getState();
   const { steps, workoutFormat, timeCapSeconds, startedAt, intervalPhases } =
@@ -116,7 +117,7 @@ function buildWatchWorkoutStartPayload(
     workoutFormat,
     timeCapSeconds,
     startedAt: startedAt != null ? new Date(startedAt).toISOString() : null,
-    armedAt: new Date().toISOString(),
+    armedAt: new Date(armedAtMs).toISOString(),
     capEndsAt: capEndsAtMs != null ? new Date(capEndsAtMs).toISOString() : null,
   };
 }
@@ -131,9 +132,13 @@ export function armWatchForActiveSession(t: TFunction): void {
   if (!WatchConnectivity?.isSupported()) return;
   const { session } = useActiveWorkoutStore.getState();
   if (session == null || session.type !== 'preset') return;
+  const armedAtMs = Date.now();
   void WatchConnectivity.startWorkout(
-    buildWatchWorkoutStartPayload(session, t)
+    buildWatchWorkoutStartPayload(session, t, armedAtMs)
   );
+  // After the start is queued: this is what lets `useWatchSetTargetsSync`
+  // send, stamped with this arm, so its first update follows the plan.
+  useActiveWorkoutStore.setState({ watchArmedAt: armedAtMs });
 }
 
 /**
