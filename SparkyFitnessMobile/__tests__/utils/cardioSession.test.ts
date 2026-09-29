@@ -3,6 +3,8 @@ import {
   gpsHeartRateSeries,
   heartRateZoneRows,
   projectRoute,
+  routeRegion,
+  usableRoutePoints,
 } from '../../src/utils/cardioSession';
 
 const point = (lat: number, lon: number, t = '2026-09-20T12:00:00Z') =>
@@ -43,6 +45,94 @@ describe('projectRoute', () => {
       10
     );
     expect(route!.start).toEqual({ x: 100, y: 50 });
+  });
+});
+
+describe('usableRoutePoints', () => {
+  it('drops 0,0 and non-finite fixes and keeps order', () => {
+    expect(
+      usableRoutePoints([
+        point(0, 0),
+        point(51.5, -0.1),
+        point(Number.NaN, 1),
+        point(51.6, -0.2),
+      ])
+    ).toEqual([point(51.5, -0.1), point(51.6, -0.2)]);
+  });
+
+  it('drops fixes off the globe', () => {
+    expect(
+      usableRoutePoints([
+        point(91, 0.5),
+        point(51.5, -0.1),
+        point(51.6, 181),
+        point(51.6, -0.2),
+      ])
+    ).toEqual([point(51.5, -0.1), point(51.6, -0.2)]);
+  });
+
+  it('thins a long track and keeps its last point', () => {
+    const track = Array.from({ length: 4000 }, (_, i) =>
+      point(51 + i / 10000, 0.5)
+    );
+    const kept = usableRoutePoints(track);
+    expect(kept.length).toBeLessThanOrEqual(1500);
+    expect(kept[kept.length - 1]).toBe(track[track.length - 1]);
+  });
+});
+
+describe('routeRegion', () => {
+  it('centers on the route with a margin around it', () => {
+    expect(routeRegion([point(51.5, -0.2), point(51.6, -0.1)])).toEqual({
+      latitude: expect.closeTo(51.55),
+      longitude: expect.closeTo(-0.15),
+      latitudeDelta: expect.closeTo(0.13),
+      longitudeDelta: expect.closeTo(0.13),
+    });
+  });
+
+  it('frames a route over the date line narrowly, not around the globe', () => {
+    const region = routeRegion([point(-17, 179.9), point(-17.1, -179.9)]);
+    // ±180 is the same meridian.
+    expect(Math.abs(region?.longitude ?? 0)).toBeCloseTo(180);
+    expect(region?.longitudeDelta).toBeCloseTo(0.26);
+  });
+
+  it('frames the shortest arc when the points spread over the globe', () => {
+    // Both the plain and the date-line span are 340°; the points leave a
+    // 150° gap between -160 and -10, so they fit in 210°, from -10 east
+    // through 170 to -160.
+    const region = routeRegion(
+      [-170, -160, -10, 10, 20, 170].map((lon) => point(10, lon))
+    );
+    expect(region?.longitudeDelta).toBeCloseTo(210 * 1.3);
+    expect(region?.longitude).toBeCloseTo(95);
+  });
+
+  it('keeps the spans under a full turn for a route around the globe', () => {
+    // A 288° arc plus the margin would be 374°; at 360° the region's edges
+    // are one meridian and the map cannot fit it.
+    const region = routeRegion(
+      [-144, -72, 0, 72, 144].map((lon) => point(lon / 2, lon))
+    );
+    expect(region?.longitudeDelta).toBeLessThan(360);
+    expect(region?.latitudeDelta).toBeLessThan(180);
+  });
+
+  it("keeps an ordinary route's plain span", () => {
+    const region = routeRegion([point(51.5, -0.2), point(51.6, 0.1)]);
+    expect(region?.longitude).toBeCloseTo(-0.05);
+    expect(region?.longitudeDelta).toBeCloseTo(0.39);
+  });
+
+  it('keeps some context around a track that barely moves', () => {
+    const region = routeRegion([point(51.5, -0.1), point(51.5, -0.1)]);
+    expect(region?.latitudeDelta).toBe(0.002);
+    expect(region?.longitudeDelta).toBe(0.002);
+  });
+
+  it('needs two usable points', () => {
+    expect(routeRegion([point(0, 0), point(51.5, -0.1)])).toBeNull();
   });
 });
 
