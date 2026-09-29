@@ -97,7 +97,8 @@ function localHourMinute(timestamp: string): string | null {
  *
  * Without it, `handledWaterClientIdsRef` and `ackedClientIdsRef` came back empty
  * on every reload, and since `clientId` is never sent to the server there is no
- * idempotency at the write boundary to fall back on. A tap that was written but
+ * idempotency at the write boundary to fall back on. Only settled ids are kept
+ * here; see `persistAckState` for why an in-flight reservation must not be. A tap that was written but
  * whose ack never reached the watch would then be re-sent by
  * `resendQueuedWaterTaps`, written a second time, and — the acked list being
  * empty too — never settle, so it re-sent again on every reconnect. Each round
@@ -502,26 +503,46 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     pushContextRef.current = pushContext;
   });
 
-  const persistAckState = useCallback((): void => {
+  /**
+   * Writes the ack bookkeeping to disk, and is awaited by every caller.
+   *
+   * Only outcomes we actually know are stored. `handledWaterClientIdsRef` also
+   * holds reservations for writes still in flight, and those are filtered out
+   * here rather than merely not being persisted at their own call site — a
+   * concurrent tap completing would otherwise snapshot someone else's
+   * reservation onto disk. A reservation outlives the attempt that made it, so
+   * restoring one would leave an id reserved, in neither the acked nor the
+   * failed list, with nothing alive to resolve it: every resend suppressed and
+   * the tap `.queued` until midnight.
+   *
+   * Awaited rather than fired and forgotten because ordering still matters for
+   * what does get stored: an ack the watch has been told about but that isn't
+   * on disk is an ack that vanishes if the app restarts before the watch
+   * applies it.
+   *
+   * A failure is logged and swallowed rather than thrown. The in-memory sets are
+   * already updated, so dedupe still holds for this session; only the
+   * across-restart guarantee is lost. Refusing to log the wearer's water because
+   * AsyncStorage hiccuped would trade a rare duplicate for a certain lost drink,
+   * which is the worse of the two.
+   */
+  const persistAckState = useCallback(async (): Promise<void> => {
+    const acked = new Set(ackedClientIdsRef.current);
     const stored: StoredAckState = {
-      handledWaterClientIds: [...handledWaterClientIdsRef.current].slice(
-        -STORED_HANDLED_ID_LIMIT
-      ),
+      handledWaterClientIds: [...handledWaterClientIdsRef.current]
+        .filter((id) => acked.has(id))
+        .slice(-STORED_HANDLED_ID_LIMIT),
       ackedClientIds: ackedClientIdsRef.current,
       failedClientIds: failedClientIdsRef.current,
     };
-    // Deliberately not awaited: the write the caller is about to do matters more
-    // than the bookkeeping, and the worst case of a lost store is the single
-    // duplicate this whole mechanism is here to make rare rather than impossible.
-    void AsyncStorage.setItem(
-      ACK_STATE_STORAGE_KEY,
-      JSON.stringify(stored)
-    ).catch((error: unknown) => {
+    try {
+      await AsyncStorage.setItem(ACK_STATE_STORAGE_KEY, JSON.stringify(stored));
+    } catch (error) {
       void addLog(
         `Watch ack state failed to persist: ${String(error)}`,
         'WARNING'
       );
-    });
+    }
   }, []);
 
   const ensureAckStateHydrated = useCallback((): Promise<void> => {
@@ -589,7 +610,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           ...ackedClientIdsRef.current,
           payload.clientId,
         ].slice(-20);
-        persistAckState();
+        await persistAckState();
 
         queryClient.setQueryData<CheckInMeasurement>(
           measurementsQueryKey(payload.entryDate),
@@ -644,7 +665,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // Only when it actually landed, though. This set is reserved BEFORE
         // the write, so an id in it may still be in flight — that attempt
         // sends its own ack, success or failure, and claiming success here
-        // would be guessing at an outcome we don't have yet.
+        // would be guessing at an outcome we don't have yet. The reservation
+        // is never persisted, so an id restored from disk is always one whose
+        // outcome was recorded: there is no restart in which this branch waits
+        // on an attempt that no longer exists.
         if (ackedClientIdsRef.current.includes(payload.clientId)) {
           await WatchConnectivity.sendAck(payload.clientId, true);
         }
@@ -659,13 +683,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       //
       // `handleCheckIn` can keep recording afterwards: it upserts by date, so
       // writing the same check-in twice is writing it once.
-      if (payload.clientId) {
+      //
+      // Held in memory only, deliberately not persisted. Only outcomes we know
+      // go to disk. A reservation on disk outlives the attempt that made it, so
+      // a process that died mid-write would come back with the id reserved,
+      // absent from both the acked and failed lists, and nothing alive to
+      // resolve it — every resend silently suppressed and the tap `.queued`
+      // until midnight. Leaving it in memory means such a tap is simply retried:
+      // a possible duplicate, bounded to a crash inside the write itself, rather
+      // than a stall no one can clear. `clientId` never reaches the server, so
+      // there is no third option here short of idempotency at the write.
+      if (payload.clientId)
         handledWaterClientIdsRef.current.add(payload.clientId);
-        // Stored before the write starts, not after: the id is reserved against
-        // a redelivery, and a reservation only this process remembers is the
-        // reservation that isn't there after a restart.
-        persistAckState();
-      }
 
       try {
         await changeWaterIntake({
@@ -687,7 +716,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         failedClientIdsRef.current = failedClientIdsRef.current.filter(
           (id) => id !== payload.clientId
         );
-        persistAckState();
+        await persistAckState();
         await WatchConnectivity.sendAck(payload.clientId, true);
 
         queryClient.invalidateQueries({
@@ -714,7 +743,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             ...failedClientIdsRef.current,
             payload.clientId,
           ].slice(-20);
-          persistAckState();
+          await persistAckState();
           await WatchConnectivity.sendAck(payload.clientId, false);
         }
         addLog(`Watch water tap failed to save: ${String(error)}`, 'ERROR');
@@ -751,10 +780,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       // server, but two in flight would have the second fail against a row
       // that is already gone — reported to the watch as a failure it can do
       // nothing about.
-      if (payload.clientId) {
+      // In memory only, for the reason given in `handleWaterTap`.
+      if (payload.clientId)
         handledWaterClientIdsRef.current.add(payload.clientId);
-        persistAckState();
-      }
 
       const today = getTodayDate();
       try {
@@ -769,7 +797,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         failedClientIdsRef.current = failedClientIdsRef.current.filter(
           (id) => id !== payload.clientId
         );
-        persistAckState();
+        await persistAckState();
         await WatchConnectivity.sendAck(payload.clientId, true);
 
         queryClient.invalidateQueries({
@@ -789,7 +817,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             ...failedClientIdsRef.current,
             payload.clientId,
           ].slice(-20);
-          persistAckState();
+          await persistAckState();
           await WatchConnectivity.sendAck(payload.clientId, false);
         }
         addLog(`Watch water delete failed: ${String(error)}`, 'ERROR');
