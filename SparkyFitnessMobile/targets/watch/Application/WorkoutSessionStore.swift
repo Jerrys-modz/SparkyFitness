@@ -104,12 +104,17 @@ final class WorkoutSessionStore: ObservableObject {
     /// Completions only ever add: a set logged here may still be on its way
     /// to the phone, so an update that does not list it yet must not undo it.
     /// When the set on screen was the one logged, the cursor moves on to the
-    /// next set still to do, as it would after logging it here.
+    /// next set still to do, as it would after logging it here, and the
+    /// phone's rest (if one is running) shows here too, ending when the
+    /// phone's does. A rest is only started on that move, never cancelled or
+    /// changed by an update: one that has not seen a set logged here yet
+    /// would otherwise stop the rest that set started.
     func applyTargets(
         sessionId: String,
         revision: Double,
         targets: [String: SetValues],
-        completedSetIds phoneCompleted: Set<String> = []
+        completedSetIds phoneCompleted: Set<String> = [],
+        phoneRest: (endsAt: Date, durationSeconds: Int)? = nil
     ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
@@ -121,6 +126,9 @@ final class WorkoutSessionStore: ObservableObject {
             completedSetIds.formUnion(newlyCompleted)
             if let step = currentStep, isCompleted(step) {
                 advancePastCompletedSet()
+                if let phoneRest, phoneRest.endsAt > Date(), currentStep != nil {
+                    startRest(until: phoneRest.endsAt, durationSeconds: phoneRest.durationSeconds)
+                }
             }
         }
         persistSnapshot(reportedEnergyKcal: nil)
@@ -590,9 +598,16 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     private func startRest(seconds: Int) {
+        startRest(
+            until: Date().addingTimeInterval(TimeInterval(seconds)),
+            durationSeconds: seconds
+        )
+    }
+
+    private func startRest(until endsAt: Date, durationSeconds: Int) {
         restTimer?.invalidate()
-        restEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
-        restDurationSeconds = seconds
+        restEndsAt = endsAt
+        restDurationSeconds = max(1, durationSeconds)
         restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, let endsAt = self.restEndsAt else { return }

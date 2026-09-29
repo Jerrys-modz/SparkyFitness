@@ -288,7 +288,7 @@ enum ContextPayloadMapper {
     /// arm64_32 watches and cannot hold it.
     static func setTargets(from payload: [String: Any]) -> (
         sessionId: String, revision: Double, targets: [String: SetValues],
-        completedSetIds: Set<String>
+        completedSetIds: Set<String>, rest: (endsAt: Date, durationSeconds: Int)?
     )? {
         guard
             let sessionId = payload["sessionId"] as? String,
@@ -305,7 +305,16 @@ enum ContextPayloadMapper {
         }
         // Sets already logged on the phone. Absent from an older phone build.
         let completed = Set(stringArray(payload["completedSetIds"]))
-        return (sessionId, revision, targets, completed)
+        // The phone's running rest: an epoch-ms deadline, as a Double for the
+        // same 32-bit reason as `revision`. Absent when no rest is running.
+        var rest: (endsAt: Date, durationSeconds: Int)?
+        if let endsAtMs = doubleValue(payload["restEndsAt"]) {
+            rest = (
+                Date(timeIntervalSince1970: endsAtMs / 1000),
+                intValue(payload["restDurationSeconds"]) ?? 0
+            )
+        }
+        return (sessionId, revision, targets, completed, rest)
     }
 
     // MARK: - Acks
