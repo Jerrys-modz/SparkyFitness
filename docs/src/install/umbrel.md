@@ -33,21 +33,23 @@ settings does.
 
 ## Access
 
-The web UI sits behind your Umbrel login, so anyone already signed in to Umbrel
-opens it without a second prompt.
+SparkyFitness manages its own accounts and two-factor authentication, so this
+package turns Umbrel's login screen **off** for the whole app
+(`PROXY_AUTH_ADD: "false"`) rather than layering the two. Anyone who can reach
+your Umbrel on port 3019 reaches the SparkyFitness sign-in page directly, the
+same as any other deployment of SparkyFitness — Umbrel's device password is not
+a second gate in front of it.
 
-`/api`, `/health-data` and `/mcp` are exempt from the Umbrel login, because the
-SparkyFitness mobile app, Apple Health and Google Fit sync, and API-key clients
-cannot send an Umbrel session cookie. Protected handlers on those paths still
-require a SparkyFitness session or API key.
+This is a deliberate trade-off, not an oversight: Umbrel's login is
+single-owner, so a partner or family member signing in with their own
+SparkyFitness account would otherwise have to share your Umbrel device
+password, or be locked out entirely. Use SparkyFitness's own login, and its 2FA
+setting in your account settings, to control who can sign in.
 
-`/uploads` is exempt too, and it is **not** behind SparkyFitness authentication.
-The server serves it as static files, so anyone who can reach your Umbrel on
-port 3019 can fetch an upload whose URL they know. Check-in photos and pregnancy
-uploads are the exception — those subtrees are blocked outright. This is how
-SparkyFitness serves images on every deployment, not something the Umbrel
-package changes, but the whitelist does mean your Umbrel login is not a second
-gate in front of them.
+`/uploads` is served as static files ahead of SparkyFitness's own auth
+middleware on every deployment, not something specific to Umbrel — anyone who
+knows an upload's URL can fetch it without signing in at all. Check-in photos
+and pregnancy uploads are the exception; those subtrees are blocked outright.
 
 ### Connecting the mobile app
 
@@ -62,7 +64,10 @@ that certificate.
 
 ## Limitations
 
-- The Garmin integration service is not included in the Umbrel package yet.
-- Email, OIDC single sign-on, and outbound proxy settings are not exposed as
-  Umbrel install options. If you need them, use the
-  [Docker Compose](/install/docker-compose) deployment instead.
+- Garmin Connect sync for accounts registered in the China region is not
+  supported, since `GARMIN_SERVICE_IS_CN` is not exposed as an install option.
+- Email and outbound proxy settings are not exposed as Umbrel install options.
+  If you need them, use the [Docker Compose](/install/docker-compose)
+  deployment instead. OIDC single sign-on does not have this limitation — it is
+  configured from within the app's own admin settings, not through environment
+  variables, so it works on Umbrel the same as anywhere else.

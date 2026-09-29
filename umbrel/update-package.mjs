@@ -9,16 +9,22 @@
 //   node umbrel/update-package.mjs                 # latest published release
 //   node umbrel/update-package.mjs --version v1.7.2
 //   node umbrel/update-package.mjs --no-postgres   # leave the database pin alone
+//   node umbrel/update-package.mjs --target /path/to/upstream/sparkyfitness
+//
+// --target repoints both files at an arbitrary package directory instead of
+// this repo's own umbrel/sparkyfitness/. The submit workflow uses it to patch
+// version/releaseNotes/image lines directly on a cloned copy of the upstream
+// App Store's package, in place, so a maintainer's own edits to that copy
+// (gallery images, category, an added icon) survive every later update rather
+// than being overwritten by a wholesale directory replace.
 //
 // Exits 0 and writes nothing when the package is already up to date.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PKG_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sparkyfitness');
-const MANIFEST = join(PKG_DIR, 'umbrel-app.yml');
-const COMPOSE = join(PKG_DIR, 'docker-compose.yml');
+const DEFAULT_PKG_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sparkyfitness');
 const REPO = 'CodeWithCJ/SparkyFitness';
 
 // Umbrel requires both of these on every runtime image; a package that pins an
@@ -31,9 +37,9 @@ const MANIFEST_ACCEPT = [
   'application/vnd.docker.distribution.manifest.list.v2+json',
 ].join(',');
 
-/** Parse CLI flags into `{version, postgres, help}`, rejecting a malformed tag early. */
+/** Parse CLI flags into `{version, postgres, target, help}`, rejecting a malformed tag early. */
 function parseArgs(argv) {
-  const args = { version: null, postgres: true };
+  const args = { version: null, postgres: true, target: DEFAULT_PKG_DIR };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--version') {
@@ -41,6 +47,9 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--no-postgres') {
       args.postgres = false;
+    } else if (arg === '--target') {
+      args.target = resolve(argv[i + 1]);
+      i += 1;
     } else if (arg === '--help' || arg === '-h') {
       args.help = true;
     } else {
@@ -192,18 +201,23 @@ export async function resolveDigest(repo, tag) {
   return { digest, platforms };
 }
 
+/** Escape every regex metacharacter in `str` so it matches only as a literal. */
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** Repin one `image:` line to a new tag and digest, erroring if that image is absent. */
 function replaceImage(source, repo, tagAndDigest, file) {
   // The trailing ':' keeps "codewithcj/sparkyfitness:" from also matching
   // "codewithcj/sparkyfitness_server:".
-  const pattern = new RegExp(`(image:\\s*${repo.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}:)\\S+`);
+  const pattern = new RegExp(`(image:\\s*${escapeRegExp(repo)}:)\\S+`);
   if (!pattern.test(source)) throw new Error(`No pinned image for ${repo} in ${file}`);
   return source.replace(pattern, `$1${tagAndDigest}`);
 }
 
 /** Rewrite `version` and the `releaseNotes` block, returning the old and new manifest text. */
-function updateManifest(version, noteLines) {
-  const source = readFileSync(MANIFEST, 'utf8');
+function updateManifest(manifestPath, version, noteLines) {
+  const source = readFileSync(manifestPath, 'utf8');
   let out = source.replace(/^version:.*$/m, `version: "${version}"`);
   if (out === source && !source.includes(`version: "${version}"`)) {
     throw new Error('No version: line found in umbrel-app.yml');
@@ -223,9 +237,17 @@ function updateManifest(version, noteLines) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 13).join('\n'));
+    // Print the leading `//` comment block (everything up to the first blank
+    // line after it), stripped of the comment markers -- not a hardcoded line
+    // count, which silently truncates whenever that header grows.
+    const lines = readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1);
+    const end = lines.findIndex((l) => l.trim() === '');
+    console.log(lines.slice(0, end === -1 ? lines.length : end).join('\n'));
     return;
   }
+
+  const manifestPath = join(args.target, 'umbrel-app.yml');
+  const composePath = join(args.target, 'docker-compose.yml');
 
   const release = await getRelease(args.version);
   const version = release.tag_name;
@@ -234,11 +256,12 @@ async function main() {
   const pins = [
     { repo: 'codewithcj/sparkyfitness', tag: version },
     { repo: 'codewithcj/sparkyfitness_server', tag: version },
+    { repo: 'codewithcj/sparkyfitness_garmin', tag: version },
   ];
   if (args.postgres) {
     // Same tag, re-resolved: picks up Alpine rebuilds without changing the
     // PostgreSQL version, which would be a data-migration event.
-    const compose = readFileSync(COMPOSE, 'utf8');
+    const compose = readFileSync(composePath, 'utf8');
     const pg = compose.match(/image:\s*postgres:(\S+?)@/);
     if (!pg) throw new Error('No pinned postgres image found in docker-compose.yml');
     pins.push({ repo: 'library/postgres', tag: pg[1], composeRepo: 'postgres' });
@@ -251,9 +274,9 @@ async function main() {
   }
 
   const notes = formatReleaseNotes(release.body, release.html_url, version);
-  const { source: manifestBefore, out: manifestAfter } = updateManifest(version, notes);
+  const { source: manifestBefore, out: manifestAfter } = updateManifest(manifestPath, version, notes);
 
-  const composeBefore = readFileSync(COMPOSE, 'utf8');
+  const composeBefore = readFileSync(composePath, 'utf8');
   let composeAfter = composeBefore;
   for (const pin of pins) {
     composeAfter = replaceImage(
@@ -269,9 +292,9 @@ async function main() {
     console.log('Package already up to date; nothing written.');
     return;
   }
-  writeFileSync(MANIFEST, manifestAfter);
-  writeFileSync(COMPOSE, composeAfter);
-  console.log(`Updated umbrel/sparkyfitness for ${version}.`);
+  writeFileSync(manifestPath, manifestAfter);
+  writeFileSync(composePath, composeAfter);
+  console.log(`Updated ${args.target} for ${version}.`);
 }
 
 // Importable for tests without running the updater.
