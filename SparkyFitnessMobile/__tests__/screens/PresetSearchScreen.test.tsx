@@ -15,6 +15,7 @@ import { useNavigationActionGuard } from '../../src/hooks/useNavigationActionGua
 import { useScreenHeader } from '../../src/hooks/useScreenHeader';
 import { useStartLiveWorkout } from '../../src/hooks/useStartLiveWorkout';
 import {
+  buildPresetLiveExerciseConfigs,
   buildPresetStartExercisesPayload,
   buildSingleExerciseStartPayload,
 } from '../../src/utils/workoutSession';
@@ -248,6 +249,7 @@ describe('PresetSearchScreen', () => {
     expect(startLiveWorkout).toHaveBeenCalledWith({
       name: 'Push Day',
       exercises: buildPresetStartExercisesPayload(preset),
+      exerciseConfigs: buildPresetLiveExerciseConfigs(preset),
       sourcePresetId: 7,
       workoutFormat: 'standard',
       timeCapSeconds: null,

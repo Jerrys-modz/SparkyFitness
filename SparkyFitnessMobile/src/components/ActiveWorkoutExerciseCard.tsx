@@ -15,11 +15,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useCSSVariable } from 'uniwind';
-import {
-  evaluateProgression,
-  type ExerciseProgressionConfig,
-  type LastExercisePerformance,
-} from '@workspace/shared';
 import Icon from './Icon';
 import SafeImage from './SafeImage';
 import ImageLightbox from './ImageLightbox';
@@ -43,6 +38,7 @@ import {
   weightToKg,
 } from '../utils/unitConversions';
 import { formatLocalizedNumber } from '../localization';
+import { parseDecimalInput } from '../utils/numericInput';
 import {
   CATEGORY_ICON_MAP,
   compareSetRecords,
@@ -50,16 +46,24 @@ import {
   formatDurationSeconds,
   formatVolume,
   getExerciseVolumeKg,
-  isWarmupSetType,
+  evaluateExerciseProgression,
+  liveAdaptiveAdjustment,
   isDurationModality,
   rendersCardioEffortForm,
-  resolveAssumedSetValues,
+  resolveLiveAssumedSetValues,
   resolveSnapshotModality,
   setTypeLetter,
+  type LiveExerciseConfig,
   type WorkoutCardExercise,
   type WorkoutCardSet,
 } from '../utils/workoutSession';
+import {
+  NO_ADAPTIVE_ADJUSTMENT,
+  shouldSuggestVariation,
+} from '@workspace/shared';
+import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
 import type {
   ActiveSetPatch,
   CompletedSetMap,
@@ -145,6 +149,8 @@ interface ActiveWorkoutExerciseCardProps {
    */
   onPressMetricHeader: (anchor: AnchorRect, clampedToRpe: boolean) => void;
   onPressOverflow?: (entryId: string) => void;
+  /** Live only: open ranked alternatives for this exercise (#1560). */
+  onSeeAlternatives?: (entryId: string) => void;
   onComplete?: (setId: string) => void;
   onUncomplete?: (setId: string) => void;
   onCommitField?: (setId: string, patch: ActiveSetPatch) => void;
@@ -208,7 +214,19 @@ interface ActiveWorkoutExerciseCardProps {
     key: string,
     handle: SetRowAccessoryHandle | null
   ) => void;
-  onUpdateProgression?: (exerciseId: string, patch: any) => void;
+  /** Preset edit only: renders the progression/ramp editor when present. */
+  onUpdateProgression?: (
+    exerciseId: string,
+    patch: ExerciseProgressionPatch
+  ) => void;
+}
+
+/** A stored kg increment shown in the lifter's unit, trimmed for an input. */
+function formatIncrementForInput(kg: number, unit: 'kg' | 'lbs'): string {
+  // numeric(6,2) kg makes 10 lb read back as 10.009 lb; one decimal in lb
+  // (two in kg) restores what was typed.
+  const factor = unit === 'lbs' ? 10 : 100;
+  return String(Math.round(weightFromKg(kg, unit) * factor) / factor);
 }
 
 /**
@@ -268,6 +286,7 @@ function ActiveWorkoutExerciseCard({
   onPressRestChip,
   onPressMetricHeader,
   onPressOverflow,
+  onSeeAlternatives,
   onComplete,
   onUncomplete,
   onCommitField,
@@ -342,6 +361,8 @@ function ActiveWorkoutExerciseCard({
   // keep RIR when that's the chosen effort column. Never written back to the
   // shared preference.
   const clampedToRpe = durationLike || modality === 'reps_only';
+  // The per-set ramp only means something where sets carry a weight.
+  const weightRampApplies = !durationLike && modality !== 'reps_only';
   const effectiveMetricColumn =
     clampedToRpe && metricColumn !== 'rir' ? 'rpe' : metricColumn;
   // Live, edit, and preview fetch the stats baseline so progression overload evaluates
@@ -358,59 +379,49 @@ function ActiveWorkoutExerciseCard({
   // the current rows by position (Hevy-style).
   const previousSessionSets = (stats?.recentSessions ?? [])[0]?.sets;
 
+  // Live sessions carry no progression/ramp settings on the server entry;
+  // they come from the preset, captured into the store at live start.
+  const liveConfig = useActiveWorkoutStore((s) =>
+    isLive ? s.exerciseConfigs[String(exercise.id)] : undefined
+  );
+
   // Progression Engine Evaluation
   const progressionResult = useMemo(() => {
-    if (!exercise.rep_goal && exercise.progression_mode !== 'fixed')
-      return null;
-    // Count only working sets (exclude warmups) using the canonical isWarmupSetType helper
-    const workingSets = exercise.sets.filter(
-      (s) => !isWarmupSetType(s.set_type)
+    const config: LiveExerciseConfig = isLive ? (liveConfig ?? {}) : exercise;
+    return evaluateExerciseProgression(
+      config,
+      exercise.sets,
+      previousSessionSets,
+      weightUnit
     );
-    const targetSets = workingSets.length || 3;
+  }, [isLive, liveConfig, exercise, previousSessionSets, weightUnit]);
 
-    const config: ExerciseProgressionConfig = {
-      progressionMode: (exercise.progression_mode as any) ?? 'rep_goal',
-      targetSets,
-      repGoal: exercise.rep_goal,
-      incrementType: exercise.increment_type ?? 'weight',
-      incrementValue: exercise.increment_value ?? 2.5,
-      equipmentBrand: exercise.equipment_brand ?? null,
-    };
-
-    // Filter out warmup sets from previous session history
-    const workingPreviousSets = (previousSessionSets || []).filter((s) => {
-      const setType =
-        (s as { set_type?: string | null; setType?: string | null }).set_type ??
-        s.setType;
-      return !isWarmupSetType(setType);
-    });
-    const firstWorking = workingPreviousSets[0];
-
-    const lastPerformance: LastExercisePerformance | null =
-      workingPreviousSets.length > 0
-        ? {
-            baseWeight: firstWorking?.weight
-              ? weightFromKg(firstWorking.weight, weightUnit)
-              : 0,
-            sets: workingPreviousSets.map((s, idx) => ({
-              setNumber: idx + 1,
-              reps: s.reps ?? 0,
-              weight: s.weight ? weightFromKg(s.weight, weightUnit) : 0,
-            })),
-          }
-        : null;
-
-    return evaluateProgression(config, lastPerformance);
-  }, [
-    exercise.rep_goal,
-    exercise.progression_mode,
-    exercise.sets,
-    exercise.increment_type,
-    exercise.increment_value,
-    exercise.equipment_brand,
-    previousSessionSets,
-    weightUnit,
-  ]);
+  // Adaptive coaching (#1560) for this exercise, from the store's signals.
+  const coachingSignals = useActiveWorkoutStore((s) => s.coachingSignals);
+  const declinedAdaptive = useActiveWorkoutStore((s) => s.declinedAdaptive);
+  const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
+  const adaptiveDeclined = declinedAdaptive[String(exercise.id)] === true;
+  const adaptiveAdjustment = useMemo(
+    () =>
+      isLive
+        ? liveAdaptiveAdjustment(exercise, {
+            coachingSignals,
+            workoutFormat,
+          })
+        : NO_ADAPTIVE_ADJUSTMENT,
+    [isLive, exercise, coachingSignals, workoutFormat]
+  );
+  const suggestVariation =
+    isLive &&
+    (workoutFormat ?? 'standard') === 'standard' &&
+    exercise.exercise_id != null &&
+    shouldSuggestVariation(
+      coachingSignals[exercise.exercise_id],
+      exercise.exercise_snapshot?.mechanic
+    );
+  const adaptiveOverridesProgression =
+    !adaptiveDeclined &&
+    (adaptiveAdjustment.blockIncrease || adaptiveAdjustment.addIncrement);
 
   // Apple-style collapsible progression settings (Preset Edit Mode)
   const [progressionEditorOpen, setProgressionEditorOpen] = useState(false);
@@ -422,13 +433,30 @@ function ActiveWorkoutExerciseCard({
   const opensImageViewer = isLive && thumbImages.length > 0;
   const [editMode, setEditMode] = useState<
     'rep_goal' | 'fixed' | 'step_load' | 'manual'
-  >((exercise.progression_mode as any) ?? 'rep_goal');
+  >(exercise.progression_mode ?? 'rep_goal');
   const [editRepGoal, setEditRepGoal] = useState<string>(
     exercise.rep_goal != null ? String(exercise.rep_goal) : ''
   );
-  const [editIncrementValue, setEditIncrementValue] = useState<string>(
-    exercise.increment_value != null ? String(exercise.increment_value) : '2.5'
+  // Weight increments are stored kg and edited in the lifter's unit.
+  const [editIncrementValue, setEditIncrementValue] = useState<string>(() =>
+    exercise.increment_value == null
+      ? ''
+      : exercise.increment_type === 'reps' ||
+          exercise.progression_mode === 'step_load'
+        ? String(exercise.increment_value)
+        : formatIncrementForInput(exercise.increment_value, weightUnit)
   );
+  // The amount is unsigned (decimal pads have no minus key); direction is a
+  // separate toggle so back-off ramps are enterable on every keyboard.
+  const [editRampIncrement, setEditRampIncrement] = useState<string>(() =>
+    exercise.ramp_increment
+      ? formatIncrementForInput(Math.abs(exercise.ramp_increment), weightUnit)
+      : ''
+  );
+  const [editRampDown, setEditRampDown] = useState<boolean>(
+    (exercise.ramp_increment ?? 0) < 0
+  );
+
   const [editIncrementType, setEditIncrementType] = useState<'weight' | 'reps'>(
     exercise.increment_type ?? 'weight'
   );
@@ -437,38 +465,75 @@ function ActiveWorkoutExerciseCard({
   );
 
   const handleCommitProgression = useCallback(
-    (patch: any) => {
+    (patch: ExerciseProgressionPatch) => {
       onUpdateProgression?.(exercise.id, patch);
     },
     [exercise.id, onUpdateProgression]
+  );
+  // A typed increment means kg-in-your-unit for weight and a count for reps;
+  // re-stored whenever the mode changes what it means.
+  const commitIncrementValue = useCallback(
+    (text: string, mode: typeof editMode, type: 'weight' | 'reps') => {
+      const num = parseDecimalInput(text);
+      const isWeight = mode !== 'step_load' && type === 'weight';
+      handleCommitProgression({
+        incrementValue: isNaN(num)
+          ? null
+          : isWeight
+            ? weightToKg(num, weightUnit)
+            : num,
+      });
+    },
+    [handleCommitProgression, weightUnit]
+  );
+  const commitRamp = useCallback(
+    (text: string, down: boolean) => {
+      const num = parseDecimalInput(text);
+      handleCommitProgression({
+        rampIncrement:
+          isNaN(num) || num === 0
+            ? null
+            : weightToKg(down ? -num : num, weightUnit),
+      });
+    },
+    [handleCommitProgression, weightUnit]
   );
 
   // Assumed (placeholder) weight/reps per row — live only. Resolved from the
   // same sources completion adoption uses in the store, so the gray value a
   // row shows is exactly what logging it would record.
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
+  const exerciseConfigs = useActiveWorkoutStore((s) => s.exerciseConfigs);
   const assumedSetValues = useMemo(
     () =>
       isLive
-        ? resolveAssumedSetValues(
-            exercise.sets,
-            previousSessionSets,
+        ? resolveLiveAssumedSetValues(exercise, previousSessionSets, {
             plannedSetValues,
-            progressionResult?.goalAchieved &&
-              progressionResult.status === 'PROGRESSION_WEIGHT_INCREASE'
-              ? Number(exercise.increment_value) || 2.5
-              : null
-          )
+            exerciseConfigs,
+            weightUnit,
+            workoutFormat,
+            coachingSignals,
+            declinedAdaptive,
+          })
         : null,
     [
       isLive,
-      exercise.sets,
-      exercise.increment_value,
+      exercise,
       previousSessionSets,
       plannedSetValues,
-      progressionResult,
+      exerciseConfigs,
+      weightUnit,
+      workoutFormat,
+      coachingSignals,
+      declinedAdaptive,
     ]
   );
+  // Ramp rounding for store-side resolution (lock-screen completes, the HUD)
+  // follows the unit the rows render in.
+  const setStoreWeightUnit = useActiveWorkoutStore((s) => s.setWeightUnit);
+  useEffect(() => {
+    if (isLive) setStoreWeightUnit(weightUnit);
+  }, [isLive, weightUnit, setStoreWeightUnit]);
 
   // Capture the historical PR baseline once per exercise. The store no-ops
   // unless a live workout is active and the key is absent, so view/edit renders
@@ -853,7 +918,7 @@ function ActiveWorkoutExerciseCard({
         exiting={FadeOutUp.duration(150)}
       >
         {/* Apple-Style Modern Progression Configuration (Preset Edit Mode) */}
-        {isEdit && (
+        {isEdit && onUpdateProgression != null && (
           <View className="mt-2 mb-1 px-1">
             <Pressable
               onPress={() => setProgressionEditorOpen((prev) => !prev)}
@@ -958,9 +1023,14 @@ function ActiveWorkoutExerciseCard({
                                 : editIncrementType;
                             setEditIncrementType(newIncType);
                             handleCommitProgression({
-                              progression_mode: tab.key,
-                              increment_type: newIncType,
+                              progressionMode: tab.key,
+                              incrementType: newIncType,
                             });
+                            commitIncrementValue(
+                              editIncrementValue,
+                              tab.key,
+                              newIncType
+                            );
                           }}
                           className={`flex-1 py-1.5 rounded-md items-center justify-center ${
                             isActive ? 'bg-surface shadow-sm' : ''
@@ -999,7 +1069,7 @@ function ActiveWorkoutExerciseCard({
                           setEditRepGoal(val);
                           const num = parseInt(val, 10);
                           handleCommitProgression({
-                            rep_goal: isNaN(num) ? null : num,
+                            repGoal: isNaN(num) ? null : num,
                           });
                         }}
                         keyboardType="number-pad"
@@ -1028,16 +1098,11 @@ function ActiveWorkoutExerciseCard({
                         value={editIncrementValue}
                         onChangeText={(val) => {
                           setEditIncrementValue(val);
-                          const num = parseFloat(val);
-                          const incrementInKg =
-                            editIncrementType === 'weight' &&
-                            weightUnit === 'lbs' &&
-                            !isNaN(num)
-                              ? weightToKg(num, 'lbs')
-                              : num;
-                          handleCommitProgression({
-                            increment_value: isNaN(num) ? 2.5 : incrementInKg,
-                          });
+                          commitIncrementValue(
+                            val,
+                            editMode,
+                            editIncrementType
+                          );
                         }}
                         keyboardType="decimal-pad"
                         placeholder={weightUnit === 'lbs' ? '5' : '2.5'}
@@ -1048,6 +1113,97 @@ function ActiveWorkoutExerciseCard({
                         }}
                       />
                     </View>
+                  </View>
+                )}
+
+                {weightRampApplies && (
+                  <View>
+                    <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+                      {t('activeWorkout.progression.rampTitle', {
+                        defaultValue: 'Add per set (this workout)',
+                      })}
+                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      <View className="flex-row bg-raised rounded-lg p-0.5 border border-border-subtle">
+                        {(
+                          [
+                            {
+                              down: false,
+                              label: t('activeWorkout.progression.rampUp', {
+                                defaultValue: 'Up',
+                              }),
+                            },
+                            {
+                              down: true,
+                              label: t('activeWorkout.progression.rampDown', {
+                                defaultValue: 'Down',
+                              }),
+                            },
+                          ] as const
+                        ).map((option) => {
+                          const isActive = editRampDown === option.down;
+                          return (
+                            <Pressable
+                              key={option.label}
+                              onPress={() => {
+                                setEditRampDown(option.down);
+                                commitRamp(editRampIncrement, option.down);
+                              }}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: isActive }}
+                              className={`px-3 py-1.5 rounded-md items-center justify-center ${
+                                isActive ? 'bg-surface shadow-sm' : ''
+                              }`}
+                            >
+                              <Text
+                                className={`text-xs font-medium ${
+                                  isActive
+                                    ? 'text-text-primary font-semibold'
+                                    : 'text-text-muted'
+                                }`}
+                              >
+                                {option.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                      <View className="flex-1">
+                        <FormInput
+                          value={editRampIncrement}
+                          onChangeText={(val) => {
+                            setEditRampIncrement(val);
+                            commitRamp(val, editRampDown);
+                          }}
+                          keyboardType="decimal-pad"
+                          accessibilityLabel={t(
+                            'activeWorkout.progression.rampAmountLabel',
+                            {
+                              defaultValue: 'Weight added per set ({{unit}})',
+                              unit: weightUnit,
+                            }
+                          )}
+                          placeholder={t(
+                            'activeWorkout.progression.rampPlaceholder',
+                            {
+                              defaultValue: 'Off ({{unit}})',
+                              unit: weightUnit,
+                            }
+                          )}
+                          style={{
+                            height: 38,
+                            fontSize: 14,
+                            paddingHorizontal: 10,
+                          }}
+                        />
+                      </View>
+                    </View>
+                    <Text className="text-[11px] text-text-muted mt-1">
+                      {t('activeWorkout.progression.rampHint', {
+                        defaultValue:
+                          'Each working set after the first pre-fills this much heavier (or lighter) in the same workout. Warm-up and drop sets are skipped.',
+                      })}
+                    </Text>
                   </View>
                 )}
 
@@ -1062,7 +1218,7 @@ function ActiveWorkoutExerciseCard({
                     onChangeText={(val) => {
                       setEditEquipmentBrand(val);
                       handleCommitProgression({
-                        equipment_brand: val.trim() || null,
+                        equipmentBrand: val.trim() || null,
                       });
                     }}
                     autoCapitalize="words"
@@ -1078,8 +1234,33 @@ function ActiveWorkoutExerciseCard({
           </View>
         )}
 
-        {/* Live Progression Overload Banner */}
-        {isLive && progressionResult && (
+        {/* Adaptive coaching (#1560): why today's suggestion changed */}
+        {isLive && (
+          <AdaptiveSuggestionBanner
+            adjustment={adaptiveAdjustment}
+            declined={adaptiveDeclined}
+            suggestVariation={suggestVariation}
+            onDecline={() =>
+              useActiveWorkoutStore
+                .getState()
+                .setAdaptiveDeclined(String(exercise.id), true)
+            }
+            onRestore={() =>
+              useActiveWorkoutStore
+                .getState()
+                .setAdaptiveDeclined(String(exercise.id), false)
+            }
+            onSeeAlternatives={
+              onSeeAlternatives
+                ? () => onSeeAlternatives(String(exercise.id))
+                : undefined
+            }
+          />
+        )}
+
+        {/* Live Progression Overload Banner — replaced by the adaptive one
+            when feedback cancelled or changed the increase it describes */}
+        {isLive && progressionResult && !adaptiveOverridesProgression && (
           <View className="mt-2.5 mb-1 px-2.5 py-1.5 rounded-lg bg-raised flex-row items-center justify-between border border-border-subtle">
             <View className="flex-row items-center gap-1.5 flex-1 mr-2">
               <Icon

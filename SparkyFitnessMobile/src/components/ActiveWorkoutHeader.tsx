@@ -2,10 +2,9 @@ import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { useCSSVariable } from 'uniwind';
-import type { PresetSessionResponse } from '@workspace/shared';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
-import type { CompletedSetMap } from '../stores/activeWorkoutStore';
 import { formatElapsed } from '../utils/workoutSession';
+import type { ExerciseProgress } from '../utils/workoutProgress';
 import Icon, { type IconName } from './Icon';
 import KeyboardCollapsible from './KeyboardCollapsible';
 import LiquidGlassSurface, {
@@ -16,24 +15,7 @@ import ActionSheet, {
   type ActionSheetRef,
 } from './ActionSheet';
 
-/** Per-exercise completion used by the segmented progress bar. */
-export interface ExerciseProgress {
-  entryId: string;
-  totalSets: number;
-  completedSets: number;
-}
-
-export function buildExerciseProgress(
-  session: PresetSessionResponse,
-  completedSetIds: CompletedSetMap
-): ExerciseProgress[] {
-  return session.exercises.map((exercise) => ({
-    entryId: exercise.id,
-    totalSets: exercise.sets.length,
-    completedSets: exercise.sets.filter((s) => completedSetIds[String(s.id)])
-      .length,
-  }));
-}
+export { buildExerciseProgress } from '../utils/workoutProgress';
 
 interface ActiveWorkoutHeaderProps {
   name: string;

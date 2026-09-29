@@ -1,6 +1,6 @@
 {
   "name": "sparkyfitnessmobile",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "expo": {
     "autolinking": {
@@ -30,9 +30,11 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier . --write --log-level warn",
     "format:check": "prettier . --check",
-    "validate": "pnpm run i18n:generate:check && pnpm run typecheck && pnpm run lint && pnpm run i18n:audit && pnpm run knip && pnpm run native-locales:check && pnpm run format:check",
+    "validate": "pnpm run i18n:generate:check && pnpm run muscle-figure:generate:check && pnpm run typecheck && pnpm run lint && pnpm run i18n:audit && pnpm run knip && pnpm run native-locales:check && pnpm run format:check",
     "i18n:generate": "node scripts/generate-locale-resources.mjs",
     "i18n:generate:check": "node scripts/generate-locale-resources.mjs --check",
+    "muscle-figure:generate": "node scripts/generate-muscle-figure.mjs",
+    "muscle-figure:generate:check": "node scripts/generate-muscle-figure.mjs --check",
     "native-locales:check": "node scripts/validate-native-widget-locales.mjs"
   },
   "dependencies": {
@@ -81,6 +83,7 @@
     "expo-notifications": "~57.0.21",
     "expo-secure-store": "~57.0.4",
     "expo-sharing": "~57.0.22",
+    "expo-speech": "~57.0.3",
     "expo-splash-screen": "~57.0.9",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
@@ -7,6 +15,7 @@ import { Card, CardDescription, CardHeader } from '@/components/ui/card';
 import { useCreatePresetSessionMutation } from '@/hooks/Exercises/useExerciseEntries';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
+  distributeProgressionReps,
   evaluateProgression,
   type ExerciseProgressionConfig,
   type LastExercisePerformance,
@@ -15,6 +24,12 @@ import {
   DEFAULT_REST_SECONDS,
   addRoundToWorkoutDraft,
   addDropSetsToWorkoutExercise,
+  adaptDraftExerciseSets,
+  adaptiveDefaultIncrementKg,
+  replaceExerciseInWorkoutDraft,
+  setWorkoutAdaptiveDeclined,
+  type WorkoutPlaybackExerciseDraft,
+  applyWeightRampToDraftExercise,
   decrementRoundFromWorkoutDraft,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
@@ -39,13 +54,30 @@ import {
   getSetByPointer,
 } from '@/utils/workoutPlayback';
 import { formatSecondsClock } from '@/utils/timeFormatters';
-import { localDateTimeToUtc } from '@workspace/shared';
+import {
+  decideAdaptiveAdjustment,
+  localDateTimeToUtc,
+  shouldSuggestVariation,
+} from '@workspace/shared';
+import { fetchWorkoutCoachingSignals } from '@/hooks/Exercises/useWorkoutCoaching';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackIntervalHud from './WorkoutPlaybackIntervalHud';
+import WorkoutPlaybackGuidedCard from './WorkoutPlaybackGuidedCard';
+import WorkoutPlaybackFinishDialog, {
+  type WorkoutFinishSummary,
+} from './WorkoutPlaybackFinishDialog';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
+// Loaded on first Replace: the exercise dialog pulls in the whole search UI,
+// which the player otherwise never needs.
+const AddExerciseDialog = lazy(
+  () => import('@/pages/Exercises/AddExerciseDialog')
+);
+import type { Exercise } from '@/types/exercises';
+import { buildExerciseReplaceContext } from '@/utils/exerciseAlternatives';
 import { fetchExerciseProgressionStats } from '@/hooks/Exercises/useExerciseEntries';
 import { playIntervalCue } from '@/utils/workoutSounds';
+import { useGuidedWorkoutPreferences } from '@/utils/guidedWorkoutPreferences';
 
 function weightFromKg(weightKg: number, unit: string): number {
   if (!weightKg || weightKg <= 0) return 0;
@@ -164,14 +196,21 @@ const WorkoutPlaybackPage = () => {
     useState<WorkoutSetPointer | null>(null);
   const [restEditorCustomValue, setRestEditorCustomValue] = useState('');
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const { enabled: guidedWorkoutEnabled } = useGuidedWorkoutPreferences();
+  const [finishSummary, setFinishSummary] =
+    useState<WorkoutFinishSummary | null>(null);
+  const getDraft = useCallback(() => draftRef.current, []);
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
-  // Auto-evaluate progression overload for uncompleted exercises on load
+  // Auto-evaluate progression overload and the per-set ramp for uncompleted
+  // exercises, once per workout: a reopened draft keeps what the lifter
+  // typed (and a heavier set 1 never re-seeds the ramp).
   const progressionCheckedRef = useRef(false);
   useEffect(() => {
     if (!draft || progressionCheckedRef.current) return;
     progressionCheckedRef.current = true;
+    if (draft.load_adjustments_applied) return;
 
     const isWarmup = (setType?: string | null): boolean => {
       if (!setType) return false;
@@ -181,8 +220,27 @@ const WorkoutPlaybackPage = () => {
 
     const evaluateDraftProgression = async () => {
       let hasChanges = false;
-      const updatedExercises = await Promise.all(
-        draft.exercises.map(async (exercise) => {
+      const isStandard = (draft.workout_format ?? 'standard') === 'standard';
+      // Adaptive coaching (#1560): recent feedback per exercise. A failed
+      // fetch just means no adjustments; it never blocks the workout.
+      const signalsResponse = isStandard
+        ? await fetchWorkoutCoachingSignals(
+            [...new Set(draft.exercises.map((e) => e.exercise_id))].filter(
+              Boolean
+            )
+          ).catch(() => null)
+        : null;
+      const signalById = new Map(
+        (signalsResponse?.signals ?? []).map((signal) => [
+          signal.exercise_id,
+          signal,
+        ])
+      );
+
+      const evaluateEngine = async (
+        exercise: WorkoutPlaybackExerciseDraft
+      ): Promise<WorkoutPlaybackExerciseDraft> => {
+        {
           if (exercise.sets.some((s) => s.completed)) return exercise;
 
           try {
@@ -251,7 +309,16 @@ const WorkoutPlaybackPage = () => {
                 targetSets,
                 repGoal: effectiveRepGoal,
                 incrementType,
-                incrementValue: Number(exercise.increment_value) || 2.5,
+                // Weight increments are stored kg; the engine works in the
+                // display unit like the weights above. Step-load raises reps,
+                // so its increment is a count whatever increment_type says.
+                incrementValue:
+                  incrementType === 'weight' && progressionMode !== 'step_load'
+                    ? weightFromKg(
+                        Number(exercise.increment_value) || 2.5,
+                        weightUnit
+                      )
+                    : Number(exercise.increment_value) || 2.5,
                 equipmentBrand: exercise.equipment_brand ?? undefined,
               };
 
@@ -285,25 +352,23 @@ const WorkoutPlaybackPage = () => {
                   };
                 }
 
-                // Case B: Rep Progression -> Only update working sets (preserve warmups)
-                if (
-                  config.incrementType === 'reps' ||
-                  progressionMode === 'step_load'
-                ) {
+                // Case B: Rep Progression -> Only update working sets (preserve
+                // warmups). Fixed mode's target is per set; the other modes
+                // split a session total.
+                const repTargets = distributeProgressionReps(
+                  progression,
+                  progressionMode,
+                  workingCurrentSets.length
+                );
+                if (repTargets) {
                   hasChanges = true;
-                  const numSets = workingCurrentSets.length || 3;
-                  const baseReps = Math.floor(
-                    progression.suggestedRepGoal / numSets
-                  );
-                  const remainder = progression.suggestedRepGoal % numSets;
                   let workingSetCounter = 0;
 
                   return {
                     ...exercise,
                     sets: exercise.sets.map((s) => {
                       if (isWarmup(s.set_type)) return s;
-                      const setReps =
-                        baseReps + (workingSetCounter < remainder ? 1 : 0);
+                      const setReps = repTargets[workingSetCounter] ?? s.reps;
                       workingSetCounter++;
                       return { ...s, reps: setReps };
                     }),
@@ -318,14 +383,82 @@ const WorkoutPlaybackPage = () => {
             );
           }
           return exercise;
-        })
+        }
+      };
+      const updatedExercises = await Promise.all(
+        draft.exercises.map(evaluateEngine)
       );
 
-      if (hasChanges) {
-        setDraft((current) =>
-          current ? { ...current, exercises: updatedExercises } : current
+      // The per-set ramp steps from each exercise's first working set as it
+      // now stands (the preset's weight, or the progression-bumped one), so
+      // it runs after progression. Standard workouts only: interval/WOD sets
+      // are clock-driven.
+      const ramp = (exercise: WorkoutPlaybackExerciseDraft) =>
+        isStandard && !exercise.sets.some((s) => s.completed)
+          ? applyWeightRampToDraftExercise(exercise, weightUnit)
+          : exercise;
+      const rampedExercises = updatedExercises.map((engineResult, index) => {
+        const usual = ramp(engineResult);
+        const original = draft.exercises[index];
+        if (!original) return usual;
+        const signal = signalById.get(original.exercise_id);
+        const suggestVariation = shouldSuggestVariation(
+          signal,
+          original.mechanic
         );
-      }
+        const withVariation = suggestVariation
+          ? { ...usual, suggest_variation: true }
+          : usual;
+        if (original.sets.some((s) => s.completed)) return usual;
+        const adjustment = decideAdaptiveAdjustment(signal);
+        const engineChanged = engineResult !== original;
+        // Nothing to add when the engine is already stepping up.
+        if (!adjustment.reason || (adjustment.addIncrement && engineChanged)) {
+          return withVariation;
+        }
+        const base = adjustment.blockIncrease ? original : engineResult;
+        const addIncrementKg = adjustment.addIncrement
+          ? original.increment_type !== 'reps' &&
+            original.progression_mode !== 'step_load' &&
+            Number(original.increment_value) > 0
+            ? Number(original.increment_value)
+            : adaptiveDefaultIncrementKg(weightUnit)
+          : null;
+        const adapted = ramp(
+          adaptDraftExerciseSets(base, adjustment, addIncrementKg, weightUnit)
+        );
+        return {
+          ...adapted,
+          suggest_variation: suggestVariation,
+          adaptive: {
+            reason: adjustment.reason,
+            kind: adjustment.kind,
+            suggest_alternative: adjustment.suggestAlternative,
+            declined: false,
+            usual: {
+              sets: usual.sets,
+              ramp_base_weight: usual.ramp_base_weight ?? null,
+            },
+            adapted: {
+              sets: adapted.sets,
+              ramp_base_weight: adapted.ramp_base_weight ?? null,
+            },
+          },
+        };
+      });
+
+      const changed =
+        hasChanges ||
+        rampedExercises.some((exercise, i) => exercise !== updatedExercises[i]);
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              ...(changed ? { exercises: rampedExercises } : {}),
+              load_adjustments_applied: true,
+            }
+          : current
+      );
     };
 
     void evaluateDraftProgression();
@@ -622,10 +755,10 @@ const WorkoutPlaybackPage = () => {
   const handleAddSet = useCallback(
     (exerciseIndex: number) => {
       updateDraft((currentDraft) =>
-        addWorkoutSetToExercise(currentDraft, exerciseIndex)
+        addWorkoutSetToExercise(currentDraft, exerciseIndex, weightUnit)
       );
     },
-    [updateDraft]
+    [updateDraft, weightUnit]
   );
 
   const handleAddDropSets = useCallback(
@@ -639,6 +772,33 @@ const WorkoutPlaybackPage = () => {
       );
     },
     [updateDraft, weightUnit]
+  );
+
+  // Index of the exercise being replaced; null while the dialog is closed.
+  const [replaceExerciseIndex, setReplaceExerciseIndex] = useState<
+    number | null
+  >(null);
+
+  const handleReplaceExercise = useCallback(
+    (exercise?: Exercise) => {
+      if (exercise && replaceExerciseIndex !== null) {
+        const index = replaceExerciseIndex;
+        updateDraft((currentDraft) =>
+          replaceExerciseInWorkoutDraft(currentDraft, index, exercise)
+        );
+      }
+      setReplaceExerciseIndex(null);
+    },
+    [replaceExerciseIndex, updateDraft]
+  );
+
+  const handleAdaptiveDeclined = useCallback(
+    (exerciseIndex: number, declined: boolean) => {
+      updateDraft((currentDraft) =>
+        setWorkoutAdaptiveDeclined(currentDraft, exerciseIndex, declined)
+      );
+    },
+    [updateDraft]
   );
 
   const handleRemoveSet = useCallback(
@@ -853,11 +1013,29 @@ const WorkoutPlaybackPage = () => {
     }
 
     try {
-      await createPresetSession(payload);
+      const saved = await createPresetSession(payload);
+      const finalStats = getWorkoutPlaybackStats(draft);
       clearWorkoutPlaybackDraftFromStorage(draft.entry_date);
+      // The summary stays up over the cleared player; closing it returns to
+      // the diary the way finishing always has.
+      setFinishSummary({
+        name: draft.name,
+        durationSeconds: elapsedSeconds,
+        caloriesKcal: (saved?.exercises ?? []).reduce(
+          (sum, exercise) => sum + (Number(exercise.calories_burned) || 0),
+          0
+        ),
+        completedSets: finalStats.completedSets,
+        totalSets: finalStats.totalSets,
+        volume: totalVolume,
+        sessionId: saved?.id,
+        exercises: (saved?.exercises ?? []).map((exercise) => ({
+          id: exercise.id,
+          name: exercise.exercise_snapshot?.name ?? '',
+        })),
+      });
       setDraft(null);
       setSaveError(null);
-      navigate(returnPath, { replace: true });
     } catch {
       setSaveError(
         t(
@@ -866,9 +1044,22 @@ const WorkoutPlaybackPage = () => {
         )
       );
     }
-  }, [createPresetSession, draft, navigate, returnPath, t, timezone]);
+  }, [createPresetSession, draft, elapsedSeconds, t, timezone, totalVolume]);
+
+  const handleCloseFinishSummary = useCallback(() => {
+    setFinishSummary(null);
+    navigate(returnPath, { replace: true });
+  }, [navigate, returnPath]);
 
   if (!draft) {
+    if (finishSummary) {
+      return (
+        <WorkoutPlaybackFinishDialog
+          summary={finishSummary}
+          onClose={handleCloseFinishSummary}
+        />
+      );
+    }
     return (
       <div className="mx-auto w-full max-w-4xl space-y-4">
         <Button
@@ -901,6 +1092,11 @@ const WorkoutPlaybackPage = () => {
   const restRemaining = formatSecondsClock(
     draft ? getWorkoutPlaybackRestRemainingSeconds(draft.rest_timer) : 0
   );
+
+  const replaceCandidates = draft.exercises.map((exercise) => ({
+    exerciseId: exercise.exercise_id,
+    exerciseName: exercise.exercise_name,
+  }));
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
@@ -941,6 +1137,17 @@ const WorkoutPlaybackPage = () => {
         />
       )}
 
+      {guidedWorkoutEnabled &&
+        (!draft.workout_format || draft.workout_format === 'standard') && (
+          <WorkoutPlaybackGuidedCard
+            draft={draft}
+            getDraft={getDraft}
+            updateDraft={updateDraft}
+            onCompleteSet={handleCompleteSet}
+            onToggleRestPause={handlePauseResumeRest}
+          />
+        )}
+
       <WorkoutPlaybackExercisesList
         exercises={draft.exercises}
         setNotesVisibility={setNotesVisibility}
@@ -953,8 +1160,27 @@ const WorkoutPlaybackPage = () => {
         onRemoveSet={handleRemoveSet}
         onAddSet={handleAddSet}
         onAddDropSets={handleAddDropSets}
+        onReplaceExercise={setReplaceExerciseIndex}
+        onAdaptiveDeclined={handleAdaptiveDeclined}
         weightUnit={weightUnit}
       />
+
+      {replaceExerciseIndex !== null && (
+        <Suspense fallback={null}>
+          <AddExerciseDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setReplaceExerciseIndex(null);
+            }}
+            onExerciseAdded={handleReplaceExercise}
+            mode="preset"
+            replaceFor={buildExerciseReplaceContext(
+              replaceCandidates[replaceExerciseIndex],
+              replaceCandidates
+            )}
+          />
+        </Suspense>
+      )}
 
       <WorkoutPlaybackDialogs
         restEditorPointer={restEditorPointer}

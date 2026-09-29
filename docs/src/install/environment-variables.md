@@ -43,10 +43,11 @@ SparkyFitness uses a two-tier database model: a superuser for migrations and sch
 - **`SPARKY_FITNESS_API_ENCRYPTION_KEY`**: A 64-character hex string (256-bit AES) for encrypting stored external provider API keys and tokens in Postgres. (Can also be supplied via **`SPARKY_FITNESS_API_ENCRYPTION_KEY_FILE`**).
   - Generate with: `openssl rand -hex 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - **`BETTER_AUTH_SECRET`**: A secret key used by Better Auth to sign session JWTs and encrypt TOTP 2-Factor Authentication keys in the database. (Can also be supplied via **`BETTER_AUTH_SECRET_FILE`**).
-  - Generate with: `openssl rand -base64 32`
-  - Use **base64**, not hex. The server decodes this value as base64 and silently drops anything outside that alphabet, so a passphrase containing `!@#$%` yields a shorter key than it appears to.
+  - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+  - Use **base64**, not hex. The server decodes this value as base64 and silently drops anything outside that alphabet, so a passphrase containing `!@#$%` yields a shorter key than it appears to. The server refuses to start if the value decodes to an empty key (for example a literal `...`) and logs a warning if it decodes to fewer than 32 bytes.
   - > [!CAUTION]
     > **CRITICAL for 2FA/TOTP:** If you change this variable after users have enabled 2FA, the server will lose access to their secret keys and **all 2FA users will be locked out**. Keep this value persistent and back it up.
+  - The server refuses to start while this is still the placeholder from `.env.example` or `.env.simple.example` (any value starting with `changeme` or `replace_with`). Every install that copied a template shares those values, so each server needs its own. If an existing install stops at this check, generate a real secret and accept the one-time cost: every user is signed out, and users with 2FA must have it cleared under **Admin > User Management > Reset MFA** and re-enroll. Passkeys, passwords and data are unaffected. If the only admin is locked out, follow the recovery steps in the [FAQ](/faq#troubleshooting).
 
 ---
 
@@ -80,7 +81,7 @@ Always written by the generator. These have working defaults, but the timezone i
 - **`SPARKY_FITNESS_LOG_LEVEL`**: Verbosity — `DEBUG`, `INFO`, `WARN`, `ERROR` or `SILENT`. Defaults to `ERROR`. Raise it only while troubleshooting.
 - **`NODE_ENV`**: Always `production` for a deployment. The generator hardcodes it.
 - **`SPARKY_FITNESS_SERVER_PORT`**: Port the backend listens on inside its container. Defaults to `3010`. Docker Compose passes the same value to the frontend, whose nginx proxies to it, so the two always move together.
-- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name. It is resolved from inside the frontend container, so `localhost` points at the frontend itself and every API call returns 502 — only override it to reach a backend outside this compose project.
+- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname or IP the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name. It is resolved dynamically from inside the frontend container via DNS. If pointing to a host defined in `/etc/hosts` (such as `host.docker.internal` on Linux, `localhost`, or `--link` aliases), the frontend entrypoint automatically detects it and resolves it to its IP address directly. When deploying with custom Kubernetes manifests without the bundled Helm chart, specify the full in-cluster service FQDN (e.g., `sparkyfitness-server.default.svc.cluster.local`) since dynamic DNS resolution queries DNS directly without `/etc/resolv.conf` search domains.
 - **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated additional origins Better Auth should trust. Leave blank unless you reach the app on more than one URL.
 - **`BETTER_AUTH_URL`**: Overrides the base URL Better Auth builds callback links from. Only needed when it cannot be derived from `SPARKY_FITNESS_FRONTEND_URL`.
 
@@ -163,6 +164,7 @@ Controls web access ports, Nginx brute-force protection, and client IP resolutio
 
 - **`SPARKY_FITNESS_FRONTEND_PORT`**: Port exposed on your host machine for web access. Defaults to `3004`.
 - **`NGINX_RATE_LIMIT`**: Rate limit on `/api/auth/*` routes to prevent brute-force attacks (e.g., `5r/s`). Defaults to `5r/s`.
+- **`NGINX_RESOLVER`**: DNS resolver used by Nginx to dynamically resolve upstream hostnames (e.g. when backend containers are restarted or recreated). Defaults to auto-detecting nameservers from `/etc/resolv.conf`, falling back to `127.0.0.11` (Docker embedded DNS). Host aliases defined in `/etc/hosts` (such as `host.docker.internal` or `localhost`) are automatically detected and resolved to IP literals on startup.
 - **`SPARKY_FITNESS_REAL_IP_HEADER`**: Name of the trusted proxy header containing the real client IP (e.g., `CF-Connecting-IP` for Cloudflare Tunnel / CDN, `X-Forwarded-For` for NPM/Traefik, `True-Client-IP` for Akamai).
 - **`SPARKY_FITNESS_TRUSTED_PROXY_HOPS`**: Number of proxy layers between client and server when not using a named header. Defaults to `1`.
 - **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated list of additional local IP origins trusted by Better Auth (e.g., `http://192.168.1.100:3004`).

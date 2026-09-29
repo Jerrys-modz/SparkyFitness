@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown } from 'lucide-react';
 import {
   DEFAULT_DROP_SET_COUNT,
   DEFAULT_DROP_SET_PERCENT,
@@ -15,6 +15,7 @@ import {
   type WorkoutSetPointer,
 } from '@/utils/workoutPlayback';
 import WorkoutPlaybackSetRow from './WorkoutPlaybackSetRow';
+import AdaptiveSuggestionNotice from './AdaptiveSuggestionNotice';
 import ImageLightbox from '@/components/ImageLightbox';
 import {
   filterValidExerciseImages,
@@ -37,6 +38,10 @@ interface WorkoutPlaybackExercisesListProps {
   onRemoveSet: (pointer: WorkoutSetPointer) => void;
   onAddSet: (exerciseIndex: number) => void;
   onAddDropSets?: (exerciseIndex: number) => void;
+  /** Swap the exercise for an alternative (issue #1560). */
+  onReplaceExercise?: (exerciseIndex: number) => void;
+  /** "Use my usual" / "Use the adjusted suggestion" (#1560). */
+  onAdaptiveDeclined?: (exerciseIndex: number, declined: boolean) => void;
   weightUnit: WeightUnit;
 }
 
@@ -52,6 +57,8 @@ const WorkoutPlaybackExercisesList = ({
   onRemoveSet,
   onAddSet,
   onAddDropSets,
+  onReplaceExercise,
+  onAdaptiveDeclined,
   weightUnit,
 }: WorkoutPlaybackExercisesListProps) => {
   const { t } = useTranslation();
@@ -128,6 +135,24 @@ const WorkoutPlaybackExercisesList = ({
                     {t('exercise.workoutPlaybackDialog.sets', 'sets')}
                   </p>
                 </div>
+                {onReplaceExercise && (
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title={t(
+                      'exercise.workoutPlaybackPage.replaceExercise',
+                      'Replace exercise'
+                    )}
+                    aria-label={t(
+                      'exercise.workoutPlaybackPage.replaceExerciseNamed',
+                      'Replace {{name}}',
+                      { name: exercise.exercise_name }
+                    )}
+                    onClick={() => onReplaceExercise(exerciseIndex)}
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="button"
                   className="flex cursor-pointer items-center gap-1.5 text-left"
@@ -156,6 +181,25 @@ const WorkoutPlaybackExercisesList = ({
                 </button>
               </div>
             </CardHeader>
+            {(exercise.adaptive || exercise.suggest_variation) && (
+              <div className="px-3 pb-2">
+                <AdaptiveSuggestionNotice
+                  adaptive={exercise.adaptive ?? null}
+                  suggestVariation={exercise.suggest_variation === true}
+                  onDeclinedChange={
+                    onAdaptiveDeclined
+                      ? (declined) =>
+                          onAdaptiveDeclined(exerciseIndex, declined)
+                      : undefined
+                  }
+                  onSeeAlternatives={
+                    onReplaceExercise
+                      ? () => onReplaceExercise(exerciseIndex)
+                      : undefined
+                  }
+                />
+              </div>
+            )}
             {isExpanded && (
               <CardContent className="px-3 pb-2 pt-0">
                 <div className="space-y-1">

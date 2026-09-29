@@ -96,11 +96,20 @@ export function findDropSetBaseIndex<T extends DropSetBaseCandidate>(
   return -1;
 }
 
+function normalizeSetType(setType: string | null | undefined): string {
+  return setType ? setType.toLowerCase().replace(/[^a-z]/g, "") : "";
+}
+
+/** Web labels the set type "Warm-up"; mobile uses "warmup". */
+export function isWarmupSetType(setType: string | null | undefined): boolean {
+  return normalizeSetType(setType) === "warmup";
+}
+
 /** Web labels set types "Warm-up" / "Drop Set"; mobile uses "warmup" / "drop". */
 export function isWarmupOrDropSetType(
   setType: string | null | undefined,
 ): boolean {
-  if (!setType) return false;
-  const normalized = setType.toLowerCase().replace(/[^a-z]/g, "");
-  return normalized === "warmup" || normalized.startsWith("drop");
+  return (
+    isWarmupSetType(setType) || normalizeSetType(setType).startsWith("drop")
+  );
 }

@@ -194,6 +194,13 @@ export interface WatchPlannedExercisePayload {
   /** The exercise_entries id — what a heart-rate batch for this exercise names. */
   exerciseEntryId: string;
   name: string;
+  /**
+   * Index of the valid superset this exercise belongs to, shared with its
+   * partners. Null when it is not in a superset. A stored group id of one
+   * exercise, or the same id on exercises that are not next to each other,
+   * is not a superset and stays null.
+   */
+  supersetRun: number | null;
   sets: WatchPlannedSetPayload[];
 }
 
@@ -209,6 +216,27 @@ export interface WatchWorkoutStartPayload {
    * sets in library order, so rest and next-set agree with the phone.
    */
   setOrder: string[];
+  /**
+   * `standard` when omitted. Interval formats still send the starting sets;
+   * the watch uses these to show the format and the time cap instead of
+   * looking like an ordinary set workout.
+   */
+  workoutFormat?: string | null;
+  timeCapSeconds?: number | null;
+  /** When the phone started the live session, ISO 8601. */
+  startedAt?: string | null;
+  /**
+   * When this arm was sent, ISO 8601. A saved workout reuses `sessionId`,
+   * so the watch rejects only a start at or before the stop, not a later
+   * "Start workout here".
+   */
+  armedAt?: string | null;
+  /**
+   * When the cap reaches 0:00, ISO 8601, already past the phone's lead-in
+   * countdown. Pauses are added on top of this rather than recomputed from
+   * `startedAt`.
+   */
+  capEndsAt?: string | null;
 }
 
 /** One set logged on the watch during an active workout. */
@@ -225,6 +253,13 @@ export interface WatchSetCompletedPayload {
    */
   weightKg?: number | null;
   reps?: number | null;
+  /**
+   * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
+   * its own clock when this is absent (an older watch build, or a set logged
+   * here). Using arrival time instead pulls the next exercise's readings
+   * back onto the previous one for as long as the transfer took.
+   */
+  completedAt?: string | null;
 }
 
 /** One heart-rate reading captured on the watch. */
@@ -250,6 +285,12 @@ export interface WatchHeartRateBatchPayload {
    * would double the diary calories.
    */
   clientId?: string;
+  /**
+   * Present only when `clientId` is missing, so the phone can still remove
+   * the batch from the native queue. Not a dedupe key — a batch with no
+   * `clientId` must not apply `activeEnergyKcal`.
+   */
+  queueId?: string;
   sessionId: string;
   exerciseEntryId: string;
   samples: WatchHeartRateSamplePayload[];
@@ -265,6 +306,13 @@ export interface WatchHeartRateBatchPayload {
    * its sets. Cumulative. Absent on a batch that only carries samples.
    */
   durationMinutes?: number;
+  /**
+   * Server config that was active when the phone received this batch. The
+   * phone only applies a batch whose owner is the active config; a batch for
+   * another config stays queued and is not posted or acked. Absent when no
+   * config was active, in which case the batch was not queued either.
+   */
+  ownerId?: string;
 }
 
 /** The wearer ended the workout on the watch. */
@@ -296,7 +344,37 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * session id rather than being argument-less so a stop for an already
    * superseded workout can be ignored watch-side.
    */
-  stopWorkout(sessionId: string): Promise<void>;
+  stopWorkout(sessionId: string, stoppedAt: string): Promise<void>;
+  /**
+   * Absolute pause snapshot for the live session. `revision` only increases.
+   * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.
+   */
+  updateIntervalTiming(timing: {
+    sessionId: string;
+    revision: number;
+    paused: boolean;
+    pausedAt?: string;
+    excludedPauseMs: number;
+  }): Promise<void>;
+  /**
+   * Heart-rate batches received before JavaScript was listening. Kept until
+   * `ackHeartRateBatches` says the phone has stored them. Async so the read
+   * is not on the JS thread.
+   */
+  pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
+  ackHeartRateBatches(clientIds: string[]): Promise<void>;
+  /**
+   * Server config that owns batches received after this call. Persisted
+   * natively, so a batch that arrives on a cold start is stamped before
+   * JavaScript runs. An empty id means no config is active, and batches are
+   * then not queued.
+   */
+  setTelemetryOwner(ownerId: string): Promise<void>;
+  /**
+   * Batches the native queue evicted (over its cap) or refused (no owner, or
+   * malformed) since the last call. Resets to zero.
+   */
+  takeDroppedHeartRateBatchCount(): Promise<number>;
 }
 
 // iOS-only: WatchConnectivity has no Android equivalent, so this resolves to

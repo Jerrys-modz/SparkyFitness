@@ -67,6 +67,7 @@ const detectedTimezone = ref("Etc/UTC");
 const frontendPort = ref("3004");
 const serverPort = ref("3010");
 const nginxRateLimit = ref("5r/s");
+const nginxResolver = ref("");
 const nginxListenPort = ref("80");
 const realIpHeader = ref<
   "none" | "CF-Connecting-IP" | "X-Forwarded-For" | "True-Client-IP"
@@ -451,6 +452,9 @@ SPARKY_FITNESS_FRONTEND_PORT=${frontendPort.value}
 NGINX_RATE_LIMIT=${nginxRateLimit.value}
 NGINX_LISTEN_PORT=${nginxListenPort.value}
 `;
+    if (nginxResolver.value.trim()) {
+      out += `NGINX_RESOLVER=${nginxResolver.value.trim()}\n`;
+    }
     if (realIpHeader.value !== "none") {
       out += `SPARKY_FITNESS_REAL_IP_HEADER=${realIpHeader.value}\n`;
     } else {
@@ -1678,6 +1682,21 @@ onMounted(() => {
               <span class="field-hint"
                 >Rate limit on <code>/api/auth/*</code> routes to prevent
                 brute-force attacks. Default: <code>5r/s</code>.</span
+              >
+            </div>
+            <div class="form-group">
+              <label
+                >Nginx DNS Resolver
+                <code class="var-badge">NGINX_RESOLVER</code></label
+              >
+              <input
+                v-model="nginxResolver"
+                type="text"
+                class="text-input font-mono"
+                placeholder="127.0.0.11"
+              />
+              <span class="field-hint"
+                >DNS server for dynamic upstream resolution. Defaults to auto-detecting nameservers from <code>/etc/resolv.conf</code> (Docker default: <code>127.0.0.11</code>).</span
               >
             </div>
             <div class="form-group">

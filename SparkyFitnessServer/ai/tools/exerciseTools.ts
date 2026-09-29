@@ -3,13 +3,28 @@ import { z } from 'zod';
 import {
   RIR_MAX,
   RIR_MIN,
+  decideAdaptiveAdjustment,
+  shouldSuggestVariation,
   todayInZone,
+  type AdaptiveReason,
+  type ExerciseAlternativeReason,
+  type WorkoutFeedbackDifficulty,
+  type ExerciseAlternativesResponse,
+  type WorkoutCoachingSignalsResponse,
+  type WorkoutSessionFeedbackResponse,
   type ExerciseModality,
   type WodScoreDetailData,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseService from '../../services/exerciseService.js';
 import workoutPresetService from '../../services/workoutPresetService.js';
+import { getExerciseAlternatives } from '../../services/exerciseAlternativesService.js';
+import {
+  WorkoutEntryNotInSessionError,
+  WorkoutSessionNotFoundError,
+  setWorkoutFeedbackForEntry,
+} from '../../services/workoutCoachingService.js';
+import { getWorkoutCoachingSignals } from '../../services/adaptiveWorkoutService.js';
 import exerciseDb from '../../models/exercise.js';
 import exerciseEntryDb from '../../models/exerciseEntry.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
@@ -56,6 +71,9 @@ const VALID_ACTIONS = [
   'update_workout_preset',
   'delete_workout_preset',
   'get_exercise_progress',
+  'suggest_alternatives',
+  'rate_workout',
+  'get_workout_coaching',
 ];
 
 type WorkoutPresetSetRow = {
@@ -72,8 +90,34 @@ type WorkoutPresetExerciseRow = {
   exercise_name?: string;
   exercise_id?: string;
   superset_group?: number | null;
+  progression_mode?: PresetProgressionSettings['progression_mode'];
+  rep_goal?: number | null;
+  increment_type?: PresetProgressionSettings['increment_type'];
+  increment_value?: number | null;
+  equipment_brand?: string | null;
+  ramp_increment?: number | null;
   sets?: WorkoutPresetSetRow[] | null;
 };
+
+// Only an effective configuration is shown: without a rep goal (and outside
+// fixed mode) the engine never fires, so the stored defaults would be noise.
+function formatPresetProgression(ex: WorkoutPresetExerciseRow): string | null {
+  const mode = ex.progression_mode ?? 'rep_goal';
+  if (mode === 'manual' || (!isSet(ex.rep_goal) && mode !== 'fixed')) {
+    return null;
+  }
+  const parts = [`progression_mode ${mode}`];
+  if (isSet(ex.rep_goal)) parts.push(`rep_goal ${ex.rep_goal}`);
+  if (isSet(ex.increment_value)) {
+    const unit =
+      ex.increment_type === 'reps' || mode === 'step_load' ? ' reps' : 'kg';
+    parts.push(
+      `increment_type ${ex.increment_type ?? 'weight'}`,
+      `increment_value ${ex.increment_value}${unit}`
+    );
+  }
+  return parts.join(', ');
+}
 
 function formatSeconds(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60);
@@ -215,16 +259,54 @@ function toRepoSets(sets: ExerciseSetInput[]) {
   }));
 }
 
+const PRESET_PROGRESSION_KEYS = [
+  'progression_mode',
+  'rep_goal',
+  'increment_type',
+  'increment_value',
+  'equipment_brand',
+  'ramp_increment',
+] as const;
+
+type PresetProgressionSettings = Pick<
+  PresetExerciseInput,
+  (typeof PRESET_PROGRESSION_KEYS)[number]
+>;
+
 // Maps create/update_workout_preset's exercise input into the shape
 // workoutPresetRepository expects: sort_order from array position, sets run
 // through toRepoSets (rpe is silently dropped — presets have no rpe column).
-function toPresetExercises(exercises: PresetExerciseInput[]) {
-  return exercises.map((ex, i) => ({
-    exercise_id: ex.exercise_id,
-    sort_order: i,
-    superset_group: ex.superset_group ?? null,
-    sets: ex.sets ? toRepoSets(ex.sets) : undefined,
-  }));
+// `existing` (update only) is the preset's current exercise list: a
+// progression or ramp field the model left out is carried over from the
+// first not-yet-used existing exercise with the same exercise_id, so an edit
+// that only touches sets doesn't reset them. An explicit null clears.
+function toPresetExercises(
+  exercises: PresetExerciseInput[],
+  existing: readonly WorkoutPresetExerciseRow[] = []
+) {
+  const consumed = new Set<number>();
+  return exercises.map((ex, i) => {
+    const matchIndex = existing.findIndex(
+      (candidate, j) =>
+        !consumed.has(j) && candidate.exercise_id === ex.exercise_id
+    );
+    if (matchIndex >= 0) consumed.add(matchIndex);
+    const matched = matchIndex >= 0 ? existing[matchIndex] : undefined;
+    const settings: PresetProgressionSettings = {};
+    for (const key of PRESET_PROGRESSION_KEYS) {
+      const value = ex[key] !== undefined ? ex[key] : matched?.[key];
+      if (value !== undefined) Object.assign(settings, { [key]: value });
+    }
+    return {
+      exercise_id: ex.exercise_id,
+      sort_order: i,
+      superset_group: ex.superset_group ?? null,
+      ...settings,
+      // Zero means off; store null so it reads as "no ramp" everywhere.
+      ramp_increment: settings.ramp_increment ? settings.ramp_increment : null,
+      sets: ex.sets ? toRepoSets(ex.sets) : undefined,
+    };
+  });
 }
 
 function parsePresetExercises(
@@ -334,6 +416,7 @@ interface ExerciseCatalogRow {
   primary_muscles?: string[] | null;
   equipment?: string[] | null;
   level?: string | null;
+  mechanic?: string | null;
   calories_per_hour?: number | null;
   description?: string | null;
   is_custom?: boolean | null;
@@ -402,6 +485,128 @@ function projectExercise(row: ExerciseCatalogRow): ProjectedExercise {
 
 // Full details for one exercise by id or name, projected to MCP's shape.
 // Throws "not found" errors for the callers' catch blocks to map.
+const DIFFICULTY_TEXT: Record<WorkoutFeedbackDifficulty, string> = {
+  too_easy: 'too easy',
+  just_right: 'just right',
+  too_hard: 'too hard',
+};
+
+function describeSavedFeedback(
+  saved: WorkoutSessionFeedbackResponse,
+  scope: 'session' | 'exercise',
+  entryId: string
+): string {
+  const item =
+    scope === 'session'
+      ? saved.session
+      : saved.exercises.find(
+          (exercise) => exercise.exercise_entry_id === entryId
+        );
+  if (!item) {
+    return scope === 'session'
+      ? 'Workout feedback cleared.'
+      : 'Exercise feedback cleared.';
+  }
+  const parts: string[] = [];
+  if (item.difficulty) parts.push(DIFFICULTY_TEXT[item.difficulty]);
+  if (item.pain) {
+    parts.push(item.pain_note ? `pain: ${item.pain_note}` : 'pain reported');
+  }
+  const subject = scope === 'session' ? 'Workout' : 'Exercise';
+  return `${subject} feedback saved (${parts.join(', ')}). Adaptive suggestions will use it next time.`;
+}
+
+const ADAPTIVE_REASON_TEXT: Record<AdaptiveReason, string> = {
+  pain_reported: 'lighter (-10%): pain was reported in this exercise last time',
+  pain_repeated:
+    'lighter (-10%): pain two sessions running; an alternative is recommended (suggest_alternatives)',
+  session_pain: 'hold weight: discomfort was reported in the last workout',
+  too_hard: 'hold weight: last session felt too hard',
+  too_hard_repeated: 'lighter (-10%): too hard two sessions running',
+  high_effort: 'hold weight: last sets were logged at near-max effort',
+  too_easy_repeated: 'one step heavier: too easy two sessions running',
+};
+
+function formatCoaching(
+  result: WorkoutCoachingSignalsResponse,
+  targets: { id: string; name: string; mechanic: string | null }[]
+): string {
+  const heading = '### Adaptive coaching';
+  if (!result.adaptive_suggestions) {
+    return `${heading}\n\nAdaptive suggestions are turned off in workout settings, so suggestions follow normal progression.`;
+  }
+  const signals = new Map(result.signals.map((s) => [s.exercise_id, s]));
+  const lines = targets.map((target) => {
+    const signal = signals.get(target.id) ?? null;
+    const adjustment = decideAdaptiveAdjustment(signal);
+    const notes: string[] = [];
+    if (adjustment.reason) notes.push(ADAPTIVE_REASON_TEXT[adjustment.reason]);
+    if (shouldSuggestVariation(signal, target.mechanic)) {
+      notes.push(
+        'done in most recent workouts; consider a variation (suggest_alternatives)'
+      );
+    }
+    if (notes.length === 0) {
+      notes.push(
+        signal
+          ? 'no change: normal progression'
+          : 'no recent history: normal progression'
+      );
+    }
+    const last = signal ? ` (last done ${signal.last_performed_date})` : '';
+    return `- **${target.name}**${last}: ${notes.join('; ')}`;
+  });
+  return `${heading}\n\n${lines.join('\n')}\n\nThe user can decline any change in the app ("Use my usual").`;
+}
+
+function splitCommaList(value: string | undefined): string[] {
+  return value
+    ? value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+}
+
+const ALTERNATIVE_REASON_TEXT: Record<ExerciseAlternativeReason, string> = {
+  same_primary_muscles: 'same primary muscles',
+  shares_primary_muscle: 'shares a primary muscle',
+  same_equipment: 'same equipment',
+  different_equipment: 'different equipment',
+  same_movement: 'same movement pattern',
+  recently_performed: 'done recently',
+  in_library: 'in your library',
+};
+
+function formatAlternatives(result: ExerciseAlternativesResponse): string {
+  const heading = `### Alternatives to ${result.source.name}`;
+  if (!result.rankable) {
+    return `${heading}\n\n${result.source.name} has no primary muscles recorded, so alternatives cannot be ranked. Use search_exercises instead.`;
+  }
+  if (result.alternatives.length === 0) {
+    return `${heading}\n\nNo alternatives match these filters.`;
+  }
+  const lines = result.alternatives.map((alt, index) => {
+    const origin =
+      alt.origin === 'library'
+        ? `ID: ${alt.id}`
+        : `Free Exercise DB (not in library yet), catalog ID: ${alt.id}`;
+    const lastDone = alt.last_performed_date
+      ? ` | Last done: ${alt.last_performed_date}`
+      : '';
+    return (
+      `${index + 1}. **${alt.name}**\n` +
+      `   Muscles: ${alt.primary_muscles.join(', ') || 'N/A'} | Equipment: ${alt.equipment.join(', ') || 'None'}${lastDone}\n` +
+      `   Why: ${alt.reasons.map((reason) => ALTERNATIVE_REASON_TEXT[reason]).join(', ')}\n` +
+      `   ${origin}`
+    );
+  });
+  const note = result.catalog_available
+    ? ''
+    : '\n\n_Free Exercise DB is unavailable right now, so only library exercises are listed._';
+  return `${heading}\n\n${lines.join('\n')}${note}`;
+}
+
 async function getExerciseDetails(
   userId: string,
   params: { exercise_id?: string; exercise_name?: string }
@@ -575,13 +780,13 @@ Actions:
 - log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,rir,notes}]) — distance/avg_heart_rate/steps are for cardio; rpe is effort 0-10, rir is reps in reserve (0 = failure)
 - list_exercise_diary(entry_date) — returns diary entries with sets and WOD scores
 - get_workout_presets() — lists saved workout presets with format and exercise counts
-- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: format, time cap, every exercise's ID, its sets, and its superset_group. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
+- get_workout_preset(preset_id?|preset_name?) — full detail for one preset: format, time cap, every exercise's ID, its sets, its superset_group, and its progression and ramp_increment settings. Call this BEFORE update_workout_preset so you know the current exercise list. preset_name resolves own or family-shared presets only; public presets must use preset_id.
 - log_workout_preset(entry_date, preset_id?|preset_name?, location?, wod_score?:{score_type:time|rounds_reps|total_reps|completion, rounds_completed?, reps_completed?, elapsed_seconds?, status?:rx|scaled, scaling_notes?}) — location is an optional gym name for the session. preset_name is own or family-shared only; public presets must use preset_id. wod_score is only for non-standard formats; the preset's format and time cap are copied onto the score. Typical score_type: AMRAP → rounds_reps; For Time → time (rounds_reps if the cap was hit); EMOM/Tabata/Interval → completion or total_reps.
 - update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
-- create_workout_preset(name, exercises, description?, is_public?, workout_format?, time_cap_seconds?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}]; items sharing the same superset_group are grouped as a superset
-- update_workout_preset(preset_id, confirmed, name?, description?, is_public?, workout_format?, time_cap_seconds?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. confirmed=true is required to apply; without it the tool returns a prompt and does not change anything. Get the user's go-ahead first, especially if YOU decided what to change (e.g. "review my workouts and improve them").
+- create_workout_preset(name, exercises, description?, is_public?, workout_format?, time_cap_seconds?) — exercises: array or JSON string of [{exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?, progression_mode?, rep_goal?, increment_type?, increment_value?, equipment_brand?, ramp_increment?}]; items sharing the same superset_group are grouped as a superset; progression_mode/rep_goal/increment_type/increment_value (kg for weight) are between-session overload; ramp_increment (kg, may be negative) pre-fills each successive working set that much heavier within one session — e.g. "+10 lb per set" is 4.54 — distinct from between-session progression
+- update_workout_preset(preset_id, confirmed, name?, description?, is_public?, workout_format?, time_cap_seconds?, exercises?) — only the provided fields change; exercises, when provided, REPLACES the entire exercise list (same shape as create_workout_preset), so call get_workout_preset first and include every exercise that should remain, not just the ones being changed. Progression and ramp fields left out on an exercise keep their current values; send null to clear one. confirmed=true is required to apply; without it the tool returns a prompt and does not change anything. Get the user's go-ahead first, especially if YOU decided what to change (e.g. "review my workouts and improve them").
 - delete_workout_preset(preset_id, confirmed) — permanently deletes the preset. confirmed=true is required; without it the tool returns a prompt and does not delete. Confirm with the user first.
 
 Workout formats (workout_format, default standard) drive the in-app timer:
@@ -591,7 +796,10 @@ Workout formats (workout_format, default standard) drive the in-app timer:
 - emom — one round per minute; rounds = time_cap_seconds / 60, or the set count.
 - amrap — as many rounds as possible within time_cap_seconds (REQUIRED).
 - for_time — finish the work as fast as possible; time_cap_seconds is an optional cut-off.
-- get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
+- get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history
+- rate_workout(entry_id, scope?:session|exercise, difficulty?:too_easy|just_right|too_hard, pain?, pain_note?) — records how a logged workout felt; entry_id is any exercise entry ID from list_exercise_diary (scope=session rates its whole workout, scope=exercise just that exercise). Only the fields given change: omitted fields keep what is already recorded (difficulty=null clears it, pain=false clears pain and its note). Adaptive suggestions learn from it: pain makes that exercise lighter next time, never heavier. Only workouts logged as sessions (presets / live workouts) can be rated.
+- get_workout_coaching(exercise_id?|exercise_name?|preset_id?|preset_name?) — how the next session's suggestions will adapt to recent feedback for one exercise or every exercise in a preset, with the reason for each (lighter after pain, hold after "too hard", a step up after "too easy" twice, variation hints). Changes are suggestions the user can decline in the app.
+- suggest_alternatives(exercise_id?|exercise_name?, alternative_mode?:similar|different_equipment, equipment?, avoid_muscles?, limit?) — ranked substitutes that train the same primary muscles, with the reason for each. Use for "what can I do instead of X", a busy machine, missing equipment (equipment = comma-separated list of what they have), or an injury (avoid_muscles, or alternative_mode=different_equipment). Results marked "Free Exercise DB" are not in the user's library yet; they can add one from exercise search in the app.`,
       inputSchema: manageExerciseInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -973,6 +1181,14 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                     ? ` [superset group ${ex.superset_group}]`
                     : '';
                   text += `${i + 1}. **${ex.exercise_name}**${superset}\n   exercise_id: ${ex.exercise_id}\n`;
+                  const progression = formatPresetProgression(ex);
+                  if (progression) text += `   progression: ${progression}\n`;
+                  if (ex.equipment_brand) {
+                    text += `   equipment_brand: ${ex.equipment_brand}\n`;
+                  }
+                  if (ex.ramp_increment) {
+                    text += `   ramp_increment: ${ex.ramp_increment > 0 ? '+' : ''}${ex.ramp_increment}kg per working set\n`;
+                  }
                   if (ex.sets && ex.sets.length > 0) {
                     ex.sets.forEach((s: WorkoutPresetSetRow, si: number) => {
                       const details: string[] = [];
@@ -1236,7 +1452,15 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                     workout_format: args.workout_format,
                     time_cap_seconds: args.time_cap_seconds,
                     exercises: exercises
-                      ? toPresetExercises(exercises)
+                      ? toPresetExercises(
+                          exercises,
+                          (
+                            await workoutPresetService.getWorkoutPresetById(
+                              userId,
+                              args.preset_id
+                            )
+                          )?.exercises ?? []
+                        )
                       : undefined,
                   }
                 );
@@ -1314,6 +1538,137 @@ Workout formats (workout_format, default standard) drive the in-app timer:
                   next_offset: progress.next_offset,
                 }
               );
+            }
+
+            case 'suggest_alternatives': {
+              const exercise = await getExerciseDetails(userId, {
+                exercise_id: args.exercise_id,
+                exercise_name: args.exercise_name,
+              });
+              const result = await getExerciseAlternatives(
+                userId,
+                userId,
+                String(exercise.id),
+                {
+                  mode: args.alternative_mode ?? 'similar',
+                  equipment: splitCommaList(args.equipment),
+                  excludeMuscles: splitCommaList(args.avoid_muscles),
+                  excludeIds: [],
+                  includeCatalog: true,
+                  limit: args.limit ?? 10,
+                }
+              );
+              return formatAlternatives(result);
+            }
+
+            case 'rate_workout': {
+              try {
+                const saved = await setWorkoutFeedbackForEntry(
+                  userId,
+                  userId,
+                  args.entry_id,
+                  args.scope,
+                  {
+                    difficulty: args.difficulty,
+                    pain: args.pain,
+                    pain_note: args.pain_note,
+                  }
+                );
+                return formatConfirmation(
+                  describeSavedFeedback(saved, args.scope, args.entry_id)
+                );
+              } catch (error) {
+                if (error instanceof WorkoutEntryNotInSessionError) {
+                  return ERRORS.VALIDATION(error.message);
+                }
+                if (error instanceof WorkoutSessionNotFoundError) {
+                  return ERRORS.NOT_FOUND('Exercise entry', args.entry_id);
+                }
+                throw error;
+              }
+            }
+
+            case 'get_workout_coaching': {
+              let targets: {
+                id: string;
+                name: string;
+                mechanic: string | null;
+              }[];
+              if (args.preset_id || args.preset_name) {
+                let presetId = args.preset_id;
+                if (!presetId && args.preset_name) {
+                  const found =
+                    await workoutPresetRepository.getWorkoutPresetByName(
+                      userId,
+                      args.preset_name
+                    );
+                  if (!found) return ERRORS.NOT_FOUND('Resource', 'unknown');
+                  presetId = found.id;
+                }
+                const preset = (await workoutPresetService.getWorkoutPresetById(
+                  userId,
+                  presetId
+                )) as {
+                  exercises?: {
+                    exercise_id: string;
+                    exercise_name?: string | null;
+                    exercise?: {
+                      name?: string;
+                      mechanic?: string | null;
+                    } | null;
+                  }[];
+                };
+                targets = (preset.exercises ?? []).map((exercise) => ({
+                  id: exercise.exercise_id,
+                  name:
+                    exercise.exercise_name ??
+                    exercise.exercise?.name ??
+                    'Exercise',
+                  mechanic: exercise.exercise?.mechanic ?? null,
+                }));
+              } else {
+                // The raw row, not getExerciseDetails' projection: the
+                // variation hint needs `mechanic`, and that projection is an
+                // MCP parity contract.
+                const row = (
+                  args.exercise_id
+                    ? await exerciseService.getExerciseById(
+                        userId,
+                        args.exercise_id
+                      )
+                    : args.exercise_name
+                      ? await findExerciseByExactName(
+                          userId,
+                          args.exercise_name
+                        )
+                      : null
+                ) as ExerciseCatalogRow | null | undefined;
+                if (!row) {
+                  if (!args.exercise_id && !args.exercise_name) {
+                    return ERRORS.VALIDATION(
+                      'Provide exercise_id, exercise_name, preset_id or preset_name'
+                    );
+                  }
+                  return ERRORS.NOT_FOUND('Resource', 'unknown');
+                }
+                targets = [
+                  {
+                    id: String(row.id),
+                    name: row.name,
+                    mechanic: row.mechanic ?? null,
+                  },
+                ];
+              }
+              if (targets.length === 0) {
+                return 'This preset has no exercises.';
+              }
+              const result = await getWorkoutCoachingSignals(
+                userId,
+                userId,
+                targets.map((target) => target.id),
+                null
+              );
+              return formatCoaching(result, targets);
             }
 
             default:

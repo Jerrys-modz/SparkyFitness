@@ -289,9 +289,21 @@ const ExerciseDetailScreen: React.FC<ExerciseDetailScreenProps> = ({
   const pairAspectMatch = useImagePairAspectMatch(imageSources);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
-  const equipmentText = formatList(exercise.equipment ?? []);
-  const primaryMusclesText = formatList(exercise.primary_muscles ?? []);
-  const secondaryMusclesText = formatList(exercise.secondary_muscles ?? []);
+  const equipmentText = formatList(
+    (exercise.equipment ?? []).map((eq) =>
+      localizeExerciseTaxonomyValue(t, 'equipment', eq)
+    )
+  );
+  const primaryMusclesText = formatList(
+    (exercise.primary_muscles ?? []).map((m) =>
+      localizeExerciseTaxonomyValue(t, 'muscle', m)
+    )
+  );
+  const secondaryMusclesText = formatList(
+    (exercise.secondary_muscles ?? []).map((m) =>
+      localizeExerciseTaxonomyValue(t, 'muscle', m)
+    )
+  );
   const description = exercise.description?.trim() ?? '';
   const categoryText = localizeExerciseTaxonomyValue(
     t,

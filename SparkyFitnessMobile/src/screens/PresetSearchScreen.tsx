@@ -39,6 +39,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { formatLocalizedNumber } from '../localization';
 import {
   CATEGORY_ICON_MAP,
+  buildPresetLiveExerciseConfigs,
   buildPresetStartExercisesPayload,
   buildSingleExerciseStartPayload,
 } from '../utils/workoutSession';
@@ -131,6 +132,7 @@ const PresetSearchScreen: React.FC<PresetSearchScreenProps> = ({
       void startLiveWorkout({
         name: preset.name,
         exercises: buildPresetStartExercisesPayload(preset),
+        exerciseConfigs: buildPresetLiveExerciseConfigs(preset),
         sourcePresetId: preset.id,
         workoutFormat: preset.workout_format ?? 'standard',
         timeCapSeconds: preset.time_cap_seconds ?? null,

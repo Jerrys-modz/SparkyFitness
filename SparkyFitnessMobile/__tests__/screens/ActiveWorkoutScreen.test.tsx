@@ -52,6 +52,10 @@ jest.mock('../../src/hooks/useSelectedExercise', () => ({
   useSelectedExercise: jest.fn(),
 }));
 
+jest.mock('../../src/hooks/useLiveCoachingSignals', () => ({
+  useLiveCoachingSignals: jest.fn(),
+}));
+
 jest.mock('../../src/hooks/useNavigationActionGuard', () => ({
   useNavigationActionGuard: jest.fn(() => ({
     runNavigationAction: jest.fn((action: () => void) => action()),

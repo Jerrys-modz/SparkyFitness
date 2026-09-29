@@ -439,6 +439,8 @@ export const exerciseEntryResponseSchema = z
     calories_burned: z.number(),
     entry_date: z.string().nullable(),
     entry_time: z.string().nullish(),
+    /** IANA zone `entry_time` was recorded in; null for older and manual entries. */
+    record_timezone: z.string().nullish(),
     notes: z.string().nullable(),
     distance: z.number().nullable(),
     avg_heart_rate: z.number().nullable(),

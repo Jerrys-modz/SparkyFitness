@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import {
+  EXERCISE_ALTERNATIVE_MODES,
   EXERCISE_MODALITIES,
+  WORKOUT_FEEDBACK_DIFFICULTIES,
+  WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH,
+  RAMP_INCREMENT_MAX_KG,
   RIR_MAX,
   RIR_MIN,
   WORKOUT_LOCATION_MAX_LENGTH,
@@ -67,11 +71,15 @@ const searchExercisesSchema = z
     muscleGroup: z
       .string()
       .optional()
-      .describe("Muscle group filter (e.g., 'Chest', 'Biceps')"),
+      .describe(
+        "Muscle group filter (canonical: 'abdominals', 'biceps', 'chest', 'quadriceps', etc.)"
+      ),
     equipment: z
       .string()
       .optional()
-      .describe("Equipment filter (e.g., 'Dumbbell', 'None')"),
+      .describe(
+        "Equipment filter (canonical: 'barbell', 'dumbbell', 'cable', 'machine', 'body only', etc.)"
+      ),
     ...paginationSchema.shape,
   })
   .strict();
@@ -224,6 +232,54 @@ const presetSetSchema = z
   })
   .strict();
 
+// Between-session progression and the within-session ramp. On
+// update_workout_preset a field left out keeps the preset's current value
+// (matched by exercise_id); null clears it.
+const presetProgressionFields = {
+  progression_mode: z
+    .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
+    .nullable()
+    .optional()
+    .describe(
+      'Between-session overload: rep_goal (total reps across working sets), fixed (reps per set), step_load (raise reps at the same load), manual (off)'
+    ),
+  rep_goal: z.coerce
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional()
+    .describe('Total reps (rep_goal/step_load) or reps per set (fixed)'),
+  increment_type: z
+    .enum(['weight', 'reps'])
+    .nullable()
+    .optional()
+    .describe('What goes up once the goal is met'),
+  increment_value: z.coerce
+    .number()
+    .positive()
+    .nullable()
+    .optional()
+    .describe(
+      'Amount added next session once the goal is met: kg when increment_type is weight, reps otherwise'
+    ),
+  equipment_brand: z
+    .string()
+    .max(100)
+    .nullable()
+    .optional()
+    .describe('Equipment or machine brand'),
+  ramp_increment: z.coerce
+    .number()
+    .min(-RAMP_INCREMENT_MAX_KG)
+    .max(RAMP_INCREMENT_MAX_KG)
+    .nullable()
+    .optional()
+    .describe(
+      'Optional per-set ramp in kg within ONE session: each successive working set is pre-filled this much heavier than the first (negative = back-off sets ramp down). Warm-up and drop sets are skipped. Not the between-session progression increment.'
+    ),
+};
+
 // One exercise entry within a preset. Exercises that share the same
 // superset_group are performed back-to-back as a superset.
 export const presetExerciseSchema = z
@@ -237,17 +293,35 @@ export const presetExerciseSchema = z
       .describe(
         'Exercises sharing the same superset_group number are grouped as a superset'
       ),
+    ...presetProgressionFields,
     sets: z
       .array(presetSetSchema)
       .optional()
       .describe('Planned sets for this exercise in the preset'),
   })
-  .strict();
+  .strict()
+  // Same rule as the REST preset schema: a rep increment is a whole number.
+  // Step-load always raises reps, whatever increment_type says.
+  .superRefine((val, ctx) => {
+    const repsIncrement =
+      val.increment_type === 'reps' || val.progression_mode === 'step_load';
+    if (
+      repsIncrement &&
+      typeof val.increment_value === 'number' &&
+      !Number.isInteger(val.increment_value)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Rep increment must be a whole number',
+        path: ['increment_value'],
+      });
+    }
+  });
 
 const presetExercisesInputSchema = z
   .union([z.array(presetExerciseSchema), z.string()])
   .describe(
-    'Exercises as an array of objects or a JSON string; each item is {exercise_id, sets?, superset_group?}'
+    'Exercises as an array of objects or a JSON string; each item is {exercise_id, sets?, superset_group?, progression_mode?, rep_goal?, increment_type?, increment_value?, equipment_brand?, ramp_increment?}'
   );
 
 export type PresetExerciseInput = z.infer<typeof presetExerciseSchema>;
@@ -450,7 +524,7 @@ const updateWorkoutPresetSchema = z
       .describe(
         'Replacement exercises as an array of objects or a JSON string; when provided, REPLACES the entire exercise list, ' +
           'so call get_workout_preset first and include every exercise that should remain (not just the ones being changed). ' +
-          'Each item is {exercise_id, sets?, superset_group?}'
+          'Each item is {exercise_id, sets?, superset_group?, progression_mode?, rep_goal?, increment_type?, increment_value?, equipment_brand?, ramp_increment?}'
       ),
   })
   .strict();
@@ -481,6 +555,100 @@ const getExerciseProgressSchema = z
   })
   .strict();
 
+const suggestAlternativesSchema = z
+  .object({
+    action: z.literal('suggest_alternatives'),
+    exercise_id: uuidSchema.optional().describe('UUID of the exercise'),
+    exercise_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name of the exercise (alternative to ID)'),
+    alternative_mode: z
+      .enum(EXERCISE_ALTERNATIVE_MODES)
+      .optional()
+      .describe(
+        'similar (default) prefers the same equipment; different_equipment only returns exercises using none of its equipment'
+      ),
+    equipment: z
+      .string()
+      .max(500)
+      .optional()
+      .describe(
+        "Comma-separated equipment the user has (e.g. 'dumbbell, bands'); results need nothing else"
+      ),
+    avoid_muscles: z
+      .string()
+      .max(500)
+      .optional()
+      .describe(
+        "Comma-separated muscles to avoid, e.g. for an injury ('shoulders')"
+      ),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
+const rateWorkoutSchema = z
+  .object({
+    action: z.literal('rate_workout'),
+    entry_id: uuidSchema.describe(
+      'Exercise diary entry UUID (from list_exercise_diary); identifies the workout session it belongs to'
+    ),
+    scope: z
+      .enum(['session', 'exercise'])
+      .default('session')
+      .describe(
+        'session (default) rates the whole workout; exercise rates only this exercise'
+      ),
+    difficulty: z
+      .enum(WORKOUT_FEEDBACK_DIFFICULTIES)
+      .nullable()
+      .optional()
+      .describe('too_easy | just_right | too_hard'),
+    pain: z
+      .boolean()
+      .optional()
+      .describe(
+        'Pain or discomfort was felt; omit to keep what is already recorded'
+      ),
+    pain_note: z
+      .string()
+      .max(WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH)
+      .optional()
+      .describe('What hurt (implies pain=true)'),
+  })
+  .strict()
+  .refine((value) => value.pain !== false || !value.pain_note, {
+    message: 'pain_note cannot be combined with pain=false',
+    path: ['pain_note'],
+  });
+
+const getWorkoutCoachingSchema = z
+  .object({
+    action: z.literal('get_workout_coaching'),
+    exercise_id: uuidSchema.optional().describe('UUID of one exercise'),
+    exercise_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Name of one exercise (alternative to ID)'),
+    preset_id: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Workout preset ID — coaching for every exercise in it'),
+    preset_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe(PRESET_NAME_LOOKUP),
+  })
+  .strict();
+
 export const manageExerciseSchema = z.discriminatedUnion('action', [
   searchExercisesSchema,
   createExerciseSchema,
@@ -497,6 +665,9 @@ export const manageExerciseSchema = z.discriminatedUnion('action', [
   updateWorkoutPresetSchema,
   deleteWorkoutPresetSchema,
   getExerciseProgressSchema,
+  suggestAlternativesSchema,
+  rateWorkoutSchema,
+  getWorkoutCoachingSchema,
 ]);
 
 export type ManageExerciseInput = z.infer<typeof manageExerciseSchema>;
@@ -522,6 +693,9 @@ export const manageExerciseInput = z.object({
       'update_workout_preset',
       'delete_workout_preset',
       'get_exercise_progress',
+      'suggest_alternatives',
+      'rate_workout',
+      'get_workout_coaching',
     ])
     .optional()
     .describe(
@@ -547,6 +721,7 @@ export const manageExerciseInput = z.object({
         z.object({
           exercise_id: uuidSchema,
           superset_group: z.coerce.number().int().min(1).optional(),
+          ...presetProgressionFields,
           sets: z
             .array(
               z.object({
@@ -568,7 +743,9 @@ export const manageExerciseInput = z.object({
     .describe(
       'Exercises as array of objects or JSON string — for create_workout_preset / update_workout_preset. ' +
         'On update_workout_preset this REPLACES the full exercise list, so call get_workout_preset first and include every exercise that should remain. ' +
-        'Each item is {exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?}; items sharing the same superset_group are grouped as a superset.'
+        'Each item is {exercise_id, sets?:[{reps,weight,duration,distance,rest_time,set_type,notes}], superset_group?, progression_mode?, rep_goal?, increment_type?, increment_value?, equipment_brand?, ramp_increment?}; items sharing the same superset_group are grouped as a superset. ' +
+        'progression_* / increment_* are between-session overload (increment_value is kg for weight). ramp_increment is kg added to each successive working set within ONE session (negative ramps down). ' +
+        'On update, a progression or ramp field left out keeps the current value; null clears it.'
     ),
   name: z
     .string()
@@ -592,7 +769,42 @@ export const manageExerciseInput = z.object({
   equipment: z
     .string()
     .optional()
-    .describe("Equipment filter (e.g., 'Dumbbell', 'None')"),
+    .describe(
+      "Equipment filter (e.g., 'Dumbbell', 'None') for search_exercises; comma-separated equipment the user has for suggest_alternatives"
+    ),
+  alternative_mode: z
+    .enum(EXERCISE_ALTERNATIVE_MODES)
+    .optional()
+    .describe(
+      'For suggest_alternatives: similar (default) or different_equipment'
+    ),
+  avoid_muscles: z
+    .string()
+    .optional()
+    .describe(
+      'For suggest_alternatives: comma-separated muscles to avoid (injury)'
+    ),
+  // workout feedback
+  scope: z
+    .enum(['session', 'exercise'])
+    .optional()
+    .describe(
+      'For rate_workout: session (default) rates the whole workout, exercise only this entry'
+    ),
+  difficulty: z
+    .enum(WORKOUT_FEEDBACK_DIFFICULTIES)
+    .nullable()
+    .optional()
+    .describe('For rate_workout: too_easy | just_right | too_hard'),
+  pain: z
+    .boolean()
+    .optional()
+    .describe('For rate_workout: pain or discomfort was felt'),
+  pain_note: z
+    .string()
+    .max(WORKOUT_FEEDBACK_PAIN_NOTE_MAX_LENGTH)
+    .optional()
+    .describe('For rate_workout: what hurt (only with pain=true)'),
   limit: z.coerce
     .number()
     .int()
@@ -691,7 +903,7 @@ export const manageExerciseInput = z.object({
     .positive()
     .optional()
     .describe(
-      'Workout preset ID — for log_workout_preset / update_workout_preset / delete_workout_preset'
+      'Workout preset ID — for log_workout_preset / update_workout_preset / delete_workout_preset / get_workout_coaching'
     ),
   preset_name: z
     .string()
@@ -739,7 +951,7 @@ export const manageExerciseInput = z.object({
   entry_id: uuidSchema
     .optional()
     .describe(
-      'Exercise diary entry UUID — for update_exercise_entry / delete_exercise_entry'
+      'Exercise diary entry UUID — for update_exercise_entry / delete_exercise_entry / rate_workout'
     ),
   // progress range
   start_date: dateSchema

@@ -102,7 +102,8 @@ function mockFetch(
   const m = vi.fn().mockResolvedValue({
     ok: init.ok ?? true,
     status: init.status ?? 200,
-    text: async () => (typeof jsonBody === 'string' ? jsonBody : ''),
+    text: async () =>
+      typeof jsonBody === 'string' ? jsonBody : JSON.stringify(jsonBody),
     json: async () => jsonBody,
   });
   global.fetch = m as typeof global.fetch;
@@ -564,6 +565,99 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(url).toBe('https://api.x.ai/v1/chat/completions');
     expect((body.response_format as { type: string }).type).toBe('json_schema');
     expect(body.provider).toBeUndefined();
+  });
+
+  it('perplexity routes to api.perplexity.ai/v1/responses and uses strict json_schema', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'perplexity',
+          model_name: 'sonar',
+        }),
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.perplexity.ai/v1/responses');
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(body.input).toBeDefined();
+    expect(body.messages).toBeUndefined();
+    expect(body.preset).toBe('fast');
+    expect(body.model).toBeUndefined();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.json).toEqual(SAMPLE);
+    }
+  });
+
+  it('perplexity maps custom Anthropic models with model and max_output_tokens', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'perplexity',
+          model_name: 'anthropic/claude-sonnet-4-6',
+        }),
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.perplexity.ai/v1/responses');
+    expect(body.model).toBe('anthropic/claude-sonnet-4-6');
+    expect(body.preset).toBeUndefined();
+    expect(body.max_output_tokens).toBe(4096);
+    expect(result.ok).toBe(true);
+  });
+
+  it('perplexity formats vision requests with input_image and input_text in Responses schema', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({ service_type: 'perplexity' }),
+        images: [{ mimeType: 'image/jpeg', base64: 'abc123xyz' }],
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.perplexity.ai/v1/responses');
+    expect(body.messages).toBeUndefined();
+    expect(body.input).toEqual([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_image',
+            image_url: 'data:image/jpeg;base64,abc123xyz',
+          },
+          {
+            type: 'input_text',
+            text: 'Do the thing.',
+          },
+        ],
+      },
+    ]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('perplexity extracts text from nested Agent API output message content blocks', async () => {
+    mockFetch({
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: JSON.stringify(SAMPLE),
+            },
+          ],
+        },
+      ],
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ service_type: 'perplexity' }) })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.json).toEqual(SAMPLE);
+    }
   });
 
   it('meta routes to api.meta.ai and uses json_object fallback (not strict schema)', async () => {
@@ -1812,5 +1906,39 @@ describe('dispatchAiRequest — default request timeout', () => {
       })
     );
     expect(timeoutSpy).toHaveBeenCalledWith(1_000);
+  });
+});
+
+describe('dispatchAiRequest — Perplexity 403 deprecation handling', () => {
+  it('translates Sonar chat completions deprecation 403 into a user-friendly message', async () => {
+    mockFetch(
+      {
+        error: {
+          message:
+            'Sonar is now the Agent API. Use /v1/responses instead of /v1/sonar. Migrate here: https://docs.perplexity.ai/docs/agent-api/migrate-from-sonar/overview',
+          type: 'chat_completions_not_available',
+          code: 403,
+        },
+      },
+      { ok: false, status: 403 }
+    );
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://api.perplexity.ai',
+          model_name: 'sonar-pro',
+        }),
+      })
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.category).toBe('upstream_error');
+      expect(result.status).toBe(403);
+      expect(result.detail).toContain(
+        'Perplexity has retired the OpenAI-compatible Chat Completions API'
+      );
+      expect(result.detail).toContain('Use OpenRouter with a Perplexity model');
+    }
   });
 });

@@ -652,6 +652,10 @@ async function _updateExerciseEntryWithClient(
       updateData.entry_time !== undefined
         ? updateData.entry_time
         : currentEntry.entry_time,
+    record_timezone:
+      updateData.record_timezone !== undefined
+        ? updateData.record_timezone
+        : currentEntry.record_timezone,
     notes:
       updateData.notes !== undefined ? updateData.notes : currentEntry.notes,
     workout_plan_assignment_id:
@@ -783,6 +787,7 @@ async function _updateExerciseEntryWithClient(
       entry_time = $30,
       modality = $31,
       ${telemetrySetClause},
+      record_timezone = $${32 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length},
       updated_at = now()
     WHERE id = $28 AND user_id = $29
     RETURNING id`,
@@ -819,6 +824,7 @@ async function _updateExerciseEntryWithClient(
       mergedData.entry_time ?? null,
       mergedData.modality ?? null,
       ...telemetryParams,
+      mergedData.record_timezone ?? null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
@@ -916,6 +922,7 @@ async function _createExerciseEntryWithClient(
       'Health Connect',
       'Fitbit',
       'Strava',
+      'coros_mcp',
     ].includes(entrySource);
     // Both deduplication lookups live behind one function so that the update
     // path can re-run exactly the lookup that produced its match. Returns the
@@ -1063,6 +1070,7 @@ async function _createExerciseEntryWithClient(
         entryData.entry_time ?? null,
         snapshot.modality,
         ...telemetryValuesFrom(entryData),
+        entryData.record_timezone ?? null,
       ];
       const hasClientId = entryData.id !== undefined && entryData.id !== null;
       const idColumn = hasClientId ? ', id' : '';
@@ -1074,7 +1082,7 @@ async function _createExerciseEntryWithClient(
         'equipment, primary_muscles, secondary_muscles, instructions, images, ' +
         'distance, avg_heart_rate, exercise_preset_entry_id, sort_order, steps, water_estimated, ' +
         'superset_group, entry_time, modality';
-      const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}${idColumn}`;
+      const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}, record_timezone${idColumn}`;
       const placeholders = entryValues
         .map((_, index) => `$${index + 1}`)
         .join(', ');
@@ -1754,10 +1762,14 @@ async function getBestSetForExercise(
       `SELECT ee.entry_date::TEXT AS entry_date, ees.weight, ees.reps, ees.set_number
          FROM exercise_entries ee
          JOIN exercise_entry_sets ees ON ees.exercise_entry_id = ee.id
+         -- LEFT JOIN: ad-hoc and imported entries have no session and count
+         -- as standard work.
+         LEFT JOIN exercise_preset_entries epe ON epe.id = ee.exercise_preset_entry_id
         WHERE ee.user_id = $1
           AND ee.exercise_id = $2
           AND ees.weight IS NOT NULL
           AND (ees.set_type IS NULL OR regexp_replace(LOWER(ees.set_type), '[^a-z0-9]', '', 'g') NOT LIKE 'warmup%')
+          AND COALESCE(epe.workout_format, 'standard') = 'standard'
           AND ($3::uuid IS NULL OR ee.exercise_preset_entry_id IS DISTINCT FROM $3)
         ORDER BY ees.weight DESC,
                  ees.reps DESC NULLS LAST,
@@ -2231,6 +2243,35 @@ async function getWaterEstimatedSumForDateRange(
   }
 }
 
+/**
+ * Queries which sourceIds already exist for a given user and source.
+ */
+async function getExistingSourceIds(
+  userId: string,
+  source: string,
+  sourceIds: string[]
+): Promise<Set<string>> {
+  if (sourceIds.length === 0) {
+    return new Set<string>();
+  }
+  const client = await getClient(userId);
+  try {
+    const res = await client.query(
+      'SELECT source_id FROM exercise_entries WHERE user_id = $1 AND source = $2 AND source_id = ANY($3::text[])',
+      [userId, source, sourceIds]
+    );
+    const existing = new Set<string>();
+    for (const row of res.rows as Array<{ source_id: string | null }>) {
+      if (row.source_id) {
+        existing.add(row.source_id);
+      }
+    }
+    return existing;
+  } finally {
+    client.release();
+  }
+}
+
 export { upsertExerciseEntryData };
 export { _createExerciseEntryWithClient };
 export { createExerciseEntry };
@@ -2259,6 +2300,7 @@ export { getRecentExerciseEntries };
 export { getExerciseUsage };
 export { getWaterEstimatedSumForDate };
 export { getWaterEstimatedSumForDateRange };
+export { getExistingSourceIds };
 export default {
   getDailyExerciseCalorieSplitRange,
   upsertExerciseEntryData,
@@ -2293,4 +2335,5 @@ export default {
   getExerciseUsage,
   getWaterEstimatedSumForDate,
   getWaterEstimatedSumForDateRange,
+  getExistingSourceIds,
 };

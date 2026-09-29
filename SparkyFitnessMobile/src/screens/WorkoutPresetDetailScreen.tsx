@@ -25,6 +25,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import {
+  buildPresetLiveExerciseConfigs,
   buildPresetStartExercisesPayload,
   makeSparseExercise,
   presetExerciseToCardExercise,
@@ -194,6 +195,7 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
     void startLiveWorkout({
       name: preset.name,
       exercises: buildPresetStartExercisesPayload(preset),
+      exerciseConfigs: buildPresetLiveExerciseConfigs(preset),
       sourcePresetId: preset.id,
       workoutFormat: preset.workout_format ?? 'standard',
       timeCapSeconds: preset.time_cap_seconds ?? null,
@@ -297,6 +299,13 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
           image_url: exercise.image_url,
           sort_order: index,
           superset_group: exercise.superset_group,
+          // The copy keeps the original's progression and ramp settings.
+          progression_mode: exercise.progression_mode ?? null,
+          rep_goal: exercise.rep_goal ?? null,
+          increment_type: exercise.increment_type ?? null,
+          increment_value: exercise.increment_value ?? null,
+          equipment_brand: exercise.equipment_brand ?? null,
+          ramp_increment: exercise.ramp_increment ?? null,
           sets: exercise.sets.map((set) => ({
             set_number: set.set_number,
             set_type: set.set_type,
