@@ -2,7 +2,11 @@ import chatRepository from '../models/chatRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { log } from '../config/logging.js';
-import { getDefaultModel, getOpenAiCompatibleBaseUrl } from '../ai/config.js';
+import {
+  getDefaultModel,
+  getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
+} from '../ai/config.js';
 import {
   dispatchAiRequest,
   requiresApiKey,
@@ -1000,9 +1004,52 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
           input?: unknown;
           [k: string]: unknown;
         };
-        // Perplexity Agent API requires `input` (array of messages or text)
+        // Perplexity Agent API requires `input` (array of messages or text) and rejects `messages`
         if (!bodyObj.input && Array.isArray(bodyObj.messages)) {
-          bodyObj.input = bodyObj.messages;
+          bodyObj.input = bodyObj.messages.map((msg) => {
+            if (!Array.isArray(msg.content)) return msg;
+            return {
+              ...msg,
+              content: msg.content.map((part) => {
+                if (typeof part === 'object' && part !== null) {
+                  const p = part as {
+                    type?: string;
+                    text?: string;
+                    image_url?: { url?: string } | string;
+                  };
+                  if (p.type === 'text' && typeof p.text === 'string') {
+                    return { type: 'input_text', text: p.text };
+                  }
+                  if (p.type === 'image_url') {
+                    const url =
+                      typeof p.image_url === 'object' && p.image_url !== null
+                        ? p.image_url.url
+                        : p.image_url;
+                    return { type: 'input_image', image_url: url };
+                  }
+                }
+                return part;
+              }),
+            };
+          });
+          delete bodyObj.messages;
+
+          const rawModel =
+            typeof bodyObj.model === 'string' ? bodyObj.model : 'fast';
+          const preset = getPerplexityPreset(rawModel);
+          if (preset) {
+            bodyObj.preset = preset;
+            delete bodyObj.model;
+          } else {
+            const modelLower = rawModel.toLowerCase();
+            if (
+              modelLower.startsWith('anthropic/') ||
+              modelLower.includes('claude')
+            ) {
+              bodyObj.max_output_tokens = bodyObj.max_output_tokens ?? 4096;
+            }
+          }
+
           modifiedInit = {
             ...init,
             body: JSON.stringify(bodyObj),

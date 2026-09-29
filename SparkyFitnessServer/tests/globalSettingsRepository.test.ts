@@ -1,4 +1,4 @@
-import { vi, beforeEach, describe, expect, it } from 'vitest';
+import { vi, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import { getSystemClient } from '../db/poolManager.js';
 // Mock dependencies
@@ -21,6 +21,9 @@ describe('globalSettingsRepository', () => {
     vi.clearAllMocks();
   });
   describe('getGlobalSettings', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
     it('should return global settings when found', async () => {
       const mockSettings = {
         id: 1,
@@ -49,6 +52,25 @@ describe('globalSettingsRepository', () => {
       const result = await globalSettingsRepository.getGlobalSettings();
       expect(result.allow_user_ai_config).toBe(true);
     });
+    it.each([
+      [false, undefined, undefined, false],
+      [true, undefined, undefined, true],
+      [null, undefined, undefined, true],
+      [true, undefined, 'true', false],
+      [false, 'true', undefined, true],
+      [false, 'true', 'true', true],
+    ])(
+      'resolves email login from saved=%s FORCE=%s DISABLE=%s to %s',
+      async (saved, force, disable, expected) => {
+        vi.stubEnv('SPARKY_FITNESS_FORCE_EMAIL_LOGIN', force);
+        vi.stubEnv('SPARKY_FITNESS_DISABLE_EMAIL_LOGIN', disable);
+        mockClient.query.mockResolvedValue({
+          rows: [{ id: 1, enable_email_password_login: saved }],
+        });
+        const result = await globalSettingsRepository.getGlobalSettings();
+        expect(result.enable_email_password_login).toBe(expected);
+      }
+    );
     it('should handle database errors', async () => {
       const error = new Error('DB Error');
       mockClient.query.mockRejectedValue(error);
