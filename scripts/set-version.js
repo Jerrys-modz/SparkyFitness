@@ -18,6 +18,13 @@ if (!newVersion) {
 
 const cleanVersion = newVersion.replace(/^v/, "");
 
+if (/^[0-9]+\.[0-9]+\.[0-9]+\.0[0-9]+$/.test(cleanVersion)) {
+  console.error(
+    "Error: numeric fourth version segments must not contain leading zeros (e.g. use 1.7.3.1, not 1.7.3.01).",
+  );
+  process.exit(1);
+}
+
 /**
  * Writes JSON back in the exact shape Prettier would produce for that file.
  *
