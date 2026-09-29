@@ -54,12 +54,13 @@ export function resolveWatchSetTargets(
 }
 
 /**
- * Keeps a paired watch's set targets in step with the phone. The plan the
- * watch is armed with is built at live start, before each exercise's history
- * has loaded, so it only carries the preset's planned values — without this
- * a progression bump shown on the phone never reaches the wrist. Each change
- * sends the full target list; the watch keeps the newest revision and still
- * prefers anything the wearer typed there.
+ * Keeps a paired watch's set targets and completions in step with the phone.
+ * The plan the watch is armed with is built at live start, before each
+ * exercise's history has loaded, so it only carries the preset's planned
+ * values — without this a progression bump shown on the phone never reaches
+ * the wrist, and a set logged on the phone stays open on the watch. Each
+ * change sends the full target list and completed set ids; the watch keeps
+ * the newest revision and still prefers anything the wearer typed there.
  */
 export function useWatchSetTargetsSync(enabled: boolean): void {
   useEffect(() => {
@@ -79,7 +80,8 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
           ...(value.reps != null ? { targetReps: value.reps } : {}),
         });
       }
-      const key = JSON.stringify(targets);
+      const completedSetIds = Object.keys(state.completedSetIds).sort();
+      const key = JSON.stringify([targets, completedSetIds]);
       if (lastSent?.sessionId === session.id && lastSent.key === key) return;
       lastSent = { sessionId: session.id, key };
       // Wall-clock based so a JS restart cannot send a revision the watch
@@ -89,6 +91,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         sessionId: session.id,
         revision: lastRevision,
         targets,
+        completedSetIds,
       });
     };
 
@@ -96,6 +99,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
     return useActiveWorkoutStore.subscribe((state, prev) => {
       if (
         state.session === prev.session &&
+        state.completedSetIds === prev.completedSetIds &&
         state.previousSessionSets === prev.previousSessionSets &&
         state.plannedSetValues === prev.plannedSetValues &&
         state.exerciseConfigs === prev.exerciseConfigs &&

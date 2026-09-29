@@ -287,7 +287,8 @@ enum ContextPayloadMapper {
     /// is a JS millisecond timestamp, read as a Double: `Int` is 32-bit on
     /// arm64_32 watches and cannot hold it.
     static func setTargets(from payload: [String: Any]) -> (
-        sessionId: String, revision: Double, targets: [String: SetValues]
+        sessionId: String, revision: Double, targets: [String: SetValues],
+        completedSetIds: Set<String>
     )? {
         guard
             let sessionId = payload["sessionId"] as? String,
@@ -302,7 +303,9 @@ enum ContextPayloadMapper {
                 reps: doubleValue(raw["targetReps"])
             )
         }
-        return (sessionId, revision, targets)
+        // Sets already logged on the phone. Absent from an older phone build.
+        let completed = Set(stringArray(payload["completedSetIds"]))
+        return (sessionId, revision, targets, completed)
     }
 
     // MARK: - Acks

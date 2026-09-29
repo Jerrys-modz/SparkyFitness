@@ -55,7 +55,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     )] = []
     /// Newest set targets for a session whose plan has not started yet,
     /// applied by `beginPlan`. One per session: each update is a full list.
-    private var pendingSetTargets: [String: (revision: Double, targets: [String: SetValues])] = [:]
+    private var pendingSetTargets: [String: (
+        revision: Double, targets: [String: SetValues], completedSetIds: Set<String>
+    )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
     /// copy. A later arm of the same session id is a new workout.
@@ -484,7 +486,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
             workoutStore.applyTargets(
                 sessionId: plan.sessionId,
                 revision: pending.revision,
-                targets: pending.targets
+                targets: pending.targets,
+                completedSetIds: pending.completedSetIds
             )
         }
         // Only this session's: another plan's targets may already be held
@@ -844,7 +847,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         pendingIntervalTiming.append(timing)
     }
 
-    /// The phone's current targets for every set. Applied now when that
+    /// The phone's current targets for every set, and the sets it has
+    /// logged. Applied now when that
     /// session is running, otherwise held until its plan starts: the phone
     /// can send these before a queued `workoutStart` has been delivered.
     private func handle(setTargets payload: [String: Any]) {
@@ -853,7 +857,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
             workoutStore.applyTargets(
                 sessionId: update.sessionId,
                 revision: update.revision,
-                targets: update.targets
+                targets: update.targets,
+                completedSetIds: update.completedSetIds
             )
             return
         }
@@ -864,7 +869,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         if let held = pendingSetTargets[update.sessionId], held.revision >= update.revision {
             return
         }
-        pendingSetTargets[update.sessionId] = (update.revision, update.targets)
+        pendingSetTargets[update.sessionId] = (
+            update.revision, update.targets, update.completedSetIds
+        )
     }
 
     private func replayIntervalTiming(sessionId: String) {

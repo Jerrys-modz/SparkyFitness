@@ -109,6 +109,26 @@ describe('useWatchSetTargetsSync', () => {
     );
   });
 
+  it('sends the sets logged on the phone, and again when one is logged', () => {
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].completedSetIds).toEqual([]);
+
+    act(() => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '101': 1000 } });
+    });
+
+    expect(mockUpdateSetTargets).toHaveBeenCalledTimes(2);
+    expect(mockUpdateSetTargets.mock.calls[1][0].completedSetIds).toEqual([
+      '101',
+    ]);
+  });
+
   it('does not resend when the resolved targets are unchanged', () => {
     act(() => {
       useActiveWorkoutStore.setState({

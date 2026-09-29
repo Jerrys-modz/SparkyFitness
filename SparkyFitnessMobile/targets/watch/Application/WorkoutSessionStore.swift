@@ -97,13 +97,44 @@ final class WorkoutSessionStore: ObservableObject {
         )
     }
 
-    /// Replaces the phone-resolved targets. Ignored for another session or
-    /// an older revision than the one already applied.
-    func applyTargets(sessionId: String, revision: Double, targets: [String: SetValues]) {
+    /// Replaces the phone-resolved targets and adopts sets logged on the
+    /// phone. Ignored for another session or an older revision than the one
+    /// already applied.
+    ///
+    /// Completions only ever add: a set logged here may still be on its way
+    /// to the phone, so an update that does not list it yet must not undo it.
+    /// When the set on screen was the one logged, the cursor moves on to the
+    /// next set still to do, as it would after logging it here.
+    func applyTargets(
+        sessionId: String,
+        revision: Double,
+        targets: [String: SetValues],
+        completedSetIds phoneCompleted: Set<String> = []
+    ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
         targetOverrides = targets
+        let newlyCompleted = phoneCompleted
+            .subtracting(completedSetIds)
+            .filter { id in steps.contains { $0.plannedSet.setId == id } }
+        if !newlyCompleted.isEmpty {
+            completedSetIds.formUnion(newlyCompleted)
+            if let step = currentStep, isCompleted(step) {
+                advancePastCompletedSet()
+            }
+        }
         persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// Next set still to do after the cursor, else the first one left
+    /// anywhere, else past the end so the view shows "Workout complete".
+    private func advancePastCompletedSet() {
+        let later = steps.indices.first { $0 > currentStepIndex && !isCompleted(steps[$0]) }
+        if let next = later ?? steps.indices.first(where: { !isCompleted(steps[$0]) }) {
+            moveCursor(to: next)
+        } else {
+            currentStepIndex = steps.count
+        }
     }
 
     func isCompleted(_ step: WorkoutStep) -> Bool {

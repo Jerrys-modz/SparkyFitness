@@ -369,7 +369,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   }): Promise<void>;
   /**
    * Current targets for every set of the live session, replacing any sent
-   * before. The plan is armed before each exercise's history loads, so a
+   * before, plus the sets already logged on the phone. The plan is armed before each exercise's history loads, so a
    * progression bump only reaches the watch through this. `revision` only
    * increases; the watch ignores an older one.
    */
@@ -377,6 +377,11 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     sessionId: string;
     revision: number;
     targets: WatchSetTargetPayload[];
+    /**
+     * Sets logged on the phone. The watch adds these to its own completions
+     * (never removes one) and moves past the set on screen if it is listed.
+     */
+    completedSetIds: string[];
   }): Promise<void>;
   /**
    * Heart-rate batches received before JavaScript was listening. Kept until
