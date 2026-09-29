@@ -17,6 +17,17 @@
       },
       "distribution": "internal"
     },
+    "testflight": {
+      "environment": "preview",
+      "env": {
+        "APP_VARIANT": "development"
+      },
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "medium"
+      }
+    },
     "production": {
       "env": {
         "APP_VARIANT": "production"
