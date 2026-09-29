@@ -117,6 +117,32 @@ const AuthenticationSettings: React.FC = () => {
               </div>
               <div className="flex items-center justify-between p-4 border rounded-md">
                 <div className="flex flex-col">
+                  <Label htmlFor="enable_passkey_login" className="font-medium">
+                    {t(
+                      'admin.authenticationSettings.loginManagement.enablePasskeyLogin',
+                      'Enable Passkey Login'
+                    )}
+                  </Label>
+                  {settings.is_passkey_login_env_configured && (
+                    <Badge
+                      variant="outline"
+                      className="mt-1 w-fit bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                      {t('admin.oidcSettings.envConfigured', 'Managed by Env')}
+                    </Badge>
+                  )}
+                </div>
+                <Switch
+                  id="enable_passkey_login"
+                  checked={settings.enable_passkey_login ?? true}
+                  onCheckedChange={(checked) =>
+                    handleSwitchChange('enable_passkey_login', checked)
+                  }
+                  disabled={settings.is_passkey_login_env_configured}
+                />
+              </div>
+              <div className="flex items-center justify-between p-4 border rounded-md">
+                <div className="flex flex-col">
                   <Label htmlFor="is_oidc_active" className="font-medium">
                     {t(
                       'admin.authenticationSettings.loginManagement.enableOidcLoginGlobal',
