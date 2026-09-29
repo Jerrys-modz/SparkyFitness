@@ -732,24 +732,24 @@ private struct NumericKeypadView: View {
 
             Button("OK") {
                 Haptics.tap()
-                if let value = Double(entry) { onCommit(value) } else { dismiss() }
+                // Nothing typed keeps the value shown in grey.
+                if let value = Double(entry) {
+                    onCommit(value)
+                } else if let initial {
+                    onCommit(initial)
+                } else {
+                    dismiss()
+                }
             }
             .font(.caption)
             .frame(maxWidth: .infinity)
             .tint(.green)
-            .disabled(Double(entry) == nil)
+            .disabled(Double(entry) == nil && initial == nil)
         }
         .padding(.horizontal, 2)
-        .onAppear {
-            // Seed the planned value so OK is enabled without retyping every
-            // digit — the placeholder-only version disabled OK until the
-            // wearer re-entered a number they could already see.
-            if entry.isEmpty, let initial {
-                entry = initial == initial.rounded()
-                    ? String(Int(initial))
-                    : String(format: "%.1f", initial)
-            }
-        }
+        // Opens empty with the current value in grey rather than filled in,
+        // so a new number is typed straight away instead of deleting the old
+        // one first; OK with nothing typed keeps the grey value.
     }
 
     private var placeholder: String {
