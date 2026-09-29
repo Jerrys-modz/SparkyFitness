@@ -47,8 +47,11 @@ jobs:
             -e "s/^version: .*/version: ${CHART_VERSION}/" \
             -e "s/^appVersion: .*/appVersion: \"${TAG}\"/" \
             helm/chart/Chart.yaml
-          sed -i -E "s/^(    tag: )[^ ]+( # the release to run)/\1${CHART_VERSION}\2/" \
-            docs/src/install/kubernetes.md
+          file=docs/src/install/kubernetes.md
+          if [ "$(grep -Ec '^    tag: [^ ]+ # the release to run' "$file")" -ne 1 ]; then
+            echo "::warning file=$file::Flux example version line not found; update it by hand."
+          fi
+          sed -i -E "s/^(    tag: )[^ ]+( # the release to run)/\1${CHART_VERSION}\2/" "$file"
           git diff -- helm/chart/Chart.yaml docs/src/install/kubernetes.md
 
       - name: Create Pull Request
