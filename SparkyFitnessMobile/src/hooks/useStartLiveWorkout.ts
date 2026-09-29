@@ -16,6 +16,7 @@ import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import { serverConnectionQueryKey } from './queryKeys';
 import { defaultWorkoutName } from './useWorkoutForm';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import { resolveWatchSetTargets } from './useWatchSetTargetsSync';
 import WatchConnectivity, {
   type WatchWorkoutStartPayload,
 } from '../../modules/watch-connectivity';
@@ -72,14 +73,10 @@ function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
   t: TFunction
 ): WatchWorkoutStartPayload {
-  const {
-    steps,
-    plannedSetValues,
-    workoutFormat,
-    timeCapSeconds,
-    startedAt,
-    intervalPhases,
-  } = useActiveWorkoutStore.getState();
+  const state = useActiveWorkoutStore.getState();
+  const { steps, workoutFormat, timeCapSeconds, startedAt, intervalPhases } =
+    state;
+  const targets = resolveWatchSetTargets(session, state);
   const restSecBySetId = new Map(
     steps.map((step) => [step.setId, step.restSec])
   );
@@ -105,11 +102,11 @@ function buildWatchWorkoutStartPayload(
       supersetRun: supersetRunByEntryId.get(exercise.id) ?? null,
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
-        const planned = plannedSetValues[setId];
+        const target = targets.get(setId);
         return {
           setId,
-          targetReps: set.reps ?? planned?.reps ?? null,
-          targetWeightKg: set.weight ?? planned?.weight ?? null,
+          targetReps: target?.reps ?? null,
+          targetWeightKg: target?.weightKg ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
         };

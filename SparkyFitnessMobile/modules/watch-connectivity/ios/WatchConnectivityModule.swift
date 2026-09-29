@@ -309,6 +309,19 @@ public class WatchConnectivityModule: Module {
             }
         }
 
+        /// Current weight/reps targets for the live session's sets. Queued and
+        /// sent immediately like `updateIntervalTiming`; the watch keeps the
+        /// highest revision, so a late queued copy cannot undo a newer one.
+        AsyncFunction("updateSetTargets") { (update: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = update
+            payload["type"] = "setTargets"
+            WCSession.default.transferUserInfo(payload)
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+        }
+
         /// The server config that owns batches queued from now on. Each batch
         /// is stamped when it arrives, so a batch already queued keeps the
         /// config that was active then. A batch that arrives while no config

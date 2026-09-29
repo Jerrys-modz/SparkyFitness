@@ -53,6 +53,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private var pendingIntervalTiming: [(
         sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
     )] = []
+    /// Newest set targets for a session whose plan has not started yet,
+    /// applied by `beginPlan`. One per session: each update is a full list.
+    private var pendingSetTargets: [String: (revision: Double, targets: [String: SetValues])] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
     /// copy. A later arm of the same session id is a new workout.
@@ -412,6 +415,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "workoutStart": handle(workoutStart: payload)
         case "workoutStop": handle(workoutStopFromPhone: payload)
         case "intervalTiming": handle(intervalTiming: payload)
+        case "setTargets": handle(setTargets: payload)
         default: break
         }
     }
@@ -476,6 +480,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // Only this session's snapshots. Another plan's pause may already be
         // queued and has to survive until that plan starts.
         replayIntervalTiming(sessionId: plan.sessionId)
+        if let pending = pendingSetTargets[plan.sessionId] {
+            workoutStore.applyTargets(
+                sessionId: plan.sessionId,
+                revision: pending.revision,
+                targets: pending.targets
+            )
+        }
+        pendingSetTargets = [:]
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
@@ -830,6 +842,29 @@ final class WatchSessionManager: NSObject, ObservableObject {
         pendingIntervalTiming.append(timing)
     }
 
+    /// The phone's current targets for every set. Applied now when that
+    /// session is running, otherwise held until its plan starts: the phone
+    /// can send these before a queued `workoutStart` has been delivered.
+    private func handle(setTargets payload: [String: Any]) {
+        guard let update = ContextPayloadMapper.setTargets(from: payload) else { return }
+        if workoutStore.plan?.sessionId == update.sessionId {
+            workoutStore.applyTargets(
+                sessionId: update.sessionId,
+                revision: update.revision,
+                targets: update.targets
+            )
+            return
+        }
+        if endedAtBySession[update.sessionId] != nil,
+           pendingPlan?.sessionId != update.sessionId {
+            return
+        }
+        if let held = pendingSetTargets[update.sessionId], held.revision >= update.revision {
+            return
+        }
+        pendingSetTargets[update.sessionId] = (update.revision, update.targets)
+    }
+
     private func replayIntervalTiming(sessionId: String) {
         let queued = pendingIntervalTiming.filter { $0.sessionId == sessionId }
         pendingIntervalTiming.removeAll { $0.sessionId == sessionId }
@@ -865,6 +900,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         rememberEnded(stop.sessionId, at: endedAt)
         pendingIntervalTiming.removeAll { $0.sessionId == stop.sessionId }
+        pendingSetTargets[stop.sessionId] = nil
         if pendingPlan?.sessionId == stop.sessionId {
             pendingPlan = nil
             return

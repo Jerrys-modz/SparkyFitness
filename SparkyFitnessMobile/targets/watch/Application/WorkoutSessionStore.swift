@@ -26,6 +26,12 @@ final class WorkoutSessionStore: ObservableObject {
     /// Edited weight/reps by set id. A set with no entry here is still on its
     /// planned targets.
     @Published private(set) var editedValues: [String: SetValues] = [:]
+    /// Targets the phone resolved after the plan was armed (history loaded,
+    /// progression bump applied), by set id. Sits between `editedValues` and
+    /// the plan's own targets.
+    @Published private(set) var targetOverrides: [String: SetValues] = [:]
+    /// Revision of `targetOverrides`, so an older queued update is ignored.
+    private var targetRevision: Double = 0
     @Published private(set) var latestBpm: Double?
     @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var elapsedSeconds: Int = 0
@@ -79,13 +85,25 @@ final class WorkoutSessionStore: ObservableObject {
 
     var isResting: Bool { restEndsAt != nil }
 
-    /// Values to show for a set: whatever was typed, falling back to the plan.
+    /// Values to show for a set: whatever was typed, then the phone's latest
+    /// target, falling back to the plan.
     func values(for step: WorkoutStep) -> SetValues {
-        let edited = editedValues[step.plannedSet.setId]
+        let setId = step.plannedSet.setId
+        let edited = editedValues[setId]
+        let target = targetOverrides[setId]
         return SetValues(
-            weightKg: edited?.weightKg ?? step.plannedSet.targetWeightKg,
-            reps: edited?.reps ?? step.plannedSet.targetReps
+            weightKg: edited?.weightKg ?? target?.weightKg ?? step.plannedSet.targetWeightKg,
+            reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps
         )
+    }
+
+    /// Replaces the phone-resolved targets. Ignored for another session or
+    /// an older revision than the one already applied.
+    func applyTargets(sessionId: String, revision: Double, targets: [String: SetValues]) {
+        guard plan?.sessionId == sessionId, revision > targetRevision else { return }
+        targetRevision = revision
+        targetOverrides = targets
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     func isCompleted(_ step: WorkoutStep) -> Bool {
@@ -121,6 +139,8 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        targetOverrides = [:]
+        targetRevision = 0
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
@@ -172,6 +192,8 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        targetOverrides = [:]
+        targetRevision = 0
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
@@ -353,6 +375,9 @@ final class WorkoutSessionStore: ObservableObject {
         /// reads them back from Health and completes the finish instead of
         /// resuming the workout. Optional so older snapshots still decode.
         var finishing: Finishing?
+        /// See `targetOverrides`. Optional so older snapshots still decode.
+        var targetOverrides: [String: SetValues]?
+        var targetRevision: Double?
     }
 
     /// A finish that may not have reached the phone yet.
@@ -427,7 +452,9 @@ final class WorkoutSessionStore: ObservableObject {
             reportedEnergyKcal: energy,
             heartRateSentThrough: heartRateSentThrough,
             exerciseWindowSeconds: snapshotExerciseWindowSeconds,
-            finishing: finishing
+            finishing: finishing,
+            targetOverrides: targetOverrides,
+            targetRevision: targetRevision
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -450,6 +477,8 @@ final class WorkoutSessionStore: ObservableObject {
         openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)
         editedValues = snapshot.editedValues
+        targetOverrides = snapshot.targetOverrides ?? [:]
+        targetRevision = snapshot.targetRevision ?? 0
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal

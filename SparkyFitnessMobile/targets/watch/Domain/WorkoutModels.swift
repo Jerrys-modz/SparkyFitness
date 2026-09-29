@@ -42,9 +42,9 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
 }
 
 /// The workout the phone armed the watch with. Sent once, in full, at the
-/// start of the session — there is no partial update, only a fresh
-/// `workoutStart` (a phone-side edit mid-workout is out of scope for the
-/// watch, which only ever reflects what existed the moment it began).
+/// start of the session. Its set targets are the values known at that moment;
+/// later `setTargets` messages replace them (see
+/// `WorkoutSessionStore.targetOverrides`) without re-sending the plan.
 struct ActiveWorkoutPlan: Codable, Equatable {
     /// The live-workout session id (`activeWorkoutStore.sessionId` on the
     /// phone) — every message about this workout carries it, so the phone

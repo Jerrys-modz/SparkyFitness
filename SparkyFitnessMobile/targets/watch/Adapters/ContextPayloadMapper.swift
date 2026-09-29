@@ -283,6 +283,28 @@ enum ContextPayloadMapper {
         return (sessionId, revision, pausedAt, Int((excludedMs / 1000).rounded()))
     }
 
+    /// Current weight/reps targets for the live session's sets. `revision`
+    /// is a JS millisecond timestamp, read as a Double: `Int` is 32-bit on
+    /// arm64_32 watches and cannot hold it.
+    static func setTargets(from payload: [String: Any]) -> (
+        sessionId: String, revision: Double, targets: [String: SetValues]
+    )? {
+        guard
+            let sessionId = payload["sessionId"] as? String,
+            let revision = doubleValue(payload["revision"]),
+            let rawTargets = dictionaryArray(payload["targets"])
+        else { return nil }
+        var targets: [String: SetValues] = [:]
+        for raw in rawTargets {
+            guard let setId = raw["setId"] as? String else { continue }
+            targets[setId] = SetValues(
+                weightKg: doubleValue(raw["targetWeightKg"]),
+                reps: doubleValue(raw["targetReps"])
+            )
+        }
+        return (sessionId, revision, targets)
+    }
+
     // MARK: - Acks
 
     /// A server-write confirmation for one check-in.

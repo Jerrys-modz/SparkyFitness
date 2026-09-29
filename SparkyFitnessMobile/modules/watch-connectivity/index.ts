@@ -189,6 +189,17 @@ export interface WatchPlannedSetPayload {
   setType?: string | null;
 }
 
+/**
+ * The weight/reps a watch set should start from, as the phone now resolves
+ * it. An absent field leaves the watch on the plan's value for that set.
+ */
+export interface WatchSetTargetPayload {
+  setId: string;
+  /** Always kg, like every other weight this app moves to the watch. */
+  targetWeightKg?: number;
+  targetReps?: number;
+}
+
 /** One exercise in the plan the watch was armed with. */
 export interface WatchPlannedExercisePayload {
   /** The exercise_entries id — what a heart-rate batch for this exercise names. */
@@ -355,6 +366,17 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     paused: boolean;
     pausedAt?: string;
     excludedPauseMs: number;
+  }): Promise<void>;
+  /**
+   * Current targets for every set of the live session, replacing any sent
+   * before. The plan is armed before each exercise's history loads, so a
+   * progression bump only reaches the watch through this. `revision` only
+   * increases; the watch ignores an older one.
+   */
+  updateSetTargets(update: {
+    sessionId: string;
+    revision: number;
+    targets: WatchSetTargetPayload[];
   }): Promise<void>;
   /**
    * Heart-rate batches received before JavaScript was listening. Kept until

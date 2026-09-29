@@ -14,13 +14,15 @@ export { useDailySummary } from './useDailySummary';
 export { useFamilyUsers, useFamilyDailySummary } from './useFamilyDiary';
 export { useMeasurements } from './useMeasurements';
 
-// Only `useWatchCheckInBridge`/`useWatchWorkoutBridge` are re-exported here:
+// Only `useWatchCheckInBridge`/`useWatchWorkoutBridge`/`useWatchSetTargetsSync`
+// are re-exported here:
 // App.tsx mounts them through this barrel. `useUpsertCheckIn` and
 // `useWatchConnectivity` are imported by their own paths at every call site,
 // so adding them here created exports nothing consumes — which `knip` fails
 // the build over.
 export { useWatchCheckInBridge } from './useWatchCheckInBridge';
 export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
+export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
