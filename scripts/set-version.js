@@ -75,6 +75,30 @@ if (fs.existsSync(appJsonPath)) {
   }
 }
 
+// Also update helm/chart/Chart.yaml (version and appVersion)
+const chartYamlPath = path.join(rootDir, "helm/chart/Chart.yaml");
+if (fs.existsSync(chartYamlPath)) {
+  let chartVersion = cleanVersion;
+  const fourSegmentMatch = cleanVersion.match(
+    /^([0-9]+\.[0-9]+\.[0-9]+)\.(.+)$/,
+  );
+  if (fourSegmentMatch) {
+    chartVersion = `${fourSegmentMatch[1]}-${fourSegmentMatch[2]}`;
+  }
+
+  let content = fs.readFileSync(chartYamlPath, "utf8");
+  content = content.replace(/^version:\s*.+$/m, `version: ${chartVersion}`);
+  content = content.replace(
+    /^appVersion:\s*.+$/m,
+    `appVersion: "v${cleanVersion}"`,
+  );
+  fs.writeFileSync(chartYamlPath, content, "utf8");
+  console.log(
+    `✓ Updated helm/chart/Chart.yaml -> version: ${chartVersion}, appVersion: "v${cleanVersion}"`,
+  );
+  updatedCount++;
+}
+
 console.log(
   `\nSuccessfully updated ${updatedCount} file(s) to version v${cleanVersion}!`,
 );
