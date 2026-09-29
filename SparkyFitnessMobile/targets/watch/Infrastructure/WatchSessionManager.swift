@@ -530,6 +530,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // readings and energy are not credited to whatever comes next when
         // the minute timer (or the final drain) fires. Both sides are main
         // actor, so this runs synchronously ahead of the move.
+        // Skip and ±15s pressed here reach the phone's rest too.
+        workoutStore.onRestChangedHere = { [weak self] previousEndsAt, endsAt in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.restChanged(
+                sessionId: sessionId,
+                previousEndsAt: previousEndsAt,
+                endsAt: endsAt
+            ))
+        }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
             guard let self else { return }
             let minutes = self.workoutStore.closeExerciseWindow(outgoingExerciseEntryId)

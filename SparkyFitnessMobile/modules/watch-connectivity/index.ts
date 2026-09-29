@@ -327,6 +327,18 @@ export interface WatchHeartRateBatchPayload {
 }
 
 /** The wearer ended the workout on the watch. */
+/**
+ * The wearer skipped or moved the rest on the watch. Deadlines are epoch ms.
+ * Applies only to a phone rest still ending at `previousEndsAt`, so a copy
+ * delivered twice, or late after that rest ended, changes nothing.
+ */
+export interface WatchRestChangedPayload {
+  sessionId: string;
+  previousEndsAt?: number;
+  /** Absent when the rest was skipped. */
+  endsAt?: number;
+}
+
 export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
@@ -338,6 +350,7 @@ export type WatchConnectivityEvents = {
   onWaterIntake: (payload: WatchWaterIntakePayload) => void;
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
+  onRestChanged: (payload: WatchRestChangedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
 };
