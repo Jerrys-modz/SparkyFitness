@@ -74,6 +74,24 @@ describe('globalSettingsRepository', () => {
         expect(result.enable_email_password_login).toBe(expected);
       }
     );
+    it.each([
+      [true, undefined, true],
+      [false, undefined, false],
+      [null, undefined, true],
+      [true, 'true', false],
+      [false, 'false', false],
+    ])(
+      'resolves passkey login from saved=%s DISABLE=%s to %s',
+      async (saved, disable, expected) => {
+        vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', disable);
+        mockClient.query.mockResolvedValue({
+          rows: [{ id: 1, enable_passkey_login: saved }],
+        });
+        const result = await globalSettingsRepository.getGlobalSettings();
+        expect(result.enable_passkey_login).toBe(expected);
+        expect(result.is_passkey_login_env_configured).toBe(disable === 'true');
+      }
+    );
     it('should handle database errors', async () => {
       const error = new Error('DB Error');
       mockClient.query.mockRejectedValue(error);
@@ -119,6 +137,32 @@ describe('globalSettingsRepository', () => {
       expect(params[1]).toBe(true);
     });
 
+    it('keeps the stored passkey setting while the env var forces it off', async () => {
+      vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', 'true');
+      mockClient.query.mockResolvedValue({ rows: [{ id: 1 }] });
+      await globalSettingsRepository.saveGlobalSettings({
+        enable_email_password_login: true,
+        is_oidc_active: false,
+        is_mfa_mandatory: false,
+        enable_passkey_login: false,
+      });
+      expect(mockClient.query.mock.calls[0][1][12]).toBeNull();
+    });
+
+    it('saves the passkey login setting', async () => {
+      mockClient.query.mockResolvedValue({ rows: [{ id: 1 }] });
+      await globalSettingsRepository.saveGlobalSettings({
+        enable_email_password_login: true,
+        is_oidc_active: false,
+        is_mfa_mandatory: false,
+        enable_passkey_login: false,
+      });
+      const params = mockClient.query.mock.calls[0][1];
+      expect(mockClient.query.mock.calls[0][0]).toContain(
+        'enable_passkey_login = COALESCE($13'
+      );
+      expect(params[12]).toBe(false);
+    });
     it('should update and return global settings', async () => {
       const inputSettings = {
         enable_email_password_login: true,
@@ -147,6 +191,7 @@ describe('globalSettingsRepository', () => {
           false,
           null,
           false,
+          null,
           null,
           null,
           null,

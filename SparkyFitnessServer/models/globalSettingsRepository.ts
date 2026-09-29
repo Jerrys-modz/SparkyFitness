@@ -29,6 +29,18 @@ async function getGlobalSettings() {
     ) {
       settings.enable_email_password_login = true;
     }
+    // The env var can only force passkey login off; otherwise the admin setting applies.
+    const disablePasskeyLogin =
+      process.env.SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN === 'true';
+    settings.is_passkey_login_env_configured = disablePasskeyLogin;
+    if (disablePasskeyLogin) {
+      settings.enable_passkey_login = false;
+    } else if (
+      settings.enable_passkey_login === undefined ||
+      settings.enable_passkey_login === null
+    ) {
+      settings.enable_passkey_login = true;
+    }
     // Manage is_oidc_active
     settings.is_oidc_active_env_configured = oidcAuthEnabledEnv;
     if (oidcAuthEnabledEnv) {
@@ -83,6 +95,8 @@ async function saveGlobalSettings(settings: any) {
       process.env.SPARKY_FITNESS_DISABLE_EMAIL_LOGIN === 'true';
     const oidcEnvForced =
       process.env.SPARKY_FITNESS_OIDC_AUTH_ENABLED === 'true';
+    const passkeyEnvForced =
+      process.env.SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN === 'true';
     await client.query(
       `UPDATE global_settings
              SET enable_email_password_login = COALESCE($1, enable_email_password_login),
@@ -95,7 +109,8 @@ async function saveGlobalSettings(settings: any) {
                  allow_private_network_food_providers = COALESCE($9, allow_private_network_food_providers, false),
                  public_api_docs = COALESCE($10, public_api_docs, false),
                  dev_tools_enabled = COALESCE($11, dev_tools_enabled, false),
-                 mock_data_enabled = COALESCE($12, mock_data_enabled, false)
+                 mock_data_enabled = COALESCE($12, mock_data_enabled, false),
+                 enable_passkey_login = COALESCE($13, enable_passkey_login, true)
              WHERE id = 1
              RETURNING *`,
       [
@@ -113,6 +128,7 @@ async function saveGlobalSettings(settings: any) {
         settings.public_api_docs ?? null,
         settings.dev_tools_enabled ?? null,
         settings.mock_data_enabled ?? null,
+        passkeyEnvForced ? null : (settings.enable_passkey_login ?? null),
       ]
     );
     // Return the full truth (DB + ENV overrides)

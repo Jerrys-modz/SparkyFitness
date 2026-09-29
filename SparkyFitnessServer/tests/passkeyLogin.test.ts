@@ -5,6 +5,7 @@ import request from 'supertest';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { passkeyLoginGuard } from '../middleware/passkeyLoginGuard.js';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
+import { log } from '../config/logging.js';
 
 vi.mock('../auth.js', () => {
   const auth = { api: { getSession: vi.fn() }, options: {} };
@@ -19,19 +20,24 @@ vi.mock('../utils/bearerAuthBridge.js', () => ({
   bridgeBearerAuthHeader: vi.fn().mockResolvedValue({ apiKeyToken: null }),
 }));
 vi.mock('../models/globalSettingsRepository.js', () => ({
-  default: {
-    getGlobalSettings: vi.fn().mockResolvedValue({
-      enable_email_password_login: true,
-      is_oidc_active: false,
-    }),
-  },
+  default: { getGlobalSettings: vi.fn() },
 }));
 vi.mock('../models/oidcProviderRepository.js', () => ({
   default: { getOidcProviders: vi.fn().mockResolvedValue([]) },
 }));
+vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+
+const getGlobalSettings = vi.mocked(globalSettingsRepository.getGlobalSettings);
+const passkeyLogin = (enabled: boolean) =>
+  getGlobalSettings.mockResolvedValue({
+    enable_email_password_login: true,
+    is_oidc_active: false,
+    enable_passkey_login: enabled,
+  });
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.clearAllMocks();
 });
 
 describe('passkey login guard', () => {
@@ -50,7 +56,7 @@ describe('passkey login guard', () => {
   ] as const)(
     'blocks %s %s when passkey login is disabled',
     async (method, path) => {
-      vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', 'true');
+      passkeyLogin(false);
       const response = await request(app)[method](path);
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
@@ -68,19 +74,37 @@ describe('passkey login guard', () => {
   ] as const)(
     'leaves %s %s available while passkey login is disabled',
     async (method, path) => {
-      vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', 'true');
+      passkeyLogin(false);
       expect((await request(app)[method](path)).status).toBe(204);
+      expect(getGlobalSettings).not.toHaveBeenCalled();
     }
   );
 
-  it.each([undefined, 'false', ''])(
-    'allows passkey sign-in when the setting is %j',
-    async (value) => {
-      vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', value);
+  it('allows passkey sign-in when it is enabled', async () => {
+    passkeyLogin(true);
+    expect(
+      (await request(app).post('/api/auth/passkey/verify-authentication'))
+        .status
+    ).toBe(204);
+  });
+
+  it.each([
+    ['true', 400],
+    [undefined, 204],
+  ])(
+    'falls back to the environment (DISABLE=%s) when settings cannot be read',
+    async (disable, status) => {
+      vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', disable);
+      getGlobalSettings.mockRejectedValue(new Error('database away'));
       expect(
         (await request(app).post('/api/auth/passkey/verify-authentication'))
           .status
-      ).toBe(204);
+      ).toBe(status);
+      expect(log).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('Could not read login settings'),
+        expect.any(Error)
+      );
     }
   );
 });
@@ -93,24 +117,19 @@ describe('login settings', () => {
     app.use('/api/auth', router);
   });
 
-  it.each([
-    [undefined, true],
-    ['true', false],
-  ])(
-    'reports passkey.enabled when the setting is %j',
-    async (value, enabled) => {
-      vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', value);
+  it.each([true, false])(
+    'reports passkey.enabled=%s from the effective setting',
+    async (enabled) => {
+      passkeyLogin(enabled);
       const response = await request(app).get('/api/auth/settings');
       expect(response.status).toBe(200);
       expect(response.body.passkey).toEqual({ enabled });
     }
   );
 
-  it('still reports passkey.enabled when the saved settings cannot be read', async () => {
+  it('falls back to the environment when the saved settings cannot be read', async () => {
     vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', 'true');
-    vi.mocked(globalSettingsRepository.getGlobalSettings).mockRejectedValueOnce(
-      new Error('database away')
-    );
+    getGlobalSettings.mockRejectedValue(new Error('database away'));
     const response = await request(app).get('/api/auth/settings');
     expect(response.body.passkey).toEqual({ enabled: false });
   });

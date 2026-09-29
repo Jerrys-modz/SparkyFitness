@@ -121,7 +121,7 @@ router.get('/settings', async (req, res) => {
       email: {
         enabled: emailEnabled,
       },
-      passkey: { enabled: !isPasskeyLoginDisabled() },
+      passkey: { enabled: globalSettings.enable_passkey_login },
       oidc: {
         enabled: oidcEnabled,
         providers: activeProviders,
