@@ -9,7 +9,7 @@ ever sees the copy submitted to `getumbrel/umbrel-apps`.
 ```
 sparkyfitness/
   umbrel-app.yml      # App Store manifest
-  docker-compose.yml  # db + server + frontend, fronted by Umbrel's app_proxy
+  docker-compose.yml  # db + server + frontend + garmin, fronted by Umbrel's app_proxy
   exports.sh          # per-install secrets derived from the device seed
   data/               # bind-mount source dirs (.gitkeep removed at runtime)
 ```
