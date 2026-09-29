@@ -250,7 +250,10 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       APP_VARIANT: environment,
       iosAppGroup: getIosAppGroup(),
       eas: {
-        projectId: '498a86c5-344f-4d2c-9033-dfd720e4a383',
+        // A fork building under its own Expo account points this at its own
+        // project; everyone else keeps the upstream one.
+        projectId:
+          process.env.EAS_PROJECT_ID || '498a86c5-344f-4d2c-9033-dfd720e4a383',
       },
     },
   };
