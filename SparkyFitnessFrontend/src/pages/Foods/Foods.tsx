@@ -688,7 +688,7 @@ const FoodDatabaseManager = () => {
           <DataTable
             titleColumnId="name"
             getRowId={(row) => row.id}
-            onRowClick={(food) => {
+            onRowDoubleClick={(food) => {
               if (isEditMode) return;
               if (canEdit(food)) {
                 handleEdit(food);
