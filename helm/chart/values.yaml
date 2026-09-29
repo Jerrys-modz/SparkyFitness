@@ -61,6 +61,8 @@ config:
   forceEmailLogin: true
   # -- Hide email/password login on login page (overridden by forceEmailLogin)
   disableEmailLogin: false
+  # -- Turn off passkey sign-in and new passkey registration
+  disablePasskeyLogin: false
 
   # -- OIDC authentication (OpenID Connect SSO)
   oidc:

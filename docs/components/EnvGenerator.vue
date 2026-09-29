@@ -104,6 +104,7 @@ const oidcClientSecret = ref("");
 const oidcAdminGroup = ref("Admin");
 const oidcScope = ref("openid email profile");
 const disableEmailLogin = ref(false);
+const disablePasskeyLogin = ref(false);
 
 // --- 8. Email / SMTP (Optional) ---
 const smtpHost = ref("");
@@ -377,6 +378,9 @@ TZ=${timezone.value}
       out += `SPARKY_FITNESS_DISABLE_EMAIL_LOGIN=true\n`;
     } else {
       out += `SPARKY_FITNESS_FORCE_EMAIL_LOGIN=${forceEmailLogin.value}\n`;
+    }
+    if (disablePasskeyLogin.value) {
+      out += `SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN=true\n`;
     }
     if (disableSignup.value) {
       out += `SPARKY_FITNESS_DISABLE_SIGNUP=true\n`;
@@ -1090,6 +1094,19 @@ onMounted(() => {
                 existing session to register.</template
               >
             </span>
+            <label class="checkbox-label" style="margin-top: 10px">
+              <input v-model="disablePasskeyLogin" type="checkbox" />
+              <span class="checkbox-text">
+                Disable Passkey Login
+                <code class="var-badge"
+                  >SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN=true</code
+                >
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Removes passkey sign-in and adding new passkeys. Existing
+              passkeys stay stored.</span
+            >
           </div>
 
           <!-- Network access policy: moved here from the Nginx module. -->
