@@ -146,6 +146,7 @@ describe('useWatchSetTargetsSync', () => {
     expect(mockUpdateSetTargets.mock.calls[0][0]).not.toHaveProperty(
       'restEndsAt'
     );
+    expect(mockUpdateSetTargets.mock.calls[0][0].restState).toBe('ready');
 
     act(() => {
       useActiveWorkoutStore.setState({
@@ -163,9 +164,69 @@ describe('useWatchSetTargetsSync', () => {
 
     expect(mockUpdateSetTargets.mock.calls[1][0]).toMatchObject({
       completedSetIds: ['101'],
+      restState: 'resting',
       restEndsAt: 1_790_000_090_000,
       restDurationSeconds: 90,
     });
+  });
+
+  it('sends a rest changed on the phone: +15s, pause and skip', () => {
+    const resting = {
+      state: 'resting' as const,
+      durationSec: 90,
+      endsAt: 1_790_000_090_000,
+      pausedRemainingMs: null,
+      scheduledNotificationId: null,
+      instanceToken: 1,
+    };
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+        completedSetIds: { '101': 1000 },
+        rest: resting,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      useActiveWorkoutStore.setState({
+        rest: {
+          ...resting,
+          durationSec: 105,
+          endsAt: 1_790_000_105_000,
+          instanceToken: 2,
+        },
+      });
+    });
+    expect(mockUpdateSetTargets.mock.calls[1][0]).toMatchObject({
+      restState: 'resting',
+      restEndsAt: 1_790_000_105_000,
+      restDurationSeconds: 105,
+    });
+
+    act(() => {
+      useActiveWorkoutStore.setState({
+        rest: {
+          ...resting,
+          state: 'paused',
+          endsAt: null,
+          pausedRemainingMs: 40_000,
+        },
+      });
+    });
+    const paused = mockUpdateSetTargets.mock.calls[2][0];
+    expect(paused.restState).toBe('paused');
+    expect(paused).not.toHaveProperty('restEndsAt');
+
+    act(() => {
+      useActiveWorkoutStore.getState().dismissRest();
+    });
+    const skipped = mockUpdateSetTargets.mock.calls[3][0];
+    expect(skipped.restState).toBe('ready');
+    expect(skipped).not.toHaveProperty('restEndsAt');
   });
 
   it('does not resend when the resolved targets are unchanged', () => {

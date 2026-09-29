@@ -288,7 +288,7 @@ enum ContextPayloadMapper {
     /// arm64_32 watches and cannot hold it.
     static func setTargets(from payload: [String: Any]) -> (
         sessionId: String, revision: Double, targets: [String: SetValues],
-        completedSetIds: Set<String>, rest: (endsAt: Date, durationSeconds: Int)?,
+        completedSetIds: Set<String>, rest: PhoneRest?,
         armedAt: Date?
     )? {
         guard
@@ -306,14 +306,27 @@ enum ContextPayloadMapper {
         }
         // Sets already logged on the phone. Absent from an older phone build.
         let completed = Set(stringArray(payload["completedSetIds"]))
-        // The phone's running rest: an epoch-ms deadline, as a Double for the
-        // same 32-bit reason as `revision`. Absent when no rest is running.
-        var rest: (endsAt: Date, durationSeconds: Int)?
-        if let endsAtMs = doubleValue(payload["restEndsAt"]) {
-            rest = (
-                Date(timeIntervalSince1970: endsAtMs / 1000),
-                intValue(payload["restDurationSeconds"]) ?? 0
-            )
+        // The phone's rest. A running one carries an epoch-ms deadline, as a
+        // Double for the same 32-bit reason as `revision`. Nil when the phone
+        // did not say (an older build sends only `restEndsAt`, and only while
+        // resting, so its silence cannot be read as "no rest").
+        let rest: PhoneRest?
+        let endsAt = doubleValue(payload["restEndsAt"]).map {
+            Date(timeIntervalSince1970: $0 / 1000)
+        }
+        switch payload["restState"] as? String {
+        case "resting":
+            rest = endsAt.map {
+                .resting(endsAt: $0, durationSeconds: intValue(payload["restDurationSeconds"]) ?? 0)
+            }
+        case "paused":
+            rest = .paused
+        case "ready":
+            rest = .ready
+        default:
+            rest = endsAt.map {
+                .resting(endsAt: $0, durationSeconds: intValue(payload["restDurationSeconds"]) ?? 0)
+            }
         }
         // Which arm of the session this belongs to: the `armedAt` of the
         // `workoutStart` it follows, as epoch ms. Nil from an older phone.

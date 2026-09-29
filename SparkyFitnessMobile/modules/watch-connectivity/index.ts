@@ -389,10 +389,12 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      */
     completedSetIds: string[];
     /**
-     * The phone's running rest, as an epoch-ms deadline. Omitted when no
-     * rest is running. The watch shows it only when this update moves it off
-     * the set on screen, so both countdowns end together.
+     * The phone's rest timer. The watch's rest follows it (+15s, pause,
+     * Skip), except from an update that does not yet list a set logged on
+     * the wrist: that one predates the rest the wrist just started.
      */
+    restState: 'resting' | 'paused' | 'ready';
+    /** Epoch-ms deadline and length of a running rest; only when resting. */
     restEndsAt?: number;
     restDurationSeconds?: number;
   }): Promise<void>;

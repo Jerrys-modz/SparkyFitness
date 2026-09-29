@@ -175,6 +175,17 @@ struct SetValues: Codable, Equatable {
     var reps: Double?
 }
 
+/// The phone's rest timer, as carried by a `setTargets` update.
+enum PhoneRest: Codable, Equatable {
+    /// Counting down to `endsAt`.
+    case resting(endsAt: Date, durationSeconds: Int)
+    /// Paused on the phone. The watch has no pause, so its own rest is left
+    /// as it is until the phone resumes or ends it.
+    case paused
+    /// No rest: skipped, run out, or never started.
+    case ready
+}
+
 /// One completed set, as reported to the phone. `setId` must be one of the
 /// ids `ActiveWorkoutPlan` supplied — the phone looks it up in its own
 /// session rather than trusting anything else about it.
