@@ -79,6 +79,7 @@ struct WaterLogView: View {
 
     private func row(_ entry: WaterLogEntry) -> some View {
         Button {
+            Haptics.tap()
             pendingDeletion = entry
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -124,11 +125,13 @@ struct WaterLogView: View {
 
             HStack(spacing: 8) {
                 Button("No") {
+                    Haptics.tap()
                     pendingDeletion = nil
                 }
                 .buttonStyle(.bordered)
 
                 Button("Yes") {
+                    Haptics.tap()
                     delete(entry)
                 }
                 .buttonStyle(.borderedProminent)
