@@ -55,7 +55,7 @@ export function resolveWatchSetTargets(
 
 /**
  * Keeps a paired watch's set targets, completions and rest in step with the
- * phone.
+ * phone, including a rest changed after it started (+15s, pause, Skip).
  * The plan the watch is armed with is built at live start, before each
  * exercise's history has loaded, so it only carries the preset's planned
  * values — without this a progression bump shown on the phone never reaches
@@ -88,10 +88,16 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       const rest =
         state.rest.state === 'resting' && state.rest.endsAt != null
           ? {
+              restState: 'resting' as const,
               restEndsAt: state.rest.endsAt,
               restDurationSeconds: state.rest.durationSec,
             }
-          : {};
+          : {
+              restState:
+                state.rest.state === 'paused'
+                  ? ('paused' as const)
+                  : ('ready' as const),
+            };
       const key = JSON.stringify([
         watchArmedAt,
         targets,

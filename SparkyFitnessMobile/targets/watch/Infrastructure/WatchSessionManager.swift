@@ -57,7 +57,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
         revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
-        rest: (endsAt: Date, durationSeconds: Int)?, armedAt: Date?
+        rest: PhoneRest?, armedAt: Date?
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
