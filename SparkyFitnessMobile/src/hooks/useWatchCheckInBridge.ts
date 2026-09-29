@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import WatchConnectivity, {
   type WatchCheckInPayload,
   type WatchContextPayload,
@@ -92,6 +93,33 @@ function localHourMinute(timestamp: string): string | null {
 }
 
 /**
+ * Where the watch ack bookkeeping survives a restart of the JS layer.
+ *
+ * Without it, `handledWaterClientIdsRef` and `ackedClientIdsRef` came back empty
+ * on every reload, and since `clientId` is never sent to the server there is no
+ * idempotency at the write boundary to fall back on. A tap that was written but
+ * whose ack never reached the watch would then be re-sent by
+ * `resendQueuedWaterTaps`, written a second time, and — the acked list being
+ * empty too — never settle, so it re-sent again on every reconnect. Each round
+ * added another serving to the day.
+ */
+const ACK_STATE_STORAGE_KEY = 'sparky.watch.ackState.v1';
+
+/**
+ * Cap on the stored dedupe set. The in-memory set is unbounded within a session,
+ * which is harmless; on disk it would grow forever. Insertion order is preserved
+ * by `Set`, so this keeps the most recent ids — far more than a day of taps.
+ */
+const STORED_HANDLED_ID_LIMIT = 200;
+
+/** Ids the watch may still ask about after a restart. */
+type StoredAckState = {
+  handledWaterClientIds?: string[];
+  ackedClientIds?: string[];
+  failedClientIds?: string[];
+};
+
+/**
  * Bridges Apple Watch check-ins to the SparkyFitness server.
  *
  * The watch cannot call the API itself (auth lives here), so it captures weight
@@ -122,6 +150,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // never reachable — the immediate `sendAck` below can't manage that, and the
   // watch would otherwise show the tap as queued indefinitely.
   const failedClientIdsRef = useRef<string[]>([]);
+  // Resolves once the persisted ack state has been merged in. Every write
+  // handler awaits it before consulting its dedupe set: a queued transfer can be
+  // delivered the instant the JS layer boots, and a dedupe set that hasn't
+  // loaded yet is no dedupe at all — which is the failure this exists to close.
+  const ackStateHydrationRef = useRef<Promise<void> | null>(null);
 
   // Shared, already-cached query (30 min stale time) — reading it here adds no
   // extra fetch. 'st_lbs' collapses to 'lbs' for the watch: its crown dial only
@@ -469,9 +502,68 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     pushContextRef.current = pushContext;
   });
 
+  const persistAckState = useCallback((): void => {
+    const stored: StoredAckState = {
+      handledWaterClientIds: [...handledWaterClientIdsRef.current].slice(
+        -STORED_HANDLED_ID_LIMIT
+      ),
+      ackedClientIds: ackedClientIdsRef.current,
+      failedClientIds: failedClientIdsRef.current,
+    };
+    // Deliberately not awaited: the write the caller is about to do matters more
+    // than the bookkeeping, and the worst case of a lost store is the single
+    // duplicate this whole mechanism is here to make rare rather than impossible.
+    void AsyncStorage.setItem(
+      ACK_STATE_STORAGE_KEY,
+      JSON.stringify(stored)
+    ).catch((error: unknown) => {
+      void addLog(
+        `Watch ack state failed to persist: ${String(error)}`,
+        'WARNING'
+      );
+    });
+  }, []);
+
+  const ensureAckStateHydrated = useCallback((): Promise<void> => {
+    ackStateHydrationRef.current ??= (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(ACK_STATE_STORAGE_KEY);
+        if (!raw) return;
+        const stored = JSON.parse(raw) as StoredAckState;
+        // Merged rather than assigned. A transfer can be handled while this read
+        // is still in flight, and an id recorded by that handler must not be
+        // dropped on the floor by a snapshot taken before it existed.
+        for (const id of stored.handledWaterClientIds ?? []) {
+          handledWaterClientIdsRef.current.add(id);
+        }
+        ackedClientIdsRef.current = [
+          ...new Set([
+            ...(stored.ackedClientIds ?? []),
+            ...ackedClientIdsRef.current,
+          ]),
+        ].slice(-20);
+        failedClientIdsRef.current = [
+          ...new Set([
+            ...(stored.failedClientIds ?? []),
+            ...failedClientIdsRef.current,
+          ]),
+        ].slice(-20);
+      } catch (error) {
+        // A corrupt or unreadable store leaves the refs as they are: dedupe is
+        // then only as good as this session, which is where it started.
+        void addLog(
+          `Watch ack state failed to load: ${String(error)}`,
+          'WARNING'
+        );
+      }
+    })();
+    return ackStateHydrationRef.current;
+  }, []);
+
   const handleCheckIn = useCallback(
     async (payload: WatchCheckInPayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      await ensureAckStateHydrated();
       if (
         payload.clientId &&
         handledClientIdsRef.current.has(payload.clientId)
@@ -497,6 +589,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           ...ackedClientIdsRef.current,
           payload.clientId,
         ].slice(-20);
+        persistAckState();
 
         queryClient.setQueryData<CheckInMeasurement>(
           measurementsQueryKey(payload.entryDate),
@@ -523,7 +616,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         await WatchConnectivity.sendAck(payload.clientId, false);
       }
     },
-    []
+    [ensureAckStateHydrated, persistAckState]
   );
 
   /**
@@ -538,6 +631,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleWaterTap = useCallback(
     async (payload: WatchWaterIntakePayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      await ensureAckStateHydrated();
       if (
         payload.clientId &&
         handledWaterClientIdsRef.current.has(payload.clientId)
@@ -565,8 +659,13 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       //
       // `handleCheckIn` can keep recording afterwards: it upserts by date, so
       // writing the same check-in twice is writing it once.
-      if (payload.clientId)
+      if (payload.clientId) {
         handledWaterClientIdsRef.current.add(payload.clientId);
+        // Stored before the write starts, not after: the id is reserved against
+        // a redelivery, and a reservation only this process remembers is the
+        // reservation that isn't there after a restart.
+        persistAckState();
+      }
 
       try {
         await changeWaterIntake({
@@ -588,6 +687,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         failedClientIdsRef.current = failedClientIdsRef.current.filter(
           (id) => id !== payload.clientId
         );
+        persistAckState();
         await WatchConnectivity.sendAck(payload.clientId, true);
 
         queryClient.invalidateQueries({
@@ -614,6 +714,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             ...failedClientIdsRef.current,
             payload.clientId,
           ].slice(-20);
+          persistAckState();
           await WatchConnectivity.sendAck(payload.clientId, false);
         }
         addLog(`Watch water tap failed to save: ${String(error)}`, 'ERROR');
@@ -622,7 +723,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         await pushContextRef.current();
       }
     },
-    []
+    [ensureAckStateHydrated, persistAckState]
   );
 
   /**
@@ -633,6 +734,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleWaterDelete = useCallback(
     async (payload: WatchWaterDeletePayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      await ensureAckStateHydrated();
       if (
         payload.clientId &&
         handledWaterClientIdsRef.current.has(payload.clientId)
@@ -649,8 +751,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       // server, but two in flight would have the second fail against a row
       // that is already gone — reported to the watch as a failure it can do
       // nothing about.
-      if (payload.clientId)
+      if (payload.clientId) {
         handledWaterClientIdsRef.current.add(payload.clientId);
+        persistAckState();
+      }
 
       const today = getTodayDate();
       try {
@@ -665,6 +769,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         failedClientIdsRef.current = failedClientIdsRef.current.filter(
           (id) => id !== payload.clientId
         );
+        persistAckState();
         await WatchConnectivity.sendAck(payload.clientId, true);
 
         queryClient.invalidateQueries({
@@ -684,6 +789,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             ...failedClientIdsRef.current,
             payload.clientId,
           ].slice(-20);
+          persistAckState();
           await WatchConnectivity.sendAck(payload.clientId, false);
         }
         addLog(`Watch water delete failed: ${String(error)}`, 'ERROR');
@@ -693,7 +799,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         await pushContextRef.current();
       }
     },
-    []
+    [ensureAckStateHydrated, persistAckState]
   );
 
   // Latest handlers, read by the subscriptions below.

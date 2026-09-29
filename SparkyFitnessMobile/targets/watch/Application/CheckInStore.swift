@@ -246,7 +246,13 @@ final class CheckInStore: ObservableObject {
         // has no evidence behind it either way, and dropping it would put the
         // bottle back to a number the wearer knows is wrong — the exact
         // complaint that started this. It waits for its ack, or for midnight.
-        if context.water?.isToday == true, !pendingWaterTaps.isEmpty {
+        // Not gated on `pendingWaterTaps` being non-empty. A delete settles by
+        // the same rule, and a `.failed` delete with no tap beside it would
+        // otherwise hold `waterSyncState` on `.failed` until midnight with
+        // nothing able to clear it — `retryableWaterTaps` only covers taps.
+        // `removeAll` on an empty array costs nothing, so the guard bought
+        // nothing either.
+        if context.water?.isToday == true {
             if let generatedAt = context.generatedAt {
                 pendingWaterTaps.removeAll { $0.state != .queued && $0.createdAt <= generatedAt }
                 pendingWaterDeletes.removeAll {
@@ -375,8 +381,14 @@ final class CheckInStore: ObservableObject {
             pendingWaterTaps.removeAll { !$0.isToday }
             changed = true
         }
-        if pendingWaterDeletes.contains(where: { !$0.isToday }) {
-            pendingWaterDeletes.removeAll { !$0.isToday }
+        // A queued delete, unlike a tap, survives the rollover. It names a
+        // specific server row, so applying it is correct whenever it lands, and
+        // it adds nothing to today's bottle. Dropping it would silently discard
+        // a delete made just before midnight with the phone out of reach — the
+        // row would stay on the server and `resendQueuedWaterDeletes` would
+        // never get its chance. Resolved deletes still expire with their day.
+        if pendingWaterDeletes.contains(where: { !$0.isToday && $0.state != .queued }) {
+            pendingWaterDeletes.removeAll { !$0.isToday && $0.state != .queued }
             changed = true
         }
 
