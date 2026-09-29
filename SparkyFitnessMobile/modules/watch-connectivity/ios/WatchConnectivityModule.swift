@@ -314,7 +314,7 @@ public class WatchConnectivityModule: Module {
         /// highest revision, so a late queued copy cannot undo a newer one.
         AsyncFunction("updateSetTargets") { (update: [String: Any]) -> Void in
             guard WCSession.isSupported() else { return }
-            var payload = update
+            var payload = update.compactMapValues(withoutNulls)
             payload["type"] = "setTargets"
             WCSession.default.transferUserInfo(payload)
             if WCSession.default.isReachable {

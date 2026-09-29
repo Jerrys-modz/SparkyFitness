@@ -487,7 +487,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 targets: pending.targets
             )
         }
-        pendingSetTargets = [:]
+        // Only this session's: another plan's targets may already be held
+        // and have to survive until that plan starts, like interval timing.
+        pendingSetTargets[plan.sessionId] = nil
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
