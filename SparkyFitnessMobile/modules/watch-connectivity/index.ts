@@ -375,6 +375,12 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    */
   updateSetTargets(update: {
     sessionId: string;
+    /**
+     * `armedAt` (epoch ms) of the `startWorkout` this follows. A saved
+     * session can be armed again under the same id, and the watch drops an
+     * update from an earlier arm.
+     */
+    armedAt: number;
     revision: number;
     targets: WatchSetTargetPayload[];
     /**

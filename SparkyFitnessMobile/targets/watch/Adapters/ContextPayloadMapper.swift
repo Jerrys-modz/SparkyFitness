@@ -288,7 +288,8 @@ enum ContextPayloadMapper {
     /// arm64_32 watches and cannot hold it.
     static func setTargets(from payload: [String: Any]) -> (
         sessionId: String, revision: Double, targets: [String: SetValues],
-        completedSetIds: Set<String>, rest: (endsAt: Date, durationSeconds: Int)?
+        completedSetIds: Set<String>, rest: (endsAt: Date, durationSeconds: Int)?,
+        armedAt: Date?
     )? {
         guard
             let sessionId = payload["sessionId"] as? String,
@@ -314,7 +315,12 @@ enum ContextPayloadMapper {
                 intValue(payload["restDurationSeconds"]) ?? 0
             )
         }
-        return (sessionId, revision, targets, completed, rest)
+        // Which arm of the session this belongs to: the `armedAt` of the
+        // `workoutStart` it follows, as epoch ms. Nil from an older phone.
+        let armedAt = doubleValue(payload["armedAt"]).map {
+            Date(timeIntervalSince1970: $0 / 1000)
+        }
+        return (sessionId, revision, targets, completed, rest, armedAt)
     }
 
     // MARK: - Acks

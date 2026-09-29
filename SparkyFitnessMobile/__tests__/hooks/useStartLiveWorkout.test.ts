@@ -222,6 +222,10 @@ describe('useStartLiveWorkout', () => {
     expect(Date.parse(payload.capEndsAt as string) - startedAt).toBe(
       (720 + 5) * 1000
     );
+    // The arm time the phone's later target updates are tagged with.
+    expect(useActiveWorkoutStore.getState().watchArmedAt).toBe(
+      Date.parse(payload.armedAt as string)
+    );
   });
 
   it('freezes the watch cap on pause and sends the pause length on resume', () => {

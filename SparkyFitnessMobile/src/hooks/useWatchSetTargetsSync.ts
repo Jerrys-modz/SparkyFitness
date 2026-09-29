@@ -71,8 +71,11 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
     let lastRevision = 0;
 
     const sync = (state: ActiveWorkoutState): void => {
-      const { session } = state;
+      const { session, watchArmedAt } = state;
       if (session == null || session.type !== 'preset') return;
+      // Nothing until this session has been armed on the watch: an update
+      // queued ahead of its `workoutStart` has no plan to land on.
+      if (watchArmedAt == null) return;
       const targets: WatchSetTargetPayload[] = [];
       for (const [setId, value] of resolveWatchSetTargets(session, state)) {
         targets.push({
@@ -89,7 +92,12 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
               restDurationSeconds: state.rest.durationSec,
             }
           : {};
-      const key = JSON.stringify([targets, completedSetIds, rest]);
+      const key = JSON.stringify([
+        watchArmedAt,
+        targets,
+        completedSetIds,
+        rest,
+      ]);
       if (lastSent?.sessionId === session.id && lastSent.key === key) return;
       lastSent = { sessionId: session.id, key };
       // Wall-clock based so a JS restart cannot send a revision the watch
@@ -97,6 +105,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       lastRevision = Math.max(lastRevision + 1, Date.now());
       void watch.updateSetTargets({
         sessionId: session.id,
+        armedAt: watchArmedAt,
         revision: lastRevision,
         targets,
         completedSetIds,
@@ -109,6 +118,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       if (
         state.session === prev.session &&
         state.completedSetIds === prev.completedSetIds &&
+        state.watchArmedAt === prev.watchArmedAt &&
         state.rest === prev.rest &&
         state.previousSessionSets === prev.previousSessionSets &&
         state.plannedSetValues === prev.plannedSetValues &&

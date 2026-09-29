@@ -106,9 +106,10 @@ final class WorkoutSessionStore: ObservableObject {
     /// When the set on screen was the one logged, the cursor moves on to the
     /// next set still to do, as it would after logging it here, and the
     /// phone's rest (if one is running) shows here too, ending when the
-    /// phone's does. A rest is only started on that move, never cancelled or
-    /// changed by an update: one that has not seen a set logged here yet
-    /// would otherwise stop the rest that set started.
+    /// phone's does. A rest is only touched on that move, where the one on
+    /// screen belonged to the set just logged; otherwise an update never
+    /// cancels or changes it, since one that has not seen a set logged here
+    /// yet would stop the rest that set started.
     func applyTargets(
         sessionId: String,
         revision: Double,
@@ -125,6 +126,9 @@ final class WorkoutSessionStore: ObservableObject {
         if !newlyCompleted.isEmpty {
             completedSetIds.formUnion(newlyCompleted)
             if let step = currentStep, isCompleted(step) {
+                // Any rest on screen was the one before this set, which is
+                // now done; the phone's own rest replaces it below.
+                stopRestTimer()
                 advancePastCompletedSet()
                 if let phoneRest, phoneRest.endsAt > Date(), currentStep != nil {
                     startRest(until: phoneRest.endsAt, durationSeconds: phoneRest.durationSeconds)
