@@ -172,13 +172,18 @@ export const ReorderSwitchRow: React.FC<ReorderSwitchRowProps> = ({
         ) : null}
       </View>
 
-      <Switch
-        accessibilityLabel={title}
-        value={isEnabled}
-        disabled={switchDisabled}
-        onValueChange={onToggle}
-        testID={switchTestID}
-      />
+      {/* Its own full-height column so the switch keeps its natural size
+          and sits in the middle. Left as a direct row child it was sized to
+          the whole row, and iOS draws the switch at the top of its frame. */}
+      <View style={{ height: rowHeight }} className="justify-center">
+        <Switch
+          accessibilityLabel={title}
+          value={isEnabled}
+          disabled={switchDisabled}
+          onValueChange={onToggle}
+          testID={switchTestID}
+        />
+      </View>
     </Animated.View>
   );
 };
