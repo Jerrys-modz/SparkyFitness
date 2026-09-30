@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
-import { createAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Alert, AppState, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import {
@@ -21,7 +21,10 @@ import {
   setRestTimerNotificationsEnabled,
 } from '../../src/services/notifications';
 import { ExactAlarmBridge } from '../../src/services/ExactAlarmBridge';
-import { __resetSoundsForTests } from '../../src/services/sounds';
+import {
+  __resetSoundsForTests,
+  setRestKeepAlive,
+} from '../../src/services/sounds';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 
@@ -332,6 +335,22 @@ describe('notifications service', () => {
       expect(mockSchedule).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.objectContaining({ sound: false }),
+        })
+      );
+    });
+
+    it('keeps the ping audible when iOS rejects the background audio mode', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'granted' } as any);
+      mockSchedule.mockResolvedValue('mock-id' as any);
+      useAppPreferencesStore.getState().setRestChimeThroughSilent(true);
+      (setAudioModeAsync as jest.Mock).mockRejectedValueOnce(
+        new Error('background audio rejected')
+      );
+      setRestKeepAlive(true);
+      await scheduleRestNotification('Bench Press', 60);
+      expect(mockSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({ sound: true }),
         })
       );
     });

@@ -281,6 +281,8 @@ const CHIME_TAIL_MS = 2500;
 let keepAlivePlayer: AudioPlayer | null = null;
 let keepAliveStopTimer: ReturnType<typeof setTimeout> | null = null;
 let keepAliveWanted = false;
+// The latest keep-alive start, resolving to whether it holds the app awake.
+let keepAliveStartup: Promise<boolean> | null = null;
 
 function stopKeepAlive(): void {
   if (keepAliveStopTimer != null) {
@@ -313,7 +315,7 @@ export function setRestKeepAlive(active: boolean): void {
     clearTimeout(keepAliveStopTimer);
     keepAliveStopTimer = null;
   }
-  void (async () => {
+  keepAliveStartup = (async () => {
     try {
       await applyBaseAudioMode();
       if (keepAlivePlayer == null) {
@@ -323,15 +325,28 @@ export function setRestKeepAlive(active: boolean): void {
         keepAlivePlayer.loop = true;
       }
       // Released while the audio mode was being applied.
-      if (!keepAliveWanted) return;
+      if (!keepAliveWanted) return true;
       if (!keepAlivePlayer.playing) keepAlivePlayer.play();
+      return true;
     } catch (err) {
       addLog(
         `rest keep-alive start failed: ${(err as Error).message}`,
         'WARNING'
       );
+      return false;
     }
   })();
+}
+
+/**
+ * Whether the chime will sound for a rest even off screen, so the rest
+ * notification can go silent. Waits for a keep-alive start in flight: when iOS
+ * rejects the background audio mode nothing holds the app awake, and the
+ * notification must keep its sound.
+ */
+export async function willBackgroundRestChimeSound(): Promise<boolean> {
+  if (!isBackgroundRestChimeEnabled()) return false;
+  return keepAliveStartup == null ? true : keepAliveStartup;
 }
 
 /** Test-only helper — drops the cached player and audio-mode flag. */
@@ -344,5 +359,6 @@ export function __resetSoundsForTests(): void {
   stopKeepAlive();
   keepAlivePlayer = null;
   keepAliveWanted = false;
+  keepAliveStartup = null;
   resetDucking();
 }
