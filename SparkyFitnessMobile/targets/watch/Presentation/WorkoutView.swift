@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 /// Dark-theme category colours, in the same order as `SUPERSET_PALETTE_VARS`
 /// (`workoutSupersets.ts`). Run 0 is blue, then orange, violet, green, pink,
@@ -427,6 +428,8 @@ private struct CurrentSetView: View {
     @State private var pendingCommit: Task<Void, Never>?
     /// `crownValue` when the current drag began.
     @State private var dragStartValue: Double?
+    /// Steps the current drag has moved, so each new step clicks once.
+    @State private var dragSteps: Double = 0
     @FocusState private var crownFocused: Bool
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
@@ -472,7 +475,9 @@ private struct CurrentSetView: View {
                 from: 0,
                 through: maxValue(for: crownField ?? .weight),
                 by: stepSize(for: crownField ?? .weight),
-                sensitivity: .medium,
+                // Low: at medium a small turn ran several plates past the one
+                // wanted.
+                sensitivity: .low,
                 isContinuous: false,
                 isHapticFeedbackEnabled: checkIn.context.effectiveHapticsEnabled
             )
@@ -516,7 +521,7 @@ private struct CurrentSetView: View {
 
     private func valueBox(_ field: EditableField) -> some View {
         let isSelected = crownField == field
-        let shown = isSelected ? crownValue : storedValue(for: field)
+        let shown = isSelected ? snapped(crownValue, for: field) : storedValue(for: field)
         return ValueBox(
             value: Self.format(shown),
             unit: title(for: field),
@@ -530,10 +535,18 @@ private struct CurrentSetView: View {
             DragGesture(minimumDistance: 4)
                 .onChanged { gesture in
                     guard isSelected else { return }
-                    let start = dragStartValue ?? crownValue
-                    dragStartValue = start
+                    let start = dragStartValue ?? snapped(crownValue, for: field)
+                    if dragStartValue == nil {
+                        dragStartValue = start
+                        dragSteps = 0
+                    }
                     let steps = (-gesture.translation.height / 12).rounded()
+                    guard steps != dragSteps else { return }
+                    dragSteps = steps
                     crownValue = clamp(start + steps * stepSize(for: field), for: field)
+                    // The crown clicks each detent by itself; a drag has to
+                    // be told to.
+                    stepClick()
                 }
                 .onEnded { _ in dragStartValue = nil },
             including: isSelected ? .all : .subviews
@@ -572,8 +585,9 @@ private struct CurrentSetView: View {
 
     private func commitCrownValue() {
         guard let field = crownField else { return }
-        if crownValue != storedValue(for: field) {
-            write(crownValue, to: field)
+        let value = snapped(crownValue, for: field)
+        if value != storedValue(for: field) {
+            write(value, to: field)
         }
     }
 
@@ -615,6 +629,18 @@ private struct CurrentSetView: View {
 
     private func maxValue(for field: EditableField) -> Double {
         field == .weight ? (unit == .lbs ? 1500 : 700) : 200
+    }
+
+    /// The crown hands over in-between values while it turns (10.3 reps) and
+    /// only settles on a step once it stops; what is shown and saved is the
+    /// nearest step.
+    private func snapped(_ value: Double, for field: EditableField) -> Double {
+        let step = stepSize(for: field)
+        return clamp((value / step).rounded() * step, for: field)
+    }
+
+    private func stepClick() {
+        WKInterfaceDevice.current().play(.click)
     }
 
     private func clamp(_ value: Double, for field: EditableField) -> Double {
