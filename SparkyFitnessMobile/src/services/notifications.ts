@@ -6,7 +6,7 @@ import { addLog } from './LogService';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
-  isBackgroundRestChimeEnabled,
+  willBackgroundRestChimeSound,
   playRestCompleteSound,
   willPlayRestCompleteSound,
 } from './sounds';
@@ -357,6 +357,8 @@ export async function scheduleRestNotification(
   // anchors its fire time at native construction.
   void dismissDeliveredRestNotifications();
 
+  const chimeSounds = await willBackgroundRestChimeSound();
+
   try {
     const id = await Notifications.scheduleNotificationAsync({
       content: {
@@ -366,7 +368,7 @@ export async function scheduleRestNotification(
         body: content?.body ?? exerciseName,
         // With the background chime on, the chime is the sound and the ping
         // only shows the banner, so the two never ding together.
-        sound: !isBackgroundRestChimeEnabled(),
+        sound: !chimeSounds,
         categoryIdentifier: REST_COMPLETE_CATEGORY,
         // At the default `active` level a Focus mode delivers the alert
         // silently, which defeats the point of a rest timer. Needs the
