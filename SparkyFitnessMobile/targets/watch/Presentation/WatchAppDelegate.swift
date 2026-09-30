@@ -9,6 +9,9 @@ import WatchKit
 /// without the phone. The phone still schedules its "Rest complete"
 /// notification for the same moment; while a workout is running here that
 /// banner would be a second buzz for the same event, so it is hidden.
+/// watchOS only asks the delegate while this app is frontmost; if the wearer
+/// has switched to another app mid-workout the banner still shows, which is
+/// a duplicate cue rather than a lost one.
 final class WatchAppDelegate: NSObject, WKApplicationDelegate, UNUserNotificationCenterDelegate {
     /// Must match `REST_COMPLETE_CATEGORY` in the phone's notifications service.
     static let restCompleteCategory = "rest-complete"
