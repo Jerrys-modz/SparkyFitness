@@ -262,6 +262,12 @@ struct WatchContext: Codable, Equatable {
     /// a genuinely fresh push from `adoptReceivedContext()` replaying a cached
     /// one — the two are indistinguishable by arrival time.
     var generatedAt: Date?
+    /// The phone's Settings → Haptics switch, and whether its rest-complete
+    /// alert is on (notifications and rest-timer notifications both enabled).
+    /// Optional for the same Codable reason as `weightUnit`; nil means the
+    /// phone hasn't said, which reads as on. Use the `effective…` accessors.
+    var hapticsEnabled: Bool?
+    var restAlertsEnabled: Bool?
 
     static let empty = WatchContext(
         today: nil,
@@ -280,7 +286,9 @@ struct WatchContext: Codable, Equatable {
         waterContainers: nil,
         waterGoalMl: nil,
         waterDisplayUnit: nil,
-        generatedAt: nil
+        generatedAt: nil,
+        hapticsEnabled: nil,
+        restAlertsEnabled: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
@@ -304,6 +312,17 @@ struct WatchContext: Codable, Equatable {
     /// `weightUnit`, defaulted to kg — the same fallback used everywhere else
     /// (a fresh watch install before first phone sync, or an unrecognized value).
     var effectiveWeightUnit: WeightUnit { weightUnit ?? .kg }
+
+    /// Whether button presses on the watch play a haptic. On until the phone
+    /// says otherwise.
+    var effectiveHapticsEnabled: Bool { hapticsEnabled ?? true }
+
+    /// Whether a rest running out buzzes the wrist: needs both the phone's
+    /// haptics and its rest-complete alert on, the same switches that silence
+    /// the phone's own cue.
+    var effectiveRestBuzzEnabled: Bool {
+        effectiveHapticsEnabled && (restAlertsEnabled ?? true)
+    }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.
