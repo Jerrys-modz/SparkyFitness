@@ -290,6 +290,10 @@ struct WatchContext: Codable, Equatable {
     /// factory order with every page shown. Read through `visiblePages`.
     var pageOrder: [String]?
     var hiddenPages: [String]?
+    /// How the workout page takes a set's weight and reps (`keypad` or
+    /// `crown`). Optional for the same Codable reason as `weightUnit`; read
+    /// `effectiveSetInputStyle`.
+    var setInputStyle: String?
 
     static let empty = WatchContext(
         today: nil,
@@ -310,7 +314,8 @@ struct WatchContext: Codable, Equatable {
         waterDisplayUnit: nil,
         generatedAt: nil,
         pageOrder: nil,
-        hiddenPages: nil
+        hiddenPages: nil,
+        setInputStyle: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
@@ -327,6 +332,12 @@ struct WatchContext: Codable, Equatable {
     /// default rather than being Optional at the call site.
     func formattedWater(ml: Double) -> String {
         formatWaterMl(ml, unit: waterDisplayUnit ?? "ml")
+    }
+
+    /// The keypad until the phone says otherwise, or when it names a style
+    /// this build doesn't know.
+    var effectiveSetInputStyle: SetInputStyle {
+        setInputStyle.flatMap(SetInputStyle.init(rawValue:)) ?? .keypad
     }
 
     /// The pages to swipe between, in order — see `WatchPage.visible`.
@@ -440,4 +451,13 @@ enum CheckInDate {
         display.dateFormat = "EEE d MMM"
         return display.string(from: date)
     }
+}
+
+/// How a set's weight and reps are entered on the workout page. Raw values are
+/// the wire strings (`WATCH_SET_INPUT_STYLES` on the phone).
+enum SetInputStyle: String {
+    /// A number keypad: exact values, typed.
+    case keypad
+    /// The Digital Crown, turned in plate steps (Hevy-style).
+    case crown
 }

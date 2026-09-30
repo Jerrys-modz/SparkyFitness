@@ -145,6 +145,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const shownWatchNutrients = useAppPreferencesStore(
     (s) => s.shownWatchNutrients
   );
+  // And how its workout page takes weight and reps.
+  const watchSetInputStyle = useAppPreferencesStore(
+    (s) => s.watchSetInputStyle
+  );
   const { t } = useTranslation();
   // Units for the custom nutrients the Goals page may list. Rides the same
   // cached query the nutrition screens use.
@@ -476,6 +480,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         waterDisplayUnit,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
+        setInputStyle: watchSetInputStyle,
         ...figures,
       };
 
@@ -500,6 +505,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     waterDisplayUnit,
     watchPageOrder,
     hiddenWatchPages,
+    watchSetInputStyle,
     summaryDate,
     figuresForSummaryDate,
     watchContainers,

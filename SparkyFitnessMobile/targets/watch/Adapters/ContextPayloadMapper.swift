@@ -61,7 +61,8 @@ enum ContextPayloadMapper {
             // Settings, so carried forward like the water goal: a push from a
             // phone build that doesn't send them must not undo the layout.
             pageOrder: payload["pageOrder"] as? [String] ?? previous.pageOrder,
-            hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages
+            hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages,
+            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle
         )
     }
 
