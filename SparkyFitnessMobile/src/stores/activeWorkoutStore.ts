@@ -298,6 +298,14 @@ export interface ActiveWorkoutState {
    */
   watchIntervalRevision: number;
   watchExcludedPauseMs: number;
+  /**
+   * `armedAt` (epoch ms) of the last `startWorkout` sent to the watch for this
+   * session, null until one is. Set targets are only sent once armed and
+   * carry it, so the watch can tell a re-armed saved session from the
+   * earlier arm that used the same session id. Persisted so a JS restart
+   * keeps syncing the plan the watch is still running.
+   */
+  watchArmedAt: number | null;
   intervalRoundsCompleted: number;
   intervalRepsCompleted: number;
   intervalStatus: 'rx' | 'scaled';
@@ -573,6 +581,7 @@ const initialData: Pick<
   | 'intervalPauseStartedAt'
   | 'watchIntervalRevision'
   | 'watchExcludedPauseMs'
+  | 'watchArmedAt'
   | 'intervalRoundsCompleted'
   | 'intervalRepsCompleted'
   | 'intervalStatus'
@@ -609,6 +618,7 @@ const initialData: Pick<
   intervalPauseStartedAt: null,
   watchIntervalRevision: 0,
   watchExcludedPauseMs: 0,
+  watchArmedAt: null,
   intervalRoundsCompleted: 0,
   intervalRepsCompleted: 0,
   intervalStatus: 'rx',
@@ -1313,6 +1323,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           intervalPauseStartedAt: null,
           watchIntervalRevision: 0,
           watchExcludedPauseMs: 0,
+          watchArmedAt: null,
           intervalRoundsCompleted: 0,
           intervalRepsCompleted: 0,
           intervalStatus: 'rx',
@@ -1378,6 +1389,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           intervalPauseStartedAt: null,
           watchIntervalRevision: 0,
           watchExcludedPauseMs: 0,
+          watchArmedAt: null,
           intervalRoundsCompleted: 0,
           intervalRepsCompleted: 0,
           intervalStatus: 'rx',
@@ -2608,6 +2620,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         intervalPauseStartedAt: state.intervalPauseStartedAt,
         watchIntervalRevision: state.watchIntervalRevision,
         watchExcludedPauseMs: state.watchExcludedPauseMs,
+        watchArmedAt: state.watchArmedAt,
         intervalRoundsCompleted: state.intervalRoundsCompleted,
         intervalRepsCompleted: state.intervalRepsCompleted,
         intervalStatus: state.intervalStatus,

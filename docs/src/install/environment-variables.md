@@ -81,9 +81,10 @@ Always written by the generator. These have working defaults, but the timezone i
 - **`SPARKY_FITNESS_LOG_LEVEL`**: Verbosity — `DEBUG`, `INFO`, `WARN`, `ERROR` or `SILENT`. Defaults to `ERROR`. Raise it only while troubleshooting.
 - **`NODE_ENV`**: Always `production` for a deployment. The generator hardcodes it.
 - **`SPARKY_FITNESS_SERVER_PORT`**: Port the backend listens on inside its container. Defaults to `3010`. Docker Compose passes the same value to the frontend, whose nginx proxies to it, so the two always move together.
-- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname or IP the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name. It is resolved dynamically from inside the frontend container via DNS. If pointing to a host defined in `/etc/hosts` (such as `host.docker.internal` on Linux, `localhost`, or `--link` aliases), the frontend entrypoint automatically detects it and resolves it to its IP address directly. When deploying with custom Kubernetes manifests without the bundled Helm chart, specify the full in-cluster service FQDN (e.g., `sparkyfitness-server.default.svc.cluster.local`) since dynamic DNS resolution queries DNS directly without `/etc/resolv.conf` search domains.
+- **`SPARKY_FITNESS_SERVER_HOST`**: Hostname or IP the frontend's nginx proxies to. Defaults to the `sparkyfitness-server` service name. It is resolved dynamically from inside the frontend container via DNS. If pointing to a host defined in `/etc/hosts` (such as `host.docker.internal` on Linux, `localhost`, or `--link` aliases), the frontend entrypoint automatically detects it and resolves it to its IP address directly. nginx queries DNS directly and does not expand the `search` domains in `/etc/resolv.conf`, so a bare hostname that only resolves through a search path would not be reachable. The frontend entrypoint compensates: when the hostname contains no dot and does not resolve on its own, it is completed against each search domain in turn and the first that resolves is used (on Kubernetes, `sparkyfitness-server` becomes `sparkyfitness-server.<namespace>.svc.cluster.local`). Supplying the full in-cluster service FQDN yourself remains the most explicit option and skips that lookup entirely.
 - **`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`**: Comma-separated additional origins Better Auth should trust. Leave blank unless you reach the app on more than one URL.
 - **`BETTER_AUTH_URL`**: Overrides the base URL Better Auth builds callback links from. Only needed when it cannot be derived from `SPARKY_FITNESS_FRONTEND_URL`.
+- **`SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS`**: Set to `true` on every instance except one when [running multiple instances](./multiple-instances.md#run-scheduled-jobs-on-one-instance), so a single instance runs the scheduled jobs. Set it on each instance's own environment, not in a shared `.env` file, or no instance will run them. Leave it unset on a single-container install.
 
 ### Module 3: 🛡️ Admin Email, Public Signups & Access Policy `[Backend]`
 
@@ -209,6 +210,10 @@ Configures code signing, bundle identifiers, and shared App Groups when building
 - **`EXPO_DEV_BUNDLE_IDENTIFIER`**: Development bundle ID (`org.SparkyApps.SparkyFitnessMobile.dev`).
 - **`WIDGET_BUNDLE_IDENTIFIER`**: iOS Widget extension bundle ID (`org.SparkyApps.SparkyFitnessMobile.dev.ExpoWidgetsTarget`).
 - **`IOS_APP_GROUP_DEV`** / **`IOS_APP_GROUP_PROD`**: App Group identifiers for widget shared memory.
+
+### Module 14: 🤖 Android Mobile App Build `[Mobile Build]`
+
+- **`GOOGLE_MAPS_ANDROID_API_KEY`** (optional): Google Maps key used to draw cardio routes over a map on Android. Without it, Android shows the route as a plain line; iOS always uses Apple Maps and needs no key. The app only makes plain Maps SDK for Android loads (no map ID), which Google does not charge for, but the key's Google Cloud project still needs billing enabled. Restrict the key to the app's package name and signing certificates, and pass it to the build (for example as an EAS secret) rather than committing it.
 
 ---
 

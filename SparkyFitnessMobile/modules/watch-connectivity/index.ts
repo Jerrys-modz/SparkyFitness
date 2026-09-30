@@ -200,6 +200,17 @@ export interface WatchPlannedSetPayload {
   setType?: string | null;
 }
 
+/**
+ * The weight/reps a watch set should start from, as the phone now resolves
+ * it. An absent field leaves the watch on the plan's value for that set.
+ */
+export interface WatchSetTargetPayload {
+  setId: string;
+  /** Always kg, like every other weight this app moves to the watch. */
+  targetWeightKg?: number;
+  targetReps?: number;
+}
+
 /** One exercise in the plan the watch was armed with. */
 export interface WatchPlannedExercisePayload {
   /** The exercise_entries id — what a heart-rate batch for this exercise names. */
@@ -327,6 +338,18 @@ export interface WatchHeartRateBatchPayload {
 }
 
 /** The wearer ended the workout on the watch. */
+/**
+ * The wearer skipped or moved the rest on the watch. Deadlines are epoch ms.
+ * Applies only to a phone rest still ending at `previousEndsAt`, so a copy
+ * delivered twice, or late after that rest ended, changes nothing.
+ */
+export interface WatchRestChangedPayload {
+  sessionId: string;
+  previousEndsAt?: number;
+  /** Absent when the rest was skipped. */
+  endsAt?: number;
+}
+
 export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
@@ -338,6 +361,7 @@ export type WatchConnectivityEvents = {
   onWaterIntake: (payload: WatchWaterIntakePayload) => void;
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
+  onRestChanged: (payload: WatchRestChangedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
 };
@@ -366,6 +390,37 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     paused: boolean;
     pausedAt?: string;
     excludedPauseMs: number;
+  }): Promise<void>;
+  /**
+   * Current targets for every set of the live session, replacing any sent
+   * before, plus the sets already logged on the phone. The plan is armed before each exercise's history loads, so a
+   * progression bump only reaches the watch through this. `revision` only
+   * increases; the watch ignores an older one.
+   */
+  updateSetTargets(update: {
+    sessionId: string;
+    /**
+     * `armedAt` (epoch ms) of the `startWorkout` this follows. A saved
+     * session can be armed again under the same id, and the watch drops an
+     * update from an earlier arm.
+     */
+    armedAt: number;
+    revision: number;
+    targets: WatchSetTargetPayload[];
+    /**
+     * Sets logged on the phone. The watch adds these to its own completions
+     * (never removes one) and moves past the set on screen if it is listed.
+     */
+    completedSetIds: string[];
+    /**
+     * The phone's rest timer. The watch's rest follows it (+15s, pause,
+     * Skip), except from an update that does not yet list a set logged on
+     * the wrist: that one predates the rest the wrist just started.
+     */
+    restState: 'resting' | 'paused' | 'ready';
+    /** Epoch-ms deadline and length of a running rest; only when resting. */
+    restEndsAt?: number;
+    restDurationSeconds?: number;
   }): Promise<void>;
   /**
    * Heart-rate batches received before JavaScript was listening. Kept until

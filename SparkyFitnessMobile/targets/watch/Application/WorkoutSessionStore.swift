@@ -26,6 +26,17 @@ final class WorkoutSessionStore: ObservableObject {
     /// Edited weight/reps by set id. A set with no entry here is still on its
     /// planned targets.
     @Published private(set) var editedValues: [String: SetValues] = [:]
+    /// Targets the phone resolved after the plan was armed (history loaded,
+    /// progression bump applied), by set id. Sits between `editedValues` and
+    /// the plan's own targets.
+    @Published private(set) var targetOverrides: [String: SetValues] = [:]
+    /// Revision of `targetOverrides`, so an older queued update is ignored.
+    private var targetRevision: Double = 0
+    /// The phone's rest as last taken from it, so an update that repeats it
+    /// leaves a rest adjusted here alone. See `applyTargets`. Not in the
+    /// snapshot: the rest itself is not either, so after a relaunch the next
+    /// update has to be free to bring the phone's back.
+    private var lastPhoneRest: PhoneRest?
     @Published private(set) var latestBpm: Double?
     @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var elapsedSeconds: Int = 0
@@ -33,6 +44,9 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
     @Published private(set) var restDurationSeconds: Int = 0
+    /// Time left on a rest the phone has paused, frozen until the phone
+    /// resumes or ends it. Nil while the rest counts down (or there is none).
+    @Published private(set) var restPausedRemaining: TimeInterval?
 
     /// Called with the outgoing exercise's entry id just before the cursor
     /// moves onto a set belonging to a different exercise, so the session
@@ -42,6 +56,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// than move it, nor when the last set completes — the final drain
     /// already belongs to the last exercise.
     var onExerciseWillChange: ((String) -> Void)?
+    /// The wearer skipped (`endsAt` nil) or moved the rest here, so the phone
+    /// can do the same. Not fired when the rest follows the phone's.
+    var onRestChangedHere: ((_ previousEndsAt: Date, _ endsAt: Date?) -> Void)?
 
     /// Called when a rest countdown runs out on its own, so the app can buzz
     /// the wrist. Not called when the wearer skips the rest or trims it to
@@ -84,13 +101,117 @@ final class WorkoutSessionStore: ObservableObject {
 
     var isResting: Bool { restEndsAt != nil }
 
-    /// Values to show for a set: whatever was typed, falling back to the plan.
+    /// Values to show for a set: whatever was typed, then the phone's latest
+    /// target, falling back to the plan.
     func values(for step: WorkoutStep) -> SetValues {
-        let edited = editedValues[step.plannedSet.setId]
+        let setId = step.plannedSet.setId
+        let edited = editedValues[setId]
+        let target = targetOverrides[setId]
         return SetValues(
-            weightKg: edited?.weightKg ?? step.plannedSet.targetWeightKg,
-            reps: edited?.reps ?? step.plannedSet.targetReps
+            weightKg: edited?.weightKg ?? target?.weightKg ?? step.plannedSet.targetWeightKg,
+            reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps
         )
+    }
+
+    /// Replaces the phone-resolved targets and adopts sets logged on the
+    /// phone. Ignored for another session or an older revision than the one
+    /// already applied.
+    ///
+    /// Completions only ever add: a set logged here may still be on its way
+    /// to the phone, so an update that does not list it yet must not undo it.
+    /// When the set on screen was the one logged, the cursor moves on to the
+    /// next set still to do, as it would after logging it here, and the
+    /// phone's rest (if one is running) replaces whatever rest was on screen.
+    ///
+    /// Otherwise the watch's rest follows the phone's (+15s, pause/resume,
+    /// Skip) — but only from an update that already lists every set logged
+    /// here. One that does not was built before the phone heard about that
+    /// set, so its rest is about the set before, and adopting it would cut
+    /// short or cancel the rest the wrist just started. The rest is also only
+    /// touched when the phone's has changed since the last one taken from
+    /// it, so a ±15s pressed here is not undone by an update that was sent
+    /// for a new target.
+    func applyTargets(
+        sessionId: String,
+        revision: Double,
+        targets: [String: SetValues],
+        completedSetIds phoneCompleted: Set<String> = [],
+        phoneRest: PhoneRest? = nil
+    ) {
+        guard plan?.sessionId == sessionId, revision > targetRevision else { return }
+        targetRevision = revision
+        targetOverrides = targets
+        let newlyCompleted = phoneCompleted
+            .subtracting(completedSetIds)
+            .filter { id in steps.contains { $0.plannedSet.setId == id } }
+        if !newlyCompleted.isEmpty {
+            completedSetIds.formUnion(newlyCompleted)
+            if let step = currentStep, isCompleted(step) {
+                // Any rest on screen was the one before this set, which is
+                // now done; the phone's own rest replaces it.
+                stopRestTimer()
+                advancePastCompletedSet()
+                if let phoneRest {
+                    follow(phoneRest)
+                    lastPhoneRest = phoneRest
+                }
+            }
+        }
+        // Sets logged here the phone has not listed yet. Only sets the phone
+        // still has count: one it has since deleted will never be listed.
+        let unseenHere = completedSetIds
+            .subtracting(phoneCompleted)
+            .filter { targets[$0] != nil }
+        if let phoneRest, unseenHere.isEmpty, phoneRest != lastPhoneRest {
+            follow(phoneRest)
+            lastPhoneRest = phoneRest
+        }
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// Brings the rest on screen in line with the phone's.
+    private func follow(_ phoneRest: PhoneRest) {
+        switch phoneRest {
+        case let .resting(endsAt, durationSeconds):
+            guard endsAt > Date() else {
+                stopRestTimer()
+                return
+            }
+            // No rest to show once the workout is done.
+            guard currentStep != nil else { return }
+            // Within a second is the same rest: a set logged here starts the
+            // watch's rest a moment before the phone's, and nudging it by
+            // that transit time would only make the countdown jump.
+            if restPausedRemaining == nil, let restEndsAt,
+               abs(restEndsAt.timeIntervalSince(endsAt)) < 1 { return }
+            startRest(until: endsAt, durationSeconds: durationSeconds)
+        case .paused:
+            // The phone's countdown has stopped, so this one stops too
+            // rather than running out while the phone still waits.
+            guard let restEndsAt, restPausedRemaining == nil else { return }
+            restPausedRemaining = max(0, restEndsAt.timeIntervalSinceNow)
+            restTimer?.invalidate()
+            restTimer = nil
+        case .ready:
+            stopRestTimer()
+        }
+    }
+
+    /// Next set still to do after the cursor, else the first one left
+    /// anywhere, else past the end so the view shows "Workout complete".
+    private func advancePastCompletedSet() {
+        if let next = nextIncompleteIndex() {
+            moveCursor(to: next)
+        } else {
+            currentStepIndex = steps.count
+        }
+    }
+
+    /// The first set still to do after the cursor, else the first one left
+    /// anywhere, else nil when every set is logged.
+    private func nextIncompleteIndex() -> Int? {
+        steps.indices.first { $0 > currentStepIndex && !isCompleted(steps[$0]) }
+            ?? steps.indices.first { !isCompleted(steps[$0]) }
     }
 
     func isCompleted(_ step: WorkoutStep) -> Bool {
@@ -126,6 +247,9 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        targetOverrides = [:]
+        targetRevision = 0
+        lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
@@ -177,6 +301,9 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        targetOverrides = [:]
+        targetRevision = 0
+        lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
@@ -214,11 +341,14 @@ final class WorkoutSessionStore: ObservableObject {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         completedSetIds.insert(step.plannedSet.setId)
 
-        if currentStepIndex + 1 < steps.count {
-            moveCursor(to: currentStepIndex + 1)
+        // The next set still to do, not simply the next one: a set further on
+        // may already have been logged on the phone, and landing on it would
+        // leave a tick that cannot log anything.
+        if let next = nextIncompleteIndex() {
+            moveCursor(to: next)
             // Phone rest is *before the next set* (`nextStep.restSec`). Using
             // the completed set's rest inverted per-set rest and supersets.
-            let nextRest = steps[currentStepIndex].plannedSet.restSeconds
+            let nextRest = steps[next].plannedSet.restSeconds
             if nextRest > 0 {
                 startRest(seconds: nextRest)
             }
@@ -312,20 +442,28 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     func skipRest() {
+        guard let previous = restEndsAt, restPausedRemaining == nil else { return }
         stopRestTimer()
+        onRestChangedHere?(previous, nil)
     }
 
     /// The ±15s controls on the rest screen. Dropping to zero or below just
     /// ends the rest, same as skipping.
     func adjustRest(bySeconds delta: Int) {
         guard let endsAt = restEndsAt else { return }
+        // Paused on the phone: the phone owns the rest until it resumes, and
+        // its resume would overwrite any change made here. The rest screen
+        // disables these controls while paused; this is the backstop.
+        guard restPausedRemaining == nil else { return }
         let newEndsAt = endsAt.addingTimeInterval(TimeInterval(delta))
         guard newEndsAt > Date() else {
             stopRestTimer()
+            onRestChangedHere?(endsAt, nil)
             return
         }
         restEndsAt = newEndsAt
         restDurationSeconds = max(1, restDurationSeconds + delta)
+        onRestChangedHere?(endsAt, newEndsAt)
     }
 
     // MARK: - Jetsam snapshot
@@ -358,6 +496,9 @@ final class WorkoutSessionStore: ObservableObject {
         /// reads them back from Health and completes the finish instead of
         /// resuming the workout. Optional so older snapshots still decode.
         var finishing: Finishing?
+        /// See `targetOverrides`. Optional so older snapshots still decode.
+        var targetOverrides: [String: SetValues]?
+        var targetRevision: Double?
     }
 
     /// A finish that may not have reached the phone yet.
@@ -432,7 +573,9 @@ final class WorkoutSessionStore: ObservableObject {
             reportedEnergyKcal: energy,
             heartRateSentThrough: heartRateSentThrough,
             exerciseWindowSeconds: snapshotExerciseWindowSeconds,
-            finishing: finishing
+            finishing: finishing,
+            targetOverrides: targetOverrides,
+            targetRevision: targetRevision
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -455,6 +598,8 @@ final class WorkoutSessionStore: ObservableObject {
         openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)
         editedValues = snapshot.editedValues
+        targetOverrides = snapshot.targetOverrides ?? [:]
+        targetRevision = snapshot.targetRevision ?? 0
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
@@ -535,9 +680,17 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     private func startRest(seconds: Int) {
+        startRest(
+            until: Date().addingTimeInterval(TimeInterval(seconds)),
+            durationSeconds: seconds
+        )
+    }
+
+    private func startRest(until endsAt: Date, durationSeconds: Int) {
         restTimer?.invalidate()
-        restEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
-        restDurationSeconds = seconds
+        restPausedRemaining = nil
+        restEndsAt = endsAt
+        restDurationSeconds = max(1, durationSeconds)
         restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, let endsAt = self.restEndsAt else { return }
@@ -557,5 +710,6 @@ final class WorkoutSessionStore: ObservableObject {
         restTimer = nil
         restEndsAt = nil
         restDurationSeconds = 0
+        restPausedRemaining = nil
     }
 }

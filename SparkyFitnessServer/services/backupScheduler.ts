@@ -2,6 +2,7 @@ import cron, { type ScheduledTask } from 'node-cron';
 import backupSettingsRepository from '../models/backupSettingsRepository.js';
 import { performBackup, applyRetentionPolicy } from './backupService.js';
 import { log } from '../config/logging.js';
+import { scheduledJobsDisabled } from '../utils/scheduledJobs.js';
 
 let scheduledTask: ScheduledTask | null = null;
 
@@ -87,5 +88,12 @@ export const scheduleBackupsOnStartup = async (): Promise<void> => {
 };
 
 export const rescheduleBackups = async (): Promise<void> => {
+  if (scheduledJobsDisabled()) {
+    log(
+      'info',
+      '[CRON] Backup settings saved; the scheduled-jobs instance applies them when it restarts.'
+    );
+    return;
+  }
   await scheduleBackups();
 };

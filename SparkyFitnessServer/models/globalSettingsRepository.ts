@@ -76,10 +76,17 @@ async function saveGlobalSettings(settings: any) {
       settings.allow_user_ai_config !== undefined
         ? settings.allow_user_ai_config
         : true;
+    // While an env var forces a login setting, keep the stored admin choice:
+    // the admin page sends back the forced value on every unrelated save.
+    const emailLoginEnvForced =
+      process.env.SPARKY_FITNESS_FORCE_EMAIL_LOGIN === 'true' ||
+      process.env.SPARKY_FITNESS_DISABLE_EMAIL_LOGIN === 'true';
+    const oidcEnvForced =
+      process.env.SPARKY_FITNESS_OIDC_AUTH_ENABLED === 'true';
     await client.query(
       `UPDATE global_settings
-             SET enable_email_password_login = $1,
-                 is_oidc_active = $2,
+             SET enable_email_password_login = COALESCE($1, enable_email_password_login),
+                 is_oidc_active = COALESCE($2, is_oidc_active),
                  mfa_mandatory = $3,
                  allow_user_ai_config = COALESCE($4, allow_user_ai_config, true),
                  default_vision_ai_service_id = CASE WHEN $6 THEN $5 ELSE default_vision_ai_service_id END,
@@ -92,8 +99,10 @@ async function saveGlobalSettings(settings: any) {
              WHERE id = 1
              RETURNING *`,
       [
-        settings.enable_email_password_login,
-        settings.is_oidc_active,
+        emailLoginEnvForced
+          ? null
+          : (settings.enable_email_password_login ?? null),
+        oidcEnvForced ? null : (settings.is_oidc_active ?? null),
         settings.is_mfa_mandatory,
         allowUserAiConfig,
         settings.default_vision_ai_service_id ?? null,
