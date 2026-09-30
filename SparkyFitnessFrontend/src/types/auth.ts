@@ -49,6 +49,7 @@ export interface AccessibleUser {
     can_view_reports?: boolean;
     can_view_food_library?: boolean;
     can_manage_medications?: boolean;
+    can_manage_symptoms?: boolean;
   };
   access_end_date: string | null;
 }
