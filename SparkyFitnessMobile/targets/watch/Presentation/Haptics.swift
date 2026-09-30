@@ -6,16 +6,27 @@ import WatchKit
 ///
 /// Presses that already play something stay as they are: a container square
 /// clicks on its own, and a check-in save plays `.success` once it is sent.
+///
+/// Follows the phone's Settings → Haptics switch, which rides in the watch
+/// context (`WatchContext.effectiveHapticsEnabled`).
 enum Haptics {
     /// An ordinary button press.
     static func tap() {
-        WKInterfaceDevice.current().play(.click)
+        play(.click)
     }
 
     /// Logging a set, the one press that records something, so it reads
     /// differently from moving around.
     static func setLogged() {
-        WKInterfaceDevice.current().play(.success)
+        play(.success)
+    }
+
+    /// Only ever called from button actions, which run on the main actor.
+    private static func play(_ type: WKHapticType) {
+        MainActor.assumeIsolated {
+            guard CheckInStore.shared.context.effectiveHapticsEnabled else { return }
+            WKInterfaceDevice.current().play(type)
+        }
     }
 
     /// `action`, preceded by a tap, for buttons built as `Button(action:)`.
