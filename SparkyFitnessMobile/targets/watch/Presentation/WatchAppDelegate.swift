@@ -19,7 +19,12 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, UNUserNotificatio
         UNUserNotificationCenter.current().delegate = self
         Task { @MainActor in
             WorkoutSessionStore.shared.onRestFinished = {
-                WKInterfaceDevice.current().play(.notification)
+                // Called by the main-actor workout store. Silent when the
+                // phone has haptics or its rest-complete alert switched off.
+                MainActor.assumeIsolated {
+                    guard CheckInStore.shared.context.effectiveRestBuzzEnabled else { return }
+                    WKInterfaceDevice.current().play(.notification)
+                }
             }
         }
     }
