@@ -33,6 +33,9 @@ import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
 import { useDailySummary } from './useDailySummary';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { WATCH_PAGE_KEYS } from '../constants/watchPages';
+import { resolveKeyOrder } from '../utils/reorderUtils';
 import type { CheckInMeasurement } from '../types/measurements';
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
@@ -127,6 +130,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // extra fetch. 'st_lbs' collapses to 'lbs' for the watch: its crown dial only
   // has room for one number, not a stone+lb split.
   const { preferences } = usePreferences();
+  // Settings → Apple Watch: which pages the watch shows, in what order.
+  // Device-local, so it rides the context rather than the server.
+  const watchPageOrder = useAppPreferencesStore((s) => s.watchPageOrder);
+  const hiddenWatchPages = useAppPreferencesStore((s) => s.hiddenWatchPages);
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -429,6 +436,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // what lets a phone-free morning still draw a tap against a scale.
         waterGoalMl,
         waterDisplayUnit,
+        pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
+        hiddenPages: hiddenWatchPages,
         ...figures,
       };
 
@@ -451,6 +460,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     weightUnit,
     waterGoalMl,
     waterDisplayUnit,
+    watchPageOrder,
+    hiddenWatchPages,
     summaryDate,
     figuresForSummaryDate,
     watchContainers,

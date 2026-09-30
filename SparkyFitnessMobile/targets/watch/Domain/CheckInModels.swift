@@ -262,6 +262,12 @@ struct WatchContext: Codable, Equatable {
     /// a genuinely fresh push from `adoptReceivedContext()` replaying a cached
     /// one — the two are indistinguishable by arrival time.
     var generatedAt: Date?
+    /// The phone's Settings → Apple Watch choices: page names in swipe order,
+    /// and the ones turned off. Optional for the same Codable reason as
+    /// `weightUnit`; nil means the phone hasn't said, which reads as the
+    /// factory order with every page shown. Read through `visiblePages`.
+    var pageOrder: [String]?
+    var hiddenPages: [String]?
 
     static let empty = WatchContext(
         today: nil,
@@ -280,7 +286,9 @@ struct WatchContext: Codable, Equatable {
         waterContainers: nil,
         waterGoalMl: nil,
         waterDisplayUnit: nil,
-        generatedAt: nil
+        generatedAt: nil,
+        pageOrder: nil,
+        hiddenPages: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
@@ -297,6 +305,11 @@ struct WatchContext: Codable, Equatable {
     /// default rather than being Optional at the call site.
     func formattedWater(ml: Double) -> String {
         formatWaterMl(ml, unit: waterDisplayUnit ?? "ml")
+    }
+
+    /// The pages to swipe between, in order — see `WatchPage.visible`.
+    func visiblePages(workoutActive: Bool) -> [WatchPage] {
+        WatchPage.visible(order: pageOrder, hidden: hiddenPages, workoutActive: workoutActive)
     }
 
     var hasSeed: Bool { todayWeightKg != nil || lastWeightKg != nil }

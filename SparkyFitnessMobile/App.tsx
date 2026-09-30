@@ -80,6 +80,7 @@ import {
   SafeFoodSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
+  SafeWatchSettings,
   SafeDiarySettings,
   SafeWorkoutSettings,
   SafeServerSettings,
@@ -793,6 +794,11 @@ function AppContent() {
             name="DiarySettings"
             component={SafeDiarySettings}
             options={createStackScreenOptions(t('screens.diarySettings', { defaultValue: 'Diary Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="WatchSettings"
+            component={SafeWatchSettings}
+            options={createStackScreenOptions(t('screens.watchSettings', { defaultValue: 'Apple Watch' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="WorkoutSettings"

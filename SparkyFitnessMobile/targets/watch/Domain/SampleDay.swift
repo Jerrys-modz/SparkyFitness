@@ -101,7 +101,9 @@ enum SampleDay {
             waterContainers: containers,
             waterGoalMl: 2500,
             waterDisplayUnit: "liter",
-            generatedAt: Date()
+            generatedAt: Date(),
+            pageOrder: nil,
+            hiddenPages: nil
         )
     }
 

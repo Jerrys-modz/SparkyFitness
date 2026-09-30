@@ -57,7 +57,11 @@ enum ContextPayloadMapper {
             // the one we can't reason about, so it stays nil.
             generatedAt: (payload["pushedAt"] as? Double).map {
                 Date(timeIntervalSince1970: $0 / 1000)
-            }
+            },
+            // Settings, so carried forward like the water goal: a push from a
+            // phone build that doesn't send them must not undo the layout.
+            pageOrder: payload["pageOrder"] as? [String] ?? previous.pageOrder,
+            hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages
         )
     }
 

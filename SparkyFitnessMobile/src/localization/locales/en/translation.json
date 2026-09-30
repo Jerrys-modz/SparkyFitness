@@ -145,7 +145,8 @@
       "whatsNew": "What's New",
       "logs": "View Logs",
       "about": "About",
-      "shareReport": "Share Diagnostic Report"
+      "shareReport": "Share Diagnostic Report",
+      "watch": "Apple Watch"
     },
     "theme": {
       "title": "Theme",
@@ -567,7 +568,8 @@
     "progressPhotoCompare": "Compare",
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
-    "cardioSession": "Cardio Session"
+    "cardioSession": "Cardio Session",
+    "watchSettings": "Apple Watch"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5306,6 +5308,18 @@
     "moveDown": "Move down",
     "stateShown": "Shown",
     "stateHidden": "Hidden"
+  },
+  "watchSettings": {
+    "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this page sits on your watch",
+    "pages": {
+      "goals": "Goals",
+      "water": "Water",
+      "entry": "Weight check-in",
+      "trend": "Weight trend",
+      "workout": "Workout"
+    }
   },
   "progressPhotos": {
     "card": {
