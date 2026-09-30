@@ -22,6 +22,7 @@ import { createConcurrencyLimiter } from '../utils/concurrency';
 import { addLog } from './LogService';
 import {
   buildWorkoutLiveActivityLabels,
+  formatRepCount,
   resolveWorkoutLiveActivityLocale,
   type WorkoutLiveActivityLabels,
   type WorkoutLiveActivityLocale,
@@ -154,17 +155,14 @@ function handleUserInteraction(event: UserInteractionEvent): void {
 function formatSetTarget(
   desc: ActiveSetDescription,
   weightUnit: 'kg' | 'lbs',
-  labels: WorkoutLiveActivityLabels
+  locale: WorkoutLiveActivityLocale
 ): string | null {
   if (desc.durationSec != null) return formatDurationSeconds(desc.durationSec);
   const weight =
     desc.weightKg != null && desc.weightKg > 0
       ? formatWeightDisplay(desc.weightKg, weightUnit)
       : null;
-  const reps =
-    desc.reps != null
-      ? `${desc.reps} ${desc.reps === 1 ? labels.rep : labels.reps}`
-      : null;
+  const reps = desc.reps != null ? formatRepCount(desc.reps, locale) : null;
   if (weight != null && reps != null) return `${weight} × ${reps}`;
   return weight ?? reps;
 }
@@ -250,7 +248,7 @@ export function computeWorkoutLiveActivityProps(
   const setDetails = {
     exerciseName: desc ? (desc.exerciseName ?? labels.exercise) : null,
     setProgress,
-    targetLine: desc ? formatSetTarget(desc, state.weightUnit, labels) : null,
+    targetLine: desc ? formatSetTarget(desc, state.weightUnit, locale) : null,
   };
 
   if (rest.state === 'resting' && rest.endsAt != null) {
@@ -320,9 +318,7 @@ function labelsEqual(
     a.subtractFifteenSeconds === b.subtractFifteenSeconds &&
     a.subtractFifteenSecondsShort === b.subtractFifteenSecondsShort &&
     a.skip === b.skip &&
-    a.next === b.next &&
-    a.rep === b.rep &&
-    a.reps === b.reps
+    a.next === b.next
   );
 }
 
@@ -456,7 +452,15 @@ export async function initWorkoutLiveActivity(): Promise<void> {
       state.completedSetIds === prevState.completedSetIds &&
       state.weightUnit === prevState.weightUnit &&
       state.previousSessionSets === prevState.previousSessionSets &&
-      state.plannedSetValues === prevState.plannedSetValues
+      state.plannedSetValues === prevState.plannedSetValues &&
+      // The target line goes through the same progression, adaptive and
+      // ramp resolution as the live row, so these reach it too. The configs
+      // load after the workout starts; without them here the Lock Screen
+      // kept the weight from before the progression bump.
+      state.exerciseConfigs === prevState.exerciseConfigs &&
+      state.coachingSignals === prevState.coachingSignals &&
+      state.declinedAdaptive === prevState.declinedAdaptive &&
+      state.workoutFormat === prevState.workoutFormat
     ) {
       return;
     }

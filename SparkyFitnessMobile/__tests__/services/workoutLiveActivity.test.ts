@@ -241,8 +241,6 @@ describe('workoutLiveActivity', () => {
           subtractFifteenSecondsShort: '-15s',
           skip: 'Skip',
           next: 'Next',
-          rep: 'rep',
-          reps: 'reps',
         },
         startedAt: FIXED_NOW,
         phase: 'active',
@@ -555,6 +553,40 @@ describe('workoutLiveActivity', () => {
           setProgress: 'Set 2 of 2',
           targetLine: expect.stringMatching(/^\d+(\.\d)? lbs × \d+ reps$/),
         })
+      );
+    });
+
+    it('repaints the target when the exercise settings load after the start', async () => {
+      await initHydrated();
+      const session = makeSession();
+      for (const set of session.exercises[0].sets) {
+        (set as { weight: number | null }).weight = null;
+      }
+      useActiveWorkoutStore.getState().startWorkout(session);
+      useActiveWorkoutStore.setState({
+        plannedSetValues: {
+          '101': { weight: 60, reps: 10, duration: null, distance: null },
+          '102': { weight: 60, reps: 10, duration: null, distance: null },
+        },
+      });
+      await flushPromises();
+      const instance = createdInstances[0];
+      useActiveWorkoutStore.getState().completeSet('101');
+      await flushPromises();
+      expect(instance.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({ targetLine: expect.stringMatching(/^60 /) })
+      );
+
+      // The preset's settings arrive later: a 5 kg ramp puts set 2 at 65.
+      useActiveWorkoutStore.setState({
+        exerciseConfigs: {
+          'ex-uuid-1': { ramp_increment: 5 } as never,
+        },
+      });
+      await flushPromises();
+
+      expect(instance.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({ targetLine: expect.stringMatching(/^65 /) })
       );
     });
 
