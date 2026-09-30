@@ -36,3 +36,6 @@ export const WATCH_PAGE_LABELS: Record<
     t('watchSettings.pages.trend', { defaultValue: 'Weight trend' }),
   workout: (t) => t('watchSettings.pages.workout', { defaultValue: 'Workout' }),
 };
+
+/** What the watch's Goals page lists until the wearer picks: the three macros. */
+export const DEFAULT_WATCH_NUTRIENTS = ['protein', 'carbs', 'fat'];

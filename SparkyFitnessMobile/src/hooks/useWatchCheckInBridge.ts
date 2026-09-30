@@ -36,6 +36,9 @@ import { useDailySummary } from './useDailySummary';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
+import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
+import { useCustomNutrients } from './useCustomNutrients';
+import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
@@ -76,6 +79,7 @@ const NO_FIGURES_FOR_TODAY = {
   fatGoal: null,
   waterConsumedMl: null,
   waterLog: [] as WatchWaterLogPayload[],
+  goalNutrients: null,
 } as const;
 
 /**
@@ -134,6 +138,17 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Device-local, so it rides the context rather than the server.
   const watchPageOrder = useAppPreferencesStore((s) => s.watchPageOrder);
   const hiddenWatchPages = useAppPreferencesStore((s) => s.hiddenWatchPages);
+  // And which nutrients its Goals page lists, in order.
+  const watchNutrientOrder = useAppPreferencesStore(
+    (s) => s.watchNutrientOrder
+  );
+  const shownWatchNutrients = useAppPreferencesStore(
+    (s) => s.shownWatchNutrients
+  );
+  const { t } = useTranslation();
+  // Units for the custom nutrients the Goals page may list. Rides the same
+  // cached query the nutrition screens use.
+  const { customNutrients } = useCustomNutrients({ enabled });
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -310,6 +325,27 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Bundled so the day check below is one decision rather than sixteen. The
   // memo also keeps `pushContext`'s identity stable across renders that changed
   // nothing it reads.
+  // The Goals page's rows, from the same summary the macro figures above read.
+  // Memoized so an identical refetch doesn't give `pushContext` a new identity.
+  const goalNutrients = useMemo(() => {
+    if (!dailySummary) return null;
+    const customUnits = new Map(
+      customNutrients.map((def) => [def.name, def.unit || 'g'])
+    );
+    return buildWatchGoalNutrients(
+      dailySummary,
+      shownInOrder(watchNutrientOrder, shownWatchNutrients),
+      customUnits,
+      t
+    );
+  }, [
+    dailySummary,
+    customNutrients,
+    watchNutrientOrder,
+    shownWatchNutrients,
+    t,
+  ]);
+
   const figuresForSummaryDate = useMemo(
     () => ({
       calorieGoalProgress,
@@ -327,6 +363,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       fatGoal,
       waterConsumedMl,
       waterLog: watchWaterLog,
+      goalNutrients,
     }),
     [
       calorieGoalProgress,
@@ -344,6 +381,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       fatGoal,
       waterConsumedMl,
       watchWaterLog,
+      goalNutrients,
     ]
   );
 

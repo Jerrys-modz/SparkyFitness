@@ -111,8 +111,31 @@ enum ContextPayloadMapper {
                 consumed: value("proteinConsumed") ?? 0,
                 goal: value("proteinGoal") ?? 0,
                 progress: value("proteinGoalProgress") ?? 0
-            )
+            ),
+            rows: nutrientRows(from: payload)
         )
+    }
+
+    /// The Goals page rows the phone picked. Nil when the key is missing (an
+    /// older phone build), so the page keeps its fixed macros; a row missing
+    /// its key, label or amount is skipped rather than drawn as a zero.
+    static func nutrientRows(from payload: [String: Any]) -> [NutrientRow]? {
+        guard let rows = payload["goalNutrients"] as? [[String: Any]] else { return nil }
+        return rows.compactMap { row in
+            guard
+                let key = row["key"] as? String,
+                let label = row["label"] as? String,
+                let consumed = row["consumed"] as? Double
+            else { return nil }
+            return NutrientRow(
+                key: key,
+                label: label,
+                unit: row["unit"] as? String ?? "",
+                consumed: consumed,
+                goal: (row["goal"] as? Double).flatMap { $0 > 0 ? $0 : nil },
+                progress: row["progress"] as? Double ?? 0
+            )
+        }
     }
 
     /// Today's water totals. Containers are deliberately not part of this —
