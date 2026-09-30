@@ -1,3 +1,4 @@
+import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -226,6 +227,7 @@ describe('useWatchWorkoutBridge', () => {
       ...queuedHeartRateBatches,
     ]);
     __resetActiveWorkoutStoreForTests();
+    useLiveHeartRateStore.setState({ reading: null });
     mockUpdateWorkout.mockImplementation(async () => getStore().session!);
     mockAttachTelemetry.mockResolvedValue(undefined);
   });
@@ -487,6 +489,39 @@ describe('useWatchWorkoutBridge', () => {
       ],
     });
     expect(getStore().sessionId).toBeNull();
+  });
+
+  it("puts the newest sample of a live batch on screen, not an ended workout's", async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        ],
+      });
+      fire('onHeartRateBatch', {
+        sessionId: 'other-session',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [{ t: '2026-09-17T10:00:20.000Z', bpm: 200 }],
+      });
+    });
+
+    // Batches apply once the saved telemetry buffer has been restored.
+    await waitFor(() =>
+      expect(useLiveHeartRateStore.getState().reading).toEqual({
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        bpm: 128,
+        at: Date.parse('2026-09-17T10:00:10.000Z'),
+      })
+    );
   });
 
   it('skips attaching heart rate for an exercise with fewer than two samples', async () => {

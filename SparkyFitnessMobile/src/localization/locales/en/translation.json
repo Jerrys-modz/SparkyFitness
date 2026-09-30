@@ -455,6 +455,7 @@
       "caloriesUnit": "kcal",
       "addSetLabel": "Add set",
       "heartRateFor": "Average heart rate for {{name}}",
+      "liveHeartRateFor": "Current heart rate for {{name}}",
       "heartRateUnit": "bpm"
     },
     "nextSet": "Next Set"

@@ -10,6 +10,10 @@ import {
   useActiveWorkoutStore,
   type ActiveSetPatch,
 } from '../stores/activeWorkoutStore';
+import {
+  newestHeartRateSample,
+  useLiveHeartRateStore,
+} from '../stores/liveHeartRateStore';
 import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
 import { attachExerciseEntryWatchTelemetry } from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
@@ -445,6 +449,18 @@ export function useWatchWorkoutBridge(
         for (const exerciseEntryId of [...energyByExercise.keys()]) {
           if (!owned.has(exerciseEntryId))
             energyByExercise.delete(exerciseEntryId);
+        }
+      }
+      // The newest reading goes straight to the active-workout screen; the
+      // rest of this handler only fills the upload buffer, which renders
+      // nothing. Live session only: a late drain for an ended workout has
+      // nothing on screen to update.
+      if (live) {
+        const newest = newestHeartRateSample(samplesByExercise);
+        if (newest) {
+          useLiveHeartRateStore
+            .getState()
+            .record({ sessionId: payload.sessionId, ...newest });
         }
       }
       for (const [exerciseEntryId, incoming] of samplesByExercise) {
