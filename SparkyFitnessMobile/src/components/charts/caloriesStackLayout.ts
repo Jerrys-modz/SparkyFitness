@@ -50,9 +50,13 @@ const MACRO_SEGMENT_ORDER: readonly ('protein' | 'carbs' | 'fat')[] = [
 /**
  * Turns a day's logged calories into stacked segments: each macro at its true gram-derived
  * size, plus an `other` segment for any calories they don't account for -- never scaled up
- * to cover it, which would draw more of a macro than was actually eaten. The segments' sum
- * always equals the day's logged calories, which is also the bar height and tooltip total,
- * matching the Dashboard's "eaten" figure and keeping the goal-line comparison honest.
+ * to cover a shortfall, which would draw more of a macro than was actually eaten. The one
+ * exception is a macro overshoot (grams whose calorie equivalent exceeds the logged total,
+ * e.g. inconsistent food data): there every segment is scaled down instead, since macros
+ * are stored independently of the total and can disagree with it in either direction. The
+ * segments' sum always equals the day's logged calories either way, which is also the bar
+ * height and tooltip total, matching the Dashboard's "eaten" figure and keeping the
+ * goal-line comparison honest.
  */
 export function buildCaloriesStackDays(
   points: CaloriesDataPoint[]
@@ -68,19 +72,26 @@ export function buildCaloriesStackDays(
     const macroCalories =
       caloriesByMacro.protein + caloriesByMacro.carbs + caloriesByMacro.fat;
 
+    // Macro grams are stored independently of the logged total, not derived from it, so
+    // they can overshoot it for real (inconsistent food data, a manual override) as well as
+    // just from float rounding. Scaling down here keeps the segments summing to exactly
+    // `totalCalories` either way -- the bar height, goal line, and tooltip percentage are
+    // all driven by that figure, so letting the segments run ahead of it would draw a bar
+    // past the chart's own axis max and report a share over 100%.
+    const scale =
+      macroCalories > totalCalories ? totalCalories / macroCalories : 1;
+
     const segments: CaloriesStackSegment[] = MACRO_SEGMENT_ORDER.map(
       (macro) => ({
         macro,
-        calories: caloriesByMacro[macro],
+        calories: caloriesByMacro[macro] * scale,
       })
     ).filter((segment) => segment.calories > 0);
 
-    // Never negative: an overshoot only happens from float rounding in the grams -> calories
-    // conversion, not a real skew, since macros are components of the logged total. The
-    // tolerance keeps that same float noise from the other direction manifesting as an
-    // invisible sub-calorie `other` sliver (and a stray legend dot for it) on a day whose
-    // macros genuinely do account for the full total.
-    const leftover = totalCalories - macroCalories;
+    // Below the tolerance, a mismatch reads as float noise rather than a real leftover to
+    // draw -- otherwise a day whose macros genuinely do account for the full total could
+    // show an invisible sub-calorie `other` sliver (and a stray legend dot for it).
+    const leftover = totalCalories - macroCalories * scale;
     if (leftover > LEFTOVER_ROUNDING_TOLERANCE) {
       segments.push({ macro: 'other', calories: leftover });
     }

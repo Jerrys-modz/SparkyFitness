@@ -79,6 +79,33 @@ describe('buildCaloriesStackDays', () => {
     expect(day.totalCalories).toBe(0);
     expect(day.segments).toEqual([]);
   });
+
+  test('scales macro segments down when they overshoot the logged total', () => {
+    // carbs 40g*4 = 160 kcal, but the day only logged 100 -- e.g. a manual calorie
+    // override, since macro grams are stored independently of the total. Scale down by
+    // 100/160 = 0.625 rather than drawing a bar (and a tooltip percentage) past 100%.
+    const [day] = buildCaloriesStackDays([point({ carbs: 40, calories: 100 })]);
+
+    expect(day.totalCalories).toBe(100);
+    expect(day.segments).toEqual([{ macro: 'carbs', calories: 100 }]);
+    const segmentSum = day.segments.reduce((sum, s) => sum + s.calories, 0);
+    expect(segmentSum).toBe(day.totalCalories);
+  });
+
+  test('scales every macro down proportionally on an overshoot, not just one', () => {
+    // protein 30g*4=120, carbs 20g*4=80 -> 200 kcal of macros, but only 150 logged.
+    // Scale = 150/200 = 0.75, applied to both segments so their ratio is unchanged.
+    const [day] = buildCaloriesStackDays([
+      point({ protein: 30, carbs: 20, calories: 150 }),
+    ]);
+
+    expect(day.segments).toEqual([
+      { macro: 'carbs', calories: 60 },
+      { macro: 'protein', calories: 90 },
+    ]);
+    const segmentSum = day.segments.reduce((sum, s) => sum + s.calories, 0);
+    expect(segmentSum).toBe(day.totalCalories);
+  });
 });
 
 describe('buildCaloriesBarLayout', () => {
