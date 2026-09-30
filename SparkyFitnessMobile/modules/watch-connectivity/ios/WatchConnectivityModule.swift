@@ -341,6 +341,21 @@ public class WatchConnectivityModule: Module {
             Self.launchWatchApp()
         }
 
+        /// The live workout's plan again, after an exercise, superset or set
+        /// was added, removed or regrouped on the phone. Same shape as
+        /// `startWorkout` plus a `revision`; the watch swaps the plan in
+        /// without restarting, and ignores a copy older than one it has.
+        /// Queued and sent now if reachable, for the same reasons as a start.
+        AsyncFunction("updateWorkoutPlan") { (plan: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = plan.compactMapValues(withoutNulls)
+            payload["type"] = "workoutPlanUpdate"
+            WCSession.default.transferUserInfo(payload)
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+        }
+
         /// Tells the watch the workout it was armed with is over, because it
         /// was finished (or discarded) on the phone. Without this the watch
         /// keeps an `HKWorkoutSession` running against a session the phone

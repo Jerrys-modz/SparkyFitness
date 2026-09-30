@@ -374,6 +374,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   sendAck(clientId: string, ok: boolean): Promise<void>;
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /**
+   * The live workout's plan again after exercises, supersets or sets changed
+   * on the phone mid-workout. The watch swaps it in without restarting,
+   * keeping what was logged there. `revision` (JS ms timestamp) only
+   * increases; the watch ignores a copy no newer than the last it took.
+   */
+  updateWorkoutPlan(
+    plan: WatchWorkoutStartPayload & { revision: number }
+  ): Promise<void>;
+  /**
    * Tells the watch the workout it was armed with has ended on the phone, so
    * it stops its HealthKit session and clears the Workout tab. Takes the
    * session id rather than being argument-less so a stop for an already

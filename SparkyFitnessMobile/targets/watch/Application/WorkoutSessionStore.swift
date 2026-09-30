@@ -32,6 +32,9 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var targetOverrides: [String: SetValues] = [:]
     /// Revision of `targetOverrides`, so an older queued update is ignored.
     private var targetRevision: Double = 0
+    /// Revision of the last plan update from the phone (see `updatePlan`), so
+    /// a duplicate or older one is ignored.
+    private var planRevision: Double = 0
     /// The phone's rest as last taken from it, so an update that repeats it
     /// leaves a rest adjusted here alone. See `applyTargets`. Not in the
     /// snapshot: the rest itself is not either, so after a relaunch the next
@@ -230,8 +233,9 @@ final class WorkoutSessionStore: ObservableObject {
         completedSetIds.contains(step.plannedSet.setId)
     }
 
-    func start(with plan: ActiveWorkoutPlan) {
-        self.plan = plan
+    /// The plan's sets in the order the phone walks them (`setOrder`,
+    /// supersets interleaved), else each exercise in turn.
+    private static func steps(for plan: ActiveWorkoutPlan) -> [WorkoutStep] {
         let partners = plan.supersetPartners()
         let flattened = plan.exercises.flatMap { exercise in
             exercise.sets.enumerated().map { index, set in
@@ -247,20 +251,26 @@ final class WorkoutSessionStore: ObservableObject {
             }
         }
         if plan.setOrder.isEmpty {
-            steps = flattened
+            return flattened
         } else {
             let byId = Dictionary(
                 flattened.map { ($0.plannedSet.setId, $0) },
                 uniquingKeysWith: { first, _ in first }
             )
             let ordered = plan.setOrder.compactMap { byId[$0] }
-            steps = ordered.isEmpty ? flattened : ordered
+            return ordered.isEmpty ? flattened : ordered
         }
+    }
+
+    func start(with plan: ActiveWorkoutPlan) {
+        self.plan = plan
+        steps = Self.steps(for: plan)
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
+        planRevision = 0
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -305,6 +315,37 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
+    /// Takes the phone's plan after an exercise, superset or set was added,
+    /// removed or regrouped mid-workout, without restarting anything: sets
+    /// already logged here, typed values and the phone's targets are kept
+    /// (all keyed by set id), and so are the rest on screen and the HealthKit
+    /// session. The cursor stays on the set it was on; if that set is gone it
+    /// moves to the first set still to do. Ignored for another session or an
+    /// update no newer than the last one taken.
+    func updatePlan(_ newPlan: ActiveWorkoutPlan, revision: Double) {
+        guard let current = plan, current.sessionId == newPlan.sessionId,
+              revision > planRevision
+        else { return }
+        planRevision = revision
+        let cursorSetId = currentStep?.plannedSet.setId
+        let outgoing = currentStep?.exerciseEntryId
+        plan = newPlan
+        steps = Self.steps(for: newPlan)
+        if let cursorSetId,
+           let index = steps.firstIndex(where: { $0.plannedSet.setId == cursorSetId }) {
+            currentStepIndex = index
+        } else {
+            currentStepIndex = steps.indices.first { !isCompleted(steps[$0]) } ?? steps.count
+        }
+        // A cursor pushed onto another exercise closes the old one's window,
+        // exactly as moving there by hand would.
+        if let outgoing, currentStep?.exerciseEntryId != outgoing {
+            onExerciseWillChange?(outgoing)
+        }
+        openCurrentExerciseWindow()
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {
@@ -315,6 +356,7 @@ final class WorkoutSessionStore: ObservableObject {
         editedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
+        planRevision = 0
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -511,6 +553,8 @@ final class WorkoutSessionStore: ObservableObject {
         /// See `targetOverrides`. Optional so older snapshots still decode.
         var targetOverrides: [String: SetValues]?
         var targetRevision: Double?
+        /// See `planRevision`. Optional so older snapshots still decode.
+        var planRevision: Double?
     }
 
     /// A finish that may not have reached the phone yet.
@@ -587,7 +631,8 @@ final class WorkoutSessionStore: ObservableObject {
             exerciseWindowSeconds: snapshotExerciseWindowSeconds,
             finishing: finishing,
             targetOverrides: targetOverrides,
-            targetRevision: targetRevision
+            targetRevision: targetRevision,
+            planRevision: planRevision
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -612,6 +657,7 @@ final class WorkoutSessionStore: ObservableObject {
         editedValues = snapshot.editedValues
         targetOverrides = snapshot.targetOverrides ?? [:]
         targetRevision = snapshot.targetRevision ?? 0
+        planRevision = snapshot.planRevision ?? 0
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
