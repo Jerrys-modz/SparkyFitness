@@ -20,6 +20,14 @@ import type {
   PresetSessionResponse,
 } from '@workspace/shared';
 
+const mockFetchWorkoutHrZones = jest.fn(
+  async (_entryId: string): Promise<unknown[]> => []
+);
+jest.mock('../../src/services/api/exerciseStatsApi', () => ({
+  ...jest.requireActual('../../src/services/api/exerciseStatsApi'),
+  fetchWorkoutHrZones: (entryId: string) => mockFetchWorkoutHrZones(entryId),
+}));
+
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: jest.fn(),
 }));
@@ -269,6 +277,47 @@ describe('WorkoutDetailScreen', () => {
     // View mode: no live-workout editing affordances.
     expect(screen.queryByLabelText('Add set to Bench Press')).toBeNull();
     expect(screen.queryByLabelText('More options for Bench Press')).toBeNull();
+  });
+
+  it("shows the workout's time in each heart-rate zone, summed over its exercises", async () => {
+    const zone = (entry: string, index: number, seconds: number) => ({
+      exercise_entry_id: entry,
+      zone_index: index,
+      zone_lower_bpm: 90 + index * 20,
+      zone_upper_bpm: null,
+      seconds_in_zone: seconds,
+    });
+    mockFetchWorkoutHrZones.mockImplementation(async (entryId) =>
+      entryId === 'entry-1'
+        ? [zone('entry-1', 1, 120), zone('entry-1', 2, 600)]
+        : [zone('entry-2', 2, 300), zone('entry-2', 3, 180)]
+    );
+    const session = buildSession({
+      exercises: [
+        buildExercise({ id: 'entry-1', avg_heart_rate: 120 }),
+        buildExercise({ id: 'entry-2', avg_heart_rate: 150 }),
+        // No heart rate, so no zones to ask for.
+        buildExercise({ id: 'entry-3', avg_heart_rate: null }),
+      ],
+    });
+    const screen = renderScreen(session);
+
+    expect(await screen.findByText('Heart Rate Zones')).toBeTruthy();
+    // Zone 2 is 600 + 300 seconds across the two exercises.
+    expect(screen.getByText(/^Zone 2/)).toBeTruthy();
+    expect(screen.getByText('15 min')).toBeTruthy();
+    expect(screen.getByText('2 min')).toBeTruthy();
+    expect(screen.getByText('3 min')).toBeTruthy();
+    expect(mockFetchWorkoutHrZones).toHaveBeenCalledTimes(2);
+    expect(mockFetchWorkoutHrZones).not.toHaveBeenCalledWith('entry-3');
+  });
+
+  it('shows no zone card for a workout logged without a watch', async () => {
+    const screen = renderScreen(buildSession());
+
+    await waitFor(() => expect(screen.getByText('Bench Press')).toBeTruthy());
+    expect(screen.queryByText('Heart Rate Zones')).toBeNull();
+    expect(mockFetchWorkoutHrZones).not.toHaveBeenCalled();
   });
 
   it('summarises heart rate across the session when a watch reported it', () => {
