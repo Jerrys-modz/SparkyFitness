@@ -260,6 +260,23 @@ describe('notifications service', () => {
       expect(result.shouldShowBanner).toBe(true);
     });
 
+    it('keeps the ping audible off screen when the background chime could not start', async () => {
+      useAppPreferencesStore.getState().setRestChimeThroughSilent(true);
+      (setAudioModeAsync as jest.Mock).mockRejectedValueOnce(
+        new Error('background audio rejected')
+      );
+      try {
+        setRestKeepAlive(true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        setAppState('inactive');
+        const handler = await getHandler();
+        const result = await handler(notificationWith('rest-complete'));
+        expect(result.shouldPlaySound).toBe(true);
+      } finally {
+        __resetSoundsForTests();
+      }
+    });
+
     it('keeps sound for non-rest notifications regardless of the chime preference', async () => {
       const handler = await getHandler();
       const medReminder = await handler(
