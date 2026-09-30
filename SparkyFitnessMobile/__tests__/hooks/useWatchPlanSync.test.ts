@@ -152,6 +152,43 @@ describe('useWatchPlanSync', () => {
     ]);
   });
 
+  it('sends the plan once a set that was armed with a temporary id gets its server id', () => {
+    const armed = makeSession();
+    armed.exercises[0]!.sets.push(makeSet(-1) as never);
+    act(() => {
+      useActiveWorkoutStore.getState().startWorkout(armed);
+      useActiveWorkoutStore.setState({ watchArmedAt: ARMED_AT });
+    });
+    renderHook(() => useWatchPlanSync(true));
+    expect(mockUpdateWorkoutPlan).not.toHaveBeenCalled();
+
+    act(() => {
+      const session = useActiveWorkoutStore.getState().session!;
+      useActiveWorkoutStore.setState({
+        session: {
+          ...session,
+          exercises: session.exercises.map((exercise, index) =>
+            index === 0
+              ? {
+                  ...exercise,
+                  sets: exercise.sets.map((set) =>
+                    set.id === -1 ? { ...set, id: 103 } : set
+                  ),
+                }
+              : exercise
+          ),
+        } as PresetSessionResponse,
+      });
+    });
+    expect(mockUpdateWorkoutPlan).toHaveBeenCalledTimes(1);
+    const sets = mockUpdateWorkoutPlan.mock.calls[0][0].exercises[0].sets;
+    expect(sets.map((s: { setId: string }) => s.setId)).toEqual([
+      '101',
+      '102',
+      '103',
+    ]);
+  });
+
   it('sends nothing while the watch is not armed', () => {
     act(() => {
       useActiveWorkoutStore.getState().startWorkout(makeSession());
