@@ -1,6 +1,29 @@
+import type { PoolClient } from 'pg';
 import { getClient, getSystemClient } from '../db/poolManager.js';
 import { encrypt, decrypt, ENCRYPTION_KEY } from '../security/encryption.js';
 import { log } from '../config/logging.js';
+
+/**
+ * Runs a provider's token refresh inside a transaction so the caller's
+ * `SELECT ... FOR UPDATE` on its external_data_providers row makes concurrent
+ * refreshes for that row wait. The next refresher then reads the token the
+ * previous one saved instead of a refresh token the provider already rotated.
+ *
+ * Always commits, even when `refresh` throws: the transaction only holds the
+ * lock, and writes keep taking effect as they would without it (a refresh that
+ * clears tokens before throwing still clears them).
+ */
+async function withProviderTokenLock<T>(
+  client: PoolClient,
+  refresh: () => Promise<T>
+): Promise<T> {
+  await client.query('BEGIN');
+  try {
+    return await refresh();
+  } finally {
+    await client.query('COMMIT');
+  }
+}
 async function getExternalDataProviders(
   targetUserId: string,
   authenticatedUserId?: string
@@ -901,6 +924,7 @@ export { checkExternalDataProviderAccess };
 export { deleteExternalDataProvider };
 export { getExternalDataProviderByUserIdAndProviderName };
 export { updateProviderLastSync };
+export { withProviderTokenLock };
 export { getProvidersByType };
 export { getExternalProviderTypes };
 export { getGlobalExternalDataProviders };
@@ -919,6 +943,7 @@ export default {
   deleteExternalDataProvider,
   getExternalDataProviderByUserIdAndProviderName,
   updateProviderLastSync,
+  withProviderTokenLock,
   getProvidersByType,
   getExternalProviderTypes,
   getGlobalExternalDataProviders,
