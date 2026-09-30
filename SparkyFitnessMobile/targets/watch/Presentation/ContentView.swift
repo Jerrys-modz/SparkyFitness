@@ -47,6 +47,12 @@ struct ContentView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
+                // Rebuilt, not diffed, when the phone reorders or hides pages.
+                // A page-style TabView keeps its own index of the selected
+                // child; moving the child under it (reordering Water while it
+                // is on screen) left that index pointing past the new layout
+                // and crashed the app.
+                .id(pages)
             }
         }
         .onAppear {
@@ -158,12 +164,12 @@ struct ContentView: View {
     }
 
     /// Landing page on a normal (non-first-run) launch: the workout while one
-    /// is running (always shown then, even if turned off), else Nutrition goal
-    /// if today is already logged — nothing left to capture — otherwise Entry.
-    /// If that page is turned off, the first page that isn't.
+    /// is running (always shown then, even if turned off), otherwise the first
+    /// page in the wearer's order, so the page they put first is the one the
+    /// app opens on.
     private var initialPage: WatchPage {
         if workout.isActive { return .workout }
-        return shown(store.isReplacingToday ? .goals : .entry) ?? pages.first ?? .goals
+        return pages.first ?? .goals
     }
 }
 
