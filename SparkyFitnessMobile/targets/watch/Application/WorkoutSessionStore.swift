@@ -44,6 +44,9 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
     @Published private(set) var restDurationSeconds: Int = 0
+    /// Time left on a rest the phone has paused, frozen until the phone
+    /// resumes or ends it. Nil while the rest counts down (or there is none).
+    @Published private(set) var restPausedRemaining: TimeInterval?
 
     /// Called with the outgoing exercise's entry id just before the cursor
     /// moves onto a set belonging to a different exercise, so the session
@@ -179,10 +182,16 @@ final class WorkoutSessionStore: ObservableObject {
             // Within a second is the same rest: a set logged here starts the
             // watch's rest a moment before the phone's, and nudging it by
             // that transit time would only make the countdown jump.
-            if let restEndsAt, abs(restEndsAt.timeIntervalSince(endsAt)) < 1 { return }
+            if restPausedRemaining == nil, let restEndsAt,
+               abs(restEndsAt.timeIntervalSince(endsAt)) < 1 { return }
             startRest(until: endsAt, durationSeconds: durationSeconds)
         case .paused:
-            break
+            // The phone's countdown has stopped, so this one stops too
+            // rather than running out while the phone still waits.
+            guard let restEndsAt, restPausedRemaining == nil else { return }
+            restPausedRemaining = max(0, restEndsAt.timeIntervalSinceNow)
+            restTimer?.invalidate()
+            restTimer = nil
         case .ready:
             endRestFromPhone()
         }
@@ -203,12 +212,18 @@ final class WorkoutSessionStore: ObservableObject {
     /// Next set still to do after the cursor, else the first one left
     /// anywhere, else past the end so the view shows "Workout complete".
     private func advancePastCompletedSet() {
-        let later = steps.indices.first { $0 > currentStepIndex && !isCompleted(steps[$0]) }
-        if let next = later ?? steps.indices.first(where: { !isCompleted(steps[$0]) }) {
+        if let next = nextIncompleteIndex() {
             moveCursor(to: next)
         } else {
             currentStepIndex = steps.count
         }
+    }
+
+    /// The first set still to do after the cursor, else the first one left
+    /// anywhere, else nil when every set is logged.
+    private func nextIncompleteIndex() -> Int? {
+        steps.indices.first { $0 > currentStepIndex && !isCompleted(steps[$0]) }
+            ?? steps.indices.first { !isCompleted(steps[$0]) }
     }
 
     func isCompleted(_ step: WorkoutStep) -> Bool {
@@ -338,11 +353,14 @@ final class WorkoutSessionStore: ObservableObject {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         completedSetIds.insert(step.plannedSet.setId)
 
-        if currentStepIndex + 1 < steps.count {
-            moveCursor(to: currentStepIndex + 1)
+        // The next set still to do, not simply the next one: a set further on
+        // may already have been logged on the phone, and landing on it would
+        // leave a tick that cannot log anything.
+        if let next = nextIncompleteIndex() {
+            moveCursor(to: next)
             // Phone rest is *before the next set* (`nextStep.restSec`). Using
             // the completed set's rest inverted per-set rest and supersets.
-            let nextRest = steps[currentStepIndex].plannedSet.restSeconds
+            let nextRest = steps[next].plannedSet.restSeconds
             if nextRest > 0 {
                 startRest(seconds: nextRest)
             }
@@ -445,6 +463,19 @@ final class WorkoutSessionStore: ObservableObject {
     /// ends the rest, same as skipping.
     func adjustRest(bySeconds delta: Int) {
         guard let endsAt = restEndsAt else { return }
+        if let paused = restPausedRemaining {
+            // Paused on the phone: move the frozen time only. The phone's
+            // rest is not counting down, so there is nothing to mirror yet;
+            // its resume brings the two back in line.
+            let remaining = paused + TimeInterval(delta)
+            if remaining <= 0 {
+                stopRestTimer()
+            } else {
+                restPausedRemaining = remaining
+                restDurationSeconds = max(1, restDurationSeconds + delta)
+            }
+            return
+        }
         let newEndsAt = endsAt.addingTimeInterval(TimeInterval(delta))
         guard newEndsAt > Date() else {
             stopRestTimer()
@@ -678,6 +709,7 @@ final class WorkoutSessionStore: ObservableObject {
 
     private func startRest(until endsAt: Date, durationSeconds: Int) {
         restTimer?.invalidate()
+        restPausedRemaining = nil
         restEndsAt = endsAt
         restDurationSeconds = max(1, durationSeconds)
         restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -699,5 +731,6 @@ final class WorkoutSessionStore: ObservableObject {
         restTimer = nil
         restEndsAt = nil
         restDurationSeconds = 0
+        restPausedRemaining = nil
     }
 }

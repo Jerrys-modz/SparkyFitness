@@ -601,6 +601,11 @@ private struct RestView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.blue)
                 Spacer()
+                if store.restPausedRemaining != nil {
+                    Text("Paused")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
             }
 
             Text(remainingLabel(now: now))
@@ -636,6 +641,9 @@ private struct RestView: View {
     }
 
     private func remainingSeconds(now: Date) -> Int {
+        if let paused = store.restPausedRemaining {
+            return max(0, Int(paused.rounded()))
+        }
         guard let endsAt = store.restEndsAt else { return 0 }
         return max(0, Int(endsAt.timeIntervalSince(now).rounded()))
     }
