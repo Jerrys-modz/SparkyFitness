@@ -59,9 +59,12 @@ enum ContextPayloadMapper {
                 Date(timeIntervalSince1970: $0 / 1000)
             },
             // Settings, so carried forward like the water goal: a push from a
-            // phone build that doesn't send them must not flip them back on.
+            // phone build that doesn't send them must not flip them back on
+            // or undo the page layout.
             hapticsEnabled: payload["hapticsEnabled"] as? Bool ?? previous.hapticsEnabled,
-            restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled
+            restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled,
+            pageOrder: payload["pageOrder"] as? [String] ?? previous.pageOrder,
+            hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages
         )
     }
 

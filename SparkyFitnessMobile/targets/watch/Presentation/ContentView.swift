@@ -1,19 +1,14 @@
 import SwiftUI
 
 /// Router for the watch app. First run is a one-time gate; after that, Goals,
-/// Water, Entry and Trend are pages the wearer swipes between — swiping is
-/// the only way to move between them, there is no button.
+/// Water, Entry, Trend and Workout are pages the wearer swipes between —
+/// swiping is the only way to move between them, there is no button. Which of
+/// them show, and in what order, is the phone's Settings → Apple Watch choice
+/// (`WatchContext.visiblePages`).
 struct ContentView: View {
-    /// Identifies a page; the cases are `.tag` values, nothing more.
-    ///
-    /// Swipe order is set by the order the views appear in the `TabView`
-    /// below, NOT by the order of these cases — a `.page`-style TabView lays
-    /// its children out in body order. Reordering this enum alone changes
-    /// nothing on screen, so change both together or neither.
-    private enum Page: Int { case goals, water, entry, trend, workout }
-
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var workout: WorkoutSessionStore
 
     /// Watched so the app can notice a day has ended while it was away. The
     /// watch app commonly stays resident overnight, in which case nothing
@@ -26,7 +21,12 @@ struct ContentView: View {
     /// on. `page` follows the same "nil until something explicit happens"
     /// pattern so a fresh launch still lands on the right page.
     @State private var didFirstRun = false
-    @State private var page: Page?
+    @State private var page: WatchPage?
+
+    /// The pages in swipe order, as the phone last arranged them.
+    private var pages: [WatchPage] {
+        store.context.visiblePages(workoutActive: workout.isActive)
+    }
 
     var body: some View {
         Group {
@@ -35,25 +35,16 @@ struct ContentView: View {
                     let checkIn = store.capture(weightKg: weight, bodyFatPercentage: bodyFat)
                     store.markState(session.send(checkIn), for: checkIn)
                     didFirstRun = true
-                    page = .trend
+                    page = shown(.trend)
                 }
             } else {
-                // This order is the swipe order: Goals ▸ Water ▸ Entry ▸ Trend ▸ Workout.
-                TabView(selection: Binding(get: { page ?? initialPage }, set: { page = $0 })) {
-                    GoalSummaryView()
-                        .tag(Page.goals)
-
-                    WaterIntakeView()
-                        .tag(Page.water)
-
-                    CheckInEntryView { page = .trend }
-                        .tag(Page.entry)
-
-                    TrendView()
-                        .tag(Page.trend)
-
-                    WorkoutView()
-                        .tag(Page.workout)
+                // A `.page`-style TabView lays its children out in body order,
+                // so the order of `pages` is the swipe order.
+                TabView(selection: Binding(get: { selectedPage }, set: { page = $0 })) {
+                    ForEach(pages, id: \.self) { page in
+                        view(for: page)
+                            .tag(page)
+                    }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
             }
@@ -81,8 +72,10 @@ struct ContentView: View {
             if ScreenshotSeed.isEnabled {
                 ScreenshotSeed.apply()
                 didFirstRun = true
+                // The CI job names pages by their raw value; an unknown name
+                // leaves the normal landing logic be.
                 if let name = ScreenshotSeed.requestedPage,
-                   let requested = screenshotPage(named: name) {
+                   let requested = WatchPage(rawValue: name) {
                     page = requested
                 }
             }
@@ -102,7 +95,7 @@ struct ContentView: View {
         }
         .onOpenURL { url in
             guard let link = WatchDeepLink(url: url),
-                  let requested = destination(for: link)
+                  let requested = shown(destination(for: link))
             else { return }
             // Deliberately does not touch `didFirstRun`: if there is no seed
             // weight yet, that one-time entry is still owed, and the requested
@@ -114,7 +107,7 @@ struct ContentView: View {
     /// Which page a complication tap lands on. Nil for a destination this build
     /// has no page for, so an early link does nothing instead of jumping
     /// somewhere wrong.
-    private func destination(for link: WatchDeepLink) -> Page? {
+    private func destination(for link: WatchDeepLink) -> WatchPage? {
         switch link {
         case .goals:
             return .goals
@@ -123,27 +116,43 @@ struct ContentView: View {
         }
     }
 
-    /// Landing page on a normal (non-first-run) launch: Nutrition goal if today is
-    /// already logged — nothing left to capture — otherwise Entry.
-    private var initialPage: Page {
-        store.isReplacingToday ? .goals : .entry
-    }
-
-    #if DEBUG
-    /// Maps a `SPARKY_SCREENSHOT_PAGE` value onto a tab. `Page` is Int-backed
-    /// and private, so the CI job names pages by string and this does the
-    /// lookup. Nil for an unknown name, leaving the normal landing logic be.
-    private func screenshotPage(named name: String) -> Page? {
-        switch name {
-        case "goals": return .goals
-        case "water": return .water
-        case "entry": return .entry
-        case "trend": return .trend
-        case "workout": return .workout
-        default: return nil
+    @ViewBuilder
+    private func view(for page: WatchPage) -> some View {
+        switch page {
+        case .goals:
+            GoalSummaryView()
+        case .water:
+            WaterIntakeView()
+        case .entry:
+            CheckInEntryView { self.page = shown(.trend) ?? self.page }
+        case .trend:
+            TrendView()
+        case .workout:
+            WorkoutView()
         }
     }
-    #endif
+
+    /// `page` if the wearer has it showing, else nil — so a jump to a page
+    /// they turned off does nothing rather than selecting a tab that isn't
+    /// there.
+    private func shown(_ page: WatchPage?) -> WatchPage? {
+        guard let page, pages.contains(page) else { return nil }
+        return page
+    }
+
+    /// The tab on screen. Falls back to the landing page when nothing has been
+    /// picked yet, or when the picked page has since been turned off on the
+    /// phone.
+    private var selectedPage: WatchPage {
+        shown(page) ?? initialPage
+    }
+
+    /// Landing page on a normal (non-first-run) launch: Nutrition goal if today is
+    /// already logged — nothing left to capture — otherwise Entry. If that page
+    /// is turned off, the first page that isn't.
+    private var initialPage: WatchPage {
+        shown(store.isReplacingToday ? .goals : .entry) ?? pages.first ?? .goals
+    }
 }
 
 /// One-time screen used when there is no seed value. From the second entry

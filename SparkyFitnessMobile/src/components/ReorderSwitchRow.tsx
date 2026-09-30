@@ -26,6 +26,8 @@ export interface ReorderSwitchRowProps {
   title: string;
   subtitle?: string;
   isEnabled: boolean;
+  /** Locks the switch, e.g. on the last item that must stay shown. */
+  switchDisabled?: boolean;
   onToggle: (enabled: boolean) => void;
   onMove: (fromIndex: number, toIndex: number) => void;
   onConfigure?: () => void;
@@ -50,6 +52,7 @@ export const ReorderSwitchRow: React.FC<ReorderSwitchRowProps> = ({
   title,
   subtitle,
   isEnabled,
+  switchDisabled = false,
   onToggle,
   onMove,
   onConfigure,
@@ -172,6 +175,7 @@ export const ReorderSwitchRow: React.FC<ReorderSwitchRowProps> = ({
       <Switch
         accessibilityLabel={title}
         value={isEnabled}
+        disabled={switchDisabled}
         onValueChange={onToggle}
         testID={switchTestID}
       />

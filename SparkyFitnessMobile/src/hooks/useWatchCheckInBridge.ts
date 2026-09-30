@@ -35,6 +35,8 @@ import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary } from './useDailySummary';
+import { WATCH_PAGE_KEYS } from '../constants/watchPages';
+import { resolveKeyOrder } from '../utils/reorderUtils';
 import type { CheckInMeasurement } from '../types/measurements';
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
@@ -168,6 +170,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const restAlertsEnabled = useAppPreferencesStore(
     (s) => s.notificationsEnabled && s.restTimerNotificationsEnabled
   );
+  // Settings → Apple Watch: which pages the watch shows, in what order.
+  // Device-local, so it rides the context rather than the server.
+  const watchPageOrder = useAppPreferencesStore((s) => s.watchPageOrder);
+  const hiddenWatchPages = useAppPreferencesStore((s) => s.hiddenWatchPages);
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -472,6 +478,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         waterDisplayUnit,
         hapticsEnabled,
         restAlertsEnabled,
+        pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
+        hiddenPages: hiddenWatchPages,
         ...figures,
       };
 
@@ -496,6 +504,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     waterGoalMl,
     waterDisplayUnit,
+    watchPageOrder,
+    hiddenWatchPages,
     summaryDate,
     figuresForSummaryDate,
     watchContainers,
