@@ -1,4 +1,3 @@
-import HealthKit
 import UserNotifications
 import WatchKit
 
@@ -22,17 +21,6 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, UNUserNotificatio
             WorkoutSessionStore.shared.onRestFinished = {
                 WKInterfaceDevice.current().play(.notification)
             }
-        }
-    }
-
-    /// The phone started a workout and asked watchOS to open this app (see
-    /// `launchWatchApp` in the phone's WatchConnectivity module). The plan
-    /// itself comes over WatchConnectivity, queued behind this launch, and
-    /// `WatchSessionManager` starts the HealthKit session when it lands, so
-    /// all this has to do is make sure the session is up to receive it.
-    func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
-        Task { @MainActor in
-            _ = WatchSessionManager.shared
         }
     }
 
