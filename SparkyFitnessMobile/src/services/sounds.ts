@@ -51,7 +51,8 @@ export function isBackgroundRestChimeEnabled(): boolean {
 export function willPlayRestCompleteSound(): boolean {
   return (
     isRestTimerSoundEnabled() &&
-    (AppState.currentState === 'active' || isBackgroundRestChimeEnabled())
+    (AppState.currentState === 'active' ||
+      (isBackgroundRestChimeEnabled() && !keepAliveFailed))
   );
 }
 
@@ -283,6 +284,10 @@ let keepAliveStopTimer: ReturnType<typeof setTimeout> | null = null;
 let keepAliveWanted = false;
 // The latest keep-alive start, resolving to whether it holds the app awake.
 let keepAliveStartup: Promise<boolean> | null = null;
+// Whether the latest keep-alive start failed (iOS rejected the background
+// audio mode). Off screen the chime then cannot sound, so the notification
+// ping must keep its own.
+let keepAliveFailed = false;
 
 function stopKeepAlive(): void {
   if (keepAliveStopTimer != null) {
@@ -324,11 +329,13 @@ export function setRestKeepAlive(active: boolean): void {
         );
         keepAlivePlayer.loop = true;
       }
+      keepAliveFailed = false;
       // Released while the audio mode was being applied.
       if (!keepAliveWanted) return true;
       if (!keepAlivePlayer.playing) keepAlivePlayer.play();
       return true;
     } catch (err) {
+      keepAliveFailed = true;
       addLog(
         `rest keep-alive start failed: ${(err as Error).message}`,
         'WARNING'
@@ -360,5 +367,6 @@ export function __resetSoundsForTests(): void {
   keepAlivePlayer = null;
   keepAliveWanted = false;
   keepAliveStartup = null;
+  keepAliveFailed = false;
   resetDucking();
 }

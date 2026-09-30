@@ -57,6 +57,7 @@ import {
 } from '../services/notifications';
 import { fireSelectionHaptic, fireSuccessHaptic } from '../services/haptics';
 import { setRestKeepAlive } from '../services/sounds';
+import { useAppPreferencesStore } from './appPreferencesStore';
 import { addLog } from '../services/LogService';
 import WatchConnectivity from '../../modules/watch-connectivity';
 
@@ -1133,6 +1134,29 @@ function scheduleGuardedRestNotification(
 }
 
 /**
+ * Schedule the rest-complete notification for the rest identified by `token`,
+ * `seconds` from now, describing the active set: the path every running rest
+ * other than a fresh start goes through (resume, ±15s, a settings change).
+ */
+function scheduleActiveSetRestNotification(
+  state: Pick<ActiveWorkoutState, 'steps' | 'activeSetId' | 'session'>,
+  seconds: number,
+  token: number
+): void {
+  const { steps, activeSetId } = state;
+  const step =
+    activeSetId != null ? steps.find((s) => s.setId === activeSetId) : null;
+  const exerciseName = step?.exerciseName ?? 'Rest';
+  const content = buildRestNotificationContent(
+    i18n.getFixedT(i18n.language),
+    state.session,
+    activeSetId,
+    exerciseName
+  );
+  scheduleGuardedRestNotification(exerciseName, seconds, token, content);
+}
+
+/**
  * Start a rest timer for the step identified by `setId`, scheduling the local
  * notification and wiring up the stale-resolution guard on the returned
  * promise. Returns the new Rest value the caller should commit to state.
@@ -1801,7 +1825,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
 
       resumeRest: () => {
         const state = get();
-        const { rest, steps, activeSetId } = state;
+        const { rest } = state;
         if (rest.state !== 'paused' || rest.pausedRemainingMs == null) return;
 
         const remainingMs = rest.pausedRemainingMs;
@@ -1819,24 +1843,16 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           },
         });
 
-        const step =
-          activeSetId != null
-            ? steps.find((s) => s.setId === activeSetId)
-            : null;
-        const exerciseName = step?.exerciseName ?? 'Rest';
-        const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
-        const content = buildRestNotificationContent(
-          i18n.getFixedT(i18n.language),
-          state.session,
-          activeSetId,
-          exerciseName
+        scheduleActiveSetRestNotification(
+          state,
+          Math.max(1, Math.ceil(remainingMs / 1000)),
+          token
         );
-        scheduleGuardedRestNotification(exerciseName, seconds, token, content);
       },
 
       adjustRest: (deltaSec) => {
         const state = get();
-        const { rest, steps, activeSetId } = state;
+        const { rest } = state;
         const deltaMs = deltaSec * 1000;
 
         if (rest.state === 'resting' && rest.endsAt != null) {
@@ -1861,26 +1877,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
             },
           });
 
-          const step =
-            activeSetId != null
-              ? steps.find((s) => s.setId === activeSetId)
-              : null;
-          const exerciseName = step?.exerciseName ?? 'Rest';
-          const seconds = Math.max(
-            1,
-            Math.ceil((newEndsAt - Date.now()) / 1000)
-          );
-          const content = buildRestNotificationContent(
-            i18n.getFixedT(i18n.language),
-            state.session,
-            activeSetId,
-            exerciseName
-          );
-          scheduleGuardedRestNotification(
-            exerciseName,
-            seconds,
-            token,
-            content
+          scheduleActiveSetRestNotification(
+            state,
+            Math.max(1, Math.ceil((newEndsAt - Date.now()) / 1000)),
+            token
           );
           return;
         }
@@ -2688,6 +2688,36 @@ function syncRestDeadlineTimer(rest: Rest): void {
 // enough to keep the deadline timer in sync (including persist rehydration).
 useActiveWorkoutStore.subscribe((state, prevState) => {
   if (state.rest !== prevState.rest) syncRestDeadlineTimer(state.rest);
+});
+
+// The rest notification's sound and the background keep-alive are decided
+// when a rest is scheduled, from the rest-chime settings. Changing those
+// mid-rest reschedules the running rest's notification for the time left, so
+// it doesn't stay silent for a chime that will no longer play (or ding on top
+// of one that now will). Replacing `rest` also re-runs the keep-alive via the
+// deadline timer sync above.
+useAppPreferencesStore.subscribe((prefs, prevPrefs) => {
+  if (
+    prefs.restChimeThroughSilent === prevPrefs.restChimeThroughSilent &&
+    prefs.restTimerSoundEnabled === prevPrefs.restTimerSoundEnabled
+  ) {
+    return;
+  }
+  const state = useActiveWorkoutStore.getState();
+  const { rest } = state;
+  if (rest.state !== 'resting' || rest.endsAt == null) return;
+  const remainingMs = rest.endsAt - Date.now();
+  if (remainingMs <= 0) return;
+  cancelCurrentRestNotification(rest);
+  const token = ++restInstanceCounter;
+  useActiveWorkoutStore.setState({
+    rest: { ...rest, scheduledNotificationId: null, instanceToken: token },
+  });
+  scheduleActiveSetRestNotification(
+    state,
+    Math.max(1, Math.ceil(remainingMs / 1000)),
+    token
+  );
 });
 
 // JS timers pause while the app is backgrounded; re-sync on foreground return
