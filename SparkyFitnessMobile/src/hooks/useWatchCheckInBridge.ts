@@ -33,6 +33,7 @@ import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary } from './useDailySummary';
 import type { CheckInMeasurement } from '../types/measurements';
 
@@ -162,6 +163,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // extra fetch. 'st_lbs' collapses to 'lbs' for the watch: its crown dial only
   // has room for one number, not a stone+lb split.
   const { preferences } = usePreferences();
+  // Device-local settings the watch's haptics follow.
+  const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
+  const restAlertsEnabled = useAppPreferencesStore(
+    (s) => s.notificationsEnabled && s.restTimerNotificationsEnabled
+  );
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -464,6 +470,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // what lets a phone-free morning still draw a tap against a scale.
         waterGoalMl,
         waterDisplayUnit,
+        hapticsEnabled,
+        restAlertsEnabled,
         ...figures,
       };
 
@@ -484,6 +492,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // aggregates are memoized, so an identical refetch doesn't cause a push.
   }, [
     weightUnit,
+    hapticsEnabled,
+    restAlertsEnabled,
     waterGoalMl,
     waterDisplayUnit,
     summaryDate,

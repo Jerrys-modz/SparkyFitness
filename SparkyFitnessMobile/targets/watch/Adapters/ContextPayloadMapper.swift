@@ -57,7 +57,11 @@ enum ContextPayloadMapper {
             // the one we can't reason about, so it stays nil.
             generatedAt: (payload["pushedAt"] as? Double).map {
                 Date(timeIntervalSince1970: $0 / 1000)
-            }
+            },
+            // Settings, so carried forward like the water goal: a push from a
+            // phone build that doesn't send them must not flip them back on.
+            hapticsEnabled: payload["hapticsEnabled"] as? Bool ?? previous.hapticsEnabled,
+            restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled
         )
     }
 
@@ -281,6 +285,59 @@ enum ContextPayloadMapper {
             : nil
         let excludedMs = (payload["excludedPauseMs"] as? NSNumber)?.doubleValue ?? 0
         return (sessionId, revision, pausedAt, Int((excludedMs / 1000).rounded()))
+    }
+
+    /// Current weight/reps targets for the live session's sets. `revision`
+    /// is a JS millisecond timestamp, read as a Double: `Int` is 32-bit on
+    /// arm64_32 watches and cannot hold it.
+    static func setTargets(from payload: [String: Any]) -> (
+        sessionId: String, revision: Double, targets: [String: SetValues],
+        completedSetIds: Set<String>, rest: PhoneRest?,
+        armedAt: Date?
+    )? {
+        guard
+            let sessionId = payload["sessionId"] as? String,
+            let revision = doubleValue(payload["revision"]),
+            let rawTargets = dictionaryArray(payload["targets"])
+        else { return nil }
+        var targets: [String: SetValues] = [:]
+        for raw in rawTargets {
+            guard let setId = raw["setId"] as? String else { continue }
+            targets[setId] = SetValues(
+                weightKg: doubleValue(raw["targetWeightKg"]),
+                reps: doubleValue(raw["targetReps"])
+            )
+        }
+        // Sets already logged on the phone. Absent from an older phone build.
+        let completed = Set(stringArray(payload["completedSetIds"]))
+        // The phone's rest. A running one carries an epoch-ms deadline, as a
+        // Double for the same 32-bit reason as `revision`. Nil when the phone
+        // did not say (an older build sends only `restEndsAt`, and only while
+        // resting, so its silence cannot be read as "no rest").
+        let rest: PhoneRest?
+        let endsAt = doubleValue(payload["restEndsAt"]).map {
+            Date(timeIntervalSince1970: $0 / 1000)
+        }
+        switch payload["restState"] as? String {
+        case "resting":
+            rest = endsAt.map {
+                .resting(endsAt: $0, durationSeconds: intValue(payload["restDurationSeconds"]) ?? 0)
+            }
+        case "paused":
+            rest = .paused
+        case "ready":
+            rest = .ready
+        default:
+            rest = endsAt.map {
+                .resting(endsAt: $0, durationSeconds: intValue(payload["restDurationSeconds"]) ?? 0)
+            }
+        }
+        // Which arm of the session this belongs to: the `armedAt` of the
+        // `workoutStart` it follows, as epoch ms. Nil from an older phone.
+        let armedAt = doubleValue(payload["armedAt"]).map {
+            Date(timeIntervalSince1970: $0 / 1000)
+        }
+        return (sessionId, revision, targets, completed, rest, armedAt)
     }
 
     // MARK: - Acks

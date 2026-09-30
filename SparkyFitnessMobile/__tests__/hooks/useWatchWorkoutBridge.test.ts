@@ -235,8 +235,61 @@ describe('useWatchWorkoutBridge', () => {
   it('subscribes to all three watch events when enabled', () => {
     renderHook(() => useWatchWorkoutBridge(true));
     expect(mockListeners.has('onSetCompleted')).toBe(true);
+    expect(mockListeners.has('onRestChanged')).toBe(true);
     expect(mockListeners.has('onHeartRateBatch')).toBe(true);
     expect(mockListeners.has('onWorkoutStop')).toBe(true);
+  });
+
+  describe('rest changed on the watch', () => {
+    const resting = (endsAt: number) => ({
+      state: 'resting' as const,
+      durationSec: 90,
+      endsAt,
+      pausedRemainingMs: null,
+      scheduledNotificationId: null,
+      instanceToken: 1,
+    });
+    const fire = (payload: Record<string, unknown>) =>
+      act(() => {
+        mockListeners.get('onRestChanged')!(payload);
+      });
+
+    beforeEach(() => {
+      useActiveWorkoutStore.setState({ sessionId: 'session-1' });
+    });
+
+    it('skips the phone rest when the watch skips the same rest', () => {
+      const endsAt = Date.now() + 60_000;
+      useActiveWorkoutStore.setState({ rest: resting(endsAt) });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'session-1', previousEndsAt: endsAt + 800 });
+      expect(getStore().rest.state).toBe('ready');
+    });
+
+    it('moves the phone rest by the watch change, once', () => {
+      const endsAt = Date.now() + 60_000;
+      useActiveWorkoutStore.setState({ rest: resting(endsAt) });
+      renderHook(() => useWatchWorkoutBridge(true));
+      const payload = {
+        sessionId: 'session-1',
+        previousEndsAt: endsAt,
+        endsAt: endsAt + 15_000,
+      };
+      fire(payload);
+      expect(getStore().rest.endsAt).toBe(endsAt + 15_000);
+      // The same message delivered again finds the rest already moved.
+      fire(payload);
+      expect(getStore().rest.endsAt).toBe(endsAt + 15_000);
+    });
+
+    it('ignores a change meant for a different rest or session', () => {
+      const endsAt = Date.now() + 60_000;
+      useActiveWorkoutStore.setState({ rest: resting(endsAt) });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'session-1', previousEndsAt: endsAt - 90_000 });
+      fire({ sessionId: 'other', previousEndsAt: endsAt });
+      expect(getStore().rest).toMatchObject({ state: 'resting', endsAt });
+    });
   });
 
   it('does not subscribe when disabled', () => {
@@ -1053,6 +1106,7 @@ describe('useWatchWorkoutBridge', () => {
       { initialProps: { connected: false } }
     );
     expect(mockListeners.has('onSetCompleted')).toBe(true);
+    expect(mockListeners.has('onRestChanged')).toBe(true);
     expect(mockListeners.has('onHeartRateBatch')).toBe(true);
     expect(mockListeners.has('onWorkoutStop')).toBe(true);
     await waitFor(() => {

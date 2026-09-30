@@ -126,6 +126,13 @@ interface ActiveWorkoutExerciseCardProps {
    */
   sourcePresetId?: number;
   /**
+   * Live only: false while `sourcePresetId` may still change (the screen is
+   * still checking the preset belongs to the active server). The stats query
+   * runs meanwhile, but its unscoped history is not captured into the store,
+   * which keeps the first capture per exercise.
+   */
+  historyScopeSettled?: boolean;
+  /**
    * Live only: the store's PR stamps. When any of this exercise's set ids is
    * stamped, the Best line goes gold and shows the new record (the server
    * best stays historical by design).
@@ -279,6 +286,7 @@ function ActiveWorkoutExerciseCard({
   mode = 'live',
   excludePresetEntryId,
   sourcePresetId,
+  historyScopeSettled = true,
   prSetIds,
   showRestChip = true,
   onChangeCalories,
@@ -547,7 +555,7 @@ function ActiveWorkoutExerciseCard({
     // Wait for the query to resolve (data is null/undefined while loading). A
     // resolved stats object with a null `bestSet` still captures — that's the
     // "no history" baseline.
-    if (!isLive || stats == null) return;
+    if (!isLive || stats == null || !historyScopeSettled) return;
     capturePrBaseline(
       exercise.exercise_id,
       stats.bestSet
@@ -564,6 +572,7 @@ function ActiveWorkoutExerciseCard({
   }, [
     isLive,
     stats,
+    historyScopeSettled,
     exercise.exercise_id,
     capturePrBaseline,
     capturePreviousSessionSets,
