@@ -42,7 +42,10 @@ export function useWatchPlanSync(enabled: boolean): void {
     if (!enabled || !WatchConnectivity?.isSupported()) return;
     const watch = WatchConnectivity;
     // The structure the watch has for this arm, so only a change is sent.
-    let known: { armedAt: number; key: string } | null = null;
+    // `key` is null when the arm went out while a set still had a temporary
+    // id: the watch's plan then has that id, so the first plan with server
+    // ids must be sent even though nothing else changed.
+    let known: { armedAt: number; key: string | null } | null = null;
     let lastRevision = 0;
 
     const sync = (state: ActiveWorkoutState): void => {
@@ -53,8 +56,12 @@ export function useWatchPlanSync(enabled: boolean): void {
         session.exercises.some((exercise) =>
           exercise.sets.some((set) => isTempSetId(set.id))
         )
-      )
+      ) {
+        if (known?.armedAt !== watchArmedAt) {
+          known = { armedAt: watchArmedAt, key: null };
+        }
         return;
+      }
       const plan = buildWatchWorkoutStartPayload(session, t, watchArmedAt);
       const key = watchPlanStructureKey(plan);
       if (known?.armedAt !== watchArmedAt) {

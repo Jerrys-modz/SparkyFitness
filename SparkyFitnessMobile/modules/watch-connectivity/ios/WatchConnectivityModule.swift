@@ -30,18 +30,34 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     /// and queued on activation. Each update is a full snapshot, so only the
     /// latest one matters.
     private var heldSetTargets: [String: Any]?
+    /// The newest `workoutPlanUpdate`, held the same way and for the same
+    /// reason. Also a full snapshot, so only the latest matters; queued ahead
+    /// of held targets on activation, since those may name its new sets.
+    private var heldPlanUpdate: [String: Any]?
     private let heldLock = NSLock()
 
     /// Queues `payload` now if the session is activated, else holds it for
     /// `activationDidCompleteWith`.
     func transferSetTargets(_ payload: [String: Any]) {
+        transferOrHold(payload, into: \.heldSetTargets)
+    }
+
+    /// As `transferSetTargets`, for a plan update.
+    func transferPlanUpdate(_ payload: [String: Any]) {
+        transferOrHold(payload, into: \.heldPlanUpdate)
+    }
+
+    private func transferOrHold(
+        _ payload: [String: Any],
+        into slot: ReferenceWritableKeyPath<WatchSessionDelegateHandler, [String: Any]?>
+    ) {
         heldLock.lock()
         defer { heldLock.unlock() }
         guard WCSession.default.activationState == .activated else {
-            heldSetTargets = payload
+            self[keyPath: slot] = payload
             return
         }
-        heldSetTargets = nil
+        self[keyPath: slot] = nil
         WCSession.default.transferUserInfo(payload)
         if WCSession.default.isReachable {
             WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
@@ -87,10 +103,13 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     ) {
         if activationState == .activated {
             heldLock.lock()
-            let held = heldSetTargets
+            let plan = heldPlanUpdate
+            let targets = heldSetTargets
+            heldPlanUpdate = nil
             heldSetTargets = nil
             heldLock.unlock()
-            if let held { session.transferUserInfo(held) }
+            if let plan { session.transferUserInfo(plan) }
+            if let targets { session.transferUserInfo(targets) }
         }
         onReachabilityChange?(session.isReachable)
     }
@@ -331,10 +350,7 @@ public class WatchConnectivityModule: Module {
             guard WCSession.isSupported() else { return }
             var payload = plan.compactMapValues(withoutNulls)
             payload["type"] = "workoutPlanUpdate"
-            WCSession.default.transferUserInfo(payload)
-            if WCSession.default.isReachable {
-                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
-            }
+            self.delegateHandler.transferPlanUpdate(payload)
         }
 
         /// Tells the watch the workout it was armed with is over, because it
