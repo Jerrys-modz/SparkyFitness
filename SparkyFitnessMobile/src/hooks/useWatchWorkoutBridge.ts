@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
+  type WatchRestChangedPayload,
   type WatchHeartRateBatchPayload,
   type WatchWorkoutStopPayload,
 } from '../../modules/watch-connectivity';
@@ -144,6 +145,36 @@ function attributionSteps(state: {
  *
  * iOS-only; a no-op everywhere else.
  */
+/**
+ * Mirrors a Skip or ±15s pressed on the watch onto the phone's rest. The
+ * watch sends the rest's deadline before and after the change; it is applied
+ * only while the phone's rest still ends at that "before" deadline, give or
+ * take the transit time between the two clocks. A copy delivered twice then
+ * finds the rest already moved, and a late copy finds a different rest, and
+ * both are ignored rather than skipping or stretching the wrong one.
+ */
+const SAME_REST_TOLERANCE_MS = 3000;
+
+function applyWatchRestChange(payload: WatchRestChangedPayload): void {
+  const state = useActiveWorkoutStore.getState();
+  const { rest } = state;
+  if (
+    state.sessionId !== payload.sessionId ||
+    rest.state !== 'resting' ||
+    rest.endsAt == null ||
+    payload.previousEndsAt == null ||
+    Math.abs(rest.endsAt - payload.previousEndsAt) > SAME_REST_TOLERANCE_MS
+  ) {
+    return;
+  }
+  if (payload.endsAt == null) {
+    state.dismissRest();
+    return;
+  }
+  const deltaSec = Math.round((payload.endsAt - rest.endsAt) / 1000);
+  if (deltaSec !== 0) state.adjustRest(deltaSec);
+}
+
 export function useWatchWorkoutBridge(
   enabled: boolean,
   serverConnected: boolean = true,
@@ -640,6 +671,10 @@ export function useWatchWorkoutBridge(
         void handlersRef.current.handleSetCompleted(payload);
       }
     );
+    const restChangedSub = WatchConnectivity.addListener(
+      'onRestChanged',
+      applyWatchRestChange
+    );
     const heartRateBatchSub = WatchConnectivity.addListener(
       'onHeartRateBatch',
       (payload) => {
@@ -655,6 +690,7 @@ export function useWatchWorkoutBridge(
 
     return () => {
       setCompletedSub.remove();
+      restChangedSub.remove();
       heartRateBatchSub.remove();
       workoutStopSub.remove();
     };

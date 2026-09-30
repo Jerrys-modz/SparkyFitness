@@ -19,10 +19,35 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterDelete: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
+    var onRestChanged: (([String: Any]) -> Void)?
     /// A batch of heart-rate samples for one exercise, captured on the watch.
     var onHeartRateBatch: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
+
+    /// The newest `setTargets` update sent before the session finished
+    /// activating. Apple only queues `transferUserInfo` on an activated
+    /// session, and the phone treats an update as sent, so it is held here
+    /// and queued on activation. Each update is a full snapshot, so only the
+    /// latest one matters.
+    private var heldSetTargets: [String: Any]?
+    private let heldLock = NSLock()
+
+    /// Queues `payload` now if the session is activated, else holds it for
+    /// `activationDidCompleteWith`.
+    func transferSetTargets(_ payload: [String: Any]) {
+        heldLock.lock()
+        defer { heldLock.unlock() }
+        guard WCSession.default.activationState == .activated else {
+            heldSetTargets = payload
+            return
+        }
+        heldSetTargets = nil
+        WCSession.default.transferUserInfo(payload)
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
+    }
 
     func activate() {
         guard WCSession.isSupported() else { return }
@@ -43,6 +68,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterDelete?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
+        case "restChanged":
+            onRestChanged?(payload)
         case "heartRateBatch":
             onHeartRateBatch?(payload)
         case "workoutStop":
@@ -59,6 +86,13 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
+        if activationState == .activated {
+            heldLock.lock()
+            let held = heldSetTargets
+            heldSetTargets = nil
+            heldLock.unlock()
+            if let held { session.transferUserInfo(held) }
+        }
         onReachabilityChange?(session.isReachable)
     }
 
@@ -162,6 +196,7 @@ public class WatchConnectivityModule: Module {
             "onWaterIntake",
             "onWaterDelete",
             "onSetCompleted",
+            "onRestChanged",
             "onHeartRateBatch",
             "onWorkoutStop"
         )
@@ -214,6 +249,20 @@ public class WatchConnectivityModule: Module {
                     "reps": payload["reps"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
                 ])
+            }
+            self.delegateHandler.onRestChanged = { [weak self] payload in
+                // Epoch ms as Doubles, like the phone's own rest deadline.
+                // `endsAt` is absent when the rest was skipped on the watch.
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                ]
+                if let previous = (payload["previousEndsAt"] as? NSNumber)?.doubleValue {
+                    event["previousEndsAt"] = previous
+                }
+                if let endsAt = (payload["endsAt"] as? NSNumber)?.doubleValue {
+                    event["endsAt"] = endsAt
+                }
+                self?.sendEvent("onRestChanged", event)
             }
             self.delegateHandler.onHeartRateBatch = { [weak self] payload in
                 guard let self else { return }
@@ -326,6 +375,16 @@ public class WatchConnectivityModule: Module {
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
+        }
+
+        /// Current weight/reps targets for the live session's sets. Queued and
+        /// sent immediately like `updateIntervalTiming`; the watch keeps the
+        /// highest revision, so a late queued copy cannot undo a newer one.
+        AsyncFunction("updateSetTargets") { (update: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = update.compactMapValues(withoutNulls)
+            payload["type"] = "setTargets"
+            self.delegateHandler.transferSetTargets(payload)
         }
 
         /// The server config that owns batches queued from now on. Each batch

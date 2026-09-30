@@ -1147,6 +1147,36 @@ describe('ActiveWorkoutExerciseCard', () => {
       );
     });
 
+    it("holds the capture until the preset's history scope has settled", () => {
+      mockUseExerciseStats.mockReturnValue(STATS_WITH_HISTORY);
+      mockCapturePreviousSessionSets.mockClear();
+      const { rerender, callbacks } = renderCard(true, {
+        mode: 'live',
+        historyScopeSettled: false,
+      });
+      expect(mockCapturePreviousSessionSets).not.toHaveBeenCalled();
+      expect(mockCapturePrBaseline).not.toHaveBeenCalled();
+
+      rerender(
+        <ActiveWorkoutExerciseCard
+          exercise={makeExercise()}
+          expanded
+          completedSetIds={{}}
+          activeSetId="101"
+          metricColumn="rpe"
+          weightUnit="kg"
+          getImageSource={() => null}
+          {...callbacks}
+          mode="live"
+          historyScopeSettled
+        />
+      );
+      expect(mockCapturePreviousSessionSets).toHaveBeenCalledWith(
+        'ex-1',
+        STATS_WITH_HISTORY.data.recentSessions[0].sets
+      );
+    });
+
     it('captures an empty history so no-history exercises still mark captured', () => {
       mockUseExerciseStats.mockReturnValue({
         data: { bestSet: null, lastSet: null },
