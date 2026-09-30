@@ -109,6 +109,34 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
+          {t('watchSettings.setInputTitle', { defaultValue: 'Set input' })}
+        </Text>
+        <Text className="text-text-secondary text-sm mb-4">
+          {t('watchSettings.setInputDescription', {
+            defaultValue:
+              'How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.',
+          })}
+        </Text>
+        <SegmentedControl<WatchSetInputStyle>
+          segments={[
+            {
+              key: 'keypad',
+              label: t('watchSettings.setInputKeypad', {
+                defaultValue: 'Keypad',
+              }),
+            },
+            {
+              key: 'crown',
+              label: t('watchSettings.setInputCrown', {
+                defaultValue: 'Digital Crown',
+              }),
+            },
+          ]}
+          activeKey={watchSetInputStyle}
+          onSelect={setWatchSetInputStyle}
+        />
+
+        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
           {t('watchSettings.pagesTitle', { defaultValue: 'Pages' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">
@@ -164,34 +192,6 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
           reorderA11yHint={t('watchSettings.nutrientReorderHint', {
             defaultValue: 'Changes where this nutrient sits on your watch',
           })}
-        />
-
-        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
-          {t('watchSettings.setInputTitle', { defaultValue: 'Set input' })}
-        </Text>
-        <Text className="text-text-secondary text-sm mb-4">
-          {t('watchSettings.setInputDescription', {
-            defaultValue:
-              'How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.',
-          })}
-        </Text>
-        <SegmentedControl<WatchSetInputStyle>
-          segments={[
-            {
-              key: 'keypad',
-              label: t('watchSettings.setInputKeypad', {
-                defaultValue: 'Keypad',
-              }),
-            },
-            {
-              key: 'crown',
-              label: t('watchSettings.setInputCrown', {
-                defaultValue: 'Digital Crown',
-              }),
-            },
-          ]}
-          activeKey={watchSetInputStyle}
-          onSelect={setWatchSetInputStyle}
         />
       </ScrollView>
     </View>
