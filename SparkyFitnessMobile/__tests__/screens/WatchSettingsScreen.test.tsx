@@ -21,6 +21,16 @@ jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: () => 0,
 }));
 
+jest.mock('../../src/hooks/useServerConnection', () => ({
+  useServerConnection: () => ({ isConnected: true }),
+}));
+
+jest.mock('../../src/hooks/useCustomNutrients', () => ({
+  useCustomNutrients: () => ({
+    customNutrients: [{ id: '1', name: 'Creatine', unit: 'g' }],
+  }),
+}));
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
@@ -116,5 +126,61 @@ describe('WatchSettingsScreen', () => {
     expect(screen.getByTestId('watch-page-switch-goals').props.disabled).toBe(
       false
     );
+  });
+
+  describe('Goals page nutrients', () => {
+    const nutrientRowKeys = (): string[] =>
+      screen
+        .queryAllByTestId(/^watch-nutrient-row-/)
+        .map((row) =>
+          String(row.props.testID).replace('watch-nutrient-row-', '')
+        );
+
+    test('lists standard nutrients then custom ones, macros shown by default', () => {
+      renderScreen();
+
+      const keys = nutrientRowKeys();
+      expect(keys.slice(0, 3)).toEqual(['protein', 'carbs', 'fat']);
+      expect(keys).toContain('sodium');
+      expect(keys[keys.length - 1]).toBe('Creatine');
+      expect(keys).not.toContain('calories');
+      expect(
+        screen.getByTestId('watch-nutrient-switch-protein').props.value
+      ).toBe(true);
+      expect(
+        screen.getByTestId('watch-nutrient-switch-sodium').props.value
+      ).toBe(false);
+    });
+
+    test('turning a nutrient on adds it to the Goals page', () => {
+      renderScreen();
+
+      fireEvent(
+        screen.getByTestId('watch-nutrient-switch-Creatine'),
+        'valueChange',
+        true
+      );
+
+      expect(useAppPreferencesStore.getState().shownWatchNutrients).toEqual([
+        'protein',
+        'carbs',
+        'fat',
+        'Creatine',
+      ]);
+    });
+
+    test('reordering a nutrient saves the whole order', () => {
+      renderScreen();
+
+      fireEvent(
+        screen.getByTestId('watch-nutrient-drag-handle-protein'),
+        'accessibilityAction',
+        { nativeEvent: { actionName: 'increment' } }
+      );
+
+      expect(
+        useAppPreferencesStore.getState().watchNutrientOrder.slice(0, 3)
+      ).toEqual(['carbs', 'protein', 'fat']);
+    });
   });
 });
