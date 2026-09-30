@@ -175,6 +175,24 @@ struct PendingWaterTap: Codable, Equatable, Identifiable {
     var isToday: Bool { day == CheckInDate.today() }
 }
 
+/// A delete the wearer has confirmed but the phone hasn't written yet.
+///
+/// The sibling of `PendingWaterTap`, and for the same reason: the only record
+/// that a delete happened used to be a `@State` set inside the log view, which
+/// died when the page went away and was never resent. A lost delete simply
+/// undid itself on the next push.
+struct PendingWaterDelete: Codable, Equatable, Identifiable {
+    /// The `clientId` the phone acknowledges — not the row being deleted.
+    let id: String
+    /// The `water_intake_entries` row this removes.
+    let entryId: String
+    let createdAt: Date
+    let day: String
+    var state: SyncState = .queued
+
+    var isToday: Bool { day == CheckInDate.today() }
+}
+
 /// One container tap captured on the watch, sent straight to the phone. There
 /// is no queued/saved/failed state kept for these on the watch the way there
 /// is for `CheckIn` — see `WatchSessionManager.sendWaterTap`.
@@ -262,6 +280,12 @@ struct WatchContext: Codable, Equatable {
     /// a genuinely fresh push from `adoptReceivedContext()` replaying a cached
     /// one — the two are indistinguishable by arrival time.
     var generatedAt: Date?
+    /// The phone's Settings → Haptics switch, and whether its rest-complete
+    /// alert is on (notifications and rest-timer notifications both enabled).
+    /// Optional for the same Codable reason as `weightUnit`; nil means the
+    /// phone hasn't said, which reads as on. Use the `effective…` accessors.
+    var hapticsEnabled: Bool?
+    var restAlertsEnabled: Bool?
 
     static let empty = WatchContext(
         today: nil,
@@ -280,7 +304,9 @@ struct WatchContext: Codable, Equatable {
         waterContainers: nil,
         waterGoalMl: nil,
         waterDisplayUnit: nil,
-        generatedAt: nil
+        generatedAt: nil,
+        hapticsEnabled: nil,
+        restAlertsEnabled: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
@@ -304,6 +330,17 @@ struct WatchContext: Codable, Equatable {
     /// `weightUnit`, defaulted to kg — the same fallback used everywhere else
     /// (a fresh watch install before first phone sync, or an unrecognized value).
     var effectiveWeightUnit: WeightUnit { weightUnit ?? .kg }
+
+    /// Whether button presses on the watch play a haptic. On until the phone
+    /// says otherwise.
+    var effectiveHapticsEnabled: Bool { hapticsEnabled ?? true }
+
+    /// Whether a rest running out buzzes the wrist: needs both the phone's
+    /// haptics and its rest-complete alert on, the same switches that silence
+    /// the phone's own cue.
+    var effectiveRestBuzzEnabled: Bool {
+        effectiveHapticsEnabled && (restAlertsEnabled ?? true)
+    }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.

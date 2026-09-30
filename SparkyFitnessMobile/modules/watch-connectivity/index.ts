@@ -108,6 +108,17 @@ export interface WatchContextPayload {
    */
   weightUnit?: 'kg' | 'lbs' | null;
   /**
+   * The phone's Settings → Haptics switch. The watch plays button haptics
+   * and the rest-end buzz only while this is on. Missing reads as on.
+   */
+  hapticsEnabled?: boolean | null;
+  /**
+   * Whether the phone's rest-complete alert is on (notifications and rest
+   * timer notifications both enabled). The watch's rest-end buzz follows it.
+   * Missing reads as on.
+   */
+  restAlertsEnabled?: boolean | null;
+  /**
    * Today's progress toward the phone's daily nutrition goals, each already
    * clamped to 0...1 — reaching or passing a goal always reads as 1, same
    * convention the iOS calorie widget already uses. Powers the watch's
