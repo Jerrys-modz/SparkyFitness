@@ -5325,6 +5325,7 @@
     "stateHidden": "Hidden"
   },
   "watchSettings": {
+    "pagesTitle": "Pages",
     "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
     "reorder": "Reorder {{name}}",
     "reorderHint": "Changes where this page sits on your watch",
@@ -5334,7 +5335,10 @@
       "entry": "Weight check-in",
       "trend": "Weight trend",
       "workout": "Workout"
-    }
+    },
+    "nutrientsTitle": "Goals page nutrients",
+    "nutrientsDescription": "Choose the nutrients listed under the calorie ring on your watch, and drag to set their order. Each shows today’s amount against its goal.",
+    "nutrientReorderHint": "Changes where this nutrient sits on your watch"
   },
   "progressPhotos": {
     "card": {

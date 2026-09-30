@@ -150,6 +150,19 @@ describe('appPreferencesStore', () => {
       store.setWatchPageHidden('trend', false);
       expect(useAppPreferencesStore.getState().hiddenWatchPages).toEqual([]);
     });
+
+    it('shows the three macros on the Goals page until the wearer picks', () => {
+      const store = useAppPreferencesStore.getState();
+      expect(store.shownWatchNutrients).toEqual(['protein', 'carbs', 'fat']);
+
+      store.setWatchNutrientShown('sodium', true);
+      store.setWatchNutrientShown('fat', false);
+      expect(useAppPreferencesStore.getState().shownWatchNutrients).toEqual([
+        'protein',
+        'carbs',
+        'sodium',
+      ]);
+    });
   });
 
   describe('dashboard card preferences', () => {

@@ -15,7 +15,11 @@ import {
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
 } from '../constants/healthTrends';
-import { WATCH_PAGE_KEYS, type WatchPageKey } from '../constants/watchPages';
+import {
+  DEFAULT_WATCH_NUTRIENTS,
+  WATCH_PAGE_KEYS,
+  type WatchPageKey,
+} from '../constants/watchPages';
 import type { LanguagePreference } from '../localization';
 import type { OwnershipFilter } from '../utils/shareStatus';
 
@@ -95,6 +99,8 @@ export const PREFERENCE_DEFAULTS = {
   hiddenHealthTrends: [] as HealthTrendKey[],
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
+  watchNutrientOrder: [] as string[],
+  shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
   foodsLibraryOwnershipFilter: 'all' as OwnershipFilter,
   mealsLibraryOwnershipFilter: 'all' as OwnershipFilter,
@@ -160,6 +166,13 @@ export type AppPreferencesData = {
   watchPageOrder: WatchPageKey[];
   /** Watch pages turned off in Settings → Apple Watch. */
   hiddenWatchPages: WatchPageKey[];
+  /**
+   * Order of the nutrients the watch's Goals page can list (standard keys and
+   * custom nutrient names). Empty until the wearer drags one.
+   */
+  watchNutrientOrder: string[];
+  /** The nutrients the Goals page lists under the calorie ring. */
+  shownWatchNutrients: string[];
   foodSearchOwnershipFilter: OwnershipFilter;
   foodsLibraryOwnershipFilter: OwnershipFilter;
   mealsLibraryOwnershipFilter: OwnershipFilter;
@@ -211,6 +224,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
+  setWatchNutrientOrder: (order: string[]) => void;
+  setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setFoodSearchOwnershipFilter: (value: OwnershipFilter) => void;
   setFoodsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
   setMealsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
@@ -339,6 +354,15 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           ),
         })),
       setWatchPageOrder: (order) => set({ watchPageOrder: order }),
+      setWatchNutrientOrder: (order) => set({ watchNutrientOrder: order }),
+      setWatchNutrientShown: (key, isShown) =>
+        set((state) => ({
+          shownWatchNutrients: withMembership(
+            state.shownWatchNutrients,
+            key,
+            isShown
+          ),
+        })),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -411,6 +435,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenHealthTrends: state.hiddenHealthTrends,
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
+        watchNutrientOrder: state.watchNutrientOrder,
+        shownWatchNutrients: state.shownWatchNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
         foodsLibraryOwnershipFilter: state.foodsLibraryOwnershipFilter,
         mealsLibraryOwnershipFilter: state.mealsLibraryOwnershipFilter,
