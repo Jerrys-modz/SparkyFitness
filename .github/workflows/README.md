@@ -188,7 +188,7 @@ The initial App Store submission stays manual (see `umbrel/README.md`): `submiss
 
 **Purpose**: Build the signed Android APK and AAB and attach them to the release
 
-**Triggers**: Release publication, and manual workflow dispatch. Not the `v*` tag push: `release-please.yml` creates the tag with the draft, before the release is approved.
+**Triggers**: Release publication, and manual workflow dispatch. A manual dispatch only attaches the APK and AAB when run against a release tag; from a branch it builds them without uploading. Not the `v*` tag push: `release-please.yml` creates the tag with the draft, before the release is approved.
 
 ---
 
