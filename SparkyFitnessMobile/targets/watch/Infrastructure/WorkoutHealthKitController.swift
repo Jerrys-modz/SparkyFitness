@@ -188,7 +188,10 @@ final class WorkoutHealthKitController: NSObject {
     /// as a plain timer/set tracker either way, just without live HR).
     /// - Parameter sessionId: the Sparky live-workout session this belongs to,
     ///   stamped into the saved workout's metadata as the own-write marker.
-    func start(sessionId: String) {
+    /// - Parameter workoutName: the preset's name, saved as the workout's
+    ///   brand name — the title Fitness shows in its Sessions list instead of
+    ///   the bare activity type.
+    func start(sessionId: String, workoutName: String) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
 
         let configuration = HKWorkoutConfiguration()
@@ -217,9 +220,14 @@ final class WorkoutHealthKitController: NSObject {
             // Metadata must be added during an active collection — firing it
             // in parallel with beginCollection raced and could drop the
             // own-write marker the phone uses to skip this workout on sync.
+            var metadata: [String: Any] = [Self.sessionMetadataKey: sessionId]
+            let title = workoutName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty {
+                metadata[HKMetadataKeyWorkoutBrandName] = title
+            }
             newBuilder.beginCollection(withStart: now) { success, _ in
                 guard success else { return }
-                newBuilder.addMetadata([Self.sessionMetadataKey: sessionId]) { _, _ in }
+                newBuilder.addMetadata(metadata) { _, _ in }
             }
             startHeartRateSeriesQuery(from: now)
             startBatchTimer()

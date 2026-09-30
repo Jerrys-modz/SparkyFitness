@@ -20,6 +20,9 @@ describe('globalSettingsRepository', () => {
     getSystemClient.mockResolvedValue(mockClient);
     vi.clearAllMocks();
   });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   describe('getGlobalSettings', () => {
     afterEach(() => {
       vi.unstubAllEnvs();
@@ -81,6 +84,41 @@ describe('globalSettingsRepository', () => {
     });
   });
   describe('saveGlobalSettings', () => {
+    it.each([
+      ['SPARKY_FITNESS_FORCE_EMAIL_LOGIN', 0],
+      ['SPARKY_FITNESS_DISABLE_EMAIL_LOGIN', 0],
+      ['SPARKY_FITNESS_OIDC_AUTH_ENABLED', 1],
+    ])(
+      'keeps the stored admin choice while %s forces it',
+      async (envVar, param) => {
+        vi.stubEnv(envVar, 'true');
+        mockClient.query.mockResolvedValue({ rows: [{ id: 1 }] });
+        await globalSettingsRepository.saveGlobalSettings({
+          enable_email_password_login: false,
+          is_oidc_active: true,
+          is_mfa_mandatory: false,
+        });
+        const [sql, params] = mockClient.query.mock.calls[0];
+        expect(sql).toContain(
+          'enable_email_password_login = COALESCE($1, enable_email_password_login)'
+        );
+        expect(sql).toContain('is_oidc_active = COALESCE($2, is_oidc_active)');
+        expect(params[param]).toBeNull();
+      }
+    );
+
+    it('saves the admin login choices when no env var forces them', async () => {
+      mockClient.query.mockResolvedValue({ rows: [{ id: 1 }] });
+      await globalSettingsRepository.saveGlobalSettings({
+        enable_email_password_login: false,
+        is_oidc_active: true,
+        is_mfa_mandatory: false,
+      });
+      const params = mockClient.query.mock.calls[0][1];
+      expect(params[0]).toBe(false);
+      expect(params[1]).toBe(true);
+    });
+
     it('should update and return global settings', async () => {
       const inputSettings = {
         enable_email_password_login: true,
