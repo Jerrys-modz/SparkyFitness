@@ -639,8 +639,9 @@ private struct CurrentSetView: View {
         return clamp((value / step).rounded() * step, for: field)
     }
 
+    /// Follows the phone's Haptics switch, like every other tap here.
     private func stepClick() {
-        WKInterfaceDevice.current().play(.click)
+        Haptics.tap()
     }
 
     private func clamp(_ value: Double, for field: EditableField) -> Double {
