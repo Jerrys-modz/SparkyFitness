@@ -100,6 +100,9 @@ struct ContentView: View {
             session.adoptReceivedContext()
             session.requestContext()
             session.refreshComplications()
+            // Coming back to the app mid-workout lands on the workout, not
+            // whichever page was left open.
+            if workout.isActive { page = .workout }
         }
         // A workout started on the phone opens the watch app; land on the
         // workout rather than whichever page was showing last. Keyed on the
