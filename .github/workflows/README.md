@@ -73,6 +73,34 @@ hasUIChanges = .tsx/.jsx/.css files in components/screens/pages/
 
 ---
 
+### Release Workflows
+
+#### `release-please.yml`
+
+**Purpose**: Derive the next version from Conventional Commits and draft the release.
+
+**Triggers**: Pushes to `main`, and manual workflow dispatch
+
+**What it does**:
+
+- Keeps a `chore: release vX.Y.Z` PR open that bumps every version file (the workspace `package.json`s, `SparkyFitnessMobile/app.json`, `helm/chart/Chart.yaml`, `version.txt`) and `CHANGELOG.md`. The bump follows SemVer: `feat:` → minor, `fix:`/`perf:` → patch, `feat!:` or a `BREAKING CHANGE:` footer → major. Commits without a conventional prefix are ignored.
+- Re-formats the JSON version files on the release PR branch with Prettier, since release-please writes them with plain `JSON.stringify`
+- When the release PR is merged, creates a **draft** release and its tag, and replaces the body with `.github/release-preamble.md` + GitHub's generated notes (the same body `draft-release.yml` builds)
+
+Nothing ships until a maintainer fills in the Key Highlights and publishes the draft. The `release: published` workflows below run on that publish, as before.
+
+Config lives in `release-please-config.json`; the current version in `.release-please-manifest.json`. By default it runs with `GITHUB_TOKEN`, so CI does not run on the release PR. Set a `RELEASE_PLEASE_TOKEN` secret (PAT or GitHub App token with `contents` and `pull-requests` write) to get CI on it.
+
+---
+
+#### `draft-release.yml`
+
+**Purpose**: Manually create a draft release for a version release-please does not produce, such as a four-segment hotfix (`v1.7.3.1`)
+
+**Triggers**: Manual workflow dispatch (`tag`, optional `previous_tag` and `target`)
+
+---
+
 ### Deployment Workflows
 
 #### `auto-docker-deploy.yml`
@@ -303,4 +331,4 @@ This document should be updated when:
 - Trigger conditions change
 - Validation rules change
 
-Last updated: 2026-09-25
+Last updated: 2026-09-30
