@@ -212,6 +212,16 @@ enum ContextPayloadMapper {
     /// The workout plan the phone armed the watch with. Nil when the payload
     /// is missing required fields — a malformed `workoutStart` is dropped
     /// rather than starting a session with holes in it.
+    /// A mid-workout plan update: the same shape as `workoutStart`, plus a
+    /// `revision` (JS ms timestamp, a Double for the same 32-bit reason as
+    /// `setTargets`) so a duplicate or out-of-order copy is ignored.
+    static func workoutPlanUpdate(from payload: [String: Any]) -> (plan: ActiveWorkoutPlan, revision: Double)? {
+        guard let plan = workoutPlan(from: payload),
+              let revision = doubleValue(payload["revision"])
+        else { return nil }
+        return (plan, revision)
+    }
+
     static func workoutPlan(from payload: [String: Any]) -> ActiveWorkoutPlan? {
         guard
             let sessionId = payload["sessionId"] as? String,
