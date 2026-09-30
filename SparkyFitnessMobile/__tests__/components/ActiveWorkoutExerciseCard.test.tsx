@@ -84,6 +84,16 @@ jest.mock('../../src/components/ActiveWorkoutSetDetail', () => {
   };
 });
 
+// Body weight only matters to bodyweight exercises; the card must not need a
+// QueryClient for it in these tests.
+const mockUseBodyWeightKg = jest.fn(
+  (_date: unknown, _enabled: boolean) => null
+);
+jest.mock('../../src/hooks/useBodyWeightKg', () => ({
+  useBodyWeightKg: (date: unknown, enabled: boolean) =>
+    mockUseBodyWeightKg(date, enabled),
+}));
+
 jest.mock('../../src/hooks/useExerciseStats', () => ({
   useExerciseStats: jest.fn(() => ({ data: null })),
 }));

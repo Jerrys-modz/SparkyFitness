@@ -601,7 +601,11 @@ async function createExercise(exerciseData: any) {
         exerciseData.shared_with_public,
         // Sanitized here rather than at the route so an arbitrary client string
         // cannot reach the CHECK constraint as a 500.
-        resolveExerciseModality(exerciseData.modality, exerciseData.category),
+        resolveExerciseModality(
+          exerciseData.modality,
+          exerciseData.category,
+          normalizeToStringArray(exerciseData.equipment)
+        ),
       ]
     );
     return result.rows[0];
