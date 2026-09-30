@@ -14,6 +14,7 @@ struct ContentView: View {
 
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var workout: WorkoutSessionStore
 
     /// Watched so the app can notice a day has ended while it was away. The
     /// watch app commonly stays resident overnight, in which case nothing
@@ -100,6 +101,13 @@ struct ContentView: View {
             session.requestContext()
             session.refreshComplications()
         }
+        // A workout started on the phone opens the watch app; land on the
+        // workout rather than whichever page was showing last. Keyed on the
+        // session id, so it happens once per workout and the wearer can still
+        // swipe away mid-workout without being pulled back.
+        .onChange(of: workout.plan?.sessionId) { _, sessionId in
+            if sessionId != nil { page = .workout }
+        }
         .onOpenURL { url in
             guard let link = WatchDeepLink(url: url),
                   let requested = destination(for: link)
@@ -123,10 +131,12 @@ struct ContentView: View {
         }
     }
 
-    /// Landing page on a normal (non-first-run) launch: Nutrition goal if today is
-    /// already logged — nothing left to capture — otherwise Entry.
+    /// Landing page on a normal (non-first-run) launch: the workout while one
+    /// is running, else Nutrition goal if today is already logged — nothing
+    /// left to capture — otherwise Entry.
     private var initialPage: Page {
-        store.isReplacingToday ? .goals : .entry
+        if workout.isActive { return .workout }
+        return store.isReplacingToday ? .goals : .entry
     }
 
     #if DEBUG
