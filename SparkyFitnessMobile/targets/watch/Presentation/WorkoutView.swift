@@ -593,6 +593,7 @@ private struct RestView: View {
                     .font(.caption2)
                     .buttonStyle(.plain)
                     .foregroundStyle(.blue)
+                    .disabled(store.restPausedRemaining != nil)
                 Spacer()
                 if store.restPausedRemaining != nil {
                     Text("Paused")
@@ -630,6 +631,8 @@ private struct RestView: View {
             }
             .font(.caption2)
             .buttonStyle(.bordered)
+            // Paused on the phone: it owns the rest until it resumes.
+            .disabled(store.restPausedRemaining != nil)
         }
     }
 
