@@ -4422,13 +4422,24 @@
       "empty": "No sleep data for this period",
       "avgTimeInBed": "Avg time in bed",
       "avgTimeAsleep": "Avg time asleep",
-      "rangeLabel": "{{startDate}} – {{endDate}}"
+      "tooltip": "{{timeInBed}} in bed · {{timeAsleep}} asleep"
     },
     "hydration": {
       "title": "Hydration",
       "loadFailed": "Failed to load hydration data",
       "empty": "No hydration data for this period",
       "tooltip": "{{formattedVolume}} {{unit}} · {{date}}"
+    },
+    "calories": {
+      "title": "Calories",
+      "loadFailed": "Failed to load calorie data",
+      "empty": "No calorie data for this period",
+      "tooltip": "{{formattedCount}} kcal consumed",
+      "tooltipMacro": "{{percent}}% {{macroLabel}}",
+      "otherMacro": "Other",
+      "avgCalories": "Avg",
+      "avgCaloriesValue": "{{formattedCount}} kcal",
+      "noAverage": "—"
     },
     "loading": "Loading chart...",
     "weightLoadFailed": "Failed to load weight data",
