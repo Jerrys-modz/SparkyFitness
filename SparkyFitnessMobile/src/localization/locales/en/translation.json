@@ -5325,7 +5325,7 @@
     "nutrientsDescription": "Choose the nutrients listed under the calorie ring on your watch, and drag to set their order. Each shows today’s amount against its goal.",
     "nutrientReorderHint": "Changes where this nutrient sits on your watch",
     "setInputTitle": "Set input",
-    "setInputDescription": "How you enter weight and reps on the watch during a workout: type them on a keypad, or turn the Digital Crown in plate steps.",
+    "setInputDescription": "How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.",
     "setInputKeypad": "Keypad",
     "setInputCrown": "Digital Crown"
   },

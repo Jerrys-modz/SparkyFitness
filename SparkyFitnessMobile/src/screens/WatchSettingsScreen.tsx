@@ -172,7 +172,7 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
         <Text className="text-text-secondary text-sm mb-4">
           {t('watchSettings.setInputDescription', {
             defaultValue:
-              'How you enter weight and reps on the watch during a workout: type them on a keypad, or turn the Digital Crown in plate steps.',
+              'How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.',
           })}
         </Text>
         <SegmentedControl<WatchSetInputStyle>
