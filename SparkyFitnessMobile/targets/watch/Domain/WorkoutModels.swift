@@ -179,8 +179,8 @@ struct SetValues: Codable, Equatable {
 enum PhoneRest: Codable, Equatable {
     /// Counting down to `endsAt`.
     case resting(endsAt: Date, durationSeconds: Int)
-    /// Paused on the phone. The watch has no pause, so its own rest is left
-    /// as it is until the phone resumes or ends it.
+    /// Paused on the phone. The watch freezes its countdown until the phone
+    /// resumes (a new `.resting` deadline) or ends it.
     case paused
     /// No rest: skipped, run out, or never started.
     case ready
