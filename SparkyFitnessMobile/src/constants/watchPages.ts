@@ -42,7 +42,8 @@ export const DEFAULT_WATCH_NUTRIENTS = ['protein', 'carbs', 'fat'];
 
 /**
  * How the watch's workout page takes a set's weight and reps: a number
- * keypad, or the Digital Crown turned in steps (Hevy-style). Wire values, read
+ * keypad, or adjusted in place with the Digital Crown or a drag (Hevy-style).
+ * Wire values, read
  * by the watch's `SetInputStyle`.
  */
 export const WATCH_SET_INPUT_STYLES = ['keypad', 'crown'] as const;
