@@ -197,6 +197,9 @@ server:
     # -- Image digest (e.g. "sha256:abc..."). When set, takes precedence over tag.
     digest: ""
     pullPolicy: IfNotPresent
+  # -- Server replica count. Above 1, one replica runs as a separate `-jobs`
+  # Deployment that runs the scheduled jobs and the rest skip them. Change it
+  # here rather than with `kubectl scale`. Requires ReadWriteMany backup/uploads PVCs.
   replicas: 1
   port: 3010
   # -- Deployment update strategy. Default `Recreate` is required when the
