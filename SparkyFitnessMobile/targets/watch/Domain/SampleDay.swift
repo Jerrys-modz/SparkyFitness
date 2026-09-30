@@ -103,7 +103,9 @@ enum SampleDay {
             waterDisplayUnit: "liter",
             generatedAt: Date(),
             hapticsEnabled: true,
-            restAlertsEnabled: true
+            restAlertsEnabled: true,
+            pageOrder: nil,
+            hiddenPages: nil
         )
     }
 

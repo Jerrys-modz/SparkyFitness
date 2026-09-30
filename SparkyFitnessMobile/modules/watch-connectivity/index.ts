@@ -119,6 +119,13 @@ export interface WatchContextPayload {
    */
   restAlertsEnabled?: boolean | null;
   /**
+   * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
+   * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
+   * with nothing hidden; the watch carries the last values forward.
+   */
+  pageOrder?: string[] | null;
+  hiddenPages?: string[] | null;
+  /**
    * Today's progress toward the phone's daily nutrition goals, each already
    * clamped to 0...1 — reaching or passing a goal always reads as 1, same
    * convention the iOS calorie widget already uses. Powers the watch's
