@@ -62,6 +62,7 @@ import {
   shouldSuggestVariation,
 } from '@workspace/shared';
 import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
+import { useLiveHeartRate } from '../stores/liveHeartRateStore';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
 import type {
@@ -616,8 +617,11 @@ function ActiveWorkoutExerciseCard({
   // it only ever arrives from a paired watch or a synced workout. Max is
   // appended in parentheses when it differs from the average, so a steady
   // effort reads as one number instead of the same one twice.
+  // During a live workout, the newest reading the watch sent for this
+  // exercise instead; the saved average only exists once the workout is.
+  const liveBpm = useLiveHeartRate(isLive ? String(exercise.id) : null);
   const heartRateText = (() => {
-    if (!readOnly) return null;
+    if (!readOnly) return liveBpm != null ? String(liveBpm) : null;
     const avg = exercise.avg_heart_rate;
     if (avg == null || avg <= 0) return null;
     const max = exercise.max_heart_rate;
@@ -1420,10 +1424,17 @@ function ActiveWorkoutExerciseCard({
             {heartRateText != null && (
               <View
                 className="flex-row items-center"
-                accessibilityLabel={t('activeWorkout.exercise.heartRateFor', {
-                  defaultValue: 'Average heart rate for {{name}}',
-                  name,
-                })}
+                accessibilityLabel={
+                  readOnly
+                    ? t('activeWorkout.exercise.heartRateFor', {
+                        defaultValue: 'Average heart rate for {{name}}',
+                        name,
+                      })
+                    : t('activeWorkout.exercise.liveHeartRateFor', {
+                        defaultValue: 'Current heart rate for {{name}}',
+                        name,
+                      })
+                }
               >
                 <Icon name="heart-rate" size={14} color={heartRateColor} />
                 <Text

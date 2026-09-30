@@ -90,6 +90,13 @@ jest.mock('../../src/hooks/useExerciseStats', () => ({
 
 // The card only touches the store to capture the PR baseline; a selector-based
 // stub exposes a stable spy for that action.
+const mockUseLiveHeartRate = jest.fn(
+  (_entryId: string | null): number | null => null
+);
+jest.mock('../../src/stores/liveHeartRateStore', () => ({
+  useLiveHeartRate: (entryId: string | null) => mockUseLiveHeartRate(entryId),
+}));
+
 jest.mock('../../src/stores/activeWorkoutStore', () => {
   const capturePrBaseline = jest.fn();
   const capturePreviousSessionSets = jest.fn();
@@ -575,10 +582,30 @@ describe('ActiveWorkoutExerciseCard', () => {
       const view = renderCard(true, { mode: 'view', exercise });
       expect(view.getByText('142 (168) bpm')).toBeTruthy();
 
-      // Live mode has no HR chip: the watch reports it after the fact, so
-      // mid-workout there is nothing to show.
+      // Live mode never shows the saved average: it is only final once the
+      // workout is, and until then the chip shows the watch's live reading.
       const live = renderCard(true, { mode: 'live', exercise });
       expect(live.queryByText('142 (168) bpm')).toBeNull();
+    });
+
+    it('shows the live reading from the watch while the workout runs', () => {
+      mockUseLiveHeartRate.mockImplementation((entryId) =>
+        entryId === 'ex-uuid-1' ? 137 : null
+      );
+      try {
+        const live = renderCard(true, { mode: 'live' });
+        expect(live.getByText('137 bpm')).toBeTruthy();
+        expect(
+          live.getByLabelText('Current heart rate for Bench Press')
+        ).toBeTruthy();
+
+        // View mode asks for no live reading and keeps the saved figures.
+        mockUseLiveHeartRate.mockClear();
+        renderCard(true, { mode: 'view' });
+        expect(mockUseLiveHeartRate).toHaveBeenCalledWith(null);
+      } finally {
+        mockUseLiveHeartRate.mockImplementation(() => null);
+      }
     });
 
     it('shows a lone figure when max matches the average', () => {
