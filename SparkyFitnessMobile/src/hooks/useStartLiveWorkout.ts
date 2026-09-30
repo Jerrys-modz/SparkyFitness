@@ -16,6 +16,7 @@ import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import { serverConnectionQueryKey } from './queryKeys';
 import { defaultWorkoutName } from './useWorkoutForm';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
+import { resolveWatchSetTargets } from './useWatchSetTargetsSync';
 import WatchConnectivity, {
   type WatchWorkoutStartPayload,
 } from '../../modules/watch-connectivity';
@@ -70,16 +71,13 @@ interface StartLiveWorkoutArgs {
  */
 function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
-  t: TFunction
+  t: TFunction,
+  armedAtMs: number
 ): WatchWorkoutStartPayload {
-  const {
-    steps,
-    plannedSetValues,
-    workoutFormat,
-    timeCapSeconds,
-    startedAt,
-    intervalPhases,
-  } = useActiveWorkoutStore.getState();
+  const state = useActiveWorkoutStore.getState();
+  const { steps, workoutFormat, timeCapSeconds, startedAt, intervalPhases } =
+    state;
+  const targets = resolveWatchSetTargets(session, state);
   const restSecBySetId = new Map(
     steps.map((step) => [step.setId, step.restSec])
   );
@@ -105,11 +103,11 @@ function buildWatchWorkoutStartPayload(
       supersetRun: supersetRunByEntryId.get(exercise.id) ?? null,
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
-        const planned = plannedSetValues[setId];
+        const target = targets.get(setId);
         return {
           setId,
-          targetReps: set.reps ?? planned?.reps ?? null,
-          targetWeightKg: set.weight ?? planned?.weight ?? null,
+          targetReps: target?.reps ?? null,
+          targetWeightKg: target?.weightKg ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
         };
@@ -119,7 +117,7 @@ function buildWatchWorkoutStartPayload(
     workoutFormat,
     timeCapSeconds,
     startedAt: startedAt != null ? new Date(startedAt).toISOString() : null,
-    armedAt: new Date().toISOString(),
+    armedAt: new Date(armedAtMs).toISOString(),
     capEndsAt: capEndsAtMs != null ? new Date(capEndsAtMs).toISOString() : null,
   };
 }
@@ -134,9 +132,13 @@ export function armWatchForActiveSession(t: TFunction): void {
   if (!WatchConnectivity?.isSupported()) return;
   const { session } = useActiveWorkoutStore.getState();
   if (session == null || session.type !== 'preset') return;
+  const armedAtMs = Date.now();
   void WatchConnectivity.startWorkout(
-    buildWatchWorkoutStartPayload(session, t)
+    buildWatchWorkoutStartPayload(session, t, armedAtMs)
   );
+  // After the start is queued: this is what lets `useWatchSetTargetsSync`
+  // send, stamped with this arm, so its first update follows the plan.
+  useActiveWorkoutStore.setState({ watchArmedAt: armedAtMs });
 }
 
 /**

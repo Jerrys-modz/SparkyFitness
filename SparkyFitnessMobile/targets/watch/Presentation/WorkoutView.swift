@@ -93,24 +93,24 @@ private func intervalCaption(plan: ActiveWorkoutPlan?, now: Date) -> String? {
 }
 
 /// Ticks once a second. `intervalCaption` reads `now` itself, so it has to
-/// live in a view that redraws on a timer — the parent only redraws when the
+/// live in a view that redraws on a clock — the parent only redraws when the
 /// store changes, which left the cap sitting still between sets.
+///
+/// Uses `TimelineView` rather than a `Timer.publish` stored on the view: the
+/// store republishes `elapsedSeconds` every second, which re-creates this
+/// struct and with it a fresh publisher that never gets to fire.
 private struct IntervalCaptionView: View {
     let plan: ActiveWorkoutPlan?
 
-    @State private var now = Date()
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     var body: some View {
-        Group {
-            if let caption = intervalCaption(plan: plan, now: now) {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            if let caption = intervalCaption(plan: plan, now: context.date) {
                 Text(caption)
                     .font(.caption2)
                     .foregroundStyle(.yellow)
                     .monospacedDigit()
             }
         }
-        .onReceive(ticker) { now = $0 }
     }
 }
 
@@ -362,20 +362,36 @@ private struct MetricsStrip: View {
                 .foregroundStyle(.blue)
             }
             if let kcal = store.activeEnergyKcal {
-                Label("\(Int(kcal))", systemImage: "flame.fill")
+                Self.metric("\(Int(kcal))", systemImage: "flame.fill")
                     .foregroundStyle(.orange)
+                    .minimumScaleFactor(0.7)
             }
             Text(Self.elapsed(store.elapsedSeconds))
                 .foregroundStyle(.secondary)
+                .minimumScaleFactor(0.7)
             Spacer(minLength: 0)
             if let bpm = store.latestBpm {
-                Label("\(Int(bpm.rounded()))", systemImage: "heart.fill")
+                // Never truncated: a three-digit rate used to lose its last
+                // digits to the calories and clock beside it. Those shrink
+                // first instead.
+                Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
                     .foregroundStyle(.red)
+                    .fixedSize()
+                    .layoutPriority(1)
             }
         }
         .font(.caption2)
         .monospacedDigit()
         .lineLimit(1)
+    }
+
+    /// Icon and value with a tighter gap than `Label`'s, which is sized for
+    /// list rows and left too little room on this strip.
+    private static func metric(_ value: String, systemImage: String) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: systemImage)
+            Text(value)
+        }
     }
 
     private static func elapsed(_ seconds: Int) -> String {
@@ -561,25 +577,37 @@ private struct RestView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var checkIn: CheckInStore
 
-    @State private var now = Date()
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
+    /// `TimelineView`, not a stored `Timer.publish`: the store republishes
+    /// every second, re-creating this struct and its publisher before it can
+    /// fire, which left the countdown frozen at its starting value.
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            content(now: context.date)
+        }
+    }
+
+    private func content(now: Date) -> some View {
         VStack(spacing: 3) {
             HStack {
                 Button("Skip") { store.skipRest() }
                     .font(.caption2)
                     .buttonStyle(.plain)
                     .foregroundStyle(.blue)
+                    .disabled(store.restPausedRemaining != nil)
                 Spacer()
+                if store.restPausedRemaining != nil {
+                    Text("Paused")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
             }
 
-            Text(remainingLabel)
+            Text(remainingLabel(now: now))
                 .font(.title2)
                 .fontWeight(.semibold)
                 .monospacedDigit()
 
-            ProgressView(value: progress)
+            ProgressView(value: progress(now: now))
                 .tint(.blue)
 
             if let next = store.currentStep {
@@ -603,25 +631,30 @@ private struct RestView: View {
             }
             .font(.caption2)
             .buttonStyle(.bordered)
+            // Paused on the phone: it owns the rest until it resumes.
+            .disabled(store.restPausedRemaining != nil)
         }
-        .onReceive(ticker) { value in now = value }
     }
 
-    private var remainingSeconds: Int {
+    private func remainingSeconds(now: Date) -> Int {
+        if let paused = store.restPausedRemaining {
+            return max(0, Int(paused.rounded()))
+        }
         guard let endsAt = store.restEndsAt else { return 0 }
         return max(0, Int(endsAt.timeIntervalSince(now).rounded()))
     }
 
-    private var remainingLabel: String {
-        String(format: "%d:%02d", remainingSeconds / 60, remainingSeconds % 60)
+    private func remainingLabel(now: Date) -> String {
+        let remaining = remainingSeconds(now: now)
+        return String(format: "%d:%02d", remaining / 60, remaining % 60)
     }
 
     /// Fills as the rest runs down. Guards the denominator: `adjustRest` can
     /// only ever raise it, but a zero would still be a divide by zero here.
-    private var progress: Double {
+    private func progress(now: Date) -> Double {
         let total = Double(store.restDurationSeconds)
         guard total > 0 else { return 0 }
-        return min(1, max(0, 1 - Double(remainingSeconds) / total))
+        return min(1, max(0, 1 - Double(remainingSeconds(now: now)) / total))
     }
 
     /// True only when this rest stays inside the superset just logged.
@@ -674,16 +707,18 @@ private struct NumericKeypadView: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            HStack {
+            // Centered, not leading: the sheet's close button sits in the
+            // top-leading corner and covered a left-aligned number.
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(entry.isEmpty ? placeholder : entry)
                     .font(.title3)
                     .monospacedDigit()
                     .foregroundStyle(entry.isEmpty ? Color.secondary : Color.primary)
-                Spacer()
                 Text(title)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity)
 
             LazyVGrid(columns: Array(repeating: GridItem(spacing: 2), count: 3), spacing: 2) {
                 ForEach(keys, id: \.self) { key in
@@ -700,24 +735,24 @@ private struct NumericKeypadView: View {
             }
 
             Button("OK") {
-                if let value = Double(entry) { onCommit(value) } else { dismiss() }
+                // Nothing typed keeps the value shown in grey.
+                if let value = Double(entry) {
+                    onCommit(value)
+                } else if let initial {
+                    onCommit(initial)
+                } else {
+                    dismiss()
+                }
             }
             .font(.caption)
             .frame(maxWidth: .infinity)
             .tint(.green)
-            .disabled(Double(entry) == nil)
+            .disabled(Double(entry) == nil && initial == nil)
         }
         .padding(.horizontal, 2)
-        .onAppear {
-            // Seed the planned value so OK is enabled without retyping every
-            // digit — the placeholder-only version disabled OK until the
-            // wearer re-entered a number they could already see.
-            if entry.isEmpty, let initial {
-                entry = initial == initial.rounded()
-                    ? String(Int(initial))
-                    : String(format: "%.1f", initial)
-            }
-        }
+        // Opens empty with the current value in grey rather than filled in,
+        // so a new number is typed straight away instead of deleting the old
+        // one first; OK with nothing typed keeps the grey value.
     }
 
     private var placeholder: String {
