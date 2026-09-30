@@ -3,6 +3,7 @@ import { fetchNutritionTrends } from '../services/api/reportsApi';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 import { nutritionTrendsQueryKey } from './queryKeys';
 import { getTodayDate, addDays } from '../utils/dateUtils';
+import { average } from '../utils/mathUtils';
 import {
   RANGE_DAYS,
   type HealthTrendDateRange,
@@ -12,6 +13,15 @@ import {
 interface UseCaloriesRangeOptions {
   range: HealthTrendDateRange;
   enabled?: boolean;
+}
+
+interface CaloriesRangeResult {
+  caloriesData: CaloriesDataPoint[];
+  /** Mean calories across every day in the window, zero-fill days included -- a day with
+   * nothing logged is a real zero (see the comment below), not a missing value to exclude,
+   * so it pulls the average down like any other day would. `null` only when the window
+   * itself is empty. */
+  averageCalories: number | null;
 }
 
 /**
@@ -48,14 +58,23 @@ export function useCaloriesRange({
         });
       }
 
-      return caloriesData;
+      const averageCalories = average(
+        caloriesData.map((point) => point.calories)
+      );
+
+      return { caloriesData, averageCalories };
     },
   });
 
   useRefetchOnFocus(query.refetch, enabled);
 
+  const result: CaloriesRangeResult = query.data ?? {
+    caloriesData: [],
+    averageCalories: null,
+  };
+
   return {
-    caloriesData: query.data ?? [],
+    ...result,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,

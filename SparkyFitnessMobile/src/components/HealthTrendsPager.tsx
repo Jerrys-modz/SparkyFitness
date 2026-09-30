@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { HealthTrendKey } from '../constants/healthTrends';
-import type { SleepTrendSeries } from '../hooks/useHealthTrends';
+import type {
+  CaloriesTrendSeries,
+  SleepTrendSeries,
+} from '../hooks/useHealthTrends';
 import type {
   StepsDataPoint,
   WeightDataPoint,
 } from '../hooks/useMeasurementsRange';
 import type {
-  CaloriesDataPoint,
   HealthTrendDateRange,
   HealthTrendSeries,
   HydrationDataPoint,
@@ -25,7 +27,7 @@ type HealthTrendsPagerProps = {
   weight: HealthTrendSeries<WeightDataPoint>;
   sleep: SleepTrendSeries;
   hydration: HealthTrendSeries<HydrationDataPoint>;
-  calories: HealthTrendSeries<CaloriesDataPoint>;
+  calories: CaloriesTrendSeries;
   range: HealthTrendDateRange;
   weightUnit: string;
   waterUnit: string;

@@ -381,6 +381,8 @@ describe('useHealthTrends', () => {
       carbs: 200,
       fat: 60,
     });
+    // 1850 logged plus six zero-fill days, averaged over the full 7-day window.
+    expect(result.current.calories.averageCalories).toBeCloseTo(1850 / 7);
   });
 
   test('issues no calories request when calories is not active', async () => {

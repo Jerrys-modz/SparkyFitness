@@ -1,5 +1,8 @@
 import i18n, { initializeI18n } from '../../src/localization/i18n';
-import { buildCaloriesTooltipText } from '../../src/components/CaloriesBarChart';
+import {
+  buildCaloriesAverageLabel,
+  buildCaloriesTooltipText,
+} from '../../src/components/CaloriesBarChart';
 import type { CaloriesStackDay } from '../../src/components/charts/caloriesStackLayout';
 
 const day: CaloriesStackDay = {
@@ -57,5 +60,25 @@ describe('CaloriesBarChart buildCaloriesTooltipText (locale-aware)', () => {
 
     expect(text).toContain('100%');
     expect(text).toContain('Other');
+  });
+});
+
+describe('CaloriesBarChart buildCaloriesAverageLabel (locale-aware)', () => {
+  beforeAll(async () => {
+    await initializeI18n('en');
+    await i18n.changeLanguage('en');
+  });
+
+  test('formats the rounded average with a kcal unit', () => {
+    const label = buildCaloriesAverageLabel(1849.6, i18n.t);
+
+    expect(label.title).toBe('Avg');
+    expect(label.value).toBe('1,850 kcal');
+  });
+
+  test('shows a placeholder when nothing in the window is logged', () => {
+    const label = buildCaloriesAverageLabel(null, i18n.t);
+
+    expect(label.value).toBe('—');
   });
 });

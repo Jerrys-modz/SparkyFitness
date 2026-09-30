@@ -110,6 +110,83 @@ describe('useCaloriesRange', () => {
     });
   });
 
+  test('averages across every day in the window, zero-fill days included', async () => {
+    const threeDaysAgo = addDays(today, -3);
+    const fiveDaysAgo = addDays(today, -5);
+    mockFetchNutritionTrends.mockResolvedValue([
+      {
+        date: threeDaysAgo,
+        calories: 2100,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        saturated_fat: 0,
+        polyunsaturated_fat: 0,
+        monounsaturated_fat: 0,
+        trans_fat: 0,
+        cholesterol: 0,
+        sodium: 0,
+        potassium: 0,
+        dietary_fiber: 0,
+        sugars: 0,
+        vitamin_a: 0,
+        vitamin_c: 0,
+        calcium: 0,
+        iron: 0,
+        caffeine_mg: 0,
+        water_ml: 0,
+        alcohol_g: 0,
+      },
+      {
+        date: fiveDaysAgo,
+        calories: 1400,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        saturated_fat: 0,
+        polyunsaturated_fat: 0,
+        monounsaturated_fat: 0,
+        trans_fat: 0,
+        cholesterol: 0,
+        sodium: 0,
+        potassium: 0,
+        dietary_fiber: 0,
+        sugars: 0,
+        vitamin_a: 0,
+        vitamin_c: 0,
+        calcium: 0,
+        iron: 0,
+        caffeine_mg: 0,
+        water_ml: 0,
+        alcohol_g: 0,
+      },
+    ]);
+
+    const { result } = renderHook(() => useCaloriesRange({ range: '7d' }), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // (2100 + 1400 + five zero-fill days) / 7 window days = 500, not /2 logged days -- an
+    // unlogged day is a real zero (see the hook's zero-fill comment), so it counts.
+    expect(result.current.averageCalories).toBe(500);
+  });
+
+  test('averageCalories is 0 when nothing in the window is logged', async () => {
+    const { result } = renderHook(() => useCaloriesRange({ range: '7d' }), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.averageCalories).toBe(0);
+  });
+
   test('shares its cached fetch with useNutritionTrends for the same window', async () => {
     const { result: caloriesResult } = renderHook(
       () => useCaloriesRange({ range: '7d' }),

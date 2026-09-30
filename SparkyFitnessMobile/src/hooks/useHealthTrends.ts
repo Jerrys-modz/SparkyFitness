@@ -30,12 +30,17 @@ interface UseHealthTrendsOptions {
 export type SleepTrendSeries = HealthTrendSeries<SleepTimelineDay> &
   Omit<SleepTimelineSummary, 'days'>;
 
+/** The calories page's headline tile shows the window's average, same reasoning as sleep's. */
+export type CaloriesTrendSeries = HealthTrendSeries<CaloriesDataPoint> & {
+  averageCalories: number | null;
+};
+
 interface HealthTrends {
   steps: HealthTrendSeries<StepsDataPoint>;
   weight: HealthTrendSeries<WeightDataPoint>;
   sleep: SleepTrendSeries;
   hydration: HealthTrendSeries<HydrationDataPoint>;
-  calories: HealthTrendSeries<CaloriesDataPoint>;
+  calories: CaloriesTrendSeries;
   refetch: () => Promise<void>;
 }
 
@@ -78,6 +83,7 @@ export function useHealthTrends({
 
   const {
     caloriesData,
+    averageCalories,
     isLoading: isCaloriesLoading,
     isError: isCaloriesError,
     refetch: refetchCalories,
@@ -128,6 +134,7 @@ export function useHealthTrends({
     },
     calories: {
       data: caloriesData,
+      averageCalories,
       isLoading: isCaloriesLoading,
       isError: isCaloriesError,
     },

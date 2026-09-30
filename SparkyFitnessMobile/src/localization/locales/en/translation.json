@@ -4436,7 +4436,10 @@
       "empty": "No calorie data for this period",
       "tooltip": "{{formattedCount}} kcal consumed",
       "tooltipMacro": "{{percent}}% {{macroLabel}}",
-      "otherMacro": "Other"
+      "otherMacro": "Other",
+      "avgCalories": "Avg",
+      "avgCaloriesValue": "{{formattedCount}} kcal",
+      "noAverage": "—"
     },
     "loading": "Loading chart...",
     "weightLoadFailed": "Failed to load weight data",

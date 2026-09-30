@@ -36,12 +36,17 @@ import {
   type CaloriesStackDay,
   type CaloriesStackSegment,
 } from './charts/caloriesStackLayout';
+import { StatTile, type StatLabel } from './charts/StatTile';
 
 type CaloriesBarChartProps = {
   data: CaloriesDataPoint[];
   isLoading: boolean;
   isError: boolean;
   range: HealthTrendDateRange;
+  /** Mean calories across every day in the window (#1587's "average to date"), zero-fill
+   * days included since they're real zeros, not missing data. Shown as a headline tile the
+   * same way Sleep shows its averages. */
+  averageCalories: number | null;
   /** The calorie goal for the Dashboard's currently selected date, drawn as one flat
    * reference line across the whole window. Omitted (no reference line) when unset or <= 0. */
   goal?: number;
@@ -140,6 +145,30 @@ export const buildCaloriesTooltipText = (
   return `${totalPart} · ${macroPart} · ${datePart}`;
 };
 
+/**
+ * The headline tile: the window's average to date, matching Sleep's always-on averages
+ * rather than the #1587 request's literal extra bar -- selecting a day already gets its own
+ * figure in the tooltip below, so a second place for the same number would be redundant.
+ *
+ * Derived from `t` on every render rather than memoised, so a language switch is reflected
+ * in already-visible copy immediately.
+ */
+export const buildCaloriesAverageLabel = (
+  averageCalories: number | null,
+  t: ReturnType<typeof useTranslation>['t']
+): StatLabel => ({
+  // Just "Avg", not "Avg calories": Sleep's two tiles need "time in bed" vs. "time asleep"
+  // to tell them apart, but this card only ever has the one stat.
+  title: t('charts.calories.avgCalories', { defaultValue: 'Avg' }),
+  value:
+    averageCalories == null
+      ? t('charts.calories.noAverage', { defaultValue: '—' })
+      : t('charts.calories.avgCaloriesValue', {
+          formattedCount: formatLocalizedNumber(Math.round(averageCalories)),
+          defaultValue: '{{formattedCount}} kcal',
+        }),
+});
+
 /** Evenly spaced day indices, so 90 columns do not print 90 overlapping labels. */
 const buildXLabelIndices = (dayCount: number, tickCount: number): number[] => {
   if (dayCount <= tickCount) {
@@ -164,9 +193,11 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
   isLoading,
   isError,
   range,
+  averageCalories,
   goal,
 }) => {
   const { t } = useTranslation();
+  const averageLabel = buildCaloriesAverageLabel(averageCalories, t);
   const [plotWidth, setPlotWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedPointY, setSelectedPointY] = useState<number | null>(null);
@@ -315,6 +346,10 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
       <Text className="text-text-primary text-lg font-semibold mb-2">
         {t('charts.calories.title', { defaultValue: 'Calories' })}
       </Text>
+
+      <View className="flex-row mb-1">
+        <StatTile label={averageLabel} testID="calories-stat-average" />
+      </View>
 
       <View className="h-6 justify-center mt-3 mb-1">
         <Text className="text-text-secondary text-sm text-center">

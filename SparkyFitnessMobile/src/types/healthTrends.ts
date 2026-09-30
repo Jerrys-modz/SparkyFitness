@@ -25,9 +25,9 @@ export type HydrationDataPoint = {
 
 /**
  * A day's calorie total plus the protein/carbs/fat grams needed to break it into segments.
- * `calories` is the API's raw daily total (used to decide whether the day has any food
- * logged at all); the chart's own displayed total is the sum of the three macros below,
- * computed in `caloriesStackLayout.ts`.
+ * `calories` is the API's raw daily total; it drives the chart's bar height directly, with
+ * the macro grams below only used to split that total into segments (see
+ * `caloriesStackLayout.ts`), not to recompute it.
  */
 export type CaloriesDataPoint = {
   day: string;

@@ -39,6 +39,7 @@ import {
   chooseSleepClockAnchorMinutes,
   MINUTES_PER_DAY,
 } from './charts/sleepTimelineLayout';
+import { StatTile, type StatLabel } from './charts/StatTile';
 
 type SleepTimelineAggregates = Omit<SleepTimelineSummary, 'days'>;
 
@@ -95,11 +96,6 @@ const STAGE_COLOR_VARIABLES: Record<SleepStageLane, string> = {
   other: '--color-accent-primary',
 };
 
-export interface SleepStatLabel {
-  title: string;
-  value: string;
-}
-
 /**
  * The two headline tiles. Always the window's averages -- selecting a night shows that
  * night's own numbers in the tooltip below instead, matching every other Health Trends
@@ -111,7 +107,7 @@ export interface SleepStatLabel {
 export const buildSleepAverageLabels = (
   aggregates: SleepTimelineAggregates,
   t: TFunction
-): [SleepStatLabel, SleepStatLabel] => [
+): [StatLabel, StatLabel] => [
   {
     title: t('charts.sleep.avgTimeInBed', { defaultValue: 'Avg time in bed' }),
     value: formatSleepDuration(aggregates.averageTimeInBedSeconds, t),
@@ -171,18 +167,6 @@ const buildXLabelIndices = (dayCount: number, tickCount: number): number[] => {
     Math.round(index * step)
   );
 };
-
-const SleepStatTile: React.FC<{ label: SleepStatLabel; testID: string }> = ({
-  label,
-  testID,
-}) => (
-  <View className="flex-1" testID={testID}>
-    <Text className="text-text-muted text-xs uppercase">{label.title}</Text>
-    <Text className="text-text-primary text-xl font-semibold">
-      {label.value}
-    </Text>
-  </View>
-);
 
 const SleepStageLegend: React.FC<{
   colors: string[];
@@ -348,8 +332,8 @@ const SleepTimelineChart: React.FC<SleepTimelineChartProps> = ({
       </Text>
 
       <View className="flex-row mb-1">
-        <SleepStatTile label={statLabels[0]} testID="sleep-stat-time-in-bed" />
-        <SleepStatTile label={statLabels[1]} testID="sleep-stat-time-asleep" />
+        <StatTile label={statLabels[0]} testID="sleep-stat-time-in-bed" />
+        <StatTile label={statLabels[1]} testID="sleep-stat-time-asleep" />
       </View>
 
       {/* Fixed height so selecting a night shows its tooltip without reflowing the
