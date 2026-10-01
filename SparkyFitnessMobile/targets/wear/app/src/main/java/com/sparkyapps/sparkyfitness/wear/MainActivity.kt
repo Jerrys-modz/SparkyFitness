@@ -10,8 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.wear.compose.foundation.pager.HorizontalPager
-import androidx.wear.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 
 /** Goals, water, check-in, trend, and the live workout. Swipe between them. */
 class MainActivity : ComponentActivity() {

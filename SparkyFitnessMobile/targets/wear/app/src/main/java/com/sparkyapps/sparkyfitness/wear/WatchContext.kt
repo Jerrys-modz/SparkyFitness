@@ -102,6 +102,10 @@ internal object WatchContext {
     }
   }
 
+  fun addPending(tap: PendingTap) {
+    pending = pending + tap
+  }
+
   fun seedWeightKg(): Double = snapshot.todayWeightKg ?: snapshot.lastWeightKg ?: 80.0
 
   fun displayWeight(kg: Double): Double =
@@ -139,7 +143,7 @@ internal object PhoneBus {
         .put("entryDate", day)
         .put("containerId", container.id),
     )
-    WatchContext.pending = WatchContext.pending + PendingTap(id, container.servingMl, day)
+    WatchContext.addPending(PendingTap(id, container.servingMl, day))
   }
 
   fun deleteDrink(context: Context, entryId: String) {
