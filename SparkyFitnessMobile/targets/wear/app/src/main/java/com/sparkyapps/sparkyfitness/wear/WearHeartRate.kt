@@ -42,6 +42,12 @@ internal object WearHeartRate {
   var permissionNeeded by mutableStateOf(false)
     private set
 
+  /** Screenshot job. Does not start sampling. */
+  fun show(bpm: Int, kcal: Int) {
+    this.bpm = bpm
+    this.kcal = kcal
+  }
+
   private val main = Handler(Looper.getMainLooper())
   private val worker = Executors.newSingleThreadExecutor()
   private val samples = ArrayDeque<Sample>()
