@@ -1,16 +1,15 @@
 package expo.modules.watchconnectivity
 
-import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.WearableListenerService
 
-/** A set logged on the watch. Held until the JS module is up, then emitted. */
+/** A set logged on the watch. The DataItem stays until the module applies it,
+ * so a delivery that lands before JS is up is still there on the next read. */
 class PhoneWearListener : WearableListenerService() {
-  override fun onMessageReceived(event: MessageEvent) {
-    if (event.path != WearLink.SET_COMPLETED) return
-    try {
-      WearLink.offer(WearLink.payloadMap(event.data))
-    } catch (_: Exception) {
-      // A message that is not the JSON we send is not a logged set.
+  override fun onDataChanged(events: DataEventBuffer) {
+    val module = WatchConnectivityModule.instance ?: return
+    WearLink.completionsFrom(events).forEach { (payload, uri) ->
+      module.emitCompletion(payload, uri)
     }
   }
 }

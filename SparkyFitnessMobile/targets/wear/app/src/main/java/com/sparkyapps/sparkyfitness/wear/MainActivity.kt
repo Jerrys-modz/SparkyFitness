@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    WorkoutHolder.pull(this)
     setContent {
       WorkoutScreen(WorkoutHolder.screen) {
         WorkoutHolder.complete(this)
