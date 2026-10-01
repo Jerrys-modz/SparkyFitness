@@ -13,7 +13,8 @@ SERIAL=emulator-5554
 
 mkdir -p "$OUT"
 echo "Installing $APK"
-timeout 120 "$ADB" -s "$SERIAL" install -r "$APK"
+"$ADB" -s "$SERIAL" devices -l
+timeout 180 "$ADB" -s "$SERIAL" install -r --no-streaming "$APK"
 
 shoot() {
   echo "Shooting $1"
