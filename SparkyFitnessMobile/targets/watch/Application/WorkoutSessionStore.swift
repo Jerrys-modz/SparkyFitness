@@ -60,6 +60,11 @@ final class WorkoutSessionStore: ObservableObject {
     /// can do the same. Not fired when the rest follows the phone's.
     var onRestChangedHere: ((_ previousEndsAt: Date, _ endsAt: Date?) -> Void)?
 
+    /// Called when a rest countdown runs out on its own, so the app can buzz
+    /// the wrist. Not called when the wearer skips the rest or trims it to
+    /// zero: they are looking at the watch and already know.
+    var onRestFinished: (() -> Void)?
+
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
     private var startedAt: Date?
@@ -691,6 +696,7 @@ final class WorkoutSessionStore: ObservableObject {
                 guard let self, let endsAt = self.restEndsAt else { return }
                 if Date() >= endsAt {
                     self.stopRestTimer()
+                    self.onRestFinished?()
                 }
             }
         }

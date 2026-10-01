@@ -13,6 +13,12 @@ const ANDROID_PROD_BUNDLE_IDENTIFIER = 'com.SparkyApps.SparkyFitnessMobile';
 const IOS_PROD_BUNDLE_IDENTIFIER = 'com.SparkyApps.SparkyFitnessMobile';
 const DEV_APPLE_TEAM_ID = process.env.EXPO_DEV_APPLE_TEAM_ID || '';
 const PROD_APPLE_TEAM_ID = process.env.EXPO_PROD_APPLE_TEAM_ID || '';
+// Optional. With it, Android draws cardio routes over Google Maps; without
+// it, Android keeps the plain route line and nothing else changes. iOS uses
+// Apple Maps and needs no key. Supply it from the build environment (an EAS
+// secret, for instance), never from the repo.
+const GOOGLE_MAPS_ANDROID_API_KEY =
+  process.env.GOOGLE_MAPS_ANDROID_API_KEY || '';
 
 const DEV_PACKAGE = DEV_BUNDLE_IDENTIFIER;
 const PROD_PACKAGE = ANDROID_PROD_BUNDLE_IDENTIFIER;
@@ -180,6 +186,11 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
         // The localized InfoPlist permission strings come from `locales`; this
         // allows the generated app metadata to use the selected localization.
         CFBundleAllowMixedLocalizations: true,
+        // Lets the opt-in "Play through silent mode" rest chime (#2506) keep a
+        // silent track playing during a rest, so the chime still sounds with
+        // the app in the background. Nothing plays in the background unless
+        // that setting is on and a rest is running.
+        UIBackgroundModes: ['audio'],
       },
       entitlements: {
         'com.apple.security.application-groups': [getIosAppGroup()],
@@ -203,8 +214,10 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       ...(config.plugins ?? []),
       'expo-image',
       [
-        // Foreground playback only (rest-timer chime): no mic permission, no
-        // background-audio mode, no Android record/foreground-service perms.
+        // No mic permission and no Android record/foreground-service perms.
+        // iOS background audio for the rest chime comes from `UIBackgroundModes`
+        // above; the plugin flag would also add Android's media-playback
+        // foreground service, which the chime doesn't use.
         'expo-audio',
         {
           microphonePermission: false,
@@ -219,6 +232,14 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       './plugins/withWorkoutNotification',
       './plugins/withEnrichedMarkdownNoMath',
       './plugins/withSceneLifecycle',
+      [
+        'react-native-maps',
+        {
+          // Writes the key into the Android manifest when set and removes it
+          // when not. No iOS key: iOS stays on Apple Maps.
+          androidGoogleMapsApiKey: GOOGLE_MAPS_ANDROID_API_KEY || undefined,
+        },
+      ],
       [
         'expo-localization',
         {
@@ -249,6 +270,9 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       ...config.extra,
       APP_VARIANT: environment,
       iosAppGroup: getIosAppGroup(),
+      // Whether the Android build has a Maps key. The key itself stays out
+      // of the JS bundle; the route screen only needs to know it is there.
+      androidGoogleMapsEnabled: GOOGLE_MAPS_ANDROID_API_KEY !== '',
       eas: {
         projectId: '498a86c5-344f-4d2c-9033-dfd720e4a383',
       },
