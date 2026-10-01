@@ -476,8 +476,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // copy must not start a workout the phone or the wearer already ended.
         if startIsStale(plan) { return }
         // A redelivered `workoutStart` for the session already running must
-        // not stop HealthKit and restart the plan from set 1.
-        if workoutStore.plan?.sessionId == plan.sessionId { return }
+        // not stop HealthKit and restart the plan from set 1. A saved session
+        // re-armed under the same id is not a redelivery, though: a later
+        // `armedAt` is a new workout and replaces the running one below.
+        if let running = workoutStore.plan, running.sessionId == plan.sessionId,
+           !Self.isLaterArm(plan.armedAt, than: running.armedAt) {
+            return
+        }
 
         // Recovery may still be reattaching the previous HealthKit session.
         // Queue the plan and let that finish (and stop the old session)
@@ -910,8 +915,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
         guard let update = ContextPayloadMapper.setTargets(from: payload) else { return }
         if let plan = workoutStore.plan, plan.sessionId == update.sessionId {
             // A saved session can be armed again under the same id; a queued
-            // update from the earlier arm must not land on this one.
-            guard Self.sameArm(update.armedAt, plan.armedAt) else { return }
+            // update from the earlier arm must not land on this one. One from
+            // a later arm belongs to the plan replacing this one, so it is
+            // held for `beginPlan` like any other early update.
+            guard Self.sameArm(update.armedAt, plan.armedAt) else {
+                if Self.isLaterArm(update.armedAt, than: plan.armedAt) {
+                    holdSetTargets(update)
+                }
+                return
+            }
             workoutStore.applyTargets(
                 sessionId: update.sessionId,
                 revision: update.revision,
@@ -929,8 +941,21 @@ final class WatchSessionManager: NSObject, ObservableObject {
            update.armedAt.map({ $0 <= endedAt }) ?? true {
             return
         }
-        if let held = pendingSetTargets[update.sessionId], held.revision >= update.revision {
-            return
+        holdSetTargets(update)
+    }
+
+    private func holdSetTargets(_ update: (
+        sessionId: String, revision: Double, targets: [String: SetValues],
+        completedSetIds: Set<String>, rest: PhoneRest?, armedAt: Date?
+    )) {
+        if let held = pendingSetTargets[update.sessionId] {
+            // A late update from an earlier arm never replaces a later one;
+            // within one arm the higher revision wins.
+            if Self.isLaterArm(held.armedAt, than: update.armedAt) { return }
+            if Self.sameArm(held.armedAt, update.armedAt),
+               held.revision >= update.revision {
+                return
+            }
         }
         pendingSetTargets[update.sessionId] = (
             update.revision, update.targets, update.completedSetIds, update.rest,
@@ -956,6 +981,22 @@ final class WatchSessionManager: NSObject, ObservableObject {
             pendingPlan = plan
             pendingPlanRevisions[plan.sessionId] = update.revision
         }
+    }
+
+    /// Whether `arm` is a later arming than `other`. Both are stamped by the
+    /// phone, on its clock. Unstamped (an older phone) is never later, which
+    /// keeps the redelivery rule as it was before re-arming existed.
+    private static func isLaterArm(_ arm: Date?, than other: Date?) -> Bool {
+        guard let arm, let other else { return false }
+        return arm.timeIntervalSince(other) >= 0.01
+    }
+
+    /// Whether a stop the phone sent at `stoppedAt` can be for the arm stamped
+    /// `armedAt`. A stop sent before that arm existed was for an earlier arm
+    /// of the same session id. Either side unstamped counts as a match.
+    private static func stopCovers(sentAt stoppedAt: Date?, armedAt: Date?) -> Bool {
+        guard let stoppedAt, let armedAt else { return true }
+        return stoppedAt.timeIntervalSince(armedAt) > -0.01
     }
 
     /// Whether an update belongs to the plan's arm. Either side missing the
@@ -992,24 +1033,33 @@ final class WatchSessionManager: NSObject, ObservableObject {
         guard let stop = ContextPayloadMapper.workoutStop(from: payload) else {
             return
         }
+        // A stop the phone sent before a plan was armed belongs to an earlier
+        // arm of the same session id, so it must not end that plan: a re-arm
+        // waiting behind the old instance would otherwise never start.
+        let endsRunning = workoutStore.plan?.sessionId == stop.sessionId
+            && Self.stopCovers(sentAt: stop.stoppedAt, armedAt: workoutStore.plan?.armedAt)
+        let endsPending = pendingPlan?.sessionId == stop.sessionId
+            && Self.stopCovers(sentAt: stop.stoppedAt, armedAt: pendingPlan?.armedAt)
         var endedAt = stop.stoppedAt ?? Date()
-        if workoutStore.plan?.sessionId == stop.sessionId, let armedAt = workoutStore.plan?.armedAt {
+        if endsRunning, let armedAt = workoutStore.plan?.armedAt {
             endedAt = max(endedAt, armedAt)
         }
-        if pendingPlan?.sessionId == stop.sessionId, let armedAt = pendingPlan?.armedAt {
+        if endsPending, let armedAt = pendingPlan?.armedAt {
             endedAt = max(endedAt, armedAt)
         }
         rememberEnded(stop.sessionId, at: endedAt)
-        pendingIntervalTiming.removeAll { $0.sessionId == stop.sessionId }
+        if pendingPlan?.sessionId != stop.sessionId || endsPending {
+            pendingIntervalTiming.removeAll { $0.sessionId == stop.sessionId }
+        }
         if let held = pendingSetTargets[stop.sessionId],
            held.armedAt.map({ $0 <= endedAt }) ?? true {
             pendingSetTargets[stop.sessionId] = nil
         }
-        if pendingPlan?.sessionId == stop.sessionId {
+        if endsPending {
             pendingPlan = nil
             return
         }
-        guard workoutStore.plan?.sessionId == stop.sessionId else { return }
+        guard endsRunning else { return }
         requestFinish(sendStop: false)
     }
 
