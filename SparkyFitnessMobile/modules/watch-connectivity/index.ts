@@ -194,6 +194,11 @@ export interface WatchPlannedSetPayload {
   targetReps?: number | null;
   /** Always kg, like every other weight this app moves to the watch. */
   targetWeightKg?: number | null;
+  /**
+   * Hold length in seconds for a duration exercise (plank, carry). Absent
+   * on a reps set. The watch counts this down instead of showing a reps box.
+   */
+  targetDurationSec?: number | null;
   /** Rest to run after this set, in seconds — the phone's own `WorkoutStep.restSec`. */
   restSeconds: number;
   /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
@@ -209,6 +214,8 @@ export interface WatchSetTargetPayload {
   /** Always kg, like every other weight this app moves to the watch. */
   targetWeightKg?: number;
   targetReps?: number;
+  /** Hold length in seconds. Absent leaves the watch on the plan's value. */
+  targetDurationSec?: number;
 }
 
 /** One exercise in the plan the watch was armed with. */
@@ -275,6 +282,11 @@ export interface WatchSetCompletedPayload {
    */
   weightKg?: number | null;
   reps?: number | null;
+  /**
+   * Seconds the watch's hold countdown actually ran. Omitted when the wearer
+   * never started it, so the phone keeps the planned duration.
+   */
+  duration?: number | null;
   /**
    * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
    * its own clock when this is absent (an older watch build, or a set logged

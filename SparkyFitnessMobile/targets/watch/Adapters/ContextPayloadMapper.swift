@@ -237,7 +237,8 @@ enum ContextPayloadMapper {
                     targetReps: doubleValue(rawSet["targetReps"]),
                     targetWeightKg: doubleValue(rawSet["targetWeightKg"]),
                     restSeconds: intValue(rawSet["restSeconds"]) ?? 0,
-                    setType: rawSet["setType"] as? String
+                    setType: rawSet["setType"] as? String,
+                    targetDurationSec: intValue(rawSet["targetDurationSec"])
                 )
             }
             return PlannedExercise(
@@ -305,7 +306,8 @@ enum ContextPayloadMapper {
             guard let setId = raw["setId"] as? String else { continue }
             targets[setId] = SetValues(
                 weightKg: doubleValue(raw["targetWeightKg"]),
-                reps: doubleValue(raw["targetReps"])
+                reps: doubleValue(raw["targetReps"]),
+                durationSec: intValue(raw["targetDurationSec"])
             )
         }
         // Sets already logged on the phone. Absent from an older phone build.
