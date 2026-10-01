@@ -152,6 +152,13 @@ export interface WatchContextPayload {
   fatConsumed?: number | null;
   fatGoal?: number | null;
   /**
+   * Today's resting burn in kcal/day, from the same calorie balance as the
+   * figures above. Wear OS only measures total calories during a workout, so
+   * the watch subtracts this rate for the time the workout has been running.
+   * Missing or 0 means the watch does not send a calorie total at all.
+   */
+  bmrKcal?: number | null;
+  /**
    * Configured water containers, for the watch's Water page — one tappable
    * square per entry. Sent in full on every push rather than fetched once by
    * the watch itself: there's no path for the watch to call the server

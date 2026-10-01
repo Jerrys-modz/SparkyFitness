@@ -34,6 +34,8 @@ internal data class WatchSnapshot(
   val carbsGoal: Int? = null,
   val fatConsumed: Int? = null,
   val fatGoal: Int? = null,
+  /** Resting burn for the day, kcal. Used to strip it out of a workout. */
+  val bmrKcal: Double? = null,
   val containers: List<WaterContainer> = emptyList(),
   val waterMl: Double = 0.0,
   val waterGoalMl: Double = 0.0,
@@ -85,6 +87,7 @@ internal object WatchContext {
       carbsGoal = json.optNumber("carbsGoal")?.toInt(),
       fatConsumed = json.optNumber("fatConsumed")?.toInt(),
       fatGoal = json.optNumber("fatGoal")?.toInt(),
+      bmrKcal = json.optNumber("bmrKcal")?.takeIf { it > 0 },
       containers = containers,
       waterMl = json.optNumber("waterConsumedMl") ?: 0.0,
       waterGoalMl = json.optNumber("waterGoalMl") ?: 0.0,

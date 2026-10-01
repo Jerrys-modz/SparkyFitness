@@ -29,8 +29,9 @@ import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
 /**
- * Samples heart rate and active-plus-resting calories for the exercise on
- * screen. Calories are a delta since the last batch, same as the Apple Watch.
+ * Samples heart rate and workout calories for the exercise on screen.
+ * Resting burn is taken off using the day's BMR from the phone, so the
+ * batch matches the Apple Watch's active calories. One exercise at a time.
  */
 internal object WearHeartRate {
   var bpm by mutableIntStateOf(0)
@@ -49,10 +50,12 @@ internal object WearHeartRate {
   private var sessionId: String? = null
   private var exerciseEntryId: String? = null
   private var shownAt = 0L
-  /** Running total from Health Services. Null until the first reading. */
-  private var cumulativeKcal: Double? = null
-  /** How much of [cumulativeKcal] has already been sent. */
-  private var reportedKcal = 0.0
+  /** Running total from Health Services, resting included. */
+  private var rawTotalKcal: Double? = null
+  /** Active calories already sent. Resting is never included. */
+  private var reportedActiveKcal = 0.0
+  /** When this exercise session began, for the resting subtraction. */
+  private var exerciseStartedAt = 0L
   @Volatile private var running = false
   @Volatile private var startToken = 0
   private var asked = false
@@ -84,10 +87,13 @@ internal object WearHeartRate {
       }
       main.post {
         if (reading != null) {
-          val previous = cumulativeKcal
-          if (previous != null && reading + 0.01 < previous) reportedKcal = 0.0
-          cumulativeKcal = reading
-          kcal = reading.roundToInt()
+          val previous = rawTotalKcal
+          if (previous != null && reading + 0.01 < previous) {
+            reportedActiveKcal = 0.0
+            exerciseStartedAt = System.currentTimeMillis()
+          }
+          rawTotalKcal = reading
+          kcal = activeKcal()?.roundToInt() ?: -1
         }
         points.forEach { point ->
           val stamp = point.getTimeInstant(boot).toString()
@@ -139,8 +145,9 @@ internal object WearHeartRate {
     exerciseEntryId = null
     bpm = 0
     kcal = -1
-    cumulativeKcal = null
-    reportedKcal = 0.0
+    rawTotalKcal = null
+    reportedActiveKcal = 0.0
+    exerciseStartedAt = 0L
     stopSampling()
   }
 
@@ -192,7 +199,9 @@ internal object WearHeartRate {
           return@execute
         }
         running = true
+        val started = System.currentTimeMillis()
         main.post {
+          exerciseStartedAt = started
           main.removeCallbacks(flushRunnable)
           main.postDelayed(flushRunnable, 60_000)
         }
@@ -224,11 +233,11 @@ internal object WearHeartRate {
     val exercise = exerciseEntryId ?: return
     val batch = samples.toList()
     samples.clear()
-    val cumulative = cumulativeKcal
-    val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedKcal) }
+    val cumulative = activeKcal()
+    val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedActiveKcal) }
     val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
     if (batch.isEmpty() && (delta == null || delta == 0.0) && minutes <= 0) return
-    if (cumulative != null && delta != null) reportedKcal = cumulative
+    if (cumulative != null && delta != null) reportedActiveKcal = cumulative
     val body = JSONObject()
       .put("type", "heartRateBatch")
       .put("clientId", UUID.randomUUID().toString())
@@ -249,5 +258,19 @@ internal object WearHeartRate {
     request.dataMap.putString("json", body.toString())
     request.dataMap.putLong("at", System.currentTimeMillis())
     Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
+  }
+
+  /**
+   * Workout calories with resting removed. Null until Health Services has a
+   * total and the phone has sent today's resting burn, so a total is never
+   * reported as active.
+   */
+  private fun activeKcal(): Double? {
+    val total = rawTotalKcal ?: return null
+    val bmr = WatchContext.snapshot.bmrKcal ?: return null
+    if (bmr <= 0 || exerciseStartedAt <= 0L) return null
+    val elapsedSec = (System.currentTimeMillis() - exerciseStartedAt) / 1000.0
+    val resting = bmr / 86_400.0 * elapsedSec
+    return kotlin.math.max(0.0, total - resting)
   }
 }
