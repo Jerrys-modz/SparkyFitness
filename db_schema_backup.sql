@@ -3543,6 +3543,18 @@ COMMENT ON COLUMN public.profiles.social_jetlag_hours IS 'Calculated Social Jetl
 
 
 --
+-- Name: rate_limit; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rate_limit (
+    id uuid NOT NULL,
+    key text NOT NULL,
+    count integer NOT NULL,
+    last_request bigint NOT NULL
+);
+
+
+--
 -- Name: session; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5632,6 +5644,22 @@ ALTER TABLE ONLY public.pregnancy_photos
 
 
 --
+-- Name: rate_limit rate_limit_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rate_limit
+    ADD CONSTRAINT rate_limit_key_key UNIQUE (key);
+
+
+--
+-- Name: rate_limit rate_limit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rate_limit
+    ADD CONSTRAINT rate_limit_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: session session_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6667,6 +6695,13 @@ CREATE INDEX idx_pregnancy_photos_pregnancy ON public.pregnancy_photos USING btr
 --
 
 CREATE INDEX idx_pregnancy_photos_user_id ON public.pregnancy_photos USING btree (user_id);
+
+
+--
+-- Name: idx_rate_limit_last_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rate_limit_last_request ON public.rate_limit USING btree (last_request);
 
 
 --
@@ -9072,6 +9107,13 @@ CREATE POLICY deny_all_policy ON public.passkey_registration_tickets USING (fals
 
 
 --
+-- Name: rate_limit deny_all_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY deny_all_policy ON public.rate_limit USING (false) WITH CHECK (false);
+
+
+--
 -- Name: exercise_entries; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -10006,6 +10048,12 @@ ALTER TABLE public.pregnancy_photos ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: rate_limit; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.rate_limit ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: exercise_entries select_exercise_preset_entry_linked_policy; Type: POLICY; Schema: public; Owner: -
@@ -11635,6 +11683,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.pregnancy_photos TO sparky_app
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.profiles TO sparky_app;
+
+
+--
+-- Name: TABLE rate_limit; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.rate_limit TO sparky_app;
 
 
 --
