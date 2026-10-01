@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Router for the watch app. First run is a one-time gate; after that, Goals,
-/// Water, Entry, Trend, Workout and Now Playing are pages the wearer swipes
-/// between — swiping is the only way to move between them, there is no button.
+/// Water, Entry, Trend and Workout are pages the wearer swipes between.
+/// Now Playing is a further swipe, and only while a workout is running.
+/// Swiping is the only way to move between them, there is no button.
 struct ContentView: View {
     /// Identifies a page; the cases are `.tag` values, nothing more.
     ///
@@ -14,6 +15,7 @@ struct ContentView: View {
 
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var workoutStore: WorkoutSessionStore
 
     /// Watched so the app can notice a day has ended while it was away. The
     /// watch app commonly stays resident overnight, in which case nothing
@@ -38,8 +40,9 @@ struct ContentView: View {
                     page = .trend
                 }
             } else {
-                // This order is the swipe order: Goals ▸ Water ▸ Entry ▸ Trend ▸ Workout ▸ Now Playing.
-                TabView(selection: Binding(get: { page ?? initialPage }, set: { page = $0 })) {
+                // Goals ▸ Water ▸ Entry ▸ Trend ▸ Workout, then Now Playing
+                // only while a workout is running.
+                TabView(selection: Binding(get: { selectedPage }, set: { page = $0 })) {
                     GoalSummaryView()
                         .tag(Page.goals)
 
@@ -55,8 +58,10 @@ struct ContentView: View {
                     WorkoutView()
                         .tag(Page.workout)
 
-                    NowPlayingPage()
-                        .tag(Page.nowPlaying)
+                    if workoutStore.isActive {
+                        NowPlayingPage()
+                            .tag(Page.nowPlaying)
+                    }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
             }
@@ -103,6 +108,13 @@ struct ContentView: View {
             session.requestContext()
             session.refreshComplications()
         }
+        .onChange(of: workoutStore.isActive) { _, active in
+            // The page is gone with the workout. Leaving the selection on it
+            // would reopen Now Playing the next time a workout starts.
+            if !active, page == .nowPlaying {
+                page = .workout
+            }
+        }
         .onOpenURL { url in
             guard let link = WatchDeepLink(url: url),
                   let requested = destination(for: link)
@@ -130,6 +142,16 @@ struct ContentView: View {
     /// already logged — nothing left to capture — otherwise Entry.
     private var initialPage: Page {
         store.isReplacingToday ? .goals : .entry
+    }
+
+    /// The page to show. A Now Playing selection left over after the workout
+    /// ended has no tab, so it falls back to Workout rather than an empty page.
+    private var selectedPage: Page {
+        let current = page ?? initialPage
+        if current == .nowPlaying, !workoutStore.isActive {
+            return .workout
+        }
+        return current
     }
 
     #if DEBUG
