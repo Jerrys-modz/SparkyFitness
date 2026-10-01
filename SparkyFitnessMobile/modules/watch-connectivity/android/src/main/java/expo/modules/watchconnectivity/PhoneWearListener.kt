@@ -14,5 +14,23 @@ class PhoneWearListener : WearableListenerService() {
     WearLink.heartRatesFrom(events).forEach { (payload, uri) ->
       module.emitHeartRate(payload, uri)
     }
+    WearLink.itemsFrom(events, WearLink.CHECK_IN).forEach { (payload, uri) ->
+      module.emitCheckIn(payload, uri)
+    }
+    WearLink.itemsFrom(events, WearLink.WATER_DELETE).forEach { (payload, uri) ->
+      module.emitWaterDelete(payload, uri)
+    }
+    WearLink.itemsFrom(events, WearLink.WATER).forEach { (payload, uri) ->
+      module.emitWater(payload, uri)
+    }
+    WearLink.itemsFrom(events, WearLink.REST).forEach { (payload, uri) ->
+      module.emitRest(payload, uri)
+    }
+    WearLink.itemsFrom(events, WearLink.WORKOUT_STOPPED).forEach { (payload, uri) ->
+      module.emitWorkoutStop(payload, uri)
+    }
+    WearLink.itemsFrom(events, WearLink.REQUEST_CONTEXT).forEach { (_, uri) ->
+      module.emitContextRequest(uri)
+    }
   }
 }

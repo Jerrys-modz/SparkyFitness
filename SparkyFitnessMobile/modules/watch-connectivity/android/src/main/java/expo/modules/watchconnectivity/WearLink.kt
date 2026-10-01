@@ -25,6 +25,14 @@ internal object WearLink {
   const val SET_TARGETS = "$PREFIX/set/targets"
   const val SET_COMPLETED = "$PREFIX/set/completed"
   const val HEART_RATE = "$PREFIX/heart-rate"
+  const val CONTEXT = "$PREFIX/context"
+  const val CHECK_IN = "$PREFIX/check-in"
+  const val WATER = "$PREFIX/water"
+  const val WATER_DELETE = "$PREFIX/water-delete"
+  const val REST = "$PREFIX/rest"
+  const val WORKOUT_STOPPED = "$PREFIX/workout/stopped"
+  const val REQUEST_CONTEXT = "$PREFIX/request-context"
+  const val ACK = "$PREFIX/ack"
 
   fun put(context: Context, path: String, payload: Map<String, Any?>) {
     val ready = jsonReady(payload) as? JSONObject ?: return
@@ -48,7 +56,7 @@ internal object WearLink {
     readPrefixed(context, HEART_RATE, onEach)
   }
 
-  private fun readPrefixed(
+  internal fun readPrefixed(
     context: Context,
     path: String,
     onEach: (Map<String, Any?>, Uri) -> Unit,
@@ -60,6 +68,8 @@ internal object WearLink {
         try {
           for (i in 0 until buffer.count) {
             val item = buffer.get(i)
+            val itemPath = item.uri.path ?: continue
+            if (itemPath != path && !itemPath.startsWith("$path/")) continue
             val json = DataMapItem.fromDataItem(item).dataMap.getString("json") ?: continue
             val payload = try {
               payloadMap(json)
@@ -84,12 +94,12 @@ internal object WearLink {
   fun completionsFrom(events: DataEventBuffer): List<Pair<Map<String, Any?>, Uri>> =
     itemsFrom(events, SET_COMPLETED)
 
-  private fun itemsFrom(events: DataEventBuffer, prefix: String): List<Pair<Map<String, Any?>, Uri>> {
+  internal fun itemsFrom(events: DataEventBuffer, prefix: String): List<Pair<Map<String, Any?>, Uri>> {
     val out = mutableListOf<Pair<Map<String, Any?>, Uri>>()
     for (event in events) {
       if (event.type != DataEvent.TYPE_CHANGED) continue
       val path = event.dataItem.uri.path ?: continue
-      if (!path.startsWith(prefix)) continue
+      if (path != prefix && !path.startsWith("$prefix/")) continue
       val json = DataMapItem.fromDataItem(event.dataItem).dataMap.getString("json") ?: continue
       val payload = try {
         payloadMap(json)
