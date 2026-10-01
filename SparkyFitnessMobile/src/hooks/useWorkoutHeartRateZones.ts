@@ -15,7 +15,8 @@ import {
  * no requests at all. Each entry uses the cardio session screen's query key,
  * so an entry already opened there is not fetched twice.
  *
- * Null while any of those is still loading, or when no entry has zones.
+ * Null while any of those is still loading or has failed, or when no entry
+ * has zones.
  */
 export function useWorkoutHeartRateZones(
   exercises: readonly { id: string; avg_heart_rate?: number | null }[]
@@ -29,7 +30,12 @@ export function useWorkoutHeartRateZones(
       queryFn: () => fetchWorkoutHrZones(id),
     })),
     combine: (results) => {
-      if (results.length === 0 || results.some((r) => r.isPending)) {
+      // A failed entry would otherwise count as zero time and the rest would
+      // pass for the whole workout, so withhold the card rather than undercount.
+      if (
+        results.length === 0 ||
+        results.some((r) => r.isPending || r.isError)
+      ) {
         return null;
       }
       const rows = combinedHeartRateZoneRows(results.map((r) => r.data ?? []));
