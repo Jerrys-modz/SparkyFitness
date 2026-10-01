@@ -1,0 +1,51 @@
+name: Wear OS
+
+on:
+  pull_request:
+    paths:
+      - "SparkyFitnessMobile/targets/wear/**"
+      - ".github/workflows/wear.yml"
+  push:
+    branches: [main]
+    paths:
+      - "SparkyFitnessMobile/targets/wear/**"
+      - ".github/workflows/wear.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: wear-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    name: Assemble Wear debug
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # Matches targets/wear/gradle/wrapper/gradle-wrapper.properties.
+          gradle-version: "8.11.1"
+
+      - name: Point Gradle at the SDK
+        working-directory: SparkyFitnessMobile/targets/wear
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > local.properties
+
+      - name: Assemble the Wear app
+        working-directory: SparkyFitnessMobile/targets/wear
+        run: gradle :app:assembleDebug --stacktrace
