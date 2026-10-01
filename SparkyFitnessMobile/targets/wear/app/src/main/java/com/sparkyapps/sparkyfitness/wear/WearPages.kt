@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -29,7 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -129,33 +134,80 @@ internal fun WaterPage(context: Context, page: Int) {
   val pendingMl = WatchContext.pending.sumOf { it.ml }
   val ml = snap.waterMl + pendingMl
   val fraction = if (snap.waterGoalMl <= 0) 0f else (ml / snap.waterGoalMl).toFloat().coerceIn(0f, 1f)
-  WatchFrame(page) {
-    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-      Column(Modifier.weight(1.4f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-        val pct = if (snap.waterGoalMl <= 0) "Water" else "${(fraction * 100).toInt()}%"
-        Text(pct, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Bottle(fraction, Modifier.weight(1f).fillMaxWidth().padding(vertical = 2.dp))
-        Text(formatWater(ml, snap.waterUnit), color = Palette.secondary, fontSize = 10.sp, maxLines = 1)
-      }
-      Column(
-        Modifier.weight(1f).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-      ) {
-        if (snap.containers.isEmpty()) {
-          Text("No bottles yet", color = Palette.secondary, fontSize = 10.sp, textAlign = TextAlign.Center)
+  var showLog by remember { mutableStateOf(false) }
+  WatchFrame(page, horizontal = 14.dp) {
+    if (showLog) {
+      Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text(
+            "×",
+            color = Palette.secondary,
+            fontSize = 14.sp,
+            modifier = Modifier.clickable { showLog = false },
+          )
+          Text("Today", color = Palette.secondary, fontSize = 11.sp, modifier = Modifier.padding(start = 6.dp))
         }
-        snap.containers.forEach { container ->
-          Box(
-            Modifier
-              .fillMaxWidth()
-              .height(46.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .background(Color(0xFF64D2FF).copy(alpha = 0.18f))
-              .clickable { PhoneBus.water(context, container) },
-            contentAlignment = Alignment.Center,
-          ) {
-            Text(container.name, color = Color.White, fontSize = 11.sp, maxLines = 2, textAlign = TextAlign.Center)
+        if (snap.drinks.isEmpty()) {
+          Text("Nothing logged today.", color = Palette.secondary, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+        }
+        snap.drinks.forEach { drink ->
+          Column(Modifier.padding(top = 6.dp)) {
+            Text(drink.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+              "${formatWater(drink.volumeMl, snap.waterUnit)} · ${drink.time}",
+              color = Palette.secondary,
+              fontSize = 10.sp,
+            )
           }
+        }
+      }
+    } else {
+      Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+          Modifier.weight(1.7f).fillMaxHeight(),
+          horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+          Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+              Modifier.size(12.dp).clip(CircleShape).background(Palette.green),
+              contentAlignment = Alignment.Center,
+            ) {
+              Text("✓", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            }
+            val label = if (snap.waterGoalMl <= 0) "Water" else "${(fraction * 100).toInt()}% · ${formatWater(ml, snap.waterUnit)}"
+            Text(
+              label,
+              color = Color.White,
+              fontSize = 11.sp,
+              fontWeight = FontWeight.SemiBold,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+              modifier = Modifier.padding(start = 3.dp),
+            )
+          }
+          Bottle(
+            fraction,
+            Modifier
+              .weight(1f)
+              .fillMaxWidth()
+              .padding(top = 2.dp),
+          )
+        }
+        Column(
+          Modifier.weight(1f).verticalScroll(rememberScrollState()),
+          verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+          if (snap.containers.isEmpty()) {
+            Text("No bottles yet", color = Palette.secondary, fontSize = 10.sp, textAlign = TextAlign.Center)
+          }
+          snap.containers.forEach { container ->
+            WaterTile(
+              container.name,
+              formatWater(container.servingMl, snap.waterUnit),
+              tinted = true,
+            ) { PhoneBus.water(context, container) }
+          }
+          WaterTile("Log", null, tinted = false) { showLog = true }
         }
       }
     }
@@ -163,26 +215,90 @@ internal fun WaterPage(context: Context, page: Int) {
 }
 
 @Composable
-private fun Bottle(fraction: Float, modifier: Modifier) {
+private fun WaterTile(title: String, detail: String?, tinted: Boolean, onClick: () -> Unit) {
+  Column(
+    Modifier
+      .fillMaxWidth()
+      .aspectRatio(1f)
+      .clip(RoundedCornerShape(16.dp))
+      .background(if (tinted) Palette.water.copy(alpha = 0.16f) else Palette.secondary.copy(alpha = 0.16f))
+      .clickable(onClick = onClick)
+      .padding(2.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.Center,
+  ) {
+    if (tinted) DropIcon(Modifier.size(12.dp)) else ListIcon(Modifier.size(12.dp))
+    Text(title, color = Color.White, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    if (detail != null) {
+      Text(detail, color = Palette.secondary, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+  }
+}
+
+@Composable
+private fun DropIcon(modifier: Modifier) {
   Canvas(modifier) {
-    val left = size.width * 0.22f
-    val right = size.width * 0.78f
-    val top = size.height * 0.08f
-    val bottom = size.height * 0.96f
-    drawRoundRect(
-      color = Palette.secondary.copy(alpha = 0.35f),
-      topLeft = Offset(left, top),
-      size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
-      cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
-      style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f),
-    )
-    val fillHeight = (bottom - top) * fraction
-    drawRoundRect(
-      color = Color(0xFF64D2FF),
-      topLeft = Offset(left, bottom - fillHeight),
-      size = androidx.compose.ui.geometry.Size(right - left, fillHeight),
-      cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
-    )
+    val path = Path().apply {
+      val w = size.width
+      val h = size.height
+      moveTo(w * 0.5f, h * 0.08f)
+      cubicTo(w * 0.5f, h * 0.08f, w * 0.12f, h * 0.46f, w * 0.12f, h * 0.64f)
+      cubicTo(w * 0.12f, h * 0.9f, w * 0.28f, h * 0.98f, w * 0.5f, h * 0.98f)
+      cubicTo(w * 0.72f, h * 0.98f, w * 0.88f, h * 0.9f, w * 0.88f, h * 0.64f)
+      cubicTo(w * 0.88f, h * 0.46f, w * 0.5f, h * 0.08f, w * 0.5f, h * 0.08f)
+      close()
+    }
+    drawPath(path, Palette.water)
+  }
+}
+
+@Composable
+private fun ListIcon(modifier: Modifier) {
+  Canvas(modifier) {
+    val color = Palette.secondary
+    val left = size.width * 0.15f
+    val right = size.width * 0.85f
+    listOf(0.28f, 0.5f, 0.72f).forEach { y ->
+      drawLine(color, Offset(left, size.height * y), Offset(right, size.height * y), strokeWidth = 1.6f, cap = StrokeCap.Round)
+    }
+  }
+}
+
+@Composable
+private fun Bottle(fraction: Float, modifier: Modifier) {
+  Canvas(modifier.aspectRatio(70f / 130f, matchHeightConstraintsFirst = true)) {
+    val path = bottlePath(size.width, size.height)
+    drawPath(path, Palette.secondary.copy(alpha = 0.15f))
+    clipPath(path) {
+      val top = size.height * (1f - fraction.coerceIn(0f, 1f))
+      drawRect(
+        color = Palette.water,
+        topLeft = Offset(0f, top),
+        size = androidx.compose.ui.geometry.Size(size.width, size.height - top),
+      )
+    }
+    drawPath(path, Palette.secondary.copy(alpha = 0.7f), style = Stroke(width = 1.5f))
+  }
+}
+
+private fun bottlePath(width: Float, height: Float): Path {
+  fun x(v: Float) = v / 70f * width
+  fun y(v: Float) = v / 130f * height
+  return Path().apply {
+    moveTo(x(26f), y(6f))
+    lineTo(x(26f), y(23f))
+    lineTo(x(23f), y(23f))
+    lineTo(x(23f), y(28f))
+    cubicTo(x(23f), y(34f), x(12f), y(37f), x(12f), y(42f))
+    lineTo(x(12f), y(112f))
+    cubicTo(x(12f), y(121f), x(20f), y(124f), x(35f), y(124f))
+    cubicTo(x(50f), y(124f), x(58f), y(121f), x(58f), y(112f))
+    lineTo(x(58f), y(42f))
+    cubicTo(x(58f), y(37f), x(47f), y(34f), x(47f), y(28f))
+    lineTo(x(47f), y(23f))
+    lineTo(x(44f), y(23f))
+    lineTo(x(44f), y(6f))
+    close()
   }
 }
 
@@ -338,7 +454,7 @@ private fun formatOne(value: Double): String =
   if (value % 1.0 == 0.0) value.toInt().toString() else String.format("%.1f", value)
 
 private fun formatWater(ml: Double, unit: String): String = when (unit) {
-  "oz" -> "${formatOne(ml / 29.5735)} oz"
-  "liter" -> "${formatOne(ml / 1000.0)} L"
-  else -> "${ml.toInt()} ml"
+  "oz" -> String.format("%.1f", ml / 29.5735) + "oz"
+  "liter" -> String.format("%.2f", ml / 1000.0) + "L"
+  else -> "${ml.toInt()}ml"
 }
