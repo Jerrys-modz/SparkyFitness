@@ -96,7 +96,7 @@ internal object ScreenshotSeed {
                 .put(set("1", 10, 40.0, 60, "warmup"))
                 .put(set("2", 8, 70.0, 90, "normal"))
                 .put(set("3", 6, 82.5, 120, "normal")),
-              1,
+              0,
             )
           )
           .put(
@@ -106,7 +106,7 @@ internal object ScreenshotSeed {
               JSONArray()
                 .put(set("4", 12, 22.5, 60, "normal"))
                 .put(set("5", 12, 22.5, 60, "normal")),
-              1,
+              0,
             )
           )
           .put(
