@@ -85,6 +85,7 @@ class WatchConnectivityModule : Module() {
       val ctx = appContext.reactContext ?: return@AsyncFunction
       HeartRateQueue.setOwner(ctx, ownerId)
       if (ownerId.isEmpty()) return@AsyncFunction
+      WearLink.readHeartRates(ctx) { payload, uri -> emitHeartRate(payload, uri) }
       rescan(ctx) {
         EventInbox.replay(
           ctx,
@@ -154,6 +155,7 @@ class WatchConnectivityModule : Module() {
 
   fun emitHeartRate(payload: Map<String, Any?>, uri: android.net.Uri?) {
     val ctx = appContext.reactContext ?: return
+    if (HeartRateQueue.belongsElsewhere(ctx, payload)) return
     val event = HeartRateQueue.accept(ctx, payload)
     if (uri != null) WearLink.delete(ctx, uri)
     if (event != null) sendEvent("onHeartRateBatch", event)

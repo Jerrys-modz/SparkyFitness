@@ -31,6 +31,7 @@ import { getTodayDate, addDays } from '../utils/dateUtils';
 import { getServingVolume } from '../utils/unitConversions';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
+import { getActiveServerConfigId } from '../services/storage';
 import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -453,11 +454,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       const figures =
         summaryDate === today ? figuresForSummaryDate : NO_FIGURES_FOR_TODAY;
 
+      const ownerId = await getActiveServerConfigId();
+      if (generation !== pushGenerationRef.current) return;
+
       const context: WatchContextPayload = {
         // Keeps consecutive pushes distinct — see the field's own comment.
         // Without it an unchanged day pushes an identical dictionary, which
         // WatchConnectivity silently declines to redeliver.
         pushedAt: Date.now(),
+        ownerId,
         today,
         todayWeightKg: todayRow?.weight ?? null,
         todayBodyFatPercentage: todayRow?.bodyFat ?? null,

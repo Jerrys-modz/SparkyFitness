@@ -84,6 +84,11 @@ export interface WatchContextPayload {
    * push (a fresh install, say) never heard anything.
    */
   pushedAt: number;
+  /**
+   * Server config that owns this snapshot. The watch stamps heart-rate
+   * batches with it so a later account cannot claim them.
+   */
+  ownerId?: string | null;
   today: string;
   todayWeightKg?: number | null;
   todayBodyFatPercentage?: number | null;

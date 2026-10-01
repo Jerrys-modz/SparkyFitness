@@ -32,11 +32,21 @@ internal object HeartRateQueue {
     }
   }
 
+  /** True when the batch names a different config than the one now active.
+   * The DataItem has to stay so that config can still read it. */
+  fun belongsElsewhere(context: Context, payload: Map<String, Any?>): Boolean {
+    val stamped = payload["ownerId"] as? String ?: return false
+    if (stamped.isEmpty()) return false
+    val owner = owner(context)
+    return owner.isNotEmpty() && stamped != owner
+  }
+
   /** Null when the batch was dropped or already stored. */
   fun accept(context: Context, payload: Map<String, Any?>): Map<String, Any?>? {
     synchronized(lock) {
       val owner = owner(context)
-      if (owner.isEmpty()) {
+      val stamped = payload["ownerId"] as? String ?: ""
+      if (owner.isEmpty() || stamped.isEmpty() || stamped != owner) {
         bumpDropped(context)
         return null
       }
@@ -47,7 +57,7 @@ internal object HeartRateQueue {
       event["samples"] = payload["samples"] ?: emptyList<Any>()
       (payload["activeEnergyKcal"] as? Number)?.let { event["activeEnergyKcal"] = it.toDouble() }
       (payload["durationMinutes"] as? Number)?.let { event["durationMinutes"] = it.toDouble() }
-      event["ownerId"] = owner
+      event["ownerId"] = stamped
       val clientId = event["clientId"] as String
       if (clientId.isEmpty()) event["queueId"] = UUID.randomUUID().toString()
       val dir = directory(context) ?: run {
