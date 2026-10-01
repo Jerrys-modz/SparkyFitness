@@ -210,6 +210,15 @@ struct WaterDeleteRequest: Codable, Equatable {
     let entryId: String
 }
 
+/// A saved workout the wearer can start from the wrist. The phone still
+/// creates the session; this is only the name to tap.
+struct StartableWorkout: Codable, Equatable, Identifiable {
+    let presetId: String
+    let name: String
+
+    var id: String { presetId }
+}
+
 /// Everything the phone relays to the watch: what to seed the crown with, and
 /// recent history to draw. Latest-value-only — delivered via
 /// `updateApplicationContext`, so a missed update is simply superseded.
@@ -286,6 +295,10 @@ struct WatchContext: Codable, Equatable {
     /// phone hasn't said, which reads as on. Use the `effective…` accessors.
     var hapticsEnabled: Bool?
     var restAlertsEnabled: Bool?
+    /// Saved workouts the wearer can start here. Nil until the phone has
+    /// said; empty means there are none. Optional so an older context blob
+    /// still decodes.
+    var startableWorkouts: [StartableWorkout]? = nil
 
     static let empty = WatchContext(
         today: nil,

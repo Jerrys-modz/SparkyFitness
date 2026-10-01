@@ -36,6 +36,22 @@ import { usePreferences } from './usePreferences';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary } from './useDailySummary';
 import type { CheckInMeasurement } from '../types/measurements';
+import type { WorkoutPreset } from '../types/workoutPresets';
+import { useWorkoutPresets } from './useWorkoutPresets';
+
+/** Saved workouts the watch may start. Presets with no exercises are omitted:
+ * the server rejects a session that has none. */
+export function startableWorkoutsForWatch(
+  presets: readonly Pick<WorkoutPreset, 'id' | 'name' | 'exercises'>[]
+): { presetId: string; name: string }[] {
+  return presets
+    .filter(
+      (preset) => preset.name.trim() !== '' && preset.exercises.length > 0
+    )
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((preset) => ({ presetId: String(preset.id), name: preset.name }));
+}
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
 function goalProgress(consumed: number, goal: number): number {
@@ -173,6 +189,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     preferences?.default_weight_unit === 'st_lbs'
       ? 'lbs'
       : 'kg';
+  const { presets } = useWorkoutPresets({ enabled });
+  const startableWorkouts = useMemo(
+    () => startableWorkoutsForWatch(presets),
+    [presets]
+  );
 
   // The calendar day everything below describes.
   //
@@ -472,6 +493,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         waterDisplayUnit,
         hapticsEnabled,
         restAlertsEnabled,
+        startableWorkouts,
         ...figures,
       };
 
@@ -494,6 +516,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     weightUnit,
     hapticsEnabled,
     restAlertsEnabled,
+    startableWorkouts,
     waterGoalMl,
     waterDisplayUnit,
     summaryDate,

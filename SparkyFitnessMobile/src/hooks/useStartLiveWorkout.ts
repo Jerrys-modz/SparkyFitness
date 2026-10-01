@@ -36,12 +36,12 @@ import type { RootStackParamList } from '../types/navigation';
 
 export { syncWatchIntervalTiming } from '../stores/activeWorkoutStore';
 
-type StartLiveWorkoutNavigation = Pick<
+export type StartLiveWorkoutNavigation = Pick<
   NativeStackNavigationProp<RootStackParamList>,
   'replace' | 'isFocused' | 'navigate'
 >;
 
-interface StartLiveWorkoutArgs {
+export interface StartLiveWorkoutArgs {
   /** Session name; defaults to the form path's dated name ("Workout - Jul 6"). */
   name?: string;
   exercises: PresetSessionExerciseRequest[];

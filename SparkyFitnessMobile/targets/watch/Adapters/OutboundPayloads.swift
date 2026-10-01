@@ -25,6 +25,7 @@ enum OutboundPayloads {
         static let heartRateBatch = "heartRateBatch"
         static let workoutStop = "workoutStop"
         static let restChanged = "restChanged"
+        static let workoutStartRequested = "workoutStartRequested"
     }
 
     /// A morning check-in awaiting a server write.
@@ -67,6 +68,15 @@ enum OutboundPayloads {
 
     /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
+
+    /// The wearer tapped a saved workout. The phone creates the session and
+    /// arms the watch the same way its own start button does.
+    static func workoutStartRequest(presetId: String) -> [String: Any] {
+        [
+            "type": Kind.workoutStartRequested,
+            "presetId": presetId,
+        ]
+    }
 
     /// One set logged during an active workout, with whatever the wearer
     /// actually did. Delivery must not be lost — unlike a heart-rate sample,

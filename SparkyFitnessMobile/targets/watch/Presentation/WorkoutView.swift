@@ -21,8 +21,9 @@ private enum SupersetPalette {
     }
 }
 
-/// The Workout tab. Nothing here starts a workout — the phone arms it by
-/// pushing `workoutStart` for a preset session already begun there.
+/// The Workout tab. With no session running, the saved workouts the phone
+/// last sent are listed here; tapping one asks the phone to start it and
+/// arm this tab. Once a session is running, one set is on screen at a time.
 ///
 /// Laid out one set at a time rather than as a list of an exercise's sets:
 /// the wearer is mid-lift looking at a 40mm screen, so the two numbers they
@@ -43,17 +44,48 @@ struct WorkoutView: View {
 }
 
 private struct WaitingForWorkoutView: View {
+    @EnvironmentObject private var checkIn: CheckInStore
+    @EnvironmentObject private var session: WatchSessionManager
+    /// The preset just tapped. Blocks a second tap from starting two
+    /// sessions before the first one arrives. Cleared after a few seconds
+    /// so a start the phone could not finish can be tried again.
+    @State private var startingId: String?
+
     var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "figure.strengthtraining.traditional")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-            Text("Start a workout on your phone")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        let workouts = checkIn.context.startableWorkouts ?? []
+        if workouts.isEmpty {
+            VStack(spacing: 6) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                Text("Start a workout on your phone")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 8)
+        } else {
+            List(workouts) { workout in
+                Button {
+                    start(workout)
+                } label: {
+                    Text(startingId == workout.presetId ? "Starting…" : workout.name)
+                        .lineLimit(2)
+                }
+                .disabled(startingId != nil)
+            }
         }
-        .padding(.horizontal, 8)
+    }
+
+    private func start(_ workout: StartableWorkout) {
+        guard startingId == nil else { return }
+        startingId = workout.presetId
+        session.requestWorkoutStart(presetId: workout.presetId)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if startingId == workout.presetId {
+                startingId = nil
+            }
+        }
     }
 }
 
