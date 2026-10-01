@@ -59,11 +59,10 @@ enum ContextPayloadMapper {
                 Date(timeIntervalSince1970: $0 / 1000)
             },
             // Settings, so carried forward like the water goal: a push from a
-            // phone build that doesn't send them must not flip them back on.
+            // phone build that doesn't send them must not flip them back on
+            // or undo the page layout.
             hapticsEnabled: payload["hapticsEnabled"] as? Bool ?? previous.hapticsEnabled,
             restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled,
-            // Settings → Apple Watch layout, carried forward the same way: a
-            // phone build that doesn't send them must not undo the layout.
             pageOrder: payload["pageOrder"] as? [String] ?? previous.pageOrder,
             hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages,
             setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle
