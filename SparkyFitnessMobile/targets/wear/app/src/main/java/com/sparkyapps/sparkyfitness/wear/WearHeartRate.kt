@@ -85,7 +85,9 @@ internal object WearHeartRate {
       } catch (_: Exception) {
         null
       }
+      val token = startToken
       main.post {
+        if (token != startToken || sessionId == null) return@post
         if (reading != null) {
           val previous = rawTotalKcal
           if (previous != null && reading + 0.01 < previous) {
@@ -201,6 +203,7 @@ internal object WearHeartRate {
         running = true
         val started = System.currentTimeMillis()
         main.post {
+          if (token != startToken) return@post
           exerciseStartedAt = started
           main.removeCallbacks(flushRunnable)
           main.postDelayed(flushRunnable, 60_000)
@@ -227,17 +230,20 @@ internal object WearHeartRate {
     }
   }
 
+  private var flushing = false
+
   private fun flush() {
+    if (flushing) return
     val context = appContext ?: return
     val session = sessionId ?: return
     val exercise = exerciseEntryId ?: return
     val batch = samples.toList()
-    samples.clear()
     val cumulative = activeKcal()
     val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedActiveKcal) }
     val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
     if (batch.isEmpty() && (delta == null || delta == 0.0) && minutes <= 0) return
-    if (cumulative != null && delta != null) reportedActiveKcal = cumulative
+    flushing = true
+    samples.clear()
     val body = JSONObject()
       .put("type", "heartRateBatch")
       .put("clientId", UUID.randomUUID().toString())
@@ -252,12 +258,23 @@ internal object WearHeartRate {
         }
       )
     if (delta != null) body.put("activeEnergyKcal", delta)
-    val minutesSent = minutes
-    if (minutesSent > 0) body.put("durationMinutes", minutesSent)
+    if (minutes > 0) body.put("durationMinutes", minutes)
     val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/${body.getString("clientId")}")
     request.dataMap.putString("json", body.toString())
     request.dataMap.putLong("at", System.currentTimeMillis())
-    Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
+    val task = Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
+    task.addOnSuccessListener {
+      main.post {
+        flushing = false
+        if (cumulative != null && delta != null) reportedActiveKcal = cumulative
+      }
+    }
+    task.addOnFailureListener {
+      main.post {
+        flushing = false
+        batch.asReversed().forEach { sample -> samples.addFirst(sample) }
+      }
+    }
   }
 
   /**

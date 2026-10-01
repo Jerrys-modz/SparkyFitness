@@ -38,11 +38,12 @@ class WatchConnectivityModule : Module() {
         WearLink.readHeartRates(ctx) { payload, uri ->
           emitHeartRate(payload, uri)
         }
-        WearLink.readPrefixed(ctx, WearLink.CHECK_IN) { payload, uri -> emitCheckIn(payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.WATER_DELETE) { payload, uri -> emitWaterDelete(payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.WATER) { payload, uri -> emitWater(payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.REST) { payload, uri -> emitRest(payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.WORKOUT_STOPPED) { payload, uri -> emitWorkoutStop(payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.CHECK_IN) { payload, uri -> ingest("onCheckIn", payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.WATER_DELETE) { payload, uri -> ingest("onWaterDelete", payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.WATER) { payload, uri -> ingest("onWaterIntake", payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.REST) { payload, uri -> ingest("onRestChanged", payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.WORKOUT_STOPPED) { payload, uri -> ingest("onWorkoutStop", payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.SET_COMPLETED) { payload, uri -> ingest("onSetCompleted", payload, uri) }
         WearLink.readPrefixed(ctx, WearLink.REQUEST_CONTEXT) { _, uri -> emitContextRequest(uri) }
         refreshNodes()
       }
@@ -59,19 +60,44 @@ class WatchConnectivityModule : Module() {
 
     AsyncFunction("updateContext") { context: Map<String, Any?> ->
       val ctx = appContext.reactContext ?: return@AsyncFunction
-      EventInbox.drain(ctx).forEach { item ->
-        deliver(item.event, item.payload, null)
+      EventInbox.replay(ctx, setOf("onCheckIn", "onWaterIntake", "onWaterDelete")).forEach { item ->
+        sendEvent(item.event, item.payload)
       }
       WearLink.put(ctx, WearLink.CONTEXT, context)
     }
     AsyncFunction("sendAck") { clientId: String, ok: Boolean ->
       val ctx = appContext.reactContext ?: return@AsyncFunction
-      WearLink.put(ctx, "${WearLink.ACK}/$clientId", mapOf("clientId" to clientId, "ok" to ok))
+      EventInbox.ack(ctx, clientId, ok)
+      if (ok) {
+        WearLink.put(ctx, "${WearLink.ACK}/$clientId", mapOf("clientId" to clientId, "ok" to ok))
+      }
+    }
+    AsyncFunction("pendingWorkoutEvents") {
+      val ctx = appContext.reactContext ?: return@AsyncFunction emptyList<Map<String, Any?>>()
+      EventInbox.replay(ctx, setOf("onSetCompleted", "onRestChanged", "onWorkoutStop")).map { item ->
+        val body = LinkedHashMap(item.payload)
+        body["event"] = item.event
+        body
+      }
     }
     AsyncFunction("updateIntervalTiming") { _: Map<String, Any?> -> }
     AsyncFunction("setTelemetryOwner") { ownerId: String ->
       val ctx = appContext.reactContext ?: return@AsyncFunction
       HeartRateQueue.setOwner(ctx, ownerId)
+      if (ownerId.isEmpty()) return@AsyncFunction
+      rescan(ctx) {
+        EventInbox.replay(
+          ctx,
+          setOf(
+            "onCheckIn",
+            "onWaterIntake",
+            "onWaterDelete",
+            "onSetCompleted",
+            "onRestChanged",
+            "onWorkoutStop",
+          )
+        ).forEach { item -> sendEvent(item.event, item.payload) }
+      }
     }
     AsyncFunction("pendingHeartRateBatches") {
       val ctx = appContext.reactContext ?: return@AsyncFunction emptyList<Map<String, Any?>>()
@@ -106,16 +132,24 @@ class WatchConnectivityModule : Module() {
   @Volatile private var reachable = false
   @Volatile private var paired = false
 
-  private val seenCompletions = HashSet<String>()
+  private fun rescan(ctx: android.content.Context, onDone: () -> Unit) {
+    val left = java.util.concurrent.atomic.AtomicInteger(6)
+    val step = {
+      if (left.decrementAndGet() == 0) onDone()
+    }
+    fun read(path: String, event: String) {
+      WearLink.readPrefixed(ctx, path, { payload, uri -> ingest(event, payload, uri) }, step)
+    }
+    read(WearLink.CHECK_IN, "onCheckIn")
+    read(WearLink.WATER_DELETE, "onWaterDelete")
+    read(WearLink.WATER, "onWaterIntake")
+    read(WearLink.REST, "onRestChanged")
+    read(WearLink.WORKOUT_STOPPED, "onWorkoutStop")
+    read(WearLink.SET_COMPLETED, "onSetCompleted")
+  }
 
   fun emitCompletion(payload: Map<String, Any?>, uri: android.net.Uri?) {
-    val clientId = payload["clientId"] as? String ?: return
-    synchronized(seenCompletions) {
-      if (!seenCompletions.add(clientId)) return
-    }
-    sendEvent("onSetCompleted", payload)
-    val ctx = appContext.reactContext ?: return
-    if (uri != null) WearLink.delete(ctx, uri)
+    deliver("onSetCompleted", payload, uri)
   }
 
   fun emitHeartRate(payload: Map<String, Any?>, uri: android.net.Uri?) {
@@ -146,12 +180,28 @@ class WatchConnectivityModule : Module() {
     if (uri != null) WearLink.delete(ctx, uri)
   }
 
+  private fun ingest(event: String, payload: Map<String, Any?>, uri: android.net.Uri?) {
+    val ctx = appContext.reactContext ?: return
+    if (EventInbox.store(ctx, event, payload) != EventInbox.Stored.WAITING && uri != null) {
+      WearLink.delete(ctx, uri)
+    }
+  }
+
   private fun deliver(event: String, payload: Map<String, Any?>, uri: android.net.Uri?) {
     val ctx = appContext.reactContext ?: return
-    val body = payload.filterKeys { it != "_event" }
-    if (uri != null) EventInbox.add(ctx, event, body)
-    sendEvent(event, body)
+    val body = payload.filterKeys { it != "_event" && it != "_owner" }
+    val clientId = body["clientId"] as? String
+    if (clientId.isNullOrEmpty()) {
+      sendEvent(event, body)
+      if (uri != null) WearLink.delete(ctx, uri)
+      return
+    }
+    val stored = EventInbox.store(ctx, event, body)
+    if (stored == EventInbox.Stored.WAITING) return
     if (uri != null) WearLink.delete(ctx, uri)
+    if (stored == EventInbox.Stored.DUPLICATE) return
+    EventInbox.noteHanded(clientId)
+    sendEvent(event, body)
   }
 
   companion object {

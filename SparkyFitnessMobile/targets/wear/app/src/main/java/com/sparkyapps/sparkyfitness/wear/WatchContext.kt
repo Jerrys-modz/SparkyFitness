@@ -155,6 +155,7 @@ internal object PhoneBus {
     val id = UUID.randomUUID().toString()
     val body = JSONObject()
       .put("type", "restChanged")
+      .put("clientId", id)
       .put("sessionId", sessionId)
       .put("previousEndsAt", previousEndsAt)
     if (endsAt != null) body.put("endsAt", endsAt)
@@ -162,10 +163,11 @@ internal object PhoneBus {
   }
 
   fun workoutStopped(context: Context, sessionId: String) {
+    val id = UUID.randomUUID().toString()
     put(
       context,
-      "/sparky/workout/stopped/$sessionId",
-      JSONObject().put("type", "workoutStop").put("sessionId", sessionId),
+      "/sparky/workout/stopped/$id",
+      JSONObject().put("type", "workoutStop").put("clientId", id).put("sessionId", sessionId),
     )
   }
 

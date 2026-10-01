@@ -265,13 +265,15 @@ export function useWatchWorkoutBridge(
 
       const state = useActiveWorkoutStore.getState();
       if (state.sessionId !== payload.sessionId) {
-        // The watch is reporting a set for a session this phone no longer
-        // considers live (finished, discarded, or superseded by a new live
-        // start) — nothing to complete it against.
         addLog(
           `Watch set-completed ignored: no matching active session (${payload.sessionId})`,
           'WARNING'
         );
+        if (useActiveWorkoutStore.persist.hasHydrated()) {
+          await WatchConnectivity.sendAck?.(payload.clientId, true);
+        } else {
+          handledSetClientIdsRef.current.delete(payload.clientId);
+        }
         return;
       }
       // Values the wearer typed on the watch land first: `completeSet` runs
@@ -294,10 +296,13 @@ export function useWatchWorkoutBridge(
           Date.now()
         )
       );
-      // Flushed immediately rather than left to the debounced autosave: the
-      // phone screen that normally drives that debounce may not even be
-      // open while the wearer is logging entirely from the watch.
-      await saveActiveWorkoutSession(queryClient);
+      const outcome = await saveActiveWorkoutSession(queryClient);
+      if (outcome === 'failed') {
+        handledSetClientIdsRef.current.delete(payload.clientId);
+        await WatchConnectivity.sendAck?.(payload.clientId, false);
+        return;
+      }
+      await WatchConnectivity.sendAck?.(payload.clientId, true);
     },
     []
   );
@@ -612,12 +617,11 @@ export function useWatchWorkoutBridge(
       await flushHeartRate();
       const state = useActiveWorkoutStore.getState();
       if (state.sessionId !== payload.sessionId) {
-        // Already ended on the phone (the usual race), or a stop queued for a
-        // workout that has since been replaced.
         addLog(
           `Watch workout-stop ignored: session ${payload.sessionId} is not the live one`,
           'DEBUG'
         );
+        if (payload.clientId) await WatchConnectivity.sendAck?.(payload.clientId, true);
         return;
       }
       // Finishing on the watch ends the phone's live session too, the same
@@ -625,13 +629,11 @@ export function useWatchWorkoutBridge(
       // completion screen's params before the store empties, then clear.
       const outcome = await saveActiveWorkoutSession(queryClient);
       if (outcome === 'failed') {
-        // Clearing now would throw away sets the server never received. Keep
-        // the session live so the wearer can finish it on the phone, whose
-        // Finish flow retries the save.
         addLog(
           `Watch finish kept the phone workout open: saving session ${payload.sessionId} failed`,
           'WARNING'
         );
+        if (payload.clientId) await WatchConnectivity.sendAck?.(payload.clientId, false);
         return;
       }
       const celebration = buildWorkoutCelebration(
@@ -639,6 +641,7 @@ export function useWatchWorkoutBridge(
       );
       useActiveWorkoutStore.getState().clearWorkout();
       onWatchFinishedRef.current?.(celebration);
+      if (payload.clientId) await WatchConnectivity.sendAck?.(payload.clientId, true);
     },
     [flushHeartRate]
   );
@@ -673,7 +676,12 @@ export function useWatchWorkoutBridge(
     );
     const restChangedSub = WatchConnectivity.addListener(
       'onRestChanged',
-      applyWatchRestChange
+      (payload) => {
+        applyWatchRestChange(payload);
+        if (payload.clientId) {
+          void WatchConnectivity.sendAck?.(payload.clientId, true);
+        }
+      }
     );
     const heartRateBatchSub = WatchConnectivity.addListener(
       'onHeartRateBatch',
@@ -687,6 +695,18 @@ export function useWatchWorkoutBridge(
         void handlersRef.current.handleWorkoutStop(payload);
       }
     );
+    void WatchConnectivity.pendingWorkoutEvents?.().then((events) => {
+      for (const event of events) {
+        if (event.event === 'onSetCompleted') {
+          void handlersRef.current.handleSetCompleted(event);
+        } else if (event.event === 'onRestChanged') {
+          applyWatchRestChange(event);
+          if (event.clientId) void WatchConnectivity.sendAck?.(event.clientId, true);
+        } else if (event.event === 'onWorkoutStop') {
+          void handlersRef.current.handleWorkoutStop(event);
+        }
+      }
+    });
 
     return () => {
       setCompletedSub.remove();

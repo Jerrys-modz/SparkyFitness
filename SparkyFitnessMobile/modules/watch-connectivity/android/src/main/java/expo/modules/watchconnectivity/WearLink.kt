@@ -60,28 +60,30 @@ internal object WearLink {
     context: Context,
     path: String,
     onEach: (Map<String, Any?>, Uri) -> Unit,
+    onDone: () -> Unit = {},
   ) {
     val uri = Uri.Builder().scheme("wear").path(path).build()
-    Wearable.getDataClient(context)
-      .getDataItems(uri, DataClient.FILTER_PREFIX)
-      .addOnSuccessListener { buffer ->
-        try {
-          for (i in 0 until buffer.count) {
-            val item = buffer.get(i)
-            val itemPath = item.uri.path ?: continue
-            if (itemPath != path && !itemPath.startsWith("$path/")) continue
-            val json = DataMapItem.fromDataItem(item).dataMap.getString("json") ?: continue
-            val payload = try {
-              payloadMap(json)
-            } catch (_: Exception) {
-              continue
-            }
-            onEach(payload, item.uri)
+    val task = Wearable.getDataClient(context).getDataItems(uri, DataClient.FILTER_PREFIX)
+    task.addOnSuccessListener { buffer ->
+      try {
+        for (i in 0 until buffer.count) {
+          val item = buffer.get(i)
+          val itemPath = item.uri.path ?: continue
+          if (itemPath != path && !itemPath.startsWith("$path/")) continue
+          val json = DataMapItem.fromDataItem(item).dataMap.getString("json") ?: continue
+          val payload = try {
+            payloadMap(json)
+          } catch (_: Exception) {
+            continue
           }
-        } finally {
-          buffer.release()
+          onEach(payload, item.uri)
         }
+      } finally {
+        buffer.release()
+        onDone()
       }
+    }
+    task.addOnFailureListener { onDone() }
   }
 
   fun delete(context: Context, uri: Uri) {

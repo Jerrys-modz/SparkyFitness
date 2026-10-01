@@ -15,7 +15,7 @@ internal object HeartRateQueue {
   private const val OWNER = "owner"
   private const val DROPPED = "dropped"
   private const val DIR = "wear-heart-rate"
-  private const val LIMIT = 200
+  private const val LIMIT = 10_080
   private val lock = Any()
 
   @Volatile private var ownerLoaded = false
