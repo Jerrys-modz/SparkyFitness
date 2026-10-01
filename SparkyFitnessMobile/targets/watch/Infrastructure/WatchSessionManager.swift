@@ -455,6 +455,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "workoutStop": handle(workoutStopFromPhone: payload)
         case "intervalTiming": handle(intervalTiming: payload)
         case "setTargets": handle(setTargets: payload)
+        case "workoutPlanUpdate": handle(workoutPlanUpdate: payload)
         default: break
         }
     }
@@ -929,6 +930,24 @@ final class WatchSessionManager: NSObject, ObservableObject {
             update.revision, update.targets, update.completedSetIds, update.rest,
             update.armedAt
         )
+    }
+
+    /// The phone added, removed or regrouped exercises or sets mid-workout.
+    /// Applied to the running plan of the same arm; a start still being held
+    /// (HealthKit busy, recovery in flight) takes the newer plan instead.
+    /// Anything else, including a later arm or a finished session, is ignored.
+    private func handle(workoutPlanUpdate payload: [String: Any]) {
+        guard let update = ContextPayloadMapper.workoutPlanUpdate(from: payload) else { return }
+        let plan = update.plan
+        if let current = workoutStore.plan, current.sessionId == plan.sessionId {
+            guard Self.sameArm(plan.armedAt, current.armedAt) else { return }
+            workoutStore.updatePlan(plan, revision: update.revision)
+            return
+        }
+        if let held = pendingPlan, held.sessionId == plan.sessionId,
+           Self.sameArm(plan.armedAt, held.armedAt) {
+            pendingPlan = plan
+        }
     }
 
     /// Whether an update belongs to the plan's arm. Either side missing the
