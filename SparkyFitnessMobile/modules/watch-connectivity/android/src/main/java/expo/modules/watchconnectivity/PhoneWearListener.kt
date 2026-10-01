@@ -11,5 +11,8 @@ class PhoneWearListener : WearableListenerService() {
     WearLink.completionsFrom(events).forEach { (payload, uri) ->
       module.emitCompletion(payload, uri)
     }
+    WearLink.heartRatesFrom(events).forEach { (payload, uri) ->
+      module.emitHeartRate(payload, uri)
+    }
   }
 }

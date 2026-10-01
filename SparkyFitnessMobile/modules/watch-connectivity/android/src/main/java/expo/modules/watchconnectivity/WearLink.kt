@@ -24,6 +24,7 @@ internal object WearLink {
   const val WORKOUT_STOP = "$PREFIX/workout/stop"
   const val SET_TARGETS = "$PREFIX/set/targets"
   const val SET_COMPLETED = "$PREFIX/set/completed"
+  const val HEART_RATE = "$PREFIX/heart-rate"
 
   fun put(context: Context, path: String, payload: Map<String, Any?>) {
     val ready = jsonReady(payload) as? JSONObject ?: return
@@ -39,9 +40,20 @@ internal object WearLink {
     put(context, "$SET_COMPLETED/$clientId", payload)
   }
 
-  /** Completions already stored, including ones that arrived before JS. */
   fun readCompletions(context: Context, onEach: (Map<String, Any?>, Uri) -> Unit) {
-    val uri = Uri.Builder().scheme("wear").path(SET_COMPLETED).build()
+    readPrefixed(context, SET_COMPLETED, onEach)
+  }
+
+  fun readHeartRates(context: Context, onEach: (Map<String, Any?>, Uri) -> Unit) {
+    readPrefixed(context, HEART_RATE, onEach)
+  }
+
+  private fun readPrefixed(
+    context: Context,
+    path: String,
+    onEach: (Map<String, Any?>, Uri) -> Unit,
+  ) {
+    val uri = Uri.Builder().scheme("wear").path(path).build()
     Wearable.getDataClient(context)
       .getDataItems(uri, DataClient.FILTER_PREFIX)
       .addOnSuccessListener { buffer ->
@@ -66,14 +78,25 @@ internal object WearLink {
     Wearable.getDataClient(context).deleteDataItems(uri)
   }
 
-  fun completionsFrom(events: DataEventBuffer): List<Pair<Map<String, Any?>, Uri>> {
+  fun heartRatesFrom(events: DataEventBuffer): List<Pair<Map<String, Any?>, Uri>> =
+    itemsFrom(events, HEART_RATE)
+
+  fun completionsFrom(events: DataEventBuffer): List<Pair<Map<String, Any?>, Uri>> =
+    itemsFrom(events, SET_COMPLETED)
+
+  private fun itemsFrom(events: DataEventBuffer, prefix: String): List<Pair<Map<String, Any?>, Uri>> {
     val out = mutableListOf<Pair<Map<String, Any?>, Uri>>()
     for (event in events) {
       if (event.type != DataEvent.TYPE_CHANGED) continue
       val path = event.dataItem.uri.path ?: continue
-      if (!path.startsWith(SET_COMPLETED)) continue
+      if (!path.startsWith(prefix)) continue
       val json = DataMapItem.fromDataItem(event.dataItem).dataMap.getString("json") ?: continue
-      out.add(payloadMap(json) to event.dataItem.uri)
+      val payload = try {
+        payloadMap(json)
+      } catch (_: Exception) {
+        continue
+      }
+      out.add(payload to event.dataItem.uri)
     }
     return out
   }

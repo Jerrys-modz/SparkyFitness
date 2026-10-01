@@ -23,7 +23,7 @@ import androidx.wear.compose.material.Text
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun WorkoutScreen(screen: WearScreen?, onDone: () -> Unit) {
+internal fun WorkoutScreen(screen: WearScreen?, bpm: Int, onDone: () -> Unit) {
   var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
   val restEndsAt = screen?.restEndsAtMs ?: 0L
   LaunchedEffect(restEndsAt) {
@@ -47,11 +47,10 @@ internal fun WorkoutScreen(screen: WearScreen?, onDone: () -> Unit) {
           textAlign = TextAlign.Center,
           fontSize = 14.sp,
         )
-        screen.finished -> Text(
-          text = "Workout done",
-          color = Color.White,
-          fontSize = 16.sp,
-        )
+        screen.finished -> {
+          Text(text = "Workout done", color = Color.White, fontSize = 16.sp)
+          if (bpm > 0) Bpm(bpm)
+        }
         resting -> {
           val left = ((restEndsAt - now) / 1000).toInt().coerceAtLeast(0)
           Text(text = "Rest", color = Color.Gray, fontSize = 12.sp)
@@ -60,6 +59,7 @@ internal fun WorkoutScreen(screen: WearScreen?, onDone: () -> Unit) {
             color = Color.White,
             fontSize = 28.sp,
           )
+          if (bpm > 0) Bpm(bpm)
         }
         else -> {
           Text(
@@ -76,9 +76,15 @@ internal fun WorkoutScreen(screen: WearScreen?, onDone: () -> Unit) {
             color = Color.White,
             fontSize = 22.sp,
           )
+          if (bpm > 0) Bpm(bpm)
           Chip(label = { Text("Done") }, onClick = onDone)
         }
       }
     }
   }
+}
+
+@Composable
+private fun Bpm(bpm: Int) {
+  Text(text = "$bpm bpm", color = Color.Gray, fontSize = 12.sp)
 }

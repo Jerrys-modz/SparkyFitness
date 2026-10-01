@@ -9,11 +9,12 @@ import org.json.JSONObject
 /** The phone's workout DataItems. A watch that was asleep still receives them. */
 class WearWorkoutService : WearableListenerService() {
   override fun onDataChanged(events: DataEventBuffer) {
+    WorkoutHolder.bind(this)
     val found = mutableListOf<Triple<String, String, Long>>()
     for (event in events) {
       if (event.type != DataEvent.TYPE_CHANGED) continue
       val path = event.dataItem.uri.path ?: continue
-      if (path.startsWith(WearPaths.SET_COMPLETED)) continue
+      if (path.startsWith(WearPaths.SET_COMPLETED) || path.startsWith(WearPaths.HEART_RATE)) continue
       val map = DataMapItem.fromDataItem(event.dataItem).dataMap
       val json = map.getString("json") ?: continue
       found.add(Triple(path, json, map.getLong("at")))
