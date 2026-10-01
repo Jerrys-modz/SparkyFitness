@@ -26,6 +26,20 @@ This directory contains all GitHub Actions workflows for the SparkyFitness proje
 
 ---
 
+#### `wear.yml`
+
+**Purpose**: Compile the Wear OS companion so a broken watch build fails the pull request.
+
+**Triggers**: Pull requests and pushes to `main` that touch `SparkyFitnessMobile/targets/wear/`, plus manual runs
+
+**What it does**:
+
+- Installs Android 35 on the runner and Gradle 8.11.1
+- Runs `:app:assembleDebug` in the standalone Wear project
+- Boots a Wear emulator, seeds a sample day, and uploads screenshots of each page
+
+---
+
 #### `pr-validation.yml`
 
 **Purpose**: Validate that PR submissions follow contribution guidelines and required checkboxes are checked.
