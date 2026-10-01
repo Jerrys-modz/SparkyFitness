@@ -23,7 +23,10 @@ describe('liveHeartRateStore', () => {
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
     useLiveHeartRateStore.setState({ reading: null });
-    useActiveWorkoutStore.setState({ sessionId: 'session-1' });
+    useActiveWorkoutStore.setState({
+      sessionId: 'session-1',
+      startedAt: NOW - 10 * 60_000,
+    });
   });
 
   afterEach(() => {
@@ -63,6 +66,21 @@ describe('liveHeartRateStore', () => {
     expect(
       renderHook(() => useLiveHeartRate('entry-1')).result.current
     ).toBeNull();
+  });
+
+  test('a restart of the same workout does not show the previous run reading', () => {
+    // Same session and entry ids, measured before this run started.
+    useLiveHeartRateStore.getState().record(reading({ at: NOW - 30_000 }));
+    act(() => {
+      useActiveWorkoutStore.setState({ startedAt: NOW - 10_000 });
+    });
+    const { result } = renderHook(() => useLiveHeartRate('entry-1'));
+    expect(result.current).toBeNull();
+
+    act(() => {
+      useLiveHeartRateStore.getState().record(reading({ bpm: 128, at: NOW }));
+    });
+    expect(result.current).toBe(128);
   });
 
   test('the reading disappears once it is too old', () => {
