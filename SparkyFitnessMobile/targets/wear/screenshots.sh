@@ -13,7 +13,7 @@ adb install -r "$APK"
 
 shoot() {
   adb shell am force-stop "$PKG" || true
-  adb shell am start -W -n "$PKG/$ACT" \
+  adb shell am start -n "$PKG/$ACT" \
     --es sparky.screenshot 1 \
     --es sparky.workout "$2" \
     --es sparky.page "$3"
