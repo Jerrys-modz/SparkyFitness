@@ -35,7 +35,6 @@ import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary } from './useDailySummary';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
 import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
