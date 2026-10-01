@@ -49,6 +49,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Newest plan that arrived while a finish was in flight. Started only
     /// after the old tail has been tagged with the old session.
     private var pendingPlan: ActiveWorkoutPlan?
+    /// Revision of the plan update folded into a held start, per session,
+    /// so an older copy can't replace it and the running plan starts from it.
+    private var pendingPlanRevisions: [String: Double] = [:]
     /// Pause snapshots that arrived before `beginPlan` started that session.
     private var pendingIntervalTiming: [(
         sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
@@ -516,7 +519,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// every time: the wearer can change it in Settings between workouts.
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
         guard !startIsStale(plan) else { return }
-        workoutStore.start(with: plan)
+        workoutStore.start(
+            with: plan,
+            planRevision: pendingPlanRevisions.removeValue(forKey: plan.sessionId) ?? 0
+        )
         // Only this session's snapshots. Another plan's pause may already be
         // queued and has to survive until that plan starts.
         replayIntervalTiming(sessionId: plan.sessionId)
@@ -945,8 +951,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
             return
         }
         if let held = pendingPlan, held.sessionId == plan.sessionId,
-           Self.sameArm(plan.armedAt, held.armedAt) {
+           Self.sameArm(plan.armedAt, held.armedAt),
+           update.revision > pendingPlanRevisions[plan.sessionId, default: 0] {
             pendingPlan = plan
+            pendingPlanRevisions[plan.sessionId] = update.revision
         }
     }
 

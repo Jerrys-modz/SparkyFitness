@@ -250,7 +250,10 @@ final class WorkoutSessionStore: ObservableObject {
         }
     }
 
-    func start(with plan: ActiveWorkoutPlan) {
+    /// `planRevision` is that of a plan update already folded into `plan`
+    /// before it started (see `WatchSessionManager`), so an older queued copy
+    /// arriving afterwards is still ignored.
+    func start(with plan: ActiveWorkoutPlan, planRevision startingRevision: Double = 0) {
         self.plan = plan
         steps = Self.steps(for: plan)
         currentStepIndex = 0
@@ -258,7 +261,7 @@ final class WorkoutSessionStore: ObservableObject {
         editedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
-        planRevision = 0
+        planRevision = startingRevision
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -316,8 +319,26 @@ final class WorkoutSessionStore: ObservableObject {
         else { return }
         planRevision = revision
         let cursorSetId = currentStep?.plannedSet.setId
-        let outgoing = currentStep?.exerciseEntryId
-        plan = newPlan
+        // Past the last set the final exercise's window is still open, as in
+        // `moveCursor`.
+        let outgoing = currentStep?.exerciseEntryId ?? steps.last?.exerciseEntryId
+        // Only the shape changes. Interval timing stays as accepted here:
+        // `applyIntervalTiming` keeps the pause state and its revision in the
+        // plan, and an update does not carry them.
+        plan = ActiveWorkoutPlan(
+            sessionId: current.sessionId,
+            workoutName: newPlan.workoutName,
+            exercises: newPlan.exercises,
+            setOrder: newPlan.setOrder,
+            workoutFormat: current.workoutFormat,
+            timeCapSeconds: current.timeCapSeconds,
+            startedAt: current.startedAt,
+            armedAt: current.armedAt,
+            capEndsAt: current.capEndsAt,
+            pausedAt: current.pausedAt,
+            excludedPauseSeconds: current.excludedPauseSeconds,
+            intervalRevision: current.intervalRevision
+        )
         steps = Self.steps(for: newPlan)
         if let cursorSetId,
            let index = steps.firstIndex(where: { $0.plannedSet.setId == cursorSetId }) {
