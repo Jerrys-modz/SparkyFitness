@@ -44,6 +44,7 @@ import type { CreateExerciseEntryPayload } from '../services/api/exerciseApi';
 import {
   weightToKg,
   weightFromKg,
+  storedWeightInUnit,
   distanceFromKm,
   distanceToKm,
 } from './unitConversions';
@@ -1137,19 +1138,21 @@ export function evaluateExerciseProgression(
       repGoal: config.rep_goal,
       incrementType,
       incrementValue: incrementIsWeight
-        ? weightFromKg(incrementValue, weightUnit)
+        ? storedWeightInUnit(incrementValue, weightUnit)
         : incrementValue,
       equipmentBrand: config.equipment_brand ?? null,
     },
     workingPreviousSets.length > 0
       ? {
+          // Rounded as they were typed, so the suggestion reads 95 lb rather
+          // than the 94.997… that float kg↔lb round trips add up to.
           baseWeight: firstWorking?.weight
-            ? weightFromKg(firstWorking.weight, weightUnit)
+            ? storedWeightInUnit(firstWorking.weight, weightUnit)
             : 0,
           sets: workingPreviousSets.map((s, idx) => ({
             setNumber: idx + 1,
             reps: s.reps ?? 0,
-            weight: s.weight ? weightFromKg(s.weight, weightUnit) : 0,
+            weight: s.weight ? storedWeightInUnit(s.weight, weightUnit) : 0,
           })),
         }
       : null
