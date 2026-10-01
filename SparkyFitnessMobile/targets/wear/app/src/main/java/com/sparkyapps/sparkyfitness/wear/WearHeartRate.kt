@@ -23,6 +23,7 @@ import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -138,6 +139,7 @@ internal object WearHeartRate {
   fun onExercise(context: Context, session: String, exercise: String) {
     if (exercise.isEmpty()) return
     appContext = context.applicationContext
+    drainOutbox()
     if (session != sessionId) {
       // A flush still in flight belongs to the previous workout. Its
       // completion must not run finishStopped against this one.
@@ -159,6 +161,7 @@ internal object WearHeartRate {
 
   fun onStop(context: Context) {
     appContext = context.applicationContext
+    drainOutbox()
     if (sessionId == null && !flushing) {
       stopSampling()
       return
@@ -253,6 +256,7 @@ internal object WearHeartRate {
   private var stopAfterFlush = false
   private var stopRetry = false
   private var generation = 0
+  private var inflightId: String? = null
   private var calorieEpoch = 0
 
   private fun flush() {
@@ -288,13 +292,18 @@ internal object WearHeartRate {
       )
     if (delta != null) body.put("activeEnergyKcal", delta)
     if (minutes > 0) body.put("durationMinutes", minutes)
-    val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/${body.getString("clientId")}")
+    val clientId = body.getString("clientId")
+    stage(body)
+    inflightId = clientId
+    val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/$clientId")
     request.dataMap.putString("json", body.toString())
     request.dataMap.putLong("at", System.currentTimeMillis())
     val task = Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
     task.addOnSuccessListener {
       main.post {
-        if (epoch == calorieEpoch && cumulative != null && delta != null) {
+        if (inflightId == clientId) inflightId = null
+        dropStaged(clientId)
+        if (flushGeneration == generation && epoch == calorieEpoch && cumulative != null && delta != null) {
           reportedActiveKcal = cumulative
         }
         afterFlush(true, flushGeneration, stopping)
@@ -302,10 +311,71 @@ internal object WearHeartRate {
     }
     task.addOnFailureListener {
       main.post {
+        if (inflightId == clientId) inflightId = null
         if (flushGeneration == generation) {
+          dropStaged(clientId)
           batch.asReversed().forEach { sample -> samples.addFirst(sample) }
+        } else {
+          putStaged(body.toString())
         }
         afterFlush(false, flushGeneration, stopping)
+      }
+    }
+  }
+
+  /** A failed write for a workout that is no longer current. Retried on its
+   * own, with the session and exercise already in the JSON. */
+  private fun stage(body: JSONObject) {
+    val context = appContext ?: return
+    val dir = File(context.filesDir, "wear-hr-outbox")
+    if (!dir.isDirectory && !dir.mkdirs()) return
+    File(dir, "${body.getString("clientId")}.json").writeText(body.toString())
+  }
+
+  private fun dropStaged(clientId: String) {
+    val context = appContext ?: return
+    File(context.filesDir, "wear-hr-outbox/$clientId.json").delete()
+  }
+
+  private fun drainOutbox() {
+    val context = appContext ?: return
+    val dir = File(context.filesDir, "wear-hr-outbox")
+    dir.listFiles()?.forEach { file ->
+      if (!file.isFile || file.nameWithoutExtension == inflightId) return@forEach
+      val json = try {
+        file.readText()
+      } catch (_: Exception) {
+        return@forEach
+      }
+      putStaged(json)
+    }
+  }
+
+  private val retrying = HashSet<String>()
+
+  private fun putStaged(json: String) {
+    val context = appContext ?: return
+    val body = try {
+      JSONObject(json)
+    } catch (_: Exception) {
+      return
+    }
+    val clientId = body.optString("clientId")
+    if (clientId.isEmpty() || !retrying.add(clientId)) return
+    val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/$clientId")
+    request.dataMap.putString("json", json)
+    request.dataMap.putLong("at", System.currentTimeMillis())
+    val task = Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
+    task.addOnSuccessListener {
+      main.post {
+        retrying.remove(clientId)
+        dropStaged(clientId)
+      }
+    }
+    task.addOnFailureListener {
+      main.post {
+        retrying.remove(clientId)
+        main.postDelayed({ putStaged(json) }, 15_000)
       }
     }
   }
