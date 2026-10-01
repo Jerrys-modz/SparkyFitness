@@ -60,6 +60,11 @@ final class WorkoutSessionStore: ObservableObject {
     /// can do the same. Not fired when the rest follows the phone's.
     var onRestChangedHere: ((_ previousEndsAt: Date, _ endsAt: Date?) -> Void)?
 
+    /// Called when a rest countdown runs out on its own, so the app can buzz
+    /// the wrist. Not called when the wearer skips the rest or trims it to
+    /// zero: they are looking at the watch and already know.
+    var onRestFinished: (() -> Void)?
+
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
     private var startedAt: Date?
@@ -437,7 +442,7 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     func skipRest() {
-        guard let previous = restEndsAt else { return }
+        guard let previous = restEndsAt, restPausedRemaining == nil else { return }
         stopRestTimer()
         onRestChangedHere?(previous, nil)
     }
@@ -446,19 +451,10 @@ final class WorkoutSessionStore: ObservableObject {
     /// ends the rest, same as skipping.
     func adjustRest(bySeconds delta: Int) {
         guard let endsAt = restEndsAt else { return }
-        if let paused = restPausedRemaining {
-            // Paused on the phone: move the frozen time only. The phone's
-            // rest is not counting down, so there is nothing to mirror yet;
-            // its resume brings the two back in line.
-            let remaining = paused + TimeInterval(delta)
-            if remaining <= 0 {
-                stopRestTimer()
-            } else {
-                restPausedRemaining = remaining
-                restDurationSeconds = max(1, restDurationSeconds + delta)
-            }
-            return
-        }
+        // Paused on the phone: the phone owns the rest until it resumes, and
+        // its resume would overwrite any change made here. The rest screen
+        // disables these controls while paused; this is the backstop.
+        guard restPausedRemaining == nil else { return }
         let newEndsAt = endsAt.addingTimeInterval(TimeInterval(delta))
         guard newEndsAt > Date() else {
             stopRestTimer()
@@ -700,6 +696,7 @@ final class WorkoutSessionStore: ObservableObject {
                 guard let self, let endsAt = self.restEndsAt else { return }
                 if Date() >= endsAt {
                     self.stopRestTimer()
+                    self.onRestFinished?()
                 }
             }
         }

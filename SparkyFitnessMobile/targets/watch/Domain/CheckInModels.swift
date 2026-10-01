@@ -175,6 +175,24 @@ struct PendingWaterTap: Codable, Equatable, Identifiable {
     var isToday: Bool { day == CheckInDate.today() }
 }
 
+/// A delete the wearer has confirmed but the phone hasn't written yet.
+///
+/// The sibling of `PendingWaterTap`, and for the same reason: the only record
+/// that a delete happened used to be a `@State` set inside the log view, which
+/// died when the page went away and was never resent. A lost delete simply
+/// undid itself on the next push.
+struct PendingWaterDelete: Codable, Equatable, Identifiable {
+    /// The `clientId` the phone acknowledges — not the row being deleted.
+    let id: String
+    /// The `water_intake_entries` row this removes.
+    let entryId: String
+    let createdAt: Date
+    let day: String
+    var state: SyncState = .queued
+
+    var isToday: Bool { day == CheckInDate.today() }
+}
+
 /// One container tap captured on the watch, sent straight to the phone. There
 /// is no queued/saved/failed state kept for these on the watch the way there
 /// is for `CheckIn` — see `WatchSessionManager.sendWaterTap`.
