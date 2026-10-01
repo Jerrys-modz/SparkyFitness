@@ -789,11 +789,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     weight={weightSeries}
                     sleep={trends.sleep}
                     hydration={trends.hydration}
+                    calories={trends.calories}
                     range={trendsRange}
                     weightUnit={weightUnit}
                     waterUnit={waterDisplayUnit}
                     hydrationGoal={hydrationGoal}
                     weightGoal={weightGoal}
+                    calorieGoal={goal}
                     visibleTrends={visibleTrends}
                     activePage={chartPage}
                     onPageSelected={setChartPage}

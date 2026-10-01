@@ -1102,6 +1102,10 @@
     "keepAwake": "Keep screen awake",
     "keepAwakeSubtitle": "Prevent the screen from sleeping while a workout is active.",
     "restSoundAccessibility": "Rest timer sound",
+    "restSoundSilent": "Play through silent mode",
+    "restSoundSilentSubtitleIos": "Play the rest chime even when your phone is on silent, including with the app in the background or the screen locked.",
+    "restSoundSilentSubtitle": "Play the rest chime even when your phone is on silent or vibrate.",
+    "restSoundSilentAccessibility": "Play rest timer sound through silent mode",
     "keepAwakeAccessibility": "Keep screen awake",
     "adaptiveCoaching": "Adaptive suggestions",
     "adaptiveCoachingSubtitle": "Adapts upcoming sets and exercise suggestions based on your logged session feedback.",
@@ -4428,13 +4432,24 @@
       "empty": "No sleep data for this period",
       "avgTimeInBed": "Avg time in bed",
       "avgTimeAsleep": "Avg time asleep",
-      "rangeLabel": "{{startDate}} – {{endDate}}"
+      "tooltip": "{{timeInBed}} in bed · {{timeAsleep}} asleep"
     },
     "hydration": {
       "title": "Hydration",
       "loadFailed": "Failed to load hydration data",
       "empty": "No hydration data for this period",
       "tooltip": "{{formattedVolume}} {{unit}} · {{date}}"
+    },
+    "calories": {
+      "title": "Calories",
+      "loadFailed": "Failed to load calorie data",
+      "empty": "No calorie data for this period",
+      "tooltip": "{{formattedCount}} kcal consumed",
+      "tooltipMacro": "{{percent}}% {{macroLabel}}",
+      "otherMacro": "Other",
+      "avgCalories": "Avg",
+      "avgCaloriesValue": "{{formattedCount}} kcal",
+      "noAverage": "—"
     },
     "loading": "Loading chart...",
     "weightLoadFailed": "Failed to load weight data",
