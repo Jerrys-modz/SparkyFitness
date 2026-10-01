@@ -29,11 +29,14 @@ import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
 /**
- * Samples heart rate for the exercise on screen and sends it to the phone
- * in the same batches the Apple Watch sends. One exercise at a time.
+ * Samples heart rate and active-plus-resting calories for the exercise on
+ * screen. Calories are a delta since the last batch, same as the Apple Watch.
  */
 internal object WearHeartRate {
   var bpm by mutableIntStateOf(0)
+    private set
+  /** Whole-workout calories, or -1 before the first reading. */
+  var kcal by mutableIntStateOf(-1)
     private set
   var permissionNeeded by mutableStateOf(false)
     private set
@@ -46,6 +49,10 @@ internal object WearHeartRate {
   private var sessionId: String? = null
   private var exerciseEntryId: String? = null
   private var shownAt = 0L
+  /** Running total from Health Services. Null until the first reading. */
+  private var cumulativeKcal: Double? = null
+  /** How much of [cumulativeKcal] has already been sent. */
+  private var reportedKcal = 0.0
   @Volatile private var running = false
   @Volatile private var startToken = 0
   private var asked = false
@@ -58,11 +65,30 @@ internal object WearHeartRate {
         System.currentTimeMillis() - SystemClock.elapsedRealtime()
       )
       val points = try {
-        update.latestMetrics.getData(DataType.HEART_RATE_BPM)
+        if (DataType.HEART_RATE_BPM in update.latestMetrics.dataTypes) {
+          update.latestMetrics.getData(DataType.HEART_RATE_BPM)
+        } else {
+          emptyList()
+        }
       } catch (_: Exception) {
-        return
+        emptyList()
+      }
+      val reading = try {
+        if (DataType.CALORIES_TOTAL in update.latestMetrics.dataTypes) {
+          update.latestMetrics.getData(DataType.CALORIES_TOTAL).total
+        } else {
+          null
+        }
+      } catch (_: Exception) {
+        null
       }
       main.post {
+        if (reading != null) {
+          val previous = cumulativeKcal
+          if (previous != null && reading + 0.01 < previous) reportedKcal = 0.0
+          cumulativeKcal = reading
+          kcal = reading.roundToInt()
+        }
         points.forEach { point ->
           val stamp = point.getTimeInstant(boot).toString()
           if (!seen.add(stamp)) return@forEach
@@ -112,6 +138,9 @@ internal object WearHeartRate {
     sessionId = null
     exerciseEntryId = null
     bpm = 0
+    kcal = -1
+    cumulativeKcal = null
+    reportedKcal = 0.0
     stopSampling()
   }
 
@@ -145,11 +174,15 @@ internal object WearHeartRate {
           else -> return@execute
         }
         val supported = capabilities.getExerciseTypeCapabilities(type).supportedDataTypes
-        if (DataType.HEART_RATE_BPM !in supported) return@execute
+        val types = buildSet {
+          if (DataType.HEART_RATE_BPM in supported) add(DataType.HEART_RATE_BPM)
+          if (DataType.CALORIES_TOTAL in supported) add(DataType.CALORIES_TOTAL)
+        }
+        if (types.isEmpty()) return@execute
         client.startExerciseAsync(
           ExerciseConfig(
             exerciseType = type,
-            dataTypes = setOf(DataType.HEART_RATE_BPM),
+            dataTypes = types,
             isAutoPauseAndResumeEnabled = false,
             isGpsEnabled = false,
           )
@@ -189,9 +222,13 @@ internal object WearHeartRate {
     val context = appContext ?: return
     val session = sessionId ?: return
     val exercise = exerciseEntryId ?: return
-    if (samples.isEmpty()) return
     val batch = samples.toList()
     samples.clear()
+    val cumulative = cumulativeKcal
+    val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedKcal) }
+    val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
+    if (batch.isEmpty() && (delta == null || delta == 0.0) && minutes <= 0) return
+    if (cumulative != null && delta != null) reportedKcal = cumulative
     val body = JSONObject()
       .put("type", "heartRateBatch")
       .put("clientId", UUID.randomUUID().toString())
@@ -205,8 +242,9 @@ internal object WearHeartRate {
           }
         }
       )
-    val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
-    if (minutes > 0) body.put("durationMinutes", minutes)
+    if (delta != null) body.put("activeEnergyKcal", delta)
+    val minutesSent = minutes
+    if (minutesSent > 0) body.put("durationMinutes", minutesSent)
     val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/${body.getString("clientId")}")
     request.dataMap.putString("json", body.toString())
     request.dataMap.putLong("at", System.currentTimeMillis())

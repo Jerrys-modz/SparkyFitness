@@ -58,6 +58,7 @@ internal fun WorkoutScreen(context: Context, screen: WearScreen?, bpm: Int) {
         screen.finished -> {
           Text(text = "Workout done", color = Color.White, fontSize = 16.sp)
           if (bpm > 0) Bpm(bpm)
+          if (WearHeartRate.kcal >= 0) Kcal(WearHeartRate.kcal)
           Chip(label = { Text("Finish") }, onClick = { WorkoutHolder.finish(context) })
         }
         resting -> {
@@ -65,6 +66,7 @@ internal fun WorkoutScreen(context: Context, screen: WearScreen?, bpm: Int) {
           Text(text = "Rest", color = Color.Gray, fontSize = 12.sp)
           Text(text = "%d:%02d".format(left / 60, left % 60), color = Color.White, fontSize = 28.sp)
           if (bpm > 0) Bpm(bpm)
+          if (WearHeartRate.kcal >= 0) Kcal(WearHeartRate.kcal)
           Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Chip(label = { Text("-15") }, onClick = { WorkoutHolder.adjustRest(context, -15) })
             Chip(label = { Text("+15") }, onClick = { WorkoutHolder.adjustRest(context, 15) })
@@ -83,6 +85,7 @@ internal fun WorkoutScreen(context: Context, screen: WearScreen?, bpm: Int) {
           Text(text = screen.label, color = Color(0xFFFF9F0A), fontSize = 12.sp)
           Text(text = setLine(screen), color = Color.White, fontSize = 20.sp)
           if (bpm > 0) Bpm(bpm)
+          if (WearHeartRate.kcal >= 0) Kcal(WearHeartRate.kcal)
           val kgStep = WatchContext.toKg(1.0)
           Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Chip(label = { Text("−kg") }, onClick = { WorkoutHolder.nudge(-kgStep, 0.0) })
@@ -120,6 +123,11 @@ private fun ExerciseList(context: Context) {
 @Composable
 private fun Bpm(bpm: Int) {
   Text(text = "$bpm bpm", color = Color.Gray, fontSize = 12.sp)
+}
+
+@Composable
+private fun Kcal(kcal: Int) {
+  Text(text = "$kcal kcal", color = Color.Gray, fontSize = 12.sp)
 }
 
 private fun setLine(screen: WearScreen): String {
