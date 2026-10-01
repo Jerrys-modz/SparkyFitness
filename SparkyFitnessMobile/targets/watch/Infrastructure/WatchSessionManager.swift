@@ -233,6 +233,26 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.waterTap(tap))
     }
 
+    /// Re-sends every tap still waiting on the phone, under its original id.
+    ///
+    /// The counterpart to `retryPending()` for check-ins, and the thing whose
+    /// absence left a tap stuck: a `.queued` tap was only ever sent once. If
+    /// that one transfer was lost — the watch app was killed before the
+    /// session activated and the in-memory outbox died with it, or it arrived
+    /// at a phone whose JS layer hadn't booted yet, so nothing was listening —
+    /// there was no path that ever sent it again. The store's copy persisted,
+    /// so the line stayed on the bottle for a tap the phone had never heard of.
+    ///
+    /// Safe to call often: the id is unchanged, so a tap that did land is
+    /// recognised by the phone's dedupe set and re-acknowledged rather than
+    /// written twice.
+    func resendQueuedWaterTaps() {
+        guard isActivated else { return }
+        for tap in store.pendingWaterTaps where tap.state == .queued {
+            sendWaterTap(containerId: tap.containerId, clientId: tap.id)
+        }
+    }
+
     /// Re-sends every tap the phone reported as failed, under its original id.
     /// Reusing the id is what keeps a retry from double-counting if the first
     /// attempt actually landed — the phone's own dedupe set recognises it.
@@ -247,10 +267,24 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// contract as `sendWaterTap`: no ack comes back, the water log view has
     /// already hidden the row, and the next context push either confirms that
     /// (row gone) or restores it (delete failed).
-    func sendWaterDelete(entryId: String) {
+    /// `clientId` comes from `CheckInStore.recordWaterDelete`, for the same
+    /// reason a tap's does: the store's record and the phone's acknowledgement
+    /// have to name the same thing.
+    func sendWaterDelete(entryId: String, clientId: String) {
         guard WCSession.isSupported() else { return }
-        let request = WaterDeleteRequest(id: UUID().uuidString, entryId: entryId)
+        let request = WaterDeleteRequest(id: clientId, entryId: entryId)
         transfer(OutboundPayloads.waterDelete(request))
+    }
+
+    /// Re-sends every delete still waiting, under its original id. The
+    /// counterpart to `resendQueuedWaterTaps()` — deleting the same row twice
+    /// is harmless anyway, but the id means the phone recognises the repeat
+    /// and re-acknowledges rather than erroring on a row that's already gone.
+    func resendQueuedWaterDeletes() {
+        guard isActivated else { return }
+        for request in store.queuedWaterDeletes {
+            sendWaterDelete(entryId: request.entryId, clientId: request.id)
+        }
     }
 
     /// Re-publishes both complications' shared-storage snapshots from the
@@ -405,7 +439,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
             store.markState(ack.ok ? .saved : .failed, for: checkIn)
             return
         }
-        store.markWaterTap(ack.clientId, ack.ok ? .saved : .failed)
+        let state: SyncState = ack.ok ? .saved : .failed
+        store.markWaterTap(ack.clientId, state)
+        store.markWaterDelete(ack.clientId, state)
     }
 
     /// The single entry point for everything inbound, whichever transport
@@ -1152,6 +1188,8 @@ extension WatchSessionManager: WCSessionDelegate {
             self.adoptReceivedContext()
             self.retryPending()
             self.recoverLiveWorkoutIfNeeded()
+            self.resendQueuedWaterTaps()
+            self.resendQueuedWaterDeletes()
             self.requestContext()
         }
     }
@@ -1162,6 +1200,8 @@ extension WatchSessionManager: WCSessionDelegate {
             self.isReachable = reachable
             if reachable {
                 self.retryPending()
+                self.resendQueuedWaterTaps()
+                self.resendQueuedWaterDeletes()
                 self.requestContext()
             }
         }

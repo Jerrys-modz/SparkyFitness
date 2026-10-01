@@ -121,6 +121,17 @@ export interface WatchContextPayload {
    */
   weightUnit?: 'kg' | 'lbs' | null;
   /**
+   * The phone's Settings → Haptics switch. The watch plays button haptics
+   * and the rest-end buzz only while this is on. Missing reads as on.
+   */
+  hapticsEnabled?: boolean | null;
+  /**
+   * Whether the phone's rest-complete alert is on (notifications and rest
+   * timer notifications both enabled). The watch's rest-end buzz follows it.
+   * Missing reads as on.
+   */
+  restAlertsEnabled?: boolean | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.

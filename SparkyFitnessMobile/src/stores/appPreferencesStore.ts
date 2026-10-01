@@ -88,6 +88,7 @@ export const PREFERENCE_DEFAULTS = {
   diarySummaryExpanded: false,
   defaultRestSec: DEFAULT_REST_SEC as number,
   restTimerSoundEnabled: true,
+  restChimeThroughSilent: false,
   duckMusicDuringCues: false,
   workoutKeepAwakeEnabled: false,
   guidedWorkoutEnabled: false,
@@ -142,6 +143,12 @@ export type AppPreferencesData = {
   diarySummaryExpanded: boolean;
   defaultRestSec: number;
   restTimerSoundEnabled: boolean;
+  /**
+   * Play the rest chime even with the ringer/silent switch off (#2506). On iOS
+   * it also sounds with the app in the background, which keeps the audio
+   * session alive for the length of each rest. Off by default.
+   */
+  restChimeThroughSilent: boolean;
   /**
    * Lower other apps' music while an interval cue or guided line plays
    * (#1560). Off by default: cues normally mix over music untouched.
@@ -209,6 +216,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDiarySummaryExpanded: (value: boolean) => void;
   setDefaultRestSec: (value: number) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
+  setRestChimeThroughSilent: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
   setGuidedWorkoutEnabled: (value: boolean) => void;
@@ -329,6 +337,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setRestTimerSoundEnabled: (value) =>
         set({ restTimerSoundEnabled: value }),
+      setRestChimeThroughSilent: (value) =>
+        set({ restChimeThroughSilent: value }),
       setDuckMusicDuringCues: (value) => set({ duckMusicDuringCues: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
@@ -419,6 +429,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         diarySummaryExpanded: state.diarySummaryExpanded,
         defaultRestSec: state.defaultRestSec,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
+        restChimeThroughSilent: state.restChimeThroughSilent,
         duckMusicDuringCues: state.duckMusicDuringCues,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
         guidedWorkoutEnabled: state.guidedWorkoutEnabled,
