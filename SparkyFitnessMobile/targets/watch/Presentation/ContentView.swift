@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Router for the watch app. First run is a one-time gate; after that, Goals,
-/// Water, Entry and Trend are pages the wearer swipes between — swiping is
-/// the only way to move between them, there is no button.
+/// Water, Entry, Trend, Workout and Now Playing are pages the wearer swipes
+/// between — swiping is the only way to move between them, there is no button.
 struct ContentView: View {
     /// Identifies a page; the cases are `.tag` values, nothing more.
     ///
@@ -10,7 +10,7 @@ struct ContentView: View {
     /// below, NOT by the order of these cases — a `.page`-style TabView lays
     /// its children out in body order. Reordering this enum alone changes
     /// nothing on screen, so change both together or neither.
-    private enum Page: Int { case goals, water, entry, trend, workout }
+    private enum Page: Int { case goals, water, entry, trend, workout, nowPlaying }
 
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
@@ -38,7 +38,7 @@ struct ContentView: View {
                     page = .trend
                 }
             } else {
-                // This order is the swipe order: Goals ▸ Water ▸ Entry ▸ Trend ▸ Workout.
+                // This order is the swipe order: Goals ▸ Water ▸ Entry ▸ Trend ▸ Workout ▸ Now Playing.
                 TabView(selection: Binding(get: { page ?? initialPage }, set: { page = $0 })) {
                     GoalSummaryView()
                         .tag(Page.goals)
@@ -54,6 +54,9 @@ struct ContentView: View {
 
                     WorkoutView()
                         .tag(Page.workout)
+
+                    NowPlayingPage()
+                        .tag(Page.nowPlaying)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
             }
@@ -140,6 +143,7 @@ struct ContentView: View {
         case "entry": return .entry
         case "trend": return .trend
         case "workout": return .workout
+        case "nowPlaying": return .nowPlaying
         default: return nil
         }
     }
