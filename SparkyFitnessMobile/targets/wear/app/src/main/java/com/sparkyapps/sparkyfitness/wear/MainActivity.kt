@@ -24,11 +24,17 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     WorkoutHolder.bind(this)
-    WorkoutHolder.pull(this)
-    PhoneBus.requestContext(this)
+    val screenshot = intent.getStringExtra("sparky.screenshot") == "1"
+    if (screenshot) {
+      ScreenshotSeed.apply(intent)
+    } else {
+      WorkoutHolder.pull(this)
+      PhoneBus.requestContext(this)
+    }
+    val forcedPage = if (screenshot) screenshotPage(intent.getStringExtra("sparky.page")) else null
     setContent {
-      val pager = rememberPagerState(initialPage = 2) { 5 }
-      var landed by remember { mutableStateOf(false) }
+      val pager = rememberPagerState(initialPage = forcedPage ?: 2) { 5 }
+      var landed by remember { mutableStateOf(forcedPage != null) }
       LaunchedEffect(WatchContext.snapshot.today) {
         if (landed || WatchContext.snapshot.today.isEmpty()) return@LaunchedEffect
         landed = true
@@ -50,5 +56,14 @@ class MainActivity : ComponentActivity() {
         }
       }
     }
+  }
+
+  private fun screenshotPage(name: String?): Int? = when (name) {
+    "goals" -> 0
+    "water" -> 1
+    "entry", "checkin" -> 2
+    "trend" -> 3
+    "workout" -> 4
+    else -> null
   }
 }

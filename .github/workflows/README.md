@@ -36,6 +36,7 @@ This directory contains all GitHub Actions workflows for the SparkyFitness proje
 
 - Installs Android 35 on the runner and Gradle 8.11.1
 - Runs `:app:assembleDebug` in the standalone Wear project
+- Boots a Wear emulator, seeds a sample day, and uploads screenshots of each page
 
 ---
 

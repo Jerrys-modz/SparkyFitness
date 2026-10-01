@@ -76,6 +76,29 @@ internal object WorkoutHolder {
   fun bind(context: Context) {
     appContext = context.applicationContext
   }
+
+  /** Screenshot job only. Does not start heart-rate sampling. */
+  fun seed(plan: WearPlan, mode: String) {
+    this.plan = plan
+    cursor = 0
+    restEndsAtMs = if (mode == "resting") System.currentTimeMillis() + 75_000 else 0L
+    val step = plan.sets.first()
+    screen = WearScreen(
+      exerciseName = step.exerciseName,
+      label = step.label,
+      weightKg = step.weightKg,
+      reps = step.reps,
+      restEndsAtMs = restEndsAtMs,
+    )
+    listing = mode == "exercises"
+  }
+
+  fun clearScreen() {
+    plan = null
+    screen = null
+    listing = false
+    restEndsAtMs = 0L
+  }
   private var revision = 0L
   private var restEndsAtMs = 0L
   private var cursor = 0

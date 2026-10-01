@@ -20,9 +20,11 @@ jobs:
   assemble:
     name: Assemble Wear debug
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      APP_VARIANT: dev
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,3 +54,47 @@ jobs:
       - name: Assemble the Wear app
         working-directory: SparkyFitnessMobile/targets/wear
         run: gradle :app:assembleDebug --stacktrace
+
+      # Same idea as the watchOS job in ios-build.yml: a seeded debug launch,
+      # then a screenshot of each page. The emulator has no paired phone.
+      - name: Capture Wear screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-wear
+          arch: x86
+          profile: wearos_small_round
+          disable-animations: true
+          emulator-options: -no-snapshot -no-boot-anim -no-window -no-audio
+          script: |
+            set -euo pipefail
+            PKG=org.SparkyApps.SparkyFitnessMobile1.dev
+            ACT=com.sparkyapps.sparkyfitness.wear.MainActivity
+            APK=SparkyFitnessMobile/targets/wear/app/build/outputs/apk/debug/app-debug.apk
+            mkdir -p SparkyFitnessMobile/screenshots
+            adb install -r "$APK"
+            shoot() {
+              adb shell am force-stop "$PKG" || true
+              adb shell am start -W -n "$PKG/$ACT" \
+                --es sparky.screenshot 1 \
+                --es sparky.workout "$2" \
+                --es sparky.page "$3"
+              sleep 6
+              adb exec-out screencap -p > "SparkyFitnessMobile/screenshots/$1.png"
+            }
+            shoot workout-active active workout
+            shoot workout-resting resting workout
+            shoot workout-idle none workout
+            shoot workout-exercises exercises workout
+            shoot goals none goals
+            shoot water none water
+            shoot check-in none entry
+            shoot trend none trend
+            ls -la SparkyFitnessMobile/screenshots
+
+      - name: Upload Wear screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: wear-screenshots
+          path: SparkyFitnessMobile/screenshots/*.png
+          if-no-files-found: error
