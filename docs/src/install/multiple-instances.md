@@ -40,7 +40,3 @@ When you change an environment variable and redeploy one instance at a time, old
 - **The OIDC provider** from `SPARKY_FITNESS_OIDC_*` is written to the database by each instance when it starts, so whichever instance writes it last wins. In a normal rolling update that is a new instance. If an old instance restarts partway through, restart one new instance after the update finishes to put the new configuration back.
 
 Once every instance runs the new configuration, they all agree again.
-
-## Things that are per instance
-
-- **Sign-in rate limits** are counted by each instance separately, so the effective limit from one IP address can be up to the configured value times the number of instances.
