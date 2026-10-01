@@ -173,6 +173,7 @@ internal object WorkoutHolder {
       if (sets.getOrNull(cursor)?.done == true) {
         cursor = sets.indexOfFirst { !it.done }.takeIf { it >= 0 } ?: sets.size
       }
+      val priorEnd = restEndsAtMs
       restEndsAtMs = if (json.optString("restState") == "resting") {
         json.optNumber("restEndsAt")?.toLong() ?: 0L
       } else {
@@ -180,7 +181,7 @@ internal object WorkoutHolder {
       }
       if (restEndsAtMs <= 0L) {
         restTotalMs = 0L
-      } else if (restTotalMs <= 0L) {
+      } else if (restTotalMs <= 0L || restEndsAtMs != priorEnd) {
         val planned = (sets.getOrNull(cursor)?.restSeconds ?: 0) * 1000L
         restTotalMs = if (planned > 0) planned else (restEndsAtMs - System.currentTimeMillis()).coerceAtLeast(1L)
       }

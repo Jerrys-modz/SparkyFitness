@@ -138,6 +138,12 @@ internal object WearHeartRate {
   fun onExercise(context: Context, session: String, exercise: String) {
     if (exercise.isEmpty()) return
     appContext = context.applicationContext
+    if (session != sessionId) {
+      // A flush still in flight belongs to the previous workout. Its
+      // completion must not run finishStopped against this one.
+      generation++
+      stopAfterFlush = false
+    }
     if (exercise != exerciseEntryId) {
       flush()
       exerciseEntryId = exercise
@@ -160,6 +166,7 @@ internal object WearHeartRate {
     bpm = 0
     kcal = -1
     stopAfterFlush = true
+    stopRetry = false
     flush()
     if (!flushing) finishStopped()
   }
@@ -244,6 +251,8 @@ internal object WearHeartRate {
   private var flushing = false
   private var flushAgain = false
   private var stopAfterFlush = false
+  private var stopRetry = false
+  private var generation = 0
   private var calorieEpoch = 0
 
   private fun flush() {
@@ -260,6 +269,8 @@ internal object WearHeartRate {
     val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
     if (batch.isEmpty() && (delta == null || delta == 0.0) && minutes <= 0) return
     val epoch = calorieEpoch
+    val flushGeneration = generation
+    val stopping = stopAfterFlush
     flushing = true
     samples.clear()
     val body = JSONObject()
@@ -286,30 +297,43 @@ internal object WearHeartRate {
         if (epoch == calorieEpoch && cumulative != null && delta != null) {
           reportedActiveKcal = cumulative
         }
-        afterFlush()
+        afterFlush(true, flushGeneration, stopping)
       }
     }
     task.addOnFailureListener {
       main.post {
-        batch.asReversed().forEach { sample -> samples.addFirst(sample) }
-        afterFlush()
+        if (flushGeneration == generation) {
+          batch.asReversed().forEach { sample -> samples.addFirst(sample) }
+        }
+        afterFlush(false, flushGeneration, stopping)
       }
     }
   }
 
-  private fun afterFlush() {
+  private fun afterFlush(success: Boolean, flushGeneration: Int, stopping: Boolean) {
     flushing = false
-    if (flushAgain && sessionId != null) {
+    val stillCurrent = flushGeneration == generation
+    if (flushAgain && sessionId != null && stillCurrent) {
       flushAgain = false
       flush()
-      if (!flushing && stopAfterFlush) finishStopped()
+      if (!flushing && stopping && success && stopAfterFlush) finishStopped()
       return
     }
-    if (stopAfterFlush) finishStopped()
+    if (stopping && stillCurrent && stopAfterFlush && success) {
+      finishStopped()
+      return
+    }
+    // A failed stop write requeued the batch. Try once more; a second
+    // failure leaves the samples queued instead of wiping them.
+    if (stopping && stillCurrent && stopAfterFlush && !stopRetry) {
+      stopRetry = true
+      flush()
+    }
   }
 
   private fun finishStopped() {
     stopAfterFlush = false
+    stopRetry = false
     flushAgain = false
     sessionId = null
     exerciseEntryId = null

@@ -294,7 +294,9 @@ private fun Keypad(field: EditField, initial: Double?, onDismiss: () -> Unit, on
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
       Text("×", color = Palette.secondary, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onDismiss))
       Text(
-        if (field == EditField.WEIGHT) "KG" else "REPS",
+        if (field == EditField.WEIGHT) {
+          if (WatchContext.snapshot.unit == "lbs") "LB" else "KG"
+        } else "REPS",
         color = Palette.secondary,
         fontSize = 11.sp,
         modifier = Modifier.weight(1f),
@@ -415,5 +417,5 @@ private fun nextLine(screen: WearScreen, unit: String): String {
 
 private fun formatNumber(value: Double?): String {
   if (value == null) return "–"
-  return if (value % 1.0 == 0.0) value.toInt().toString() else String.format("%.1f", value)
+  return if (value % 1.0 == 0.0) value.toInt().toString() else String.format(java.util.Locale.ROOT, "%.1f", value)
 }

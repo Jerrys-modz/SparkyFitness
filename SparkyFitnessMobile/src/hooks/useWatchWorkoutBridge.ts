@@ -273,6 +273,10 @@ export function useWatchWorkoutBridge(
           await WatchConnectivity.sendAck?.(payload.clientId, true);
         } else {
           handledSetClientIdsRef.current.delete(payload.clientId);
+          await WatchConnectivity.sendAck?.(payload.clientId, false);
+          if (useActiveWorkoutStore.persist.hasHydrated()) {
+            await handleSetCompleted(payload);
+          }
         }
         return;
       }
@@ -699,20 +703,27 @@ export function useWatchWorkoutBridge(
         void handlersRef.current.handleWorkoutStop(payload);
       }
     );
-    void connectivity.pendingWorkoutEvents?.().then((events) => {
-      for (const event of events) {
-        if (event.event === 'onSetCompleted') {
-          void handlersRef.current.handleSetCompleted(event);
-        } else if (event.event === 'onRestChanged') {
-          applyWatchRestChange(event);
-          if (event.clientId) void connectivity.sendAck?.(event.clientId, true);
-        } else if (event.event === 'onWorkoutStop') {
-          void handlersRef.current.handleWorkoutStop(event);
+    const drainWorkoutEvents = () => {
+      void connectivity.pendingWorkoutEvents?.().then((events) => {
+        for (const event of events) {
+          if (event.event === 'onSetCompleted') {
+            void handlersRef.current.handleSetCompleted(event);
+          } else if (event.event === 'onRestChanged') {
+            applyWatchRestChange(event);
+            if (event.clientId)
+              void connectivity.sendAck?.(event.clientId, true);
+          } else if (event.event === 'onWorkoutStop') {
+            void handlersRef.current.handleWorkoutStop(event);
+          }
         }
-      }
-    });
+      });
+    };
+    drainWorkoutEvents();
+    const stopWorkoutHydration =
+      useActiveWorkoutStore.persist.onFinishHydration(drainWorkoutEvents);
 
     return () => {
+      stopWorkoutHydration();
       setCompletedSub.remove();
       restChangedSub.remove();
       heartRateBatchSub.remove();
