@@ -192,6 +192,7 @@ struct FirstRunEntryView: View {
 
                 Button("Save") {
                     guard let weight = parse(weightText) else { return }
+                    Haptics.tap()
                     onSave(unit.toKg(weight), parse(bodyFatText))
                 }
                 .buttonStyle(.borderedProminent)
