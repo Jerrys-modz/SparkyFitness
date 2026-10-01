@@ -66,31 +66,7 @@ jobs:
           profile: wearos_small_round
           disable-animations: true
           emulator-options: -no-snapshot -no-boot-anim -no-window -no-audio
-          script: |
-            set -eu
-            PKG=org.SparkyApps.SparkyFitnessMobile1.dev
-            ACT=com.sparkyapps.sparkyfitness.wear.MainActivity
-            APK=SparkyFitnessMobile/targets/wear/app/build/outputs/apk/debug/app-debug.apk
-            mkdir -p SparkyFitnessMobile/screenshots
-            adb install -r "$APK"
-            shoot() {
-              adb shell am force-stop "$PKG" || true
-              adb shell am start -W -n "$PKG/$ACT" \
-                --es sparky.screenshot 1 \
-                --es sparky.workout "$2" \
-                --es sparky.page "$3"
-              sleep 6
-              adb exec-out screencap -p > "SparkyFitnessMobile/screenshots/$1.png"
-            }
-            shoot workout-active active workout
-            shoot workout-resting resting workout
-            shoot workout-idle none workout
-            shoot workout-exercises exercises workout
-            shoot goals none goals
-            shoot water none water
-            shoot check-in none entry
-            shoot trend none trend
-            ls -la SparkyFitnessMobile/screenshots
+          script: bash SparkyFitnessMobile/targets/wear/screenshots.sh
 
       - name: Upload Wear screenshots
         uses: actions/upload-artifact@v4
