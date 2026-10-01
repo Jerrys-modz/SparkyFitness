@@ -312,6 +312,36 @@ describe('WorkoutDetailScreen', () => {
     expect(mockFetchWorkoutHrZones).not.toHaveBeenCalledWith('entry-3');
   });
 
+  it('shows no zone card when one exercise fails to load its zones', async () => {
+    mockFetchWorkoutHrZones.mockImplementation(async (entryId) => {
+      if (entryId === 'entry-2') throw new Error('network');
+      return [
+        {
+          exercise_entry_id: 'entry-1',
+          zone_index: 2,
+          zone_lower_bpm: 130,
+          zone_upper_bpm: null,
+          seconds_in_zone: 600,
+        },
+      ];
+    });
+    const session = buildSession({
+      exercises: [
+        buildExercise({ id: 'entry-1', avg_heart_rate: 120 }),
+        buildExercise({ id: 'entry-2', avg_heart_rate: 150 }),
+      ],
+    });
+    const screen = renderScreen(session);
+
+    // Both requests settled: one with zones, one failed. Showing entry-1's
+    // alone would pass a partial total off as the whole workout's.
+    await waitFor(() =>
+      expect(mockFetchWorkoutHrZones).toHaveBeenCalledTimes(2)
+    );
+    await act(async () => {});
+    expect(screen.queryByText('Heart Rate Zones')).toBeNull();
+  });
+
   it('shows no zone card for a workout logged without a watch', async () => {
     const screen = renderScreen(buildSession());
 
