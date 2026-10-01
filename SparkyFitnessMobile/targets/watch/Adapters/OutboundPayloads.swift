@@ -109,6 +109,9 @@ enum OutboundPayloads {
         if let reps = completedSet.reps {
             payload["reps"] = reps
         }
+        if let duration = completedSet.duration {
+            payload["duration"] = duration
+        }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         payload["completedAt"] = formatter.string(from: completedSet.completedAt)

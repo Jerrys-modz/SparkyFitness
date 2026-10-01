@@ -22,6 +22,9 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// Drives the label above the values ("Warmup 1/2" rather than "Set 1/2");
     /// nil or an unrecognised value just reads as a normal set.
     let setType: String?
+    /// Hold length in seconds. Nil on a reps set. The watch counts this down
+    /// instead of offering a reps box.
+    let targetDurationSec: Int? = nil
 
     var id: String { setId }
 }
@@ -173,6 +176,9 @@ struct WorkoutStep: Identifiable, Equatable {
 struct SetValues: Codable, Equatable {
     var weightKg: Double?
     var reps: Double?
+    /// Hold length from a later `setTargets` update, in seconds. Nil leaves
+    /// the plan's `targetDurationSec`.
+    var durationSec: Int? = nil
 }
 
 /// The phone's rest timer, as carried by a `setTargets` update.
@@ -202,6 +208,8 @@ struct CompletedSet: Codable, Equatable {
     let setId: String
     let weightKg: Double?
     let reps: Double?
+    /// Seconds the hold countdown ran. Nil when it was never started.
+    let duration: Int? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }

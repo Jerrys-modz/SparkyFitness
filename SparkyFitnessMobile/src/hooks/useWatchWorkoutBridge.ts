@@ -297,6 +297,8 @@ export function useWatchWorkoutBridge(
       const patch: ActiveSetPatch = {};
       if (payload.weightKg != null) patch.weight = payload.weightKg;
       if (payload.reps != null) patch.reps = payload.reps;
+      if (payload.duration != null)
+        patch.duration = Math.round(payload.duration);
       if (Object.keys(patch).length > 0) {
         state.updateSetField(payload.setId, patch);
       }

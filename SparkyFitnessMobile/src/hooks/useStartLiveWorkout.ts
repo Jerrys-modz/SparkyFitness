@@ -116,6 +116,7 @@ export function buildWatchWorkoutStartPayload(
           setId,
           targetReps: target?.reps ?? null,
           targetWeightKg: target?.weightKg ?? null,
+          targetDurationSec: target?.durationSec ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
         };
