@@ -48,11 +48,11 @@ class MainActivity : ComponentActivity() {
       }
       HorizontalPager(state = pager) { page ->
         when (page) {
-          0 -> GoalsPage()
-          1 -> WaterPage(this@MainActivity)
-          2 -> CheckInPage(this@MainActivity)
-          3 -> TrendPage()
-          else -> WorkoutScreen(this@MainActivity, WorkoutHolder.screen, WearHeartRate.bpm)
+          0 -> GoalsPage(page = 0)
+          1 -> WaterPage(this@MainActivity, page = 1)
+          2 -> CheckInPage(this@MainActivity, page = 2)
+          3 -> TrendPage(page = 3)
+          else -> WorkoutScreen(this@MainActivity, WorkoutHolder.screen, WearHeartRate.bpm, page = 4)
         }
       }
     }

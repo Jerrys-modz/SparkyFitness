@@ -75,10 +75,14 @@ internal object ScreenshotSeed {
       if (weight != null) row.put("targetWeightKg", weight)
       return row
     }
-    fun exercise(id: String, name: String, sets: JSONArray) = JSONObject()
-      .put("exerciseEntryId", id)
-      .put("name", name)
-      .put("sets", sets)
+    fun exercise(id: String, name: String, sets: JSONArray, supersetRun: Int? = null): JSONObject {
+      val row = JSONObject()
+        .put("exerciseEntryId", id)
+        .put("name", name)
+        .put("sets", sets)
+      if (supersetRun != null) row.put("supersetRun", supersetRun)
+      return row
+    }
     return JSONObject()
       .put("sessionId", "preview-session")
       .put(
@@ -92,6 +96,7 @@ internal object ScreenshotSeed {
                 .put(set("1", 10, 40.0, 60, "warmup"))
                 .put(set("2", 8, 70.0, 90, "normal"))
                 .put(set("3", 6, 82.5, 120, "normal")),
+              1,
             )
           )
           .put(
@@ -101,6 +106,7 @@ internal object ScreenshotSeed {
               JSONArray()
                 .put(set("4", 12, 22.5, 60, "normal"))
                 .put(set("5", 12, 22.5, 60, "normal")),
+              1,
             )
           )
           .put(

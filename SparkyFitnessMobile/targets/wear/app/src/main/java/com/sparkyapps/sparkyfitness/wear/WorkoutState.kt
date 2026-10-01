@@ -34,6 +34,7 @@ internal data class WearSet(
   val restSeconds: Int,
   var weightKg: Double?,
   var reps: Double?,
+  val supersetRun: Int? = null,
   var done: Boolean = false,
 )
 
@@ -47,8 +48,12 @@ internal data class WearScreen(
   val label: String,
   val weightKg: Double?,
   val reps: Double?,
+  val superset: String? = null,
+  val supersetRun: Int? = null,
   /** Epoch ms. Zero when the phone is not resting. */
   val restEndsAtMs: Long = 0L,
+  /** Planned length of this rest, so the bar can fill as it runs down. */
+  val restTotalMs: Long = 0L,
   /** The plan is still open and every set is logged. */
   val finished: Boolean = false,
 )
@@ -58,6 +63,7 @@ internal data class ExerciseRow(
   val name: String,
   val done: Int,
   val total: Int,
+  val supersetRun: Int? = null,
 )
 
 /**
@@ -73,6 +79,8 @@ internal object WorkoutHolder {
   private var appContext: Context? = null
   private var plan: WearPlan? = null
 
+  fun workoutStartedAt(): Long = startedAtMs
+
   fun bind(context: Context) {
     appContext = context.applicationContext
   }
@@ -80,15 +88,22 @@ internal object WorkoutHolder {
   /** Screenshot job only. Does not start heart-rate sampling. */
   fun seed(plan: WearPlan, mode: String) {
     this.plan = plan
-    cursor = 0
-    restEndsAtMs = if (mode == "resting") System.currentTimeMillis() + 75_000 else 0L
-    val step = plan.sets.first()
+    val resting = mode == "resting" && plan.sets.size > 1
+    if (resting) plan.sets[0].done = true
+    cursor = if (resting) 1 else 0
+    restEndsAtMs = if (mode == "resting") System.currentTimeMillis() + 82_000 else 0L
+    restTotalMs = if (mode == "resting") 97_000 else 0L
+    startedAtMs = System.currentTimeMillis() - 8_000
+    val step = plan.sets[cursor]
     screen = WearScreen(
       exerciseName = step.exerciseName,
       label = step.label,
       weightKg = step.weightKg,
       reps = step.reps,
       restEndsAtMs = restEndsAtMs,
+      restTotalMs = restTotalMs,
+      superset = partnersOf(plan, step),
+      supersetRun = step.supersetRun,
     )
     listing = mode == "exercises"
   }
@@ -98,9 +113,12 @@ internal object WorkoutHolder {
     screen = null
     listing = false
     restEndsAtMs = 0L
+    restTotalMs = 0L
   }
   private var revision = 0L
   private var restEndsAtMs = 0L
+  private var restTotalMs = 0L
+  private var startedAtMs = 0L
   private var cursor = 0
   private var pendingSetId: String? = null
   private val main = Handler(Looper.getMainLooper())
@@ -111,6 +129,9 @@ internal object WorkoutHolder {
       plan = next
       revision = 0
       restEndsAtMs = 0L
+      restTotalMs = 0L
+      startedAtMs = runCatching { Instant.parse(json.optString("startedAt")).toEpochMilli() }
+        .getOrDefault(System.currentTimeMillis())
       cursor = 0
       listing = false
       pendingSetId = null
@@ -123,6 +144,7 @@ internal object WorkoutHolder {
       if (plan?.sessionId == sessionId) {
         plan = null
         restEndsAtMs = 0L
+        restTotalMs = 0L
         cursor = 0
         listing = false
         screen = null
@@ -155,6 +177,12 @@ internal object WorkoutHolder {
         json.optNumber("restEndsAt")?.toLong() ?: 0L
       } else {
         0L
+      }
+      if (restEndsAtMs <= 0L) {
+        restTotalMs = 0L
+      } else if (restTotalMs <= 0L) {
+        val planned = (sets.getOrNull(cursor)?.restSeconds ?: 0) * 1000L
+        restTotalMs = if (planned > 0) planned else (restEndsAtMs - System.currentTimeMillis()).coerceAtLeast(1L)
       }
       publish()
     }
@@ -189,10 +217,12 @@ internal object WorkoutHolder {
           if (next >= 0) {
             cursor = next
             val rest = current.sets[next].restSeconds
-            restEndsAtMs = if (rest > 0) System.currentTimeMillis() + rest * 1000L else 0L
+            restTotalMs = if (rest > 0) rest * 1000L else 0L
+            restEndsAtMs = if (rest > 0) System.currentTimeMillis() + restTotalMs else 0L
           } else {
             cursor = current.sets.size
             restEndsAtMs = 0L
+            restTotalMs = 0L
           }
           publish()
         }
@@ -202,17 +232,18 @@ internal object WorkoutHolder {
       }
   }
 
-  fun nudge(weightKg: Double, reps: Double) {
+  fun setField(weightKg: Double?, reps: Double?) {
     val step = plan?.sets?.getOrNull(cursor) ?: return
     if (step.done) return
-    if (weightKg != 0.0) step.weightKg = ((step.weightKg ?: 0.0) + weightKg).coerceAtLeast(0.0)
-    if (reps != 0.0) step.reps = ((step.reps ?: 0.0) + reps).coerceAtLeast(0.0)
+    if (weightKg != null) step.weightKg = weightKg.coerceAtLeast(0.0)
+    if (reps != null) step.reps = reps.coerceAtLeast(0.0)
     publish()
   }
 
   fun previous() {
     if (cursor <= 0) return
     restEndsAtMs = 0L
+    restTotalMs = 0L
     cursor -= 1
     publish()
   }
@@ -221,6 +252,7 @@ internal object WorkoutHolder {
     val sets = plan?.sets ?: return
     if (cursor + 1 >= sets.size) return
     restEndsAtMs = 0L
+    restTotalMs = 0L
     cursor += 1
     publish()
   }
@@ -237,6 +269,7 @@ internal object WorkoutHolder {
     if (index < 0) return
     cursor = index
     restEndsAtMs = 0L
+    restTotalMs = 0L
     listing = false
     publish()
   }
@@ -244,7 +277,13 @@ internal object WorkoutHolder {
   fun exercises(): List<ExerciseRow> {
     val sets = plan?.sets ?: return emptyList()
     return sets.groupBy { it.exerciseEntryId }.map { (id, group) ->
-      ExerciseRow(id, group.first().exerciseName, group.count { it.done }, group.size)
+      ExerciseRow(
+        id,
+        group.first().exerciseName,
+        group.count { it.done },
+        group.size,
+        group.first().supersetRun,
+      )
     }
   }
 
@@ -253,6 +292,7 @@ internal object WorkoutHolder {
     val previous = restEndsAtMs
     if (previous <= 0L) return
     restEndsAtMs = 0L
+    restTotalMs = 0L
     PhoneBus.rest(context, session, previous, null)
     publish()
   }
@@ -266,6 +306,7 @@ internal object WorkoutHolder {
       return
     }
     restEndsAtMs = next
+    restTotalMs = (restTotalMs + deltaSeconds * 1000L).coerceAtLeast(1L)
     val session = plan?.sessionId ?: return
     PhoneBus.rest(context, session, previous, next)
     publish()
@@ -276,6 +317,7 @@ internal object WorkoutHolder {
     PhoneBus.workoutStopped(context, session)
     plan = null
     restEndsAtMs = 0L
+    restTotalMs = 0L
     cursor = 0
     listing = false
     screen = null
@@ -328,7 +370,10 @@ internal object WorkoutHolder {
         label = step.label,
         weightKg = step.weightKg,
         reps = step.reps,
+        superset = partnersOf(current, step),
+        supersetRun = step.supersetRun,
         restEndsAtMs = restEndsAtMs,
+        restTotalMs = restTotalMs,
       )
     }
     val ctx = appContext
@@ -359,6 +404,7 @@ internal fun parsePlan(json: JSONObject): WearPlan? {
         weightKg = set.optNumber("targetWeightKg"),
         reps = set.optNumber("targetReps"),
         restSeconds = set.optInt("restSeconds"),
+        supersetRun = exercise.optNumber("supersetRun")?.toInt(),
       )
     }
   }
@@ -366,6 +412,15 @@ internal fun parsePlan(json: JSONObject): WearPlan? {
   val sets = if (order.isEmpty()) lookup.values.toList() else order.mapNotNull { lookup[it] }
   if (sets.isEmpty()) return null
   return WearPlan(sessionId, sets)
+}
+
+private fun partnersOf(plan: WearPlan, step: WearSet): String? {
+  val run = step.supersetRun ?: return null
+  val names = plan.sets
+    .filter { it.supersetRun == run && it.exerciseEntryId != step.exerciseEntryId }
+    .map { it.exerciseName }
+    .distinct()
+  return names.takeIf { it.isNotEmpty() }?.joinToString(", ")
 }
 
 private fun setLabel(setType: String, number: Int, count: Int): String {
@@ -376,11 +431,6 @@ private fun setLabel(setType: String, number: Int, count: Int): String {
     else -> "Set"
   }
   return "$kind $number/$count"
-}
-
-private fun formatNumber(value: Double?): String {
-  if (value == null) return "–"
-  return if (value % 1.0 == 0.0) value.toInt().toString() else String.format("%.1f", value)
 }
 
 private fun JSONObject.optNumber(key: String): Double? {
