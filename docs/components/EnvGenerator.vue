@@ -105,6 +105,7 @@ const oidcAdminGroup = ref("Admin");
 const oidcScope = ref("openid email profile");
 const disableEmailLogin = ref(false);
 const disablePasskeyLogin = ref(false);
+const forcePasskeyLogin = ref(false);
 
 // --- 8. Email / SMTP (Optional) ---
 const smtpHost = ref("");
@@ -379,7 +380,10 @@ TZ=${timezone.value}
     } else {
       out += `SPARKY_FITNESS_FORCE_EMAIL_LOGIN=${forceEmailLogin.value}\n`;
     }
-    if (disablePasskeyLogin.value) {
+    // FORCE wins over DISABLE on the server, so emit only the one that applies.
+    if (forcePasskeyLogin.value) {
+      out += `SPARKY_FITNESS_FORCE_PASSKEY_LOGIN=true\n`;
+    } else if (disablePasskeyLogin.value) {
       out += `SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN=true\n`;
     }
     if (disableSignup.value) {
@@ -1106,6 +1110,19 @@ onMounted(() => {
             <span class="field-hint" style="margin-left: 26px"
               >Removes passkey sign-in and adding new passkeys, overriding the
               admin switch. Existing passkeys stay stored.</span
+            >
+            <label class="checkbox-label" style="margin-top: 10px">
+              <input v-model="forcePasskeyLogin" type="checkbox" />
+              <span class="checkbox-text">
+                Force Passkey Login On
+                <code class="var-badge"
+                  >SPARKY_FITNESS_FORCE_PASSKEY_LOGIN=true</code
+                >
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Fail-safe: keeps passkey login on even if it was turned off in
+              the admin settings, and overrides Disable Passkey Login.</span
             >
           </div>
 

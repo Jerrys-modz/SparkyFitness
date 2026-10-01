@@ -89,11 +89,13 @@ describe('passkey login guard', () => {
   });
 
   it.each([
-    ['true', 400],
-    [undefined, 204],
+    [undefined, 'true', 400],
+    [undefined, undefined, 204],
+    ['true', 'true', 204],
   ])(
-    'falls back to the environment (DISABLE=%s) when settings cannot be read',
-    async (disable, status) => {
+    'falls back to the environment (FORCE=%s DISABLE=%s) when settings cannot be read',
+    async (force, disable, status) => {
+      vi.stubEnv('SPARKY_FITNESS_FORCE_PASSKEY_LOGIN', force);
       vi.stubEnv('SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN', disable);
       getGlobalSettings.mockRejectedValue(new Error('database away'));
       expect(

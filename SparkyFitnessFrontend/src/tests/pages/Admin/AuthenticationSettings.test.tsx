@@ -65,4 +65,19 @@ describe('AuthenticationSettings passkey switch', () => {
     ).toBeDisabled();
     expect(screen.getAllByText('Managed by Env')).toHaveLength(1);
   });
+
+  it('shows how to force passkey login back on', () => {
+    Object.assign(navigator, { clipboard: { writeText: jest.fn() } });
+    renderWith({ enable_passkey_login: false });
+    expect(
+      screen.getByText('SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true')
+    ).toBeInTheDocument();
+    const passkeyFailSafe = screen.getByText(
+      'SPARKY_FITNESS_FORCE_PASSKEY_LOGIN=true'
+    );
+    fireEvent.click(passkeyFailSafe.querySelector('button')!);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      'SPARKY_FITNESS_FORCE_PASSKEY_LOGIN=true'
+    );
+  });
 });

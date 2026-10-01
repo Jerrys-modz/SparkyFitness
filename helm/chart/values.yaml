@@ -63,6 +63,8 @@ config:
   disableEmailLogin: false
   # -- Force passkey sign-in and new passkey registration off (overrides the admin switch)
   disablePasskeyLogin: false
+  # -- Force passkey login on (fail-safe; overrides disablePasskeyLogin and the admin switch)
+  forcePasskeyLogin: false
 
   # -- OIDC authentication (OpenID Connect SSO)
   oidc:

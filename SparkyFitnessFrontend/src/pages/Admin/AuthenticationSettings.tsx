@@ -15,6 +15,32 @@ import { Badge } from '@/components/ui/badge';
 import { useSettings, useUpdateSettings } from '@/hooks/Admin/useSettings';
 import { GlobalSettings } from '@/types/admin';
 
+const CopyableEnvVar: React.FC<{ value: string }> = ({ value }) => {
+  const { t } = useTranslation();
+  return (
+    <code className="font-mono bg-gray-200 dark:bg-gray-700 p-1 rounded flex items-center">
+      {value}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="ml-2 h-5 w-5"
+        onClick={() => {
+          navigator.clipboard.writeText(value);
+          toast({
+            title: t('copied', 'Copied!'),
+            description: t(
+              'admin.authenticationSettings.loginManagement.envVarCopied',
+              'Environment variable copied to clipboard.'
+            ),
+          });
+        }}
+      >
+        <Clipboard className="h-4 w-4" />
+      </Button>
+    </code>
+  );
+};
+
 const AuthenticationSettings: React.FC = () => {
   const { t } = useTranslation();
   const { data: settings, isLoading: loading } = useSettings();
@@ -243,28 +269,14 @@ const AuthenticationSettings: React.FC = () => {
                 'admin.authenticationSettings.loginManagement.emergencyFailSafeDescription',
                 'If you are ever locked out of your account, you can force email/password login to be enabled by setting the following environment variable on your server and restarting it:'
               )}
-              <code className="font-mono bg-gray-200 dark:bg-gray-700 p-1 rounded flex items-center">
-                SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="ml-2 h-5 w-5"
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      'SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true'
-                    );
-                    toast({
-                      title: t('copied', 'Copied!'),
-                      description: t(
-                        'admin.authenticationSettings.loginManagement.envVarCopied',
-                        'Environment variable copied to clipboard.'
-                      ),
-                    });
-                  }}
-                >
-                  <Clipboard className="h-4 w-4" />
-                </Button>
-              </code>
+              <CopyableEnvVar value="SPARKY_FITNESS_FORCE_EMAIL_LOGIN=true" />
+              <p className="mt-2">
+                {t(
+                  'admin.authenticationSettings.loginManagement.emergencyFailSafePasskeyDescription',
+                  'If passkey login was turned off and you can no longer sign in, force it back on with:'
+                )}
+              </p>
+              <CopyableEnvVar value="SPARKY_FITNESS_FORCE_PASSKEY_LOGIN=true" />
             </div>
           </div>
         </AccordionContent>

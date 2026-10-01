@@ -29,11 +29,16 @@ async function getGlobalSettings() {
     ) {
       settings.enable_email_password_login = true;
     }
-    // The env var can only force passkey login off; otherwise the admin setting applies.
+    // Manage enable_passkey_login
+    const forcePasskeyLogin =
+      process.env.SPARKY_FITNESS_FORCE_PASSKEY_LOGIN === 'true';
     const disablePasskeyLogin =
       process.env.SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN === 'true';
-    settings.is_passkey_login_env_configured = disablePasskeyLogin;
-    if (disablePasskeyLogin) {
+    settings.is_passkey_login_env_configured =
+      forcePasskeyLogin || disablePasskeyLogin;
+    if (forcePasskeyLogin) {
+      settings.enable_passkey_login = true;
+    } else if (disablePasskeyLogin) {
       settings.enable_passkey_login = false;
     } else if (
       settings.enable_passkey_login === undefined ||
@@ -96,6 +101,7 @@ async function saveGlobalSettings(settings: any) {
     const oidcEnvForced =
       process.env.SPARKY_FITNESS_OIDC_AUTH_ENABLED === 'true';
     const passkeyEnvForced =
+      process.env.SPARKY_FITNESS_FORCE_PASSKEY_LOGIN === 'true' ||
       process.env.SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN === 'true';
     await client.query(
       `UPDATE global_settings
