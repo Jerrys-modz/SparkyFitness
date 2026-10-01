@@ -266,6 +266,8 @@ internal object WearHeartRate {
   private var stopRetry = false
   private var generation = 0
   private var inflightId: String? = null
+  /** Calories already in a flush that has not finished. Park must not send them again. */
+  private var inflightDelta = 0.0
   private var calorieEpoch = 0
 
   private data class Retained(
@@ -313,12 +315,14 @@ internal object WearHeartRate {
     val exercise = exerciseEntryId ?: return
     val batch = samples.toList()
     val cumulative = activeKcal()
-    val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedActiveKcal) }?.takeIf { it > 0 }
+    val delta = cumulative?.let {
+      kotlin.math.max(0.0, it - reportedActiveKcal - inflightDelta)
+    }?.takeIf { it > 0 }
     val minutes = if (shownAt > 0L) (System.currentTimeMillis() - shownAt) / 60_000.0 else 0.0
     if (batch.isEmpty() && delta == null && minutes <= 0) return
     samples.clear()
     shownAt = System.currentTimeMillis()
-    if (cumulative != null && delta != null) reportedActiveKcal = cumulative
+    if (delta != null) reportedActiveKcal += delta
     retained.addLast(
       Retained(session, exercise, owner, batch, delta, minutes)
     )
@@ -404,6 +408,7 @@ internal object WearHeartRate {
     flushing = true
     samples.clear()
     inflightId = clientId
+    inflightDelta = if (delta != null && delta > 0.0) delta else 0.0
     val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/$clientId")
     request.dataMap.putString("json", body.toString())
     request.dataMap.putLong("at", System.currentTimeMillis())
@@ -412,9 +417,10 @@ internal object WearHeartRate {
       main.post {
         if (inflightId == clientId) inflightId = null
         dropStaged(clientId)
-        if (flushGeneration == generation && epoch == calorieEpoch && cumulative != null && delta != null) {
-          reportedActiveKcal = cumulative
+        if (epoch == calorieEpoch && sessionId != null && delta != null && delta > 0.0) {
+          reportedActiveKcal += delta
         }
+        inflightDelta = 0.0
         afterFlush(true, flushGeneration, stopping)
       }
     }
@@ -422,10 +428,15 @@ internal object WearHeartRate {
       main.post {
         if (inflightId == clientId) inflightId = null
         if (flushGeneration == generation) {
+          inflightDelta = 0.0
           dropStaged(clientId)
           batch.asReversed().forEach { sample -> samples.addFirst(sample) }
-        } else if (body.optString("ownerId") == WatchContext.snapshot.ownerId) {
-          putStaged(body.toString())
+        } else {
+          if (sessionId != null && epoch == calorieEpoch && delta != null && delta > 0.0) {
+            reportedActiveKcal += delta
+          }
+          inflightDelta = 0.0
+          if (body.optString("ownerId") == WatchContext.snapshot.ownerId) putStaged(body.toString())
         }
         afterFlush(false, flushGeneration, stopping)
       }
@@ -579,6 +590,7 @@ internal object WearHeartRate {
     kcal = -1
     rawTotalKcal = null
     reportedActiveKcal = 0.0
+    inflightDelta = 0.0
     exerciseStartedAt = 0L
     samples.clear()
     stopSampling()
