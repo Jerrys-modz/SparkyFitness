@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { buildTrainingConsistency } from '@workspace/shared';
 import reportService from '../services/reportService.js';
 import reportRepository from '../models/reportRepository.js';
+import preferenceRepository from '../models/preferenceRepository.js';
 
 vi.mock('../models/reportRepository.js');
+vi.mock('../models/preferenceRepository.js');
 vi.mock('../utils/timezoneLoader.js', () => ({
   loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
@@ -34,6 +36,18 @@ function entry(date: string, muscles: string[], sets = 3, warmups = 0) {
 const TODAY = '2026-10-02';
 
 describe('buildTrainingConsistency', () => {
+  it('starts weeks on the chosen weekday', () => {
+    const sundayFirst = buildTrainingConsistency([], TODAY, 2, 0);
+    expect(sundayFirst.firstDayOfWeek).toBe(0);
+    expect(sundayFirst.weeks.map((w) => w.weekStart)).toEqual([
+      '2026-09-20',
+      '2026-09-27',
+    ]);
+    // Thursday-first: Friday 2026-10-02 falls in the week of 2026-10-01.
+    const thursdayFirst = buildTrainingConsistency([], TODAY, 1, 4);
+    expect(thursdayFirst.weeks[0]!.weekStart).toBe('2026-10-01');
+  });
+
   it('lays weeks out Monday to Sunday, oldest first, ending with this week', () => {
     const result = buildTrainingConsistency([], TODAY, 4);
     expect(result.weeks.map((w) => w.weekStart)).toEqual([
@@ -137,6 +151,9 @@ describe('reportService.getTrainingConsistency', () => {
   });
 
   it('reads 26 weeks back from the Monday of this week and drops synced calorie rows', async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      first_day_of_week: 1,
+    } as never);
     vi.mocked(reportRepository.getExerciseEntries).mockResolvedValue([
       entry('2026-10-01', ['Chest']),
       { ...entry('2026-10-02', ['Chest']), exercise_name: 'Active Calories' },
@@ -151,5 +168,23 @@ describe('reportService.getTrainingConsistency', () => {
     );
     expect(result.weeks).toHaveLength(26);
     expect(result.trainingDays).toEqual(['2026-10-01']);
+  });
+
+  it("starts the weeks on the account's first day of the week", async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      first_day_of_week: 0,
+    } as never);
+    vi.mocked(reportRepository.getExerciseEntries).mockResolvedValue([]);
+
+    const result = await reportService.getTrainingConsistency(USER, USER);
+
+    // 2026-10-02 is a Friday; its Sunday-first week starts 2026-09-27.
+    expect(reportRepository.getExerciseEntries).toHaveBeenCalledWith(
+      USER,
+      '2026-04-05',
+      '2026-10-02'
+    );
+    expect(result.firstDayOfWeek).toBe(0);
+    expect(result.weeks[result.weeks.length - 1]!.weekStart).toBe('2026-09-27');
   });
 });
