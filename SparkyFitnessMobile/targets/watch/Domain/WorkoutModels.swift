@@ -209,7 +209,7 @@ struct CompletedSet: Codable, Equatable {
     let weightKg: Double?
     let reps: Double?
     /// Seconds the hold countdown ran. Nil when it was never started.
-    let duration: Int? = nil
+    var duration: Int? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }
