@@ -221,6 +221,12 @@ export interface WatchContextPayload {
    * the phone still builds and arms the session. Absent on an older phone.
    */
   startableWorkouts?: { presetId: string; name: string }[] | null;
+  /**
+   * The phone's active server when that list was built. The watch sends it
+   * back with a start request so a queued tap cannot start a preset after
+   * the phone has switched accounts.
+   */
+  workoutServerId?: string | null;
 }
 
 /** One target set the watch shows for a planned exercise. */
@@ -410,6 +416,8 @@ export interface WatchWorkoutDiscardPayload {
 
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
+  /** Active server the list was built for. Empty when an older watch omitted it. */
+  serverId?: string;
 }
 
 export type WatchConnectivityEvents = {

@@ -3,6 +3,7 @@ import WatchConnectivity from '../../modules/watch-connectivity';
 import { queryClient } from './queryClient';
 import { workoutPresetsQueryKey } from './queryKeys';
 import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
+import { getActiveServerConfigId } from '../services/storage';
 import type { WorkoutPresetsResponse } from '../types/workoutPresets';
 import {
   buildPresetLiveExerciseConfigs,
@@ -25,8 +26,13 @@ export function useWatchWorkoutStart(enabled: boolean, start: StartFn): void {
 
     const sub = watch.addListener('onWorkoutStartRequested', (payload) => {
       const presetId = Number(payload.presetId);
-      if (!Number.isFinite(presetId)) return;
+      const serverId = payload.serverId;
+      // A queued tap from before this field, or from another account, must
+      // not start whatever preset now happens to have that id.
+      if (!Number.isFinite(presetId) || !serverId) return;
       void (async () => {
+        const activeServerId = await getActiveServerConfigId();
+        if (cancelled || activeServerId !== serverId) return;
         const cached = queryClient.getQueryData<WorkoutPresetsResponse>(
           workoutPresetsQueryKey
         );
@@ -38,7 +44,13 @@ export function useWatchWorkoutStart(enabled: boolean, start: StartFn): void {
             return;
           }
         }
-        if (cancelled || preset.exercises.length === 0) return;
+        if (
+          cancelled ||
+          preset.exercises.length === 0 ||
+          (await getActiveServerConfigId()) !== serverId
+        ) {
+          return;
+        }
         await start({
           name: preset.name,
           exercises: buildPresetStartExercisesPayload(preset),

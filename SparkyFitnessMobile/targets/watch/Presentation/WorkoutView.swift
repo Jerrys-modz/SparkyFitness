@@ -81,7 +81,10 @@ private struct WaitingForWorkoutView: View {
     private func start(_ workout: StartableWorkout) {
         guard startingId == nil else { return }
         startingId = workout.presetId
-        session.requestWorkoutStart(presetId: workout.presetId)
+        session.requestWorkoutStart(
+            presetId: workout.presetId,
+            serverId: checkIn.context.workoutServerId
+        )
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             if startingId == workout.presetId {
                 startingId = nil

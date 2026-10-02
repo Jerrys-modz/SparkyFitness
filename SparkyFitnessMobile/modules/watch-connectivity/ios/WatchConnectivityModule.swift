@@ -332,6 +332,7 @@ public class WatchConnectivityModule: Module {
             self.delegateHandler.onWorkoutStartRequested = { [weak self] payload in
                 self?.sendEvent("onWorkoutStartRequested", [
                     "presetId": payload["presetId"] as? String ?? "",
+                    "serverId": payload["serverId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.activate()

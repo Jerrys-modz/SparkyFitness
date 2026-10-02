@@ -72,12 +72,18 @@ enum OutboundPayloads {
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
 
     /// The wearer tapped a saved workout. The phone creates the session and
-    /// arms the watch the same way its own start button does.
-    static func workoutStartRequest(presetId: String) -> [String: Any] {
-        [
+    /// arms the watch the same way its own start button does. `serverId` is
+    /// the phone that built the list, so a tap queued across an account
+    /// switch is refused.
+    static func workoutStartRequest(presetId: String, serverId: String?) -> [String: Any] {
+        var payload: [String: Any] = [
             "type": Kind.workoutStartRequested,
             "presetId": presetId,
         ]
+        if let serverId, !serverId.isEmpty {
+            payload["serverId"] = serverId
+        }
+        return payload
     }
 
     /// One set logged during an active workout, with whatever the wearer

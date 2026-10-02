@@ -43,6 +43,7 @@ import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
+import { getActiveServerConfigId } from '../services/storage';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -465,6 +466,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // ordering that sticks.
     const generation = ++pushGenerationRef.current;
     try {
+      const workoutServerId = await getActiveServerConfigId();
       const today = getTodayDate();
       const startDate = addDays(today, -(HISTORY_DAYS - 1));
       const range = await fetchMeasurementsRange(startDate, today);
@@ -542,6 +544,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         hapticsEnabled,
         restAlertsEnabled,
         startableWorkouts,
+        workoutServerId,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -551,6 +554,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       // Superseded while the fetch above was in flight — a newer push has
       // already sent, or is about to, from fresher state than this one holds.
       if (generation !== pushGenerationRef.current) return;
+      if ((await getActiveServerConfigId()) !== workoutServerId) return;
 
       await WatchConnectivity.updateContext(context);
     } catch (error) {

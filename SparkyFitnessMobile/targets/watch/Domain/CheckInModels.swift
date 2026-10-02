@@ -331,6 +331,9 @@ struct WatchContext: Codable, Equatable {
     /// said; empty means there are none. Optional so an older context blob
     /// still decodes.
     var startableWorkouts: [StartableWorkout]? = nil
+    /// The phone's active server when `startableWorkouts` was built. Sent
+    /// back with a start request. Nil on a context from before this field.
+    var workoutServerId: String? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -355,7 +358,8 @@ struct WatchContext: Codable, Equatable {
         pageOrder: nil,
         hiddenPages: nil,
         setInputStyle: nil,
-        startableWorkouts: nil
+        startableWorkouts: nil,
+        workoutServerId: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the

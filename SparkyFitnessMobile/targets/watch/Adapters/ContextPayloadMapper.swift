@@ -70,7 +70,10 @@ enum ContextPayloadMapper {
                 ? stringArray(payload["hiddenPages"])
                 : previous.hiddenPages,
             setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
-            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts
+            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
+            workoutServerId: payload.keys.contains("workoutServerId")
+                ? payload["workoutServerId"] as? String
+                : previous.workoutServerId
         )
     }
 

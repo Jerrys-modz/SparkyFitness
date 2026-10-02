@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
+import Toast from 'react-native-toast-message';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchRestChangedPayload,
@@ -713,13 +714,15 @@ export function useWatchWorkoutBridge(
         );
         // Same notice the phone's own Discard gives: the workout is gone
         // from the live session but still sits in the diary.
-        Alert.alert(
-          i18n.t('common.error', { defaultValue: 'Error' }),
-          i18n.t('activeWorkout.failedToDeleteWorkout', {
-            defaultValue:
-              'Failed to delete discarded workout session from diary.',
-          })
-        );
+        Toast.show({
+          type: 'error',
+          text1: i18n.t('workout.couldntDelete', {
+            defaultValue: "Couldn't delete workout",
+          }),
+          text2: i18n.t('workout.remainsInDiary', {
+            defaultValue: 'It remains in your diary.',
+          }),
+        });
       }
       if (entryDate != null) invalidateExerciseCache(queryClient, entryDate);
     },
