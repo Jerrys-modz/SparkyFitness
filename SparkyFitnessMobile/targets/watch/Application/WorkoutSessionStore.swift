@@ -56,6 +56,13 @@ final class WorkoutSessionStore: ObservableObject {
     /// resumes or ends it. Nil while the rest counts down (or there is none).
     @Published private(set) var restPausedRemaining: TimeInterval?
 
+    /// The set whose hold countdown is running, if one was started.
+    @Published private(set) var holdSetId: String?
+    /// When that hold reaches 0:00. Kept after it finishes so the logged
+    /// seconds can still be read.
+    @Published private(set) var holdEndsAt: Date?
+    @Published private(set) var holdTotalSeconds: Int = 0
+
     /// Called with the outgoing exercise's entry id just before the cursor
     /// moves onto a set belonging to a different exercise, so the session
     /// manager can send the heart rate and energy collected so far tagged
@@ -75,6 +82,8 @@ final class WorkoutSessionStore: ObservableObject {
 
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
+    private var holdTimer: Timer?
+    private var holdBuzzed = false
     private var startedAt: Date?
     /// Open interval per exercise entry. Closed when the wearer leaves it.
     private var exerciseWindowStartedAt: [String: Date] = [:]
@@ -287,6 +296,7 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         stopRestTimer()
+        clearHold()
         startedAt = Date()
         heartRateSentThrough = nil
         finishing = nil
@@ -409,6 +419,7 @@ final class WorkoutSessionStore: ObservableObject {
         exerciseWindowSeconds = [:]
         stopElapsedTimer()
         stopRestTimer()
+        clearHold()
         clearSnapshot()
     }
 
@@ -447,12 +458,52 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
+    /// Seconds to count down for this set. A later phone target wins over the
+    /// plan. Nil for an ordinary reps set.
+    func targetDurationSec(for step: WorkoutStep) -> Int? {
+        let override = targetOverrides[step.plannedSet.setId]?.durationSec
+        let seconds = override ?? step.plannedSet.targetDurationSec
+        guard let seconds, seconds > 0 else { return nil }
+        return seconds
+    }
+
+    /// Starts the hold countdown. A second tap while it is already running
+    /// for this set does nothing.
+    func startHold(for setId: String, seconds: Int) {
+        guard seconds > 0 else { return }
+        if holdSetId == setId, holdEndsAt != nil { return }
+        holdSetId = setId
+        holdTotalSeconds = seconds
+        holdEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
+        holdBuzzed = false
+        startHoldTimer()
+    }
+
+    /// Seconds left on a hold that was started for this set. Nil when it
+    /// was never started, so the view can show the full target instead.
+    func holdRemaining(for setId: String, now: Date = Date()) -> Int? {
+        guard holdSetId == setId, let endsAt = holdEndsAt else { return nil }
+        return max(0, Int(endsAt.timeIntervalSince(now).rounded()))
+    }
+
+    /// Seconds to log. Nil when the countdown was never started, so the
+    /// phone keeps the planned duration. A finished countdown logs the
+    /// target; stopping early logs how long it actually ran.
+    func holdLoggedSeconds(for setId: String, now: Date = Date()) -> Int? {
+        guard holdSetId == setId, holdEndsAt != nil, holdTotalSeconds > 0 else { return nil }
+        let remaining = holdRemaining(for: setId, now: now) ?? 0
+        return min(holdTotalSeconds, max(0, holdTotalSeconds - remaining))
+    }
+
     /// Marks the current set done, starts the next set's rest, and advances
     /// the cursor. Returns the step that was completed so the caller can
     /// report it — the store never talks to the phone itself.
     @discardableResult
     func completeCurrentSet() -> WorkoutStep? {
         guard let step = currentStep, !isCompleted(step) else { return nil }
+        // Stop the buzz. The deadline stays so the caller can still read
+        // how long the hold ran.
+        stopHoldTimer()
         completedSetIds.insert(step.plannedSet.setId)
 
         // The next set still to do, not simply the next one: a set further on
@@ -833,5 +884,37 @@ final class WorkoutSessionStore: ObservableObject {
         restEndsAt = nil
         restDurationSeconds = 0
         restPausedRemaining = nil
+    }
+
+    private func startHoldTimer() {
+        holdTimer?.invalidate()
+        holdTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let endsAt = self.holdEndsAt else { return }
+                guard Date() >= endsAt else { return }
+                self.stopHoldTimer()
+                guard !self.holdBuzzed else { return }
+                self.holdBuzzed = true
+                self.onRestFinished?()
+            }
+        }
+        if let holdTimer {
+            RunLoop.main.add(holdTimer, forMode: .common)
+        }
+    }
+
+    /// Invalidates the timer without forgetting the deadline. `clearHold`
+    /// is what drops the deadline, at the start and end of a workout.
+    private func stopHoldTimer() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+    }
+
+    private func clearHold() {
+        stopHoldTimer()
+        holdSetId = nil
+        holdEndsAt = nil
+        holdTotalSeconds = 0
+        holdBuzzed = false
     }
 }

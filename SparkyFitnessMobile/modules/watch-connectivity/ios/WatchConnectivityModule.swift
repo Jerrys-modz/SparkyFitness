@@ -267,6 +267,7 @@ public class WatchConnectivityModule: Module {
                     "weightKg": payload["weightKg"] as? Double,
                     "reps": payload["reps"] as? Double,
                     "setType": payload["setType"] as? String,
+                    "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "completedAt": payload["completedAt"] as? String,
                 ])
             }

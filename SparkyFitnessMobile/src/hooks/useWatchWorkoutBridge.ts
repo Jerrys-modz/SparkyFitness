@@ -293,6 +293,8 @@ export function useWatchWorkoutBridge(
       ) {
         patch.set_type = payload.setType;
       }
+      if (payload.duration != null)
+        patch.duration = Math.round(payload.duration);
       if (Object.keys(patch).length > 0) {
         state.updateSetField(payload.setId, patch);
       }

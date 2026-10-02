@@ -309,4 +309,52 @@ describe('useWatchSetTargetsSync', () => {
       completedSetIds: ['101'],
     });
   });
+
+  it('sends a hold length for a duration exercise, not its reps', () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Plank',
+      modality: 'duration',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    session.exercises[0].sets[0].duration = 45;
+    session.exercises[0].sets[1].reps = 30;
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].targets).toEqual([
+      { setId: '101', targetDurationSec: 45 },
+      { setId: '102', targetDurationSec: 30 },
+    ]);
+  });
+
+  it("does not turn a cardio set's seeded reps into a countdown", () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Run',
+      modality: 'duration_distance',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    session.exercises[0].sets = [
+      { ...makeSet(101), reps: 10, duration: 600 },
+      { ...makeSet(102), reps: 10, duration: null },
+    ];
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    const targets = mockUpdateSetTargets.mock.calls[0][0].targets;
+    expect(targets[0]).toEqual({ setId: '101', targetDurationSec: 600 });
+    expect(targets[1].targetDurationSec).not.toBe(10);
+    expect(targets[1]).not.toHaveProperty('targetReps');
+  });
 });
