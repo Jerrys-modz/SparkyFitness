@@ -967,9 +967,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Whether a stop the phone sent at `stoppedAt` can be for the arm stamped
     /// `armedAt`. A stop sent before that arm existed was for an earlier arm
     /// of the same session id. Either side unstamped counts as a match.
+    ///
+    /// Strict, with no tolerance: both stamps are whole milliseconds from the
+    /// phone's own clock, so there is no rounding to forgive, and a margin
+    /// would let the stop for the earlier arm, sent a few milliseconds before
+    /// the re-arm, end the arm that replaced it. A stop in the same
+    /// millisecond as the arm is not before it, so it still counts.
     private static func stopCovers(sentAt stoppedAt: Date?, armedAt: Date?) -> Bool {
         guard let stoppedAt, let armedAt else { return true }
-        return stoppedAt.timeIntervalSince(armedAt) > -0.01
+        return stoppedAt.timeIntervalSince(armedAt) >= 0
     }
 
     /// Whether an update belongs to the plan's arm. Either side missing the
