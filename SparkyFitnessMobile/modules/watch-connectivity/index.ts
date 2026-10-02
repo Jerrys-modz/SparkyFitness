@@ -132,6 +132,11 @@ export interface WatchContextPayload {
    */
   restAlertsEnabled?: boolean | null;
   /**
+   * Settings → Apple Watch → Double-tap to log a set. The watch ignores the
+   * double-tap gesture while this is off. Missing reads as on.
+   */
+  doubleTapEnabled?: boolean | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.

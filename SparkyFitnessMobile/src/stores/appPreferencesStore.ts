@@ -99,6 +99,7 @@ export const PREFERENCE_DEFAULTS = {
   hiddenHealthTrends: [] as HealthTrendKey[],
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
+  watchDoubleTapEnabled: true,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
@@ -166,6 +167,8 @@ export type AppPreferencesData = {
   watchPageOrder: WatchPageKey[];
   /** Watch pages turned off in Settings → Apple Watch. */
   hiddenWatchPages: WatchPageKey[];
+  /** Whether the watch's double-tap gesture logs the current set. */
+  watchDoubleTapEnabled: boolean;
   /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
@@ -224,6 +227,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
+  setWatchDoubleTapEnabled: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setFoodSearchOwnershipFilter: (value: OwnershipFilter) => void;
@@ -363,6 +367,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isShown
           ),
         })),
+      setWatchDoubleTapEnabled: (value) =>
+        set({ watchDoubleTapEnabled: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -435,6 +441,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenHealthTrends: state.hiddenHealthTrends,
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
+        watchDoubleTapEnabled: state.watchDoubleTapEnabled,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
