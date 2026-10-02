@@ -70,7 +70,8 @@ enum ContextPayloadMapper {
                 ? stringArray(payload["hiddenPages"])
                 : previous.hiddenPages,
             setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
-            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts
+            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
+            doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled
         )
     }
 

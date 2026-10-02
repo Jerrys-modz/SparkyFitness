@@ -187,6 +187,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const { preferences } = usePreferences();
   // Device-local settings the watch's haptics follow.
   const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
+  const watchDoubleTapEnabled = useAppPreferencesStore(
+    (s) => s.watchDoubleTapEnabled
+  );
   const restAlertsEnabled = useAppPreferencesStore(
     (s) => s.notificationsEnabled && s.restTimerNotificationsEnabled
   );
@@ -542,6 +545,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         hapticsEnabled,
         restAlertsEnabled,
         startableWorkouts,
+        doubleTapEnabled: watchDoubleTapEnabled,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -568,6 +572,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     hapticsEnabled,
     restAlertsEnabled,
     startableWorkouts,
+    watchDoubleTapEnabled,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,
