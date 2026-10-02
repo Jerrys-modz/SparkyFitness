@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Library manifest. It merges into the phone app, which already sets
+       network security and backup. exported is required so Play services
+       can deliver wearable events; the filter only accepts /sparky. -->
+  <application>
+    <service
+      android:name=".PhoneWearListener"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+        <data
+          android:scheme="wear"
+          android:host="*"
+          android:pathPrefix="/sparky" />
+      </intent-filter>
+    </service>
+  </application>
+</manifest>
