@@ -1784,7 +1784,8 @@
     "setOf_one": "Set {{number}} of {{count}}",
     "setOf_other": "Set {{number}} of {{count}}",
     "repCount_one": "{{formattedCount}} rep",
-    "repCount_other": "{{formattedCount}} reps"
+    "repCount_other": "{{formattedCount}} reps",
+    "addWarmups": "Add warm-ups"
   },
   "cycleCard": {
     "mode": {
