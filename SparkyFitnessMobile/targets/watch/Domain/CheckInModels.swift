@@ -40,6 +40,24 @@ struct MacroGoal: Codable, Equatable {
     var hasGoal: Bool { goal > 0 }
 }
 
+/// One row of the Goals page, as the phone's Settings → Apple Watch lists it:
+/// any nutrient, not just the three macros. Built on the phone from the same
+/// summary as the calorie figures, so the two never disagree.
+struct NutrientRow: Codable, Equatable, Identifiable {
+    /// The phone's nutrient key (`protein`, `dietary_fiber`, …) or a custom
+    /// nutrient's name. Picks the row's colour.
+    let key: String
+    let label: String
+    let unit: String
+    let consumed: Double
+    /// Nil when no goal is set: the row shows the amount alone.
+    let goal: Double?
+    /// Clamped 0...1 by the phone; 0 without a goal.
+    let progress: Double
+
+    var id: String { key }
+}
+
 /// Today's nutrition, mirrored from the phone's Dashboard for the Goals page.
 ///
 /// Arrives as flat keys in the context payload and is reassembled here (see
@@ -60,6 +78,10 @@ struct NutritionSnapshot: Codable, Equatable {
     let carbs: MacroGoal
     let fat: MacroGoal
     let protein: MacroGoal
+    /// The rows to list under the ring, in order. Nil from a phone build that
+    /// doesn't send them, which keeps the fixed protein, carbs and fat rows;
+    /// empty means the wearer chose to list none.
+    var rows: [NutrientRow]? = nil
 
     var isToday: Bool { day == CheckInDate.today() }
 }
@@ -295,6 +317,12 @@ struct WatchContext: Codable, Equatable {
     /// phone hasn't said, which reads as on. Use the `effective…` accessors.
     var hapticsEnabled: Bool?
     var restAlertsEnabled: Bool?
+    /// The phone's Settings → Apple Watch choices: page names in swipe order,
+    /// and the ones turned off. Optional for the same Codable reason as
+    /// `weightUnit`; nil means the phone hasn't said, which reads as the
+    /// factory order with every page shown. Read through `visiblePages`.
+    var pageOrder: [String]?
+    var hiddenPages: [String]?
     /// Saved workouts the wearer can start here. Nil until the phone has
     /// said; empty means there are none. Optional so an older context blob
     /// still decodes.
@@ -319,7 +347,9 @@ struct WatchContext: Codable, Equatable {
         waterDisplayUnit: nil,
         generatedAt: nil,
         hapticsEnabled: nil,
-        restAlertsEnabled: nil
+        restAlertsEnabled: nil,
+        pageOrder: nil,
+        hiddenPages: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
@@ -336,6 +366,11 @@ struct WatchContext: Codable, Equatable {
     /// default rather than being Optional at the call site.
     func formattedWater(ml: Double) -> String {
         formatWaterMl(ml, unit: waterDisplayUnit ?? "ml")
+    }
+
+    /// The pages to swipe between, in order — see `WatchPage.visible`.
+    func visiblePages(workoutActive: Bool) -> [WatchPage] {
+        WatchPage.visible(order: pageOrder, hidden: hiddenPages, workoutActive: workoutActive)
     }
 
     var hasSeed: Bool { todayWeightKg != nil || lastWeightKg != nil }

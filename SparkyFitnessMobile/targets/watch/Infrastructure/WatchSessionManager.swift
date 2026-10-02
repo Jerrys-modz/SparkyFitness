@@ -49,6 +49,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Newest plan that arrived while a finish was in flight. Started only
     /// after the old tail has been tagged with the old session.
     private var pendingPlan: ActiveWorkoutPlan?
+    /// Revision of the plan update folded into a held start, per session,
+    /// so an older copy can't replace it and the running plan starts from it.
+    private var pendingPlanRevisions: [String: Double] = [:]
     /// Pause snapshots that arrived before `beginPlan` started that session.
     private var pendingIntervalTiming: [(
         sessionId: String, revision: Int, pausedAt: Date?, excludedPauseSeconds: Int
@@ -462,6 +465,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "workoutStop": handle(workoutStopFromPhone: payload)
         case "intervalTiming": handle(intervalTiming: payload)
         case "setTargets": handle(setTargets: payload)
+        case "workoutPlanUpdate": handle(workoutPlanUpdate: payload)
         default: break
         }
     }
@@ -522,7 +526,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// every time: the wearer can change it in Settings between workouts.
     private func beginPlan(_ plan: ActiveWorkoutPlan) {
         guard !startIsStale(plan) else { return }
-        workoutStore.start(with: plan)
+        workoutStore.start(
+            with: plan,
+            planRevision: pendingPlanRevisions.removeValue(forKey: plan.sessionId) ?? 0
+        )
         // Only this session's snapshots. Another plan's pause may already be
         // queued and has to survive until that plan starts.
         replayIntervalTiming(sessionId: plan.sessionId)
@@ -936,6 +943,26 @@ final class WatchSessionManager: NSObject, ObservableObject {
             update.revision, update.targets, update.completedSetIds, update.rest,
             update.armedAt
         )
+    }
+
+    /// The phone added, removed or regrouped exercises or sets mid-workout.
+    /// Applied to the running plan of the same arm; a start still being held
+    /// (HealthKit busy, recovery in flight) takes the newer plan instead.
+    /// Anything else, including a later arm or a finished session, is ignored.
+    private func handle(workoutPlanUpdate payload: [String: Any]) {
+        guard let update = ContextPayloadMapper.workoutPlanUpdate(from: payload) else { return }
+        let plan = update.plan
+        if let current = workoutStore.plan, current.sessionId == plan.sessionId {
+            guard Self.sameArm(plan.armedAt, current.armedAt) else { return }
+            workoutStore.updatePlan(plan, revision: update.revision)
+            return
+        }
+        if let held = pendingPlan, held.sessionId == plan.sessionId,
+           Self.sameArm(plan.armedAt, held.armedAt),
+           update.revision > pendingPlanRevisions[plan.sessionId, default: 0] {
+            pendingPlan = plan
+            pendingPlanRevisions[plan.sessionId] = update.revision
+        }
     }
 
     /// Whether an update belongs to the plan's arm. Either side missing the
