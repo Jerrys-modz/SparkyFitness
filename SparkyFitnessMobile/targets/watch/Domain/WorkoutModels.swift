@@ -24,7 +24,7 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     let setType: String?
     /// Hold length in seconds. Nil on a reps set. The watch counts this down
     /// instead of offering a reps box.
-    let targetDurationSec: Int? = nil
+    var targetDurationSec: Int? = nil
 
     var id: String { setId }
 }
