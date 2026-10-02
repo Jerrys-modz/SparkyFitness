@@ -62,6 +62,10 @@ final class WorkoutSessionStore: ObservableObject {
     /// seconds can still be read.
     @Published private(set) var holdEndsAt: Date?
     @Published private(set) var holdTotalSeconds: Int = 0
+    /// Set instead of `holdEndsAt` when a timed set has no planned length and
+    /// counts up. `holdStoppedAt` freezes it once the set is logged.
+    @Published private(set) var holdStartedAt: Date?
+    private(set) var holdStoppedAt: Date?
 
     /// Called with the outgoing exercise's entry id just before the cursor
     /// moves onto a set belonging to a different exercise, so the session
@@ -443,11 +447,37 @@ final class WorkoutSessionStore: ObservableObject {
     func startHold(for setId: String, seconds: Int) {
         guard seconds > 0 else { return }
         if holdSetId == setId, holdEndsAt != nil { return }
+        holdStartedAt = nil
+        holdStoppedAt = nil
         holdSetId = setId
         holdTotalSeconds = seconds
         holdEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
         holdBuzzed = false
         startHoldTimer()
+    }
+
+    /// A duration exercise: counts down when the phone planned a length, and
+    /// otherwise runs as a stopwatch.
+    func isTimed(_ step: WorkoutStep) -> Bool {
+        targetDurationSec(for: step) != nil || step.plannedSet.timed == true
+    }
+
+    /// Starts the stopwatch for a timed set with no planned length.
+    func startStopwatch(for setId: String) {
+        if holdSetId == setId, holdStartedAt != nil { return }
+        stopHoldTimer()
+        holdSetId = setId
+        holdEndsAt = nil
+        holdTotalSeconds = 0
+        holdBuzzed = true
+        holdStoppedAt = nil
+        holdStartedAt = Date()
+    }
+
+    /// Seconds the stopwatch has run for this set. Nil when never started.
+    func stopwatchElapsed(for setId: String, now: Date = Date()) -> Int? {
+        guard holdSetId == setId, let start = holdStartedAt else { return nil }
+        return max(0, Int((holdStoppedAt ?? now).timeIntervalSince(start).rounded()))
     }
 
     /// Seconds left on a hold that was started for this set. Nil when it
@@ -461,6 +491,10 @@ final class WorkoutSessionStore: ObservableObject {
     /// phone keeps the planned duration. A finished countdown logs the
     /// target; stopping early logs how long it actually ran.
     func holdLoggedSeconds(for setId: String, now: Date = Date()) -> Int? {
+        if holdStartedAt != nil {
+            guard let elapsed = stopwatchElapsed(for: setId, now: now), elapsed > 0 else { return nil }
+            return elapsed
+        }
         guard holdSetId == setId, holdEndsAt != nil, holdTotalSeconds > 0 else { return nil }
         let remaining = holdRemaining(for: setId, now: now) ?? 0
         return min(holdTotalSeconds, max(0, holdTotalSeconds - remaining))
@@ -474,6 +508,7 @@ final class WorkoutSessionStore: ObservableObject {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         // Stop the buzz. The deadline stays so the caller can still read
         // how long the hold ran.
+        if holdStartedAt != nil, holdStoppedAt == nil { holdStoppedAt = Date() }
         stopHoldTimer()
         completedSetIds.insert(step.plannedSet.setId)
 
@@ -886,6 +921,8 @@ final class WorkoutSessionStore: ObservableObject {
         holdSetId = nil
         holdEndsAt = nil
         holdTotalSeconds = 0
+        holdStartedAt = nil
+        holdStoppedAt = nil
         holdBuzzed = false
     }
 }

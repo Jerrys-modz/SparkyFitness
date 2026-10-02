@@ -370,3 +370,4 @@ const androidService = require('../../src/services/healthConnectService.ts');
 
 - For work inside `SparkyFitnessMobile/`, this file is the package guide.
 - If a task also changes another package, combine this with that package guide instead of stretching this file to cover the whole monorepo.
+- Timed sets without a planned length (#99): the start payload marks every set of a duration exercise `timed: true`. With a `targetDurationSec` the watch counts down (`HoldCountdown`); with none it shows a stopwatch (`HoldStopwatch`, `WorkoutSessionStore.startStopwatch`) that starts on tap, freezes when the set is ticked and logs the elapsed seconds.

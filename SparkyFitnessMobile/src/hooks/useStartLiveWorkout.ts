@@ -28,6 +28,8 @@ import { getActiveServerConfig } from '../services/storage';
 import { getTodayDate } from '../utils/dateUtils';
 import {
   extractPlannedSetValues,
+  isDurationModality,
+  resolveSnapshotModality,
   stripPlannedSetValues,
 } from '../utils/workoutSession';
 import type { LiveExerciseConfig } from '../utils/workoutSession';
@@ -112,11 +114,15 @@ export function buildWatchWorkoutStartPayload(
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const target = targets.get(setId);
+        const timed = isDurationModality(
+          resolveSnapshotModality(exercise.exercise_snapshot)
+        );
         return {
           setId,
           targetReps: target?.reps ?? null,
           targetWeightKg: target?.weightKg ?? null,
           targetDurationSec: target?.durationSec ?? null,
+          ...(timed ? { timed: true } : {}),
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
         };

@@ -536,12 +536,15 @@ private struct CurrentSetView: View {
 
             let values = store.values(for: step)
             let holdSeconds = store.targetDurationSec(for: step)
+            let timed = store.isTimed(step)
             HStack(spacing: 4) {
-                if holdSeconds == nil || values.weightKg != nil {
+                if !timed || values.weightKg != nil {
                     valueBox(.weight)
                 }
                 if let holdSeconds {
                     HoldCountdown(setId: step.plannedSet.setId, totalSeconds: holdSeconds)
+                } else if timed {
+                    HoldStopwatch(setId: step.plannedSet.setId)
                 } else {
                     valueBox(.reps)
                 }
@@ -847,6 +850,41 @@ private struct HoldCountdown: View {
                 if !started {
                     Button("Start") {
                         store.startHold(for: setId, seconds: totalSeconds)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+    }
+}
+
+/// Count-up timer for a duration set with no planned length. Start begins it;
+/// ticking the set logs the elapsed seconds.
+private struct HoldStopwatch: View {
+    let setId: String
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = store.stopwatchElapsed(for: setId, now: context.date)
+            VStack(spacing: 2) {
+                Text(Self.clock(elapsed ?? 0))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if elapsed == nil {
+                    Button("Start") {
+                        store.startStopwatch(for: setId)
                     }
                     .font(.caption2)
                     .buttonStyle(.bordered)
