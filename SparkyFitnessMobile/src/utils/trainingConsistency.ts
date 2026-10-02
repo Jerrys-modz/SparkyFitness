@@ -5,12 +5,12 @@ export type CalendarCell = 'trained' | 'rest' | 'future';
 
 export interface CalendarWeek {
   weekStart: string;
-  /** Monday to Sunday. */
+  /** The week's seven days, starting on the account's first day of the week. */
   cells: { day: string; state: CalendarCell }[];
 }
 
 /**
- * The heat-map grid: one column per week, Monday to Sunday down. Days after
+ * The heat-map grid: one column per week, its days down in week order. Days after
  * `today` are `future` so the current week's tail is not drawn as missed.
  */
 export function trainingCalendarWeeks(
@@ -54,4 +54,41 @@ export function muscleWeekRows(
         b.lastWeek - a.lastWeek ||
         a.muscle.localeCompare(b.muscle)
     );
+}
+
+/**
+ * Which grid rows get a weekday label (the 2nd, 4th and 6th), so the labels
+ * stay legible at the size the squares are drawn.
+ */
+export const WEEKDAY_LABEL_ROWS: readonly number[] = [1, 3, 5];
+
+/**
+ * Weekday name for each grid row. `names` is indexed 0 = Sunday, as
+ * `getCalendarWeekdayShortNames` returns it.
+ */
+export function weekdayRowLabels(
+  firstDayOfWeek: number,
+  names: readonly string[]
+): string[] {
+  return Array.from(
+    { length: 7 },
+    (_, row) => names[(firstDayOfWeek + row) % 7] ?? ''
+  );
+}
+
+/**
+ * The month name to draw above a week's column: set on the first column and on
+ * each column whose week starts in a new month, empty elsewhere.
+ */
+export function monthColumnLabels(
+  weekStarts: readonly string[],
+  monthNames: readonly string[]
+): string[] {
+  let previousMonth = -1;
+  return weekStarts.map((weekStart) => {
+    const month = Number(weekStart.slice(5, 7)) - 1;
+    if (month === previousMonth) return '';
+    previousMonth = month;
+    return monthNames[month] ?? '';
+  });
 }

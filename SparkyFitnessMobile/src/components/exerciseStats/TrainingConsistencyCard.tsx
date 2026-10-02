@@ -1,13 +1,20 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import type { TrainingConsistency } from '@workspace/shared';
 import StatusView from '../StatusView';
-import { formatLocalizedNumber } from '../../localization';
+import { formatLocalizedNumber, useAppLocale } from '../../localization';
+import {
+  getCalendarMonthNames,
+  getCalendarWeekdayShortNames,
+} from '../../utils/calendarLocalization';
 import { localizeExerciseTaxonomyValue } from '../../localization/exerciseTaxonomy';
 import {
+  WEEKDAY_LABEL_ROWS,
+  monthColumnLabels,
   muscleWeekRows,
   trainingCalendarWeeks,
+  weekdayRowLabels,
 } from '../../utils/trainingConsistency';
 
 interface TrainingConsistencyCardProps {
@@ -15,6 +22,9 @@ interface TrainingConsistencyCardProps {
   isLoading: boolean;
   isError: boolean;
 }
+
+const WEEKDAY_LABEL_WIDTH = 26;
+const MONTH_LABEL_HEIGHT = 14;
 
 const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <View className="flex-1 items-center">
@@ -29,6 +39,32 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
   isError,
 }) => {
   const { t } = useTranslation();
+  const appLocale = useAppLocale();
+  const [gridWidth, setGridWidth] = useState(0);
+  const firstDayOfWeek = data?.firstDayOfWeek ?? 1;
+  const weekdayShort = useMemo(
+    () =>
+      weekdayRowLabels(firstDayOfWeek, getCalendarWeekdayShortNames(appLocale)),
+    [appLocale, firstDayOfWeek]
+  );
+  const weekdayLong = useMemo(
+    () =>
+      weekdayRowLabels(
+        firstDayOfWeek,
+        getCalendarWeekdayShortNames(appLocale, 'long')
+      ),
+    [appLocale, firstDayOfWeek]
+  );
+  const monthLabels = useMemo(
+    () =>
+      data
+        ? monthColumnLabels(
+            data.weeks.map((week) => week.weekStart),
+            getCalendarMonthNames(appLocale, 'short')
+          )
+        : [],
+    [appLocale, data]
+  );
   const calendar = useMemo(
     () => (data ? trainingCalendarWeeks(data) : []),
     [data]
@@ -88,39 +124,105 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
           />
         </View>
 
-        <View
-          className="flex-row self-stretch"
-          accessible
-          accessibilityLabel={t('exerciseStatistics.consistency.calendarA11y', {
-            count: data.trainingDays.length,
-            weeks: data.weeks.length,
-            defaultValue:
-              'Training calendar: {{count}} workout days in the last {{weeks}} weeks',
-            defaultValue_one:
-              'Training calendar: {{count}} workout day in the last {{weeks}} weeks',
-            defaultValue_other:
-              'Training calendar: {{count}} workout days in the last {{weeks}} weeks',
-          })}
-        >
-          {calendar.map((week) => (
-            <View key={week.weekStart} className="flex-1 px-px">
-              {week.cells.map((cell) => (
-                <View
-                  key={cell.day}
-                  testID={`consistency-${cell.state}`}
-                  className={`rounded-sm mb-0.5 ${
-                    cell.state === 'trained'
-                      ? 'bg-exercise'
-                      : cell.state === 'rest'
-                        ? 'bg-progress-track'
-                        : 'bg-transparent'
-                  }`}
-                  style={{ aspectRatio: 1 }}
-                />
+        <View className="flex-row">
+          <View style={{ width: WEEKDAY_LABEL_WIDTH }}>
+            <View style={{ height: MONTH_LABEL_HEIGHT }} />
+            {weekdayShort.map((name, row) => (
+              <View
+                key={row}
+                className="justify-center"
+                style={{ height: gridWidth / Math.max(calendar.length, 1) }}
+              >
+                {WEEKDAY_LABEL_ROWS.includes(row) ? (
+                  <Text
+                    className="text-text-muted"
+                    style={{ fontSize: 9 }}
+                    numberOfLines={1}
+                  >
+                    {name}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+          <View
+            className="flex-1"
+            onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
+            accessible
+            accessibilityLabel={t(
+              'exerciseStatistics.consistency.calendarA11y',
+              {
+                count: data.trainingDays.length,
+                weeks: data.weeks.length,
+                defaultValue:
+                  'Training calendar: {{count}} workout days in the last {{weeks}} weeks',
+                defaultValue_one:
+                  'Training calendar: {{count}} workout day in the last {{weeks}} weeks',
+                defaultValue_other:
+                  'Training calendar: {{count}} workout days in the last {{weeks}} weeks',
+              }
+            )}
+          >
+            <View className="flex-row" style={{ height: MONTH_LABEL_HEIGHT }}>
+              {calendar.map((week, index) => (
+                <View key={week.weekStart} className="flex-1">
+                  {monthLabels[index] ? (
+                    <Text
+                      className="text-text-muted"
+                      style={{ fontSize: 9, width: 40 }}
+                      numberOfLines={1}
+                    >
+                      {monthLabels[index]}
+                    </Text>
+                  ) : null}
+                </View>
               ))}
             </View>
-          ))}
+            <View className="flex-row">
+              {calendar.map((week) => (
+                <View key={week.weekStart} className="flex-1 px-px">
+                  {week.cells.map((cell) => (
+                    <View
+                      key={cell.day}
+                      testID={`consistency-${cell.state}`}
+                      className={`rounded-sm mb-0.5 ${
+                        cell.state === 'trained'
+                          ? 'bg-exercise'
+                          : cell.state === 'rest'
+                            ? 'bg-progress-track'
+                            : 'bg-transparent'
+                      }`}
+                      style={{ aspectRatio: 1 }}
+                    />
+                  ))}
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
+
+        <View
+          className="flex-row items-center mt-2"
+          testID="consistency-legend"
+        >
+          <View className="w-2.5 h-2.5 rounded-sm bg-exercise mr-1" />
+          <Text className="text-text-secondary text-xs mr-3">
+            {t('exerciseStatistics.consistency.legendTrained', {
+              defaultValue: 'Workout day',
+            })}
+          </Text>
+          <View className="w-2.5 h-2.5 rounded-sm bg-progress-track mr-1" />
+          <Text className="text-text-secondary text-xs">
+            {t('exerciseStatistics.consistency.legendRest', {
+              defaultValue: 'No workout',
+            })}
+          </Text>
+        </View>
+        <Text className="text-text-muted text-xs mt-1">
+          {t('exerciseStatistics.consistency.legendHelp', {
+            defaultValue: 'Each square is a day and each column is a week.',
+          })}
+        </Text>
 
         <Text className="text-text-primary text-sm font-bold mt-4 mb-1">
           {t('exerciseStatistics.consistency.setsTitle', {
@@ -184,9 +286,13 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
         {t('exerciseStatistics.consistency.subtitle', {
           count: data?.weeks.length ?? 0,
           formattedCount: formatLocalizedNumber(data?.weeks.length ?? 0),
-          defaultValue: 'Last {{formattedCount}} weeks, Monday to Sunday',
-          defaultValue_one: 'Last {{formattedCount}} week, Monday to Sunday',
-          defaultValue_other: 'Last {{formattedCount}} weeks, Monday to Sunday',
+          first: weekdayLong[0] ?? '',
+          last: weekdayLong[6] ?? '',
+          defaultValue: 'Last {{formattedCount}} weeks, {{first}} to {{last}}',
+          defaultValue_one:
+            'Last {{formattedCount}} week, {{first}} to {{last}}',
+          defaultValue_other:
+            'Last {{formattedCount}} weeks, {{first}} to {{last}}',
         })}
       </Text>
       {renderBody()}
