@@ -1,4 +1,7 @@
-import { normalizeEquipment } from "./exerciseTaxonomy.ts";
+import {
+  isIgnoredEquipment,
+  normalizeEquipment,
+} from "./exerciseTaxonomy.ts";
 
 /**
  * Exercise modality selects which per-set editor clients render
@@ -56,7 +59,7 @@ export function isBodyweightModality(modality: ExerciseModality): boolean {
  * station, "body only") gives `bodyweight_reps`. Blank equipment does not:
  * too many custom and cardio exercises leave it empty for that to mean
  * anything. An unrecognised name is not blank, so it keeps the exercise on
- * ordinary weight.
+ * ordinary weight. A bench is an ignored accessory and does not.
  */
 export function deriveExerciseModality(
   category: string | null | undefined,
@@ -76,7 +79,8 @@ function isBodyweightOnlyEquipment(
   const values =
     typeof equipment === "string" ? [equipment] : (equipment ?? []);
   const present = values.filter(
-    (value): value is string => value != null && value.trim() !== "",
+    (value): value is string =>
+      value != null && value.trim() !== "" && !isIgnoredEquipment(value),
   );
   // An unknown name is not "no equipment". Dropping it would leave "body
   // only" and mark a loaded custom attachment as bodyweight.

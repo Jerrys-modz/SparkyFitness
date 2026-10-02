@@ -80,6 +80,12 @@ describe('bodyweight modality derivation', () => {
         'custom weighted attachment',
       ])
     ).toBe('weight_reps');
+    expect(deriveExerciseModality('strength', ['body only', 'bench'])).toBe(
+      'bodyweight_reps'
+    );
+    expect(
+      deriveExerciseModality('strength', ['Pull-up bar', 'incline bench'])
+    ).toBe('bodyweight_reps');
     expect(deriveExerciseModality('cardio', ['body only'])).toBe(
       'duration_distance'
     );
