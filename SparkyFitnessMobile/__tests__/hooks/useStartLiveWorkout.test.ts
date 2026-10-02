@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import type { PresetSessionResponse } from '@workspace/shared';
 import {
+  __resetLiveWorkoutStartForTests,
   armWatchForActiveSession,
   syncWatchIntervalTiming,
   useStartLiveWorkout,
@@ -158,6 +159,7 @@ describe('useStartLiveWorkout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     __resetActiveWorkoutStoreForTests();
+    __resetLiveWorkoutStartForTests();
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     mockCreateWorkout.mockResolvedValue(makeSession());
   });
@@ -189,6 +191,51 @@ describe('useStartLiveWorkout', () => {
     expect(store.sessionId).toBe('session-1');
     expect(store.createdByLiveStart).toBe(true);
     expect(navigation.replace).toHaveBeenCalledWith('ActiveWorkout');
+  });
+
+  it('lets only one caller create a session when the phone and the watch start together', async () => {
+    let resolveCreate: (session: PresetSessionResponse) => void = () => undefined;
+    mockCreateWorkout.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(serverConnectionQueryKey, true);
+    const navigation = {
+      replace: jest.fn(),
+      navigate: jest.fn(),
+      isFocused: jest.fn(() => false),
+    };
+    const phone = renderHook(() => useStartLiveWorkout(navigation), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    const watch = renderHook(() => useStartLiveWorkout(navigation), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    let phoneDone: Promise<void> = Promise.resolve();
+    act(() => {
+      phoneDone = phone.result.current.startLiveWorkout({
+        name: 'Push Day',
+        exercises: EXERCISES,
+      });
+    });
+    await act(async () => {
+      await watch.result.current.startLiveWorkout({
+        name: 'Pull Day',
+        exercises: EXERCISES,
+      });
+    });
+    expect(mockCreateWorkout).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveCreate(makeSession());
+      await phoneDone;
+    });
+    expect(mockCreateWorkout).toHaveBeenCalledTimes(1);
+    expect(useActiveWorkoutStore.getState().sessionId).toBe('session-1');
   });
 
   it('arms the watch with the interval format, cap, and start time', async () => {
