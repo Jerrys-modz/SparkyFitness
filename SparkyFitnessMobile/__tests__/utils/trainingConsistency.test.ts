@@ -1,7 +1,9 @@
 import type { TrainingConsistency } from '@workspace/shared';
 import {
+  monthColumnLabels,
   muscleWeekRows,
   trainingCalendarWeeks,
+  weekdayRowLabels,
 } from '../../src/utils/trainingConsistency';
 
 describe('trainingCalendarWeeks', () => {
@@ -63,5 +65,48 @@ describe('muscleWeekRows', () => {
 
   it('is empty when neither week has sets', () => {
     expect(muscleWeekRows({ thisWeek: {}, lastWeek: {} })).toEqual([]);
+  });
+});
+
+describe('weekdayRowLabels', () => {
+  const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  it('starts the rows on the first day of the week', () => {
+    expect(weekdayRowLabels(1, names)).toEqual([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ]);
+    expect(weekdayRowLabels(0, names)[0]).toBe('Sun');
+    expect(weekdayRowLabels(6, names)[1]).toBe('Sun');
+  });
+});
+
+describe('monthColumnLabels', () => {
+  it('labels the first column and each new month only', () => {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    expect(
+      monthColumnLabels(
+        ['2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05'],
+        months
+      )
+    ).toEqual(['Sep', '', '', 'Oct']);
   });
 });
