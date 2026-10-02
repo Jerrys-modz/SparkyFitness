@@ -382,6 +382,43 @@ describe('useWatchWorkoutBridge', () => {
     expect(getStore().completedSetIds['101']).toBeDefined();
   });
 
+  it('writes a set type picked on the watch, and ignores one it does not know', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        setType: 'warmup',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getStore().session!.exercises[0].sets[0].set_type).toBe('warmup');
+    expect(getStore().session!.exercises[0].sets[0].reps).toBe(10);
+
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-2',
+        sessionId: 'session-1',
+        setId: '101',
+        setType: 'cardio',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getStore().session!.exercises[0].sets[0].set_type).toBe('normal');
+  });
+
   it('leaves planned values alone when the watch sends none', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

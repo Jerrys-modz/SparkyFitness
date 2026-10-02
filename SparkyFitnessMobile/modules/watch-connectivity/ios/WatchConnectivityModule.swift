@@ -271,6 +271,7 @@ public class WatchConnectivityModule: Module {
                     // clearing a planned one — same rule as body fat above.
                     "weightKg": payload["weightKg"] as? Double,
                     "reps": payload["reps"] as? Double,
+                    "setType": payload["setType"] as? String,
                     "completedAt": payload["completedAt"] as? String,
                 ])
             }

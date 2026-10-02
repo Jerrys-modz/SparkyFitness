@@ -155,15 +155,43 @@ struct WorkoutStep: Identifiable, Equatable {
     var id: String { plannedSet.setId }
 
     /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
+    /// A type the wearer picked on the watch is not in here; the store's
+    /// `label(for:)` is what the screen shows.
     var label: String {
-        let kind: String
-        switch plannedSet.setType?.lowercased() {
-        case "warmup": kind = "Warmup"
-        case "drop": kind = "Drop"
-        case "failure": kind = "Failure"
-        default: kind = "Set"
+        "\(SetKind.resolve(plannedSet.setType).caption) \(setNumber)/\(setCount)"
+    }
+}
+
+/// The four types the phone's set menu offers, in that menu's order.
+enum SetKind: String, CaseIterable {
+    case warmup
+    case normal
+    case drop
+    case failure
+
+    static func resolve(_ raw: String?) -> SetKind {
+        guard let raw else { return .normal }
+        return SetKind(rawValue: raw.lowercased()) ?? .normal
+    }
+
+    /// Short caption in "Warmup 1/2".
+    var caption: String {
+        switch self {
+        case .warmup: return "Warmup"
+        case .normal: return "Set"
+        case .drop: return "Drop"
+        case .failure: return "Failure"
         }
-        return "\(kind) \(setNumber)/\(setCount)"
+    }
+
+    /// Same words as the phone's set-type menu.
+    var menuTitle: String {
+        switch self {
+        case .warmup: return "Warm-up"
+        case .normal: return "Normal"
+        case .drop: return "Drop set"
+        case .failure: return "Failure"
+        }
     }
 }
 
@@ -173,6 +201,8 @@ struct WorkoutStep: Identifiable, Equatable {
 struct SetValues: Codable, Equatable {
     var weightKg: Double?
     var reps: Double?
+    /// Set type the wearer picked on the watch. Nil means the plan's type.
+    var setType: String? = nil
 }
 
 /// The phone's rest timer, as carried by a `setTargets` update.
@@ -202,6 +232,8 @@ struct CompletedSet: Codable, Equatable {
     let setId: String
     let weightKg: Double?
     let reps: Double?
+    /// Set type the wearer picked. Nil leaves the plan's type on the phone.
+    var setType: String? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }

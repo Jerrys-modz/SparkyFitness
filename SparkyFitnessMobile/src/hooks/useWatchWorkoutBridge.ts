@@ -25,6 +25,7 @@ import {
   attributeWatchBatch,
   boundedWatchCompletedAt,
 } from '../utils/watchTelemetryAttribution';
+import { SET_TYPE_OPTIONS } from '../utils/workoutSession';
 import {
   buildWorkoutCelebration,
   type WorkoutCelebration,
@@ -286,6 +287,12 @@ export function useWatchWorkoutBridge(
       const patch: ActiveSetPatch = {};
       if (payload.weightKg != null) patch.weight = payload.weightKg;
       if (payload.reps != null) patch.reps = payload.reps;
+      if (
+        payload.setType != null &&
+        (SET_TYPE_OPTIONS as readonly string[]).includes(payload.setType)
+      ) {
+        patch.set_type = payload.setType;
+      }
       if (Object.keys(patch).length > 0) {
         state.updateSetField(payload.setId, patch);
       }
