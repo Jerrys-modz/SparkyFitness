@@ -187,6 +187,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `external_data_providers` | Configured API integration credentials, including personal or global Open Food Facts accounts |
 | `openfoodfacts_product_read_rate_limit` | Singleton lease and cooldown coordinating Open Food Facts product reads across server instances |
 | `openfoodfacts_sync_queue` | Dormant revision-aware automatic upload state and retained history; unused by manual contributions |
+| `rate_limit` | Sign-in rate limit counters shared across server instances |
 | `medication_types` | Medication categories lookup |
 | `medication_route_types` | Medication administration routes lookup |
 | `medication_schedule_types` | Medication scheduling frequencies lookup |

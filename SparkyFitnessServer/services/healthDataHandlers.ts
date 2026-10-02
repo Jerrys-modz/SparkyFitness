@@ -674,6 +674,112 @@ function prepareCheckInMeasurement(
   }
 }
 
+// Health Connect only exposes body water as a mass (BodyWaterMassRecord, kg),
+// while check_in_measurements stores it as body_water_percentage. Convert each
+// body_water_mass record with the same day's weight: from this batch first
+// (later record wins, matching the merge below), otherwise from the stored
+// check-in. Without a weight for that day the record is skipped rather than
+// estimated from another day.
+async function resolveBodyWaterPercentages(
+  entries: PreparedHealthEntry[],
+  ctx: HealthBatchContext
+): Promise<
+  Map<
+    number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    | { measurements: Record<string, any> }
+    | { error: string }
+    | { skipped: string }
+  >
+> {
+  const resolved = new Map<
+    number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    | { measurements: Record<string, any> }
+    | { error: string }
+    | { skipped: string }
+  >();
+  const pending: Array<{ index: number; entryDate: string; massKg: number }> =
+    [];
+  const batchWeights = new Map<string, number>();
+  entries.forEach(({ entry, parsedDate }, index) => {
+    const canonical = TYPE_ALIASES[entry?.type] ?? entry?.type;
+    if (canonical === 'weight') {
+      const prepared = prepareCheckInMeasurement(entry);
+      if (!('error' in prepared)) {
+        batchWeights.set(parsedDate, prepared.measurements.weight);
+      }
+    } else if (canonical === 'body_water_mass') {
+      const massKg = parseFloat(entry.value);
+      if (isNaN(massKg) || massKg <= 0) {
+        resolved.set(index, {
+          error: `Invalid value for ${entry.type}. Must be a positive number.`,
+        });
+      } else {
+        pending.push({ index, entryDate: parsedDate, massKg });
+      }
+    }
+  });
+  if (pending.length === 0) {
+    return resolved;
+  }
+
+  const datesWithoutBatchWeight = [
+    ...new Set(
+      pending
+        .filter(({ entryDate }) => !batchWeights.has(entryDate))
+        .map(({ entryDate }) => entryDate)
+    ),
+  ].sort();
+  const storedWeights = new Map<string, number>();
+  let lookupError: string | null = null;
+  if (datesWithoutBatchWeight.length > 0) {
+    try {
+      const rows =
+        await measurementRepository.getCheckInMeasurementsByDateRange(
+          ctx.userId,
+          datesWithoutBatchWeight[0],
+          datesWithoutBatchWeight[datesWithoutBatchWeight.length - 1]
+        );
+      for (const row of rows ?? []) {
+        const weight = Number(row.weight);
+        // Number(null) is 0 and Number(undefined) is NaN, so both are excluded.
+        if (weight > 0 && !storedWeights.has(row.entry_date)) {
+          storedWeights.set(row.entry_date, weight);
+        }
+      }
+    } catch (error) {
+      lookupError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  for (const { index, entryDate, massKg } of pending) {
+    const weight = batchWeights.get(entryDate) ?? storedWeights.get(entryDate);
+    if (weight === undefined) {
+      resolved.set(
+        index,
+        lookupError !== null
+          ? { error: `Failed to process entry: ${lookupError}` }
+          : {
+              skipped:
+                'Body water mass needs a weight on the same day to be stored as a percentage.',
+            }
+      );
+      continue;
+    }
+    const percentage = Math.round((massKg / weight) * 10000) / 100;
+    resolved.set(
+      index,
+      percentage > 100
+        ? {
+            error: `Invalid value for ${entries[index].entry.type}. Body water mass cannot exceed the weight of the same day.`,
+          }
+        : { measurements: { body_water_percentage: percentage } }
+    );
+  }
+  return resolved;
+}
+
 // Shared batched write for the check-in family (steps/weight/body_fat/height):
 // all valid records go through one bulkUpsertCheckInMeasurements call (one
 // client + one transaction), with same-date records merged server-side
@@ -714,8 +820,19 @@ const checkInHandleBatch: HandleBatchFn = async (entries, ctx) => {
   const todayForUser = hasGuardedBmrWrite
     ? todayInZone(await loadUserTimezone(ctx.userId))
     : null;
+  const bodyWaterPercentages = await resolveBodyWaterPercentages(entries, ctx);
   for (let i = 0; i < entries.length; i++) {
-    const prepared = prepareCheckInMeasurement(entries[i].entry);
+    const prepared =
+      bodyWaterPercentages.get(i) ??
+      prepareCheckInMeasurement(entries[i].entry);
+    if ('skipped' in prepared) {
+      log(
+        'info',
+        `healthDataHandlers: skipping ${entries[i].entry?.type} for ${entries[i].parsedDate} — no weight on that day to convert it to a percentage.`
+      );
+      outcomes[i] = { status: 'skipped', reason: prepared.skipped };
+      continue;
+    }
     if ('error' in prepared) {
       outcomes[i] = { status: 'error', error: prepared.error };
       continue;
@@ -1071,6 +1188,13 @@ const boneMassHandler: HealthTypeHandler = {
 };
 
 const bodyWaterHandler: HealthTypeHandler = {
+  handle: handleCheckInEntry,
+  handleBatch: checkInHandleBatch,
+};
+
+// Health Connect body water arrives as a mass in kg and is converted to
+// body_water_percentage in checkInHandleBatch (see resolveBodyWaterPercentages).
+const bodyWaterMassHandler: HealthTypeHandler = {
   handle: handleCheckInEntry,
   handleBatch: checkInHandleBatch,
 };
@@ -1947,6 +2071,7 @@ export const HEALTH_TYPE_HANDLERS: Record<string, HealthTypeHandler> = {
   muscle_mass_kg: muscleMassHandler,
   bone_mass_kg: boneMassHandler,
   body_water_percentage: bodyWaterHandler,
+  body_water_mass: bodyWaterMassHandler,
   bmr: bmrHandler,
   SleepSession: sleepSessionHandler,
   Stress: stressHandler,
@@ -1971,6 +2096,8 @@ export const TYPE_ALIASES: Record<string, string> = {
   bone_mass: 'bone_mass_kg',
   BoneMass: 'bone_mass_kg',
   muscle_mass: 'muscle_mass_kg',
+  // Health Connect body water is a mass (kg); converted to a percentage.
+  BodyWaterMass: 'body_water_mass',
   Height: 'height',
   basal_metabolic_rate: 'bmr',
   BasalMetabolicRate: 'bmr',

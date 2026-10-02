@@ -52,6 +52,7 @@ BEGIN
     'openfoodfacts_product_read_rate_limit',
     'openfoodfacts_sync_queue',
     'profiles',
+    'rate_limit',
     'sparky_chat_history',
     'admin_activity_logs',
     'api_key',
@@ -958,3 +959,8 @@ CREATE POLICY deny_all_policy ON public.passkey_registration_tickets FOR ALL TO 
 -- singleton contains only cross-instance lease/cooldown state and is accessed
 -- via getSystemClient. User-scoped and delegated queries must never mutate it.
 CREATE POLICY deny_all_policy ON public.openfoodfacts_product_read_rate_limit FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
+
+-- Sign-in rate limit counters (Tier 1 - system/internal). Better Auth uses its
+-- own owner pool, which bypasses RLS; the rows hold client addresses, so the
+-- app role is denied entirely.
+CREATE POLICY deny_all_policy ON public.rate_limit FOR ALL TO PUBLIC USING (false) WITH CHECK (false);
