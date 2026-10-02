@@ -54,7 +54,8 @@ private struct NutritionLabelExtraction {
 private let extractionInstructions = """
 You read nutrition facts labels from a photo. Copy numbers exactly as printed. \
 Never estimate or invent a value: leave a field empty when it is not printed. \
-Convert units to the ones requested in each field description.
+Convert units to the ones requested in each field description. \
+Use the OCR tool to read the printed text so numbers are copied exactly.
 """
 #endif
 
@@ -84,7 +85,10 @@ public class OnDeviceNutritionModule: Module {
                 else {
                     throw OnDeviceNutritionError.badImage
                 }
-                let session = LanguageModelSession(instructions: extractionInstructions)
+                let session = LanguageModelSession(
+                    tools: [OCRTool()],
+                    instructions: extractionInstructions
+                )
                 let response = try await session.respond(
                     generating: NutritionLabelExtraction.self
                 ) {
