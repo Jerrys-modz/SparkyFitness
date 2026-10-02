@@ -1698,6 +1698,7 @@
     "trackingType": "Tracking Type",
     "modalityWeightReps": "Weight & Reps",
     "modalityReps": "Reps",
+    "modalityBodyweight": "Bodyweight (+/− weight)",
     "modalityDuration": "Duration",
     "modalityDurationDistance": "Duration & Distance",
     "levelBeginner": "Beginner",

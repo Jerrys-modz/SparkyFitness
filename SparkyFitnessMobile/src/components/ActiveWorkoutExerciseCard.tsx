@@ -60,8 +60,10 @@ import {
 } from '../utils/workoutSession';
 import {
   NO_ADAPTIVE_ADJUSTMENT,
+  isBodyweightModality,
   shouldSuggestVariation,
 } from '@workspace/shared';
+import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
 import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
 import { useLiveHeartRate } from '../stores/liveHeartRateStore';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
@@ -89,6 +91,11 @@ interface ActiveWorkoutExerciseCardProps {
   activeSetId: string | null;
   metricColumn: ActiveWorkoutMetricColumn;
   weightUnit: 'kg' | 'lbs';
+  /**
+   * The workout's day, for the body weight a bodyweight exercise counts.
+   * Defaults to today (a live workout).
+   */
+  entryDate?: string | null;
   distanceUnit?: 'km' | 'miles';
   /**
    * False keeps cardio (`duration_distance`) exercises on the duration-style
@@ -278,6 +285,7 @@ function ActiveWorkoutExerciseCard({
   activeSetId,
   metricColumn,
   weightUnit,
+  entryDate,
   distanceUnit = 'km',
   cardioFormEnabled = true,
   getImageSource,
@@ -359,6 +367,11 @@ function ActiveWorkoutExerciseCard({
       : t('workout.lbs', { defaultValue: 'lbs' });
   // Resolved once per exercise; every row and the column header derive from it.
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
+  // Only fetched for a bodyweight exercise; everything else ignores it.
+  const bodyWeightKg = useBodyWeightKg(
+    entryDate,
+    isBodyweightModality(modality)
+  );
   const durationLike = isDurationModality(modality);
   const cardioForm =
     cardioFormEnabled &&
@@ -739,7 +752,7 @@ function ActiveWorkoutExerciseCard({
   );
 
   if (!expanded) {
-    const volumeKg = getExerciseVolumeKg(exercise);
+    const volumeKg = getExerciseVolumeKg(exercise, bodyWeightKg);
     const cardioParts: string[] = [];
     if (cardioForm) {
       const firstCardioSet = exercise.sets[0];
@@ -1597,6 +1610,7 @@ function ActiveWorkoutExerciseCard({
                 <ActiveWorkoutSetRow
                   set={effectiveSet}
                   modality={modality}
+                  bodyWeightKg={bodyWeightKg}
                   distanceUnit={distanceUnit}
                   renderKey={renderKey}
                   displayNumber={workingSetNumbers[index]}
