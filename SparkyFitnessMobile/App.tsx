@@ -21,6 +21,11 @@ import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge } from './src/hooks';
+import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
+import {
+  useStartLiveWorkout,
+  type StartLiveWorkoutNavigation,
+} from './src/hooks/useStartLiveWorkout';
 import WatchConnectivity from './modules/watch-connectivity';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
@@ -191,6 +196,16 @@ function WatchWorkoutGate() {
   const { isConnected: isServerConnected } = useServerConnection({
     enablePolling: watchSupported && telemetryPending,
   });
+  const { startLiveWorkout } = useStartLiveWorkout({
+    // Starting from the wrist must not replace whatever screen the phone is
+    // on. The active-workout bar appears on its own once the session exists.
+    // `navigate` is only the conflict prompt's "Go to Workout".
+    isFocused: () => false,
+    replace: (() => {}) as StartLiveWorkoutNavigation['replace'],
+    navigate: ((screen: 'ActiveWorkout') => {
+      if (rootNavigationRef.isReady()) rootNavigationRef.navigate(screen);
+    }) as StartLiveWorkoutNavigation['navigate'],
+  });
   useWatchWorkoutBridge(
     watchSupported,
     isServerConnected,
@@ -198,6 +213,7 @@ function WatchWorkoutGate() {
     handleWatchFinishedWorkout
   );
   useWatchSetTargetsSync(watchSupported);
+  useWatchWorkoutStart(watchSupported && isServerConnected, startLiveWorkout);
   useWatchPlanSync(watchSupported);
   return null;
 }
