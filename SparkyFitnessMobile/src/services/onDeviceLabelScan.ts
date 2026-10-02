@@ -1,0 +1,122 @@
+import OnDeviceNutritionModule, {
+  type OnDeviceLabelExtraction,
+} from '../../modules/on-device-nutrition';
+import type { LabelScanResult } from './api/externalFoodSearchApi';
+import { addLog } from './LogService';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+
+const MAX_CALORIES = 3000;
+const MAX_GRAMS = 500;
+const MAX_MG = 20000;
+// Atwater energy from macros may differ from the printed value (rounding,
+// fiber, sugar alcohols), so allow a generous band before distrusting it.
+const ENERGY_TOLERANCE = 0.35;
+
+export function isOnDeviceLabelScanAvailable(): boolean {
+  try {
+    return OnDeviceNutritionModule?.isAvailable() === true;
+  } catch {
+    return false;
+  }
+}
+
+function inRange(value: number | null, max: number): boolean {
+  return (
+    value === null || (Number.isFinite(value) && value >= 0 && value <= max)
+  );
+}
+
+/**
+ * Rejects a model extraction that cannot be a real label so the caller falls
+ * back to the server instead of pre-filling invented numbers.
+ */
+export function isPlausibleLabel(r: OnDeviceLabelExtraction): boolean {
+  const { calories, protein, carbs, fat, sugars, fiber } = r;
+  if (calories === null || protein === null || carbs === null || fat === null) {
+    return false;
+  }
+  if (!inRange(calories, MAX_CALORIES)) return false;
+  for (const g of [
+    protein,
+    carbs,
+    fat,
+    sugars,
+    fiber,
+    r.saturated_fat,
+    r.trans_fat,
+  ]) {
+    if (!inRange(g, MAX_GRAMS)) return false;
+  }
+  for (const mg of [r.sodium, r.cholesterol, r.potassium, r.calcium, r.iron]) {
+    if (!inRange(mg, MAX_MG)) return false;
+  }
+  if (sugars !== null && sugars > carbs + 0.5) return false;
+  if (fiber !== null && fiber > carbs + 0.5) return false;
+  if (r.saturated_fat !== null && r.saturated_fat > fat + 0.5) return false;
+  const atwater = protein * 4 + carbs * 4 + fat * 9;
+  if (calories > 20 && atwater > 0) {
+    if (
+      Math.abs(calories - atwater) / Math.max(calories, atwater) >
+      ENERGY_TOLERANCE
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function toLabelScanResult(r: OnDeviceLabelExtraction): LabelScanResult {
+  const unit = (r.serving_unit ?? '').trim().toLowerCase();
+  // Per-100 labels: the printed numbers are for 100 of the unit.
+  const per100 = r.values_are_per_100;
+  return {
+    name: r.name,
+    brand: r.brand,
+    serving_size: per100 ? 100 : (r.serving_size ?? 0),
+    serving_unit: per100 ? (unit === 'ml' ? 'ml' : 'g') : unit || 'g',
+    calories: r.calories ?? 0,
+    protein: r.protein ?? 0,
+    carbs: r.carbs ?? 0,
+    fat: r.fat ?? 0,
+    fiber: r.fiber,
+    saturated_fat: r.saturated_fat,
+    trans_fat: r.trans_fat,
+    sodium: r.sodium,
+    sugars: r.sugars,
+    cholesterol: r.cholesterol,
+    potassium: r.potassium,
+    calcium: r.calcium,
+    iron: r.iron,
+    caffeine_mg: null,
+    water_ml: null,
+    alcohol_g: null,
+    vitamin_a: null,
+    vitamin_c: null,
+  };
+}
+
+/**
+ * Reads a nutrition label with Apple's on-device model. Returns null whenever
+ * the on-device path is unavailable, fails, or returns implausible numbers;
+ * the caller then uses the server-side scan.
+ */
+export async function scanLabelOnDevice(
+  base64Image: string
+): Promise<LabelScanResult | null> {
+  if (!useAppPreferencesStore.getState().onDeviceLabelScanEnabled) return null;
+  if (!OnDeviceNutritionModule || !isOnDeviceLabelScanAvailable()) return null;
+  try {
+    const extraction = await OnDeviceNutritionModule.scanLabel(base64Image);
+    if (!isPlausibleLabel(extraction)) {
+      addLog('[Label Scan] On-device result implausible; falling back', 'INFO');
+      return null;
+    }
+    return toLabelScanResult(extraction);
+  } catch (error) {
+    addLog(
+      `[Label Scan] On-device scan failed: ${error instanceof Error ? error.message : String(error)}`,
+      'WARNING'
+    );
+    return null;
+  }
+}
