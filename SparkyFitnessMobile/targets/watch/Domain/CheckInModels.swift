@@ -232,6 +232,15 @@ struct WaterDeleteRequest: Codable, Equatable {
     let entryId: String
 }
 
+/// A saved workout the wearer can start from the wrist. The phone still
+/// creates the session; this is only the name to tap.
+struct StartableWorkout: Codable, Equatable, Identifiable {
+    let presetId: String
+    let name: String
+
+    var id: String { presetId }
+}
+
 /// Everything the phone relays to the watch: what to seed the crown with, and
 /// recent history to draw. Latest-value-only — delivered via
 /// `updateApplicationContext`, so a missed update is simply superseded.
@@ -318,6 +327,13 @@ struct WatchContext: Codable, Equatable {
     /// `crown`). Optional for the same Codable reason as `weightUnit`; read
     /// `effectiveSetInputStyle`.
     var setInputStyle: String?
+    /// Saved workouts the wearer can start here. Nil until the phone has
+    /// said; empty means there are none. Optional so an older context blob
+    /// still decodes.
+    var startableWorkouts: [StartableWorkout]? = nil
+    /// The phone's active server when `startableWorkouts` was built. Sent
+    /// back with a start request. Nil on a context from before this field.
+    var workoutServerId: String? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -341,7 +357,9 @@ struct WatchContext: Codable, Equatable {
         restAlertsEnabled: nil,
         pageOrder: nil,
         hiddenPages: nil,
-        setInputStyle: nil
+        setInputStyle: nil,
+        startableWorkouts: nil,
+        workoutServerId: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
