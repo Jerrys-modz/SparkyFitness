@@ -21,6 +21,8 @@ export interface OnDeviceLabelExtraction {
   calcium: number | null;
   iron: number | null;
   values_are_per_100: boolean;
+  /** Text recognised on the label, to check the extraction against. */
+  ocr_text?: string;
 }
 
 declare class OnDeviceNutritionModuleType extends NativeModule {
