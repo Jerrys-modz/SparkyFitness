@@ -10,6 +10,10 @@ import {
   useActiveWorkoutStore,
   type ActiveSetPatch,
 } from '../stores/activeWorkoutStore';
+import {
+  newestHeartRateSample,
+  useLiveHeartRateStore,
+} from '../stores/liveHeartRateStore';
 import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
 import { attachExerciseEntryWatchTelemetry } from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
@@ -447,6 +451,18 @@ export function useWatchWorkoutBridge(
             energyByExercise.delete(exerciseEntryId);
         }
       }
+      // The newest reading goes straight to the active-workout screen; the
+      // rest of this handler only fills the upload buffer, which renders
+      // nothing. Live session only: a late drain for an ended workout has
+      // nothing on screen to update.
+      if (live) {
+        const newest = newestHeartRateSample(samplesByExercise);
+        if (newest) {
+          useLiveHeartRateStore
+            .getState()
+            .record({ sessionId: payload.sessionId, ...newest });
+        }
+      }
       for (const [exerciseEntryId, incoming] of samplesByExercise) {
         if (incoming.length === 0) continue;
         const existing = session.samples.get(exerciseEntryId) ?? [];
@@ -688,10 +704,28 @@ export function useWatchWorkoutBridge(
       }
     );
 
+    // The wrist's current reading, ahead of the minute-old batch. Display
+    // only: nothing is buffered, so a dropped message costs nothing.
+    const liveHeartRateSub = WatchConnectivity.addListener(
+      'onLiveHeartRate',
+      (payload) => {
+        if (payload.sessionId !== useActiveWorkoutStore.getState().sessionId)
+          return;
+        if (!(payload.bpm > 0) || !Number.isFinite(payload.at)) return;
+        useLiveHeartRateStore.getState().record({
+          sessionId: payload.sessionId,
+          exerciseEntryId: payload.exerciseEntryId,
+          bpm: Math.round(payload.bpm),
+          at: payload.at,
+        });
+      }
+    );
+
     return () => {
       setCompletedSub.remove();
       restChangedSub.remove();
       heartRateBatchSub.remove();
+      liveHeartRateSub.remove();
       workoutStopSub.remove();
     };
   }, [enabled]);

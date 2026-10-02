@@ -17,7 +17,7 @@ final class WorkoutHealthKitController: NSObject {
 
     /// Fired on every fresh HR reading HealthKit reports, for the header's
     /// live BPM. Always called on the main queue.
-    var onHeartRate: ((Double) -> Void)?
+    var onHeartRate: ((Double, Date) -> Void)?
     /// Fired periodically with whatever samples accumulated since the last
     /// flush, for `heartRateBatch` transfers. Always called on the main queue.
     var onBatchReady: (([HeartRateSample]) -> Void)?
@@ -659,7 +659,7 @@ final class WorkoutHealthKitController: NSObject {
         if pendingSampleTimes.contains(t) { return }
         pendingSampleTimes.insert(t)
         pendingSamples.append(HeartRateSample(t: t, bpm: bpm))
-        onHeartRate?(bpm)
+        onHeartRate?(bpm, date)
     }
 }
 
