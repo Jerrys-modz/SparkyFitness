@@ -48,6 +48,16 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var latestBpm: Double?
     @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var elapsedSeconds: Int = 0
+    /// What the wearer just finished, shown on the Workout page until they
+    /// dismiss it or arm another workout. Not persisted: it is a keepsake of
+    /// the moment, not session state.
+    @Published private(set) var lastSummary: WorkoutSummary?
+    private var heartRateSum: Double = 0
+    private var heartRateCount: Int = 0
+    private var heartRateMax: Double?
+    /// When the last live reading arrived, so the final drain's readings can
+    /// be told apart from ones already counted.
+    private var lastLiveHeartRateAt: Date?
     /// Non-nil while a rest countdown is running before the next set.
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
@@ -72,6 +82,19 @@ final class WorkoutSessionStore: ObservableObject {
     /// the wrist. Not called when the wearer skips the rest or trims it to
     /// zero: they are looking at the watch and already know.
     var onRestFinished: (() -> Void)?
+
+    /// Called when the phone confirms a set logged on this watch is a
+    /// personal record. Once per set.
+    var onPersonalRecord: (() -> Void)?
+    /// Name of the exercise whose set just set a record, shown as a banner
+    /// until it clears itself or the wearer taps it.
+    @Published private(set) var prBannerExercise: String?
+    /// Sets completed on this watch, so a PR the phone flagged for a set
+    /// logged there (or one carried in by a resumed session) is not
+    /// celebrated here.
+    private var wristLoggedSetIds: Set<String> = []
+    private var celebratedPrSetIds: Set<String> = []
+    private var prBannerTask: Task<Void, Never>?
 
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
@@ -144,10 +167,12 @@ final class WorkoutSessionStore: ObservableObject {
         revision: Double,
         targets: [String: SetValues],
         completedSetIds phoneCompleted: Set<String> = [],
-        phoneRest: PhoneRest? = nil
+        phoneRest: PhoneRest? = nil,
+        prSetIds: Set<String> = []
     ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
+        celebrate(prSetIds)
         targetOverrides = targets
         let knownIds = Set(steps.map(\.plannedSet.setId))
         pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
@@ -177,6 +202,30 @@ final class WorkoutSessionStore: ObservableObject {
             lastPhoneRest = phoneRest
         }
         persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// Fires the record celebration for sets logged here that the phone has
+    /// flagged. The phone decides what a record is; the watch only reacts.
+    private func celebrate(_ prSetIds: Set<String>) {
+        let fresh = prSetIds
+            .intersection(wristLoggedSetIds)
+            .subtracting(celebratedPrSetIds)
+        guard !fresh.isEmpty else { return }
+        celebratedPrSetIds.formUnion(fresh)
+        let name = steps.first { fresh.contains($0.plannedSet.setId) }?.exerciseName
+        prBannerExercise = name ?? ""
+        onPersonalRecord?()
+        prBannerTask?.cancel()
+        prBannerTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.dismissPrBanner()
+        }
+    }
+
+    func dismissPrBanner() {
+        prBannerTask?.cancel()
+        prBannerExercise = nil
     }
 
     /// Brings the rest on screen in line with the phone's.
@@ -274,6 +323,11 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
+        lastSummary = nil
+        resetHeartRateStats()
+        wristLoggedSetIds = []
+        celebratedPrSetIds = []
+        dismissPrBanner()
         stopRestTimer()
         startedAt = Date()
         heartRateSentThrough = nil
@@ -392,6 +446,10 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
+        resetHeartRateStats()
+        wristLoggedSetIds = []
+        celebratedPrSetIds = []
+        dismissPrBanner()
         startedAt = nil
         exerciseWindowStartedAt = [:]
         exerciseWindowSeconds = [:]
@@ -402,6 +460,63 @@ final class WorkoutSessionStore: ObservableObject {
 
     func recordHeartRate(bpm: Double) {
         latestBpm = bpm
+        lastLiveHeartRateAt = Date()
+        accumulateHeartRate(bpm)
+    }
+
+    /// Readings from the final HealthKit drain, which can include some the
+    /// live callback never delivered. Only those taken after the last live
+    /// reading are added, so a reading already counted is not counted twice.
+    func recordFinalHeartRate(_ readings: [(at: Date, bpm: Double)]) {
+        let cutoff = lastLiveHeartRateAt ?? .distantPast
+        for reading in readings where reading.at > cutoff {
+            accumulateHeartRate(reading.bpm)
+        }
+    }
+
+    private func accumulateHeartRate(_ bpm: Double) {
+        guard bpm > 0 else { return }
+        heartRateSum += bpm
+        heartRateCount += 1
+        heartRateMax = max(heartRateMax ?? bpm, bpm)
+    }
+
+    private func resetHeartRateStats() {
+        heartRateSum = 0
+        heartRateCount = 0
+        heartRateMax = nil
+        lastLiveHeartRateAt = nil
+    }
+
+    /// Totals for the workout in progress, or nil when no set was logged
+    /// (nothing worth celebrating). Call before `reset()`.
+    func makeSummary() -> WorkoutSummary? {
+        guard plan != nil, !completedSetIds.isEmpty else { return nil }
+        var volumeKg = 0.0
+        var completed = 0
+        for step in steps where completedSetIds.contains(step.plannedSet.setId) {
+            completed += 1
+            let v = values(for: step)
+            if let weight = v.weightKg, let reps = v.reps {
+                volumeKg += weight * reps
+            }
+        }
+        return WorkoutSummary(
+            durationSeconds: elapsedSeconds,
+            setsCompleted: completed,
+            volumeKg: volumeKg,
+            averageBpm: heartRateCount > 0 ? heartRateSum / Double(heartRateCount) : nil,
+            maxBpm: heartRateMax,
+            activeEnergyKcal: activeEnergyKcal
+        )
+    }
+
+    func recordSummary(_ summary: WorkoutSummary?) {
+        lastSummary = summary
+    }
+
+    func dismissSummary() {
+        lastSummary = nil
     }
 
     func recordActiveEnergy(kcal: Double) {
@@ -425,6 +540,7 @@ final class WorkoutSessionStore: ObservableObject {
     func completeCurrentSet() -> WorkoutStep? {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         completedSetIds.insert(step.plannedSet.setId)
+        wristLoggedSetIds.insert(step.plannedSet.setId)
 
         // The next set still to do, not simply the next one: a set further on
         // may already have been logged on the phone, and landing on it would

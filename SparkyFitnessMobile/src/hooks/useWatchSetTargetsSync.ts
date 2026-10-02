@@ -85,6 +85,10 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         });
       }
       const completedSetIds = Object.keys(state.completedSetIds).sort();
+      // Only PRs among the logged sets: a PR flag outlives an un-log.
+      const prSetIds = Object.keys(state.prSetIds)
+        .filter((id) => state.completedSetIds[id] != null)
+        .sort();
       const rest =
         state.rest.state === 'resting' && state.rest.endsAt != null
           ? {
@@ -102,6 +106,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         watchArmedAt,
         targets,
         completedSetIds,
+        prSetIds,
         rest,
       ]);
       if (lastSent?.sessionId === session.id && lastSent.key === key) return;
@@ -115,6 +120,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         revision: lastRevision,
         targets,
         completedSetIds,
+        prSetIds,
         ...rest,
       });
     };
@@ -124,6 +130,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       if (
         state.session === prev.session &&
         state.completedSetIds === prev.completedSetIds &&
+        state.prSetIds === prev.prSetIds &&
         state.watchArmedAt === prev.watchArmedAt &&
         state.rest === prev.rest &&
         state.previousSessionSets === prev.previousSessionSets &&
