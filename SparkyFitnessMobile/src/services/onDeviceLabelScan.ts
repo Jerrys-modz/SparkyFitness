@@ -3,6 +3,7 @@ import OnDeviceNutritionModule, {
 } from '../../modules/on-device-nutrition';
 import type { LabelScanResult } from './api/externalFoodSearchApi';
 import { addLog } from './LogService';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 
 const MAX_CALORIES = 3000;
 const MAX_GRAMS = 500;
@@ -102,6 +103,7 @@ export function toLabelScanResult(r: OnDeviceLabelExtraction): LabelScanResult {
 export async function scanLabelOnDevice(
   base64Image: string
 ): Promise<LabelScanResult | null> {
+  if (!useAppPreferencesStore.getState().onDeviceLabelScanEnabled) return null;
   if (!OnDeviceNutritionModule || !isOnDeviceLabelScanAvailable()) return null;
   try {
     const extraction = await OnDeviceNutritionModule.scanLabel(base64Image);
