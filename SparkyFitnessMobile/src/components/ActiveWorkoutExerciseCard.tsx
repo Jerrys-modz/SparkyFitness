@@ -34,6 +34,7 @@ import { useExerciseStats } from '../hooks/useExerciseStats';
 import type { GetImageSource } from '../hooks/useExerciseImageSource';
 import {
   distanceFromKm,
+  storedWeightInUnit,
   weightFromKg,
   weightToKg,
 } from '../utils/unitConversions';
@@ -237,10 +238,7 @@ interface ActiveWorkoutExerciseCardProps {
 
 /** A stored kg increment shown in the lifter's unit, trimmed for an input. */
 function formatIncrementForInput(kg: number, unit: 'kg' | 'lbs'): string {
-  // numeric(6,2) kg makes 10 lb read back as 10.009 lb; one decimal in lb
-  // (two in kg) restores what was typed.
-  const factor = unit === 'lbs' ? 10 : 100;
-  return String(Math.round(weightFromKg(kg, unit) * factor) / factor);
+  return String(storedWeightInUnit(kg, unit));
 }
 
 /**

@@ -95,6 +95,8 @@ import {
 } from '@workspace/shared';
 import { buildExerciseReplaceContext } from '../utils/exerciseReplace';
 import WorkoutFeedbackCard from '../components/WorkoutFeedbackCard';
+import HeartRateZones from '../components/exerciseStats/HeartRateZones';
+import { useWorkoutHeartRateZones } from '../hooks/useWorkoutHeartRateZones';
 
 type Props = RootStackScreenProps<'WorkoutDetail'>;
 
@@ -104,6 +106,9 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     ? 'pl-PL'
     : 'en-US';
   const [session, setSession] = useState(route.params.session);
+  // Time in each zone across the whole workout, from the zones the watch
+  // stored per exercise. Null for a workout logged without one.
+  const heartRateZones = useWorkoutHeartRateZones(session.exercises);
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { preferences } = usePreferences();
@@ -926,6 +931,17 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Summary card */}
         {renderSummaryCard()}
+
+        {heartRateZones && !isEditing ? (
+          <View className="bg-surface rounded-xl p-4 mt-4">
+            <Text className="text-base font-semibold text-text-primary mb-3">
+              {t('exerciseStatistics.cardio.zones', {
+                defaultValue: 'Heart Rate Zones',
+              })}
+            </Text>
+            <HeartRateZones zones={heartRateZones} />
+          </View>
+        ) : null}
 
         {/* Start Workout button */}
         {!isEditing && canEdit && !isWorkoutActive && (

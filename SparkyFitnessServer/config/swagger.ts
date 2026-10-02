@@ -1268,6 +1268,7 @@ const options = {
           type: 'object',
           properties: {
             enable_email_password_login: { type: 'boolean' },
+            enable_passkey_login: { type: 'boolean' },
             is_oidc_active: { type: 'boolean' },
             is_mfa_mandatory: { type: 'boolean' },
             default_vision_ai_service_id: {

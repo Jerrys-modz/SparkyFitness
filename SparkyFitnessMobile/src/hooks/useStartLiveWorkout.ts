@@ -69,7 +69,7 @@ interface StartLiveWorkoutArgs {
  * with whatever the phone's own active-workout screen would show for the
  * same session.
  */
-function buildWatchWorkoutStartPayload(
+export function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
   t: TFunction,
   armedAtMs: number

@@ -176,6 +176,7 @@ export * from "./schemas/database/MedicationSchedules.zod.ts";
 export * from "./schemas/database/MedicationTitrationSteps.zod.ts";
 export * from "./schemas/database/MedicationTypes.zod.ts";
 export * from "./schemas/database/PasskeyRegistrationTickets.zod.ts";
+export * from "./schemas/database/RateLimit.zod.ts";
 export * from "./schemas/database/Pregnancies.zod.ts";
 export * from "./schemas/database/PregnancyChecklistState.zod.ts";
 export * from "./schemas/database/PregnancyContractions.zod.ts";
