@@ -415,12 +415,13 @@ public class WatchConnectivityModule: Module {
         /// has already closed — a dead workout on screen and the sensor
         /// still sampling. Queued like `startWorkout` for the same reason: a
         /// watch out of range must still hear it eventually.
-        AsyncFunction("stopWorkout") { (sessionId: String, stoppedAt: String) -> Void in
+        AsyncFunction("stopWorkout") { (sessionId: String, stoppedAt: String, discarded: Bool?) -> Void in
             guard WCSession.isSupported() else { return }
             let payload: [String: Any] = [
                 "type": "workoutStop",
                 "sessionId": sessionId,
                 "stoppedAt": stoppedAt,
+                "discarded": discarded ?? false,
             ]
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(payload, replyHandler: nil) { _ in

@@ -767,7 +767,8 @@ describe('useWatchWorkoutBridge', () => {
 
     expect(mockStopWorkout).toHaveBeenCalledWith(
       'session-1',
-      expect.any(String)
+      expect.any(String),
+      false
     );
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
       hrSamples: [
@@ -775,6 +776,34 @@ describe('useWatchWorkoutBridge', () => {
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
       ],
     });
+  });
+
+  it('tells the watch to drop the workout when the phone discards it', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }],
+      });
+    });
+    mockAttachTelemetry.mockClear();
+
+    await act(async () => {
+      getStore().clearWorkout({ discarded: true });
+      await Promise.resolve();
+    });
+
+    expect(mockStopWorkout).toHaveBeenCalledWith(
+      'session-1',
+      expect.any(String),
+      true
+    );
+    // A discarded workout's heart rate is never attached.
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
   });
 
   it('attributes the watch drain that arrives after the phone ends the workout', async () => {

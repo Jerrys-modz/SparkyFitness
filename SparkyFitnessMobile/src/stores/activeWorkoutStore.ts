@@ -103,6 +103,17 @@ export function syncWatchIntervalTiming(timing: {
 /** Monotonic counter used to reject stale async schedule resolutions. */
 let restInstanceCounter = 0;
 
+/** Sessions the user threw away, until the watch bridge has been told. */
+const discardedWorkoutIds = new Set<string>();
+
+/**
+ * True once if `sessionId` was cleared as a discard rather than a finish. The
+ * watch bridge reads it when the session ends.
+ */
+export function consumeWorkoutDiscarded(sessionId: string): boolean {
+  return discardedWorkoutIds.delete(sessionId);
+}
+
 export interface WorkoutStep {
   exerciseId: string;
   setId: string;
@@ -370,7 +381,12 @@ export interface ActiveWorkoutState {
   setAdaptiveDeclined: (entryId: string, declined: boolean) => void;
   /** Keep ramp rounding in step with a mid-workout unit preference change. */
   setWeightUnit: (unit: 'kg' | 'lbs') => void;
-  clearWorkout: () => void;
+  /**
+   * Ends the live workout. `discarded` marks it as thrown away rather than
+   * finished, which the watch bridge reads (`consumeWorkoutDiscarded`) so the
+   * watch drops its workout instead of saving it to Health.
+   */
+  clearWorkout: (options?: { discarded?: boolean }) => void;
   /**
    * Complete any set — not just the cursor — and move the next-up highlight to
    * the set right after it, starting the rest before that set. Sets log in any
@@ -1636,7 +1652,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         if (get().weightUnit !== unit) set({ weightUnit: unit });
       },
 
-      clearWorkout: () => {
+      clearWorkout: (options) => {
+        const endingSessionId = get().sessionId;
+        if (options?.discarded && endingSessionId != null) {
+          discardedWorkoutIds.add(endingSessionId);
+        }
         cancelCurrentRestNotification(get().rest);
         // The unit is a preference, not workout state; keep it across clears.
         set({ ...initialData, weightUnit: get().weightUnit });
