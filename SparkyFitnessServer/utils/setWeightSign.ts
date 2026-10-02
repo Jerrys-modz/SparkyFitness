@@ -12,7 +12,7 @@ export function assertSetWeightSign(
   if (isExerciseModality(modality) && isBodyweightModality(modality)) return;
   for (const set of sets ?? []) {
     const weight = numericWeight(set.weight);
-    if (weight != null && weight < 0) {
+    if (weight !== null && weight < 0) {
       throw new ValidationError(
         'Negative weight is only valid on a bodyweight exercise.'
       );
