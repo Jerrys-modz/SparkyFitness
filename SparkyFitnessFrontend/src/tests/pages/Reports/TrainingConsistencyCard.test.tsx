@@ -20,6 +20,7 @@ jest.mock('react-i18next', () => ({
 
 const DATA: TrainingConsistency = {
   today: '2026-10-02',
+  firstDayOfWeek: 1,
   weeks: [
     { weekStart: '2026-09-21', workoutDays: 2 },
     { weekStart: '2026-09-28', workoutDays: 1 },
