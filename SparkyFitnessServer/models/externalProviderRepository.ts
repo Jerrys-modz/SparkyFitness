@@ -1,6 +1,85 @@
+import type { PoolClient } from 'pg';
 import { getClient, getSystemClient } from '../db/poolManager.js';
 import { encrypt, decrypt, ENCRYPTION_KEY } from '../security/encryption.js';
 import { log } from '../config/logging.js';
+
+/**
+ * Runs a provider's token refresh inside a transaction so the caller's
+ * `SELECT ... FOR UPDATE` on its external_data_providers row makes concurrent
+ * refreshes for that row wait. The next refresher then reads the token the
+ * previous one saved instead of a refresh token the provider already rotated.
+ *
+ * Always commits, even when `refresh` throws: the transaction only holds the
+ * lock, and writes keep taking effect as they would without it (a refresh that
+ * clears tokens before throwing still clears them).
+ */
+async function withProviderTokenLock<T>(
+  client: PoolClient,
+  refresh: () => Promise<T>
+): Promise<T> {
+  await client.query('BEGIN');
+  try {
+    return await refresh();
+  } finally {
+    await client.query('COMMIT');
+  }
+}
+/**
+ * Saves Garmin tokens that the Garmin service refreshed during a request, but
+ * only if the stored tokens are still the ones that request sent. A slower
+ * request that started from older tokens would otherwise overwrite newer ones
+ * saved in the meantime. Returns whether the tokens were saved.
+ */
+async function replaceGarminTokensIfUnchanged(
+  userId: string,
+  sentTokens: string,
+  update: {
+    encrypted_garth_dump: string | null;
+    garth_dump_iv: string | null;
+    garth_dump_tag: string | null;
+    token_expires_at: Date | null;
+    external_user_id: string;
+  }
+): Promise<boolean> {
+  const client = await getClient(userId);
+  try {
+    return await withProviderTokenLock(client, async () => {
+      const { rows } = await client.query(
+        `SELECT id, encrypted_garth_dump, garth_dump_iv, garth_dump_tag
+         FROM external_data_providers
+         WHERE user_id = $1 AND provider_name = 'garmin'
+         FOR UPDATE`,
+        [userId]
+      );
+      const row = rows[0];
+      if (!row?.encrypted_garth_dump) return false;
+      const storedTokens = await decrypt(
+        row.encrypted_garth_dump,
+        row.garth_dump_iv,
+        row.garth_dump_tag,
+        ENCRYPTION_KEY
+      );
+      if (storedTokens !== sentTokens) return false;
+      await client.query(
+        `UPDATE external_data_providers
+         SET encrypted_garth_dump = $1, garth_dump_iv = $2, garth_dump_tag = $3,
+             token_expires_at = $4, external_user_id = $5, updated_at = NOW()
+         WHERE id = $6`,
+        [
+          update.encrypted_garth_dump,
+          update.garth_dump_iv,
+          update.garth_dump_tag,
+          update.token_expires_at,
+          update.external_user_id,
+          row.id,
+        ]
+      );
+      return true;
+    });
+  } finally {
+    client.release();
+  }
+}
 async function getExternalDataProviders(
   targetUserId: string,
   authenticatedUserId?: string
@@ -901,6 +980,8 @@ export { checkExternalDataProviderAccess };
 export { deleteExternalDataProvider };
 export { getExternalDataProviderByUserIdAndProviderName };
 export { updateProviderLastSync };
+export { withProviderTokenLock };
+export { replaceGarminTokensIfUnchanged };
 export { getProvidersByType };
 export { getExternalProviderTypes };
 export { getGlobalExternalDataProviders };
@@ -919,6 +1000,8 @@ export default {
   deleteExternalDataProvider,
   getExternalDataProviderByUserIdAndProviderName,
   updateProviderLastSync,
+  withProviderTokenLock,
+  replaceGarminTokensIfUnchanged,
   getProvidersByType,
   getExternalProviderTypes,
   getGlobalExternalDataProviders,
