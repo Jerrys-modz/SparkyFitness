@@ -249,9 +249,12 @@ enum ContextPayloadMapper {
     /// The session a phone-sent `workoutStop` names, and when the phone sent
     /// it. Nil session for a malformed payload, which is dropped rather than
     /// ending whatever is running.
-    static func workoutStop(from payload: [String: Any]) -> (sessionId: String, stoppedAt: Date?)? {
+    static func workoutStop(
+        from payload: [String: Any]
+    ) -> (sessionId: String, stoppedAt: Date?, discarded: Bool)? {
         guard let sessionId = payload["sessionId"] as? String else { return nil }
-        return (sessionId, isoDate(from: payload["stoppedAt"]))
+        // Absent from an older phone build, which only ever finished.
+        return (sessionId, isoDate(from: payload["stoppedAt"]), payload["discarded"] as? Bool ?? false)
     }
 
     static func isoDate(from value: Any?) -> Date? {

@@ -447,9 +447,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * Tells the watch the workout it was armed with has ended on the phone, so
    * it stops its HealthKit session and clears the Workout tab. Takes the
    * session id rather than being argument-less so a stop for an already
-   * superseded workout can be ignored watch-side.
+   * superseded workout can be ignored watch-side. `discarded` tells the watch
+   * the workout was thrown away, not finished: it ends the session without
+   * saving it to Health and shows no summary.
    */
-  stopWorkout(sessionId: string, stoppedAt: string): Promise<void>;
+  stopWorkout(
+    sessionId: string,
+    stoppedAt: string,
+    discarded: boolean
+  ): Promise<void>;
   /**
    * Absolute pause snapshot for the live session. `revision` only increases.
    * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.

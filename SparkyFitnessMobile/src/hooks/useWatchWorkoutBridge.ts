@@ -8,6 +8,7 @@ import WatchConnectivity, {
   type WatchWorkoutDiscardPayload,
 } from '../../modules/watch-connectivity';
 import {
+  consumeWorkoutDiscarded,
   useActiveWorkoutStore,
   type ActiveSetPatch,
 } from '../stores/activeWorkoutStore';
@@ -700,7 +701,7 @@ export function useWatchWorkoutBridge(
           () => undefined
         );
       }
-      state.clearWorkout();
+      state.clearWorkout({ discarded: true });
       if (!createdByLiveStart) return;
       try {
         await deleteWorkout(sessionId);
@@ -1089,7 +1090,19 @@ export function useWatchWorkoutBridge(
     return useActiveWorkoutStore.subscribe((state, prevState) => {
       if (state.sessionId === prevState.sessionId) return;
       const ended = prevState.sessionId;
-      if (ended !== null) {
+      if (ended !== null && consumeWorkoutDiscarded(ended)) {
+        // Thrown away on the phone: the watch drops its workout without saving
+        // it to Health, and nothing it buffered is attached to a session that
+        // no longer exists.
+        discardedSessionsRef.current.add(ended);
+        sessionsRef.current.delete(ended);
+        syncPendingRef.current();
+        void WatchConnectivity?.stopWorkout(
+          ended,
+          new Date().toISOString(),
+          true
+        );
+      } else if (ended !== null) {
         const endedSession = sessionsRef.current.get(ended);
         if (endedSession) {
           endedSession.endedAt = Date.now();
@@ -1100,7 +1113,11 @@ export function useWatchWorkoutBridge(
             activeSetId: prevState.activeSetId,
           };
         }
-        void WatchConnectivity?.stopWorkout(ended, new Date().toISOString());
+        void WatchConnectivity?.stopWorkout(
+          ended,
+          new Date().toISOString(),
+          false
+        );
         // Posts what has arrived so far. The watch answers that stop signal
         // with its own final drain, which lands afterwards and re-posts the
         // completed series — see `handleHeartRateBatch`.

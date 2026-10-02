@@ -1057,7 +1057,20 @@ final class WatchSessionManager: NSObject, ObservableObject {
             pendingPlan = nil
             return
         }
+<<<<<<< HEAD
         guard workoutStore.plan?.sessionId == stop.sessionId else { return }
+||||||| parent of 59215f58 (fix(watch): drop the watch workout, with no Health write or summary, when it is discarded on the phone)
+        guard endsRunning else { return }
+=======
+        guard endsRunning else { return }
+        // Thrown away on the phone: end the session without writing it to
+        // Health and without a summary. Nothing is sent back, the phone
+        // already dropped it. A finish already running cannot be taken back.
+        if stop.discarded, !collectionInFlight {
+            dropRunningWorkout(notifyPhone: false)
+            return
+        }
+>>>>>>> 59215f58 (fix(watch): drop the watch workout, with no Health write or summary, when it is discarded on the phone)
         requestFinish(sendStop: false)
     }
 
@@ -1156,12 +1169,20 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// saving. Ignored while a finish is already running, which has the
     /// session's tail in flight and cannot be taken back.
     func discardWorkout() {
+        dropRunningWorkout(notifyPhone: true)
+    }
+
+    /// Ends the running workout without saving it. `notifyPhone` is false when
+    /// the phone is the one that discarded it.
+    private func dropRunningWorkout(notifyPhone: Bool) {
         guard !collectionInFlight, let sessionId = workoutStore.plan?.sessionId else {
             return
         }
         rememberEnded(sessionId, at: workoutStore.plan?.armedAt ?? Date())
         workoutHealthKit.discard()
-        transfer(OutboundPayloads.workoutDiscard(WorkoutStopSignal(sessionId: sessionId)))
+        if notifyPhone {
+            transfer(OutboundPayloads.workoutDiscard(WorkoutStopSignal(sessionId: sessionId)))
+        }
         let next = pendingPlan
         pendingPlan = nil
         pendingSendStop = false
