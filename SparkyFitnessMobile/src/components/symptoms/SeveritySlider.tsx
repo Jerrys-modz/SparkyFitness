@@ -68,7 +68,7 @@ export default function SeveritySlider({
   if (scaleType === 'none-severe') {
     return (
       <View className="space-y-2">
-        <Text className="text-sm font-medium text-foreground">
+        <Text className="text-sm font-medium text-text-primary">
           {t('symptoms.severityTitle', { defaultValue: 'Severity' })}:{' '}
           {getSeverityLabel(value)}
         </Text>
@@ -79,13 +79,13 @@ export default function SeveritySlider({
               onPress={() => onChange(value === lvl ? null : lvl)}
               className={`flex-1 min-w-[65px] py-2 px-1 rounded-lg items-center border ${
                 value === lvl
-                  ? 'bg-blue-600 border-blue-600'
-                  : 'bg-card border-border'
+                  ? 'bg-accent-primary border-accent-primary'
+                  : 'bg-surface border-border'
               }`}
             >
               <Text
                 className={`text-xs font-semibold ${
-                  value === lvl ? 'text-white' : 'text-foreground'
+                  value === lvl ? 'text-white' : 'text-text-primary'
                 }`}
               >
                 {getNoneSevereLabel(lvl)}
@@ -105,10 +105,10 @@ export default function SeveritySlider({
   return (
     <View className="space-y-3">
       <View className="flex-row justify-between items-center">
-        <Text className="text-sm font-medium text-foreground">
+        <Text className="text-sm font-medium text-text-primary">
           {t('symptoms.severityTitle', { defaultValue: 'Severity' })}
         </Text>
-        <Text className="text-sm font-bold text-blue-500">
+        <Text className="text-sm font-bold text-accent-primary">
           {value != null
             ? `${value}/${maxVal} · ${getSeverityLabel(value)}`
             : getSeverityLabel(value)}
@@ -125,10 +125,10 @@ export default function SeveritySlider({
               onPress={() => onChange(isSelected ? null : num)}
               className={`flex-1 py-3 rounded-md items-center justify-center border ${
                 isSelected
-                  ? 'bg-blue-600 border-blue-600'
+                  ? 'bg-accent-primary border-accent-primary'
                   : isBelowOrEqual
-                    ? 'bg-blue-600/20 border-blue-500/40'
-                    : 'bg-card border-border'
+                    ? 'bg-accent-primary/20 border-accent-primary/40'
+                    : 'bg-surface border-border'
               }`}
             >
               <Text
@@ -136,8 +136,8 @@ export default function SeveritySlider({
                   isSelected
                     ? 'text-white'
                     : isBelowOrEqual
-                      ? 'text-blue-400'
-                      : 'text-muted-foreground'
+                      ? 'text-accent-primary'
+                      : 'text-text-muted'
                 }`}
               >
                 {num}

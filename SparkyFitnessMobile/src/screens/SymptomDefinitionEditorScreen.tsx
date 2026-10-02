@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCSSVariable } from 'uniwind';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import Icon from '../components/Icon';
+import Switch from '../components/ui/Switch';
 import { FooterSaveBar } from '../components/FormScreenChrome';
 import { useSymptomDefinitions, useSymptomActions } from '../hooks/useSymptoms';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -61,6 +63,10 @@ export default function SymptomDefinitionEditorScreen({
   route,
 }: Props) {
   const { t } = useTranslation();
+  const [textMuted, accentPrimary] = useCSSVariable([
+    '--color-text-muted',
+    '--color-accent-primary',
+  ]) as [string, string];
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const { definitionId } = route.params || {};
@@ -234,23 +240,23 @@ export default function SymptomDefinitionEditorScreen({
       >
         {/* Name Input */}
         <View className="space-y-1.5">
-          <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
             {t('symptoms.name', { defaultValue: 'Symptom Name' })}
           </Text>
           <TextInput
             placeholder={t('symptoms.namePlaceholder', {
               defaultValue: 'e.g. Migraine, Knee Pain, Acid Reflux',
             })}
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={textMuted || '#94a3b8'}
             value={name}
             onChangeText={setName}
-            className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground"
+            className="bg-surface border border-border rounded-xl px-3.5 py-2.5 text-sm text-text-primary"
           />
         </View>
 
         {/* Template */}
         <View className="space-y-2">
-          <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
             {t('symptoms.template', {
               defaultValue: 'Template (Pre-configured Sections)',
             })}
@@ -264,13 +270,13 @@ export default function SymptomDefinitionEditorScreen({
                   onPress={() => setTemplate(tmpl)}
                   className={`px-3 py-2 rounded-xl border ${
                     isSelected
-                      ? 'bg-primary border-primary'
-                      : 'bg-card border-border'
+                      ? 'bg-accent-primary border-accent-primary'
+                      : 'bg-surface border-border'
                   }`}
                 >
                   <Text
                     className={`text-xs font-semibold ${
-                      isSelected ? 'text-primary-foreground' : 'text-foreground'
+                      isSelected ? 'text-white' : 'text-text-primary'
                     }`}
                   >
                     {getTemplateLabel(tmpl)}
@@ -283,7 +289,7 @@ export default function SymptomDefinitionEditorScreen({
 
         {/* Category */}
         <View className="space-y-2">
-          <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
             {t('symptoms.category', { defaultValue: 'Category' })}
           </Text>
           <View className="flex-row flex-wrap gap-1.5">
@@ -295,15 +301,15 @@ export default function SymptomDefinitionEditorScreen({
                   onPress={() => setCategory(cat)}
                   className={`px-3 py-1.5 rounded-full border ${
                     isSelected
-                      ? 'bg-blue-600/20 border-blue-500'
-                      : 'bg-card border-border'
+                      ? 'bg-accent-primary/20 border-accent-primary'
+                      : 'bg-surface border-border'
                   }`}
                 >
                   <Text
                     className={`text-xs ${
                       isSelected
-                        ? 'text-blue-500 font-semibold'
-                        : 'text-foreground'
+                        ? 'text-accent-primary font-semibold'
+                        : 'text-text-primary'
                     }`}
                   >
                     {getCategoryLabel(cat)}
@@ -316,7 +322,7 @@ export default function SymptomDefinitionEditorScreen({
 
         {/* Scale Type */}
         <View className="space-y-2">
-          <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
             {t('symptoms.scaleType', { defaultValue: 'Severity Scale' })}
           </Text>
           <View className="space-y-1.5">
@@ -328,19 +334,23 @@ export default function SymptomDefinitionEditorScreen({
                   onPress={() => setScaleType(sc)}
                   className={`p-3 rounded-xl border flex-row items-center justify-between ${
                     isSelected
-                      ? 'bg-card border-primary'
-                      : 'bg-card border-border'
+                      ? 'bg-surface border-accent-primary'
+                      : 'bg-surface border-border'
                   }`}
                 >
                   <Text
                     className={`text-sm font-semibold ${
-                      isSelected ? 'text-primary' : 'text-foreground'
+                      isSelected ? 'text-accent-primary' : 'text-text-primary'
                     }`}
                   >
                     {getScaleLabel(sc)}
                   </Text>
                   {isSelected && (
-                    <Icon name="checkmark" size={16} color="#3b82f6" />
+                    <Icon
+                      name="checkmark"
+                      size={16}
+                      color={accentPrimary || '#3b82f6'}
+                    />
                   )}
                 </TouchableOpacity>
               );
@@ -349,58 +359,36 @@ export default function SymptomDefinitionEditorScreen({
         </View>
 
         {/* Switches */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-4">
+        <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-4">
           <View className="flex-row justify-between items-center">
             <View className="flex-1 pr-4">
-              <Text className="text-sm font-semibold text-foreground">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.isEpisodic', {
                   defaultValue: 'Duration-based episodes',
                 })}
               </Text>
-              <Text className="text-xs text-muted-foreground">
+              <Text className="text-xs text-text-muted">
                 {t('symptoms.isEpisodicDesc', {
                   defaultValue:
                     'Tracks start time, ongoing banner, and total duration',
                 })}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => setIsEpisodic(!isEpisodic)}
-              className={`w-12 h-6 rounded-full p-0.5 ${
-                isEpisodic ? 'bg-primary' : 'bg-muted'
-              }`}
-            >
-              <View
-                className={`w-5 h-5 rounded-full bg-white transition-all ${
-                  isEpisodic ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </TouchableOpacity>
+            <Switch value={isEpisodic} onValueChange={setIsEpisodic} />
           </View>
 
           <View className="flex-row justify-between items-center pt-2 border-t border-border/40">
             <View className="flex-1 pr-4">
-              <Text className="text-sm font-semibold text-foreground">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.isPinned', { defaultValue: 'Pin to top of list' })}
               </Text>
-              <Text className="text-xs text-muted-foreground">
+              <Text className="text-xs text-text-muted">
                 {t('symptoms.isPinnedDesc', {
                   defaultValue: 'Shows first in the quick logging chips',
                 })}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => setIsPinned(!isPinned)}
-              className={`w-12 h-6 rounded-full p-0.5 ${
-                isPinned ? 'bg-primary' : 'bg-muted'
-              }`}
-            >
-              <View
-                className={`w-5 h-5 rounded-full bg-white transition-all ${
-                  isPinned ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </TouchableOpacity>
+            <Switch value={isPinned} onValueChange={setIsPinned} />
           </View>
         </View>
 

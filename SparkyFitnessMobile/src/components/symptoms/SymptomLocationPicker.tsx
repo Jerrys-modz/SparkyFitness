@@ -107,13 +107,13 @@ export default function SymptomLocationPicker({
           onPress={() => setView('front')}
           className={`px-4 py-1.5 rounded-full border ${
             view === 'front'
-              ? 'bg-primary border-primary'
-              : 'bg-card border-border'
+              ? 'bg-accent-primary border-accent-primary'
+              : 'bg-surface border-border'
           }`}
         >
           <Text
             className={`text-xs font-semibold ${
-              view === 'front' ? 'text-primary-foreground' : 'text-foreground'
+              view === 'front' ? 'text-white' : 'text-text-primary'
             }`}
           >
             {t('symptoms.views.front', { defaultValue: 'Front' })}
@@ -123,13 +123,13 @@ export default function SymptomLocationPicker({
           onPress={() => setView('back')}
           className={`px-4 py-1.5 rounded-full border ${
             view === 'back'
-              ? 'bg-primary border-primary'
-              : 'bg-card border-border'
+              ? 'bg-accent-primary border-accent-primary'
+              : 'bg-surface border-border'
           }`}
         >
           <Text
             className={`text-xs font-semibold ${
-              view === 'back' ? 'text-primary-foreground' : 'text-foreground'
+              view === 'back' ? 'text-white' : 'text-text-primary'
             }`}
           >
             {t('symptoms.views.back', { defaultValue: 'Back' })}
@@ -137,7 +137,7 @@ export default function SymptomLocationPicker({
         </TouchableOpacity>
       </View>
 
-      <Text className="text-center text-xs text-muted-foreground">
+      <Text className="text-center text-xs text-text-muted">
         {t('symptoms.mapPerspective', {
           defaultValue: 'Left and right match your body',
         })}
@@ -216,13 +216,13 @@ export default function SymptomLocationPicker({
               onPress={() => onToggle(region.label)}
               className={`px-3 py-1.5 rounded-full border ${
                 highlighted
-                  ? 'bg-blue-600/20 border-blue-500'
-                  : 'bg-card border-border'
+                  ? 'bg-accent-primary/20 border-accent-primary'
+                  : 'bg-surface border-border'
               }`}
             >
               <Text
                 className={`text-xs font-medium ${
-                  highlighted ? 'text-blue-500' : 'text-foreground'
+                  highlighted ? 'text-accent-primary' : 'text-text-primary'
                 }`}
               >
                 {region.label}
