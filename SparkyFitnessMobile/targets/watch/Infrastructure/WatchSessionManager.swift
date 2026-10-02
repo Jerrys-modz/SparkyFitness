@@ -1303,7 +1303,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 let next = self.pendingPlan
                 self.pendingPlan = nil
                 self.pendingSendStop = false
+                let summary = next == nil ? self.workoutStore.makeSummary() : nil
                 self.workoutStore.reset()
+                self.workoutStore.recordSummary(summary)
                 self.collectionInFlight = false
                 if let next {
                     self.beginPlan(next)
