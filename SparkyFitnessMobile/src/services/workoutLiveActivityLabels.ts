@@ -28,6 +28,18 @@ export type WorkoutLiveActivityLabels = {
   set: string;
   /** Connector joining set number and count, e.g. "of" (en) / "z" (pl). */
   setOf: string;
+  /** Accessibility label of the -15s rest button. */
+  subtractFifteenSeconds: string;
+  /** Compact "-15s" button label. */
+  subtractFifteenSecondsShort: string;
+  /** Visible label of the skip-rest button. */
+  skip: string;
+  /** Prefix for the upcoming set while resting, e.g. "Next". */
+  next: string;
+  /** Rep unit after a count of one, e.g. "rep". */
+  rep: string;
+  /** Rep unit after any other count, e.g. "reps". */
+  reps: string;
 };
 
 const LABEL_KEYS: readonly (keyof WorkoutLiveActivityLabels)[] = [
@@ -43,6 +55,12 @@ const LABEL_KEYS: readonly (keyof WorkoutLiveActivityLabels)[] = [
   'exercise',
   'set',
   'setOf',
+  'subtractFifteenSeconds',
+  'subtractFifteenSecondsShort',
+  'skip',
+  'next',
+  'rep',
+  'reps',
 ];
 
 /** English fallback used when i18n is not yet initialized or a key is missing. */
@@ -59,6 +77,12 @@ const EN_FALLBACK: WorkoutLiveActivityLabels = {
   exercise: 'Exercise',
   set: 'Set',
   setOf: 'of',
+  subtractFifteenSeconds: 'Subtract 15 seconds',
+  subtractFifteenSecondsShort: '-15s',
+  skip: 'Skip',
+  next: 'Next',
+  rep: 'rep',
+  reps: 'reps',
 };
 
 export function isWorkoutLiveActivityLocale(
