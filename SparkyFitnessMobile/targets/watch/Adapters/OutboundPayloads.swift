@@ -27,6 +27,7 @@ enum OutboundPayloads {
         static let workoutStop = "workoutStop"
         static let workoutDiscard = "workoutDiscard"
         static let restChanged = "restChanged"
+        static let setTimerStarted = "setTimerStarted"
         static let workoutStartRequested = "workoutStartRequested"
     }
 
@@ -187,6 +188,18 @@ enum OutboundPayloads {
             payload["armedAt"] = armedAt.timeIntervalSince1970 * 1000
         }
         return payload
+    }
+
+    /// The wearer started a set's hold countdown or stopwatch on the watch.
+    /// `startedAt` is epoch ms; the phone starts its own stopwatch from it so
+    /// both show the same clock.
+    static func setTimerStarted(sessionId: String, setId: String, startedAt: Date) -> [String: Any] {
+        [
+            "type": Kind.setTimerStarted,
+            "sessionId": sessionId,
+            "setId": setId,
+            "startedAt": startedAt.timeIntervalSince1970 * 1000,
+        ]
     }
 
     /// The wearer skipped or moved the rest on the watch. Both deadlines are

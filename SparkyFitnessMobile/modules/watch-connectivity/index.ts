@@ -449,6 +449,16 @@ export interface WatchRestChangedPayload {
   endsAt?: number;
 }
 
+/**
+ * The wearer started a set's hold countdown or stopwatch on the watch.
+ * `startedAt` is epoch ms; the phone starts its own timer from it.
+ */
+export interface WatchSetTimerStartedPayload {
+  sessionId: string;
+  setId: string;
+  startedAt: number;
+}
+
 export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
@@ -473,6 +483,7 @@ export type WatchConnectivityEvents = {
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
+  onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
@@ -546,6 +557,12 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      * celebrates one it logged itself, once.
      */
     prSetIds?: string[];
+    /**
+     * Running set timers on the phone: set id to start time (epoch ms). The
+     * watch starts its own hold countdown or stopwatch from that time, so
+     * both show the same clock. A timer the phone has stopped is absent.
+     */
+    setTimers?: Record<string, number>;
     /**
      * The phone's rest timer. The watch's rest follows it (+15s, pause,
      * Skip), except from an update that does not yet list a set logged on

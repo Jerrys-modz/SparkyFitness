@@ -137,6 +137,38 @@ describe('useWatchSetTargetsSync', () => {
     ]);
   });
 
+  it('sends running set timers, and drops one once its set is logged', () => {
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].setTimers).toEqual({});
+
+    act(() => {
+      useActiveWorkoutStore.setState({
+        setTimerStartedAt: {
+          '101': 1_700_000_000_000,
+          '102': 1_700_000_005_000,
+        },
+      });
+    });
+    expect(mockUpdateSetTargets.mock.calls.at(-1)?.[0].setTimers).toEqual({
+      '101': 1_700_000_000_000,
+      '102': 1_700_000_005_000,
+    });
+
+    act(() => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '101': 1000 } });
+    });
+    expect(mockUpdateSetTargets.mock.calls.at(-1)?.[0].setTimers).toEqual({
+      '102': 1_700_000_005_000,
+    });
+  });
+
   it('sends the sets logged on the phone, and again when one is logged', () => {
     act(() => {
       useActiveWorkoutStore.setState({

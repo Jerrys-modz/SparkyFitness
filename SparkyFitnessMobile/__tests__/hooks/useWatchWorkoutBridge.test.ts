@@ -242,6 +242,49 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockListeners.has('onWorkoutStop')).toBe(true);
   });
 
+  describe('set timer started on the watch', () => {
+    const fire = (payload: Record<string, unknown>) =>
+      act(() => {
+        mockListeners.get('onSetTimerStarted')!(payload);
+      });
+
+    beforeEach(() => {
+      useActiveWorkoutStore.setState({
+        sessionId: 'session-1',
+        setTimerStartedAt: {},
+        completedSetIds: {},
+      });
+    });
+
+    it('starts the phone stopwatch from the watch start time', () => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      const startedAt = Date.now() - 12_000;
+      fire({ sessionId: 'session-1', setId: '101', startedAt });
+      expect(getStore().setTimerStartedAt['101']).toBe(startedAt);
+    });
+
+    it('keeps a stopwatch that is already running', () => {
+      const earlier = Date.now() - 30_000;
+      useActiveWorkoutStore.setState({ setTimerStartedAt: { '101': earlier } });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'session-1', setId: '101', startedAt: Date.now() });
+      expect(getStore().setTimerStartedAt['101']).toBe(earlier);
+    });
+
+    it('ignores another session, a logged set, and a stale start', () => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'other', setId: '101', startedAt: Date.now() });
+      fire({ sessionId: 'session-1', setId: '102', startedAt: Date.now() });
+      fire({
+        sessionId: 'session-1',
+        setId: '103',
+        startedAt: Date.now() - 4 * 60 * 60 * 1000,
+      });
+      expect(getStore().setTimerStartedAt).toEqual({});
+    });
+  });
+
   describe('rest changed on the watch', () => {
     const resting = (endsAt: number) => ({
       state: 'resting' as const,
