@@ -425,6 +425,12 @@ private struct CurrentSetView: View {
     /// the store once it settles rather than per detent: every write persists
     /// the workout snapshot, and a fast spin is dozens of detents a second.
     @State private var crownValue: Double = 0
+    /// The stored number when the box was selected, in the unit it was shown in.
+    /// A crown clamp down to the range is not an edit unless this moves again.
+    @State private var crownBaseline: Double = 0
+    /// True only after the crown or a drag changes the value. Selecting a field
+    /// must not write, or a target the crown cannot show gets saved as the cap.
+    @State private var crownAdjusted = false
     @State private var pendingCommit: Task<Void, Never>?
     /// `crownValue` when the current drag began.
     @State private var dragStartValue: Double?
@@ -481,7 +487,7 @@ private struct CurrentSetView: View {
                 isContinuous: false,
                 isHapticFeedbackEnabled: true
             )
-            .onChange(of: crownValue) { scheduleCommit() }
+            .onChange(of: crownValue) { noteCrownChange() }
 
             if crownField != nil {
                 Text("Crown or drag · tap again to type")
@@ -506,6 +512,9 @@ private struct CurrentSetView: View {
         // Moving to another set by any other route (the phone logging this
         // one, a jump from the exercise list) settles the edit first.
         .onChange(of: step.plannedSet.setId) { endCrownEditing() }
+        // crownValue is a number in the unit it was selected in. Committing
+        // after the phone switches kg/lb would save that number in the new unit.
+        .onChange(of: unit) { discardCrownWeightEdit() }
         .onDisappear { endCrownEditing() }
         .sheet(item: $editing) { field in
             NumericKeypadView(
@@ -521,7 +530,9 @@ private struct CurrentSetView: View {
 
     private func valueBox(_ field: EditableField) -> some View {
         let isSelected = crownField == field
-        let shown = isSelected ? snapped(crownValue, for: field) : storedValue(for: field)
+        let shown = isSelected && crownAdjusted
+            ? snapped(crownValue, for: field)
+            : storedValue(for: field)
         return ValueBox(
             value: Self.format(shown),
             unit: title(for: field),
@@ -566,25 +577,49 @@ private struct CurrentSetView: View {
             return
         }
         endCrownEditing()
-        crownValue = clamp(storedValue(for: field) ?? 0, for: field)
+        let stored = storedValue(for: field) ?? 0
+        crownBaseline = stored
+        crownAdjusted = false
+        crownValue = stored
         crownField = field
         // Next turn of the run loop: the row only becomes focusable once
         // `crownField` is set, and focus asked for before that is dropped.
         DispatchQueue.main.async { crownFocused = true }
     }
 
+    /// Ignores the assignment from selecting a box, and the crown clamping a
+    /// value that sits above its range. Either one would otherwise settle into
+    /// a write of the cap.
+    private func noteCrownChange() {
+        guard let field = crownField else { return }
+        if !crownAdjusted {
+            if abs(crownValue - crownBaseline) < 0.000_1 { return }
+            let ceiling = maxValue(for: field)
+            if crownBaseline > ceiling && abs(crownValue - ceiling) < 0.000_1 { return }
+        }
+        crownAdjusted = true
+        scheduleCommit()
+    }
+
     private func scheduleCommit() {
-        guard crownField != nil else { return }
+        guard let field = crownField else { return }
+        let unitAtSchedule = unit
         pendingCommit?.cancel()
         pendingCommit = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
+            // The unit may have changed during the wait. A weight number from
+            // the old unit must not be written through the new one.
+            guard field != .weight || unitAtSchedule == unit else {
+                discardCrownWeightEdit()
+                return
+            }
             commitCrownValue()
         }
     }
 
     private func commitCrownValue() {
-        guard let field = crownField else { return }
+        guard crownAdjusted, let field = crownField else { return }
         let value = snapped(crownValue, for: field)
         if value != storedValue(for: field) {
             write(value, to: field)
@@ -599,6 +634,19 @@ private struct CurrentSetView: View {
         crownField = nil
         crownFocused = false
         dragStartValue = nil
+        crownAdjusted = false
+    }
+
+    /// Drops a weight edit without saving. Used when the display unit changes
+    /// under a selected weight box.
+    private func discardCrownWeightEdit() {
+        guard crownField == .weight else { return }
+        pendingCommit?.cancel()
+        pendingCommit = nil
+        crownField = nil
+        crownFocused = false
+        dragStartValue = nil
+        crownAdjusted = false
     }
 
     private func storedValue(for field: EditableField) -> Double? {
