@@ -426,7 +426,8 @@ private struct CurrentSetView: View {
     /// the workout snapshot, and a fast spin is dozens of detents a second.
     @State private var crownValue: Double = 0
     /// The stored number when the box was selected, in the unit it was shown in.
-    /// A crown clamp down to the range is not an edit unless this moves again.
+    /// Above the crown's range the binding rests on the ceiling, and a detent
+    /// is a step from this number rather than from the cap.
     @State private var crownBaseline: Double = 0
     /// True only after the crown or a drag changes the value. Selecting a field
     /// must not write, or a target the crown cannot show gets saved as the cap.
@@ -535,7 +536,7 @@ private struct CurrentSetView: View {
     private func valueBox(_ field: EditableField) -> some View {
         let isSelected = crownField == field
         let shown = isSelected && crownAdjusted
-            ? snapped(crownValue, for: field)
+            ? editedValue(for: field)
             : storedValue(for: field)
         return ValueBox(
             value: Self.format(shown),
@@ -592,15 +593,12 @@ private struct CurrentSetView: View {
         DispatchQueue.main.async { crownFocused = true }
     }
 
-    /// Ignores the assignment from selecting a box, and the crown clamping a
-    /// value that sits above its range. Either one would otherwise settle into
-    /// a write of the cap.
+    /// Ignores the crown clamping a value that sits above its range. That clamp
+    /// is not an edit; the next detent steps from the stored number.
     private func noteCrownChange() {
         guard let field = crownField else { return }
-        if !crownAdjusted {
-            if abs(crownValue - crownBaseline) < 0.000_1 { return }
-            let ceiling = maxValue(for: field)
-            if crownBaseline > ceiling && abs(crownValue - ceiling) < 0.000_1 { return }
+        if !crownAdjusted, abs(editedValue(for: field) - crownBaseline) < 0.000_1 {
+            return
         }
         crownAdjusted = true
         scheduleCommit()
@@ -625,7 +623,7 @@ private struct CurrentSetView: View {
 
     private func commitCrownValue() {
         guard crownAdjusted, let field = crownField, let editing = crownStep else { return }
-        let value = snapped(crownValue, for: field)
+        let value = editedValue(for: field)
         if value != storedValue(for: field, on: editing) {
             write(value, to: field, on: editing)
         }
@@ -700,6 +698,18 @@ private struct CurrentSetView: View {
     private func snapped(_ value: Double, for field: EditableField) -> Double {
         let step = stepSize(for: field)
         return clamp((value / step).rounded() * step, for: field)
+    }
+
+    /// What the crown or drag is set to. The binding cannot leave 0...max, so
+    /// a stored value above the max is kept and the crown's distance from the
+    /// cap is applied to it. One detent down from 750 kg is 749.5, not 699.5.
+    private func editedValue(for field: EditableField) -> Double {
+        let ceiling = maxValue(for: field)
+        let origin = min(crownBaseline, ceiling)
+        let crown = min(max(crownValue, 0), ceiling)
+        let step = stepSize(for: field)
+        let raw = crownBaseline + (crown - origin)
+        return max((raw / step).rounded() * step, 0)
     }
 
     private func clamp(_ value: Double, for field: EditableField) -> Double {
