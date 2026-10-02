@@ -9,6 +9,7 @@ import type {
   SymptomFreeDayResponse,
   SymptomOptionResponse,
   SymptomPhotoResponse,
+  UpdateSymptomDefinitionBody,
   UpdateSymptomEntryBody,
 } from '@workspace/shared';
 import { apiFetch, normalizeUrl } from './apiClient';
@@ -87,6 +88,18 @@ export const saveSymptomDefinition = (
     body,
   });
 
+export const updateSymptomDefinition = (
+  id: string,
+  body: UpdateSymptomDefinitionBody
+): Promise<SymptomDefinitionResponse> =>
+  apiFetch<SymptomDefinitionResponse>({
+    endpoint: `${BASE}/custom/${encodeURIComponent(id)}`,
+    serviceName: SERVICE,
+    operation: 'update symptom definition',
+    method: 'PUT',
+    body,
+  });
+
 // --- Options -----------------------------------------------------------------
 
 export const saveSymptomOption = (
@@ -118,6 +131,13 @@ export const fetchOngoingEpisodes = (): Promise<SymptomEntryResponse[]> =>
     endpoint: `${BASE}/entries/ongoing`,
     serviceName: SERVICE,
     operation: 'list ongoing episodes',
+  });
+
+export const fetchSymptomEntry = (id: string): Promise<SymptomEntryResponse> =>
+  apiFetch<SymptomEntryResponse>({
+    endpoint: `${BASE}/entries/${encodeURIComponent(id)}`,
+    serviceName: SERVICE,
+    operation: 'get symptom entry',
   });
 
 export const logSymptomEntry = (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -83,7 +83,24 @@ export default function SymptomDefinitionEditorScreen({
   const [isEpisodic, setIsEpisodic] = useState(existing?.is_episodic ?? false);
   const [isPinned, setIsPinned] = useState(existing?.is_pinned ?? false);
 
-  const { saveDefinition } = useSymptomActions();
+  const { saveDefinition, updateDefinition } = useSymptomActions();
+
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (existing && !hydratedRef.current) {
+      hydratedRef.current = true;
+      // One-time form initialization from the async-loaded definition.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setName(existing.display_name ?? existing.name);
+      setCategory(
+        (existing.category as SymptomDefinitionCategory) ?? 'general'
+      );
+      setTemplate((existing.template as SymptomTemplate) ?? 'generic');
+      setScaleType((existing.scale_type as SymptomScaleType) ?? '1-10');
+      setIsEpisodic(existing.is_episodic ?? false);
+      setIsPinned(existing.is_pinned ?? false);
+    }
+  }, [existing]);
 
   const getCategoryLabel = (cat: SymptomDefinitionCategory) => {
     switch (cat) {
@@ -165,14 +182,23 @@ export default function SymptomDefinitionEditorScreen({
       return;
     }
 
-    await saveDefinition.mutateAsync({
+    const body = {
       name: name.trim(),
       category,
       template,
       scale_type: scaleType,
       is_episodic: isEpisodic,
       is_pinned: isPinned,
-    });
+    };
+
+    if (definitionId) {
+      await updateDefinition.mutateAsync({
+        id: definitionId,
+        body,
+      });
+    } else {
+      await saveDefinition.mutateAsync(body);
+    }
 
     navigation.goBack();
   };
@@ -190,7 +216,7 @@ export default function SymptomDefinitionEditorScreen({
       kind: 'primary',
       label: t('common.save', { defaultValue: 'Save' }),
       onPress: handleSave,
-      busy: saveDefinition.isPending,
+      busy: saveDefinition.isPending || updateDefinition.isPending,
       identifier: 'symptom-definition-save',
     },
   });
@@ -384,7 +410,7 @@ export default function SymptomDefinitionEditorScreen({
       {/* Sticky Save Bar */}
       <FooterSaveBar
         onPress={handleSave}
-        busy={saveDefinition.isPending}
+        busy={saveDefinition.isPending || updateDefinition.isPending}
         label={t('common.save', { defaultValue: 'Save' })}
       />
     </View>

@@ -13,6 +13,7 @@ import type {
   SymptomDefinitionResponse,
   SymptomEntryResponse,
   SymptomFreeDayResponse,
+  UpdateSymptomDefinitionBody,
   UpdateSymptomEntryBody,
 } from '@workspace/shared';
 import {
@@ -21,9 +22,11 @@ import {
   deleteSymptomEntry,
   fetchSymptomDefinitions,
   saveSymptomDefinition,
+  updateSymptomDefinition,
   saveSymptomOption,
   fetchSymptomEntriesDetailed,
   fetchOngoingEpisodes,
+  fetchSymptomEntry,
   logSymptomEntry,
   patchSymptomEntry,
   endSymptomEpisode,
@@ -139,6 +142,7 @@ export function useSymptomMutations(fromDate: string, toDate: string) {
 const invalidateEntries = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: symptomEntriesRootQueryKey });
   queryClient.invalidateQueries({ queryKey: symptomOngoingQueryKey });
+  queryClient.invalidateQueries({ queryKey: ['symptoms', 'entry'] });
   queryClient.invalidateQueries({ queryKey: ['cycleInsights'] });
 };
 
@@ -182,6 +186,15 @@ export function useSymptomEntriesDetailed({
   };
 }
 
+export function useSymptomEntry(id: string | null | undefined) {
+  const query = useQuery<SymptomEntryResponse>({
+    queryKey: ['symptoms', 'entry', id],
+    queryFn: () => fetchSymptomEntry(id!),
+    enabled: Boolean(id),
+  });
+  return { entry: query.data ?? null, isLoading: query.isLoading };
+}
+
 export function useSymptomFreeDays({
   fromDate,
   toDate,
@@ -213,6 +226,23 @@ export function useSymptomActions() {
   const saveDefinition = useMutation({
     mutationFn: (body: CreateSymptomDefinitionBody) =>
       saveSymptomDefinition(body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: symptomDefinitionsQueryKey }),
+    onError: onError(
+      t('symptoms.saveDefinitionFailed', {
+        defaultValue: 'Could not save the symptom',
+      })
+    ),
+  });
+
+  const updateDefinition = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: UpdateSymptomDefinitionBody;
+    }) => updateSymptomDefinition(id, body),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: symptomDefinitionsQueryKey }),
     onError: onError(
@@ -334,6 +364,7 @@ export function useSymptomActions() {
 
   return {
     saveDefinition,
+    updateDefinition,
     saveOption,
     logEntry,
     updateEntry,

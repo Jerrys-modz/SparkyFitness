@@ -30,7 +30,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const today = getTodayDate();
-  const thirtyDaysAgo = addDays(today, -30);
+  const thirtyDaysAgo = addDays(today, -29);
 
   const [selectedSymptomFilter, setSelectedSymptomFilter] = useState<
     string | null
@@ -320,6 +320,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 onPress={() =>
                   navigation.navigate('SymptomLog', {
                     entryId: ep.id,
+                    date: ep.entry_date,
                     isOngoing: true,
                   })
                 }
@@ -388,6 +389,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
               onPress={() =>
                 navigation.navigate('SymptomLog', {
                   entryId: item.id,
+                  date: item.entry_date,
                   isOngoing: Boolean(item.started_at && !item.ended_at),
                 })
               }

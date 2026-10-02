@@ -63,7 +63,8 @@ export default function SymptomsHub({
   const { timezone } = usePreferences();
   const today = todayInZone(timezone);
 
-  const { data: definitions = [] } = useCustomSymptoms();
+  const { data: definitions = [], isLoading: isDefinitionsLoading } =
+    useCustomSymptoms();
   const { data: ongoing = [] } = useOngoingEpisodes();
   const { data: entries = [], isLoading } = useSymptomEntries({
     fromDate: addDays(selectedDate, -30),
@@ -210,7 +211,7 @@ export default function SymptomsHub({
           </Card>
 
           <SymptomLogForm
-            key={formKey}
+            key={`${selectedDate}-${formKey}`}
             selectedDate={selectedDate}
             today={today}
             meds={meds}
@@ -260,7 +261,7 @@ export default function SymptomsHub({
               {t('symptoms.detail.editTitle', 'Edit symptom log')}
             </DialogTitle>
           </DialogHeader>
-          {editing && (
+          {editing && !isDefinitionsLoading && (
             <SymptomLogForm
               key={editing.id}
               variant="plain"

@@ -141,10 +141,14 @@ export default function SymptomLogForm({
   }, [definitions]);
 
   // --- Form state ---------------------------------------------------------
+  const editedChoice = editing?.symptom_id
+    ? choices.find((c) => c.definitionId === editing.symptom_id)
+    : undefined;
   const startName = editing
-    ? slugifySymptomName(editing.symptom_name_snapshot)
+    ? (editedChoice?.name ?? slugifySymptomName(editing.symptom_name_snapshot))
     : (initialSymptomName ?? 'headache');
   const [symptomName, setSymptomName] = useState(startName);
+
   const choice: SymptomChoice =
     choices.find((c) => c.name === symptomName) ??
     fallbackChoice(
@@ -208,6 +212,7 @@ export default function SymptomLogForm({
   const [files, setFiles] = useState<File[]>([]);
   const [newSymptom, setNewSymptom] = useState('');
   const [addingSymptom, setAddingSymptom] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   const isEdit = Boolean(editing);
   const saving =
@@ -329,10 +334,15 @@ export default function SymptomLogForm({
     try {
       const saved = editing
         ? await updateEntry.mutateAsync({ id: editing.id, body })
-        : await createEntry.mutateAsync(body);
+        : savedId
+          ? await updateEntry.mutateAsync({ id: savedId, body })
+          : await createEntry.mutateAsync(body);
+      if (!editing && !savedId) setSavedId(saved.id);
       for (const file of files) {
         await uploadPhoto.mutateAsync({ entryId: saved.id, file });
+        setFiles((cur) => cur.filter((f) => f !== file));
       }
+      setSavedId(null);
       if (!isEdit) {
         setNotes('');
         setTriggers([]);

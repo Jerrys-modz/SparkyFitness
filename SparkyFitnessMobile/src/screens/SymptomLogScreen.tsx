@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import TreatmentsSection, {
 import {
   useSymptomDefinitions,
   useSymptomEntriesDetailed,
+  useSymptomEntry,
   useSymptomActions,
 } from '../hooks/useSymptoms';
 import { getTodayDate } from '../utils/dateUtils';
@@ -50,9 +52,13 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
   const { entries } = useSymptomEntriesDetailed({
     fromDate: targetDate,
     toDate: targetDate,
+    enabled: !entryId,
   });
 
-  const existingEntry = entryId ? entries.find((e) => e.id === entryId) : null;
+  const { entry: fetchedEntry, isLoading: isEntryLoading } =
+    useSymptomEntry(entryId);
+  const existingEntry =
+    fetchedEntry ?? (entryId ? entries.find((e) => e.id === entryId) : null);
 
   // Form State
   const [symptomName, setSymptomName] = useState(
@@ -100,6 +106,44 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
         }))
       : []
   );
+
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (existingEntry && !hydratedRef.current) {
+      hydratedRef.current = true;
+      // One-time form initialization from the async-loaded entry.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSymptomName(existingEntry.symptom_name_snapshot ?? '');
+      setSymptomId(existingEntry.symptom_id ?? null);
+      setIsEpisodic(Boolean(existingEntry.started_at));
+      if (existingEntry.severity !== null) {
+        setSeverity(existingEntry.severity);
+      }
+      setBodyLocations(existingEntry.body_locations ?? []);
+      setQualities(existingEntry.qualities ?? []);
+      setAssociatedSymptoms(existingEntry.associated_symptoms ?? []);
+      setTriggers(existingEntry.triggers ?? []);
+      setImpact(existingEntry.impact ?? null);
+      setContextText(existingEntry.context_text ?? '');
+      setStartedAt(existingEntry.started_at ?? null);
+      if (existingEntry.symptom_id && definitions.length > 0) {
+        const def = definitions.find((d) => d.id === existingEntry.symptom_id);
+        if (def?.scale_type) {
+          setScaleType(def.scale_type as SymptomScaleType);
+        }
+      }
+      if (existingEntry.treatments) {
+        setTreatments(
+          existingEntry.treatments.map((t) => ({
+            name_snapshot: t.name_snapshot,
+            kind: t.kind,
+            effectiveness: t.effectiveness ?? 'unknown',
+            notes: t.notes,
+          }))
+        );
+      }
+    }
+  }, [existingEntry, definitions]);
 
   const { logEntry, updateEntry, endEpisode, removeEntry } =
     useSymptomActions();
@@ -158,11 +202,12 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
       return;
     }
 
+    const effectiveDate = existingEntry?.entry_date ?? targetDate;
     const payload: CreateSymptomEntryBody = {
       symptom_name_snapshot: symptomName.trim(),
       symptom_id: symptomId,
       severity,
-      entry_date: targetDate,
+      entry_date: effectiveDate,
       started_at: isEpisodic ? startedAt || new Date().toISOString() : null,
       ended_at: endedAt,
       body_locations: bodyLocations,
@@ -251,7 +296,10 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             kind: 'primary',
             label: t('common.save', { defaultValue: 'Save' }),
             onPress: handleSave,
-            busy: logEntry.isPending || updateEntry.isPending,
+            busy:
+              Boolean(entryId && !existingEntry && isEntryLoading) ||
+              logEntry.isPending ||
+              updateEntry.isPending,
             identifier: 'symptom-log-save',
           },
         ]
@@ -273,7 +321,10 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             kind: 'primary',
             label: t('common.save', { defaultValue: 'Save' }),
             onPress: handleSave,
-            busy: logEntry.isPending || updateEntry.isPending,
+            busy:
+              Boolean(entryId && !existingEntry && isEntryLoading) ||
+              logEntry.isPending ||
+              updateEntry.isPending,
             identifier: 'symptom-log-save',
           },
         ],
@@ -292,365 +343,394 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
     >
       {header}
 
-      <ScrollView
-        className="flex-1 px-4 py-3 space-y-6"
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Symptom Selection Chips */}
-        <View className="space-y-2">
-          <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            {t('symptoms.symptom', { defaultValue: 'Symptom' })}
-          </Text>
-          <View className="flex-row flex-wrap gap-1.5">
-            {definitions.map((def) => {
-              const selected = symptomName === def.name;
-              return (
-                <TouchableOpacity
-                  key={def.id}
-                  onPress={() =>
-                    handleSelectSymptom(
-                      def.name,
-                      def.id,
-                      def.scale_type,
-                      def.is_episodic
-                    )
-                  }
-                  className={`px-3 py-2 rounded-xl border ${
-                    selected
-                      ? 'bg-primary border-primary'
-                      : 'bg-card border-border'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${
-                      selected ? 'text-primary-foreground' : 'text-foreground'
-                    }`}
-                  >
-                    {def.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-
-            {BUILT_IN_SYMPTOM_DEFINITIONS.map((builtIn) => {
-              const selected =
-                symptomName === builtIn.displayName ||
-                symptomName === builtIn.name;
-              return (
-                <TouchableOpacity
-                  key={builtIn.name}
-                  onPress={() =>
-                    handleSelectSymptom(
-                      builtIn.displayName,
-                      undefined,
-                      builtIn.scaleType,
-                      builtIn.isEpisodic
-                    )
-                  }
-                  className={`px-3 py-2 rounded-xl border ${
-                    selected
-                      ? 'bg-primary border-primary'
-                      : 'bg-card border-border'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${
-                      selected ? 'text-primary-foreground' : 'text-foreground'
-                    }`}
-                  >
-                    {builtIn.displayName}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Custom Symptom Name Input */}
-          <TextInput
-            placeholder={t('symptoms.orCustomName', {
-              defaultValue: 'Or type custom symptom...',
-            })}
-            placeholderTextColor="#94a3b8"
-            value={symptomName}
-            onChangeText={(text) => handleSelectSymptom(text)}
-            className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground mt-2"
-          />
+      {entryId && !existingEntry && isEntryLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#3b82f6" />
         </View>
-
-        {/* Ongoing vs Quick Log & Timing */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-3">
-          <View className="flex-row justify-between items-center">
-            <Text className="text-sm font-semibold text-foreground">
-              {t('symptoms.ongoingEpisode', {
-                defaultValue: 'Track as ongoing episode',
-              })}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setIsEpisodic(!isEpisodic)}
-              className={`w-12 h-6 rounded-full p-0.5 ${
-                isEpisodic ? 'bg-primary' : 'bg-muted'
-              }`}
-            >
-              <View
-                className={`w-5 h-5 rounded-full bg-white transition-all ${
-                  isEpisodic ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {isEpisodic && (
-            <View className="space-y-2 pt-2 border-t border-border/50">
-              <Text className="text-xs text-muted-foreground">
-                {t('symptoms.startedWhen', { defaultValue: 'Started when:' })}
+      ) : (
+        <>
+          <ScrollView
+            className="flex-1 px-4 py-3 space-y-6"
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Symptom Selection Chips */}
+            <View className="space-y-2">
+              <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                {t('symptoms.symptom', { defaultValue: 'Symptom' })}
               </Text>
-              <View className="flex-row gap-1.5 flex-wrap">
+              <View className="flex-row flex-wrap gap-1.5">
+                {definitions.map((def) => {
+                  const selected = symptomName === def.name;
+                  return (
+                    <TouchableOpacity
+                      key={def.id}
+                      onPress={() =>
+                        handleSelectSymptom(
+                          def.name,
+                          def.id,
+                          def.scale_type,
+                          def.is_episodic
+                        )
+                      }
+                      className={`px-3 py-2 rounded-xl border ${
+                        selected
+                          ? 'bg-primary border-primary'
+                          : 'bg-card border-border'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${
+                          selected
+                            ? 'text-primary-foreground'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {def.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {BUILT_IN_SYMPTOM_DEFINITIONS.map((builtIn) => {
+                  const selected =
+                    symptomName === builtIn.displayName ||
+                    symptomName === builtIn.name;
+                  return (
+                    <TouchableOpacity
+                      key={builtIn.name}
+                      onPress={() =>
+                        handleSelectSymptom(
+                          builtIn.displayName,
+                          undefined,
+                          builtIn.scaleType,
+                          builtIn.isEpisodic
+                        )
+                      }
+                      className={`px-3 py-2 rounded-xl border ${
+                        selected
+                          ? 'bg-primary border-primary'
+                          : 'bg-card border-border'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${
+                          selected
+                            ? 'text-primary-foreground'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {builtIn.displayName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Custom Symptom Name Input */}
+              <TextInput
+                placeholder={t('symptoms.orCustomName', {
+                  defaultValue: 'Or type custom symptom...',
+                })}
+                placeholderTextColor="#94a3b8"
+                value={symptomName}
+                onChangeText={(text) => handleSelectSymptom(text)}
+                className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground mt-2"
+              />
+            </View>
+
+            {/* Ongoing vs Quick Log & Timing */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-3">
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm font-semibold text-foreground">
+                  {t('symptoms.ongoingEpisode', {
+                    defaultValue: 'Track as ongoing episode',
+                  })}
+                </Text>
                 <TouchableOpacity
-                  onPress={() => setStartedAt(new Date().toISOString())}
-                  className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
+                  onPress={() => setIsEpisodic(!isEpisodic)}
+                  className={`w-12 h-6 rounded-full p-0.5 ${
+                    isEpisodic ? 'bg-primary' : 'bg-muted'
+                  }`}
                 >
-                  <Text className="text-xs font-medium text-foreground">
-                    {t('symptoms.timing.now', { defaultValue: 'Now' })}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleBackdate(15)}
-                  className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
-                >
-                  <Text className="text-xs font-medium text-foreground">
-                    {t('symptoms.timing.m15', { defaultValue: '-15m' })}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleBackdate(60)}
-                  className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
-                >
-                  <Text className="text-xs font-medium text-foreground">
-                    {t('symptoms.timing.h1', { defaultValue: '-1h' })}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleBackdate(180)}
-                  className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
-                >
-                  <Text className="text-xs font-medium text-foreground">
-                    {t('symptoms.timing.h3', { defaultValue: '-3h' })}
-                  </Text>
+                  <View
+                    className={`w-5 h-5 rounded-full bg-white transition-all ${
+                      isEpisodic ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
                 </TouchableOpacity>
               </View>
 
-              {existingEntry && !endedAt && (
-                <TouchableOpacity
-                  onPress={handleEndNow}
-                  className="bg-amber-500/20 border border-amber-500/40 py-2.5 rounded-xl items-center mt-2"
-                >
-                  <Text className="text-xs font-bold text-amber-500">
-                    {t('symptoms.endEpisodeNow', {
-                      defaultValue: 'End Episode Now',
+              {isEpisodic && (
+                <View className="space-y-2 pt-2 border-t border-border/50">
+                  <Text className="text-xs text-muted-foreground">
+                    {t('symptoms.startedWhen', {
+                      defaultValue: 'Started when:',
                     })}
                   </Text>
-                </TouchableOpacity>
+                  <View className="flex-row gap-1.5 flex-wrap">
+                    <TouchableOpacity
+                      onPress={() => setStartedAt(new Date().toISOString())}
+                      className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
+                    >
+                      <Text className="text-xs font-medium text-foreground">
+                        {t('symptoms.timing.now', { defaultValue: 'Now' })}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleBackdate(15)}
+                      className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
+                    >
+                      <Text className="text-xs font-medium text-foreground">
+                        {t('symptoms.timing.m15', { defaultValue: '-15m' })}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleBackdate(60)}
+                      className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
+                    >
+                      <Text className="text-xs font-medium text-foreground">
+                        {t('symptoms.timing.h1', { defaultValue: '-1h' })}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleBackdate(180)}
+                      className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
+                    >
+                      <Text className="text-xs font-medium text-foreground">
+                        {t('symptoms.timing.h3', { defaultValue: '-3h' })}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {existingEntry && !endedAt && (
+                    <TouchableOpacity
+                      onPress={handleEndNow}
+                      className="bg-amber-500/20 border border-amber-500/40 py-2.5 rounded-xl items-center mt-2"
+                    >
+                      <Text className="text-xs font-bold text-amber-500">
+                        {t('symptoms.endEpisodeNow', {
+                          defaultValue: 'End Episode Now',
+                        })}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
             </View>
-          )}
-        </View>
 
-        {/* Severity */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl">
-          <SeveritySlider
-            scaleType={scaleType}
-            value={severity}
-            onChange={setSeverity}
-          />
-        </View>
+            {/* Severity */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl">
+              <SeveritySlider
+                scaleType={scaleType}
+                value={severity}
+                onChange={setSeverity}
+              />
+            </View>
 
-        {/* Location Picker */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.location', { defaultValue: 'Location' })}
-          </Text>
-          <SymptomLocationPicker
-            kind={mapKind}
-            selected={bodyLocations}
-            onToggle={(label) =>
-              toggleItem(bodyLocations, setBodyLocations, label)
+            {/* Location Picker */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.location', { defaultValue: 'Location' })}
+              </Text>
+              <SymptomLocationPicker
+                kind={mapKind}
+                selected={bodyLocations}
+                onToggle={(label) =>
+                  toggleItem(bodyLocations, setBodyLocations, label)
+                }
+              />
+            </View>
+
+            {/* Qualities / Descriptors */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.qualities', { defaultValue: 'Pain Qualities' })}
+              </Text>
+              <View className="flex-row flex-wrap gap-1.5">
+                {BUILT_IN_OPTIONS.quality.map((q) => {
+                  const isSelected = qualities.includes(q);
+                  return (
+                    <TouchableOpacity
+                      key={q}
+                      onPress={() => toggleItem(qualities, setQualities, q)}
+                      className={`px-3 py-1.5 rounded-full border ${
+                        isSelected
+                          ? 'bg-blue-600/20 border-blue-500'
+                          : 'bg-background border-border'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs ${
+                          isSelected
+                            ? 'text-blue-500 font-semibold'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {q}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Associated Symptoms / Aura */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.associated', {
+                  defaultValue: 'Associated Symptoms / Aura',
+                })}
+              </Text>
+              <View className="flex-row flex-wrap gap-1.5">
+                {BUILT_IN_OPTIONS.associated.map((item) => {
+                  const isSelected = associatedSymptoms.includes(item);
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      onPress={() =>
+                        toggleItem(
+                          associatedSymptoms,
+                          setAssociatedSymptoms,
+                          item
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-full border ${
+                        isSelected
+                          ? 'bg-blue-600/20 border-blue-500'
+                          : 'bg-background border-border'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs ${
+                          isSelected
+                            ? 'text-blue-500 font-semibold'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Triggers */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.triggers', { defaultValue: 'Triggers' })}
+              </Text>
+              <View className="flex-row flex-wrap gap-1.5">
+                {BUILT_IN_OPTIONS.trigger.map((tr) => {
+                  const isSelected = triggers.includes(tr);
+                  return (
+                    <TouchableOpacity
+                      key={tr}
+                      onPress={() => toggleItem(triggers, setTriggers, tr)}
+                      className={`px-3 py-1.5 rounded-full border ${
+                        isSelected
+                          ? 'bg-amber-600/20 border-amber-500'
+                          : 'bg-background border-border'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs ${
+                          isSelected
+                            ? 'text-amber-500 font-semibold'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {tr}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Treatments & Relief */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.treatments', {
+                  defaultValue: 'Treatments & Relief',
+                })}
+              </Text>
+              <TreatmentsSection
+                treatments={treatments}
+                onChange={setTreatments}
+              />
+            </View>
+
+            {/* Impact on Day */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.impact', { defaultValue: 'Impact on Day' })}
+              </Text>
+              <View className="flex-row gap-1.5">
+                {IMPACT_OPTIONS.map((opt) => {
+                  const isSelected = impact === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => setImpact(isSelected ? null : opt)}
+                      className={`flex-1 py-2 rounded-xl items-center border ${
+                        isSelected
+                          ? 'bg-primary border-primary'
+                          : 'bg-background border-border'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${
+                          isSelected
+                            ? 'text-primary-foreground'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {getImpactLabel(opt)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Notes */}
+            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-foreground">
+                {t('symptoms.notes', { defaultValue: 'Notes & Observations' })}
+              </Text>
+              <TextInput
+                multiline
+                numberOfLines={3}
+                placeholder={t('symptoms.notesPlaceholder', {
+                  defaultValue: 'Any additional notes or observations...',
+                })}
+                placeholderTextColor="#94a3b8"
+                value={contextText}
+                onChangeText={setContextText}
+                className="bg-background border border-border rounded-xl p-3 text-sm text-foreground min-h-[80px]"
+              />
+            </View>
+
+            <View className="h-20" />
+          </ScrollView>
+
+          {/* Sticky Save Bar */}
+          <FooterSaveBar
+            onPress={handleSave}
+            busy={
+              Boolean(entryId && !existingEntry && isEntryLoading) ||
+              logEntry.isPending ||
+              updateEntry.isPending
+            }
+            label={
+              existingEntry
+                ? t('common.save', { defaultValue: 'Save' })
+                : t('symptoms.logSymptom', { defaultValue: 'Log Symptom' })
             }
           />
-        </View>
-
-        {/* Qualities / Descriptors */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.qualities', { defaultValue: 'Pain Qualities' })}
-          </Text>
-          <View className="flex-row flex-wrap gap-1.5">
-            {BUILT_IN_OPTIONS.quality.map((q) => {
-              const isSelected = qualities.includes(q);
-              return (
-                <TouchableOpacity
-                  key={q}
-                  onPress={() => toggleItem(qualities, setQualities, q)}
-                  className={`px-3 py-1.5 rounded-full border ${
-                    isSelected
-                      ? 'bg-blue-600/20 border-blue-500'
-                      : 'bg-background border-border'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs ${
-                      isSelected
-                        ? 'text-blue-500 font-semibold'
-                        : 'text-foreground'
-                    }`}
-                  >
-                    {q}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Associated Symptoms / Aura */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.associated', {
-              defaultValue: 'Associated Symptoms / Aura',
-            })}
-          </Text>
-          <View className="flex-row flex-wrap gap-1.5">
-            {BUILT_IN_OPTIONS.associated.map((item) => {
-              const isSelected = associatedSymptoms.includes(item);
-              return (
-                <TouchableOpacity
-                  key={item}
-                  onPress={() =>
-                    toggleItem(associatedSymptoms, setAssociatedSymptoms, item)
-                  }
-                  className={`px-3 py-1.5 rounded-full border ${
-                    isSelected
-                      ? 'bg-blue-600/20 border-blue-500'
-                      : 'bg-background border-border'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs ${
-                      isSelected
-                        ? 'text-blue-500 font-semibold'
-                        : 'text-foreground'
-                    }`}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Triggers */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.triggers', { defaultValue: 'Triggers' })}
-          </Text>
-          <View className="flex-row flex-wrap gap-1.5">
-            {BUILT_IN_OPTIONS.trigger.map((tr) => {
-              const isSelected = triggers.includes(tr);
-              return (
-                <TouchableOpacity
-                  key={tr}
-                  onPress={() => toggleItem(triggers, setTriggers, tr)}
-                  className={`px-3 py-1.5 rounded-full border ${
-                    isSelected
-                      ? 'bg-amber-600/20 border-amber-500'
-                      : 'bg-background border-border'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs ${
-                      isSelected
-                        ? 'text-amber-500 font-semibold'
-                        : 'text-foreground'
-                    }`}
-                  >
-                    {tr}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Treatments & Relief */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.treatments', { defaultValue: 'Treatments & Relief' })}
-          </Text>
-          <TreatmentsSection treatments={treatments} onChange={setTreatments} />
-        </View>
-
-        {/* Impact on Day */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.impact', { defaultValue: 'Impact on Day' })}
-          </Text>
-          <View className="flex-row gap-1.5">
-            {IMPACT_OPTIONS.map((opt) => {
-              const isSelected = impact === opt;
-              return (
-                <TouchableOpacity
-                  key={opt}
-                  onPress={() => setImpact(isSelected ? null : opt)}
-                  className={`flex-1 py-2 rounded-xl items-center border ${
-                    isSelected
-                      ? 'bg-primary border-primary'
-                      : 'bg-background border-border'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${
-                      isSelected ? 'text-primary-foreground' : 'text-foreground'
-                    }`}
-                  >
-                    {getImpactLabel(opt)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Notes */}
-        <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-          <Text className="text-sm font-semibold text-foreground">
-            {t('symptoms.notes', { defaultValue: 'Notes & Observations' })}
-          </Text>
-          <TextInput
-            multiline
-            numberOfLines={3}
-            placeholder={t('symptoms.notesPlaceholder', {
-              defaultValue: 'Any additional notes or observations...',
-            })}
-            placeholderTextColor="#94a3b8"
-            value={contextText}
-            onChangeText={setContextText}
-            className="bg-background border border-border rounded-xl p-3 text-sm text-foreground min-h-[80px]"
-          />
-        </View>
-
-        <View className="h-20" />
-      </ScrollView>
-
-      {/* Sticky Save Bar */}
-      <FooterSaveBar
-        onPress={handleSave}
-        busy={logEntry.isPending || updateEntry.isPending}
-        label={
-          existingEntry
-            ? t('common.save', { defaultValue: 'Save' })
-            : t('symptoms.logSymptom', { defaultValue: 'Log Symptom' })
-        }
-      />
+        </>
+      )}
     </View>
   );
 }

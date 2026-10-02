@@ -38,6 +38,7 @@ const OPTIONAL_SECTIONS = SYMPTOM_SECTIONS.filter(
 );
 
 interface FieldDraft {
+  key?: string;
   label: string;
   type: CustomFieldType;
   options: string;
@@ -54,6 +55,7 @@ interface SymptomDefinitionEditorProps {
 
 const toFieldDrafts = (defs: SymptomCustomFieldDef[]): FieldDraft[] =>
   defs.map((d) => ({
+    key: d.key,
     label: d.label,
     type: d.type,
     options: (d.options ?? []).join(', '),
@@ -106,7 +108,8 @@ export default function SymptomDefinitionEditor({
       .filter((f) => f.label.trim())
       .map((f) => {
         let key =
-          slugifySymptomName(f.label).replace(/[^a-z0-9_]/g, '') || 'field';
+          f.key ??
+          (slugifySymptomName(f.label).replace(/[^a-z0-9_]/g, '') || 'field');
         while (used.has(key)) key = `${key}_2`;
         used.add(key);
         const options = f.options

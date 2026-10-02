@@ -160,6 +160,7 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
           onPress={() =>
             navigation.navigate('SymptomLog', {
               entryId: activeOngoing.id,
+              date: activeOngoing.entry_date,
               isOngoing: true,
             })
           }
@@ -196,7 +197,10 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
             <TouchableOpacity
               key={entry.id}
               onPress={() =>
-                navigation.navigate('SymptomLog', { entryId: entry.id })
+                navigation.navigate('SymptomLog', {
+                  entryId: entry.id,
+                  date: entry.entry_date,
+                })
               }
               className="flex-row items-center justify-between p-2.5 rounded-lg bg-surface-raised border border-border"
             >
