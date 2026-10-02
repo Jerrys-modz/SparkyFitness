@@ -113,14 +113,19 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         });
       }
       const completedSetIds = Object.keys(state.completedSetIds).sort();
-      // Timers running for sets not yet logged, so the watch can show the
-      // same clock.
+      // The newest timer running for a set not yet logged, so the watch can
+      // show the same clock. The watch shows one set at a time and holds one
+      // timer, so older ones are not sent: a second would replace the first
+      // there.
       const setTimers: Record<string, number> = {};
+      let newest: [string, number] | null = null;
       for (const setId of Object.keys(state.setTimerStartedAt).sort()) {
-        if (state.completedSetIds[setId] == null) {
-          setTimers[setId] = state.setTimerStartedAt[setId];
-        }
+        const startedAt = state.setTimerStartedAt[setId];
+        if (state.completedSetIds[setId] != null) continue;
+        if (newest == null || startedAt > newest[1])
+          newest = [setId, startedAt];
       }
+      if (newest != null) setTimers[newest[0]] = newest[1];
       const rest =
         state.rest.state === 'resting' && state.rest.endsAt != null
           ? {
