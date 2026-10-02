@@ -8,6 +8,7 @@ import exerciseRepository from './exercise.js';
 import activityDetailsRepository from './activityDetailsRepository.js';
 import * as workoutTelemetryRepository from './workoutTelemetryRepository.js';
 import { bodyWeightJoinSql } from '../utils/exerciseLoadSql.js';
+import { assertSetWeightSign } from '../utils/setWeightSign.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -850,6 +851,7 @@ async function _updateExerciseEntryWithClient(
       [id]
     );
     if (Array.isArray(updateData.sets) && updateData.sets.length > 0) {
+      assertSetWeightSign(updateData.sets, mergedData.modality);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const setsValues = updateData.sets.map((set: any) => [
         id,
@@ -1094,6 +1096,7 @@ async function _createExerciseEntryWithClient(
       );
       newEntryId = entryResult.rows[0].id;
       if (entryData.sets && entryData.sets.length > 0) {
+        assertSetWeightSign(entryData.sets, snapshot.modality);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const setsValues = entryData.sets.map((set: any) => [
           newEntryId,
@@ -1342,6 +1345,11 @@ async function _reconcileExerciseEntrySetsWithClient(
   sets: any
 ) {
   const incoming = Array.isArray(sets) ? sets : [];
+  const modalityResult = await client.query(
+    'SELECT modality FROM exercise_entries WHERE id = $1',
+    [exerciseEntryId]
+  );
+  assertSetWeightSign(incoming, modalityResult.rows[0]?.modality ?? null);
 
   const existingResult = await client.query(
     'SELECT id FROM exercise_entry_sets WHERE exercise_entry_id = $1',

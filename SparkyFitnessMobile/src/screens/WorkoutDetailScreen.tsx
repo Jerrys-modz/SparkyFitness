@@ -36,6 +36,7 @@ import {
   formatVolume,
   canReorderDraftExercises,
   exerciseFromSnapshot,
+  parseSetWeight,
   summarizeWorkoutHeartRate,
 } from '../utils/workoutSession';
 import { formatLocalizedNumber } from '../localization';
@@ -61,7 +62,6 @@ import CalendarSheet, {
 import { normalizeDate, formatDate, formatDateLabel } from '../utils/dateUtils';
 import {
   parseDecimalInput,
-  parseSignedDecimalInput,
 } from '../utils/numericInput';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
 import { weightFromKg } from '../utils/unitConversions';
@@ -626,7 +626,13 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       ? formState.exercises.reduce(
           (sum, ex) =>
             ex.sets.reduce((s, set) => {
-              const w = parseSignedDecimalInput(set.weight);
+              const w = parseSetWeight(
+                set.weight,
+                resolveExerciseModality(
+                  ex.exerciseModality,
+                  ex.exerciseCategory
+                )
+              );
               const r = parseInt(set.reps, 10);
               if (isNaN(r)) return s;
               // Draft weights are in the display unit, so body weight is too.
