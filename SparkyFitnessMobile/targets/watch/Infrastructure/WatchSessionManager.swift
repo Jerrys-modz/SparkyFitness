@@ -192,12 +192,19 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// should move with the wrist, but a message per sample would keep the
     /// radio busy for a number that changes by a beat or two.
     private static let liveHeartRateInterval: TimeInterval = 3
+    private static let liveHeartRateMaxAge: TimeInterval = 5
     private var lastLiveHeartRateAt: Date?
 
     /// Tells the phone the current reading, only while it can be reached. A
     /// live message that cannot be delivered now is dropped on purpose; the
     /// batch every minute is what carries the readings for the diary.
-    private func sendLiveHeartRate(_ bpm: Double) {
+    ///
+    /// `measuredAt` is when HealthKit took the reading. A reading older than
+    /// `liveHeartRateMaxAge` (a backlog replay after a recovery, or a callback
+    /// that outlived the exercise it was measured in) is not "live" and would
+    /// be labelled with whatever exercise is on screen now, so it is skipped.
+    private func sendLiveHeartRate(_ bpm: Double, measuredAt: Date) {
+        guard Date().timeIntervalSince(measuredAt) <= Self.liveHeartRateMaxAge else { return }
         guard WCSession.isSupported(), isActivated, WCSession.default.isReachable,
               bpm > 0,
               let sessionId = workoutStore.plan?.sessionId,
@@ -214,7 +221,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 sessionId: sessionId,
                 exerciseEntryId: exerciseEntryId,
                 bpm: bpm,
-                at: now
+                at: measuredAt
             ),
             replyHandler: nil,
             errorHandler: nil
@@ -599,10 +606,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // but that alone doesn't satisfy Swift's isolation checking for the
         // `@MainActor` types on the other end, so each hops explicitly, the
         // same pattern `WCSessionDelegate`'s callbacks use above.
-        workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm in
+        workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm, measuredAt in
             Task { @MainActor in
                 workoutStore?.recordHeartRate(bpm: bpm)
-                self?.sendLiveHeartRate(bpm)
+                self?.sendLiveHeartRate(bpm, measuredAt: measuredAt)
             }
         }
         workoutHealthKit.onBatchReady = { [weak self] samples in
