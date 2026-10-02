@@ -190,6 +190,10 @@ export function useWatchWorkoutBridge(
   onWatchFinishedWorkout?: (celebration: WorkoutCelebration | null) => void
 ): void {
   const sessionsRef = useRef<Map<string, SessionTelemetry>>(new Map());
+  // Sessions the wearer discarded on the watch. A restore that was still
+  // loading, or a flush already walking its snapshot, must not bring their
+  // telemetry back and attach it to an entry that stays in the diary.
+  const discardedSessionsRef = useRef<Set<string>>(new Set());
   const onPendingChangeRef = useRef(onTelemetryPendingChange);
   const onWatchFinishedRef = useRef(onWatchFinishedWorkout);
   const pendingRef = useRef(false);
@@ -547,6 +551,10 @@ export function useWatchWorkoutBridge(
   // overwriting them with its last minute.
   const flushHeartRate = useCallback(async (): Promise<void> => {
     for (const [sessionId, session] of [...sessionsRef.current.entries()]) {
+      if (discardedSessionsRef.current.has(sessionId)) {
+        sessionsRef.current.delete(sessionId);
+        continue;
+      }
       if (!session.unposted) continue;
       // Cleared up front so a batch arriving mid-flush re-arms it rather than
       // being marked posted by this pass, which never saw it.
@@ -573,6 +581,8 @@ export function useWatchWorkoutBridge(
         // All absent means there is nothing to say; the server rejects that
         // body, so don't spend a request discovering it.
         if (!hrSamples && kcal == null && durationMinutes == null) continue;
+        // Discarded while an earlier entry of this session was posting.
+        if (discardedSessionsRef.current.has(sessionId)) break;
         try {
           await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
             ...(hrSamples ? { hrSamples } : {}),
@@ -682,6 +692,7 @@ export function useWatchWorkoutBridge(
       const sessionId = state.sessionId;
       const entryDate = entryDateOf(state.session);
       const createdByLiveStart = state.createdByLiveStart;
+      discardedSessionsRef.current.add(sessionId);
       sessionsRef.current.delete(sessionId);
       syncPendingRef.current();
       if (restoredRef.current) {
@@ -952,6 +963,9 @@ export function useWatchWorkoutBridge(
         saved,
         createSessionTelemetry
       );
+      for (const discarded of discardedSessionsRef.current) {
+        sessionsRef.current.delete(discarded);
+      }
       merged = true;
       // Subscribe before the hydrated check. A finish that lands in between
       // still runs the restore once, and not before the phone knows which
