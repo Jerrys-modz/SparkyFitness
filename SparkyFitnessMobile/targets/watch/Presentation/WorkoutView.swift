@@ -639,8 +639,13 @@ private struct CurrentSetView: View {
         return clamp((value / step).rounded() * step, for: field)
     }
 
+    /// One click per crown or drag step, silent while the phone's Settings →
+    /// Haptics switch is off (`WatchContext.effectiveHapticsEnabled`).
     private func stepClick() {
-        WKInterfaceDevice.current().play(.click)
+        MainActor.assumeIsolated {
+            guard CheckInStore.shared.context.effectiveHapticsEnabled else { return }
+            WKInterfaceDevice.current().play(.click)
+        }
     }
 
     private func clamp(_ value: Double, for field: EditableField) -> Double {
