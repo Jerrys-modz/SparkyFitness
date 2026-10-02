@@ -145,7 +145,8 @@
       "whatsNew": "What's New",
       "logs": "View Logs",
       "about": "About",
-      "shareReport": "Share Diagnostic Report"
+      "shareReport": "Share Diagnostic Report",
+      "watch": "Apple Watch"
     },
     "theme": {
       "title": "Theme",
@@ -567,7 +568,8 @@
     "progressPhotoCompare": "Compare",
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
-    "cardioSession": "Cardio Session"
+    "cardioSession": "Cardio Session",
+    "watchSettings": "Apple Watch"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5327,6 +5329,22 @@
     "moveDown": "Move down",
     "stateShown": "Shown",
     "stateHidden": "Hidden"
+  },
+  "watchSettings": {
+    "pagesTitle": "Pages",
+    "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this page sits on your watch",
+    "pages": {
+      "goals": "Goals",
+      "water": "Water",
+      "entry": "Weight check-in",
+      "trend": "Weight trend",
+      "workout": "Workout"
+    },
+    "nutrientsTitle": "Goals page nutrients",
+    "nutrientsDescription": "Choose the nutrients listed under the calorie ring on your watch, and drag to set their order. Each shows today’s amount against its goal.",
+    "nutrientReorderHint": "Changes where this nutrient sits on your watch"
   },
   "progressPhotos": {
     "card": {
