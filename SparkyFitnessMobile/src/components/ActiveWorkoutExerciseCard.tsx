@@ -1521,6 +1521,32 @@ function ActiveWorkoutExerciseCard({
           />
         )}
 
+        {!cardioForm && isBodyweightModality(modality) && (
+          <View
+            className="mx-1 mb-1 flex-row items-start gap-2 rounded-lg bg-surface-secondary px-3 py-2"
+            accessibilityRole="text"
+            testID="bodyweight-banner"
+          >
+            <Icon name="info-circle" size={14} color={accentPrimary} />
+            <Text className="flex-1 text-xs text-text-secondary">
+              {bodyWeightKg != null
+                ? t('workout.bodyweightBanner', {
+                    defaultValue:
+                      'Bodyweight exercise: counts your body weight ({{bodyWeight}} {{unit}}) plus the weight you enter. Use a minus sign for assistance.',
+                    bodyWeight: formatLocalizedNumber(
+                      weightFromKg(bodyWeightKg, weightUnit),
+                      { maximumFractionDigits: 1 }
+                    ),
+                    unit: unitLabel,
+                  })
+                : t('workout.bodyweightBannerNoWeight', {
+                    defaultValue:
+                      'Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume and PRs can be calculated.',
+                  })}
+            </Text>
+          </View>
+        )}
+
         {!cardioForm && exercise.sets.length > 0 && (
           <View className="flex-row items-center px-1 py-1.5">
             <Text
