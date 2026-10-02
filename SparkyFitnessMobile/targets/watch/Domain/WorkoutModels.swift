@@ -233,7 +233,7 @@ struct CompletedSet: Codable, Equatable {
     let weightKg: Double?
     let reps: Double?
     /// Set type the wearer picked. Nil leaves the plan's type on the phone.
-    let setType: String? = nil
+    var setType: String? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }
