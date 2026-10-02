@@ -747,11 +747,29 @@ export function useWatchWorkoutBridge(
     const stopWorkoutHydration =
       useActiveWorkoutStore.persist.onFinishHydration(drainWorkoutEvents);
 
+    // The wrist's current reading, ahead of the minute-old batch. Display
+    // only: nothing is buffered, so a dropped message costs nothing.
+    const liveHeartRateSub = WatchConnectivity.addListener(
+      'onLiveHeartRate',
+      (payload) => {
+        if (payload.sessionId !== useActiveWorkoutStore.getState().sessionId)
+          return;
+        if (!(payload.bpm > 0) || !Number.isFinite(payload.at)) return;
+        useLiveHeartRateStore.getState().record({
+          sessionId: payload.sessionId,
+          exerciseEntryId: payload.exerciseEntryId,
+          bpm: Math.round(payload.bpm),
+          at: payload.at,
+        });
+      }
+    );
+
     return () => {
       stopWorkoutHydration();
       setCompletedSub.remove();
       restChangedSub.remove();
       heartRateBatchSub.remove();
+      liveHeartRateSub.remove();
       workoutStopSub.remove();
     };
   }, [enabled]);

@@ -188,6 +188,39 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// How often the phone is told the current reading. The phone's chip
+    /// should move with the wrist, but a message per sample would keep the
+    /// radio busy for a number that changes by a beat or two.
+    private static let liveHeartRateInterval: TimeInterval = 3
+    private var lastLiveHeartRateAt: Date?
+
+    /// Tells the phone the current reading, only while it can be reached. A
+    /// live message that cannot be delivered now is dropped on purpose; the
+    /// batch every minute is what carries the readings for the diary.
+    private func sendLiveHeartRate(_ bpm: Double) {
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable,
+              bpm > 0,
+              let sessionId = workoutStore.plan?.sessionId,
+              let exerciseEntryId = workoutStore.currentStep?.exerciseEntryId
+                ?? workoutStore.steps.last?.exerciseEntryId
+        else { return }
+        let now = Date()
+        if let last = lastLiveHeartRateAt, now.timeIntervalSince(last) < Self.liveHeartRateInterval {
+            return
+        }
+        lastLiveHeartRateAt = now
+        WCSession.default.sendMessage(
+            OutboundPayloads.liveHeartRate(
+                sessionId: sessionId,
+                exerciseEntryId: exerciseEntryId,
+                bpm: bpm,
+                at: now
+            ),
+            replyHandler: nil,
+            errorHandler: nil
+        )
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
@@ -566,9 +599,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // but that alone doesn't satisfy Swift's isolation checking for the
         // `@MainActor` types on the other end, so each hops explicitly, the
         // same pattern `WCSessionDelegate`'s callbacks use above.
-        workoutHealthKit.onHeartRate = { [weak workoutStore] bpm in
+        workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm in
             Task { @MainActor in
                 workoutStore?.recordHeartRate(bpm: bpm)
+                self?.sendLiveHeartRate(bpm)
             }
         }
         workoutHealthKit.onBatchReady = { [weak self] samples in
