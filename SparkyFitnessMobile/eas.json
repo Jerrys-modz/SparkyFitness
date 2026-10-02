@@ -25,7 +25,8 @@
       "distribution": "store",
       "autoIncrement": true,
       "ios": {
-        "resourceClass": "medium"
+        "resourceClass": "medium",
+        "image": "macos-tahoe-26.6-xcode-27.0"
       }
     },
     "production": {
