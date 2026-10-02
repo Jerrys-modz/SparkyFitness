@@ -78,6 +78,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// The wearer skipped (`endsAt` nil) or moved the rest here, so the phone
     /// can do the same. Not fired when the rest follows the phone's.
     var onRestChangedHere: ((_ previousEndsAt: Date, _ endsAt: Date?) -> Void)?
+    /// A hold countdown or stopwatch was started on the watch (not copied from
+    /// the phone), so the phone can start its own from the same moment.
+    var onSetTimerStartedHere: ((_ setId: String, _ startedAt: Date) -> Void)?
 
     /// Called when a rest countdown runs out on its own, so the app can buzz
     /// the wrist. Not called when the wearer skips the rest or trims it to
@@ -88,6 +91,12 @@ final class WorkoutSessionStore: ObservableObject {
     private var restTimer: Timer?
     private var holdTimer: Timer?
     private var holdBuzzed = false
+    /// The running timer was started on the phone. If the phone stops it
+    /// without logging the set, this one stops too.
+    private var holdFollowsPhone = false
+    /// The set holding the timer was logged here, so the phone's timer for it
+    /// is not to be copied or cleared by a later update.
+    private var holdLoggedHere = false
     private var startedAt: Date?
     /// Open interval per exercise entry. Closed when the wearer leaves it.
     private var exerciseWindowStartedAt: [String: Date] = [:]
@@ -157,7 +166,8 @@ final class WorkoutSessionStore: ObservableObject {
         revision: Double,
         targets: [String: SetValues],
         completedSetIds phoneCompleted: Set<String> = [],
-        phoneRest: PhoneRest? = nil
+        phoneRest: PhoneRest? = nil,
+        setTimers: [String: Date]? = nil
     ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
@@ -189,6 +199,7 @@ final class WorkoutSessionStore: ObservableObject {
             follow(phoneRest)
             lastPhoneRest = phoneRest
         }
+        if let setTimers { applyPhoneTimers(setTimers) }
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
@@ -444,16 +455,24 @@ final class WorkoutSessionStore: ObservableObject {
 
     /// Starts the hold countdown. A second tap while it is already running
     /// for this set does nothing.
-    func startHold(for setId: String, seconds: Int) {
+    /// `startedAt` is set when the phone already started this timer; the
+    /// countdown then runs from that moment and the phone is not told again.
+    func startHold(for setId: String, seconds: Int, startedAt: Date? = nil) {
         guard seconds > 0 else { return }
         if holdSetId == setId, holdEndsAt != nil { return }
         holdStartedAt = nil
         holdStoppedAt = nil
+        holdLoggedHere = false
         holdSetId = setId
         holdTotalSeconds = seconds
-        holdEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
-        holdBuzzed = false
-        startHoldTimer()
+        let start = startedAt ?? Date()
+        let endsAt = start.addingTimeInterval(TimeInterval(seconds))
+        holdEndsAt = endsAt
+        holdFollowsPhone = startedAt != nil
+        // A countdown that already ran out on the phone does not buzz now.
+        holdBuzzed = endsAt <= Date()
+        if !holdBuzzed { startHoldTimer() }
+        if startedAt == nil { onSetTimerStartedHere?(setId, start) }
     }
 
     /// A duration exercise: counts down when the phone planned a length, and
@@ -463,7 +482,7 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     /// Starts the stopwatch for a timed set with no planned length.
-    func startStopwatch(for setId: String) {
+    func startStopwatch(for setId: String, startedAt: Date? = nil) {
         if holdSetId == setId, holdStartedAt != nil { return }
         stopHoldTimer()
         holdSetId = setId
@@ -471,7 +490,34 @@ final class WorkoutSessionStore: ObservableObject {
         holdTotalSeconds = 0
         holdBuzzed = true
         holdStoppedAt = nil
-        holdStartedAt = Date()
+        holdLoggedHere = false
+        let start = startedAt ?? Date()
+        holdStartedAt = start
+        holdFollowsPhone = startedAt != nil
+        if startedAt == nil { onSetTimerStartedHere?(setId, start) }
+    }
+
+    /// Follows the phone's set timers: starts the countdown or stopwatch for
+    /// a set the phone started, from the phone's start time, and stops one it
+    /// copied earlier if the phone dropped it without logging the set. A
+    /// timer started here is never replaced.
+    private func applyPhoneTimers(_ timers: [String: Date]) {
+        if let heldId = holdSetId, completedSetIds.contains(heldId), !holdLoggedHere {
+            // Logged on the phone: its timer is done.
+            clearHold()
+        } else if let heldId = holdSetId, holdFollowsPhone, timers[heldId] == nil,
+                  !completedSetIds.contains(heldId) {
+            clearHold()
+        }
+        for (setId, start) in timers {
+            guard holdSetId != setId, !completedSetIds.contains(setId),
+                  let step = steps.first(where: { $0.plannedSet.setId == setId }) else { continue }
+            if let seconds = targetDurationSec(for: step) {
+                startHold(for: setId, seconds: seconds, startedAt: start)
+            } else if isTimed(step) {
+                startStopwatch(for: setId, startedAt: start)
+            }
+        }
     }
 
     /// Seconds the stopwatch has run for this set. Nil when never started.
@@ -509,6 +555,7 @@ final class WorkoutSessionStore: ObservableObject {
         // Stop the buzz. The deadline stays so the caller can still read
         // how long the hold ran.
         if holdStartedAt != nil, holdStoppedAt == nil { holdStoppedAt = Date() }
+        if holdSetId == step.plannedSet.setId { holdLoggedHere = true }
         stopHoldTimer()
         completedSetIds.insert(step.plannedSet.setId)
 
@@ -924,5 +971,7 @@ final class WorkoutSessionStore: ObservableObject {
         holdStartedAt = nil
         holdStoppedAt = nil
         holdBuzzed = false
+        holdFollowsPhone = false
+        holdLoggedHere = false
     }
 }

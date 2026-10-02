@@ -4,6 +4,7 @@ import Toast from 'react-native-toast-message';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchRestChangedPayload,
+  type WatchSetTimerStartedPayload,
   type WatchHeartRateBatchPayload,
   type WatchWorkoutStopPayload,
   type WatchWorkoutDiscardPayload,
@@ -186,6 +187,27 @@ function applyWatchRestChange(payload: WatchRestChangedPayload): void {
   if (deltaSec !== 0) state.adjustRest(deltaSec);
 }
 
+/**
+ * A hold countdown or stopwatch started on the watch starts the phone's
+ * stopwatch from the same moment. Ignored for another session, a set already
+ * logged, or a start time that cannot be right (a stale queued message).
+ */
+const MAX_WATCH_TIMER_AGE_MS = 3 * 60 * 60 * 1000;
+
+function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
+  const state = useActiveWorkoutStore.getState();
+  const now = Date.now();
+  if (
+    state.sessionId !== payload.sessionId ||
+    state.completedSetIds[payload.setId] != null ||
+    !Number.isFinite(payload.startedAt) ||
+    now - payload.startedAt > MAX_WATCH_TIMER_AGE_MS
+  ) {
+    return;
+  }
+  state.startSetTimer(payload.setId, Math.min(payload.startedAt, now));
+}
+
 export function useWatchWorkoutBridge(
   enabled: boolean,
   serverConnected: boolean = true,
@@ -302,6 +324,9 @@ export function useWatchWorkoutBridge(
       if (Object.keys(patch).length > 0) {
         state.updateSetField(payload.setId, patch);
       }
+      // The watch has reported the duration it timed. The phone's own
+      // stopwatch for this set (started from the watch's) is done.
+      state.clearSetTimer(payload.setId);
 
       state.completeSet(
         payload.setId,
@@ -779,6 +804,10 @@ export function useWatchWorkoutBridge(
       'onRestChanged',
       applyWatchRestChange
     );
+    const setTimerStartedSub = WatchConnectivity.addListener(
+      'onSetTimerStarted',
+      applyWatchSetTimerStart
+    );
     const heartRateBatchSub = WatchConnectivity.addListener(
       'onHeartRateBatch',
       (payload) => {
@@ -819,6 +848,7 @@ export function useWatchWorkoutBridge(
       workoutDiscardSub.remove();
       setCompletedSub.remove();
       restChangedSub.remove();
+      setTimerStartedSub.remove();
       heartRateBatchSub.remove();
       liveHeartRateSub.remove();
       workoutStopSub.remove();
