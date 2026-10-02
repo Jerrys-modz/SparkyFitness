@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchRestChangedPayload,
@@ -23,6 +23,7 @@ import {
 } from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
 import { addLog } from '../services/LogService';
+import i18n from '../localization/i18n';
 import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { normalizeDate } from '../utils/dateUtils';
@@ -709,6 +710,15 @@ export function useWatchWorkoutBridge(
         addLog(
           `Failed to delete workout discarded on the watch: ${String(error)}`,
           'ERROR'
+        );
+        // Same notice the phone's own Discard gives: the workout is gone
+        // from the live session but still sits in the diary.
+        Alert.alert(
+          i18n.t('common.error', { defaultValue: 'Error' }),
+          i18n.t('activeWorkout.failedToDeleteWorkout', {
+            defaultValue:
+              'Failed to delete discarded workout session from diary.',
+          })
         );
       }
       if (entryDate != null) invalidateExerciseCache(queryClient, entryDate);
