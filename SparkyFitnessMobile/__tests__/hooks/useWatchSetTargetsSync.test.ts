@@ -137,7 +137,7 @@ describe('useWatchSetTargetsSync', () => {
     ]);
   });
 
-  it('sends running set timers, and drops one once its set is logged', () => {
+  it('sends only the newest running set timer, and falls back as its set is logged', () => {
     act(() => {
       useActiveWorkoutStore.setState({
         session: makeSession(),
@@ -156,16 +156,16 @@ describe('useWatchSetTargetsSync', () => {
         },
       });
     });
+    // The watch holds one timer, so the older one is not sent.
     expect(mockUpdateSetTargets.mock.calls.at(-1)?.[0].setTimers).toEqual({
-      '101': 1_700_000_000_000,
       '102': 1_700_000_005_000,
     });
 
     act(() => {
-      useActiveWorkoutStore.setState({ completedSetIds: { '101': 1000 } });
+      useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
     });
     expect(mockUpdateSetTargets.mock.calls.at(-1)?.[0].setTimers).toEqual({
-      '102': 1_700_000_005_000,
+      '101': 1_700_000_000_000,
     });
   });
 
