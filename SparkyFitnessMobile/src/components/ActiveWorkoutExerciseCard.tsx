@@ -278,6 +278,15 @@ export function ExerciseThumb({
   );
 }
 
+/** Added weight a set is ranked on. An unweighted bodyweight set is +0. */
+function rankedAddedWeight(
+  weight: number | null | undefined,
+  bodyweight: boolean
+): number | null {
+  if (weight != null) return weight;
+  return bodyweight ? 0 : null;
+}
+
 function ActiveWorkoutExerciseCard({
   exercise,
   expanded,
@@ -595,25 +604,33 @@ function ActiveWorkoutExerciseCard({
   // session), so the stamped set is what surfaces the new record.
   const stampedBest = useMemo(() => {
     if (!isLive || !prSetIds) return null;
+    const bodyweight = isBodyweightModality(modality);
     let best: { weight: number; reps: number | null } | null = null;
     for (const s of exercise.sets) {
-      if (prSetIds[String(s.id)] !== true || s.weight == null) continue;
-      const contender = { weight: s.weight, reps: s.reps };
+      if (prSetIds[String(s.id)] !== true) continue;
+      const weight = rankedAddedWeight(s.weight, bodyweight);
+      if (weight == null) continue;
+      const contender = { weight, reps: s.reps };
       if (best == null || compareSetRecords(contender, best) > 0)
         best = contender;
     }
     return best;
-  }, [isLive, prSetIds, exercise.sets]);
+  }, [isLive, prSetIds, exercise.sets, modality]);
 
+  const historicalWeight =
+    bestSet == null
+      ? null
+      : rankedAddedWeight(bestSet.weight, isBodyweightModality(modality));
+  const historicalBest =
+    historicalWeight == null || bestSet == null
+      ? null
+      : { weight: historicalWeight, reps: bestSet.reps };
   const bestDisplay =
-    bestSet != null && bestSet.weight != null
+    historicalBest != null
       ? stampedBest != null &&
-        compareSetRecords(stampedBest, {
-          weight: bestSet.weight,
-          reps: bestSet.reps,
-        }) > 0
+        compareSetRecords(stampedBest, historicalBest) > 0
         ? stampedBest
-        : { weight: bestSet.weight, reps: bestSet.reps }
+        : historicalBest
       : null;
   const bestIsPr = stampedBest != null && bestDisplay === stampedBest;
   const bestText =
