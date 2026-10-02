@@ -1112,6 +1112,7 @@ private struct StepControls: View {
     let onNext: () -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
     @Environment(\.workoutPageActive) private var workoutPageActive
 
     var body: some View {
@@ -1144,7 +1145,10 @@ private struct StepControls: View {
             .disabled(isCompleted)
             // Double-tap logs the set, but only while this page is showing and
             // there is a set left to log.
-            .doubleTapGesture(enabled: workoutPageActive && !isCompleted)
+            .doubleTapGesture(
+                enabled: workoutPageActive && !isCompleted
+                    && checkIn.context.effectiveDoubleTapEnabled
+            )
 
             Spacer()
 
