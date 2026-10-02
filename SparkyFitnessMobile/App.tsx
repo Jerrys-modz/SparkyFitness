@@ -207,7 +207,7 @@ function WatchWorkoutGate() {
         navigate: (screen: 'ActiveWorkout') => {
           if (rootNavigationRef.isReady()) rootNavigationRef.navigate(screen);
         },
-      }) as StartLiveWorkoutNavigation,
+      }) as unknown as StartLiveWorkoutNavigation,
     []
   );
   const { startLiveWorkout } = useStartLiveWorkout(watchStartNavigation);
