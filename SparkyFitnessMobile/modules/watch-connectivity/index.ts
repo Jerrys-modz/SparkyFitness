@@ -1,6 +1,19 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 
+/** One row of the watch's Goals page: a nutrient's amount against its goal. */
+export interface WatchGoalNutrientPayload {
+  /** `NUTRIENT_META` key, or a custom nutrient's name. */
+  key: string;
+  label: string;
+  unit: string;
+  consumed: number;
+  /** Null when no goal is set; the row then shows the amount alone. */
+  goal: number | null;
+  /** consumed / goal, clamped to 0...1; 0 without a goal. */
+  progress: number;
+}
+
 /** A morning check-in captured on the Apple Watch. */
 export interface WatchCheckInPayload {
   /** Stable id generated on the watch, used to dedupe re-delivered transfers. */
@@ -118,6 +131,20 @@ export interface WatchContextPayload {
    * Missing reads as on.
    */
   restAlertsEnabled?: boolean | null;
+  /**
+   * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
+   * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
+   * with nothing hidden; the watch carries the last values forward.
+   */
+  pageOrder?: string[] | null;
+  hiddenPages?: string[] | null;
+  /**
+   * The rows the watch's Goals page lists under the calorie ring, in order
+   * (Settings → Apple Watch). Day-scoped like the calorie figures: null when
+   * this push can't vouch for today. Missing means an older phone build, and
+   * the watch falls back to protein, carbs and fat.
+   */
+  goalNutrients?: WatchGoalNutrientPayload[] | null;
   /**
    * Today's progress toward the phone's daily nutrition goals, each already
    * clamped to 0...1 — reaching or passing a goal always reads as 1, same
@@ -386,6 +413,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   updateContext(context: WatchContextPayload): Promise<void>;
   sendAck(clientId: string, ok: boolean): Promise<void>;
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
+  /**
+   * The live workout's plan again after exercises, supersets or sets changed
+   * on the phone mid-workout. The watch swaps it in without restarting,
+   * keeping what was logged there. `revision` (JS ms timestamp) only
+   * increases; the watch ignores a copy no newer than the last it took.
+   */
+  updateWorkoutPlan(
+    plan: WatchWorkoutStartPayload & { revision: number }
+  ): Promise<void>;
   /**
    * Tells the watch the workout it was armed with has ended on the phone, so
    * it stops its HealthKit session and clears the Workout tab. Takes the

@@ -48,6 +48,8 @@ import { useCycleSettings } from '@/hooks/useCycle';
 import { cn } from '@/lib/utils';
 import { getGridClassNormal } from '@/utils/layout';
 
+const SHOW_SPONSOR_BUTTON = false;
+
 interface AddCompItem {
   value: string;
   label: string;
@@ -461,7 +463,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             {!isMobile && (
               <>
                 <GitHubStarCounter owner="CodeWithCJ" repo="SparkyFitness" />
-                <GitHubSponsorButton owner="CodeWithCJ" />
+                {SHOW_SPONSOR_BUTTON && (
+                  <GitHubSponsorButton owner="CodeWithCJ" />
+                )}
                 <HeaderLinkPill
                   href="https://codewithcj.github.io/SparkyFitness/"
                   label={t('layout.docs', 'Docs')}
@@ -623,7 +627,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           <div className="flex flex-col items-center gap-2 mb-14">
             <div className="flex flex-wrap justify-center gap-2">
               <GitHubStarCounter owner="CodeWithCJ" repo="SparkyFitness" />
-              <GitHubSponsorButton owner="CodeWithCJ" />
+              {SHOW_SPONSOR_BUTTON && (
+                <GitHubSponsorButton owner="CodeWithCJ" />
+              )}
               <HeaderLinkPill
                 href="https://codewithcj.github.io/SparkyFitness/"
                 label={t('layout.docs', 'Docs')}
