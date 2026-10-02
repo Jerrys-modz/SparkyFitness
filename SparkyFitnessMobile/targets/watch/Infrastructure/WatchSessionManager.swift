@@ -917,7 +917,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: update.revision,
                 targets: update.targets,
                 completedSetIds: update.completedSetIds,
-                phoneRest: update.rest
+                phoneRest: update.rest,
+                prSetIds: update.prSetIds
             )
             return
         }

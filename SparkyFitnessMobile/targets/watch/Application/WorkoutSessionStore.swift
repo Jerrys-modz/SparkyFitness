@@ -80,6 +80,19 @@ final class WorkoutSessionStore: ObservableObject {
     /// zero: they are looking at the watch and already know.
     var onRestFinished: (() -> Void)?
 
+    /// Called when the phone confirms a set logged on this watch is a
+    /// personal record. Once per set.
+    var onPersonalRecord: (() -> Void)?
+    /// Name of the exercise whose set just set a record, shown as a banner
+    /// until it clears itself or the wearer taps it.
+    @Published private(set) var prBannerExercise: String?
+    /// Sets completed on this watch, so a PR the phone flagged for a set
+    /// logged there (or one carried in by a resumed session) is not
+    /// celebrated here.
+    private var wristLoggedSetIds: Set<String> = []
+    private var celebratedPrSetIds: Set<String> = []
+    private var prBannerTask: Task<Void, Never>?
+
     private var elapsedTimer: Timer?
     private var restTimer: Timer?
     private var startedAt: Date?
@@ -151,10 +164,12 @@ final class WorkoutSessionStore: ObservableObject {
         revision: Double,
         targets: [String: SetValues],
         completedSetIds phoneCompleted: Set<String> = [],
-        phoneRest: PhoneRest? = nil
+        phoneRest: PhoneRest? = nil,
+        prSetIds: Set<String> = []
     ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
+        celebrate(prSetIds)
         targetOverrides = targets
         let knownIds = Set(steps.map(\.plannedSet.setId))
         pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
@@ -184,6 +199,30 @@ final class WorkoutSessionStore: ObservableObject {
             lastPhoneRest = phoneRest
         }
         persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// Fires the record celebration for sets logged here that the phone has
+    /// flagged. The phone decides what a record is; the watch only reacts.
+    private func celebrate(_ prSetIds: Set<String>) {
+        let fresh = prSetIds
+            .intersection(wristLoggedSetIds)
+            .subtracting(celebratedPrSetIds)
+        guard !fresh.isEmpty else { return }
+        celebratedPrSetIds.formUnion(fresh)
+        let name = steps.first { fresh.contains($0.plannedSet.setId) }?.exerciseName
+        prBannerExercise = name ?? ""
+        onPersonalRecord?()
+        prBannerTask?.cancel()
+        prBannerTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.dismissPrBanner()
+        }
+    }
+
+    func dismissPrBanner() {
+        prBannerTask?.cancel()
+        prBannerExercise = nil
     }
 
     /// Brings the rest on screen in line with the phone's.
@@ -283,6 +322,9 @@ final class WorkoutSessionStore: ObservableObject {
         elapsedSeconds = 0
         lastSummary = nil
         resetHeartRateStats()
+        wristLoggedSetIds = []
+        celebratedPrSetIds = []
+        dismissPrBanner()
         stopRestTimer()
         startedAt = Date()
         heartRateSentThrough = nil
@@ -402,6 +444,9 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         resetHeartRateStats()
+        wristLoggedSetIds = []
+        celebratedPrSetIds = []
+        dismissPrBanner()
         startedAt = nil
         exerciseWindowStartedAt = [:]
         exerciseWindowSeconds = [:]
@@ -476,6 +521,7 @@ final class WorkoutSessionStore: ObservableObject {
     func completeCurrentSet() -> WorkoutStep? {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         completedSetIds.insert(step.plannedSet.setId)
+        wristLoggedSetIds.insert(step.plannedSet.setId)
 
         // The next set still to do, not simply the next one: a set further on
         // may already have been logged on the phone, and landing on it would
