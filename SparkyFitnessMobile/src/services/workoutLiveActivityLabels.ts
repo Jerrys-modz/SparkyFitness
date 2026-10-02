@@ -36,10 +36,6 @@ export type WorkoutLiveActivityLabels = {
   skip: string;
   /** Prefix for the upcoming set while resting, e.g. "Next". */
   next: string;
-  /** Rep unit after a count of one, e.g. "rep". */
-  rep: string;
-  /** Rep unit after any other count, e.g. "reps". */
-  reps: string;
 };
 
 const LABEL_KEYS: readonly (keyof WorkoutLiveActivityLabels)[] = [
@@ -59,8 +55,6 @@ const LABEL_KEYS: readonly (keyof WorkoutLiveActivityLabels)[] = [
   'subtractFifteenSecondsShort',
   'skip',
   'next',
-  'rep',
-  'reps',
 ];
 
 /** English fallback used when i18n is not yet initialized or a key is missing. */
@@ -81,8 +75,6 @@ const EN_FALLBACK: WorkoutLiveActivityLabels = {
   subtractFifteenSecondsShort: '-15s',
   skip: 'Skip',
   next: 'Next',
-  rep: 'rep',
-  reps: 'reps',
 };
 
 export function isWorkoutLiveActivityLocale(
@@ -128,4 +120,23 @@ export function buildWorkoutLiveActivityLabels(
       typeof value === 'string' && value.length > 0 ? value : EN_FALLBACK[key];
   }
   return labels;
+}
+
+/**
+ * "12 reps" / "1 rep" for the Live Activity's target line, in the locale the
+ * labels were built for. A count rather than a pair of "rep" / "reps" labels,
+ * because the plural rules differ by language (Polish has three forms), which
+ * only i18next's count handling gets right.
+ */
+export function formatRepCount(
+  reps: number,
+  locale: WorkoutLiveActivityLocale
+): string {
+  if (!i18n.isInitialized) return reps === 1 ? '1 rep' : `${reps} reps`;
+  const fixedT = i18n.getFixedT(locale, 'translation');
+  return fixedT('activeWorkout.liveActivity.repCount', {
+    count: reps,
+    defaultValue_one: '{{count}} rep',
+    defaultValue_other: '{{count}} reps',
+  });
 }

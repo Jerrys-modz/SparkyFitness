@@ -333,8 +333,8 @@
       "subtractFifteenSecondsShort": "-15s",
       "skip": "Skip",
       "next": "Next",
-      "rep": "rep",
-      "reps": "reps"
+      "repCount_one": "{{count}} rep",
+      "repCount_other": "{{count}} reps"
     },
     "bar": {
       "clearWorkout": "Clear workout",
