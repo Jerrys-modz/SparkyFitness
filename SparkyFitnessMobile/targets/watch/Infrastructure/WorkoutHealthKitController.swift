@@ -350,6 +350,23 @@ final class WorkoutHealthKitController: NSObject {
         }
     }
 
+    /// Ends the session and throws the workout away: nothing is saved to
+    /// Health and no heart rate is sent. Safe with no session running.
+    func discard() {
+        stopBatchTimer()
+        stopHeartRateSeriesQuery()
+        pendingSamples = []
+        pendingSampleTimes = []
+        sessionGeneration += 1
+        guard let session, let endingBuilder = builder else { return }
+        session.end()
+        self.session = nil
+        self.builder = nil
+        endingBuilder.endCollection(withEnd: Date()) { _, _ in
+            endingBuilder.discardWorkout()
+        }
+    }
+
     /// Heart rate saved with the workout carrying this session's own-write
     /// marker, for a finish whose tail never reached the phone. Readings at or
     /// before `sentThrough` were already sent and are skipped.
