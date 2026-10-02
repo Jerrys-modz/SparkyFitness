@@ -183,4 +183,14 @@ describe('WatchSettingsScreen', () => {
       ).toEqual(['carbs', 'protein', 'fat']);
     });
   });
+
+  test('the set input control switches the watch to the Digital Crown', () => {
+    renderScreen();
+
+    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
+    fireEvent.press(screen.getByText('Digital Crown'));
+    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('crown');
+    fireEvent.press(screen.getByText('Keypad'));
+    expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
+  });
 });
