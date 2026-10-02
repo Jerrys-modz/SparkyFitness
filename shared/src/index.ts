@@ -203,3 +203,4 @@ export * from "./utils/weightRamp.ts";
 export * from "./utils/workoutFeedbackForm.ts";
 export * from "./utils/adaptiveCoaching.ts";
 export * from "./constants/corosSportTypes.ts";
+export * from "./watch/WatchProtocol.ts";
