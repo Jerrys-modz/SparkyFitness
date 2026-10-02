@@ -19,6 +19,7 @@ import {
   DEFAULT_WATCH_NUTRIENTS,
   WATCH_PAGE_KEYS,
   type WatchPageKey,
+  type WatchSetInputStyle,
 } from '../constants/watchPages';
 import type { LanguagePreference } from '../localization';
 import type { OwnershipFilter } from '../utils/shareStatus';
@@ -71,6 +72,7 @@ export const PREFERENCE_DEFAULTS = {
   cycleCardVisible: true,
   askSparkyVisible: true,
   medicationsCardVisible: true,
+  symptomsCardVisible: true,
   progressPhotosCardVisible: true,
   onDeviceLabelScanEnabled: true,
   healthTrendsCardVisible: true,
@@ -102,6 +104,7 @@ export const PREFERENCE_DEFAULTS = {
   hiddenWatchPages: [] as WatchPageKey[],
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
+  watchSetInputStyle: 'keypad' as WatchSetInputStyle,
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
   foodsLibraryOwnershipFilter: 'all' as OwnershipFilter,
   mealsLibraryOwnershipFilter: 'all' as OwnershipFilter,
@@ -126,6 +129,7 @@ export type AppPreferencesData = {
   cycleCardVisible: boolean;
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
+  symptomsCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   onDeviceLabelScanEnabled: boolean;
   healthTrendsCardVisible: boolean;
@@ -175,6 +179,8 @@ export type AppPreferencesData = {
   watchNutrientOrder: string[];
   /** The nutrients the Goals page lists under the calorie ring. */
   shownWatchNutrients: string[];
+  /** How the watch takes a set's weight and reps: keypad or Digital Crown. */
+  watchSetInputStyle: WatchSetInputStyle;
   foodSearchOwnershipFilter: OwnershipFilter;
   foodsLibraryOwnershipFilter: OwnershipFilter;
   mealsLibraryOwnershipFilter: OwnershipFilter;
@@ -199,6 +205,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCycleCardVisible: (value: boolean) => void;
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
+  setSymptomsCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
@@ -229,6 +236,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
+  setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
   setFoodSearchOwnershipFilter: (value: OwnershipFilter) => void;
   setFoodsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
   setMealsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
@@ -310,6 +318,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setAskSparkyVisible: (value) => set({ askSparkyVisible: value }),
       setMedicationsCardVisible: (value) =>
         set({ medicationsCardVisible: value }),
+      setSymptomsCardVisible: (value) => set({ symptomsCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
       setOnDeviceLabelScanEnabled: (value) =>
@@ -360,6 +369,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         })),
       setWatchPageOrder: (order) => set({ watchPageOrder: order }),
       setWatchNutrientOrder: (order) => set({ watchNutrientOrder: order }),
+      setWatchSetInputStyle: (value) => set({ watchSetInputStyle: value }),
       setWatchNutrientShown: (key, isShown) =>
         set((state) => ({
           shownWatchNutrients: withMembership(
@@ -410,6 +420,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         cycleCardVisible: state.cycleCardVisible,
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
+        symptomsCardVisible: state.symptomsCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
@@ -443,6 +454,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenWatchPages: state.hiddenWatchPages,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
+        watchSetInputStyle: state.watchSetInputStyle,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
         foodsLibraryOwnershipFilter: state.foodsLibraryOwnershipFilter,
         mealsLibraryOwnershipFilter: state.mealsLibraryOwnershipFilter,

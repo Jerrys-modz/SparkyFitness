@@ -146,6 +146,12 @@ export interface WatchContextPayload {
    */
   goalNutrients?: WatchGoalNutrientPayload[] | null;
   /**
+   * Settings → Apple Watch: how the workout page takes a set's weight and
+   * reps, `keypad` or `crown`. Missing reads as the keypad; the watch carries
+   * the last value forward.
+   */
+  setInputStyle?: 'keypad' | 'crown' | null;
+  /**
    * Today's progress toward the phone's daily nutrition goals, each already
    * clamped to 0...1 — reaching or passing a goal always reads as 1, same
    * convention the iOS calorie widget already uses. Powers the watch's
@@ -312,6 +318,18 @@ export interface WatchSetCompletedPayload {
 }
 
 /** One heart-rate reading captured on the watch. */
+/**
+ * The reading on the wrist right now. Sent every few seconds while the phone
+ * is reachable and never queued, so it only ever describes the present.
+ */
+export interface WatchLiveHeartRatePayload {
+  sessionId: string;
+  exerciseEntryId: string;
+  bpm: number;
+  /** When the watch took it, epoch ms. */
+  at: number;
+}
+
 export interface WatchHeartRateSamplePayload {
   /** ISO 8601 instant. */
   t: string;
@@ -390,6 +408,7 @@ export type WatchConnectivityEvents = {
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
+  onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
 };
 

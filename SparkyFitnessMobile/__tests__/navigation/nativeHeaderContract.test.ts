@@ -66,6 +66,14 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
     'Root-stack main cycle and wellness dashboard presented above the tab host.',
   PregnancySetup:
     'Root-stack setup wizard for pregnancy parameters presented above the tab host.',
+  SymptomLog:
+    'Root-stack symptom create/edit modal presented above the tab host.',
+  SymptomHistory:
+    'Root-stack symptom history route presented above the tab host.',
+  ManageSymptoms:
+    'Root-stack symptom settings route presented above the tab host.',
+  SymptomDefinitionEditor:
+    'Root-stack symptom definition modal presented above the tab host.',
 } satisfies Record<string, string>;
 
 function readMobileFile(relativePath: string): string {

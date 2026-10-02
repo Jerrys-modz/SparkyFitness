@@ -68,7 +68,8 @@ enum ContextPayloadMapper {
                 : previous.pageOrder,
             hiddenPages: payload.keys.contains("hiddenPages")
                 ? stringArray(payload["hiddenPages"])
-                : previous.hiddenPages
+                : previous.hiddenPages,
+            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle
         )
     }
 
