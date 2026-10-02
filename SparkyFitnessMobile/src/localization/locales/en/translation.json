@@ -2664,6 +2664,7 @@
     "saveNutritionFuture": "Save nutrition for future use"
   },
   "foodPhotoImprove": {
+    "estimatedOnDevice": "Estimated on this iPhone",
     "grams": "grams",
     "ounces": "ounces",
     "readingPhoto": "Reading your photo…",
@@ -3604,6 +3605,10 @@
       "pickerTitle": "Search Provider",
       "firstAvailable": "First available",
       "description": "Used when searching for foods by name."
+    },
+    "onDeviceFoodPhoto": {
+      "title": "Estimate Food Photos On Device",
+      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider."
     },
     "onDeviceLabelScan": {
       "title": "Scan Labels On Device",
