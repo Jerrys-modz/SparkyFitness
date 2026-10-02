@@ -1,5 +1,6 @@
 import path from 'path';
 import { emailLoginGuard } from './middleware/emailLoginGuard.js';
+import { passkeyLoginGuard } from './middleware/passkeyLoginGuard.js';
 
 import fs from 'fs';
 import type { ServerResponse } from 'http';
@@ -261,6 +262,7 @@ const mountBetterAuth = () => {
   }
 };
 app.use(emailLoginGuard);
+app.use(passkeyLoginGuard);
 // Catch ALL requests starting with /api/auth early.
 app.use(async (req, res, next) => {
   if (req.originalUrl.startsWith('/api/auth') && betterAuthHandlerInstance) {
