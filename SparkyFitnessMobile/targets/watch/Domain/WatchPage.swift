@@ -8,8 +8,8 @@ import Foundation
 /// the other drop it. Case order is the factory swipe order.
 enum WatchPage: String, CaseIterable {
     case goals, water, entry, trend, workout
-    /// System Now Playing. Not arrangeable: it follows the other pages, and
-    /// only while a workout is running.
+    /// System Now Playing. Not arrangeable: it sits right after the Workout
+    /// page, and only while a workout is running.
     case nowPlaying
 
     /// The pages to show, in swipe order.
@@ -43,6 +43,12 @@ enum WatchPage: String, CaseIterable {
             !hiddenPages.contains(page) || (page == .workout && workoutActive)
         }
         let pages = shown.isEmpty ? ordered : shown
-        return workoutActive ? pages + [.nowPlaying] : pages
+        guard workoutActive else { return pages }
+        // Next to the workout, wherever the wearer put that page. Workout is
+        // always in `pages` while a workout is active (see above).
+        var withMusic = pages
+        let after = withMusic.firstIndex(of: .workout).map { $0 + 1 } ?? withMusic.count
+        withMusic.insert(.nowPlaying, at: after)
+        return withMusic
     }
 }
