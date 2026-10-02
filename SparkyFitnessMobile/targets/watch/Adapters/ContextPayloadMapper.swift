@@ -65,8 +65,23 @@ enum ContextPayloadMapper {
             restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled,
             pageOrder: payload["pageOrder"] as? [String] ?? previous.pageOrder,
             hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages,
-            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle
+            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
+            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts
         )
+    }
+
+    /// Nil when the phone did not mention the key, so an older push does not
+    /// wipe a list the watch already has. An empty array is a real answer.
+    static func startableWorkouts(from payload: [String: Any]) -> [StartableWorkout]? {
+        guard let raw = payload["startableWorkouts"] else { return nil }
+        let rows = raw as? [[String: Any]] ?? []
+        return rows.compactMap { row in
+            guard
+                let presetId = row["presetId"] as? String, !presetId.isEmpty,
+                let name = row["name"] as? String, !name.isEmpty
+            else { return nil }
+            return StartableWorkout(presetId: presetId, name: name)
+        }
     }
 
     static func history(from payload: [String: Any]) -> [HistoryPoint] {
