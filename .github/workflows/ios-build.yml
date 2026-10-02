@@ -322,6 +322,14 @@ jobs:
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" "$BUNDLE_ID"
           sleep 25
+          # Diagnostics: is the app still running, and did it crash?
+          xcrun simctl spawn "$UDID" launchctl list | grep -i "$BUNDLE_ID" > screenshots/running.txt || echo "app not running" > screenshots/running.txt
+          cat screenshots/running.txt
+          mkdir -p screenshots/crashes
+          cp ~/Library/Logs/DiagnosticReports/*.ips screenshots/crashes/ 2>/dev/null || true
+          xcrun simctl spawn "$UDID" log show --last 2m --style compact \
+            --predicate 'process == "SparkyFitness" OR eventMessage CONTAINS "SparkyFitness"' \
+            > screenshots/app-log.txt 2>&1 || true
           xcrun simctl io "$UDID" screenshot screenshots/tab-bar-dashboard.png
           # A second look after the app has settled.
           sleep 15
