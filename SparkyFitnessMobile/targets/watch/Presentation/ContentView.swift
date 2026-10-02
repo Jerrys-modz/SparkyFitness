@@ -98,6 +98,16 @@ struct ContentView: View {
             session.adoptReceivedContext()
             session.requestContext()
             session.refreshComplications()
+            // Coming back to the app mid-workout lands on the workout, not
+            // whichever page was left open.
+            if workout.isActive { page = .workout }
+        }
+        // A workout started on the phone opens the watch app; land on the
+        // workout rather than whichever page was showing last. Keyed on the
+        // session id, so it happens once per workout and the wearer can still
+        // swipe away mid-workout without being pulled back.
+        .onChange(of: workout.plan?.sessionId) { _, sessionId in
+            if sessionId != nil { page = .workout }
         }
         .onOpenURL { url in
             guard let link = WatchDeepLink(url: url),
@@ -196,6 +206,7 @@ struct FirstRunEntryView: View {
 
                 Button("Save") {
                     guard let weight = parse(weightText) else { return }
+                    Haptics.tap()
                     onSave(unit.toKg(weight), parse(bodyFatText))
                 }
                 .buttonStyle(.borderedProminent)

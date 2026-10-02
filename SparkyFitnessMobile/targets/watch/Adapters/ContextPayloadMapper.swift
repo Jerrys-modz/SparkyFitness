@@ -242,7 +242,20 @@ enum ContextPayloadMapper {
     /// The workout plan the phone armed the watch with. Nil when the payload
     /// is missing required fields — a malformed `workoutStart` is dropped
     /// rather than starting a session with holes in it.
-    static func workoutPlan(from payload: [String: Any]) -> ActiveWorkoutPlan? {
+    /// A mid-workout plan update: the same shape as `workoutStart`, plus a
+    /// `revision` (JS ms timestamp, a Double for the same 32-bit reason as
+    /// `setTargets`) so a duplicate or out-of-order copy is ignored.
+    static func workoutPlanUpdate(from payload: [String: Any]) -> (plan: ActiveWorkoutPlan, revision: Double)? {
+        guard let plan = workoutPlan(from: payload, allowEmpty: true),
+              let revision = doubleValue(payload["revision"])
+        else { return nil }
+        return (plan, revision)
+    }
+
+    /// `allowEmpty` is only for a mid-workout update. A start with no
+    /// exercises is still dropped. Deleting the last exercise keeps the phone
+    /// session, so the watch must take the empty list instead of ignoring it.
+    static func workoutPlan(from payload: [String: Any], allowEmpty: Bool = false) -> ActiveWorkoutPlan? {
         guard
             let sessionId = payload["sessionId"] as? String,
             let workoutName = payload["workoutName"] as? String,
@@ -273,7 +286,9 @@ enum ContextPayloadMapper {
                 sets: sets
             )
         }
-        guard !exercises.isEmpty else { return nil }
+        // An empty `exercises` array is the phone deleting the last one.
+        // Exercises that failed to parse are not that, and stay a drop.
+        guard !exercises.isEmpty || (allowEmpty && rawExercises.isEmpty) else { return nil }
 
         let setOrder = stringArray(payload["setOrder"])
         let startedAt = isoDate(from: payload["startedAt"])

@@ -17,6 +17,7 @@ vi.mock('../models/measurementRepository.js', () => ({
   default: {
     upsertWaterIntakeSamples: vi.fn(),
     bulkUpsertCheckInMeasurements: vi.fn(),
+    getCheckInMeasurementsByDateRange: vi.fn(),
   },
 }));
 vi.mock('../models/waterContainerRepository.js', () => ({
@@ -65,6 +66,9 @@ describe('health data handler registry', () => {
     ['bone_mass', 'bone_mass_kg'],
     ['BoneMass', 'bone_mass_kg'],
     ['body_water_percentage', 'body_water_percentage'],
+    // Health Connect body water is a mass, converted to a percentage.
+    ['body_water_mass', 'body_water_mass'],
+    ['BodyWaterMass', 'body_water_mass'],
     ['bmr', 'bmr'],
     ['basal_metabolic_rate', 'bmr'],
     ['BasalMetabolicRate', 'bmr'],
@@ -456,5 +460,137 @@ describe('bmrHandler.handleBatch', () => {
 
     expect(outcomes[0].status).not.toBe('error');
     expect(outcomes[1].status).not.toBe('error');
+  });
+});
+
+describe('bodyWaterMassHandler.handleBatch', () => {
+  const bodyWaterMassHandler = HEALTH_TYPE_HANDLERS['body_water_mass'];
+  const ctx = {
+    userId: 'user-1',
+    actingUserId: 'actor-1',
+  } as unknown as HealthBatchContext;
+
+  const prepared = (
+    entry: Record<string, unknown>,
+    parsedDate = '2026-08-03'
+  ): PreparedHealthEntry => ({
+    entry,
+    parsedDate,
+    entryTimestamp: `${parsedDate}T12:00:00.000Z`,
+    entryHour: 12,
+  });
+
+  const writtenRows = () =>
+    vi.mocked(measurementRepository.bulkUpsertCheckInMeasurements).mock
+      .calls[0][2];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(
+      measurementRepository.bulkUpsertCheckInMeasurements
+    ).mockResolvedValue([{ id: 'row-1' }, { id: 'row-2' }] as never);
+    vi.mocked(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).mockResolvedValue([] as never);
+  });
+
+  it('converts kg to a percentage using a weight from the same batch', async () => {
+    const outcomes = await bodyWaterMassHandler.handleBatch!(
+      [
+        prepared({ type: 'BodyWaterMass', value: 45 }),
+        prepared({ type: 'weight', value: 80 }),
+      ],
+      ctx
+    );
+
+    expect(outcomes.map((o) => o.status)).toEqual(['success', 'success']);
+    expect(writtenRows()).toEqual([
+      {
+        entryDate: '2026-08-03',
+        measurements: { body_water_percentage: 56.25 },
+      },
+      { entryDate: '2026-08-03', measurements: { weight: 80 } },
+    ]);
+    expect(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the stored weight of the same day', async () => {
+    vi.mocked(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).mockResolvedValue([
+      { entry_date: '2026-08-04', weight: '79.00' },
+      { entry_date: '2026-08-03', weight: '80.00' },
+    ] as never);
+
+    const outcomes = await bodyWaterMassHandler.handleBatch!(
+      [prepared({ type: 'BodyWaterMass', value: 44 })],
+      ctx
+    );
+
+    expect(outcomes[0].status).toBe('success');
+    expect(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).toHaveBeenCalledWith('user-1', '2026-08-03', '2026-08-03');
+    expect(writtenRows()).toEqual([
+      { entryDate: '2026-08-03', measurements: { body_water_percentage: 55 } },
+    ]);
+  });
+
+  it('skips the record when there is no weight on that day', async () => {
+    vi.mocked(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).mockResolvedValue([{ entry_date: '2026-08-03', weight: null }] as never);
+
+    const outcomes = await bodyWaterMassHandler.handleBatch!(
+      [
+        prepared({ type: 'BodyWaterMass', value: 44 }),
+        // A weight on another day must not be used.
+        prepared({ type: 'weight', value: 80 }, '2026-08-02'),
+      ],
+      ctx
+    );
+
+    expect(outcomes[0].status).toBe('skipped');
+    expect(outcomes[1].status).toBe('success');
+    expect(writtenRows()).toEqual([
+      { entryDate: '2026-08-02', measurements: { weight: 80 } },
+    ]);
+  });
+
+  it('rejects non-positive values and masses above the weight', async () => {
+    const outcomes = await bodyWaterMassHandler.handleBatch!(
+      [
+        prepared({ type: 'BodyWaterMass', value: 0 }),
+        prepared({ type: 'BodyWaterMass', value: 'abc' }),
+        prepared({ type: 'BodyWaterMass', value: 90 }),
+        prepared({ type: 'weight', value: 80 }),
+      ],
+      ctx
+    );
+
+    expect(outcomes.map((o) => o.status)).toEqual([
+      'error',
+      'error',
+      'error',
+      'success',
+    ]);
+  });
+
+  it('reports an error instead of skipping when the weight lookup fails', async () => {
+    vi.mocked(
+      measurementRepository.getCheckInMeasurementsByDateRange
+    ).mockRejectedValue(new Error('connection lost'));
+
+    const outcomes = await bodyWaterMassHandler.handleBatch!(
+      [prepared({ type: 'BodyWaterMass', value: 44 })],
+      ctx
+    );
+
+    expect(outcomes[0]).toEqual({
+      status: 'error',
+      error: 'Failed to process entry: connection lost',
+    });
   });
 });
