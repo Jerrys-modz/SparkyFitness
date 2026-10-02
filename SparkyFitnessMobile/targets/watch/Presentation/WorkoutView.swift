@@ -659,7 +659,7 @@ private struct CurrentSetView: View {
             .focused($crownFocused)
             .digitalCrownRotation(
                 $crownValue,
-                from: 0,
+                from: minValue(for: crownField ?? .weight),
                 through: maxValue(for: crownField ?? .weight),
                 by: stepSize(for: crownField ?? .weight),
                 // Low: at medium a small turn ran several plates past the one
@@ -702,7 +702,8 @@ private struct CurrentSetView: View {
             NumericKeypadView(
                 title: title(for: field),
                 initial: storedValue(for: field),
-                allowsDecimal: field == .weight
+                allowsDecimal: field == .weight,
+                allowsNegative: field == .weight && store.isBodyweight(step)
             ) { entered in
                 write(entered, to: field)
                 editing = nil
@@ -723,7 +724,9 @@ private struct CurrentSetView: View {
             ? snapped(crownValue, for: field)
             : storedValue(for: field)
         return ValueBox(
-            value: Self.format(shown),
+            value: field == .weight && store.isBodyweight(step)
+                ? Self.bodyweightText(shown)
+                : Self.format(shown),
             unit: title(for: field),
             isSelected: isSelected
         ) {
@@ -875,6 +878,13 @@ private struct CurrentSetView: View {
         field == .weight ? 0.5 : 1
     }
 
+    /// Zero, except for a bodyweight exercise's weight, which goes negative
+    /// for an assisted set.
+    private func minValue(for field: EditableField) -> Double {
+        guard field == .weight, store.isBodyweight(crownStep ?? step) else { return 0 }
+        return -maxValue(for: field)
+    }
+
     private func maxValue(for field: EditableField) -> Double {
         field == .weight ? (unit == .lbs ? 1500 : 700) : 200
     }
@@ -897,7 +907,15 @@ private struct CurrentSetView: View {
     }
 
     private func clamp(_ value: Double, for field: EditableField) -> Double {
-        min(max(value, 0), maxValue(for: field))
+        min(max(value, minValue(for: field)), maxValue(for: field))
+    }
+
+    /// A bodyweight set's weight as a change to body weight: "BW +10",
+    /// "BW −20", or plain "BW" when nothing is added or taken off.
+    private static func bodyweightText(_ value: Double?) -> String {
+        guard let value, value != 0 else { return "BW" }
+        let magnitude = format(abs(value))
+        return value > 0 ? "BW +\(magnitude)" : "BW −\(magnitude)"
     }
 
     /// Whole numbers lose the decimal point — "60kg", not "60.0kg" — but a
@@ -1175,6 +1193,8 @@ private struct NumericKeypadView: View {
     let title: String
     let initial: Double?
     let allowsDecimal: Bool
+    /// Shows a ± key so an assisted bodyweight set can be entered below zero.
+    var allowsNegative: Bool = false
     let onCommit: (Double) -> Void
 
     @State private var entry: String = ""
@@ -1196,6 +1216,13 @@ private struct NumericKeypadView: View {
                 Text(title)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
+                if allowsNegative {
+                    Button("±", action: Haptics.tapping(toggleSign))
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 6)
+                        .background(Color.gray.opacity(0.25), in: Capsule())
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -1242,12 +1269,24 @@ private struct NumericKeypadView: View {
             : String(format: "%.1f", initial)
     }
 
+    /// Flips the typed value between added (+) and assisted (−). With nothing
+    /// typed yet a lone "-" waits for the digits.
+    private func toggleSign() {
+        if entry.hasPrefix("-") {
+            entry.removeFirst()
+        } else {
+            entry = "-" + entry
+        }
+    }
+
     private func press(_ key: String) {
         switch key {
         case "⌫":
             if !entry.isEmpty { entry.removeLast() }
         case ".":
-            if !entry.contains(".") { entry += entry.isEmpty ? "0." : "." }
+            if !entry.contains(".") {
+                entry += (entry.isEmpty || entry == "-") ? "0." : "."
+            }
         default:
             entry += key
         }
