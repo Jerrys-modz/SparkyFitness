@@ -5,8 +5,11 @@ import WatchConnectivity, {
   type WatchSetTargetPayload,
 } from '../../modules/watch-connectivity';
 import {
+  effectiveSetDurationSec,
   historyForExercise,
+  isDurationModality,
   resolveLiveAssumedSetValues,
+  resolveSnapshotModality,
 } from '../utils/workoutSession';
 
 type ActiveWorkoutState = ReturnType<typeof useActiveWorkoutStore.getState>;
@@ -32,21 +35,43 @@ type TargetSources = Pick<
 export function resolveWatchSetTargets(
   session: PresetSessionResponse,
   sources: TargetSources
-): Map<string, { weightKg: number | null; reps: number | null }> {
+): Map<
+  string,
+  { weightKg: number | null; reps: number | null; durationSec: number | null }
+> {
   const targets = new Map<
     string,
-    { weightKg: number | null; reps: number | null }
+    { weightKg: number | null; reps: number | null; durationSec: number | null }
   >();
   for (const exercise of session.exercises) {
+    const modality = resolveSnapshotModality(exercise.exercise_snapshot);
+    const durationLike = isDurationModality(modality);
     const assumed = resolveLiveAssumedSetValues(
       exercise,
       historyForExercise(sources.previousSessionSets, exercise.exercise_id),
       sources
     );
     exercise.sets.forEach((set, index) => {
+      const assumedSet = assumed[index];
+      const ownDuration = durationLike
+        ? effectiveSetDurationSec(
+            {
+              duration: set.duration ?? null,
+              reps: set.reps ?? null,
+            },
+            modality
+          )
+        : null;
+      const rawDuration =
+        ownDuration ?? (durationLike ? (assumedSet?.duration ?? null) : null);
+      const durationSec =
+        rawDuration != null && rawDuration > 0 ? rawDuration : null;
       targets.set(String(set.id), {
-        weightKg: set.weight ?? assumed[index]?.weight ?? null,
-        reps: set.reps ?? assumed[index]?.reps ?? null,
+        weightKg: set.weight ?? assumedSet?.weight ?? null,
+        // A duration set's legacy seconds live in `reps`. Sending those as
+        // reps would put "45 REPS" next to a 0:45 countdown.
+        reps: durationLike ? null : (set.reps ?? assumedSet?.reps ?? null),
+        durationSec,
       });
     });
   }
@@ -82,6 +107,9 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
           setId,
           ...(value.weightKg != null ? { targetWeightKg: value.weightKg } : {}),
           ...(value.reps != null ? { targetReps: value.reps } : {}),
+          ...(value.durationSec != null
+            ? { targetDurationSec: value.durationSec }
+            : {}),
         });
       }
       const completedSetIds = Object.keys(state.completedSetIds).sort();
