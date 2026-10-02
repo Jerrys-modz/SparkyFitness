@@ -637,6 +637,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 endsAt: endsAt
             ))
         }
+        // A hold countdown or stopwatch started here starts the phone's too.
+        workoutStore.onSetTimerStartedHere = { [weak self] setId, startedAt in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.setTimerStarted(
+                sessionId: sessionId,
+                setId: setId,
+                startedAt: startedAt
+            ))
+        }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
             guard let self else { return }
             let minutes = self.workoutStore.closeExerciseWindow(outgoingExerciseEntryId)
@@ -972,7 +981,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: update.revision,
                 targets: update.targets,
                 completedSetIds: update.completedSetIds,
-                phoneRest: update.rest
+                phoneRest: update.rest,
+                setTimers: ContextPayloadMapper.setTimers(from: payload)
             )
             return
         }

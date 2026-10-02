@@ -113,6 +113,14 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         });
       }
       const completedSetIds = Object.keys(state.completedSetIds).sort();
+      // Timers running for sets not yet logged, so the watch can show the
+      // same clock.
+      const setTimers: Record<string, number> = {};
+      for (const setId of Object.keys(state.setTimerStartedAt).sort()) {
+        if (state.completedSetIds[setId] == null) {
+          setTimers[setId] = state.setTimerStartedAt[setId];
+        }
+      }
       const rest =
         state.rest.state === 'resting' && state.rest.endsAt != null
           ? {
@@ -130,6 +138,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         watchArmedAt,
         targets,
         completedSetIds,
+        setTimers,
         rest,
       ]);
       if (lastSent?.sessionId === session.id && lastSent.key === key) return;
@@ -143,6 +152,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         revision: lastRevision,
         targets,
         completedSetIds,
+        setTimers,
         ...rest,
       });
     };
@@ -152,6 +162,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       if (
         state.session === prev.session &&
         state.completedSetIds === prev.completedSetIds &&
+        state.setTimerStartedAt === prev.setTimerStartedAt &&
         state.watchArmedAt === prev.watchArmedAt &&
         state.rest === prev.rest &&
         state.previousSessionSets === prev.previousSessionSets &&

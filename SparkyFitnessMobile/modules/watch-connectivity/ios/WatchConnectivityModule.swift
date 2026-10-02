@@ -20,6 +20,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
+    /// The wearer started a set's hold countdown or stopwatch on the watch.
+    var onSetTimerStarted: (([String: Any]) -> Void)?
     /// A batch of heart-rate samples for one exercise, captured on the watch.
     var onHeartRateBatch: (([String: Any]) -> Void)?
     /// The reading on the wrist now. Live messages only, never queued.
@@ -91,6 +93,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onSetCompleted?(payload)
         case "restChanged":
             onRestChanged?(payload)
+        case "setTimerStarted":
+            onSetTimerStarted?(payload)
         case "heartRateBatch":
             onHeartRateBatch?(payload)
         case "liveHeartRate":
@@ -227,6 +231,7 @@ public class WatchConnectivityModule: Module {
             "onWaterDelete",
             "onSetCompleted",
             "onRestChanged",
+            "onSetTimerStarted",
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
@@ -282,6 +287,16 @@ public class WatchConnectivityModule: Module {
                     "reps": payload["reps"] as? Double,
                     "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onSetTimerStarted = { [weak self] payload in
+                guard let startedAt = (payload["startedAt"] as? NSNumber)?.doubleValue else {
+                    return
+                }
+                self?.sendEvent("onSetTimerStarted", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
+                    "startedAt": startedAt,
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in

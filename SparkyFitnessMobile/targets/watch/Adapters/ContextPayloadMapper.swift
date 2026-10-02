@@ -358,6 +358,20 @@ enum ContextPayloadMapper {
         return (sessionId, revision, pausedAt, Int((excludedMs / 1000).rounded()))
     }
 
+    /// Set timers running on the phone: set id to the moment it started.
+    /// Epoch ms as Doubles. Empty when the phone sent none, which is also what
+    /// an older phone build looks like.
+    static func setTimers(from payload: [String: Any]) -> [String: Date] {
+        guard let raw = payload["setTimers"] as? [String: Any] else { return [:] }
+        var timers: [String: Date] = [:]
+        for (setId, value) in raw {
+            if let ms = doubleValue(value) {
+                timers[setId] = Date(timeIntervalSince1970: ms / 1000)
+            }
+        }
+        return timers
+    }
+
     /// Current weight/reps targets for the live session's sets. `revision`
     /// is a JS millisecond timestamp, read as a Double: `Int` is 32-bit on
     /// arm64_32 watches and cannot hold it.
