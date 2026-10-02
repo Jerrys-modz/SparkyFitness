@@ -59,11 +59,17 @@ export function useLiveHeartRate(
 ): number | null {
   const reading = useLiveHeartRateStore((s) => s.reading);
   const liveSessionId = useActiveWorkoutStore((s) => s.sessionId);
+  const liveStartedAt = useActiveWorkoutStore((s) => s.startedAt);
+  // Restarting a saved workout reuses its session and entry ids, so the ids
+  // alone would let the previous run's reading (or a late batch from it) show
+  // as this run's. Only a reading measured since this run started counts.
   const matches =
     exerciseEntryId != null &&
     reading != null &&
     reading.sessionId === liveSessionId &&
-    reading.exerciseEntryId === exerciseEntryId;
+    reading.exerciseEntryId === exerciseEntryId &&
+    liveStartedAt != null &&
+    reading.at >= liveStartedAt;
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
