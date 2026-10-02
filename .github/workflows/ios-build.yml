@@ -9,12 +9,33 @@ name: Build iOS & watchOS
 # every push or pull request. Start it from the Actions tab when the watch
 # or native iOS code needs a compile check.
 #
+# The watch target is built by default. Building the iOS app and capturing
+# screenshots are opt-in inputs, since a watch compile check needs neither.
+#
 # Builds Debug rather than Release on purpose: the watch target's SwiftUI
 # previews and its `SampleDay` fixtures are `#if DEBUG`, so a Release build
 # would skip exactly the code most likely to rot.
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          Runner label. Use xcode-27 (preview image) to compile code guarded by
+          compiler(>=6.4), such as modules/on-device-nutrition.
+        required: false
+        default: macos-latest
+        type: string
+      build_app:
+        description: Also build the iOS app (the watch target does not need it).
+        required: false
+        default: false
+        type: boolean
+      screenshots:
+        description: Boot a watch simulator and capture screenshots (about 3 minutes).
+        required: false
+        default: false
+        type: boolean
 
 # A second push to the same branch makes the first build irrelevant.
 concurrency:
@@ -24,7 +45,7 @@ concurrency:
 jobs:
   build:
     name: Compile iOS app and watchOS companion
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner || 'macos-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -46,6 +67,20 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
+      # Xcode's own compilation cache (Xcode 26+): content-addressed, so unlike
+      # caching DerivedData it still hits after a fresh checkout and a fresh
+      # `pod install` have given every source file a new modification time.
+      # The key ends in the run id so each run saves what it compiled, and the
+      # restore keys pick up the newest earlier one.
+      - name: Restore Xcode compilation cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/xcode-compilation-cache
+          key: xcode-cas-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.run_id }}
+          restore-keys: |
+            xcode-cas-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            xcode-cas-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-
+
       - name: Show toolchain
         run: |
           xcodebuild -version
@@ -65,6 +100,26 @@ jobs:
         working-directory: SparkyFitnessMobile
         run: xcodebuild -list -workspace ios/SparkyFitness.xcworkspace
 
+      # The simulator SDK may omit device-only FoundationModels/Vision types, so
+      # compile the on-device nutrition module for a real device too. Compile
+      # only (no signing). Fast: builds just that pod and its dependencies.
+      - name: Compile on-device nutrition module for device
+        if: ${{ inputs.runner == 'xcode-27' }}
+        working-directory: SparkyFitnessMobile
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'OnDeviceNutritionModule' \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build-device \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="${{ runner.temp }}/xcode-compilation-cache" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
       # Scheme name comes from `name` in targets/watch/expo-target.config.js.
       # Note it is NOT "SparkyFitness Watch" — there is a sibling
       # SparkyFitnessWatchWidget target, so match this exactly.
@@ -77,12 +132,15 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=watchOS Simulator' \
             -derivedDataPath build \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="${{ runner.temp }}/xcode-compilation-cache" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build
 
       - name: Build iOS app
+        if: ${{ inputs.build_app }}
         working-directory: SparkyFitnessMobile
         run: |
           xcodebuild \
@@ -91,6 +149,8 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="${{ runner.temp }}/xcode-compilation-cache" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -103,6 +163,7 @@ jobs:
       # a live heart rate: there is no sensor behind HKLiveWorkoutBuilder in
       # a simulator, so the BPM layout never appears on real hardware here.
       - name: Capture watch screenshots
+        if: ${{ inputs.screenshots }}
         working-directory: SparkyFitnessMobile
         run: |
           set -euo pipefail
@@ -154,6 +215,7 @@ jobs:
           ls -la screenshots
 
       - name: Upload watch screenshots
+        if: ${{ inputs.screenshots }}
         uses: actions/upload-artifact@v4
         with:
           name: watch-screenshots
