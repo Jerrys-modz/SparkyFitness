@@ -36,6 +36,7 @@ const REST_COMPLETE_CATEGORY = 'rest-complete';
 export const COMPLETE_SET_ACTION = 'complete-set';
 
 export const MEDICATION_REMINDER_CATEGORY = 'medication-reminder';
+export const MEDICATION_REMINDER_GROUP_CATEGORY = 'medication-reminder-group';
 export const MEDICATION_TAKEN_ACTION = 'medication-taken';
 export const MEDICATION_SKIP_ACTION = 'medication-skip';
 
@@ -95,6 +96,27 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       options: { opensAppToForeground: false },
     },
   ]);
+  await Notifications.setNotificationCategoryAsync(
+    MEDICATION_REMINDER_GROUP_CATEGORY,
+    [
+      {
+        identifier: MEDICATION_TAKEN_ACTION,
+        buttonTitle: notificationCopy(
+          'notifications.actions.logAllAsTaken',
+          'Log all as taken'
+        ),
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: MEDICATION_SKIP_ACTION,
+        buttonTitle: notificationCopy(
+          'notifications.actions.skipAll',
+          'Skip all'
+        ),
+        options: { opensAppToForeground: false },
+      },
+    ]
+  );
   await Notifications.setNotificationCategoryAsync(
     MEDICATION_REMINDER_CATEGORY,
     [

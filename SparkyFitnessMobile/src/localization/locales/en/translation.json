@@ -264,7 +264,9 @@
     "actions": {
       "completeSet": "Complete Set",
       "logAsTaken": "Log as taken",
-      "skip": "Skip"
+      "logAllAsTaken": "Log all as taken",
+      "skip": "Skip",
+      "skipAll": "Skip all"
     },
     "permission": {
       "notificationsOff": "Notifications off",
@@ -1085,6 +1087,8 @@
     "repeatRemindersSubtitle": "Repeat each reminder every 10 minutes, up to 3 times, until the dose is logged.",
     "hideMedicationNames": "Hide Medication Names",
     "hideMedicationNamesSubtitle": "Show a generic reminder instead of the medication name and dose.",
+    "consolidateReminders": "Consolidate Reminders",
+    "consolidateRemindersSubtitle": "Group medications scheduled for the same time into a single notification.",
     "hydration": "Hydration",
     "waterReminders": "Water Reminders",
     "waterRemindersSubtitle": "Remind you to drink when you haven't logged water in a while.",
@@ -1358,6 +1362,11 @@
     },
     "notificationScheduledDose": "You have a scheduled dose",
     "notificationScheduledDoseNamed": "Scheduled dose: {{name}}{{dose}}",
+    "notificationScheduledDoses_one": "You have {{count}} scheduled dose",
+    "notificationScheduledDoses_other": "You have {{count}} scheduled doses",
+    "notificationScheduledDosesNamed": "Scheduled doses: {{names}}",
+    "notificationScheduledDosesOverflow_one": "Scheduled doses: {{names}}, and {{count}} more",
+    "notificationScheduledDosesOverflow_other": "Scheduled doses: {{names}}, and {{count}} more",
     "inactiveA11y_one": "Inactive medication ({{count}})",
     "inactiveA11y_other": "Inactive medications ({{count}})",
     "inactiveCount_one": "Inactive ({{count}})",
