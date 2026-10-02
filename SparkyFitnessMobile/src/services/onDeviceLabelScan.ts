@@ -65,6 +65,24 @@ export function isPlausibleLabel(r: OnDeviceLabelExtraction): boolean {
   return true;
 }
 
+const NUMBER_PATTERN = /\d+(?:[.,]\d+)?/g;
+
+/**
+ * True when every macro the model returned appears as a number in the text
+ * recognised on the label. A value the model made up, or read off the wrong
+ * column, is usually not printed anywhere. Skipped when no text was read.
+ */
+export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
+  const text = r.ocr_text?.trim();
+  if (!text) return true;
+  const printed = new Set(
+    (text.match(NUMBER_PATTERN) ?? []).map((n) => Number(n.replace(',', '.')))
+  );
+  return [r.calories, r.protein, r.carbs, r.fat].every(
+    (value) => value === null || printed.has(value)
+  );
+}
+
 export function toLabelScanResult(r: OnDeviceLabelExtraction): LabelScanResult {
   const unit = (r.serving_unit ?? '').trim().toLowerCase();
   // Per-100 labels: the printed numbers are for 100 of the unit.
@@ -107,6 +125,13 @@ export async function scanLabelOnDevice(
   if (!OnDeviceNutritionModule || !isOnDeviceLabelScanAvailable()) return null;
   try {
     const extraction = await OnDeviceNutritionModule.scanLabel(base64Image);
+    if (!isGroundedInLabelText(extraction)) {
+      addLog(
+        '[Label Scan] On-device values not found in the label text; falling back',
+        'INFO'
+      );
+      return null;
+    }
     if (!isPlausibleLabel(extraction)) {
       addLog('[Label Scan] On-device result implausible; falling back', 'INFO');
       return null;
