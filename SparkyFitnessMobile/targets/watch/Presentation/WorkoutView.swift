@@ -597,6 +597,11 @@ private struct CurrentSetView: View {
     /// is not an edit; the next detent steps from the stored number.
     private func noteCrownChange() {
         guard let field = crownField else { return }
+        if !crownAdjusted,
+           crownBaseline > maxValue(for: field),
+           crownValue >= maxValue(for: field) {
+            return
+        }
         if !crownAdjusted, abs(editedValue(for: field) - crownBaseline) < 0.000_1 {
             return
         }
