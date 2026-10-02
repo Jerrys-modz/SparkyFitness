@@ -412,6 +412,8 @@ export interface WatchWorkoutStopPayload {
 
 export interface WatchWorkoutDiscardPayload {
   sessionId: string;
+  /** Epoch ms of the arm that was discarded. Absent from an older watch. */
+  armedAt?: number;
 }
 
 export interface WatchWorkoutStartRequestedPayload {

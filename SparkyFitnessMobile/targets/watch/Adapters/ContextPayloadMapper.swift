@@ -81,7 +81,7 @@ enum ContextPayloadMapper {
     /// wipe a list the watch already has. An empty array is a real answer.
     static func startableWorkouts(from payload: [String: Any]) -> [StartableWorkout]? {
         guard let raw = payload["startableWorkouts"] else { return nil }
-        let rows = raw as? [[String: Any]] ?? []
+        let rows = dictionaryArray(raw) ?? []
         return rows.compactMap { row in
             guard
                 let presetId = row["presetId"] as? String, !presetId.isEmpty,

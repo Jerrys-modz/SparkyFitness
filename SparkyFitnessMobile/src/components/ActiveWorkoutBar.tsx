@@ -595,7 +595,7 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
       );
       return;
     }
-    useActiveWorkoutStore.getState().clearWorkout({ discarded: true });
+    useActiveWorkoutStore.getState().clearWorkout();
   };
 
   const handleClear = () => {

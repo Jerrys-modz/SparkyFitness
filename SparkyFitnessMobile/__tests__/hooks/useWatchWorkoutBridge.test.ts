@@ -521,6 +521,26 @@ describe('useWatchWorkoutBridge', () => {
     expect(getStore().sessionId).toBe('session-1');
   });
 
+  it('ignores a workoutDiscard from an earlier arm of the same session', async () => {
+    const mockDelete = deleteWorkout as jest.MockedFunction<
+      typeof deleteWorkout
+    >;
+    mockDelete.mockClear();
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession(), { createdByLiveStart: true });
+      useActiveWorkoutStore.setState({ watchArmedAt: 2_000_000 });
+    });
+
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1', armedAt: 1_000_000 });
+      await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBe('session-1');
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
   it('buffers heart-rate batches for the matching session and attaches them on workoutStop', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

@@ -692,6 +692,20 @@ export function useWatchWorkoutBridge(
         );
         return;
       }
+      // A saved session can be armed again under the same id. A discard
+      // queued from the earlier arm must not clear the new one. An older
+      // watch sends no stamp, and that still matches.
+      if (
+        payload.armedAt != null &&
+        state.watchArmedAt != null &&
+        Math.abs(payload.armedAt - state.watchArmedAt) > 2000
+      ) {
+        addLog(
+          `Watch workout-discard ignored: session ${payload.sessionId} was re-armed`,
+          'DEBUG'
+        );
+        return;
+      }
       const sessionId = state.sessionId;
       const entryDate = entryDateOf(state.session);
       const createdByLiveStart = state.createdByLiveStart;

@@ -42,9 +42,10 @@ final class WorkoutHealthKitController: NSObject {
     /// so a late `stop` path can tell that `pendingSamples` and
     /// `pendingSampleTimes` now belong to another session. Main queue only.
     private var sessionGeneration = 0
-    /// The builder `discard` last threw away. Its statistics callbacks can
-    /// still land on main afterwards and must not reach the next workout.
-    private var discardedBuilder: HKLiveWorkoutBuilder?
+    /// Builders `discard` has thrown away. A statistics callback can still
+    /// land on main afterwards, including from an older session than the one
+    /// most recently discarded, and must not reach the workout now running.
+    private var discardedBuilderIds: Set<ObjectIdentifier> = []
     private let instantFormatter = ISO8601DateFormatter()
 
     /// How often accumulated samples are flushed to `onBatchReady`.
@@ -362,7 +363,7 @@ final class WorkoutHealthKitController: NSObject {
         pendingSampleTimes = []
         sessionGeneration += 1
         guard let session, let endingBuilder = builder else { return }
-        discardedBuilder = endingBuilder
+        discardedBuilderIds.insert(ObjectIdentifier(endingBuilder))
         session.end()
         self.session = nil
         self.builder = nil
@@ -752,7 +753,9 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
             let bpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
             if bpm > 0 {
                 DispatchQueue.main.async { [weak self] in
-                    guard let self, self.discardedBuilder !== workoutBuilder else { return }
+                    guard let self,
+                          !self.discardedBuilderIds.contains(ObjectIdentifier(workoutBuilder))
+                    else { return }
                     self.appendSample(at: interval.end, bpm: bpm)
                 }
             }
@@ -764,7 +767,9 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
            let statistics = workoutBuilder.statistics(for: activeEnergyType),
            let kcal = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) {
             DispatchQueue.main.async { [weak self] in
-                guard let self, self.discardedBuilder !== workoutBuilder else { return }
+                guard let self,
+                      !self.discardedBuilderIds.contains(ObjectIdentifier(workoutBuilder))
+                else { return }
                 self.onActiveEnergy?(kcal)
             }
         }

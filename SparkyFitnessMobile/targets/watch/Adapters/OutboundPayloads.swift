@@ -172,11 +172,15 @@ enum OutboundPayloads {
     /// The wearer discarded the workout on the watch. Queued like
     /// `workoutStop`: a phone that never hears it would keep a live session
     /// the wrist already abandoned. Unlike a stop, no heart rate follows it.
-    static func workoutDiscard(_ signal: WorkoutStopSignal) -> [String: Any] {
-        [
+    static func workoutDiscard(sessionId: String, armedAt: Date?) -> [String: Any] {
+        var payload: [String: Any] = [
             "type": Kind.workoutDiscard,
-            "sessionId": signal.sessionId,
+            "sessionId": sessionId,
         ]
+        if let armedAt {
+            payload["armedAt"] = armedAt.timeIntervalSince1970 * 1000
+        }
+        return payload
     }
 
     /// The wearer skipped or moved the rest on the watch. Both deadlines are

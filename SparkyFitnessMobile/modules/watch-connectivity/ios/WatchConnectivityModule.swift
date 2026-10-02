@@ -325,9 +325,13 @@ public class WatchConnectivityModule: Module {
                 ])
             }
             self.delegateHandler.onWorkoutDiscard = { [weak self] payload in
-                self?.sendEvent("onWorkoutDiscard", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
-                ])
+                ]
+                if let armedAt = payload["armedAt"] as? Double {
+                    event["armedAt"] = armedAt
+                }
+                self?.sendEvent("onWorkoutDiscard", event)
             }
             self.delegateHandler.onWorkoutStartRequested = { [weak self] payload in
                 self?.sendEvent("onWorkoutStartRequested", [

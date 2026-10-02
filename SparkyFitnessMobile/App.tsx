@@ -196,16 +196,21 @@ function WatchWorkoutGate() {
   const { isConnected: isServerConnected } = useServerConnection({
     enablePolling: watchSupported && telemetryPending,
   });
-  const { startLiveWorkout } = useStartLiveWorkout({
-    // Starting from the wrist must not replace whatever screen the phone is
-    // on. The active-workout bar appears on its own once the session exists.
-    // `navigate` is only the conflict prompt's "Go to Workout".
-    isFocused: () => false,
-    replace: (() => {}) as StartLiveWorkoutNavigation['replace'],
-    navigate: ((screen: 'ActiveWorkout') => {
-      if (rootNavigationRef.isReady()) rootNavigationRef.navigate(screen);
-    }) as StartLiveWorkoutNavigation['navigate'],
-  });
+  const watchStartNavigation = useMemo(
+    () =>
+      ({
+        // Starting from the wrist must not replace whatever screen the phone
+        // is on. The active-workout bar appears on its own once the session
+        // exists. `navigate` is only the conflict prompt's "Go to Workout".
+        isFocused: () => false,
+        replace: () => {},
+        navigate: (screen: 'ActiveWorkout') => {
+          if (rootNavigationRef.isReady()) rootNavigationRef.navigate(screen);
+        },
+      }) as StartLiveWorkoutNavigation,
+    []
+  );
+  const { startLiveWorkout } = useStartLiveWorkout(watchStartNavigation);
   useWatchWorkoutBridge(
     watchSupported,
     isServerConnected,
@@ -213,7 +218,7 @@ function WatchWorkoutGate() {
     handleWatchFinishedWorkout
   );
   useWatchSetTargetsSync(watchSupported);
-  useWatchWorkoutStart(watchSupported && isServerConnected, startLiveWorkout);
+  useWatchWorkoutStart(watchSupported, isServerConnected, startLiveWorkout);
   useWatchPlanSync(watchSupported);
   return null;
 }
