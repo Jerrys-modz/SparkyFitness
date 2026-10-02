@@ -286,11 +286,13 @@ jobs:
             -derivedDataPath build-app \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="${{ runner.temp }}/xcode-compilation-cache-app" \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_IDENTITY="-" \
             build
 
+      # Ad-hoc signing (above) keeps the entitlements; an unsigned build drops
+      # them and the app aborts at launch reading HKSource.defaultSource.
       - name: Screenshot the tab bar
         working-directory: SparkyFitnessMobile
         run: |
