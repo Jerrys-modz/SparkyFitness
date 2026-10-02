@@ -415,7 +415,7 @@ private struct CurrentSetView: View {
     @EnvironmentObject private var session: WatchSessionManager
     @EnvironmentObject private var checkIn: CheckInStore
 
-    /// Which field the keypad is editing, if any.
+    /// Which field the keypad or crown editor is editing, if any.
     @State private var editing: EditableField?
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
@@ -472,13 +472,11 @@ private struct CurrentSetView: View {
             }
         }
         .sheet(item: $editing) { field in
-            NumericKeypadView(
-                title: field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS",
-                initial: field == .weight
-                    ? store.values(for: step).weightKg.map(unit.fromKg)
-                    : store.values(for: step).reps,
-                allowsDecimal: field == .weight
-            ) { entered in
+            let title = field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS"
+            let initial = field == .weight
+                ? store.values(for: step).weightKg.map(unit.fromKg)
+                : store.values(for: step).reps
+            let commit: (Double) -> Void = { entered in
                 switch field {
                 case .weight:
                     store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(entered))
@@ -487,16 +485,118 @@ private struct CurrentSetView: View {
                 }
                 editing = nil
             }
+            // The phone's Settings → Apple Watch picks which editor opens.
+            switch checkIn.context.effectiveSetInputStyle {
+            case .keypad:
+                NumericKeypadView(
+                    title: title,
+                    initial: initial,
+                    allowsDecimal: field == .weight,
+                    onCommit: commit
+                )
+            case .crown:
+                CrownValueEditorView(
+                    title: title,
+                    initial: initial,
+                    // Plate steps for weight; a rep at a time.
+                    step: field == .weight ? (unit == .lbs ? 5 : 2.5) : 1,
+                    range: field == .weight ? 0...(unit == .lbs ? 1500 : 700) : 0...200,
+                    allowsDecimal: field == .weight,
+                    onCommit: commit
+                )
+            }
         }
     }
 
     /// Whole numbers lose the decimal point — "60kg", not "60.0kg" — but a
     /// real fraction keeps it, since plate maths routinely lands on 2.5s.
-    private static func format(_ value: Double?) -> String {
+    static func format(_ value: Double?) -> String {
         guard let value else { return "–" }
         return value == value.rounded()
             ? String(Int(value))
             : String(format: "%.1f", value)
+    }
+}
+
+/// A set's weight or reps set with the Digital Crown, Hevy-style: the value
+/// moves a plate (or a rep) per detent, with a click each step. The − / +
+/// buttons do the same for anyone who'd rather tap, and the keypad button
+/// is there for a value off the steps (a 2 kg micro plate, say).
+private struct CrownValueEditorView: View {
+    let title: String
+    let initial: Double?
+    let step: Double
+    let range: ClosedRange<Double>
+    let allowsDecimal: Bool
+    let onCommit: (Double) -> Void
+
+    @State private var value: Double = 0
+    @State private var showKeypad = false
+    @FocusState private var crownFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(CurrentSetView.format(value))
+                .font(.system(size: 44, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .accessibilityLabel("\(CurrentSetView.format(value)) \(title)")
+            HStack(spacing: 6) {
+                stepButton("minus", by: -step)
+                stepButton("plus", by: step)
+            }
+            HStack(spacing: 6) {
+                Button { showKeypad = true } label: {
+                    Image(systemName: "keyboard")
+                }
+                .accessibilityLabel("Type a value")
+                Button { onCommit(value) } label: {
+                    Text("Done").fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .focusable(true)
+        .focused($crownFocused)
+        .digitalCrownRotation(
+            $value,
+            from: range.lowerBound,
+            through: range.upperBound,
+            by: step,
+            sensitivity: .medium,
+            isContinuous: false,
+            isHapticFeedbackEnabled: true
+        )
+        .onAppear {
+            value = min(max(initial ?? 0, range.lowerBound), range.upperBound)
+            // Focused straight away so the crown turns the value without a tap
+            // on it first.
+            crownFocused = true
+        }
+        .sheet(isPresented: $showKeypad) {
+            NumericKeypadView(
+                title: title,
+                initial: value,
+                allowsDecimal: allowsDecimal
+            ) { typed in
+                showKeypad = false
+                onCommit(typed)
+            }
+        }
+    }
+
+    private func stepButton(_ symbol: String, by delta: Double) -> some View {
+        Button {
+            value = min(max(value + delta, range.lowerBound), range.upperBound)
+        } label: {
+            Image(systemName: symbol)
+                .frame(maxWidth: .infinity)
+        }
+        .accessibilityLabel(delta < 0 ? "Decrease" : "Increase")
     }
 }
 

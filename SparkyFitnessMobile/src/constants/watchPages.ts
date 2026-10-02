@@ -39,3 +39,11 @@ export const WATCH_PAGE_LABELS: Record<
 
 /** What the watch's Goals page lists until the wearer picks: the three macros. */
 export const DEFAULT_WATCH_NUTRIENTS = ['protein', 'carbs', 'fat'];
+
+/**
+ * How the watch's workout page takes a set's weight and reps: a number
+ * keypad, or the Digital Crown turned in steps (Hevy-style). Wire values, read
+ * by the watch's `SetInputStyle`.
+ */
+export const WATCH_SET_INPUT_STYLES = ['keypad', 'crown'] as const;
+export type WatchSetInputStyle = (typeof WATCH_SET_INPUT_STYLES)[number];
