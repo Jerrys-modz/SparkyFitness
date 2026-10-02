@@ -1229,9 +1229,9 @@ describe('workoutSession', () => {
         exerciseModality: 'weight_reps',
         sets: [{ clientId: 's1', weight: '-10', reps: '8' }],
       });
-      expect(buildExercisesPayload([signed], 'kg', 'km')[0].sets[0].weight).toBe(
-        -10
-      );
+      expect(
+        buildExercisesPayload([signed], 'kg', 'km')[0].sets[0].weight
+      ).toBe(-10);
       expect(buildExercisesPayload([plain], 'kg', 'km')[0].sets[0].weight).toBe(
         null
       );

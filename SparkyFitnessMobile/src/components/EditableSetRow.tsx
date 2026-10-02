@@ -22,7 +22,10 @@ import {
   useAccessoryEpoch,
 } from './SetRowChrome';
 import { focusWithAndroidImeRetry } from '../utils/keyboardFocus';
-import { parseDecimalInput, parseSignedDecimalInput } from '../utils/numericInput';
+import {
+  parseDecimalInput,
+  parseSignedDecimalInput,
+} from '../utils/numericInput';
 import { isDurationModality } from '../utils/workoutSession';
 import { isBodyweightModality, type ExerciseModality } from '@workspace/shared';
 

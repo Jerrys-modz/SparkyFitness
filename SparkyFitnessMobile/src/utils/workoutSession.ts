@@ -529,11 +529,6 @@ export function buildExercisesPayload(
       };
     });
 
-    const modality = resolveSnapshotModality({
-      modality: exercise.exerciseModality,
-      category: exercise.exerciseCategory,
-    });
-
     return {
       ...(exercise.serverId !== undefined ? { id: exercise.serverId } : {}),
       exercise_id: exercise.exerciseId,

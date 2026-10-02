@@ -60,9 +60,7 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import { normalizeDate, formatDate, formatDateLabel } from '../utils/dateUtils';
-import {
-  parseDecimalInput,
-} from '../utils/numericInput';
+import { parseDecimalInput } from '../utils/numericInput';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
 import { weightFromKg } from '../utils/unitConversions';
 import Toast from 'react-native-toast-message';
