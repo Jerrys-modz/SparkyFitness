@@ -60,6 +60,18 @@ jobs:
           echo "--- watchOS SDKs ---"
           xcodebuild -showsdks | grep -i watch || echo "no watchOS SDK on this image"
 
+      - name: DIAG list OCR symbols in FoundationModels
+        run: |
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          echo "SDK=$SDK"
+          F="$SDK/System/Library/Frameworks/FoundationModels.framework"
+          ls "$F" "$F/Modules" 2>&1 | head -40
+          grep -rIil "ocr" "$F" 2>/dev/null | head -20
+          for f in $(find "$F" -name '*.swiftinterface' | head -3); do echo "== $f"; grep -in "ocr\|VisionTool\|struct .*Tool\b\|protocol Tool" "$f" | head -40; done
+          echo "--- Vision framework tool symbols ---"
+          grep -rIin "FoundationModels" "$SDK/System/Library/Frameworks/Vision.framework" 2>/dev/null | head -10
+          exit 1
+
       # Must run from the repo root: the workspace patches @bacons/apple-targets,
       # and that patch is what stops prebuild corrupting the widget target.
       - name: Install dependencies
