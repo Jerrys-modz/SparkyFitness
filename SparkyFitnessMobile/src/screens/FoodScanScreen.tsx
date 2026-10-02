@@ -38,6 +38,7 @@ import { selectDisplayVariant } from '../utils/foodDetails';
 import { getApiErrorMessage } from '../services/api/errors';
 import { TimeoutError } from '../utils/concurrency';
 import { fireSuccessHaptic } from '../services/haptics';
+import { scanLabelOnDevice } from '../services/onDeviceLabelScan';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { toFormString } from '../types/foodInfo';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
@@ -537,10 +538,9 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     if (!capturedPhoto) return;
     setLabelProcessing(true);
     try {
-      const result = await scanNutritionLabel(
-        capturedPhoto.base64,
-        'image/jpeg'
-      );
+      const result =
+        (await scanLabelOnDevice(capturedPhoto.base64)) ??
+        (await scanNutritionLabel(capturedPhoto.base64, 'image/jpeg'));
       navigation.replace(
         'FoodForm',
         buildFoodFormParams({
