@@ -5597,8 +5597,11 @@
     },
     "consistency": {
       "title": "Training Consistency",
-      "subtitle_one": "Last {{formattedCount}} week, Monday to Sunday",
-      "subtitle_other": "Last {{formattedCount}} weeks, Monday to Sunday",
+      "subtitle_one": "Last {{formattedCount}} week, {{first}} to {{last}}",
+      "subtitle_other": "Last {{formattedCount}} weeks, {{first}} to {{last}}",
+      "legendTrained": "Workout day",
+      "legendRest": "No workout",
+      "legendHelp": "Each square is a day and each column is a week.",
       "streak": "Week streak",
       "longest": "Longest",
       "thisWeek": "This week",

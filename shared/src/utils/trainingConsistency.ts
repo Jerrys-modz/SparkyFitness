@@ -10,9 +10,12 @@ export type TrainingConsistencyEntry = MuscleEntry & { entry_date?: string };
 /** How many weeks of history the consistency view looks at. */
 export const TRAINING_CONSISTENCY_WEEKS = 26;
 
-/** Monday of the week that contains `day`. */
-export function weekStartOf(day: string): string {
-  return addDays(day, -((dayOfWeek(day) + 6) % 7));
+/**
+ * First day of the week that contains `day`. `firstDayOfWeek` follows the
+ * account preference (0 = Sunday ... 6 = Saturday) and defaults to Monday.
+ */
+export function weekStartOf(day: string, firstDayOfWeek: number = 1): string {
+  return addDays(day, -((dayOfWeek(day) - firstDayOfWeek + 7) % 7));
 }
 
 function dayOnly(value: string): string {
@@ -29,8 +32,9 @@ export function buildTrainingConsistency(
   entries: readonly TrainingConsistencyEntry[],
   today: string,
   weekCount: number = TRAINING_CONSISTENCY_WEEKS,
+  firstDayOfWeek: number = 1,
 ): TrainingConsistency {
-  const currentWeekStart = weekStartOf(today);
+  const currentWeekStart = weekStartOf(today, firstDayOfWeek);
   const firstWeekStart = addDays(currentWeekStart, -7 * (weekCount - 1));
   const lastWeekStart = addDays(currentWeekStart, -7);
 
@@ -45,7 +49,7 @@ export function buildTrainingConsistency(
     if (!entry.entry_date) continue;
     const day = dayOnly(entry.entry_date);
     if (day > today) continue;
-    const weekStart = weekStartOf(day);
+    const weekStart = weekStartOf(day, firstDayOfWeek);
     const bucket = daysByWeek.get(weekStart);
     if (!bucket) continue;
     bucket.add(day);
@@ -80,6 +84,7 @@ export function buildTrainingConsistency(
 
   return {
     today,
+    firstDayOfWeek,
     weeks,
     trainingDays,
     weeklyStreak: { current, longest },
