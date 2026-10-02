@@ -100,7 +100,6 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Theme/preferences issue: `src/contexts/ThemeContext.tsx`, `src/contexts/PreferencesContext.tsx`, `src/api/Settings/preferences.ts`, `src/utils/userPreferences.ts`.
 - Missing/wrong UI text: the i18n key in `public/locales/en/translation.json` and the `t('...')` call site.
 - Exercise alternatives / workout feedback / adaptive suggestions (#1560): `AddExerciseDialog`'s `replaceFor` prop adds the **Suggested** tab (`pages/Exercises/ExerciseAlternativesPanel.tsx`); the workout player's Replace (lazy-loaded dialog) and load pass (`WorkoutPlaybackPage.tsx`, helpers in `utils/workoutPlayback.ts`) apply the shared `decideAdaptiveAdjustment` rules and keep both the usual and adapted sets on the draft for "Use my usual"; feedback is `pages/Diary/WorkoutFeedbackPanel.tsx` (finish dialog + expanded diary workout) via `hooks/Exercises/useWorkoutCoaching.ts`.
-_Last updated: 2026-10-02_
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule

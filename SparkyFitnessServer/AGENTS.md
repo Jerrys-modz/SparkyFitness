@@ -63,7 +63,6 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `routes/` - primary HTTP route surface
 - `routes/v2/` - newer typed route surface; pair these changes with `schemas/`
 - `routes/v2/openFoodFactsContributionRoutes.ts` - owner-only single-food preview and explicit photo-backed publication; background contributions are disabled for this release
-_Last updated: 2026-10-02_
 - `routes/v2/reportRoutes.ts` - weekly alcohol rollup and the zero-padded hydration/caffeine/alcohol range used by the Trends charts (`reports` permission)
 - `routes/v2/nutritionKineticsRoutes.ts` - active-caffeine estimate and bedtime cutoff (`diary` permission)
 - `routes/v2/workoutCoachingRoutes.ts` - adaptive coaching (#1560): session feedback (`workout_feedback`), the per-user `adaptive_workout_suggestions` setting (owner-only write), and recent-history signals (`diary` permission). `GET /v2/exercises/:id/alternatives` (ranked substitutes) lives in `routes/v2/exerciseRoutes.ts`
