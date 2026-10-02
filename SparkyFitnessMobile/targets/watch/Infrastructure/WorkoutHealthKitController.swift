@@ -42,6 +42,9 @@ final class WorkoutHealthKitController: NSObject {
     /// so a late `stop` path can tell that `pendingSamples` and
     /// `pendingSampleTimes` now belong to another session. Main queue only.
     private var sessionGeneration = 0
+    /// The builder `discard` last threw away. Its statistics callbacks can
+    /// still land on main afterwards and must not reach the next workout.
+    private var discardedBuilder: HKLiveWorkoutBuilder?
     private let instantFormatter = ISO8601DateFormatter()
 
     /// How often accumulated samples are flushed to `onBatchReady`.
@@ -359,6 +362,7 @@ final class WorkoutHealthKitController: NSObject {
         pendingSampleTimes = []
         sessionGeneration += 1
         guard let session, let endingBuilder = builder else { return }
+        discardedBuilder = endingBuilder
         session.end()
         self.session = nil
         self.builder = nil
@@ -486,10 +490,13 @@ final class WorkoutHealthKitController: NSObject {
         // because it comes from the builder's statistics instead). The
         // anchored query's `updateHandler` keeps delivering every sample the
         // live data source saves until the query is stopped.
+        // Read on main (this runs there), so a callback still in flight after
+        // `discard` or a newer `start` can tell the buffer is no longer its own.
+        let generation = sessionGeneration
         let handleSamples: ([HKSample]?) -> Void = { [weak self] samples in
             guard let self, let samples else { return }
             for case let sample as HKQuantitySample in samples {
-                self.ingest(sample)
+                self.ingest(sample, generation: generation)
             }
         }
         let query = HKAnchoredObjectQuery(
@@ -513,14 +520,15 @@ final class WorkoutHealthKitController: NSObject {
     /// several readings is walked with a one-shot series query scoped to that
     /// sample — correct here, unlike at workout start, because the sample
     /// already exists — so the zone calculator gets each interior reading.
-    private func ingest(_ sample: HKQuantitySample) {
+    private func ingest(_ sample: HKQuantitySample, generation: Int) {
         let bpmUnit = HKUnit.count().unitDivided(by: .minute())
         guard sample.count > 1 else {
             let bpm = sample.quantity.doubleValue(for: bpmUnit)
             guard bpm > 0 else { return }
             let interval = DateInterval(start: sample.startDate, end: sample.endDate)
             DispatchQueue.main.async { [weak self] in
-                self?.ingestSeriesQuantity(bpm: bpm, interval: interval)
+                guard let self, self.sessionGeneration == generation else { return }
+                self.ingestSeriesQuantity(bpm: bpm, interval: interval)
             }
             return
         }
@@ -532,7 +540,8 @@ final class WorkoutHealthKitController: NSObject {
             let bpm = quantity.doubleValue(for: bpmUnit)
             guard bpm > 0 else { return }
             DispatchQueue.main.async {
-                self?.ingestSeriesQuantity(bpm: bpm, interval: dateInterval)
+                guard let self, self.sessionGeneration == generation else { return }
+                self.ingestSeriesQuantity(bpm: bpm, interval: dateInterval)
             }
         }
         healthStore.execute(seriesQuery)
@@ -743,7 +752,8 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
             let bpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
             if bpm > 0 {
                 DispatchQueue.main.async { [weak self] in
-                    self?.appendSample(at: interval.end, bpm: bpm)
+                    guard let self, self.discardedBuilder !== workoutBuilder else { return }
+                    self.appendSample(at: interval.end, bpm: bpm)
                 }
             }
         }
@@ -754,7 +764,8 @@ extension WorkoutHealthKitController: HKLiveWorkoutBuilderDelegate {
            let statistics = workoutBuilder.statistics(for: activeEnergyType),
            let kcal = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) {
             DispatchQueue.main.async { [weak self] in
-                self?.onActiveEnergy?(kcal)
+                guard let self, self.discardedBuilder !== workoutBuilder else { return }
+                self.onActiveEnergy?(kcal)
             }
         }
     }
