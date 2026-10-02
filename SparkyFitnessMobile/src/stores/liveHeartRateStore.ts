@@ -3,10 +3,11 @@ import { create } from 'zustand';
 import { useActiveWorkoutStore } from './activeWorkoutStore';
 
 /**
- * How long a reading stays on screen. The watch sends a batch every 60s and at
- * each exercise change, and a queued delivery can lag behind that, so this
- * allows for one missed batch before the chip gives up rather than showing a
- * number that no longer describes the wearer.
+ * How long a reading stays on screen. The watch sends a live reading every few
+ * seconds while the phone is reachable, and a batch every 60s and at each
+ * exercise change that covers a stretch out of range. A queued batch can lag
+ * behind that, so this allows for one missed batch before the chip gives up
+ * rather than showing a number that no longer describes the wearer.
  */
 export const LIVE_HEART_RATE_MAX_AGE_MS = 150_000;
 

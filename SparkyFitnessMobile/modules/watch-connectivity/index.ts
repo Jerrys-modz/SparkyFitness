@@ -312,6 +312,18 @@ export interface WatchSetCompletedPayload {
 }
 
 /** One heart-rate reading captured on the watch. */
+/**
+ * The reading on the wrist right now. Sent every few seconds while the phone
+ * is reachable and never queued, so it only ever describes the present.
+ */
+export interface WatchLiveHeartRatePayload {
+  sessionId: string;
+  exerciseEntryId: string;
+  bpm: number;
+  /** When the watch took it, epoch ms. */
+  at: number;
+}
+
 export interface WatchHeartRateSamplePayload {
   /** ISO 8601 instant. */
   t: string;
@@ -390,6 +402,7 @@ export type WatchConnectivityEvents = {
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
+  onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
 };
 
