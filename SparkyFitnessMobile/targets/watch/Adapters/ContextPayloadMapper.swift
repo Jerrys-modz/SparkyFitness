@@ -63,8 +63,12 @@ enum ContextPayloadMapper {
             // or undo the page layout.
             hapticsEnabled: payload["hapticsEnabled"] as? Bool ?? previous.hapticsEnabled,
             restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled,
-            pageOrder: payload["pageOrder"] as? [String] ?? previous.pageOrder,
-            hiddenPages: payload["hiddenPages"] as? [String] ?? previous.hiddenPages,
+            pageOrder: payload.keys.contains("pageOrder")
+                ? stringArray(payload["pageOrder"])
+                : previous.pageOrder,
+            hiddenPages: payload.keys.contains("hiddenPages")
+                ? stringArray(payload["hiddenPages"])
+                : previous.hiddenPages,
             setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
             startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts
         )
@@ -139,7 +143,9 @@ enum ContextPayloadMapper {
     /// older phone build), so the page keeps its fixed macros; a row missing
     /// its key, label or amount is skipped rather than drawn as a zero.
     static func nutrientRows(from payload: [String: Any]) -> [NutrientRow]? {
-        guard let rows = payload["goalNutrients"] as? [[String: Any]] else { return nil }
+        guard payload.keys.contains("goalNutrients"),
+              let rows = dictionaryArray(payload["goalNutrients"])
+        else { return nil }
         return rows.compactMap { row in
             guard
                 let key = row["key"] as? String,

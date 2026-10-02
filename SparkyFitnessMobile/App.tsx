@@ -209,8 +209,8 @@ function WatchWorkoutGate() {
     handleWatchFinishedWorkout
   );
   useWatchSetTargetsSync(watchSupported);
-  useWatchPlanSync(watchSupported);
   useWatchWorkoutStart(watchSupported && isServerConnected, startLiveWorkout);
+  useWatchPlanSync(watchSupported);
   return null;
 }
 
