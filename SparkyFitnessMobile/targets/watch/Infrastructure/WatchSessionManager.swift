@@ -1209,6 +1209,26 @@ final class WatchSessionManager: NSObject, ObservableObject {
         requestFinish(sendStop: true)
     }
 
+    /// Abandons the workout. Nothing is saved to Health and no heart rate is
+    /// sent; the phone is told which session to drop, and clears it without
+    /// saving. Ignored while a finish is already running, which has the
+    /// session's tail in flight and cannot be taken back.
+    func discardWorkout() {
+        guard !collectionInFlight, let sessionId = workoutStore.plan?.sessionId else {
+            return
+        }
+        rememberEnded(sessionId, at: workoutStore.plan?.armedAt ?? Date())
+        workoutHealthKit.discard()
+        transfer(OutboundPayloads.workoutDiscard(WorkoutStopSignal(sessionId: sessionId)))
+        let next = pendingPlan
+        pendingPlan = nil
+        pendingSendStop = false
+        workoutStore.reset()
+        if let next {
+            beginPlan(next)
+        }
+    }
+
     /// A second finish or a plan change while `stop` is already running is
     /// remembered and applied after the first tail is sent. Running it now
     /// would reset the plan, or replace it, before that batch could read the

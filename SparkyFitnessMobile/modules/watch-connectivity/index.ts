@@ -430,6 +430,10 @@ export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
 
+export interface WatchWorkoutDiscardPayload {
+  sessionId: string;
+}
+
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
 }
@@ -445,6 +449,7 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
 };
 

@@ -234,6 +234,7 @@ private struct ExerciseListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var confirmingFinish = false
+    @State private var confirmingDiscard = false
 
     private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
 
@@ -317,6 +318,13 @@ private struct ExerciseListView: View {
                     Label("Finish Workout", systemImage: "flag.checkered")
                         .font(.caption)
                 }
+                Button(role: .destructive) {
+                    Haptics.tap()
+                    confirmingDiscard = true
+                } label: {
+                    Label("Discard Workout", systemImage: "trash")
+                        .font(.caption)
+                }
             }
         }
         .confirmationDialog(
@@ -334,6 +342,20 @@ private struct ExerciseListView: View {
             Button("Cancel", role: .cancel) { Haptics.tap() }
         } message: {
             Text("Heart rate for this session is sent to your phone.")
+        }
+        .confirmationDialog(
+            "Discard workout?",
+            isPresented: $confirmingDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) {
+                Haptics.tap()
+                dismiss()
+                session.discardWorkout()
+            }
+            Button("Cancel", role: .cancel) { Haptics.tap() }
+        } message: {
+            Text("This workout won't be saved.")
         }
     }
 }

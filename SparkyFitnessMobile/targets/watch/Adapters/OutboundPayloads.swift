@@ -25,6 +25,7 @@ enum OutboundPayloads {
         static let heartRateBatch = "heartRateBatch"
         static let liveHeartRate = "liveHeartRate"
         static let workoutStop = "workoutStop"
+        static let workoutDiscard = "workoutDiscard"
         static let restChanged = "restChanged"
         static let workoutStartRequested = "workoutStartRequested"
     }
@@ -164,6 +165,16 @@ enum OutboundPayloads {
     static func workoutStop(_ signal: WorkoutStopSignal) -> [String: Any] {
         [
             "type": Kind.workoutStop,
+            "sessionId": signal.sessionId,
+        ]
+    }
+
+    /// The wearer discarded the workout on the watch. Queued like
+    /// `workoutStop`: a phone that never hears it would keep a live session
+    /// the wrist already abandoned. Unlike a stop, no heart rate follows it.
+    static func workoutDiscard(_ signal: WorkoutStopSignal) -> [String: Any] {
+        [
+            "type": Kind.workoutDiscard,
             "sessionId": signal.sessionId,
         ]
     }

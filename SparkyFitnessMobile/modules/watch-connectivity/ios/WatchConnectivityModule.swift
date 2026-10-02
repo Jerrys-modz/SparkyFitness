@@ -26,6 +26,7 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onLiveHeartRate: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
+    var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
 
@@ -96,6 +97,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onLiveHeartRate?(payload)
         case "workoutStop":
             onWorkoutStop?(payload)
+        case "workoutDiscard":
+            onWorkoutDiscard?(payload)
         case "workoutStartRequested":
             onWorkoutStartRequested?(payload)
         default:
@@ -227,6 +230,7 @@ public class WatchConnectivityModule: Module {
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
+            "onWorkoutDiscard",
             "onWorkoutStartRequested"
         )
 
@@ -319,6 +323,11 @@ public class WatchConnectivityModule: Module {
             }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in
                 self?.sendEvent("onWorkoutStop", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onWorkoutDiscard = { [weak self] payload in
+                self?.sendEvent("onWorkoutDiscard", [
                     "sessionId": payload["sessionId"] as? String ?? "",
                 ])
             }

@@ -5,6 +5,7 @@ import WatchConnectivity, {
   type WatchRestChangedPayload,
   type WatchHeartRateBatchPayload,
   type WatchWorkoutStopPayload,
+  type WatchWorkoutDiscardPayload,
 } from '../../modules/watch-connectivity';
 import {
   useActiveWorkoutStore,
@@ -15,7 +16,10 @@ import {
   useLiveHeartRateStore,
 } from '../stores/liveHeartRateStore';
 import { saveActiveWorkoutSession } from './useActiveWorkoutAutosave';
-import { attachExerciseEntryWatchTelemetry } from '../services/api/exerciseApi';
+import {
+  attachExerciseEntryWatchTelemetry,
+  deleteWorkout,
+} from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
 import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
@@ -187,6 +191,10 @@ export function useWatchWorkoutBridge(
   onWatchFinishedWorkout?: (celebration: WorkoutCelebration | null) => void
 ): void {
   const sessionsRef = useRef<Map<string, SessionTelemetry>>(new Map());
+  // Sessions the wearer discarded on the watch. A restore that was still
+  // loading, or a flush already walking its snapshot, must not bring their
+  // telemetry back and attach it to an entry that stays in the diary.
+  const discardedSessionsRef = useRef<Set<string>>(new Set());
   const onPendingChangeRef = useRef(onTelemetryPendingChange);
   const onWatchFinishedRef = useRef(onWatchFinishedWorkout);
   const pendingRef = useRef(false);
@@ -552,6 +560,10 @@ export function useWatchWorkoutBridge(
   // overwriting them with its last minute.
   const flushHeartRate = useCallback(async (): Promise<void> => {
     for (const [sessionId, session] of [...sessionsRef.current.entries()]) {
+      if (discardedSessionsRef.current.has(sessionId)) {
+        sessionsRef.current.delete(sessionId);
+        continue;
+      }
       if (!session.unposted) continue;
       // Cleared up front so a batch arriving mid-flush re-arms it rather than
       // being marked posted by this pass, which never saw it.
@@ -578,6 +590,8 @@ export function useWatchWorkoutBridge(
         // All absent means there is nothing to say; the server rejects that
         // body, so don't spend a request discovering it.
         if (!hrSamples && kcal == null && durationMinutes == null) continue;
+        // Discarded while an earlier entry of this session was posting.
+        if (discardedSessionsRef.current.has(sessionId)) break;
         try {
           await attachExerciseEntryWatchTelemetry(exerciseEntryId, {
             ...(hrSamples ? { hrSamples } : {}),
@@ -668,10 +682,53 @@ export function useWatchWorkoutBridge(
     [flushHeartRate]
   );
 
+  // The wearer discarded the workout on the watch. Same outcome as the
+  // phone's own Discard on a live-start workout: the heart rate buffered for
+  // the session is dropped rather than attached, the live session is cleared
+  // without saving, and a session this app created for the watch is removed
+  // from the diary. A session that already existed in the diary is only
+  // cleared, so discarding never deletes something the user logged earlier.
+  const handleWorkoutDiscard = useCallback(
+    async (payload: WatchWorkoutDiscardPayload): Promise<void> => {
+      const state = useActiveWorkoutStore.getState();
+      if (state.sessionId !== payload.sessionId) {
+        addLog(
+          `Watch workout-discard ignored: session ${payload.sessionId} is not the live one`,
+          'DEBUG'
+        );
+        return;
+      }
+      const sessionId = state.sessionId;
+      const entryDate = entryDateOf(state.session);
+      const createdByLiveStart = state.createdByLiveStart;
+      discardedSessionsRef.current.add(sessionId);
+      sessionsRef.current.delete(sessionId);
+      syncPendingRef.current();
+      if (restoredRef.current) {
+        void writeWatchTelemetry(sessionsRef.current, ownerRef.current).catch(
+          () => undefined
+        );
+      }
+      state.clearWorkout();
+      if (!createdByLiveStart) return;
+      try {
+        await deleteWorkout(sessionId);
+      } catch (error) {
+        addLog(
+          `Failed to delete workout discarded on the watch: ${String(error)}`,
+          'ERROR'
+        );
+      }
+      if (entryDate != null) invalidateExerciseCache(queryClient, entryDate);
+    },
+    []
+  );
+
   const handlersRef = useRef({
     handleSetCompleted,
     handleHeartRateBatch,
     handleWorkoutStop,
+    handleWorkoutDiscard,
     flushHeartRate,
   });
   useEffect(() => {
@@ -679,6 +736,7 @@ export function useWatchWorkoutBridge(
       handleSetCompleted,
       handleHeartRateBatch,
       handleWorkoutStop,
+      handleWorkoutDiscard,
       flushHeartRate,
     };
     flushHeartRateRef.current = flushHeartRate;
@@ -730,7 +788,15 @@ export function useWatchWorkoutBridge(
       }
     );
 
+    const workoutDiscardSub = WatchConnectivity.addListener(
+      'onWorkoutDiscard',
+      (payload) => {
+        void handlersRef.current.handleWorkoutDiscard(payload);
+      }
+    );
+
     return () => {
+      workoutDiscardSub.remove();
       setCompletedSub.remove();
       restChangedSub.remove();
       heartRateBatchSub.remove();
@@ -907,6 +973,9 @@ export function useWatchWorkoutBridge(
         saved,
         createSessionTelemetry
       );
+      for (const discarded of discardedSessionsRef.current) {
+        sessionsRef.current.delete(discarded);
+      }
       merged = true;
       // Subscribe before the hydrated check. A finish that lands in between
       // still runs the restore once, and not before the phone knows which
