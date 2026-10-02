@@ -194,7 +194,8 @@ describe('useStartLiveWorkout', () => {
   });
 
   it('lets only one caller create a session when the phone and the watch start together', async () => {
-    let resolveCreate: (session: PresetSessionResponse) => void = () => undefined;
+    let resolveCreate: (session: PresetSessionResponse) => void = () =>
+      undefined;
     mockCreateWorkout.mockImplementation(
       () =>
         new Promise((resolve) => {
