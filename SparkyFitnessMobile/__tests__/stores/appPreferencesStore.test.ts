@@ -178,6 +178,7 @@ describe('appPreferencesStore', () => {
         'fasting',
         'cycle',
         'medications',
+        'symptoms',
         'progressPhotos',
         'healthTrends',
       ]);
@@ -189,6 +190,15 @@ describe('appPreferencesStore', () => {
       expect(useAppPreferencesStore.getState().dashboardCardOrder).toEqual(
         newOrder
       );
+    });
+
+    it('persists symptomsCardVisible across storage write', async () => {
+      useAppPreferencesStore.getState().setSymptomsCardVisible(false);
+      expect(useAppPreferencesStore.getState().symptomsCardVisible).toBe(false);
+      const raw = await AsyncStorage.getItem('@SparkyFitness/app-preferences');
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw!);
+      expect(parsed.state.symptomsCardVisible).toBe(false);
     });
   });
 
