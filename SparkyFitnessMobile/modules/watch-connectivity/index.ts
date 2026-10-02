@@ -249,6 +249,12 @@ export interface WatchPlannedSetPayload {
    */
   targetDurationSec?: number | null;
   /**
+   * True for a duration exercise, whether or not a hold length is planned.
+   * With no `targetDurationSec` the watch offers a stopwatch instead of a
+   * reps box.
+   */
+  timed?: boolean;
+  /**
    * Rest taken before this set in the planned order, in seconds — the
    * phone's own `WorkoutStep.restSec`.
    */

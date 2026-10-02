@@ -30,6 +30,7 @@ import { getTodayDate } from '../utils/dateUtils';
 import { isBodyweightModality } from '@workspace/shared';
 import {
   extractPlannedSetValues,
+  isDurationModality,
   resolveSnapshotModality,
   stripPlannedSetValues,
 } from '../utils/workoutSession';
@@ -117,12 +118,16 @@ export function buildWatchWorkoutStartPayload(
       ),
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
+        const timed = isDurationModality(
+          resolveSnapshotModality(exercise.exercise_snapshot)
+        );
         const target = targets.get(setId);
         return {
           setId,
           targetReps: target?.reps ?? null,
           targetWeightKg: target?.weightKg ?? null,
           targetDurationSec: target?.durationSec ?? null,
+          ...(timed ? { timed: true } : {}),
           restSeconds: restSecBySetId.get(setId) ?? 0,
           restAfterSeconds: set.rest_time ?? getDefaultRestSec(),
           setType: set.set_type ?? null,

@@ -28,6 +28,9 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// This set's own rest, in seconds: what the phone runs once it is logged
     /// (`restSecBeforeNextSet`). Nil from a phone that predates it.
     var restAfterSeconds: Int? = nil
+    /// A duration exercise. With no `targetDurationSec` the watch shows a
+    /// stopwatch instead of a reps box. Nil from a phone that predates it.
+    var timed: Bool? = nil
 
     var id: String { setId }
 }

@@ -307,7 +307,8 @@ enum ContextPayloadMapper {
                     restSeconds: intValue(rawSet["restSeconds"]) ?? 0,
                     setType: rawSet["setType"] as? String,
                     targetDurationSec: intValue(rawSet["targetDurationSec"]),
-                    restAfterSeconds: intValue(rawSet["restAfterSeconds"])
+                    restAfterSeconds: intValue(rawSet["restAfterSeconds"]),
+                    timed: rawSet["timed"] as? Bool
                 )
             }
             return PlannedExercise(
