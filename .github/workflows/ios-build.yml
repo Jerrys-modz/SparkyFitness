@@ -15,6 +15,14 @@ name: Build iOS & watchOS
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          Runner label. Use xcode-27 (preview image) to compile code guarded by
+          compiler(>=6.4), such as modules/on-device-nutrition.
+        required: false
+        default: macos-latest
+        type: string
 
 # A second push to the same branch makes the first build irrelevant.
 concurrency:
@@ -24,7 +32,7 @@ concurrency:
 jobs:
   build:
     name: Compile iOS app and watchOS companion
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner || 'macos-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
