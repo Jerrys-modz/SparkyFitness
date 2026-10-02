@@ -72,6 +72,7 @@ export const PREFERENCE_DEFAULTS = {
   cycleCardVisible: true,
   askSparkyVisible: true,
   medicationsCardVisible: true,
+  symptomsCardVisible: true,
   progressPhotosCardVisible: true,
   onDeviceLabelScanEnabled: true,
   healthTrendsCardVisible: true,
@@ -130,6 +131,7 @@ export type AppPreferencesData = {
   cycleCardVisible: boolean;
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
+  symptomsCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   onDeviceLabelScanEnabled: boolean;
   healthTrendsCardVisible: boolean;
@@ -207,6 +209,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCycleCardVisible: (value: boolean) => void;
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
+  setSymptomsCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
@@ -320,6 +323,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setAskSparkyVisible: (value) => set({ askSparkyVisible: value }),
       setMedicationsCardVisible: (value) =>
         set({ medicationsCardVisible: value }),
+      setSymptomsCardVisible: (value) => set({ symptomsCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
       setOnDeviceLabelScanEnabled: (value) =>
@@ -423,6 +427,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         cycleCardVisible: state.cycleCardVisible,
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
+        symptomsCardVisible: state.symptomsCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,

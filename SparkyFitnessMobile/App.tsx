@@ -111,6 +111,10 @@ import {
   SafeMedicationDetail,
   SafeMedicationForm,
   SafeMedicationScheduleForm,
+  SafeSymptomLog,
+  SafeSymptomHistory,
+  SafeManageSymptoms,
+  SafeSymptomDefinitionEditor,
 } from './src/navigation/safeScreens';
 import ReauthModal from './src/components/ReauthModal';
 import ServerConfigModal from './src/components/ServerConfigModal';
@@ -257,6 +261,7 @@ function AppContent() {
     handleAddActivity,
     handleAddMeasurements,
     handleAddProgressPhotos,
+    handleAddSymptoms,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
@@ -917,8 +922,40 @@ function AppContent() {
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),
             })}
           />
+          <Stack.Screen
+            name="SymptomLog"
+            component={SafeSymptomLog}
+            options={createStackScreenOptions(t('screens.symptomLog', { defaultValue: 'Log Symptom' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="SymptomHistory"
+            component={SafeSymptomHistory}
+            options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="ManageSymptoms"
+            component={SafeManageSymptoms}
+            options={createStackScreenOptions(t('screens.manageSymptoms', { defaultValue: 'Manage Symptoms' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="SymptomDefinitionEditor"
+            component={SafeSymptomDefinitionEditor}
+            options={createStackScreenOptions(t('screens.symptomDefinition', { defaultValue: 'Symptom Details' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
         </Stack.Navigator>
-        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
+        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
         <ReauthModal
           visible={showReauthModal}
           expiredConfigId={expiredConfigId}
