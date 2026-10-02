@@ -528,7 +528,8 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      */
     completedSetIds: string[];
     /**
-     * Running set timers on the phone: set id to start time (epoch ms). The
+     * The newest running set timer on the phone: set id to start time
+     * (epoch ms). The watch holds one timer, so at most one entry is sent. The
      * watch starts its own hold countdown or stopwatch from that time, so
      * both show the same clock. A timer the phone has stopped is absent.
      */

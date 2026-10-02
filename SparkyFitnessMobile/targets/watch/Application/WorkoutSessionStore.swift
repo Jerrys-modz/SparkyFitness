@@ -501,7 +501,11 @@ final class WorkoutSessionStore: ObservableObject {
     /// a set the phone started, from the phone's start time, and stops one it
     /// copied earlier if the phone dropped it without logging the set. A
     /// timer started here is never replaced.
-    private func applyPhoneTimers(_ timers: [String: Date]) {
+    private func applyPhoneTimers(_ allTimers: [String: Date]) {
+        // The wrist holds one timer. If a phone sends several, follow the
+        // newest rather than letting each replace the one before it.
+        let timers: [String: Date] = allTimers.max(by: { $0.value < $1.value })
+            .map { [$0.key: $0.value] } ?? [:]
         if let heldId = holdSetId, completedSetIds.contains(heldId), !holdLoggedHere {
             // Logged on the phone: its timer is done.
             clearHold()
