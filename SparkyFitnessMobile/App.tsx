@@ -130,6 +130,7 @@ import { toastConfig } from './src/components/ui/toastConfig';
 import { TabsLayout } from './src/components/TabsLayout';
 import { createIOSSmallNativeHeaderOptions } from './src/utils/nativeHeaderItems';
 import { useHeaderActionColors } from './src/hooks/useHeaderActionColors';
+import { useVisualIntelligenceHandoff } from './src/hooks/useVisualIntelligenceHandoff';
 import ActiveWorkoutBar, {
   navigationRef as rootNavigationRef,
   notifyActiveWorkoutBarStackTransition,
@@ -188,6 +189,14 @@ function handleWatchFinishedWorkout(celebration: WorkoutCelebration | null) {
   } else if (rootNavigationRef.canGoBack()) {
     rootNavigationRef.goBack();
   }
+}
+
+// Opens the meal photo estimate screen when a Visual Intelligence result is
+// tapped. Mounted outside the navigator on purpose, like the gates above: it
+// only needs the root navigation ref.
+function VisualIntelligenceGate() {
+  useVisualIntelligenceHandoff(rootNavigationRef);
+  return null;
 }
 
 function WatchWorkoutGate() {
@@ -391,6 +400,7 @@ function AppContent() {
     >
       <WatchCheckInGate />
       <WatchWorkoutGate />
+      <VisualIntelligenceGate />
       <SafeAreaProvider>
         {/* Inside SafeAreaProvider on purpose: the viewer positions its close
             button against the insets, so mounting it at the app root crashes
