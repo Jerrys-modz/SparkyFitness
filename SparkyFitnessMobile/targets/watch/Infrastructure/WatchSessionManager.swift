@@ -483,6 +483,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
            !Self.isLaterArm(plan.armedAt, than: running.armedAt) {
             return
         }
+        // Likewise for a plan already queued behind a finishing one: an arm
+        // that is not newer than it (an older one delivered late, or the same
+        // one again) must not replace it, or the watch would start the older
+        // workout once the finish completes.
+        if let queued = pendingPlan, queued.sessionId == plan.sessionId,
+           !Self.isLaterArm(plan.armedAt, than: queued.armedAt) {
+            return
+        }
 
         // Recovery may still be reattaching the previous HealthKit session.
         // Queue the plan and let that finish (and stop the old session)
