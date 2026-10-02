@@ -567,6 +567,42 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
+  it('attaches telemetry for a session that is opened again after a watch discard', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+    expect(getStore().sessionId).toBeNull();
+
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+      });
+    });
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith(
+      'ex-uuid-1',
+      expect.objectContaining({ hrSamples: expect.any(Array) })
+    );
+  });
+
   it('ignores a workoutDiscard for a session that is not live', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
@@ -579,6 +615,26 @@ describe('useWatchWorkoutBridge', () => {
     });
 
     expect(getStore().sessionId).toBe('session-1');
+  });
+
+  it('ignores a workoutDiscard from an earlier arm of the same session', async () => {
+    const mockDelete = deleteWorkout as jest.MockedFunction<
+      typeof deleteWorkout
+    >;
+    mockDelete.mockClear();
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession(), { createdByLiveStart: true });
+      useActiveWorkoutStore.setState({ watchArmedAt: 2_000_000 });
+    });
+
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1', armedAt: 1_000_000 });
+      await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBe('session-1');
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 
   it('buffers heart-rate batches for the matching session and attaches them on workoutStop', async () => {

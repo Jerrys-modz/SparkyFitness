@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import Toast from 'react-native-toast-message';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchRestChangedPayload,
@@ -23,6 +24,7 @@ import {
 } from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
 import { addLog } from '../services/LogService';
+import i18n from '../localization/i18n';
 import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { normalizeDate } from '../utils/dateUtils';
@@ -699,6 +701,20 @@ export function useWatchWorkoutBridge(
         );
         return;
       }
+      // A saved session can be armed again under the same id. A discard
+      // queued from the earlier arm must not clear the new one. An older
+      // watch sends no stamp, and that still matches.
+      if (
+        payload.armedAt != null &&
+        state.watchArmedAt != null &&
+        Math.abs(payload.armedAt - state.watchArmedAt) > 2000
+      ) {
+        addLog(
+          `Watch workout-discard ignored: session ${payload.sessionId} was re-armed`,
+          'DEBUG'
+        );
+        return;
+      }
       const sessionId = state.sessionId;
       const entryDate = entryDateOf(state.session);
       const createdByLiveStart = state.createdByLiveStart;
@@ -719,6 +735,17 @@ export function useWatchWorkoutBridge(
           `Failed to delete workout discarded on the watch: ${String(error)}`,
           'ERROR'
         );
+        // Same notice the phone's own Discard gives: the workout is gone
+        // from the live session but still sits in the diary.
+        Toast.show({
+          type: 'error',
+          text1: i18n.t('workout.couldntDelete', {
+            defaultValue: "Couldn't delete workout",
+          }),
+          text2: i18n.t('workout.remainsInDiary', {
+            defaultValue: 'It remains in your diary.',
+          }),
+        });
       }
       if (entryDate != null) invalidateExerciseCache(queryClient, entryDate);
     },
@@ -788,7 +815,6 @@ export function useWatchWorkoutBridge(
         });
       }
     );
-
     const workoutDiscardSub = WatchConnectivity.addListener(
       'onWorkoutDiscard',
       (payload) => {
@@ -1133,7 +1159,12 @@ export function useWatchWorkoutBridge(
         // completed series — see `handleHeartRateBatch`.
         void handlersRef.current.flushHeartRate();
       }
-      if (state.sessionId !== null) track(state.sessionId, state.session);
+      if (state.sessionId !== null) {
+        // The same diary session can be opened again after a discard. Its
+        // new run is a fresh arm, so an old discard must not drop its data.
+        discardedSessionsRef.current.delete(state.sessionId);
+        track(state.sessionId, state.session);
+      }
     });
   }, [enabled, pruneSessions]);
 }

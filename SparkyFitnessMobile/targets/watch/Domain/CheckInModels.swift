@@ -331,6 +331,9 @@ struct WatchContext: Codable, Equatable {
     /// said; empty means there are none. Optional so an older context blob
     /// still decodes.
     var startableWorkouts: [StartableWorkout]? = nil
+    /// The phone's active server when `startableWorkouts` was built. Sent
+    /// back with a start request. Nil on a context from before this field.
+    var workoutServerId: String? = nil
     /// The phone's Settings → Apple Watch → Double-tap switch. Defaulted so the
     /// existing initializer calls need not pass it; nil reads as on.
     var doubleTapEnabled: Bool? = nil
@@ -357,7 +360,9 @@ struct WatchContext: Codable, Equatable {
         restAlertsEnabled: nil,
         pageOrder: nil,
         hiddenPages: nil,
-        setInputStyle: nil
+        setInputStyle: nil,
+        startableWorkouts: nil,
+        workoutServerId: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the

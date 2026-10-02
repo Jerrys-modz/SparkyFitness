@@ -242,9 +242,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     /// Asks the phone to start one saved workout. Queued like a check-in: the
     /// phone is often in a bag, and a tap that vanishes is the bug.
-    func requestWorkoutStart(presetId: String) {
+    func requestWorkoutStart(presetId: String, serverId: String?) {
         guard WCSession.isSupported() else { return }
-        transfer(OutboundPayloads.workoutStartRequest(presetId: presetId))
+        transfer(OutboundPayloads.workoutStartRequest(presetId: presetId, serverId: serverId))
     }
 
     /// Re-queues everything still unconfirmed. Used by the retry affordance and
@@ -602,7 +602,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
-            self?.workoutHealthKit.start(sessionId: plan.sessionId, workoutName: plan.workoutName)
+            guard let self else { return }
+            guard let current = self.workoutStore.plan,
+                  current.sessionId == plan.sessionId,
+                  Self.sameArm(current.armedAt, plan.armedAt) else { return }
+            self.workoutHealthKit.start(
+                sessionId: plan.sessionId,
+                workoutName: plan.workoutName
+            )
         }
     }
 
@@ -1242,7 +1249,12 @@ final class WatchSessionManager: NSObject, ObservableObject {
         rememberEnded(sessionId, at: workoutStore.plan?.armedAt ?? Date())
         workoutHealthKit.discard()
         if notifyPhone {
-            transfer(OutboundPayloads.workoutDiscard(WorkoutStopSignal(sessionId: sessionId)))
+            transfer(
+                OutboundPayloads.workoutDiscard(
+                    sessionId: sessionId,
+                    armedAt: workoutStore.plan?.armedAt
+                )
+            )
         }
         let next = pendingPlan
         pendingPlan = nil
