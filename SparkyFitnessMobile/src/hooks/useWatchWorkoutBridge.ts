@@ -1150,7 +1150,12 @@ export function useWatchWorkoutBridge(
         // completed series — see `handleHeartRateBatch`.
         void handlersRef.current.flushHeartRate();
       }
-      if (state.sessionId !== null) track(state.sessionId, state.session);
+      if (state.sessionId !== null) {
+        // The same diary session can be opened again after a discard. Its
+        // new run is a fresh arm, so an old discard must not drop its data.
+        discardedSessionsRef.current.delete(state.sessionId);
+        track(state.sessionId, state.session);
+      }
     });
   }, [enabled, pruneSessions]);
 }
