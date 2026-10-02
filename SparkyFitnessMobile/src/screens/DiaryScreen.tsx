@@ -76,6 +76,7 @@ import type {
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
 import { formatDateLabel } from '../utils/dateUtils';
+import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
   getMealTypeDisplayLabel,
@@ -663,6 +664,17 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   }
                   navigation.navigate('WorkoutDetail', { session });
                 } else {
+                  const cardioSession = cardioSessionFromDiaryEntry(
+                    session,
+                    distanceUnit
+                  );
+                  if (cardioSession) {
+                    navigation.navigate('CardioSession', {
+                      session: cardioSession,
+                      distanceUnit,
+                    });
+                    return;
+                  }
                   navigation.navigate('ActivityDetail', { session });
                 }
               }}
