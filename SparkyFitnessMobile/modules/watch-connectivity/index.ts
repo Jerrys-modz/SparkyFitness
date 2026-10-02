@@ -146,6 +146,12 @@ export interface WatchContextPayload {
    */
   goalNutrients?: WatchGoalNutrientPayload[] | null;
   /**
+   * Settings → Apple Watch: how the workout page takes a set's weight and
+   * reps, `keypad` or `crown`. Missing reads as the keypad; the watch carries
+   * the last value forward.
+   */
+  setInputStyle?: 'keypad' | 'crown' | null;
+  /**
    * Today's progress toward the phone's daily nutrition goals, each already
    * clamped to 0...1 — reaching or passing a goal always reads as 1, same
    * convention the iOS calorie widget already uses. Powers the watch's
