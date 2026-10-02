@@ -31,4 +31,4 @@ Live PRs in the mobile app compare the added weight, and then reps, against your
 
 ## Limitations
 
-- The Apple Watch keypad has no minus key. You can log weighted sets on the watch, but enter assisted sets on the phone.
+- On the Apple Watch a bodyweight exercise shows its weight as `BW +10` (added), `BW −20` (assisted) or just `BW`. The weight keypad has a ± key for entering an assisted set. The watch learns an exercise is a bodyweight one when the workout starts, so start the workout from a phone build that includes this.

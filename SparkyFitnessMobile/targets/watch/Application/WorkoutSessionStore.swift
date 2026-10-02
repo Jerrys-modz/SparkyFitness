@@ -109,6 +109,12 @@ final class WorkoutSessionStore: ObservableObject {
 
     var isResting: Bool { restEndsAt != nil }
 
+    /// True when the step's exercise is a bodyweight one, whose weight can be
+    /// negative (assisted).
+    func isBodyweight(_ step: WorkoutStep) -> Bool {
+        plan?.exercises.first { $0.exerciseEntryId == step.exerciseEntryId }?.bodyweight == true
+    }
+
     /// Values to show for a set: whatever was typed, then the phone's latest
     /// target, falling back to the plan.
     func values(for step: WorkoutStep) -> SetValues {
