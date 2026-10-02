@@ -72,7 +72,7 @@ export const SortableSetItem = React.memo(
     const typeBadgeClass =
       SET_TYPE_STYLES[set.set_type ?? ''] ?? 'bg-muted text-muted-foreground';
     const layout = SET_TABLE_LAYOUT[modality];
-    const { showReps, showWeight } = layout;
+    const { showReps, showWeight, signedWeight } = layout;
     const gridClass = showRir ? layout.gridClassWithRir : layout.gridClass;
     // Isometric sets predating the duration column stored their hold in `reps`.
     const durationValue =
@@ -156,7 +156,8 @@ export const SortableSetItem = React.memo(
                 inputClassName="h-8"
                 unit={weightUnit}
                 type="weight"
-                placeholder="—"
+                // Bodyweight: blank is body weight alone; + adds, − assists.
+                placeholder={signedWeight ? '±0' : '—'}
                 onChange={(v) =>
                   onSetChange(exerciseIndex, setIndex, 'weight', v)
                 }

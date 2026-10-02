@@ -106,9 +106,13 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
       : null;
 
   const isActiveCalories = snapshot?.name === 'Active Calories';
-  const isTimed =
-    resolveExerciseModality(snapshot?.modality, snapshot?.category) ===
-    'duration';
+  const entryModality = resolveExerciseModality(
+    snapshot?.modality,
+    snapshot?.category
+  );
+  const isTimed = entryModality === 'duration';
+  // A bodyweight set's weight is added (+) or assisting (−).
+  const isBodyweight = entryModality === 'bodyweight_reps';
 
   const setsDuration = setsDurationMinutes(exerciseEntry.sets);
   // Sets carry their own timers (planks, holds, rest). When those sum to 0
@@ -286,7 +290,11 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
                       })
                 );
               if (set.weight && Number.isFinite(set.weight))
-                parts.push(formatWeight(set.weight, weightUnit));
+                parts.push(
+                  isBodyweight && set.weight > 0
+                    ? `+${formatWeight(set.weight, weightUnit)}`
+                    : formatWeight(set.weight, weightUnit)
+                );
               if (set.duration != null)
                 parts.push(
                   t('exerciseCard.secondsShort', {

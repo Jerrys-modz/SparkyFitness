@@ -116,6 +116,10 @@ export function localizeExerciseTaxonomyValue(
       return t('workout.modalityWeightReps', { defaultValue: 'Weight & Reps' });
     case 'modality:reps_only':
       return t('workout.modalityReps', { defaultValue: 'Reps' });
+    case 'modality:bodyweight_reps':
+      return t('workout.modalityBodyweight', {
+        defaultValue: 'Bodyweight (+/− weight)',
+      });
     case 'modality:duration':
       return t('workout.modalityDuration', { defaultValue: 'Duration' });
     case 'modality:duration_distance':
