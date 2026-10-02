@@ -4064,6 +4064,79 @@ describe('activeWorkoutStore', () => {
       expect(drops.every((d) => d.id < 0)).toBe(true);
     });
 
+    it('inserts a warm-up ramp ahead of the working sets, renumbered, with unique temp ids', () => {
+      useActiveWorkoutStore.getState().addSetToExercise('ex-uuid-2');
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise('ex-uuid-1', 100, 'kg');
+
+      const session = useActiveWorkoutStore.getState().session!;
+      const sets = session.exercises[0].sets;
+      expect(sets.map((x) => x.set_type)).toEqual([
+        'warmup',
+        'warmup',
+        'warmup',
+        'warmup',
+        'working',
+        'working',
+      ]);
+      expect(sets.slice(0, 4).map((x) => [x.weight, x.reps])).toEqual([
+        [20, 10],
+        [50, 5],
+        [70, 3],
+        [85, 1],
+      ]);
+      expect(sets.map((x) => x.set_number)).toEqual([1, 2, 3, 4, 5, 6]);
+      // The working sets are untouched.
+      expect(sets.slice(4).map((x) => x.id)).toEqual([101, 102]);
+      expect(sets.slice(4).map((x) => x.weight)).toEqual([60, 70]);
+
+      const allIds = session.exercises.flatMap((e) => e.sets.map((x) => x.id));
+      expect(new Set(allIds).size).toBe(allIds.length);
+    });
+
+    it('replaces warm-ups that were not logged instead of stacking them', () => {
+      const store = useActiveWorkoutStore.getState();
+      store.addWarmupSetsToExercise('ex-uuid-1', 100, 'kg');
+      store.addWarmupSetsToExercise('ex-uuid-1', 80, 'kg');
+
+      const sets = useActiveWorkoutStore.getState().session!.exercises[0].sets;
+      expect(sets.filter((x) => x.set_type === 'warmup')).toHaveLength(4);
+      expect(
+        sets.filter((x) => x.set_type === 'warmup').map((x) => x.weight)
+      ).toEqual([20, 40, 55, 67.5]);
+      expect(sets.map((x) => x.set_number)).toEqual([1, 2, 3, 4, 5, 6]);
+    });
+
+    it('leaves the exercise alone once a warm-up has been logged', () => {
+      const store = useActiveWorkoutStore.getState();
+      store.addWarmupSetsToExercise('ex-uuid-1', 100, 'kg');
+      const first =
+        useActiveWorkoutStore.getState().session!.exercises[0].sets[0];
+      useActiveWorkoutStore.getState().completeSet(String(first.id));
+      const before =
+        useActiveWorkoutStore.getState().session!.exercises[0].sets;
+
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise('ex-uuid-1', 120, 'kg');
+
+      expect(useActiveWorkoutStore.getState().session!.exercises[0].sets).toBe(
+        before
+      );
+    });
+
+    it('adds nothing when the working weight is not above the bar', () => {
+      const before =
+        useActiveWorkoutStore.getState().session!.exercises[0].sets;
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise('ex-uuid-1', 20, 'kg');
+      expect(useActiveWorkoutStore.getState().session!.exercises[0].sets).toBe(
+        before
+      );
+    });
+
     it('marks the session dirty when the location changes, so autosave runs', () => {
       useActiveWorkoutStore.setState({ hasUnsavedChanges: false });
       useActiveWorkoutStore.getState().setSessionLocation('Home Gym');
