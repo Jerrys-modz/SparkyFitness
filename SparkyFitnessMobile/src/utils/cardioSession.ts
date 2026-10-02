@@ -200,17 +200,54 @@ export interface HeartRateZoneRow {
 export function heartRateZoneRows(
   zones: readonly ExerciseEntryHrZones[]
 ): HeartRateZoneRow[] {
-  const total = zones.reduce(
-    (sum, zone) => sum + Math.max(0, zone.seconds_in_zone),
-    0
-  );
-  return [...zones]
-    .sort((a, b) => a.zone_index - b.zone_index)
-    .map((zone) => ({
-      zone: zone.zone_index,
-      lowerBpm: zone.zone_lower_bpm,
-      upperBpm: zone.zone_upper_bpm,
-      seconds: Math.max(0, zone.seconds_in_zone),
-      share: total > 0 ? Math.max(0, zone.seconds_in_zone) / total : 0,
+  return combinedHeartRateZoneRows([zones]);
+}
+
+/**
+ * Time in each zone across several exercise entries: a whole workout, where
+ * the watch stored zones per exercise. Seconds add up by zone; a zone's
+ * bounds come from whichever entries carry them (they are computed from the
+ * same max heart rate, so they agree), widest first. One entry's rows are
+ * exactly `heartRateZoneRows` of it.
+ */
+export function combinedHeartRateZoneRows(
+  zonesPerEntry: readonly (readonly ExerciseEntryHrZones[])[]
+): HeartRateZoneRow[] {
+  const byZone = new Map<
+    number,
+    { lowerBpm: number | null; upperBpm: number | null; seconds: number }
+  >();
+  for (const zones of zonesPerEntry) {
+    for (const zone of zones) {
+      const row = byZone.get(zone.zone_index) ?? {
+        lowerBpm: null,
+        upperBpm: null,
+        seconds: 0,
+      };
+      row.seconds += Math.max(0, zone.seconds_in_zone);
+      if (zone.zone_lower_bpm != null) {
+        row.lowerBpm =
+          row.lowerBpm == null
+            ? zone.zone_lower_bpm
+            : Math.min(row.lowerBpm, zone.zone_lower_bpm);
+      }
+      if (zone.zone_upper_bpm != null) {
+        row.upperBpm =
+          row.upperBpm == null
+            ? zone.zone_upper_bpm
+            : Math.max(row.upperBpm, zone.zone_upper_bpm);
+      }
+      byZone.set(zone.zone_index, row);
+    }
+  }
+  const total = [...byZone.values()].reduce((sum, row) => sum + row.seconds, 0);
+  return [...byZone.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([zone, row]) => ({
+      zone,
+      lowerBpm: row.lowerBpm,
+      upperBpm: row.upperBpm,
+      seconds: row.seconds,
+      share: total > 0 ? row.seconds / total : 0,
     }));
 }
