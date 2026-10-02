@@ -141,8 +141,18 @@ const SwipeableExerciseRow: React.FC<SwipeableExerciseRowProps> = ({
               <SafeImage
                 source={imageSource}
                 style={{ width: 56, height: 56, borderRadius: 8 }}
+                // SafeImage lays this out from the frame's top-left while an
+                // image is loading or has failed, so centre it here.
                 fallback={
-                  <Icon name={iconName} size={28} color={accentPrimary} />
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name={iconName} size={28} color={accentPrimary} />
+                  </View>
                 }
               />
             </View>
