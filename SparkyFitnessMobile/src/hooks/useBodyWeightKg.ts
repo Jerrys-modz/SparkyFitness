@@ -4,7 +4,6 @@ import { useLatestMeasurementsOnOrBefore } from './useMeasurements';
 import { fetchMeasurementsRange } from '../services/api/measurementsApi';
 import { addDays, getTodayDate } from '../utils/dateUtils';
 import { measurementsRangeQueryKey } from './queryKeys';
-import { useRefetchOnFocus } from './useRefetchOnFocus';
 
 /**
  * The lifter's body weight (kg) on `date`: the newest check-in weight on or
@@ -37,7 +36,6 @@ export function useBodyWeightKg(
     queryFn: () => fetchMeasurementsRange(fallbackStart, today),
     enabled: fallbackEnabled,
   });
-  useRefetchOnFocus(fallback.refetch, fallbackEnabled);
 
   if (!enabled) return null;
   if (hasOnOrBefore) return onOrBefore;
