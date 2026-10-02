@@ -749,7 +749,7 @@ export function useWatchWorkoutBridge(
 
     // The wrist's current reading, ahead of the minute-old batch. Display
     // only: nothing is buffered, so a dropped message costs nothing.
-    const liveHeartRateSub = WatchConnectivity.addListener(
+    const liveHeartRateSub = connectivity.addListener(
       'onLiveHeartRate',
       (payload) => {
         if (payload.sessionId !== useActiveWorkoutStore.getState().sessionId)
