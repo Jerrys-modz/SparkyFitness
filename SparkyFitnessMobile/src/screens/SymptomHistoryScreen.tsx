@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import Icon from '../components/Icon';
+import { getAppLocale } from '../localization';
 import {
   useSymptomEntriesDetailed,
   useOngoingEpisodes,
@@ -337,10 +338,13 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                   <Text className="text-xs text-muted-foreground">
                     {t('symptoms.timing.started', { defaultValue: 'Started' })}{' '}
                     {ep.started_at
-                      ? new Date(ep.started_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
+                      ? new Date(ep.started_at).toLocaleTimeString(
+                          getAppLocale(),
+                          {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }
+                        )
                       : ''}{' '}
                     · {formatDuration(ep.started_at, null)}
                   </Text>
