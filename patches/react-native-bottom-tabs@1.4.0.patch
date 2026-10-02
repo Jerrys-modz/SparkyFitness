@@ -1,22 +1,29 @@
 diff --git a/ios/ProminentTab.swift b/ios/ProminentTab.swift
 new file mode 100644
-index 0000000..06d7bdd
+index 0000000..ae026b0
 --- /dev/null
 +++ b/ios/ProminentTab.swift
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,46 @@
 +import SwiftUI
 +
 +#if !os(macOS)
 +  /// iOS 27 stopped drawing a `search` role tab as the detached circle on the
 +  /// trailing edge of the tab bar. UIKit now does that for the tab controller's
 +  /// `prominentTabIdentifier` instead, so a tab declared with the `search` role
-+  /// is made prominent on iOS 27 and later.
++  /// is made prominent when built with the iOS 27 SDK and run on iOS 27.
 +  ///
 +  /// The property is set through its selector rather than directly so this
 +  /// still compiles against SDKs that do not have it yet.
 +  enum ProminentTab {
++    /// Only for a build made with the iOS 27 SDK (Swift 6.4 or later). A build
++    /// made with an older SDK still gets the detached search tab from the
++    /// system, so it keeps the `search` role and this does nothing.
 +    static var isSupported: Bool {
-+      ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27
++      #if compiler(>=6.4)
++        return ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27
++      #else
++        return false
++      #endif
 +    }
 +
 +    static func apply(props: TabViewProps, tabController: UITabBarController) {
