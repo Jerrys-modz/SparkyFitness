@@ -532,7 +532,7 @@ private struct CurrentSetView: View {
                 // wanted.
                 sensitivity: .low,
                 isContinuous: false,
-                isHapticFeedbackEnabled: true
+                isHapticFeedbackEnabled: checkIn.context.effectiveHapticsEnabled
             )
             .onChange(of: crownValue) { noteCrownChange() }
 
