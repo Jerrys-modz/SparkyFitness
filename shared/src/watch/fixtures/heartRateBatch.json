@@ -1,0 +1,1 @@
+{"type":"heartRateBatch","clientId":"3f2b1c9e-0000-4000-8000-000000000009","sessionId":"live-session-1","exerciseEntryId":"7001","samples":[{"t":"2026-10-02T09:15:00.000Z","bpm":112},{"t":"2026-10-02T09:15:05.000Z","bpm":115}],"activeEnergyKcal":4.5,"durationMinutes":3,"ownerId":"server-config-1"}
