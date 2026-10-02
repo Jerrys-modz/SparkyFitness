@@ -249,6 +249,29 @@ describe('ActiveWorkoutExerciseCard', () => {
       expect(utils.queryByText('Sec')).toBeNull();
     });
 
+    it('explains a bodyweight exercise with the body weight it counts', () => {
+      mockUseBodyWeightKg.mockReturnValue(90.7 as never);
+      const utils = renderCard(true, {
+        exercise: withModality('bodyweight_reps'),
+      });
+      expect(utils.getByTestId('bodyweight-banner')).toBeTruthy();
+      expect(utils.getByText(/counts your body weight \(/)).toBeTruthy();
+      expect(utils.getByText(/minus sign for assistance/)).toBeTruthy();
+      mockUseBodyWeightKg.mockReturnValue(null as never);
+    });
+
+    it('asks for a body weight when none is logged', () => {
+      const utils = renderCard(true, {
+        exercise: withModality('bodyweight_reps'),
+      });
+      expect(utils.getByText(/Log a body weight/)).toBeTruthy();
+    });
+
+    it('shows no bodyweight banner on a weighted exercise', () => {
+      const utils = renderCard(true, { exercise: withModality('weight_reps') });
+      expect(utils.queryByTestId('bodyweight-banner')).toBeNull();
+    });
+
     it('drops the kg column for reps_only', () => {
       const utils = renderCard(true, { exercise: withModality('reps_only') });
       expect(utils.queryByText('kg')).toBeNull();
