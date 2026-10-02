@@ -1057,12 +1057,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             pendingPlan = nil
             return
         }
-<<<<<<< HEAD
         guard workoutStore.plan?.sessionId == stop.sessionId else { return }
-||||||| parent of 59215f58 (fix(watch): drop the watch workout, with no Health write or summary, when it is discarded on the phone)
-        guard endsRunning else { return }
-=======
-        guard endsRunning else { return }
         // Thrown away on the phone: end the session without writing it to
         // Health and without a summary. Nothing is sent back, the phone
         // already dropped it. A finish already running cannot be taken back.
@@ -1070,7 +1065,6 @@ final class WatchSessionManager: NSObject, ObservableObject {
             dropRunningWorkout(notifyPhone: false)
             return
         }
->>>>>>> 59215f58 (fix(watch): drop the watch workout, with no Health write or summary, when it is discarded on the phone)
         requestFinish(sendStop: false)
     }
 
