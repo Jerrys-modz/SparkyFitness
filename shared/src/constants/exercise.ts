@@ -55,7 +55,8 @@ export function isBodyweightModality(modality: ExerciseModality): boolean {
  * Equipment that is recorded and is bodyweight alone (pull-up bar, dip
  * station, "body only") gives `bodyweight_reps`. Blank equipment does not:
  * too many custom and cardio exercises leave it empty for that to mean
- * anything.
+ * anything. An unrecognised name is not blank, so it keeps the exercise on
+ * ordinary weight.
  */
 export function deriveExerciseModality(
   category: string | null | undefined,
@@ -74,11 +75,14 @@ function isBodyweightOnlyEquipment(
 ): boolean {
   const values =
     typeof equipment === "string" ? [equipment] : (equipment ?? []);
-  const recognised = values
-    .map((value) => normalizeEquipment(value))
-    .filter((value) => value != null);
+  const present = values.filter(
+    (value): value is string => value != null && value.trim() !== "",
+  );
+  // An unknown name is not "no equipment". Dropping it would leave "body
+  // only" and mark a loaded custom attachment as bodyweight.
   return (
-    recognised.length > 0 && recognised.every((value) => value === "body only")
+    present.length > 0 &&
+    present.every((value) => normalizeEquipment(value) === "body only")
   );
 }
 

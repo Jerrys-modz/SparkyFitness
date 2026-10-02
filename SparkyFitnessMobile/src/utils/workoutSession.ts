@@ -630,7 +630,7 @@ export function getExerciseVolumeKg(
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
   return exercise.sets.reduce(
     (total, set) =>
-      set.set_type === 'warmup'
+      isWarmupSetType(set.set_type)
         ? total
         : total + setVolumeKg(set, modality, bodyWeightKg),
     0

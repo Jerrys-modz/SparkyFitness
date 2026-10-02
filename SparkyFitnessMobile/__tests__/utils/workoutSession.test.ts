@@ -3606,6 +3606,16 @@ describe('workoutSession', () => {
         };
         expect(getExerciseVolumeKg(exercise as any)).toBe(600 + 560);
       });
+
+      it('excludes Warm-up and Warmup spellings from exercise volume', () => {
+        for (const setType of ['Warmup', 'Warm-up', 'Warm-up Set']) {
+          const exercise = {
+            exercise_snapshot: null,
+            sets: [set(40, 12, setType), set(60, 10)],
+          };
+          expect(getExerciseVolumeKg(exercise as any)).toBe(600);
+        }
+      });
     });
 
     describe('formatVolume', () => {

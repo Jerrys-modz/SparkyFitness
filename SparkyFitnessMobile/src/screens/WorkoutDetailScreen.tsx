@@ -89,6 +89,7 @@ import type { UpdatePresetSessionRequest } from '@workspace/shared';
 import {
   canEditGroupedWorkout,
   effectiveLoadKg,
+  isBodyweightModality,
   resolveExerciseModality,
 } from '@workspace/shared';
 import { buildExerciseReplaceContext } from '../utils/exerciseReplace';
@@ -173,10 +174,6 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const canEdit = canEditGroupedWorkout(session.source);
   const entryDate = session.entry_date ?? '';
   const normalizedDate = normalizeDate(entryDate);
-  const bodyWeightKg = useBodyWeightKg(
-    normalizedDate || null,
-    hasBodyweightExercise(session.exercises)
-  );
 
   const { name } = getWorkoutSummary(session, t);
 
@@ -226,6 +223,21 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     populate,
     exercisesModifiedRef,
   } = useWorkoutForm({ isEditMode: true, skipDraftLoad: true });
+  const bodyWeightKg = useBodyWeightKg(
+    isEditing
+      ? normalizeDate(formState.entryDate) || null
+      : normalizedDate || null,
+    isEditing
+      ? formState.exercises.some((exercise) =>
+          isBodyweightModality(
+            resolveExerciseModality(
+              exercise.exerciseModality,
+              exercise.exerciseCategory
+            )
+          )
+        )
+      : hasBodyweightExercise(session.exercises)
+  );
   const submission = useMemo(
     () =>
       getWorkoutDraftSubmission(

@@ -12,8 +12,12 @@
 -- dropped if present and recreated with the full list.
 ALTER TABLE exercises DROP CONSTRAINT IF EXISTS exercises_modality_check;
 ALTER TABLE exercises ADD CONSTRAINT exercises_modality_check
-    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'));
+    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'))
+    NOT VALID;
+ALTER TABLE exercises VALIDATE CONSTRAINT exercises_modality_check;
 
 ALTER TABLE exercise_entries DROP CONSTRAINT IF EXISTS exercise_entries_modality_check;
 ALTER TABLE exercise_entries ADD CONSTRAINT exercise_entries_modality_check
-    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'));
+    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'))
+    NOT VALID;
+ALTER TABLE exercise_entries VALIDATE CONSTRAINT exercise_entries_modality_check;

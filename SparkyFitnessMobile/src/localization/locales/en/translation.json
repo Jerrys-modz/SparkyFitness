@@ -1793,7 +1793,7 @@
     "metricVolumeShort": "Vol",
     "metricE1rmShort": "1RM",
     "bodyweightBanner": "Bodyweight exercise: counts your body weight ({{bodyWeight}} {{unit}}) plus the weight you enter. Use a minus sign for assistance.",
-    "bodyweightBannerNoWeight": "Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume and PRs can be calculated.",
+    "bodyweightBannerNoWeight": "Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume can be calculated.",
     "metricTenrmShort": "10RM",
     "kg": "kg",
     "lbs": "lbs",

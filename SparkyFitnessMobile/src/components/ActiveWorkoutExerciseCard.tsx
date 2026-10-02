@@ -1541,7 +1541,7 @@ function ActiveWorkoutExerciseCard({
                   })
                 : t('workout.bodyweightBannerNoWeight', {
                     defaultValue:
-                      'Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume and PRs can be calculated.',
+                      'Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume can be calculated.',
                   })}
             </Text>
           </View>
