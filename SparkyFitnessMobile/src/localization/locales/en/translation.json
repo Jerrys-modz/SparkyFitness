@@ -2249,6 +2249,8 @@
     "edit": "Edit measurements"
   },
   "foodScan": {
+    "labelReadOnDevice": "Label read on this iPhone",
+    "labelReadByServer": "Label read by the server AI",
     "segment": {
       "barcode": "Barcode",
       "label": "Label",

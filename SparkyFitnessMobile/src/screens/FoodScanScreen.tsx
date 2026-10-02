@@ -538,9 +538,21 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     if (!capturedPhoto) return;
     setLabelProcessing(true);
     try {
+      const onDeviceResult = await scanLabelOnDevice(capturedPhoto.base64);
       const result =
-        (await scanLabelOnDevice(capturedPhoto.base64)) ??
+        onDeviceResult ??
         (await scanNutritionLabel(capturedPhoto.base64, 'image/jpeg'));
+      // The toast survives the navigation below, so it shows on the form.
+      Toast.show({
+        type: 'info',
+        text1: onDeviceResult
+          ? t('foodScan.labelReadOnDevice', {
+              defaultValue: 'Label read on this iPhone',
+            })
+          : t('foodScan.labelReadByServer', {
+              defaultValue: 'Label read by the server AI',
+            }),
+      });
       navigation.replace(
         'FoodForm',
         buildFoodFormParams({
