@@ -216,6 +216,11 @@ export interface WatchContextPayload {
    * it wrong.
    */
   waterLog?: WatchWaterLogPayload[] | null;
+  /**
+   * Saved workouts the wearer can start from the wrist. Names and ids only;
+   * the phone still builds and arms the session. Absent on an older phone.
+   */
+  startableWorkouts?: { presetId: string; name: string }[] | null;
 }
 
 /** One target set the watch shows for a planned exercise. */
@@ -416,6 +421,10 @@ export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
 
+export interface WatchWorkoutStartRequestedPayload {
+  presetId: string;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -427,6 +436,7 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

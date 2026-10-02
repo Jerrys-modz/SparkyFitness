@@ -240,6 +240,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return .queued
     }
 
+    /// Asks the phone to start one saved workout. Queued like a check-in: the
+    /// phone is often in a bag, and a tap that vanishes is the bug.
+    func requestWorkoutStart(presetId: String) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.workoutStartRequest(presetId: presetId))
+    }
+
     /// Re-queues everything still unconfirmed. Used by the retry affordance and
     /// on app launch, since a transfer can be lost if the app was force-quit.
     func retryPending() {
