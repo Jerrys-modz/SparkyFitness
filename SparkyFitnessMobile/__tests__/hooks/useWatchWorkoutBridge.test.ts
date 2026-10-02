@@ -524,6 +524,45 @@ describe('useWatchWorkoutBridge', () => {
     );
   });
 
+  it('shows a live reading as soon as the watch sends it, for the live session only', () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    const at = Date.now();
+
+    act(() => {
+      fire('onLiveHeartRate', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        bpm: 131.4,
+        at,
+      });
+    });
+    expect(useLiveHeartRateStore.getState().reading).toEqual({
+      sessionId: 'session-1',
+      exerciseEntryId: 'ex-uuid-1',
+      bpm: 131,
+      at,
+    });
+
+    act(() => {
+      fire('onLiveHeartRate', {
+        sessionId: 'other-session',
+        exerciseEntryId: 'ex-uuid-1',
+        bpm: 190,
+        at: at + 1000,
+      });
+      fire('onLiveHeartRate', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        bpm: 0,
+        at: at + 2000,
+      });
+    });
+    expect(useLiveHeartRateStore.getState().reading?.bpm).toBe(131);
+  });
+
   it('skips attaching heart rate for an exercise with fewer than two samples', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
