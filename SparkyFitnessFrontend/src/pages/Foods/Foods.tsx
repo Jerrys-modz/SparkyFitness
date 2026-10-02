@@ -765,6 +765,7 @@ const FoodDatabaseManager = () => {
         entityName={t('foodDatabaseManager.foods', 'foods')}
         description={t('foodDatabaseManager.bulkDeleteDescription', {
           count: selectedCount,
+          selectedCount,
           defaultValue: `Remove these ${selectedCount} foods from your library and from any meals and meal plans. Entries you have already logged are kept in your diary.`,
         })}
         onConfirm={handleBulkDeleteConfirm}
