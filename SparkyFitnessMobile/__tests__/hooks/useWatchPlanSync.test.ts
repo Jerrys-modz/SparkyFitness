@@ -189,6 +189,26 @@ describe('useWatchPlanSync', () => {
     ]);
   });
 
+  it('sends an empty plan when the last exercise is deleted while armed', () => {
+    startArmed();
+    renderHook(() => useWatchPlanSync(true));
+
+    act(() => {
+      const { removeExercise } = useActiveWorkoutStore.getState();
+      removeExercise('entry-1');
+      removeExercise('entry-2');
+      removeExercise('entry-3');
+    });
+
+    expect(mockUpdateWorkoutPlan).toHaveBeenCalled();
+    const plan =
+      mockUpdateWorkoutPlan.mock.calls[
+        mockUpdateWorkoutPlan.mock.calls.length - 1
+      ][0];
+    expect(plan.sessionId).toBe('session-1');
+    expect(plan.exercises).toEqual([]);
+  });
+
   it('sends nothing while the watch is not armed', () => {
     act(() => {
       useActiveWorkoutStore.getState().startWorkout(makeSession());
