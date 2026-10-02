@@ -425,10 +425,13 @@ private struct CurrentSetView: View {
     /// the store once it settles rather than per detent: every write persists
     /// the workout snapshot, and a fast spin is dozens of detents a second.
     @State private var crownValue: Double = 0
-    /// The stored number when the box was selected, in the unit it was shown in.
-    /// Above the crown's range the binding rests on the ceiling, and a detent
-    /// is a step from this number rather than from the cap.
+    /// The stored number when the box was selected, then the number the crown
+    /// or drag has stepped to. Above the crown's range this stays on the real
+    /// value; the binding itself cannot.
     @State private var crownBaseline: Double = 0
+    /// Last binding sample. A rebase writes this before moving the binding so
+    /// that correction is not counted as a turn.
+    @State private var crownSeen: Double?
     /// True only after the crown or a drag changes the value. Selecting a field
     /// must not write, or a target the crown cannot show gets saved as the cap.
     @State private var crownAdjusted = false
@@ -551,7 +554,7 @@ private struct CurrentSetView: View {
             DragGesture(minimumDistance: 4)
                 .onChanged { gesture in
                     guard isSelected else { return }
-                    let start = dragStartValue ?? snapped(crownValue, for: field)
+                    let start = dragStartValue ?? editedValue(for: field)
                     if dragStartValue == nil {
                         dragStartValue = start
                         dragSteps = 0
@@ -559,7 +562,13 @@ private struct CurrentSetView: View {
                     let steps = (-gesture.translation.height / 12).rounded()
                     guard steps != dragSteps else { return }
                     dragSteps = steps
-                    crownValue = clamp(start + steps * stepSize(for: field), for: field)
+                    crownBaseline = max(start + steps * stepSize(for: field), 0)
+                    crownAdjusted = true
+                    if crownSeen == nil {
+                        crownSeen = min(max(crownValue, 0), maxValue(for: field))
+                    }
+                    parkCrown(for: field)
+                    scheduleCommit()
                     // The crown clicks each detent by itself; a drag has to
                     // be told to.
                     Haptics.tap()
@@ -586,6 +595,10 @@ private struct CurrentSetView: View {
         crownStep = step
         crownBaseline = stored ?? 0
         crownAdjusted = false
+        // Sit the sample on the cap when the stored number is above it, so
+        // the clamp that follows is not counted as a turn. The first real
+        // detent then steps from the stored number.
+        crownSeen = min(max(stored ?? 0, 0), maxValue(for: field))
         crownValue = stored ?? 0
         crownField = field
         // Next turn of the run loop: the row only becomes focusable once
@@ -593,20 +606,49 @@ private struct CurrentSetView: View {
         DispatchQueue.main.async { crownFocused = true }
     }
 
-    /// Ignores the crown clamping a value that sits above its range. That clamp
-    /// is not an edit; the next detent steps from the stored number.
+    /// Each crown event is a step from the stored number. The binding clamps
+    /// an above-range value onto its ceiling, and that jump is not a turn.
+    /// When the binding then runs out of room at zero, it is parked back on
+    /// the value so the same gesture can keep stepping down to zero.
     private func noteCrownChange() {
         guard let field = crownField else { return }
-        if !crownAdjusted,
-           crownBaseline > maxValue(for: field),
-           crownValue >= maxValue(for: field) {
+        let ceiling = maxValue(for: field)
+        let crown = min(max(crownValue, 0), ceiling)
+        let previous = crownSeen
+        crownSeen = crown
+        guard let previous else { return }
+
+        let delta = crown - previous
+        if abs(delta) < 0.000_1 {
+            parkCrown(for: field)
             return
         }
-        if !crownAdjusted, abs(editedValue(for: field) - crownBaseline) < 0.000_1 {
+        if !crownAdjusted, crownBaseline > ceiling, crown >= ceiling - 0.000_1 {
             return
         }
+
+        let step = stepSize(for: field)
+        let next = max(((editedValue(for: field) + delta) / step).rounded() * step, 0)
+        guard abs(next - crownBaseline) >= 0.000_1 else { return }
+        crownBaseline = next
         crownAdjusted = true
         scheduleCommit()
+        parkCrown(for: field)
+    }
+
+    /// The binding only spans 0...max. Park it on the current value once it
+    /// hits zero while that value is still above zero, so the next detent is
+    /// another single step and the edit can reach zero.
+    private func parkCrown(for field: EditableField) {
+        let ceiling = maxValue(for: field)
+        let step = stepSize(for: field)
+        let value = editedValue(for: field)
+        let crown = min(max(crownValue, 0), ceiling)
+        guard value > step, crown <= step * 0.5 else { return }
+        let parked = min(value, ceiling)
+        guard parked > crown + 0.000_1 else { return }
+        crownSeen = parked
+        crownValue = parked
     }
 
     private func scheduleCommit() {
@@ -643,6 +685,7 @@ private struct CurrentSetView: View {
         crownFocused = false
         dragStartValue = nil
         crownAdjusted = false
+        crownSeen = nil
         crownStep = nil
     }
 
@@ -656,6 +699,7 @@ private struct CurrentSetView: View {
         crownFocused = false
         dragStartValue = nil
         crownAdjusted = false
+        crownSeen = nil
         crownStep = nil
     }
 
@@ -697,28 +741,11 @@ private struct CurrentSetView: View {
         field == .weight ? (unit == .lbs ? 1500 : 700) : 200
     }
 
-    /// The crown hands over in-between values while it turns (10.3 reps) and
-    /// only settles on a step once it stops; what is shown and saved is the
-    /// nearest step.
-    private func snapped(_ value: Double, for field: EditableField) -> Double {
-        let step = stepSize(for: field)
-        return clamp((value / step).rounded() * step, for: field)
-    }
-
-    /// What the crown or drag is set to. The binding cannot leave 0...max, so
-    /// a stored value above the max is kept and the crown's distance from the
-    /// cap is applied to it. One detent down from 750 kg is 749.5, not 699.5.
+    /// The number the crown or drag has stepped to. Not capped at the crown's
+    /// max: a stored value above that max stays there until a step moves it.
     private func editedValue(for field: EditableField) -> Double {
-        let ceiling = maxValue(for: field)
-        let origin = min(crownBaseline, ceiling)
-        let crown = min(max(crownValue, 0), ceiling)
         let step = stepSize(for: field)
-        let raw = crownBaseline + (crown - origin)
-        return max((raw / step).rounded() * step, 0)
-    }
-
-    private func clamp(_ value: Double, for field: EditableField) -> Double {
-        min(max(value, 0), maxValue(for: field))
+        return max((crownBaseline / step).rounded() * step, 0)
     }
 
     /// Whole numbers lose the decimal point — "60kg", not "60.0kg" — but a
