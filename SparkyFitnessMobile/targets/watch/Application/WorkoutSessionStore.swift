@@ -117,7 +117,10 @@ final class WorkoutSessionStore: ObservableObject {
         let target = targetOverrides[setId]
         return SetValues(
             weightKg: edited?.weightKg ?? target?.weightKg ?? step.plannedSet.targetWeightKg,
-            reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps
+            reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps,
+            // Only a type the wearer picked: an untouched set leaves the
+            // phone's own type alone.
+            setType: edited?.setType
         )
     }
 
