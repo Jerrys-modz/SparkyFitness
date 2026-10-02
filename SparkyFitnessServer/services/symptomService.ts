@@ -348,18 +348,23 @@ async function updateEntry(
   // A severity change on an episode is a new reading on its timeline; a quick
   // log has no timeline, so its peak simply follows the value.
   if (fields.severity !== undefined && fields.severity !== null) {
-    if (existing.started_at || startedAt) {
-      const timeline = [
-        ...existing.severity_timeline,
-        {
-          at: new Date().toISOString(),
-          severity: fields.severity,
-        },
-      ];
-      write.severity_timeline = timeline;
-      write.peak_severity = Math.max(...timeline.map((p) => p.severity));
-    } else {
-      write.peak_severity = fields.severity;
+    const severityChanged =
+      existing.severity === null ||
+      Number(existing.severity) !== fields.severity;
+    if (severityChanged) {
+      if (existing.started_at || startedAt) {
+        const timeline = [
+          ...existing.severity_timeline,
+          {
+            at: new Date().toISOString(),
+            severity: fields.severity,
+          },
+        ];
+        write.severity_timeline = timeline;
+        write.peak_severity = Math.max(...timeline.map((p) => p.severity));
+      } else {
+        write.peak_severity = fields.severity;
+      }
     }
   }
 

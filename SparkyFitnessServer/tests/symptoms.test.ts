@@ -821,6 +821,28 @@ describe('Symptom Service', () => {
     expect(write.peak_severity).toBe(7);
   });
 
+  it('updateEntry does not append to severity_timeline when severity is unchanged', async () => {
+    vi.spyOn(symptomRepository, 'getSymptomEntry').mockResolvedValue(
+      entryRow({
+        started_at: new Date('2026-06-25T09:00:00Z'),
+        severity: 7,
+        peak_severity: 7,
+        severity_timeline: [{ at: '2026-06-25T09:00:00.000Z', severity: 7 }],
+      })
+    );
+    const update = vi
+      .spyOn(symptomRepository, 'updateSymptomEntry')
+      .mockResolvedValue(entryRow());
+
+    await symptomService.updateEntry('testUser', UID, {
+      severity: 7,
+      context_text: 'updated note',
+    });
+
+    const write = update.mock.calls[0][2];
+    expect(write.severity_timeline).toBeUndefined();
+  });
+
   it('updateEntry never changes the source of a row', async () => {
     vi.spyOn(symptomRepository, 'getSymptomEntry').mockResolvedValue(
       entryRow({ source: 'cycle' })

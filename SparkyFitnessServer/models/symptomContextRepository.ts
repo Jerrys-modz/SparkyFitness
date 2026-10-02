@@ -9,6 +9,8 @@ export interface EntryAnchor {
   entry_date: string;
   /** When the entry began: an episode's start, otherwise when it was logged. */
   at: Date;
+  /** When an episode started; null for a quick log. */
+  started_at: Date | null;
   /** When an episode ended; null for a quick log or one still running. */
   ended_at: Date | null;
 }
@@ -52,6 +54,7 @@ async function getEntryAnchors(
     const result = await client.query(
       `SELECT id, entry_date,
               COALESCE(started_at, logged_at) AS at,
+              started_at,
               ended_at
          FROM symptom_entries
         WHERE user_id = $1 AND id = ANY($2::uuid[])`,
@@ -160,6 +163,7 @@ async function getDoses(
   userId: string,
   windows: Array<{ id: string; from: Date; to: Date }>
 ): Promise<DoseRow[]> {
+  if (windows.length === 0) return [];
   const client = await getClient(userId);
   try {
     const result = await client.query(

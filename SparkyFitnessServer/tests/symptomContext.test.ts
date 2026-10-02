@@ -66,11 +66,13 @@ const anchor = (
   id: string,
   entry_date: string,
   at: string,
-  ended_at: string | null = null
+  ended_at: string | null = null,
+  started_at: string | null = at
 ) => ({
   id,
   entry_date,
   at: new Date(at),
+  started_at: started_at ? new Date(started_at) : null,
   ended_at: ended_at ? new Date(ended_at) : null,
 });
 
@@ -273,6 +275,16 @@ describe('getEpisodeContext', () => {
     ];
     expect(windows[0]?.to.toISOString()).toBe('2026-09-29T11:00:00.000Z');
     expect(windows[1]?.to.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('does not query medication dose windows for quick logs with no started_at', async () => {
+    repo.getEntryAnchors.mockResolvedValue([
+      anchor(A, '2026-09-29', '2026-09-29T09:00:00Z', null, null),
+    ]);
+    await symptomContextService.getEpisodeContext('u', [A], {
+      isOwner: false,
+    });
+    expect(repo.getDoses).toHaveBeenCalledWith('u', []);
   });
 
   it('keeps a long day’s food list to a readable length', async () => {

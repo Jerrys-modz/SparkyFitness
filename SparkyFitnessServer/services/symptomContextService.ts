@@ -68,11 +68,13 @@ async function getEpisodeContext(
     ),
     symptomContextRepository.getDoses(
       userId,
-      anchors.map((a) => ({
-        id: a.id,
-        from: a.at,
-        to: a.ended_at ?? now,
-      }))
+      anchors
+        .filter((a) => a.started_at !== null)
+        .map((a) => ({
+          id: a.id,
+          from: a.at,
+          to: a.ended_at ?? now,
+        }))
     ),
   ]);
 

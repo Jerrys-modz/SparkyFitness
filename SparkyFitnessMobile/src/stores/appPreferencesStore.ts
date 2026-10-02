@@ -409,6 +409,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         cycleCardVisible: state.cycleCardVisible,
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
+        symptomsCardVisible: state.symptomsCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
