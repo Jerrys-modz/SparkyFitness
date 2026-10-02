@@ -977,7 +977,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: update.revision,
                 targets: update.targets,
                 completedSetIds: update.completedSetIds,
-                phoneRest: update.rest
+                phoneRest: update.rest,
+                prSetIds: update.prSetIds
             )
             return
         }
@@ -1312,7 +1313,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 let next = self.pendingPlan
                 self.pendingPlan = nil
                 self.pendingSendStop = false
+                let summary = next == nil ? self.workoutStore.makeSummary() : nil
                 self.workoutStore.reset()
+                self.workoutStore.recordSummary(summary)
                 self.collectionInFlight = false
                 if let next {
                     self.beginPlan(next)

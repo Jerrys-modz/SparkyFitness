@@ -65,9 +65,90 @@ struct WorkoutView: View {
         Group {
             if store.isActive {
                 ActiveWorkoutView()
+                    .overlay(alignment: .top) {
+                        if let exercise = store.prBannerExercise {
+                            PersonalRecordBanner(exercise: exercise)
+                                .onTapGesture { store.dismissPrBanner() }
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeOut(duration: 0.25), value: store.prBannerExercise)
+            } else if let summary = store.lastSummary {
+                WorkoutSummaryView(summary: summary)
             } else {
                 WaitingForWorkoutView()
             }
+        }
+    }
+}
+
+/// Banner over the active workout when a set logged on the wrist is a record.
+private struct PersonalRecordBanner: View {
+    let exercise: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Label("New PR!", systemImage: "trophy.fill")
+                .font(.caption.weight(.bold))
+            if !exercise.isEmpty {
+                Text(exercise).font(.caption2).lineLimit(1)
+            }
+        }
+        .foregroundStyle(.black)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Color.yellow))
+    }
+}
+
+/// Shown after a workout ends, until dismissed. Scrolls: the totals do not
+/// fit a 40mm screen next to the Done button.
+private struct WorkoutSummaryView: View {
+    @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
+    let summary: WorkoutSummary
+
+    private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
+
+    private var duration: String {
+        let s = summary.durationSeconds
+        return s >= 3600
+            ? String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+            : String(format: "%d:%02d", s / 60, s % 60)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 6) {
+                Label("Workout done", systemImage: "checkmark.circle.fill")
+                    .font(.headline)
+                    .foregroundStyle(.green)
+                row("Time", duration)
+                row("Sets", "\(summary.setsCompleted)")
+                if summary.volumeKg > 0 {
+                    row("Volume", "\(Int(unit.fromKg(summary.volumeKg).rounded())) \(unit.suffix)")
+                }
+                if let avg = summary.averageBpm {
+                    row("Avg HR", "\(Int(avg.rounded())) bpm")
+                }
+                if let max = summary.maxBpm {
+                    row("Max HR", "\(Int(max.rounded())) bpm")
+                }
+                if let kcal = summary.activeEnergyKcal, kcal > 0 {
+                    row("Active", "\(Int(kcal.rounded())) kcal")
+                }
+                Button("Done") { store.dismissSummary() }
+                    .padding(.top, 4)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    private func row(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text(value).font(.caption.weight(.semibold)).monospacedDigit()
         }
     }
 }
