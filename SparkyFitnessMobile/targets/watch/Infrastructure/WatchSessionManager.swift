@@ -995,7 +995,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     private func holdSetTargets(_ update: (
         sessionId: String, revision: Double, targets: [String: SetValues],
-        completedSetIds: Set<String>, rest: PhoneRest?, armedAt: Date?
+        completedSetIds: Set<String>, rest: PhoneRest?, armedAt: Date?, prSetIds: Set<String>
     )) {
         if let held = pendingSetTargets[update.sessionId] {
             // A late update from an earlier arm never replaces a later one;
