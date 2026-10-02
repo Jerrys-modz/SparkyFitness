@@ -1,6 +1,34 @@
 import SwiftUI
 import WatchKit
 
+/// Whether the Workout page is the one on screen. A page-style `TabView` keeps
+/// neighbouring pages alive, and a double-tap must not log a set from, say,
+/// the Water page. `ContentView` sets it from its page selection.
+private struct WorkoutPageActiveKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var workoutPageActive: Bool {
+        get { self[WorkoutPageActiveKey.self] }
+        set { self[WorkoutPageActiveKey.self] = newValue }
+    }
+}
+
+private extension View {
+    /// The watch's double-tap gesture (watchOS 11 and a supporting model)
+    /// presses this button. Older systems have no such gesture, so the button
+    /// is left alone.
+    @ViewBuilder
+    func doubleTapGesture(enabled: Bool) -> some View {
+        if #available(watchOS 11.0, *), enabled {
+            self.handGestureShortcut(.primaryAction)
+        } else {
+            self
+        }
+    }
+}
+
 /// Dark-theme category colours, in the same order as `SUPERSET_PALETTE_VARS`
 /// (`workoutSupersets.ts`). Run 0 is blue, then orange, violet, green, pink,
 /// teal, amber, slate. Values are the dark `--color-cat-*` tokens from
@@ -1084,6 +1112,7 @@ private struct StepControls: View {
     let onNext: () -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @Environment(\.workoutPageActive) private var workoutPageActive
 
     var body: some View {
         HStack {
@@ -1113,6 +1142,9 @@ private struct StepControls: View {
             }
             .buttonStyle(.plain)
             .disabled(isCompleted)
+            // Double-tap logs the set, but only while this page is showing and
+            // there is a set left to log.
+            .doubleTapGesture(enabled: workoutPageActive && !isCompleted)
 
             Spacer()
 
