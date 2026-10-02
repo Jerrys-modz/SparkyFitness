@@ -4436,6 +4436,31 @@ describe('workoutSession', () => {
           expect(result?.suggestedWeight).toBeCloseTo(105, 5);
         });
 
+        it('suggests the weight as typed, not the kg round-trip noise', () => {
+          // Storage is numeric(6,2) kg: 90 lb is kept as 40.82 kg (89.99… lb)
+          // and a 5 lb increment as 2.27 kg (5.004… lb).
+          const result = evaluateExerciseProgression(
+            {
+              progression_mode: 'rep_goal',
+              rep_goal: 45,
+              increment_type: 'weight',
+              increment_value: 2.27,
+            },
+            [
+              { set_type: 'normal' },
+              { set_type: 'normal' },
+              { set_type: 'normal' },
+            ],
+            [prev(40.82, 15), prev(40.82, 15), prev(40.82, 15)],
+            'lbs'
+          );
+          expect(result?.status).toBe('PROGRESSION_WEIGHT_INCREASE');
+          expect(result?.suggestedWeight).toBe(95);
+          expect(result?.message).toBe(
+            'Rep goal met (45/45 reps)! Increasing weight to 95.'
+          );
+        });
+
         it('treats a step-load increment as reps even when stored as weight', () => {
           // AI-created step-load presets default increment_type to weight.
           const result = evaluateExerciseProgression(

@@ -32,6 +32,14 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var targetOverrides: [String: SetValues] = [:]
     /// Revision of `targetOverrides`, so an older queued update is ignored.
     private var targetRevision: Double = 0
+    /// Revision of the last plan update from the phone (see `updatePlan`), so
+    /// a duplicate or older one is ignored.
+    private var planRevision: Double = 0
+    /// Phone completions whose set was not in `steps` yet. A target snapshot
+    /// can arrive before the plan update that adds the set; `updatePlan`
+    /// folds these in. Replaced by each newer snapshot, so a set the phone
+    /// has since dropped is not completed later.
+    private var pendingUnknownCompletions: Set<String> = []
     /// The phone's rest as last taken from it, so an update that repeats it
     /// leaves a rest adjusted here alone. See `applyTargets`. Not in the
     /// snapshot: the rest itself is not either, so after a relaunch the next
@@ -141,9 +149,11 @@ final class WorkoutSessionStore: ObservableObject {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
         targetOverrides = targets
+        let knownIds = Set(steps.map(\.plannedSet.setId))
+        pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
         let newlyCompleted = phoneCompleted
             .subtracting(completedSetIds)
-            .filter { id in steps.contains { $0.plannedSet.setId == id } }
+            .filter { knownIds.contains($0) }
         if !newlyCompleted.isEmpty {
             completedSetIds.formUnion(newlyCompleted)
             if let step = currentStep, isCompleted(step) {
@@ -218,8 +228,9 @@ final class WorkoutSessionStore: ObservableObject {
         completedSetIds.contains(step.plannedSet.setId)
     }
 
-    func start(with plan: ActiveWorkoutPlan) {
-        self.plan = plan
+    /// The plan's sets in the order the phone walks them (`setOrder`,
+    /// supersets interleaved), else each exercise in turn.
+    private static func steps(for plan: ActiveWorkoutPlan) -> [WorkoutStep] {
         let partners = plan.supersetPartners()
         let flattened = plan.exercises.flatMap { exercise in
             exercise.sets.enumerated().map { index, set in
@@ -235,20 +246,30 @@ final class WorkoutSessionStore: ObservableObject {
             }
         }
         if plan.setOrder.isEmpty {
-            steps = flattened
+            return flattened
         } else {
             let byId = Dictionary(
                 flattened.map { ($0.plannedSet.setId, $0) },
                 uniquingKeysWith: { first, _ in first }
             )
             let ordered = plan.setOrder.compactMap { byId[$0] }
-            steps = ordered.isEmpty ? flattened : ordered
+            return ordered.isEmpty ? flattened : ordered
         }
+    }
+
+    /// `planRevision` is that of a plan update already folded into `plan`
+    /// before it started (see `WatchSessionManager`), so an older queued copy
+    /// arriving afterwards is still ignored.
+    func start(with plan: ActiveWorkoutPlan, planRevision startingRevision: Double = 0) {
+        self.plan = plan
+        steps = Self.steps(for: plan)
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
+        planRevision = startingRevision
+        pendingUnknownCompletions = []
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -293,6 +314,68 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
+    /// Takes the phone's plan after an exercise, superset or set was added,
+    /// removed or regrouped mid-workout, without restarting anything: sets
+    /// already logged here, typed values and the phone's targets are kept
+    /// (all keyed by set id), and so are the rest on screen and the HealthKit
+    /// session. The cursor stays on the set it was on; if that set is gone it
+    /// moves to the first set still to do. Ignored for another session or an
+    /// update no newer than the last one taken.
+    func updatePlan(_ newPlan: ActiveWorkoutPlan, revision: Double) {
+        guard let current = plan, current.sessionId == newPlan.sessionId,
+              revision > planRevision
+        else { return }
+        planRevision = revision
+        let cursorSetId = currentStep?.plannedSet.setId
+        // Past the last set the final exercise's window is still open, as in
+        // `moveCursor`.
+        let outgoing = currentStep?.exerciseEntryId ?? steps.last?.exerciseEntryId
+        // Only the shape changes. Interval timing stays as accepted here:
+        // `applyIntervalTiming` keeps the pause state and its revision in the
+        // plan, and an update does not carry them.
+        plan = ActiveWorkoutPlan(
+            sessionId: current.sessionId,
+            workoutName: newPlan.workoutName,
+            exercises: newPlan.exercises,
+            setOrder: newPlan.setOrder,
+            workoutFormat: current.workoutFormat,
+            timeCapSeconds: current.timeCapSeconds,
+            startedAt: current.startedAt,
+            armedAt: current.armedAt,
+            capEndsAt: current.capEndsAt,
+            pausedAt: current.pausedAt,
+            excludedPauseSeconds: current.excludedPauseSeconds,
+            intervalRevision: current.intervalRevision
+        )
+        steps = Self.steps(for: newPlan)
+        let adopted = pendingUnknownCompletions.filter { id in
+            steps.contains { $0.plannedSet.setId == id }
+        }
+        if !adopted.isEmpty {
+            completedSetIds.formUnion(adopted)
+            pendingUnknownCompletions.subtract(adopted)
+        }
+        if let cursorSetId,
+           let index = steps.firstIndex(where: { $0.plannedSet.setId == cursorSetId }) {
+            currentStepIndex = index
+        } else {
+            currentStepIndex = steps.indices.first { !isCompleted(steps[$0]) } ?? steps.count
+        }
+        // A cursor pushed onto another exercise closes the old one's window,
+        // exactly as moving there by hand would.
+        if let outgoing, currentStep?.exerciseEntryId != outgoing {
+            onExerciseWillChange?(outgoing)
+        }
+        openCurrentExerciseWindow()
+        // Only when the set on screen is one this update just adopted. A set
+        // added by the plan was not the cursor, so it does not move it.
+        if !adopted.isEmpty, let step = currentStep, adopted.contains(step.plannedSet.setId) {
+            stopRestTimer()
+            advancePastCompletedSet()
+        }
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {
@@ -303,6 +386,8 @@ final class WorkoutSessionStore: ObservableObject {
         editedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
+        planRevision = 0
+        pendingUnknownCompletions = []
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -499,6 +584,10 @@ final class WorkoutSessionStore: ObservableObject {
         /// See `targetOverrides`. Optional so older snapshots still decode.
         var targetOverrides: [String: SetValues]?
         var targetRevision: Double?
+        /// See `planRevision`. Optional so older snapshots still decode.
+        var planRevision: Double?
+        /// See `pendingUnknownCompletions`. Optional so older snapshots still decode.
+        var pendingUnknownCompletions: [String]?
     }
 
     /// A finish that may not have reached the phone yet.
@@ -575,7 +664,9 @@ final class WorkoutSessionStore: ObservableObject {
             exerciseWindowSeconds: snapshotExerciseWindowSeconds,
             finishing: finishing,
             targetOverrides: targetOverrides,
-            targetRevision: targetRevision
+            targetRevision: targetRevision,
+            planRevision: planRevision,
+            pendingUnknownCompletions: Array(pendingUnknownCompletions)
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -600,6 +691,8 @@ final class WorkoutSessionStore: ObservableObject {
         editedValues = snapshot.editedValues
         targetOverrides = snapshot.targetOverrides ?? [:]
         targetRevision = snapshot.targetRevision ?? 0
+        planRevision = snapshot.planRevision ?? 0
+        pendingUnknownCompletions = Set(snapshot.pendingUnknownCompletions ?? [])
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
