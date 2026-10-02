@@ -1,8 +1,14 @@
+import { normalizeEquipment } from "./exerciseTaxonomy.ts";
+
 /**
  * Exercise modality selects which per-set editor clients render
  * (issue #1903 stage 2):
  * - weight_reps: weight + reps inputs (default strength table)
  * - reps_only: reps input, no weight column
+ * - bodyweight_reps: reps plus a signed weight for bodyweight movements —
+ *   positive is load added (+20 kg on a dip belt), negative is assistance
+ *   (−15 kg from a band or machine). Volume and estimated 1RM count the
+ *   lifter's body weight plus that value (see `effectiveLoadKg`).
  * - duration: single duration-in-seconds input
  * - duration_distance: cardio backed by a single set carrying duration
  *   (seconds) + distance (km); clients render a duration+distance form for
@@ -12,6 +18,7 @@
 export const EXERCISE_MODALITIES = [
   "weight_reps",
   "reps_only",
+  "bodyweight_reps",
   "duration",
   "duration_distance",
 ] as const;
@@ -34,19 +41,45 @@ export function isCardioModality(modality: ExerciseModality): boolean {
   return modality === "duration_distance";
 }
 
+/** Whether sets of this modality carry a signed added/assisting weight. */
+export function isBodyweightModality(modality: ExerciseModality): boolean {
+  return modality === "bodyweight_reps";
+}
+
 /**
- * Derive a modality from an exercise category. The rules must stay in sync
- * with the backfill CASE in the `*_set_duration_seconds_modality_distance.sql`
- * migration.
+ * Derive a modality from an exercise category and, when known, its equipment.
+ * The category rules must stay in sync with the backfill CASE in the
+ * `*_set_duration_seconds_modality_distance.sql` migration; the equipment
+ * rule only applies to exercises created or imported after it.
+ *
+ * Equipment that is recorded and is bodyweight alone (pull-up bar, dip
+ * station, "body only") gives `bodyweight_reps`. Blank equipment does not:
+ * too many custom and cardio exercises leave it empty for that to mean
+ * anything.
  */
 export function deriveExerciseModality(
   category: string | null | undefined,
+  equipment?: readonly (string | null | undefined)[] | string | null,
 ): ExerciseModality {
   const normalized = category?.trim().toLowerCase();
   if (normalized === "cardio") return "duration_distance";
   if (normalized === "isometric" || normalized === "isometrics")
     return "duration";
+  if (isBodyweightOnlyEquipment(equipment)) return "bodyweight_reps";
   return "weight_reps";
+}
+
+function isBodyweightOnlyEquipment(
+  equipment: readonly (string | null | undefined)[] | string | null | undefined,
+): boolean {
+  const values =
+    typeof equipment === "string" ? [equipment] : (equipment ?? []);
+  const recognised = values
+    .map((value) => normalizeEquipment(value))
+    .filter((value) => value != null);
+  return (
+    recognised.length > 0 && recognised.every((value) => value === "body only")
+  );
 }
 
 /**
@@ -58,10 +91,11 @@ export function deriveExerciseModality(
 export function resolveExerciseModality(
   modality: string | null | undefined,
   category: string | null | undefined,
+  equipment?: readonly (string | null | undefined)[] | string | null,
 ): ExerciseModality {
   return isExerciseModality(modality)
     ? modality
-    : deriveExerciseModality(category);
+    : deriveExerciseModality(category, equipment);
 }
 
 // Workout sources that support nested exercise editing after creation.

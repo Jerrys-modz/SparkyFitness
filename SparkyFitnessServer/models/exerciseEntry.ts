@@ -7,6 +7,7 @@ import { log } from '../config/logging.js';
 import exerciseRepository from './exercise.js';
 import activityDetailsRepository from './activityDetailsRepository.js';
 import * as workoutTelemetryRepository from './workoutTelemetryRepository.js';
+import { bodyWeightJoinSql } from '../utils/exerciseLoadSql.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -1677,6 +1678,10 @@ async function getExerciseProgressData(
          ee.exercise_preset_entry_id,
          epe.name AS exercise_preset_entry_name,
          e.category,
+         ee.modality,
+         -- Body weight that day, for a bodyweight exercise's load
+         -- (effectiveLoadKg in @workspace/shared).
+         bw.weight::float8 AS body_weight_kg,
          (
            ee.avg_heart_rate IS NOT NULL
            OR ee.max_heart_rate IS NOT NULL
@@ -1704,6 +1709,7 @@ async function getExerciseProgressData(
        FROM exercise_entries ee
        LEFT JOIN exercise_preset_entries epe ON epe.id = ee.exercise_preset_entry_id
        LEFT JOIN exercises e ON e.id = ee.exercise_id
+       ${bodyWeightJoinSql('ee')}
        WHERE ee.user_id = $1
          AND ee.exercise_id = $2
          AND ee.entry_date BETWEEN $3 AND $4
@@ -1767,11 +1773,13 @@ async function getBestSetForExercise(
          LEFT JOIN exercise_preset_entries epe ON epe.id = ee.exercise_preset_entry_id
         WHERE ee.user_id = $1
           AND ee.exercise_id = $2
-          AND ees.weight IS NOT NULL
+          -- A bodyweight set with no weight is body weight alone: it ranks
+          -- as +0 so a plain pull-up can still hold the rep record.
+          AND (ees.weight IS NOT NULL OR ee.modality = 'bodyweight_reps')
           AND (ees.set_type IS NULL OR regexp_replace(LOWER(ees.set_type), '[^a-z0-9]', '', 'g') NOT LIKE 'warmup%')
           AND COALESCE(epe.workout_format, 'standard') = 'standard'
           AND ($3::uuid IS NULL OR ee.exercise_preset_entry_id IS DISTINCT FROM $3)
-        ORDER BY ees.weight DESC,
+        ORDER BY COALESCE(ees.weight, 0) DESC,
                  ees.reps DESC NULLS LAST,
                  ee.entry_date DESC,
                  ee.created_at DESC,

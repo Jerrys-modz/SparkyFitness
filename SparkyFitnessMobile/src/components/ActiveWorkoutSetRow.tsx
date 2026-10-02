@@ -6,10 +6,10 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useCSSVariable } from 'uniwind';
-import { RIR_MAX, RIR_MIN } from '@workspace/shared';
+import { RIR_MAX, RIR_MIN, isBodyweightModality } from '@workspace/shared';
 import { measureAnchoredMenuTrigger, type AnchorRect } from './AnchoredMenu';
 import CompletionCheck, { LogCircle } from './CompletionCheck';
 import Icon from './Icon';
@@ -21,7 +21,10 @@ import {
 } from './SetRowChrome';
 import { focusWithAndroidImeRetry } from '../utils/keyboardFocus';
 import { withAlpha } from '../utils/colors';
-import { parseDecimalInput } from '../utils/numericInput';
+import {
+  parseDecimalInput,
+  parseSignedDecimalInput,
+} from '../utils/numericInput';
 import {
   distanceFromKm,
   weightFromKg,
@@ -34,9 +37,11 @@ import {
   estimateRepMaxKg,
   formatRecentSessionSet,
   firstSetInputField,
+  formatSetWeightText,
   getRpeTone,
   isDurationModality,
   quantizeSetWeightKg,
+  setLoadKg,
   setTypeLetter,
   setVolumeKg,
   type AssumedSetValues,
@@ -113,6 +118,11 @@ interface ActiveWorkoutSetRowProps {
    * `duration_distance` view rows).
    */
   modality?: ExerciseModality;
+  /**
+   * The lifter's body weight (kg), for a bodyweight exercise's volume and
+   * estimated maxes. Null when unknown: only the added weight counts then.
+   */
+  bodyWeightKg?: number | null;
   /** Display unit for the `duration_distance` view-mode distance cell. */
   distanceUnit?: 'km' | 'miles';
   /**
@@ -218,6 +228,7 @@ interface ActiveWorkoutSetRowProps {
 function ActiveWorkoutSetRow({
   set,
   modality = 'weight_reps',
+  bodyWeightKg = null,
   distanceUnit = 'km',
   renderKey,
   displayNumber,
@@ -464,7 +475,9 @@ function ActiveWorkoutSetRow({
       // user). Only a real edit — a draft that no longer matches — reaches the
       // store. This also spares an unedited log a spurious revision bump.
       if (text === formatDisplayWeight(set.weight, weightUnit)) return;
-      const value = parseDecimalInput(text);
+      // Signed: a bodyweight set's weight is +added or −assisting load, and
+      // the keypad only offers a minus for those.
+      const value = parseSignedDecimalInput(text);
       // Quantized so the stored kg matches what the server will echo back —
       // an unrounded lbs conversion would differ post-save and re-seed the
       // row's drafts (see quantizeSetWeightKg).
@@ -631,18 +644,27 @@ function ActiveWorkoutSetRow({
         return { text: formatRpe(set.rir) };
       }
       case 'volume':
-        return { text: formatMetricWeight(setVolumeKg(set), weightUnit) };
+        return {
+          text: formatMetricWeight(
+            setVolumeKg(set, modality, bodyWeightKg),
+            weightUnit
+          ),
+        };
       case 'e1rm':
         return {
           text: formatMetricWeight(
-            epley1RmKg(set.weight, set.reps),
+            epley1RmKg(setLoadKg(set.weight, modality, bodyWeightKg), set.reps),
             weightUnit
           ),
         };
       case 'tenrm':
         return {
           text: formatMetricWeight(
-            estimateRepMaxKg(set.weight, set.reps, 10),
+            estimateRepMaxKg(
+              setLoadKg(set.weight, modality, bodyWeightKg),
+              set.reps,
+              10
+            ),
             weightUnit
           ),
         };
@@ -841,7 +863,13 @@ function ActiveWorkoutSetRow({
     ) : null;
 
   const displayWeight =
-    set.weight != null ? formatDisplayWeight(set.weight, weightUnit) : '–';
+    set.weight != null
+      ? formatSetWeightText(
+          formatDisplayWeight(set.weight, weightUnit),
+          set.weight,
+          modality
+        )
+      : '–';
   const displayReps = set.reps != null ? String(set.reps) : '–';
 
   // View cells: flat text.
@@ -891,6 +919,13 @@ function ActiveWorkoutSetRow({
   // values as gray placeholders; edit cells are controlled by the form
   // reducer (weight/reps per keystroke; RPE snapped per keystroke) so a
   // header Save reads the draft synchronously with no flush step.
+  // iOS's decimal pad has no minus key, and an assisted bodyweight set needs
+  // one; Android's numeric pad carries it.
+  const weightKeyboardType = !isBodyweightModality(modality)
+    ? 'decimal-pad'
+    : Platform.OS === 'ios'
+      ? 'numbers-and-punctuation'
+      : 'numeric';
   const weightInputCell = (
     <View className="flex-1 items-center">
       <SetCellInput
@@ -903,7 +938,7 @@ function ActiveWorkoutSetRow({
         }
         onBlur={isEdit ? undefined : () => commitWeight(weightDraft)}
         onFocus={() => onActivateSet?.(setId, 'weight')}
-        keyboardType="decimal-pad"
+        keyboardType={weightKeyboardType}
         accessibilityLabel={t('activeWorkout.setRow.weight', {
           defaultValue: 'Weight',
         })}
