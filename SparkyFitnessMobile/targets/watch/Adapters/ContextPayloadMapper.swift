@@ -69,8 +69,26 @@ enum ContextPayloadMapper {
             hiddenPages: payload.keys.contains("hiddenPages")
                 ? stringArray(payload["hiddenPages"])
                 : previous.hiddenPages,
-            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle
+            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
+            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
+            workoutServerId: payload.keys.contains("workoutServerId")
+                ? payload["workoutServerId"] as? String
+                : previous.workoutServerId
         )
+    }
+
+    /// Nil when the phone did not mention the key, so an older push does not
+    /// wipe a list the watch already has. An empty array is a real answer.
+    static func startableWorkouts(from payload: [String: Any]) -> [StartableWorkout]? {
+        guard let raw = payload["startableWorkouts"] else { return nil }
+        let rows = dictionaryArray(raw) ?? []
+        return rows.compactMap { row in
+            guard
+                let presetId = row["presetId"] as? String, !presetId.isEmpty,
+                let name = row["name"] as? String, !name.isEmpty
+            else { return nil }
+            return StartableWorkout(presetId: presetId, name: name)
+        }
     }
 
     static func history(from payload: [String: Any]) -> [HistoryPoint] {
@@ -234,9 +252,12 @@ enum ContextPayloadMapper {
     /// The session a phone-sent `workoutStop` names, and when the phone sent
     /// it. Nil session for a malformed payload, which is dropped rather than
     /// ending whatever is running.
-    static func workoutStop(from payload: [String: Any]) -> (sessionId: String, stoppedAt: Date?)? {
+    static func workoutStop(
+        from payload: [String: Any]
+    ) -> (sessionId: String, stoppedAt: Date?, discarded: Bool)? {
         guard let sessionId = payload["sessionId"] as? String else { return nil }
-        return (sessionId, isoDate(from: payload["stoppedAt"]))
+        // Absent from an older phone build, which only ever finished.
+        return (sessionId, isoDate(from: payload["stoppedAt"]), payload["discarded"] as? Bool ?? false)
     }
 
     static func isoDate(from value: Any?) -> Date? {

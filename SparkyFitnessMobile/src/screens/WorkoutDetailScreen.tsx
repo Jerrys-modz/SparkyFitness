@@ -176,7 +176,7 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       // clear the active state so the bar doesn't keep referencing a session
       // that no longer exists on the server.
       if (useActiveWorkoutStore.getState().sessionId === session.id) {
-        useActiveWorkoutStore.getState().clearWorkout();
+        useActiveWorkoutStore.getState().clearWorkout({ discarded: true });
       }
       navigation.goBack();
     },
