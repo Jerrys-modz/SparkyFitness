@@ -41,6 +41,23 @@ import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
 import { useCustomNutrients } from './useCustomNutrients';
 import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
+import type { WorkoutPreset } from '../types/workoutPresets';
+import { useWorkoutPresets } from './useWorkoutPresets';
+import { getActiveServerConfigId } from '../services/storage';
+
+/** Saved workouts the watch may start. Presets with no exercises are omitted:
+ * the server rejects a session that has none. */
+export function startableWorkoutsForWatch(
+  presets: readonly Pick<WorkoutPreset, 'id' | 'name' | 'exercises'>[]
+): { presetId: string; name: string }[] {
+  return presets
+    .filter(
+      (preset) => preset.name.trim() !== '' && preset.exercises.length > 0
+    )
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((preset) => ({ presetId: String(preset.id), name: preset.name }));
+}
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
 function goalProgress(consumed: number, goal: number): number {
@@ -198,6 +215,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     preferences?.default_weight_unit === 'st_lbs'
       ? 'lbs'
       : 'kg';
+  const { presets } = useWorkoutPresets({ enabled });
+  const startableWorkouts = useMemo(
+    () => startableWorkoutsForWatch(presets),
+    [presets]
+  );
 
   // The calendar day everything below describes.
   //
@@ -444,6 +466,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // ordering that sticks.
     const generation = ++pushGenerationRef.current;
     try {
+      const workoutServerId = await getActiveServerConfigId();
       const today = getTodayDate();
       const startDate = addDays(today, -(HISTORY_DAYS - 1));
       const range = await fetchMeasurementsRange(startDate, today);
@@ -520,6 +543,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         waterDisplayUnit,
         hapticsEnabled,
         restAlertsEnabled,
+        startableWorkouts,
+        workoutServerId,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -529,6 +554,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       // Superseded while the fetch above was in flight — a newer push has
       // already sent, or is about to, from fresher state than this one holds.
       if (generation !== pushGenerationRef.current) return;
+      if ((await getActiveServerConfigId()) !== workoutServerId) return;
 
       await WatchConnectivity.updateContext(context);
     } catch (error) {
@@ -545,6 +571,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     weightUnit,
     hapticsEnabled,
     restAlertsEnabled,
+    startableWorkouts,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

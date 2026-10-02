@@ -11,6 +11,7 @@ import {
 } from '../../src/stores/activeWorkoutStore';
 import {
   updateWorkout,
+  deleteWorkout,
   attachExerciseEntryWatchTelemetry,
 } from '../../src/services/api/exerciseApi';
 import { addLog } from '../../src/services/LogService';
@@ -28,6 +29,7 @@ import { clearServerConfigCache } from '../../src/services/storage';
 
 jest.mock('../../src/services/api/exerciseApi', () => ({
   updateWorkout: jest.fn(),
+  deleteWorkout: jest.fn(),
   attachExerciseEntryWatchTelemetry: jest.fn(),
 }));
 
@@ -454,6 +456,127 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
   });
 
+  it('clears a live-start session and deletes it from the diary on workoutDiscard, without attaching heart rate', async () => {
+    const mockDelete = deleteWorkout as jest.MockedFunction<
+      typeof deleteWorkout
+    >;
+    mockDelete.mockResolvedValue(undefined);
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession(), { createdByLiveStart: true });
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+      });
+    });
+
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBeNull();
+    expect(mockDelete).toHaveBeenCalledWith('session-1');
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
+    expect(mockUpdateWorkout).not.toHaveBeenCalled();
+  });
+
+  it('only clears, without deleting, a discarded session that was not created by the live start', async () => {
+    const mockDelete = deleteWorkout as jest.MockedFunction<
+      typeof deleteWorkout
+    >;
+    mockDelete.mockClear();
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBeNull();
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('attaches telemetry for a session that is opened again after a watch discard', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1' });
+      await Promise.resolve();
+    });
+    expect(getStore().sessionId).toBeNull();
+
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [
+          { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+          { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+        ],
+      });
+    });
+    await act(async () => {
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockAttachTelemetry).toHaveBeenCalledWith(
+      'ex-uuid-1',
+      expect.objectContaining({ hrSamples: expect.any(Array) })
+    );
+  });
+
+  it('ignores a workoutDiscard for a session that is not live', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'other-session' });
+      await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBe('session-1');
+  });
+
+  it('ignores a workoutDiscard from an earlier arm of the same session', async () => {
+    const mockDelete = deleteWorkout as jest.MockedFunction<
+      typeof deleteWorkout
+    >;
+    mockDelete.mockClear();
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession(), { createdByLiveStart: true });
+      useActiveWorkoutStore.setState({ watchArmedAt: 2_000_000 });
+    });
+
+    await act(async () => {
+      fire('onWorkoutDiscard', { sessionId: 'session-1', armedAt: 1_000_000 });
+      await Promise.resolve();
+    });
+
+    expect(getStore().sessionId).toBe('session-1');
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
   it('buffers heart-rate batches for the matching session and attaches them on workoutStop', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
@@ -640,7 +763,8 @@ describe('useWatchWorkoutBridge', () => {
 
     expect(mockStopWorkout).toHaveBeenCalledWith(
       'session-1',
-      expect.any(String)
+      expect.any(String),
+      false
     );
     expect(mockAttachTelemetry).toHaveBeenCalledWith('ex-uuid-1', {
       hrSamples: [
@@ -648,6 +772,34 @@ describe('useWatchWorkoutBridge', () => {
         { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
       ],
     });
+  });
+
+  it('tells the watch to drop the workout when the phone discards it', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      fire('onHeartRateBatch', {
+        sessionId: 'session-1',
+        exerciseEntryId: 'ex-uuid-1',
+        samples: [{ t: '2026-09-17T10:00:00.000Z', bpm: 120 }],
+      });
+    });
+    mockAttachTelemetry.mockClear();
+
+    await act(async () => {
+      getStore().clearWorkout({ discarded: true });
+      await Promise.resolve();
+    });
+
+    expect(mockStopWorkout).toHaveBeenCalledWith(
+      'session-1',
+      expect.any(String),
+      true
+    );
+    // A discarded workout's heart rate is never attached.
+    expect(mockAttachTelemetry).not.toHaveBeenCalled();
   });
 
   it('attributes the watch drain that arrives after the phone ends the workout', async () => {

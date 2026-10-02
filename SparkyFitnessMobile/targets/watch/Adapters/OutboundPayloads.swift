@@ -25,7 +25,9 @@ enum OutboundPayloads {
         static let heartRateBatch = "heartRateBatch"
         static let liveHeartRate = "liveHeartRate"
         static let workoutStop = "workoutStop"
+        static let workoutDiscard = "workoutDiscard"
         static let restChanged = "restChanged"
+        static let workoutStartRequested = "workoutStartRequested"
     }
 
     /// A morning check-in awaiting a server write.
@@ -68,6 +70,21 @@ enum OutboundPayloads {
 
     /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
+
+    /// The wearer tapped a saved workout. The phone creates the session and
+    /// arms the watch the same way its own start button does. `serverId` is
+    /// the phone that built the list, so a tap queued across an account
+    /// switch is refused.
+    static func workoutStartRequest(presetId: String, serverId: String?) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.workoutStartRequested,
+            "presetId": presetId,
+        ]
+        if let serverId, !serverId.isEmpty {
+            payload["serverId"] = serverId
+        }
+        return payload
+    }
 
     /// One set logged during an active workout, with whatever the wearer
     /// actually did. Delivery must not be lost — unlike a heart-rate sample,
@@ -150,6 +167,20 @@ enum OutboundPayloads {
             "type": Kind.workoutStop,
             "sessionId": signal.sessionId,
         ]
+    }
+
+    /// The wearer discarded the workout on the watch. Queued like
+    /// `workoutStop`: a phone that never hears it would keep a live session
+    /// the wrist already abandoned. Unlike a stop, no heart rate follows it.
+    static func workoutDiscard(sessionId: String, armedAt: Date?) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.workoutDiscard,
+            "sessionId": sessionId,
+        ]
+        if let armedAt {
+            payload["armedAt"] = armedAt.timeIntervalSince1970 * 1000
+        }
+        return payload
     }
 
     /// The wearer skipped or moved the rest on the watch. Both deadlines are

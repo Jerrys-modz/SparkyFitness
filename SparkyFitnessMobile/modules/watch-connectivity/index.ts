@@ -216,6 +216,17 @@ export interface WatchContextPayload {
    * it wrong.
    */
   waterLog?: WatchWaterLogPayload[] | null;
+  /**
+   * Saved workouts the wearer can start from the wrist. Names and ids only;
+   * the phone still builds and arms the session. Absent on an older phone.
+   */
+  startableWorkouts?: { presetId: string; name: string }[] | null;
+  /**
+   * The phone's active server when that list was built. The watch sends it
+   * back with a start request so a queued tap cannot start a preset after
+   * the phone has switched accounts.
+   */
+  workoutServerId?: string | null;
 }
 
 /** One target set the watch shows for a planned exercise. */
@@ -399,6 +410,18 @@ export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
 
+export interface WatchWorkoutDiscardPayload {
+  sessionId: string;
+  /** Epoch ms of the arm that was discarded. Absent from an older watch. */
+  armedAt?: number;
+}
+
+export interface WatchWorkoutStartRequestedPayload {
+  presetId: string;
+  /** Active server the list was built for. Empty when an older watch omitted it. */
+  serverId?: string;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -410,6 +433,8 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
+  onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -432,9 +457,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * Tells the watch the workout it was armed with has ended on the phone, so
    * it stops its HealthKit session and clears the Workout tab. Takes the
    * session id rather than being argument-less so a stop for an already
-   * superseded workout can be ignored watch-side.
+   * superseded workout can be ignored watch-side. `discarded` tells the watch
+   * the workout was thrown away, not finished: it ends the session without
+   * saving it to Health and shows no summary.
    */
-  stopWorkout(sessionId: string, stoppedAt: string): Promise<void>;
+  stopWorkout(
+    sessionId: string,
+    stoppedAt: string,
+    discarded: boolean
+  ): Promise<void>;
   /**
    * Absolute pause snapshot for the live session. `revision` only increases.
    * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.
