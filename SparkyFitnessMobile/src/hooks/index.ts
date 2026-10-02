@@ -14,7 +14,7 @@ export { useDailySummary } from './useDailySummary';
 export { useFamilyUsers, useFamilyDailySummary } from './useFamilyDiary';
 export { useMeasurements } from './useMeasurements';
 
-// Only `useWatchCheckInBridge`/`useWatchWorkoutBridge`/`useWatchSetTargetsSync`
+// Only `useWatchCheckInBridge`/`useWatchWorkoutBridge`/`useWatchSetTargetsSync`/`useWatchPlanSync`
 // are re-exported here:
 // App.tsx mounts them through this barrel. `useUpsertCheckIn` and
 // `useWatchConnectivity` are imported by their own paths at every call site,
@@ -23,6 +23,7 @@ export { useMeasurements } from './useMeasurements';
 export { useWatchCheckInBridge } from './useWatchCheckInBridge';
 export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
 export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
+export { useWatchPlanSync } from './useWatchPlanSync';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
