@@ -15,6 +15,14 @@ name: Build iOS & watchOS
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          Runner label. Use xcode-27 (preview image) to compile code guarded by
+          compiler(>=6.4), such as modules/on-device-nutrition.
+        required: false
+        default: macos-latest
+        type: string
 
 # A second push to the same branch makes the first build irrelevant.
 concurrency:
@@ -24,7 +32,7 @@ concurrency:
 jobs:
   build:
     name: Compile iOS app and watchOS companion
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner || 'macos-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -64,6 +72,24 @@ jobs:
       - name: List generated schemes
         working-directory: SparkyFitnessMobile
         run: xcodebuild -list -workspace ios/SparkyFitness.xcworkspace
+
+      # The simulator SDK may omit device-only FoundationModels/Vision types, so
+      # compile the on-device nutrition module for a real device too. Compile
+      # only (no signing). Fast: builds just that pod and its dependencies.
+      - name: Compile on-device nutrition module for device
+        if: ${{ inputs.runner == 'xcode-27' }}
+        working-directory: SparkyFitnessMobile
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'OnDeviceNutritionModule' \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
 
       # Scheme name comes from `name` in targets/watch/expo-target.config.js.
       # Note it is NOT "SparkyFitness Watch" — there is a sibling

@@ -3600,6 +3600,10 @@
       "firstAvailable": "First available",
       "description": "Used when searching for foods by name."
     },
+    "onDeviceLabelScan": {
+      "title": "Scan Labels On Device",
+      "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
+    },
     "openFacts": {
       "title": "Adjust Open Food Facts Values",
       "description": "Open Food Facts uses values per 100g. This converts them to the product’s serving size."
