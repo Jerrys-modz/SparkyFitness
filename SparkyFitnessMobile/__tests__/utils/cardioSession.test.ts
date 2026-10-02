@@ -1,6 +1,7 @@
 import type { ExerciseEntryHrZones, GpsTrackPoint } from '@workspace/shared';
 import {
   gpsHeartRateSeries,
+  combinedHeartRateZoneRows,
   heartRateZoneRows,
   projectRoute,
   routeRegion,
@@ -163,5 +164,40 @@ describe('heartRateZoneRows', () => {
       { zone: 1, lowerBpm: 110, upperBpm: null, seconds: 100, share: 0.25 },
       { zone: 2, lowerBpm: 120, upperBpm: null, seconds: 300, share: 0.75 },
     ]);
+  });
+});
+
+describe('combinedHeartRateZoneRows', () => {
+  const zone = (
+    index: number,
+    seconds: number,
+    lower: number | null,
+    upper: number | null = null
+  ) =>
+    ({
+      zone_index: index,
+      zone_lower_bpm: lower,
+      zone_upper_bpm: upper,
+      seconds_in_zone: seconds,
+    }) as ExerciseEntryHrZones;
+
+  it('adds each zone up across entries and shares the total between them', () => {
+    expect(
+      combinedHeartRateZoneRows([
+        [zone(2, 300, 120, 140), zone(1, 100, 100, 120)],
+        [zone(2, 500, null, null), zone(3, 100, 140, 160)],
+      ])
+    ).toEqual([
+      { zone: 1, lowerBpm: 100, upperBpm: 120, seconds: 100, share: 0.1 },
+      { zone: 2, lowerBpm: 120, upperBpm: 140, seconds: 800, share: 0.8 },
+      { zone: 3, lowerBpm: 140, upperBpm: 160, seconds: 100, share: 0.1 },
+    ]);
+  });
+
+  it('ignores negative seconds and is empty for no entries', () => {
+    expect(combinedHeartRateZoneRows([[zone(1, -50, 100)]])).toEqual([
+      { zone: 1, lowerBpm: 100, upperBpm: null, seconds: 0, share: 0 },
+    ]);
+    expect(combinedHeartRateZoneRows([])).toEqual([]);
   });
 });
