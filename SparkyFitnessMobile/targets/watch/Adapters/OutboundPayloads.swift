@@ -23,6 +23,7 @@ enum OutboundPayloads {
         static let contextRequest = "requestContext"
         static let setCompleted = "setCompleted"
         static let heartRateBatch = "heartRateBatch"
+        static let liveHeartRate = "liveHeartRate"
         static let workoutStop = "workoutStop"
         static let restChanged = "restChanged"
     }
@@ -120,6 +121,24 @@ enum OutboundPayloads {
             payload["durationMinutes"] = minutes
         }
         return payload
+    }
+
+    /// The reading the wrist is showing right now. Only ever sent as a live
+    /// message, never queued: a reading that arrives minutes late describes
+    /// nothing, and the batch carries the same samples for the diary.
+    static func liveHeartRate(
+        sessionId: String,
+        exerciseEntryId: String,
+        bpm: Double,
+        at: Date
+    ) -> [String: Any] {
+        [
+            "type": Kind.liveHeartRate,
+            "sessionId": sessionId,
+            "exerciseEntryId": exerciseEntryId,
+            "bpm": bpm,
+            "at": at.timeIntervalSince1970 * 1000,
+        ]
     }
 
     /// The wearer ended the workout on the watch. Queued like `setCompleted`:

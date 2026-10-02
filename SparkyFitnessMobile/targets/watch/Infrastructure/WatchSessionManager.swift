@@ -188,6 +188,46 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// How often the phone is told the current reading. The phone's chip
+    /// should move with the wrist, but a message per sample would keep the
+    /// radio busy for a number that changes by a beat or two.
+    private static let liveHeartRateInterval: TimeInterval = 3
+    private static let liveHeartRateMaxAge: TimeInterval = 5
+    private var lastLiveHeartRateAt: Date?
+
+    /// Tells the phone the current reading, only while it can be reached. A
+    /// live message that cannot be delivered now is dropped on purpose; the
+    /// batch every minute is what carries the readings for the diary.
+    ///
+    /// `measuredAt` is when HealthKit took the reading. A reading older than
+    /// `liveHeartRateMaxAge` (a backlog replay after a recovery, or a callback
+    /// that outlived the exercise it was measured in) is not "live" and would
+    /// be labelled with whatever exercise is on screen now, so it is skipped.
+    private func sendLiveHeartRate(_ bpm: Double, measuredAt: Date) {
+        guard Date().timeIntervalSince(measuredAt) <= Self.liveHeartRateMaxAge else { return }
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable,
+              bpm > 0,
+              let sessionId = workoutStore.plan?.sessionId,
+              let exerciseEntryId = workoutStore.currentStep?.exerciseEntryId
+                ?? workoutStore.steps.last?.exerciseEntryId
+        else { return }
+        let now = Date()
+        if let last = lastLiveHeartRateAt, now.timeIntervalSince(last) < Self.liveHeartRateInterval {
+            return
+        }
+        lastLiveHeartRateAt = now
+        WCSession.default.sendMessage(
+            OutboundPayloads.liveHeartRate(
+                sessionId: sessionId,
+                exerciseEntryId: exerciseEntryId,
+                bpm: bpm,
+                at: measuredAt
+            ),
+            replyHandler: nil,
+            errorHandler: nil
+        )
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
@@ -554,9 +594,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // but that alone doesn't satisfy Swift's isolation checking for the
         // `@MainActor` types on the other end, so each hops explicitly, the
         // same pattern `WCSessionDelegate`'s callbacks use above.
-        workoutHealthKit.onHeartRate = { [weak workoutStore] bpm in
+        workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm, measuredAt in
             Task { @MainActor in
                 workoutStore?.recordHeartRate(bpm: bpm)
+                self?.sendLiveHeartRate(bpm, measuredAt: measuredAt)
             }
         }
         workoutHealthKit.onBatchReady = { [weak self] samples in
