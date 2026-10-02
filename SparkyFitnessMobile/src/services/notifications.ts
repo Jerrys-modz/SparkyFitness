@@ -130,6 +130,18 @@ export async function ensureMedicationReminderChannel(): Promise<void> {
   );
 }
 
+export async function ensureSymptomReminderChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('symptom-reminders', {
+    name: notificationCopy(
+      'notifications.channels.symptomReminders',
+      'Symptom reminders'
+    ),
+    importance: Notifications.AndroidImportance.HIGH,
+    enableVibrate: true,
+  });
+}
+
 /**
  * Updates the app-local notifications toggle (backed by appPreferencesStore,
  * independent of the OS notification permission). Turning notifications off also

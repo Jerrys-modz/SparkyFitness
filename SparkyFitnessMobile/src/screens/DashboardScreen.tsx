@@ -40,6 +40,7 @@ import CaffeineCard from '../components/CaffeineCard';
 import Icon from '../components/Icon';
 import MacroCard from '../components/MacroCard';
 import MedicationsCard from '../components/MedicationsCard';
+import SymptomsCard from '../components/SymptomsCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
@@ -345,6 +346,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
+  );
+  const symptomsCardVisible = useAppPreferencesStore(
+    (s) => s.symptomsCardVisible
   );
   const progressPhotosCardVisible = useAppPreferencesStore(
     (s) => s.progressPhotosCardVisible
@@ -760,6 +764,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             case 'medications':
               return medicationsCardVisible ? (
                 <MedicationsCard key="medications" navigation={navigation} />
+              ) : null;
+            case 'symptoms':
+              return symptomsCardVisible ? (
+                <SymptomsCard
+                  key="symptoms"
+                  navigation={navigation}
+                  date={selectedDate}
+                />
               ) : null;
             case 'progressPhotos':
               return progressPhotosCardVisible ? (

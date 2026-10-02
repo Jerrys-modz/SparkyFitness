@@ -30,7 +30,8 @@ function groupNames<T extends { entry_date: string }>(
 const doseLabel = (
   amount: number | null,
   unit: string | null
-): string | null => (amount != null && unit ? `${amount} ${unit}` : null);
+): string | null =>
+  amount !== null && amount !== undefined && unit ? `${amount} ${unit}` : null;
 
 /**
  * The diary around each requested symptom entry: what was eaten, drunk, walked

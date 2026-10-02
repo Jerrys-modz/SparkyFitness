@@ -71,6 +71,7 @@ export const PREFERENCE_DEFAULTS = {
   cycleCardVisible: true,
   askSparkyVisible: true,
   medicationsCardVisible: true,
+  symptomsCardVisible: true,
   progressPhotosCardVisible: true,
   healthTrendsCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
@@ -125,6 +126,7 @@ export type AppPreferencesData = {
   cycleCardVisible: boolean;
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
+  symptomsCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   healthTrendsCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
@@ -197,6 +199,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCycleCardVisible: (value: boolean) => void;
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
+  setSymptomsCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
@@ -307,6 +310,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setAskSparkyVisible: (value) => set({ askSparkyVisible: value }),
       setMedicationsCardVisible: (value) =>
         set({ medicationsCardVisible: value }),
+      setSymptomsCardVisible: (value) => set({ symptomsCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
       setHealthTrendsCardVisible: (value) =>

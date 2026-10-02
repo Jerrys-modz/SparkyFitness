@@ -9,7 +9,6 @@ import type {
   SymptomFreeDayResponse,
   SymptomOptionResponse,
   SymptomPhotoResponse,
-  UpdateSymptomDefinitionBody,
   UpdateSymptomEntryBody,
 } from '@workspace/shared';
 import { apiFetch, normalizeUrl } from './apiClient';
@@ -88,26 +87,7 @@ export const saveSymptomDefinition = (
     body,
   });
 
-export const patchSymptomDefinition = (
-  id: string,
-  body: UpdateSymptomDefinitionBody
-): Promise<SymptomDefinitionResponse> =>
-  apiFetch<SymptomDefinitionResponse>({
-    endpoint: `${BASE}/custom/${encodeURIComponent(id)}`,
-    serviceName: SERVICE,
-    operation: 'update symptom definition',
-    method: 'PUT',
-    body,
-  });
-
 // --- Options -----------------------------------------------------------------
-
-export const fetchSymptomOptions = (): Promise<SymptomOptionResponse[]> =>
-  apiFetch<SymptomOptionResponse[]>({
-    endpoint: `${BASE}/options`,
-    serviceName: SERVICE,
-    operation: 'list symptom options',
-  });
 
 export const saveSymptomOption = (
   body: CreateSymptomOptionBody

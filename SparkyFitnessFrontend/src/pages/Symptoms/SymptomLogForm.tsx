@@ -571,6 +571,7 @@ export default function SymptomLogForm({
                 <ChipPicker
                   items={locationItems}
                   selected={locations}
+                  showOrphans
                   onToggle={(label) => toggle(locations, setLocations, label)}
                   onAddCustom={(label) =>
                     addOption(locationKind, label, (l) =>
@@ -635,6 +636,7 @@ export default function SymptomLogForm({
             <ChipPicker
               items={resolveOptionItems('quality', storedOptions)}
               selected={qualities}
+              showOrphans
               onToggle={(label) => toggle(qualities, setQualities, label)}
               onAddCustom={(label) =>
                 addOption('quality', label, (l) =>
@@ -664,6 +666,7 @@ export default function SymptomLogForm({
             <ChipPicker
               items={resolveOptionItems('associated', storedOptions)}
               selected={associated}
+              showOrphans
               onToggle={(label) => toggle(associated, setAssociated, label)}
               onAddCustom={(label) =>
                 addOption('associated', label, (l) =>
@@ -701,6 +704,7 @@ export default function SymptomLogForm({
                 <ChipPicker
                   items={group.items}
                   selected={triggers}
+                  showOrphans={false}
                   onToggle={(label) => toggle(triggers, setTriggers, label)}
                   onRemoveCustom={(id, label) =>
                     removeOption(id, () =>
@@ -713,6 +717,7 @@ export default function SymptomLogForm({
             <ChipPicker
               items={[{ label: NOT_SURE, isCustom: false }]}
               selected={triggers}
+              showOrphans={false}
               onToggle={(label) => toggle(triggers, setTriggers, label)}
               onAddCustom={(label) =>
                 addOption('trigger', label, (l) =>

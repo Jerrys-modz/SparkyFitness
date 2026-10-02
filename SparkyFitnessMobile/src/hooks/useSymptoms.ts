@@ -13,7 +13,6 @@ import type {
   SymptomDefinitionResponse,
   SymptomEntryResponse,
   SymptomFreeDayResponse,
-  SymptomOptionResponse,
   UpdateSymptomEntryBody,
 } from '@workspace/shared';
 import {
@@ -22,7 +21,6 @@ import {
   deleteSymptomEntry,
   fetchSymptomDefinitions,
   saveSymptomDefinition,
-  fetchSymptomOptions,
   saveSymptomOption,
   fetchSymptomEntriesDetailed,
   fetchOngoingEpisodes,
@@ -36,6 +34,10 @@ import {
   uploadSymptomPhoto,
   type SymptomEntry,
 } from '../services/api/symptomsApi';
+import {
+  scheduleOngoingEpisodeNudge,
+  cancelOngoingEpisodeNudge,
+} from '../services/symptomReminderService';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 import {
   symptomDefinitionsQueryKey,
@@ -148,14 +150,6 @@ export function useSymptomDefinitions() {
   return { definitions: query.data ?? [], isLoading: query.isLoading };
 }
 
-export function useSymptomOptionsList() {
-  const query = useQuery<SymptomOptionResponse[]>({
-    queryKey: symptomOptionsQueryKey,
-    queryFn: fetchSymptomOptions,
-  });
-  return { options: query.data ?? [], isLoading: query.isLoading };
-}
-
 export function useOngoingEpisodes(enabled = true) {
   const query = useQuery<SymptomEntryResponse[]>({
     queryKey: symptomOngoingQueryKey,
@@ -241,7 +235,16 @@ export function useSymptomActions() {
 
   const logEntry = useMutation({
     mutationFn: (body: CreateSymptomEntryBody) => logSymptomEntry(body),
-    onSuccess: () => invalidateEntries(queryClient),
+    onSuccess: (data) => {
+      invalidateEntries(queryClient);
+      if (data?.id && data.started_at && !data.ended_at) {
+        void scheduleOngoingEpisodeNudge(
+          data.id,
+          data.symptom_name_snapshot ?? 'Symptom',
+          data.started_at
+        );
+      }
+    },
     onError: onError(
       t('symptoms.saveFailed', { defaultValue: 'Failed to save symptom' })
     ),
@@ -250,7 +253,12 @@ export function useSymptomActions() {
   const updateEntry = useMutation({
     mutationFn: ({ id, body }: { id: string; body: UpdateSymptomEntryBody }) =>
       patchSymptomEntry(id, body),
-    onSuccess: () => invalidateEntries(queryClient),
+    onSuccess: (data) => {
+      invalidateEntries(queryClient);
+      if (data?.id && data.ended_at) {
+        void cancelOngoingEpisodeNudge(data.id);
+      }
+    },
     onError: onError(
       t('symptoms.updateFailed', {
         defaultValue: 'Could not update the symptom log',
@@ -261,7 +269,10 @@ export function useSymptomActions() {
   const endEpisode = useMutation({
     mutationFn: ({ id, body }: { id: string; body: EndSymptomEpisodeBody }) =>
       endSymptomEpisode(id, body),
-    onSuccess: () => invalidateEntries(queryClient),
+    onSuccess: (_data, variables) => {
+      invalidateEntries(queryClient);
+      void cancelOngoingEpisodeNudge(variables.id);
+    },
     onError: onError(
       t('symptoms.endFailed', { defaultValue: 'Could not end the episode' })
     ),
@@ -280,7 +291,10 @@ export function useSymptomActions() {
 
   const removeEntry = useMutation({
     mutationFn: (id: string) => deleteSymptomEntry(id),
-    onSuccess: () => invalidateEntries(queryClient),
+    onSuccess: (_data, id) => {
+      invalidateEntries(queryClient);
+      void cancelOngoingEpisodeNudge(id);
+    },
     onError: onError(
       t('symptoms.removeFailed', { defaultValue: 'Failed to remove symptom' })
     ),
@@ -291,7 +305,9 @@ export function useSymptomActions() {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['symptomFreeDays'] }),
     onError: onError(
-      t('symptoms.freeFailed', { defaultValue: 'Could not save that' })
+      t('symptoms.freeFailed', {
+        defaultValue: 'Could not update symptom-free status',
+      })
     ),
   });
 
@@ -300,7 +316,9 @@ export function useSymptomActions() {
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['symptomFreeDays'] }),
     onError: onError(
-      t('symptoms.freeFailed', { defaultValue: 'Could not undo that' })
+      t('symptoms.freeFailed', {
+        defaultValue: 'Could not update symptom-free status',
+      })
     ),
   });
 

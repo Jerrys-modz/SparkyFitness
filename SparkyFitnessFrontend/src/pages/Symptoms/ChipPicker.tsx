@@ -13,6 +13,12 @@ interface ChipPickerProps {
   onAddCustom?: (label: string) => void;
   /** Removes one of the user's own options. */
   onRemoveCustom?: (optionId: string, label: string) => void;
+  /**
+   * When true, selected items not present in `items` are rendered as extra chips.
+   * Useful for standalone lists to display legacy/hidden items, but disabled for
+   * grouped lists (like triggers) to prevent selected items from one group showing in all groups.
+   */
+  showOrphans?: boolean;
 }
 
 const chipClass = (on: boolean) =>
@@ -24,9 +30,7 @@ const chipClass = (on: boolean) =>
   );
 
 /**
- * Multi-select chips over a pick-list. Values that are selected but no longer in
- * the list (an old entry using an option the user has since hidden) still show,
- * so they can be deselected.
+ * Multi-select chips over a pick-list.
  */
 export default function ChipPicker({
   items,
@@ -34,13 +38,14 @@ export default function ChipPicker({
   onToggle,
   onAddCustom,
   onRemoveCustom,
+  showOrphans = true,
 }: ChipPickerProps) {
   const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const selectedSet = new Set(selected);
   const known = new Set(items.map((i) => i.label));
-  const orphans = selected.filter((s) => !known.has(s));
+  const orphans = showOrphans ? selected.filter((s) => !known.has(s)) : [];
   const all: OptionItem[] = [
     ...items,
     ...orphans.map((label) => ({ label, isCustom: false })),
