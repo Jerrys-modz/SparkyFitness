@@ -561,7 +561,7 @@ private struct CurrentSetView: View {
                     crownValue = clamp(start + steps * stepSize(for: field), for: field)
                     // The crown clicks each detent by itself; a drag has to
                     // be told to.
-                    stepClick()
+                    Haptics.tap()
                 }
                 .onEnded { _ in dragStartValue = nil },
             including: isSelected ? .all : .subviews
@@ -700,15 +700,6 @@ private struct CurrentSetView: View {
     private func snapped(_ value: Double, for field: EditableField) -> Double {
         let step = stepSize(for: field)
         return clamp((value / step).rounded() * step, for: field)
-    }
-
-    /// One click per crown or drag step, silent while the phone's Settings →
-    /// Haptics switch is off (`WatchContext.effectiveHapticsEnabled`).
-    private func stepClick() {
-        MainActor.assumeIsolated {
-            guard CheckInStore.shared.context.effectiveHapticsEnabled else { return }
-            WKInterfaceDevice.current().play(.click)
-        }
     }
 
     private func clamp(_ value: Double, for field: EditableField) -> Double {
