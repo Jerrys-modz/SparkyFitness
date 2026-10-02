@@ -145,6 +145,7 @@ describe('SymptomsCard on Dashboard', () => {
     fireEvent.press(getByText('Active Episode'));
     expect(mockNavigate).toHaveBeenCalledWith('SymptomLog', {
       entryId: 'ep-1',
+      date: '2026-10-02',
       isOngoing: true,
     });
   });
