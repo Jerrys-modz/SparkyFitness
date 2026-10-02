@@ -55,6 +55,9 @@ final class WorkoutSessionStore: ObservableObject {
     private var heartRateSum: Double = 0
     private var heartRateCount: Int = 0
     private var heartRateMax: Double?
+    /// When the last live reading arrived, so the final drain's readings can
+    /// be told apart from ones already counted.
+    private var lastLiveHeartRateAt: Date?
     /// Non-nil while a rest countdown is running before the next set.
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
@@ -457,6 +460,21 @@ final class WorkoutSessionStore: ObservableObject {
 
     func recordHeartRate(bpm: Double) {
         latestBpm = bpm
+        lastLiveHeartRateAt = Date()
+        accumulateHeartRate(bpm)
+    }
+
+    /// Readings from the final HealthKit drain, which can include some the
+    /// live callback never delivered. Only those taken after the last live
+    /// reading are added, so a reading already counted is not counted twice.
+    func recordFinalHeartRate(_ readings: [(at: Date, bpm: Double)]) {
+        let cutoff = lastLiveHeartRateAt ?? .distantPast
+        for reading in readings where reading.at > cutoff {
+            accumulateHeartRate(reading.bpm)
+        }
+    }
+
+    private func accumulateHeartRate(_ bpm: Double) {
         guard bpm > 0 else { return }
         heartRateSum += bpm
         heartRateCount += 1
@@ -467,6 +485,7 @@ final class WorkoutSessionStore: ObservableObject {
         heartRateSum = 0
         heartRateCount = 0
         heartRateMax = nil
+        lastLiveHeartRateAt = nil
     }
 
     /// Totals for the workout in progress, or nil when no set was logged
