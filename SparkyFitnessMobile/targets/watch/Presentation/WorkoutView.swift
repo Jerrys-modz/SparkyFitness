@@ -431,6 +431,9 @@ private struct CurrentSetView: View {
     /// True only after the crown or a drag changes the value. Selecting a field
     /// must not write, or a target the crown cannot show gets saved as the cap.
     @State private var crownAdjusted = false
+    /// The set being edited. `step` can already be the next one when a settle
+    /// or an external cursor move commits, and that write has to stay here.
+    @State private var crownStep: WorkoutStep?
     @State private var pendingCommit: Task<Void, Never>?
     /// `crownValue` when the current drag began.
     @State private var dragStartValue: Double?
@@ -485,7 +488,7 @@ private struct CurrentSetView: View {
                 // wanted.
                 sensitivity: .low,
                 isContinuous: false,
-                isHapticFeedbackEnabled: true
+                isHapticFeedbackEnabled: checkIn.context.effectiveHapticsEnabled
             )
             .onChange(of: crownValue) { noteCrownChange() }
 
@@ -509,8 +512,9 @@ private struct CurrentSetView: View {
                 store.goToNextStep()
             }
         }
-        // Moving to another set by any other route (the phone logging this
-        // one, a jump from the exercise list) settles the edit first.
+        // The phone logging this set, or a jump from the exercise list, has
+        // already swapped `step` by the time this runs. The commit uses
+        // `crownStep`, captured when the box was selected.
         .onChange(of: step.plannedSet.setId) { endCrownEditing() }
         // crownValue is a number in the unit it was selected in. Committing
         // after the phone switches kg/lb would save that number in the new unit.
@@ -577,10 +581,11 @@ private struct CurrentSetView: View {
             return
         }
         endCrownEditing()
-        let stored = storedValue(for: field) ?? 0
-        crownBaseline = stored
+        let stored = storedValue(for: field)
+        crownStep = step
+        crownBaseline = stored ?? 0
         crownAdjusted = false
-        crownValue = stored
+        crownValue = stored ?? 0
         crownField = field
         // Next turn of the run loop: the row only becomes focusable once
         // `crownField` is set, and focus asked for before that is dropped.
@@ -619,10 +624,10 @@ private struct CurrentSetView: View {
     }
 
     private func commitCrownValue() {
-        guard crownAdjusted, let field = crownField else { return }
+        guard crownAdjusted, let field = crownField, let editing = crownStep else { return }
         let value = snapped(crownValue, for: field)
-        if value != storedValue(for: field) {
-            write(value, to: field)
+        if value != storedValue(for: field, on: editing) {
+            write(value, to: field, on: editing)
         }
     }
 
@@ -635,6 +640,7 @@ private struct CurrentSetView: View {
         crownFocused = false
         dragStartValue = nil
         crownAdjusted = false
+        crownStep = nil
     }
 
     /// Drops a weight edit without saving. Used when the display unit changes
@@ -647,9 +653,14 @@ private struct CurrentSetView: View {
         crownFocused = false
         dragStartValue = nil
         crownAdjusted = false
+        crownStep = nil
     }
 
     private func storedValue(for field: EditableField) -> Double? {
+        storedValue(for: field, on: step)
+    }
+
+    private func storedValue(for field: EditableField, on step: WorkoutStep) -> Double? {
         let values = store.values(for: step)
         switch field {
         case .weight: return values.weightKg.map(unit.fromKg)
@@ -658,6 +669,10 @@ private struct CurrentSetView: View {
     }
 
     private func write(_ value: Double, to field: EditableField) {
+        write(value, to: field, on: step)
+    }
+
+    private func write(_ value: Double, to field: EditableField, on step: WorkoutStep) {
         switch field {
         case .weight:
             store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(value))
