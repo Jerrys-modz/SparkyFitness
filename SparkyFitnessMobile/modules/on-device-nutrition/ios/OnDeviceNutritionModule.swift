@@ -87,11 +87,28 @@ private struct MealEstimate {
 }
 
 private let mealInstructions = """
-You estimate the nutrition of a meal from a photo. List each distinct food you \
-can see as its own item with an estimated weight in grams and the calories and \
-macros for that weight. Use typical values for the food as prepared. If the user \
-gives a total weight, make the item weights add up to it. Be conservative: do not \
-add foods you cannot see, and use low confidence when unsure.
+You estimate the nutrition of a meal from one or more photos. List each distinct \
+food you can see as its own item with an estimated weight in grams and the \
+calories and macros for that weight.
+
+QUANTITY
+- Estimate the amount actually shown, not a typical serving. "2 eggs" is about \
+100 g in total, and every nutrient must cover the whole amount.
+- If the user gives a total weight, make the item weights add up to it.
+
+PHOTOS
+- Use every photo once. Several photos usually show the same meal from \
+different angles: do not count the same food twice.
+- Read any scale display or package label that is visible and prefer those \
+numbers over a visual guess.
+
+ACCURACY
+- Use typical values for the food as prepared, or the known values for a named \
+brand or product.
+- Calories must be consistent with the macros: about protein x 4 + carbs x 4 + \
+fat x 9, within 5%.
+- Be conservative: do not add foods you cannot see, and use low confidence when \
+unsure.
 """
 
 private let chatInstructions = """
@@ -489,6 +506,29 @@ public class OnDeviceNutritionModule: Module {
             ChatToolBridge.shared.resolve(id, result)
         }
 
+        // Why the on-device model can or cannot be used: "available",
+        // "deviceNotEligible", "appleIntelligenceNotEnabled", "modelNotReady"
+        // or "unsupported" (older than iOS 27).
+        Function("onDeviceStatus") { () -> String in
+            #if compiler(>=6.4) && canImport(FoundationModels)
+            if #available(iOS 27, *) {
+                switch SystemLanguageModel.default.availability {
+                case .available:
+                    return "available"
+                case .unavailable(.deviceNotEligible):
+                    return "deviceNotEligible"
+                case .unavailable(.appleIntelligenceNotEnabled):
+                    return "appleIntelligenceNotEnabled"
+                case .unavailable(.modelNotReady):
+                    return "modelNotReady"
+                default:
+                    return "unsupported"
+                }
+            }
+            #endif
+            return "unsupported"
+        }
+
         Function("isAvailable") { () -> Bool in
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
@@ -595,13 +635,17 @@ public class OnDeviceNutritionModule: Module {
                     GetSleepTool(), LogExerciseTool(), CopyMealTool(),
                 ]
                 let tools = allTools.filter { !disabled.contains($0.name) }
-                let instructions = custom.isEmpty ? chatInstructions : custom
+                var instructions = custom.isEmpty ? chatInstructions : custom
+                if let userContext = options["userContext"] as? String, !userContext.isEmpty {
+                    instructions += "\n\nNOTES FROM THE USER\n\(userContext)"
+                }
+                let finalInstructions = instructions
                 let prompt = context.isEmpty
                     ? "Conversation so far:\n\(transcript)\n\nReply to the user's last message."
                     : "Diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
 
                 func run(_ model: some LanguageModel) async throws -> String {
-                    let session = LanguageModelSession(model: model, tools: tools, instructions: instructions)
+                    let session = LanguageModelSession(model: model, tools: tools, instructions: finalInstructions)
                     let response = try await session.respond(
                         to: prompt,
                         options: greedy ? GenerationOptions(sampling: .greedy) : GenerationOptions()
@@ -630,17 +674,28 @@ public class OnDeviceNutritionModule: Module {
 
         // Estimates a meal from one photo. Returns a dictionary the JS side turns
         // into the server's estimate shape, or throws so the caller falls back.
-        AsyncFunction("estimateMeal") { (base64: String, description: String?, totalGrams: Double?) -> [String: Any?] in
+        AsyncFunction("estimateMeal") { (images64: [String], description: String?, totalGrams: Double?, userContext: String?) -> [String: Any?] in
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
-                guard let data = Data(base64Encoded: base64),
-                    let source = CGImageSourceCreateWithData(data as CFData, nil),
-                    let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-                else {
-                    throw OnDeviceNutritionError.badImage
+                var images: [CGImage] = []
+                for base64 in images64 {
+                    guard let data = Data(base64Encoded: base64),
+                        let source = CGImageSourceCreateWithData(data as CFData, nil),
+                        let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+                    else {
+                        throw OnDeviceNutritionError.badImage
+                    }
+                    images.append(image)
                 }
-                let session = LanguageModelSession(instructions: mealInstructions)
-                var prompt = "Estimate the nutrition of this meal."
+                guard !images.isEmpty else { throw OnDeviceNutritionError.badImage }
+                var instructions = mealInstructions
+                if let userContext, !userContext.isEmpty {
+                    instructions += "\n\nNOTES FROM THE USER\n\(userContext)"
+                }
+                let session = LanguageModelSession(instructions: instructions)
+                var prompt = images.count == 1
+                    ? "Estimate the nutrition of this meal."
+                    : "Estimate the nutrition of this one meal, shown in \(images.count) photos."
                 if let description, !description.isEmpty {
                     prompt += " The user says: \(description)."
                 }
@@ -652,7 +707,9 @@ public class OnDeviceNutritionModule: Module {
                     options: GenerationOptions(sampling: .greedy)
                 ) {
                     prompt
-                    Attachment(image)
+                    for (index, image) in images.enumerated() {
+                        Attachment(image).label("image-\(index)")
+                    }
                 }
                 let meal = response.content
                 return [

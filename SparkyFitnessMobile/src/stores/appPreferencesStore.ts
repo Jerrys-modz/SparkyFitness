@@ -79,6 +79,7 @@ export const PREFERENCE_DEFAULTS = {
   onDeviceFoodPhotoEnabled: false,
   onDeviceChatEnabled: false,
   onDeviceChatSystemPrompt: '',
+  aiUserContext: '',
   onDeviceChatModel: 'device' as OnDeviceChatModel,
   onDeviceChatGreedy: false,
   onDeviceChatIncludeContext: true,
@@ -146,6 +147,8 @@ export type AppPreferencesData = {
   onDeviceChatEnabled: boolean;
   /** Empty means the built-in prompt. */
   onDeviceChatSystemPrompt: string;
+  /** Standing notes about the user, given to the on-device model. */
+  aiUserContext: string;
   /** Which model answers chat: this phone, Apple's private servers, or both. */
   onDeviceChatModel: OnDeviceChatModel;
   onDeviceChatGreedy: boolean;
@@ -233,6 +236,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
   setOnDeviceChatEnabled: (value: boolean) => void;
   setOnDeviceChatSystemPrompt: (value: string) => void;
+  setAiUserContext: (value: string) => void;
   setOnDeviceChatModel: (value: OnDeviceChatModel) => void;
   setOnDeviceChatGreedy: (value: boolean) => void;
   setOnDeviceChatIncludeContext: (value: boolean) => void;
@@ -355,6 +359,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ onDeviceLabelScanEnabled: value }),
       setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
       setOnDeviceChatModel: (value) => set({ onDeviceChatModel: value }),
+      setAiUserContext: (value) => set({ aiUserContext: value }),
       setOnDeviceChatSystemPrompt: (value) =>
         set({ onDeviceChatSystemPrompt: value }),
       setOnDeviceChatGreedy: (value) => set({ onDeviceChatGreedy: value }),
@@ -472,6 +477,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
         onDeviceChatEnabled: state.onDeviceChatEnabled,
         onDeviceChatSystemPrompt: state.onDeviceChatSystemPrompt,
+        aiUserContext: state.aiUserContext,
         onDeviceChatModel: state.onDeviceChatModel,
         onDeviceChatGreedy: state.onDeviceChatGreedy,
         onDeviceChatIncludeContext: state.onDeviceChatIncludeContext,

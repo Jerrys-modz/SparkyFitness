@@ -3610,7 +3610,7 @@
     },
     "onDeviceFoodPhoto": {
       "title": "Estimate Food Photos On Device",
-      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider."
+      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Up to 4 photos of one meal are read together; more than that, or a photo it cannot estimate, uses the server AI provider."
     },
     "onDeviceLabelScan": {
       "title": "Scan Labels On Device",
@@ -5780,7 +5780,12 @@
     "onDevice": {
       "title": "On-device (Apple Intelligence)",
       "description": "These run on this phone. Anything the on-device model cannot handle falls back to the server provider.",
-      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready."
+      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready.",
+      "reason": {
+        "deviceNotEligible": "This iPhone does not support Apple Intelligence.",
+        "appleIntelligenceNotEnabled": "Turn on Apple Intelligence in the iPhone Settings app first.",
+        "modelNotReady": "The on-device model is still downloading. Try again in a while."
+      }
     },
     "chatModel": {
       "title": "Chat model",
@@ -5795,6 +5800,11 @@
         "deviceNotEligible": "Not available on this device.",
         "systemNotReady": "Not ready yet. Check that Apple Intelligence is set up."
       }
+    },
+    "aboutYou": {
+      "title": "About you",
+      "description": "Optional notes the on-device AI keeps in mind, such as vegetarian, no dairy, or a usual portion. They are used for chat and meal photos and stay on this phone.",
+      "placeholder": "e.g. vegetarian, lactose intolerant"
     }
   }
 }
