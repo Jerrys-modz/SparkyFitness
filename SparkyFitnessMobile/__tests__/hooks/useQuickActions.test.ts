@@ -1,5 +1,8 @@
 import { waitFor } from '@testing-library/react-native';
-import { runQuickAction } from '../../src/hooks/useQuickActions';
+import {
+  quickActionItems,
+  runQuickAction,
+} from '../../src/hooks/useQuickActions';
 import {
   changeWaterIntake,
   fetchWaterContainers,
@@ -20,6 +23,13 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn() },
 }));
+
+describe('quickActionItems', () => {
+  it('gives every shortcut a readable title', () => {
+    const titles = quickActionItems().map((item) => item.title);
+    expect(titles).toEqual(['Scan food', 'Log food', 'Log water', 'Fasting']);
+  });
+});
 
 describe('runQuickAction', () => {
   beforeEach(() => jest.clearAllMocks());

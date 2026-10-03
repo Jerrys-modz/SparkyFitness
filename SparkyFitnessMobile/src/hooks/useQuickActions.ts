@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as QuickActions from 'expo-quick-actions';
 import Toast from 'react-native-toast-message';
-import { t } from 'i18next';
+import i18n from '../localization/i18n';
 import { navigationRef } from '../components/ActiveWorkoutBar';
 import {
   changeWaterIntake,
@@ -20,26 +20,26 @@ import { addLog } from '../services/LogService';
 
 type QuickActionId = 'scan-food' | 'search-food' | 'log-water' | 'fasting';
 
-function items(): QuickActions.Action[] {
+export function quickActionItems(): QuickActions.Action[] {
   return [
     {
       id: 'scan-food',
-      title: t('quickActions.scanFood', { defaultValue: 'Scan food' }),
+      title: i18n.t('quickActions.scanFood', { defaultValue: 'Scan food' }),
       icon: 'symbol:barcode.viewfinder',
     },
     {
       id: 'search-food',
-      title: t('quickActions.searchFood', { defaultValue: 'Log food' }),
+      title: i18n.t('quickActions.searchFood', { defaultValue: 'Log food' }),
       icon: 'symbol:magnifyingglass',
     },
     {
       id: 'log-water',
-      title: t('quickActions.logWater', { defaultValue: 'Log water' }),
+      title: i18n.t('quickActions.logWater', { defaultValue: 'Log water' }),
       icon: 'symbol:drop.fill',
     },
     {
       id: 'fasting',
-      title: t('quickActions.fasting', { defaultValue: 'Fasting' }),
+      title: i18n.t('quickActions.fasting', { defaultValue: 'Fasting' }),
       icon: 'symbol:timer',
     },
   ];
@@ -69,7 +69,7 @@ async function logWaterDrink(): Promise<void> {
     });
     Toast.show({
       type: 'success',
-      text1: t('quickActions.waterLogged', {
+      text1: i18n.t('quickActions.waterLogged', {
         defaultValue: 'Water logged',
       }),
     });
@@ -77,7 +77,7 @@ async function logWaterDrink(): Promise<void> {
     void addLog(`Quick action water log failed: ${String(error)}`, 'WARNING');
     Toast.show({
       type: 'error',
-      text1: t('quickActions.waterFailed', {
+      text1: i18n.t('quickActions.waterFailed', {
         defaultValue: 'Could not log water',
       }),
     });
@@ -121,7 +121,7 @@ export function runQuickAction(id: string): void {
 export function useQuickActions(enabled: boolean): void {
   useEffect(() => {
     if (!enabled || Platform.OS !== 'ios') return;
-    void QuickActions.setItems(items()).catch(() => undefined);
+    void QuickActions.setItems(quickActionItems()).catch(() => undefined);
     const initial = QuickActions.initial;
     if (initial) runQuickAction(initial.id);
     const subscription = QuickActions.addListener((action) =>
