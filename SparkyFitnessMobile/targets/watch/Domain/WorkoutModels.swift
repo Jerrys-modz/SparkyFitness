@@ -25,6 +25,8 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// Hold length in seconds. Nil on a reps set. The watch counts this down
     /// instead of offering a reps box.
     var targetDurationSec: Int? = nil
+    /// Last session's time for this set, shown in gray on an idle stopwatch.
+    var previousDurationSec: Int? = nil
     /// This set's own rest, in seconds: what the phone runs once it is logged
     /// (`restSecBeforeNextSet`). Nil from a phone that predates it.
     var restAfterSeconds: Int? = nil
@@ -237,6 +239,8 @@ struct SetValues: Codable, Equatable {
     /// Hold length from a later `setTargets` update, in seconds. Nil leaves
     /// the plan's `targetDurationSec`.
     var durationSec: Int? = nil
+    /// Last session's time from a `setTargets` update, in seconds.
+    var previousDurationSec: Int? = nil
     /// A carry's distance in km. Nil leaves the plan's value.
     var distanceKm: Double? = nil
 }

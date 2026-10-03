@@ -340,6 +340,7 @@ enum ContextPayloadMapper {
                     restSeconds: intValue(rawSet["restSeconds"]) ?? 0,
                     setType: rawSet["setType"] as? String,
                     targetDurationSec: intValue(rawSet["targetDurationSec"]),
+                    previousDurationSec: intValue(rawSet["previousDurationSec"]),
                     restAfterSeconds: intValue(rawSet["restAfterSeconds"]),
                     timed: rawSet["timed"] as? Bool,
                     carry: rawSet["carry"] as? Bool,
@@ -431,6 +432,7 @@ enum ContextPayloadMapper {
                 weightKg: doubleValue(raw["targetWeightKg"]),
                 reps: doubleValue(raw["targetReps"]),
                 durationSec: intValue(raw["targetDurationSec"]),
+                previousDurationSec: intValue(raw["previousDurationSec"]),
                 distanceKm: doubleValue(raw["targetDistanceKm"])
             )
         }

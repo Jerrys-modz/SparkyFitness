@@ -43,6 +43,7 @@ export function resolveWatchSetTargets(
     weightKg: number | null;
     reps: number | null;
     durationSec: number | null;
+    previousDurationSec: number | null;
     /** A carry's distance in km; null on every other exercise. */
     distanceKm: number | null;
   }
@@ -53,6 +54,7 @@ export function resolveWatchSetTargets(
       weightKg: number | null;
       reps: number | null;
       durationSec: number | null;
+      previousDurationSec: number | null;
       distanceKm: number | null;
     }
   >();
@@ -84,6 +86,15 @@ export function resolveWatchSetTargets(
       // stopwatch from zero for it, so the watch must too.
       const durationSec =
         ownDuration != null && ownDuration > 0 ? ownDuration : null;
+      // Last time's length, shown in gray on the idle stopwatch like the
+      // phone's gray value. Only when no length was typed for this set.
+      const previousDurationSec =
+        durationSec == null &&
+        durationLike &&
+        assumedSet?.duration != null &&
+        assumedSet.duration > 0
+          ? assumedSet.duration
+          : null;
       targets.set(String(set.id), {
         weightKg: set.weight ?? assumedSet?.weight ?? null,
         // A duration set's legacy seconds live in `reps`. Sending those as
@@ -91,6 +102,7 @@ export function resolveWatchSetTargets(
         reps:
           durationLike || carry ? null : (set.reps ?? assumedSet?.reps ?? null),
         durationSec,
+        previousDurationSec,
         distanceKm: carry
           ? (set.distance ?? assumedSet?.distance ?? null)
           : null,
@@ -131,6 +143,9 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
           ...(value.reps != null ? { targetReps: value.reps } : {}),
           ...(value.durationSec != null
             ? { targetDurationSec: value.durationSec }
+            : {}),
+          ...(value.previousDurationSec != null
+            ? { previousDurationSec: value.previousDurationSec }
             : {}),
           ...(value.distanceKm != null
             ? { targetDistanceKm: value.distanceKm }

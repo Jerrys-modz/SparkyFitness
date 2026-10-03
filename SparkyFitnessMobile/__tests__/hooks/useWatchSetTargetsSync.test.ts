@@ -500,5 +500,9 @@ describe('useWatchSetTargetsSync', () => {
     for (const target of targets) {
       expect(target).not.toHaveProperty('targetDurationSec');
     }
+    // It rides along as a gray hint for the idle stopwatch instead.
+    for (const target of targets) {
+      expect(target).toHaveProperty('previousDurationSec', 13);
+    }
   });
 });

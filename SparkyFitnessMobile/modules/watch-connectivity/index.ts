@@ -273,6 +273,8 @@ export interface WatchPlannedSetPayload {
    * on a reps set. The watch counts this down instead of showing a reps box.
    */
   targetDurationSec?: number | null;
+  /** Last session's time for this set, in seconds, shown in gray on an idle stopwatch. */
+  previousDurationSec?: number | null;
   /**
    * True for a duration exercise, whether or not a hold length is planned.
    * With no `targetDurationSec` the watch offers a stopwatch instead of a
@@ -314,6 +316,8 @@ export interface WatchSetTargetPayload {
   targetReps?: number;
   /** Hold length in seconds. Absent leaves the watch on the plan's value. */
   targetDurationSec?: number;
+  /** Last session's time, in seconds. Absent when there is none. */
+  previousDurationSec?: number;
   /** A carry's distance in km. Absent leaves the watch on the plan's value. */
   targetDistanceKm?: number;
 }

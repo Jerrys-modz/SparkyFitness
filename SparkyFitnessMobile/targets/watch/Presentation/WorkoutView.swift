@@ -1111,6 +1111,12 @@ private struct HoldStopwatch: View {
                     .fontWeight(.semibold)
                     .monospacedDigit()
                 if elapsed == nil {
+                    if let previous = store.previousDurationSec(forSetId: setId) {
+                        Text("Last \(Self.clock(previous))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
                     Button("Start") {
                         store.startStopwatch(for: setId)
                     }

@@ -130,6 +130,7 @@ export function buildWatchWorkoutStartPayload(
           targetReps: target?.reps ?? null,
           targetWeightKg: target?.weightKg ?? null,
           targetDurationSec: target?.durationSec ?? null,
+          previousDurationSec: target?.previousDurationSec ?? null,
           ...(timed ? { timed: true } : {}),
           ...(carry ? { carry: true } : {}),
           ...(isWeightDurationModality(modality) ? { weighted: true } : {}),
