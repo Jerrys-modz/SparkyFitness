@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-09-30_
+_Last updated: 2026-10-02_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -173,6 +173,7 @@ npx expo prebuild --clean
 - `MealTypeDetailScreen` owns single-meal-type day views and copy-to-another-day via `useCopyFoodEntries`; be careful with custom meal types and synthetic buckets.
 - External food providers use provider-agnostic v2 endpoints where possible. Provider categories and barcode support come from server config; do not hardcode provider type allowlists unless preserving an explicit fallback.
 - "All Providers" aggregated search (`useAllProvidersSearch`) fans one debounced term out across every active provider in parallel — one `useQueries` entry per provider, results projected in the `combine` callback for structural sharing. Providers stream in independently; a slow or failing provider must not block the others. Open Food Facts calls go through the shared rate limiter.
+- Label scan tries Apple's on-device model first: `modules/on-device-nutrition` (Swift, `FoundationModels` with the label photo as an `Attachment` plus its text from a Vision `VNRecognizeTextRequest` run in the module (greedy sampling), iOS 27+ with Apple Intelligence; compiled out under `compiler(<6.4)`) is wrapped by `services/onDeviceLabelScan.ts`, which validates the extraction (calories and macros must appear as numbers in the returned `ocr_text`, ranges, sugars/fiber <= carbs, energy vs macros) and returns null on any failure or when the device-local `onDeviceLabelScanEnabled` preference (Food Settings, shown only when the model is available) is off, so `FoodScanScreen.handleUsePhoto` falls back to the server `scanNutritionLabel`. The Swift side has not been compiled against the iOS 27 SDK from CI-less environments; verify on an iOS 27 device after `npx expo prebuild --clean`.
 - Photo mode is hidden in meal-builder mode because photo estimates log to the diary.
 - `FoodPhotoFlow` is a modal native stack and wraps itself in a local `KeyboardProvider`.
 - Photo availability fetches `GET /api/chat/ai-service-settings/active` through `aiSettingsApi.ts`; food photo is attempt-all, so `isFoodPhotoAvailable` gates only on a configured provider, not a specific provider type.

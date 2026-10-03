@@ -38,6 +38,7 @@ import { selectDisplayVariant } from '../utils/foodDetails';
 import { getApiErrorMessage } from '../services/api/errors';
 import { TimeoutError } from '../utils/concurrency';
 import { fireSuccessHaptic } from '../services/haptics';
+import { scanLabelOnDevice } from '../services/onDeviceLabelScan';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { toFormString } from '../types/foodInfo';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
@@ -537,10 +538,21 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     if (!capturedPhoto) return;
     setLabelProcessing(true);
     try {
-      const result = await scanNutritionLabel(
-        capturedPhoto.base64,
-        'image/jpeg'
-      );
+      const onDeviceResult = await scanLabelOnDevice(capturedPhoto.base64);
+      const result =
+        onDeviceResult ??
+        (await scanNutritionLabel(capturedPhoto.base64, 'image/jpeg'));
+      // The toast survives the navigation below, so it shows on the form.
+      Toast.show({
+        type: 'info',
+        text1: onDeviceResult
+          ? t('foodScan.labelReadOnDevice', {
+              defaultValue: 'Label read on this iPhone',
+            })
+          : t('foodScan.labelReadByServer', {
+              defaultValue: 'Label read by the server AI',
+            }),
+      });
       navigation.replace(
         'FoodForm',
         buildFoodFormParams({

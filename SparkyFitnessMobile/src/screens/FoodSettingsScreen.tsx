@@ -9,6 +9,8 @@ import BottomSheetPicker from '../components/BottomSheetPicker';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Switch from '../components/ui/Switch';
 import { usePreferences } from '../hooks/usePreferences';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { isOnDeviceLabelScanAvailable } from '../services/onDeviceLabelScan';
 import { useExternalProviders } from '../hooks/useExternalProviders';
 import { updatePreferences } from '../services/api/preferencesApi';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -25,6 +27,16 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
   navigation,
 }) => {
   const { t } = useTranslation();
+  const onDeviceLabelScanEnabled = useAppPreferencesStore(
+    (s) => s.onDeviceLabelScanEnabled
+  );
+  const setOnDeviceLabelScanEnabled = useAppPreferencesStore(
+    (s) => s.setOnDeviceLabelScanEnabled
+  );
+  const onDeviceLabelScanAvailable = useMemo(
+    () => isOnDeviceLabelScanAvailable(),
+    []
+  );
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
@@ -233,6 +245,28 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
             })}
           </Text>
         </View>
+
+        {onDeviceLabelScanAvailable && (
+          <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-base font-semibold text-text-primary flex-shrink">
+                {t('foodSettings.onDeviceLabelScan.title', {
+                  defaultValue: 'Scan Labels On Device',
+                })}
+              </Text>
+              <Switch
+                onValueChange={setOnDeviceLabelScanEnabled}
+                value={onDeviceLabelScanEnabled}
+              />
+            </View>
+            <Text className="text-text-secondary text-sm mt-4">
+              {t('foodSettings.onDeviceLabelScan.description', {
+                defaultValue:
+                  'Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead.',
+              })}
+            </Text>
+          </View>
+        )}
 
         {/* Auto-Scale OpenFoodFacts */}
         <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">

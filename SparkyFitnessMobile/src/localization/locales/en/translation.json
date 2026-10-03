@@ -2259,6 +2259,8 @@
     "edit": "Edit measurements"
   },
   "foodScan": {
+    "labelReadOnDevice": "Label read on this iPhone",
+    "labelReadByServer": "Label read by the server AI",
     "segment": {
       "barcode": "Barcode",
       "label": "Label",
@@ -3611,6 +3613,10 @@
       "pickerTitle": "Search Provider",
       "firstAvailable": "First available",
       "description": "Used when searching for foods by name."
+    },
+    "onDeviceLabelScan": {
+      "title": "Scan Labels On Device",
+      "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
     },
     "openFacts": {
       "title": "Adjust Open Food Facts Values",
