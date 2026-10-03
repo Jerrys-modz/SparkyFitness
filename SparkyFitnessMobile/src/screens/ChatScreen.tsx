@@ -46,6 +46,7 @@ import { ASK_USER_TOOL_NAME } from '@workspace/shared';
 import Icon from '../components/Icon';
 import AskUserToolCard from '../components/chat/AskUserToolCard';
 import ToolCallCard from '../components/chat/ToolCallCard';
+import ChatConfirmCard from '../components/chat/ChatConfirmCard';
 import TypingIndicator from '../components/chat/TypingIndicator';
 import MarkdownMessage from '../components/chat/MarkdownMessage';
 import { CHAT_SUGGESTIONS } from '../constants/chat';
@@ -705,6 +706,7 @@ function ChatThread({
           </ThreadMessages>
         </View>
 
+        <ChatConfirmCard />
         <Composer autoFocusReady={autoFocusReady} />
       </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>
