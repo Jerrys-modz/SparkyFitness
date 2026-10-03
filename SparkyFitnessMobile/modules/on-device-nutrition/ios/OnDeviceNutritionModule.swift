@@ -133,6 +133,20 @@ something was logged unless the tool said so. You cannot edit entries, \
 only delete them. You are not a doctor: for medical questions, suggest seeing a professional.
 """
 
+private let serverChatInstructions = """
+You are Sparky, a friendly nutrition and fitness assistant inside a food diary \
+app, running on the user's phone. Answer briefly and practically. The diary \
+snapshot already holds finished figures, such as "Calories remaining"; quote \
+them as they are and never add or subtract numbers yourself. Use the tools you \
+are given to read the user's data or to log, change or delete it, and only call \
+a tool that changes data when the user clearly asks for that change. For \
+suggestions, ideas, recipes or advice, answer in text and call no tool that \
+changes data. The user is asked to approve every change, so just call the tool \
+and then say in one short sentence what happened. If the user declines, accept \
+it. Never claim something was done unless the tool said so. If no tool fits, \
+say so. You are not a doctor: for medical questions, suggest seeing a professional.
+"""
+
 private let extractionInstructions = """
 You read nutrition facts labels. You are given the label's text, recognised \
 line by line from the photo, and the photo itself. Copy numbers exactly as they \
@@ -491,6 +505,87 @@ private struct CopyMealTool: Tool {
         )
     }
 }
+@available(iOS 27, *)
+private func dynamicSchema(from json: [String: Any], name: String, description: String?, depth: Int = 0) -> DynamicGenerationSchema {
+    if let values = json["enum"] as? [Any] {
+        let strings = values.compactMap { $0 as? String }
+        if !strings.isEmpty {
+            return DynamicGenerationSchema(name: name, description: description, anyOf: strings)
+        }
+    }
+    for key in ["anyOf", "oneOf"] {
+        if let options = json[key] as? [[String: Any]],
+            let first = options.first(where: { ($0["type"] as? String) != "null" }) {
+            return dynamicSchema(from: first, name: name, description: description, depth: depth)
+        }
+    }
+    var type = json["type"] as? String
+    if type == nil, let types = json["type"] as? [String] {
+        type = types.first(where: { $0 != "null" })
+    }
+    // Deep nesting costs the small model more than it helps; flatten to text.
+    if depth >= 3 { return DynamicGenerationSchema(type: String.self) }
+    switch type {
+    case "object":
+        let props = (json["properties"] as? [String: Any]) ?? [:]
+        let required = Set((json["required"] as? [String]) ?? [])
+        let properties = props.keys.sorted().map { key -> DynamicGenerationSchema.Property in
+            let child = (props[key] as? [String: Any]) ?? [:]
+            return DynamicGenerationSchema.Property(
+                name: key,
+                description: child["description"] as? String,
+                schema: dynamicSchema(from: child, name: "\(name)_\(key)", description: nil, depth: depth + 1),
+                isOptional: !required.contains(key)
+            )
+        }
+        return DynamicGenerationSchema(name: name, description: description, properties: properties)
+    case "array":
+        let items = (json["items"] as? [String: Any]) ?? ["type": "string"]
+        return DynamicGenerationSchema(
+            arrayOf: dynamicSchema(from: items, name: "\(name)_item", description: nil, depth: depth + 1)
+        )
+    case "integer":
+        return DynamicGenerationSchema(type: Int.self)
+    case "number":
+        return DynamicGenerationSchema(type: Double.self)
+    case "boolean":
+        return DynamicGenerationSchema(type: Bool.self)
+    default:
+        return DynamicGenerationSchema(type: String.self)
+    }
+}
+
+/// A tool the server lends: its definition arrives as JSON at run time, and a
+/// call is relayed back to JavaScript, which runs it on the server.
+@available(iOS 27, *)
+private struct ServerProxyTool: Tool {
+    typealias Arguments = GeneratedContent
+    typealias Output = String
+
+    let name: String
+    let description: String
+    let parameters: GenerationSchema
+
+    init?(name: String, description: String, schemaJSON: String) {
+        guard let data = schemaJSON.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        var root = json
+        // The model is always given an object; wrap anything else.
+        if (root["type"] as? String) != "object" {
+            root = ["type": "object", "properties": [String: Any]()]
+        }
+        let schema = dynamicSchema(from: root, name: "Args", description: nil)
+        guard let built = try? GenerationSchema(root: schema, dependencies: []) else { return nil }
+        self.name = name
+        self.description = description
+        self.parameters = built
+    }
+
+    func call(arguments: GeneratedContent) async throws -> String {
+        await ChatToolBridge.shared.invoke("server:" + name, ["args": arguments.jsonString])
+    }
+}
 #endif
 
 public class OnDeviceNutritionModule: Module {
@@ -637,8 +732,32 @@ public class OnDeviceNutritionModule: Module {
                     GetHistoryTool(), GetFastingTool(), StartFastTool(), EndFastTool(),
                     GetSleepTool(), LogExerciseTool(), CopyMealTool(),
                 ]
-                let tools = allTools.filter { !disabled.contains($0.name) }
-                var instructions = custom.isEmpty ? chatInstructions : custom
+                var tools = allTools.filter { !disabled.contains($0.name) }
+                var usingServerTools = false
+                // Tools lent by the server replace the built-in ones.
+                if let lent = options["serverTools"] as? [[String: Any]], !lent.isEmpty {
+                    var proxies: [any Tool] = []
+                    for def in lent {
+                        guard let toolName = def["name"] as? String,
+                            !disabled.contains(toolName),
+                            let schemaJSON = def["parameters"] as? String,
+                            let tool = ServerProxyTool(
+                                name: toolName,
+                                description: (def["description"] as? String) ?? "",
+                                schemaJSON: schemaJSON
+                            )
+                        else { continue }
+                        proxies.append(tool)
+                    }
+                    if !proxies.isEmpty {
+                        tools = proxies
+                        usingServerTools = true
+                    }
+                }
+                let finalTools = tools
+                var instructions = custom.isEmpty
+                    ? (usingServerTools ? serverChatInstructions : chatInstructions)
+                    : custom
                 if let userContext = options["userContext"] as? String, !userContext.isEmpty {
                     instructions += "\n\nNOTES FROM THE USER\n\(userContext)"
                 }
@@ -648,7 +767,7 @@ public class OnDeviceNutritionModule: Module {
                     : "Diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
 
                 func run(_ model: some LanguageModel) async throws -> String {
-                    let session = LanguageModelSession(model: model, tools: tools, instructions: finalInstructions)
+                    let session = LanguageModelSession(model: model, tools: finalTools, instructions: finalInstructions)
                     let response = try await session.respond(
                         to: prompt,
                         options: greedy ? GenerationOptions(sampling: .greedy) : GenerationOptions()
@@ -656,20 +775,21 @@ public class OnDeviceNutritionModule: Module {
                     return response.content
                 }
 
+                let toolTokens = (try? await SystemLanguageModel.default.tokenCount(for: finalTools)).map { String($0) } ?? ""
                 if mode == "cloud" {
-                    return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud"]
+                    return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud", "toolTokens": toolTokens]
                 }
                 if mode == "auto" {
                     do {
-                        return ["text": try await run(SystemLanguageModel.default), "model": "device"]
+                        return ["text": try await run(SystemLanguageModel.default), "model": "device", "toolTokens": toolTokens]
                     } catch let error as LanguageModelError {
                         // Only a conversation too big for the small model moves
                         // to the private servers; nothing has run yet.
                         guard case .contextSizeExceeded = error else { throw error }
-                        return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud"]
+                        return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud", "toolTokens": toolTokens]
                     }
                 }
-                return ["text": try await run(SystemLanguageModel.default), "model": "device"]
+                return ["text": try await run(SystemLanguageModel.default), "model": "device", "toolTokens": toolTokens]
             }
             #endif
             throw OnDeviceNutritionError.unavailable
