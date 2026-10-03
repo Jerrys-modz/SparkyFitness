@@ -1789,6 +1789,8 @@ async function getBestSetForExercise(
           AND ($3::uuid IS NULL OR ee.exercise_preset_entry_id IS DISTINCT FROM $3)
         ORDER BY COALESCE(ees.weight, 0) DESC,
                  ees.reps DESC NULLS LAST,
+                 ees.distance DESC NULLS LAST,
+                 ees.duration DESC NULLS LAST,
                  ee.entry_date DESC,
                  ee.created_at DESC,
                  ees.set_number DESC,

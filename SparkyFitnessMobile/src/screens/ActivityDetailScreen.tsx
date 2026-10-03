@@ -25,6 +25,10 @@ import {
   getWorkoutSummary,
   isCardioModality,
   isDurationModality,
+  isWeightDistanceModality,
+  isWeightDurationModality,
+  setDistanceFromKm,
+  setDistanceUnitLabel,
   resolveSnapshotModality,
 } from '../utils/workoutSession';
 import {
@@ -764,9 +768,15 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                       </Text>
                     )}
                     <Text className="text-xs font-semibold text-text-muted flex-1 text-center">
-                      {t('activityDetail.labels.reps', {
-                        defaultValue: 'Reps',
-                      })}
+                      {isWeightDurationModality(modality)
+                        ? t('activityDetail.labels.secondsShort', {
+                            defaultValue: 'Sec',
+                          })
+                        : isWeightDistanceModality(modality)
+                          ? setDistanceUnitLabel(distanceUnit, modality)
+                          : t('activityDetail.labels.reps', {
+                              defaultValue: 'Reps',
+                            })}
                     </Text>
                   </>
                 )}
@@ -779,6 +789,21 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 const displayReps = set.reps != null ? String(set.reps) : '-';
                 const seconds = effectiveSetDurationSec(set, modality);
                 const displayDuration = seconds != null ? String(seconds) : '-';
+                const displaySecond = isWeightDurationModality(modality)
+                  ? displayDuration
+                  : isWeightDistanceModality(modality)
+                    ? set.distance != null
+                      ? String(
+                          parseFloat(
+                            setDistanceFromKm(
+                              set.distance,
+                              distanceUnit,
+                              modality
+                            ).toFixed(1)
+                          )
+                        )
+                      : '-'
+                    : displayReps;
                 return (
                   <View key={set.id} className="flex-row py-1.5">
                     <Text className="text-sm text-text-muted w-10 text-center">
@@ -796,7 +821,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           </Text>
                         )}
                         <Text className="text-sm text-text-primary flex-1 text-center">
-                          {displayReps}
+                          {displaySecond}
                         </Text>
                       </>
                     )}
