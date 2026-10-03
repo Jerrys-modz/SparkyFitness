@@ -104,6 +104,41 @@ describe('useWatchPlanSync', () => {
     expect(plan.setOrder.slice(0, 4)).toEqual(['101', '301', '102', '302']);
   });
 
+  it('marks a bodyweight exercise so the watch allows a negative weight', () => {
+    act(() => {
+      const session = makeSession();
+      session.exercises[2] = {
+        ...session.exercises[2],
+        exercise_snapshot: {
+          ...session.exercises[2].exercise_snapshot,
+          modality: 'bodyweight_reps',
+        },
+      } as never;
+      useActiveWorkoutStore.getState().startWorkout(session);
+      useActiveWorkoutStore.setState({ watchArmedAt: ARMED_AT });
+    });
+    renderHook(() => useWatchPlanSync(true));
+
+    act(() => {
+      useActiveWorkoutStore.getState().supersetWith('entry-1', 'entry-3');
+    });
+
+    const plan = mockUpdateWorkoutPlan.mock.calls[0][0];
+    const flags = Object.fromEntries(
+      plan.exercises.map(
+        (e: { exerciseEntryId: string; bodyweight?: boolean }) => [
+          e.exerciseEntryId,
+          e.bodyweight,
+        ]
+      )
+    );
+    expect(flags).toEqual({
+      'entry-1': false,
+      'entry-2': false,
+      'entry-3': true,
+    });
+  });
+
   it('waits for new sets to get server ids before sending', () => {
     startArmed();
     renderHook(() => useWatchPlanSync(true));

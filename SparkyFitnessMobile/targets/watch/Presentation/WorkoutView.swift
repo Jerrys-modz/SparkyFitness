@@ -542,7 +542,7 @@ private struct CurrentSetView: View {
             .focused($crownFocused)
             .digitalCrownRotation(
                 $crownValue,
-                from: 0,
+                from: minValue(for: crownField ?? .weight),
                 through: maxValue(for: crownField ?? .weight),
                 by: stepSize(for: crownField ?? .weight),
                 // Low: at medium a small turn ran several plates past the one
@@ -585,7 +585,8 @@ private struct CurrentSetView: View {
             NumericKeypadView(
                 title: title(for: field),
                 initial: storedValue(for: field),
-                allowsDecimal: field == .weight
+                allowsDecimal: field == .weight,
+                allowsNegative: field == .weight && store.isBodyweight(step)
             ) { entered in
                 write(entered, to: field)
                 editing = nil
@@ -598,8 +599,11 @@ private struct CurrentSetView: View {
         let shown = isSelected && crownAdjusted
             ? editedValue(for: field)
             : storedValue(for: field)
+        let text = field == .weight && store.isBodyweight(step)
+            ? Self.bodyweightText(shown)
+            : Self.format(shown)
         return ValueBox(
-            value: Self.format(shown),
+            value: text,
             unit: title(for: field),
             isSelected: isSelected
         ) {
@@ -619,10 +623,10 @@ private struct CurrentSetView: View {
                     let steps = (-gesture.translation.height / 12).rounded()
                     guard steps != dragSteps else { return }
                     dragSteps = steps
-                    crownBaseline = max(start + steps * stepSize(for: field), 0)
+                    crownBaseline = max(start + steps * stepSize(for: field), minValue(for: field))
                     crownAdjusted = true
                     if crownSeen == nil {
-                        crownSeen = min(max(crownValue, 0), maxValue(for: field))
+                        crownSeen = min(max(crownValue, minValue(for: field)), maxValue(for: field))
                     }
                     parkCrown(for: field)
                     scheduleCommit()
@@ -655,7 +659,8 @@ private struct CurrentSetView: View {
         // Sit the sample on the cap when the stored number is above it, so
         // the clamp that follows is not counted as a turn. The first real
         // detent then steps from the stored number.
-        crownSeen = min(max(stored ?? 0, 0), maxValue(for: field))
+        let floor = minValue(for: field)
+        crownSeen = min(max(stored ?? 0, floor), maxValue(for: field))
         crownValue = stored ?? 0
         crownField = field
         // Next turn of the run loop: the row only becomes focusable once
@@ -665,12 +670,13 @@ private struct CurrentSetView: View {
 
     /// Each crown event is a step from the stored number. The binding clamps
     /// an above-range value onto its ceiling, and that jump is not a turn.
-    /// When the binding then runs out of room at zero, it is parked back on
-    /// the value so the same gesture can keep stepping down to zero.
+    /// When the binding then runs out of room at its floor, it is parked back
+    /// on the value so the same gesture can keep stepping down to that floor.
     private func noteCrownChange() {
         guard let field = crownField else { return }
         let ceiling = maxValue(for: field)
-        let crown = min(max(crownValue, 0), ceiling)
+        let floor = minValue(for: field)
+        let crown = min(max(crownValue, floor), ceiling)
         let previous = crownSeen
         crownSeen = crown
         guard let previous else { return }
@@ -685,7 +691,7 @@ private struct CurrentSetView: View {
         }
 
         let step = stepSize(for: field)
-        let next = max(((editedValue(for: field) + delta) / step).rounded() * step, 0)
+        let next = max(((editedValue(for: field) + delta) / step).rounded() * step, floor)
         guard abs(next - crownBaseline) >= 0.000_1 else { return }
         crownBaseline = next
         crownAdjusted = true
@@ -693,16 +699,18 @@ private struct CurrentSetView: View {
         parkCrown(for: field)
     }
 
-    /// The binding only spans 0...max. Park it on the current value once it
-    /// hits zero while that value is still above zero, so the next detent is
-    /// another single step and the edit can reach zero.
+    /// The binding spans floor...max. Park it on the current value once it
+    /// hits the floor while that value is still above it, so the next detent
+    /// is another single step and the edit can reach the floor. The floor is
+    /// zero, or the negative cap for a bodyweight weight.
     private func parkCrown(for field: EditableField) {
         let ceiling = maxValue(for: field)
+        let floor = minValue(for: field)
         let step = stepSize(for: field)
         let value = editedValue(for: field)
-        let crown = min(max(crownValue, 0), ceiling)
-        guard value > step, crown <= step * 0.5 else { return }
-        let parked = min(value, ceiling)
+        let crown = min(max(crownValue, floor), ceiling)
+        guard value > floor + step, crown <= floor + step * 0.5 else { return }
+        let parked = min(max(value, floor), ceiling)
         guard parked > crown + 0.000_1 else { return }
         crownSeen = parked
         crownValue = parked
@@ -802,7 +810,20 @@ private struct CurrentSetView: View {
     /// max: a stored value above that max stays there until a step moves it.
     private func editedValue(for field: EditableField) -> Double {
         let step = stepSize(for: field)
-        return max((crownBaseline / step).rounded() * step, 0)
+        return max((crownBaseline / step).rounded() * step, minValue(for: field))
+    }
+
+    /// Bodyweight weight is a signed change. Everything else stops at zero.
+    private func minValue(for field: EditableField) -> Double {
+        field == .weight && store.isBodyweight(step) ? -maxValue(for: .weight) : 0
+    }
+
+    /// A bodyweight set's weight as a change to body weight: "BW +10",
+    /// "BW −20", or plain "BW" when nothing is added or taken off.
+    private static func bodyweightText(_ value: Double?) -> String {
+        guard let value, value != 0 else { return "BW" }
+        let magnitude = format(abs(value))
+        return value > 0 ? "BW +\(magnitude)" : "BW −\(magnitude)"
     }
 
     /// Whole numbers lose the decimal point — "60kg", not "60.0kg" — but a
@@ -1024,6 +1045,8 @@ private struct NumericKeypadView: View {
     let title: String
     let initial: Double?
     let allowsDecimal: Bool
+    /// Shows a ± key so an assisted bodyweight set can be entered below zero.
+    var allowsNegative: Bool = false
     let onCommit: (Double) -> Void
 
     @State private var entry: String = ""
@@ -1045,6 +1068,13 @@ private struct NumericKeypadView: View {
                 Text(title)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
+                if allowsNegative {
+                    Button("±", action: Haptics.tapping(toggleSign))
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 6)
+                        .background(Color.gray.opacity(0.25), in: Capsule())
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -1091,12 +1121,24 @@ private struct NumericKeypadView: View {
             : String(format: "%.1f", initial)
     }
 
+    /// Flips the typed value between added (+) and assisted (−). With nothing
+    /// typed yet a lone "-" waits for the digits.
+    private func toggleSign() {
+        if entry.hasPrefix("-") {
+            entry.removeFirst()
+        } else {
+            entry = "-" + entry
+        }
+    }
+
     private func press(_ key: String) {
         switch key {
         case "⌫":
             if !entry.isEmpty { entry.removeLast() }
         case ".":
-            if !entry.contains(".") { entry += entry.isEmpty ? "0." : "." }
+            if !entry.contains(".") {
+                entry += (entry.isEmpty || entry == "-") ? "0." : "."
+            }
         default:
             entry += key
         }

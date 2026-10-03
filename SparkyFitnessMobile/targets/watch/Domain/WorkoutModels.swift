@@ -36,6 +36,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// this exercise is on its own. The phone only sets it for an adjacent
     /// run of two or more, so the watch does not repeat that rule.
     let supersetRun: Int?
+    /// A bodyweight exercise: its weight is a signed change to body weight
+    /// (+ added, − assisted). Optional so a snapshot saved before this existed
+    /// still decodes, and an older phone that never sends it reads as false.
+    var bodyweight: Bool? = nil
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }

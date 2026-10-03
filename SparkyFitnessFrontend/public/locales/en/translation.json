@@ -878,6 +878,7 @@
     "modality": {
       "weightReps": "Weight & Reps",
       "repsOnly": "Reps",
+      "bodyweightReps": "Bodyweight (+/− weight)",
       "duration": "Duration",
       "durationDistance": "Duration & Distance"
     },
@@ -5729,6 +5730,7 @@
   },
   "warning": "Warning",
   "workout": {
+    "addedWeight": "+/− weight",
     "avgHr": "Avg HR (bpm)",
     "calories": "Calories",
     "caloriesAuto": "Auto",

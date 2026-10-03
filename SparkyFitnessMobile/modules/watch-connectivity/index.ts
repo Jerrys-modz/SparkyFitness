@@ -267,6 +267,12 @@ export interface WatchPlannedExercisePayload {
    * is not a superset and stays null.
    */
   supersetRun: number | null;
+  /**
+   * True for a bodyweight exercise, whose weight is a signed change to body
+   * weight (+ added, − assisted). The watch lets that value go below zero and
+   * shows it as "BW +10" / "BW −20". Absent from an older phone build.
+   */
+  bodyweight?: boolean;
   sets: WatchPlannedSetPayload[];
 }
 
