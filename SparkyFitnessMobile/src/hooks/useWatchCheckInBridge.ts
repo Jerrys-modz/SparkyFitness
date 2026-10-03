@@ -576,7 +576,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         maxHeartRate,
         rpeEnabled: watchRpeEnabled,
         hrZonesEnabled: watchHrZonesEnabled,
-        ...(watchFast !== undefined ? { fast: watchFast } : {}),
+        // `fast: null` (not fasting) is stripped before it reaches the watch,
+        // so the answer "the server has replied" travels as its own flag.
+        ...(watchFast !== undefined
+          ? { fast: watchFast, fastKnown: true }
+          : {}),
         steps:
           todayRow?.steps != null && todayRow.steps >= 0
             ? { day: today, count: Math.round(todayRow.steps) }
