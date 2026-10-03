@@ -46,6 +46,8 @@ declare class OnDeviceNutritionModuleType extends NativeModule {
   /** True on iOS 27+ with Apple Intelligence enabled and the model ready. */
   isAvailable(): boolean;
   scanLabel(base64Image: string): Promise<OnDeviceLabelExtraction>;
+  /** Answers the last message of `transcript`, given a plain-text diary snapshot. */
+  chat?(transcript: string, context: string): Promise<string>;
   estimateMeal(
     base64Image: string,
     description: string | null,

@@ -33,6 +33,12 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
   const setOnDeviceLabelScanEnabled = useAppPreferencesStore(
     (s) => s.setOnDeviceLabelScanEnabled
   );
+  const onDeviceChatEnabled = useAppPreferencesStore(
+    (s) => s.onDeviceChatEnabled
+  );
+  const setOnDeviceChatEnabled = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatEnabled
+  );
   const onDeviceFoodPhotoEnabled = useAppPreferencesStore(
     (s) => s.onDeviceFoodPhotoEnabled
   );
@@ -291,6 +297,28 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
               {t('foodSettings.onDeviceFoodPhoto.description', {
                 defaultValue:
                   'Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider.',
+              })}
+            </Text>
+          </View>
+        )}
+
+        {onDeviceLabelScanAvailable && (
+          <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-base font-semibold text-text-primary flex-shrink">
+                {t('foodSettings.onDeviceChat.title', {
+                  defaultValue: 'Sparky Chat On Device',
+                })}
+              </Text>
+              <Switch
+                onValueChange={setOnDeviceChatEnabled}
+                value={onDeviceChatEnabled}
+              />
+            </View>
+            <Text className="text-text-secondary text-sm mt-4">
+              {t('foodSettings.onDeviceChat.description', {
+                defaultValue:
+                  "Answer Sparky chat with Apple Intelligence on this device. It can read today's diary summary but cannot log or change anything, and it is less capable than your server AI provider. Chats are not saved.",
               })}
             </Text>
           </View>
