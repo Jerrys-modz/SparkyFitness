@@ -373,3 +373,22 @@ const androidService = require('../../src/services/healthConnectService.ts');
 
 - For work inside `SparkyFitnessMobile/`, this file is the package guide.
 - If a task also changes another package, combine this with that package guide instead of stretching this file to cover the whole monorepo.
+||||||| parent of 5001a3cd (feat(mobile): answer Sparky chat on device with Apple Intelligence)
+
+- Watch heart-rate zones (#86): the phone sends `maxHeartRate` (`estimateMaxHeartRate` in `src/utils/heartRateZones.ts`, 211 − 0.64·age from the profile, 190 fallback) in the watch context; the workout metrics strip colours the BPM and draws a 5-segment bar using the same 50/60/70/80/90% floors as the server.
+
+- Watch RPE (#87): Settings → Apple Watch → "Ask for effort" (`watchRpeEnabled`, default off) rides the watch context as `rpeEnabled`. When on, logging a set on the watch holds it behind a Digital Crown picker (6–10, half steps); Done sends `rpe` with `setCompleted`, Skip or dismissal sends it without. The phone writes `rpe` via `updateSetField` only when it is within 1–10.
+
+- Workout share card (#58): `WorkoutShareCard` draws a fixed 1080×1350 SVG that `useShareWorkoutCard` renders off-screen and turns into a PNG with `Svg.toDataURL` (no screenshot library), then opens the share sheet via `expo-sharing`. `buildCompleteShareData` / `buildSavedShareData` in `src/utils/workoutShareCard.ts` format the figures; Share is on the Workout Complete action row and the Workout Detail header.
+
+- Phone workouts in Apple Health (#54): Sync screen → "Save phone workouts to Apple Health" (`saveWorkoutsToHealth`, default off, iOS only). `useActiveWorkoutFinish` calls `savePhoneWorkoutToHealth` (`services/phoneWorkoutHealth.ios.ts`, a no-op on Android) as a strength-training `HKWorkout` stamped with `SparkyFitnessSessionId`, unless the live heart-rate store shows the watch recorded that session.
+
+- Watch heart-rate zones (#86): the phone sends `maxHeartRate` (`estimateMaxHeartRate` in `src/utils/heartRateZones.ts`, 211 − 0.64·age from the profile, 190 fallback) in the watch context; the workout metrics strip colours the BPM and draws a 5-segment bar using the same 50/60/70/80/90% floors as the server.
+
+- Watch RPE (#87): Settings → Apple Watch → "Ask for effort" (`watchRpeEnabled`, default off) rides the watch context as `rpeEnabled`. When on, logging a set on the watch holds it behind a Digital Crown picker (6–10, half steps); Done sends `rpe` with `setCompleted`, Skip or dismissal sends it without. The phone writes `rpe` via `updateSetField` only when it is within 1–10.
+
+- Workout share card (#58): `WorkoutShareCard` draws a fixed 1080×1350 SVG that `useShareWorkoutCard` renders off-screen and turns into a PNG with `Svg.toDataURL` (no screenshot library), then opens the share sheet via `expo-sharing`. `buildCompleteShareData` / `buildSavedShareData` in `src/utils/workoutShareCard.ts` format the figures; Share is on the Workout Complete action row and the Workout Detail header.
+
+- Phone workouts in Apple Health (#54): Sync screen → "Save phone workouts to Apple Health" (`saveWorkoutsToHealth`, default off, iOS only). `useActiveWorkoutFinish` calls `savePhoneWorkoutToHealth` (`services/phoneWorkoutHealth.ios.ts`, a no-op on Android) as a strength-training `HKWorkout` stamped with `SparkyFitnessSessionId`, unless the live heart-rate store shows the watch recorded that session.
+
+- On-device chat: Settings → Food → "Sparky Chat On Device" (`onDeviceChatEnabled`, default off, needs the same Apple Intelligence availability as the scanners). `ChatScreen` swaps the server `AssistantChatTransport` for `createOnDeviceTransport`, which calls `OnDeviceNutrition.chat` with the recent turns plus a read-only text snapshot of today's diary (`buildChatContext`, `services/onDeviceChat.ts`). No tools, nothing written, nothing saved, no AI provider needed; a badge marks the thread.

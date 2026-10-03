@@ -76,6 +76,7 @@ export const PREFERENCE_DEFAULTS = {
   progressPhotosCardVisible: true,
   onDeviceLabelScanEnabled: true,
   onDeviceFoodPhotoEnabled: false,
+  onDeviceChatEnabled: false,
   healthTrendsCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
@@ -134,6 +135,8 @@ export type AppPreferencesData = {
   progressPhotosCardVisible: boolean;
   onDeviceLabelScanEnabled: boolean;
   onDeviceFoodPhotoEnabled: boolean;
+  /** Answer Sparky chat with Apple Intelligence on this device. */
+  onDeviceChatEnabled: boolean;
   healthTrendsCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
@@ -211,6 +214,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setProgressPhotosCardVisible: (value: boolean) => void;
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
+  setOnDeviceChatEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
@@ -326,6 +330,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ progressPhotosCardVisible: value }),
       setOnDeviceLabelScanEnabled: (value) =>
         set({ onDeviceLabelScanEnabled: value }),
+      setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
       setOnDeviceFoodPhotoEnabled: (value) =>
         set({ onDeviceFoodPhotoEnabled: value }),
       setHealthTrendsCardVisible: (value) =>
@@ -429,6 +434,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
+        onDeviceChatEnabled: state.onDeviceChatEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
