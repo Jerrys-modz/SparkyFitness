@@ -5843,6 +5843,20 @@
       "title": "On-device (Apple Intelligence)",
       "description": "These run on this phone. Anything the on-device model cannot handle falls back to the server provider.",
       "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready."
+    },
+    "chatModel": {
+      "title": "Chat model",
+      "device": "This phone",
+      "auto": "Auto",
+      "cloud": "Apple servers",
+      "statusLabel": "Apple private servers: {{status}}",
+      "description": "This phone keeps everything on the device. Auto uses this phone and moves to Apple’s Private Cloud Compute only when a conversation is too long for it. Apple servers always uses Private Cloud Compute, so your messages and diary snapshot leave the phone; Apple says it does not store them. Apple limits how much each person can use.",
+      "status": {
+        "available": "Available",
+        "quotaLimitReached": "Usage limit reached for now. It will use this phone.",
+        "deviceNotEligible": "Not available on this device.",
+        "systemNotReady": "Not ready yet. Check that Apple Intelligence is set up."
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import type { OnDeviceChatModel } from '../../modules/on-device-nutrition';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_GUIDED_COUNTDOWN_SEC,
@@ -78,6 +79,7 @@ export const PREFERENCE_DEFAULTS = {
   onDeviceFoodPhotoEnabled: false,
   onDeviceChatEnabled: false,
   onDeviceChatSystemPrompt: '',
+  onDeviceChatModel: 'device' as OnDeviceChatModel,
   onDeviceChatGreedy: false,
   onDeviceChatIncludeContext: true,
   onDeviceChatDebug: false,
@@ -149,6 +151,8 @@ export type AppPreferencesData = {
   onDeviceChatEnabled: boolean;
   /** Empty means the built-in prompt. */
   onDeviceChatSystemPrompt: string;
+  /** Which model answers chat: this phone, Apple's private servers, or both. */
+  onDeviceChatModel: OnDeviceChatModel;
   onDeviceChatGreedy: boolean;
   /** Send today's diary snapshot with each message. */
   onDeviceChatIncludeContext: boolean;
@@ -240,6 +244,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
   setOnDeviceChatEnabled: (value: boolean) => void;
   setOnDeviceChatSystemPrompt: (value: string) => void;
+  setOnDeviceChatModel: (value: OnDeviceChatModel) => void;
   setOnDeviceChatGreedy: (value: boolean) => void;
   setOnDeviceChatIncludeContext: (value: boolean) => void;
   setOnDeviceChatDebug: (value: boolean) => void;
@@ -364,6 +369,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setOnDeviceLabelScanEnabled: (value) =>
         set({ onDeviceLabelScanEnabled: value }),
       setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
+      setOnDeviceChatModel: (value) => set({ onDeviceChatModel: value }),
       setOnDeviceChatSystemPrompt: (value) =>
         set({ onDeviceChatSystemPrompt: value }),
       setOnDeviceChatGreedy: (value) => set({ onDeviceChatGreedy: value }),
@@ -487,6 +493,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
         onDeviceChatEnabled: state.onDeviceChatEnabled,
         onDeviceChatSystemPrompt: state.onDeviceChatSystemPrompt,
+        onDeviceChatModel: state.onDeviceChatModel,
         onDeviceChatGreedy: state.onDeviceChatGreedy,
         onDeviceChatIncludeContext: state.onDeviceChatIncludeContext,
         onDeviceChatDebug: state.onDeviceChatDebug,

@@ -42,7 +42,24 @@ export interface OnDeviceMealEstimate {
   }[];
 }
 
+export type OnDeviceChatModel = 'device' | 'auto' | 'cloud';
+
+export type CloudChatStatus =
+  | 'available'
+  | 'quotaLimitReached'
+  | 'deviceNotEligible'
+  | 'systemNotReady'
+  | 'unsupported';
+
+export interface OnDeviceChatReply {
+  text: string;
+  /** Which model produced the reply. */
+  model: 'device' | 'cloud';
+}
+
 export interface OnDeviceChatOptions {
+  /** Which model answers: this phone, Apple's private servers, or both. */
+  model?: OnDeviceChatModel;
   /** Replaces the built-in system prompt when non-empty. */
   instructions?: string;
   /** Greedy decoding: the same input gives the same reply. */
@@ -71,7 +88,9 @@ declare class OnDeviceNutritionModuleType extends NativeModule<OnDeviceNutrition
     transcript: string,
     context: string,
     options: OnDeviceChatOptions
-  ): Promise<string>;
+  ): Promise<OnDeviceChatReply>;
+  /** Whether Apple's private servers can answer chat right now. */
+  cloudChatStatus?(): CloudChatStatus;
   /** The built-in chat system prompt. */
   defaultChatInstructions?(): string;
   /** Answers a pending `onChatTool` event. */

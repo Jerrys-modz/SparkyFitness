@@ -97,8 +97,10 @@ add foods you cannot see, and use low confidence when unsure.
 private let chatInstructions = """
 You are Sparky, a friendly nutrition and fitness assistant inside a food diary \
 app, running on the user's phone. Answer briefly and practically. Use the \
-diary snapshot for questions about today and never invent entries or numbers \
-that are not in it. Use getDaySummary for other days. To log food, call \
+diary snapshot for questions about the day and never invent entries or numbers \
+that are not in it. The snapshot already holds the finished figures, such as \
+"Calories remaining"; quote them as they are and never add or subtract \
+numbers yourself. Use getDaySummary for other days. To log food, call \
 searchFoods first, pick the best match, then call logFood; if the food is not \
 in the library, call logQuickFood with your best estimate and say it is an \
 estimate. Use logWater for water and logWeight for body weight. To fix a \
@@ -556,33 +558,71 @@ public class OnDeviceNutritionModule: Module {
             #endif
         }
 
+        // Whether Apple's private servers can be used for chat right now:
+        // "available", "quotaLimitReached", "deviceNotEligible",
+        // "systemNotReady" or "unsupported".
+        Function("cloudChatStatus") { () -> String in
+            #if compiler(>=6.4) && canImport(FoundationModels)
+            if #available(iOS 27, *) {
+                let cloud = PrivateCloudComputeLanguageModel()
+                switch cloud.availability {
+                case .available:
+                    return cloud.quotaUsage.isLimitReached ? "quotaLimitReached" : "available"
+                case .unavailable(let reason):
+                    return reason == .deviceNotEligible ? "deviceNotEligible" : "systemNotReady"
+                }
+            }
+            #endif
+            return "unsupported"
+        }
+
         // Answers a chat turn from the transcript and a read-only diary
         // snapshot. Options: `instructions` (system prompt override),
-        // `greedy` (repeatable replies), `disabledTools` (names to leave out).
-        AsyncFunction("chat") { (transcript: String, context: String, options: [String: Any]) -> String in
+        // `greedy` (repeatable replies), `disabledTools` (names to leave out),
+        // `model` ("device", "auto" or "cloud"). Returns the reply and the
+        // model that produced it.
+        AsyncFunction("chat") { (transcript: String, context: String, options: [String: Any]) -> [String: String] in
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
                 let custom = (options["instructions"] as? String) ?? ""
                 let greedy = (options["greedy"] as? Bool) ?? false
                 let disabled = Set((options["disabledTools"] as? [String]) ?? [])
+                let mode = (options["model"] as? String) ?? "device"
                 let allTools: [any Tool] = [
                     GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogQuickFoodTool(),
                     LogWaterTool(), LogWeightTool(), ListFoodEntriesTool(), DeleteFoodEntryTool(),
                     GetHistoryTool(), GetFastingTool(), StartFastTool(), EndFastTool(),
                     GetSleepTool(), LogExerciseTool(), CopyMealTool(),
                 ]
-                let session = LanguageModelSession(
-                    tools: allTools.filter { !disabled.contains($0.name) },
-                    instructions: custom.isEmpty ? chatInstructions : custom
-                )
+                let tools = allTools.filter { !disabled.contains($0.name) }
+                let instructions = custom.isEmpty ? chatInstructions : custom
                 let prompt = context.isEmpty
                     ? "Conversation so far:\n\(transcript)\n\nReply to the user's last message."
-                    : "Today's diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
-                let response = try await session.respond(
-                    to: prompt,
-                    options: greedy ? GenerationOptions(sampling: .greedy) : GenerationOptions()
-                )
-                return response.content
+                    : "Diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
+
+                func run(_ model: some LanguageModel) async throws -> String {
+                    let session = LanguageModelSession(model: model, tools: tools, instructions: instructions)
+                    let response = try await session.respond(
+                        to: prompt,
+                        options: greedy ? GenerationOptions(sampling: .greedy) : GenerationOptions()
+                    )
+                    return response.content
+                }
+
+                if mode == "cloud" {
+                    return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud"]
+                }
+                if mode == "auto" {
+                    do {
+                        return ["text": try await run(SystemLanguageModel.default), "model": "device"]
+                    } catch let error as LanguageModelError {
+                        // Only a conversation too big for the small model moves
+                        // to the private servers; nothing has run yet.
+                        guard case .contextSizeExceeded = error else { throw error }
+                        return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud"]
+                    }
+                }
+                return ["text": try await run(SystemLanguageModel.default), "model": "device"]
             }
             #endif
             throw OnDeviceNutritionError.unavailable
