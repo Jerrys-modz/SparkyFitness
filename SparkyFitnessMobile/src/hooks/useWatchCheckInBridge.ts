@@ -195,6 +195,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     () => estimateMaxHeartRate(profile?.date_of_birth),
     [profile?.date_of_birth]
   );
+  const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
@@ -557,6 +558,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         workoutServerId,
         doubleTapEnabled: watchDoubleTapEnabled,
         maxHeartRate,
+        rpeEnabled: watchRpeEnabled,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -586,6 +588,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     startableWorkouts,
     watchDoubleTapEnabled,
     maxHeartRate,
+    watchRpeEnabled,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

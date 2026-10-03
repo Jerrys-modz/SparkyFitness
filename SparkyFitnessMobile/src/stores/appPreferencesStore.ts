@@ -105,6 +105,7 @@ export const PREFERENCE_DEFAULTS = {
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
+  watchRpeEnabled: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
@@ -178,6 +179,7 @@ export type AppPreferencesData = {
   hiddenWatchPages: WatchPageKey[];
   /** Whether the watch's double-tap gesture logs the current set. */
   watchDoubleTapEnabled: boolean;
+  watchRpeEnabled: boolean;
   /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
@@ -242,6 +244,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
+  setWatchRpeEnabled: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
@@ -390,6 +393,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         })),
       setWatchDoubleTapEnabled: (value) =>
         set({ watchDoubleTapEnabled: value }),
+      setWatchRpeEnabled: (value) => set({ watchRpeEnabled: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -466,6 +470,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,
+        watchRpeEnabled: state.watchRpeEnabled,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,

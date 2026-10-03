@@ -601,6 +601,9 @@ private struct CurrentSetView: View {
     /// Which field the keypad is editing, if any.
     @State private var editing: EditableField?
     @State private var choosingType = false
+    /// A logged set held back while the wearer picks an effort. Sent once, on
+    /// pick, skip or dismissal.
+    @State private var pendingRpe: PendingRpe?
 
     /// Crown mode: the field the crown and a drag adjust in place, Hevy-style.
     @State private var crownField: EditableField?
@@ -709,7 +712,12 @@ private struct CurrentSetView: View {
                 // The value on screen is what gets logged, settled or not.
                 endCrownEditing()
                 if let completed = store.completeCurrentSet() {
-                    session.sendSetCompleted(completed, values: store.values(for: completed))
+                    let values = store.values(for: completed)
+                    if checkIn.context.effectiveRpeEnabled {
+                        pendingRpe = PendingRpe(step: completed, values: values)
+                    } else {
+                        session.sendSetCompleted(completed, values: values)
+                    }
                 }
             } onNext: {
                 endCrownEditing()
@@ -724,6 +732,19 @@ private struct CurrentSetView: View {
         // after the phone switches kg/lb would save that number in the new unit.
         .onChange(of: unit) { discardCrownWeightEdit() }
         .onDisappear { endCrownEditing() }
+        .sheet(item: $pendingRpe) { pending in
+            RpePickerView { rpe in
+                session.sendSetCompleted(pending.step, values: pending.values, rpe: rpe)
+                pendingRpe = nil
+            }
+            .onDisappear {
+                // Swiped away: the set is still logged, just without an effort.
+                if pendingRpe?.id == pending.id {
+                    session.sendSetCompleted(pending.step, values: pending.values)
+                    pendingRpe = nil
+                }
+            }
+        }
         .sheet(item: $editing) { field in
             NumericKeypadView(
                 title: title(for: field),
@@ -1461,5 +1482,52 @@ private struct ZoneBar: View {
                     .frame(width: 6, height: 3)
             }
         }
+    }
+}
+
+
+/// A set that has been logged on the watch and is waiting for an effort pick.
+private struct PendingRpe: Identifiable {
+    let id = UUID()
+    let step: WorkoutStep
+    let values: SetValues
+}
+
+/// Digital Crown picker for RPE, 6 to 10 in half steps. `onDone(nil)` skips.
+private struct RpePickerView: View {
+    let onDone: (Double?) -> Void
+
+    @State private var value: Double = 8
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text("Effort (RPE)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value.truncatingRemainder(dividingBy: 1) == 0
+                 ? String(format: "%.0f", value)
+                 : String(format: "%.1f", value))
+                .font(.system(size: 40, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+            HStack {
+                Button("Skip") { onDone(nil) }
+                    .tint(.gray)
+                Button("Done") { onDone(value) }
+                    .tint(.green)
+            }
+        }
+        .focusable()
+        .focused($focused)
+        .digitalCrownRotation(
+            $value,
+            from: 6,
+            through: 10,
+            by: 0.5,
+            sensitivity: .low,
+            isContinuous: false,
+            isHapticFeedbackEnabled: true
+        )
+        .onAppear { focused = true }
     }
 }

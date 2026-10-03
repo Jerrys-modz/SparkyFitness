@@ -326,6 +326,14 @@ export function useWatchWorkoutBridge(
       ) {
         patch.set_type = payload.setType;
       }
+      if (
+        payload.rpe != null &&
+        Number.isFinite(payload.rpe) &&
+        payload.rpe >= 1 &&
+        payload.rpe <= 10
+      ) {
+        patch.rpe = payload.rpe;
+      }
       if (payload.duration != null)
         patch.duration = Math.round(payload.duration);
       if (Object.keys(patch).length > 0) {

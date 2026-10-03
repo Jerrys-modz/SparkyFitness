@@ -75,7 +75,8 @@ enum ContextPayloadMapper {
                 ? payload["workoutServerId"] as? String
                 : previous.workoutServerId,
             doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
-            maxHeartRate: (payload["maxHeartRate"] as? NSNumber)?.intValue ?? previous.maxHeartRate
+            maxHeartRate: (payload["maxHeartRate"] as? NSNumber)?.intValue ?? previous.maxHeartRate,
+            rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled
         )
     }
 

@@ -138,6 +138,8 @@ export interface WatchContextPayload {
   doubleTapEnabled?: boolean | null;
   /** Estimated max heart rate in bpm, used to colour the workout heart rate by zone. */
   maxHeartRate?: number | null;
+  /** Whether the watch asks for an RPE after each logged set. */
+  rpeEnabled?: boolean | null;
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
@@ -359,6 +361,8 @@ export interface WatchSetCompletedPayload {
    * type on the watch. Omitted leaves the plan's type.
    */
   setType?: string | null;
+  /** Effort the wearer picked, 6-10 in half steps. Omitted when skipped. */
+  rpe?: number | null;
   /**
    * Seconds the watch's hold countdown actually ran. Omitted when the wearer
    * never started it, so the phone keeps the planned duration.

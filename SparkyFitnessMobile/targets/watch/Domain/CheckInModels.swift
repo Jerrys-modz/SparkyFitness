@@ -339,6 +339,8 @@ struct WatchContext: Codable, Equatable {
     var doubleTapEnabled: Bool? = nil
     /// Estimated max heart rate from the phone (age-based). Nil reads as 190.
     var maxHeartRate: Int? = nil
+    /// Phone's Settings → Apple Watch → effort (RPE) switch. Nil reads as off.
+    var rpeEnabled: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -414,6 +416,8 @@ struct WatchContext: Codable, Equatable {
     /// Whether the double-tap gesture logs a set. On until the phone says
     /// otherwise.
     var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
+
+    var effectiveRpeEnabled: Bool { rpeEnabled ?? false }
 
     var effectiveMaxHeartRate: Double { Double(maxHeartRate ?? 190) }
 

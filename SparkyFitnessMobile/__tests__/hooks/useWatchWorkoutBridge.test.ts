@@ -464,6 +464,40 @@ describe('useWatchWorkoutBridge', () => {
     expect(getStore().session!.exercises[0].sets[0].set_type).toBe('normal');
   });
 
+  it('writes an effort picked on the watch, and ignores one out of range', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        rpe: 8.5,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().session!.exercises[0].sets[0].rpe).toBe(8.5);
+
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-2',
+        sessionId: 'session-1',
+        setId: '101',
+        rpe: 42,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().session!.exercises[0].sets[0].rpe).toBeNull();
+  });
+
   it('writes the hold the watch counted down, and leaves reps alone', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {
