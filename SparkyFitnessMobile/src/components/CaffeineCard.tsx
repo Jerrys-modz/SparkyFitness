@@ -58,19 +58,42 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
   // reach it walked the whole span at 15-minute steps with no cap.
   const windowMs = useMemo(() => {
     if (!kinetics || kinetics.doses.length === 0) return null;
-    const firstDoseMs = kinetics.doses.reduce(
+    const rawEnd = bedtimeMs + 2 * 60 * 60 * 1000;
+    // `bedtime_at` sits at or after the end of the date being viewed, so the 24 hours before it are
+    // that day. Only a clock inside them belongs on this chart; anything else
+    // is a different day and must not drag the window across to meet it.
+    const dayStartMs = bedtimeMs - 24 * 60 * 60 * 1000;
+    const nowBelongsToDay = nowMs >= dayStartMs && nowMs <= rawEnd;
+
+    const dayDoses = kinetics.doses.filter((dose) => {
+      const ms = new Date(dose.at).getTime();
+      return ms >= dayStartMs && ms <= rawEnd;
+    });
+    const dosesForFirst = dayDoses.length > 0 ? dayDoses : kinetics.doses;
+
+    const firstDoseMs = dosesForFirst.reduce(
       (earliest, dose) => Math.min(earliest, new Date(dose.at).getTime()),
       Number.POSITIVE_INFINITY
     );
-    const end = bedtimeMs + 2 * 60 * 60 * 1000;
-    // `bedtime_at` sits on the date being viewed, so the 24 hours before it are
-    // that day. Only a clock inside them belongs on this chart; anything else
-    // is a different day and must not drag the window across to meet it.
-    const nowBelongsToDay =
-      nowMs >= bedtimeMs - 24 * 60 * 60 * 1000 && nowMs <= end;
     const doseStart = firstDoseMs - 60 * 60 * 1000;
+    const rawStart = nowBelongsToDay ? Math.min(doseStart, nowMs) : doseStart;
+
+    const startDate = new Date(rawStart);
+    startDate.setMinutes(0, 0, 0);
+    const start = startDate.getTime();
+
+    const endDate = new Date(rawEnd);
+    if (
+      endDate.getMinutes() > 0 ||
+      endDate.getSeconds() > 0 ||
+      endDate.getMilliseconds() > 0
+    ) {
+      endDate.setHours(endDate.getHours() + 1, 0, 0, 0);
+    }
+    const end = endDate.getTime();
+
     return {
-      start: nowBelongsToDay ? Math.min(doseStart, nowMs) : doseStart,
+      start,
       end,
       nowBelongsToDay,
     };

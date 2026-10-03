@@ -88,8 +88,17 @@ export async function getActiveCaffeineKinetics(
   // list is rendered as the day's doses in sequence.
   doses.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 
-  // Calculate bedtime instant in user's timezone for target date
-  const bedtimeDate = localDateTimeToUtc(`${date}T${targetBedtime}`, tz);
+  // Calculate bedtime instant in user's timezone for target date.
+  // Bedtimes at midnight or early morning (00:00 - 11:59) conclude the waking day
+  // on the following calendar morning (date + 1).
+  const [bedtimeHourStr] = targetBedtime.split(':');
+  const bedtimeHour = parseInt(bedtimeHourStr ?? '22', 10);
+  const bedtimeCalendarDate =
+    !isNaN(bedtimeHour) && bedtimeHour < 12 ? addDays(date, 1) : date;
+  const bedtimeDate = localDateTimeToUtc(
+    `${bedtimeCalendarDate}T${targetBedtime}`,
+    tz
+  );
   const bedtimeAt = bedtimeDate.toISOString();
 
   const activeMgNow = activeCaffeineAt(doses, now, halfLifeHours);
