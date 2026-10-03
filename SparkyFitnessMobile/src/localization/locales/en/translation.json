@@ -3625,6 +3625,10 @@
       "default": "Default",
       "retryTitle": "Retry with Open Food Facts",
       "retryDescription": "If no result is found, try Open Food Facts automatically."
+    },
+    "onDeviceChat": {
+      "title": "Sparky Chat On Device",
+      "description": "Answer Sparky chat with Apple Intelligence on this device. It can read today's diary summary but cannot log or change anything, and it is less capable than your server AI provider. Chats are not saved."
     }
   },
   "workoutComplete": {
@@ -3929,7 +3933,8 @@
       "goals": "Goals",
       "lookedUp": "Looked up {{name}}"
     },
-    "typing": "Sparky is typing"
+    "typing": "Sparky is typing",
+    "onDeviceBadge": "Answered on this device · read-only · chats are not saved"
   },
   "foodImagePicker": {
     "photos": "Photos",

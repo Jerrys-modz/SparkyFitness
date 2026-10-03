@@ -94,6 +94,15 @@ gives a total weight, make the item weights add up to it. Be conservative: do no
 add foods you cannot see, and use low confidence when unsure.
 """
 
+private let chatInstructions = """
+You are Sparky, a friendly nutrition and fitness assistant inside a food diary \
+app, running on the user's phone. Answer briefly and practically. Use the \
+diary snapshot for questions about today and never invent entries or numbers \
+that are not in it. You cannot log, edit or delete anything; if asked to, say \
+the user can do it in the app or switch to the server assistant. You are not a \
+doctor: for medical questions, suggest seeing a professional.
+"""
+
 private let extractionInstructions = """
 You read nutrition facts labels. You are given the label's text, recognised \
 line by line from the photo, and the photo itself. Copy numbers exactly as they \
@@ -183,6 +192,21 @@ public class OnDeviceNutritionModule: Module {
                     "values_are_per_100": r.valuesArePer100,
                     "ocr_text": ocrText,
                 ]
+            }
+            #endif
+            throw OnDeviceNutritionError.unavailable
+        }
+
+        // Answers a chat turn from the transcript and a read-only diary
+        // snapshot. Plain text, no tools: it cannot change anything.
+        AsyncFunction("chat") { (transcript: String, context: String) -> String in
+            #if compiler(>=6.4) && canImport(FoundationModels)
+            if #available(iOS 27, *) {
+                let session = LanguageModelSession(instructions: chatInstructions)
+                let response = try await session.respond(
+                    to: "Today's diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
+                )
+                return response.content
             }
             #endif
             throw OnDeviceNutritionError.unavailable

@@ -56,6 +56,12 @@ import {
 import { getAuthHeaders } from '../services/api/authService';
 import { normalizeUrl } from '../services/api/apiClient';
 import { clearAllChatHistory } from '../services/api/chatApi';
+import {
+  askOnDeviceChat,
+  isOnDeviceChatAvailable,
+  type OnDeviceChatTurn,
+} from '../services/onDeviceChat';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { addLog } from '../services/LogService';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import {
@@ -110,36 +116,90 @@ function ChatKeyboardAvoidingView(
  */
 
 /** Builds the assistant-ui runtime bound to our streaming endpoint. */
+/**
+ * A chat transport that never touches the server: the last user message and
+ * recent turns go to Apple Intelligence on this device, and the reply comes
+ * back as a single text chunk in the AI SDK UI message stream shape.
+ */
+function createOnDeviceTransport(): ChatTransportLike {
+  return {
+    sendMessages: async ({ messages, abortSignal }) => {
+      const turns: OnDeviceChatTurn[] = [];
+      for (const m of messages) {
+        if (m.role !== 'user' && m.role !== 'assistant') continue;
+        const text = (m.parts ?? [])
+          .map((p) => (p.type === 'text' ? (p.text ?? '') : ''))
+          .join('')
+          .trim();
+        if (text) turns.push({ role: m.role, text });
+      }
+      const id = `ondevice-${Date.now()}`;
+      return new ReadableStream({
+        async start(controller) {
+          try {
+            if (abortSignal?.aborted) throw new Error('Aborted');
+            const reply = await askOnDeviceChat(turns);
+            controller.enqueue({ type: 'start' });
+            controller.enqueue({ type: 'text-start', id });
+            controller.enqueue({ type: 'text-delta', id, delta: reply });
+            controller.enqueue({ type: 'text-end', id });
+            controller.enqueue({ type: 'finish' });
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          }
+        },
+      });
+    },
+    reconnectToStream: async () => null,
+  };
+}
+
+interface ChatTransportLike {
+  sendMessages: (options: {
+    messages: {
+      role: string;
+      parts?: { type: string; text?: string }[];
+    }[];
+    abortSignal?: AbortSignal;
+  }) => Promise<ReadableStream<unknown>>;
+  reconnectToStream: () => Promise<ReadableStream<unknown> | null>;
+}
+
 function useSparkyChatRuntime({
   baseUrl,
   serviceConfigId,
   initialMessages,
+  onDevice,
 }: {
   baseUrl: string;
   serviceConfigId: string;
   initialMessages: InitialMessages;
+  onDevice: boolean;
 }) {
   const { t } = useTranslation();
   const transport = useMemo(
     () =>
-      new AssistantChatTransport({
-        api: `${baseUrl}/api/chat/stream`,
-        // expo/fetch exposes a real ReadableStream body; RN's global fetch does not.
-        fetch: expoFetch as unknown as typeof globalThis.fetch,
-        // Resolved per request so auth/proxy headers stay current.
-        headers: async () => {
-          const config = await getActiveServerConfig();
-          return config
-            ? {
-                ...proxyHeadersToRecord(config.proxyHeaders),
-                ...getAuthHeaders(config),
-              }
-            : {};
-        },
-        // Merged into the request body alongside `messages`; the server reads it.
-        body: { service_config_id: serviceConfigId },
-      }),
-    [baseUrl, serviceConfigId]
+      onDevice
+        ? (createOnDeviceTransport() as never)
+        : new AssistantChatTransport({
+            api: `${baseUrl}/api/chat/stream`,
+            // expo/fetch exposes a real ReadableStream body; RN's global fetch does not.
+            fetch: expoFetch as unknown as typeof globalThis.fetch,
+            // Resolved per request so auth/proxy headers stay current.
+            headers: async () => {
+              const config = await getActiveServerConfig();
+              return config
+                ? {
+                    ...proxyHeadersToRecord(config.proxyHeaders),
+                    ...getAuthHeaders(config),
+                  }
+                : {};
+            },
+            // Merged into the request body alongside `messages`; the server reads it.
+            body: { service_config_id: serviceConfigId },
+          }),
+    [baseUrl, serviceConfigId, onDevice]
   );
 
   // Thread-level safety net: a per-message error box can't render if the stream
@@ -497,9 +557,11 @@ function ChatThread({
   initialMessages,
   onRunningChange,
   autoFocusReady,
+  onDevice,
 }: {
   baseUrl: string;
   serviceConfigId: string;
+  onDevice: boolean;
   initialMessages: InitialMessages;
   onRunningChange: (running: boolean) => void;
   autoFocusReady: boolean;
@@ -509,6 +571,7 @@ function ChatThread({
     baseUrl,
     serviceConfigId,
     initialMessages,
+    onDevice,
   });
 
   // Keep the message list pinned to the bottom as content grows — but only
@@ -585,6 +648,17 @@ function ChatThread({
       <RunningReporter onRunningChange={handleRunningChange} />
       <ThreadPrimitive.Root style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
+          {onDevice && (
+            <Text
+              testID="chat-on-device-badge"
+              className="text-xs text-text-muted text-center py-1.5"
+            >
+              {t('chat.onDeviceBadge', {
+                defaultValue:
+                  'Answered on this device · read-only · chats are not saved',
+              })}
+            </Text>
+          )}
           <ThreadPrimitive.Empty>
             <View className="flex-1 items-center justify-center p-8">
               <Text className="text-text-muted text-center text-base mb-6">
@@ -707,11 +781,16 @@ export default function ChatScreen({
     };
   }, []);
 
+  const onDeviceChatEnabled = useAppPreferencesStore(
+    (s) => s.onDeviceChatEnabled
+  );
+  const onDevice = onDeviceChatEnabled && isOnDeviceChatAvailable();
+
   // Clearing needs only an authenticated server, not an active AI provider.
   const { data: historyData, isLoading: loadingHistory } = useChatHistory({
-    enabled: !!baseUrl,
+    enabled: !!baseUrl && !onDevice,
   });
-  const initialMessages = historyData ?? [];
+  const initialMessages = onDevice ? [] : (historyData ?? []);
 
   const serviceConfigId = setting?.id ?? null;
 
@@ -809,7 +888,7 @@ export default function ChatScreen({
                 'No active server config. Set one up in Settings first.',
             })}
           />
-        ) : !serviceConfigId ? (
+        ) : !serviceConfigId && !onDevice ? (
           <Centered
             text={t('chat.noProvider', {
               defaultValue:
@@ -820,7 +899,8 @@ export default function ChatScreen({
           <ChatThread
             key={threadKey}
             baseUrl={baseUrl}
-            serviceConfigId={serviceConfigId}
+            serviceConfigId={serviceConfigId ?? ''}
+            onDevice={onDevice}
             initialMessages={initialMessages}
             onRunningChange={setRunning}
             autoFocusReady={transitionComplete}
