@@ -6,8 +6,10 @@ import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 
 let mockAvailable = true;
 let mockCloudStatus = 'available';
+let mockOnDeviceStatus = 'available';
 jest.mock('../../src/services/onDeviceChat', () => ({
   getCloudChatStatus: () => mockCloudStatus,
+  getOnDeviceStatus: () => mockOnDeviceStatus,
   askOnDeviceChat: jest.fn(),
   getDefaultChatInstructions: () => '',
   CHAT_TOOL_NAMES: ['logWater'],
@@ -46,6 +48,7 @@ describe('AiSettingsScreen', () => {
   beforeEach(() => {
     mockAvailable = true;
     mockCloudStatus = 'available';
+    mockOnDeviceStatus = 'available';
     useAppPreferencesStore.setState({
       onDeviceChatModel: 'device',
       onDeviceChatEnabled: false,
@@ -94,5 +97,18 @@ describe('AiSettingsScreen', () => {
     mockCloudStatus = 'unsupported';
     const { queryByTestId } = renderScreen();
     expect(queryByTestId('ai-cloud-status')).toBeNull();
+  });
+
+  it('says why on-device AI is unavailable', () => {
+    mockAvailable = false;
+    mockOnDeviceStatus = 'modelNotReady';
+    const { getByText } = renderScreen();
+    expect(getByText(/still downloading/)).toBeTruthy();
+  });
+
+  it('saves the notes about the user', () => {
+    const { getByTestId } = renderScreen();
+    fireEvent.changeText(getByTestId('ai-about-you-input'), 'vegetarian');
+    expect(useAppPreferencesStore.getState().aiUserContext).toBe('vegetarian');
   });
 });

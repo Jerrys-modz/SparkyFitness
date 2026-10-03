@@ -7,7 +7,10 @@ import {
   FoodPhotoEstimateError,
   type EstimateFoodPhotoInput,
 } from '../services/api/externalFoodSearchApi';
-import { estimateFoodPhotoOnDevice } from '../services/onDeviceFoodPhoto';
+import {
+  estimateFoodPhotoOnDevice,
+  MAX_ON_DEVICE_PHOTOS,
+} from '../services/onDeviceFoodPhoto';
 
 const GRAMS_PER_OUNCE = 28.3495;
 
@@ -19,9 +22,9 @@ export function useEstimateFoodPhoto() {
     EstimateFoodPhotoInput
   >({
     mutationFn: async (input) => {
-      // The on-device model takes one picture; several go to the server.
+      // A few photos of one meal can stay on the phone; more go to the server.
       const images = input.images ?? [];
-      if (images.length === 1) {
+      if (images.length >= 1 && images.length <= MAX_ON_DEVICE_PHOTOS) {
         const totalWeightGrams =
           input.totalWeight === undefined
             ? undefined
@@ -29,7 +32,7 @@ export function useEstimateFoodPhoto() {
               ? input.totalWeight * GRAMS_PER_OUNCE
               : input.totalWeight;
         const onDevice = await estimateFoodPhotoOnDevice({
-          base64Image: images[0].base64Image,
+          base64Images: images.map((image) => image.base64Image),
           description: input.description,
           totalWeightGrams,
         });

@@ -18,8 +18,12 @@ const MAX_MEAL_CALORIES = 6000;
 // the band is wide; it only rejects numbers that cannot describe the same food.
 const ENERGY_TOLERANCE = 0.4;
 
+/** More photos than this crowd the small model's context window. */
+export const MAX_ON_DEVICE_PHOTOS = 4;
+
 export interface OnDeviceFoodPhotoInput {
-  base64Image: string;
+  /** One meal, from one or more angles. */
+  base64Images: string[];
   description?: string;
   /** Total weight of the meal in grams. */
   totalWeightGrams?: number;
@@ -136,11 +140,18 @@ export async function estimateFoodPhotoOnDevice(
 ): Promise<FoodPhotoEstimateResponse | null> {
   if (!useAppPreferencesStore.getState().onDeviceFoodPhotoEnabled) return null;
   if (!OnDeviceNutritionModule || !isOnDeviceFoodPhotoAvailable()) return null;
+  if (
+    input.base64Images.length === 0 ||
+    input.base64Images.length > MAX_ON_DEVICE_PHOTOS
+  ) {
+    return null;
+  }
   try {
     const estimate = await OnDeviceNutritionModule.estimateMeal(
-      input.base64Image,
+      input.base64Images,
       input.description?.trim() || null,
-      input.totalWeightGrams ?? null
+      input.totalWeightGrams ?? null,
+      useAppPreferencesStore.getState().aiUserContext.trim() || null
     );
     if (!isPlausibleMealEstimate(estimate)) {
       addLog(

@@ -1,5 +1,6 @@
 import OnDeviceNutritionModule, {
   type CloudChatStatus,
+  type OnDeviceStatus,
 } from '../../modules/on-device-nutrition';
 import {
   buildDailySummary,
@@ -38,6 +39,15 @@ export const CHAT_TOOL_NAMES = [
 ] as const;
 
 /** The built-in system prompt, or '' when this build has no native module. */
+/** Why the on-device model can or cannot be used; 'unsupported' without the module. */
+export function getOnDeviceStatus(): OnDeviceStatus {
+  try {
+    return OnDeviceNutritionModule?.onDeviceStatus?.() ?? 'unsupported';
+  } catch {
+    return 'unsupported';
+  }
+}
+
 /** Whether Apple's private servers can answer chat right now. */
 export function getCloudChatStatus(): CloudChatStatus {
   try {
@@ -133,6 +143,7 @@ export async function askOnDeviceChat(
       context,
       {
         model: effectiveModel,
+        userContext: prefs.aiUserContext.trim(),
         instructions: prefs.onDeviceChatSystemPrompt,
         greedy: prefs.onDeviceChatGreedy,
         disabledTools: prefs.onDeviceChatDisabledTools,

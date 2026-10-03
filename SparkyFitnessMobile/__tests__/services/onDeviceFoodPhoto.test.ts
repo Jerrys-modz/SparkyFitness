@@ -103,30 +103,58 @@ describe('onDeviceFoodPhoto', () => {
 
   it('returns null when the preference is off', async () => {
     useAppPreferencesStore.setState({ onDeviceFoodPhotoEnabled: false });
-    expect(await estimateFoodPhotoOnDevice({ base64Image: 'x' })).toBeNull();
+    expect(await estimateFoodPhotoOnDevice({ base64Images: ['x'] })).toBeNull();
     expect(mockModule.estimateMeal).not.toHaveBeenCalled();
   });
 
   it('returns null when the model is unavailable', async () => {
     mockModule.isAvailable.mockReturnValue(false);
-    expect(await estimateFoodPhotoOnDevice({ base64Image: 'x' })).toBeNull();
+    expect(await estimateFoodPhotoOnDevice({ base64Images: ['x'] })).toBeNull();
   });
 
   it('passes the description and weight, and returns the estimate', async () => {
     mockModule.estimateMeal.mockResolvedValue(meal());
     const result = await estimateFoodPhotoOnDevice({
-      base64Image: 'x',
+      base64Images: ['x', 'y'],
       description: ' lunch ',
       totalWeightGrams: 300,
     });
-    expect(mockModule.estimateMeal).toHaveBeenCalledWith('x', 'lunch', 300);
+    expect(mockModule.estimateMeal).toHaveBeenCalledWith(
+      ['x', 'y'],
+      'lunch',
+      300,
+      null
+    );
     expect(result?.meal_summary).toBe('Chicken and rice');
   });
 
   it('returns null when the module throws or the estimate is implausible', async () => {
     mockModule.estimateMeal.mockRejectedValueOnce(new Error('boom'));
-    expect(await estimateFoodPhotoOnDevice({ base64Image: 'x' })).toBeNull();
+    expect(await estimateFoodPhotoOnDevice({ base64Images: ['x'] })).toBeNull();
     mockModule.estimateMeal.mockResolvedValueOnce(meal({ items: [] }));
-    expect(await estimateFoodPhotoOnDevice({ base64Image: 'x' })).toBeNull();
+    expect(await estimateFoodPhotoOnDevice({ base64Images: ['x'] })).toBeNull();
+  });
+
+  it('passes the user notes along and refuses too many photos', async () => {
+    mockModule.isAvailable.mockReturnValue(true);
+    mockModule.estimateMeal.mockResolvedValue(meal());
+    useAppPreferencesStore.setState({
+      onDeviceFoodPhotoEnabled: true,
+      aiUserContext: '  vegetarian  ',
+    });
+    await estimateFoodPhotoOnDevice({ base64Images: ['a'] });
+    expect(mockModule.estimateMeal).toHaveBeenCalledWith(
+      ['a'],
+      null,
+      null,
+      'vegetarian'
+    );
+    mockModule.estimateMeal.mockClear();
+    expect(
+      await estimateFoodPhotoOnDevice({
+        base64Images: ['1', '2', '3', '4', '5'],
+      })
+    ).toBeNull();
+    expect(mockModule.estimateMeal).not.toHaveBeenCalled();
   });
 });
