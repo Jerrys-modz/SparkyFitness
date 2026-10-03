@@ -74,7 +74,8 @@ enum ContextPayloadMapper {
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
                 : previous.workoutServerId,
-            doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled
+            doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
+            maxHeartRate: (payload["maxHeartRate"] as? NSNumber)?.intValue ?? previous.maxHeartRate
         )
     }
 

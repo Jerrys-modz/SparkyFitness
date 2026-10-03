@@ -522,6 +522,7 @@ private struct MetricsStrip: View {
     var onBack: (() -> Void)?
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
 
     var body: some View {
         HStack(spacing: 6) {
@@ -545,10 +546,14 @@ private struct MetricsStrip: View {
                 // Never truncated: a three-digit rate used to lose its last
                 // digits to the calories and clock beside it. Those shrink
                 // first instead.
-                Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
-                    .foregroundStyle(.red)
-                    .fixedSize()
-                    .layoutPriority(1)
+                let zone = checkIn.context.heartRateZone(for: bpm)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
+                        .foregroundStyle(Self.zoneColor(zone))
+                    ZoneBar(zone: zone)
+                }
+                .fixedSize()
+                .layoutPriority(1)
             }
         }
         .font(.caption2)
@@ -562,6 +567,17 @@ private struct MetricsStrip: View {
         HStack(spacing: 2) {
             Image(systemName: systemImage)
             Text(value)
+        }
+    }
+
+    /// Matches the phone's zone colours (grey, blue, green, amber, red).
+    static func zoneColor(_ zone: Int) -> Color {
+        switch zone {
+        case 2: return Color(red: 0.23, green: 0.51, blue: 0.96)
+        case 3: return Color(red: 0.13, green: 0.77, blue: 0.37)
+        case 4: return Color(red: 0.96, green: 0.62, blue: 0.04)
+        case 5: return Color(red: 0.94, green: 0.27, blue: 0.27)
+        default: return Color(red: 0.58, green: 0.64, blue: 0.72)
         }
     }
 
@@ -1431,3 +1447,19 @@ private func previewStore(
         .environmentObject(WatchSessionManager.shared)
 }
 #endif
+
+
+/// Five thin segments under the heart rate, filled up to the current zone.
+private struct ZoneBar: View {
+    let zone: Int
+
+    var body: some View {
+        HStack(spacing: 1) {
+            ForEach(1...5, id: \.self) { index in
+                Capsule()
+                    .fill(index <= zone ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                    .frame(width: 6, height: 3)
+            }
+        }
+    }
+}

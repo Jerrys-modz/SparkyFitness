@@ -43,6 +43,8 @@ import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
+import { useProfile } from './useProfile';
+import { estimateMaxHeartRate } from '../utils/heartRateZones';
 import { getActiveServerConfigId } from '../services/storage';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
@@ -188,6 +190,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const { preferences } = usePreferences();
   // Device-local settings the watch's haptics follow.
   const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
+  const { profile } = useProfile();
+  const maxHeartRate = useMemo(
+    () => estimateMaxHeartRate(profile?.date_of_birth),
+    [profile?.date_of_birth]
+  );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
@@ -549,6 +556,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         startableWorkouts,
         workoutServerId,
         doubleTapEnabled: watchDoubleTapEnabled,
+        maxHeartRate,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -577,6 +585,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     startableWorkouts,
     watchDoubleTapEnabled,
+    maxHeartRate,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

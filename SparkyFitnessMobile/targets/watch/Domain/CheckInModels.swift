@@ -337,6 +337,8 @@ struct WatchContext: Codable, Equatable {
     /// The phone's Settings → Apple Watch → Double-tap switch. Defaulted so the
     /// existing initializer calls need not pass it; nil reads as on.
     var doubleTapEnabled: Bool? = nil
+    /// Estimated max heart rate from the phone (age-based). Nil reads as 190.
+    var maxHeartRate: Int? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -412,6 +414,21 @@ struct WatchContext: Codable, Equatable {
     /// Whether the double-tap gesture logs a set. On until the phone says
     /// otherwise.
     var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
+
+    var effectiveMaxHeartRate: Double { Double(maxHeartRate ?? 190) }
+
+    /// Zone 1...5 for a heart rate, by share of max (50/60/70/80/90%), the same
+    /// floors the server uses when it summarises a saved workout. 0 is below
+    /// zone 1.
+    func heartRateZone(for bpm: Double) -> Int {
+        let share = bpm / effectiveMaxHeartRate
+        if share >= 0.9 { return 5 }
+        if share >= 0.8 { return 4 }
+        if share >= 0.7 { return 3 }
+        if share >= 0.6 { return 2 }
+        if share >= 0.5 { return 1 }
+        return 0
+    }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.

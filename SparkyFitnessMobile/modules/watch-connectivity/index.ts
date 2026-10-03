@@ -136,6 +136,8 @@ export interface WatchContextPayload {
    * double-tap gesture while this is off. Missing reads as on.
    */
   doubleTapEnabled?: boolean | null;
+  /** Estimated max heart rate in bpm, used to colour the workout heart rate by zone. */
+  maxHeartRate?: number | null;
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order

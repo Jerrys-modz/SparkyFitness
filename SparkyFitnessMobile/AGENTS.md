@@ -386,3 +386,5 @@ const androidService = require('../../src/services/healthConnectService.ts');
 
 - For work inside `SparkyFitnessMobile/`, this file is the package guide.
 - If a task also changes another package, combine this with that package guide instead of stretching this file to cover the whole monorepo.
+
+- Watch heart-rate zones (#86): the phone sends `maxHeartRate` (`estimateMaxHeartRate` in `src/utils/heartRateZones.ts`, 211 − 0.64·age from the profile, 190 fallback) in the watch context; the workout metrics strip colours the BPM and draws a 5-segment bar using the same 50/60/70/80/90% floors as the server.
