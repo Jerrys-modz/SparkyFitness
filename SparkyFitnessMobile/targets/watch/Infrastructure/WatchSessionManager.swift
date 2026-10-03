@@ -659,6 +659,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 startedAt: startedAt
             ))
         }
+        workoutStore.onSetTimerStoppedHere = { [weak self] setId, seconds in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.setTimerStopped(
+                sessionId: sessionId,
+                setId: setId,
+                seconds: seconds
+            ))
+        }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
             guard let self else { return }
             let minutes = self.workoutStore.closeExerciseWindow(outgoingExerciseEntryId)

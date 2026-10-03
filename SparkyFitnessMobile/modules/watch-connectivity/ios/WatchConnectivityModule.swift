@@ -22,6 +22,7 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRestChanged: (([String: Any]) -> Void)?
     /// The wearer started a set's hold countdown or stopwatch on the watch.
     var onSetTimerStarted: (([String: Any]) -> Void)?
+    var onSetTimerStopped: (([String: Any]) -> Void)?
     /// A batch of heart-rate samples for one exercise, captured on the watch.
     var onHeartRateBatch: (([String: Any]) -> Void)?
     /// The reading on the wrist now. Live messages only, never queued.
@@ -95,6 +96,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRestChanged?(payload)
         case "setTimerStarted":
             onSetTimerStarted?(payload)
+        case "setTimerStopped":
+            onSetTimerStopped?(payload)
         case "heartRateBatch":
             onHeartRateBatch?(payload)
         case "liveHeartRate":
@@ -232,6 +235,7 @@ public class WatchConnectivityModule: Module {
             "onSetCompleted",
             "onRestChanged",
             "onSetTimerStarted",
+            "onSetTimerStopped",
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
@@ -298,6 +302,16 @@ public class WatchConnectivityModule: Module {
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "setId": payload["setId"] as? String ?? "",
                     "startedAt": startedAt,
+                ])
+            }
+            self.delegateHandler.onSetTimerStopped = { [weak self] payload in
+                guard let seconds = (payload["seconds"] as? NSNumber)?.intValue else {
+                    return
+                }
+                self?.sendEvent("onSetTimerStopped", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
+                    "seconds": seconds,
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in

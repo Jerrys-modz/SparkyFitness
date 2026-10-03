@@ -91,6 +91,8 @@ final class WorkoutSessionStore: ObservableObject {
     /// A hold countdown or stopwatch was started on the watch (not copied from
     /// the phone), so the phone can start its own from the same moment.
     var onSetTimerStartedHere: ((_ setId: String, _ startedAt: Date) -> Void)?
+    /// Called when the wearer stops a stopwatch here, with the seconds it ran.
+    var onSetTimerStoppedHere: ((_ setId: String, _ seconds: Int) -> Void)?
 
     /// Called when a rest countdown runs out on its own, so the app can buzz
     /// the wrist. Not called when the wearer skips the rest or trims it to
@@ -643,6 +645,21 @@ final class WorkoutSessionStore: ObservableObject {
         holdStartedAt = start
         holdFollowsPhone = startedAt != nil
         if startedAt == nil { onSetTimerStartedHere?(setId, start) }
+    }
+
+    /// Whether the stopwatch for this set is running now.
+    func isStopwatchRunning(for setId: String) -> Bool {
+        holdSetId == setId && holdStartedAt != nil && holdStoppedAt == nil
+    }
+
+    /// Stops the stopwatch and tells the phone how long it ran. The time stays
+    /// on screen and is what logging the set sends.
+    func stopStopwatch(for setId: String) {
+        guard isStopwatchRunning(for: setId) else { return }
+        holdStoppedAt = Date()
+        if let seconds = stopwatchElapsed(for: setId) {
+            onSetTimerStoppedHere?(setId, seconds)
+        }
     }
 
     /// Follows the phone's set timers: starts the countdown or stopwatch for

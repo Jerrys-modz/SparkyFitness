@@ -285,6 +285,38 @@ describe('useWatchWorkoutBridge', () => {
     });
   });
 
+  describe('set timer stopped on the watch', () => {
+    const fire = (payload: Record<string, unknown>) =>
+      act(() => {
+        mockListeners.get('onSetTimerStopped')!(payload);
+      });
+
+    beforeEach(() => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      useActiveWorkoutStore.setState({
+        sessionId: 'session-1',
+        setTimerStartedAt: { '101': Date.now() - 20_000 },
+        completedSetIds: {},
+      });
+    });
+
+    it('stops the phone stopwatch and keeps the wrist time as the duration', () => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'session-1', setId: '101', seconds: 19 });
+      expect(getStore().setTimerStartedAt['101']).toBeUndefined();
+      expect(getStore().session!.exercises[0].sets[0].duration).toBe(19);
+    });
+
+    it('ignores another session, a logged set and a zero time', () => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'other', setId: '101', seconds: 19 });
+      fire({ sessionId: 'session-1', setId: '102', seconds: 19 });
+      fire({ sessionId: 'session-1', setId: '101', seconds: 0 });
+      expect(getStore().setTimerStartedAt['101']).toBeDefined();
+    });
+  });
+
   describe('rest changed on the watch', () => {
     const resting = (endsAt: number) => ({
       state: 'resting' as const,

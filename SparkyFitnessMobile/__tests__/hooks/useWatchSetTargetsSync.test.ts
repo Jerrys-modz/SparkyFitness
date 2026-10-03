@@ -413,4 +413,43 @@ describe('useWatchSetTargetsSync', () => {
     expect(targets[1].targetDurationSec).not.toBe(10);
     expect(targets[1]).not.toHaveProperty('targetReps');
   });
+
+  it("does not turn last time's hold into a countdown", () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Plank',
+      modality: 'duration',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+        previousSessionSets: {
+          'ex-1': [
+            {
+              setNumber: 1,
+              setType: 'normal',
+              weight: null,
+              reps: null,
+              duration: 13,
+            },
+            {
+              setNumber: 2,
+              setType: 'normal',
+              weight: null,
+              reps: null,
+              duration: 13,
+            },
+          ],
+        } as never,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    const targets = mockUpdateSetTargets.mock.calls[0][0].targets;
+    for (const target of targets) {
+      expect(target).not.toHaveProperty('targetDurationSec');
+    }
+  });
 });

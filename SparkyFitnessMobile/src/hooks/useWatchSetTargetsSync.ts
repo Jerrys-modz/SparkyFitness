@@ -62,10 +62,11 @@ export function resolveWatchSetTargets(
             modality
           )
         : null;
-      const rawDuration =
-        ownDuration ?? (durationLike ? (assumedSet?.duration ?? null) : null);
+      // Only a length typed on the phone makes the watch count down. The gray
+      // value from last time is a hint, not a target: the phone runs a
+      // stopwatch from zero for it, so the watch must too.
       const durationSec =
-        rawDuration != null && rawDuration > 0 ? rawDuration : null;
+        ownDuration != null && ownDuration > 0 ? ownDuration : null;
       targets.set(String(set.id), {
         weightKg: set.weight ?? assumedSet?.weight ?? null,
         // A duration set's legacy seconds live in `reps`. Sending those as

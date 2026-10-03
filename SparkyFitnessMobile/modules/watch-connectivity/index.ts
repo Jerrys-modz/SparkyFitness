@@ -459,6 +459,14 @@ export interface WatchRestChangedPayload {
  * The wearer started a set's hold countdown or stopwatch on the watch.
  * `startedAt` is epoch ms; the phone starts its own timer from it.
  */
+/** The wearer stopped a set's stopwatch on the watch. */
+export interface WatchSetTimerStoppedPayload {
+  sessionId: string;
+  setId: string;
+  /** Whole seconds the stopwatch ran. */
+  seconds: number;
+}
+
 export interface WatchSetTimerStartedPayload {
   sessionId: string;
   setId: string;
@@ -490,6 +498,7 @@ export type WatchConnectivityEvents = {
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
+  onSetTimerStopped: (payload: WatchSetTimerStoppedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
