@@ -267,4 +267,13 @@ describe('cardioSessionFromDiaryEntry', () => {
     const sets = [{ weight: 50, reps: 8 }] as IndividualSessionResponse['sets'];
     expect(cardioSessionFromDiaryEntry(entry({ sets }), 'km')).toBeNull();
   });
+
+  it('leaves a weight_reps snapshot with no sets on the basic screen', () => {
+    const exercise_snapshot = {
+      modality: 'weight_reps',
+    } as IndividualSessionResponse['exercise_snapshot'];
+    expect(
+      cardioSessionFromDiaryEntry(entry({ sets: [], exercise_snapshot }), 'km')
+    ).toBeNull();
+  });
 });
