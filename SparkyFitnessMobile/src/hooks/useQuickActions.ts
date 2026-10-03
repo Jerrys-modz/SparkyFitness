@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as QuickActions from 'expo-quick-actions';
 import Toast from 'react-native-toast-message';
-import i18n from 'i18next';
+import { t } from 'i18next';
 import { navigationRef } from '../components/ActiveWorkoutBar';
 import {
   changeWaterIntake,
@@ -18,34 +18,28 @@ import { queryClient } from './queryClient';
 import { getTodayDate } from '../utils/dateUtils';
 import { addLog } from '../services/LogService';
 
-const QUICK_ACTION_IDS = [
-  'scan-food',
-  'search-food',
-  'log-water',
-  'fasting',
-] as const;
-type QuickActionId = (typeof QUICK_ACTION_IDS)[number];
+type QuickActionId = 'scan-food' | 'search-food' | 'log-water' | 'fasting';
 
 function items(): QuickActions.Action[] {
   return [
     {
       id: 'scan-food',
-      title: i18n.t('quickActions.scanFood', { defaultValue: 'Scan food' }),
+      title: t('quickActions.scanFood', { defaultValue: 'Scan food' }),
       icon: 'symbol:barcode.viewfinder',
     },
     {
       id: 'search-food',
-      title: i18n.t('quickActions.searchFood', { defaultValue: 'Log food' }),
+      title: t('quickActions.searchFood', { defaultValue: 'Log food' }),
       icon: 'symbol:magnifyingglass',
     },
     {
       id: 'log-water',
-      title: i18n.t('quickActions.logWater', { defaultValue: 'Log water' }),
+      title: t('quickActions.logWater', { defaultValue: 'Log water' }),
       icon: 'symbol:drop.fill',
     },
     {
       id: 'fasting',
-      title: i18n.t('quickActions.fasting', { defaultValue: 'Fasting' }),
+      title: t('quickActions.fasting', { defaultValue: 'Fasting' }),
       icon: 'symbol:timer',
     },
   ];
@@ -75,7 +69,7 @@ async function logWaterDrink(): Promise<void> {
     });
     Toast.show({
       type: 'success',
-      text1: i18n.t('quickActions.waterLogged', {
+      text1: t('quickActions.waterLogged', {
         defaultValue: 'Water logged',
       }),
     });
@@ -83,7 +77,7 @@ async function logWaterDrink(): Promise<void> {
     void addLog(`Quick action water log failed: ${String(error)}`, 'WARNING');
     Toast.show({
       type: 'error',
-      text1: i18n.t('quickActions.waterFailed', {
+      text1: t('quickActions.waterFailed', {
         defaultValue: 'Could not log water',
       }),
     });

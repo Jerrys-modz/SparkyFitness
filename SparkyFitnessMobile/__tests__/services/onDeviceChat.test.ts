@@ -88,6 +88,17 @@ describe('buildChatTranscript limits', () => {
     expect(out).toContain('User: Hi');
   });
 
+  it("keeps less of an earlier assistant reply than of the user's message", () => {
+    const out = buildChatTranscript([
+      { role: 'user', text: 'u'.repeat(350) },
+      { role: 'assistant', text: 'a'.repeat(350) },
+      { role: 'user', text: 'Hi' },
+    ]).split('\n');
+    expect(out[0]).toHaveLength('User: '.length + 350);
+    expect(out[1].length).toBeLessThanOrEqual('Assistant: '.length + 200);
+    expect(out[1].endsWith('…')).toBe(true);
+  });
+
   it('drops the oldest turns when the whole transcript is too long', () => {
     const turns = Array.from({ length: 8 }, (_, i) => ({
       role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
