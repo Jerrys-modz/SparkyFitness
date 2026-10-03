@@ -5,6 +5,12 @@ export const MAX_CHAT_TURNS = 8;
 const MAX_FOODS = 25;
 /** Characters kept of an earlier turn, of the newest, and of the whole transcript. */
 export const MAX_TURN_CHARS = 400;
+/**
+ * Characters kept of an earlier assistant reply. Replies from a server
+ * provider are long and confident; a small model that sees them whole copies
+ * their wording instead of answering from the numbers.
+ */
+export const MAX_ASSISTANT_TURN_CHARS = 200;
 export const MAX_LAST_TURN_CHARS = 1200;
 export const MAX_TRANSCRIPT_CHARS = 2400;
 
@@ -80,8 +86,10 @@ export function buildChatTranscript(turns: OnDeviceChatTurn[]): string {
   const lines = recent.map((t, index) => {
     // Earlier turns can be long (a coaching answer from another provider):
     // keep their start only. The newest message is kept almost whole.
+    const earlierLimit =
+      t.role === 'assistant' ? MAX_ASSISTANT_TURN_CHARS : MAX_TURN_CHARS;
     const limit =
-      index === recent.length - 1 ? MAX_LAST_TURN_CHARS : MAX_TURN_CHARS;
+      index === recent.length - 1 ? MAX_LAST_TURN_CHARS : earlierLimit;
     const text =
       t.text.length > limit ? `${t.text.slice(0, limit - 1)}…` : t.text;
     return `${t.role === 'user' ? 'User' : 'Assistant'}: ${text}`;
