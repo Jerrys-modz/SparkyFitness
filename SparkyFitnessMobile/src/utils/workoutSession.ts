@@ -470,6 +470,20 @@ export function buildSessionSubtitle(
   return parts.join(' · ');
 }
 
+/**
+ * Set weight from a draft string. Only `bodyweight_reps` accepts a sign
+ * (added load or assistance). Every other modality keeps the unsigned
+ * parser, so a pasted minus does not become a negative load.
+ */
+export function parseSetWeight(
+  value: string | null | undefined,
+  modality: ExerciseModality
+): number {
+  return isBodyweightModality(modality)
+    ? parseSignedDecimalInput(value)
+    : parseDecimalInput(value);
+}
+
 export function buildExercisesPayload(
   exercises: WorkoutDraftExercise[],
   weightUnit: 'kg' | 'lbs',
@@ -480,6 +494,10 @@ export function buildExercisesPayload(
   // save that drops every prior row still reconciles instead of the id-less
   // 409. Older drafts omit the id.
   return exercises.map((exercise, index) => {
+    const modality = resolveSnapshotModality({
+      modality: exercise.exerciseModality,
+      category: exercise.exerciseCategory,
+    });
     // The server recomputes calories from duration and sets whenever
     // calories_burned is omitted; a user-edited value is sent as a manual
     // override for this save only.
@@ -488,7 +506,7 @@ export function buildExercisesPayload(
       : NaN;
 
     const sets = exercise.sets.map((set, setIndex) => {
-      const weight = parseSignedDecimalInput(set.weight);
+      const weight = parseSetWeight(set.weight, modality);
       const reps = parseInt(set.reps, 10);
       const distance = parseDecimalInput(set.distance ?? '');
       // The server set UPDATE writes every column with `set.x ?? null`, so
@@ -509,11 +527,6 @@ export function buildExercisesPayload(
         completed_at: set.completedAt ?? null,
         is_pr: set.isPr ?? false,
       };
-    });
-
-    const modality = resolveSnapshotModality({
-      modality: exercise.exerciseModality,
-      category: exercise.exerciseCategory,
     });
 
     return {
@@ -617,7 +630,7 @@ export function getExerciseVolumeKg(
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
   return exercise.sets.reduce(
     (total, set) =>
-      set.set_type === 'warmup'
+      isWarmupSetType(set.set_type)
         ? total
         : total + setVolumeKg(set, modality, bodyWeightKg),
     0
@@ -785,14 +798,21 @@ export interface WorkoutCardExercise {
 
 /**
  * Adapt a form-draft exercise for the card stack. Weight parsing matches
- * `buildExercisesPayload` exactly (parseDecimalInput → weightToKg, NaN → null)
- * so what the card displays is what a save would persist.
+ * `buildExercisesPayload` exactly (the modality-gated weight parser, then
+ * weightToKg, NaN → null) so what the card displays is what a save would persist.
  */
 export function draftExerciseToCardExercise(
   exercise: WorkoutDraftExercise,
   weightUnit: 'kg' | 'lbs',
   distanceUnit: 'km' | 'miles' = 'km'
 ): WorkoutCardExercise {
+  const snapshot = exercise.snapshot ?? {
+    name: exercise.exerciseName,
+    category: exercise.exerciseCategory,
+    modality: exercise.exerciseModality ?? null,
+    images: exercise.images,
+  };
+  const modality = resolveSnapshotModality(snapshot);
   return {
     id: exercise.clientId,
     exercise_id: exercise.exerciseId,
@@ -805,14 +825,9 @@ export function draftExerciseToCardExercise(
     increment_value: exercise.incrementValue ?? 5,
     equipment_brand: exercise.equipmentBrand ?? null,
     ramp_increment: exercise.rampIncrement ?? null,
-    exercise_snapshot: exercise.snapshot ?? {
-      name: exercise.exerciseName,
-      category: exercise.exerciseCategory,
-      modality: exercise.exerciseModality ?? null,
-      images: exercise.images,
-    },
+    exercise_snapshot: snapshot,
     sets: exercise.sets.map((set, index) => {
-      const weight = parseSignedDecimalInput(set.weight);
+      const weight = parseSetWeight(set.weight, modality);
       const reps = parseInt(set.reps, 10);
       const distance = parseDecimalInput(set.distance ?? '');
       return {
@@ -2133,7 +2148,7 @@ export function buildActivitySetsPayload(
     ];
   }
   return draftSets.map((set, index) => {
-    const w = parseSignedDecimalInput(set.weight);
+    const w = parseSetWeight(set.weight, modality);
     const r = parseInt(set.reps, 10);
     const original = originals.get(set.clientId);
     return {
@@ -2199,7 +2214,7 @@ export function buildPresetExercisesPayload(
         equipment_brand: exercise.equipmentBrand ?? null,
         ramp_increment: exercise.rampIncrement ?? null,
         sets: exercise.sets.map((set, setIndex) => {
-          const weight = parseSignedDecimalInput(set.weight);
+          const weight = parseSetWeight(set.weight, modality);
           const reps = parseInt(set.reps, 10);
           const distance = parseDecimalInput(set.distance ?? '');
           return {

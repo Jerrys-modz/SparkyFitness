@@ -9,11 +9,15 @@
 -- Only the CHECK constraints change. No existing row is converted: an exercise
 -- becomes bodyweight when its owner picks the modality, or when it is created
 -- or imported with bodyweight-only equipment. Idempotent: each constraint is
--- dropped if present and recreated with the full list.
+-- dropped if present and recreated with the full list. Validation is a later
+-- migration: this runner sends a whole file as one transaction, and validating
+-- here would hold the add-constraint lock for the scan.
 ALTER TABLE exercises DROP CONSTRAINT IF EXISTS exercises_modality_check;
 ALTER TABLE exercises ADD CONSTRAINT exercises_modality_check
-    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'));
+    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'))
+    NOT VALID;
 
 ALTER TABLE exercise_entries DROP CONSTRAINT IF EXISTS exercise_entries_modality_check;
 ALTER TABLE exercise_entries ADD CONSTRAINT exercise_entries_modality_check
-    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'));
+    CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'duration', 'duration_distance'))
+    NOT VALID;

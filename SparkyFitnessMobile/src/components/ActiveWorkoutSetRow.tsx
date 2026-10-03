@@ -475,9 +475,11 @@ function ActiveWorkoutSetRow({
       // user). Only a real edit — a draft that no longer matches — reaches the
       // store. This also spares an unedited log a spurious revision bump.
       if (text === formatDisplayWeight(set.weight, weightUnit)) return;
-      // Signed: a bodyweight set's weight is +added or −assisting load, and
-      // the keypad only offers a minus for those.
-      const value = parseSignedDecimalInput(text);
+      // A bodyweight set accepts a sign. Every other modality rejects it, so a
+      // pasted minus does not become a negative load.
+      const value = isBodyweightModality(modality)
+        ? parseSignedDecimalInput(text)
+        : parseDecimalInput(text);
       // Quantized so the stored kg matches what the server will echo back —
       // an unrounded lbs conversion would differ post-save and re-seed the
       // row's drafts (see quantizeSetWeightKg).
@@ -489,7 +491,7 @@ function ActiveWorkoutSetRow({
       if (weightKg === (set.weight ?? null)) return;
       onCommitField?.(setId, { weight: weightKg });
     },
-    [onCommitField, setId, weightUnit, set.weight]
+    [modality, onCommitField, setId, weightUnit, set.weight]
   );
 
   const commitReps = useCallback(

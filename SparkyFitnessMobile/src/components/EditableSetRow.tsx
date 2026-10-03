@@ -22,7 +22,10 @@ import {
   useAccessoryEpoch,
 } from './SetRowChrome';
 import { focusWithAndroidImeRetry } from '../utils/keyboardFocus';
-import { parseSignedDecimalInput } from '../utils/numericInput';
+import {
+  parseDecimalInput,
+  parseSignedDecimalInput,
+} from '../utils/numericInput';
 import { isDurationModality } from '../utils/workoutSession';
 import { isBodyweightModality, type ExerciseModality } from '@workspace/shared';
 
@@ -143,7 +146,10 @@ function EditableSetRow({
 
   const handleStepWeight = useCallback(
     (direction: number) => {
-      const current = parseSignedDecimalInput(weight) || 0;
+      const current =
+        (bodyweight
+          ? parseSignedDecimalInput(weight)
+          : parseDecimalInput(weight)) || 0;
       // A bodyweight set steps below zero into assistance.
       const next = bodyweight
         ? current + direction * 5

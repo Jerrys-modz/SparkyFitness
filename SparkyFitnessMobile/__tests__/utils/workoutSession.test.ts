@@ -1220,6 +1220,23 @@ describe('workoutSession', () => {
       ...overrides,
     });
 
+    it('keeps a signed weight only for a bodyweight exercise', () => {
+      const signed = makeDraftExercise({
+        exerciseModality: 'bodyweight_reps',
+        sets: [{ clientId: 's1', weight: '-10', reps: '8' }],
+      });
+      const plain = makeDraftExercise({
+        exerciseModality: 'weight_reps',
+        sets: [{ clientId: 's1', weight: '-10', reps: '8' }],
+      });
+      expect(
+        buildExercisesPayload([signed], 'kg', 'km')[0].sets[0].weight
+      ).toBe(-10);
+      expect(buildExercisesPayload([plain], 'kg', 'km')[0].sets[0].weight).toBe(
+        null
+      );
+    });
+
     it('maps exercises with sort_order from array index', () => {
       const exercises = [
         makeDraftExercise({ exerciseId: 'ex-1' }),
@@ -3588,6 +3605,16 @@ describe('workoutSession', () => {
           sets: [set(40, 12, 'warmup'), set(60, 10), set(70, 8)],
         };
         expect(getExerciseVolumeKg(exercise as any)).toBe(600 + 560);
+      });
+
+      it('excludes Warm-up and Warmup spellings from exercise volume', () => {
+        for (const setType of ['Warmup', 'Warm-up', 'Warm-up Set']) {
+          const exercise = {
+            exercise_snapshot: null,
+            sets: [set(40, 12, setType), set(60, 10)],
+          };
+          expect(getExerciseVolumeKg(exercise as any)).toBe(600);
+        }
       });
     });
 

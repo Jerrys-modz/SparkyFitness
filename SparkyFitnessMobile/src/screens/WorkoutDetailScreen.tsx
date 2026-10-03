@@ -36,6 +36,7 @@ import {
   formatVolume,
   canReorderDraftExercises,
   exerciseFromSnapshot,
+  parseSetWeight,
   summarizeWorkoutHeartRate,
   normalizeWeightUnit,
 } from '../utils/workoutSession';
@@ -60,13 +61,8 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import { normalizeDate, formatDate, formatDateLabel } from '../utils/dateUtils';
-import {
-  parseDecimalInput,
-  parseSignedDecimalInput,
-} from '../utils/numericInput';
+import { parseDecimalInput } from '../utils/numericInput';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
-import { useShareWorkoutCard } from '../hooks/useShareWorkoutCard';
-import { buildSavedShareData } from '../utils/workoutShareCard';
 import { weightFromKg } from '../utils/unitConversions';
 import Toast from 'react-native-toast-message';
 import { addLog } from '../services/LogService';
@@ -94,6 +90,7 @@ import type { UpdatePresetSessionRequest } from '@workspace/shared';
 import {
   canEditGroupedWorkout,
   effectiveLoadKg,
+  isBodyweightModality,
   resolveExerciseModality,
 } from '@workspace/shared';
 import { buildExerciseReplaceContext } from '../utils/exerciseReplace';
@@ -245,6 +242,21 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     populate,
     exercisesModifiedRef,
   } = useWorkoutForm({ isEditMode: true, skipDraftLoad: true });
+  const bodyWeightKg = useBodyWeightKg(
+    isEditing
+      ? normalizeDate(formState.entryDate) || null
+      : normalizedDate || null,
+    isEditing
+      ? formState.exercises.some((exercise) =>
+          isBodyweightModality(
+            resolveExerciseModality(
+              exercise.exerciseModality,
+              exercise.exerciseCategory
+            )
+          )
+        )
+      : hasBodyweightExercise(session.exercises)
+  );
   const submission = useMemo(
     () =>
       getWorkoutDraftSubmission(
@@ -643,7 +655,13 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       ? formState.exercises.reduce(
           (sum, ex) =>
             ex.sets.reduce((s, set) => {
-              const w = parseSignedDecimalInput(set.weight);
+              const w = parseSetWeight(
+                set.weight,
+                resolveExerciseModality(
+                  ex.exerciseModality,
+                  ex.exerciseCategory
+                )
+              );
               const r = parseInt(set.reps, 10);
               if (isNaN(r)) return s;
               // Draft weights are in the display unit, so body weight is too.

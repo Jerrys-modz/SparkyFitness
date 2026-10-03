@@ -26,10 +26,6 @@ import {
   effectiveLoadKg,
   epleyOneRepMaxKg,
   resolveExerciseModality,
-  buildTrainingConsistency,
-  weekStartOf,
-  TRAINING_CONSISTENCY_WEEKS,
-  type TrainingConsistency,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';

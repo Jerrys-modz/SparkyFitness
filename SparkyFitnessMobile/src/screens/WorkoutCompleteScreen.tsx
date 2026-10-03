@@ -34,8 +34,6 @@ import {
   hasBodyweightExercise,
 } from '../utils/workoutSession';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
-import { useShareWorkoutCard } from '../hooks/useShareWorkoutCard';
-import { buildCompleteShareData } from '../utils/workoutShareCard';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'WorkoutComplete'>;

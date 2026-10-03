@@ -1050,6 +1050,40 @@ describe('ActiveWorkoutExerciseCard', () => {
       expect(getByLabelText('Best 100 × 5')).toBeTruthy();
     });
 
+    it('shows an unweighted bodyweight rep PR as +0', () => {
+      mockUseExerciseStats.mockReturnValue({
+        data: {
+          bestSet: { weight: null, reps: 8, setNumber: 1 },
+          lastSet: null,
+        },
+      });
+      const exercise = makeExercise({
+        exercise_snapshot: {
+          ...makeExercise().exercise_snapshot!,
+          modality: 'bodyweight_reps',
+        } as never,
+        sets: [{ ...makeExercise().sets[0], id: 101, weight: null, reps: 12 }],
+      });
+      const { getByText, queryByText } = renderCard(true, {
+        mode: 'live',
+        exercise,
+        prSetIds: { '101': true },
+      });
+      expect(getByText('0 × 12')).toBeTruthy();
+      expect(queryByText('0 × 8')).toBeNull();
+    });
+
+    it('keeps a null-weight best hidden for a weighted exercise', () => {
+      mockUseExerciseStats.mockReturnValue({
+        data: {
+          bestSet: { weight: null, reps: 8, setNumber: 1 },
+          lastSet: null,
+        },
+      });
+      const { queryByTestId } = renderCard(true, { mode: 'live' });
+      expect(queryByTestId('icon-trophy-outline')).toBeNull();
+    });
+
     it('surfaces the stamped session record when a set earned a PR', () => {
       mockUseExerciseStats.mockReturnValue(STATS_WITH_BEST);
       const { getByText, queryByText } = renderCard(true, {
