@@ -28,6 +28,8 @@ enum OutboundPayloads {
         static let workoutDiscard = "workoutDiscard"
         static let restChanged = "restChanged"
         static let workoutStartRequested = "workoutStartRequested"
+        static let fastStart = "fastStart"
+        static let fastEnd = "fastEnd"
     }
 
     /// A morning check-in awaiting a server write.
@@ -69,6 +71,18 @@ enum OutboundPayloads {
     }
 
     /// Asks the phone to push a fresh context. Carries no data of its own.
+    /// The wearer started a fast from a preset (`presetId` is the phone's id,
+    /// such as "16-8"). The phone starts it and sends the running fast back in
+    /// the next context.
+    static func fastStart(presetId: String, clientId: String) -> [String: Any] {
+        ["type": Kind.fastStart, "presetId": presetId, "clientId": clientId]
+    }
+
+    /// The wearer ended the fast that is running.
+    static func fastEnd(clientId: String) -> [String: Any] {
+        ["type": Kind.fastEnd, "clientId": clientId]
+    }
+
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
 
     /// The wearer tapped a saved workout. The phone creates the session and
