@@ -13,6 +13,8 @@ enum ComplicationLink: String {
     case goals
     /// Water intake → the Water page. Used by `WaterGoalComplication`.
     case water
+    /// Fasting → the Fasting page.
+    case fasting
 
     static let scheme = "sparkyfitness-watch"
 

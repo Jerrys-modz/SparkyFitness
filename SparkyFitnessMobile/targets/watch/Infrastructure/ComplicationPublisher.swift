@@ -40,6 +40,19 @@ enum ComplicationPublisher {
         static let kind = "waterGoalComplication"
     }
 
+    private enum Fasting {
+        static let key = "fastingSnapshot"
+        static let kind = "fastingComplication"
+    }
+
+    /// Field names here are decoded by `FastingComplication`. Times are epoch ms.
+    private struct FastingSnapshotPayload: Codable, Equatable {
+        let active: Bool
+        let startedAt: Double?
+        let targetEndAt: Double?
+        let label: String?
+    }
+
     /// Field names here are decoded by `EnergyGoalComplication`.
     private struct EnergySnapshot: Codable, Equatable {
         let date: String
@@ -86,6 +99,21 @@ enum ComplicationPublisher {
             ),
             forKey: Water.key,
             reloading: Water.kind
+        )
+    }
+
+    /// Publishes the running fast (or none) for the Fasting complication. Not
+    /// day-scoped: a fast spans midnight, and the widget counts from its start.
+    static func publish(fast: WatchFast?) {
+        write(
+            FastingSnapshotPayload(
+                active: fast != nil,
+                startedAt: fast.map { $0.startedAt.timeIntervalSince1970 * 1000 },
+                targetEndAt: fast?.targetEndAt.map { $0.timeIntervalSince1970 * 1000 },
+                label: fast?.label
+            ),
+            forKey: Fasting.key,
+            reloading: Fasting.kind
         )
     }
 

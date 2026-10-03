@@ -376,6 +376,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
             )
         }
 
+        if context.fastSynced == true { ComplicationPublisher.publish(fast: context.fast) }
+
         if let water = context.water, water.isToday {
             ComplicationPublisher.publish(
                 waterProgress: context.waterProgress(ml: water.consumedMl) ?? 0,
@@ -467,6 +469,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // field: the two water figures already travel for the Water page's
         // bottle, and a third field carrying their ratio would be a second
         // version of the same truth to keep in step.
+        if incoming.fastSynced == true { ComplicationPublisher.publish(fast: incoming.fast) }
         if let water = incoming.water {
             ComplicationPublisher.publish(
                 waterProgress: incoming.waterProgress(ml: water.consumedMl) ?? 0,
