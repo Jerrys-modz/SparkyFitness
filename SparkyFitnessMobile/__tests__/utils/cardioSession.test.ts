@@ -242,14 +242,27 @@ describe('cardioSessionFromDiaryEntry', () => {
     expect(item!.distanceFormatted).toBeCloseTo(1.243, 2);
   });
 
-  it('leaves manual entries on the basic screen', () => {
-    expect(
-      cardioSessionFromDiaryEntry(entry({ source: 'manual' }), 'km')
-    ).toBeNull();
-    // exercise_entries defaults to this casing when the mobile form omits source.
-    expect(
-      cardioSessionFromDiaryEntry(entry({ source: 'Manual' }), 'km')
-    ).toBeNull();
+  it('leaves in-app entries on the basic screen', () => {
+    for (const source of [
+      'manual',
+      'Manual',
+      'sparky',
+      'workout plan',
+      null,
+      undefined,
+    ]) {
+      expect(
+        cardioSessionFromDiaryEntry(entry({ source }), 'km')
+      ).toBeNull();
+    }
+  });
+
+  it('titles a nameless synced workout', () => {
+    const item = cardioSessionFromDiaryEntry(
+      entry({ name: null, category: null, exercise_snapshot: null }),
+      'km'
+    );
+    expect(item?.exerciseName).toBe('Workout');
   });
 
   it('leaves strength sessions on the basic screen', () => {
