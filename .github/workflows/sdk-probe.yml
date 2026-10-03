@@ -10,5 +10,6 @@ jobs:
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           f=$(find "$SDK/System/Library/Frameworks/FoundationModels.framework" -name "arm64e-apple-ios.swiftinterface" | head -1)
-          echo "##### Variant section"; grep -nE "Variant" "$f" | sed 's/FoundationModels:://g' | head -50
-          echo "##### SystemLanguageModel inits"; grep -nE "convenience public init|public init|static var .*SystemLanguageModel|availableVariants|supportedVariants" "$f" | grep -iE "SystemLanguageModel|variant|useCase" | sed 's/FoundationModels:://g' | head -20
+          echo "##### lines 276-300"; sed -n 276,300p "$f" | sed 's/FoundationModels:://g'
+          echo "##### lines 376-400"; sed -n 376,400p "$f" | sed 's/FoundationModels:://g'
+          echo "##### lines 440-520"; sed -n 440,520p "$f" | sed 's/FoundationModels:://g'
