@@ -569,7 +569,10 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
       }
     }
   }
-  if (ctx.temperature !== undefined) {
+  if (
+    ctx.temperature !== undefined &&
+    ctx.provider.service_type !== 'perplexity'
+  ) {
     body.temperature = ctx.temperature;
   }
   if (ctx.jsonSchema) {
