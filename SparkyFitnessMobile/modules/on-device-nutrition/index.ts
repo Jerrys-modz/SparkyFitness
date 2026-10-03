@@ -42,6 +42,15 @@ export interface OnDeviceMealEstimate {
   }[];
 }
 
+export interface OnDeviceChatOptions {
+  /** Replaces the built-in system prompt when non-empty. */
+  instructions?: string;
+  /** Greedy decoding: the same input gives the same reply. */
+  greedy?: boolean;
+  /** Tool names to leave out of the session. */
+  disabledTools?: string[];
+}
+
 export interface OnDeviceChatToolEvent {
   id: string;
   name: string;
@@ -58,7 +67,13 @@ declare class OnDeviceNutritionModuleType extends NativeModule<OnDeviceNutrition
   isAvailable(): boolean;
   scanLabel(base64Image: string): Promise<OnDeviceLabelExtraction>;
   /** Answers the last message of `transcript`, given a plain-text diary snapshot. */
-  chat?(transcript: string, context: string): Promise<string>;
+  chat?(
+    transcript: string,
+    context: string,
+    options: OnDeviceChatOptions
+  ): Promise<string>;
+  /** The built-in chat system prompt. */
+  defaultChatInstructions?(): string;
   /** Answers a pending `onChatTool` event. */
   resolveChatTool?(id: string, result: string): void;
   estimateMeal(
