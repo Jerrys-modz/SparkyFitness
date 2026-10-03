@@ -1,4 +1,6 @@
 import { requestChatConfirm } from '../stores/chatConfirmStore';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { runServerChatTool, SERVER_TOOL_PREFIX } from './onDeviceServerTools';
 import { fetchDailySummary } from './api/dailySummaryApi';
 import {
   copyFoodEntries,
@@ -452,6 +454,21 @@ export async function runChatTool(
   name: string,
   argsJson: string
 ): Promise<string> {
+  if (name.startsWith(SERVER_TOOL_PREFIX)) {
+    // A server tool: the native side wraps the arguments as {"args": "<json>"}.
+    let inner = '{}';
+    try {
+      const wrapper = JSON.parse(argsJson) as { args?: unknown };
+      if (typeof wrapper.args === 'string') inner = wrapper.args;
+    } catch {
+      // Falls through with empty arguments.
+    }
+    return runServerChatTool(
+      name.slice(SERVER_TOOL_PREFIX.length),
+      inner,
+      useAppPreferencesStore.getState().onDeviceChatServerCategories
+    );
+  }
   let args: Record<string, unknown> = {};
   try {
     args = JSON.parse(argsJson) as Record<string, unknown>;

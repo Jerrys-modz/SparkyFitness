@@ -62,6 +62,8 @@ export interface OnDeviceChatReply {
   text: string;
   /** Which model produced the reply. */
   model: 'device' | 'cloud';
+  /** Tokens the tool definitions took, as a string; empty when unknown. */
+  toolTokens?: string;
 }
 
 export interface OnDeviceChatOptions {
@@ -73,6 +75,11 @@ export interface OnDeviceChatOptions {
   instructions?: string;
   /** Greedy decoding: the same input gives the same reply. */
   greedy?: boolean;
+  /**
+   * Tools lent by the server. When non-empty they replace the built-in tools;
+   * `parameters` is the tool's JSON Schema as a string.
+   */
+  serverTools?: { name: string; description: string; parameters: string }[];
   /** Tool names to leave out of the session. */
   disabledTools?: string[];
 }

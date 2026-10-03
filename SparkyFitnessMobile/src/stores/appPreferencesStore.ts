@@ -81,6 +81,13 @@ export const PREFERENCE_DEFAULTS = {
   onDeviceChatSystemPrompt: '',
   aiUserContext: '',
   onDeviceChatModel: 'device' as OnDeviceChatModel,
+  onDeviceChatToolSource: 'builtin' as 'builtin' | 'server',
+  onDeviceChatServerCategories: [
+    'food',
+    'exercise',
+    'checkin',
+    'goals',
+  ] as string[],
   onDeviceChatGreedy: false,
   onDeviceChatIncludeContext: true,
   onDeviceChatDebug: false,
@@ -157,6 +164,10 @@ export type AppPreferencesData = {
   aiUserContext: string;
   /** Which model answers chat: this phone, Apple's private servers, or both. */
   onDeviceChatModel: OnDeviceChatModel;
+  /** Where chat tools come from: written in the app, or lent by the server. */
+  onDeviceChatToolSource: 'builtin' | 'server';
+  /** Server tool categories switched on for the on-device model. */
+  onDeviceChatServerCategories: string[];
   onDeviceChatGreedy: boolean;
   /** Send today's diary snapshot with each message. */
   onDeviceChatIncludeContext: boolean;
@@ -252,6 +263,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOnDeviceChatSystemPrompt: (value: string) => void;
   setAiUserContext: (value: string) => void;
   setOnDeviceChatModel: (value: OnDeviceChatModel) => void;
+  setOnDeviceChatToolSource: (value: 'builtin' | 'server') => void;
+  setOnDeviceChatServerCategory: (category: string, enabled: boolean) => void;
   setOnDeviceChatGreedy: (value: boolean) => void;
   setOnDeviceChatIncludeContext: (value: boolean) => void;
   setOnDeviceChatDebug: (value: boolean) => void;
@@ -378,6 +391,14 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ onDeviceLabelScanEnabled: value }),
       setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
       setOnDeviceChatModel: (value) => set({ onDeviceChatModel: value }),
+      setOnDeviceChatToolSource: (value) =>
+        set({ onDeviceChatToolSource: value }),
+      setOnDeviceChatServerCategory: (category, enabled) =>
+        set((state) => ({
+          onDeviceChatServerCategories: enabled
+            ? [...new Set([...state.onDeviceChatServerCategories, category])]
+            : state.onDeviceChatServerCategories.filter((c) => c !== category),
+        })),
       setAiUserContext: (value) => set({ aiUserContext: value }),
       setOnDeviceChatSystemPrompt: (value) =>
         set({ onDeviceChatSystemPrompt: value }),
@@ -505,6 +526,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         onDeviceChatSystemPrompt: state.onDeviceChatSystemPrompt,
         aiUserContext: state.aiUserContext,
         onDeviceChatModel: state.onDeviceChatModel,
+        onDeviceChatToolSource: state.onDeviceChatToolSource,
+        onDeviceChatServerCategories: state.onDeviceChatServerCategories,
         onDeviceChatGreedy: state.onDeviceChatGreedy,
         onDeviceChatIncludeContext: state.onDeviceChatIncludeContext,
         onDeviceChatDebug: state.onDeviceChatDebug,

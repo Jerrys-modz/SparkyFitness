@@ -16,6 +16,11 @@ import {
   type OnDeviceChatTurn,
 } from '../utils/onDeviceChatContext';
 import { resetChatToolState, runChatTool } from './onDeviceChatTools';
+import {
+  fetchServerToolDefinitions,
+  toNativeServerTools,
+  type NativeServerTool,
+} from './onDeviceServerTools';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useOnDeviceChatDebugStore } from '../stores/onDeviceChatDebugStore';
 
@@ -130,6 +135,23 @@ export async function askOnDeviceChat(
     'prompt',
     `model: ${prefs.onDeviceChatModel}, ${prefs.onDeviceChatGreedy ? 'greedy' : 'sampled'}, tools off: [${prefs.onDeviceChatDisabledTools.join(', ')}], custom prompt: ${prefs.onDeviceChatSystemPrompt ? 'yes' : 'no'}\n${context ? `${context}\n` : '(no diary snapshot)\n'}${transcript}`
   );
+  // Tools lent by the server, when chosen. If the server cannot lend them
+  // (an older server, offline) the built-in tools are used instead.
+  let serverTools: NativeServerTool[] = [];
+  if (prefs.onDeviceChatToolSource === 'server') {
+    try {
+      serverTools = toNativeServerTools(
+        await fetchServerToolDefinitions(prefs.onDeviceChatServerCategories)
+      );
+      trace(
+        'prompt',
+        `server tools (${prefs.onDeviceChatServerCategories.join(', ')}): ${serverTools.length}`
+      );
+    } catch (error) {
+      trace('error', `server tools unavailable, using built-in: ${error}`);
+      addLog(`Server chat tools unavailable: ${error}`, 'WARNING');
+    }
+  }
   // The private servers can be out of reach or out of quota; stay on the
   // phone then rather than failing the message.
   const effectiveModel =
@@ -138,18 +160,22 @@ export async function askOnDeviceChat(
       : prefs.onDeviceChatModel;
   const started = Date.now();
   try {
-    const { text: reply, model } = await OnDeviceNutritionModule.chat(
-      transcript,
-      context,
-      {
-        model: effectiveModel,
-        userContext: prefs.aiUserContext.trim(),
-        instructions: prefs.onDeviceChatSystemPrompt,
-        greedy: prefs.onDeviceChatGreedy,
-        disabledTools: prefs.onDeviceChatDisabledTools,
-      }
+    const {
+      text: reply,
+      model,
+      toolTokens,
+    } = await OnDeviceNutritionModule.chat(transcript, context, {
+      model: effectiveModel,
+      userContext: prefs.aiUserContext.trim(),
+      instructions: prefs.onDeviceChatSystemPrompt,
+      greedy: prefs.onDeviceChatGreedy,
+      disabledTools: prefs.onDeviceChatDisabledTools,
+      serverTools,
+    });
+    trace(
+      'reply',
+      `(${model}${toolTokens ? `, tool schemas ${toolTokens} tokens` : ''}) ${reply} [${Date.now() - started} ms]`
     );
-    trace('reply', `(${model}) ${reply} [${Date.now() - started} ms]`);
     return reply;
   } catch (error) {
     trace('error', String(error));

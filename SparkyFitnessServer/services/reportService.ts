@@ -26,6 +26,10 @@ import {
   effectiveLoadKg,
   epleyOneRepMaxKg,
   resolveExerciseModality,
+  buildTrainingConsistency,
+  weekStartOf,
+  TRAINING_CONSISTENCY_WEEKS,
+  type TrainingConsistency,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -926,12 +930,13 @@ async function getTrainingConsistency(
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     // The account's first day of the week (0 = Sunday), like the calendars.
-    const preferences = await preferenceRepository.getUserPreferences(
-      targetUserId
-    );
+    const preferences =
+      await preferenceRepository.getUserPreferences(targetUserId);
     const rawFirstDay = preferences?.first_day_of_week;
     const firstDayOfWeek =
-      rawFirstDay !== null && rawFirstDay !== undefined ? Number(rawFirstDay) : 0;
+      rawFirstDay !== null && rawFirstDay !== undefined
+        ? Number(rawFirstDay)
+        : 0;
     const startDate = addDays(
       weekStartOf(today, firstDayOfWeek),
       -7 * (TRAINING_CONSISTENCY_WEEKS - 1)

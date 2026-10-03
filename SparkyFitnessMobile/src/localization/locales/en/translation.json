@@ -5869,6 +5869,24 @@
       "title": "About you",
       "description": "Optional notes the on-device AI keeps in mind, such as vegetarian, no dairy, or a usual portion. They are used for chat and meal photos and stay on this phone.",
       "placeholder": "e.g. vegetarian, lactose intolerant"
+    },
+    "tools": {
+      "title": "Chat tools",
+      "builtin": "Built-in",
+      "server": "From server",
+      "builtinDescription": "A small set of tools written into the app. Switch individual ones off under Chat testing.",
+      "serverDescription": "The server lends the chat the same tools your other AI providers use, for the groups switched on below. Every tool that could change something asks you first. Each group adds to what the model has to read, so keep the list short. Needs a server with this feature; otherwise the built-in tools are used.",
+      "categories": {
+        "food": "Food and water",
+        "exercise": "Exercise and workouts",
+        "checkin": "Check-ins, sleep and symptoms",
+        "goals": "Goals",
+        "reports": "Reports and dashboard",
+        "coaching": "Coaching",
+        "vision": "Food photos",
+        "profile": "Profile, habits and integrations",
+        "medications": "Medications"
+      }
     }
   }
 }
