@@ -75,3 +75,27 @@ describe('buildChatTranscript', () => {
     expect(out[out.length - 1]).toContain(`m${MAX_CHAT_TURNS + 2}`);
   });
 });
+
+describe('buildChatTranscript limits', () => {
+  it('keeps only the start of a long earlier turn', () => {
+    const out = buildChatTranscript([
+      { role: 'assistant', text: 'x'.repeat(5000) },
+      { role: 'user', text: 'Hi' },
+    ]);
+    const [first] = out.split('\n');
+    expect(first.length).toBeLessThan(450);
+    expect(first.endsWith('…')).toBe(true);
+    expect(out).toContain('User: Hi');
+  });
+
+  it('drops the oldest turns when the whole transcript is too long', () => {
+    const turns = Array.from({ length: 8 }, (_, i) => ({
+      role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+      text: `${i}`.repeat(390),
+    }));
+    const out = buildChatTranscript(turns);
+    expect(out.length).toBeLessThanOrEqual(2400 + 400);
+    expect(out).toContain('7777');
+    expect(out).not.toContain('0000');
+  });
+});

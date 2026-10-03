@@ -73,11 +73,49 @@ export async function fetchServerToolDefinitions(
   return tools;
 }
 
+/**
+ * Tools worth keeping first when only some fit the model's window: the daily
+ * food and exercise logging and reading, then goals and check-ins.
+ */
+const TOOL_PRIORITY = [
+  'sparky_manage_food',
+  'sparky_get_food_diary',
+  'sparky_search_foods',
+  'sparky_get_nutrition_summary',
+  'sparky_manage_exercise',
+  'sparky_get_exercise_diary',
+  'sparky_get_goal_snapshot',
+  'sparky_manage_checkin',
+  'sparky_get_recent_food_entries',
+  'sparky_search_exercises',
+  'sparky_get_exercise_stats',
+  'sparky_manage_goals',
+  'sparky_list_foods',
+  'sparky_get_daily_report',
+  'sparky_get_dashboard',
+];
+
+/** Priority tools first, the rest in the server's order. */
+export function orderByPriority(
+  tools: readonly ServerToolDefinition[]
+): ServerToolDefinition[] {
+  const rank = (name: string): number => {
+    const index = TOOL_PRIORITY.indexOf(name);
+    return index === -1 ? TOOL_PRIORITY.length : index;
+  };
+  return tools
+    .map((tool, position) => ({ tool, position }))
+    .sort(
+      (a, b) => rank(a.tool.name) - rank(b.tool.name) || a.position - b.position
+    )
+    .map(({ tool }) => tool);
+}
+
 /** The definitions as the native module wants them, descriptions trimmed. */
 export function toNativeServerTools(
   tools: readonly ServerToolDefinition[]
 ): NativeServerTool[] {
-  return tools.map((tool) => ({
+  return orderByPriority(tools).map((tool) => ({
     name: tool.name,
     description:
       tool.description.length > MAX_DESCRIPTION_CHARS

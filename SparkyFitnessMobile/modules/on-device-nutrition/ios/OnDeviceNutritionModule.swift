@@ -734,6 +734,7 @@ public class OnDeviceNutritionModule: Module {
                 ]
                 var tools = allTools.filter { !disabled.contains($0.name) }
                 var usingServerTools = false
+                var toolsKept = ""
                 // Tools lent by the server replace the built-in ones.
                 if let lent = options["serverTools"] as? [[String: Any]], !lent.isEmpty {
                     var proxies: [any Tool] = []
@@ -750,8 +751,24 @@ public class OnDeviceNutritionModule: Module {
                         proxies.append(tool)
                     }
                     if !proxies.isEmpty {
-                        tools = proxies
-                        usingServerTools = true
+                        // The model's window is small: keep tools, in the order
+                        // given, while their definitions fit the budget, and skip
+                        // any that would not.
+                        let budget = (options["toolBudget"] as? Int) ?? 2500
+                        var kept: [any Tool] = []
+                        for proxy in proxies.prefix(60) {
+                            let trial = kept + [proxy]
+                            if let used = try? await SystemLanguageModel.default.tokenCount(for: trial),
+                                used > budget {
+                                continue
+                            }
+                            kept = trial
+                        }
+                        toolsKept = "\(kept.count)/\(proxies.count)"
+                        if !kept.isEmpty {
+                            tools = kept
+                            usingServerTools = true
+                        }
                     }
                 }
                 let finalTools = tools
@@ -777,19 +794,19 @@ public class OnDeviceNutritionModule: Module {
 
                 let toolTokens = (try? await SystemLanguageModel.default.tokenCount(for: finalTools)).map { String($0) } ?? ""
                 if mode == "cloud" {
-                    return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud", "toolTokens": toolTokens]
+                    return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud", "toolTokens": toolTokens, "toolsKept": toolsKept]
                 }
                 if mode == "auto" {
                     do {
-                        return ["text": try await run(SystemLanguageModel.default), "model": "device", "toolTokens": toolTokens]
+                        return ["text": try await run(SystemLanguageModel.default), "model": "device", "toolTokens": toolTokens, "toolsKept": toolsKept]
                     } catch let error as LanguageModelError {
                         // Only a conversation too big for the small model moves
                         // to the private servers; nothing has run yet.
                         guard case .contextSizeExceeded = error else { throw error }
-                        return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud", "toolTokens": toolTokens]
+                        return ["text": try await run(PrivateCloudComputeLanguageModel()), "model": "cloud", "toolTokens": toolTokens, "toolsKept": toolsKept]
                     }
                 }
-                return ["text": try await run(SystemLanguageModel.default), "model": "device", "toolTokens": toolTokens]
+                return ["text": try await run(SystemLanguageModel.default), "model": "device", "toolTokens": toolTokens, "toolsKept": toolsKept]
             }
             #endif
             throw OnDeviceNutritionError.unavailable
