@@ -10,6 +10,10 @@ let mockOnDeviceStatus = 'available';
 jest.mock('../../src/services/onDeviceChat', () => ({
   getCloudChatStatus: () => mockCloudStatus,
   getOnDeviceStatus: () => mockOnDeviceStatus,
+  getOnDeviceModelInfo: () => ({
+    name: 'Apple Foundation Advanced',
+    contextSize: 8192,
+  }),
   askOnDeviceChat: jest.fn(),
   getDefaultChatInstructions: () => '',
   CHAT_TOOL_NAMES: ['logWater'],
@@ -129,5 +133,13 @@ describe('AiSettingsScreen', () => {
     expect(
       useAppPreferencesStore.getState().onDeviceChatServerCategories
     ).not.toContain('food');
+  });
+
+  it('shows which on-device model is in use and its window', () => {
+    const { getByTestId } = renderScreen();
+    expect(getByTestId('ai-model-info').props.children).toContain(
+      'Apple Foundation Advanced'
+    );
+    expect(getByTestId('ai-model-info').props.children).toContain('8,192');
   });
 });
