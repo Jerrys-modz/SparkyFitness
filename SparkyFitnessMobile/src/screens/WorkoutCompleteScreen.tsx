@@ -21,6 +21,7 @@ import { useWorkoutCompletePresetSync } from '../hooks/useWorkoutCompletePresetS
 import { getWorkout } from '../services/api/exerciseApi';
 import { fireSuccessHaptic } from '../services/haptics';
 import { formatDateToTimeLabel } from '../utils/entryTimeDisplay';
+import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { setsDurationMinutes } from '@workspace/shared';
 import {
   buildSessionDurationMinutes,
@@ -65,7 +66,7 @@ function DockedActionButton({
 }
 
 function WorkoutCompleteScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
     session,
@@ -210,11 +211,10 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     () =>
       buildCompleteShareData({
         title: session.name,
-        dateText: new Date(finishedAt).toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        }),
+        dateText: formatDate(
+          session.entry_date ?? getTodayDate(),
+          i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US'
+        ),
         durationMinutes,
         summary,
         caloriesValue,
@@ -224,7 +224,8 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
       }),
     [
       session.name,
-      finishedAt,
+      session.entry_date,
+      i18n.language,
       durationMinutes,
       summary,
       caloriesValue,
