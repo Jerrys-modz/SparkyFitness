@@ -216,6 +216,15 @@ function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
     );
     return;
   }
+  // A queued start from an earlier arm of the same saved session must not
+  // start a timer in the workout that replaced it.
+  if (
+    payload.armedAt != null &&
+    state.watchArmedAt != null &&
+    Math.abs(payload.armedAt - state.watchArmedAt) > 2000
+  ) {
+    return;
+  }
   state.startSetTimer(payload.setId, Math.min(payload.startedAt, now));
   addLog(`Watch started the timer for set ${payload.setId}`, 'DEBUG');
 }

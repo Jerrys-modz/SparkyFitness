@@ -202,13 +202,19 @@ enum OutboundPayloads {
     /// The wearer started a set's hold countdown or stopwatch on the watch.
     /// `startedAt` is epoch ms; the phone starts its own stopwatch from it so
     /// both show the same clock.
-    static func setTimerStarted(sessionId: String, setId: String, startedAt: Date) -> [String: Any] {
-        [
+    /// `armedAt` is the arm of the plan the timer belongs to, so the phone can
+    /// refuse a queued start from an earlier arm of the same session.
+    static func setTimerStarted(
+        sessionId: String, setId: String, startedAt: Date, armedAt: Date? = nil
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
             "type": Kind.setTimerStarted,
             "sessionId": sessionId,
             "setId": setId,
             "startedAt": startedAt.timeIntervalSince1970 * 1000,
         ]
+        if let armedAt { payload["armedAt"] = armedAt.timeIntervalSince1970 * 1000 }
+        return payload
     }
 
     /// The wearer stopped a set's stopwatch on the watch. `seconds` is how long

@@ -307,11 +307,15 @@ public class WatchConnectivityModule: Module {
                 guard let startedAt = (payload["startedAt"] as? NSNumber)?.doubleValue else {
                     return
                 }
-                self?.sendEvent("onSetTimerStarted", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "setId": payload["setId"] as? String ?? "",
                     "startedAt": startedAt,
-                ])
+                ]
+                if let armedAt = (payload["armedAt"] as? NSNumber)?.doubleValue {
+                    event["armedAt"] = armedAt
+                }
+                self?.sendEvent("onSetTimerStarted", event)
             }
             self.delegateHandler.onSetTimerStopped = { [weak self] payload in
                 guard let seconds = (payload["seconds"] as? NSNumber)?.intValue else {
