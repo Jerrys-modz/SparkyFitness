@@ -1,4 +1,4 @@
-import type { DailySummaryApiResponse } from '../services/api/dailySummaryApi';
+import type { DailySummary } from '../types/dailySummary';
 
 /** Past turns kept in the prompt; the model's window is small. */
 export const MAX_CHAT_TURNS = 8;
@@ -11,35 +11,47 @@ export interface OnDeviceChatTurn {
 
 const round = (n: number | undefined | null): number => Math.round(n ?? 0);
 
+/** "20 g over" / "35 g left": the arithmetic is done here, not by the model. */
+function macroLine(
+  label: string,
+  macro: { consumed: number; goal: number } | undefined
+): string {
+  const eaten = round(macro?.consumed);
+  const goal = round(macro?.goal);
+  if (goal <= 0) return `${label}: ${eaten} g eaten, no goal set.`;
+  const diff = goal - eaten;
+  return `${label}: ${eaten} g eaten, goal ${goal} g (${
+    diff >= 0 ? `${diff} g left` : `${-diff} g over`
+  }).`;
+}
+
 /**
- * A short plain-text snapshot of today for the model: goals against what has
- * been eaten, the food list, water and workouts. Read-only; nothing here is
- * written back anywhere.
+ * A short plain-text snapshot of a day for the model, built from the same
+ * summary the dashboard shows so the figures agree with it. Every sum and
+ * difference is worked out here: the small model gets the calorie balance and
+ * what is left as finished numbers, because it gets its own arithmetic wrong.
  */
 export function buildChatContext(
-  summary: DailySummaryApiResponse | null,
+  summary: DailySummary | null,
   date: string
 ): string {
-  if (!summary) return `Today is ${date}. No diary data is available.`;
-  const foods = summary.foodEntries ?? [];
-  const eaten = foods.reduce(
-    (t, f) => ({
-      calories: t.calories + (f.calories ?? 0),
-      protein: t.protein + (f.protein ?? 0),
-      carbs: t.carbs + (f.carbs ?? 0),
-      fat: t.fat + (f.fat ?? 0),
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
-  const goals = summary.goals;
+  if (!summary) return `Date: ${date}. No diary data is available.`;
+  const balance = summary.calorieBalance;
+  const remaining = round(balance.remaining);
   const lines = [
-    `Today is ${date}.`,
-    `Calories: ${round(eaten.calories)} eaten of a ${round(goals?.calories)} kcal goal.`,
-    `Protein: ${round(eaten.protein)} g of ${round(goals?.protein)} g. Carbs: ${round(eaten.carbs)} g of ${round(goals?.carbs)} g. Fat: ${round(eaten.fat)} g of ${round(goals?.fat)} g.`,
-    `Water: ${round(summary.waterIntake)} ml.`,
+    `Date: ${date}.`,
+    `Calorie goal: ${round(balance.goal)} kcal. Eaten: ${round(balance.eaten)} kcal. Burned by exercise: ${round(balance.burned)} kcal.`,
+    remaining >= 0
+      ? `Calories remaining: ${remaining} kcal.`
+      : `Calories remaining: 0 kcal (over the goal by ${-remaining} kcal).`,
+    macroLine('Protein', summary.protein),
+    macroLine('Carbs', summary.carbs),
+    macroLine('Fat', summary.fat),
+    `Water: ${round(summary.waterConsumed)} ml.`,
   ];
+  const foods = summary.foodEntries ?? [];
   if (foods.length > 0) {
-    lines.push('Foods logged today:');
+    lines.push('Foods logged:');
     for (const f of foods.slice(0, MAX_FOODS)) {
       lines.push(
         `- ${f.meal_type}: ${f.food_name ?? 'Food'} (${round(f.calories)} kcal, ${round(f.protein)} g protein)`
@@ -49,11 +61,11 @@ export function buildChatContext(
       lines.push(`- and ${foods.length - MAX_FOODS} more`);
     }
   } else {
-    lines.push('No food has been logged today.');
+    lines.push('No food has been logged.');
   }
-  const workouts = summary.exerciseSessions ?? [];
+  const workouts = summary.exerciseEntries ?? [];
   if (workouts.length > 0) {
-    lines.push(`Workouts today: ${workouts.map((w) => w.name).join(', ')}.`);
+    lines.push(`Workouts: ${workouts.map((w) => w.name).join(', ')}.`);
   }
   return lines.join('\n');
 }

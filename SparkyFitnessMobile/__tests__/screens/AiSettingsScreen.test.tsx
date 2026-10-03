@@ -5,6 +5,13 @@ import AiSettingsScreen from '../../src/screens/AiSettingsScreen';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 
 let mockAvailable = true;
+let mockCloudStatus = 'available';
+jest.mock('../../src/services/onDeviceChat', () => ({
+  getCloudChatStatus: () => mockCloudStatus,
+  askOnDeviceChat: jest.fn(),
+  getDefaultChatInstructions: () => '',
+  CHAT_TOOL_NAMES: ['logWater'],
+}));
 jest.mock('../../src/services/onDeviceLabelScan', () => ({
   isOnDeviceLabelScanAvailable: () => mockAvailable,
 }));
@@ -38,7 +45,9 @@ const renderScreen = () =>
 describe('AiSettingsScreen', () => {
   beforeEach(() => {
     mockAvailable = true;
+    mockCloudStatus = 'available';
     useAppPreferencesStore.setState({
+      onDeviceChatModel: 'device',
       onDeviceChatEnabled: false,
       onDeviceFoodPhotoEnabled: false,
       onDeviceLabelScanEnabled: false,
@@ -68,5 +77,22 @@ describe('AiSettingsScreen', () => {
     const { queryByTestId, getByText } = renderScreen();
     expect(queryByTestId('ai-chat-switch')).toBeNull();
     expect(getByText(/Not available on this device/)).toBeTruthy();
+  });
+
+  it('picks the chat model and shows the private servers status', () => {
+    const { getByText, getByTestId } = renderScreen();
+    expect(getByTestId('ai-cloud-status').props.children).toContain(
+      'Available'
+    );
+    fireEvent.press(getByText('Apple servers'));
+    expect(useAppPreferencesStore.getState().onDeviceChatModel).toBe('cloud');
+    fireEvent.press(getByText('Auto'));
+    expect(useAppPreferencesStore.getState().onDeviceChatModel).toBe('auto');
+  });
+
+  it('hides the model choice on a system without the private servers', () => {
+    mockCloudStatus = 'unsupported';
+    const { queryByTestId } = renderScreen();
+    expect(queryByTestId('ai-cloud-status')).toBeNull();
   });
 });

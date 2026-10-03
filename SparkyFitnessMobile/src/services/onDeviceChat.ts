@@ -1,6 +1,11 @@
-import OnDeviceNutritionModule from '../../modules/on-device-nutrition';
-import { fetchDailySummary } from './api/dailySummaryApi';
-import type { DailySummaryApiResponse } from './api/dailySummaryApi';
+import OnDeviceNutritionModule, {
+  type CloudChatStatus,
+} from '../../modules/on-device-nutrition';
+import {
+  buildDailySummary,
+  loadDailySummaryRawData,
+} from './dailySummaryService';
+import type { DailySummary } from '../types/dailySummary';
 import { addLog } from './LogService';
 import { isOnDeviceLabelScanAvailable } from './onDeviceLabelScan';
 import { getTodayDate } from '../utils/dateUtils';
@@ -33,6 +38,15 @@ export const CHAT_TOOL_NAMES = [
 ] as const;
 
 /** The built-in system prompt, or '' when this build has no native module. */
+/** Whether Apple's private servers can answer chat right now. */
+export function getCloudChatStatus(): CloudChatStatus {
+  try {
+    return OnDeviceNutritionModule?.cloudChatStatus?.() ?? 'unsupported';
+  } catch {
+    return 'unsupported';
+  }
+}
+
 export function getDefaultChatInstructions(): string {
   try {
     return OnDeviceNutritionModule?.defaultChatInstructions?.() ?? '';
@@ -88,9 +102,9 @@ export async function askOnDeviceChat(
   attachToolListener();
   resetChatToolState();
   const date = getTodayDate();
-  let summary: DailySummaryApiResponse | null = null;
+  let summary: DailySummary | null = null;
   try {
-    summary = await fetchDailySummary(date);
+    summary = buildDailySummary(date, await loadDailySummaryRawData(date));
   } catch (error) {
     addLog(
       `On-device chat could not load today's summary: ${error}`,
@@ -104,16 +118,27 @@ export async function askOnDeviceChat(
     : '';
   trace(
     'prompt',
-    `${prefs.onDeviceChatGreedy ? 'greedy' : 'sampled'}, tools off: [${prefs.onDeviceChatDisabledTools.join(', ')}], custom prompt: ${prefs.onDeviceChatSystemPrompt ? 'yes' : 'no'}\n${context ? `${context}\n` : '(no diary snapshot)\n'}${transcript}`
+    `model: ${prefs.onDeviceChatModel}, ${prefs.onDeviceChatGreedy ? 'greedy' : 'sampled'}, tools off: [${prefs.onDeviceChatDisabledTools.join(', ')}], custom prompt: ${prefs.onDeviceChatSystemPrompt ? 'yes' : 'no'}\n${context ? `${context}\n` : '(no diary snapshot)\n'}${transcript}`
   );
+  // The private servers can be out of reach or out of quota; stay on the
+  // phone then rather than failing the message.
+  const effectiveModel =
+    prefs.onDeviceChatModel !== 'device' && getCloudChatStatus() !== 'available'
+      ? 'device'
+      : prefs.onDeviceChatModel;
   const started = Date.now();
   try {
-    const reply = await OnDeviceNutritionModule.chat(transcript, context, {
-      instructions: prefs.onDeviceChatSystemPrompt,
-      greedy: prefs.onDeviceChatGreedy,
-      disabledTools: prefs.onDeviceChatDisabledTools,
-    });
-    trace('reply', `${reply} [${Date.now() - started} ms]`);
+    const { text: reply, model } = await OnDeviceNutritionModule.chat(
+      transcript,
+      context,
+      {
+        model: effectiveModel,
+        instructions: prefs.onDeviceChatSystemPrompt,
+        greedy: prefs.onDeviceChatGreedy,
+        disabledTools: prefs.onDeviceChatDisabledTools,
+      }
+    );
+    trace('reply', `(${model}) ${reply} [${Date.now() - started} ms]`);
     return reply;
   } catch (error) {
     trace('error', String(error));
