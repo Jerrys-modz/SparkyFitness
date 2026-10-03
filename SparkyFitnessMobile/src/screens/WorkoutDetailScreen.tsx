@@ -63,6 +63,8 @@ import CalendarSheet, {
 import { normalizeDate, formatDate, formatDateLabel } from '../utils/dateUtils';
 import { parseDecimalInput } from '../utils/numericInput';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
+import { useShareWorkoutCard } from '../hooks/useShareWorkoutCard';
+import { buildSavedShareData } from '../utils/workoutShareCard';
 import { weightFromKg } from '../utils/unitConversions';
 import Toast from 'react-native-toast-message';
 import { addLog } from '../services/LogService';
@@ -175,26 +177,7 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const canEdit = canEditGroupedWorkout(session.source);
   const entryDate = session.entry_date ?? '';
   const normalizedDate = normalizeDate(entryDate);
-  const bodyWeightKg = useBodyWeightKg(
-    normalizedDate || null,
-    hasBodyweightExercise(session.exercises)
-  );
-
   const { name } = getWorkoutSummary(session, t);
-
-  const shareData = useMemo(
-    () =>
-      buildSavedShareData({
-        session,
-        dateText: entryDate ? formatDate(entryDate, dateLocale) : '',
-        weightUnit: normalizeWeightUnit(weightUnit),
-        bodyWeightKg,
-        t,
-      }),
-    [session, entryDate, dateLocale, weightUnit, bodyWeightKg, t]
-  );
-  const { card: shareCard, share: shareWorkout } =
-    useShareWorkoutCard(shareData);
 
   const deleteWorkout = useDeleteWorkout({
     sessionId: session.id,
@@ -257,6 +240,20 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         )
       : hasBodyweightExercise(session.exercises)
   );
+
+  const shareData = useMemo(
+    () =>
+      buildSavedShareData({
+        session,
+        dateText: entryDate ? formatDate(entryDate, dateLocale) : '',
+        weightUnit: normalizeWeightUnit(weightUnit),
+        bodyWeightKg,
+        t,
+      }),
+    [session, entryDate, dateLocale, weightUnit, bodyWeightKg, t]
+  );
+  const { card: shareCard, share: shareWorkout } =
+    useShareWorkoutCard(shareData);
   const submission = useMemo(
     () =>
       getWorkoutDraftSubmission(

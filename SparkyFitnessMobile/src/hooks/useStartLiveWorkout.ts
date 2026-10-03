@@ -30,6 +30,7 @@ import { getTodayDate } from '../utils/dateUtils';
 import { isBodyweightModality } from '@workspace/shared';
 import {
   extractPlannedSetValues,
+  isDurationModality,
   resolveSnapshotModality,
   stripPlannedSetValues,
 } from '../utils/workoutSession';
