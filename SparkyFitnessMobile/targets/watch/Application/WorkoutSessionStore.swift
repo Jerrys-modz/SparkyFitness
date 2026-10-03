@@ -657,6 +657,7 @@ final class WorkoutSessionStore: ObservableObject {
     func stopStopwatch(for setId: String) {
         guard isStopwatchRunning(for: setId) else { return }
         holdStoppedAt = Date()
+        persistSnapshot(reportedEnergyKcal: nil)
         if let seconds = stopwatchElapsed(for: setId) {
             onSetTimerStoppedHere?(setId, seconds)
         }

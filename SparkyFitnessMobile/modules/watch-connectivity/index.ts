@@ -476,10 +476,6 @@ export interface WatchRestChangedPayload {
   endsAt?: number;
 }
 
-/**
- * The wearer started a set's hold countdown or stopwatch on the watch.
- * `startedAt` is epoch ms; the phone starts its own timer from it.
- */
 /** The wearer stopped a set's stopwatch on the watch. */
 export interface WatchSetTimerStoppedPayload {
   sessionId: string;
@@ -488,6 +484,10 @@ export interface WatchSetTimerStoppedPayload {
   seconds: number;
 }
 
+/**
+ * The wearer started a set's hold countdown or stopwatch on the watch.
+ * `startedAt` is epoch ms; the phone starts its own timer from it.
+ */
 export interface WatchSetTimerStartedPayload {
   sessionId: string;
   setId: string;
