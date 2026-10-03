@@ -12,6 +12,7 @@ import {
   getCloudChatStatus,
   getOnDeviceStatus,
 } from '../services/onDeviceChat';
+import { SERVER_TOOL_CATEGORIES } from '../services/onDeviceServerTools';
 import type { OnDeviceChatModel } from '../../modules/on-device-nutrition';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -76,6 +77,16 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const onDeviceChatModel = useAppPreferencesStore((s) => s.onDeviceChatModel);
   const setOnDeviceChatModel = useAppPreferencesStore(
     (s) => s.setOnDeviceChatModel
+  );
+  const toolSource = useAppPreferencesStore((s) => s.onDeviceChatToolSource);
+  const setToolSource = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatToolSource
+  );
+  const serverCategories = useAppPreferencesStore(
+    (s) => s.onDeviceChatServerCategories
+  );
+  const setServerCategory = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatServerCategory
   );
   const onDeviceAvailable = useMemo(() => isOnDeviceLabelScanAvailable(), []);
   const cloudStatus = useMemo(() => getCloudChatStatus(), []);
@@ -281,6 +292,58 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
                 </Text>
               </View>
             )}
+            <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+              <Text className="text-base font-semibold text-text-primary mb-3">
+                {t('aiSettings.tools.title', { defaultValue: 'Chat tools' })}
+              </Text>
+              <SegmentedControl<'builtin' | 'server'>
+                segments={[
+                  {
+                    key: 'builtin',
+                    label: t('aiSettings.tools.builtin', {
+                      defaultValue: 'Built-in',
+                    }),
+                  },
+                  {
+                    key: 'server',
+                    label: t('aiSettings.tools.server', {
+                      defaultValue: 'From server',
+                    }),
+                  },
+                ]}
+                activeKey={toolSource}
+                onSelect={setToolSource}
+              />
+              <Text className="text-text-secondary text-sm mt-3">
+                {toolSource === 'server'
+                  ? t('aiSettings.tools.serverDescription', {
+                      defaultValue:
+                        'The server lends the chat the same tools your other AI providers use, for the groups switched on below. Every tool that could change something asks you first. Each group adds to what the model has to read, so keep the list short. Needs a server with this feature; otherwise the built-in tools are used.',
+                    })
+                  : t('aiSettings.tools.builtinDescription', {
+                      defaultValue:
+                        'A small set of tools written into the app. Switch individual ones off under Chat testing.',
+                    })}
+              </Text>
+              {toolSource === 'server' &&
+                SERVER_TOOL_CATEGORIES.map((slug) => (
+                  <View
+                    key={slug}
+                    className="flex-row items-center justify-between py-2"
+                  >
+                    <Text className="text-text-primary text-sm">
+                      {t(`aiSettings.tools.categories.${slug}`, {
+                        defaultValue: slug,
+                      })}
+                    </Text>
+                    <Switch
+                      testID={`ai-tool-category-${slug}`}
+                      value={serverCategories.includes(slug)}
+                      onValueChange={(on) => setServerCategory(slug, on)}
+                    />
+                  </View>
+                ))}
+            </View>
             <OnDeviceChatDebugPanel />
           </>
         ) : (

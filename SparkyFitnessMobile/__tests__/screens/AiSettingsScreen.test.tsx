@@ -51,6 +51,8 @@ describe('AiSettingsScreen', () => {
     mockOnDeviceStatus = 'available';
     useAppPreferencesStore.setState({
       onDeviceChatModel: 'device',
+      onDeviceChatToolSource: 'builtin',
+      onDeviceChatServerCategories: ['food', 'exercise', 'checkin', 'goals'],
       onDeviceChatEnabled: false,
       onDeviceFoodPhotoEnabled: false,
       onDeviceLabelScanEnabled: false,
@@ -110,5 +112,22 @@ describe('AiSettingsScreen', () => {
     const { getByTestId } = renderScreen();
     fireEvent.changeText(getByTestId('ai-about-you-input'), 'vegetarian');
     expect(useAppPreferencesStore.getState().aiUserContext).toBe('vegetarian');
+  });
+
+  it('switches chat tools to the server and picks its groups', () => {
+    const { getByText, getByTestId, queryByTestId } = renderScreen();
+    expect(queryByTestId('ai-tool-category-food')).toBeNull();
+    fireEvent.press(getByText('From server'));
+    expect(useAppPreferencesStore.getState().onDeviceChatToolSource).toBe(
+      'server'
+    );
+    fireEvent(getByTestId('ai-tool-category-reports'), 'valueChange', true);
+    expect(
+      useAppPreferencesStore.getState().onDeviceChatServerCategories
+    ).toContain('reports');
+    fireEvent(getByTestId('ai-tool-category-food'), 'valueChange', false);
+    expect(
+      useAppPreferencesStore.getState().onDeviceChatServerCategories
+    ).not.toContain('food');
   });
 });
