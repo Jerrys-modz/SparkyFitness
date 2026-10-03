@@ -157,7 +157,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               })}
               description={t('foodSettings.onDeviceChat.description', {
                 defaultValue:
-                  'Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log a food or your weight. It is less capable than your server AI provider and chats are not saved.',
+                  'Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log food, water or weight, or delete an entry. It is less capable than your server AI provider and chats are not saved.',
               })}
               value={onDeviceChatEnabled}
               onValueChange={setOnDeviceChatEnabled}
