@@ -24,6 +24,12 @@ export const CHAT_TOOL_NAMES = [
   'listFoodEntries',
   'deleteFoodEntry',
   'getHistory',
+  'getFasting',
+  'startFast',
+  'endFast',
+  'getSleep',
+  'logExercise',
+  'copyMeal',
 ] as const;
 
 /** The built-in system prompt, or '' when this build has no native module. */

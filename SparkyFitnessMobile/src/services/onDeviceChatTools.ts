@@ -1,6 +1,13 @@
 import { Alert } from 'react-native';
 import { fetchDailySummary } from './api/dailySummaryApi';
-import { createFoodEntry, deleteFoodEntry } from './api/foodEntriesApi';
+import {
+  copyFoodEntries,
+  createFoodEntry,
+  deleteFoodEntry,
+} from './api/foodEntriesApi';
+import { endFast, fetchCurrentFast, startFast } from './api/fastingApi';
+import { createExerciseEntry, searchExercises } from './api/exerciseApi';
+import { fetchSleepEntries } from './api/sleepApi';
 import { searchFoods } from './api/foodsApi';
 import { fetchMealTypes } from './api/mealTypesApi';
 import {
@@ -26,6 +33,8 @@ const MAX_WEIGHT_KG = 500;
 const MAX_WATER_ML = 3000;
 const MAX_QUICK_CALORIES = 5000;
 const MAX_HISTORY_DAYS = 30;
+const MAX_FAST_HOURS = 72;
+const MAX_EXERCISE_MINUTES = 600;
 const DECLINED = 'The user declined, so nothing was saved.';
 
 /** The foods the model last saw, by the number it was shown. */
@@ -301,6 +310,146 @@ async function getHistory(args: {
   return 'Kind must be weight or workouts.';
 }
 
+const hoursText = (minutes: number): string =>
+  `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min`;
+
+async function getFasting(): Promise<string> {
+  const fast = await fetchCurrentFast();
+  if (!fast) return 'No fast is running.';
+  const elapsed = (Date.now() - new Date(fast.start_time).getTime()) / 60000;
+  const target = fast.target_end_time
+    ? ` Target end ${fast.target_end_time}.`
+    : '';
+  return `Fasting for ${hoursText(Math.max(0, elapsed))} (${fast.fasting_type ?? 'fast'}).${target}`;
+}
+
+async function startFastTool(args: { hours?: number }): Promise<string> {
+  const hours = args.hours ?? 0;
+  if (!(hours > 0 && hours <= MAX_FAST_HOURS)) {
+    return `A fast must be between 0 and ${MAX_FAST_HOURS} hours.`;
+  }
+  if (await fetchCurrentFast()) return 'A fast is already running.';
+  const ok = await confirm(
+    'Start a fast?',
+    `${hours} h, starting now.`,
+    'Start'
+  );
+  if (!ok) return DECLINED;
+  const start = new Date();
+  await startFast({
+    startTime: start.toISOString(),
+    targetEndTime: new Date(start.getTime() + hours * 3600000).toISOString(),
+    fastingType: `${hours}h`,
+  });
+  void queryClient.invalidateQueries();
+  return `Started a ${hours} hour fast.`;
+}
+
+async function endFastTool(): Promise<string> {
+  const fast = await fetchCurrentFast();
+  if (!fast) return 'No fast is running.';
+  const elapsed = (Date.now() - new Date(fast.start_time).getTime()) / 60000;
+  const ok = await confirm(
+    'End your fast?',
+    `You have fasted ${hoursText(Math.max(0, elapsed))}.`,
+    'End fast'
+  );
+  if (!ok) return DECLINED;
+  await endFast({
+    id: fast.id,
+    startTime: fast.start_time,
+    endTime: new Date().toISOString(),
+  });
+  void queryClient.invalidateQueries();
+  return `Ended the fast after ${hoursText(Math.max(0, elapsed))}.`;
+}
+
+async function getSleep(args: { days?: number }): Promise<string> {
+  const days = Math.min(14, Math.max(1, Math.round(args.days ?? 7)));
+  const today = getTodayDate();
+  const entries = await fetchSleepEntries(addDays(today, -(days - 1)), today);
+  if (entries.length === 0) return 'No sleep recorded.';
+  return entries
+    .map((e) => {
+      const asleep = e.time_asleep_in_seconds ?? e.duration_in_seconds;
+      const score = e.sleep_score != null ? `, score ${e.sleep_score}` : '';
+      return `${e.entry_date}: ${hoursText(asleep / 60)} asleep${score}`;
+    })
+    .join('\n');
+}
+
+async function logExercise(args: {
+  activity?: string;
+  minutes?: number;
+  caloriesBurned?: number;
+}): Promise<string> {
+  const activity = (args.activity ?? '').trim();
+  const minutes = args.minutes ?? 0;
+  if (!activity) return 'An activity name is required.';
+  if (!(minutes > 0 && minutes <= MAX_EXERCISE_MINUTES)) {
+    return `Minutes must be between 0 and ${MAX_EXERCISE_MINUTES}.`;
+  }
+  const matches = await searchExercises(activity);
+  const exercise = matches[0];
+  if (!exercise) return `No exercise named ${activity} was found.`;
+  const calories = Math.max(0, Math.round(args.caloriesBurned ?? 0));
+  const ok = await confirm(
+    'Log this activity?',
+    `${exercise.name}, ${Math.round(minutes)} min${calories ? `, about ${calories} kcal` : ''}.`
+  );
+  if (!ok) return DECLINED;
+  const date = getTodayDate();
+  await createExerciseEntry({
+    exercise_id: exercise.id,
+    exercise_name: exercise.name,
+    duration_minutes: minutes,
+    calories_burned: calories,
+    entry_date: date,
+  });
+  invalidateFoodCache(queryClient, date);
+  void queryClient.invalidateQueries();
+  return `Logged ${exercise.name} for ${Math.round(minutes)} minutes.`;
+}
+
+async function copyMeal(args: {
+  fromDay?: string;
+  fromMeal?: string;
+  toMeal?: string;
+}): Promise<string> {
+  const today = getTodayDate();
+  const day = (args.fromDay ?? '').trim().toLowerCase();
+  const sourceDate =
+    day === 'yesterday' || day === ''
+      ? addDays(today, -1)
+      : /^\d{4}-\d{2}-\d{2}$/.test(day)
+        ? day
+        : null;
+  if (!sourceDate) return 'Use yesterday or a date as YYYY-MM-DD.';
+  const mealTypes = await fetchMealTypes();
+  const from = resolveMealType(mealTypes, args.fromMeal ?? '');
+  const to = resolveMealType(mealTypes, args.toMeal ?? '');
+  if (!from || !to) {
+    return `Unknown meal. Choose from: ${mealTypes
+      .filter((m) => m.is_visible)
+      .map((m) => m.name)
+      .join(', ')}.`;
+  }
+  const ok = await confirm(
+    'Copy this meal?',
+    `Everything in ${from.name} on ${sourceDate}, into ${to.name} today.`,
+    'Copy'
+  );
+  if (!ok) return DECLINED;
+  await copyFoodEntries({
+    sourceDate,
+    sourceMealType: from.name,
+    targetDate: today,
+    targetMealType: to.name,
+  });
+  invalidateFoodCache(queryClient, today);
+  return `Copied ${from.name} from ${sourceDate} into ${to.name}.`;
+}
+
 /** Runs one tool the model asked for. Never throws: errors go back as text. */
 export async function runChatTool(
   name: string,
@@ -330,6 +479,18 @@ export async function runChatTool(
         return await deleteEntry(args as { entryNumber?: number });
       case 'getHistory':
         return await getHistory(args as { kind?: string; days?: number });
+      case 'getFasting':
+        return await getFasting();
+      case 'startFast':
+        return await startFastTool(args as { hours?: number });
+      case 'endFast':
+        return await endFastTool();
+      case 'getSleep':
+        return await getSleep(args as { days?: number });
+      case 'logExercise':
+        return await logExercise(args as Parameters<typeof logExercise>[0]);
+      case 'copyMeal':
+        return await copyMeal(args as Parameters<typeof copyMeal>[0]);
       case 'logWeight':
         return await logWeight(args as { kilograms?: number });
       default:
