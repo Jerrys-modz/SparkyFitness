@@ -98,9 +98,12 @@ private let chatInstructions = """
 You are Sparky, a friendly nutrition and fitness assistant inside a food diary \
 app, running on the user's phone. Answer briefly and practically. Use the \
 diary snapshot for questions about today and never invent entries or numbers \
-that are not in it. You cannot log, edit or delete anything; if asked to, say \
-the user can do it in the app or switch to the server assistant. You are not a \
-doctor: for medical questions, suggest seeing a professional.
+that are not in it. Use getDaySummary for other days. To log food, call \
+searchFoods first, pick the best match, then call logFood; to record weight use \
+logWeight. The user confirms every write, so just call the tool and then say in \
+one short sentence what happened. If the user declines, accept it. Never claim \
+something was logged unless the tool said so. You cannot edit or delete \
+entries. You are not a doctor: for medical questions, suggest seeing a professional.
 """
 
 private let extractionInstructions = """
@@ -134,9 +137,132 @@ private func recognizeLabelText(in image: CGImage) -> String {
 }
 #endif
 
+/// Hands a tool call from the on-device model to JavaScript and waits for the
+/// answer. JS does the real work (search, confirm with the user, log) through
+/// the same app APIs the buttons use, and replies with `resolveChatTool`.
+final class ChatToolBridge {
+    static let shared = ChatToolBridge()
+
+    private let lock = NSLock()
+    private var pending: [String: CheckedContinuation<String, Never>] = [:]
+    var emit: ((_ id: String, _ name: String, _ argsJSON: String) -> Void)?
+
+    func invoke(_ name: String, _ args: [String: Any]) async -> String {
+        let id = UUID().uuidString
+        let data = (try? JSONSerialization.data(withJSONObject: args)) ?? Data("{}".utf8)
+        let json = String(data: data, encoding: .utf8) ?? "{}"
+        return await withCheckedContinuation { continuation in
+            lock.lock()
+            pending[id] = continuation
+            lock.unlock()
+            if let emit = emit {
+                emit(id, name, json)
+            } else {
+                resolve(id, "Tools are not available.")
+            }
+        }
+    }
+
+    func resolve(_ id: String, _ result: String) {
+        lock.lock()
+        let continuation = pending.removeValue(forKey: id)
+        lock.unlock()
+        continuation?.resume(returning: result)
+    }
+}
+
+#if compiler(>=6.4) && canImport(FoundationModels)
+@available(iOS 27, *)
+private struct GetDaySummaryTool: Tool {
+    let name = "getDaySummary"
+    let description = "Reads the user's food diary summary for one day: calories and macros against goals, foods logged, water and workouts."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Date as YYYY-MM-DD. Leave empty for today.")
+        let date: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["date": arguments.date])
+    }
+}
+
+@available(iOS 27, *)
+private struct SearchFoodsTool: Tool {
+    let name = "searchFoods"
+    let description = "Searches the user's food library by name. Returns numbered results; use the number with logFood."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Food name to search for, such as eggs or chicken breast")
+        let query: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["query": arguments.query])
+    }
+}
+
+@available(iOS 27, *)
+private struct LogFoodTool: Tool {
+    let name = "logFood"
+    let description = "Logs a food from the latest searchFoods results to today's diary. The user is asked to confirm before anything is saved."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "The result number from the latest searchFoods call")
+        let resultNumber: Int
+        @Guide(description: "Number of servings eaten, for example 1 or 1.5")
+        let servings: Double
+        @Guide(description: "Meal name such as Breakfast, Lunch, Dinner or Snacks")
+        let meal: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(
+            name,
+            [
+                "resultNumber": arguments.resultNumber,
+                "servings": arguments.servings,
+                "meal": arguments.meal,
+            ]
+        )
+    }
+}
+
+@available(iOS 27, *)
+private struct LogWeightTool: Tool {
+    let name = "logWeight"
+    let description = "Records the user's body weight in kilograms for today. The user is asked to confirm before it is saved."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Body weight in kilograms")
+        let kilograms: Double
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["kilograms": arguments.kilograms])
+    }
+}
+#endif
+
 public class OnDeviceNutritionModule: Module {
     public func definition() -> ModuleDefinition {
         Name("OnDeviceNutrition")
+
+        Events("onChatTool")
+
+        OnCreate {
+            ChatToolBridge.shared.emit = { [weak self] id, name, args in
+                self?.sendEvent("onChatTool", ["id": id, "name": name, "args": args])
+            }
+        }
+
+        Function("resolveChatTool") { (id: String, result: String) in
+            ChatToolBridge.shared.resolve(id, result)
+        }
 
         Function("isAvailable") { () -> Bool in
             #if compiler(>=6.4) && canImport(FoundationModels)
@@ -202,7 +328,10 @@ public class OnDeviceNutritionModule: Module {
         AsyncFunction("chat") { (transcript: String, context: String) -> String in
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
-                let session = LanguageModelSession(instructions: chatInstructions)
+                let session = LanguageModelSession(
+                    tools: [GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogWeightTool()],
+                    instructions: chatInstructions
+                )
                 let response = try await session.respond(
                     to: "Today's diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
                 )
