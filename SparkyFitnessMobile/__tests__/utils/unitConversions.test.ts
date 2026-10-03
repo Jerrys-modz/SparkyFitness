@@ -18,6 +18,9 @@ import {
   formatWeightDisplay,
   getServingVolume,
   volumeFromMl,
+  carryDistanceFromKm,
+  carryDistanceToKm,
+  carryDistanceUnitLabel,
   formatVolumeForUnit,
 } from '../../src/utils/unitConversions';
 import i18n, {
@@ -26,6 +29,24 @@ import i18n, {
 } from '../../src/localization/i18n';
 
 describe('unitConversions', () => {
+  describe('carry distance', () => {
+    it('shows metres for km and yards for miles', () => {
+      expect(carryDistanceFromKm(0.03, 'km')).toBeCloseTo(30, 6);
+      expect(carryDistanceFromKm(0.03, 'miles')).toBeCloseTo(32.8, 1);
+      expect(carryDistanceUnitLabel('km')).toBe('m');
+      expect(carryDistanceUnitLabel('miles')).toBe('yd');
+    });
+
+    it('round-trips back to km', () => {
+      expect(
+        carryDistanceToKm(carryDistanceFromKm(0.05, 'km'), 'km')
+      ).toBeCloseTo(0.05, 9);
+      expect(
+        carryDistanceToKm(carryDistanceFromKm(0.05, 'miles'), 'miles')
+      ).toBeCloseTo(0.05, 9);
+    });
+  });
+
   describe('lbsToKg', () => {
     it('converts 1 lb to ~0.4536 kg', () => {
       expect(lbsToKg(1)).toBeCloseTo(0.4536, 3);

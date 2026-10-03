@@ -327,7 +327,10 @@ export const DROPDOWN_GUIDES = [
  * `duration_distance` exercises use the entry-level cardio editor, so the set
  * table only ever renders these three layouts.
  */
-export type SetTableModality = Exclude<ExerciseModality, 'duration_distance'>;
+export type SetTableModality = Exclude<
+  ExerciseModality,
+  'duration_distance' | 'weight_duration' | 'weight_distance'
+>;
 
 export const SET_TABLE_LAYOUT: Record<
   SetTableModality,
@@ -382,8 +385,15 @@ export const SET_TABLE_LAYOUT: Record<
 
 export const toSetTableModality = (
   modality: ExerciseModality
-): SetTableModality =>
-  modality === 'duration_distance' ? 'duration' : modality;
+): SetTableModality => {
+  if (modality === 'duration_distance') return 'duration';
+  // Loaded holds and carries are logged from the mobile app; the web set
+  // table edits them as weight & reps until it grows duration/distance cells.
+  if (modality === 'weight_duration' || modality === 'weight_distance') {
+    return 'weight_reps';
+  }
+  return modality;
+};
 
 export const SET_TYPE_STYLES: Record<string, string> = {
   Normal: 'bg-muted text-muted-foreground',

@@ -1823,7 +1823,9 @@
     "setOf_other": "Set {{number}} of {{count}}",
     "repCount_one": "{{formattedCount}} rep",
     "repCount_other": "{{formattedCount}} reps",
-    "addWarmups": "Add warm-ups"
+    "addWarmups": "Add warm-ups",
+    "modalityWeightDistance": "Weight & Distance (carries)",
+    "modalityWeightDuration": "Weight & Duration (loaded holds)"
   },
   "cycleCard": {
     "mode": {
