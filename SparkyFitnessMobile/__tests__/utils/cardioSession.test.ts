@@ -251,9 +251,7 @@ describe('cardioSessionFromDiaryEntry', () => {
       null,
       undefined,
     ]) {
-      expect(
-        cardioSessionFromDiaryEntry(entry({ source }), 'km')
-      ).toBeNull();
+      expect(cardioSessionFromDiaryEntry(entry({ source }), 'km')).toBeNull();
     }
   });
 
