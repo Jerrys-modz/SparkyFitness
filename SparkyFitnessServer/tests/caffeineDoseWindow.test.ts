@@ -157,14 +157,33 @@ describe('Caffeine Dose Window and Fallback Hierarchy', () => {
       caffeine_half_life_hours: 5.0,
       target_bedtime: '01:30:00',
     } as any);
-    vi.spyOn(foodMisc, 'getCaffeineDosesForWindow').mockResolvedValue([]);
+    const getDosesSpy = vi
+      .spyOn(foodMisc, 'getCaffeineDosesForWindow')
+      .mockResolvedValue([
+        {
+          source: 'food',
+          entry_date: '2026-09-06',
+          entry_time: '00:30',
+          meal_default_time: null,
+          taken_at: null,
+          caffeine_mg: 100,
+          name: 'Late Espresso',
+        },
+      ]);
 
     const result = await getActiveCaffeineKinetics(userId, {
       date: '2026-09-05',
     });
 
+    expect(getDosesSpy).toHaveBeenCalledWith(
+      userId,
+      '2026-09-03',
+      '2026-09-06'
+    );
     expect(result.target_bedtime).toBe('01:30');
     expect(result.bedtime_at).toBe('2026-09-06T01:30:00.000Z');
+    expect(result.doses).toHaveLength(1);
+    expect(result.doses[0].at).toBe('2026-09-06T00:30:00.000Z');
   });
 
   it('calculates bedtimeAt on same calendar day when target_bedtime is before midnight (e.g. 23:59)', async () => {

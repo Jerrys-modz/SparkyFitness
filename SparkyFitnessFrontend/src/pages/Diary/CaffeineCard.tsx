@@ -68,10 +68,13 @@ export const CaffeineCard = ({ date, userId }: CaffeineCardProps) => {
   const windowMs = useMemo(() => {
     if (!data || data.doses.length === 0) return null;
     const rawEnd = bedtimeMs + 2 * 60 * 60 * 1000;
-    // `bedtime_at` sits at or after the end of the date being viewed, so the 24 hours before it are
-    // that day. Only a clock inside them belongs on this chart; anything else
-    // is a different day and must not drag the window across to meet it.
-    const dayStartMs = bedtimeMs - 24 * 60 * 60 * 1000;
+
+    // The calendar start of the viewed day in local time
+    const [y, m, d] = date.split('-').map(Number);
+    const dayStartMs =
+      y && m && d
+        ? new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
+        : bedtimeMs - 24 * 60 * 60 * 1000;
     const nowBelongsToDay = nowMs >= dayStartMs && nowMs <= rawEnd;
 
     // Doses belonging to the day on screen:
@@ -80,45 +83,46 @@ export const CaffeineCard = ({ date, userId }: CaffeineCardProps) => {
       return ms >= dayStartMs && ms <= rawEnd;
     });
 
-    const dosesForFirst = dayDoses.length > 0 ? dayDoses : data.doses;
-    const firstDoseMs = dosesForFirst.reduce(
-      (earliest, dose) => Math.min(earliest, new Date(dose.at).getTime()),
-      Number.POSITIVE_INFINITY
-    );
-    const doseStart = firstDoseMs - 60 * 60 * 1000;
+    const firstDoseMs =
+      dayDoses.length > 0
+        ? dayDoses.reduce(
+            (earliest, dose) => Math.min(earliest, new Date(dose.at).getTime()),
+            Number.POSITIVE_INFINITY
+          )
+        : dayStartMs + 8 * 60 * 60 * 1000;
+    const doseStart =
+      dayDoses.length > 0 ? firstDoseMs - 60 * 60 * 1000 : firstDoseMs;
     const rawStart = nowBelongsToDay ? Math.min(doseStart, nowMs) : doseStart;
 
-    // Align start to the beginning of the hour (e.g. 11:23 -> 11:00)
+    // Align start to the top of the hour without local-time mutation
     const startDate = new Date(rawStart);
-    startDate.setMinutes(0, 0, 0);
-    const start = startDate.getTime();
+    const startRemainderMs =
+      (startDate.getMinutes() * 60 + startDate.getSeconds()) * 1000 +
+      startDate.getMilliseconds();
+    const start = rawStart - startRemainderMs;
 
-    // Align end to the top of the next hour (e.g. 00:30 -> 01:00)
+    // Align end to the top of the next hour without local-time mutation
     const endDate = new Date(rawEnd);
-    if (
-      endDate.getMinutes() > 0 ||
-      endDate.getSeconds() > 0 ||
-      endDate.getMilliseconds() > 0
-    ) {
-      endDate.setHours(endDate.getHours() + 1, 0, 0, 0);
-    }
-    const end = endDate.getTime();
+    const endRemainderMs =
+      (endDate.getMinutes() * 60 + endDate.getSeconds()) * 1000 +
+      endDate.getMilliseconds();
+    const end =
+      endRemainderMs === 0 ? rawEnd : rawEnd + (3600 * 1000 - endRemainderMs);
 
     return {
       start,
       end,
       nowBelongsToDay,
     };
-  }, [data, bedtimeMs, nowMs]);
+  }, [data, bedtimeMs, nowMs, date]);
 
   // Consistent 1-hour interval ticks across the plotted window
   const ticks = useMemo(() => {
     if (!windowMs) return [];
     const result: number[] = [];
-    const cursor = new Date(windowMs.start);
-    while (cursor.getTime() <= windowMs.end) {
-      result.push(cursor.getTime());
-      cursor.setHours(cursor.getHours() + 1);
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    for (let t = windowMs.start; t <= windowMs.end; t += ONE_HOUR_MS) {
+      result.push(t);
     }
     return result;
   }, [windowMs]);
