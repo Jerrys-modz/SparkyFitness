@@ -138,7 +138,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
       {header}
 
       {/* Filter Chips */}
-      <View className="py-2.5 px-4 border-b border-border/40 bg-card/40">
+      <View className="py-2.5 px-4 border-b border-border/40 bg-surface/40">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -148,15 +148,15 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
             onPress={() => setSelectedSymptomFilter(null)}
             className={`px-3 py-1.5 rounded-full border ${
               selectedSymptomFilter === null
-                ? 'bg-primary border-primary'
-                : 'bg-card border-border'
+                ? 'bg-accent-primary border-accent-primary'
+                : 'bg-surface border-border'
             }`}
           >
             <Text
               className={`text-xs font-semibold ${
                 selectedSymptomFilter === null
-                  ? 'text-primary-foreground'
-                  : 'text-foreground'
+                  ? 'text-white'
+                  : 'text-text-primary'
               }`}
             >
               {t('common.all', { defaultValue: 'All' })}
@@ -173,13 +173,13 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 }
                 className={`px-3 py-1.5 rounded-full border ${
                   isSelected
-                    ? 'bg-primary border-primary'
-                    : 'bg-card border-border'
+                    ? 'bg-accent-primary border-accent-primary'
+                    : 'bg-surface border-border'
                 }`}
               >
                 <Text
                   className={`text-xs font-semibold ${
-                    isSelected ? 'text-primary-foreground' : 'text-foreground'
+                    isSelected ? 'text-white' : 'text-text-primary'
                   }`}
                 >
                   {d.name}
@@ -192,14 +192,14 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
 
       <ScrollView className="flex-1 px-4 py-3 space-y-3">
         {/* Symptom-free day banner/toggle */}
-        <View className="flex-row items-center justify-between p-3.5 rounded-xl bg-card border border-border mb-1">
+        <View className="flex-row items-center justify-between p-3.5 rounded-xl bg-surface border border-border mb-1">
           <View className="flex-row items-center space-x-2.5 flex-1 pr-2">
             <Icon
               name={isTodaySymptomFree ? 'checkmark-circle-filled' : 'wellness'}
               size={20}
               color={isTodaySymptomFree ? '#10b981' : '#6b7280'}
             />
-            <Text className="text-sm font-medium text-foreground">
+            <Text className="text-sm font-medium text-text-primary">
               {isTodaySymptomFree
                 ? t('symptoms.markedSymptomFreeToday', {
                     defaultValue: 'Marked symptom-free today',
@@ -217,9 +217,9 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 markFree.mutate(today);
               }
             }}
-            className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20"
+            className="px-3 py-1.5 rounded-lg bg-accent-primary/10 border border-accent-primary/20"
           >
-            <Text className="text-xs font-semibold text-primary">
+            <Text className="text-xs font-semibold text-accent-primary">
               {isTodaySymptomFree
                 ? t('common.undo', { defaultValue: 'Undo' })
                 : t('symptoms.markFree', { defaultValue: 'Mark Free' })}
@@ -228,17 +228,17 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
         </View>
 
         {/* 30-Day Insights Card */}
-        <View className="p-3.5 rounded-xl bg-card border border-border mb-1">
+        <View className="p-3.5 rounded-xl bg-surface border border-border mb-1">
           <View className="flex-row items-center justify-between mb-2.5">
             <View className="flex-row items-center">
               <Icon name="sparkles" size={16} color="#8b5cf6" />
-              <Text className="text-xs font-bold text-foreground uppercase tracking-wider ml-1.5">
+              <Text className="text-xs font-bold text-text-primary uppercase tracking-wider ml-1.5">
                 {t('symptoms.insights30d', {
                   defaultValue: '30-Day Insights',
                 })}
               </Text>
             </View>
-            <Text className="text-xs font-medium text-muted-foreground">
+            <Text className="text-xs font-medium text-text-muted">
               {insights.freeCount}/30{' '}
               {t('symptoms.freeDaysShort', { defaultValue: 'free days' })} (
               {insights.freePercentage}%)
@@ -247,19 +247,19 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
 
           {/* Metrics Split */}
           <View className="flex-row">
-            <View className="flex-1 bg-muted/30 rounded-lg p-2.5 mr-1.5">
-              <Text className="text-[11px] font-semibold text-muted-foreground uppercase mb-1">
+            <View className="flex-1 bg-raised rounded-lg p-2.5 mr-1.5">
+              <Text className="text-[11px] font-semibold text-text-muted uppercase mb-1">
                 {t('symptoms.topTriggers', { defaultValue: 'Top Triggers' })}
               </Text>
               {insights.topTriggers.length > 0 ? (
                 insights.topTriggers.map(([tr, count]) => (
                   <Text
                     key={tr}
-                    className="text-xs text-foreground font-medium"
+                    className="text-xs text-text-primary font-medium"
                     numberOfLines={1}
                   >
                     • {tr}{' '}
-                    <Text className="text-muted-foreground">
+                    <Text className="text-text-muted">
                       {t('symptoms.countTimes', {
                         defaultValue: '({{times}}x)',
                         times: count,
@@ -268,7 +268,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                   </Text>
                 ))
               ) : (
-                <Text className="text-xs text-muted-foreground italic">
+                <Text className="text-xs text-text-muted italic">
                   {t('symptoms.noneRecorded', {
                     defaultValue: 'None recorded',
                   })}
@@ -276,8 +276,8 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
               )}
             </View>
 
-            <View className="flex-1 bg-muted/30 rounded-lg p-2.5 ml-1.5">
-              <Text className="text-[11px] font-semibold text-muted-foreground uppercase mb-1">
+            <View className="flex-1 bg-raised rounded-lg p-2.5 ml-1.5">
+              <Text className="text-[11px] font-semibold text-text-muted uppercase mb-1">
                 {t('symptoms.effectiveRelief', {
                   defaultValue: 'Effective Relief',
                 })}
@@ -286,7 +286,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 insights.topRelief.map((r) => (
                   <Text
                     key={r.name}
-                    className="text-xs text-foreground font-medium"
+                    className="text-xs text-text-primary font-medium"
                     numberOfLines={1}
                   >
                     • {r.name}{' '}
@@ -296,7 +296,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                   </Text>
                 ))
               ) : (
-                <Text className="text-xs text-muted-foreground italic">
+                <Text className="text-xs text-text-muted italic">
                   {t('symptoms.noneRecorded', {
                     defaultValue: 'None recorded',
                   })}
@@ -329,14 +329,14 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 <View className="flex-1 space-y-1">
                   <View className="flex-row items-center space-x-2">
                     <View className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                    <Text className="text-sm font-bold text-foreground">
+                    <Text className="text-sm font-bold text-text-primary">
                       {ep.symptom_name_snapshot ||
                         t('symptoms.timing.episode', {
                           defaultValue: 'Episode',
                         })}
                     </Text>
                   </View>
-                  <Text className="text-xs text-muted-foreground">
+                  <Text className="text-xs text-text-muted">
                     {t('symptoms.timing.started', { defaultValue: 'Started' })}{' '}
                     {ep.started_at
                       ? new Date(ep.started_at).toLocaleTimeString(
@@ -370,12 +370,12 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
         ) : filteredEntries.length === 0 ? (
           <View className="py-16 items-center space-y-2">
             <Icon name="document-text" size={40} color="#64748b" />
-            <Text className="text-base font-semibold text-muted-foreground">
+            <Text className="text-base font-semibold text-text-muted">
               {t('symptoms.noHistory', {
                 defaultValue: 'No symptom logs found',
               })}
             </Text>
-            <Text className="text-xs text-muted-foreground text-center px-6">
+            <Text className="text-xs text-text-muted text-center px-6">
               {t('symptoms.noHistoryDesc', {
                 defaultValue:
                   'Logs and past episodes for the last 30 days will show here.',
@@ -393,15 +393,15 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                   isOngoing: Boolean(item.started_at && !item.ended_at),
                 })
               }
-              className="bg-card border border-border rounded-2xl p-4 space-y-2 shadow-sm"
+              className="bg-surface border border-border rounded-2xl p-4 space-y-2 shadow-sm"
             >
               <View className="flex-row justify-between items-start">
                 <View className="flex-1">
-                  <Text className="text-base font-bold text-foreground">
+                  <Text className="text-base font-bold text-text-primary">
                     {item.symptom_name_snapshot ||
                       t('symptoms.symptom', { defaultValue: 'Symptom' })}
                   </Text>
-                  <Text className="text-xs text-muted-foreground">
+                  <Text className="text-xs text-text-muted">
                     {item.entry_date}
                     {item.started_at &&
                       ` · ${formatDuration(item.started_at, item.ended_at)}`}
@@ -409,8 +409,8 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 </View>
 
                 {item.severity != null && (
-                  <View className="bg-blue-600/10 px-2.5 py-1 rounded-lg border border-blue-500/20">
-                    <Text className="text-xs font-bold text-blue-500">
+                  <View className="bg-accent-primary/10 px-2.5 py-1 rounded-lg border border-accent-primary/20">
+                    <Text className="text-xs font-bold text-accent-primary">
                       {item.severity}/10
                     </Text>
                   </View>
@@ -420,10 +420,8 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
               {/* Tags summary */}
               <View className="flex-row flex-wrap gap-1 pt-1">
                 {item.body_locations?.map((loc) => (
-                  <View key={loc} className="bg-muted px-2 py-0.5 rounded-md">
-                    <Text className="text-[11px] text-muted-foreground">
-                      {loc}
-                    </Text>
+                  <View key={loc} className="bg-raised px-2 py-0.5 rounded-md">
+                    <Text className="text-[11px] text-text-muted">{loc}</Text>
                   </View>
                 ))}
                 {item.triggers?.map((tr) => (
@@ -449,7 +447,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
 
               {item.context_text && (
                 <Text
-                  className="text-xs text-muted-foreground italic pt-1"
+                  className="text-xs text-text-muted italic pt-1"
                   numberOfLines={2}
                 >
                   {`"${item.context_text}"`}
@@ -465,7 +463,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
       {/* FAB to log symptom */}
       <TouchableOpacity
         onPress={() => navigation.navigate('SymptomLog')}
-        className="absolute bottom-6 right-6 bg-primary w-14 h-14 rounded-full items-center justify-center shadow-lg border border-primary-foreground/20"
+        className="absolute bottom-6 right-6 bg-accent-primary w-14 h-14 rounded-full items-center justify-center shadow-lg border border-white/20"
       >
         <Icon name="add" size={24} color="#ffffff" />
       </TouchableOpacity>

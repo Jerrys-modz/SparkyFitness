@@ -26,6 +26,7 @@ import {
 } from '../services/notifications';
 import { getActiveServerConfig } from '../services/storage';
 import { getTodayDate } from '../utils/dateUtils';
+import { isBodyweightModality } from '@workspace/shared';
 import {
   extractPlannedSetValues,
   isDurationModality,
@@ -111,6 +112,9 @@ export function buildWatchWorkoutStartPayload(
         exercise.exercise_snapshot?.name ??
         t('workout.exercise', { defaultValue: 'Exercise' }),
       supersetRun: supersetRunByEntryId.get(exercise.id) ?? null,
+      bodyweight: isBodyweightModality(
+        resolveSnapshotModality(exercise.exercise_snapshot)
+      ),
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const target = targets.get(setId);

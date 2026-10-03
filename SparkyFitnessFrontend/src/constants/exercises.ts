@@ -135,6 +135,11 @@ export const EXERCISE_MODALITY_OPTIONS = [
     defaultLabel: 'Reps',
   },
   {
+    value: 'bodyweight_reps',
+    labelKey: 'exercise.modality.bodyweightReps',
+    defaultLabel: 'Bodyweight (+/− weight)',
+  },
+  {
     value: 'duration',
     labelKey: 'exercise.modality.duration',
     defaultLabel: 'Duration',
@@ -332,6 +337,11 @@ export const SET_TABLE_LAYOUT: Record<
     gridClassWithRir: string;
     showReps: boolean;
     showWeight: boolean;
+    /**
+     * The weight column is added (+) or assisting (−) weight on top of body
+     * weight, so it takes negatives and is labelled as such.
+     */
+    signedWeight: boolean;
   }
 > = {
   weight_reps: {
@@ -341,6 +351,16 @@ export const SET_TABLE_LAYOUT: Record<
       'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
     showReps: true,
     showWeight: true,
+    signedWeight: false,
+  },
+  bodyweight_reps: {
+    gridClass:
+      'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
+    gridClassWithRir:
+      'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
+    showReps: true,
+    showWeight: true,
+    signedWeight: true,
   },
   reps_only: {
     gridClass: 'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
@@ -348,6 +368,7 @@ export const SET_TABLE_LAYOUT: Record<
       'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
     showReps: true,
     showWeight: false,
+    signedWeight: false,
   },
   duration: {
     gridClass: 'grid grid-cols-[20px_140px_1fr_1fr_1fr_72px] gap-1.5 grow',
@@ -355,6 +376,7 @@ export const SET_TABLE_LAYOUT: Record<
       'grid grid-cols-[20px_140px_1fr_1fr_1fr_1fr_72px] gap-1.5 grow',
     showReps: false,
     showWeight: false,
+    signedWeight: false,
   },
 };
 

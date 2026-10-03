@@ -79,6 +79,7 @@ export const PREFERENCE_DEFAULTS = {
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
+  medicationReminderConsolidate: true,
   waterReminderEnabled: false,
   waterReminderIntervalHours: 2 as WaterReminderIntervalHours,
   waterReminderWindowStart: '08:00' as string,
@@ -135,6 +136,7 @@ export type AppPreferencesData = {
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
+  medicationReminderConsolidate: boolean;
   waterReminderEnabled: boolean;
   waterReminderIntervalHours: WaterReminderIntervalHours;
   waterReminderWindowStart: string;
@@ -210,6 +212,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
+  setMedicationReminderConsolidate: (value: boolean) => void;
   setWaterReminderEnabled: (value: boolean) => void;
   setWaterReminderIntervalHours: (value: WaterReminderIntervalHours) => void;
   setWaterReminderWindow: (start: string, end: string) => void;
@@ -327,6 +330,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ medicationReminderRepeats: value }),
       setMedicationReminderHideNames: (value) =>
         set({ medicationReminderHideNames: value }),
+      setMedicationReminderConsolidate: (value) =>
+        set({ medicationReminderConsolidate: value }),
       setWaterReminderEnabled: (value) => set({ waterReminderEnabled: value }),
       setWaterReminderIntervalHours: (value) =>
         set({ waterReminderIntervalHours: value }),
@@ -422,6 +427,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,
+        medicationReminderConsolidate: state.medicationReminderConsolidate,
         waterReminderEnabled: state.waterReminderEnabled,
         waterReminderIntervalHours: state.waterReminderIntervalHours,
         waterReminderWindowStart: state.waterReminderWindowStart,

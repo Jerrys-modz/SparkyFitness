@@ -1,8 +1,12 @@
 import type {
+  ExerciseActivityQueryItem,
   ExerciseEntryHrZones,
   GpsTrackPoint,
+  IndividualSessionResponse,
   WorkoutHeartRatePoint,
 } from '@workspace/shared';
+import { canEditGroupedWorkout } from '@workspace/shared';
+import { distanceFromKm } from './unitConversions';
 
 /** Trackpoints kept when drawing a route; plenty for a phone-width figure. */
 const MAX_ROUTE_POINTS = 1500;
@@ -250,4 +254,49 @@ export function combinedHeartRateZoneRows(
       seconds: row.seconds,
       share: total > 0 ? row.seconds / total : 0,
     }));
+}
+
+/**
+ * Maps a diary workout to the shape the cardio detail screen takes, or null
+ * when that screen has nothing to add. Only synced workouts qualify: in-app
+ * entries (manual, sparky, workout plan, or no source) carry no route, heart
+ * rate, or zones, and strength sessions are logged as weight and reps.
+ */
+export function cardioSessionFromDiaryEntry(
+  session: IndividualSessionResponse,
+  distanceUnit: 'km' | 'miles'
+): ExerciseActivityQueryItem | null {
+  if (!session.entry_date) return null;
+  if (canEditGroupedWorkout(session.source)) return null;
+  if (session.exercise_snapshot?.modality === 'weight_reps') return null;
+  if (session.sets.some((set) => set.weight != null || set.reps != null)) {
+    return null;
+  }
+
+  const distanceKm =
+    session.distance != null && session.distance > 0 ? session.distance : null;
+  return {
+    id: session.id,
+    userId: '',
+    exerciseName:
+      session.name ??
+      session.exercise_snapshot?.name ??
+      session.category ??
+      'Workout',
+    category: session.category ?? session.exercise_snapshot?.category ?? null,
+    entryDate: session.entry_date,
+    entryTime: session.entry_time ?? null,
+    durationMinutes: session.duration_minutes,
+    movingDurationMinutes: null,
+    distanceMeters: distanceKm != null ? distanceKm * 1000 : null,
+    distanceFormatted:
+      distanceKm != null ? distanceFromKm(distanceKm, distanceUnit) : null,
+    avgPaceSecondsPerKm: null,
+    formattedPace: null,
+    caloriesBurned: session.calories_burned,
+    avgHeartRate: session.avg_heart_rate,
+    source: session.source,
+    notes: session.notes,
+    hasGpsTrack: false,
+  };
 }

@@ -16,7 +16,7 @@ export const SetColumnHeaders = ({
   const cell =
     'text-[10px] font-bold uppercase text-muted-foreground tracking-wide flex items-center gap-1';
   const layout = SET_TABLE_LAYOUT[modality];
-  const { showReps, showWeight } = layout;
+  const { showReps, showWeight, signedWeight } = layout;
   const gridClass = showRir ? layout.gridClassWithRir : layout.gridClass;
 
   return (
@@ -35,7 +35,9 @@ export const SetColumnHeaders = ({
         {showWeight && (
           <div className={cell}>
             <Dumbbell className="h-3 w-3 text-red-500" />
-            {t('workout.weight', 'weight')}
+            {signedWeight
+              ? t('workout.addedWeight', '+/− weight')
+              : t('workout.weight', 'weight')}
           </div>
         )}
         <div className={cell}>
