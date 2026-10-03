@@ -377,6 +377,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
 
         if context.fastSynced == true { ComplicationPublisher.publish(fast: context.fast) }
+        if let steps = context.steps, steps.isToday {
+            ComplicationPublisher.publish(steps: steps.count, goal: context.stepGoal ?? 10_000, for: steps.day)
+        }
 
         if let water = context.water, water.isToday {
             ComplicationPublisher.publish(
@@ -470,6 +473,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // bottle, and a third field carrying their ratio would be a second
         // version of the same truth to keep in step.
         if incoming.fastSynced == true { ComplicationPublisher.publish(fast: incoming.fast) }
+        if let steps = incoming.steps {
+            ComplicationPublisher.publish(steps: steps.count, goal: incoming.stepGoal ?? 10_000, for: steps.day)
+        }
         if let water = incoming.water {
             ComplicationPublisher.publish(
                 waterProgress: incoming.waterProgress(ml: water.consumedMl) ?? 0,

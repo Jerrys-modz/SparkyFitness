@@ -15,6 +15,8 @@ enum ComplicationLink: String {
     case water
     /// Fasting → the Fasting page.
     case fasting
+    /// Steps → the Steps page.
+    case steps
 
     static let scheme = "sparkyfitness-watch"
 

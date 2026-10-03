@@ -40,6 +40,18 @@ enum ComplicationPublisher {
         static let kind = "waterGoalComplication"
     }
 
+    private enum Steps {
+        static let key = "stepsSnapshot"
+        static let kind = "stepsComplication"
+    }
+
+    /// Field names here are decoded by `StepsComplication`.
+    private struct StepsSnapshotPayload: Codable, Equatable {
+        let date: String
+        let count: Int
+        let goal: Int
+    }
+
     private enum Fasting {
         static let key = "fastingSnapshot"
         static let kind = "fastingComplication"
@@ -99,6 +111,16 @@ enum ComplicationPublisher {
             ),
             forKey: Water.key,
             reloading: Water.kind
+        )
+    }
+
+    /// Publishes today's step count for the Steps complication.
+    static func publish(steps: Int, goal: Int, for day: String) {
+        guard isPublishable(day) else { return }
+        write(
+            StepsSnapshotPayload(date: day, count: max(0, steps), goal: max(1, goal)),
+            forKey: Steps.key,
+            reloading: Steps.kind
         )
     }
 

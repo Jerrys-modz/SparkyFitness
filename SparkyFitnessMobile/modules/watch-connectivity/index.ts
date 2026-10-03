@@ -154,6 +154,13 @@ export interface WatchContextPayload {
     label: string | null;
   } | null;
   /**
+   * Today's step count, with the day it belongs to. Left out when the phone
+   * has no step figure for today; the watch drops a count from another day.
+   */
+  steps?: { day: string; count: number } | null;
+  /** Daily step goal the Steps page and complication measure against. */
+  stepGoal?: number | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.

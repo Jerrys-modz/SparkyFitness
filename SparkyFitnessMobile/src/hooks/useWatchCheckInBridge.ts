@@ -69,6 +69,9 @@ function goalProgress(consumed: number, goal: number): number {
   return Math.max(0, Math.min(1, consumed / goal));
 }
 
+/** Daily step goal sent to the watch (no per-user step goal exists yet). */
+const WATCH_STEP_GOAL = 10000;
+
 /** Days of history relayed to the watch — matches the watch's 14-day chart. */
 const HISTORY_DAYS = 14;
 
@@ -494,13 +497,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       // the most recent one for that date.
       const byDay = new Map<
         string,
-        { weight?: number | null; bodyFat?: number | null }
+        {
+          weight?: number | null;
+          bodyFat?: number | null;
+          steps?: number | null;
+        }
       >();
       for (const entry of range) {
         if (byDay.has(entry.entry_date)) continue;
         byDay.set(entry.entry_date, {
           weight: entry.weight,
           bodyFat: entry.body_fat_percentage,
+          steps: entry.steps,
         });
       }
 
@@ -569,6 +577,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         hrZonesEnabled: watchHrZonesEnabled,
         ...(watchFast !== undefined ? { fast: watchFast } : {}),
+        steps:
+          todayRow?.steps != null && todayRow.steps >= 0
+            ? { day: today, count: Math.round(todayRow.steps) }
+            : null,
+        stepGoal: WATCH_STEP_GOAL,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,

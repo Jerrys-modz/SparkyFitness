@@ -131,6 +131,8 @@ struct ContentView: View {
             return .water
         case .fasting:
             return .fasting
+        case .steps:
+            return .steps
         }
     }
 
@@ -147,6 +149,8 @@ struct ContentView: View {
             TrendView()
         case .fasting:
             FastingView()
+        case .steps:
+            StepsView()
         case .workout:
             WorkoutView()
                 .environment(\.workoutPageActive, selectedPage == .workout)

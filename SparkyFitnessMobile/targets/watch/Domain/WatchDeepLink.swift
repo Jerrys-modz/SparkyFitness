@@ -20,6 +20,8 @@ enum WatchDeepLink: String {
     case water
     /// Fasting complication → the Fasting page.
     case fasting
+    /// Steps complication → the Steps page.
+    case steps
 
     static let scheme = "sparkyfitness-watch"
 
