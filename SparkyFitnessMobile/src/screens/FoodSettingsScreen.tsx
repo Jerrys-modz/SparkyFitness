@@ -33,6 +33,12 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
   const setOnDeviceLabelScanEnabled = useAppPreferencesStore(
     (s) => s.setOnDeviceLabelScanEnabled
   );
+  const onDeviceFoodPhotoEnabled = useAppPreferencesStore(
+    (s) => s.onDeviceFoodPhotoEnabled
+  );
+  const setOnDeviceFoodPhotoEnabled = useAppPreferencesStore(
+    (s) => s.setOnDeviceFoodPhotoEnabled
+  );
   const onDeviceLabelScanAvailable = useMemo(
     () => isOnDeviceLabelScanAvailable(),
     []
@@ -263,6 +269,28 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
               {t('foodSettings.onDeviceLabelScan.description', {
                 defaultValue:
                   'Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead.',
+              })}
+            </Text>
+          </View>
+        )}
+
+        {onDeviceLabelScanAvailable && (
+          <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-base font-semibold text-text-primary flex-shrink">
+                {t('foodSettings.onDeviceFoodPhoto.title', {
+                  defaultValue: 'Estimate Food Photos On Device',
+                })}
+              </Text>
+              <Switch
+                onValueChange={setOnDeviceFoodPhotoEnabled}
+                value={onDeviceFoodPhotoEnabled}
+              />
+            </View>
+            <Text className="text-text-secondary text-sm mt-4">
+              {t('foodSettings.onDeviceFoodPhoto.description', {
+                defaultValue:
+                  'Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider.',
               })}
             </Text>
           </View>
