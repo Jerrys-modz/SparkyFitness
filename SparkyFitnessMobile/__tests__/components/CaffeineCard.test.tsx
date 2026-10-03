@@ -30,6 +30,8 @@ jest.mock('victory-native', () => {
             })),
           },
           chartBounds: { left: 0, right: 100, top: 0, bottom: 100 },
+          xScale: (v: number) => v,
+          yScale: (v: number) => v,
         }),
         [data]
       );
@@ -48,6 +50,7 @@ jest.mock('victory-native', () => {
           : 'curve',
       }),
     Scatter: () => null,
+    Area: () => null,
   };
 });
 
@@ -117,8 +120,8 @@ describe('CaffeineCard (mobile)', () => {
   // The web card and this one read the same cutoff_state, so "already over"
   // can never be rendered as "any time" on one platform and not the other.
   it.each([
-    ['passed', 'Too late'],
-    ['over', 'Over'],
+    ['passed', 'Too late for another'],
+    ['over', 'Already over for tonight'],
     ['anytime', 'Any time'],
   ] as const)('renders its own copy for the %s cutoff state', (state, copy) => {
     render(
