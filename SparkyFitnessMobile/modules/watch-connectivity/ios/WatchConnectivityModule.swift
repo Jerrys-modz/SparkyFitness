@@ -293,11 +293,15 @@ public class WatchConnectivityModule: Module {
                 guard let startedAt = (payload["startedAt"] as? NSNumber)?.doubleValue else {
                     return
                 }
-                self?.sendEvent("onSetTimerStarted", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "setId": payload["setId"] as? String ?? "",
                     "startedAt": startedAt,
-                ])
+                ]
+                if let armedAt = (payload["armedAt"] as? NSNumber)?.doubleValue {
+                    event["armedAt"] = armedAt
+                }
+                self?.sendEvent("onSetTimerStarted", event)
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in
                 // Epoch ms as Doubles, like the phone's own rest deadline.

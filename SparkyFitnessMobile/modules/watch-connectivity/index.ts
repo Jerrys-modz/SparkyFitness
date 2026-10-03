@@ -432,6 +432,8 @@ export interface WatchSetTimerStartedPayload {
   sessionId: string;
   setId: string;
   startedAt: number;
+  /** Epoch ms of the arm the timer belongs to. Absent from an older watch. */
+  armedAt?: number;
 }
 
 export interface WatchWorkoutStopPayload {
