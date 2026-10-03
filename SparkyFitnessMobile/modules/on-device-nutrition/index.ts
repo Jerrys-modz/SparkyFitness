@@ -42,6 +42,13 @@ export interface OnDeviceMealEstimate {
   }[];
 }
 
+export type OnDeviceStatus =
+  | 'available'
+  | 'deviceNotEligible'
+  | 'appleIntelligenceNotEnabled'
+  | 'modelNotReady'
+  | 'unsupported';
+
 export type OnDeviceChatModel = 'device' | 'auto' | 'cloud';
 
 export type CloudChatStatus =
@@ -60,6 +67,8 @@ export interface OnDeviceChatReply {
 export interface OnDeviceChatOptions {
   /** Which model answers: this phone, Apple's private servers, or both. */
   model?: OnDeviceChatModel;
+  /** Standing notes about the user, added to the system prompt. */
+  userContext?: string;
   /** Replaces the built-in system prompt when non-empty. */
   instructions?: string;
   /** Greedy decoding: the same input gives the same reply. */
@@ -95,10 +104,13 @@ declare class OnDeviceNutritionModuleType extends NativeModule<OnDeviceNutrition
   defaultChatInstructions?(): string;
   /** Answers a pending `onChatTool` event. */
   resolveChatTool?(id: string, result: string): void;
+  /** Why the on-device model can or cannot be used right now. */
+  onDeviceStatus?(): OnDeviceStatus;
   estimateMeal(
-    base64Image: string,
+    base64Images: string[],
     description: string | null,
-    totalGrams: number | null
+    totalGrams: number | null,
+    userContext: string | null
   ): Promise<OnDeviceMealEstimate>;
 }
 

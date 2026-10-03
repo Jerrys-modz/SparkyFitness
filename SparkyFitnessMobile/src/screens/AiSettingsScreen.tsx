@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Switch from '../components/ui/Switch';
 import OnDeviceChatDebugPanel from '../components/OnDeviceChatDebugPanel';
 import SegmentedControl from '../components/SegmentedControl';
-import { getCloudChatStatus } from '../services/onDeviceChat';
+import {
+  getCloudChatStatus,
+  getOnDeviceStatus,
+} from '../services/onDeviceChat';
 import type { OnDeviceChatModel } from '../../modules/on-device-nutrition';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -75,6 +79,26 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   );
   const onDeviceAvailable = useMemo(() => isOnDeviceLabelScanAvailable(), []);
   const cloudStatus = useMemo(() => getCloudChatStatus(), []);
+  const onDeviceStatus = useMemo(() => getOnDeviceStatus(), []);
+  const aiUserContext = useAppPreferencesStore((s) => s.aiUserContext);
+  const setAiUserContext = useAppPreferencesStore((s) => s.setAiUserContext);
+  const mutedColor = String(useCSSVariable('--color-text-muted'));
+  const unavailableReason: Record<string, string> = {
+    deviceNotEligible: t('aiSettings.onDevice.reason.deviceNotEligible', {
+      defaultValue: 'This iPhone does not support Apple Intelligence.',
+    }),
+    appleIntelligenceNotEnabled: t(
+      'aiSettings.onDevice.reason.appleIntelligenceNotEnabled',
+      {
+        defaultValue:
+          'Turn on Apple Intelligence in the iPhone Settings app first.',
+      }
+    ),
+    modelNotReady: t('aiSettings.onDevice.reason.modelNotReady', {
+      defaultValue:
+        'The on-device model is still downloading. Try again in a while.',
+    }),
+  };
   const cloudStatusText: Record<string, string> = {
     available: t('aiSettings.chatModel.status.available', {
       defaultValue: 'Available',
@@ -168,7 +192,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               })}
               description={t('foodSettings.onDeviceFoodPhoto.description', {
                 defaultValue:
-                  'Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider.',
+                  'Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Up to 4 photos of one meal are read together; more than that, or a photo it cannot estimate, uses the server AI provider.',
               })}
               value={onDeviceFoodPhotoEnabled}
               onValueChange={setOnDeviceFoodPhotoEnabled}
@@ -185,6 +209,30 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               value={onDeviceChatEnabled}
               onValueChange={setOnDeviceChatEnabled}
             />
+            <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+              <Text className="text-base font-semibold text-text-primary mb-1">
+                {t('aiSettings.aboutYou.title', { defaultValue: 'About you' })}
+              </Text>
+              <Text className="text-text-secondary text-sm mb-2">
+                {t('aiSettings.aboutYou.description', {
+                  defaultValue:
+                    'Optional notes the on-device AI keeps in mind, such as vegetarian, no dairy, or a usual portion. They are used for chat and meal photos and stay on this phone.',
+                })}
+              </Text>
+              <TextInput
+                testID="ai-about-you-input"
+                multiline
+                value={aiUserContext}
+                onChangeText={setAiUserContext}
+                placeholder={t('aiSettings.aboutYou.placeholder', {
+                  defaultValue: 'e.g. vegetarian, lactose intolerant',
+                })}
+                placeholderTextColor={mutedColor}
+                maxLength={500}
+                className="text-text-primary text-sm min-h-[64px]"
+                style={{ textAlignVertical: 'top' }}
+              />
+            </View>
             {cloudStatus !== 'unsupported' && (
               <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
                 <Text className="text-base font-semibold text-text-primary mb-3">
@@ -237,10 +285,11 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
           </>
         ) : (
           <Text className="text-text-secondary text-sm">
-            {t('aiSettings.onDevice.unavailable', {
-              defaultValue:
-                'Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready.',
-            })}
+            {unavailableReason[onDeviceStatus] ??
+              t('aiSettings.onDevice.unavailable', {
+                defaultValue:
+                  'Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready.',
+              })}
           </Text>
         )}
       </ScrollView>
