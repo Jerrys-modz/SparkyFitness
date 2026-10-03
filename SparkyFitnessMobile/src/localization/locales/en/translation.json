@@ -150,7 +150,8 @@
       "logs": "View Logs",
       "about": "About",
       "shareReport": "Share Diagnostic Report",
-      "watch": "Apple Watch"
+      "watch": "Apple Watch",
+      "ai": "AI"
     },
     "theme": {
       "title": "Theme",
@@ -587,7 +588,8 @@
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
-    "watchSettings": "Apple Watch"
+    "watchSettings": "Apple Watch",
+    "aiSettings": "AI"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5829,5 +5831,18 @@
     "exercises": "Exercises",
     "records": "NEW RECORDS",
     "failed": "Could not share workout"
+  },
+  "aiSettings": {
+    "server": {
+      "title": "Server AI provider",
+      "loading": "Checking…",
+      "none": "No AI provider is configured",
+      "description": "Used for chat, food photos and label scans unless an on-device option below handles them. Providers are set up in the web app."
+    },
+    "onDevice": {
+      "title": "On-device (Apple Intelligence)",
+      "description": "These run on this phone. Anything the on-device model cannot handle falls back to the server provider.",
+      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready."
+    }
   }
 }
