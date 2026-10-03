@@ -1,0 +1,20 @@
+name: sdk-probe
+on:
+  push:
+    branches: [probe/sdk-fm]
+jobs:
+  probe:
+    runs-on: xcode-27
+    steps:
+      - name: Dump FoundationModels interface
+        run: |
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "SDK=$SDK"
+          F=$(find "$SDK/System/Library/Frameworks/FoundationModels.framework" -name "*.swiftinterface" | grep -v private | head -3)
+          echo "FILES:"; echo "$F"
+          for f in $F; do
+            echo "=== $f"
+            grep -nEi "cloud|private|server|remote|PCC|SystemLanguageModel\b.*(init|case|static)|enum .*Model|UseCase|Availability|UnavailableReason|contextSize|tokenCount" "$f" | head -80
+          done
+          echo "=== other frameworks"
+          ls "$SDK/System/Library/Frameworks" | grep -iE "Intelligence|Foundation|Model" 
