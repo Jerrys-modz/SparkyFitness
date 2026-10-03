@@ -5785,7 +5785,8 @@
         "deviceNotEligible": "This iPhone does not support Apple Intelligence.",
         "appleIntelligenceNotEnabled": "Turn on Apple Intelligence in the iPhone Settings app first.",
         "modelNotReady": "The on-device model is still downloading. Try again in a while."
-      }
+      },
+      "model": "{{name}} · {{size}}-token window"
     },
     "chatModel": {
       "title": "Chat model",

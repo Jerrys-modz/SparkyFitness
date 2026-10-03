@@ -115,6 +115,8 @@ declare class OnDeviceNutritionModuleType extends NativeModule<OnDeviceNutrition
   defaultChatInstructions?(): string;
   /** Answers a pending `onChatTool` event. */
   resolveChatTool?(id: string, result: string): void;
+  /** The on-device model's name and window size; empty without Apple Intelligence. */
+  onDeviceModelInfo?(): { name?: string; contextSize?: string };
   /** Why the on-device model can or cannot be used right now. */
   onDeviceStatus?(): OnDeviceStatus;
   estimateMeal(

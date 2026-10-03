@@ -627,6 +627,21 @@ public class OnDeviceNutritionModule: Module {
             return "unsupported"
         }
 
+        // Which on-device model is in use and how big its window is, such as
+        // "Apple Foundation Advanced" and 8192. Empty without Apple Intelligence.
+        Function("onDeviceModelInfo") { () -> [String: String] in
+            #if compiler(>=6.4) && canImport(FoundationModels)
+            if #available(iOS 27, *) {
+                let model = SystemLanguageModel.default
+                return [
+                    "name": model.variant.displayName,
+                    "contextSize": String(model.contextSize),
+                ]
+            }
+            #endif
+            return [:]
+        }
+
         Function("isAvailable") { () -> Bool in
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
