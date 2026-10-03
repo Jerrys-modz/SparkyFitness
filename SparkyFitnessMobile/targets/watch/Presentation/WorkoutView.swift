@@ -994,11 +994,6 @@ private struct CurrentSetView: View {
         return max((crownBaseline / step).rounded() * step, minValue(for: field))
     }
 
-    /// Bodyweight weight is a signed change. Everything else stops at zero.
-    private func minValue(for field: EditableField) -> Double {
-        field == .weight && store.isBodyweight(step) ? -maxValue(for: .weight) : 0
-    }
-
     /// A bodyweight set's weight as a change to body weight: "BW +10",
     /// "BW −20", or plain "BW" when nothing is added or taken off.
     private static func bodyweightText(_ value: Double?) -> String {
