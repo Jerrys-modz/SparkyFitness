@@ -53,6 +53,22 @@ export function getOnDeviceStatus(): OnDeviceStatus {
   }
 }
 
+/** The on-device model's name and window size, when the build can tell. */
+export function getOnDeviceModelInfo(): {
+  name: string;
+  contextSize: number;
+} | null {
+  try {
+    const info = OnDeviceNutritionModule?.onDeviceModelInfo?.();
+    const contextSize = Number(info?.contextSize);
+    return info?.name && Number.isFinite(contextSize) && contextSize > 0
+      ? { name: info.name, contextSize }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Whether Apple's private servers can answer chat right now. */
 export function getCloudChatStatus(): CloudChatStatus {
   try {

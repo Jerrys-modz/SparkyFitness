@@ -10,6 +10,7 @@ import OnDeviceChatDebugPanel from '../components/OnDeviceChatDebugPanel';
 import SegmentedControl from '../components/SegmentedControl';
 import {
   getCloudChatStatus,
+  getOnDeviceModelInfo,
   getOnDeviceStatus,
 } from '../services/onDeviceChat';
 import { SERVER_TOOL_CATEGORIES } from '../services/onDeviceServerTools';
@@ -91,6 +92,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const onDeviceAvailable = useMemo(() => isOnDeviceLabelScanAvailable(), []);
   const cloudStatus = useMemo(() => getCloudChatStatus(), []);
   const onDeviceStatus = useMemo(() => getOnDeviceStatus(), []);
+  const modelInfo = useMemo(() => getOnDeviceModelInfo(), []);
   const aiUserContext = useAppPreferencesStore((s) => s.aiUserContext);
   const setAiUserContext = useAppPreferencesStore((s) => s.setAiUserContext);
   const mutedColor = String(useCSSVariable('--color-text-muted'));
@@ -178,6 +180,18 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
         </Text>
         {onDeviceAvailable ? (
           <>
+            {modelInfo && (
+              <Text
+                testID="ai-model-info"
+                className="text-text-primary text-sm mb-1"
+              >
+                {t('aiSettings.onDevice.model', {
+                  defaultValue: '{{name}} · {{size}}-token window',
+                  name: modelInfo.name,
+                  size: modelInfo.contextSize.toLocaleString('en-US'),
+                })}
+              </Text>
+            )}
             <Text className="text-text-secondary text-sm mb-3">
               {t('aiSettings.onDevice.description', {
                 defaultValue:
