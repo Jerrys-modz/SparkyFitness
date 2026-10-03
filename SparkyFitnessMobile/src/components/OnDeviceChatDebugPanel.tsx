@@ -103,6 +103,28 @@ export default function OnDeviceChatDebugPanel() {
       </View>
 
       <Text className="text-text-primary text-sm font-semibold mb-1">
+        Server tool budget (tokens)
+      </Text>
+      <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+        <TextInput
+          testID="chat-debug-tool-budget"
+          keyboardType="number-pad"
+          value={String(prefs.onDeviceChatToolBudget)}
+          onChangeText={(text) => {
+            const value = parseInt(text, 10);
+            if (Number.isFinite(value)) prefs.setOnDeviceChatToolBudget(value);
+          }}
+          className="text-text-primary text-sm"
+        />
+        <Text className="text-text-secondary text-xs mt-1">
+          How much of the model's window the lent server tools may use. The rest
+          of the window holds your messages, the diary snapshot and the answer.
+          Tools that do not fit are left out; the trace shows how many were
+          kept.
+        </Text>
+      </View>
+
+      <Text className="text-text-primary text-sm font-semibold mb-1">
         Tools
       </Text>
       <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">

@@ -3,6 +3,10 @@ import type { DailySummary } from '../types/dailySummary';
 /** Past turns kept in the prompt; the model's window is small. */
 export const MAX_CHAT_TURNS = 8;
 const MAX_FOODS = 25;
+/** Characters kept of an earlier turn, of the newest, and of the whole transcript. */
+export const MAX_TURN_CHARS = 400;
+export const MAX_LAST_TURN_CHARS = 1200;
+export const MAX_TRANSCRIPT_CHARS = 2400;
 
 export interface OnDeviceChatTurn {
   role: 'user' | 'assistant';
@@ -72,8 +76,20 @@ export function buildChatContext(
 
 /** The most recent turns, oldest first, as the "Name: text" transcript. */
 export function buildChatTranscript(turns: OnDeviceChatTurn[]): string {
-  return turns
-    .slice(-MAX_CHAT_TURNS)
-    .map((t) => `${t.role === 'user' ? 'User' : 'Assistant'}: ${t.text}`)
-    .join('\n');
+  const recent = turns.slice(-MAX_CHAT_TURNS);
+  const lines = recent.map((t, index) => {
+    // Earlier turns can be long (a coaching answer from another provider):
+    // keep their start only. The newest message is kept almost whole.
+    const limit =
+      index === recent.length - 1 ? MAX_LAST_TURN_CHARS : MAX_TURN_CHARS;
+    const text =
+      t.text.length > limit ? `${t.text.slice(0, limit - 1)}…` : t.text;
+    return `${t.role === 'user' ? 'User' : 'Assistant'}: ${text}`;
+  });
+  // The window is small, so drop the oldest turns until the rest fits.
+  let total = lines.reduce((sum, line) => sum + line.length + 1, 0);
+  while (lines.length > 1 && total > MAX_TRANSCRIPT_CHARS) {
+    total -= (lines.shift() ?? '').length + 1;
+  }
+  return lines.join('\n');
 }
