@@ -77,6 +77,11 @@ export const PREFERENCE_DEFAULTS = {
   onDeviceLabelScanEnabled: true,
   onDeviceFoodPhotoEnabled: false,
   onDeviceChatEnabled: false,
+  onDeviceChatSystemPrompt: '',
+  onDeviceChatGreedy: false,
+  onDeviceChatIncludeContext: true,
+  onDeviceChatDebug: false,
+  onDeviceChatDisabledTools: [] as string[],
   healthTrendsCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
@@ -142,6 +147,14 @@ export type AppPreferencesData = {
   onDeviceFoodPhotoEnabled: boolean;
   /** Answer Sparky chat with Apple Intelligence on this device. */
   onDeviceChatEnabled: boolean;
+  /** Empty means the built-in prompt. */
+  onDeviceChatSystemPrompt: string;
+  onDeviceChatGreedy: boolean;
+  /** Send today's diary snapshot with each message. */
+  onDeviceChatIncludeContext: boolean;
+  /** Record prompts, tool calls and replies for the AI settings trace. */
+  onDeviceChatDebug: boolean;
+  onDeviceChatDisabledTools: string[];
   healthTrendsCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
@@ -226,6 +239,11 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
   setOnDeviceChatEnabled: (value: boolean) => void;
+  setOnDeviceChatSystemPrompt: (value: string) => void;
+  setOnDeviceChatGreedy: (value: boolean) => void;
+  setOnDeviceChatIncludeContext: (value: boolean) => void;
+  setOnDeviceChatDebug: (value: boolean) => void;
+  setOnDeviceChatToolEnabled: (tool: string, enabled: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
@@ -346,6 +364,18 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setOnDeviceLabelScanEnabled: (value) =>
         set({ onDeviceLabelScanEnabled: value }),
       setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
+      setOnDeviceChatSystemPrompt: (value) =>
+        set({ onDeviceChatSystemPrompt: value }),
+      setOnDeviceChatGreedy: (value) => set({ onDeviceChatGreedy: value }),
+      setOnDeviceChatIncludeContext: (value) =>
+        set({ onDeviceChatIncludeContext: value }),
+      setOnDeviceChatDebug: (value) => set({ onDeviceChatDebug: value }),
+      setOnDeviceChatToolEnabled: (tool, enabled) =>
+        set((state) => ({
+          onDeviceChatDisabledTools: enabled
+            ? state.onDeviceChatDisabledTools.filter((t) => t !== tool)
+            : [...new Set([...state.onDeviceChatDisabledTools, tool])],
+        })),
       setOnDeviceFoodPhotoEnabled: (value) =>
         set({ onDeviceFoodPhotoEnabled: value }),
       setHealthTrendsCardVisible: (value) =>
@@ -456,6 +486,11 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
         onDeviceChatEnabled: state.onDeviceChatEnabled,
+        onDeviceChatSystemPrompt: state.onDeviceChatSystemPrompt,
+        onDeviceChatGreedy: state.onDeviceChatGreedy,
+        onDeviceChatIncludeContext: state.onDeviceChatIncludeContext,
+        onDeviceChatDebug: state.onDeviceChatDebug,
+        onDeviceChatDisabledTools: state.onDeviceChatDisabledTools,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,

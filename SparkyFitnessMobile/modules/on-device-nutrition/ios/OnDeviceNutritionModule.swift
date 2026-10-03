@@ -427,21 +427,40 @@ public class OnDeviceNutritionModule: Module {
             throw OnDeviceNutritionError.unavailable
         }
 
+        // The built-in system prompt, so the settings screen can show it and
+        // reset an edited copy back to it.
+        Function("defaultChatInstructions") { () -> String in
+            #if compiler(>=6.4) && canImport(FoundationModels)
+            return chatInstructions
+            #else
+            return ""
+            #endif
+        }
+
         // Answers a chat turn from the transcript and a read-only diary
-        // snapshot. Plain text, no tools: it cannot change anything.
-        AsyncFunction("chat") { (transcript: String, context: String) -> String in
+        // snapshot. Options: `instructions` (system prompt override),
+        // `greedy` (repeatable replies), `disabledTools` (names to leave out).
+        AsyncFunction("chat") { (transcript: String, context: String, options: [String: Any]) -> String in
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
+                let custom = (options["instructions"] as? String) ?? ""
+                let greedy = (options["greedy"] as? Bool) ?? false
+                let disabled = Set((options["disabledTools"] as? [String]) ?? [])
+                let allTools: [any Tool] = [
+                    GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogQuickFoodTool(),
+                    LogWaterTool(), LogWeightTool(), ListFoodEntriesTool(), DeleteFoodEntryTool(),
+                    GetHistoryTool(),
+                ]
                 let session = LanguageModelSession(
-                    tools: [
-                        GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogQuickFoodTool(),
-                        LogWaterTool(), LogWeightTool(), ListFoodEntriesTool(), DeleteFoodEntryTool(),
-                        GetHistoryTool(),
-                    ],
-                    instructions: chatInstructions
+                    tools: allTools.filter { !disabled.contains($0.name) },
+                    instructions: custom.isEmpty ? chatInstructions : custom
                 )
+                let prompt = context.isEmpty
+                    ? "Conversation so far:\n\(transcript)\n\nReply to the user's last message."
+                    : "Today's diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
                 let response = try await session.respond(
-                    to: "Today's diary:\n\(context)\n\nConversation so far:\n\(transcript)\n\nReply to the user's last message."
+                    to: prompt,
+                    options: greedy ? GenerationOptions(sampling: .greedy) : GenerationOptions()
                 )
                 return response.content
             }
