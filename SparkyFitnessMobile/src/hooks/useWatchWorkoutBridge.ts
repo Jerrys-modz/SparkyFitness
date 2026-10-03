@@ -376,6 +376,7 @@ export function useWatchWorkoutBridge(
       // The watch has reported the duration it timed. The phone's own
       // stopwatch for this set (started from the watch's) is done.
       state.clearSetTimer(payload.setId);
+      clampedWatchTimerStart.delete(payload.setId);
 
       state.completeSet(
         payload.setId,
