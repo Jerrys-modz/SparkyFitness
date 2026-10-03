@@ -3566,7 +3566,8 @@
       "save": "Save",
       "reorder": "Reorder exercises",
       "saveAsPreset": "Save as preset",
-      "editWorkout": "Edit workout"
+      "editWorkout": "Edit workout",
+      "share": "Share workout"
     },
     "title": {
       "edit": "Edit Workout"
@@ -3685,7 +3686,8 @@
       "viewWorkout": "View Workout",
       "done": "Done",
       "keepPreset": "Keep Preset",
-      "update": "Update"
+      "update": "Update",
+      "share": "Share"
     },
     "success": {
       "presetUpdated": "Preset updated"
@@ -5807,5 +5809,16 @@
       "noSets": "No sets logged this week or last.",
       "loadFailed": "Could not load your training consistency."
     }
+  },
+  "workoutShare": {
+    "avgHeartRate": "Avg HR",
+    "maxHeartRate": "Max HR",
+    "calories": "Calories",
+    "duration": "Time",
+    "volume": "Volume",
+    "sets": "Sets",
+    "exercises": "Exercises",
+    "records": "NEW RECORDS",
+    "failed": "Could not share workout"
   }
 }

@@ -34,6 +34,8 @@ import {
   hasBodyweightExercise,
 } from '../utils/workoutSession';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
+import { useShareWorkoutCard } from '../hooks/useShareWorkoutCard';
+import { buildCompleteShareData } from '../utils/workoutShareCard';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'WorkoutComplete'>;
@@ -204,6 +206,36 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     navigation.navigate('Tabs', { screen: 'Diary' });
   };
 
+  const shareData = useMemo(
+    () =>
+      buildCompleteShareData({
+        title: session.name,
+        dateText: new Date(finishedAt).toLocaleDateString(undefined, {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+        }),
+        durationMinutes,
+        summary,
+        caloriesValue,
+        heartRate,
+        weightUnit,
+        t,
+      }),
+    [
+      session.name,
+      finishedAt,
+      durationMinutes,
+      summary,
+      caloriesValue,
+      heartRate,
+      weightUnit,
+      t,
+    ]
+  );
+  const { card: shareCard, share: shareWorkout } =
+    useShareWorkoutCard(shareData);
+
   const allSetsLogged = summary.completedSetCount === summary.totalSetCount;
 
   const feedbackExercises = useMemo(
@@ -217,6 +249,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      {shareCard}
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -296,6 +329,13 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
               defaultValue: 'View Workout',
             })}
             onPress={handleViewWorkout}
+          />
+          <DockedActionButton
+            icon="share"
+            label={t('workoutComplete.actions.share', {
+              defaultValue: 'Share',
+            })}
+            onPress={() => void shareWorkout()}
           />
         </View>
         <Button variant="primary" onPress={handleDone}>
