@@ -99,11 +99,14 @@ You are Sparky, a friendly nutrition and fitness assistant inside a food diary \
 app, running on the user's phone. Answer briefly and practically. Use the \
 diary snapshot for questions about today and never invent entries or numbers \
 that are not in it. Use getDaySummary for other days. To log food, call \
-searchFoods first, pick the best match, then call logFood; to record weight use \
-logWeight. The user confirms every write, so just call the tool and then say in \
+searchFoods first, pick the best match, then call logFood; if the food is not \
+in the library, call logQuickFood with your best estimate and say it is an \
+estimate. Use logWater for water and logWeight for body weight. To fix a \
+mistake, call listFoodEntries then deleteFoodEntry. Use getHistory for past \
+weights or workouts. The user confirms every write, so just call the tool and then say in \
 one short sentence what happened. If the user declines, accept it. Never claim \
-something was logged unless the tool said so. You cannot edit or delete \
-entries. You are not a doctor: for medical questions, suggest seeing a professional.
+something was logged unless the tool said so. You cannot edit entries, \
+only delete them. You are not a doctor: for medical questions, suggest seeing a professional.
 """
 
 private let extractionInstructions = """
@@ -246,6 +249,107 @@ private struct LogWeightTool: Tool {
         await ChatToolBridge.shared.invoke(name, ["kilograms": arguments.kilograms])
     }
 }
+@available(iOS 27, *)
+private struct LogQuickFoodTool: Tool {
+    let name = "logQuickFood"
+    let description = "Logs a food that is not in the library, from nutrition numbers you estimate, to today's diary. The user is asked to confirm before it is saved."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Name of the food or meal")
+        let foodName: String
+        @Guide(description: "Total calories (kcal) for what was eaten")
+        let calories: Double
+        @Guide(description: "Protein in grams for what was eaten")
+        let protein: Double
+        @Guide(description: "Carbohydrate in grams for what was eaten")
+        let carbs: Double
+        @Guide(description: "Fat in grams for what was eaten")
+        let fat: Double
+        @Guide(description: "Meal name such as Breakfast, Lunch, Dinner or Snacks")
+        let meal: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(
+            name,
+            [
+                "foodName": arguments.foodName,
+                "calories": arguments.calories,
+                "protein": arguments.protein,
+                "carbs": arguments.carbs,
+                "fat": arguments.fat,
+                "meal": arguments.meal,
+            ]
+        )
+    }
+}
+
+@available(iOS 27, *)
+private struct LogWaterTool: Tool {
+    let name = "logWater"
+    let description = "Adds water to today's intake, in millilitres. The user is asked to confirm before it is saved."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Amount of water in millilitres, for example 250 or 500")
+        let milliliters: Double
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["milliliters": arguments.milliliters])
+    }
+}
+
+@available(iOS 27, *)
+private struct ListFoodEntriesTool: Tool {
+    let name = "listFoodEntries"
+    let description = "Lists the foods logged on a day as numbered entries. Use it before deleteFoodEntry."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Date as YYYY-MM-DD. Leave empty for today.")
+        let date: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["date": arguments.date])
+    }
+}
+
+@available(iOS 27, *)
+private struct DeleteFoodEntryTool: Tool {
+    let name = "deleteFoodEntry"
+    let description = "Deletes one food entry from the latest listFoodEntries result. The user is asked to confirm before it is deleted."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "The entry number from the latest listFoodEntries call")
+        let entryNumber: Int
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["entryNumber": arguments.entryNumber])
+    }
+}
+
+@available(iOS 27, *)
+private struct GetHistoryTool: Tool {
+    let name = "getHistory"
+    let description = "Reads recent history: body weight entries or workouts over the last few days."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Either weight or workouts")
+        let kind: String
+        @Guide(description: "How many days back to look, 1 to 30")
+        let days: Int
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["kind": arguments.kind, "days": arguments.days])
+    }
+}
 #endif
 
 public class OnDeviceNutritionModule: Module {
@@ -329,7 +433,11 @@ public class OnDeviceNutritionModule: Module {
             #if compiler(>=6.4) && canImport(FoundationModels)
             if #available(iOS 27, *) {
                 let session = LanguageModelSession(
-                    tools: [GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogWeightTool()],
+                    tools: [
+                        GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogQuickFoodTool(),
+                        LogWaterTool(), LogWeightTool(), ListFoodEntriesTool(), DeleteFoodEntryTool(),
+                        GetHistoryTool(),
+                    ],
                     instructions: chatInstructions
                 )
                 let response = try await session.respond(
