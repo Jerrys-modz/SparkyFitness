@@ -240,6 +240,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return .queued
     }
 
+    /// Asks the phone to start a fast. Queued, so a phone out of reach gets it
+    /// when it comes back.
+    func requestStartFast(presetId: String) {
+        transfer(OutboundPayloads.fastStart(presetId: presetId, clientId: UUID().uuidString))
+    }
+
+    /// Asks the phone to end the running fast.
+    func requestEndFast() {
+        transfer(OutboundPayloads.fastEnd(clientId: UUID().uuidString))
+    }
+
     /// Asks the phone to start one saved workout. Queued like a check-in: the
     /// phone is often in a bag, and a tap that vanishes is the bug.
     func requestWorkoutStart(presetId: String, serverId: String?) {
@@ -376,6 +387,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             )
         }
 
+        if context.fastSynced == true { ComplicationPublisher.publish(fast: context.fast) }
+        if let steps = context.steps, steps.isToday {
+            ComplicationPublisher.publish(steps: steps.count, goal: context.stepGoal ?? 10_000, for: steps.day)
+        }
+
         if let water = context.water, water.isToday {
             ComplicationPublisher.publish(
                 waterProgress: context.waterProgress(ml: water.consumedMl) ?? 0,
@@ -467,6 +483,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // field: the two water figures already travel for the Water page's
         // bottle, and a third field carrying their ratio would be a second
         // version of the same truth to keep in step.
+        if incoming.fastSynced == true { ComplicationPublisher.publish(fast: incoming.fast) }
+        if let steps = incoming.steps {
+            ComplicationPublisher.publish(steps: steps.count, goal: incoming.stepGoal ?? 10_000, for: steps.day)
+        }
         if let water = incoming.water {
             ComplicationPublisher.publish(
                 waterProgress: incoming.waterProgress(ml: water.consumedMl) ?? 0,

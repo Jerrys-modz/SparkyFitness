@@ -73,7 +73,31 @@ enum ContextPayloadMapper {
             startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
-                : previous.workoutServerId
+                : previous.workoutServerId,
+            fast: payload.keys.contains("fast") ? fast(from: payload["fast"]) : previous.fast,
+            fastSynced: payload.keys.contains("fast") ? true : previous.fastSynced,
+            steps: steps(from: payload["steps"]),
+            stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal
+        )
+    }
+
+    /// Today's steps from the phone's `steps` key. Nil when absent or malformed.
+    static func steps(from raw: Any?) -> StepsSnapshot? {
+        guard let dict = raw as? [String: Any],
+              let day = dict["day"] as? String,
+              let count = (dict["count"] as? NSNumber)?.intValue else { return nil }
+        return StepsSnapshot(day: day, count: count)
+    }
+
+    /// The running fast from the phone's `fast` key. Nil when there is none.
+    static func fast(from raw: Any?) -> WatchFast? {
+        guard let dict = raw as? [String: Any],
+              let start = (dict["startedAt"] as? NSNumber)?.doubleValue else { return nil }
+        let target = (dict["targetEndAt"] as? NSNumber)?.doubleValue
+        return WatchFast(
+            startedAt: Date(timeIntervalSince1970: start / 1000),
+            targetEndAt: target.map { Date(timeIntervalSince1970: $0 / 1000) },
+            label: dict["label"] as? String
         )
     }
 

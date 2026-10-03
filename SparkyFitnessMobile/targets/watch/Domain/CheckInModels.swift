@@ -170,6 +170,23 @@ struct WaterSnapshot: Codable, Equatable {
     var isToday: Bool { day == CheckInDate.today() }
 }
 
+/// A fast as the Fasting page and complication draw it.
+struct WatchFast: Codable, Equatable {
+    let startedAt: Date
+    /// When the fast reaches its goal. Nil for an open-ended fast.
+    let targetEndAt: Date?
+    /// The preset's name, such as "16:8".
+    let label: String?
+}
+
+/// Today's steps as the phone reports them.
+struct StepsSnapshot: Codable, Equatable {
+    let day: String
+    let count: Int
+
+    var isToday: Bool { day == CheckInDate.today() }
+}
+
 /// A container tap the wearer has made but the phone hasn't confirmed.
 ///
 /// Lives in `CheckInStore` rather than the Water page's own `@State` so it
@@ -334,6 +351,15 @@ struct WatchContext: Codable, Equatable {
     /// The phone's active server when `startableWorkouts` was built. Sent
     /// back with a start request. Nil on a context from before this field.
     var workoutServerId: String? = nil
+    /// The fast running now. Nil with `fastSynced` true means "not fasting".
+    var fast: WatchFast? = nil
+    /// True once the phone has said anything about fasting, so "not fasting"
+    /// is not confused with "never heard".
+    var fastSynced: Bool? = nil
+    /// Today's step count from the phone. Nil when it has none for today.
+    var steps: StepsSnapshot? = nil
+    /// Daily step goal from the phone. Nil reads as 10,000.
+    var stepGoal: Int? = nil
 
     static let empty = WatchContext(
         today: nil,
