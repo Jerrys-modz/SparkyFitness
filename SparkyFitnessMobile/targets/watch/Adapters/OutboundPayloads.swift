@@ -29,7 +29,8 @@ enum OutboundPayloads {
         static let restChanged = "restChanged"
         static let setTimerStarted = "setTimerStarted"
         static let setTimerStopped = "setTimerStopped"
-        static let addSet = "addSet"
+        static let fastStart = "fastStart"
+        static let fastEnd = "fastEnd"
         static let workoutStartRequested = "workoutStartRequested"
     }
 
@@ -219,16 +220,16 @@ enum OutboundPayloads {
         ]
     }
 
-    /// The wearer asked for one more set on an exercise. The phone adds it and
-    /// sends the updated plan back, so the two stay in step. `clientId` lets the
-    /// phone ignore a copy that is delivered twice.
-    static func addSet(sessionId: String, exerciseEntryId: String, clientId: String) -> [String: Any] {
-        [
-            "type": Kind.addSet,
-            "sessionId": sessionId,
-            "exerciseEntryId": exerciseEntryId,
-            "clientId": clientId,
-        ]
+    /// The wearer started a fast from a preset (`presetId` is the phone's id,
+    /// such as "16-8"). The phone starts it and sends the running fast back in
+    /// its next context. `clientId` lets the phone ignore a copy delivered twice.
+    static func fastStart(presetId: String, clientId: String) -> [String: Any] {
+        ["type": Kind.fastStart, "presetId": presetId, "clientId": clientId]
+    }
+
+    /// The wearer ended the fast that is running.
+    static func fastEnd(clientId: String) -> [String: Any] {
+        ["type": Kind.fastEnd, "clientId": clientId]
     }
 
     /// The wearer skipped or moved the rest on the watch. Both deadlines are

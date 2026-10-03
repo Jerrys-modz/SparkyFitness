@@ -6,7 +6,6 @@ import WatchConnectivity, {
   type WatchRestChangedPayload,
   type WatchSetTimerStartedPayload,
   type WatchSetTimerStoppedPayload,
-  type WatchAddSetRequestPayload,
   type WatchHeartRateBatchPayload,
   type WatchWorkoutStopPayload,
   type WatchWorkoutDiscardPayload,
@@ -219,29 +218,6 @@ function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
   }
   state.startSetTimer(payload.setId, Math.min(payload.startedAt, now));
   addLog(`Watch started the timer for set ${payload.setId}`, 'DEBUG');
-}
-
-const handledAddSetClientIds = new Set<string>();
-
-/** The wearer asked for one more set: add it, and the plan sync tells the watch. */
-function applyWatchAddSet(payload: WatchAddSetRequestPayload): void {
-  if (payload.clientId) {
-    if (handledAddSetClientIds.has(payload.clientId)) return;
-    handledAddSetClientIds.add(payload.clientId);
-  }
-  const state = useActiveWorkoutStore.getState();
-  const exercise = state.session?.exercises.find(
-    (e) => e.id === payload.exerciseEntryId
-  );
-  if (state.sessionId !== payload.sessionId || exercise == null) {
-    addLog(
-      `Watch add-set ignored: no matching exercise (${payload.exerciseEntryId})`,
-      'INFO'
-    );
-    return;
-  }
-  state.addSetToExercise(exercise.id);
-  addLog(`Watch added a set to ${exercise.id}`, 'DEBUG');
 }
 
 /** The wearer stopped the stopwatch on the watch: stop the phone's too. */
@@ -885,10 +861,6 @@ export function useWatchWorkoutBridge(
       'onSetTimerStopped',
       applyWatchSetTimerStop
     );
-    const addSetSub = WatchConnectivity.addListener(
-      'onAddSetRequested',
-      applyWatchAddSet
-    );
     const heartRateBatchSub = WatchConnectivity.addListener(
       'onHeartRateBatch',
       (payload) => {
@@ -931,7 +903,6 @@ export function useWatchWorkoutBridge(
       restChangedSub.remove();
       setTimerStartedSub.remove();
       setTimerStoppedSub.remove();
-      addSetSub.remove();
       heartRateBatchSub.remove();
       liveHeartRateSub.remove();
       workoutStopSub.remove();

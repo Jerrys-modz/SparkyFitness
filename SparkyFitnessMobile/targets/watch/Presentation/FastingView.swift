@@ -4,6 +4,17 @@ import SwiftUI
 /// its goal. Read-only; fasts are started and ended on the phone.
 struct FastingView: View {
     @EnvironmentObject private var store: CheckInStore
+    @EnvironmentObject private var session: WatchSessionManager
+
+    /// True from a tap until the phone's answer arrives (or a few seconds pass),
+    /// so a second tap cannot start or end twice.
+    @State private var waiting = false
+    @State private var confirmingEnd = false
+
+    /// Protocols the wrist offers; ids are the phone's preset ids.
+    private static let presets: [(id: String, label: String)] = [
+        ("16-8", "16:8"), ("18-6", "18:6"), ("20-4", "20:4"),
+    ]
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { timeline in
@@ -13,6 +24,7 @@ struct FastingView: View {
                 idle
             }
         }
+        .onChange(of: store.context.fast) { waiting = false }
     }
 
     private func running(_ fast: WatchFast, now: Date) -> some View {
@@ -50,6 +62,24 @@ struct FastingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            Button("End fast") {
+                Haptics.tap()
+                confirmingEnd = true
+            }
+            .font(.caption2)
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .disabled(waiting)
+            .opacity(0.9)
+        }
+        .confirmationDialog("End your fast?", isPresented: $confirmingEnd, titleVisibility: .visible) {
+            Button("End fast", role: .destructive) {
+                Haptics.tap()
+                begin { session.requestEndFast() }
+            }
+            Button("Cancel", role: .cancel) { Haptics.tap() }
+        }
     }
 
     private var idle: some View {
@@ -60,13 +90,35 @@ struct FastingView: View {
             Text(store.context.fastSynced == true ? "Not fasting" : "Waiting for your iPhone")
                 .font(.footnote)
             if store.context.fastSynced == true {
-                Text("Start a fast on your iPhone.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                if waiting {
+                    ProgressView()
+                } else {
+                    HStack(spacing: 4) {
+                        ForEach(Self.presets, id: \.id) { preset in
+                            Button(preset.label) {
+                                Haptics.tap()
+                                begin { session.requestStartFast(presetId: preset.id) }
+                            }
+                            .font(.caption2)
+                            .buttonStyle(.bordered)
+                            .tint(.green)
+                        }
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Sends a request and holds the buttons until the phone's answer changes
+    /// the fast, or eight seconds pass.
+    private func begin(_ send: () -> Void) {
+        waiting = true
+        send()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            waiting = false
+        }
     }
 
     /// 14:05 for under an hour is 14:05; an hour or more reads 16h 05m.

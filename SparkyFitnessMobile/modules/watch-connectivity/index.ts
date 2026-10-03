@@ -472,14 +472,6 @@ export interface WatchRestChangedPayload {
  * The wearer started a set's hold countdown or stopwatch on the watch.
  * `startedAt` is epoch ms; the phone starts its own timer from it.
  */
-/** The wearer asked for one more set on an exercise. */
-export interface WatchAddSetRequestPayload {
-  sessionId: string;
-  exerciseEntryId: string;
-  /** Stable id from the watch, to ignore a re-delivered request. */
-  clientId: string;
-}
-
 /** The wearer stopped a set's stopwatch on the watch. */
 export interface WatchSetTimerStoppedPayload {
   sessionId: string;
@@ -510,6 +502,18 @@ export interface WatchWorkoutStartRequestedPayload {
   serverId?: string;
 }
 
+/** The wearer asked to start a fast from the watch's Fasting page. */
+export interface WatchFastStartRequestPayload {
+  /** `FASTING_PRESETS` id, e.g. "16-8". */
+  presetId: string;
+  clientId: string;
+}
+
+/** The wearer asked to end the running fast from the watch. */
+export interface WatchFastEndRequestPayload {
+  clientId: string;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -520,12 +524,13 @@ export type WatchConnectivityEvents = {
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
   onSetTimerStopped: (payload: WatchSetTimerStoppedPayload) => void;
-  onAddSetRequested: (payload: WatchAddSetRequestPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
+  onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
+  onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

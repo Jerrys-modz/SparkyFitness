@@ -317,44 +317,6 @@ describe('useWatchWorkoutBridge', () => {
     });
   });
 
-  describe('add set requested on the watch', () => {
-    const fire = (payload: Record<string, unknown>) =>
-      act(() => {
-        mockListeners.get('onAddSetRequested')!(payload);
-      });
-
-    beforeEach(() => {
-      useActiveWorkoutStore.getState().startWorkout(makeSession());
-      useActiveWorkoutStore.setState({ sessionId: 'session-1' });
-    });
-
-    it('adds one set, and ignores a request delivered twice', () => {
-      renderHook(() => useWatchWorkoutBridge(true));
-      const entryId = getStore().session!.exercises[0].id;
-      const before = getStore().session!.exercises[0].sets.length;
-      fire({
-        sessionId: 'session-1',
-        exerciseEntryId: entryId,
-        clientId: 'a1',
-      });
-      fire({
-        sessionId: 'session-1',
-        exerciseEntryId: entryId,
-        clientId: 'a1',
-      });
-      expect(getStore().session!.exercises[0].sets).toHaveLength(before + 1);
-    });
-
-    it('ignores another session and an unknown exercise', () => {
-      renderHook(() => useWatchWorkoutBridge(true));
-      const entryId = getStore().session!.exercises[0].id;
-      const before = getStore().session!.exercises[0].sets.length;
-      fire({ sessionId: 'other', exerciseEntryId: entryId, clientId: 'b1' });
-      fire({ sessionId: 'session-1', exerciseEntryId: 'nope', clientId: 'b2' });
-      expect(getStore().session!.exercises[0].sets).toHaveLength(before);
-    });
-  });
-
   describe('rest changed on the watch', () => {
     const resting = (endsAt: number) => ({
       state: 'resting' as const,
