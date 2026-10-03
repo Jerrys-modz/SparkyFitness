@@ -32,6 +32,8 @@ import {
   isCardioModality,
   isDropSetType,
   isDurationModality,
+  isWeightDistanceModality,
+  isWeightDurationModality,
   isPrSet,
   moveSessionExerciseItem,
   normalizeSessionSupersetGroups,
@@ -881,13 +883,19 @@ function adoptAssumedSetValues(
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
   const durationLike = isDurationModality(modality);
   const cardio = isCardioModality(modality);
+  const weightDuration = isWeightDurationModality(modality);
+  const weightDistance = isWeightDistanceModality(modality);
   const relevantFilled = cardio
     ? target.duration != null && target.distance != null
     : durationLike
       ? target.duration != null
-      : modality === 'reps_only'
-        ? target.reps != null
-        : target.weight != null && target.reps != null;
+      : weightDuration
+        ? target.weight != null && target.duration != null
+        : weightDistance
+          ? target.weight != null && target.distance != null
+          : modality === 'reps_only'
+            ? target.reps != null
+            : target.weight != null && target.reps != null;
   if (relevantFilled) return session;
 
   const assumed = resolveLiveAssumedSetValues(
@@ -902,12 +910,22 @@ function adoptAssumedSetValues(
       }
     : durationLike
       ? { duration: target.duration ?? assumed.duration ?? null }
-      : modality === 'reps_only'
-        ? { reps: target.reps ?? assumed.reps }
-        : {
+      : weightDuration
+        ? {
             weight: target.weight ?? assumed.weight,
-            reps: target.reps ?? assumed.reps,
-          };
+            duration: target.duration ?? assumed.duration ?? null,
+          }
+        : weightDistance
+          ? {
+              weight: target.weight ?? assumed.weight,
+              distance: target.distance ?? assumed.distance ?? null,
+            }
+          : modality === 'reps_only'
+            ? { reps: target.reps ?? assumed.reps }
+            : {
+                weight: target.weight ?? assumed.weight,
+                reps: target.reps ?? assumed.reps,
+              };
   if (Object.values(patch).every((v) => v == null)) return session;
 
   return {
@@ -2119,8 +2137,13 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
               set_number: exercise.sets.length + 1,
               weight: null,
               reps: null,
-              ...(durationLike ? { duration: null } : {}),
-              ...(isCardioModality(modality) ? { distance: null } : {}),
+              ...(durationLike || isWeightDurationModality(modality)
+                ? { duration: null }
+                : {}),
+              ...(isCardioModality(modality) ||
+              isWeightDistanceModality(modality)
+                ? { distance: null }
+                : {}),
               notes: null,
               rpe: null,
               completed_at: null,

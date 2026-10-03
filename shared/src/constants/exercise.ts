@@ -1,7 +1,4 @@
-import {
-  isIgnoredEquipment,
-  normalizeEquipment,
-} from "./exerciseTaxonomy.ts";
+import { isIgnoredEquipment, normalizeEquipment } from "./exerciseTaxonomy.ts";
 
 /**
  * Exercise modality selects which per-set editor clients render
@@ -12,6 +9,11 @@ import {
  *   positive is load added (+20 kg on a dip belt), negative is assistance
  *   (−15 kg from a band or machine). Volume and estimated 1RM count the
  *   lifter's body weight plus that value (see `effectiveLoadKg`).
+ * - weight_duration: weight plus a duration in seconds, for loaded holds
+ *   (weighted plank, wall sit with a plate)
+ * - weight_distance: weight plus a distance, for carries and sled work
+ *   (farmer's walk, yoke, sandbag, sled push). The distance is stored in km
+ *   like every other set distance; clients show metres or yards
  * - duration: single duration-in-seconds input
  * - duration_distance: cardio backed by a single set carrying duration
  *   (seconds) + distance (km); clients render a duration+distance form for
@@ -22,6 +24,8 @@ export const EXERCISE_MODALITIES = [
   "weight_reps",
   "reps_only",
   "bodyweight_reps",
+  "weight_duration",
+  "weight_distance",
   "duration",
   "duration_distance",
 ] as const;
@@ -42,6 +46,29 @@ export function isExerciseModality(value: unknown): value is ExerciseModality {
  */
 export function isCardioModality(modality: ExerciseModality): boolean {
   return modality === "duration_distance";
+}
+
+/** Loaded holds: a weight and a duration per set, no reps. */
+export function isWeightDurationModality(modality: ExerciseModality): boolean {
+  return modality === "weight_duration";
+}
+
+/** Carries and sled work: a weight and a distance per set, no reps. */
+export function isWeightDistanceModality(modality: ExerciseModality): boolean {
+  return modality === "weight_distance";
+}
+
+/**
+ * Whether a set of this modality records reps. The two loaded-effort types
+ * replace reps with a duration or a distance, so a rep count is not entered,
+ * summed or used for volume and estimated 1RM on them.
+ */
+export function modalityRecordsReps(modality: ExerciseModality): boolean {
+  return (
+    modality === "weight_reps" ||
+    modality === "reps_only" ||
+    modality === "bodyweight_reps"
+  );
 }
 
 /** Whether sets of this modality carry a signed added/assisting weight. */

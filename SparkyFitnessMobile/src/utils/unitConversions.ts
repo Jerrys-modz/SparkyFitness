@@ -110,6 +110,26 @@ export function distanceFromKm(km: number, unit: 'km' | 'miles'): number {
   return unit === 'miles' ? kmToMiles(km) : km;
 }
 
+const YARDS_PER_KM = 1093.6133;
+
+/**
+ * Carry and sled distances are short, so they are shown in metres, or yards
+ * when the app shows miles. Storage stays km like every other set distance.
+ */
+export function carryDistanceFromKm(km: number, unit: 'km' | 'miles'): number {
+  return unit === 'miles' ? km * YARDS_PER_KM : km * 1000;
+}
+
+/** Convert a carry distance in metres (or yards when the app shows miles) to km. */
+export function carryDistanceToKm(value: number, unit: 'km' | 'miles'): number {
+  return unit === 'miles' ? value / YARDS_PER_KM : value / 1000;
+}
+
+/** Short label for the unit `carryDistanceFromKm` returns. */
+export function carryDistanceUnitLabel(unit: 'km' | 'miles'): 'm' | 'yd' {
+  return unit === 'miles' ? 'yd' : 'm';
+}
+
 export function cmToInches(cm: number): number {
   return cm * CM_TO_INCHES;
 }
