@@ -5490,6 +5490,14 @@
     "stateShown": "Shown",
     "stateHidden": "Hidden"
   },
+  "quickActions": {
+    "scanFood": "Scan food",
+    "searchFood": "Log food",
+    "logWater": "Log water",
+    "fasting": "Fasting",
+    "waterLogged": "Water logged",
+    "waterFailed": "Could not log water"
+  },
   "watchSettings": {
     "pagesTitle": "Pages",
     "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
