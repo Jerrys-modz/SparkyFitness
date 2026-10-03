@@ -37,11 +37,21 @@ export function resolveWatchSetTargets(
   sources: TargetSources
 ): Map<
   string,
-  { weightKg: number | null; reps: number | null; durationSec: number | null }
+  {
+    weightKg: number | null;
+    reps: number | null;
+    durationSec: number | null;
+    previousDurationSec: number | null;
+  }
 > {
   const targets = new Map<
     string,
-    { weightKg: number | null; reps: number | null; durationSec: number | null }
+    {
+      weightKg: number | null;
+      reps: number | null;
+      durationSec: number | null;
+      previousDurationSec: number | null;
+    }
   >();
   for (const exercise of session.exercises) {
     const modality = resolveSnapshotModality(exercise.exercise_snapshot);
@@ -67,12 +77,22 @@ export function resolveWatchSetTargets(
       // stopwatch from zero for it, so the watch must too.
       const durationSec =
         ownDuration != null && ownDuration > 0 ? ownDuration : null;
+      // Last time's length, shown in gray on the idle stopwatch like the
+      // phone's gray value. Only when no length was typed for this set.
+      const previousDurationSec =
+        durationSec == null &&
+        durationLike &&
+        assumedSet?.duration != null &&
+        assumedSet.duration > 0
+          ? assumedSet.duration
+          : null;
       targets.set(String(set.id), {
         weightKg: set.weight ?? assumedSet?.weight ?? null,
         // A duration set's legacy seconds live in `reps`. Sending those as
         // reps would put "45 REPS" next to a 0:45 countdown.
         reps: durationLike ? null : (set.reps ?? assumedSet?.reps ?? null),
         durationSec,
+        previousDurationSec,
       });
     });
   }
@@ -110,6 +130,9 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
           ...(value.reps != null ? { targetReps: value.reps } : {}),
           ...(value.durationSec != null
             ? { targetDurationSec: value.durationSec }
+            : {}),
+          ...(value.previousDurationSec != null
+            ? { previousDurationSec: value.previousDurationSec }
             : {}),
         });
       }

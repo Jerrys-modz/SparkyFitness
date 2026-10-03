@@ -446,6 +446,16 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
+    /// Last session's time for a set, to show in gray before the stopwatch
+    /// starts. A later phone update wins over the plan.
+    func previousDurationSec(forSetId setId: String) -> Int? {
+        let planned = steps.first(where: { $0.plannedSet.setId == setId })?
+            .plannedSet.previousDurationSec
+        let seconds = targetOverrides[setId]?.previousDurationSec ?? planned
+        guard let seconds, seconds > 0 else { return nil }
+        return seconds
+    }
+
     /// Seconds to count down for this set. A later phone target wins over the
     /// plan. Nil for an ordinary reps set.
     func targetDurationSec(for step: WorkoutStep) -> Int? {

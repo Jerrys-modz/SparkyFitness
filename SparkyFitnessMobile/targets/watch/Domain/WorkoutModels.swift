@@ -25,6 +25,8 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// Hold length in seconds. Nil on a reps set. The watch counts this down
     /// instead of offering a reps box.
     var targetDurationSec: Int? = nil
+    /// Last session's time for this set, shown in gray on an idle stopwatch.
+    var previousDurationSec: Int? = nil
     /// A duration exercise. With no `targetDurationSec` the watch shows a
     /// stopwatch instead of a reps box. Nil from a phone that predates it.
     var timed: Bool? = nil
@@ -182,6 +184,8 @@ struct SetValues: Codable, Equatable {
     /// Hold length from a later `setTargets` update, in seconds. Nil leaves
     /// the plan's `targetDurationSec`.
     var durationSec: Int? = nil
+    /// Last session's time from a `setTargets` update, in seconds.
+    var previousDurationSec: Int? = nil
 }
 
 /// The phone's rest timer, as carried by a `setTargets` update.
