@@ -246,6 +246,10 @@ describe('cardioSessionFromDiaryEntry', () => {
     expect(
       cardioSessionFromDiaryEntry(entry({ source: 'manual' }), 'km')
     ).toBeNull();
+    // exercise_entries defaults to this casing when the mobile form omits source.
+    expect(
+      cardioSessionFromDiaryEntry(entry({ source: 'Manual' }), 'km')
+    ).toBeNull();
   });
 
   it('leaves strength sessions on the basic screen', () => {

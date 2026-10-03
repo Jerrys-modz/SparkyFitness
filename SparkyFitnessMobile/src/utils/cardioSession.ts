@@ -266,7 +266,13 @@ export function cardioSessionFromDiaryEntry(
   distanceUnit: 'km' | 'miles'
 ): ExerciseActivityQueryItem | null {
   if (!session.entry_date) return null;
-  if (!session.source || session.source === 'manual') return null;
+  if (
+    !session.source ||
+    session.source === 'manual' ||
+    session.source === 'Manual'
+  ) {
+    return null;
+  }
   if (session.exercise_snapshot?.modality === 'weight_reps') return null;
   if (session.sets.some((set) => set.weight != null || set.reps != null)) {
     return null;
