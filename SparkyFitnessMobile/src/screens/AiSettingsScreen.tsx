@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Switch from '../components/ui/Switch';
+import OnDeviceChatDebugPanel from '../components/OnDeviceChatDebugPanel';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { isOnDeviceLabelScanAvailable } from '../services/onDeviceLabelScan';
@@ -162,6 +163,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               value={onDeviceChatEnabled}
               onValueChange={setOnDeviceChatEnabled}
             />
+            <OnDeviceChatDebugPanel />
           </>
         ) : (
           <Text className="text-text-secondary text-sm">
