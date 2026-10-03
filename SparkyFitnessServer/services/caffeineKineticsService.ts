@@ -81,16 +81,15 @@ export async function getActiveCaffeineKinetics(
         isEstimated = true;
       }
 
-      if (isEstimated) {
-        hasEstimatedTimes = true;
-      }
-
       const utcDate = localDateTimeToUtc(`${raw.entry_date}T${timeStr}`, tz);
       atInstant = utcDate.toISOString();
     }
 
     // Exclude doses after the current day's active window (bedtime + 2h)
     if (new Date(atInstant).getTime() <= windowEndMs) {
+      if (isEstimated) {
+        hasEstimatedTimes = true;
+      }
       rawDosesMapped.push({
         at: atInstant,
         mg: raw.caffeine_mg,

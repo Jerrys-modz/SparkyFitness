@@ -184,6 +184,36 @@ describe('Caffeine Dose Window and Fallback Hierarchy', () => {
     expect(result.bedtime_at).toBe('2026-09-06T01:30:00.000Z');
     expect(result.doses).toHaveLength(1);
     expect(result.doses[0].at).toBe('2026-09-06T00:30:00.000Z');
+    expect(result.has_estimated_times).toBe(false);
+  });
+
+  it('does not flag has_estimated_times when an untimed dose on date+1 falls after bedtime+2h', async () => {
+    vi.spyOn(preferenceRepo, 'getUserPreferences').mockResolvedValue({
+      id: 'pref-1',
+      user_id: userId,
+      caffeine_half_life_hours: 5.0,
+      target_bedtime: '00:00:00',
+    } as any);
+    vi.spyOn(foodMisc, 'getCaffeineDosesForWindow').mockResolvedValue([
+      {
+        source: 'food',
+        entry_date: '2026-09-06',
+        entry_time: null,
+        meal_default_time: null,
+        taken_at: null,
+        caffeine_mg: 80,
+        name: 'Untimed Lunch Coffee on Next Day',
+      },
+    ]);
+
+    const result = await getActiveCaffeineKinetics(userId, {
+      date: '2026-09-05',
+    });
+
+    expect(result.target_bedtime).toBe('00:00');
+    expect(result.bedtime_at).toBe('2026-09-06T00:00:00.000Z');
+    expect(result.doses).toHaveLength(0);
+    expect(result.has_estimated_times).toBe(false);
   });
 
   it('calculates bedtimeAt on same calendar day when target_bedtime is before midnight (e.g. 23:59)', async () => {
