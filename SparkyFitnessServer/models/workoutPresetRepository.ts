@@ -2,6 +2,7 @@ import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-format'
 import format from 'pg-format';
+import type { PoolClient } from 'pg';
 import { assertSetWeightSign } from '../utils/setWeightSign.js';
 import {
   buildSqlSearch,
@@ -9,12 +10,9 @@ import {
 } from '../utils/dbSearchHelper.js';
 
 async function assertPresetExerciseSetWeights(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sets: any
+  client: PoolClient,
+  exerciseId: string,
+  sets: readonly { weight?: number | string | null }[] | null | undefined
 ) {
   const result = await client.query(
     'SELECT modality FROM exercises WHERE id = $1',
