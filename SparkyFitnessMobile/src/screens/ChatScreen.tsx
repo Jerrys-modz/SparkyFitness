@@ -655,7 +655,7 @@ function ChatThread({
             >
               {t('chat.onDeviceBadge', {
                 defaultValue:
-                  'Answered on this device · read-only · chats are not saved',
+                  'Answered on this device · asks before saving · chats are not saved',
               })}
             </Text>
           )}
