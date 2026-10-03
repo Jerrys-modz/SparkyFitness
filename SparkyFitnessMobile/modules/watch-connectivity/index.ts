@@ -326,6 +326,11 @@ export interface WatchSetCompletedPayload {
   weightKg?: number | null;
   reps?: number | null;
   /**
+   * `warmup` | `normal` | `drop` | `failure`, when the wearer changed the
+   * type on the watch. Omitted leaves the plan's type.
+   */
+  setType?: string | null;
+  /**
    * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
    * its own clock when this is absent (an older watch build, or a set logged
    * here). Using arrival time instead pulls the next exercise's readings

@@ -123,7 +123,10 @@ final class WorkoutSessionStore: ObservableObject {
         let target = targetOverrides[setId]
         return SetValues(
             weightKg: edited?.weightKg ?? target?.weightKg ?? step.plannedSet.targetWeightKg,
-            reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps
+            reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps,
+            // Only a type the wearer picked: an untouched set leaves the
+            // phone's own type alone.
+            setType: edited?.setType
         )
     }
 
@@ -420,6 +423,23 @@ final class WorkoutSessionStore: ObservableObject {
         var values = editedValues[setId] ?? SetValues()
         if let weightKg { values.weightKg = weightKg }
         if let reps { values.reps = reps }
+        editedValues[setId] = values
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// The type to show and log: what the wearer picked, else the plan.
+    func setType(for step: WorkoutStep) -> String {
+        editedValues[step.plannedSet.setId]?.setType ?? step.plannedSet.setType ?? "normal"
+    }
+
+    func label(for step: WorkoutStep) -> String {
+        "\(SetKind.resolve(setType(for: step)).caption) \(step.setNumber)/\(step.setCount)"
+    }
+
+    /// Records a type picked on the watch. Sent with the set when it is logged.
+    func setSetType(for setId: String, _ type: String) {
+        var values = editedValues[setId] ?? SetValues()
+        values.setType = type
         editedValues[setId] = values
         persistSnapshot(reportedEnergyKcal: nil)
     }
