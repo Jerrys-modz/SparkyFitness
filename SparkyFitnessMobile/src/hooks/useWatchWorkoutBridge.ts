@@ -5,6 +5,7 @@ import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchRestChangedPayload,
   type WatchSetTimerStartedPayload,
+  type WatchSetTimerStoppedPayload,
   type WatchHeartRateBatchPayload,
   type WatchWorkoutStopPayload,
   type WatchWorkoutDiscardPayload,
@@ -197,12 +198,21 @@ const MAX_WATCH_TIMER_AGE_MS = 3 * 60 * 60 * 1000;
 function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
   const state = useActiveWorkoutStore.getState();
   const now = Date.now();
-  if (
-    state.sessionId !== payload.sessionId ||
-    state.completedSetIds[payload.setId] != null ||
-    !Number.isFinite(payload.startedAt) ||
-    now - payload.startedAt > MAX_WATCH_TIMER_AGE_MS
-  ) {
+  const reason =
+    state.sessionId !== payload.sessionId
+      ? 'another session'
+      : state.completedSetIds[payload.setId] != null
+        ? 'set already logged'
+        : !Number.isFinite(payload.startedAt)
+          ? 'bad start time'
+          : now - payload.startedAt > MAX_WATCH_TIMER_AGE_MS
+            ? 'too old'
+            : null;
+  if (reason != null) {
+    addLog(
+      `Watch timer start ignored: ${reason} (set ${payload.setId})`,
+      'INFO'
+    );
     return;
   }
   // A queued start from an earlier arm of the same saved session must not
@@ -215,6 +225,30 @@ function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
     return;
   }
   state.startSetTimer(payload.setId, Math.min(payload.startedAt, now));
+  addLog(`Watch started the timer for set ${payload.setId}`, 'DEBUG');
+}
+
+/** The wearer stopped the stopwatch on the watch: stop the phone's too. */
+function applyWatchSetTimerStop(payload: WatchSetTimerStoppedPayload): void {
+  const state = useActiveWorkoutStore.getState();
+  if (
+    state.sessionId !== payload.sessionId ||
+    state.completedSetIds[payload.setId] != null ||
+    !Number.isFinite(payload.seconds) ||
+    payload.seconds <= 0
+  ) {
+    addLog(
+      `Watch timer stop ignored (set ${payload.setId}, ${payload.seconds}s)`,
+      'INFO'
+    );
+    return;
+  }
+  // Drop the running phone timer, then keep the time the wrist measured.
+  state.clearSetTimer(payload.setId);
+  state.updateSetField(payload.setId, {
+    duration: Math.round(payload.seconds),
+  });
+  addLog(`Watch stopped the timer for set ${payload.setId}`, 'DEBUG');
 }
 
 export function useWatchWorkoutBridge(
@@ -817,6 +851,10 @@ export function useWatchWorkoutBridge(
       'onSetTimerStarted',
       applyWatchSetTimerStart
     );
+    const setTimerStoppedSub = WatchConnectivity.addListener(
+      'onSetTimerStopped',
+      applyWatchSetTimerStop
+    );
     const heartRateBatchSub = WatchConnectivity.addListener(
       'onHeartRateBatch',
       (payload) => {
@@ -858,6 +896,7 @@ export function useWatchWorkoutBridge(
       setCompletedSub.remove();
       restChangedSub.remove();
       setTimerStartedSub.remove();
+      setTimerStoppedSub.remove();
       heartRateBatchSub.remove();
       liveHeartRateSub.remove();
       workoutStopSub.remove();

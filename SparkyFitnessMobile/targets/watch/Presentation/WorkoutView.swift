@@ -889,6 +889,13 @@ private struct HoldStopwatch: View {
                     .font(.caption2)
                     .buttonStyle(.bordered)
                     .tint(.green)
+                } else if store.isStopwatchRunning(for: setId) {
+                    Button("Stop") {
+                        store.stopStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.red)
                 }
             }
             .frame(maxWidth: .infinity)
