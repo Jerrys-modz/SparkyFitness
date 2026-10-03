@@ -21,6 +21,10 @@ import { queryClient } from '../hooks/queryClient';
 import { invalidateFoodCache } from '../hooks/invalidateFoodCache';
 import { addDays, getTodayDate } from '../utils/dateUtils';
 import { getServingVolume } from '../utils/unitConversions';
+import {
+  buildDailySummary,
+  loadDailySummaryRawData,
+} from './dailySummaryService';
 import { buildChatContext } from '../utils/onDeviceChatContext';
 import type { FoodItem } from '../types/foods';
 import type { MealType } from '../types/mealTypes';
@@ -102,7 +106,10 @@ async function getDaySummary(args: { date?: string }): Promise<string> {
     args.date && /^\d{4}-\d{2}-\d{2}$/.test(args.date)
       ? args.date
       : getTodayDate();
-  return buildChatContext(await fetchDailySummary(date), date);
+  return buildChatContext(
+    buildDailySummary(date, await loadDailySummaryRawData(date)),
+    date
+  );
 }
 
 async function searchFoodsTool(args: { query?: string }): Promise<string> {

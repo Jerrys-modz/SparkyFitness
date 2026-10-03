@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Switch from '../components/ui/Switch';
 import OnDeviceChatDebugPanel from '../components/OnDeviceChatDebugPanel';
+import SegmentedControl from '../components/SegmentedControl';
+import { getCloudChatStatus } from '../services/onDeviceChat';
+import type { OnDeviceChatModel } from '../../modules/on-device-nutrition';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { isOnDeviceLabelScanAvailable } from '../services/onDeviceLabelScan';
@@ -66,7 +69,26 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const setOnDeviceChatEnabled = useAppPreferencesStore(
     (s) => s.setOnDeviceChatEnabled
   );
+  const onDeviceChatModel = useAppPreferencesStore((s) => s.onDeviceChatModel);
+  const setOnDeviceChatModel = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatModel
+  );
   const onDeviceAvailable = useMemo(() => isOnDeviceLabelScanAvailable(), []);
+  const cloudStatus = useMemo(() => getCloudChatStatus(), []);
+  const cloudStatusText: Record<string, string> = {
+    available: t('aiSettings.chatModel.status.available', {
+      defaultValue: 'Available',
+    }),
+    quotaLimitReached: t('aiSettings.chatModel.status.quotaLimitReached', {
+      defaultValue: 'Usage limit reached for now. It will use this phone.',
+    }),
+    deviceNotEligible: t('aiSettings.chatModel.status.deviceNotEligible', {
+      defaultValue: 'Not available on this device.',
+    }),
+    systemNotReady: t('aiSettings.chatModel.status.systemNotReady', {
+      defaultValue: 'Not ready yet. Check that Apple Intelligence is set up.',
+    }),
+  };
 
   const header = useScreenHeader({
     title: t('screens.aiSettings', { defaultValue: 'AI' }),
@@ -163,6 +185,54 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               value={onDeviceChatEnabled}
               onValueChange={setOnDeviceChatEnabled}
             />
+            {cloudStatus !== 'unsupported' && (
+              <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+                <Text className="text-base font-semibold text-text-primary mb-3">
+                  {t('aiSettings.chatModel.title', {
+                    defaultValue: 'Chat model',
+                  })}
+                </Text>
+                <SegmentedControl<OnDeviceChatModel>
+                  segments={[
+                    {
+                      key: 'device',
+                      label: t('aiSettings.chatModel.device', {
+                        defaultValue: 'This phone',
+                      }),
+                    },
+                    {
+                      key: 'auto',
+                      label: t('aiSettings.chatModel.auto', {
+                        defaultValue: 'Auto',
+                      }),
+                    },
+                    {
+                      key: 'cloud',
+                      label: t('aiSettings.chatModel.cloud', {
+                        defaultValue: 'Apple servers',
+                      }),
+                    },
+                  ]}
+                  activeKey={onDeviceChatModel}
+                  onSelect={setOnDeviceChatModel}
+                />
+                <Text
+                  testID="ai-cloud-status"
+                  className="text-text-secondary text-sm mt-3"
+                >
+                  {t('aiSettings.chatModel.statusLabel', {
+                    defaultValue: 'Apple private servers: {{status}}',
+                    status: cloudStatusText[cloudStatus] ?? cloudStatus,
+                  })}
+                </Text>
+                <Text className="text-text-secondary text-sm mt-2">
+                  {t('aiSettings.chatModel.description', {
+                    defaultValue:
+                      'This phone keeps everything on the device. Auto uses this phone and moves to Apple’s Private Cloud Compute only when a conversation is too long for it. Apple servers always uses Private Cloud Compute, so your messages and diary snapshot leave the phone; Apple says it does not store them. Apple limits how much each person can use.',
+                  })}
+                </Text>
+              </View>
+            )}
             <OnDeviceChatDebugPanel />
           </>
         ) : (
