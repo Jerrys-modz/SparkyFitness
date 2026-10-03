@@ -318,13 +318,16 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onSetTimerStarted", event)
             }
             self.delegateHandler.onSetTimerStopped = { [weak self] payload in
-                guard let seconds = (payload["seconds"] as? NSNumber)?.intValue else {
+                guard let seconds = (payload["seconds"] as? NSNumber)?.intValue,
+                      let startedAt = (payload["startedAt"] as? NSNumber)?.doubleValue
+                else {
                     return
                 }
                 self?.sendEvent("onSetTimerStopped", [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "setId": payload["setId"] as? String ?? "",
                     "seconds": seconds,
+                    "startedAt": startedAt,
                 ])
             }
             self.delegateHandler.onFastStartRequested = { [weak self] payload in

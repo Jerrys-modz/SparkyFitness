@@ -195,6 +195,22 @@ function applyWatchRestChange(payload: WatchRestChangedPayload): void {
  * logged, or a start time that cannot be right (a stale queued message).
  */
 const MAX_WATCH_TIMER_AGE_MS = 3 * 60 * 60 * 1000;
+/** Epoch-ms round trip through the watch is not exact to the millisecond. */
+const SAME_TIMER_RUN_MS = 20;
+
+/**
+ * A watch start the phone clock moved forward (`min(startedAt, now)`). The
+ * stop still names the watch's original start, so that pair is remembered
+ * until the phone timer is no longer the one that start created.
+ */
+const clampedWatchTimerStart = new Map<
+  string,
+  { raw: number; stored: number }
+>();
+
+function sameTimerRun(active: number, startedAt: number): boolean {
+  return Math.abs(active - startedAt) <= SAME_TIMER_RUN_MS;
+}
 
 function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
   const state = useActiveWorkoutStore.getState();
@@ -225,18 +241,42 @@ function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
   ) {
     return;
   }
-  state.startSetTimer(payload.setId, Math.min(payload.startedAt, now));
+  const before = state.setTimerStartedAt[payload.setId];
+  const stored = Math.min(payload.startedAt, now);
+  state.startSetTimer(payload.setId, stored);
+  const after =
+    useActiveWorkoutStore.getState().setTimerStartedAt[payload.setId];
+  if (before == null && after != null) {
+    if (after !== payload.startedAt) {
+      clampedWatchTimerStart.set(payload.setId, {
+        raw: payload.startedAt,
+        stored: after,
+      });
+    } else {
+      clampedWatchTimerStart.delete(payload.setId);
+    }
+  }
   addLog(`Watch started the timer for set ${payload.setId}`, 'DEBUG');
 }
 
 /** The wearer stopped the stopwatch on the watch: stop the phone's too. */
 function applyWatchSetTimerStop(payload: WatchSetTimerStoppedPayload): void {
   const state = useActiveWorkoutStore.getState();
+  const active = state.setTimerStartedAt[payload.setId];
+  const clamped = clampedWatchTimerStart.get(payload.setId);
+  const sameRun =
+    active != null &&
+    Number.isFinite(payload.startedAt) &&
+    (sameTimerRun(active, payload.startedAt) ||
+      (clamped != null &&
+        clamped.stored === active &&
+        sameTimerRun(clamped.raw, payload.startedAt)));
   if (
     state.sessionId !== payload.sessionId ||
     state.completedSetIds[payload.setId] != null ||
     !Number.isFinite(payload.seconds) ||
-    payload.seconds <= 0
+    payload.seconds <= 0 ||
+    !sameRun
   ) {
     addLog(
       `Watch timer stop ignored (set ${payload.setId}, ${payload.seconds}s)`,
@@ -244,6 +284,7 @@ function applyWatchSetTimerStop(payload: WatchSetTimerStoppedPayload): void {
     );
     return;
   }
+  clampedWatchTimerStart.delete(payload.setId);
   // Drop the running phone timer, then keep the time the wrist measured.
   state.clearSetTimer(payload.setId);
   state.updateSetField(payload.setId, {
