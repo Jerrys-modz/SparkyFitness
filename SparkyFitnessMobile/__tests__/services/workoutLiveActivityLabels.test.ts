@@ -19,6 +19,10 @@ const EN_EXPECTED = {
   exercise: 'Exercise',
   set: 'Set',
   setOf: 'of',
+  subtractFifteenSeconds: 'Subtract 15 seconds',
+  subtractFifteenSecondsShort: '-15s',
+  skip: 'Skip',
+  next: 'Next',
 };
 
 const PL_EXPECTED = {
@@ -34,6 +38,10 @@ const PL_EXPECTED = {
   exercise: 'Ćwiczenie',
   set: 'Seria',
   setOf: 'z',
+  subtractFifteenSeconds: 'Subtract 15 seconds',
+  subtractFifteenSecondsShort: '-15s',
+  skip: 'Skip',
+  next: 'Next',
 };
 
 const ES_EXPECTED = {
@@ -49,6 +57,10 @@ const ES_EXPECTED = {
   exercise: 'Ejercicio',
   set: 'Serie',
   setOf: 'de',
+  subtractFifteenSeconds: 'Subtract 15 seconds',
+  subtractFifteenSecondsShort: '-15s',
+  skip: 'Skip',
+  next: 'Next',
 };
 
 describe('workoutLiveActivityLabels', () => {
