@@ -42,14 +42,88 @@ export interface OnDeviceMealEstimate {
   }[];
 }
 
-declare class OnDeviceNutritionModuleType extends NativeModule {
+export type OnDeviceStatus =
+  | 'available'
+  | 'deviceNotEligible'
+  | 'appleIntelligenceNotEnabled'
+  | 'modelNotReady'
+  | 'unsupported';
+
+export type OnDeviceChatModel = 'device' | 'auto' | 'cloud';
+
+export type CloudChatStatus =
+  | 'available'
+  | 'quotaLimitReached'
+  | 'deviceNotEligible'
+  | 'systemNotReady'
+  | 'unsupported';
+
+export interface OnDeviceChatReply {
+  text: string;
+  /** Which model produced the reply. */
+  model: 'device' | 'cloud';
+  /** Tokens the tool definitions took, as a string; empty when unknown. */
+  toolTokens?: string;
+  /** How many lent tools fit, as "kept/offered"; empty without lent tools. */
+  toolsKept?: string;
+}
+
+export interface OnDeviceChatOptions {
+  /** Which model answers: this phone, Apple's private servers, or both. */
+  model?: OnDeviceChatModel;
+  /** Standing notes about the user, added to the system prompt. */
+  userContext?: string;
+  /** Replaces the built-in system prompt when non-empty. */
+  instructions?: string;
+  /** Greedy decoding: the same input gives the same reply. */
+  greedy?: boolean;
+  /**
+   * Tools lent by the server. When non-empty they replace the built-in tools;
+   * `parameters` is the tool's JSON Schema as a string.
+   */
+  serverTools?: { name: string; description: string; parameters: string }[];
+  /** Most tokens the lent tools' definitions may take. */
+  toolBudget?: number;
+  /** Tool names to leave out of the session. */
+  disabledTools?: string[];
+}
+
+export interface OnDeviceChatToolEvent {
+  id: string;
+  name: string;
+  /** JSON object of the model's arguments. */
+  args: string;
+}
+
+type OnDeviceNutritionEvents = {
+  onChatTool: (event: OnDeviceChatToolEvent) => void;
+};
+
+declare class OnDeviceNutritionModuleType extends NativeModule<OnDeviceNutritionEvents> {
   /** True on iOS 27+ with Apple Intelligence enabled and the model ready. */
   isAvailable(): boolean;
   scanLabel(base64Image: string): Promise<OnDeviceLabelExtraction>;
+  /** Answers the last message of `transcript`, given a plain-text diary snapshot. */
+  chat?(
+    transcript: string,
+    context: string,
+    options: OnDeviceChatOptions
+  ): Promise<OnDeviceChatReply>;
+  /** Whether Apple's private servers can answer chat right now. */
+  cloudChatStatus?(): CloudChatStatus;
+  /** The built-in chat system prompt. */
+  defaultChatInstructions?(): string;
+  /** Answers a pending `onChatTool` event. */
+  resolveChatTool?(id: string, result: string): void;
+  /** The on-device model's name and window size; empty without Apple Intelligence. */
+  onDeviceModelInfo?(): { name?: string; contextSize?: string };
+  /** Why the on-device model can or cannot be used right now. */
+  onDeviceStatus?(): OnDeviceStatus;
   estimateMeal(
-    base64Image: string,
+    base64Images: string[],
     description: string | null,
-    totalGrams: number | null
+    totalGrams: number | null,
+    userContext: string | null
   ): Promise<OnDeviceMealEstimate>;
 }
 

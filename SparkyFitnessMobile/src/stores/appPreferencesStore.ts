@@ -1,3 +1,4 @@
+import type { OnDeviceChatModel } from '../../modules/on-device-nutrition';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_GUIDED_COUNTDOWN_SEC,
@@ -76,6 +77,22 @@ export const PREFERENCE_DEFAULTS = {
   progressPhotosCardVisible: true,
   onDeviceLabelScanEnabled: true,
   onDeviceFoodPhotoEnabled: false,
+  onDeviceChatEnabled: false,
+  onDeviceChatSystemPrompt: '',
+  aiUserContext: '',
+  onDeviceChatModel: 'device' as OnDeviceChatModel,
+  onDeviceChatToolSource: 'builtin' as 'builtin' | 'server',
+  onDeviceChatToolBudget: 2500,
+  onDeviceChatServerCategories: [
+    'food',
+    'exercise',
+    'checkin',
+    'goals',
+  ] as string[],
+  onDeviceChatGreedy: false,
+  onDeviceChatIncludeContext: true,
+  onDeviceChatDebug: false,
+  onDeviceChatDisabledTools: [] as string[],
   healthTrendsCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
@@ -134,6 +151,26 @@ export type AppPreferencesData = {
   progressPhotosCardVisible: boolean;
   onDeviceLabelScanEnabled: boolean;
   onDeviceFoodPhotoEnabled: boolean;
+  /** Answer Sparky chat with Apple Intelligence on this device. */
+  onDeviceChatEnabled: boolean;
+  /** Empty means the built-in prompt. */
+  onDeviceChatSystemPrompt: string;
+  /** Standing notes about the user, given to the on-device model. */
+  aiUserContext: string;
+  /** Which model answers chat: this phone, Apple's private servers, or both. */
+  onDeviceChatModel: OnDeviceChatModel;
+  /** Where chat tools come from: written in the app, or lent by the server. */
+  onDeviceChatToolSource: 'builtin' | 'server';
+  /** Tokens the lent tools' definitions may take. */
+  onDeviceChatToolBudget: number;
+  /** Server tool categories switched on for the on-device model. */
+  onDeviceChatServerCategories: string[];
+  onDeviceChatGreedy: boolean;
+  /** Send today's diary snapshot with each message. */
+  onDeviceChatIncludeContext: boolean;
+  /** Record prompts, tool calls and replies for the AI settings trace. */
+  onDeviceChatDebug: boolean;
+  onDeviceChatDisabledTools: string[];
   healthTrendsCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
@@ -211,6 +248,17 @@ export interface AppPreferencesState extends AppPreferencesData {
   setProgressPhotosCardVisible: (value: boolean) => void;
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
+  setOnDeviceChatEnabled: (value: boolean) => void;
+  setOnDeviceChatSystemPrompt: (value: string) => void;
+  setAiUserContext: (value: string) => void;
+  setOnDeviceChatModel: (value: OnDeviceChatModel) => void;
+  setOnDeviceChatToolSource: (value: 'builtin' | 'server') => void;
+  setOnDeviceChatToolBudget: (value: number) => void;
+  setOnDeviceChatServerCategory: (category: string, enabled: boolean) => void;
+  setOnDeviceChatGreedy: (value: boolean) => void;
+  setOnDeviceChatIncludeContext: (value: boolean) => void;
+  setOnDeviceChatDebug: (value: boolean) => void;
+  setOnDeviceChatToolEnabled: (tool: string, enabled: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
@@ -326,6 +374,36 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ progressPhotosCardVisible: value }),
       setOnDeviceLabelScanEnabled: (value) =>
         set({ onDeviceLabelScanEnabled: value }),
+      setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
+      setOnDeviceChatModel: (value) => set({ onDeviceChatModel: value }),
+      setOnDeviceChatToolBudget: (value) =>
+        set({
+          onDeviceChatToolBudget: Math.max(
+            300,
+            Math.min(6000, Math.round(value))
+          ),
+        }),
+      setOnDeviceChatToolSource: (value) =>
+        set({ onDeviceChatToolSource: value }),
+      setOnDeviceChatServerCategory: (category, enabled) =>
+        set((state) => ({
+          onDeviceChatServerCategories: enabled
+            ? [...new Set([...state.onDeviceChatServerCategories, category])]
+            : state.onDeviceChatServerCategories.filter((c) => c !== category),
+        })),
+      setAiUserContext: (value) => set({ aiUserContext: value }),
+      setOnDeviceChatSystemPrompt: (value) =>
+        set({ onDeviceChatSystemPrompt: value }),
+      setOnDeviceChatGreedy: (value) => set({ onDeviceChatGreedy: value }),
+      setOnDeviceChatIncludeContext: (value) =>
+        set({ onDeviceChatIncludeContext: value }),
+      setOnDeviceChatDebug: (value) => set({ onDeviceChatDebug: value }),
+      setOnDeviceChatToolEnabled: (tool, enabled) =>
+        set((state) => ({
+          onDeviceChatDisabledTools: enabled
+            ? state.onDeviceChatDisabledTools.filter((t) => t !== tool)
+            : [...new Set([...state.onDeviceChatDisabledTools, tool])],
+        })),
       setOnDeviceFoodPhotoEnabled: (value) =>
         set({ onDeviceFoodPhotoEnabled: value }),
       setHealthTrendsCardVisible: (value) =>
@@ -429,6 +507,17 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
+        onDeviceChatEnabled: state.onDeviceChatEnabled,
+        onDeviceChatSystemPrompt: state.onDeviceChatSystemPrompt,
+        aiUserContext: state.aiUserContext,
+        onDeviceChatModel: state.onDeviceChatModel,
+        onDeviceChatToolSource: state.onDeviceChatToolSource,
+        onDeviceChatToolBudget: state.onDeviceChatToolBudget,
+        onDeviceChatServerCategories: state.onDeviceChatServerCategories,
+        onDeviceChatGreedy: state.onDeviceChatGreedy,
+        onDeviceChatIncludeContext: state.onDeviceChatIncludeContext,
+        onDeviceChatDebug: state.onDeviceChatDebug,
+        onDeviceChatDisabledTools: state.onDeviceChatDisabledTools,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,

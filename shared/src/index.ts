@@ -1,3 +1,4 @@
+export * from "./schemas/api/OnDeviceChatTools.api.zod.ts";
 export * from "./schemas/api/AiServiceSettings.api.zod.ts";
 export * from "./schemas/api/AlcoholWeek.api.zod.ts";
 export * from "./schemas/api/Backup.api.zod.ts";

@@ -14,7 +14,23 @@ import {
   testAiServiceConnectionRequestSchema,
   normalizeChatToolCategories,
 } from '@workspace/shared';
+import {
+  OnDeviceToolError,
+  listOnDeviceChatTools,
+  runOnDeviceChatTool,
+} from '../services/onDeviceChatToolService.js';
+import {
+  onDeviceChatToolCallRequestSchema,
+  onDeviceChatToolsResponseSchema,
+} from '@workspace/shared';
 const router = express.Router();
+
+/** `?categories=food,exercise` as a list; anything else is no selection. */
+function parseCategoriesQuery(value: unknown): string[] | undefined {
+  return typeof value === 'string' && value.trim()
+    ? value.split(',').map((slug) => slug.trim())
+    : undefined;
+}
 /**
  * @swagger
  * /chat:
@@ -774,6 +790,97 @@ router.post('/save-history', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /chat/on-device-tools:
+ *   get:
+ *     summary: List chat tools the phone's on-device model can use
+ *     tags: [AI & Insights]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: string
+ *         description: Comma-separated chat tool categories. Defaults to the core set.
+ *     responses:
+ *       200:
+ *         description: Tool names, descriptions and JSON Schema inputs.
+ *       500:
+ *         description: Server error.
+ */
+router.get('/on-device-tools', authenticate, async (req, res, next) => {
+  try {
+    const tools = await listOnDeviceChatTools(
+      req.userId,
+      parseCategoriesQuery(req.query.categories)
+    );
+    res.json(onDeviceChatToolsResponseSchema.parse({ tools }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /chat/on-device-tools/{name}:
+ *   post:
+ *     summary: Run one chat tool for the phone's on-device model
+ *     tags: [AI & Insights]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: string
+ *         description: Comma-separated chat tool categories the call must belong to.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               args:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: The tool's result.
+ *       400:
+ *         description: Invalid arguments for the tool.
+ *       404:
+ *         description: Unknown tool, or not in the requested categories.
+ *       500:
+ *         description: Server error.
+ */
+router.post('/on-device-tools/:name', authenticate, async (req, res, next) => {
+  const parsed = onDeviceChatToolCallRequestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'args must be an object.' });
+  }
+  try {
+    const result = await runOnDeviceChatTool(
+      req.userId,
+      req.params.name,
+      parsed.data.args,
+      parseCategoriesQuery(req.query.categories)
+    );
+    res.json({ result: result ?? null });
+  } catch (error) {
+    if (error instanceof OnDeviceToolError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    next(error);
+  }
+});
+
 /**
  * @swagger
  * /chat/food-options:
