@@ -64,6 +64,8 @@ export interface OnDeviceChatReply {
   model: 'device' | 'cloud';
   /** Tokens the tool definitions took, as a string; empty when unknown. */
   toolTokens?: string;
+  /** How many lent tools fit, as "kept/offered"; empty without lent tools. */
+  toolsKept?: string;
 }
 
 export interface OnDeviceChatOptions {
@@ -80,6 +82,8 @@ export interface OnDeviceChatOptions {
    * `parameters` is the tool's JSON Schema as a string.
    */
   serverTools?: { name: string; description: string; parameters: string }[];
+  /** Most tokens the lent tools' definitions may take. */
+  toolBudget?: number;
   /** Tool names to leave out of the session. */
   disabledTools?: string[];
 }

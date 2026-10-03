@@ -82,6 +82,7 @@ export const PREFERENCE_DEFAULTS = {
   aiUserContext: '',
   onDeviceChatModel: 'device' as OnDeviceChatModel,
   onDeviceChatToolSource: 'builtin' as 'builtin' | 'server',
+  onDeviceChatToolBudget: 2500,
   onDeviceChatServerCategories: [
     'food',
     'exercise',
@@ -166,6 +167,8 @@ export type AppPreferencesData = {
   onDeviceChatModel: OnDeviceChatModel;
   /** Where chat tools come from: written in the app, or lent by the server. */
   onDeviceChatToolSource: 'builtin' | 'server';
+  /** Tokens the lent tools' definitions may take. */
+  onDeviceChatToolBudget: number;
   /** Server tool categories switched on for the on-device model. */
   onDeviceChatServerCategories: string[];
   onDeviceChatGreedy: boolean;
@@ -264,6 +267,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setAiUserContext: (value: string) => void;
   setOnDeviceChatModel: (value: OnDeviceChatModel) => void;
   setOnDeviceChatToolSource: (value: 'builtin' | 'server') => void;
+  setOnDeviceChatToolBudget: (value: number) => void;
   setOnDeviceChatServerCategory: (category: string, enabled: boolean) => void;
   setOnDeviceChatGreedy: (value: boolean) => void;
   setOnDeviceChatIncludeContext: (value: boolean) => void;
@@ -391,6 +395,13 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ onDeviceLabelScanEnabled: value }),
       setOnDeviceChatEnabled: (value) => set({ onDeviceChatEnabled: value }),
       setOnDeviceChatModel: (value) => set({ onDeviceChatModel: value }),
+      setOnDeviceChatToolBudget: (value) =>
+        set({
+          onDeviceChatToolBudget: Math.max(
+            300,
+            Math.min(6000, Math.round(value))
+          ),
+        }),
       setOnDeviceChatToolSource: (value) =>
         set({ onDeviceChatToolSource: value }),
       setOnDeviceChatServerCategory: (category, enabled) =>
@@ -527,6 +538,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         aiUserContext: state.aiUserContext,
         onDeviceChatModel: state.onDeviceChatModel,
         onDeviceChatToolSource: state.onDeviceChatToolSource,
+        onDeviceChatToolBudget: state.onDeviceChatToolBudget,
         onDeviceChatServerCategories: state.onDeviceChatServerCategories,
         onDeviceChatGreedy: state.onDeviceChatGreedy,
         onDeviceChatIncludeContext: state.onDeviceChatIncludeContext,

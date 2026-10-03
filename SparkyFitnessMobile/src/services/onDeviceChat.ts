@@ -159,22 +159,41 @@ export async function askOnDeviceChat(
       ? 'device'
       : prefs.onDeviceChatModel;
   const started = Date.now();
-  try {
-    const {
-      text: reply,
-      model,
-      toolTokens,
-    } = await OnDeviceNutritionModule.chat(transcript, context, {
+  const callModel = (
+    chatTranscript: string,
+    chatContext: string,
+    lentTools: NativeServerTool[]
+  ) =>
+    OnDeviceNutritionModule!.chat!(chatTranscript, chatContext, {
       model: effectiveModel,
       userContext: prefs.aiUserContext.trim(),
       instructions: prefs.onDeviceChatSystemPrompt,
       greedy: prefs.onDeviceChatGreedy,
       disabledTools: prefs.onDeviceChatDisabledTools,
-      serverTools,
+      serverTools: lentTools,
+      toolBudget: prefs.onDeviceChatToolBudget,
     });
+  try {
+    let result;
+    try {
+      result = await callModel(transcript, context, serverTools);
+    } catch (error) {
+      // "Provided 18,422 tokens, but the maximum allowed is 8,192": too much
+      // for the window. Try once more with only the newest message, no diary
+      // snapshot and no lent tools, rather than showing a raw error.
+      if (!/maximum allowed/i.test(String(error))) throw error;
+      trace('error', `${error}\nretrying with the newest message only`);
+      const last = turns[turns.length - 1];
+      result = await callModel(
+        last ? buildChatTranscript([last]) : transcript,
+        '',
+        []
+      );
+    }
+    const { text: reply, model, toolTokens, toolsKept } = result;
     trace(
       'reply',
-      `(${model}${toolTokens ? `, tool schemas ${toolTokens} tokens` : ''}) ${reply} [${Date.now() - started} ms]`
+      `(${model}${toolTokens ? `, tool schemas ${toolTokens} tokens` : ''}${toolsKept ? `, tools kept ${toolsKept}` : ''}) ${reply} [${Date.now() - started} ms]`
     );
     return reply;
   } catch (error) {
