@@ -205,4 +205,11 @@ describe('WatchSettingsScreen', () => {
     fireEvent.press(screen.getByText('Keypad'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
   });
+
+  it('turns the heart-rate zone colours on, off by default', () => {
+    renderScreen();
+    expect(useAppPreferencesStore.getState().watchHrZonesEnabled).toBe(false);
+    fireEvent(screen.getByTestId('watch-hr-zones-switch'), 'valueChange', true);
+    expect(useAppPreferencesStore.getState().watchHrZonesEnabled).toBe(true);
+  });
 });

@@ -196,6 +196,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     [profile?.date_of_birth]
   );
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const watchHrZonesEnabled = useAppPreferencesStore(
+    (s) => s.watchHrZonesEnabled
+  );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
@@ -559,6 +562,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         doubleTapEnabled: watchDoubleTapEnabled,
         maxHeartRate,
         rpeEnabled: watchRpeEnabled,
+        hrZonesEnabled: watchHrZonesEnabled,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -589,6 +593,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchDoubleTapEnabled,
     maxHeartRate,
     watchRpeEnabled,
+    watchHrZonesEnabled,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

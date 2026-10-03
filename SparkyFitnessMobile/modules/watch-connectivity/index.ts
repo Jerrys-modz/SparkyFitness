@@ -140,6 +140,8 @@ export interface WatchContextPayload {
   maxHeartRate?: number | null;
   /** Whether the watch asks for an RPE after each logged set. */
   rpeEnabled?: boolean | null;
+  /** Whether the watch colours the workout heart rate by zone. */
+  hrZonesEnabled?: boolean | null;
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order

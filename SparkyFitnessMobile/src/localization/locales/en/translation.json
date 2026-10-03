@@ -5544,7 +5544,9 @@
     "setInputTitle": "Set input",
     "setInputDescription": "How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.",
     "setInputKeypad": "Keypad",
-    "setInputCrown": "Digital Crown"
+    "setInputCrown": "Digital Crown",
+    "hrZonesTitle": "Heart-rate zone colours",
+    "hrZonesSubtitle": "During a workout, colour your heart rate by zone and show a zone bar under it. Zones use a max heart rate estimated from your date of birth."
   },
   "progressPhotos": {
     "card": {

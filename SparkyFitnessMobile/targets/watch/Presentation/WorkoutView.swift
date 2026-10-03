@@ -546,14 +546,21 @@ private struct MetricsStrip: View {
                 // Never truncated: a three-digit rate used to lose its last
                 // digits to the calories and clock beside it. Those shrink
                 // first instead.
-                let zone = checkIn.context.heartRateZone(for: bpm)
-                VStack(alignment: .trailing, spacing: 2) {
+                if checkIn.context.effectiveHrZonesEnabled {
+                    let zone = checkIn.context.heartRateZone(for: bpm)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
+                            .foregroundStyle(Self.zoneColor(zone))
+                        ZoneBar(zone: zone)
+                    }
+                    .fixedSize()
+                    .layoutPriority(1)
+                } else {
                     Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
-                        .foregroundStyle(Self.zoneColor(zone))
-                    ZoneBar(zone: zone)
+                        .foregroundStyle(.red)
+                        .fixedSize()
+                        .layoutPriority(1)
                 }
-                .fixedSize()
-                .layoutPriority(1)
             }
         }
         .font(.caption2)

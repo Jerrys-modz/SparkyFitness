@@ -45,6 +45,12 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
+  const watchHrZonesEnabled = useAppPreferencesStore(
+    (s) => s.watchHrZonesEnabled
+  );
+  const setWatchHrZonesEnabled = useAppPreferencesStore(
+    (s) => s.setWatchHrZonesEnabled
+  );
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
   const setWatchRpeEnabled = useAppPreferencesStore(
     (s) => s.setWatchRpeEnabled
@@ -165,6 +171,23 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
               testID="watch-double-tap-switch"
               value={watchDoubleTapEnabled}
               onValueChange={setWatchDoubleTapEnabled}
+            />
+          }
+        />
+        <SettingsRow
+          title={t('watchSettings.hrZonesTitle', {
+            defaultValue: 'Heart-rate zone colours',
+          })}
+          subtitle={t('watchSettings.hrZonesSubtitle', {
+            defaultValue:
+              'During a workout, colour your heart rate by zone and show a zone bar under it. Zones use a max heart rate estimated from your date of birth.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              testID="watch-hr-zones-switch"
+              value={watchHrZonesEnabled}
+              onValueChange={setWatchHrZonesEnabled}
             />
           }
         />

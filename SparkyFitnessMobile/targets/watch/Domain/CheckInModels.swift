@@ -341,6 +341,8 @@ struct WatchContext: Codable, Equatable {
     var maxHeartRate: Int? = nil
     /// Phone's Settings → Apple Watch → effort (RPE) switch. Nil reads as off.
     var rpeEnabled: Bool? = nil
+    /// Phone's Settings → Apple Watch → heart-rate zones switch. Nil reads as off.
+    var hrZonesEnabled: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -418,6 +420,8 @@ struct WatchContext: Codable, Equatable {
     var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
 
     var effectiveRpeEnabled: Bool { rpeEnabled ?? false }
+
+    var effectiveHrZonesEnabled: Bool { hrZonesEnabled ?? false }
 
     var effectiveMaxHeartRate: Double { Double(maxHeartRate ?? 190) }
 

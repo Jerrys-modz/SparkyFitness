@@ -115,6 +115,7 @@ export const PREFERENCE_DEFAULTS = {
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
+  watchHrZonesEnabled: false,
   saveWorkoutsToHealth: false,
   watchRpeEnabled: false,
   watchNutrientOrder: [] as string[],
@@ -205,6 +206,8 @@ export type AppPreferencesData = {
   hiddenWatchPages: WatchPageKey[];
   /** Whether the watch's double-tap gesture logs the current set. */
   watchDoubleTapEnabled: boolean;
+  /** Colour the workout heart rate by zone and show the zone bar. */
+  watchHrZonesEnabled: boolean;
   /** iOS: file phone-only workouts in Apple Health when they finish. */
   saveWorkoutsToHealth: boolean;
   watchRpeEnabled: boolean;
@@ -281,6 +284,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
+  setWatchHrZonesEnabled: (value: boolean) => void;
   setSaveWorkoutsToHealth: (value: boolean) => void;
   setWatchRpeEnabled: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
@@ -449,6 +453,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setSaveWorkoutsToHealth: (value) => set({ saveWorkoutsToHealth: value }),
       setWatchDoubleTapEnabled: (value) =>
         set({ watchDoubleTapEnabled: value }),
+      setWatchHrZonesEnabled: (value) => set({ watchHrZonesEnabled: value }),
       setWatchRpeEnabled: (value) => set({ watchRpeEnabled: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
@@ -535,6 +540,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,
+        watchHrZonesEnabled: state.watchHrZonesEnabled,
         saveWorkoutsToHealth: state.saveWorkoutsToHealth,
         watchRpeEnabled: state.watchRpeEnabled,
         watchNutrientOrder: state.watchNutrientOrder,

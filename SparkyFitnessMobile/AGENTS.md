@@ -390,7 +390,7 @@ const androidService = require('../../src/services/healthConnectService.ts');
 - For work inside `SparkyFitnessMobile/`, this file is the package guide.
 - If a task also changes another package, combine this with that package guide instead of stretching this file to cover the whole monorepo.
 
-- Watch heart-rate zones (#86): the phone sends `maxHeartRate` (`estimateMaxHeartRate` in `src/utils/heartRateZones.ts`, 211 − 0.64·age from the profile, 190 fallback) in the watch context; the workout metrics strip colours the BPM and draws a 5-segment bar using the same 50/60/70/80/90% floors as the server.
+- Watch heart-rate zones (#86, off by default; Settings → Apple Watch → "Heart-rate zone colours", sent as `hrZonesEnabled`): the phone sends `maxHeartRate` (`estimateMaxHeartRate` in `src/utils/heartRateZones.ts`, 211 − 0.64·age from the profile, 190 fallback) in the watch context; the workout metrics strip colours the BPM and draws a 5-segment bar using the same 50/60/70/80/90% floors as the server.
 
 - Watch RPE (#87): Settings → Apple Watch → "Ask for effort" (`watchRpeEnabled`, default off) rides the watch context as `rpeEnabled`. When on, logging a set on the watch holds it behind a Digital Crown picker (6–10, half steps); Done sends `rpe` with `setCompleted`, Skip or dismissal sends it without. The phone writes `rpe` via `updateSetField` only when it is within 1–10.
 
