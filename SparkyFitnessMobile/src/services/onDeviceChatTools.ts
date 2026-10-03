@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { requestChatConfirm } from '../stores/chatConfirmStore';
 import { fetchDailySummary } from './api/dailySummaryApi';
 import {
   copyFoodEntries,
@@ -88,17 +88,7 @@ function confirm(
   message: string,
   confirmText = 'Log it'
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    Alert.alert(
-      title,
-      message,
-      [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: confirmText, onPress: () => resolve(true) },
-      ],
-      { cancelable: true, onDismiss: () => resolve(false) }
-    );
-  });
+  return requestChatConfirm({ title, message, confirmText });
 }
 
 async function getDaySummary(args: { date?: string }): Promise<string> {
