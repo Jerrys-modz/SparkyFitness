@@ -44,6 +44,8 @@ import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
 import { getActiveServerConfigId } from '../services/storage';
+import { useCurrentFast } from './useFasting';
+import { toWatchFast } from '../utils/watchFast';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -64,6 +66,9 @@ function goalProgress(consumed: number, goal: number): number {
   if (goal <= 0) return 0;
   return Math.max(0, Math.min(1, consumed / goal));
 }
+
+/** Daily step goal sent to the watch (no per-user step goal exists yet). */
+const WATCH_STEP_GOAL = 10000;
 
 /** Days of history relayed to the watch — matches the watch's 14-day chart. */
 const HISTORY_DAYS = 14;
@@ -216,6 +221,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       ? 'lbs'
       : 'kg';
   const { presets } = useWorkoutPresets({ enabled });
+  const fastQuery = useCurrentFast({ enabled });
+  const fast = fastQuery.data;
+  const watchFast = useMemo(() => toWatchFast(fast), [fast]);
   const startableWorkouts = useMemo(
     () => startableWorkoutsForWatch(presets),
     [presets]
@@ -475,13 +483,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       // the most recent one for that date.
       const byDay = new Map<
         string,
-        { weight?: number | null; bodyFat?: number | null }
+        {
+          weight?: number | null;
+          bodyFat?: number | null;
+          steps?: number | null;
+        }
       >();
       for (const entry of range) {
         if (byDay.has(entry.entry_date)) continue;
         byDay.set(entry.entry_date, {
           weight: entry.weight,
           bodyFat: entry.body_fat_percentage,
+          steps: entry.steps,
         });
       }
 
@@ -545,6 +558,16 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         startableWorkouts,
         workoutServerId,
+        // `fast: null` (not fasting) is stripped before it reaches the watch,
+        // so the answer "the server has replied" travels as its own flag.
+        ...(watchFast !== undefined
+          ? { fast: watchFast, fastKnown: true }
+          : {}),
+        steps:
+          todayRow?.steps != null && todayRow.steps >= 0
+            ? { day: today, count: Math.round(todayRow.steps) }
+            : null,
+        stepGoal: WATCH_STEP_GOAL,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -580,6 +603,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     summaryDate,
     figuresForSummaryDate,
     watchContainers,
+    watchFast,
   ]);
 
   /**

@@ -29,6 +29,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
+    var onFastStartRequested: (([String: Any]) -> Void)?
+    var onFastEndRequested: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -101,6 +103,10 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
             onWorkoutStartRequested?(payload)
+        case "fastStart":
+            onFastStartRequested?(payload)
+        case "fastEnd":
+            onFastEndRequested?(payload)
         default:
             break
         }
@@ -231,7 +237,9 @@ public class WatchConnectivityModule: Module {
             "onLiveHeartRate",
             "onWorkoutStop",
             "onWorkoutDiscard",
-            "onWorkoutStartRequested"
+            "onWorkoutStartRequested",
+            "onFastStartRequested",
+            "onFastEndRequested"
         )
 
         OnCreate {
@@ -281,6 +289,17 @@ public class WatchConnectivityModule: Module {
                     "weightKg": payload["weightKg"] as? Double,
                     "reps": payload["reps"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onFastStartRequested = { [weak self] payload in
+                self?.sendEvent("onFastStartRequested", [
+                    "presetId": payload["presetId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onFastEndRequested = { [weak self] payload in
+                self?.sendEvent("onFastEndRequested", [
+                    "clientId": payload["clientId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in
