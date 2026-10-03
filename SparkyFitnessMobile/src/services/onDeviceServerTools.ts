@@ -18,14 +18,6 @@ export interface NativeServerTool {
   parameters: string;
 }
 
-/** The categories the server treats as core, switched on by default. */
-const DEFAULT_SERVER_TOOL_CATEGORIES = [
-  'food',
-  'exercise',
-  'checkin',
-  'goals',
-];
-
 export const SERVER_TOOL_CATEGORIES = [
   'food',
   'exercise',
