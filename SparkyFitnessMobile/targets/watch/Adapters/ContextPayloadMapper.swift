@@ -77,7 +77,21 @@ enum ContextPayloadMapper {
             doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
             maxHeartRate: (payload["maxHeartRate"] as? NSNumber)?.intValue ?? previous.maxHeartRate,
             rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled,
-            hrZonesEnabled: payload["hrZonesEnabled"] as? Bool ?? previous.hrZonesEnabled
+            hrZonesEnabled: payload["hrZonesEnabled"] as? Bool ?? previous.hrZonesEnabled,
+            fast: payload.keys.contains("fast") ? fast(from: payload["fast"]) : previous.fast,
+            fastSynced: payload.keys.contains("fast") ? true : previous.fastSynced
+        )
+    }
+
+    /// The running fast from the phone's `fast` key. Nil when there is none.
+    static func fast(from raw: Any?) -> WatchFast? {
+        guard let dict = raw as? [String: Any],
+              let start = (dict["startedAt"] as? NSNumber)?.doubleValue else { return nil }
+        let target = (dict["targetEndAt"] as? NSNumber)?.doubleValue
+        return WatchFast(
+            startedAt: Date(timeIntervalSince1970: start / 1000),
+            targetEndAt: target.map { Date(timeIntervalSince1970: $0 / 1000) },
+            label: dict["label"] as? String
         )
     }
 

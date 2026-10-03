@@ -143,6 +143,8 @@ struct ContentView: View {
             CheckInEntryView { self.page = shown(.trend) ?? self.page }
         case .trend:
             TrendView()
+        case .fasting:
+            FastingView()
         case .workout:
             WorkoutView()
                 .environment(\.workoutPageActive, selectedPage == .workout)

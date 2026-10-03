@@ -23,6 +23,7 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     /// The wearer started a set's hold countdown or stopwatch on the watch.
     var onSetTimerStarted: (([String: Any]) -> Void)?
     var onSetTimerStopped: (([String: Any]) -> Void)?
+    var onAddSetRequested: (([String: Any]) -> Void)?
     /// A batch of heart-rate samples for one exercise, captured on the watch.
     var onHeartRateBatch: (([String: Any]) -> Void)?
     /// The reading on the wrist now. Live messages only, never queued.
@@ -98,6 +99,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onSetTimerStarted?(payload)
         case "setTimerStopped":
             onSetTimerStopped?(payload)
+        case "addSet":
+            onAddSetRequested?(payload)
         case "heartRateBatch":
             onHeartRateBatch?(payload)
         case "liveHeartRate":
@@ -236,6 +239,7 @@ public class WatchConnectivityModule: Module {
             "onRestChanged",
             "onSetTimerStarted",
             "onSetTimerStopped",
+            "onAddSetRequested",
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
@@ -312,6 +316,13 @@ public class WatchConnectivityModule: Module {
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "setId": payload["setId"] as? String ?? "",
                     "seconds": seconds,
+                ])
+            }
+            self.delegateHandler.onAddSetRequested = { [weak self] payload in
+                self?.sendEvent("onAddSetRequested", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in

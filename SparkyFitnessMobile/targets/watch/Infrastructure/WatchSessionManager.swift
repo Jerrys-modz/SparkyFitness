@@ -1177,6 +1177,18 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.setCompleted(completed))
     }
 
+    /// Asks the phone for one more set on this exercise. Queued, like a
+    /// logged set: a request dropped on the way would just do nothing, but a
+    /// phone out of reach should still get it when it comes back.
+    func requestAddSet(exerciseEntryId: String) {
+        guard let sessionId = workoutStore.plan?.sessionId else { return }
+        transfer(OutboundPayloads.addSet(
+            sessionId: sessionId,
+            exerciseEntryId: exerciseEntryId,
+            clientId: UUID().uuidString
+        ))
+    }
+
     /// Sends one heart-rate batch for whichever exercise is current right now.
     ///
     /// Queued like a completed set, NOT reachability-gated. A phone in a gym

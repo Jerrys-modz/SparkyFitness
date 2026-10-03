@@ -44,6 +44,8 @@ import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
 import { useProfile } from './useProfile';
+import { useCurrentFast } from './useFasting';
+import { toWatchFast } from '../utils/watchFast';
 import { estimateMaxHeartRate } from '../utils/heartRateZones';
 import { getActiveServerConfigId } from '../services/storage';
 
@@ -195,6 +197,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     () => estimateMaxHeartRate(profile?.date_of_birth),
     [profile?.date_of_birth]
   );
+  const fastQuery = useCurrentFast({ enabled });
+  const fast = fastQuery.data;
+  const watchFast = useMemo(() => toWatchFast(fast), [fast]);
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
   const watchHrZonesEnabled = useAppPreferencesStore(
     (s) => s.watchHrZonesEnabled
@@ -563,6 +568,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         maxHeartRate,
         rpeEnabled: watchRpeEnabled,
         hrZonesEnabled: watchHrZonesEnabled,
+        ...(watchFast !== undefined ? { fast: watchFast } : {}),
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -594,6 +600,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     maxHeartRate,
     watchRpeEnabled,
     watchHrZonesEnabled,
+    watchFast,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

@@ -170,6 +170,15 @@ struct WaterSnapshot: Codable, Equatable {
     var isToday: Bool { day == CheckInDate.today() }
 }
 
+/// The fast running now, as the phone knows it.
+struct WatchFast: Codable, Equatable {
+    let startedAt: Date
+    /// When the fast reaches its goal. Nil for an open-ended fast.
+    let targetEndAt: Date?
+    /// The preset's name, such as "16:8".
+    let label: String?
+}
+
 /// A container tap the wearer has made but the phone hasn't confirmed.
 ///
 /// Lives in `CheckInStore` rather than the Water page's own `@State` so it
@@ -343,6 +352,11 @@ struct WatchContext: Codable, Equatable {
     var rpeEnabled: Bool? = nil
     /// Phone's Settings → Apple Watch → heart-rate zones switch. Nil reads as off.
     var hrZonesEnabled: Bool? = nil
+    /// The fast running now. Nil with `fastSynced` true means "not fasting".
+    var fast: WatchFast? = nil
+    /// True once the phone has said anything about fasting, so "not fasting"
+    /// is not confused with "never heard".
+    var fastSynced: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,

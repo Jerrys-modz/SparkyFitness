@@ -422,6 +422,18 @@ private struct ExerciseListView: View {
             // Finishing lives here rather than on the set screen: this is the
             // workout's overview, and an end-everything button one tap from
             // the tick that logs a set is a mis-tap waiting to happen.
+            if let current = store.currentStep {
+                Section {
+                    Button {
+                        Haptics.tap()
+                        session.requestAddSet(exerciseEntryId: current.exerciseEntryId)
+                    } label: {
+                        Label("Add Set · \(current.exerciseName)", systemImage: "plus.circle")
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                }
+            }
             Section {
                 Button(role: .destructive) {
                     Haptics.tap()

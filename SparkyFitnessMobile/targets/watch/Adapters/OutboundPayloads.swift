@@ -29,6 +29,7 @@ enum OutboundPayloads {
         static let restChanged = "restChanged"
         static let setTimerStarted = "setTimerStarted"
         static let setTimerStopped = "setTimerStopped"
+        static let addSet = "addSet"
         static let workoutStartRequested = "workoutStartRequested"
     }
 
@@ -215,6 +216,18 @@ enum OutboundPayloads {
             "sessionId": sessionId,
             "setId": setId,
             "seconds": seconds,
+        ]
+    }
+
+    /// The wearer asked for one more set on an exercise. The phone adds it and
+    /// sends the updated plan back, so the two stay in step. `clientId` lets the
+    /// phone ignore a copy that is delivered twice.
+    static func addSet(sessionId: String, exerciseEntryId: String, clientId: String) -> [String: Any] {
+        [
+            "type": Kind.addSet,
+            "sessionId": sessionId,
+            "exerciseEntryId": exerciseEntryId,
+            "clientId": clientId,
         ]
     }
 

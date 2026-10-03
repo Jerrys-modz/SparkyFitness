@@ -143,6 +143,17 @@ export interface WatchContextPayload {
   /** Whether the watch colours the workout heart rate by zone. */
   hrZonesEnabled?: boolean | null;
   /**
+   * The fast running now, or null for none. Left out until the phone has
+   * heard from the server, so a watch keeps what it had.
+   */
+  fast?: {
+    /** Epoch ms. */
+    startedAt: number;
+    /** Epoch ms, or null for an open-ended fast. */
+    targetEndAt: number | null;
+    label: string | null;
+  } | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.
@@ -461,6 +472,14 @@ export interface WatchRestChangedPayload {
  * The wearer started a set's hold countdown or stopwatch on the watch.
  * `startedAt` is epoch ms; the phone starts its own timer from it.
  */
+/** The wearer asked for one more set on an exercise. */
+export interface WatchAddSetRequestPayload {
+  sessionId: string;
+  exerciseEntryId: string;
+  /** Stable id from the watch, to ignore a re-delivered request. */
+  clientId: string;
+}
+
 /** The wearer stopped a set's stopwatch on the watch. */
 export interface WatchSetTimerStoppedPayload {
   sessionId: string;
@@ -501,6 +520,7 @@ export type WatchConnectivityEvents = {
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
   onSetTimerStopped: (payload: WatchSetTimerStoppedPayload) => void;
+  onAddSetRequested: (payload: WatchAddSetRequestPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
