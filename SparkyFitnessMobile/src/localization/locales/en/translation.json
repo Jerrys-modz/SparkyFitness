@@ -697,6 +697,10 @@
       "healthAppUnavailableMessage": "Please install the Apple Health app to sync your health data.",
       "permissionErrorTitle": "Permission Error",
       "permissionErrorMessage": "An unexpected error occurred while trying to request Health permissions: {{error}}"
+    },
+    "savePhoneWorkouts": {
+      "title": "Save phone workouts to Apple Health",
+      "subtitle": "Workouts you finish on the phone without the Apple Watch are added to Apple Health as strength training. Watch workouts are already saved by the watch."
     }
   },
   "auth": {

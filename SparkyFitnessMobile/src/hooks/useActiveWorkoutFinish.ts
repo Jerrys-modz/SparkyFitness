@@ -8,6 +8,9 @@ import type { CompletedSetMap } from '../stores/activeWorkoutStore';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import { formatDuration, summarizeWorkoutSpan } from '../utils/workoutSession';
 import { buildWorkoutCelebration } from '../utils/workoutCelebration';
+import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { savePhoneWorkoutToHealth } from '../services/phoneWorkoutHealth';
 import type { RootStackParamList } from '../types/navigation';
 
 interface UseActiveWorkoutFinishArgs {
@@ -93,9 +96,25 @@ export function useActiveWorkoutFinish({
         );
         return;
       }
-      const celebration = buildWorkoutCelebration(
-        useActiveWorkoutStore.getState()
-      );
+      const finishing = useActiveWorkoutStore.getState();
+      const celebration = buildWorkoutCelebration(finishing);
+      // A session the watch recorded is already in Health from the wrist.
+      const watchRecorded =
+        useLiveHeartRateStore.getState().reading?.sessionId ===
+        finishing.sessionId;
+      if (
+        celebration != null &&
+        finishing.sessionId != null &&
+        celebration.startedAt != null &&
+        !watchRecorded &&
+        useAppPreferencesStore.getState().saveWorkoutsToHealth
+      ) {
+        void savePhoneWorkoutToHealth({
+          sessionId: finishing.sessionId,
+          startedAt: celebration.startedAt,
+          finishedAt: celebration.finishedAt,
+        });
+      }
       useActiveWorkoutStore.getState().clearWorkout();
       if (celebration != null) {
         navigation.replace('WorkoutComplete', celebration);

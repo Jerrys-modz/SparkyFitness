@@ -25,6 +25,7 @@ import SyncFrequency from '../components/SyncFrequency';
 import SyncOnOpen from '../components/SyncOnOpen';
 import HealthDataSync from '../components/HealthDataSync';
 import HealthDataWriteback from '../components/HealthDataWriteback';
+import SavePhoneWorkoutsRow from '../components/SavePhoneWorkoutsRow';
 import {
   WRITEBACK_METRICS,
   type WritebackMetric,
@@ -997,6 +998,7 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
           onRemoveAllData={handleRemoveAllData}
           onRemoveDateRange={handleRemoveDateRange}
         />
+        {Platform.OS === 'ios' && <SavePhoneWorkoutsRow />}
         <DateRangeSheet
           ref={dateRangeSheetRef}
           onConfirm={(from, to) => doRemoveWritebackData({ from, to })}
