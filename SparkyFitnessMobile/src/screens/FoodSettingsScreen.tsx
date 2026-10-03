@@ -318,7 +318,7 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
             <Text className="text-text-secondary text-sm mt-4">
               {t('foodSettings.onDeviceChat.description', {
                 defaultValue:
-                  "Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log a food or your weight. It is less capable than your server AI provider and chats are not saved.",
+                  'Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log a food or your weight. It is less capable than your server AI provider and chats are not saved.',
               })}
             </Text>
           </View>
