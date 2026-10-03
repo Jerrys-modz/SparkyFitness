@@ -310,19 +310,55 @@ describe('useWatchWorkoutBridge', () => {
       act(() => {
         mockListeners.get('onSetTimerStopped')!(payload);
       });
+    let startedAt = 0;
 
     beforeEach(() => {
+      startedAt = Date.now() - 20_000;
       useActiveWorkoutStore.getState().startWorkout(makeSession());
       useActiveWorkoutStore.setState({
         sessionId: 'session-1',
-        setTimerStartedAt: { '101': Date.now() - 20_000 },
+        setTimerStartedAt: { '101': startedAt },
         completedSetIds: {},
       });
     });
 
     it('stops the phone stopwatch and keeps the wrist time as the duration', () => {
       renderHook(() => useWatchWorkoutBridge(true));
-      fire({ sessionId: 'session-1', setId: '101', seconds: 19 });
+      fire({ sessionId: 'session-1', setId: '101', seconds: 19, startedAt });
+      expect(getStore().setTimerStartedAt['101']).toBeUndefined();
+      expect(getStore().session!.exercises[0].sets[0].duration).toBe(19);
+    });
+
+    it('ignores a stop from an earlier run of the same set', () => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        seconds: 19,
+        startedAt: startedAt - 30_000,
+      });
+      expect(getStore().setTimerStartedAt['101']).toBe(startedAt);
+      expect(getStore().session!.exercises[0].sets[0].duration).not.toBe(19);
+    });
+
+    it('accepts a stop whose start the phone clock clamped forward', () => {
+      useActiveWorkoutStore.setState({ setTimerStartedAt: {} });
+      renderHook(() => useWatchWorkoutBridge(true));
+      const watchStart = Date.now() + 5_000;
+      act(() => {
+        mockListeners.get('onSetTimerStarted')!({
+          sessionId: 'session-1',
+          setId: '101',
+          startedAt: watchStart,
+        });
+      });
+      expect(getStore().setTimerStartedAt['101']).toBeLessThan(watchStart);
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        seconds: 19,
+        startedAt: watchStart,
+      });
       expect(getStore().setTimerStartedAt['101']).toBeUndefined();
       expect(getStore().session!.exercises[0].sets[0].duration).toBe(19);
     });
@@ -330,9 +366,9 @@ describe('useWatchWorkoutBridge', () => {
     it('ignores another session, a logged set and a zero time', () => {
       useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
       renderHook(() => useWatchWorkoutBridge(true));
-      fire({ sessionId: 'other', setId: '101', seconds: 19 });
-      fire({ sessionId: 'session-1', setId: '102', seconds: 19 });
-      fire({ sessionId: 'session-1', setId: '101', seconds: 0 });
+      fire({ sessionId: 'other', setId: '101', seconds: 19, startedAt });
+      fire({ sessionId: 'session-1', setId: '102', seconds: 19, startedAt });
+      fire({ sessionId: 'session-1', setId: '101', seconds: 0, startedAt });
       expect(getStore().setTimerStartedAt['101']).toBeDefined();
     });
   });

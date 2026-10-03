@@ -207,14 +207,17 @@ enum OutboundPayloads {
     }
 
     /// The wearer stopped a set's stopwatch on the watch. `seconds` is how long
-    /// it ran; the phone stops its own stopwatch for the set and keeps that
-    /// as the set's duration.
-    static func setTimerStopped(sessionId: String, setId: String, seconds: Int) -> [String: Any] {
+    /// it ran; `startedAt` is that run's start so a stop queued behind a newer
+    /// run is not applied to it.
+    static func setTimerStopped(
+        sessionId: String, setId: String, seconds: Int, startedAt: Date
+    ) -> [String: Any] {
         [
             "type": Kind.setTimerStopped,
             "sessionId": sessionId,
             "setId": setId,
             "seconds": seconds,
+            "startedAt": startedAt.timeIntervalSince1970 * 1000,
         ]
     }
 

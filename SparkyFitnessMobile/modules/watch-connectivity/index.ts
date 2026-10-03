@@ -434,6 +434,8 @@ export interface WatchSetTimerStoppedPayload {
   setId: string;
   /** Whole seconds the stopwatch ran. */
   seconds: number;
+  /** Epoch ms of the run that stopped. Not applied to a different run. */
+  startedAt: number;
 }
 
 /**

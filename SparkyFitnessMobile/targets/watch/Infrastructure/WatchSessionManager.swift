@@ -648,12 +648,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 armedAt: self.workoutStore.plan?.armedAt
             ))
         }
-        workoutStore.onSetTimerStoppedHere = { [weak self] setId, seconds in
+        workoutStore.onSetTimerStoppedHere = { [weak self] setId, startedAt, seconds in
             guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
             self.transfer(OutboundPayloads.setTimerStopped(
                 sessionId: sessionId,
                 setId: setId,
-                seconds: seconds
+                seconds: seconds,
+                startedAt: startedAt
             ))
         }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
