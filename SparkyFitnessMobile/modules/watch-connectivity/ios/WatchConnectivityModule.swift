@@ -302,6 +302,7 @@ public class WatchConnectivityModule: Module {
                     "clientId": payload["clientId"] as? String ?? "",
                 ])
             }
+            self.delegateHandler.onRestChanged = { [weak self] payload in
                 // Epoch ms as Doubles, like the phone's own rest deadline.
                 // `endsAt` is absent when the rest was skipped on the watch.
                 var event: [String: Any] = [
