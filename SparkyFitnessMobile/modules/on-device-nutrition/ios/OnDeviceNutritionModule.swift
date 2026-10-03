@@ -124,7 +124,10 @@ estimate. Use logWater for water and logWeight for body weight. To fix a \
 mistake, call listFoodEntries then deleteFoodEntry. Use getHistory for past \
 weights or workouts, getSleep for sleep, and getFasting, startFast and endFast \
 for fasting. Use logExercise for a finished activity and copyMeal to repeat an \
-earlier meal. The user confirms every write, so just call the tool and then say in \
+earlier meal. Only call a logging, deleting or fasting tool when the user clearly says \
+they ate, drank, weighed, exercised or want that action done. For suggestions, \
+ideas, recipes or advice, answer in text and call no write tool. \
+The user confirms every write, so just call the tool and then say in \
 one short sentence what happened. If the user declines, accept it. Never claim \
 something was logged unless the tool said so. You cannot edit entries, \
 only delete them. You are not a doctor: for medical questions, suggest seeing a professional.
@@ -273,7 +276,7 @@ private struct LogWeightTool: Tool {
 @available(iOS 27, *)
 private struct LogQuickFoodTool: Tool {
     let name = "logQuickFood"
-    let description = "Logs a food that is not in the library, from nutrition numbers you estimate, to today's diary. The user is asked to confirm before it is saved."
+    let description = "Logs a food the user says they ate that is not in the library, from nutrition numbers you estimate, to today's diary. Never use it for suggestions. The user is asked to confirm before it is saved."
 
     @Generable
     struct Arguments {
