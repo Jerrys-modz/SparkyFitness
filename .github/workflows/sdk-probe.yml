@@ -9,12 +9,8 @@ jobs:
       - name: Dump FoundationModels interface
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          echo "SDK=$SDK"
-          F=$(find "$SDK/System/Library/Frameworks/FoundationModels.framework" -name "*.swiftinterface" | grep -v private | head -3)
-          echo "FILES:"; echo "$F"
-          for f in $F; do
-            echo "=== $f"
-            grep -nEi "cloud|private|server|remote|PCC|SystemLanguageModel\b.*(init|case|static)|enum .*Model|UseCase|Availability|UnavailableReason|contextSize|tokenCount" "$f" | head -80
-          done
-          echo "=== other frameworks"
-          ls "$SDK/System/Library/Frameworks" | grep -iE "Intelligence|Foundation|Model" 
+          f=$(find "$SDK/System/Library/Frameworks/FoundationModels.framework" -name "arm64e-apple-ios.swiftinterface" | head -1)
+          echo "##### PCC section"; sed -n 30,160p "$f" | sed 's/FoundationModels:://g'
+          echo "##### session inits"; grep -nE "LanguageModelSession.*init|convenience public init\(model|public init\(model|protocol LanguageModel\b|available\(" "$f" | sed 's/FoundationModels:://g' | head -40
+          echo "##### quota"; sed -n 205,265p "$f" | sed 's/FoundationModels:://g'
+          echo "##### SystemLanguageModel context"; sed -n 440,470p "$f" | sed 's/FoundationModels:://g'
