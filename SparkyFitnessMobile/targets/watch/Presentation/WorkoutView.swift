@@ -615,6 +615,12 @@ private struct CurrentSetView: View {
     /// or drag has stepped to. Above the crown's range this stays on the real
     /// value; the binding itself cannot.
     @State private var crownBaseline: Double = 0
+    /// The same number without rounding. The crown reports in-between values
+    /// while it turns (10.3 reps), and a whole rep only shows up once enough of
+    /// them add up, so the turns are summed here and `crownBaseline` is this
+    /// rounded to a step. Stepping from the rounded number alone drops every
+    /// turn smaller than half a step, which is how reps stopped moving.
+    @State private var crownExact: Double = 0
     /// Last binding sample. A rebase writes this before moving the binding so
     /// that correction is not counted as a turn.
     @State private var crownSeen: Double?
@@ -795,6 +801,7 @@ private struct CurrentSetView: View {
                     guard steps != dragSteps else { return }
                     dragSteps = steps
                     crownBaseline = max(start + steps * stepSize(for: field), minValue(for: field))
+                    crownExact = crownBaseline
                     crownAdjusted = true
                     if crownSeen == nil {
                         crownSeen = min(max(crownValue, minValue(for: field)), maxValue(for: field))
@@ -826,6 +833,7 @@ private struct CurrentSetView: View {
         let stored = storedValue(for: field)
         crownStep = step
         crownBaseline = stored ?? 0
+        crownExact = stored ?? 0
         crownAdjusted = false
         // Sit the sample on the cap when the stored number is above it, so
         // the clamp that follows is not counted as a turn. The first real
@@ -862,7 +870,8 @@ private struct CurrentSetView: View {
         }
 
         let step = stepSize(for: field)
-        let next = max(((editedValue(for: field) + delta) / step).rounded() * step, floor)
+        crownExact = max(crownExact + delta, floor)
+        let next = max((crownExact / step).rounded() * step, floor)
         guard abs(next - crownBaseline) >= 0.000_1 else { return }
         crownBaseline = next
         crownAdjusted = true
