@@ -42,12 +42,25 @@ export interface OnDeviceMealEstimate {
   }[];
 }
 
-declare class OnDeviceNutritionModuleType extends NativeModule {
+export interface OnDeviceChatToolEvent {
+  id: string;
+  name: string;
+  /** JSON object of the model's arguments. */
+  args: string;
+}
+
+type OnDeviceNutritionEvents = {
+  onChatTool: (event: OnDeviceChatToolEvent) => void;
+};
+
+declare class OnDeviceNutritionModuleType extends NativeModule<OnDeviceNutritionEvents> {
   /** True on iOS 27+ with Apple Intelligence enabled and the model ready. */
   isAvailable(): boolean;
   scanLabel(base64Image: string): Promise<OnDeviceLabelExtraction>;
   /** Answers the last message of `transcript`, given a plain-text diary snapshot. */
   chat?(transcript: string, context: string): Promise<string>;
+  /** Answers a pending `onChatTool` event. */
+  resolveChatTool?(id: string, result: string): void;
   estimateMeal(
     base64Image: string,
     description: string | null,
