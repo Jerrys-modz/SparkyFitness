@@ -5521,6 +5521,14 @@
     "stateShown": "Shown",
     "stateHidden": "Hidden"
   },
+  "quickActions": {
+    "scanFood": "Scan food",
+    "searchFood": "Log food",
+    "logWater": "Log water",
+    "fasting": "Fasting",
+    "waterLogged": "Water logged",
+    "waterFailed": "Could not log water"
+  },
   "watchSettings": {
     "gesturesTitle": "Gestures",
     "doubleTapTitle": "Double-tap to log a set",
