@@ -103,7 +103,9 @@ searchFoods first, pick the best match, then call logFood; if the food is not \
 in the library, call logQuickFood with your best estimate and say it is an \
 estimate. Use logWater for water and logWeight for body weight. To fix a \
 mistake, call listFoodEntries then deleteFoodEntry. Use getHistory for past \
-weights or workouts. The user confirms every write, so just call the tool and then say in \
+weights or workouts, getSleep for sleep, and getFasting, startFast and endFast \
+for fasting. Use logExercise for a finished activity and copyMeal to repeat an \
+earlier meal. The user confirms every write, so just call the tool and then say in \
 one short sentence what happened. If the user declines, accept it. Never claim \
 something was logged unless the tool said so. You cannot edit entries, \
 only delete them. You are not a doctor: for medical questions, suggest seeing a professional.
@@ -350,6 +352,123 @@ private struct GetHistoryTool: Tool {
         await ChatToolBridge.shared.invoke(name, ["kind": arguments.kind, "days": arguments.days])
     }
 }
+@available(iOS 27, *)
+private struct GetFastingTool: Tool {
+    let name = "getFasting"
+    let description = "Reads whether the user is fasting right now and for how long."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Always empty")
+        let unused: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, [:])
+    }
+}
+
+@available(iOS 27, *)
+private struct StartFastTool: Tool {
+    let name = "startFast"
+    let description = "Starts a fast now with a target length in hours. The user is asked to confirm."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Target length of the fast in hours, for example 16")
+        let hours: Double
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["hours": arguments.hours])
+    }
+}
+
+@available(iOS 27, *)
+private struct EndFastTool: Tool {
+    let name = "endFast"
+    let description = "Ends the fast that is running now. The user is asked to confirm."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Always empty")
+        let unused: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, [:])
+    }
+}
+
+@available(iOS 27, *)
+private struct GetSleepTool: Tool {
+    let name = "getSleep"
+    let description = "Reads recent sleep: hours asleep and score for each night."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "How many nights back to look, 1 to 14")
+        let days: Int
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(name, ["days": arguments.days])
+    }
+}
+
+@available(iOS 27, *)
+private struct LogExerciseTool: Tool {
+    let name = "logExercise"
+    let description = "Logs a finished activity such as a run or a walk to today's diary. The user is asked to confirm."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Activity name, such as Running or Walking")
+        let activity: String
+        @Guide(description: "Duration in minutes")
+        let minutes: Double
+        @Guide(description: "Calories burned, or 0 if unknown")
+        let caloriesBurned: Double
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(
+            name,
+            [
+                "activity": arguments.activity,
+                "minutes": arguments.minutes,
+                "caloriesBurned": arguments.caloriesBurned,
+            ]
+        )
+    }
+}
+
+@available(iOS 27, *)
+private struct CopyMealTool: Tool {
+    let name = "copyMeal"
+    let description = "Copies everything logged in one meal on an earlier day into a meal today. The user is asked to confirm."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Either yesterday or a date as YYYY-MM-DD")
+        let fromDay: String
+        @Guide(description: "Meal to copy from, such as Breakfast")
+        let fromMeal: String
+        @Guide(description: "Meal today to copy into, such as Breakfast")
+        let toMeal: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        await ChatToolBridge.shared.invoke(
+            name,
+            [
+                "fromDay": arguments.fromDay,
+                "fromMeal": arguments.fromMeal,
+                "toMeal": arguments.toMeal,
+            ]
+        )
+    }
+}
 #endif
 
 public class OnDeviceNutritionModule: Module {
@@ -449,7 +568,8 @@ public class OnDeviceNutritionModule: Module {
                 let allTools: [any Tool] = [
                     GetDaySummaryTool(), SearchFoodsTool(), LogFoodTool(), LogQuickFoodTool(),
                     LogWaterTool(), LogWeightTool(), ListFoodEntriesTool(), DeleteFoodEntryTool(),
-                    GetHistoryTool(),
+                    GetHistoryTool(), GetFastingTool(), StartFastTool(), EndFastTool(),
+                    GetSleepTool(), LogExerciseTool(), CopyMealTool(),
                 ]
                 let session = LanguageModelSession(
                     tools: allTools.filter { !disabled.contains($0.name) },

@@ -17,6 +17,16 @@ import {
   upsertCheckIn,
 } from '../../src/services/api/measurementsApi';
 import { Alert } from 'react-native';
+import {
+  endFast,
+  fetchCurrentFast,
+  startFast,
+} from '../../src/services/api/fastingApi';
+import {
+  createExerciseEntry,
+  searchExercises,
+} from '../../src/services/api/exerciseApi';
+import { copyFoodEntries } from '../../src/services/api/foodEntriesApi';
 
 jest.mock('../../src/services/api/foodsApi', () => ({
   searchFoods: jest.fn(),
@@ -27,6 +37,19 @@ jest.mock('../../src/services/api/mealTypesApi', () => ({
 jest.mock('../../src/services/api/foodEntriesApi', () => ({
   createFoodEntry: jest.fn(),
   deleteFoodEntry: jest.fn(),
+  copyFoodEntries: jest.fn(),
+}));
+jest.mock('../../src/services/api/fastingApi', () => ({
+  fetchCurrentFast: jest.fn(),
+  startFast: jest.fn(),
+  endFast: jest.fn(),
+}));
+jest.mock('../../src/services/api/exerciseApi', () => ({
+  searchExercises: jest.fn(),
+  createExerciseEntry: jest.fn(),
+}));
+jest.mock('../../src/services/api/sleepApi', () => ({
+  fetchSleepEntries: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('../../src/services/api/measurementsApi', () => ({
   upsertCheckIn: jest.fn(),
@@ -239,5 +262,75 @@ describe('chat tools', () => {
         JSON.stringify({ kind: 'sleep', days: 7 })
       )
     ).toContain('weight or workouts');
+  });
+
+  it('starts a fast only when none is running and the user confirms', async () => {
+    (fetchCurrentFast as jest.Mock).mockResolvedValue(null);
+    answerAlert(1);
+    await runChatTool('startFast', JSON.stringify({ hours: 16 }));
+    expect(startFast).toHaveBeenCalledWith(
+      expect.objectContaining({ fastingType: '16h' })
+    );
+    (startFast as jest.Mock).mockClear();
+    (fetchCurrentFast as jest.Mock).mockResolvedValue({
+      id: 'f',
+      start_time: new Date().toISOString(),
+    });
+    expect(
+      await runChatTool('startFast', JSON.stringify({ hours: 16 }))
+    ).toContain('already running');
+    expect(startFast).not.toHaveBeenCalled();
+  });
+
+  it('ends the running fast after confirmation', async () => {
+    (fetchCurrentFast as jest.Mock).mockResolvedValue({
+      id: 'f1',
+      start_time: new Date(Date.now() - 3600000).toISOString(),
+    });
+    answerAlert(1);
+    await runChatTool('endFast', '{}');
+    expect(endFast).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1' }));
+  });
+
+  it('logs an activity using the best exercise match', async () => {
+    (searchExercises as jest.Mock).mockResolvedValue([
+      { id: 'x1', name: 'Running' },
+    ]);
+    answerAlert(1);
+    await runChatTool(
+      'logExercise',
+      JSON.stringify({ activity: 'run', minutes: 30, caloriesBurned: 300 })
+    );
+    expect(createExerciseEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exercise_id: 'x1',
+        duration_minutes: 30,
+        calories_burned: 300,
+      })
+    );
+    expect(
+      await runChatTool(
+        'logExercise',
+        JSON.stringify({ activity: 'run', minutes: 0 })
+      )
+    ).toContain('between');
+  });
+
+  it("copies yesterday's meal into today after confirmation", async () => {
+    answerAlert(1);
+    await runChatTool(
+      'copyMeal',
+      JSON.stringify({
+        fromDay: 'yesterday',
+        fromMeal: 'breakfast',
+        toMeal: 'breakfast',
+      })
+    );
+    expect(copyFoodEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceMealType: 'Breakfast',
+        targetMealType: 'Breakfast',
+      })
+    );
   });
 });
