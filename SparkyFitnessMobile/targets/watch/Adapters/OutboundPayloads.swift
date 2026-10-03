@@ -27,6 +27,8 @@ enum OutboundPayloads {
         static let workoutStop = "workoutStop"
         static let workoutDiscard = "workoutDiscard"
         static let restChanged = "restChanged"
+        static let setTimerStarted = "setTimerStarted"
+        static let setTimerStopped = "setTimerStopped"
         static let workoutStartRequested = "workoutStartRequested"
     }
 
@@ -109,6 +111,9 @@ enum OutboundPayloads {
         if let reps = completedSet.reps {
             payload["reps"] = reps
         }
+        if let duration = completedSet.duration {
+            payload["duration"] = duration
+        }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         payload["completedAt"] = formatter.string(from: completedSet.completedAt)
@@ -181,6 +186,39 @@ enum OutboundPayloads {
             payload["armedAt"] = armedAt.timeIntervalSince1970 * 1000
         }
         return payload
+    }
+
+    /// The wearer started a set's hold countdown or stopwatch on the watch.
+    /// `startedAt` is epoch ms; the phone starts its own stopwatch from it so
+    /// both show the same clock.
+    /// `armedAt` is the arm of the plan the timer belongs to, so the phone can
+    /// refuse a queued start from an earlier arm of the same session.
+    static func setTimerStarted(
+        sessionId: String, setId: String, startedAt: Date, armedAt: Date? = nil
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.setTimerStarted,
+            "sessionId": sessionId,
+            "setId": setId,
+            "startedAt": startedAt.timeIntervalSince1970 * 1000,
+        ]
+        if let armedAt { payload["armedAt"] = armedAt.timeIntervalSince1970 * 1000 }
+        return payload
+    }
+
+    /// The wearer stopped a set's stopwatch on the watch. `seconds` is how long
+    /// it ran; `startedAt` is that run's start so a stop queued behind a newer
+    /// run is not applied to it.
+    static func setTimerStopped(
+        sessionId: String, setId: String, seconds: Int, startedAt: Date
+    ) -> [String: Any] {
+        [
+            "type": Kind.setTimerStopped,
+            "sessionId": sessionId,
+            "setId": setId,
+            "seconds": seconds,
+            "startedAt": startedAt.timeIntervalSince1970 * 1000,
+        ]
     }
 
     /// The wearer skipped or moved the rest on the watch. Both deadlines are

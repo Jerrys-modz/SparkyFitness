@@ -113,6 +113,38 @@ describe('useWatchSetTargetsSync', () => {
     );
   });
 
+  it('sends only the newest running set timer, and falls back as its set is logged', () => {
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].setTimers).toEqual({});
+
+    act(() => {
+      useActiveWorkoutStore.setState({
+        setTimerStartedAt: {
+          '101': 1_700_000_000_000,
+          '102': 1_700_000_005_000,
+        },
+      });
+    });
+    // The watch holds one timer, so the older one is not sent.
+    expect(mockUpdateSetTargets.mock.calls.at(-1)?.[0].setTimers).toEqual({
+      '102': 1_700_000_005_000,
+    });
+
+    act(() => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
+    });
+    expect(mockUpdateSetTargets.mock.calls.at(-1)?.[0].setTimers).toEqual({
+      '101': 1_700_000_000_000,
+    });
+  });
+
   it('sends the sets logged on the phone, and again when one is logged', () => {
     act(() => {
       useActiveWorkoutStore.setState({
@@ -308,5 +340,96 @@ describe('useWatchSetTargetsSync', () => {
       armedAt: ARMED_AT + 5_000,
       completedSetIds: ['101'],
     });
+  });
+
+  it('sends a hold length for a duration exercise, not its reps', () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Plank',
+      modality: 'duration',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    session.exercises[0].sets[0].duration = 45;
+    session.exercises[0].sets[1].reps = 30;
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].targets).toEqual([
+      { setId: '101', targetDurationSec: 45 },
+      { setId: '102', targetDurationSec: 30 },
+    ]);
+  });
+
+  it("does not turn a cardio set's seeded reps into a countdown", () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Run',
+      modality: 'duration_distance',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    session.exercises[0].sets = [
+      { ...makeSet(101), reps: 10, duration: 600 },
+      { ...makeSet(102), reps: 10, duration: null },
+    ];
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    const targets = mockUpdateSetTargets.mock.calls[0][0].targets;
+    expect(targets[0]).toEqual({ setId: '101', targetDurationSec: 600 });
+    expect(targets[1].targetDurationSec).not.toBe(10);
+    expect(targets[1]).not.toHaveProperty('targetReps');
+  });
+
+  it("does not turn last time's hold into a countdown", () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Plank',
+      modality: 'duration',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+        previousSessionSets: {
+          'ex-1': [
+            {
+              setNumber: 1,
+              setType: 'normal',
+              weight: null,
+              reps: null,
+              duration: 13,
+            },
+            {
+              setNumber: 2,
+              setType: 'normal',
+              weight: null,
+              reps: null,
+              duration: 13,
+            },
+          ],
+        } as never,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    const targets = mockUpdateSetTargets.mock.calls[0][0].targets;
+    for (const target of targets) {
+      expect(target).not.toHaveProperty('targetDurationSec');
+    }
+    // It rides along as a gray hint for the idle stopwatch instead.
+    for (const target of targets) {
+      expect(target).toHaveProperty('previousDurationSec', 13);
+    }
   });
 });
