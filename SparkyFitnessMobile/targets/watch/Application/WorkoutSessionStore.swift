@@ -472,6 +472,7 @@ final class WorkoutSessionStore: ObservableObject {
         // A countdown that already ran out on the phone does not buzz now.
         holdBuzzed = endsAt <= Date()
         if !holdBuzzed { startHoldTimer() }
+        persistSnapshot(reportedEnergyKcal: nil)
         if startedAt == nil { onSetTimerStartedHere?(setId, start) }
     }
 
@@ -494,6 +495,7 @@ final class WorkoutSessionStore: ObservableObject {
         let start = startedAt ?? Date()
         holdStartedAt = start
         holdFollowsPhone = startedAt != nil
+        persistSnapshot(reportedEnergyKcal: nil)
         if startedAt == nil { onSetTimerStartedHere?(setId, start) }
     }
 
@@ -512,6 +514,12 @@ final class WorkoutSessionStore: ObservableObject {
         } else if let heldId = holdSetId, holdFollowsPhone, timers[heldId] == nil,
                   !completedSetIds.contains(heldId) {
             clearHold()
+        }
+        // A timer the wearer started here and has not finished is kept, even
+        // when the phone is timing a different set.
+        if let heldId = holdSetId, !holdFollowsPhone, !holdLoggedHere,
+           !completedSetIds.contains(heldId) {
+            return
         }
         for (setId, start) in timers {
             guard holdSetId != setId, !completedSetIds.contains(setId),
@@ -558,9 +566,14 @@ final class WorkoutSessionStore: ObservableObject {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         // Stop the buzz. The deadline stays so the caller can still read
         // how long the hold ran.
-        if holdStartedAt != nil, holdStoppedAt == nil { holdStoppedAt = Date() }
-        if holdSetId == step.plannedSet.setId { holdLoggedHere = true }
-        stopHoldTimer()
+        // Only when this is the set the timer belongs to: logging another set
+        // while a synchronized timer for a different one runs must leave that
+        // timer alone.
+        if holdSetId == step.plannedSet.setId {
+            if holdStartedAt != nil, holdStoppedAt == nil { holdStoppedAt = Date() }
+            holdLoggedHere = true
+            stopHoldTimer()
+        }
         completedSetIds.insert(step.plannedSet.setId)
 
         // The next set still to do, not simply the next one: a set further on
@@ -725,6 +738,55 @@ final class WorkoutSessionStore: ObservableObject {
         var planRevision: Double?
         /// See `pendingUnknownCompletions`. Optional so older snapshots still decode.
         var pendingUnknownCompletions: [String]?
+        /// The running (or just-logged) set timer, so a relaunch resumes the
+        /// clock instead of showing Start again. Optional so older snapshots
+        /// still decode.
+        var hold: HoldState?
+    }
+
+    /// A set timer as stored in the snapshot.
+    struct HoldState: Codable, Equatable {
+        var setId: String
+        /// Set for a countdown; nil for a stopwatch.
+        var endsAt: Date?
+        var totalSeconds: Int
+        /// Set for a stopwatch.
+        var startedAt: Date?
+        var stoppedAt: Date?
+        var followsPhone: Bool
+        var loggedHere: Bool
+    }
+
+    private var holdState: HoldState? {
+        guard let holdSetId else { return nil }
+        return HoldState(
+            setId: holdSetId,
+            endsAt: holdEndsAt,
+            totalSeconds: holdTotalSeconds,
+            startedAt: holdStartedAt,
+            stoppedAt: holdStoppedAt,
+            followsPhone: holdFollowsPhone,
+            loggedHere: holdLoggedHere
+        )
+    }
+
+    /// Puts a stored timer back after `start(with:)` cleared it. A countdown
+    /// that ran out while the process was gone does not buzz again.
+    private func restoreHold(_ hold: HoldState?) {
+        guard let hold, steps.contains(where: { $0.plannedSet.setId == hold.setId }),
+              !completedSetIds.contains(hold.setId) || hold.loggedHere else { return }
+        holdSetId = hold.setId
+        holdEndsAt = hold.endsAt
+        holdTotalSeconds = hold.totalSeconds
+        holdStartedAt = hold.startedAt
+        holdStoppedAt = hold.stoppedAt
+        holdFollowsPhone = hold.followsPhone
+        holdLoggedHere = hold.loggedHere
+        holdBuzzed = true
+        if let endsAt = hold.endsAt, !hold.loggedHere, endsAt > Date() {
+            holdBuzzed = false
+            startHoldTimer()
+        }
     }
 
     /// A finish that may not have reached the phone yet.
@@ -803,7 +865,8 @@ final class WorkoutSessionStore: ObservableObject {
             targetOverrides: targetOverrides,
             targetRevision: targetRevision,
             planRevision: planRevision,
-            pendingUnknownCompletions: Array(pendingUnknownCompletions)
+            pendingUnknownCompletions: Array(pendingUnknownCompletions),
+            hold: holdState
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -830,6 +893,7 @@ final class WorkoutSessionStore: ObservableObject {
         targetRevision = snapshot.targetRevision ?? 0
         planRevision = snapshot.planRevision ?? 0
         pendingUnknownCompletions = Set(snapshot.pendingUnknownCompletions ?? [])
+        restoreHold(snapshot.hold)
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal

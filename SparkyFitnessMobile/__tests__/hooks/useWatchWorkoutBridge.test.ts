@@ -283,6 +283,26 @@ describe('useWatchWorkoutBridge', () => {
       });
       expect(getStore().setTimerStartedAt).toEqual({});
     });
+
+    it('ignores a start from an earlier arm of the same session', () => {
+      const armedAt = Date.now() - 60_000;
+      useActiveWorkoutStore.setState({ watchArmedAt: armedAt });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        startedAt: Date.now(),
+        armedAt: armedAt - 3_600_000,
+      });
+      expect(getStore().setTimerStartedAt).toEqual({});
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        startedAt: Date.now(),
+        armedAt,
+      });
+      expect(Object.keys(getStore().setTimerStartedAt)).toEqual(['101']);
+    });
   });
 
   describe('rest changed on the watch', () => {

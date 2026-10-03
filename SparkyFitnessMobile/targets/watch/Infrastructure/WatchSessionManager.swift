@@ -60,7 +60,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
         revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
-        rest: PhoneRest?, armedAt: Date?
+        rest: PhoneRest?, armedAt: Date?, setTimers: [String: Date]?
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
@@ -580,7 +580,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: pending.revision,
                 targets: pending.targets,
                 completedSetIds: pending.completedSetIds,
-                phoneRest: pending.rest
+                phoneRest: pending.rest,
+                setTimers: pending.setTimers
             )
         }
         // Only this session's: another plan's targets may already be held
@@ -643,7 +644,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
             self.transfer(OutboundPayloads.setTimerStarted(
                 sessionId: sessionId,
                 setId: setId,
-                startedAt: startedAt
+                startedAt: startedAt,
+                armedAt: self.workoutStore.plan?.armedAt
             ))
         }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
@@ -999,7 +1001,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         pendingSetTargets[update.sessionId] = (
             update.revision, update.targets, update.completedSetIds, update.rest,
-            update.armedAt
+            update.armedAt, ContextPayloadMapper.setTimers(from: payload)
         )
     }
 
