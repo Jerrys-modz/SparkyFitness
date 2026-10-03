@@ -56,7 +56,7 @@ import {
 } from '../services/storage';
 import { getAuthHeaders } from '../services/api/authService';
 import { normalizeUrl } from '../services/api/apiClient';
-import { clearAllChatHistory } from '../services/api/chatApi';
+import { clearAllChatHistory, saveChatMessage } from '../services/api/chatApi';
 import {
   askOnDeviceChat,
   isOnDeviceChatAvailable,
@@ -140,6 +140,15 @@ function createOnDeviceTransport(): ChatTransportLike {
           try {
             if (abortSignal?.aborted) throw new Error('Aborted');
             const reply = await askOnDeviceChat(turns);
+            // Keep the exchange in the same history the server chat uses.
+            const asked = turns[turns.length - 1];
+            if (asked?.role === 'user') {
+              void saveChatMessage('user', asked.text)
+                .then(() => saveChatMessage('assistant', reply))
+                .catch((error) =>
+                  addLog(`Could not save on-device chat: ${error}`, 'WARNING')
+                );
+            }
             controller.enqueue({ type: 'start' });
             controller.enqueue({ type: 'text-start', id });
             controller.enqueue({ type: 'text-delta', id, delta: reply });
@@ -655,8 +664,7 @@ function ChatThread({
               className="text-xs text-text-muted text-center py-1.5"
             >
               {t('chat.onDeviceBadge', {
-                defaultValue:
-                  'Answered on this device · asks before saving · chats are not saved',
+                defaultValue: 'Answered on this device · asks before saving',
               })}
             </Text>
           )}
@@ -790,9 +798,9 @@ export default function ChatScreen({
 
   // Clearing needs only an authenticated server, not an active AI provider.
   const { data: historyData, isLoading: loadingHistory } = useChatHistory({
-    enabled: !!baseUrl && !onDevice,
+    enabled: !!baseUrl,
   });
-  const initialMessages = onDevice ? [] : (historyData ?? []);
+  const initialMessages = historyData ?? [];
 
   const serviceConfigId = setting?.id ?? null;
 

@@ -3654,7 +3654,7 @@
     },
     "onDeviceChat": {
       "title": "Sparky Chat On Device",
-      "description": "Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log food, water or weight, or delete an entry. It is less capable than your server AI provider and chats are not saved."
+      "description": "Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log food, water or weight, or delete an entry. It is less capable than your server AI provider and the chat is saved to your Sparky history like the others."
     }
   },
   "workoutComplete": {
@@ -3961,7 +3961,7 @@
       "lookedUp": "Looked up {{name}}"
     },
     "typing": "Sparky is typing",
-    "onDeviceBadge": "Answered on this device · asks before saving · chats are not saved"
+    "onDeviceBadge": "Answered on this device · asks before saving"
   },
   "foodImagePicker": {
     "photos": "Photos",
