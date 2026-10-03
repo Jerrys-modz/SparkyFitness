@@ -10,7 +10,5 @@ jobs:
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           f=$(find "$SDK/System/Library/Frameworks/FoundationModels.framework" -name "arm64e-apple-ios.swiftinterface" | head -1)
-          echo "##### PCC static/init"; grep -nE "PrivateCloudComputeLanguageModel" "$f" | grep -E "static|init\(|default|shared" | sed 's/FoundationModels:://g' | head -20
-          echo "##### SystemLanguageModel statics"; grep -nE "static (let|var) (default|shared)" "$f" | sed 's/FoundationModels:://g' | head
-          echo "##### Variant"; sed -n 466,500p "$f" | sed 's/FoundationModels:://g'
-          echo "##### Capability"; grep -nE "static (let|var) \w+: LanguageModelCapabilities.Capability|static let \w+: .*Capability" "$f" | sed 's/FoundationModels:://g' | head
+          echo "##### default accessors"; grep -nE '`default`|convenience public init\(\)|public init\(\)' -B4 "$f" | sed 's/FoundationModels:://g' | head -60
+          echo "##### variants"; grep -nE "static var (core|\w+): SystemLanguageModel.Variant" "$f" | head
