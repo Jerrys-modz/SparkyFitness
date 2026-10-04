@@ -1,11 +1,16 @@
 name: Android Test Build
 
-# Manual build of a sideloadable phone APK and Wear OS APK for device testing.
+# Build of a sideloadable phone APK and Wear OS APK for device testing.
 # The phone APK is the release variant (JavaScript bundled, so no Metro dev
 # server is needed) signed with the debug key, so it needs none of the release
 # signing secrets. The dev variant installs next to a Play Store install.
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/wear-os]
+    paths:
+      - ".github/workflows/android-test-build.yml"
+      - "SparkyFitnessMobile/targets/wear/**"
 
 jobs:
   build:
