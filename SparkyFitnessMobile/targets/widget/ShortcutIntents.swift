@@ -11,13 +11,23 @@ import Security
 // modules/background-water). Turning it off or removing the server erases that
 // item.
 //
-// This file is added to the app target by plugins/withBackgroundWater.ts: an
-// intent has to be in the app target to be discovered. The Keychain service and
-// account must match modules/background-water.
+// This file is compiled into both the app target (copied there by
+// plugins/withBackgroundWater.ts, as intents must be in the app target to be
+// discovered) and the widget extension, so Lock Screen and Control Center
+// controls run these same intents. The Keychain service, account and shared
+// access group must match modules/background-water.
 
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
 private let setupMessage = "Turn on “Let Siri and Shortcuts log without opening the app” in SparkyFitness first."
+
+/// The Keychain group the app and the widget extension share, filled in at
+/// build time. Nil means a build without it, where only the app can read it.
+private func sharedKeychainGroup() -> String? {
+    guard let group = Bundle.main.object(forInfoDictionaryKey: "SparkyKeychainGroup") as? String,
+          !group.isEmpty, !group.contains("$(") else { return nil }
+    return group
+}
 
 private struct ShortcutConfig: Decodable {
     let baseUrl: String
@@ -29,13 +39,16 @@ private struct ShortcutConfig: Decodable {
     let weightUnit: String?
 
     static func load() -> ShortcutConfig? {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: backgroundWaterService,
             kSecAttrAccount as String: backgroundWaterAccount,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
+        if let group = sharedKeychainGroup() {
+            query[kSecAttrAccessGroup as String] = group
+        }
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }
@@ -246,38 +259,5 @@ struct EndFastIntent: AppIntent {
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
-    }
-}
-
-@available(iOS 16.0, *)
-struct SparkyFitnessShortcuts: AppShortcutsProvider {
-    static var appShortcuts: [AppShortcut] {
-        AppShortcut(
-            intent: LogWaterIntent(),
-            phrases: [
-                "Log water in \(.applicationName)",
-                "Add water to \(.applicationName)",
-            ],
-            shortTitle: "Log water",
-            systemImageName: "drop.fill"
-        )
-        AppShortcut(
-            intent: StartFastIntent(),
-            phrases: ["Start a fast in \(.applicationName)"],
-            shortTitle: "Start fast",
-            systemImageName: "timer"
-        )
-        AppShortcut(
-            intent: EndFastIntent(),
-            phrases: ["End my fast in \(.applicationName)"],
-            shortTitle: "End fast",
-            systemImageName: "stop.circle"
-        )
-        AppShortcut(
-            intent: LogWeightIntent(),
-            phrases: ["Log my weight in \(.applicationName)"],
-            shortTitle: "Log weight",
-            systemImageName: "scalemass"
-        )
     }
 }
