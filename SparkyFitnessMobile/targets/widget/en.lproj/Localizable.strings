@@ -26,3 +26,9 @@
 "widget.water.title" = "Water";
 "widget.water.add" = "Log a drink";
 "widget.water.remove" = "Remove a drink";
+"widget.control.scan_food.name" = "Scan food";
+"widget.control.scan_food.description" = "Opens SparkyFitness ready to scan a barcode.";
+"widget.control.search_food.name" = "Log food";
+"widget.control.search_food.description" = "Opens SparkyFitness on food search.";
+"widget.control.remove_water.name" = "Remove a drink";
+"widget.control.remove_water.description" = "Takes one drink off today's water total without opening SparkyFitness.";

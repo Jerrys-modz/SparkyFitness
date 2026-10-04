@@ -9,8 +9,11 @@ struct exportWidgets: WidgetBundle {
         waterWidget()
         if #available(iOS 18.0, *) {
             LogWaterControl()
+            RemoveWaterControl()
             StartFastControl()
             EndFastControl()
+            ScanFoodControl()
+            SearchFoodControl()
         }
     }
 }
