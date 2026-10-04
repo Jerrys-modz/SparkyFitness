@@ -1,5 +1,6 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import type { TrainingConsistency } from '@workspace/shared';
 
 import TrainingConsistencyCard from '../../src/components/exerciseStats/TrainingConsistencyCard';
@@ -50,6 +51,27 @@ describe('TrainingConsistencyCard', () => {
     expect(getAllByTestId('consistency-trained')).toHaveLength(3);
     expect(getByText('Chest')).toBeTruthy();
     expect(getByText('Back')).toBeTruthy();
+  });
+
+  it('sizes every square and every weekday label row to the same pitch', () => {
+    const { getByLabelText, getAllByTestId, getByText } = render(
+      <TrainingConsistencyCard data={DATA} isLoading={false} isError={false} />
+    );
+    // Two weeks across 200 points: each column is 100 wide.
+    fireEvent(getByLabelText(/Training calendar/), 'layout', {
+      nativeEvent: { layout: { width: 200, height: 0, x: 0, y: 0 } },
+    });
+
+    const square = StyleSheet.flatten(
+      getAllByTestId('consistency-trained')[0].props.style
+    );
+    expect(square.width).toBe(98);
+    expect(square.height).toBe(98);
+    // A square plus its gap is one row, and the label rows are that tall too,
+    // so "Tue" and "Thu" sit beside their own rows.
+    expect(square.height + square.marginBottom).toBe(100);
+    const labelRow = StyleSheet.flatten(getByText('Tue').parent?.props.style);
+    expect(labelRow.height).toBe(100);
   });
 
   it('says when no sets were logged this week or last', () => {

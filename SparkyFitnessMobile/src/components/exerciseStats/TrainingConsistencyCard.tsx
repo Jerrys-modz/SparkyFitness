@@ -25,6 +25,10 @@ interface TrainingConsistencyCardProps {
 
 const WEEKDAY_LABEL_WIDTH = 26;
 const MONTH_LABEL_HEIGHT = 14;
+// Space between squares. The grid, not the layout engine, owns every size: a
+// square's side and its row pitch are both worked out from the width here, so
+// the weekday labels (one pitch tall each) line up with their rows.
+const CELL_GAP = 2;
 
 const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <View className="flex-1 items-center">
@@ -69,6 +73,8 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
     () => (data ? trainingCalendarWeeks(data) : []),
     [data]
   );
+  const pitch = gridWidth / Math.max(calendar.length, 1);
+  const cellSize = Math.max(0, pitch - CELL_GAP);
   const rows = useMemo(
     () => (data ? muscleWeekRows(data.muscleSets) : []),
     [data]
@@ -131,7 +137,7 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
               <View
                 key={row}
                 className="justify-center"
-                style={{ height: gridWidth / Math.max(calendar.length, 1) }}
+                style={{ height: pitch }}
               >
                 {WEEKDAY_LABEL_ROWS.includes(row) ? (
                   <Text
@@ -165,7 +171,7 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
           >
             <View className="flex-row" style={{ height: MONTH_LABEL_HEIGHT }}>
               {calendar.map((week, index) => (
-                <View key={week.weekStart} className="flex-1">
+                <View key={week.weekStart} style={{ width: pitch }}>
                   {monthLabels[index] ? (
                     <Text
                       className="text-text-muted"
@@ -180,19 +186,23 @@ const TrainingConsistencyCard: React.FC<TrainingConsistencyCardProps> = ({
             </View>
             <View className="flex-row">
               {calendar.map((week) => (
-                <View key={week.weekStart} className="flex-1 px-px">
+                <View key={week.weekStart} style={{ width: pitch }}>
                   {week.cells.map((cell) => (
                     <View
                       key={cell.day}
                       testID={`consistency-${cell.state}`}
-                      className={`rounded-sm mb-0.5 ${
+                      className={`rounded-sm ${
                         cell.state === 'trained'
                           ? 'bg-exercise'
                           : cell.state === 'rest'
                             ? 'bg-progress-track'
                             : 'bg-transparent'
                       }`}
-                      style={{ aspectRatio: 1 }}
+                      style={{
+                        width: cellSize,
+                        height: cellSize,
+                        marginBottom: CELL_GAP,
+                      }}
                     />
                   ))}
                 </View>
