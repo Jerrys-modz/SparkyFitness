@@ -606,7 +606,12 @@ private struct CurrentSetView: View {
         // crownValue is a number in the unit it was selected in. Committing
         // after the phone switches kg/lb or m/yd would save that number in the new unit.
         .onChange(of: unit) { discardCrownEdit(for: .weight) }
-        .onChange(of: carryUnit) { discardCrownEdit(for: .distance) }
+        .onChange(of: carryUnit) {
+            discardCrownEdit(for: .distance)
+            // The keypad keeps the number typed in the old unit. Dismiss it
+            // instead of letting OK write that number through the new one.
+            if editing == .distance { editing = nil }
+        }
         .onDisappear { endCrownEditing() }
         .sheet(item: $editing) { field in
             NumericKeypadView(
