@@ -121,6 +121,11 @@ export interface WatchContextPayload {
    */
   weightUnit?: 'kg' | 'lbs' | null;
   /**
+   * The phone's distance unit. A weighted carry's distance is shown on the
+   * watch in metres for `km` and yards for `miles`. Missing reads as `km`.
+   */
+  distanceUnit?: 'km' | 'miles' | null;
+  /**
    * The phone's Settings → Haptics switch. The watch plays button haptics
    * and the rest-end buzz only while this is on. Missing reads as on.
    */

@@ -369,6 +369,12 @@ struct WatchContext: Codable, Equatable {
     var steps: StepsSnapshot? = nil
     /// Daily step goal from the phone. Nil reads as 10,000.
     var stepGoal: Int? = nil
+    /// The phone's distance unit (`km` or `miles`). Decides whether a weighted
+    /// carry's distance is shown in metres or yards. Nil reads as metres.
+    var distanceUnit: String? = nil
+    /// The unit a weighted carry's distance is shown in: metres, or yards when
+    /// the phone's distance unit is miles.
+    var effectiveCarryUnit: CarryUnit { distanceUnit == "miles" ? .yards : .meters }
 
     static let empty = WatchContext(
         today: nil,
@@ -573,4 +579,21 @@ enum SetInputStyle: String {
     case keypad
     /// The Digital Crown, turned in plate steps (Hevy-style).
     case crown
+}
+
+/// How a weighted carry's distance is shown and entered. The wire and the diary
+/// always hold km; this only decides the unit on screen.
+enum CarryUnit {
+    case meters
+    case yards
+
+    private static let yardsPerKm = 1093.6133
+
+    /// Units shown per km.
+    var perKm: Double { self == .yards ? Self.yardsPerKm : 1000 }
+    var title: String { self == .yards ? "YD" : "M" }
+    var suffix: String { self == .yards ? "yd" : "m" }
+
+    func fromKm(_ km: Double) -> Double { km * perKm }
+    func toKm(_ value: Double) -> Double { value / perKm }
 }
