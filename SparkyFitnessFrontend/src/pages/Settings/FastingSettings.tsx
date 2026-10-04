@@ -155,24 +155,45 @@ const FastingSettingsForm = ({ preferences }: FastingSettingsFormProps) => {
         </div>
 
         {defaultProtocol === 'Custom' && (
-          <div className="space-y-2">
-            <Label htmlFor="target-fasting-hours">
-              {t('fasting.settings.targetHours', 'Target Fasting Hours')}
-            </Label>
-            <Input
-              id="target-fasting-hours"
-              type="number"
-              min={1}
-              max={168}
-              value={targetFastingHours}
-              onChange={(e) => setTargetFastingHours(Number(e.target.value))}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t(
-                'fasting.settings.targetHoursDesc',
-                'Goal duration in hours before fasting completion.'
-              )}
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="target-fasting-hours">
+                {t('fasting.settings.targetHours', 'Target Fasting Hours')}
+              </Label>
+              <Input
+                id="target-fasting-hours"
+                type="number"
+                min={1}
+                max={168}
+                value={targetFastingHours}
+                onChange={(e) => setTargetFastingHours(Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  'fasting.settings.targetHoursDesc',
+                  'Goal duration in hours before fasting completion.'
+                )}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="target-eating-hours">
+                {t('fasting.settings.targetEatingHours', 'Target Eating Hours')}
+              </Label>
+              <Input
+                id="target-eating-hours"
+                type="number"
+                min={0}
+                max={24}
+                value={targetEatingHours}
+                onChange={(e) => setTargetEatingHours(Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  'fasting.settings.targetEatingHoursDesc',
+                  'Duration in hours for your eating window.'
+                )}
+              </p>
+            </div>
           </div>
         )}
 
@@ -267,7 +288,12 @@ const FastingSettingsForm = ({ preferences }: FastingSettingsFormProps) => {
 
 export const FastingSettings = () => {
   const { t } = useTranslation();
-  const { data: preferences, isLoading } = useFastingPreferences();
+  const {
+    data: preferences,
+    isLoading,
+    isError,
+    refetch,
+  } = useFastingPreferences();
 
   return (
     <>
@@ -282,7 +308,16 @@ export const FastingSettings = () => {
         {t('fasting.settings.title', 'Intermittent Fasting')}
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0 space-y-6">
-        {isLoading || !preferences ? (
+        {isError ? (
+          <div className="h-32 flex flex-col items-center justify-center gap-2 text-sm text-destructive">
+            <p>
+              {t('fasting.settings.errorLoading', 'Failed to load preferences')}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              {t('fasting.settings.retry', 'Retry')}
+            </Button>
+          </div>
+        ) : isLoading || !preferences ? (
           <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
             {t('common.loading', 'Loading...')}
           </div>

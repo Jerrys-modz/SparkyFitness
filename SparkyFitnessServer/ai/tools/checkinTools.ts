@@ -730,6 +730,8 @@ Actions:
             case 'get_fasting_status': {
               let fast = await fastingRepository.getCurrentFast(userId);
               let isAuto = false;
+              let isEatingWindow = false;
+              let eatingWindowRemainingMinutes: number | undefined;
               let startMealName: string | undefined;
 
               if (!fast) {
@@ -742,6 +744,9 @@ Actions:
                   if (autoFast) {
                     isAuto = true;
                     startMealName = autoFast.start_meal_name;
+                    isEatingWindow = Boolean(autoFast.is_eating_window);
+                    eatingWindowRemainingMinutes =
+                      autoFast.eating_window_remaining_minutes;
                     fast = {
                       id: autoFast.id,
                       user_id: autoFast.user_id,
@@ -766,11 +771,20 @@ Actions:
                   user_id: fast.user_id,
                   start_time: fast.start_time,
                   end_time: fast.end_time,
-                  fasting_status: fast.status,
+                  fasting_status: isEatingWindow
+                    ? 'EATING_WINDOW'
+                    : fast.status,
                   fasting_type: fast.fasting_type,
                   created_at: fast.created_at,
                   ...(isAuto ? { is_auto_calculated: true } : {}),
                   ...(startMealName ? { start_meal_name: startMealName } : {}),
+                  ...(isEatingWindow
+                    ? {
+                        is_eating_window: true,
+                        eating_window_remaining_minutes:
+                          eatingWindowRemainingMinutes,
+                      }
+                    : {}),
                 },
                 'Fasting Status'
               );

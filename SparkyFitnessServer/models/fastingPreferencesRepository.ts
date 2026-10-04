@@ -69,38 +69,6 @@ async function upsertFastingPreferences(
 ): Promise<FastingPreferencesRecord> {
   const client = await getClient(userId);
   try {
-    const current = await getFastingPreferences(userId);
-    const merged = {
-      auto_calculate:
-        updates.auto_calculate !== undefined
-          ? updates.auto_calculate
-          : current.auto_calculate,
-      default_protocol:
-        updates.default_protocol !== undefined
-          ? updates.default_protocol
-          : current.default_protocol,
-      target_fasting_hours:
-        updates.target_fasting_hours !== undefined
-          ? updates.target_fasting_hours
-          : current.target_fasting_hours,
-      target_eating_hours:
-        updates.target_eating_hours !== undefined
-          ? updates.target_eating_hours
-          : current.target_eating_hours,
-      calorie_threshold:
-        updates.calorie_threshold !== undefined
-          ? updates.calorie_threshold
-          : current.calorie_threshold,
-      pre_end_alert_minutes:
-        updates.pre_end_alert_minutes !== undefined
-          ? updates.pre_end_alert_minutes
-          : current.pre_end_alert_minutes,
-      eating_window_alert:
-        updates.eating_window_alert !== undefined
-          ? updates.eating_window_alert
-          : current.eating_window_alert,
-    };
-
     const query = `
       INSERT INTO user_fasting_preferences (
         user_id,
@@ -113,28 +81,48 @@ async function upsertFastingPreferences(
         eating_window_alert,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      VALUES (
+        $1,
+        COALESCE($2, ${DEFAULT_FASTING_PREFERENCES.auto_calculate}),
+        COALESCE($3, '${DEFAULT_FASTING_PREFERENCES.default_protocol}'),
+        COALESCE($4, ${DEFAULT_FASTING_PREFERENCES.target_fasting_hours}),
+        COALESCE($5, ${DEFAULT_FASTING_PREFERENCES.target_eating_hours}),
+        COALESCE($6, ${DEFAULT_FASTING_PREFERENCES.calorie_threshold}),
+        COALESCE($7, ${DEFAULT_FASTING_PREFERENCES.pre_end_alert_minutes}),
+        COALESCE($8, ${DEFAULT_FASTING_PREFERENCES.eating_window_alert}),
+        NOW()
+      )
       ON CONFLICT (user_id) DO UPDATE SET
-        auto_calculate = EXCLUDED.auto_calculate,
-        default_protocol = EXCLUDED.default_protocol,
-        target_fasting_hours = EXCLUDED.target_fasting_hours,
-        target_eating_hours = EXCLUDED.target_eating_hours,
-        calorie_threshold = EXCLUDED.calorie_threshold,
-        pre_end_alert_minutes = EXCLUDED.pre_end_alert_minutes,
-        eating_window_alert = EXCLUDED.eating_window_alert,
+        auto_calculate = COALESCE($2, user_fasting_preferences.auto_calculate),
+        default_protocol = COALESCE($3, user_fasting_preferences.default_protocol),
+        target_fasting_hours = COALESCE($4, user_fasting_preferences.target_fasting_hours),
+        target_eating_hours = COALESCE($5, user_fasting_preferences.target_eating_hours),
+        calorie_threshold = COALESCE($6, user_fasting_preferences.calorie_threshold),
+        pre_end_alert_minutes = COALESCE($7, user_fasting_preferences.pre_end_alert_minutes),
+        eating_window_alert = COALESCE($8, user_fasting_preferences.eating_window_alert),
         updated_at = NOW()
       RETURNING *;
     `;
 
     const values = [
       userId,
-      merged.auto_calculate,
-      merged.default_protocol,
-      merged.target_fasting_hours,
-      merged.target_eating_hours,
-      merged.calorie_threshold,
-      merged.pre_end_alert_minutes,
-      merged.eating_window_alert,
+      updates.auto_calculate !== undefined ? updates.auto_calculate : null,
+      updates.default_protocol !== undefined ? updates.default_protocol : null,
+      updates.target_fasting_hours !== undefined
+        ? updates.target_fasting_hours
+        : null,
+      updates.target_eating_hours !== undefined
+        ? updates.target_eating_hours
+        : null,
+      updates.calorie_threshold !== undefined
+        ? updates.calorie_threshold
+        : null,
+      updates.pre_end_alert_minutes !== undefined
+        ? updates.pre_end_alert_minutes
+        : null,
+      updates.eating_window_alert !== undefined
+        ? updates.eating_window_alert
+        : null,
     ];
 
     const result = await client.query(query, values);

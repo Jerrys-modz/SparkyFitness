@@ -152,7 +152,10 @@ const FastingDetailScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const isEatingWindow = !!currentFast && !!currentFast.is_eating_window;
+  const isEatingWindow =
+    !!currentFast &&
+    currentFast.status === 'ACTIVE' &&
+    !!currentFast.is_eating_window;
   const isFasting =
     !!currentFast && currentFast.status === 'ACTIVE' && !isEatingWindow;
   const timer = useFastingTimer(

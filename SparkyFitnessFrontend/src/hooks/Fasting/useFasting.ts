@@ -174,8 +174,7 @@ export const useUpdateFastingPreferencesMutation = () => {
     mutationFn: (updates: Partial<UserFastingPreferences>) =>
       updateFastingPreferences(updates as Record<string, unknown>),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: fastingKeys.preferences() });
-      queryClient.invalidateQueries({ queryKey: fastingKeys.current() });
+      queryClient.invalidateQueries({ queryKey: fastingKeys.all });
     },
   });
 };

@@ -89,17 +89,13 @@ export const EatingWindowZoneBar: React.FC<EatingWindowZoneBarProps> = ({
       : targetEndTime.getTime();
 
   const totalMs = Math.max(60000, endMs - startMs);
-  // eslint-disable-next-line react-hooks/purity
-  const nowMs = Date.now();
-  const elapsedMs = Math.max(0, nowMs - startMs);
-  const progressRatio = Math.min(1, Math.max(0, elapsedMs / totalMs));
   const totalHours = totalMs / (1000 * 60 * 60);
 
-  const activeIndex = Math.min(
-    EATING_WINDOW_BANDS.length - 1,
-    Math.floor(progressRatio * EATING_WINDOW_BANDS.length)
+  const activeBand = getActiveEatingWindowBand(startTime, targetEndTime);
+  const activeIndex = Math.max(
+    0,
+    EATING_WINDOW_BANDS.findIndex((b) => b.key === activeBand.key)
   );
-  const activeBand = EATING_WINDOW_BANDS[activeIndex];
 
   const startTimeStr =
     typeof startTime === 'string' ? startTime : startTime.toISOString();

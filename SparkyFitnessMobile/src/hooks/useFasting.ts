@@ -353,6 +353,7 @@ export function useFastingGoalReconciler(
     currentFast?.id,
     currentFast?.target_end_time,
     currentFast?.status,
+    currentFast?.is_eating_window,
     appLocale,
   ]);
 

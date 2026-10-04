@@ -480,29 +480,9 @@ export async function syncCompletedAutoFasts(
           existing.start_time
         );
         syncedCount++;
-      } else if (existing.status === 'COMPLETED') {
-        // If the meal time changed (e.g. user edited breakfast from 10:00 AM to 09:00 AM),
-        // auto-update the completed fast to stay in sync
-        const existingEndMs = existing.end_time
-          ? new Date(existing.end_time).getTime()
-          : 0;
-        const existingStartMs = new Date(existing.start_time).getTime();
-        const newEndMs = fastEnd.getTime();
-        const newStartMs = fastStart.getTime();
-
-        if (
-          Math.abs(existingEndMs - newEndMs) > 60000 ||
-          Math.abs(existingStartMs - newStartMs) > 60000
-        ) {
-          await fastingRepository.updateFast(existing.id, userId, {
-            start_time: fastStart.toISOString(),
-            end_time: fastEnd.toISOString(),
-            duration_minutes: durationMinutes,
-            fasting_type: classifyProtocol(durationMinutes),
-          });
-          syncedCount++;
-        }
       }
+      // If a completed fast already exists near this time (whether manually logged,
+      // user-edited, or previously synced), leave it untouched to preserve user edits.
       continue;
     }
 

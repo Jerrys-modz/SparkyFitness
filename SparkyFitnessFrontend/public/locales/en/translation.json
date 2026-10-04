@@ -5449,6 +5449,24 @@
     "startedAt": "Started {{time}}",
     "targetAt": "Target {{time}}",
     "closesAt": "Closes {{time}}",
+    "stages": {
+      "open": {
+        "name": "Window Open",
+        "desc": "Nutrient absorption and insulin response."
+      },
+      "fuel": {
+        "name": "Optimal Fuel",
+        "desc": "Peak nutrition and sustained daytime energy."
+      },
+      "sustain": {
+        "name": "Mid Window",
+        "desc": "Balanced hydration and intermediate nourishment."
+      },
+      "closing": {
+        "name": "Window Closing",
+        "desc": "Final meal before your next fast begins."
+      }
+    },
     "settings": {
       "title": "Intermittent Fasting",
       "description": "Configure intermittent fasting protocols, auto-calculation from meals, and notifications",
@@ -5459,6 +5477,8 @@
       "customProtocolDesc": "Specify your desired continuous fasting hours.",
       "targetHours": "Target Fasting Hours",
       "targetHoursDesc": "Goal duration in hours before fasting completion.",
+      "targetEatingHours": "Target Eating Hours",
+      "targetEatingHoursDesc": "Duration in hours for your eating window.",
       "calorieThreshold": "Calorie Threshold (kcal)",
       "calorieThresholdHint": "Snacks or drinks below this value (e.g. black coffee, water, electrolytes) will not break or restart your fast.",
       "preEndAlert": "Pre-Goal Warning (minutes)",
@@ -5468,7 +5488,9 @@
       "eatingWindowAlertDesc": "Receive alerts when your fasting goal is reached and when your eating window opens.",
       "save": "Save Fasting Settings",
       "saved": "Fasting preferences updated successfully.",
-      "error": "Failed to save fasting preferences."
+      "error": "Failed to save fasting preferences.",
+      "errorLoading": "Failed to load preferences.",
+      "retry": "Retry"
     }
   },
   "i18n": {

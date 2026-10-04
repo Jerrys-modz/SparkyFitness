@@ -292,7 +292,7 @@
     },
     "fastingPreEnd": {
       "title": "Fasting goal ending soon",
-      "body": "Your fast will reach its goal in 30 minutes."
+      "body": "Your fast will reach its goal in {{minutes}} minutes."
     },
     "hydration": {
       "title": "Time to hydrate 💧",

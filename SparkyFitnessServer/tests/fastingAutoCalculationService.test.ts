@@ -419,53 +419,57 @@ describe('fastingAutoCalculationService', () => {
 
   describe('getCurrentAutoFast', () => {
     it('returns eating window status when meal was eaten today within eating window duration', async () => {
-      const now = new Date();
-      // Breakfast was eaten 2 hours ago today
-      const breakfastTime = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-      const todayStr = breakfastTime.toISOString().slice(0, 10);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-04T12:00:00Z'));
+      try {
+        const breakfastTime = new Date('2026-10-04T10:00:00Z');
+        const todayStr = '2026-10-04';
 
-      const mockClient = {
-        query: vi.fn().mockResolvedValue({
-          rows: [
-            {
-              id: 'food-breakfast',
-              entry_date: todayStr,
-              entry_time: '09:00',
-              meal_default_time: null,
-              meal_timestamp: breakfastTime,
-              calories: 500,
-              food_name: 'Eggs and Avocado',
-              meal_type_name: 'Breakfast',
-            },
-          ],
-        }),
-        release: vi.fn(),
-      };
-      vi.mocked(getClient).mockResolvedValue(
-        mockClient as unknown as Awaited<ReturnType<typeof getClient>>
-      );
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({
+            rows: [
+              {
+                id: 'food-breakfast',
+                entry_date: todayStr,
+                entry_time: '10:00',
+                meal_default_time: null,
+                meal_timestamp: breakfastTime,
+                calories: 500,
+                food_name: 'Eggs and Avocado',
+                meal_type_name: 'Breakfast',
+              },
+            ],
+          }),
+          release: vi.fn(),
+        };
+        vi.mocked(getClient).mockResolvedValue(
+          mockClient as unknown as Awaited<ReturnType<typeof getClient>>
+        );
 
-      vi.mocked(
-        fastingPreferencesRepository.getFastingPreferences
-      ).mockResolvedValue({
-        id: 'pref-1',
-        user_id: 'user-123',
-        auto_calculate: true,
-        default_protocol: '16-8',
-        target_fasting_hours: 16.0,
-        target_eating_hours: 8.0,
-        calorie_threshold: 10,
-        pre_end_alert_minutes: 30,
-        eating_window_alert: false,
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
+        vi.mocked(
+          fastingPreferencesRepository.getFastingPreferences
+        ).mockResolvedValue({
+          id: 'pref-1',
+          user_id: 'user-123',
+          auto_calculate: true,
+          default_protocol: '16-8',
+          target_fasting_hours: 16.0,
+          target_eating_hours: 8.0,
+          calorie_threshold: 10,
+          pre_end_alert_minutes: 30,
+          eating_window_alert: false,
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
 
-      const fast = await getCurrentAutoFast('user-123', 'UTC');
-      expect(fast).not.toBeNull();
-      expect(fast?.is_eating_window).toBe(true);
-      expect(fast?.eating_window_remaining_minutes).toBeGreaterThan(0);
-      expect(fast?.start_meal_name).toBe('Breakfast');
+        const fast = await getCurrentAutoFast('user-123', 'UTC');
+        expect(fast).not.toBeNull();
+        expect(fast?.is_eating_window).toBe(true);
+        expect(fast?.eating_window_remaining_minutes).toBeGreaterThan(0);
+        expect(fast?.start_meal_name).toBe('Breakfast');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

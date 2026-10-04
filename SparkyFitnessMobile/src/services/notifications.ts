@@ -22,9 +22,13 @@ const HYDRATION_CHANNEL_ID = 'hydration';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
-function notificationCopy(key: string, defaultValue: string): string {
+function notificationCopy(
+  key: string,
+  defaultValue: string,
+  options?: Record<string, unknown>
+): string {
   // i18n-audit-ignore-next-line dynamic-i18n-key -- all call sites use literal notification catalog keys.
-  return i18n.t(key, { defaultValue });
+  return i18n.t(key, { defaultValue, ...options });
 }
 
 const REST_COMPLETE_CATEGORY = 'rest-complete';
@@ -552,7 +556,8 @@ export async function scheduleFastPreEndNotification(
         ),
         body: notificationCopy(
           'notifications.fastingPreEnd.body',
-          `Your fast will reach its goal in ${preEndMinutes} minutes.`
+          `Your fast will reach its goal in ${preEndMinutes} minutes.`,
+          { minutes: preEndMinutes }
         ),
         sound: true,
       },

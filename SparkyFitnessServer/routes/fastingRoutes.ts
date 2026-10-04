@@ -5,7 +5,11 @@ import fastingAutoCalculationService from '../services/fastingAutoCalculationSer
 import moodRepository from '../models/moodRepository.js';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
-import { todayInZone, addDays } from '@workspace/shared';
+import {
+  todayInZone,
+  addDays,
+  userFastingPreferencesMutatorSchema,
+} from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 const router = express.Router();
@@ -48,17 +52,12 @@ router.get('/current', async (req, res) => {
   const targetUserId = (userId as string) || req.userId;
   log('debug', `GET /current: Fetching fast for userId: ${targetUserId}`);
   try {
-    const tz = await loadUserTimezone(targetUserId);
-    await fastingAutoCalculationService.syncCompletedAutoFasts(
-      targetUserId,
-      tz
-    );
-
     const currentFast = await fastingRepository.getCurrentFast(targetUserId);
     if (currentFast) {
       return res.json(currentFast);
     }
 
+    const tz = await loadUserTimezone(targetUserId);
     // If no manual fast is active, check if auto-calculation is enabled
     const autoFast = await fastingAutoCalculationService.getCurrentAutoFast(
       targetUserId,
@@ -206,38 +205,61 @@ router.post('/end', async (req, res) => {
     return res.status(400).json({ error: 'Fast ID and end time are required' });
   }
   try {
-    // 1. Fetch the fast by id to validate ownership and get existing start_time
-    let fast;
     if (id === 'auto-current') {
       const tz = await loadUserTimezone(userId);
       const activeAuto = await fastingAutoCalculationService.getCurrentAutoFast(
         userId,
         tz
       );
-      const startUsed =
-        start_time || activeAuto?.start_time || new Date().toISOString();
-      const targetEnd = activeAuto?.target_end_time || null;
-      const fastingType = activeAuto?.fasting_type || '16:8';
-      fast = await fastingRepository.createFastingLog(
+      if (!activeAuto) {
+        return res.status(404).json({ error: 'Fast not found' });
+      }
+
+      const startUsed = start_time || activeAuto.start_time;
+      if (new Date(startUsed) > new Date(end_time)) {
+        return res
+          .status(400)
+          .json({ error: 'start_time must be before end_time' });
+      }
+
+      if (mood && mood.value !== null) {
+        await moodRepository.createOrUpdateMoodEntry(
+          userId,
+          mood.value,
+          mood.notes || '',
+          end_time
+        );
+      }
+
+      const durationMinutes = Math.max(
+        0,
+        Math.round(
+          (new Date(end_time).getTime() - new Date(startUsed).getTime()) / 60000
+        )
+      );
+      const targetEnd = activeAuto.target_end_time || null;
+      const fastingType = activeAuto.fasting_type || '16:8';
+
+      const completed = await fastingRepository.createCompletedFast(
         userId,
         startUsed,
+        end_time,
         targetEnd,
+        durationMinutes,
         fastingType
       );
-    } else {
-      fast = await fastingRepository.getFastingById(id, userId);
+      return res.json(completed);
     }
+
+    const fast = await fastingRepository.getFastingById(id, userId);
     if (!fast) return res.status(404).json({ error: 'Fast not found' });
-    // Determine which start time to use: provided one (frontend) or stored one
     const startUsed = start_time || fast.start_time;
-    // Validate chronological order
     if (new Date(startUsed) > new Date(end_time)) {
       return res
         .status(400)
         .json({ error: 'start_time must be before end_time' });
     }
     if (mood && mood.value !== null) {
-      // Create mood entry, but we will not store mood_entry_id on fasting_logs (separate table only)
       await moodRepository.createOrUpdateMoodEntry(
         userId,
         mood.value,
@@ -245,12 +267,12 @@ router.post('/end', async (req, res) => {
         end_time
       );
     }
-    // Calculate duration based on chosen start
-    const durationMinutes = Math.round(
-      // @ts-expect-error TS(2362): The left-hand side of an arithmetic operation must... Remove this comment to see the full error message
-      (new Date(end_time) - new Date(startUsed)) / 60000
+    const durationMinutes = Math.max(
+      0,
+      Math.round(
+        (new Date(end_time).getTime() - new Date(startUsed).getTime()) / 60000
+      )
     );
-    // Persist end (and optional start) and other fields; do not store mood/weight on fasting_logs
     const updatedFast = await fastingRepository.endFast(
       fast.id,
       userId,
@@ -285,10 +307,15 @@ router.get('/preferences', async (req, res) => {
 
 router.put('/preferences', async (req, res) => {
   const userId = req.userId;
+  const parsed = userFastingPreferencesMutatorSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues });
+  }
+
   try {
     const updated = await fastingPreferencesRepository.upsertFastingPreferences(
       userId,
-      req.body
+      parsed.data
     );
     if (updated.auto_calculate) {
       const tz = await loadUserTimezone(userId);
@@ -501,8 +528,6 @@ router.get('/history', async (req, res) => {
   );
   const { limit, offset } = req.query;
   try {
-    const tz = await loadUserTimezone(userId);
-    await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
     const history = await fastingRepository.getFastingHistory(
       userId,
       // @ts-expect-error TS(2345): Argument of type 'string | ParsedQs | (string | Pa... Remove this comment to see the full error message
@@ -549,8 +574,6 @@ router.get('/stats', async (req, res) => {
   const userId = req.userId;
   log('debug', `GET /stats: Fetching stats for userId: ${userId}`);
   try {
-    const tz = await loadUserTimezone(userId);
-    await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
     const stats = await fastingRepository.getFastingStats(userId);
     res.json(stats);
   } catch (error) {
@@ -608,7 +631,6 @@ router.get('/history/range/:startDate/:endDate', async (req, res) => {
   );
   try {
     const tz = await loadUserTimezone(userId);
-    await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
     const logs = await fastingRepository.getFastingLogsByDateRange(
       userId,
       startDate,
@@ -624,6 +646,19 @@ router.get('/history/range/:startDate/:endDate', async (req, res) => {
       error
     );
     res.status(500).json({ error: 'Failed to fetch fasting logs by range' });
+  }
+});
+
+router.post('/sync', async (req, res) => {
+  const userId = req.userId;
+  try {
+    const tz = await loadUserTimezone(userId);
+    const syncedCount =
+      await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
+    res.json({ success: true, syncedCount });
+  } catch (error) {
+    log('error', `Error syncing fasts: ${(error as Error).message}`, error);
+    res.status(500).json({ error: 'Failed to sync fasting logs' });
   }
 });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardHeader,
@@ -47,15 +47,46 @@ const HomeDashboardFasting = () => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>('16-8');
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [startLocal, setStartLocal] = useState<string>('');
+  const [now, setNow] = useState(() => Date.now());
 
   const formatForLocalInput = (d: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const { data: activeFast, isLoading } = useCurrentFast();
+  const {
+    data: activeFast,
+    isLoading,
+    refetch: refetchCurrentFast,
+  } = useCurrentFast();
   const { mutateAsync: startFast } = useStartFastMutation();
   const { mutate: endFast } = useEndFastMutation();
+
+  useEffect(() => {
+    if (!activeFast?.is_eating_window) return;
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [activeFast?.is_eating_window]);
+
+  const dynamicEatingRemainingMinutes = useMemo(() => {
+    if (!activeFast?.is_eating_window) return 0;
+    if (activeFast.target_end_time) {
+      const targetMs = parseISO(activeFast.target_end_time).getTime();
+      return Math.max(0, Math.floor((targetMs - now) / 60000));
+    }
+    return activeFast.eating_window_remaining_minutes ?? 0;
+  }, [activeFast, now]);
+
+  useEffect(() => {
+    if (activeFast?.is_eating_window && activeFast.target_end_time) {
+      const targetMs = parseISO(activeFast.target_end_time).getTime();
+      if (now >= targetMs) {
+        void refetchCurrentFast();
+      }
+    }
+  }, [now, activeFast, refetchCurrentFast]);
 
   const { data: stats } = useFastingStats();
   const averageDurationMinutes = Number(stats?.average_duration_minutes ?? 0);
@@ -167,10 +198,8 @@ const HomeDashboardFasting = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                  {Math.floor(
-                    (activeFast.eating_window_remaining_minutes ?? 0) / 60
-                  )}
-                  h {(activeFast.eating_window_remaining_minutes ?? 0) % 60}m
+                  {Math.floor(dynamicEatingRemainingMinutes / 60)}h{' '}
+                  {dynamicEatingRemainingMinutes % 60}m
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {t(
@@ -186,9 +215,7 @@ const HomeDashboardFasting = () => {
                   <EatingWindowBar
                     startTime={activeFast.start_time}
                     targetEndTime={activeFast.target_end_time}
-                    remainingMinutes={
-                      activeFast.eating_window_remaining_minutes
-                    }
+                    remainingMinutes={dynamicEatingRemainingMinutes}
                   />
                 </div>
               )}

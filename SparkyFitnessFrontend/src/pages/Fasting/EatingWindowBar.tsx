@@ -101,7 +101,7 @@ const EatingWindowBar: React.FC<EatingWindowBarProps> = ({
             color: activeBand.colorHex,
           }}
         >
-          {activeBand.name}
+          {t(`fasting.stages.${activeBand.key}.name`, activeBand.name)}
         </span>
         <span className="text-muted-foreground font-medium">
           {t('fasting.closesAt', 'Closes {{time}}', {
@@ -121,13 +121,18 @@ const EatingWindowBar: React.FC<EatingWindowBarProps> = ({
               ? 'opacity-100 ring-2 ring-white dark:ring-slate-900 ring-inset shadow-xs'
               : 'opacity-25';
 
+          const bandName = t(`fasting.stages.${band.key}.name`, band.name);
+          const bandDesc = t(`fasting.stages.${band.key}.desc`, band.desc);
+
           return (
             <TooltipProvider key={band.key}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div
+                  <button
+                    type="button"
+                    aria-label={`${bandName} (${band.range})`}
                     className={cn(
-                      'h-full flex-1 rounded-sm transition-all duration-300 cursor-help',
+                      'h-full flex-1 rounded-sm transition-all duration-300 cursor-help border-0 p-0',
                       band.color,
                       opacity
                     )}
@@ -135,10 +140,10 @@ const EatingWindowBar: React.FC<EatingWindowBarProps> = ({
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="font-bold">
-                    {band.name} ({band.range})
+                    {bandName} ({band.range})
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {band.desc}
+                    {bandDesc}
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -148,11 +153,11 @@ const EatingWindowBar: React.FC<EatingWindowBarProps> = ({
       </div>
 
       <div className="flex justify-between text-xs font-medium text-muted-foreground mt-1 px-0.5">
-        <span>0h</span>
-        <span>{quarterHours}h</span>
-        <span>{halfHours}h</span>
-        <span>{threeQuarterHours}h</span>
-        <span>{roundedTotalHours}h</span>
+        <span>{t('fasting.hoursShort', { count: 0 })}</span>
+        <span>{t('fasting.hoursShort', { count: quarterHours })}</span>
+        <span>{t('fasting.hoursShort', { count: halfHours })}</span>
+        <span>{t('fasting.hoursShort', { count: threeQuarterHours })}</span>
+        <span>{t('fasting.hoursShort', { count: roundedTotalHours })}</span>
       </div>
     </div>
   );
