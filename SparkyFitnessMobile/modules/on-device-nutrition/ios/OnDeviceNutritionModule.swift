@@ -180,12 +180,12 @@ a field empty when it is not printed. Do not copy a %Daily Value as a weight.
 /// Text on the label, top to bottom, one recognised line per row. Run here
 /// rather than left to the model's OCR tool so the numbers the model sees are
 /// the printed ones, and so the caller can check the answer against them.
-private func recognizeLabelText(in image: CGImage) -> String {
+private func recognizeLabelText(in image: CGImage, correctWords: Bool = false) -> String {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     // Language correction rewrites digits that look like letters, which is
-    // wrong for a table of numbers.
-    request.usesLanguageCorrection = false
+    // wrong for a table of numbers; brand names on packaging want it.
+    request.usesLanguageCorrection = correctWords
     let handler = VNImageRequestHandler(cgImage: image)
     do {
         try handler.perform([request])
@@ -869,9 +869,21 @@ public class OnDeviceNutritionModule: Module {
                     instructions += "\n\nNOTES FROM THE USER\n\(userContext)"
                 }
                 let session = LanguageModelSession(instructions: instructions)
+                // Packaging, jars and wrappers in the photo carry brand and
+                // product names the model reads unreliably; hand it the text.
+                let printed = images
+                    .map { recognizeLabelText(in: $0, correctWords: true) }
+                    .joined(separator: "\n")
+                    .split(separator: "\n")
+                    .filter { $0.count >= 4 }
+                    .prefix(40)
+                    .joined(separator: "\n")
                 var prompt = images.count == 1
                     ? "Estimate the nutrition of this meal."
                     : "Estimate the nutrition of this one meal, shown in \(images.count) photos."
+                if !printed.isEmpty {
+                    prompt += "\n\nText printed on packaging in the photos (may include brand and product names; ignore anything that is not a food):\n\(printed)\n"
+                }
                 if let description, !description.isEmpty {
                     prompt += " The user says: \(description)."
                 }
