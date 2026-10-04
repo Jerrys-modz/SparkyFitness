@@ -73,7 +73,8 @@ enum ContextPayloadMapper {
             startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
-                : previous.workoutServerId
+                : previous.workoutServerId,
+            distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit
         )
     }
 

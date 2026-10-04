@@ -509,6 +509,7 @@ private struct CurrentSetView: View {
     @FocusState private var crownFocused: Bool
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
+    private var carryUnit: CarryUnit { checkIn.context.effectiveCarryUnit }
     private var inputStyle: SetInputStyle { checkIn.context.effectiveSetInputStyle }
 
     private var supersetColor: Color? {
@@ -805,7 +806,10 @@ private struct CurrentSetView: View {
         switch field {
         case .weight: return values.weightKg.map(unit.fromKg)
         case .reps: return values.reps
-        case .distance: return values.distanceKm.map { $0 * 1000 }
+        case .distance:
+            // Rounded to a tenth so a stored km value does not show float dust
+            // ("35.00000001") after a round trip through the unit.
+            return values.distanceKm.map { (carryUnit.fromKm($0) * 10).rounded() / 10 }
         }
     }
 
@@ -821,7 +825,7 @@ private struct CurrentSetView: View {
             store.setValue(for: step.plannedSet.setId, reps: value)
         case .distance:
             // Entered in metres; the phone and the diary store km.
-            store.setValue(for: step.plannedSet.setId, distanceKm: value / 1000)
+            store.setValue(for: step.plannedSet.setId, distanceKm: carryUnit.toKm(value))
         }
     }
 
@@ -829,7 +833,7 @@ private struct CurrentSetView: View {
         switch field {
         case .weight: return unit == .lbs ? "LB" : "KG"
         case .reps: return "REPS"
-        case .distance: return "M"
+        case .distance: return carryUnit.title
         }
     }
 
@@ -1163,11 +1167,13 @@ private struct RestView: View {
             }
             return "\(step.label) · \(clock)"
         }
-        if store.isCarry(step), let meters = values.distanceKm.map({ Int(($0 * 1000).rounded()) }) {
+        if store.isCarry(step), let km = values.distanceKm {
+            let carry = checkIn.context.effectiveCarryUnit
+            let distance = Int(carry.fromKm(km).rounded())
             if let weight = values.weightKg {
-                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(meters) m"
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(distance) \(carry.suffix)"
             }
-            return "\(step.label) · \(meters) m"
+            return "\(step.label) · \(distance) \(carry.suffix)"
         }
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):
