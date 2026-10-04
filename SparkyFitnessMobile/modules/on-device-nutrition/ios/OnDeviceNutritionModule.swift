@@ -55,7 +55,7 @@ private struct NutritionLabelExtraction {
 @available(iOS 27, *)
 @Generable
 private struct MealItemEstimate {
-    @Guide(description: "Plain food name, e.g. grilled chicken breast")
+    @Guide(description: "Specific name of the food as it looks in the photo, including how it is cooked and any visible brand, e.g. pan-seared chicken thigh with skin, or Oikos Triple Zero vanilla yogurt")
     let name: String
     @Guide(description: "Estimated weight of this item in grams, as served")
     let grams: Double
@@ -95,6 +95,19 @@ QUANTITY
 - Estimate the amount actually shown, not a typical serving. "2 eggs" is about \
 100 g in total, and every nutrient must cover the whole amount.
 - If the user gives a total weight, make the item weights add up to it.
+
+IDENTIFY WHAT IS ACTUALLY THERE
+- Look at the photo before you decide. Describe each food by what you can see \
+(shape, colour, cooking method, toppings, packaging), not by what a plate like \
+this usually holds. Do not fall back on a stock meal such as eggs, bacon or \
+toast because it is breakfast time.
+- Read any brand, product name or label on packaging, cups, wrappers or \
+menus and use that product's real values.
+- Count and measure: use the number of pieces and their size relative to the \
+plate, utensils or hands. Avoid round placeholder weights like 30 g or 120 g \
+unless that is genuinely what you see.
+- If you cannot tell what a food is, name your best specific guess and mark \
+the item low confidence.
 
 PHOTOS
 - Use every photo once. Several photos usually show the same meal from \
