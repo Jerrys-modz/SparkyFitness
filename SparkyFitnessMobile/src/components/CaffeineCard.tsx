@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { CartesianChart, Line } from 'victory-native';
 import { DashPathEffect } from '@shopify/react-native-skia';
@@ -24,6 +24,8 @@ type CaffeineCardProps = {
   kinetics: CaffeineActiveResponse | undefined;
   nowMs: number;
   isLoading: boolean;
+  /** Opens the detail screen. */
+  onPress?: () => void;
 };
 
 /**
@@ -36,6 +38,7 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
   kinetics,
   nowMs,
   isLoading,
+  onPress,
 }) => {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
@@ -174,7 +177,15 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
           : t('caffeine.anytimeSafe', { defaultValue: 'Any time' });
 
   return (
-    <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
+    <Pressable
+      className="bg-surface rounded-xl p-4 my-2 shadow-sm"
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t('caffeine.openDetails', {
+        defaultValue: 'Open caffeine details',
+      })}
+    >
       <Text className="text-text-primary text-lg font-semibold mb-2">
         {t('caffeine.title', { defaultValue: 'Active Caffeine' })}
       </Text>
@@ -303,7 +314,7 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
           })}
         </Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 };
 

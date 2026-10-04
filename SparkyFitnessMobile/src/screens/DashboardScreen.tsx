@@ -751,6 +751,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   kinetics={caffeineKinetics}
                   nowMs={caffeineNowMs}
                   isLoading={isCaffeineLoading}
+                  onPress={() =>
+                    navigation.navigate('CaffeineDetail', {
+                      date: selectedDate,
+                    })
+                  }
                 />
               ) : null;
             case 'fasting':

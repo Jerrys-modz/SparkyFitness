@@ -71,6 +71,7 @@ import {
   SafeWorkoutComplete,
   SafeActivityDetail,
   SafeFastingDetail,
+  SafeCaffeineDetail,
   SafeSleepDetail,
   SafeLogs,
   SafeSync,
@@ -767,6 +768,11 @@ function AppContent() {
               headerShown: false,
               gestureEnabled: true,
             }}
+          />
+          <Stack.Screen
+            name="CaffeineDetail"
+            component={SafeCaffeineDetail}
+            options={createStackScreenOptions(t('screens.caffeine', { defaultValue: 'Caffeine' }), { headerBackTitle: t('navigation.diary', { defaultValue: 'Diary' }) })}
           />
           <Stack.Screen
             name="SleepDetail"

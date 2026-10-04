@@ -322,6 +322,7 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  CaffeineDetail: { date: string };
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;

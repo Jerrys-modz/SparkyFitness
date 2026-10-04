@@ -593,6 +593,7 @@
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
     "aiSettings": "AI",
+    "caffeine": "Caffeine",
     "exerciseTypeReview": "Review Exercise Types"
   },
   "healthMetrics": {
@@ -5651,7 +5652,26 @@
     "estimatedTimes": "Some dose times were estimated",
     "legendCurve": "Active caffeine",
     "legendThreshold": "{{threshold}}mg threshold",
-    "unitMg": "mg"
+    "unitMg": "mg",
+    "openDetails": "Open caffeine details",
+    "bedtimeCutoff": "Last coffee by",
+    "cutoffDesc": "For a {{dose}}mg dose",
+    "cutoffOverDesc": "Already past {{threshold}}mg at bedtime",
+    "halfLife": "{{hours}}h half-life",
+    "sleepImpactMinimal": "Minimal sleep impact",
+    "sleepImpactLow": "Low sleep impact",
+    "sleepImpactModerate": "Moderate sleep impact",
+    "sleepImpactHigh": "High sleep impact",
+    "legendBedtime": "Bedtime {{time}}",
+    "legendNow": "Now",
+    "legendCutoff": "Last {{dose}}mg dose {{time}}",
+    "legendDose": "Logged dose",
+    "legendEstimated": "Assumed time",
+    "recentDoses": "Recent Doses (48h)",
+    "dose": "Dose",
+    "tooltip": "{{time}} · {{mg}} mg active",
+    "tooltipHint": "Press and hold the chart for a value",
+    "doseMg": "{{mg}}mg"
   },
   "guidedWorkout": {
     "cue": {
