@@ -2,6 +2,12 @@ import { AppState } from 'react-native';
 import BackgroundWaterModule from '../../modules/background-water';
 import type { WaterContainer } from '../types/measurements';
 import { normalizeUrl } from '../utils/serverUrl';
+import {
+  WATER_UNIT_LABELS,
+  formatVolumeForUnit,
+  getServingVolume,
+  volumeFromMl,
+} from '../utils/unitConversions';
 import { addLog } from './LogService';
 import { getAuthHeaders } from './api/authService';
 import { getActiveServerConfig, proxyHeadersToRecord } from './storage';
@@ -24,8 +30,25 @@ export interface BackgroundWaterConfig {
 
 type BackgroundWaterContainer = Pick<
   WaterContainer,
-  'id' | 'name' | 'volume' | 'unit'
+  | 'id'
+  | 'name'
+  | 'volume'
+  | 'unit'
+  | 'servings_per_container'
+  | 'linked_food_id'
 >;
+
+/** What one drink holds, in the container's own unit, e.g. "16 oz". */
+export function drinkVolumeLabel(
+  container: BackgroundWaterContainer
+): string | null {
+  // Volumes are stored in millilitres and divided into servings; a container
+  // linked to a food has no volume of its own.
+  const ml = getServingVolume(container);
+  if (!ml || ml <= 0) return null;
+  const unit = container.unit;
+  return `${formatVolumeForUnit(volumeFromMl(ml, unit), unit)} ${WATER_UNIT_LABELS[unit] ?? unit}`;
+}
 
 export function buildBackgroundWaterConfig(
   server: Awaited<ReturnType<typeof getActiveServerConfig>>,
@@ -47,9 +70,7 @@ export function buildBackgroundWaterConfig(
       ? {
           containerId: container.id,
           containerName: container.name,
-          volumeLabel: container.volume
-            ? `${container.volume} ${container.unit}`
-            : null,
+          volumeLabel: drinkVolumeLabel(container),
         }
       : {}),
     weightUnit,
