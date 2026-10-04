@@ -7,9 +7,10 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import FastingTimerRing from '../Fasting/FastingTimerRing';
-import { Play, Timer, Square } from 'lucide-react';
+import { Play, Timer, Square, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -28,9 +29,10 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { FASTING_PRESETS } from '@/constants/fastingPresets';
-import { parseISO, addHours, differenceInMinutes } from 'date-fns';
+import { parseISO, addHours, differenceInMinutes, format } from 'date-fns';
 import EndFastDialog from '../Fasting/EndFastDialog';
 import FastingZoneBar from '../Fasting/FastingZoneBar';
+import EatingWindowBar from '../Fasting/EatingWindowBar';
 import {
   useCurrentFast,
   useEndFastMutation,
@@ -112,19 +114,107 @@ const HomeDashboardFasting = () => {
   return (
     <Card className="flex flex-col h-full bg-card/50 backdrop-blur-sm border-primary/20">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <Timer className="w-5 h-5 text-primary" />
-          {t('fasting.checklistTitle', 'Fasting Timer')}
+        <CardTitle className="flex items-center justify-between text-xl">
+          <div className="flex items-center gap-2">
+            <Timer className="w-5 h-5 text-primary" />
+            {t('fasting.checklistTitle', 'Fasting Timer')}
+          </div>
+          {activeFast?.is_eating_window ? (
+            <Badge
+              variant="secondary"
+              className="flex items-center gap-1 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+            >
+              <Sparkles className="w-3 h-3" />
+              {t('fasting.eatingWindowOpen', 'Eating Window Open')}
+            </Badge>
+          ) : (
+            activeFast?.is_auto_calculated && (
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-1 text-xs bg-primary/10 text-primary border-primary/20"
+              >
+                <Sparkles className="w-3 h-3" />
+                {t('fasting.autoFromMeals', 'Auto (from meals)')}
+              </Badge>
+            )
+          )}
         </CardTitle>
         <CardDescription>
           {activeFast
-            ? t('fasting.currentlyFasting', 'You are currently fasting')
+            ? activeFast.is_eating_window
+              ? t('fasting.eatingWindowDescription', {
+                  defaultValue: `Eating window open · ${Math.floor((activeFast.eating_window_remaining_minutes ?? 0) / 60)}h ${(activeFast.eating_window_remaining_minutes ?? 0) % 60}m remaining (closes at ${activeFast.target_end_time ? format(parseISO(activeFast.target_end_time), 'h:mm a') : ''})`,
+                  remaining: `${Math.floor((activeFast.eating_window_remaining_minutes ?? 0) / 60)}h ${(activeFast.eating_window_remaining_minutes ?? 0) % 60}m`,
+                  endTime: activeFast.target_end_time
+                    ? format(parseISO(activeFast.target_end_time), 'h:mm a')
+                    : '',
+                })
+              : activeFast.is_auto_calculated && activeFast.start_meal_name
+                ? t('fasting.currentlyFastingAfterMeal', {
+                    meal: activeFast.start_meal_name,
+                    defaultValue: `Fasting since ${activeFast.start_meal_name}`,
+                  })
+                : t('fasting.currentlyFasting', 'You are currently fasting')
             : t('fasting.readyToStart', 'Ready to start a new fast?')}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-6">
         <div className="flex flex-col items-center justify-center">
-          {activeFast && activeFast.start_time && activeFast.target_end_time ? (
+          {activeFast && activeFast.is_eating_window ? (
+            <div className="flex flex-col items-center justify-center py-2 text-center space-y-4 w-full">
+              <div className="w-24 h-24 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center text-4xl shadow-sm">
+                🍽️
+              </div>
+              <div>
+                <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                  {Math.floor(
+                    (activeFast.eating_window_remaining_minutes ?? 0) / 60
+                  )}
+                  h {(activeFast.eating_window_remaining_minutes ?? 0) % 60}m
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t(
+                    'fasting.remainingInEatingWindow',
+                    'Remaining in your eating window'
+                  )}
+                </p>
+              </div>
+
+              {/* Eating Window Color Bands Bar */}
+              {activeFast.start_time && activeFast.target_end_time && (
+                <div className="w-full px-2">
+                  <EatingWindowBar
+                    startTime={activeFast.start_time}
+                    targetEndTime={activeFast.target_end_time}
+                    remainingMinutes={
+                      activeFast.eating_window_remaining_minutes
+                    }
+                  />
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground/80 max-w-xs">
+                {t(
+                  'fasting.eatingWindowHint',
+                  'Fasting will automatically resume after your eating window closes.'
+                )}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setStartLocal(formatForLocalInput(new Date()));
+                  setShowStartDialog(true);
+                }}
+                className="text-xs"
+              >
+                <Play className="w-3.5 h-3.5 mr-1" />
+                {t('fasting.startFastEarly', 'Start Fasting Now')}
+              </Button>
+            </div>
+          ) : activeFast &&
+            activeFast.start_time &&
+            activeFast.target_end_time ? (
             <div className="flex justify-center">
               <FastingTimerRing
                 startTime={parseISO(activeFast.start_time)}
@@ -151,10 +241,14 @@ const HomeDashboardFasting = () => {
           )}
         </div>
 
-        {activeFast && (
+        {activeFast && !activeFast.is_eating_window && (
           <>
             <div className="w-full">
-              <FastingZoneBar hoursFasted={fastDurationHours} />
+              <FastingZoneBar
+                hoursFasted={fastDurationHours}
+                startTime={activeFast.start_time}
+                targetEndTime={activeFast.target_end_time}
+              />
             </div>
 
             <Button

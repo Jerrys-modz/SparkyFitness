@@ -10,6 +10,7 @@ import measurementService from '../../services/measurementService.js';
 import preferenceService from '../../services/preferenceService.js';
 import moodRepository from '../../models/moodRepository.js';
 import fastingRepository from '../../models/fastingRepository.js';
+import fastingAutoCalculationService from '../../services/fastingAutoCalculationService.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeActionArgs } from './dates.js';
@@ -727,7 +728,35 @@ Actions:
             }
 
             case 'get_fasting_status': {
-              const fast = await fastingRepository.getCurrentFast(userId);
+              let fast = await fastingRepository.getCurrentFast(userId);
+              let isAuto = false;
+              let startMealName: string | undefined;
+
+              if (!fast) {
+                try {
+                  const autoFast =
+                    await fastingAutoCalculationService.getCurrentAutoFast(
+                      userId,
+                      tz
+                    );
+                  if (autoFast) {
+                    isAuto = true;
+                    startMealName = autoFast.start_meal_name;
+                    fast = {
+                      id: autoFast.id,
+                      user_id: autoFast.user_id,
+                      start_time: autoFast.start_time,
+                      end_time: autoFast.end_time,
+                      status: autoFast.status,
+                      fasting_type: autoFast.fasting_type,
+                      created_at: new Date(autoFast.start_time),
+                    } as unknown as typeof fast;
+                  }
+                } catch {
+                  // Fall back gracefully if auto-calculation cannot query
+                }
+              }
+
               if (!fast) {
                 return 'No active fasting session.';
               }
@@ -740,6 +769,8 @@ Actions:
                   fasting_status: fast.status,
                   fasting_type: fast.fasting_type,
                   created_at: fast.created_at,
+                  ...(isAuto ? { is_auto_calculated: true } : {}),
+                  ...(startMealName ? { start_meal_name: startMealName } : {}),
                 },
                 'Fasting Status'
               );

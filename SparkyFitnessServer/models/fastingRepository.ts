@@ -2,14 +2,10 @@ import { getClient } from '../db/poolManager.js';
 import { dayRangeToUtcRange } from '@workspace/shared';
 
 async function createFastingLog(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  startTime: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetEndTime: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fastingType: any
+  userId: string,
+  startTime: string | Date,
+  targetEndTime: string | Date | null,
+  fastingType: string | null
 ) {
   const client = await getClient(userId);
   try {
@@ -25,17 +21,68 @@ async function createFastingLog(
   }
 }
 
+async function createCompletedFast(
+  userId: string,
+  startTime: string | Date,
+  endTime: string | Date,
+  targetEndTime: string | Date | null,
+  durationMinutes: number,
+  fastingType: string
+): Promise<Record<string, unknown>> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `INSERT INTO fasting_logs (user_id, start_time, end_time, target_end_time, duration_minutes, fasting_type, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'COMPLETED')
+       RETURNING id, user_id, start_time, end_time, target_end_time, duration_minutes, fasting_type, status, created_at, updated_at`,
+      [userId, startTime, endTime, targetEndTime, durationMinutes, fastingType]
+    );
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
+async function findFastNearStartTime(
+  userId: string,
+  startTime: string | Date,
+  toleranceMinutes = 60
+): Promise<{
+  id: string;
+  status: string;
+  start_time: string;
+  end_time: string | null;
+} | null> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT id, status, start_time, end_time FROM fasting_logs
+       WHERE user_id = $1
+         AND start_time >= ($2::timestamptz - ($3 || ' minutes')::interval)
+         AND start_time <= ($2::timestamptz + ($3 || ' minutes')::interval)
+       ORDER BY ABS(EXTRACT(EPOCH FROM (start_time - $2::timestamptz))) ASC
+       LIMIT 1`,
+      [userId, startTime, toleranceMinutes]
+    );
+    return (
+      (result.rows[0] as {
+        id: string;
+        status: string;
+        start_time: string;
+        end_time: string | null;
+      }) || null
+    );
+  } finally {
+    client.release();
+  }
+}
+
 async function endFast(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  id: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  endTime: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  durationMinutes: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  startTime: any
+  id: string,
+  userId: string,
+  endTime: string | Date,
+  durationMinutes: number,
+  startTime?: string | Date | null
 ) {
   const client = await getClient(userId);
   try {
@@ -252,6 +299,8 @@ async function deleteFastingLog(id: any, userId: any) {
   }
 }
 export { createFastingLog };
+export { createCompletedFast };
+export { findFastNearStartTime };
 export { endFast };
 export { getFastingById };
 export { getCurrentFast };
@@ -263,6 +312,8 @@ export { getFastingLogsOverlappingDay };
 export { deleteFastingLog };
 export default {
   createFastingLog,
+  createCompletedFast,
+  findFastNearStartTime,
   endFast,
   getFastingById,
   getCurrentFast,

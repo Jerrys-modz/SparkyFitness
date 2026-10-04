@@ -524,6 +524,55 @@ export async function scheduleFastGoalNotification(
 }
 
 /**
+ * Schedules a notification 30 minutes (or custom minutes) prior to fasting goal completion.
+ */
+export async function scheduleFastPreEndNotification(
+  targetEndTime: string,
+  preEndMinutes: number = 30
+): Promise<string | null> {
+  const prefs = useAppPreferencesStore.getState();
+  if (!prefs.notificationsEnabled || !prefs.fastingGoalNotificationsEnabled)
+    return null;
+
+  const target = new Date(targetEndTime);
+  const preEnd = new Date(target.getTime() - preEndMinutes * 60 * 1000);
+  if (Number.isNaN(preEnd.getTime()) || preEnd.getTime() <= Date.now()) {
+    return null;
+  }
+
+  const granted = await ensureNotificationPermission();
+  if (!granted) return null;
+
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: notificationCopy(
+          'notifications.fastingPreEnd.title',
+          'Fasting goal ending soon'
+        ),
+        body: notificationCopy(
+          'notifications.fastingPreEnd.body',
+          `Your fast will reach its goal in ${preEndMinutes} minutes.`
+        ),
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: preEnd,
+        channelId: FASTING_CHANNEL_ID,
+      },
+    });
+    return id;
+  } catch (err) {
+    addLog(
+      `scheduleFastPreEndNotification failed: ${(err as Error).message}`,
+      'ERROR'
+    );
+    return null;
+  }
+}
+
+/**
  * Schedules one hydration reminder per future time and returns the ids that
  * were scheduled. Never prompts for permission: this runs from a background
  * reconcile, and the settings toggle only turns on once permission is granted.

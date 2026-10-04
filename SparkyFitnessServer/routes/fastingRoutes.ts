@@ -1,8 +1,11 @@
 import express from 'express';
 import fastingRepository from '../models/fastingRepository.js';
+import fastingPreferencesRepository from '../models/fastingPreferencesRepository.js';
+import fastingAutoCalculationService from '../services/fastingAutoCalculationService.js';
 import moodRepository from '../models/moodRepository.js';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { todayInZone, addDays } from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 const router = express.Router();
@@ -42,11 +45,26 @@ router.use(checkPermissionMiddleware('checkin'));
 router.get('/current', async (req, res) => {
   const { userId } = req.query;
 
-  const targetUserId = userId || req.userId;
+  const targetUserId = (userId as string) || req.userId;
   log('debug', `GET /current: Fetching fast for userId: ${targetUserId}`);
   try {
+    const tz = await loadUserTimezone(targetUserId);
+    await fastingAutoCalculationService.syncCompletedAutoFasts(
+      targetUserId,
+      tz
+    );
+
     const currentFast = await fastingRepository.getCurrentFast(targetUserId);
-    res.json(currentFast || null);
+    if (currentFast) {
+      return res.json(currentFast);
+    }
+
+    // If no manual fast is active, check if auto-calculation is enabled
+    const autoFast = await fastingAutoCalculationService.getCurrentAutoFast(
+      targetUserId,
+      tz
+    );
+    res.json(autoFast || null);
   } catch (error) {
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
     log('error', `Error fetching current fast: ${error.message}`, error);
@@ -189,7 +207,26 @@ router.post('/end', async (req, res) => {
   }
   try {
     // 1. Fetch the fast by id to validate ownership and get existing start_time
-    const fast = await fastingRepository.getFastingById(id, userId);
+    let fast;
+    if (id === 'auto-current') {
+      const tz = await loadUserTimezone(userId);
+      const activeAuto = await fastingAutoCalculationService.getCurrentAutoFast(
+        userId,
+        tz
+      );
+      const startUsed =
+        start_time || activeAuto?.start_time || new Date().toISOString();
+      const targetEnd = activeAuto?.target_end_time || null;
+      const fastingType = activeAuto?.fasting_type || '16:8';
+      fast = await fastingRepository.createFastingLog(
+        userId,
+        startUsed,
+        targetEnd,
+        fastingType
+      );
+    } else {
+      fast = await fastingRepository.getFastingById(id, userId);
+    }
     if (!fast) return res.status(404).json({ error: 'Fast not found' });
     // Determine which start time to use: provided one (frontend) or stored one
     const startUsed = start_time || fast.start_time;
@@ -215,7 +252,7 @@ router.post('/end', async (req, res) => {
     );
     // Persist end (and optional start) and other fields; do not store mood/weight on fasting_logs
     const updatedFast = await fastingRepository.endFast(
-      id,
+      fast.id,
       userId,
       end_time,
       durationMinutes,
@@ -228,7 +265,78 @@ router.post('/end', async (req, res) => {
     res.status(500).json({ error: 'Failed to end fast' });
   }
 });
+
+// Fasting Preferences
+router.get('/preferences', async (req, res) => {
+  const userId = req.userId;
+  try {
+    const prefs =
+      await fastingPreferencesRepository.getFastingPreferences(userId);
+    res.json(prefs);
+  } catch (error) {
+    log(
+      'error',
+      `Error fetching fasting preferences: ${(error as Error).message}`,
+      error
+    );
+    res.status(500).json({ error: 'Failed to fetch fasting preferences' });
+  }
+});
+
+router.put('/preferences', async (req, res) => {
+  const userId = req.userId;
+  try {
+    const updated = await fastingPreferencesRepository.upsertFastingPreferences(
+      userId,
+      req.body
+    );
+    if (updated.auto_calculate) {
+      const tz = await loadUserTimezone(userId);
+      await fastingAutoCalculationService.syncCompletedAutoFasts(
+        userId,
+        tz,
+        updated
+      );
+    }
+    res.json(updated);
+  } catch (error) {
+    log(
+      'error',
+      `Error updating fasting preferences: ${(error as Error).message}`,
+      error
+    );
+    res.status(500).json({ error: 'Failed to update fasting preferences' });
+  }
+});
+
+// Auto-calculated Fasting History
+router.get('/calculated', async (req, res) => {
+  const userId = req.userId;
+  const { startDate, endDate } = req.query;
+  try {
+    const tz = await loadUserTimezone(userId);
+    const end = (endDate as string) || todayInZone(tz);
+    const start = (startDate as string) || addDays(end, -30);
+    const fasts =
+      await fastingAutoCalculationService.getCalculatedFastingHistory(
+        userId,
+        start,
+        end,
+        tz
+      );
+    res.json(fasts);
+  } catch (error) {
+    log(
+      'error',
+      `Error calculating fasting history: ${(error as Error).message}`,
+      error
+    );
+    res.status(500).json({ error: 'Failed to calculate fasting history' });
+  }
+});
+
 // Update a fast (edit start/end times, etc)
+
 /**
  * @swagger
  * /fasting/{id}:
@@ -393,6 +501,8 @@ router.get('/history', async (req, res) => {
   );
   const { limit, offset } = req.query;
   try {
+    const tz = await loadUserTimezone(userId);
+    await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
     const history = await fastingRepository.getFastingHistory(
       userId,
       // @ts-expect-error TS(2345): Argument of type 'string | ParsedQs | (string | Pa... Remove this comment to see the full error message
@@ -439,6 +549,8 @@ router.get('/stats', async (req, res) => {
   const userId = req.userId;
   log('debug', `GET /stats: Fetching stats for userId: ${userId}`);
   try {
+    const tz = await loadUserTimezone(userId);
+    await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
     const stats = await fastingRepository.getFastingStats(userId);
     res.json(stats);
   } catch (error) {
@@ -496,6 +608,7 @@ router.get('/history/range/:startDate/:endDate', async (req, res) => {
   );
   try {
     const tz = await loadUserTimezone(userId);
+    await fastingAutoCalculationService.syncCompletedAutoFasts(userId, tz);
     const logs = await fastingRepository.getFastingLogsByDateRange(
       userId,
       startDate,
@@ -513,4 +626,5 @@ router.get('/history/range/:startDate/:endDate', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch fasting logs by range' });
   }
 });
+
 export default router;
