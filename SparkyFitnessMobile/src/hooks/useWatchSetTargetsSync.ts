@@ -5,8 +5,13 @@ import WatchConnectivity, {
   type WatchSetTargetPayload,
 } from '../../modules/watch-connectivity';
 import {
+  effectiveSetDurationSec,
   historyForExercise,
+  isDurationModality,
+  isWeightDistanceModality,
+  isWeightDurationModality,
   resolveLiveAssumedSetValues,
+  resolveSnapshotModality,
 } from '../utils/workoutSession';
 
 type ActiveWorkoutState = ReturnType<typeof useActiveWorkoutStore.getState>;
@@ -32,21 +37,75 @@ type TargetSources = Pick<
 export function resolveWatchSetTargets(
   session: PresetSessionResponse,
   sources: TargetSources
-): Map<string, { weightKg: number | null; reps: number | null }> {
+): Map<
+  string,
+  {
+    weightKg: number | null;
+    reps: number | null;
+    durationSec: number | null;
+    previousDurationSec: number | null;
+    /** A carry's distance in km; null on every other exercise. */
+    distanceKm: number | null;
+  }
+> {
   const targets = new Map<
     string,
-    { weightKg: number | null; reps: number | null }
+    {
+      weightKg: number | null;
+      reps: number | null;
+      durationSec: number | null;
+      previousDurationSec: number | null;
+      distanceKm: number | null;
+    }
   >();
   for (const exercise of session.exercises) {
+    const modality = resolveSnapshotModality(exercise.exercise_snapshot);
+    // A loaded hold keeps its weight but is timed like any hold; a carry has
+    // weight and distance and no reps.
+    const durationLike =
+      isDurationModality(modality) || isWeightDurationModality(modality);
+    const carry = isWeightDistanceModality(modality);
     const assumed = resolveLiveAssumedSetValues(
       exercise,
       historyForExercise(sources.previousSessionSets, exercise.exercise_id),
       sources
     );
     exercise.sets.forEach((set, index) => {
+      const assumedSet = assumed[index];
+      const ownDuration = durationLike
+        ? effectiveSetDurationSec(
+            {
+              duration: set.duration ?? null,
+              reps: set.reps ?? null,
+            },
+            modality
+          )
+        : null;
+      // Only a length typed on the phone makes the watch count down. The gray
+      // value from last time is a hint, not a target: the phone runs a
+      // stopwatch from zero for it, so the watch must too.
+      const durationSec =
+        ownDuration != null && ownDuration > 0 ? ownDuration : null;
+      // Last time's length, shown in gray on the idle stopwatch like the
+      // phone's gray value. Only when no length was typed for this set.
+      const previousDurationSec =
+        durationSec == null &&
+        durationLike &&
+        assumedSet?.duration != null &&
+        assumedSet.duration > 0
+          ? assumedSet.duration
+          : null;
       targets.set(String(set.id), {
-        weightKg: set.weight ?? assumed[index]?.weight ?? null,
-        reps: set.reps ?? assumed[index]?.reps ?? null,
+        weightKg: set.weight ?? assumedSet?.weight ?? null,
+        // A duration set's legacy seconds live in `reps`. Sending those as
+        // reps would put "45 REPS" next to a 0:45 countdown.
+        reps:
+          durationLike || carry ? null : (set.reps ?? assumedSet?.reps ?? null),
+        durationSec,
+        previousDurationSec,
+        distanceKm: carry
+          ? (set.distance ?? assumedSet?.distance ?? null)
+          : null,
       });
     });
   }
@@ -82,9 +141,31 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
           setId,
           ...(value.weightKg != null ? { targetWeightKg: value.weightKg } : {}),
           ...(value.reps != null ? { targetReps: value.reps } : {}),
+          ...(value.durationSec != null
+            ? { targetDurationSec: value.durationSec }
+            : {}),
+          ...(value.previousDurationSec != null
+            ? { previousDurationSec: value.previousDurationSec }
+            : {}),
+          ...(value.distanceKm != null
+            ? { targetDistanceKm: value.distanceKm }
+            : {}),
         });
       }
       const completedSetIds = Object.keys(state.completedSetIds).sort();
+      // The newest timer running for a set not yet logged, so the watch can
+      // show the same clock. The watch shows one set at a time and holds one
+      // timer, so older ones are not sent: a second would replace the first
+      // there.
+      const setTimers: Record<string, number> = {};
+      let newest: [string, number] | null = null;
+      for (const setId of Object.keys(state.setTimerStartedAt).sort()) {
+        const startedAt = state.setTimerStartedAt[setId];
+        if (state.completedSetIds[setId] != null) continue;
+        if (newest == null || startedAt > newest[1])
+          newest = [setId, startedAt];
+      }
+      if (newest != null) setTimers[newest[0]] = newest[1];
       const rest =
         state.rest.state === 'resting' && state.rest.endsAt != null
           ? {
@@ -102,6 +183,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         watchArmedAt,
         targets,
         completedSetIds,
+        setTimers,
         rest,
       ]);
       if (lastSent?.sessionId === session.id && lastSent.key === key) return;
@@ -115,6 +197,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
         revision: lastRevision,
         targets,
         completedSetIds,
+        setTimers,
         ...rest,
       });
     };
@@ -124,6 +207,7 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
       if (
         state.session === prev.session &&
         state.completedSetIds === prev.completedSetIds &&
+        state.setTimerStartedAt === prev.setTimerStartedAt &&
         state.watchArmedAt === prev.watchArmedAt &&
         state.rest === prev.rest &&
         state.previousSessionSets === prev.previousSessionSets &&
