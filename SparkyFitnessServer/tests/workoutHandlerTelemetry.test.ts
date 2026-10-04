@@ -743,4 +743,43 @@ describe('workoutHandler — exercise library matching and renaming resilience',
       .calls[0][1];
     expect(entryData.exercise_id).toBe('name-matched-id');
   });
+
+  it('rejects cross-source name matches when exercise_source_id is provided', async () => {
+    (exerciseDb.getExerciseBySourceAndSourceId as Mock).mockResolvedValueOnce(
+      null
+    );
+    // Same-name exercise exists, but from another source (e.g. garmin)
+    (exerciseDb.findExerciseByNameAndUserId as Mock).mockResolvedValueOnce({
+      id: 'garmin-exercise-id',
+      name: 'Running',
+      source: 'garmin',
+      source_id: 'garmin-123',
+    });
+    (exerciseDb.createExercise as Mock).mockResolvedValueOnce({
+      id: 'new-healthkit-running-id',
+    });
+
+    await workoutHandler.handle(
+      baseEntry({
+        activityType: 'Running',
+        exercise_source_id: '16',
+      }),
+      makeCtx()
+    );
+
+    // Should NOT backfill or use the garmin exercise
+    expect(exerciseDb.updateExercise).not.toHaveBeenCalled();
+    // Should create a provider-specific exercise instead
+    expect(exerciseDb.createExercise).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Running',
+        source: 'HealthKit',
+        source_id: '16',
+        user_id: 'user-1',
+      })
+    );
+    const entryData = (exerciseEntryDb.createExerciseEntry as Mock).mock
+      .calls[0][1];
+    expect(entryData.exercise_id).toBe('new-healthkit-running-id');
+  });
 });

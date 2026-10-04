@@ -1777,6 +1777,15 @@ const workoutHandler: HealthTypeHandler = {
           exerciseName,
           ctx.userId
         );
+        if (
+          exercise &&
+          typeof exercise_source_id === 'string' &&
+          exercise_source_id.length > 0 &&
+          (exercise.source !== source ||
+            (exercise.source_id && exercise.source_id !== exercise_source_id))
+        ) {
+          exercise = null;
+        }
         // Backfill source_id on existing legacy exercise so future syncs remain linked after rename
         if (
           exercise &&
