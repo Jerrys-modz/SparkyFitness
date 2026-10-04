@@ -43,7 +43,14 @@ describe('background water', () => {
       containerId: 3,
       containerName: 'Bottle',
       volumeLabel: '500 ml',
+      weightUnit: 'kg',
     });
+  });
+
+  it('still builds a config, in the user weight unit, with no container', () => {
+    const config = buildBackgroundWaterConfig(server, undefined, 'lbs');
+    expect(config).toMatchObject({ weightUnit: 'lbs' });
+    expect(config).not.toHaveProperty('containerId');
   });
 
   it('has no config without a signed-in server', () => {
@@ -60,10 +67,10 @@ describe('background water', () => {
     expect(mockSetConfig).toHaveBeenCalledWith(null);
   });
 
-  it('erases the copy without a container or on request', async () => {
+  it('keeps the actions working with no container, and erases on request', async () => {
     mockGetActiveServerConfig.mockResolvedValue(server);
-    await syncBackgroundWater(true, undefined);
-    expect(mockSetConfig).toHaveBeenLastCalledWith(null);
+    await syncBackgroundWater(true, undefined, 'lbs');
+    expect(JSON.parse(mockSetConfig.mock.calls[0][0]).weightUnit).toBe('lbs');
     await clearBackgroundWater();
     expect(mockSetConfig).toHaveBeenLastCalledWith(null);
   });
