@@ -1751,6 +1751,7 @@ const workoutHandler: HealthTypeHandler = {
         caloriesBurned,
         distance,
         duration,
+        exercise_source_id,
         raw_data,
         source_id,
         steps,
@@ -1760,25 +1761,79 @@ const workoutHandler: HealthTypeHandler = {
         activityType,
         entry.modality
       );
-      let exercise = await exerciseDb.findExerciseByNameAndUserId(
-        exerciseName,
-        ctx.userId
-      );
+      let exercise = null;
+      if (
+        typeof exercise_source_id === 'string' &&
+        exercise_source_id.length > 0
+      ) {
+        exercise = await exerciseDb.getExerciseBySourceAndSourceId(
+          source,
+          exercise_source_id,
+          ctx.userId
+        );
+      }
       if (!exercise) {
-        exercise = await exerciseDb.createExercise({
-          user_id: ctx.userId,
-          name: exerciseName,
-          is_custom: true,
-          shared_with_public: false,
-          source: source,
-          // Modality is snapshotted from this row when the entry is created, so
-          // it has to be right here; setting it on the entry has no effect.
-          category,
-          modality,
-          calories_per_hour: caloriesBurned
-            ? caloriesBurned / (duration / 3600)
-            : 0,
-        });
+        exercise = await exerciseDb.findExerciseByNameAndUserId(
+          exerciseName,
+          ctx.userId
+        );
+        if (
+          exercise &&
+          typeof exercise_source_id === 'string' &&
+          exercise_source_id.length > 0 &&
+          (exercise.source !== source ||
+            (exercise.source_id && exercise.source_id !== exercise_source_id))
+        ) {
+          exercise = null;
+        }
+        // Backfill source_id on existing legacy exercise so future syncs remain linked after rename
+        if (
+          exercise &&
+          !exercise.source_id &&
+          typeof exercise_source_id === 'string' &&
+          exercise_source_id.length > 0
+        ) {
+          await exerciseDb.updateExercise(exercise.id, ctx.userId, {
+            source_id: exercise_source_id,
+          });
+          exercise.source_id = exercise_source_id;
+        }
+      }
+      if (!exercise) {
+        const newSourceId =
+          typeof exercise_source_id === 'string' &&
+          exercise_source_id.length > 0
+            ? exercise_source_id
+            : null;
+        try {
+          exercise = await exerciseDb.createExercise({
+            user_id: ctx.userId,
+            name: exerciseName,
+            is_custom: true,
+            shared_with_public: false,
+            source: source,
+            source_id: newSourceId,
+            // Modality is snapshotted from this row when the entry is created, so
+            // it has to be right here; setting it on the entry has no effect.
+            category,
+            modality,
+            calories_per_hour: caloriesBurned
+              ? caloriesBurned / (duration / 3600)
+              : 0,
+          });
+        } catch (createError) {
+          // If a concurrent sync request inserted the exercise first, fetch the committed row.
+          if (newSourceId) {
+            exercise = await exerciseDb.getExerciseBySourceAndSourceId(
+              source,
+              newSourceId,
+              ctx.userId
+            );
+          }
+          if (!exercise) {
+            throw createError;
+          }
+        }
       }
       // Per-set duration is stored in integer seconds. Clients send either
       // duration_seconds (always seconds; old servers drop the unknown field
