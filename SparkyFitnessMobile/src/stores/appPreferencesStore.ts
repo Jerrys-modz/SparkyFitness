@@ -69,6 +69,7 @@ export const PREFERENCE_DEFAULTS = {
   exerciseCardVisible: true,
   hydrationCardVisible: true,
   caffeineCardVisible: true,
+  backgroundWaterEnabled: false,
   fastingCardVisible: true,
   cycleCardVisible: true,
   askSparkyVisible: true,
@@ -149,6 +150,8 @@ export type AppPreferencesData = {
   exerciseCardVisible: boolean;
   hydrationCardVisible: boolean;
   caffeineCardVisible: boolean;
+  /** Opt-in: lets the Log water shortcut run with the app closed. */
+  backgroundWaterEnabled: boolean;
   fastingCardVisible: boolean;
   cycleCardVisible: boolean;
   askSparkyVisible: boolean;
@@ -254,6 +257,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setExerciseCardVisible: (value: boolean) => void;
   setHydrationCardVisible: (value: boolean) => void;
   setCaffeineCardVisible: (value: boolean) => void;
+  setBackgroundWaterEnabled: (value: boolean) => void;
   setFastingCardVisible: (value: boolean) => void;
   setCycleCardVisible: (value: boolean) => void;
   setAskSparkyVisible: (value: boolean) => void;
@@ -383,6 +387,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setExerciseCardVisible: (value) => set({ exerciseCardVisible: value }),
       setHydrationCardVisible: (value) => set({ hydrationCardVisible: value }),
       setCaffeineCardVisible: (value) => set({ caffeineCardVisible: value }),
+      setBackgroundWaterEnabled: (value) =>
+        set({ backgroundWaterEnabled: value }),
       setFastingCardVisible: (value) => set({ fastingCardVisible: value }),
       setCycleCardVisible: (value) => set({ cycleCardVisible: value }),
       setAskSparkyVisible: (value) => set({ askSparkyVisible: value }),
@@ -525,6 +531,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         exerciseCardVisible: state.exerciseCardVisible,
         hydrationCardVisible: state.hydrationCardVisible,
         caffeineCardVisible: state.caffeineCardVisible,
+        backgroundWaterEnabled: state.backgroundWaterEnabled,
         fastingCardVisible: state.fastingCardVisible,
         cycleCardVisible: state.cycleCardVisible,
         askSparkyVisible: state.askSparkyVisible,
