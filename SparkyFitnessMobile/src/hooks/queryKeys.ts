@@ -101,6 +101,12 @@ export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
 
+export const goalsRangeQueryKey = (
+  startDate: string,
+  endDate: string,
+  adjust: boolean
+) => ['goalsRange', startDate, endDate, adjust] as const;
+
 export const foodVariantsQueryKey = (foodId: string) =>
   ['foodVariants', foodId] as const;
 
