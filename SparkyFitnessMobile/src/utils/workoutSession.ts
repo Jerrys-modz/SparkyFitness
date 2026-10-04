@@ -2213,7 +2213,8 @@ export function buildActivitySetsPayload(
   originals: ReadonlyMap<string, ExerciseEntrySetResponse>,
   weightUnit: 'kg' | 'lbs',
   modality: ExerciseModality,
-  cardio?: CardioEffortValues
+  cardio?: CardioEffortValues,
+  distanceUnit: 'km' | 'miles' = 'km'
 ): ActivitySetPayload[] {
   if (cardio && draftSets.length === 0) {
     return [
@@ -2246,8 +2247,18 @@ export function buildActivitySetsPayload(
       set_number: index + 1,
       weight: isNaN(w) ? null : weightToKg(w, weightUnit),
       reps: isNaN(r) ? null : r,
-      ...(isDurationModality(modality)
+      ...(isDurationModality(modality) || isWeightDurationModality(modality)
         ? { duration: set.duration ?? null }
+        : {}),
+      ...(isWeightDistanceModality(modality)
+        ? (() => {
+            const distance = parseDecimalInput(set.distance ?? '');
+            return {
+              distance: isNaN(distance)
+                ? null
+                : setDistanceToKm(distance, distanceUnit, modality),
+            };
+          })()
         : {}),
       ...(cardio
         ? {
