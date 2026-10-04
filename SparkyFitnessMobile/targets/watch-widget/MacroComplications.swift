@@ -56,9 +56,21 @@ private struct MacroSnapshotPayload: Decodable {
     let proteinGoalProgress: Double?
     let carbsGoalProgress: Double?
     let fatGoalProgress: Double?
+    let proteinConsumed: Double?
+    let proteinGoal: Double?
+    let carbsConsumed: Double?
+    let carbsGoal: Double?
+    let fatConsumed: Double?
+    let fatGoal: Double?
 }
 
-private func loadMacroProgress(_ macro: MacroKind) -> Double {
+/// Grams eaten and the goal, when the phone has sent them.
+struct MacroAmount {
+    let consumed: Int
+    let goal: Int
+}
+
+private func loadMacro(_ macro: MacroKind) -> (progress: Double, amount: MacroAmount?) {
     guard
         let appGroup = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
         !appGroup.isEmpty,
@@ -66,35 +78,53 @@ private func loadMacroProgress(_ macro: MacroKind) -> Double {
         let data = defaults.data(forKey: "energyGoalSnapshot"),
         let payload = try? JSONDecoder().decode(MacroSnapshotPayload.self, from: data),
         payload.date == macroDateFormatter.string(from: Date())
-    else { return 0 }
+    else { return (0, nil) }
     let value: Double?
+    let eaten: Double?
+    let target: Double?
     switch macro {
-    case .protein: value = payload.proteinGoalProgress
-    case .carbs: value = payload.carbsGoalProgress
-    case .fat: value = payload.fatGoalProgress
+    case .protein:
+        value = payload.proteinGoalProgress
+        eaten = payload.proteinConsumed
+        target = payload.proteinGoal
+    case .carbs:
+        value = payload.carbsGoalProgress
+        eaten = payload.carbsConsumed
+        target = payload.carbsGoal
+    case .fat:
+        value = payload.fatGoalProgress
+        eaten = payload.fatConsumed
+        target = payload.fatGoal
     }
-    return max(0, min(1, value ?? 0))
+    var amount: MacroAmount?
+    if let eaten, let target, target > 0 {
+        amount = MacroAmount(consumed: Int(eaten.rounded()), goal: Int(target.rounded()))
+    }
+    return (max(0, min(1, value ?? 0)), amount)
 }
 
 struct MacroEntry: TimelineEntry {
     let date: Date
     let progress: Double
+    var amount: MacroAmount? = nil
 }
 
 struct MacroProvider: TimelineProvider {
     let macro: MacroKind
 
     func placeholder(in context: Context) -> MacroEntry {
-        MacroEntry(date: Date(), progress: 0.6)
+        MacroEntry(date: Date(), progress: 0.6, amount: MacroAmount(consumed: 90, goal: 150))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (MacroEntry) -> Void) {
-        completion(MacroEntry(date: Date(), progress: loadMacroProgress(macro)))
+        let loaded = loadMacro(macro)
+        completion(MacroEntry(date: Date(), progress: loaded.progress, amount: loaded.amount))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<MacroEntry>) -> Void) {
         let now = Date()
-        let entry = MacroEntry(date: now, progress: loadMacroProgress(macro))
+        let loaded = loadMacro(macro)
+        let entry = MacroEntry(date: now, progress: loaded.progress, amount: loaded.amount)
         let in15Minutes = Calendar.current.date(byAdding: .minute, value: 15, to: now) ?? now
         let nextMidnight = Calendar.current.nextDate(
             after: now,
@@ -112,42 +142,60 @@ struct MacroComplicationView: View {
 
     private var percent: Int { Int((entry.progress * 100).rounded()) }
 
+    /// "85/150g" when the phone sent grams, otherwise the percentage.
+    private var amountText: String {
+        guard let amount = entry.amount else { return "\(percent)%" }
+        return "\(amount.consumed)/\(amount.goal)g"
+    }
+
+    /// The figure that fits inside a small ring: grams eaten, else percent.
+    private var shortText: String {
+        entry.amount.map { "\($0.consumed)" } ?? "\(percent)"
+    }
+
     var body: some View {
         content
             .widgetURL(ComplicationLink.goals.url)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(macro.name) \(percent)% of goal.")
+            .accessibilityLabel(
+                entry.amount.map {
+                    "\(macro.name) \($0.consumed) of \($0.goal) grams, \(percent)% of goal."
+                } ?? "\(macro.name) \(percent)% of goal."
+            )
     }
 
     @ViewBuilder
     private var content: some View {
         switch family {
         case .accessoryCorner:
-            Image(systemName: macro.symbol)
-                .font(.title3)
+            Text(shortText)
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .minimumScaleFactor(0.6)
                 .foregroundStyle(macro.tint)
                 .widgetLabel {
-                    ProgressView(value: entry.progress)
-                        .tint(macro.tint)
+                    ProgressView(value: entry.progress) {
+                        Text("\(macro.letter) \(amountText)")
+                    }
+                    .tint(macro.tint)
                 }
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
                 Label(macro.name, systemImage: macro.symbol)
                     .font(.headline)
                     .foregroundStyle(macro.tint)
-                Text("\(percent)% of goal")
+                Text(amountText)
                     .font(.system(.body, design: .rounded).weight(.semibold))
                     .monospacedDigit()
                 ProgressView(value: entry.progress)
                     .tint(macro.tint)
             }
         case .accessoryInline:
-            Label("\(macro.name) \(percent)%", systemImage: macro.symbol)
+            Label("\(macro.letter) \(amountText)", systemImage: macro.symbol)
         default:
             Gauge(value: entry.progress) {
                 Text(macro.letter)
             } currentValueLabel: {
-                Text("\(percent)")
+                Text(shortText)
                     .monospacedDigit()
             }
             .gaugeStyle(.accessoryCircular)
