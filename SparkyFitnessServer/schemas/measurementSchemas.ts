@@ -307,6 +307,7 @@ export const ImportHealthDataItemSchema = z
     timestamp: optionalLegacyString,
     source: optionalLegacyString,
     source_id: optionalLegacyString,
+    exercise_source_id: optionalLegacyString,
     record_timezone: nullableOptionalLegacyString,
     record_utc_offset_minutes: nullableOptionalLegacyInteger,
     // Sleep session fields (only present on SleepSession rows).

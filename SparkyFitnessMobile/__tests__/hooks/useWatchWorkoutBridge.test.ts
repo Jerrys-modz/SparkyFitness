@@ -242,6 +242,137 @@ describe('useWatchWorkoutBridge', () => {
     expect(mockListeners.has('onWorkoutStop')).toBe(true);
   });
 
+  describe('set timer started on the watch', () => {
+    const fire = (payload: Record<string, unknown>) =>
+      act(() => {
+        mockListeners.get('onSetTimerStarted')!(payload);
+      });
+
+    beforeEach(() => {
+      useActiveWorkoutStore.setState({
+        sessionId: 'session-1',
+        setTimerStartedAt: {},
+        completedSetIds: {},
+      });
+    });
+
+    it('starts the phone stopwatch from the watch start time', () => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      const startedAt = Date.now() - 12_000;
+      fire({ sessionId: 'session-1', setId: '101', startedAt });
+      expect(getStore().setTimerStartedAt['101']).toBe(startedAt);
+    });
+
+    it('keeps a stopwatch that is already running', () => {
+      const earlier = Date.now() - 30_000;
+      useActiveWorkoutStore.setState({ setTimerStartedAt: { '101': earlier } });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'session-1', setId: '101', startedAt: Date.now() });
+      expect(getStore().setTimerStartedAt['101']).toBe(earlier);
+    });
+
+    it('ignores another session, a logged set, and a stale start', () => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'other', setId: '101', startedAt: Date.now() });
+      fire({ sessionId: 'session-1', setId: '102', startedAt: Date.now() });
+      fire({
+        sessionId: 'session-1',
+        setId: '103',
+        startedAt: Date.now() - 4 * 60 * 60 * 1000,
+      });
+      expect(getStore().setTimerStartedAt).toEqual({});
+    });
+
+    it('ignores a start from an earlier arm of the same session', () => {
+      const armedAt = Date.now() - 60_000;
+      useActiveWorkoutStore.setState({ watchArmedAt: armedAt });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        startedAt: Date.now(),
+        armedAt: armedAt - 3_600_000,
+      });
+      expect(getStore().setTimerStartedAt).toEqual({});
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        startedAt: Date.now(),
+        armedAt,
+      });
+      expect(Object.keys(getStore().setTimerStartedAt)).toEqual(['101']);
+    });
+  });
+
+  describe('set timer stopped on the watch', () => {
+    const fire = (payload: Record<string, unknown>) =>
+      act(() => {
+        mockListeners.get('onSetTimerStopped')!(payload);
+      });
+    let startedAt = 0;
+
+    beforeEach(() => {
+      startedAt = Date.now() - 20_000;
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      useActiveWorkoutStore.setState({
+        sessionId: 'session-1',
+        setTimerStartedAt: { '101': startedAt },
+        completedSetIds: {},
+      });
+    });
+
+    it('stops the phone stopwatch and keeps the wrist time as the duration', () => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'session-1', setId: '101', seconds: 19, startedAt });
+      expect(getStore().setTimerStartedAt['101']).toBeUndefined();
+      expect(getStore().session!.exercises[0].sets[0].duration).toBe(19);
+    });
+
+    it('ignores a stop from an earlier run of the same set', () => {
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        seconds: 19,
+        startedAt: startedAt - 30_000,
+      });
+      expect(getStore().setTimerStartedAt['101']).toBe(startedAt);
+      expect(getStore().session!.exercises[0].sets[0].duration).not.toBe(19);
+    });
+
+    it('accepts a stop whose start the phone clock clamped forward', () => {
+      useActiveWorkoutStore.setState({ setTimerStartedAt: {} });
+      renderHook(() => useWatchWorkoutBridge(true));
+      const watchStart = Date.now() + 5_000;
+      act(() => {
+        mockListeners.get('onSetTimerStarted')!({
+          sessionId: 'session-1',
+          setId: '101',
+          startedAt: watchStart,
+        });
+      });
+      expect(getStore().setTimerStartedAt['101']).toBeLessThan(watchStart);
+      fire({
+        sessionId: 'session-1',
+        setId: '101',
+        seconds: 19,
+        startedAt: watchStart,
+      });
+      expect(getStore().setTimerStartedAt['101']).toBeUndefined();
+      expect(getStore().session!.exercises[0].sets[0].duration).toBe(19);
+    });
+
+    it('ignores another session, a logged set and a zero time', () => {
+      useActiveWorkoutStore.setState({ completedSetIds: { '102': 1000 } });
+      renderHook(() => useWatchWorkoutBridge(true));
+      fire({ sessionId: 'other', setId: '101', seconds: 19, startedAt });
+      fire({ sessionId: 'session-1', setId: '102', seconds: 19, startedAt });
+      fire({ sessionId: 'session-1', setId: '101', seconds: 0, startedAt });
+      expect(getStore().setTimerStartedAt['101']).toBeDefined();
+    });
+  });
+
   describe('rest changed on the watch', () => {
     const resting = (endsAt: number) => ({
       state: 'resting' as const,
@@ -381,6 +512,29 @@ describe('useWatchWorkoutBridge', () => {
     const set = getStore().session!.exercises[0].sets[0];
     expect(set.weight).toBe(82.5);
     expect(set.reps).toBe(6);
+    expect(getStore().completedSetIds['101']).toBeDefined();
+  });
+
+  it('writes the hold the watch counted down, and leaves reps alone', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        duration: 32,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.duration).toBe(32);
+    expect(set.reps).toBe(10);
     expect(getStore().completedSetIds['101']).toBeDefined();
   });
 
