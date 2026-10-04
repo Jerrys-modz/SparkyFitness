@@ -20,14 +20,23 @@ export function useBackgroundWaterSync(
   const name = container?.name;
   const volume = container?.volume;
   const unit = container?.unit;
+  const servings = container?.servings_per_container;
+  const linkedFoodId = container?.linked_food_id;
 
   useEffect(() => {
     const target =
       id != null && name != null && volume != null && unit != null
-        ? { id, name, volume, unit }
+        ? {
+            id,
+            name,
+            volume,
+            unit,
+            servings_per_container: servings ?? 1,
+            linked_food_id: linkedFoodId,
+          }
         : undefined;
     void syncBackgroundWater(enabled, target);
     if (!enabled) return;
     return onAppBecameActive(() => void syncBackgroundWater(enabled, target));
-  }, [enabled, id, name, volume, unit]);
+  }, [enabled, id, name, volume, unit, servings, linkedFoodId]);
 }

@@ -13,11 +13,20 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 import {
   buildBackgroundWaterConfig,
+  drinkVolumeLabel,
   clearBackgroundWater,
   syncBackgroundWater,
 } from '../../src/services/backgroundWater';
 
 const container = { id: 3, name: 'Bottle', volume: 500, unit: 'ml' };
+// 946.352 ml is 32 fl oz; two servings makes one drink 16 oz.
+const owala = {
+  id: 7,
+  name: 'Owala',
+  volume: 946.352,
+  unit: 'oz',
+  servings_per_container: 2,
+};
 const server = {
   id: 's1',
   url: 'https://sparky.example.com/',
