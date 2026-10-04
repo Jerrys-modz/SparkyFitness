@@ -12,7 +12,10 @@ import {
   exerciseWriteArrayFieldsSchema,
   type ExerciseWriteArrayFields,
 } from '@workspace/shared';
-import { applyExerciseModalitySuggestionsBodySchema } from '@workspace/shared';
+import {
+  addExerciseDbExerciseBodySchema,
+  applyExerciseModalitySuggestionsBodySchema,
+} from '@workspace/shared';
 import { log } from '../config/logging.js';
 
 import { fileURLToPath } from 'url';
@@ -1009,6 +1012,61 @@ router.post(
     }
   }
 );
+
+/**
+ * @swagger
+ * /exercises/add-exercisedb:
+ *   post:
+ *     summary: Import an ExerciseDB exercise (RapidAPI or open-source mirror)
+ *     description: Downloads the exercise's media at import time, since the RapidAPI host rotates media URLs weekly.
+ *     tags:
+ *       - Exercise & Workouts
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [providerType, exerciseId]
+ *             properties:
+ *               providerType:
+ *                 type: string
+ *                 enum: [exercisedb, exercisedb-oss]
+ *               providerId:
+ *                 type: string
+ *               exerciseId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: The imported (or already imported) exercise.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Exercise'
+ *       400:
+ *         description: Invalid request body.
+ *       500:
+ *         description: Server error.
+ */
+router.post('/add-exercisedb', authenticate, async (req, res, next) => {
+  const parsed = addExerciseDbExerciseBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid request body.' });
+  }
+  try {
+    const exercise = await exerciseService.addExerciseDBExerciseToUserExercises(
+      req.userId,
+      parsed.data.providerType,
+      parsed.data.providerId,
+      parsed.data.exerciseId
+    );
+    res.status(201).json(exercise);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Endpoint to fetch an exercise by ID
 /**

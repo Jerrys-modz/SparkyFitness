@@ -152,6 +152,7 @@ export function useExerciseSearchHook({
         exercise,
         type: selectedProviderType,
         language,
+        providerId: selectedProviderId,
       });
     } catch (err) {
       return undefined;

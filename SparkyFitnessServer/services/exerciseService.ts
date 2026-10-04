@@ -18,6 +18,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
+import externalProviderRepository from '../models/externalProviderRepository.js';
+import exerciseDBService, {
+  EXERCISEDB_OSS_PROVIDER_TYPE,
+  EXERCISEDB_RAPIDAPI_PROVIDER_TYPE,
+  type ExerciseDBProviderType,
+} from '../integrations/exercisedb/ExerciseDBService.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import {
@@ -1024,7 +1030,7 @@ function wgerDescriptionToInstructions(rawDescription: string): string[] {
 }
 
 async function searchExternalExercises(
-  _authenticatedUserId: string,
+  authenticatedUserId: string,
   query: string,
   providerId: string,
   providerType: ExternalProviderType,
@@ -1165,6 +1171,32 @@ async function searchExternalExercises(
         images: exercise.images.map((img: string) =>
           freeExerciseDBService.getExerciseImageUrl(img)
         ),
+      }));
+    } else if (
+      providerType === EXERCISEDB_OSS_PROVIDER_TYPE ||
+      providerType === EXERCISEDB_RAPIDAPI_PROVIDER_TYPE
+    ) {
+      const result = await exerciseDBService.search(
+        authenticatedUserId,
+        providerType,
+        providerId,
+        query,
+        pageSize,
+        offset
+      );
+      totalCount = result.hasMore
+        ? Math.max(result.totalCount, offset + pageSize + 1)
+        : result.totalCount;
+      items = result.exercises.map(({ mediaUrl, ...exercise }) => ({
+        ...exercise,
+        modality: inferExerciseModality({
+          name: exercise.name,
+          category: exercise.category,
+          equipment: exercise.equipment,
+        }),
+        calories_per_hour: 0,
+        source: providerType,
+        images: mediaUrl ? [mediaUrl] : [],
       }));
     } else {
       throw new Error(
@@ -1361,6 +1393,81 @@ async function addNutritionixExerciseToUserExercises(
     throw error;
   }
 }
+/**
+ * Import an ExerciseDB exercise. The media URL is downloaded at import time:
+ * the RapidAPI host rotates its media links weekly, so a stored URL would go
+ * stale, while the local copy never does.
+ */
+async function addExerciseDBExerciseToUserExercises(
+  authenticatedUserId: string,
+  providerType: ExerciseDBProviderType,
+  providerIdOrNull: string | undefined,
+  exerciseId: string
+) {
+  const existingExercise = await exerciseDb.getExerciseBySourceAndSourceId(
+    providerType,
+    exerciseId,
+    authenticatedUserId
+  );
+  if (existingExercise) return existingExercise;
+
+  // Clients that only know the result's source (mobile's detail screen) omit
+  // the provider id; fall back to the caller's active provider of that type.
+  const providerId =
+    providerIdOrNull ??
+    (
+      await externalProviderRepository.getActiveProvidersByTypes(
+        authenticatedUserId,
+        [providerType]
+      )
+    )[0]?.id;
+  if (!providerId) throw new Error('No active ExerciseDB provider configured.');
+
+  const details = await exerciseDBService.getById(
+    authenticatedUserId,
+    providerType,
+    providerId,
+    exerciseId
+  );
+  if (!details) throw new Error('ExerciseDB exercise not found.');
+
+  let images: string[] = [];
+  if (details.mediaUrl) {
+    try {
+      const localPath = await downloadImage(
+        details.mediaUrl,
+        `exercisedb_${details.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      );
+      images = [localPath.replace('/uploads/exercises/', '')];
+    } catch (error) {
+      log(
+        'warn',
+        `[exerciseService] Could not download ExerciseDB media for ${details.id}; importing without it.`,
+        error
+      );
+    }
+  }
+
+  return exerciseDb.createExercise({
+    id: uuidv4(),
+    source: providerType,
+    source_id: details.id,
+    name: details.name,
+    level: details.level,
+    category: details.category,
+    equipment: details.equipment,
+    primary_muscles: details.primary_muscles,
+    secondary_muscles: details.secondary_muscles,
+    instructions: details.instructions,
+    images,
+    calories_per_hour: 0,
+    description: details.description,
+    user_id: authenticatedUserId,
+    is_custom: true,
+    shared_with_public: false,
+  });
+}
+
 async function addFreeExerciseDBExerciseToUserExercises(
   authenticatedUserId: string,
   freeExerciseDBId: string
@@ -2770,6 +2877,7 @@ export { importExercisesFromCSV };
 export { importExercisesFromJson };
 export { getExercisesNeedingReview };
 export { getModalitySuggestions, applyModalitySuggestions };
+export { addExerciseDBExerciseToUserExercises };
 export { updateExerciseEntriesSnapshot };
 export { getActivityDetailsByExerciseEntryIdAndProvider };
 export { logWorkoutPresetGrouped };
@@ -2810,6 +2918,7 @@ export default {
   getExercisesNeedingReview,
   getModalitySuggestions,
   applyModalitySuggestions,
+  addExerciseDBExerciseToUserExercises,
   updateExerciseEntriesSnapshot,
   getActivityDetailsByExerciseEntryIdAndProvider,
   logWorkoutPresetGrouped,
