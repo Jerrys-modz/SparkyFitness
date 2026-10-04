@@ -17,15 +17,15 @@ vi.mock('../db/poolManager.js', () => ({
 vi.mock('../models/fastingRepository.js', () => ({
   default: {
     findFastNearStartTime: vi.fn(),
-    createCompletedFast: vi.fn(),
-    endFast: vi.fn(),
-    updateFast: vi.fn(),
+    createCompletedFast: vi.fn().mockResolvedValue({ id: 'fast-created' }),
+    endFast: vi.fn().mockResolvedValue({ id: 'fast-ended' }),
+    updateFast: vi.fn().mockResolvedValue({ id: 'fast-updated' }),
     getCurrentFast: vi.fn(),
   },
   findFastNearStartTime: vi.fn(),
-  createCompletedFast: vi.fn(),
-  endFast: vi.fn(),
-  updateFast: vi.fn(),
+  createCompletedFast: vi.fn().mockResolvedValue({ id: 'fast-created' }),
+  endFast: vi.fn().mockResolvedValue({ id: 'fast-ended' }),
+  updateFast: vi.fn().mockResolvedValue({ id: 'fast-updated' }),
   getCurrentFast: vi.fn(),
 }));
 
@@ -228,7 +228,8 @@ describe('fastingAutoCalculationService', () => {
         '2026-10-04T13:00:00.000Z',
         expect.any(String),
         18 * 60, // 18 hours = 1080 minutes
-        '18:6 Warrior'
+        '18:6 Warrior',
+        expect.anything()
       );
     });
 
@@ -356,7 +357,8 @@ describe('fastingAutoCalculationService', () => {
         'user-123',
         '2026-10-04T13:00:00.000Z',
         18 * 60,
-        '2026-10-03T19:00:00.000Z'
+        '2026-10-03T19:00:00.000Z',
+        expect.anything()
       );
     });
 

@@ -1,5 +1,6 @@
 import { getClient } from '../db/poolManager.js';
 import { dayRangeToUtcRange } from '@workspace/shared';
+import type { PoolClient } from 'pg';
 
 async function createFastingLog(
   userId: string,
@@ -27,33 +28,43 @@ async function createCompletedFast(
   endTime: string | Date,
   targetEndTime: string | Date | null,
   durationMinutes: number,
-  fastingType: string
-): Promise<Record<string, unknown>> {
-  const client = await getClient(userId);
+  fastingType: string,
+  dbClient?: PoolClient
+): Promise<Record<string, unknown> | null> {
+  const client = dbClient ?? (await getClient(userId));
   try {
     const result = await client.query(
       `INSERT INTO fasting_logs (user_id, start_time, end_time, target_end_time, duration_minutes, fasting_type, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'COMPLETED')
+       SELECT $1, $2::timestamptz, $3::timestamptz, $4::timestamptz, $5, $6, 'COMPLETED'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM fasting_logs
+         WHERE user_id = $1
+           AND start_time >= ($2::timestamptz - interval '60 minutes')
+           AND start_time <= ($2::timestamptz + interval '60 minutes')
+       )
        RETURNING id, user_id, start_time, end_time, target_end_time, duration_minutes, fasting_type, status, created_at, updated_at`,
       [userId, startTime, endTime, targetEndTime, durationMinutes, fastingType]
     );
-    return result.rows[0];
+    return (result.rows[0] as Record<string, unknown>) ?? null;
   } finally {
-    client.release();
+    if (!dbClient) {
+      client.release();
+    }
   }
 }
 
 async function findFastNearStartTime(
   userId: string,
   startTime: string | Date,
-  toleranceMinutes = 60
+  toleranceMinutes = 60,
+  dbClient?: PoolClient
 ): Promise<{
   id: string;
   status: string;
   start_time: string;
   end_time: string | null;
 } | null> {
-  const client = await getClient(userId);
+  const client = dbClient ?? (await getClient(userId));
   try {
     const result = await client.query(
       `SELECT id, status, start_time, end_time FROM fasting_logs
@@ -73,7 +84,9 @@ async function findFastNearStartTime(
       }) || null
     );
   } finally {
-    client.release();
+    if (!dbClient) {
+      client.release();
+    }
   }
 }
 
@@ -82,9 +95,10 @@ async function endFast(
   userId: string,
   endTime: string | Date,
   durationMinutes: number,
-  startTime?: string | Date | null
+  startTime?: string | Date | null,
+  dbClient?: PoolClient
 ) {
-  const client = await getClient(userId);
+  const client = dbClient ?? (await getClient(userId));
   try {
     // Build dynamic SET clause so we can optionally update start_time
     const setParts = [];
@@ -108,7 +122,9 @@ async function endFast(
     const result = await client.query(query, values);
     return result.rows[0];
   } finally {
-    client.release();
+    if (!dbClient) {
+      client.release();
+    }
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,8 +141,8 @@ async function getFastingById(id: any, userId: any) {
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getCurrentFast(userId: any) {
-  const client = await getClient(userId);
+async function getCurrentFast(userId: any, dbClient?: PoolClient) {
+  const client = dbClient ?? (await getClient(userId));
   try {
     console.log(`[Repo] getCurrentFast checking for userId: ${userId}`);
     const result = await client.query(
@@ -142,7 +158,9 @@ async function getCurrentFast(userId: any) {
     }
     return result.rows[0];
   } finally {
-    client.release();
+    if (!dbClient) {
+      client.release();
+    }
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

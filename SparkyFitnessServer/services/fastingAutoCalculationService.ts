@@ -440,89 +440,114 @@ export async function syncCompletedAutoFasts(
   const targetMinutes = targetHours * 60;
   let syncedCount = 0;
 
-  for (let i = 0; i < eatingEvents.length - 1; i++) {
-    const prev = eatingEvents[i];
-    const next = eatingEvents[i + 1];
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+      `sync_auto_fasts:${userId}`,
+    ]);
 
-    const fastStart = prev.end;
-    const fastEnd = next.start;
-    const durationMinutes = Math.floor(
-      (fastEnd.getTime() - fastStart.getTime()) / (60 * 1000)
-    );
+    for (let i = 0; i < eatingEvents.length - 1; i++) {
+      const prev = eatingEvents[i];
+      const next = eatingEvents[i + 1];
 
-    // Minimum clinical fasting threshold: 12 hours (720 minutes)
-    if (durationMinutes < 720) {
-      continue;
+      const fastStart = prev.end;
+      const fastEnd = next.start;
+      const durationMinutes = Math.floor(
+        (fastEnd.getTime() - fastStart.getTime()) / (60 * 1000)
+      );
+
+      // Minimum clinical fasting threshold: 12 hours (720 minutes)
+      if (durationMinutes < 720) {
+        continue;
+      }
+
+      const startDayInTz = instantToDay(fastStart, timezone);
+      const endDayInTz = instantToDay(fastEnd, timezone);
+      const crossesDays = startDayInTz !== endDayInTz;
+
+      // Overnight rule: Must cross days (overnight bridge) OR achieve target fasting hours
+      if (!crossesDays && durationMinutes < targetMinutes) {
+        continue;
+      }
+
+      const existing = await fastingRepository.findFastNearStartTime(
+        userId,
+        fastStart,
+        60,
+        client
+      );
+
+      if (existing) {
+        if (existing.status === 'ACTIVE') {
+          await fastingRepository.endFast(
+            existing.id,
+            userId,
+            fastEnd.toISOString(),
+            durationMinutes,
+            existing.start_time,
+            client
+          );
+          syncedCount++;
+        }
+        // If a completed fast already exists near this time (whether manually logged,
+        // user-edited, or previously synced), leave it untouched to preserve user edits.
+        continue;
+      }
+
+      // No existing fast found, create new completed fast entry
+      const targetEndTime = new Date(
+        fastStart.getTime() + targetHours * 60 * 60 * 1000
+      );
+      const protocol = classifyProtocol(durationMinutes);
+
+      const created = await fastingRepository.createCompletedFast(
+        userId,
+        fastStart.toISOString(),
+        fastEnd.toISOString(),
+        targetEndTime.toISOString(),
+        durationMinutes,
+        protocol,
+        client
+      );
+      if (created) {
+        syncedCount++;
+      }
     }
 
-    const startDayInTz = instantToDay(fastStart, timezone);
-    const endDayInTz = instantToDay(fastEnd, timezone);
-    const crossesDays = startDayInTz !== endDayInTz;
-
-    // Overnight rule: Must cross days (overnight bridge) OR achieve target fasting hours
-    if (!crossesDays && durationMinutes < targetMinutes) {
-      continue;
-    }
-
-    const existing = await fastingRepository.findFastNearStartTime(
-      userId,
-      fastStart,
-      60
-    );
-
-    if (existing) {
-      if (existing.status === 'ACTIVE') {
+    // Also check: if there is an active fast in fasting_logs whose start_time
+    // is prior to the final eating event's start, that active fast was broken by the food.
+    const activeFast = await fastingRepository.getCurrentFast(userId, client);
+    if (activeFast && eatingEvents.length > 0) {
+      const lastEvent = eatingEvents[eatingEvents.length - 1];
+      const activeStartMs = new Date(activeFast.start_time).getTime();
+      if (lastEvent.start.getTime() > activeStartMs) {
+        const durationMinutes = Math.max(
+          0,
+          Math.floor((lastEvent.start.getTime() - activeStartMs) / 60000)
+        );
         await fastingRepository.endFast(
-          existing.id,
+          activeFast.id,
           userId,
-          fastEnd.toISOString(),
+          lastEvent.start.toISOString(),
           durationMinutes,
-          existing.start_time
+          activeFast.start_time,
+          client
         );
         syncedCount++;
       }
-      // If a completed fast already exists near this time (whether manually logged,
-      // user-edited, or previously synced), leave it untouched to preserve user edits.
-      continue;
     }
 
-    // No existing fast found, create new completed fast entry
-    const targetEndTime = new Date(
-      fastStart.getTime() + targetHours * 60 * 60 * 1000
-    );
-    const protocol = classifyProtocol(durationMinutes);
-
-    await fastingRepository.createCompletedFast(
-      userId,
-      fastStart.toISOString(),
-      fastEnd.toISOString(),
-      targetEndTime.toISOString(),
-      durationMinutes,
-      protocol
-    );
-    syncedCount++;
-  }
-
-  // Also check: if there is an active fast in fasting_logs whose start_time
-  // is prior to the final eating event's start, that active fast was broken by the food.
-  const activeFast = await fastingRepository.getCurrentFast(userId);
-  if (activeFast && eatingEvents.length > 0) {
-    const lastEvent = eatingEvents[eatingEvents.length - 1];
-    const activeStartMs = new Date(activeFast.start_time).getTime();
-    if (lastEvent.start.getTime() > activeStartMs) {
-      const durationMinutes = Math.max(
-        0,
-        Math.floor((lastEvent.start.getTime() - activeStartMs) / 60000)
-      );
-      await fastingRepository.endFast(
-        activeFast.id,
-        userId,
-        lastEvent.start.toISOString(),
-        durationMinutes,
-        activeFast.start_time
-      );
-      syncedCount++;
+    await client.query('COMMIT');
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Ignore rollback errors if transaction was already aborted
     }
+    throw error;
+  } finally {
+    client.release();
   }
 
   return syncedCount;
