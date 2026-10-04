@@ -70,7 +70,11 @@ describe('TrainingConsistencyCard', () => {
     // A square plus its gap is one row, and the label rows are that tall too,
     // so "Tue" and "Thu" sit beside their own rows.
     expect(square.height + square.marginBottom).toBe(100);
-    const labelRow = StyleSheet.flatten(getByText('Tue').parent?.props.style);
+    let row = getByText('Tue').parent;
+    while (row && StyleSheet.flatten(row.props.style)?.height === undefined) {
+      row = row.parent;
+    }
+    const labelRow = StyleSheet.flatten(row?.props.style);
     expect(labelRow.height).toBe(100);
   });
 
