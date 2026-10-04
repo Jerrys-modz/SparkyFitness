@@ -33,13 +33,20 @@ export type SleepTrendSeries = HealthTrendSeries<SleepTimelineDay> &
 /** The calories page's headline tile shows the window's average, same reasoning as sleep's. */
 export type CaloriesTrendSeries = HealthTrendSeries<CaloriesDataPoint> & {
   averageCalories: number | null;
+  /** The resolved calorie goal for each day in the window, same order as `data`. */
+  calorieGoals: (number | null)[];
+};
+
+/** The resolved hydration goal for each day in the window, same order as `data`. */
+export type HydrationTrendSeries = HealthTrendSeries<HydrationDataPoint> & {
+  hydrationGoals: (number | null)[];
 };
 
 interface HealthTrends {
   steps: HealthTrendSeries<StepsDataPoint>;
   weight: HealthTrendSeries<WeightDataPoint>;
   sleep: SleepTrendSeries;
-  hydration: HealthTrendSeries<HydrationDataPoint>;
+  hydration: HydrationTrendSeries;
   calories: CaloriesTrendSeries;
   refetch: () => Promise<void>;
 }
@@ -76,6 +83,7 @@ export function useHealthTrends({
 
   const {
     hydrationData,
+    hydrationGoals,
     isLoading: isHydrationLoading,
     isError: isHydrationError,
     refetch: refetchHydration,
@@ -84,6 +92,7 @@ export function useHealthTrends({
   const {
     caloriesData,
     averageCalories,
+    calorieGoals,
     isLoading: isCaloriesLoading,
     isError: isCaloriesError,
     refetch: refetchCalories,
@@ -129,12 +138,14 @@ export function useHealthTrends({
     },
     hydration: {
       data: hydrationData,
+      hydrationGoals,
       isLoading: isHydrationLoading,
       isError: isHydrationError,
     },
     calories: {
       data: caloriesData,
       averageCalories,
+      calorieGoals,
       isLoading: isCaloriesLoading,
       isError: isCaloriesError,
     },

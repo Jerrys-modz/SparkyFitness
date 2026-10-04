@@ -31,7 +31,9 @@ import {
 } from './charts/chartFormatting';
 import {
   buildCaloriesBarLayout,
+  buildCaloriesGoalSegments,
   buildCaloriesStackDays,
+  resolveEffectiveMaxCalories,
   type CaloriesMacroKey,
   type CaloriesStackDay,
   type CaloriesStackSegment,
@@ -47,9 +49,9 @@ type CaloriesBarChartProps = {
    * days included since they're real zeros, not missing data. Shown as a headline tile the
    * same way Sleep shows its averages. */
   averageCalories: number | null;
-  /** The calorie goal for the Dashboard's currently selected date, drawn as one flat
-   * reference line across the whole window. Omitted (no reference line) when unset or <= 0. */
-  goal?: number;
+  /** The resolved calorie goal for each day in `data`, same order. A day omitted or
+   * `<= 0` draws no segment for that day; the whole line is omitted when none resolve. */
+  goals?: (number | null)[];
 };
 
 const PLOT_HEIGHT = 150;
@@ -194,7 +196,7 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
   isError,
   range,
   averageCalories,
-  goal,
+  goals,
 }) => {
   const { t } = useTranslation();
   const averageLabel = buildCaloriesAverageLabel(averageCalories, t);
@@ -230,10 +232,9 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
   // `TrendBarChart` uses for Steps/Hydration.
   const yAxisScale = useMemo(() => {
     const dataMax = Math.max(0, ...days.map((day) => day.totalCalories));
-    const effectiveMax =
-      goal != null && goal > 0 ? Math.max(dataMax, goal) : dataMax;
+    const effectiveMax = resolveEffectiveMaxCalories(dataMax, goals ?? []);
     return computeNiceYAxisScale(0, effectiveMax);
-  }, [days, goal]);
+  }, [days, goals]);
   const maxCalories = yAxisScale.max;
 
   const yAxisLabelWidth = useMemo(
@@ -328,10 +329,17 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
     setSelectedPointY(null);
   }, []);
 
-  const goalY =
-    goal && goal > 0 && maxCalories > 0
-      ? PLOT_HEIGHT - (goal / maxCalories) * PLOT_HEIGHT
-      : null;
+  const goalSegments = useMemo(
+    () =>
+      buildCaloriesGoalSegments(
+        columns,
+        goals ?? [],
+        maxCalories,
+        plotWidth,
+        PLOT_HEIGHT
+      ),
+    [columns, goals, maxCalories, plotWidth]
+  );
 
   const formatXLabel = range === '7d' ? formatXLabel7d : formatXLabel30d90d;
 
@@ -409,16 +417,17 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
                     />
                   ))
                 )}
-                {goalY !== null && goalY >= 0 && goalY <= PLOT_HEIGHT ? (
+                {goalSegments?.map((segment, index) => (
                   <SkiaLine
-                    p1={{ x: 0, y: goalY }}
-                    p2={{ x: plotWidth, y: goalY }}
+                    key={index}
+                    p1={segment.p1}
+                    p2={segment.p2}
                     color={textMuted}
                     strokeWidth={GOAL_LINE_STROKE_WIDTH}
                   >
                     <DashPathEffect intervals={GOAL_LINE_DASH_INTERVALS} />
                   </SkiaLine>
-                ) : null}
+                ))}
               </Canvas>
 
               <ChartTouchOverlay

@@ -82,10 +82,7 @@ import {
 } from '../utils/nativeHeaderDatePicker';
 import { getNetCarbsValue } from '../utils/nutrientUtils';
 import { weightFromKg } from '../utils/unitConversions';
-import {
-  resolveHydrationGoal,
-  resolveWeightGoal,
-} from '../utils/healthTrendGoals';
+import { resolveWeightGoal } from '../utils/healthTrendGoals';
 
 const RANGE_SEGMENTS = (
   t: (key: string, options: { defaultValue: string }) => string
@@ -289,7 +286,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     unit: waterDisplayUnit,
     canLog: backgroundWaterEnabled && isBackgroundWaterSupported(),
   });
-  const hydrationGoal = resolveHydrationGoal(summary?.waterGoal ?? 0);
 
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.
   const weightUnit: 'kg' | 'lbs' =
@@ -819,9 +815,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     range={trendsRange}
                     weightUnit={weightUnit}
                     waterUnit={waterDisplayUnit}
-                    hydrationGoal={hydrationGoal}
+                    hydrationGoals={trends.hydration.hydrationGoals}
                     weightGoal={weightGoal}
-                    calorieGoal={goal}
+                    calorieGoals={trends.calories.calorieGoals}
                     visibleTrends={visibleTrends}
                     activePage={chartPage}
                     onPageSelected={setChartPage}
