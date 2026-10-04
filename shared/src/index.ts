@@ -202,6 +202,7 @@ export * from "./utils/muscleBodyMap.ts";
 export * from "./utils/workoutHeartRateSeries.ts";
 export * from "./utils/cardioSession.ts";
 export * from "./utils/exerciseLoad.ts";
+export * from "./utils/carryDistance.ts";
 export * from "./utils/progressionEngine.ts";
 export * from "./utils/intervalEngine.ts";
 export * from "./utils/guidedWorkoutCues.ts";

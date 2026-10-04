@@ -8,9 +8,10 @@
 --
 -- Only the CHECK constraints change; no existing row is converted. Idempotent:
 -- each constraint is dropped if present and recreated with the full list.
--- Validation is a later migration: this runner sends a whole file as one
--- transaction, and validating here would hold the add-constraint lock for the
--- scan.
+-- NOT VALID takes a short lock. COMMIT ends that transaction before VALIDATE
+-- scans the tables, so the scan does not hold the add-constraint lock. The
+-- runner sends one file as one query; the COMMIT is what splits it.
+BEGIN;
 ALTER TABLE exercises DROP CONSTRAINT IF EXISTS exercises_modality_check;
 ALTER TABLE exercises ADD CONSTRAINT exercises_modality_check
     CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'weight_duration', 'weight_distance', 'duration', 'duration_distance'))
@@ -20,3 +21,9 @@ ALTER TABLE exercise_entries DROP CONSTRAINT IF EXISTS exercise_entries_modality
 ALTER TABLE exercise_entries ADD CONSTRAINT exercise_entries_modality_check
     CHECK (modality IN ('weight_reps', 'reps_only', 'bodyweight_reps', 'weight_duration', 'weight_distance', 'duration', 'duration_distance'))
     NOT VALID;
+COMMIT;
+
+BEGIN;
+ALTER TABLE exercises VALIDATE CONSTRAINT exercises_modality_check;
+ALTER TABLE exercise_entries VALIDATE CONSTRAINT exercise_entries_modality_check;
+COMMIT;

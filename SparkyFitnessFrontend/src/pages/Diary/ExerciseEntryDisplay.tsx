@@ -20,7 +20,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   carryDistanceFromKm,
   carryDistanceUnitLabel,
-} from '@/utils/unitConversions';
+} from '@workspace/shared';
 import { formatMinutesToHHMM } from '@/utils/timeFormatters';
 import { ExerciseEntry, Exercise } from '@/types/exercises';
 import {

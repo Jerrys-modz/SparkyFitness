@@ -2,7 +2,7 @@ import {
   carryDistanceFromKm,
   carryDistanceToKm,
   carryDistanceUnitLabel,
-} from '@/utils/unitConversions';
+} from '@workspace/shared';
 import { SET_TABLE_LAYOUT, defaultSetForModality } from '@/constants/exercises';
 
 describe('carry distance', () => {

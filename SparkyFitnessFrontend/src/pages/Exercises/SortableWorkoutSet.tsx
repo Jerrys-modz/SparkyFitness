@@ -16,12 +16,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { excerciseWorkoutSetTypes } from '@/constants/excerciseWorkoutSetTypes';
-import { RIR_MAX, RIR_MIN } from '@workspace/shared';
-import { usePreferences } from '@/contexts/PreferencesContext';
 import {
+  RIR_MAX,
+  RIR_MIN,
   carryDistanceFromKm,
   carryDistanceToKm,
-} from '@/utils/unitConversions';
+} from '@workspace/shared';
+import { usePreferences } from '@/contexts/PreferencesContext';
 import { SetFieldKey, SortableSetData } from '@/types/workout';
 import {
   SET_TABLE_LAYOUT,
