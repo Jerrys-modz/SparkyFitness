@@ -59,10 +59,8 @@ import { normalizeUrl } from '../services/api/apiClient';
 import { clearAllChatHistory, saveChatMessage } from '../services/api/chatApi';
 import {
   askOnDeviceChat,
-  isOnDeviceChatAvailable,
   type OnDeviceChatTurn,
 } from '../services/onDeviceChat';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { addLog } from '../services/LogService';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import {
@@ -791,10 +789,8 @@ export default function ChatScreen({
     };
   }, []);
 
-  const onDeviceChatEnabled = useAppPreferencesStore(
-    (s) => s.onDeviceChatEnabled
-  );
-  const onDevice = onDeviceChatEnabled && isOnDeviceChatAvailable();
+  // On-device chat is switched off for now; the server provider answers.
+  const onDevice = false;
 
   // Clearing needs only an authenticated server, not an active AI provider.
   const { data: historyData, isLoading: loadingHistory } = useChatHistory({
