@@ -25,3 +25,4 @@
 "widget.water.description" = "Today's water intake, with a button to log a drink.";
 "widget.water.title" = "Water";
 "widget.water.add" = "Log a drink";
+"widget.water.remove" = "Remove a drink";

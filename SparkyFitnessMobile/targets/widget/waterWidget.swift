@@ -127,21 +127,35 @@ private struct WaterRing: View {
     }
 }
 
-/// The log-a-drink button where the system can run it, otherwise nothing.
+/// The minus and plus buttons where the system can run them, otherwise nothing.
+/// Minus is dimmed and inert while nothing has been logged today.
 private struct LogDrinkButton: View {
     let snapshot: WaterSnapshot
 
+    private func circle(_ symbol: String, color: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 15, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(color))
+    }
+
     var body: some View {
         if #available(iOS 17.0, *), snapshot.canLog, snapshot.drinkMl != nil {
-            Button(intent: LogWaterIntent()) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(Color.blue))
+            HStack(spacing: 8) {
+                Button(intent: RemoveWaterIntent()) {
+                    circle("minus", color: Color.blue.opacity(snapshot.consumedMl > 0 ? 0.55 : 0.2))
+                }
+                .buttonStyle(.plain)
+                .disabled(snapshot.consumedMl <= 0)
+                .accessibilityLabel(localizedWidgetString("widget.water.remove"))
+
+                Button(intent: LogWaterIntent()) {
+                    circle("plus", color: Color.blue)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(localizedWidgetString("widget.water.add"))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(localizedWidgetString("widget.water.add"))
         }
     }
 }
@@ -186,16 +200,16 @@ struct waterWidgetEntryView: View {
                     LogDrinkButton(snapshot: entry.snapshot)
                 }
             default:
-                VStack(spacing: 6) {
-                    ring(size: 78, stroke: 8)
-                    HStack {
-                        Text(entry.snapshot.amountText)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .minimumScaleFactor(0.6)
-                            .lineLimit(1)
-                        Spacer(minLength: 0)
-                        LogDrinkButton(snapshot: entry.snapshot)
-                    }
+                // Small: the ring and the amount, with the two buttons under
+                // them when they exist.
+                let hasButtons = entry.snapshot.canLog && entry.snapshot.drinkMl != nil
+                VStack(spacing: 4) {
+                    ring(size: hasButtons ? 58 : 78, stroke: hasButtons ? 7 : 8)
+                    Text(entry.snapshot.amountText)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    LogDrinkButton(snapshot: entry.snapshot)
                 }
             }
         }

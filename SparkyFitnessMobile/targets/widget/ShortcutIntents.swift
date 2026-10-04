@@ -72,8 +72,8 @@ private func isoString(_ date: Date) -> String {
     return formatter.string(from: date)
 }
 
-/// Keeps the water widget's snapshot in step with a drink logged from outside
-/// the app, so the widget shows it at once instead of after the app next opens.
+/// Keeps the water widget's snapshot in step with a drink logged or removed from
+/// outside the app, so the widget shows it at once instead of after the app next opens.
 private enum WaterSnapshotWriter {
     static func addDrinks(_ count: Int) {
         guard
@@ -86,7 +86,8 @@ private enum WaterSnapshotWriter {
             let consumed = snapshot["consumedMl"] as? Double,
             let drinkMl = snapshot["drinkMl"] as? Double
         else { return }
-        snapshot["consumedMl"] = consumed + drinkMl * Double(count)
+        // Taking a drink off never goes below nothing.
+        snapshot["consumedMl"] = max(0, consumed + drinkMl * Double(count))
         if let updated = try? JSONSerialization.data(withJSONObject: snapshot) {
             defaults.set(updated, forKey: "waterSnapshot")
             WidgetCenter.shared.reloadTimelines(ofKind: "waterWidget")
@@ -180,6 +181,40 @@ struct LogWaterIntent: AppIntent {
             WaterSnapshotWriter.addDrinks(drinks)
             let what = config.volumeLabel.map { "\(name) (\($0))" } ?? name
             return .result(dialog: "Logged \(drinks) × \(what).")
+        } catch let failure as ShortcutCall.Failure {
+            return .result(dialog: IntentDialog(stringLiteral: failure.message))
+        }
+    }
+}
+
+/// Takes one drink off today's total, for the water widget's minus button. The
+/// same endpoint the app's own minus uses, with `change_drinks` of -1.
+@available(iOS 16.0, *)
+struct RemoveWaterIntent: AppIntent {
+    static var title: LocalizedStringResource = "Remove a water drink"
+    static var description = IntentDescription(
+        "Takes one drink of your current water container off today's total without opening SparkyFitness."
+    )
+    static var openAppWhenRun: Bool = false
+    /// A widget button, not something to offer in Siri or Shortcuts.
+    static var isDiscoverable: Bool = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let config = try ShortcutCall.config()
+            guard let containerId = config.containerId, let name = config.containerName else {
+                return .result(dialog: "Pick a water container in SparkyFitness first.")
+            }
+            _ = try await ShortcutCall.send(
+                config, method: "POST", path: "/api/measurements/water-intake",
+                body: [
+                    "entry_date": localDateString(),
+                    "change_drinks": -1,
+                    "container_id": containerId,
+                ]
+            )
+            WaterSnapshotWriter.addDrinks(-1)
+            return .result(dialog: "Removed 1 × \(name).")
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))
         }
