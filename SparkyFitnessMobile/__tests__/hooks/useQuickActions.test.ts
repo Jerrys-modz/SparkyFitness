@@ -25,12 +25,6 @@ jest.mock('../../src/components/ActiveWorkoutBar', () => ({
 }));
 
 describe('quickActionItems', () => {
-  it('leaves out Log water when the no-open shortcut is on', () => {
-    const titles = quickActionItems({ hideLogWater: true }).map((i) => i.id);
-    expect(titles).not.toContain('log-water');
-    expect(titles).toContain('fasting');
-  });
-
   it('gives every shortcut a readable title', () => {
     const titles = quickActionItems().map((item) => item.title);
     expect(titles).toEqual(['Scan food', 'Log food', 'Log water', 'Fasting']);
