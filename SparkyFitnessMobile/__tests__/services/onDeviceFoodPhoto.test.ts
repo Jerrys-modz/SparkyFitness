@@ -11,6 +11,7 @@ import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import {
   estimateFoodPhotoOnDevice,
   isPlausibleMealEstimate,
+  isOnDeviceEstimate,
   toFoodPhotoEstimate,
 } from '../../src/services/onDeviceFoodPhoto';
 
@@ -156,5 +157,17 @@ describe('onDeviceFoodPhoto', () => {
       })
     ).toBeNull();
     expect(mockModule.estimateMeal).not.toHaveBeenCalled();
+  });
+});
+
+describe('isOnDeviceEstimate', () => {
+  it('recognises an estimate made on the device and not one from the server', () => {
+    expect(isOnDeviceEstimate(toFoodPhotoEstimate(meal()))).toBe(true);
+    const fromServer = toFoodPhotoEstimate(meal());
+    fromServer.items = fromServer.items.map((item, index) => ({
+      ...item,
+      item_id: `server-${index}`,
+    }));
+    expect(isOnDeviceEstimate(fromServer)).toBe(false);
   });
 });

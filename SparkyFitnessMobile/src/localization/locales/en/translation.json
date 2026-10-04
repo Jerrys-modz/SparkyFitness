@@ -4147,6 +4147,12 @@
       "derivedYield_other": "Makes about {{count}} servings",
       "perServing": "Per serving",
       "logging": "Logging"
+    },
+    "regenerate": {
+      "cloud": "Regenerate with cloud AI",
+      "device": "Regenerate on this iPhone",
+      "working": "Estimating again…",
+      "failed": "Could not estimate again"
     }
   },
   "mealTypeForm": {

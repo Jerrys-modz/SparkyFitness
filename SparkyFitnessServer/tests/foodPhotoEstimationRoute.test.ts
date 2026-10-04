@@ -4,11 +4,16 @@ import request from 'supertest';
 import express from 'express';
 import foodCrudRoutes from '../routes/foodCrudRoutes.js';
 import foodPhotoEstimationService from '../services/foodPhotoEstimationService.js';
+import { attachFoodMatches } from '../services/foodPhotoMatchService.js';
 
 vi.mock('../services/foodPhotoEstimationService.js', () => ({
   default: {
     estimateFoodPhotoNutrition: vi.fn(),
   },
+}));
+
+vi.mock('../services/foodPhotoMatchService.js', () => ({
+  attachFoodMatches: vi.fn(),
 }));
 
 vi.mock('../services/labelScanService.js', () => ({
@@ -377,5 +382,45 @@ describe('POST /food-crud/estimate-food-photo', () => {
     expect(
       foodPhotoEstimationService.estimateFoodPhotoNutrition
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /food-crud/match-photo-estimate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authenticateBehavior = 'success';
+  });
+
+  it('returns 400 for a body that is not an estimate', async () => {
+    const res = await request(app)
+      .post('/food-crud/match-photo-estimate')
+      .send({ nope: true });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.code).toBe('INVALID_REQUEST');
+    expect(attachFoodMatches).not.toHaveBeenCalled();
+  });
+
+  it('attaches matches for the signed-in user and returns the estimate', async () => {
+    vi.mocked(attachFoodMatches).mockImplementation(async (_userId, est) => ({
+      ...est,
+      match_summary: { item_count: 0, matched_count: 0, own_food_count: 0 },
+    }));
+    const res = await request(app)
+      .post('/food-crud/match-photo-estimate')
+      .send(sampleEstimate);
+    expect(res.statusCode).toBe(200);
+    expect(attachFoodMatches).toHaveBeenCalledWith(
+      'user-123',
+      expect.objectContaining({ meal_summary: 'Pasta with marinara' })
+    );
+    expect(res.body.match_summary).toBeDefined();
+  });
+
+  it('rejects an unauthenticated request', async () => {
+    authenticateBehavior = 'reject';
+    const res = await request(app)
+      .post('/food-crud/match-photo-estimate')
+      .send(sampleEstimate);
+    expect(res.statusCode).toBe(401);
   });
 });

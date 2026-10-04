@@ -16,7 +16,11 @@ import labelScanService, {
   type LabelScanErrorCategory,
 } from '../services/labelScanService.js';
 import foodPhotoEstimationService from '../services/foodPhotoEstimationService.js';
-import type { FoodPhotoEstimateErrorCode } from '@workspace/shared';
+import { attachFoodMatches } from '../services/foodPhotoMatchService.js';
+import {
+  foodPhotoEstimateResponseSchema,
+  type FoodPhotoEstimateErrorCode,
+} from '@workspace/shared';
 import { backfillOffAllergens } from '../utils/backfillAllergens.js';
 import { resolveIsAdmin } from '../utils/adminCheck.js';
 import {
@@ -939,6 +943,50 @@ router.post(
     }
   }
 );
+/**
+ * @swagger
+ * /foods/match-photo-estimate:
+ *   post:
+ *     summary: Match a photo estimate's ingredients to the user's foods
+ *     tags: [Nutrition & Meals]
+ *     description: >
+ *       Takes an estimate made somewhere else (for example on the device) and
+ *       returns it with the best matching food from the user's database, or an
+ *       external provider, attached to each ingredient. The estimate's own
+ *       numbers are never changed.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: The estimate with matches attached.
+ *       400:
+ *         description: The body is not a food photo estimate.
+ */
+router.post(
+  '/match-photo-estimate',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const parsed = foodPhotoEstimateResponseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Body must be a food photo estimate.',
+        code: 'INVALID_REQUEST',
+      });
+    }
+    try {
+      const enriched = await attachFoodMatches(req.userId, parsed.data);
+      return res.status(200).json(enriched);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 /**
  * @swagger
  * /foods/{foodId}:

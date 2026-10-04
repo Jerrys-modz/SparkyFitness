@@ -407,6 +407,11 @@ export type FoodPhotoFlowParamList = {
       totalWeight?: number;
       weightUnit?: 'g' | 'oz';
     };
+    /**
+     * The photos the estimate came from (files on this phone), so the review
+     * screen can estimate again with the other AI.
+     */
+    images?: { uri: string; mimeType: string }[];
     /** Preserved when the photo flow was started from a meal detail screen. */
     mealTypeId?: string;
   };

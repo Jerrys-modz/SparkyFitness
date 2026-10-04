@@ -169,3 +169,20 @@ export async function estimateFoodPhotoOnDevice(
     return null;
   }
 }
+
+/** Whether an estimate was made by the on-device model (see `toFoodPhotoEstimate`). */
+export function isOnDeviceEstimate(
+  estimate: Pick<FoodPhotoEstimateResponse, 'items'>
+): boolean {
+  return estimate.items.some((item) => item.item_id?.startsWith('on-device-'));
+}
+
+/** Whether the on-device estimate can run for this many photos right now. */
+export function canEstimateOnDevice(photoCount: number): boolean {
+  return (
+    useAppPreferencesStore.getState().onDeviceFoodPhotoEnabled &&
+    isOnDeviceFoodPhotoAvailable() &&
+    photoCount >= 1 &&
+    photoCount <= MAX_ON_DEVICE_PHOTOS
+  );
+}

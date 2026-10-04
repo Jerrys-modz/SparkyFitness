@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import { useFocusEffect } from '@react-navigation/native';
+import { File } from 'expo-file-system';
 import {
   toPer100g,
   toFoodNutritionFields,
@@ -23,6 +24,12 @@ import FormInput from '../components/FormInput';
 import { FooterSaveBar } from '../components/FormScreenChrome';
 import FoodPhotoIngredientRow from '../components/FoodPhotoIngredientRow';
 import { useFoodPhotoIngredientDraft } from '../hooks/useFoodPhotoIngredientDraft';
+import { useEstimateFoodPhoto } from '../hooks/useEstimateFoodPhoto';
+import {
+  canEstimateOnDevice,
+  isOnDeviceEstimate,
+} from '../services/onDeviceFoodPhoto';
+import { addLog } from '../services/LogService';
 import { consumePendingMealIngredientSelection } from '../services/mealBuilderSelection';
 import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
@@ -122,7 +129,94 @@ const FoodPhotoEstimateReviewScreen: React.FC<Props> = ({
       .getParent<NativeStackNavigationProp<RootStackParamList>>()
       ?.popToTop();
 
-  const { date, estimate, request } = route.params;
+  const { date, estimate, request, images } = route.params;
+
+  // Estimate again with the other AI: the one on this iPhone, or the server's
+  // provider. Needs the photos, so a review opened without them has no button.
+  const regenerate = useEstimateFoodPhoto();
+  const estimatedOnDevice = isOnDeviceEstimate(estimate);
+  const canRegenerate =
+    !!images &&
+    images.length > 0 &&
+    (estimatedOnDevice || canEstimateOnDevice(images.length));
+
+  const handleRegenerate = async () => {
+    if (!images || regenerate.isPending) return;
+    try {
+      const payloads: { base64Image: string; mimeType: string }[] = [];
+      for (const image of images) {
+        payloads.push({
+          base64Image: await new File(image.uri).base64(),
+          mimeType: image.mimeType,
+        });
+      }
+      regenerate.mutate(
+        {
+          images: payloads,
+          description: request.description,
+          totalWeight: request.totalWeight,
+          weightUnit: request.weightUnit,
+          // From the iPhone's estimate go to the server; from the server's,
+          // try the iPhone.
+          skipOnDevice: estimatedOnDevice,
+        },
+        {
+          onSuccess: (next) =>
+            navigation.replace('EstimateReview', {
+              ...route.params,
+              estimate: next,
+            }),
+          onError: () =>
+            Toast.show({
+              type: 'error',
+              text1: t('foodPhotoEstimate.regenerate.failed', {
+                defaultValue: 'Could not estimate again',
+              }),
+              text2: t('common.tryAgain', {
+                defaultValue: 'Please try again.',
+              }),
+            }),
+        }
+      );
+    } catch (error) {
+      addLog(
+        `[Food Photo] Could not read photos to estimate again: ${String(error)}`,
+        'ERROR'
+      );
+      Toast.show({
+        type: 'error',
+        text1: t('foodPhotoEstimate.regenerate.failed', {
+          defaultValue: 'Could not estimate again',
+        }),
+      });
+    }
+  };
+
+  const regenerateControl = canRegenerate ? (
+    <TouchableOpacity
+      onPress={() => void handleRegenerate()}
+      disabled={regenerate.isPending}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      testID="regenerate-estimate"
+      className="flex-row items-center justify-center rounded-xl border border-border-subtle bg-surface px-4 py-3 mb-4"
+    >
+      <Icon name="replay" size={16} color={textPrimary} />
+      <Text className="text-text-primary text-sm font-medium ml-2">
+        {regenerate.isPending
+          ? t('foodPhotoEstimate.regenerate.working', {
+              defaultValue: 'Estimating again…',
+            })
+          : estimatedOnDevice
+            ? t('foodPhotoEstimate.regenerate.cloud', {
+                defaultValue: 'Regenerate with cloud AI',
+              })
+            : t('foodPhotoEstimate.regenerate.device', {
+                defaultValue: 'Regenerate on this iPhone',
+              })}
+      </Text>
+    </TouchableOpacity>
+  ) : null;
 
   // Grouped is the default: it is strictly more informative than a single
   // opaque food, and the diary still collapses it to one row.
@@ -965,6 +1059,7 @@ const FoodPhotoEstimateReviewScreen: React.FC<Props> = ({
           headerChildren={
             <View>
               {modeControl}
+              {regenerateControl}
               {headerChildren}
             </View>
           }
@@ -977,6 +1072,7 @@ const FoodPhotoEstimateReviewScreen: React.FC<Props> = ({
             keyboardShouldPersistTaps="handled"
           >
             {modeControl}
+            {regenerateControl}
             <View className="mb-4">{headerChildren}</View>
             {ingredientsSection}
           </KeyboardAwareScrollView>

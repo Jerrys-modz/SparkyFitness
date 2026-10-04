@@ -403,6 +403,10 @@ const FoodPhotoImproveScreen: React.FC<Props> = ({ navigation, route }) => {
               totalWeight: payloadWeight,
               weightUnit: payloadWeight !== undefined ? weightUnit : undefined,
             },
+            images: images.map((img) => ({
+              uri: img.uri,
+              mimeType: resolveMimeType(img),
+            })),
             mealTypeId: mealTypeId ?? undefined,
           });
         },

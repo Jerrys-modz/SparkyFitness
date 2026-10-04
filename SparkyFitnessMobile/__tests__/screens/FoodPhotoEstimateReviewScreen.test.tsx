@@ -5,6 +5,23 @@ import FoodPhotoEstimateReviewScreen from '../../src/screens/FoodPhotoEstimateRe
 import { setPendingMealIngredientSelection } from '../../src/services/mealBuilderSelection';
 import type { FoodPhotoEstimateResponse } from '@workspace/shared';
 
+const mockRegenerate = jest.fn();
+jest.mock('../../src/hooks/useEstimateFoodPhoto', () => ({
+  useEstimateFoodPhoto: () => ({ mutate: mockRegenerate, isPending: false }),
+}));
+let mockCanEstimateOnDevice = true;
+jest.mock('../../src/services/onDeviceFoodPhoto', () => ({
+  ...jest.requireActual('../../src/services/onDeviceFoodPhoto'),
+  canEstimateOnDevice: () => mockCanEstimateOnDevice,
+}));
+jest.mock('expo-file-system', () => ({
+  File: class {
+    base64() {
+      return Promise.resolve('BASE64');
+    }
+  },
+}));
+
 jest.mock('react-native-toast-message', () => ({
   __esModule: true,
   default: { show: jest.fn() },
@@ -141,7 +158,7 @@ describe('FoodPhotoEstimateReviewScreen', () => {
     return screen;
   };
 
-  const renderScreen = (estimate = buildEstimate()) =>
+  const renderScreen = (estimate = buildEstimate(), images?: any) =>
     render(
       <SafeAreaProvider initialMetrics={{ insets, frame }}>
         <FoodPhotoEstimateReviewScreen
@@ -153,11 +170,56 @@ describe('FoodPhotoEstimateReviewScreen', () => {
               date: '2026-05-18',
               estimate,
               request: {},
+              images,
             },
           }}
         />
       </SafeAreaProvider>
     );
+
+  describe('regenerate with the other AI', () => {
+    const photos = [{ uri: 'file:///meal.jpg', mimeType: 'image/jpeg' }];
+    const onDeviceEstimate = () => {
+      const estimate = buildEstimate();
+      estimate.items[0].item_id = 'on-device-0';
+      return estimate;
+    };
+
+    beforeEach(() => {
+      mockCanEstimateOnDevice = true;
+    });
+
+    it('has no button without the photos', () => {
+      const screen = renderScreen(onDeviceEstimate());
+      expect(screen.queryByTestId('regenerate-estimate')).toBeNull();
+    });
+
+    it('offers the cloud after an on-device estimate and sends the photos with skipOnDevice', async () => {
+      const screen = renderScreen(onDeviceEstimate(), photos);
+      expect(screen.getByText('Regenerate with cloud AI')).toBeTruthy();
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('regenerate-estimate'));
+      });
+      expect(mockRegenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skipOnDevice: true,
+          images: [{ base64Image: 'BASE64', mimeType: 'image/jpeg' }],
+        }),
+        expect.anything()
+      );
+    });
+
+    it('offers this iPhone after a server estimate when it can run', () => {
+      const screen = renderScreen(buildEstimate(), photos);
+      expect(screen.getByText('Regenerate on this iPhone')).toBeTruthy();
+    });
+
+    it('hides the iPhone option when on-device estimates are unavailable', () => {
+      mockCanEstimateOnDevice = false;
+      const screen = renderScreen(buildEstimate(), photos);
+      expect(screen.queryByTestId('regenerate-estimate')).toBeNull();
+    });
+  });
 
   it('navigates to LogEntry with a saveFoodPayload reflecting the prefilled totals', () => {
     const screen = renderCombined();

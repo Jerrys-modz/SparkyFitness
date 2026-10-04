@@ -764,6 +764,24 @@ export class FoodPhotoEstimateError extends Error {
 
 const FOOD_PHOTO_ESTIMATE_ENDPOINT = '/api/foods/estimate-food-photo';
 
+/**
+ * Attaches the best matching food from the user's database (or a provider) to
+ * each ingredient of an estimate made on the device. The estimate's own numbers
+ * are not changed. Needs a server that has the endpoint; callers keep the
+ * unmatched estimate when this fails.
+ */
+export async function matchFoodPhotoEstimate(
+  estimate: FoodPhotoEstimateResponse
+): Promise<FoodPhotoEstimateResponse> {
+  return apiFetch<FoodPhotoEstimateResponse>({
+    endpoint: '/api/foods/match-photo-estimate',
+    serviceName: 'Food Photo API',
+    operation: 'match photo estimate',
+    method: 'POST',
+    body: estimate,
+  });
+}
+
 export async function estimateFoodPhoto(
   input: EstimateFoodPhotoInput
 ): Promise<FoodPhotoEstimateResponse> {

@@ -1,10 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
 import type { FoodPhotoEstimateResponse } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
+import { addLog } from '../services/LogService';
 import Toast from 'react-native-toast-message';
 import {
   estimateFoodPhoto,
   FoodPhotoEstimateError,
+  matchFoodPhotoEstimate,
   type EstimateFoodPhotoInput,
 } from '../services/api/externalFoodSearchApi';
 import {
@@ -41,13 +43,24 @@ export function useEstimateFoodPhoto() {
           totalWeightGrams,
         });
         if (onDevice) {
+          // The on-device model knows nothing about the user's foods. The server
+          // can offer them; if it cannot, the estimate is still usable as is.
+          let result = onDevice;
+          try {
+            result = await matchFoodPhotoEstimate(onDevice);
+          } catch (error) {
+            addLog(
+              `[Food Photo] Matching the on-device estimate failed: ${String(error)}`,
+              'INFO'
+            );
+          }
           Toast.show({
             type: 'info',
             text1: t('foodPhotoImprove.estimatedOnDevice', {
               defaultValue: 'Estimated on this iPhone',
             }),
           });
-          return onDevice;
+          return result;
         }
       }
       return estimateFoodPhoto(input);
