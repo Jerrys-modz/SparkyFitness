@@ -43,6 +43,7 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `cycles` | Derived/manually-corrected period & cycle history records | Owner-Only | Owner-Only |
 | `user_cycle_display_preferences` | Private preference on cycle dashboard tile/card visibility | Owner-Only | Owner-Only |
 | `user_mood_display_preferences` | Personal show/hide config for the mood picker | Owner-Only | Owner-Only |
+| `user_fasting_preferences` | Personal intermittent fasting targets, protocol, and auto-calculation configuration | Owner-Only | Owner-Only |
 | `cycle_test_entries` | Ovulation (OPK) and pregnancy test logs | Owner-Only | Owner-Only |
 | `pregnancies` | Pregnancy records (due date, status, linked prenatal medication) | Owner-Only | Owner-Only |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions | Owner-Only | Owner-Only |

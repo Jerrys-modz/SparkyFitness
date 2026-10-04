@@ -10,6 +10,7 @@ import {
 } from '../../src/services/api/measurementsApi';
 import { fetchSleepEntries } from '../../src/services/api/sleepApi';
 import { fetchNutritionTrends } from '../../src/services/api/reportsApi';
+import { fetchGoalsRange } from '../../src/services/api/goalsApi';
 import { ApiError } from '../../src/services/api/errors';
 import { getTodayDate } from '../../src/utils/dateUtils';
 import { buildSleepEntry } from '../helpers/sleepFixtures';
@@ -30,6 +31,10 @@ jest.mock('../../src/services/api/sleepApi', () => ({
 
 jest.mock('../../src/services/api/reportsApi', () => ({
   fetchNutritionTrends: jest.fn(),
+}));
+
+jest.mock('../../src/services/api/goalsApi', () => ({
+  fetchGoalsRange: jest.fn(),
 }));
 
 // `useSleepRange` reads the profile timezone to decide which day the window ends on. With
@@ -53,6 +58,9 @@ const mockFetchWaterIntakeRange = fetchWaterIntakeRange as jest.MockedFunction<
 >;
 const mockFetchNutritionTrends = fetchNutritionTrends as jest.MockedFunction<
   typeof fetchNutritionTrends
+>;
+const mockFetchGoalsRange = fetchGoalsRange as jest.MockedFunction<
+  typeof fetchGoalsRange
 >;
 
 const today = getTodayDate();
@@ -95,6 +103,7 @@ beforeEach(() => {
   mockFetchSleepEntries.mockResolvedValue([]);
   mockFetchWaterIntakeRange.mockResolvedValue([]);
   mockFetchNutritionTrends.mockResolvedValue([]);
+  mockFetchGoalsRange.mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -408,5 +417,35 @@ describe('useHealthTrends', () => {
 
     expect(mockFetchNutritionTrends).toHaveBeenCalledTimes(2);
     expect(mockFetchMeasurementsRange).not.toHaveBeenCalled();
+  });
+
+  test('carries the resolved per-day calorie goal from useCaloriesRange', async () => {
+    mockFetchGoalsRange.mockImplementation((_start, _end, adjust) =>
+      Promise.resolve(adjust ? { [today]: { calories: 1900 } as never } : {})
+    );
+
+    const { result } = renderTrends();
+
+    await waitFor(() => {
+      expect(result.current.calories.isLoading).toBe(false);
+    });
+
+    expect(result.current.calories.calorieGoals.at(-1)).toBe(1900);
+  });
+
+  test('carries the resolved per-day hydration goal from useHydrationRange', async () => {
+    mockFetchGoalsRange.mockImplementation((_start, _end, adjust) =>
+      Promise.resolve(
+        adjust ? {} : { [today]: { water_goal_ml: 2200 } as never }
+      )
+    );
+
+    const { result } = renderTrends();
+
+    await waitFor(() => {
+      expect(result.current.hydration.isLoading).toBe(false);
+    });
+
+    expect(result.current.hydration.hydrationGoals.at(-1)).toBe(2200);
   });
 });
