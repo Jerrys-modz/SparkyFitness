@@ -22,9 +22,12 @@ import {
   useAccessoryEpoch,
 } from './SetRowChrome';
 import { focusWithAndroidImeRetry } from '../utils/keyboardFocus';
-import { parseDecimalInput } from '../utils/numericInput';
+import {
+  parseDecimalInput,
+  parseSignedDecimalInput,
+} from '../utils/numericInput';
 import { isDurationModality } from '../utils/workoutSession';
-import type { ExerciseModality } from '@workspace/shared';
+import { isBodyweightModality, type ExerciseModality } from '@workspace/shared';
 
 interface EditableSetRowProps {
   exerciseClientId: string;
@@ -82,6 +85,7 @@ function EditableSetRow({
 
   const durationLike = isDurationModality(modality);
   const repsOnly = modality === 'reps_only';
+  const bodyweight = isBodyweightModality(modality);
   const firstField = durationLike
     ? ('duration' as const)
     : repsOnly
@@ -142,11 +146,17 @@ function EditableSetRow({
 
   const handleStepWeight = useCallback(
     (direction: number) => {
-      const current = parseDecimalInput(weight) || 0;
-      const next = Math.max(0, current + direction * 5);
+      const current =
+        (bodyweight
+          ? parseSignedDecimalInput(weight)
+          : parseDecimalInput(weight)) || 0;
+      // A bodyweight set steps below zero into assistance.
+      const next = bodyweight
+        ? current + direction * 5
+        : Math.max(0, current + direction * 5);
       handleUpdateWeight(String(next));
     },
-    [weight, handleUpdateWeight]
+    [weight, bodyweight, handleUpdateWeight]
   );
 
   const handleStepReps = useCallback(
@@ -278,7 +288,13 @@ function EditableSetRow({
                     onChangeText={handleUpdateWeight}
                     onIncrement={() => handleStepWeight(1)}
                     onDecrement={() => handleStepWeight(-1)}
-                    keyboardType="decimal-pad"
+                    keyboardType={
+                      !bodyweight
+                        ? 'decimal-pad'
+                        : Platform.OS === 'ios'
+                          ? 'numbers-and-punctuation'
+                          : 'numeric'
+                    }
                     inputRef={weightInputRef}
                     inputProps={weightInputProps}
                   />
@@ -321,7 +337,12 @@ function EditableSetRow({
     );
   }
 
-  const displayWeight = weight ? `${weight} ${weightUnit}` : '\u2013';
+  // A bodyweight set's weight is a change to body weight, so it shows its sign.
+  const signedWeight =
+    bodyweight && parseSignedDecimalInput(weight) > 0 && !weight.startsWith('+')
+      ? `+${weight}`
+      : weight;
+  const displayWeight = weight ? `${signedWeight} ${weightUnit}` : '\u2013';
   const displayReps = reps || '\u2013';
   const displayDuration = duration || '\u2013';
 

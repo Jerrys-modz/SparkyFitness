@@ -62,6 +62,10 @@ import {
   formatDurationSeconds,
   buildActivitySetsPayload,
   firstSetInputField,
+  formatSetWeightText,
+  hasBodyweightExercise,
+  isPrSet,
+  setLoadKg,
 } from '../../src/utils/workoutSession';
 import { wodScoreFormat } from '../../src/utils/wodScore';
 import type {
@@ -1214,6 +1218,23 @@ describe('workoutSession', () => {
       images: [],
       sets: [],
       ...overrides,
+    });
+
+    it('keeps a signed weight only for a bodyweight exercise', () => {
+      const signed = makeDraftExercise({
+        exerciseModality: 'bodyweight_reps',
+        sets: [{ clientId: 's1', weight: '-10', reps: '8' }],
+      });
+      const plain = makeDraftExercise({
+        exerciseModality: 'weight_reps',
+        sets: [{ clientId: 's1', weight: '-10', reps: '8' }],
+      });
+      expect(
+        buildExercisesPayload([signed], 'kg', 'km')[0].sets[0].weight
+      ).toBe(-10);
+      expect(buildExercisesPayload([plain], 'kg', 'km')[0].sets[0].weight).toBe(
+        null
+      );
     });
 
     it('maps exercises with sort_order from array index', () => {
@@ -3435,6 +3456,116 @@ describe('workoutSession', () => {
       });
     });
 
+    describe('bodyweight exercises', () => {
+      const bodyweightSet = (id: number, weight: number | null, reps = 8) => ({
+        id,
+        set_number: id,
+        set_type: 'normal',
+        reps,
+        weight,
+        duration: null,
+        rest_time: null,
+        notes: null,
+        rpe: null,
+      });
+      const dips = (sets: ReturnType<typeof bodyweightSet>[]) => ({
+        id: 'dips',
+        exercise_id: 'x-dips',
+        exercise_snapshot: { name: 'Dips', modality: 'bodyweight_reps' },
+        sets,
+      });
+
+      it('counts body weight plus added or assisting weight in volume', () => {
+        // 80 kg lifter: +20 kg moves 100 kg, −30 kg of assistance moves 50.
+        expect(setVolumeKg(bodyweightSet(1, 20), 'bodyweight_reps', 80)).toBe(
+          800
+        );
+        expect(setVolumeKg(bodyweightSet(1, -30), 'bodyweight_reps', 80)).toBe(
+          400
+        );
+        expect(
+          getExerciseVolumeKg(
+            dips([bodyweightSet(1, null, 10), bodyweightSet(2, 20)]),
+            80
+          )
+        ).toBe(80 * 10 + 100 * 8);
+      });
+
+      it('counts only the added weight while body weight is unknown', () => {
+        expect(
+          getExerciseVolumeKg(
+            dips([bodyweightSet(1, 20), bodyweightSet(2, -30)]),
+            null
+          )
+        ).toBe(20 * 8);
+      });
+
+      it('takes the load, not the belt weight, for estimated maxes', () => {
+        expect(setLoadKg(20, 'bodyweight_reps', 80)).toBe(100);
+        expect(setLoadKg(20, 'weight_reps', 80)).toBe(20);
+        expect(setLoadKg(null, 'weight_reps', 80)).toBeNull();
+      });
+
+      it('shows the sign on a bodyweight set weight only', () => {
+        expect(formatSetWeightText('20', 20, 'bodyweight_reps')).toBe('+20');
+        expect(formatSetWeightText('-30', -30, 'bodyweight_reps')).toBe(
+          '\u221230'
+        );
+        expect(formatSetWeightText('20', 20, 'weight_reps')).toBe('20');
+      });
+
+      it('focuses reps first, since the weight is optional', () => {
+        expect(firstSetInputField('bodyweight_reps')).toBe('reps');
+      });
+
+      it('spots a bodyweight exercise in a list', () => {
+        expect(hasBodyweightExercise([dips([])])).toBe(true);
+        expect(
+          hasBodyweightExercise([
+            { exercise_snapshot: { modality: 'weight_reps' } },
+          ])
+        ).toBe(false);
+      });
+
+      it('ranks an unweighted bodyweight set as +0 for a rep PR', () => {
+        const session = {
+          ...makePreset(),
+          exercises: [dips([bodyweightSet(1, null, 12)])],
+        } as unknown as PresetSession;
+        expect(
+          isPrSet(
+            session,
+            '1',
+            { '1': 1 },
+            { 'x-dips': { weight: null, reps: 10 } }
+          )
+        ).toBe(true);
+        expect(
+          isPrSet(
+            session,
+            '1',
+            { '1': 1 },
+            { 'x-dips': { weight: 5, reps: 5 } }
+          )
+        ).toBe(false);
+      });
+
+      it('counts body weight in the completion summary volume', () => {
+        const session = {
+          ...makePreset(),
+          exercises: [dips([bodyweightSet(1, 20), bodyweightSet(2, -30)])],
+        } as unknown as PresetSession;
+        const summary = buildWorkoutCompletionSummary(
+          session,
+          { '1': 1, '2': 2 },
+          {},
+          i18n.t,
+          80
+        );
+        expect(summary.volumeKg).toBe(100 * 8 + 50 * 8);
+      });
+    });
+
     describe('setVolumeKg / getExerciseVolumeKg', () => {
       const set = (
         weight: number | null,
@@ -3474,6 +3605,16 @@ describe('workoutSession', () => {
           sets: [set(40, 12, 'warmup'), set(60, 10), set(70, 8)],
         };
         expect(getExerciseVolumeKg(exercise as any)).toBe(600 + 560);
+      });
+
+      it('excludes Warm-up and Warmup spellings from exercise volume', () => {
+        for (const setType of ['Warmup', 'Warm-up', 'Warm-up Set']) {
+          const exercise = {
+            exercise_snapshot: null,
+            sets: [set(40, 12, setType), set(60, 10)],
+          };
+          expect(getExerciseVolumeKg(exercise as any)).toBe(600);
+        }
       });
     });
 

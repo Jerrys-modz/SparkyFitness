@@ -20,10 +20,18 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
+    /// The wearer started a set's hold countdown or stopwatch on the watch.
+    var onSetTimerStarted: (([String: Any]) -> Void)?
+    var onSetTimerStopped: (([String: Any]) -> Void)?
     /// A batch of heart-rate samples for one exercise, captured on the watch.
     var onHeartRateBatch: (([String: Any]) -> Void)?
+    /// The reading on the wrist now. Live messages only, never queued.
+    var onLiveHeartRate: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
+    var onWorkoutDiscard: (([String: Any]) -> Void)?
+    /// The wearer picked a saved workout on the watch. The phone starts it.
+    var onWorkoutStartRequested: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -86,10 +94,20 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onSetCompleted?(payload)
         case "restChanged":
             onRestChanged?(payload)
+        case "setTimerStarted":
+            onSetTimerStarted?(payload)
+        case "setTimerStopped":
+            onSetTimerStopped?(payload)
         case "heartRateBatch":
             onHeartRateBatch?(payload)
+        case "liveHeartRate":
+            onLiveHeartRate?(payload)
         case "workoutStop":
             onWorkoutStop?(payload)
+        case "workoutDiscard":
+            onWorkoutDiscard?(payload)
+        case "workoutStartRequested":
+            onWorkoutStartRequested?(payload)
         default:
             break
         }
@@ -216,8 +234,13 @@ public class WatchConnectivityModule: Module {
             "onWaterDelete",
             "onSetCompleted",
             "onRestChanged",
+            "onSetTimerStarted",
+            "onSetTimerStopped",
             "onHeartRateBatch",
-            "onWorkoutStop"
+            "onLiveHeartRate",
+            "onWorkoutStop",
+            "onWorkoutDiscard",
+            "onWorkoutStartRequested"
         )
 
         OnCreate {
@@ -266,7 +289,35 @@ public class WatchConnectivityModule: Module {
                     // clearing a planned one — same rule as body fat above.
                     "weightKg": payload["weightKg"] as? Double,
                     "reps": payload["reps"] as? Double,
+                    "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onSetTimerStarted = { [weak self] payload in
+                guard let startedAt = (payload["startedAt"] as? NSNumber)?.doubleValue else {
+                    return
+                }
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
+                    "startedAt": startedAt,
+                ]
+                if let armedAt = (payload["armedAt"] as? NSNumber)?.doubleValue {
+                    event["armedAt"] = armedAt
+                }
+                self?.sendEvent("onSetTimerStarted", event)
+            }
+            self.delegateHandler.onSetTimerStopped = { [weak self] payload in
+                guard let seconds = (payload["seconds"] as? NSNumber)?.intValue,
+                      let startedAt = (payload["startedAt"] as? NSNumber)?.doubleValue
+                else {
+                    return
+                }
+                self?.sendEvent("onSetTimerStopped", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
+                    "seconds": seconds,
+                    "startedAt": startedAt,
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in
@@ -294,9 +345,35 @@ public class WatchConnectivityModule: Module {
                 }
                 self.sendEvent("onHeartRateBatch", event)
             }
+            self.delegateHandler.onLiveHeartRate = { [weak self] payload in
+                guard let bpm = (payload["bpm"] as? NSNumber)?.doubleValue,
+                      let at = (payload["at"] as? NSNumber)?.doubleValue
+                else { return }
+                self?.sendEvent("onLiveHeartRate", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
+                    "bpm": bpm,
+                    "at": at,
+                ])
+            }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in
                 self?.sendEvent("onWorkoutStop", [
                     "sessionId": payload["sessionId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onWorkoutDiscard = { [weak self] payload in
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                ]
+                if let armedAt = payload["armedAt"] as? Double {
+                    event["armedAt"] = armedAt
+                }
+                self?.sendEvent("onWorkoutDiscard", event)
+            }
+            self.delegateHandler.onWorkoutStartRequested = { [weak self] payload in
+                self?.sendEvent("onWorkoutStartRequested", [
+                    "presetId": payload["presetId"] as? String ?? "",
+                    "serverId": payload["serverId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.activate()
@@ -378,12 +455,13 @@ public class WatchConnectivityModule: Module {
         /// has already closed — a dead workout on screen and the sensor
         /// still sampling. Queued like `startWorkout` for the same reason: a
         /// watch out of range must still hear it eventually.
-        AsyncFunction("stopWorkout") { (sessionId: String, stoppedAt: String) -> Void in
+        AsyncFunction("stopWorkout") { (sessionId: String, stoppedAt: String, discarded: Bool?) -> Void in
             guard WCSession.isSupported() else { return }
             let payload: [String: Any] = [
                 "type": "workoutStop",
                 "sessionId": sessionId,
                 "stoppedAt": stoppedAt,
+                "discarded": discarded ?? false,
             ]
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(payload, replyHandler: nil) { _ in

@@ -146,6 +146,8 @@ struct ContentView: View {
         case .workout:
             WorkoutView()
                 .environment(\.workoutPageActive, selectedPage == .workout)
+        case .nowPlaying:
+            NowPlayingPage()
         }
     }
 

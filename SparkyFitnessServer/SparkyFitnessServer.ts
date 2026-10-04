@@ -439,7 +439,11 @@ const uploadsStaticOptions = {
 // This block MUST stay above the express.static mounts below — moving it after
 // them silently re-exposes every file. tests/uploadsStaticMount.test.ts guards
 // both the behavior and the source ordering.
-const SENSITIVE_UPLOAD_SUBTREES = new Set(['check-in', 'pregnancy']);
+const SENSITIVE_UPLOAD_SUBTREES = new Set([
+  'check-in',
+  'pregnancy',
+  'symptoms',
+]);
 app.use(['/uploads', '/api/uploads'], (req, res, next) => {
   // Match the path the way serve-static resolves it, not the way it was
   // written: a prefix test against the raw URL would not account for percent-

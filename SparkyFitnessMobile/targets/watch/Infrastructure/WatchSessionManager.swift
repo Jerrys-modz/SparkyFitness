@@ -60,7 +60,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
         revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
-        rest: PhoneRest?, armedAt: Date?
+        rest: PhoneRest?, armedAt: Date?, setTimers: [String: Date]?
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
@@ -188,6 +188,46 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// How often the phone is told the current reading. The phone's chip
+    /// should move with the wrist, but a message per sample would keep the
+    /// radio busy for a number that changes by a beat or two.
+    private static let liveHeartRateInterval: TimeInterval = 3
+    private static let liveHeartRateMaxAge: TimeInterval = 5
+    private var lastLiveHeartRateAt: Date?
+
+    /// Tells the phone the current reading, only while it can be reached. A
+    /// live message that cannot be delivered now is dropped on purpose; the
+    /// batch every minute is what carries the readings for the diary.
+    ///
+    /// `measuredAt` is when HealthKit took the reading. A reading older than
+    /// `liveHeartRateMaxAge` (a backlog replay after a recovery, or a callback
+    /// that outlived the exercise it was measured in) is not "live" and would
+    /// be labelled with whatever exercise is on screen now, so it is skipped.
+    private func sendLiveHeartRate(_ bpm: Double, measuredAt: Date) {
+        guard Date().timeIntervalSince(measuredAt) <= Self.liveHeartRateMaxAge else { return }
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable,
+              bpm > 0,
+              let sessionId = workoutStore.plan?.sessionId,
+              let exerciseEntryId = workoutStore.currentStep?.exerciseEntryId
+                ?? workoutStore.steps.last?.exerciseEntryId
+        else { return }
+        let now = Date()
+        if let last = lastLiveHeartRateAt, now.timeIntervalSince(last) < Self.liveHeartRateInterval {
+            return
+        }
+        lastLiveHeartRateAt = now
+        WCSession.default.sendMessage(
+            OutboundPayloads.liveHeartRate(
+                sessionId: sessionId,
+                exerciseEntryId: exerciseEntryId,
+                bpm: bpm,
+                at: measuredAt
+            ),
+            replyHandler: nil,
+            errorHandler: nil
+        )
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
@@ -198,6 +238,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // in `CheckInStore.pending` either way, and the ack is the only thing
         // that moves it to `.saved`.
         return .queued
+    }
+
+    /// Asks the phone to start one saved workout. Queued like a check-in: the
+    /// phone is often in a bag, and a tap that vanishes is the bug.
+    func requestWorkoutStart(presetId: String, serverId: String?) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.workoutStartRequest(presetId: presetId, serverId: serverId))
     }
 
     /// Re-queues everything still unconfirmed. Used by the retry affordance and
@@ -533,7 +580,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: pending.revision,
                 targets: pending.targets,
                 completedSetIds: pending.completedSetIds,
-                phoneRest: pending.rest
+                phoneRest: pending.rest,
+                setTimers: pending.setTimers
             )
         }
         // Only this session's: another plan's targets may already be held
@@ -542,7 +590,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
-            self?.workoutHealthKit.start(sessionId: plan.sessionId, workoutName: plan.workoutName)
+            guard let self else { return }
+            guard let current = self.workoutStore.plan,
+                  current.sessionId == plan.sessionId,
+                  Self.sameArm(current.armedAt, plan.armedAt) else { return }
+            self.workoutHealthKit.start(
+                sessionId: plan.sessionId,
+                workoutName: plan.workoutName
+            )
         }
     }
 
@@ -554,9 +609,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // but that alone doesn't satisfy Swift's isolation checking for the
         // `@MainActor` types on the other end, so each hops explicitly, the
         // same pattern `WCSessionDelegate`'s callbacks use above.
-        workoutHealthKit.onHeartRate = { [weak workoutStore] bpm in
+        workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm, measuredAt in
             Task { @MainActor in
                 workoutStore?.recordHeartRate(bpm: bpm)
+                self?.sendLiveHeartRate(bpm, measuredAt: measuredAt)
             }
         }
         workoutHealthKit.onBatchReady = { [weak self] samples in
@@ -580,6 +636,25 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 sessionId: sessionId,
                 previousEndsAt: previousEndsAt,
                 endsAt: endsAt
+            ))
+        }
+        // A hold countdown or stopwatch started here starts the phone's too.
+        workoutStore.onSetTimerStartedHere = { [weak self] setId, startedAt in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.setTimerStarted(
+                sessionId: sessionId,
+                setId: setId,
+                startedAt: startedAt,
+                armedAt: self.workoutStore.plan?.armedAt
+            ))
+        }
+        workoutStore.onSetTimerStoppedHere = { [weak self] setId, startedAt, seconds in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.setTimerStopped(
+                sessionId: sessionId,
+                setId: setId,
+                seconds: seconds,
+                startedAt: startedAt
             ))
         }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
@@ -917,7 +992,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: update.revision,
                 targets: update.targets,
                 completedSetIds: update.completedSetIds,
-                phoneRest: update.rest
+                phoneRest: update.rest,
+                setTimers: ContextPayloadMapper.setTimers(from: payload)
             )
             return
         }
@@ -934,7 +1010,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         pendingSetTargets[update.sessionId] = (
             update.revision, update.targets, update.completedSetIds, update.rest,
-            update.armedAt
+            update.armedAt, ContextPayloadMapper.setTimers(from: payload)
         )
     }
 
@@ -1010,6 +1086,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
             return
         }
         guard workoutStore.plan?.sessionId == stop.sessionId else { return }
+        // Thrown away on the phone: end the session without writing it to
+        // Health and without a summary. Nothing is sent back, the phone
+        // already dropped it. A finish already running cannot be taken back.
+        if stop.discarded, !collectionInFlight {
+            dropRunningWorkout(notifyPhone: false)
+            return
+        }
         requestFinish(sendStop: false)
     }
 
@@ -1024,6 +1107,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             setId: step.plannedSet.setId,
             weightKg: values.weightKg,
             reps: values.reps,
+            duration: workoutStore.holdLoggedSeconds(for: step.plannedSet.setId),
             completedAt: Date()
         )
         transfer(OutboundPayloads.setCompleted(completed))
@@ -1101,6 +1185,39 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// the workout and the tail has been queued. See `finishCollection`.
     func endWorkout() {
         requestFinish(sendStop: true)
+    }
+
+    /// Abandons the workout. Nothing is saved to Health and no heart rate is
+    /// sent; the phone is told which session to drop, and clears it without
+    /// saving. Ignored while a finish is already running, which has the
+    /// session's tail in flight and cannot be taken back.
+    func discardWorkout() {
+        dropRunningWorkout(notifyPhone: true)
+    }
+
+    /// Ends the running workout without saving it. `notifyPhone` is false when
+    /// the phone is the one that discarded it.
+    private func dropRunningWorkout(notifyPhone: Bool) {
+        guard !collectionInFlight, let sessionId = workoutStore.plan?.sessionId else {
+            return
+        }
+        rememberEnded(sessionId, at: workoutStore.plan?.armedAt ?? Date())
+        workoutHealthKit.discard()
+        if notifyPhone {
+            transfer(
+                OutboundPayloads.workoutDiscard(
+                    sessionId: sessionId,
+                    armedAt: workoutStore.plan?.armedAt
+                )
+            )
+        }
+        let next = pendingPlan
+        pendingPlan = nil
+        pendingSendStop = false
+        workoutStore.reset()
+        if let next {
+            beginPlan(next)
+        }
     }
 
     /// A second finish or a plan change while `stop` is already running is

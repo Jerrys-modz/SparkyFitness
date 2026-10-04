@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 /// Whether the Workout page is the one on screen. A page-style `TabView` keeps
 /// neighbouring pages alive, and a double-tap must not log a set from, say,
@@ -49,8 +50,9 @@ private enum SupersetPalette {
     }
 }
 
-/// The Workout tab. Nothing here starts a workout — the phone arms it by
-/// pushing `workoutStart` for a preset session already begun there.
+/// The Workout tab. With no session running, the saved workouts the phone
+/// last sent are listed here; tapping one asks the phone to start it and
+/// arm this tab. Once a session is running, one set is on screen at a time.
 ///
 /// Laid out one set at a time rather than as a list of an exercise's sets:
 /// the wearer is mid-lift looking at a 40mm screen, so the two numbers they
@@ -71,17 +73,51 @@ struct WorkoutView: View {
 }
 
 private struct WaitingForWorkoutView: View {
+    @EnvironmentObject private var checkIn: CheckInStore
+    @EnvironmentObject private var session: WatchSessionManager
+    /// The preset just tapped. Blocks a second tap from starting two
+    /// sessions before the first one arrives. Cleared after a few seconds
+    /// so a start the phone could not finish can be tried again.
+    @State private var startingId: String?
+
     var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "figure.strengthtraining.traditional")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-            Text("Start a workout on your phone")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        let workouts = checkIn.context.startableWorkouts ?? []
+        if workouts.isEmpty {
+            VStack(spacing: 6) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                Text("Start a workout on your phone")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 8)
+        } else {
+            List(workouts) { workout in
+                Button {
+                    start(workout)
+                } label: {
+                    Text(startingId == workout.presetId ? "Starting…" : workout.name)
+                        .lineLimit(2)
+                }
+                .disabled(startingId != nil)
+            }
         }
-        .padding(.horizontal, 8)
+    }
+
+    private func start(_ workout: StartableWorkout) {
+        guard startingId == nil else { return }
+        startingId = workout.presetId
+        session.requestWorkoutStart(
+            presetId: workout.presetId,
+            serverId: checkIn.context.workoutServerId
+        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if startingId == workout.presetId {
+                startingId = nil
+            }
+        }
     }
 }
 
@@ -229,6 +265,7 @@ private struct ExerciseListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var confirmingFinish = false
+    @State private var confirmingDiscard = false
 
     private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
 
@@ -312,6 +349,13 @@ private struct ExerciseListView: View {
                     Label("Finish Workout", systemImage: "flag.checkered")
                         .font(.caption)
                 }
+                Button(role: .destructive) {
+                    Haptics.tap()
+                    confirmingDiscard = true
+                } label: {
+                    Label("Discard Workout", systemImage: "trash")
+                        .font(.caption)
+                }
             }
         }
         .confirmationDialog(
@@ -329,6 +373,20 @@ private struct ExerciseListView: View {
             Button("Cancel", role: .cancel) { Haptics.tap() }
         } message: {
             Text("Heart rate for this session is sent to your phone.")
+        }
+        .confirmationDialog(
+            "Discard workout?",
+            isPresented: $confirmingDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) {
+                Haptics.tap()
+                dismiss()
+                session.discardWorkout()
+            }
+            Button("Cancel", role: .cancel) { Haptics.tap() }
+        } message: {
+            Text("This workout won't be saved.")
         }
     }
 }
@@ -446,7 +504,40 @@ private struct CurrentSetView: View {
     /// Which field the keypad is editing, if any.
     @State private var editing: EditableField?
 
+    /// Crown mode: the field the crown and a drag adjust in place, Hevy-style.
+    @State private var crownField: EditableField?
+    /// The value on screen while `crownField` is being adjusted. Written to
+    /// the store once it settles rather than per detent: every write persists
+    /// the workout snapshot, and a fast spin is dozens of detents a second.
+    @State private var crownValue: Double = 0
+    /// The stored number when the box was selected, then the number the crown
+    /// or drag has stepped to. Above the crown's range this stays on the real
+    /// value; the binding itself cannot.
+    @State private var crownBaseline: Double = 0
+    /// The same number without rounding. The crown reports in-between values
+    /// while it turns (10.3 reps), and a whole rep only shows up once enough of
+    /// them add up, so the turns are summed here and `crownBaseline` is this
+    /// rounded to a step. Stepping from the rounded number alone drops every
+    /// turn smaller than half a step, which is how reps stopped moving.
+    @State private var crownExact: Double = 0
+    /// Last binding sample. A rebase writes this before moving the binding so
+    /// that correction is not counted as a turn.
+    @State private var crownSeen: Double?
+    /// True only after the crown or a drag changes the value. Selecting a field
+    /// must not write, or a target the crown cannot show gets saved as the cap.
+    @State private var crownAdjusted = false
+    /// The set being edited. `step` can already be the next one when a settle
+    /// or an external cursor move commits, and that write has to stay here.
+    @State private var crownStep: WorkoutStep?
+    @State private var pendingCommit: Task<Void, Never>?
+    /// `crownValue` when the current drag began.
+    @State private var dragStartValue: Double?
+    /// Steps the current drag has moved, so each new step clicks once.
+    @State private var dragSteps: Double = 0
+    @FocusState private var crownFocused: Bool
+
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
+    private var inputStyle: SetInputStyle { checkIn.context.effectiveSetInputStyle }
 
     private var supersetColor: Color? {
         guard let run = step.supersetRun else { return nil }
@@ -478,49 +569,314 @@ private struct CurrentSetView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             let values = store.values(for: step)
+            let holdSeconds = store.targetDurationSec(for: step)
+            let timed = store.isTimed(step)
             HStack(spacing: 4) {
-                ValueBox(
-                    value: Self.format(values.weightKg.map(unit.fromKg)),
-                    unit: unit == .lbs ? "LB" : "KG"
-                ) { editing = .weight }
-                ValueBox(
-                    value: Self.format(values.reps),
-                    unit: "REPS"
-                ) { editing = .reps }
+                if !timed || values.weightKg != nil {
+                    valueBox(.weight)
+                }
+                if let holdSeconds {
+                    HoldCountdown(setId: step.plannedSet.setId, totalSeconds: holdSeconds)
+                } else if timed {
+                    HoldStopwatch(setId: step.plannedSet.setId)
+                } else {
+                    valueBox(.reps)
+                }
+            }
+            .focusable(crownField != nil)
+            .focused($crownFocused)
+            .digitalCrownRotation(
+                $crownValue,
+                from: minValue(for: crownField ?? .weight),
+                through: maxValue(for: crownField ?? .weight),
+                by: stepSize(for: crownField ?? .weight),
+                // Low: at medium a small turn ran several plates past the one
+                // wanted.
+                sensitivity: .low,
+                isContinuous: false,
+                isHapticFeedbackEnabled: checkIn.context.effectiveHapticsEnabled
+            )
+            .onChange(of: crownValue) { noteCrownChange() }
+
+            if crownField != nil {
+                Text("Crown or drag · tap again to type")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
             }
 
             StepControls(isCompleted: store.isCompleted(step)) {
+                endCrownEditing()
                 store.goToPreviousStep()
             } onComplete: {
+                // The value on screen is what gets logged, settled or not.
+                endCrownEditing()
                 if let completed = store.completeCurrentSet() {
                     session.sendSetCompleted(completed, values: store.values(for: completed))
                 }
             } onNext: {
+                endCrownEditing()
                 store.goToNextStep()
             }
         }
+        // The phone logging this set, or a jump from the exercise list, has
+        // already swapped `step` by the time this runs. The commit uses
+        // `crownStep`, captured when the box was selected.
+        .onChange(of: step.plannedSet.setId) { endCrownEditing() }
+        // crownValue is a number in the unit it was selected in. Committing
+        // after the phone switches kg/lb would save that number in the new unit.
+        .onChange(of: unit) { discardCrownWeightEdit() }
+        .onDisappear { endCrownEditing() }
         .sheet(item: $editing) { field in
             NumericKeypadView(
-                title: field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS",
-                initial: field == .weight
-                    ? store.values(for: step).weightKg.map(unit.fromKg)
-                    : store.values(for: step).reps,
-                allowsDecimal: field == .weight
+                title: title(for: field),
+                initial: storedValue(for: field),
+                allowsDecimal: field == .weight,
+                allowsNegative: field == .weight && store.isBodyweight(step)
             ) { entered in
-                switch field {
-                case .weight:
-                    store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(entered))
-                case .reps:
-                    store.setValue(for: step.plannedSet.setId, reps: entered)
-                }
+                write(entered, to: field)
                 editing = nil
             }
         }
     }
 
+    private func valueBox(_ field: EditableField) -> some View {
+        let isSelected = crownField == field
+        let shown = isSelected && crownAdjusted
+            ? editedValue(for: field)
+            : storedValue(for: field)
+        let text = field == .weight && store.isBodyweight(step)
+            ? Self.bodyweightText(shown)
+            : Self.format(shown)
+        return ValueBox(
+            value: text,
+            unit: title(for: field),
+            isSelected: isSelected
+        ) {
+            tapped(field)
+        }
+        // Drag up to raise, down to lower, one step per 12pt — only on the
+        // box being adjusted, so a stray swipe elsewhere changes nothing.
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { gesture in
+                    guard isSelected else { return }
+                    let start = dragStartValue ?? editedValue(for: field)
+                    if dragStartValue == nil {
+                        dragStartValue = start
+                        dragSteps = 0
+                    }
+                    let steps = (-gesture.translation.height / 12).rounded()
+                    guard steps != dragSteps else { return }
+                    dragSteps = steps
+                    crownBaseline = max(start + steps * stepSize(for: field), minValue(for: field))
+                    crownExact = crownBaseline
+                    crownAdjusted = true
+                    if crownSeen == nil {
+                        crownSeen = min(max(crownValue, minValue(for: field)), maxValue(for: field))
+                    }
+                    parkCrown(for: field)
+                    scheduleCommit()
+                    // The crown clicks each detent by itself; a drag has to
+                    // be told to.
+                    Haptics.tap()
+                }
+                .onEnded { _ in dragStartValue = nil },
+            including: isSelected ? .all : .subviews
+        )
+    }
+
+    /// Keypad mode opens the keypad. Crown mode selects the box for the crown;
+    /// tapping the selected box again opens the keypad for an exact value.
+    private func tapped(_ field: EditableField) {
+        guard inputStyle == .crown else {
+            editing = field
+            return
+        }
+        if crownField == field {
+            endCrownEditing()
+            editing = field
+            return
+        }
+        endCrownEditing()
+        let stored = storedValue(for: field)
+        crownStep = step
+        crownBaseline = stored ?? 0
+        crownExact = stored ?? 0
+        crownAdjusted = false
+        // Sit the sample on the cap when the stored number is above it, so
+        // the clamp that follows is not counted as a turn. The first real
+        // detent then steps from the stored number.
+        let floor = minValue(for: field)
+        crownSeen = min(max(stored ?? 0, floor), maxValue(for: field))
+        crownValue = stored ?? 0
+        crownField = field
+        // Next turn of the run loop: the row only becomes focusable once
+        // `crownField` is set, and focus asked for before that is dropped.
+        DispatchQueue.main.async { crownFocused = true }
+    }
+
+    /// Each crown event is a step from the stored number. The binding clamps
+    /// an above-range value onto its ceiling, and that jump is not a turn.
+    /// When the binding then runs out of room at its floor, it is parked back
+    /// on the value so the same gesture can keep stepping down to that floor.
+    private func noteCrownChange() {
+        guard let field = crownField else { return }
+        let ceiling = maxValue(for: field)
+        let floor = minValue(for: field)
+        let crown = min(max(crownValue, floor), ceiling)
+        let previous = crownSeen
+        crownSeen = crown
+        guard let previous else { return }
+
+        let delta = crown - previous
+        if abs(delta) < 0.000_1 {
+            parkCrown(for: field)
+            return
+        }
+        if !crownAdjusted, crownBaseline > ceiling, crown >= ceiling - 0.000_1 {
+            return
+        }
+
+        let step = stepSize(for: field)
+        crownExact = max(crownExact + delta, floor)
+        let next = max((crownExact / step).rounded() * step, floor)
+        guard abs(next - crownBaseline) >= 0.000_1 else { return }
+        crownBaseline = next
+        crownAdjusted = true
+        scheduleCommit()
+        parkCrown(for: field)
+    }
+
+    /// The binding spans floor...max. Park it on the current value once it
+    /// hits the floor while that value is still above it, so the next detent
+    /// is another single step and the edit can reach the floor. The floor is
+    /// zero, or the negative cap for a bodyweight weight.
+    private func parkCrown(for field: EditableField) {
+        let ceiling = maxValue(for: field)
+        let floor = minValue(for: field)
+        let step = stepSize(for: field)
+        let value = editedValue(for: field)
+        let crown = min(max(crownValue, floor), ceiling)
+        guard value > floor + step, crown <= floor + step * 0.5 else { return }
+        let parked = min(max(value, floor), ceiling)
+        guard parked > crown + 0.000_1 else { return }
+        crownSeen = parked
+        crownValue = parked
+    }
+
+    private func scheduleCommit() {
+        guard let field = crownField else { return }
+        let unitAtSchedule = unit
+        pendingCommit?.cancel()
+        pendingCommit = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            // The unit may have changed during the wait. A weight number from
+            // the old unit must not be written through the new one.
+            guard field != .weight || unitAtSchedule == unit else {
+                discardCrownWeightEdit()
+                return
+            }
+            commitCrownValue()
+        }
+    }
+
+    private func commitCrownValue() {
+        guard crownAdjusted, let field = crownField, let editing = crownStep else { return }
+        let value = editedValue(for: field)
+        if value != storedValue(for: field, on: editing) {
+            write(value, to: field, on: editing)
+        }
+    }
+
+    /// Saves the value being adjusted and deselects it.
+    private func endCrownEditing() {
+        pendingCommit?.cancel()
+        pendingCommit = nil
+        commitCrownValue()
+        crownField = nil
+        crownFocused = false
+        dragStartValue = nil
+        crownAdjusted = false
+        crownSeen = nil
+        crownStep = nil
+    }
+
+    /// Drops a weight edit without saving. Used when the display unit changes
+    /// under a selected weight box.
+    private func discardCrownWeightEdit() {
+        guard crownField == .weight else { return }
+        pendingCommit?.cancel()
+        pendingCommit = nil
+        crownField = nil
+        crownFocused = false
+        dragStartValue = nil
+        crownAdjusted = false
+        crownSeen = nil
+        crownStep = nil
+    }
+
+    private func storedValue(for field: EditableField) -> Double? {
+        storedValue(for: field, on: step)
+    }
+
+    private func storedValue(for field: EditableField, on step: WorkoutStep) -> Double? {
+        let values = store.values(for: step)
+        switch field {
+        case .weight: return values.weightKg.map(unit.fromKg)
+        case .reps: return values.reps
+        }
+    }
+
+    private func write(_ value: Double, to field: EditableField) {
+        write(value, to: field, on: step)
+    }
+
+    private func write(_ value: Double, to field: EditableField, on step: WorkoutStep) {
+        switch field {
+        case .weight:
+            store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(value))
+        case .reps:
+            store.setValue(for: step.plannedSet.setId, reps: value)
+        }
+    }
+
+    private func title(for field: EditableField) -> String {
+        field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS"
+    }
+
+    /// Half a pound or kilo per crown detent, as Hevy does; a rep at a time.
+    private func stepSize(for field: EditableField) -> Double {
+        field == .weight ? 0.5 : 1
+    }
+
+    private func maxValue(for field: EditableField) -> Double {
+        field == .weight ? (unit == .lbs ? 1500 : 700) : 200
+    }
+
+    /// The number the crown or drag has stepped to. Not capped at the crown's
+    /// max: a stored value above that max stays there until a step moves it.
+    private func editedValue(for field: EditableField) -> Double {
+        let step = stepSize(for: field)
+        return max((crownBaseline / step).rounded() * step, minValue(for: field))
+    }
+
+    /// Bodyweight weight is a signed change. Everything else stops at zero.
+    private func minValue(for field: EditableField) -> Double {
+        field == .weight && store.isBodyweight(step) ? -maxValue(for: .weight) : 0
+    }
+
+    /// A bodyweight set's weight as a change to body weight: "BW +10",
+    /// "BW −20", or plain "BW" when nothing is added or taken off.
+    private static func bodyweightText(_ value: Double?) -> String {
+        guard let value, value != 0 else { return "BW" }
+        let magnitude = format(abs(value))
+        return value > 0 ? "BW +\(magnitude)" : "BW −\(magnitude)"
+    }
+
     /// Whole numbers lose the decimal point — "60kg", not "60.0kg" — but a
     /// real fraction keeps it, since plate maths routinely lands on 2.5s.
-    private static func format(_ value: Double?) -> String {
+    static func format(_ value: Double?) -> String {
         guard let value else { return "–" }
         return value == value.rounded()
             ? String(Int(value))
@@ -528,10 +884,101 @@ private struct CurrentSetView: View {
     }
 }
 
-/// One big tappable number with its unit underneath.
+/// Hold countdown for a duration set. Tap starts it; at 0:00 it buzzes
+/// through the same rest-finished hook. `TimelineView` rather than a stored
+/// timer publisher: the store republishes every second and would freeze a
+/// `Timer.publish` the way the rest screen used to.
+private struct HoldCountdown: View {
+    let setId: String
+    let totalSeconds: Int
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let started = store.holdSetId == setId && store.holdEndsAt != nil
+            let remaining = started
+                ? (store.holdRemaining(for: setId, now: context.date) ?? 0)
+                : totalSeconds
+            VStack(spacing: 2) {
+                Text(Self.clock(remaining))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if !started {
+                    Button("Start") {
+                        store.startHold(for: setId, seconds: totalSeconds)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+    }
+}
+
+/// Count-up timer for a duration set with no planned length. Start begins it;
+/// ticking the set logs the elapsed seconds.
+private struct HoldStopwatch: View {
+    let setId: String
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = store.stopwatchElapsed(for: setId, now: context.date)
+            VStack(spacing: 2) {
+                Text(Self.clock(elapsed ?? 0))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if elapsed == nil {
+                    if let previous = store.previousDurationSec(forSetId: setId) {
+                        Text("Last \(Self.clock(previous))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Button("Start") {
+                        store.startStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                } else if store.isStopwatchRunning(for: setId) {
+                    Button("Stop") {
+                        store.stopStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+    }
+}
+
+/// One big tappable number with its unit underneath. Outlined while the crown
+/// is adjusting it.
 private struct ValueBox: View {
     let value: String
     let unit: String
+    var isSelected = false
     let onTap: () -> Void
 
     var body: some View {
@@ -550,6 +997,10 @@ private struct ValueBox: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
             .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.green, lineWidth: isSelected ? 2 : 0)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -717,18 +1168,28 @@ private struct RestView: View {
     private func nextTargetLabel(for step: WorkoutStep) -> String {
         let values = store.values(for: step)
         let unit = checkIn.context.effectiveWeightUnit
+        if let seconds = store.targetDurationSec(for: step) {
+            let clock = String(format: "%d:%02d", seconds / 60, seconds % 60)
+            if let weight = values.weightKg {
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
+            }
+            return "\(step.label) · \(clock)"
+        }
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):
-            let shown = unit.fromKg(weight)
-            let weightText = shown == shown.rounded()
-                ? String(Int(shown))
-                : String(format: "%.1f", shown)
-            return "\(step.label) · \(weightText)\(unit.suffix) × \(Int(reps))"
+            return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(Int(reps))"
         case let (nil, reps?):
             return "\(step.label) · \(Int(reps)) reps"
         default:
             return step.label
         }
+    }
+
+    private static func weightText(_ kg: Double, unit: WeightUnit) -> String {
+        let shown = unit.fromKg(kg)
+        return shown == shown.rounded()
+            ? String(Int(shown))
+            : String(format: "%.1f", shown)
     }
 }
 
@@ -739,6 +1200,8 @@ private struct NumericKeypadView: View {
     let title: String
     let initial: Double?
     let allowsDecimal: Bool
+    /// Shows a ± key so an assisted bodyweight set can be entered below zero.
+    var allowsNegative: Bool = false
     let onCommit: (Double) -> Void
 
     @State private var entry: String = ""
@@ -760,6 +1223,13 @@ private struct NumericKeypadView: View {
                 Text(title)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
+                if allowsNegative {
+                    Button("±", action: Haptics.tapping(toggleSign))
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 6)
+                        .background(Color.gray.opacity(0.25), in: Capsule())
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -806,12 +1276,24 @@ private struct NumericKeypadView: View {
             : String(format: "%.1f", initial)
     }
 
+    /// Flips the typed value between added (+) and assisted (−). With nothing
+    /// typed yet a lone "-" waits for the digits.
+    private func toggleSign() {
+        if entry.hasPrefix("-") {
+            entry.removeFirst()
+        } else {
+            entry = "-" + entry
+        }
+    }
+
     private func press(_ key: String) {
         switch key {
         case "⌫":
             if !entry.isEmpty { entry.removeLast() }
         case ".":
-            if !entry.contains(".") { entry += entry.isEmpty ? "0." : "." }
+            if !entry.contains(".") {
+                entry += (entry.isEmpty || entry == "-") ? "0." : "."
+            }
         default:
             entry += key
         }

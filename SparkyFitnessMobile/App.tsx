@@ -21,6 +21,11 @@ import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge } from './src/hooks';
+import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
+import {
+  useStartLiveWorkout,
+  type StartLiveWorkoutNavigation,
+} from './src/hooks/useStartLiveWorkout';
 import WatchConnectivity from './modules/watch-connectivity';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
@@ -106,6 +111,10 @@ import {
   SafeMedicationDetail,
   SafeMedicationForm,
   SafeMedicationScheduleForm,
+  SafeSymptomLog,
+  SafeSymptomHistory,
+  SafeManageSymptoms,
+  SafeSymptomDefinitionEditor,
 } from './src/navigation/safeScreens';
 import ReauthModal from './src/components/ReauthModal';
 import ServerConfigModal from './src/components/ServerConfigModal';
@@ -187,6 +196,21 @@ function WatchWorkoutGate() {
   const { isConnected: isServerConnected } = useServerConnection({
     enablePolling: watchSupported && telemetryPending,
   });
+  const watchStartNavigation = useMemo(
+    () =>
+      ({
+        // Starting from the wrist must not replace whatever screen the phone
+        // is on. The active-workout bar appears on its own once the session
+        // exists. `navigate` is only the conflict prompt's "Go to Workout".
+        isFocused: () => false,
+        replace: () => {},
+        navigate: (screen: 'ActiveWorkout') => {
+          if (rootNavigationRef.isReady()) rootNavigationRef.navigate(screen);
+        },
+      }) as unknown as StartLiveWorkoutNavigation,
+    []
+  );
+  const { startLiveWorkout } = useStartLiveWorkout(watchStartNavigation);
   useWatchWorkoutBridge(
     watchSupported,
     isServerConnected,
@@ -194,6 +218,7 @@ function WatchWorkoutGate() {
     handleWatchFinishedWorkout
   );
   useWatchSetTargetsSync(watchSupported);
+  useWatchWorkoutStart(watchSupported, isServerConnected, startLiveWorkout);
   useWatchPlanSync(watchSupported);
   return null;
 }
@@ -241,6 +266,7 @@ function AppContent() {
     handleAddActivity,
     handleAddMeasurements,
     handleAddProgressPhotos,
+    handleAddSymptoms,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
@@ -901,8 +927,40 @@ function AppContent() {
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),
             })}
           />
+          <Stack.Screen
+            name="SymptomLog"
+            component={SafeSymptomLog}
+            options={createStackScreenOptions(t('screens.symptomLog', { defaultValue: 'Log Symptom' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="SymptomHistory"
+            component={SafeSymptomHistory}
+            options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="ManageSymptoms"
+            component={SafeManageSymptoms}
+            options={createStackScreenOptions(t('screens.manageSymptoms', { defaultValue: 'Manage Symptoms' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="SymptomDefinitionEditor"
+            component={SafeSymptomDefinitionEditor}
+            options={createStackScreenOptions(t('screens.symptomDefinition', { defaultValue: 'Symptom Details' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
         </Stack.Navigator>
-        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
+        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
         <ReauthModal
           visible={showReauthModal}
           expiredConfigId={expiredConfigId}
