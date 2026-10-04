@@ -11,6 +11,7 @@ on:
     paths:
       - ".github/workflows/android-test-build.yml"
       - "SparkyFitnessMobile/targets/wear/**"
+      - "SparkyFitnessMobile/modules/watch-connectivity/**"
 
 jobs:
   build:
