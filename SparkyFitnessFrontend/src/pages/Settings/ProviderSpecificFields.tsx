@@ -634,10 +634,19 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'canadian-nutrient-file' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The Canadian Nutrient File (CNF) is published by Health Canada under
-            the Open Government Licence – Canada. It is free, public, and
-            requires no credentials. Supported languages are{' '}
-            <strong>English (en)</strong> and <strong>French (fr)</strong>.
+            The Canadian Nutrient File (CNF) contains information published by
+            Health Canada under the{' '}
+            <a
+              href="https://open.canada.ca/en/open-government-licence-canada"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              Open Government Licence – Canada
+            </a>
+            . It is free, public, and requires no credentials. Supported
+            languages are <strong>English (en)</strong> and{' '}
+            <strong>French (fr)</strong>.
           </p>
           <p className="text-sm text-muted-foreground">
             For more details, see the official portal at{' '}

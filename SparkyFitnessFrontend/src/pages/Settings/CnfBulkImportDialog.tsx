@@ -343,6 +343,20 @@ export function CnfBulkImportDialog({
                   </p>
                 </div>
               </div>
+
+              <div className="rounded-md border bg-muted/30 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                Contains information published by Health Canada licensed under
+                the{' '}
+                <a
+                  href="https://open.canada.ca/en/open-government-licence-canada"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Open Government Licence – Canada
+                </a>
+                .
+              </div>
             </div>
           )}
 

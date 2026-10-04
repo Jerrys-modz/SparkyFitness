@@ -817,7 +817,8 @@
     "gotIt": "Got it",
     "close": "Close",
     "swissFoodApi": "Swiss Food Composition Database API",
-    "usdaApi": "USDA Food Database API"
+    "usdaApi": "USDA Food Database API",
+    "canadianNutrientFileApi": "Canadian Nutrient File (Health Canada)"
   },
   "exercise": {
     "title": "Exercises",

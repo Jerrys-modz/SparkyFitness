@@ -676,8 +676,16 @@ export const ProviderCard = ({
         {isCnf && (
           <>
             <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-              Published by Health Canada under Open Government Licence – Canada.
-              Supported languages: <strong>English (en)</strong> and{' '}
+              Contains information published by Health Canada licensed under the{' '}
+              <a
+                href="https://open.canada.ca/en/open-government-licence-canada"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                Open Government Licence – Canada
+              </a>
+              . Supported languages: <strong>English (en)</strong> and{' '}
               <strong>French (fr)</strong>.{' '}
               <a
                 href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
