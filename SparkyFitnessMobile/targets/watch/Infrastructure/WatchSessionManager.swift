@@ -1012,7 +1012,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             // held for `beginPlan` like any other early update.
             guard Self.sameArm(update.armedAt, plan.armedAt) else {
                 if Self.isLaterArm(update.armedAt, than: plan.armedAt) {
-                    holdSetTargets(update)
+                    holdSetTargets(update, setTimers: ContextPayloadMapper.setTimers(from: payload))
                 }
                 return
             }
@@ -1035,13 +1035,16 @@ final class WatchSessionManager: NSObject, ObservableObject {
            update.armedAt.map({ $0 <= endedAt }) ?? true {
             return
         }
-        holdSetTargets(update)
+        holdSetTargets(update, setTimers: ContextPayloadMapper.setTimers(from: payload))
     }
 
-    private func holdSetTargets(_ update: (
-        sessionId: String, revision: Double, targets: [String: SetValues],
-        completedSetIds: Set<String>, rest: PhoneRest?, armedAt: Date?, prSetIds: Set<String>
-    )) {
+    private func holdSetTargets(
+        _ update: (
+            sessionId: String, revision: Double, targets: [String: SetValues],
+            completedSetIds: Set<String>, rest: PhoneRest?, armedAt: Date?, prSetIds: Set<String>
+        ),
+        setTimers: [String: Date]?
+    ) {
         if let held = pendingSetTargets[update.sessionId] {
             // A late update from an earlier arm never replaces a later one;
             // within one arm the higher revision wins.
@@ -1053,7 +1056,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         pendingSetTargets[update.sessionId] = (
             update.revision, update.targets, update.completedSetIds, update.rest,
-            update.armedAt, ContextPayloadMapper.setTimers(from: payload)
+            update.armedAt, setTimers
         )
     }
 
