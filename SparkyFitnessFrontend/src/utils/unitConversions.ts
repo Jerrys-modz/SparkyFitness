@@ -125,3 +125,19 @@ export const formatMeasurement = (
       return `${Number(cm.toFixed(precision))} cm`;
   }
 };
+
+const YARDS_PER_KM = 1093.6133;
+
+/** Carry distances are entered in metres (yards when the app shows miles). */
+export const carryDistanceFromKm = (
+  km: number,
+  distanceUnit: string
+): number => (distanceUnit === 'miles' ? km * YARDS_PER_KM : km * 1000);
+
+export const carryDistanceToKm = (
+  value: number,
+  distanceUnit: string
+): number => (distanceUnit === 'miles' ? value / YARDS_PER_KM : value / 1000);
+
+export const carryDistanceUnitLabel = (distanceUnit: string): 'm' | 'yd' =>
+  distanceUnit === 'miles' ? 'yd' : 'm';
