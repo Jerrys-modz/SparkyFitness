@@ -62,7 +62,7 @@ private struct WaterSnapshotPayload: Decodable {
     let canLog: Int?
 }
 
-private func loadWaterSnapshot() -> WaterSnapshot {
+func loadWaterSnapshot() -> WaterSnapshot {
     guard
         let appGroup = appGroupIdentifier(),
         !appGroup.isEmpty,

@@ -91,6 +91,9 @@ private enum WaterSnapshotWriter {
         if let updated = try? JSONSerialization.data(withJSONObject: snapshot) {
             defaults.set(updated, forKey: "waterSnapshot")
             WidgetCenter.shared.reloadTimelines(ofKind: "waterWidget")
+            if #available(iOS 18.0, *) {
+                ControlCenter.shared.reloadControls(ofKind: "com.sparkyapps.sparkyfitness.control.waterToday")
+            }
         }
     }
 }

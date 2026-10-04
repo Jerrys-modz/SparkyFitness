@@ -103,3 +103,67 @@ struct RemoveWaterControl: ControlWidget {
         .description("widget.control.remove_water.description")
     }
 }
+
+// Controls that show a number as well as doing something, so the Control Center
+// tile reads like a small widget. The value comes from the same snapshots the
+// Home Screen widgets read; iOS asks for it when the control is shown and again
+// after the control's own intent runs.
+
+@available(iOS 18.0, *)
+struct WaterTodayControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.waterToday"
+
+    struct Provider: ControlValueProvider {
+        var previewValue: WaterSnapshot {
+            WaterSnapshot(consumedMl: 946, goalMl: 2840, drinkMl: 473, unit: "oz", canLog: true)
+        }
+
+        func currentValue() async throws -> WaterSnapshot {
+            loadWaterSnapshot()
+        }
+    }
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
+            // Tapping logs a drink, like Log water; the label is today's total.
+            ControlWidgetButton(action: LogWaterIntent()) {
+                Label(
+                    snapshot.hasData ? snapshot.amountText : localizedWidgetString("widget.water.title"),
+                    systemImage: "drop.fill"
+                )
+            }
+        }
+        .displayName("widget.control.water_today.name")
+        .description("widget.control.water_today.description")
+    }
+}
+
+@available(iOS 18.0, *)
+struct CaloriesLeftControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.caloriesLeft"
+
+    struct Provider: ControlValueProvider {
+        var previewValue: CalorieSnapshot {
+            CalorieSnapshot(food: 1540, burned: 255, goal: 3055, remaining: 1515, progress: 0.5, lastUpdated: nil)
+        }
+
+        func currentValue() async throws -> CalorieSnapshot {
+            loadCalorieSnapshot()
+        }
+    }
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
+            ControlWidgetButton(action: OpenURLIntent(URL(string: "sparkyfitnessmobile://")!)) {
+                Label(
+                    snapshot.hasData
+                        ? "\(localizedNumberString(snapshot.remaining)) \(localizedWidgetString("widget.kcal_left"))"
+                        : localizedWidgetString("widget.calorie.name"),
+                    systemImage: "flame.fill"
+                )
+            }
+        }
+        .displayName("widget.control.calories_left.name")
+        .description("widget.control.calories_left.description")
+    }
+}

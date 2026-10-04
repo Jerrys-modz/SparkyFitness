@@ -32,3 +32,7 @@
 "widget.control.search_food.description" = "Opens SparkyFitness on food search.";
 "widget.control.remove_water.name" = "Remove a drink";
 "widget.control.remove_water.description" = "Takes one drink off today's water total without opening SparkyFitness.";
+"widget.control.water_today.name" = "Water today";
+"widget.control.water_today.description" = "Shows today's water and logs a drink when tapped, without opening SparkyFitness.";
+"widget.control.calories_left.name" = "Calories left";
+"widget.control.calories_left.description" = "Shows the calories you have left today. Tap to open SparkyFitness.";
