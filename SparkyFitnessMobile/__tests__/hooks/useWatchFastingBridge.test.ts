@@ -64,6 +64,32 @@ describe('useWatchFastingBridge', () => {
     expect(startFast).not.toHaveBeenCalled();
   });
 
+  it('starts a manual fast even though a calculated one is always current', async () => {
+    (fetchCurrentFast as jest.Mock).mockResolvedValue({
+      id: 'auto-2026-10-03T20:00:00.000Z',
+      is_auto_calculated: true,
+    });
+    renderHook(() => useWatchFastingBridge(true));
+    mockListeners.get('onFastStartRequested')?.({
+      presetId: '16-8',
+      clientId: 'c5',
+    });
+    await waitFor(() => expect(mockSendAck).toHaveBeenCalledWith('c5', true));
+    expect(startFast).toHaveBeenCalledTimes(1);
+  });
+
+  it('has nothing to end for a calculated fast', async () => {
+    (fetchCurrentFast as jest.Mock).mockResolvedValue({
+      id: 'auto-2026-10-03T20:00:00.000Z',
+      start_time: '2026-10-03T20:00:00Z',
+      is_auto_calculated: true,
+    });
+    renderHook(() => useWatchFastingBridge(true));
+    mockListeners.get('onFastEndRequested')?.({ clientId: 'c6' });
+    await waitFor(() => expect(mockSendAck).toHaveBeenCalledWith('c6', true));
+    expect(endFast).not.toHaveBeenCalled();
+  });
+
   it('ends the running fast once per clientId', async () => {
     (fetchCurrentFast as jest.Mock).mockResolvedValue({
       id: 'f',
