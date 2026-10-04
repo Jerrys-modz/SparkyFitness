@@ -1303,7 +1303,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 let next = self.pendingPlan
                 self.pendingPlan = nil
                 self.pendingSendStop = false
+                self.workoutStore.recordFinalHeartRate(
+                    samples.compactMap { sample in
+                        self.instantParser.date(from: sample.t).map { (at: $0, bpm: sample.bpm) }
+                    }
+                )
+                let summary = next == nil ? self.workoutStore.makeSummary() : nil
                 self.workoutStore.reset()
+                self.workoutStore.recordSummary(summary)
                 self.collectionInFlight = false
                 if let next {
                     self.beginPlan(next)

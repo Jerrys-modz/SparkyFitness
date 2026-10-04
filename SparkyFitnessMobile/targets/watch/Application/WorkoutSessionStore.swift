@@ -48,6 +48,16 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var latestBpm: Double?
     @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var elapsedSeconds: Int = 0
+    /// What the wearer just finished, shown on the Workout page until they
+    /// dismiss it or arm another workout. Not persisted: it is a keepsake of
+    /// the moment, not session state.
+    @Published private(set) var lastSummary: WorkoutSummary?
+    private var heartRateSum: Double = 0
+    private var heartRateCount: Int = 0
+    private var heartRateMax: Double?
+    /// When the last live reading arrived, so the final drain's readings can
+    /// be told apart from ones already counted.
+    private var lastLiveHeartRateAt: Date?
     /// Non-nil while a rest countdown is running before the next set.
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
@@ -307,6 +317,8 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
+        lastSummary = nil
+        resetHeartRateStats()
         stopRestTimer()
         clearHold()
         startedAt = Date()
@@ -426,6 +438,7 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
+        resetHeartRateStats()
         startedAt = nil
         exerciseWindowStartedAt = [:]
         exerciseWindowSeconds = [:]
@@ -437,6 +450,63 @@ final class WorkoutSessionStore: ObservableObject {
 
     func recordHeartRate(bpm: Double) {
         latestBpm = bpm
+        lastLiveHeartRateAt = Date()
+        accumulateHeartRate(bpm)
+    }
+
+    /// Readings from the final HealthKit drain, which can include some the
+    /// live callback never delivered. Only those taken after the last live
+    /// reading are added, so a reading already counted is not counted twice.
+    func recordFinalHeartRate(_ readings: [(at: Date, bpm: Double)]) {
+        let cutoff = lastLiveHeartRateAt ?? .distantPast
+        for reading in readings where reading.at > cutoff {
+            accumulateHeartRate(reading.bpm)
+        }
+    }
+
+    private func accumulateHeartRate(_ bpm: Double) {
+        guard bpm > 0 else { return }
+        heartRateSum += bpm
+        heartRateCount += 1
+        heartRateMax = max(heartRateMax ?? bpm, bpm)
+    }
+
+    private func resetHeartRateStats() {
+        heartRateSum = 0
+        heartRateCount = 0
+        heartRateMax = nil
+        lastLiveHeartRateAt = nil
+    }
+
+    /// Totals for the workout in progress, or nil when no set was logged
+    /// (nothing worth celebrating). Call before `reset()`.
+    func makeSummary() -> WorkoutSummary? {
+        guard plan != nil, !completedSetIds.isEmpty else { return nil }
+        var volumeKg = 0.0
+        var completed = 0
+        for step in steps where completedSetIds.contains(step.plannedSet.setId) {
+            completed += 1
+            let v = values(for: step)
+            if let weight = v.weightKg, let reps = v.reps {
+                volumeKg += weight * reps
+            }
+        }
+        return WorkoutSummary(
+            durationSeconds: elapsedSeconds,
+            setsCompleted: completed,
+            volumeKg: volumeKg,
+            averageBpm: heartRateCount > 0 ? heartRateSum / Double(heartRateCount) : nil,
+            maxBpm: heartRateMax,
+            activeEnergyKcal: activeEnergyKcal
+        )
+    }
+
+    func recordSummary(_ summary: WorkoutSummary?) {
+        lastSummary = summary
+    }
+
+    func dismissSummary() {
+        lastSummary = nil
     }
 
     func recordActiveEnergy(kcal: Double) {
