@@ -15,11 +15,11 @@ struct LogWaterControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
             ControlWidgetButton(action: LogWaterIntent()) {
-                Label("Log water", systemImage: "drop.fill")
+                Label("widget.control.log_water.name", systemImage: "drop.fill")
             }
         }
-        .displayName("Log water")
-        .description("Logs a drink of your water container without opening SparkyFitness.")
+        .displayName("widget.control.log_water.name")
+        .description("widget.control.log_water.description")
     }
 }
 
@@ -30,11 +30,11 @@ struct StartFastControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
             ControlWidgetButton(action: StartFastIntent()) {
-                Label("Start fast", systemImage: "timer")
+                Label("widget.control.start_fast.name", systemImage: "timer")
             }
         }
-        .displayName("Start fast")
-        .description("Starts a 16 hour fast without opening SparkyFitness.")
+        .displayName("widget.control.start_fast.name")
+        .description("widget.control.start_fast.description")
     }
 }
 
@@ -45,10 +45,10 @@ struct EndFastControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
             ControlWidgetButton(action: EndFastIntent()) {
-                Label("End fast", systemImage: "stop.circle")
+                Label("widget.control.end_fast.name", systemImage: "stop.circle")
             }
         }
-        .displayName("End fast")
-        .description("Ends your running fast without opening SparkyFitness.")
+        .displayName("widget.control.end_fast.name")
+        .description("widget.control.end_fast.description")
     }
 }
