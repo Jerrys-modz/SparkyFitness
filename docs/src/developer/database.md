@@ -128,6 +128,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | Table | Purpose |
 |-------|---------|
 | `fasting_logs` | Fasting timeline logs (start/end fast) |
+| `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
 | `mood_entries` | Logged mood and energy levels |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
