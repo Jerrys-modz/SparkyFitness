@@ -69,6 +69,7 @@ enum ContextPayloadMapper {
             hiddenPages: payload.keys.contains("hiddenPages")
                 ? stringArray(payload["hiddenPages"])
                 : previous.hiddenPages,
+            doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
             setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
             startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
             workoutServerId: payload.keys.contains("workoutServerId")

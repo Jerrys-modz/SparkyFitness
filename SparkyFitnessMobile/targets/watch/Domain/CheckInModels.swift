@@ -323,6 +323,9 @@ struct WatchContext: Codable, Equatable {
     /// factory order with every page shown. Read through `visiblePages`.
     var pageOrder: [String]?
     var hiddenPages: [String]?
+    /// The phone's Settings → Apple Watch → Double-tap switch. Defaulted so the
+    /// existing initializer calls need not pass it; nil reads as on.
+    var doubleTapEnabled: Bool? = nil
     /// How the workout page takes a set's weight and reps (`keypad` or
     /// `crown`). Optional for the same Codable reason as `weightUnit`; read
     /// `effectiveSetInputStyle`.
@@ -405,6 +408,10 @@ struct WatchContext: Codable, Equatable {
     var effectiveRestBuzzEnabled: Bool {
         effectiveHapticsEnabled && (restAlertsEnabled ?? true)
     }
+
+    /// Whether the double-tap gesture logs a set. On until the phone says
+    /// otherwise.
+    var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.
