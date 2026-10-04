@@ -875,6 +875,17 @@
       "replaceSuccess": "Exercise replaced",
       "suggestedTab": "Suggested"
     },
+    "typeReview": {
+      "button": "Review exercise types",
+      "title": "Review exercise types",
+      "description": "These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone.",
+      "error": "Could not load suggestions",
+      "empty": "All your exercises already match. Nothing to change.",
+      "apply_one": "Apply {{count}} change",
+      "apply_other": "Apply {{count}} changes",
+      "applied": "Exercise types updated",
+      "applyFailed": "Could not update exercise types"
+    },
     "modality": {
       "weightReps": "Weight & Reps",
       "repsOnly": "Reps",
