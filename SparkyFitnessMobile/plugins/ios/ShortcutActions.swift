@@ -238,6 +238,15 @@ struct EndFastIntent: AppIntent {
             else {
                 return .result(dialog: "You are not fasting right now.")
             }
+            // With auto-calculation on, /current also answers with a fast worked
+            // out from the user's meals. During its eating window that is the
+            // opposite of fasting, and a calculated fast has no row to end.
+            if fast["is_eating_window"] as? Bool == true {
+                return .result(dialog: "You are not fasting right now.")
+            }
+            if fast["is_auto_calculated"] as? Bool == true {
+                return .result(dialog: "Your fast is worked out from your meals, so there is nothing to end. It ends when you log your next meal.")
+            }
             _ = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/fasting/end",
                 body: ["id": id, "start_time": startedAt, "end_time": isoString(Date())]
