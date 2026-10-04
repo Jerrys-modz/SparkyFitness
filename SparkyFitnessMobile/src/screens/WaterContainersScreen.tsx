@@ -408,7 +408,8 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
               <View className="flex-row justify-between items-center">
                 <Text className="text-base font-semibold text-text-primary flex-shrink">
                   {t('waterContainers.backgroundLog.title', {
-                    defaultValue: 'Log water without opening the app',
+                    defaultValue:
+                      'Let Siri and Shortcuts log without opening the app',
                   })}
                 </Text>
                 <Switch
@@ -420,7 +421,7 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
               <Text className="text-text-secondary text-sm mt-3">
                 {t('waterContainers.backgroundLog.description', {
                   defaultValue:
-                    'Adds a Log water shortcut (Siri, Spotlight, Shortcuts and the Action button on iPhone; the app icon menu on Android) that logs one drink of the container shown on your dashboard and tells you the result without opening SparkyFitness. To do this while the app is closed, your server address and login are kept in a second, encrypted place on this phone. Turning this off, or removing your server, erases that copy.',
+                    'Adds Log water, Log weight, Start fast and End fast actions for Siri, Spotlight, Shortcuts and the Action button on iPhone (and a Log water entry in the app icon menu on Android). They run without opening SparkyFitness and tell you the result. Water uses the container shown on your dashboard. To work while the app is closed, your server address and login are kept in a second, encrypted place on this phone. Turning this off, or removing your server, erases that copy.',
                 })}
               </Text>
             </View>

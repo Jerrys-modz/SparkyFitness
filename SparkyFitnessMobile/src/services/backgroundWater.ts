@@ -14,14 +14,23 @@ export function isBackgroundWaterSupported(): boolean {
 export interface BackgroundWaterConfig {
   baseUrl: string;
   headers: Record<string, string>;
-  containerId: number;
-  containerName: string;
-  volumeLabel: string | null;
+  /** Absent when the user has no water container yet; water actions then ask for one. */
+  containerId?: number;
+  containerName?: string;
+  volumeLabel?: string | null;
+  /** The unit a weight is spoken or typed in; the server always stores kg. */
+  weightUnit: 'kg' | 'lbs';
 }
+
+type BackgroundWaterContainer = Pick<
+  WaterContainer,
+  'id' | 'name' | 'volume' | 'unit'
+>;
 
 export function buildBackgroundWaterConfig(
   server: Awaited<ReturnType<typeof getActiveServerConfig>>,
-  container: Pick<WaterContainer, 'id' | 'name' | 'volume' | 'unit'>
+  container: BackgroundWaterContainer | undefined,
+  weightUnit: 'kg' | 'lbs' = 'kg'
 ): BackgroundWaterConfig | null {
   if (!server) return null;
   const baseUrl = normalizeUrl(server.url);
@@ -34,11 +43,16 @@ export function buildBackgroundWaterConfig(
       ...getAuthHeaders(server),
       'X-Meal-Model-Version': '2',
     },
-    containerId: container.id,
-    containerName: container.name,
-    volumeLabel: container.volume
-      ? `${container.volume} ${container.unit}`
-      : null,
+    ...(container
+      ? {
+          containerId: container.id,
+          containerName: container.name,
+          volumeLabel: container.volume
+            ? `${container.volume} ${container.unit}`
+            : null,
+        }
+      : {}),
+    weightUnit,
   };
 }
 
@@ -49,14 +63,18 @@ export function buildBackgroundWaterConfig(
  */
 export async function syncBackgroundWater(
   enabled: boolean,
-  container: Pick<WaterContainer, 'id' | 'name' | 'volume' | 'unit'> | undefined
+  container: BackgroundWaterContainer | undefined,
+  weightUnit: 'kg' | 'lbs' = 'kg'
 ): Promise<void> {
   if (!BackgroundWaterModule) return;
   try {
-    const config =
-      enabled && container
-        ? buildBackgroundWaterConfig(await getActiveServerConfig(), container)
-        : null;
+    const config = enabled
+      ? buildBackgroundWaterConfig(
+          await getActiveServerConfig(),
+          container,
+          weightUnit
+        )
+      : null;
     await BackgroundWaterModule.setConfig(
       config ? JSON.stringify(config) : null
     );

@@ -1,6 +1,6 @@
 // Opt-in "Log water without opening the app".
 //
-// iOS: adds the LogWater App Intent (plugins/ios/LogWater.swift) to the app
+// iOS: adds the Siri and Shortcuts App Intents (plugins/ios/ShortcutActions.swift) to the app
 // target; intents are only discovered from the app target, so it cannot live in
 // the Expo module (modules/background-water) that stores the login for it.
 //
@@ -19,7 +19,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 
-const IOS_SOURCE_FILE = 'LogWater.swift';
+const IOS_SOURCE_FILE = 'ShortcutActions.swift';
 
 const MODULE_PACKAGE = 'com.sparkyapps.sparkyfitness.backgroundwater';
 const MODULE_PACKAGE_IMPORT = `import ${MODULE_PACKAGE}.BackgroundWaterPackage`;

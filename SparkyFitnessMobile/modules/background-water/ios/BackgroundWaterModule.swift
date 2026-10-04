@@ -1,13 +1,13 @@
 import ExpoModulesCore
 import Security
 
-// Holds the server address, login and water container the "Log water" App
-// Intent (plugins/ios/LogWater.swift) needs while the app is closed. The copy
-// exists only while the user has switched "Log water without opening the app"
-// on: JavaScript passes nil when it is switched off or the user signs out, which
+// Holds the server address, login, weight unit and water container the Siri and
+// Shortcuts App Intents (plugins/ios/ShortcutActions.swift) need while the app
+// is closed. The copy exists only while the user has switched "Let Siri and
+// Shortcuts log without opening the app" on: JavaScript passes nil when it is switched off or the user signs out, which
 // erases it. It lives in the Keychain, never in UserDefaults or a file.
 //
-// The service and account below must match plugins/ios/LogWater.swift.
+// The service and account below must match plugins/ios/ShortcutActions.swift.
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
 
