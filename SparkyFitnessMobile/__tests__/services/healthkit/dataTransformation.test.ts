@@ -452,6 +452,7 @@ describe('transformHealthRecords', () => {
       const workoutResult = result[0] as TransformedExerciseSession;
       expect(workoutResult.activityType).toBe('Running');
       expect(workoutResult.title).toBe('Running');
+      expect(workoutResult.exercise_source_id).toBe('37');
     });
 
     test('skips a workout our own watch app wrote', () => {

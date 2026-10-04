@@ -723,7 +723,8 @@
     "pregnancy": "Pregnancy",
     "medications": "Medications",
     "foodLog": "Food Log",
-    "wellness": "Wellness"
+    "wellness": "Wellness",
+    "symptoms": "Symptoms"
   },
   "nutrition": {
     "calories": "Calories",
@@ -877,6 +878,7 @@
     "modality": {
       "weightReps": "Weight & Reps",
       "repsOnly": "Reps",
+      "bodyweightReps": "Bodyweight (+/− weight)",
       "duration": "Duration",
       "durationDistance": "Duration & Distance"
     },
@@ -1741,7 +1743,7 @@
       "canManageCheckin": "Can Manage Check-in Data",
       "canManageCheckinHelp": "Allows delegate to log weight, body measurements, progress photos, sleep logs, mood logs, and fasting status on your behalf. Diary logs are blocked. Gives read-only profile access.",
       "canManageMedications": "Can Manage Medications",
-      "canManageMedicationsHelp": "Allows delegate to log medications, doses, titration plans, symptoms, and injection sites on your behalf. Diary logs are blocked. Gives read-only profile access.",
+      "canManageMedicationsHelp": "Allows delegate to log medications, doses, titration plans, and injection sites on your behalf. Diary logs are blocked. Gives read-only profile access.",
       "canViewReports": "Can View Reports",
       "canViewReportsHelp": "Allows delegate to view charts, statistics, and historical logs on your dashboard. No write privileges are granted. Gives read-only profile access.",
       "shareExternalProviders": "Share External Data Providers",
@@ -1766,7 +1768,10 @@
       "sharesExternalProviders": "Shares External Providers",
       "noEndDate": "No end date",
       "editRule": "Edit access rule",
-      "deleteRule": "Delete access rule"
+      "deleteRule": "Delete access rule",
+      "canManageSymptoms": "Can Manage Symptoms",
+      "canManageSymptomsHelp": "Allows delegate to log and edit symptoms, episodes, triggers, treatments, and photos on your behalf. Menstrual cycle and pregnancy symptoms are never shared. Diary logs are blocked.",
+      "managesSymptoms": "Manages Symptoms"
     },
     "customCategories": {
       "title": "Custom Categories",
@@ -2492,9 +2497,11 @@
         "title": "Login Management",
         "description": "Enable or disable different methods for users to log in.",
         "enableEmailPasswordLogin": "Enable Email & Password Login",
+        "enablePasskeyLogin": "Enable Passkey Login",
         "enableOidcLoginGlobal": "Enable OIDC Login (Global)",
         "emergencyFailSafe": "Emergency Fail-Safe:",
         "emergencyFailSafeDescription": "If you are ever locked out of your account, you can force email/password login to be enabled by setting the following environment variable on your server and restarting it:",
+        "emergencyFailSafePasskeyDescription": "If passkey login was turned off and you can no longer sign in, force it back on with:",
         "envVarCopied": "Environment variable copied to clipboard.",
         "enforceMfaForAllUsers": "Enforce MFA for all users"
       },
@@ -3320,7 +3327,8 @@
       "fasting": "Fasting & Mood",
       "measurements": "Measurements",
       "photos": "Photos",
-      "sleep": "Sleep"
+      "sleep": "Sleep",
+      "symptoms": "Symptoms"
     },
     "noRecentActivity": "No recent activity found."
   },
@@ -4144,7 +4152,8 @@
     "hips": "Hips",
     "height": "Height",
     "bodyFatPercentage": "Body Fat %",
-    "nutrientBalance": "{{nutrient}} Balance"
+    "nutrientBalance": "{{nutrient}} Balance",
+    "symptomsTab": "Symptoms"
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",
@@ -5721,6 +5730,7 @@
   },
   "warning": "Warning",
   "workout": {
+    "addedWeight": "+/− weight",
     "avgHr": "Avg HR (bpm)",
     "calories": "Calories",
     "caloriesAuto": "Auto",
@@ -6370,5 +6380,282 @@
     "useUsual": "Use my usual",
     "useAdjusted": "Use the adjusted suggestion",
     "seeAlternatives": "See alternatives"
+  },
+  "symptoms": {
+    "manage": {
+      "show": "Show {{name}}",
+      "addOption": "Add your own",
+      "title": "Manage symptoms",
+      "description": "Choose what you track, what you are asked, and the choices you see.",
+      "tabSymptoms": "Symptoms",
+      "tabLists": "Choices",
+      "new": "New symptom",
+      "episodeTag": "episodes",
+      "unpin": "Unpin {{name}}",
+      "pin": "Pin {{name}}",
+      "edit": "Edit {{name}}",
+      "hide": "Hide {{name}}",
+      "delete": "Delete {{name}}",
+      "hidden": "Hidden",
+      "restore": "Show again",
+      "keepHistory": "Hiding or deleting a symptom never removes your past logs.",
+      "name": "Name",
+      "template": "Type",
+      "category": "Group",
+      "scale": "Rated on",
+      "episodic": "Usually an episode with a start and end (like a migraine)",
+      "sections": "What to ask when logging",
+      "fields": "Your own fields",
+      "fieldLabel": "Label",
+      "fieldType": "Type",
+      "removeField": "Remove field",
+      "fieldOptions": "Choices, separated by commas",
+      "fieldUnit": "Unit (optional)",
+      "addField": "Add a field",
+      "section": {
+        "locations": "Where it is",
+        "phases": "Headache phases",
+        "qualities": "What it feels like",
+        "associated": "Other symptoms",
+        "triggers": "Possible triggers",
+        "treatments": "Treatments",
+        "impact": "Effect on the day",
+        "notes": "Notes",
+        "medication": "Possible side effect of a medication",
+        "bristol": "Bristol stool scale",
+        "photos": "Photos",
+        "custom_fields": "Your own fields"
+      }
+    },
+    "chips": {
+      "remove": "Remove {{name}}",
+      "add": "Add",
+      "save": "Save",
+      "newLabel": "New option name"
+    },
+    "detail": {
+      "delete": "Delete",
+      "confirmDelete": "Delete this log?",
+      "edit": "Edit",
+      "editTitle": "Edit symptom log"
+    },
+    "treatments": {
+      "addMedication": "Add a medication",
+      "didItHelp": "Did it help?",
+      "helped": "Helped",
+      "partly": "Partly",
+      "didnt": "Didn't help"
+    },
+    "map": {
+      "view": "Map view",
+      "front": "Front",
+      "back": "Back",
+      "headLabel": "Head map",
+      "bodyLabel": "Body map",
+      "hint": "Tap where it hurts. Left and right are yours."
+    },
+    "severity": {
+      "label": "Severity",
+      "count": "How many times",
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe",
+      "low": "1 mild",
+      "high": "{{max}} worst"
+    },
+    "form": {
+      "started": "Started",
+      "now": "Now",
+      "minutesAgo": "−{{n}} min",
+      "hoursAgo": "−{{n}} h",
+      "pick": "Pick…",
+      "startedAt": "Start date and time",
+      "ongoing": "Still ongoing",
+      "ended": "Ended",
+      "symptom": "Symptom",
+      "newSymptom": "New symptom",
+      "kind": "Kind of entry",
+      "quick": "Quick log",
+      "episode": "Episode",
+      "newSymptomPlaceholder": "e.g. Lower back pain",
+      "newSymptomName": "New symptom name",
+      "noMedication": "No medication linked",
+      "notesPlaceholder": "Anything else worth remembering",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "update": "Update",
+      "saveEpisode": "Save episode",
+      "save": "Save",
+      "title": "Log a symptom"
+    },
+    "sections": {
+      "where": "Where",
+      "phases": "Phases",
+      "optional": "optional",
+      "qualities": "What it feels like",
+      "associated": "Other symptoms",
+      "triggers": "Possible triggers",
+      "treatments": "Treatments",
+      "noneYet": "none yet",
+      "impact": "Effect on your day",
+      "bristol": "Bowel log (Bristol scale)",
+      "medication": "Possible side effect of",
+      "details": "More details",
+      "notes": "Notes",
+      "photos": "Photos"
+    },
+    "photos": {
+      "saved": "Saved photo",
+      "remove": "Remove photo",
+      "add": "Add photos"
+    },
+    "episode": {
+      "ongoing": "ongoing",
+      "peak": "peak {{n}}",
+      "saveTreatments": "Save treatments",
+      "updateSeverity": "Update severity",
+      "saveReading": "Save reading",
+      "addRelief": "Add relief",
+      "addReliefHint": "Record what you took or did, and whether it helped.",
+      "end": "End episode",
+      "endTitle": "End this episode",
+      "endHint": "Set when it ended, and mark what helped.",
+      "endedWhen": "It ended",
+      "didAnythingHelp": "Did anything help?",
+      "startedAt": "started {{time}}"
+    },
+    "history": {
+      "title": "Recent symptoms",
+      "loading": "Loading…",
+      "empty": "Nothing logged in the past 30 days. Use the form to log a symptom.",
+      "cycle": "Cycle"
+    },
+    "calendar": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "free": "Symptom-free",
+      "mild": "Mild to moderate",
+      "severe": "Severe",
+      "unknown": "No entry"
+    },
+    "hub": {
+      "title": "Symptoms",
+      "subtitle": "Track symptoms and episodes, and see what tends to come with them.",
+      "manage": "Manage",
+      "anyToday": "Any symptoms on {{date}}?",
+      "today": "today",
+      "markedFree": "Marked as a symptom-free day.",
+      "undo": "Undo",
+      "noneToday": "No symptoms",
+      "logAgain": "Log again"
+    },
+    "chart": {
+      "summary": "Severity over the episode, {{count}} readings"
+    },
+    "phases": {
+      "prodrome": "Before the headache",
+      "aura": "Aura",
+      "postdrome": "After the headache"
+    },
+    "triggerGroups": {
+      "sleep": "Sleep",
+      "food_drink": "Food & drink",
+      "lifestyle": "Lifestyle",
+      "environment": "Environment",
+      "hormonal": "Hormonal",
+      "other": "Other",
+      "mine": "Mine"
+    },
+    "impact": {
+      "none": "None",
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe"
+    },
+    "templates": {
+      "generic": "General",
+      "headache": "Headache or migraine",
+      "pain": "Pain",
+      "gi": "Stomach and gut",
+      "respiratory": "Breathing and allergy",
+      "skin": "Skin",
+      "mental": "Mood and anxiety"
+    },
+    "categories": {
+      "general": "General",
+      "pain": "Pain",
+      "head": "Head",
+      "gi": "Stomach and gut",
+      "respiratory": "Breathing",
+      "skin": "Skin",
+      "mental": "Mind",
+      "other": "Other"
+    },
+    "scales": {
+      "1-5": "1 to 5",
+      "1-10": "1 to 10",
+      "none-severe": "Mild, moderate, severe",
+      "count": "A count",
+      "text": "Notes only"
+    },
+    "fieldTypes": {
+      "number": "Number",
+      "text": "Text",
+      "boolean": "Yes or no",
+      "select": "One choice",
+      "multiselect": "Several choices"
+    },
+    "optionKinds": {
+      "location": "Body locations",
+      "head_location": "Head locations",
+      "quality": "What it feels like",
+      "associated": "Other symptoms",
+      "trigger": "Triggers",
+      "relief": "Relief methods"
+    },
+    "report": {
+      "symptomDays": "Symptom days",
+      "episodes": "Episodes",
+      "freeDays": "Symptom-free days",
+      "averageDuration": "Average episode",
+      "medicationDays": "Days with medication",
+      "symptom": "Symptom",
+      "allSymptoms": "All symptoms",
+      "exportCsv": "Export CSV",
+      "print": "Print for a doctor",
+      "medicationCaution": "Taking medication for symptoms on 10 or more days is worth raising with your doctor. This is a reminder, not a diagnosis.",
+      "recentEpisodes": "Recent episodes",
+      "recentEpisodesHint": "Side by side, with what your diary holds around each one.",
+      "showLast": "How many to show",
+      "lastN": "Last {{n}}",
+      "noEpisodes": "No episodes in this date range. Log an episode with a start time to see it here.",
+      "col": {
+        "started": "Started",
+        "duration": "Duration",
+        "peak": "Peak",
+        "where": "Where",
+        "triggers": "Triggers",
+        "relief": "Relief",
+        "slept": "Slept",
+        "food": "Day before",
+        "water": "Water"
+      },
+      "factorsTitle": "What came before",
+      "factorsHint": "How many of your last {{n}} episodes had each of these. This describes what happened; it does not show a cause.",
+      "notEnough": "Not enough episodes yet to read a pattern (at least {{n}})",
+      "noFactors": "Add triggers to your episodes, and log sleep and food, to see what tends to come before them.",
+      "ofKnown": "{{count}} of {{known}}",
+      "timeOfDay": "Time of day",
+      "timeOfDayHint": "When symptoms were logged or started.",
+      "printTitle": "Symptom report",
+      "printSummary": "{{days}} symptom days, {{episodes}} episodes, {{free}} symptom-free days, {{meds}} days with medication.",
+      "factor": {
+        "short_sleep": "Slept under 6 hours the night before",
+        "low_water": "Under 1.5 L of water the day before",
+        "alcohol": "Alcohol in the food names",
+        "caffeine": "Caffeine in the food names",
+        "menstrual_phase": "During the menstrual phase"
+      }
+    }
   }
 }

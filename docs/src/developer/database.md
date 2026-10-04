@@ -136,8 +136,12 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `medication_pens` | Trackers for medication delivery pens |
 | `medication_titration_steps` | Automated titration dosage plans |
 | `injection_entries` | Injection logs (site, time, etc.) |
-| `user_custom_symptoms` | Custom tracked health symptoms |
-| `symptom_entries` | Logs of daily tracked symptom severity |
+| `user_custom_symptoms` | Symptom definitions (template, sections, custom fields) |
+| `symptom_entries` | Symptom quick logs and episodes (also holds cycle-hub symptoms, `source = 'cycle'`) |
+| `user_symptom_options` | Pick-list library: locations, qualities, associated symptoms, triggers, relief methods |
+| `symptom_entry_treatments` | Medications and relief methods used for a symptom entry, with effectiveness |
+| `symptom_entry_photos` | Photos attached to a symptom entry |
+| `symptom_free_days` | Explicit "no symptoms today" markers |
 
 ### Cycle & Pregnancy (Tier 1: Owner-Only)
 | Table | Purpose |
@@ -187,6 +191,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `external_data_providers` | Configured API integration credentials, including personal or global Open Food Facts accounts |
 | `openfoodfacts_product_read_rate_limit` | Singleton lease and cooldown coordinating Open Food Facts product reads across server instances |
 | `openfoodfacts_sync_queue` | Dormant revision-aware automatic upload state and retained history; unused by manual contributions |
+| `rate_limit` | Sign-in rate limit counters shared across server instances |
 | `medication_types` | Medication categories lookup |
 | `medication_route_types` | Medication administration routes lookup |
 | `medication_schedule_types` | Medication scheduling frequencies lookup |

@@ -15,6 +15,12 @@ import {
   HEALTH_TREND_KEYS,
   type HealthTrendKey,
 } from '../constants/healthTrends';
+import {
+  DEFAULT_WATCH_NUTRIENTS,
+  WATCH_PAGE_KEYS,
+  type WatchPageKey,
+  type WatchSetInputStyle,
+} from '../constants/watchPages';
 import type { LanguagePreference } from '../localization';
 import type { OwnershipFilter } from '../utils/shareStatus';
 
@@ -66,12 +72,14 @@ export const PREFERENCE_DEFAULTS = {
   cycleCardVisible: true,
   askSparkyVisible: true,
   medicationsCardVisible: true,
+  symptomsCardVisible: true,
   progressPhotosCardVisible: true,
   healthTrendsCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
+  medicationReminderConsolidate: true,
   waterReminderEnabled: false,
   waterReminderIntervalHours: 2 as WaterReminderIntervalHours,
   waterReminderWindowStart: '08:00' as string,
@@ -92,6 +100,11 @@ export const PREFERENCE_DEFAULTS = {
   languagePreference: 'system' as LanguagePreference,
   healthTrendOrder: [...HEALTH_TREND_KEYS] as HealthTrendKey[],
   hiddenHealthTrends: [] as HealthTrendKey[],
+  watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
+  hiddenWatchPages: [] as WatchPageKey[],
+  watchNutrientOrder: [] as string[],
+  shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
+  watchSetInputStyle: 'keypad' as WatchSetInputStyle,
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
   foodsLibraryOwnershipFilter: 'all' as OwnershipFilter,
   mealsLibraryOwnershipFilter: 'all' as OwnershipFilter,
@@ -116,12 +129,14 @@ export type AppPreferencesData = {
   cycleCardVisible: boolean;
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
+  symptomsCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   healthTrendsCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
+  medicationReminderConsolidate: boolean;
   waterReminderEnabled: boolean;
   waterReminderIntervalHours: WaterReminderIntervalHours;
   waterReminderWindowStart: string;
@@ -153,6 +168,19 @@ export type AppPreferencesData = {
   languagePreference: LanguagePreference;
   healthTrendOrder: HealthTrendKey[];
   hiddenHealthTrends: HealthTrendKey[];
+  /** Swipe order of the Apple Watch app's pages; sent to the watch. */
+  watchPageOrder: WatchPageKey[];
+  /** Watch pages turned off in Settings → Apple Watch. */
+  hiddenWatchPages: WatchPageKey[];
+  /**
+   * Order of the nutrients the watch's Goals page can list (standard keys and
+   * custom nutrient names). Empty until the wearer drags one.
+   */
+  watchNutrientOrder: string[];
+  /** The nutrients the Goals page lists under the calorie ring. */
+  shownWatchNutrients: string[];
+  /** How the watch takes a set's weight and reps: keypad or Digital Crown. */
+  watchSetInputStyle: WatchSetInputStyle;
   foodSearchOwnershipFilter: OwnershipFilter;
   foodsLibraryOwnershipFilter: OwnershipFilter;
   mealsLibraryOwnershipFilter: OwnershipFilter;
@@ -177,12 +205,14 @@ export interface AppPreferencesState extends AppPreferencesData {
   setCycleCardVisible: (value: boolean) => void;
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
+  setSymptomsCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
+  setMedicationReminderConsolidate: (value: boolean) => void;
   setWaterReminderEnabled: (value: boolean) => void;
   setWaterReminderIntervalHours: (value: WaterReminderIntervalHours) => void;
   setWaterReminderWindow: (start: string, end: string) => void;
@@ -202,6 +232,11 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendOrder: (order: HealthTrendKey[]) => void;
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
+  setWatchPageOrder: (order: WatchPageKey[]) => void;
+  setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
+  setWatchNutrientOrder: (order: string[]) => void;
+  setWatchNutrientShown: (key: string, isShown: boolean) => void;
+  setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
   setFoodSearchOwnershipFilter: (value: OwnershipFilter) => void;
   setFoodsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
   setMealsLibraryOwnershipFilter: (value: OwnershipFilter) => void;
@@ -249,6 +284,17 @@ const legacyAwareStorage = {
   removeItem: (name: string): Promise<void> => AsyncStorage.removeItem(name),
 };
 
+/** `list` with `key` added (`include`) or removed, without duplicates. */
+function withMembership<K>(list: readonly K[], key: K, include: boolean): K[] {
+  const members = new Set(list);
+  if (include) {
+    members.add(key);
+  } else {
+    members.delete(key);
+  }
+  return Array.from(members);
+}
+
 export const useAppPreferencesStore = create<AppPreferencesState>()(
   persist(
     (set) => ({
@@ -272,6 +318,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setAskSparkyVisible: (value) => set({ askSparkyVisible: value }),
       setMedicationsCardVisible: (value) =>
         set({ medicationsCardVisible: value }),
+      setSymptomsCardVisible: (value) => set({ symptomsCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
       setHealthTrendsCardVisible: (value) =>
@@ -283,6 +330,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ medicationReminderRepeats: value }),
       setMedicationReminderHideNames: (value) =>
         set({ medicationReminderHideNames: value }),
+      setMedicationReminderConsolidate: (value) =>
+        set({ medicationReminderConsolidate: value }),
       setWaterReminderEnabled: (value) => set({ waterReminderEnabled: value }),
       setWaterReminderIntervalHours: (value) =>
         set({ waterReminderIntervalHours: value }),
@@ -311,15 +360,32 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setLanguagePreference: (value) => set({ languagePreference: value }),
       setHealthTrendOrder: (order) => set({ healthTrendOrder: order }),
       setHealthTrendHidden: (key, isHidden) =>
-        set((state) => {
-          const currentHidden = new Set(state.hiddenHealthTrends);
-          if (isHidden) {
-            currentHidden.add(key);
-          } else {
-            currentHidden.delete(key);
-          }
-          return { hiddenHealthTrends: Array.from(currentHidden) };
-        }),
+        set((state) => ({
+          hiddenHealthTrends: withMembership(
+            state.hiddenHealthTrends,
+            key,
+            isHidden
+          ),
+        })),
+      setWatchPageOrder: (order) => set({ watchPageOrder: order }),
+      setWatchNutrientOrder: (order) => set({ watchNutrientOrder: order }),
+      setWatchSetInputStyle: (value) => set({ watchSetInputStyle: value }),
+      setWatchNutrientShown: (key, isShown) =>
+        set((state) => ({
+          shownWatchNutrients: withMembership(
+            state.shownWatchNutrients,
+            key,
+            isShown
+          ),
+        })),
+      setWatchPageHidden: (key, isHidden) =>
+        set((state) => ({
+          hiddenWatchPages: withMembership(
+            state.hiddenWatchPages,
+            key,
+            isHidden
+          ),
+        })),
       setFoodSearchOwnershipFilter: (value) =>
         set({ foodSearchOwnershipFilter: value }),
       setFoodsLibraryOwnershipFilter: (value) =>
@@ -354,12 +420,14 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         cycleCardVisible: state.cycleCardVisible,
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
+        symptomsCardVisible: state.symptomsCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,
+        medicationReminderConsolidate: state.medicationReminderConsolidate,
         waterReminderEnabled: state.waterReminderEnabled,
         waterReminderIntervalHours: state.waterReminderIntervalHours,
         waterReminderWindowStart: state.waterReminderWindowStart,
@@ -382,6 +450,11 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         languagePreference: state.languagePreference,
         healthTrendOrder: state.healthTrendOrder,
         hiddenHealthTrends: state.hiddenHealthTrends,
+        watchPageOrder: state.watchPageOrder,
+        hiddenWatchPages: state.hiddenWatchPages,
+        watchNutrientOrder: state.watchNutrientOrder,
+        shownWatchNutrients: state.shownWatchNutrients,
+        watchSetInputStyle: state.watchSetInputStyle,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
         foodsLibraryOwnershipFilter: state.foodsLibraryOwnershipFilter,
         mealsLibraryOwnershipFilter: state.mealsLibraryOwnershipFilter,

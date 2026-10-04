@@ -54,7 +54,16 @@ enum SampleDay {
         calorieProgress: 1,
         carbs: MacroGoal(consumed: 136, goal: 150, progress: 0.91),
         fat: MacroGoal(consumed: 66, goal: 60, progress: 1),
-        protein: MacroGoal(consumed: 112, goal: 179, progress: 0.63)
+        protein: MacroGoal(consumed: 112, goal: 179, progress: 0.63),
+        // The macros plus two the wearer added in Settings → Apple Watch: one
+        // with a goal and one without, the two ways a row can draw.
+        rows: [
+            NutrientRow(key: "protein", label: "Protein", unit: "g", consumed: 112, goal: 179, progress: 0.63),
+            NutrientRow(key: "carbs", label: "Carbs", unit: "g", consumed: 136, goal: 150, progress: 0.91),
+            NutrientRow(key: "fat", label: "Fat", unit: "g", consumed: 66, goal: 60, progress: 1),
+            NutrientRow(key: "dietary_fiber", label: "Fiber", unit: "g", consumed: 21, goal: 30, progress: 0.7),
+            NutrientRow(key: "sodium", label: "Sodium", unit: "mg", consumed: 1840, goal: nil, progress: 0),
+        ]
     )
 
     // MARK: - Weight history
@@ -103,7 +112,10 @@ enum SampleDay {
             waterDisplayUnit: "liter",
             generatedAt: Date(),
             hapticsEnabled: true,
-            restAlertsEnabled: true
+            restAlertsEnabled: true,
+            pageOrder: nil,
+            hiddenPages: nil,
+            setInputStyle: nil
         )
     }
 

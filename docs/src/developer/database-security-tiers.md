@@ -12,7 +12,7 @@ PostgreSQL session variables are initialized at the start of every pool client t
 
 1. **`current_user_id()`**: Returns the ID of the **active profile context** being viewed (which changes during family delegation context switching; read from `app.user_id`).
 2. **`authenticated_user_id()`**: Returns the ID of the **true authenticated logged-in actor** (which never changes during context switching; read from `app.authenticated_user_id`).
-3. **`can_access_user_data(targetUserId, permissionType, authenticatedUserId)`**: Checks whether the authenticated user holds the given logical permission over the target user's data (`diary`, `checkin`, `medications`, `reports`, and read-only `*_read` variants). Domain helpers such as `has_diary_read_access`, `has_checkin_read_access`, and `has_medication_access` wrap it. Cycle and pregnancy are owner-only and are **not** delegatable.
+3. **`can_access_user_data(targetUserId, permissionType, authenticatedUserId)`**: Checks whether the authenticated user holds the given logical permission over the target user's data (`diary`, `checkin`, `medications`, `symptoms`, `reports`, and read-only `*_read` variants). Domain helpers such as `has_diary_read_access`, `has_checkin_read_access`, `has_medication_access`, and `has_symptom_access` wrap it. Cycle and pregnancy are owner-only and are **not** delegatable.
 
 ---
 
@@ -52,6 +52,7 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `health_appointments` | Prenatal & other health appointments | Owner-Only | Owner-Only |
 | `openfoodfacts_product_read_rate_limit` | Singleton coordination lease and cooldown for Open Food Facts product reads, including manual previews; contains no user data or credentials | System services only | Deny all |
 | `openfoodfacts_sync_queue` | Dormant automatic Open Food Facts upload state and retained history; stores food/user identifiers and retry metadata, never provider credentials. The manual first release does not enqueue or process these rows. | System worker and owning user | Owner-Only |
+| `rate_limit` | Sign-in rate limit counters shared by every server instance, keyed by client address and route; holds no account data or credentials | Better Auth only | Deny all |
 
 ---
 
@@ -119,7 +120,7 @@ These tables contain daily diaries, logging entries, and scheduler items. **Care
 | `workout_plan_assignment_sets` | Active sets scheduled in workout plans | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 | `workout_feedback` | How a logged workout (or one exercise in it) felt: `difficulty` (`too_easy` / `just_right` / `too_hard`), a `pain` flag and optional `pain_note`; drives adaptive workout suggestions. Writes must reference the same user's session/exercise entry | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 
-#### B. Medication & Symptom Logs (Writable by delegates with `can_manage_medications` / Readable by `can_view_reports` or `can_manage_medications`)
+#### B. Medication Logs (Writable by delegates with `can_manage_medications` / Readable by `can_view_reports` or `can_manage_medications`)
 
 | Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
@@ -129,9 +130,19 @@ These tables contain daily diaries, logging entries, and scheduler items. **Care
 | `medication_pens` | Trackers for medication delivery pens | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
 | `injection_entries` | Injection logs (e.g., site of injection) | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
 | `medication_titration_steps` | Automated titration dosage plans | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
-| `user_custom_symptoms` | Custom tracked health symptoms | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
-| `symptom_entries` | Logs of daily tracked symptom severity | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
-| `user_custom_symptom_locations` | Custom locations where symptoms occur | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
+
+#### B2. Symptom Tracking (Writable by delegates with `can_manage_symptoms` / Readable by `can_manage_symptoms` or `can_view_reports`)
+
+Symptoms are their own domain (they used to share the medications permission). Policies use `create_symptom_policy`, backed by `has_symptom_access` / `has_symptom_read_access`.
+
+| Table Name | Description | Write (insert/update/delete) | Read (select) |
+| :--- | :--- | :--- | :--- |
+| `user_custom_symptoms` | The user's symptom definitions: template, section overrides, custom fields, scale | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
+| `user_symptom_options` | Pick-list library (locations, qualities, associated symptoms, triggers, relief methods); replaces `user_custom_symptom_locations` | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
+| `symptom_entries` | Quick logs and episodes (start/end, locations, triggers, severity timeline). **Rows with `source = 'cycle'` come from the menstrual-cycle hub and are owner-only:** no delegate can read or write them, whatever they hold | Delegate with `can_manage_symptoms` (never `source = 'cycle'`) | Delegate with `can_manage_symptoms` or `can_view_reports` (never `source = 'cycle'`) |
+| `symptom_entry_treatments` | Medications and relief methods used for an entry, with effectiveness | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
+| `symptom_entry_photos` | Photos attached to an entry. Files live under `uploads/symptoms/`, which is denied on the public static mount and served only by the authenticated `GET /api/v2/symptoms/photos/file/{id}` route | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
+| `symptom_free_days` | Explicit "no symptoms today" markers (a day with neither an entry nor a marker is unknown, not symptom-free) | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
 
 #### C. Check-In & Wellness Logs (Writable by delegates with `can_manage_checkin` / Readable by `can_view_reports` or `can_manage_checkin`)
 
