@@ -579,7 +579,9 @@
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "exerciseStatistics": "Exercise statistics",
-      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map"
+      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map",
+      "exerciseTypeReview": "Review exercise types",
+      "exerciseTypeReviewSubtitle": "Fix tracking types that were picked by hand"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -589,7 +591,8 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
-    "aiSettings": "AI"
+    "aiSettings": "AI",
+    "exerciseTypeReview": "Review Exercise Types"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5919,5 +5922,18 @@
         "medications": "Medications"
       }
     }
+  },
+  "exerciseTypeReview": {
+    "intro": "These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone.",
+    "empty": "All your exercises already match",
+    "emptySubtitle": "Nothing to change.",
+    "error": "Could not load suggestions",
+    "retry": "Try again",
+    "apply": "Apply {{count}} change",
+    "apply_other": "Apply {{count}} changes",
+    "applied": "Updated {{count}} exercise",
+    "applied_other": "Updated {{count}} exercises",
+    "applyFailed": "Could not update exercises",
+    "change": "{{from}} → {{to}}"
   }
 }
