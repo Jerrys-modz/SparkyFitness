@@ -435,8 +435,13 @@ export interface ActiveWorkoutState {
 
   /** Patch value fields on a set. Weight is in kg — UI converts before calling. */
   updateSetField: (setId: string, patch: ActiveSetPatch) => void;
-  /** Start a timed/hold set's stopwatch. */
-  startSetTimer: (setId: string) => void;
+  /**
+   * Start a timed/hold set's stopwatch. `startedAt` (epoch ms) is for a timer
+   * the watch already started; omitted, it starts now.
+   */
+  startSetTimer: (setId: string, startedAt?: number) => void;
+  /** Drop a set's stopwatch without writing a duration. */
+  clearSetTimer: (setId: string) => void;
   /**
    * Move a running stopwatch's start forward by `deltaMs`, so time spent
    * paused (guided mode's Pause) is not counted. No-op when none is running.
@@ -2019,12 +2024,23 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         });
       },
 
-      startSetTimer: (setId) => {
+      startSetTimer: (setId, startedAt) => {
         const { setTimerStartedAt } = get();
         if (setTimerStartedAt[setId] != null) return;
         set({
-          setTimerStartedAt: { ...setTimerStartedAt, [setId]: Date.now() },
+          setTimerStartedAt: {
+            ...setTimerStartedAt,
+            [setId]: startedAt ?? Date.now(),
+          },
         });
+      },
+
+      clearSetTimer: (setId) => {
+        const { setTimerStartedAt } = get();
+        if (setTimerStartedAt[setId] == null) return;
+        const rest = { ...setTimerStartedAt };
+        delete rest[setId];
+        set({ setTimerStartedAt: rest });
       },
 
       shiftSetTimer: (setId, deltaMs) => {

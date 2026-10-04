@@ -540,9 +540,20 @@ private struct CurrentSetView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
+            let values = store.values(for: step)
+            let holdSeconds = store.targetDurationSec(for: step)
+            let timed = store.isTimed(step)
             HStack(spacing: 4) {
-                valueBox(.weight)
-                valueBox(.reps)
+                if !timed || values.weightKg != nil {
+                    valueBox(.weight)
+                }
+                if let holdSeconds {
+                    HoldCountdown(setId: step.plannedSet.setId, totalSeconds: holdSeconds)
+                } else if timed {
+                    HoldStopwatch(setId: step.plannedSet.setId)
+                } else {
+                    valueBox(.reps)
+                }
             }
             .focusable(crownField != nil)
             .focused($crownFocused)
@@ -845,6 +856,95 @@ private struct CurrentSetView: View {
     }
 }
 
+/// Hold countdown for a duration set. Tap starts it; at 0:00 it buzzes
+/// through the same rest-finished hook. `TimelineView` rather than a stored
+/// timer publisher: the store republishes every second and would freeze a
+/// `Timer.publish` the way the rest screen used to.
+private struct HoldCountdown: View {
+    let setId: String
+    let totalSeconds: Int
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let started = store.holdSetId == setId && store.holdEndsAt != nil
+            let remaining = started
+                ? (store.holdRemaining(for: setId, now: context.date) ?? 0)
+                : totalSeconds
+            VStack(spacing: 2) {
+                Text(Self.clock(remaining))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if !started {
+                    Button("Start") {
+                        store.startHold(for: setId, seconds: totalSeconds)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+    }
+}
+
+/// Count-up timer for a duration set with no planned length. Start begins it;
+/// ticking the set logs the elapsed seconds.
+private struct HoldStopwatch: View {
+    let setId: String
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = store.stopwatchElapsed(for: setId, now: context.date)
+            VStack(spacing: 2) {
+                Text(Self.clock(elapsed ?? 0))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if elapsed == nil {
+                    if let previous = store.previousDurationSec(forSetId: setId) {
+                        Text("Last \(Self.clock(previous))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Button("Start") {
+                        store.startStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                } else if store.isStopwatchRunning(for: setId) {
+                    Button("Stop") {
+                        store.stopStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+    }
+}
+
 /// One big tappable number with its unit underneath. Outlined while the crown
 /// is adjusting it.
 private struct ValueBox: View {
@@ -1032,18 +1132,28 @@ private struct RestView: View {
     private func nextTargetLabel(for step: WorkoutStep) -> String {
         let values = store.values(for: step)
         let unit = checkIn.context.effectiveWeightUnit
+        if let seconds = store.targetDurationSec(for: step) {
+            let clock = String(format: "%d:%02d", seconds / 60, seconds % 60)
+            if let weight = values.weightKg {
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
+            }
+            return "\(step.label) · \(clock)"
+        }
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):
-            let shown = unit.fromKg(weight)
-            let weightText = shown == shown.rounded()
-                ? String(Int(shown))
-                : String(format: "%.1f", shown)
-            return "\(step.label) · \(weightText)\(unit.suffix) × \(Int(reps))"
+            return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(Int(reps))"
         case let (nil, reps?):
             return "\(step.label) · \(Int(reps)) reps"
         default:
             return step.label
         }
+    }
+
+    private static func weightText(_ kg: Double, unit: WeightUnit) -> String {
+        let shown = unit.fromKg(kg)
+        return shown == shown.rounded()
+            ? String(Int(shown))
+            : String(format: "%.1f", shown)
     }
 }
 
