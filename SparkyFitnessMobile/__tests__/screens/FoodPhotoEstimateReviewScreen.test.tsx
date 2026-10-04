@@ -158,7 +158,11 @@ describe('FoodPhotoEstimateReviewScreen', () => {
     return screen;
   };
 
-  const renderScreen = (estimate = buildEstimate(), images?: any) =>
+  const renderScreen = (
+    estimate = buildEstimate(),
+    images?: any,
+    request: Record<string, unknown> = {}
+  ) =>
     render(
       <SafeAreaProvider initialMetrics={{ insets, frame }}>
         <FoodPhotoEstimateReviewScreen
@@ -169,7 +173,7 @@ describe('FoodPhotoEstimateReviewScreen', () => {
             params: {
               date: '2026-05-18',
               estimate,
-              request: {},
+              request,
               images,
             },
           }}
@@ -195,7 +199,11 @@ describe('FoodPhotoEstimateReviewScreen', () => {
     });
 
     it('offers the cloud after an on-device estimate and sends the photos with skipOnDevice', async () => {
-      const screen = renderScreen(onDeviceEstimate(), photos);
+      const screen = renderScreen(onDeviceEstimate(), photos, {
+        description: 'two pieces of chicken',
+        totalWeight: 12,
+        weightUnit: 'oz',
+      });
       expect(screen.getByText('Regenerate with cloud AI')).toBeTruthy();
       await act(async () => {
         fireEvent.press(screen.getByTestId('regenerate-estimate'));
@@ -203,6 +211,9 @@ describe('FoodPhotoEstimateReviewScreen', () => {
       expect(mockRegenerate).toHaveBeenCalledWith(
         expect.objectContaining({
           skipOnDevice: true,
+          description: 'two pieces of chicken',
+          totalWeight: 12,
+          weightUnit: 'oz',
           images: [{ base64Image: 'BASE64', mimeType: 'image/jpeg' }],
         }),
         expect.anything()
