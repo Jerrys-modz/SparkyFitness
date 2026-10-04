@@ -65,6 +65,7 @@ import {
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
+import { isBackgroundWaterSupported } from '../services/backgroundWater';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import type { HealthTrendDateRange } from '../types/healthTrends';
@@ -276,12 +277,18 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { summaryNutrients, refetch: refetchNutrientPrefs } =
     useNutrientDisplayPreferences({ enabled: isConnected });
 
-  useWidgetSync(summary);
-
   useBackgroundWaterSync(activeWaterContainer);
   // The hydration card and the hydration trend must agree on the unit, so both read it
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
+  const backgroundWaterEnabled = useAppPreferencesStore(
+    (s) => s.backgroundWaterEnabled
+  );
+  useWidgetSync(summary, {
+    drinkMl: servingVolume ?? null,
+    unit: waterDisplayUnit,
+    canLog: backgroundWaterEnabled && isBackgroundWaterSupported(),
+  });
   const hydrationGoal = resolveHydrationGoal(summary?.waterGoal ?? 0);
 
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.

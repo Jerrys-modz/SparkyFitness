@@ -1,6 +1,7 @@
 import AppIntents
 import Foundation
 import Security
+import WidgetKit
 
 // Siri and Shortcuts actions that log without opening the app, then say what
 // happened on screen: Log water, Log weight, Start fast and End fast. They also
@@ -69,6 +70,28 @@ private func isoString(_ date: Date) -> String {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter.string(from: date)
+}
+
+/// Keeps the water widget's snapshot in step with a drink logged from outside
+/// the app, so the widget shows it at once instead of after the app next opens.
+private enum WaterSnapshotWriter {
+    static func addDrinks(_ count: Int) {
+        guard
+            let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+            !group.isEmpty,
+            let defaults = UserDefaults(suiteName: group),
+            let data = defaults.data(forKey: "waterSnapshot"),
+            var snapshot = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            snapshot["date"] as? String == localDateString(),
+            let consumed = snapshot["consumedMl"] as? Double,
+            let drinkMl = snapshot["drinkMl"] as? Double
+        else { return }
+        snapshot["consumedMl"] = consumed + drinkMl * Double(count)
+        if let updated = try? JSONSerialization.data(withJSONObject: snapshot) {
+            defaults.set(updated, forKey: "waterSnapshot")
+            WidgetCenter.shared.reloadTimelines(ofKind: "waterWidget")
+        }
+    }
 }
 
 private enum ShortcutCall {
@@ -154,6 +177,7 @@ struct LogWaterIntent: AppIntent {
                     "container_id": containerId,
                 ]
             )
+            WaterSnapshotWriter.addDrinks(drinks)
             let what = config.volumeLabel.map { "\(name) (\($0))" } ?? name
             return .result(dialog: "Logged \(drinks) × \(what).")
         } catch let failure as ShortcutCall.Failure {
