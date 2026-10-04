@@ -120,6 +120,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// The running timer was started on the phone. If the phone stops it
     /// without logging the set, this one stops too.
     private var holdFollowsPhone = false
+    /// The set this timer belongs to was logged on this watch, so the timer is
+    /// finished and a phone update must not drop or replace it.
+    private var holdLoggedHere = false
     private var startedAt: Date?
     /// Open interval per exercise entry. Closed when the wearer leaves it.
     private var exerciseWindowStartedAt: [String: Date] = [:]
@@ -642,6 +645,7 @@ final class WorkoutSessionStore: ObservableObject {
         if holdSetId == setId, holdEndsAt != nil { return }
         holdStartedAt = nil
         holdStoppedAt = nil
+        holdLoggedHere = false
         holdSetId = setId
         holdTotalSeconds = seconds
         let start = startedAt ?? Date()
@@ -670,6 +674,7 @@ final class WorkoutSessionStore: ObservableObject {
         holdTotalSeconds = 0
         holdBuzzed = true
         holdStoppedAt = nil
+        holdLoggedHere = false
         let start = startedAt ?? Date()
         holdStartedAt = start
         holdFollowsPhone = startedAt != nil
@@ -1292,5 +1297,6 @@ final class WorkoutSessionStore: ObservableObject {
         holdStoppedAt = nil
         holdBuzzed = false
         holdFollowsPhone = false
+        holdLoggedHere = false
     }
 }
