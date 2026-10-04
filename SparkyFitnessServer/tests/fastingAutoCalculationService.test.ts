@@ -417,6 +417,73 @@ describe('fastingAutoCalculationService', () => {
       expect(count).toBe(0);
       expect(fastingRepository.createCompletedFast).not.toHaveBeenCalled();
     });
+
+    it('excludes future planned meals from ending an active fast or creating completed fasts', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-04T12:00:00Z'));
+      try {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({
+            rows: [
+              {
+                id: 'food-past',
+                entry_date: '2026-10-03',
+                entry_time: '19:00',
+                meal_default_time: null,
+                meal_timestamp: new Date('2026-10-03T19:00:00.000Z'),
+                calories: 750,
+                food_name: 'Dinner Steak',
+                meal_type_name: 'Dinner',
+              },
+              {
+                id: 'food-future',
+                entry_date: '2026-10-04',
+                entry_time: '19:00',
+                meal_default_time: null,
+                meal_timestamp: new Date('2026-10-04T19:00:00.000Z'),
+                calories: 600,
+                food_name: 'Planned Dinner',
+                meal_type_name: 'Dinner',
+              },
+            ],
+          }),
+          release: vi.fn(),
+        };
+        vi.mocked(getClient).mockResolvedValue(
+          mockClient as unknown as Awaited<ReturnType<typeof getClient>>
+        );
+
+        vi.mocked(
+          fastingPreferencesRepository.getFastingPreferences
+        ).mockResolvedValue({
+          id: 'pref-1',
+          user_id: 'user-123',
+          auto_calculate: true,
+          default_protocol: '16-8',
+          target_fasting_hours: 16.0,
+          target_eating_hours: 8.0,
+          calorie_threshold: 10,
+          pre_end_alert_minutes: 30,
+          eating_window_alert: false,
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+
+        vi.mocked(fastingRepository.getCurrentFast).mockResolvedValue({
+          id: 'active-fast-1',
+          user_id: 'user-123',
+          start_time: '2026-10-03T19:00:00.000Z',
+          status: 'ACTIVE',
+        });
+
+        const count = await syncCompletedAutoFasts('user-123', 'UTC');
+        expect(count).toBe(0);
+        expect(fastingRepository.createCompletedFast).not.toHaveBeenCalled();
+        expect(fastingRepository.endFast).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('getCurrentAutoFast', () => {

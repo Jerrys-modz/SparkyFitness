@@ -193,12 +193,15 @@ export async function getCurrentAutoFast(
     return null;
   }
 
-  const eatingEvents = clusterEatingEvents(points);
+  const now = new Date();
+  const nowMs = now.getTime();
+  const eatingEvents = clusterEatingEvents(points).filter(
+    (e) => e.start.getTime() <= nowMs
+  );
   if (eatingEvents.length === 0) {
     return null;
   }
 
-  const now = new Date();
   const targetFastHours = prefs.target_fasting_hours || 16.0;
   const targetEatingHours = prefs.target_eating_hours || 8.0;
 
@@ -324,7 +327,10 @@ async function getCalculatedFastingHistory(
     prefs.calorie_threshold
   );
 
-  const eatingEvents = clusterEatingEvents(points);
+  const nowMs = Date.now();
+  const eatingEvents = clusterEatingEvents(points).filter(
+    (e) => e.start.getTime() <= nowMs
+  );
   const results: CalculatedFast[] = [];
   const targetHours = prefs.target_fasting_hours || 16.0;
 
@@ -431,8 +437,11 @@ export async function syncCompletedAutoFasts(
     prefs.calorie_threshold
   );
 
-  const eatingEvents = clusterEatingEvents(points);
-  if (eatingEvents.length < 2) {
+  const syncNowMs = Date.now();
+  const eatingEvents = clusterEatingEvents(points).filter(
+    (e) => e.start.getTime() <= syncNowMs
+  );
+  if (eatingEvents.length === 0) {
     return 0;
   }
 
@@ -447,71 +456,73 @@ export async function syncCompletedAutoFasts(
       `sync_auto_fasts:${userId}`,
     ]);
 
-    for (let i = 0; i < eatingEvents.length - 1; i++) {
-      const prev = eatingEvents[i];
-      const next = eatingEvents[i + 1];
+    if (eatingEvents.length >= 2) {
+      for (let i = 0; i < eatingEvents.length - 1; i++) {
+        const prev = eatingEvents[i];
+        const next = eatingEvents[i + 1];
 
-      const fastStart = prev.end;
-      const fastEnd = next.start;
-      const durationMinutes = Math.floor(
-        (fastEnd.getTime() - fastStart.getTime()) / (60 * 1000)
-      );
+        const fastStart = prev.end;
+        const fastEnd = next.start;
+        const durationMinutes = Math.floor(
+          (fastEnd.getTime() - fastStart.getTime()) / (60 * 1000)
+        );
 
-      // Minimum clinical fasting threshold: 12 hours (720 minutes)
-      if (durationMinutes < 720) {
-        continue;
-      }
+        // Minimum clinical fasting threshold: 12 hours (720 minutes)
+        if (durationMinutes < 720) {
+          continue;
+        }
 
-      const startDayInTz = instantToDay(fastStart, timezone);
-      const endDayInTz = instantToDay(fastEnd, timezone);
-      const crossesDays = startDayInTz !== endDayInTz;
+        const startDayInTz = instantToDay(fastStart, timezone);
+        const endDayInTz = instantToDay(fastEnd, timezone);
+        const crossesDays = startDayInTz !== endDayInTz;
 
-      // Overnight rule: Must cross days (overnight bridge) OR achieve target fasting hours
-      if (!crossesDays && durationMinutes < targetMinutes) {
-        continue;
-      }
+        // Overnight rule: Must cross days (overnight bridge) OR achieve target fasting hours
+        if (!crossesDays && durationMinutes < targetMinutes) {
+          continue;
+        }
 
-      const existing = await fastingRepository.findFastNearStartTime(
-        userId,
-        fastStart,
-        60,
-        client
-      );
+        const existing = await fastingRepository.findFastNearStartTime(
+          userId,
+          fastStart,
+          60,
+          client
+        );
 
-      if (existing) {
-        if (existing.status === 'ACTIVE') {
-          await fastingRepository.endFast(
-            existing.id,
-            userId,
-            fastEnd.toISOString(),
-            durationMinutes,
-            existing.start_time,
-            client
-          );
+        if (existing) {
+          if (existing.status === 'ACTIVE') {
+            await fastingRepository.endFast(
+              existing.id,
+              userId,
+              fastEnd.toISOString(),
+              durationMinutes,
+              existing.start_time,
+              client
+            );
+            syncedCount++;
+          }
+          // If a completed fast already exists near this time (whether manually logged,
+          // user-edited, or previously synced), leave it untouched to preserve user edits.
+          continue;
+        }
+
+        // No existing fast found, create new completed fast entry
+        const targetEndTime = new Date(
+          fastStart.getTime() + targetHours * 60 * 60 * 1000
+        );
+        const protocol = classifyProtocol(durationMinutes);
+
+        const created = await fastingRepository.createCompletedFast(
+          userId,
+          fastStart.toISOString(),
+          fastEnd.toISOString(),
+          targetEndTime.toISOString(),
+          durationMinutes,
+          protocol,
+          client
+        );
+        if (created) {
           syncedCount++;
         }
-        // If a completed fast already exists near this time (whether manually logged,
-        // user-edited, or previously synced), leave it untouched to preserve user edits.
-        continue;
-      }
-
-      // No existing fast found, create new completed fast entry
-      const targetEndTime = new Date(
-        fastStart.getTime() + targetHours * 60 * 60 * 1000
-      );
-      const protocol = classifyProtocol(durationMinutes);
-
-      const created = await fastingRepository.createCompletedFast(
-        userId,
-        fastStart.toISOString(),
-        fastEnd.toISOString(),
-        targetEndTime.toISOString(),
-        durationMinutes,
-        protocol,
-        client
-      );
-      if (created) {
-        syncedCount++;
       }
     }
 
