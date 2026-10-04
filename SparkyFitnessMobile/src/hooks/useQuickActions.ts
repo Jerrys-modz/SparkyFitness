@@ -1,4 +1,3 @@
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as QuickActions from 'expo-quick-actions';
@@ -21,15 +20,8 @@ import { addLog } from '../services/LogService';
 
 type QuickActionId = 'scan-food' | 'search-food' | 'log-water' | 'fasting';
 
-/**
- * `hideLogWater` drops the Log water entry. A Home Screen quick action always
- * opens the app, so once the opt-in "log without opening the app" shortcut
- * exists it would be the worse way to log a drink.
- */
-export function quickActionItems(
-  options: { hideLogWater?: boolean } = {}
-): QuickActions.Action[] {
-  const items: QuickActions.Action[] = [
+export function quickActionItems(): QuickActions.Action[] {
+  return [
     {
       id: 'scan-food',
       title: i18n.t('quickActions.scanFood', { defaultValue: 'Scan food' }),
@@ -51,9 +43,6 @@ export function quickActionItems(
       icon: 'symbol:timer',
     },
   ];
-  return options.hideLogWater
-    ? items.filter((item) => item.id !== 'log-water')
-    : items;
 }
 
 /** Logs one drink of the primary (or only) container, without opening a screen. */
@@ -130,19 +119,14 @@ export function runQuickAction(id: string): void {
  * running.
  */
 export function useQuickActions(enabled: boolean): void {
-  const backgroundWater = useAppPreferencesStore(
-    (s) => s.backgroundWaterEnabled
-  );
   useEffect(() => {
     if (!enabled || Platform.OS !== 'ios') return;
-    void QuickActions.setItems(
-      quickActionItems({ hideLogWater: backgroundWater })
-    ).catch(() => undefined);
+    void QuickActions.setItems(quickActionItems()).catch(() => undefined);
     const initial = QuickActions.initial;
     if (initial) runQuickAction(initial.id);
     const subscription = QuickActions.addListener((action) =>
       runQuickAction(action.id)
     );
     return () => subscription.remove();
-  }, [enabled, backgroundWater]);
+  }, [enabled]);
 }
