@@ -635,8 +635,9 @@ async function updateExercise(id: any, userId: any, updateData: any) {
         images = COALESCE($14, images),
         is_quick_exercise = COALESCE($15, is_quick_exercise),
         modality = COALESCE($16, modality),
+        source_id = COALESCE($17, source_id),
         updated_at = now()
-      WHERE id = $17
+      WHERE id = $18
       RETURNING *`,
       [
         updateData.name,
@@ -671,6 +672,7 @@ async function updateExercise(id: any, userId: any, updateData: any) {
         // Modality is authoritative once set: an omitted or unrecognized value
         // preserves it, and editing `category` alone never re-derives it.
         isExerciseModality(updateData.modality) ? updateData.modality : null,
+        typeof updateData.source_id === 'string' ? updateData.source_id : null,
         id,
       ]
     );
