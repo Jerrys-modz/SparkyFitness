@@ -22,6 +22,22 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// Drives the label above the values ("Warmup 1/2" rather than "Set 1/2");
     /// nil or an unrecognised value just reads as a normal set.
     let setType: String?
+    /// Hold length in seconds. Nil on a reps set. The watch counts this down
+    /// instead of offering a reps box.
+    var targetDurationSec: Int? = nil
+    /// Last session's time for this set, shown in gray on an idle stopwatch.
+    var previousDurationSec: Int? = nil
+    /// A duration exercise. With no `targetDurationSec` the watch shows a
+    /// stopwatch instead of a reps box. Nil from a phone that predates it.
+    var timed: Bool? = nil
+    /// A weighted carry: weight and distance, no reps. The watch shows a
+    /// distance box (metres) in place of the reps box.
+    var carry: Bool? = nil
+    /// Planned carry distance in km.
+    var targetDistanceKm: Double? = nil
+    /// A loaded hold: the weight box stays beside the timer even when no
+    /// weight is planned yet.
+    var weighted: Bool? = nil
 
     var id: String { setId }
 }
@@ -177,6 +193,13 @@ struct WorkoutStep: Identifiable, Equatable {
 struct SetValues: Codable, Equatable {
     var weightKg: Double?
     var reps: Double?
+    /// Hold length from a later `setTargets` update, in seconds. Nil leaves
+    /// the plan's `targetDurationSec`.
+    var durationSec: Int? = nil
+    /// Last session's time from a `setTargets` update, in seconds.
+    var previousDurationSec: Int? = nil
+    /// A carry's distance in km. Nil leaves the plan's value.
+    var distanceKm: Double? = nil
 }
 
 /// The phone's rest timer, as carried by a `setTargets` update.
@@ -206,6 +229,10 @@ struct CompletedSet: Codable, Equatable {
     let setId: String
     let weightKg: Double?
     let reps: Double?
+    /// Seconds the hold countdown ran. Nil when it was never started.
+    var duration: Int? = nil
+    /// A carry's distance in km, entered in metres on the watch.
+    var distanceKm: Double? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }
