@@ -283,6 +283,15 @@ export interface WatchPlannedSetPayload {
    * Rest taken before this set in the planned order, in seconds — the
    * phone's own `WorkoutStep.restSec`.
    */
+  /**
+   * True for a weighted carry (weight and distance, no reps). The watch shows
+   * a distance box, in metres, in place of the reps box.
+   */
+  carry?: boolean;
+  /** True for a loaded hold: the watch keeps the weight box beside the timer. */
+  weighted?: boolean;
+  /** A carry's planned distance in km; the watch shows it in metres. */
+  targetDistanceKm?: number | null;
   restSeconds: number;
   /**
    * This set's own `rest_time` (or the default rest), in seconds. The phone
@@ -305,6 +314,8 @@ export interface WatchSetTargetPayload {
   targetReps?: number;
   /** Hold length in seconds. Absent leaves the watch on the plan's value. */
   targetDurationSec?: number;
+  /** A carry's distance in km. Absent leaves the watch on the plan's value. */
+  targetDistanceKm?: number;
 }
 
 /** One exercise in the plan the watch was armed with. */
@@ -389,6 +400,8 @@ export interface WatchSetCompletedPayload {
    * never started it, so the phone keeps the planned duration.
    */
   duration?: number | null;
+  /** A carry's distance in km, as entered on the watch (metres there). */
+  distanceKm?: number | null;
   /**
    * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
    * its own clock when this is absent (an older watch build, or a set logged

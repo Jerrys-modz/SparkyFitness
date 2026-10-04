@@ -153,6 +153,16 @@ final class WorkoutSessionStore: ObservableObject {
 
     var isResting: Bool { restEndsAt != nil }
 
+    /// A weighted carry: weight and distance in place of reps.
+    func isCarry(_ step: WorkoutStep) -> Bool {
+        step.plannedSet.carry == true
+    }
+
+    /// A loaded hold keeps its weight box even before a weight is planned.
+    func isWeightedHold(_ step: WorkoutStep) -> Bool {
+        step.plannedSet.weighted == true
+    }
+
     /// True when the step's exercise is a bodyweight one, whose weight can be
     /// negative (assisted).
     func isBodyweight(_ step: WorkoutStep) -> Bool {
@@ -170,7 +180,8 @@ final class WorkoutSessionStore: ObservableObject {
             reps: edited?.reps ?? target?.reps ?? step.plannedSet.targetReps,
             // Only a type the wearer picked: an untouched set leaves the
             // phone's own type alone.
-            setType: edited?.setType
+            setType: edited?.setType,
+            distanceKm: edited?.distanceKm ?? target?.distanceKm ?? step.plannedSet.targetDistanceKm
         )
     }
 
@@ -571,10 +582,16 @@ final class WorkoutSessionStore: ObservableObject {
 
     /// Overrides one value on a set. Passing nil leaves that field alone, so
     /// the keypad can commit weight and reps independently.
-    func setValue(for setId: String, weightKg: Double? = nil, reps: Double? = nil) {
+    func setValue(
+        for setId: String,
+        weightKg: Double? = nil,
+        reps: Double? = nil,
+        distanceKm: Double? = nil
+    ) {
         var values = editedValues[setId] ?? SetValues()
         if let weightKg { values.weightKg = weightKg }
         if let reps { values.reps = reps }
+        if let distanceKm { values.distanceKm = distanceKm }
         editedValues[setId] = values
         persistSnapshot(reportedEnergyKcal: nil)
     }

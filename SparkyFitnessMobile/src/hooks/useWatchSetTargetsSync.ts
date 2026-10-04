@@ -8,6 +8,8 @@ import {
   effectiveSetDurationSec,
   historyForExercise,
   isDurationModality,
+  isWeightDistanceModality,
+  isWeightDurationModality,
   resolveLiveAssumedSetValues,
   resolveSnapshotModality,
 } from '../utils/workoutSession';
@@ -37,15 +39,30 @@ export function resolveWatchSetTargets(
   sources: TargetSources
 ): Map<
   string,
-  { weightKg: number | null; reps: number | null; durationSec: number | null }
+  {
+    weightKg: number | null;
+    reps: number | null;
+    durationSec: number | null;
+    /** A carry's distance in km; null on every other exercise. */
+    distanceKm: number | null;
+  }
 > {
   const targets = new Map<
     string,
-    { weightKg: number | null; reps: number | null; durationSec: number | null }
+    {
+      weightKg: number | null;
+      reps: number | null;
+      durationSec: number | null;
+      distanceKm: number | null;
+    }
   >();
   for (const exercise of session.exercises) {
     const modality = resolveSnapshotModality(exercise.exercise_snapshot);
-    const durationLike = isDurationModality(modality);
+    // A loaded hold keeps its weight but is timed like any hold; a carry has
+    // weight and distance and no reps.
+    const durationLike =
+      isDurationModality(modality) || isWeightDurationModality(modality);
+    const carry = isWeightDistanceModality(modality);
     const assumed = resolveLiveAssumedSetValues(
       exercise,
       historyForExercise(sources.previousSessionSets, exercise.exercise_id),
@@ -71,8 +88,12 @@ export function resolveWatchSetTargets(
         weightKg: set.weight ?? assumedSet?.weight ?? null,
         // A duration set's legacy seconds live in `reps`. Sending those as
         // reps would put "45 REPS" next to a 0:45 countdown.
-        reps: durationLike ? null : (set.reps ?? assumedSet?.reps ?? null),
+        reps:
+          durationLike || carry ? null : (set.reps ?? assumedSet?.reps ?? null),
         durationSec,
+        distanceKm: carry
+          ? (set.distance ?? assumedSet?.distance ?? null)
+          : null,
       });
     });
   }
@@ -110,6 +131,9 @@ export function useWatchSetTargetsSync(enabled: boolean): void {
           ...(value.reps != null ? { targetReps: value.reps } : {}),
           ...(value.durationSec != null
             ? { targetDurationSec: value.durationSec }
+            : {}),
+          ...(value.distanceKm != null
+            ? { targetDistanceKm: value.distanceKm }
             : {}),
         });
       }

@@ -31,6 +31,14 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// A duration exercise. With no `targetDurationSec` the watch shows a
     /// stopwatch instead of a reps box. Nil from a phone that predates it.
     var timed: Bool? = nil
+    /// A weighted carry: weight and distance, no reps. The watch shows a
+    /// distance box (metres) in place of the reps box.
+    var carry: Bool? = nil
+    /// Planned carry distance in km.
+    var targetDistanceKm: Double? = nil
+    /// A loaded hold: the weight box stays beside the timer even when no
+    /// weight is planned yet.
+    var weighted: Bool? = nil
 
     var id: String { setId }
 }
@@ -229,6 +237,8 @@ struct SetValues: Codable, Equatable {
     /// Hold length from a later `setTargets` update, in seconds. Nil leaves
     /// the plan's `targetDurationSec`.
     var durationSec: Int? = nil
+    /// A carry's distance in km. Nil leaves the plan's value.
+    var distanceKm: Double? = nil
 }
 
 /// The phone's rest timer, as carried by a `setTargets` update.
@@ -264,6 +274,8 @@ struct CompletedSet: Codable, Equatable {
     var duration: Int? = nil
     /// Effort (6-10 in half steps) the wearer picked. Nil when skipped.
     var rpe: Double? = nil
+    /// A carry's distance in km, entered in metres on the watch.
+    var distanceKm: Double? = nil
     /// When the wearer tapped the set, not when the phone received it.
     let completedAt: Date
 }

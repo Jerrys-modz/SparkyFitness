@@ -653,8 +653,14 @@ private struct CurrentSetView: View {
     }
 
     private enum EditableField: Identifiable {
-        case weight, reps
-        var id: Int { self == .weight ? 0 : 1 }
+        case weight, reps, distance
+        var id: Int {
+            switch self {
+            case .weight: return 0
+            case .reps: return 1
+            case .distance: return 2
+            }
+        }
     }
 
     var body: some View {
@@ -686,13 +692,15 @@ private struct CurrentSetView: View {
             let holdSeconds = store.targetDurationSec(for: step)
             let timed = store.isTimed(step)
             HStack(spacing: 4) {
-                if !timed || values.weightKg != nil {
+                if !timed || values.weightKg != nil || store.isWeightedHold(step) {
                     valueBox(.weight)
                 }
                 if let holdSeconds {
                     HoldCountdown(setId: step.plannedSet.setId, totalSeconds: holdSeconds)
                 } else if timed {
                     HoldStopwatch(setId: step.plannedSet.setId)
+                } else if store.isCarry(step) {
+                    valueBox(.distance)
                 } else {
                     valueBox(.reps)
                 }
@@ -967,6 +975,7 @@ private struct CurrentSetView: View {
         switch field {
         case .weight: return values.weightKg.map(unit.fromKg)
         case .reps: return values.reps
+        case .distance: return values.distanceKm.map { $0 * 1000 }
         }
     }
 
@@ -980,16 +989,27 @@ private struct CurrentSetView: View {
             store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(value))
         case .reps:
             store.setValue(for: step.plannedSet.setId, reps: value)
+        case .distance:
+            // Entered in metres; the phone and the diary store km.
+            store.setValue(for: step.plannedSet.setId, distanceKm: value / 1000)
         }
     }
 
     private func title(for field: EditableField) -> String {
-        field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS"
+        switch field {
+        case .weight: return unit == .lbs ? "LB" : "KG"
+        case .reps: return "REPS"
+        case .distance: return "M"
+        }
     }
 
     /// Half a pound or kilo per crown detent, as Hevy does; a rep at a time.
     private func stepSize(for field: EditableField) -> Double {
-        field == .weight ? 0.5 : 1
+        switch field {
+        case .weight: return 0.5
+        case .reps: return 1
+        case .distance: return 5
+        }
     }
 
     /// Zero, except for a bodyweight exercise's weight, which goes negative
@@ -1000,7 +1020,11 @@ private struct CurrentSetView: View {
     }
 
     private func maxValue(for field: EditableField) -> Double {
-        field == .weight ? (unit == .lbs ? 1500 : 700) : 200
+        switch field {
+        case .weight: return unit == .lbs ? 1500 : 700
+        case .reps: return 200
+        case .distance: return 5000
+        }
     }
 
     /// The number the crown or drag has stepped to. Not capped at the crown's
@@ -1332,6 +1356,12 @@ private struct RestView: View {
                 return "\(kind) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
             }
             return "\(kind) · \(clock)"
+        }
+        if store.isCarry(step), let meters = values.distanceKm.map({ Int(($0 * 1000).rounded()) }) {
+            if let weight = values.weightKg {
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(meters) m"
+            }
+            return "\(step.label) · \(meters) m"
         }
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):
