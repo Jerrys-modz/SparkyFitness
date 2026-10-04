@@ -291,6 +291,10 @@
       "title": "Fasting goal reached",
       "body": "You've hit your fasting goal. Great work!"
     },
+    "fastingPreEnd": {
+      "title": "Fasting goal ending soon",
+      "body": "Your fast will reach its goal in {{minutes}} minutes."
+    },
     "hydration": {
       "title": "Time to hydrate 💧",
       "body": "You haven't logged any water in a while."
@@ -1887,10 +1891,17 @@
   },
   "fastingCard": {
     "title": "Fasting",
+    "auto": "Auto",
+    "autoFromMeal": "Auto · {{meal}}",
+    "eatingWindow": "Eating Window",
+    "eatingWindowOpen": "Eating Window",
+    "eatingWindowMeal": "Window · {{meal}}",
+    "eatingWindowProgress": "{{remaining}} remaining in eating window",
     "openDetails": "Open fasting details",
     "viewHistory": "View fasting history",
     "history": "History",
     "viewDetails": "View details",
+    "details": "Details",
     "goalProgress": "{{remaining}} to your {{goal}}h goal",
     "goalReached": "Goal reached · {{goal}}h",
     "elapsed": "{{elapsed}} elapsed",
@@ -2996,6 +3007,32 @@
   },
   "fastingDetail": {
     "title": "Fasting",
+    "tabs": {
+      "fasting": "Fasting",
+      "history": "History"
+    },
+    "startedAt": "Started {{time}}",
+    "targetAt": "Target {{time}}",
+    "closesAt": "Closes {{time}}",
+    "eatingBands": {
+      "open": {
+        "name": "Window Open",
+        "shortName": "Open"
+      },
+      "fuel": {
+        "name": "Optimal Fuel",
+        "shortName": "Fuel"
+      },
+      "sustain": {
+        "name": "Mid Window",
+        "shortName": "Sustain"
+      },
+      "closing": {
+        "name": "Window Closing",
+        "shortName": "Closing"
+      }
+    },
+    "metabolicState": "Metabolic State",
     "metabolicStages": "Metabolic Stages",
     "now": "now",
     "remaining": "{{percent}}% · {{time}} left",
@@ -3011,6 +3048,12 @@
     "noActiveFast": "No active fast",
     "startDescription": "Start a fast to track your fasting window and metabolic stages.",
     "startFast": "Start Fast",
+    "eatingWindowOpen": "Eating Window Open",
+    "remainingInEatingWindow": "Remaining in your eating window",
+    "eatingWindowHint": "Fasting will automatically resume after your eating window closes.",
+    "startFastEarly": "Start Fasting Now",
+    "eatingWindowOpened": "Window opened",
+    "eatingWindowCloses": "Window closes",
     "range": "{{start}}–{{end}} {{unit}}",
     "rangeOpen": "{{start}} {{unit}}+",
     "stages": {
