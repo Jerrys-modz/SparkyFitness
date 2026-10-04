@@ -2696,6 +2696,7 @@
   },
   "foodPhotoImprove": {
     "estimatedOnDevice": "Estimated on this iPhone",
+    "estimateWithCloud": "Estimate with cloud AI",
     "grams": "grams",
     "ounces": "ounces",
     "readingPhoto": "Reading your photo…",

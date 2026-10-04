@@ -19,12 +19,16 @@ export function useEstimateFoodPhoto() {
   return useMutation<
     FoodPhotoEstimateResponse,
     FoodPhotoEstimateError,
-    EstimateFoodPhotoInput
+    EstimateFoodPhotoInput & { skipOnDevice?: boolean }
   >({
-    mutationFn: async (input) => {
+    mutationFn: async ({ skipOnDevice, ...input }) => {
       // A few photos of one meal can stay on the phone; more go to the server.
       const images = input.images ?? [];
-      if (images.length >= 1 && images.length <= MAX_ON_DEVICE_PHOTOS) {
+      if (
+        !skipOnDevice &&
+        images.length >= 1 &&
+        images.length <= MAX_ON_DEVICE_PHOTOS
+      ) {
         const totalWeightGrams =
           input.totalWeight === undefined
             ? undefined

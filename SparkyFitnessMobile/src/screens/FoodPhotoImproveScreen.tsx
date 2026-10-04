@@ -31,6 +31,8 @@ import type {
   RootStackParamList,
 } from '../types/navigation';
 import { useEstimateFoodPhoto } from '../hooks/useEstimateFoodPhoto';
+import { isOnDeviceFoodPhotoAvailable } from '../services/onDeviceFoodPhoto';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
 import { activeAiServiceSettingQueryKey } from '../hooks/queryKeys';
 import { addLog } from '../services/LogService';
@@ -144,6 +146,11 @@ const FoodPhotoImproveScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 
   const mutation = useEstimateFoodPhoto();
+  const onDeviceFoodPhotoEnabled = useAppPreferencesStore(
+    (state) => state.onDeviceFoodPhotoEnabled
+  );
+  const onDeviceAvailable =
+    onDeviceFoodPhotoEnabled && isOnDeviceFoodPhotoAvailable();
 
   const weightUnits: Segment<'g' | 'oz'>[] = [
     { key: 'g', label: t('foodPhotoImprove.grams', { defaultValue: 'grams' }) },
@@ -293,7 +300,7 @@ const FoodPhotoImproveScreen: React.FC<Props> = ({ navigation, route }) => {
     mutation.reset();
   };
 
-  const submit = async () => {
+  const submit = async (skipOnDevice = false) => {
     if (mutation.isPending) return;
 
     let payloadWeight: number | undefined;
@@ -379,6 +386,7 @@ const FoodPhotoImproveScreen: React.FC<Props> = ({ navigation, route }) => {
     mutation.mutate(
       {
         images: imagePayloads,
+        skipOnDevice,
         description: payloadDescription,
         totalWeight: payloadWeight,
         weightUnit: payloadWeight !== undefined ? weightUnit : undefined,
@@ -727,6 +735,19 @@ const FoodPhotoImproveScreen: React.FC<Props> = ({ navigation, route }) => {
                   defaultValue: 'Generate estimate',
                 })}
               </Button>
+              {onDeviceAvailable && (
+                <Button
+                  variant="outline"
+                  className="mt-2"
+                  onPress={() => {
+                    void submit(true);
+                  }}
+                >
+                  {t('foodPhotoImprove.estimateWithCloud', {
+                    defaultValue: 'Estimate with cloud AI',
+                  })}
+                </Button>
+              )}
             </Animated.View>
           )}
         </View>
