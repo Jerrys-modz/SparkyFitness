@@ -197,6 +197,30 @@ describe('externalExerciseSearchApi', () => {
       );
     });
 
+    it.each(['exercisedb', 'exercisedb-oss'])(
+      'sends POST to the ExerciseDB endpoint for %s',
+      async (source) => {
+        mockGetActiveServerConfig.mockResolvedValue(testConfig);
+        mockFetch.mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ id: 'new-ex-3', name: 'Plank' }),
+        });
+
+        await importExercise(source, 'abc-123');
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          'https://example.com/api/exercises/add-exercisedb',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              providerType: source,
+              exerciseId: 'abc-123',
+            }),
+          })
+        );
+      }
+    );
+
     it('throws for unsupported source', async () => {
       await expect(importExercise('unknown-source', '1')).rejects.toThrow(
         'Unsupported exercise source: unknown-source'

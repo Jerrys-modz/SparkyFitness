@@ -987,6 +987,35 @@ export const EditProviderForm = ({
         </div>
       )}
 
+      {editData.provider_type === 'exercisedb' && (
+        <>
+          <div>
+            <Label>RapidAPI Key</Label>
+            <Input
+              type="password"
+              value={editData.app_key || ''}
+              onChange={(e) =>
+                setEditData((prev) => ({ ...prev, app_key: e.target.value }))
+              }
+              placeholder="Enter RapidAPI key"
+              autoComplete="off"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground col-span-2">
+            Commercial ExerciseDB catalog reached through RapidAPI with your own
+            key (a free tier is available).
+          </p>
+        </>
+      )}
+
+      {editData.provider_type === 'exercisedb-oss' && (
+        <p className="text-sm text-muted-foreground col-span-2">
+          Community-hosted AGPL-3.0 mirror of the ExerciseDB dataset. It
+          requires no credentials; the server administrator can point it at a
+          self-hosted mirror with the EXERCISEDB_OSS_URL environment variable.
+        </p>
+      )}
+
       {editData.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">

@@ -90,6 +90,7 @@ export const ProviderSpecificFields = ({
     'polar',
     'hevy',
     'liftosaur',
+    'exercisedb',
   ].includes(provider.provider_type || '');
 
   const providerDashboard =
@@ -167,7 +168,9 @@ export const ProviderSpecificFields = ({
                 ? 'YAZIO Password'
                 : provider.provider_type === 'liftosaur'
                   ? 'Liftosaur API Key'
-                  : 'API Key / App Key'}
+                  : provider.provider_type === 'exercisedb'
+                    ? 'RapidAPI Key'
+                    : 'API Key / App Key'}
           </Label>
           <Input
             id="new_app_key"
@@ -648,6 +651,22 @@ export const ProviderSpecificFields = ({
             .
           </p>
         </div>
+      )}
+
+      {provider.provider_type === 'exercisedb' && (
+        <p className="col-span-2 text-sm text-muted-foreground">
+          Commercial ExerciseDB catalog with animated demonstrations, reached
+          through RapidAPI with your own key (a free tier is available). Media
+          links rotate weekly, so imported exercises keep their own copy.
+        </p>
+      )}
+
+      {provider.provider_type === 'exercisedb-oss' && (
+        <p className="col-span-2 text-sm text-muted-foreground">
+          Community-hosted AGPL-3.0 mirror of the ExerciseDB dataset. It
+          requires no credentials. The server administrator can point it at a
+          self-hosted mirror with the EXERCISEDB_OSS_URL environment variable.
+        </p>
       )}
 
       {provider.provider_type === 'wger' && (

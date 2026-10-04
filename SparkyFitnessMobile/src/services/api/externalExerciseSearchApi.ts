@@ -33,7 +33,12 @@ export async function searchExternalExercises(
 // Must match the cases `importExercise` switches on below. Nutritionix is
 // deliberately absent: mobile has no import path for it, so its search
 // results can be previewed but not added.
-const IMPORTABLE_EXERCISE_SOURCES = ['wger', 'free-exercise-db'] as const;
+const IMPORTABLE_EXERCISE_SOURCES = [
+  'wger',
+  'free-exercise-db',
+  'exercisedb',
+  'exercisedb-oss',
+] as const;
 
 export function isImportableExerciseSource(source: string): boolean {
   return (IMPORTABLE_EXERCISE_SOURCES as readonly string[]).includes(source);
@@ -69,6 +74,20 @@ export async function importExercise(
         operation: 'import Free Exercise DB exercise',
         method: 'POST',
         body: { exerciseId: externalId },
+      });
+      return transformExerciseRow(row);
+    }
+
+    case 'exercisedb':
+    case 'exercisedb-oss': {
+      // The server resolves the caller's active provider of this type, and
+      // downloads the media now because RapidAPI links rotate weekly.
+      const row = await apiFetch<Record<string, unknown>>({
+        endpoint: '/api/exercises/add-exercisedb',
+        serviceName: 'External Exercise Search',
+        operation: 'import ExerciseDB exercise',
+        method: 'POST',
+        body: { providerType: source, exerciseId: externalId },
       });
       return transformExerciseRow(row);
     }

@@ -5,6 +5,7 @@ import {
   getTopExercises,
   addExternalExerciseToUserExercises,
   addNutritionixExercise,
+  addExerciseDBExercise,
   addFreeExerciseDBExercise,
   getAvailableEquipment,
   getAvailableMuscleGroups,
@@ -99,16 +100,20 @@ export const useAddExerciseMutation = () => {
       exercise,
       type,
       language,
+      providerId,
     }: {
       exercise: Exercise;
       type: string;
       language?: string;
+      providerId?: string | null;
     }) => {
       if (type === 'wger')
         return addExternalExerciseToUserExercises(exercise.id, language);
       if (type === 'nutritionix') return addNutritionixExercise(exercise);
       if (type === 'free-exercise-db')
         return addFreeExerciseDBExercise(exercise.id);
+      if ((type === 'exercisedb' || type === 'exercisedb-oss') && providerId)
+        return addExerciseDBExercise(type, providerId, exercise.id);
       throw new Error('Unknown provider type');
     },
     onSuccess: () => {

@@ -194,3 +194,18 @@ export const applyExerciseModalitySuggestionsBodySchema = z
 export type ApplyExerciseModalitySuggestionsBody = z.infer<
   typeof applyExerciseModalitySuggestionsBodySchema
 >;
+
+// --- ExerciseDB catalog import ---
+
+/** Body for importing one ExerciseDB exercise (RapidAPI or the open-source mirror). */
+export const addExerciseDbExerciseBodySchema = z
+  .object({
+    providerType: z.enum(["exercisedb", "exercisedb-oss"]),
+    /** Defaults to the caller's active provider of this type. */
+    providerId: z.string().min(1).optional(),
+    exerciseId: z.string().min(1).max(200),
+  })
+  .strict();
+export type AddExerciseDbExerciseBody = z.infer<
+  typeof addExerciseDbExerciseBodySchema
+>;
