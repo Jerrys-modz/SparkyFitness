@@ -128,7 +128,7 @@ describe('ExerciseDBService', () => {
     ).mockResolvedValue({
       provider_type: 'exercisedb',
       app_key: 'secret-key',
-    });
+    } as never);
     fetchMock.mockResolvedValue(
       jsonResponse([{ id: '1', name: 'run', bodyPart: 'cardio' }])
     );
