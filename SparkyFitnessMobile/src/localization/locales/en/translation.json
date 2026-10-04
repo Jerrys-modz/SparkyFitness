@@ -427,6 +427,7 @@
     "setRow": {
       "changeType": "Change type for set {{setNumber}}",
       "delete": "Delete set {{setNumber}}",
+      "distance": "Distance",
       "duration": "Duration",
       "log": "Log set {{setNumber}}",
       "reps": "Reps",
