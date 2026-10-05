@@ -4,11 +4,15 @@ jest.mock('../../modules/on-device-nutrition', () => ({
   __esModule: true,
   default: { isAvailable: jest.fn(), estimateMeal: jest.fn() },
 }));
+jest.mock('../../src/services/api/foodsApi', () => ({
+  fetchFoods: jest.fn().mockResolvedValue({ recentFoods: [], topFoods: [] }),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 import mockModuleImport from '../../modules/on-device-nutrition';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import {
+  buildKnownFoodsHint,
   estimateFoodPhotoOnDevice,
   isPlausibleMealEstimate,
   isOnDeviceEstimate,
@@ -134,6 +138,45 @@ describe('onDeviceFoodPhoto', () => {
     expect(await estimateFoodPhotoOnDevice({ base64Images: ['x'] })).toBeNull();
     mockModule.estimateMeal.mockResolvedValueOnce(meal({ items: [] }));
     expect(await estimateFoodPhotoOnDevice({ base64Images: ['x'] })).toBeNull();
+  });
+
+  it('tells the model the foods the person already has', async () => {
+    const { fetchFoods } = jest.requireMock(
+      '../../src/services/api/foodsApi'
+    ) as { fetchFoods: jest.Mock };
+    fetchFoods.mockResolvedValueOnce({
+      recentFoods: [{ id: '1', name: 'Ranch Flavor Tortilla Chips' }],
+      topFoods: [],
+    });
+    mockModule.isAvailable.mockReturnValue(true);
+    mockModule.estimateMeal.mockResolvedValue(meal());
+    useAppPreferencesStore.setState({
+      onDeviceFoodPhotoEnabled: true,
+      aiUserContext: 'vegetarian',
+    });
+    await estimateFoodPhotoOnDevice({ base64Images: ['a'] });
+    const context = mockModule.estimateMeal.mock.calls.at(-1)?.[3] as string;
+    expect(context).toContain('vegetarian');
+    expect(context).toContain('Ranch Flavor Tortilla Chips');
+  });
+
+  it('builds a short, de-duplicated list of known foods', () => {
+    expect(buildKnownFoodsHint(undefined)).toBeNull();
+    expect(buildKnownFoodsHint({ recentFoods: [], topFoods: [] })).toBeNull();
+    const hint = buildKnownFoodsHint({
+      topFoods: [
+        { id: '1', name: 'Greek Yogurt', usage_count: 2 },
+        { id: '2', name: 'Oats', usage_count: 9 },
+      ],
+      recentFoods: [
+        { id: '3', name: 'greek yogurt' },
+        { id: '4', name: 'Quick estimate', is_quick_food: true },
+        { id: '5', name: '  ' },
+      ],
+    } as never);
+    expect(hint).toContain('Oats; Greek Yogurt.');
+    expect(hint).not.toContain('Quick estimate');
+    expect(hint).not.toContain('greek yogurt;');
   });
 
   it('passes the user notes along and refuses too many photos', async () => {
