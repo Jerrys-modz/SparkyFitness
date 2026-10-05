@@ -150,7 +150,8 @@
       "logs": "View Logs",
       "about": "About",
       "shareReport": "Share Diagnostic Report",
-      "watch": "Apple Watch"
+      "watch": "Apple Watch",
+      "ai": "AI"
     },
     "theme": {
       "title": "Theme",
@@ -586,7 +587,8 @@
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
-    "watchSettings": "Apple Watch"
+    "watchSettings": "Apple Watch",
+    "aiSettings": "AI"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -2290,7 +2292,8 @@
       "analyzeLabel": "Failed to analyze nutrition label. Please try again.",
       "loadPhoto": "Failed to load photo.",
       "lookupBarcode": "Couldn't look up this barcode. Please try again.",
-      "timeout": "Request timed out. Check your server connection."
+      "timeout": "Request timed out. Check your server connection.",
+      "retryOnDevice": "This iPhone could not read the label."
     },
     "permission": {
       "camera": "We need your permission to show the camera",
@@ -2333,7 +2336,9 @@
       "retakePhoto": "Retake photo",
       "takeLabelPhoto": "Take nutrition label photo",
       "takeMealPhoto": "Take meal photo"
-    }
+    },
+    "retryWithServer": "Read again with the server AI",
+    "retryOnDevice": "Read again on this iPhone"
   },
   "cycleToday": {
     "menstrualFlow": "Menstrual Flow",
@@ -5814,6 +5819,19 @@
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
       "underOneMinute": "<1 min"
+    }
+  },
+  "aiSettings": {
+    "server": {
+      "title": "Server AI provider",
+      "loading": "Checking…",
+      "none": "No AI provider is configured",
+      "description": "Used for label scans unless an on-device option below handles them. Providers are set up in the web app."
+    },
+    "onDevice": {
+      "title": "On-device (Apple Intelligence)",
+      "description": "These run on this phone. Anything the on-device model cannot handle falls back to the server provider.",
+      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready."
     }
   }
 }
