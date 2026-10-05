@@ -1,4 +1,4 @@
-import type { Request } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import net from 'node:net';
 
 /**
@@ -54,4 +54,23 @@ export function getClientIp(req: Request): string {
     }
   }
   return req.ip || 'unknown';
+}
+
+/**
+ * Express middleware that resolves the real client IP and injects it into
+ * `req.headers['x-client-ip']` for Better Auth and downstream handlers.
+ * Any untrusted client-supplied header is overwritten or deleted to prevent spoofing.
+ */
+export function clientIpMiddleware(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void {
+  const ip = getClientIp(req);
+  if (ip && ip !== 'unknown') {
+    req.headers['x-client-ip'] = ip;
+  } else {
+    delete req.headers['x-client-ip'];
+  }
+  next();
 }

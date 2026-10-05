@@ -122,7 +122,7 @@ import { upsertEnvOidcProvider } from './utils/oidcEnvConfig.js';
 import userRepository from './models/userRepository.js';
 import genericHealthRoutes from './routes/genericHealthRoutes.js';
 
-import { getClientIp } from './utils/clientIp.js';
+import { getClientIp, clientIpMiddleware } from './utils/clientIp.js';
 import ipaddr from 'ipaddr.js';
 
 import { fileURLToPath } from 'url';
@@ -189,15 +189,7 @@ app.set('etag', false);
 // the real client IP behind reverse proxy chains instead of rejecting multi-hop
 // X-Forwarded-For headers and falling back to a shared rate-limit bucket.
 // Any client-supplied x-client-ip header is overwritten to prevent spoofing.
-app.use((req, _res, next) => {
-  const ip = getClientIp(req);
-  if (ip && ip !== 'unknown') {
-    req.headers['x-client-ip'] = ip;
-  } else {
-    delete req.headers['x-client-ip'];
-  }
-  next();
-});
+app.use(clientIpMiddleware);
 const PORT = process.env.SPARKY_FITNESS_SERVER_PORT || 3010;
 console.log(
   `DEBUG: SPARKY_FITNESS_FRONTEND_URL is: ${process.env.SPARKY_FITNESS_FRONTEND_URL}`

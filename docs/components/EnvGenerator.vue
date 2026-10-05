@@ -1797,13 +1797,13 @@ onMounted(() => {
                 v-model="trustedProxies"
                 type="text"
                 class="text-input"
-                placeholder="10.0.0.0/8, 172.16.0.0/12"
+                placeholder="192.168.1.50, 172.20.0.0/16"
               />
               <span class="field-hint"
-                >Comma-separated trusted proxy CIDRs/IPs (e.g.
-                <code>10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16</code>).
-                Recommended for multi-proxy setups so you don't need to count
-                hops.</span
+                >Enter only trusted proxy IPs or a proxy-only subnet (e.g.
+                <code>192.168.1.50, 172.20.0.0/16</code>). Every host in a
+                trusted range can forward client IPs; avoid broad private
+                ranges.</span
               >
             </div>
           </div>

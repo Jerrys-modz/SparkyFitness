@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getClientIp } from '../utils/clientIp.js';
+import { getClientIp, clientIpMiddleware } from '../utils/clientIp.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -168,20 +168,7 @@ describe('Client IP resolution & Better Auth proxy handling', () => {
   });
 
   describe('x-client-ip injection middleware behavior', () => {
-    const createMiddleware = () => {
-      return (req: Request, _res: Response, next: NextFunction) => {
-        const ip = getClientIp(req);
-        if (ip && ip !== 'unknown') {
-          req.headers['x-client-ip'] = ip;
-        } else {
-          delete req.headers['x-client-ip'];
-        }
-        next();
-      };
-    };
-
     it('populates x-client-ip from getClientIp', () => {
-      const middleware = createMiddleware();
       const req = {
         headers: {
           'x-forwarded-for': '203.0.113.195, 172.18.0.3',
@@ -190,14 +177,13 @@ describe('Client IP resolution & Better Auth proxy handling', () => {
       } as unknown as Request;
 
       const next = vi.fn();
-      middleware(req, {} as Response, next);
+      clientIpMiddleware(req, {} as Response, next);
 
       expect(req.headers['x-client-ip']).toBe('203.0.113.195');
       expect(next).toHaveBeenCalledTimes(1);
     });
 
     it('overwrites any client-forged x-client-ip header', () => {
-      const middleware = createMiddleware();
       const req = {
         headers: {
           'x-client-ip': '1.1.1.1', // Attacker attempt to spoof IP
@@ -207,13 +193,12 @@ describe('Client IP resolution & Better Auth proxy handling', () => {
       } as unknown as Request;
 
       const next = vi.fn();
-      middleware(req, {} as Response, next);
+      clientIpMiddleware(req, {} as Response, next);
 
       expect(req.headers['x-client-ip']).toBe('203.0.113.55');
     });
 
     it('removes x-client-ip if client IP cannot be determined', () => {
-      const middleware = createMiddleware();
       const req = {
         headers: {
           'x-client-ip': '1.1.1.1',
@@ -222,7 +207,7 @@ describe('Client IP resolution & Better Auth proxy handling', () => {
       } as unknown as Request;
 
       const next = vi.fn();
-      middleware(req, {} as Response, next);
+      clientIpMiddleware(req, {} as Response, next);
 
       expect(req.headers['x-client-ip']).toBeUndefined();
     });
