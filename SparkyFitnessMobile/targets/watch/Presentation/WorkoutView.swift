@@ -1108,9 +1108,11 @@ private struct HoldStopwatch: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let elapsed = store.stopwatchElapsed(for: setId, now: context.date)
-            VStack(spacing: 2) {
+            // Shorter than the other set cards: with the "Last" line it was
+            // tall enough to push the page up under the clock.
+            VStack(spacing: 1) {
                 Text(Self.clock(elapsed ?? 0))
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: 26, weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -1138,7 +1140,7 @@ private struct HoldStopwatch: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .background(WatchStyle.fill, in: WatchStyle.shape)
         }
     }
