@@ -151,7 +151,8 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
-      "ai": "AI"
+      "ai": "AI",
+      "goals": "Goals"
     },
     "theme": {
       "title": "Theme",
@@ -6015,5 +6016,26 @@
         "medications": "Medications"
       }
     }
+  },
+  "goals": {
+    "title": "Goals",
+    "description": "Daily targets that apply from today onward. Past days keep their goals.",
+    "loading": "Loading goals…",
+    "loadFailed": "Could not load your goals.",
+    "saveFailed": "Failed to save goals.",
+    "invalidValue": "Enter a valid number for every goal.",
+    "fields": {
+      "calories": "Calories (kcal)",
+      "protein": "Protein (g)",
+      "carbs": "Carbs (g)",
+      "fat": "Fat (g)",
+      "fiber": "Fiber (g)",
+      "water": "Water (ml)",
+      "exerciseCalories": "Exercise calories (kcal)",
+      "exerciseMinutes": "Exercise duration (min)",
+      "baselineCalories": "Baseline calories (kcal)"
+    },
+    "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target."
   }
 }

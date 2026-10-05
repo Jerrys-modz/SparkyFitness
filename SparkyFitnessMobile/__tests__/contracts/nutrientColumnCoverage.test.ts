@@ -57,6 +57,12 @@ const DELIBERATE_OMISSIONS: Omission[] = [
       'user_goals has no water_ml column — water_goal_ml is the one water goal.',
   },
   {
+    file: /^services\/api\/goalsApi\.ts$/,
+    columns: ['water_ml'],
+    reason:
+      'user_goals has no water_ml column — water_goal_ml is the one water goal.',
+  },
+  {
     file: /^hooks\/useNutritionTrends\.ts$/,
     columns: ['water_ml'],
     reason:
