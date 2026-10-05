@@ -74,7 +74,8 @@ enum ContextPayloadMapper {
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
                 : previous.workoutServerId,
-            distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit
+            distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit,
+            doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled
         )
     }
 
