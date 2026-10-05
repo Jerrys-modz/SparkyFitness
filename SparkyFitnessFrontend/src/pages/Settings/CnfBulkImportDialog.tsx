@@ -332,13 +332,13 @@ export function CnfBulkImportDialog({
                   >
                     {t(
                       'settings.cnf.dryRunLabel',
-                      'Sample Dry Run (first 10 foods only)'
+                      'Sample Import (first 10 foods only)'
                     )}
                   </Label>
                   <p className="text-xs text-muted-foreground">
                     {t(
                       'settings.cnf.dryRunHelp',
-                      'Import a quick 10-food preview so you can verify portion measurements and custom nutrient mappings before running the full import.'
+                      'Import up to 10 foods to verify portion measurements and custom nutrient mappings before running the full import.'
                     )}
                   </p>
                 </div>

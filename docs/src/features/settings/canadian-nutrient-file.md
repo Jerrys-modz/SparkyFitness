@@ -63,8 +63,8 @@ The bulk catalog import is an **administrator-only** feature. Regular users do n
   * **Upload local CNF zip archive**: Upload a previously downloaded `cnf-fcen-csv.zip` archive directly from your browser.
 * **Language**:
   * Choose **English** or **French** to set the primary imported food descriptions and portion measure units.
-* **Sample Dry Run**:
-  * Check **Sample Dry Run (first 10 foods only)** to test portion measurements and custom nutrient mappings with a small batch before running the full import.
+* **Sample Import**:
+  * Check **Sample Import (first 10 foods only)** to import a small batch and verify portion measurements and custom nutrient mappings before running the full import.
 
 ### Clearing the Library
 
