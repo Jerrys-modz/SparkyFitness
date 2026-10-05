@@ -92,6 +92,13 @@ export const syncHevyExercises = async (
   });
 };
 
+export const removeHevyExercises = async (): Promise<{
+  removed: number;
+  keptInUse: number;
+}> => {
+  return apiCall('/integrations/hevy/exercise-library', { method: 'DELETE' });
+};
+
 export interface LiftosaurSyncResult {
   message?: string;
   workoutsImported?: number;

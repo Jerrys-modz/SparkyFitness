@@ -4,8 +4,11 @@ import measurementRepository from '../../models/measurementRepository.js';
 import activityDetailsRepository from '../../models/activityDetailsRepository.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepository.js';
+import calorieCalculationService from '../../services/CalorieCalculationService.js';
 import { log } from '../../config/logging.js';
 import {
+  normalizeEquipment,
+  normalizeMuscle,
   todayInZone,
   instantToDay,
   instantHourMinute,
@@ -206,6 +209,32 @@ const HEVY_TYPE_TO_MODALITY: Record<string, string> = {
   short_distance_weight: 'weight_distance',
 };
 
+/** Hevy writes muscles and equipment in snake_case ("upper_back"). */
+function spaced(value: string): string {
+  return value.replace(/_/g, ' ').trim().toLowerCase();
+}
+
+function hevyMuscle(value: string): string | null {
+  const name = spaced(value);
+  if (!name || name === 'other') return null;
+  return normalizeMuscle(name) ?? name;
+}
+
+function hevyEquipment(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const name = spaced(value);
+  if (name === 'none') return 'body only';
+  return normalizeEquipment(name) ?? name;
+}
+
+/** Cardio when Hevy tracks it by distance or its muscle group is cardio. */
+function hevyCategory(template: HevyExerciseTemplate): 'cardio' | 'strength' {
+  return template.type === 'distance_duration' ||
+    template.primary_muscle_group === 'cardio'
+    ? 'cardio'
+    : 'strength';
+}
+
 /**
  * Add every exercise in the user's Hevy library that isn't already in Sparky
  * (matched by name). Existing exercises are left untouched.
@@ -217,6 +246,22 @@ async function processHevyExerciseTemplates(
 ) {
   let created = 0;
   let skipped = 0;
+  // Hevy has no calorie data, so use the same per-hour estimate as other
+  // imports (the user's weight and profile). It only varies by category here.
+  const caloriesByCategory = new Map<string, number>();
+  const caloriesPerHour = async (category: 'cardio' | 'strength') => {
+    if (!caloriesByCategory.has(category)) {
+      caloriesByCategory.set(
+        category,
+        await calorieCalculationService.estimateCaloriesBurnedPerHour(
+          { category },
+          userId,
+          [{ reps: 10, weight: 0 }]
+        )
+      );
+    }
+    return caloriesByCategory.get(category) ?? 0;
+  };
   for (const template of templates) {
     if (!template.title) continue;
     const existing = await exerciseRepository.findExerciseByNameAndUserId(
@@ -230,22 +275,25 @@ async function processHevyExerciseTemplates(
     const modality = template.type
       ? HEVY_TYPE_TO_MODALITY[template.type]
       : undefined;
+    const category = hevyCategory(template);
+    const secondary = (template.secondary_muscle_groups ?? [])
+      .map(hevyMuscle)
+      .filter((m): m is string => m !== null);
     const row = await exerciseRepository.createExercise(
       {
         user_id: userId,
         name: template.title,
         source: 'Hevy',
         source_id: template.id,
+        category,
+        calories_per_hour: await caloriesPerHour(category),
         is_custom: true,
         shared_with_public: false,
-        equipment:
-          template.equipment && template.equipment !== 'none'
-            ? template.equipment
-            : null,
-        primary_muscles: template.primary_muscle_group || null,
-        secondary_muscles: template.secondary_muscle_groups?.length
-          ? template.secondary_muscle_groups
+        equipment: hevyEquipment(template.equipment),
+        primary_muscles: template.primary_muscle_group
+          ? hevyMuscle(template.primary_muscle_group)
           : null,
+        secondary_muscles: secondary.length ? secondary : null,
         ...(modality ? { modality } : {}),
       },
       // @ts-expect-error TS(2554): repository accepts createdByUserId at runtime

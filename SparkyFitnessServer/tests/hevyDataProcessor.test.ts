@@ -43,6 +43,9 @@ vi.mock('../models/exercisePresetEntryRepository.js', () => ({
       .mockResolvedValue(undefined),
   },
 }));
+vi.mock('../services/CalorieCalculationService.js', () => ({
+  default: { estimateCaloriesBurnedPerHour: vi.fn().mockResolvedValue(300) },
+}));
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 
 import { processHevyWorkouts } from '../integrations/hevy/hevyDataProcessor.js';
@@ -436,9 +439,9 @@ describe('processHevyExerciseTemplates', () => {
         id: 'T1',
         title: 'Sled Push',
         type: 'short_distance_weight',
-        primary_muscle_group: 'quadriceps',
-        secondary_muscle_groups: ['glutes'],
-        equipment: 'machine',
+        primary_muscle_group: 'upper_back',
+        secondary_muscle_groups: ['glutes', 'other'],
+        equipment: 'none',
       },
       { id: 'T2', title: 'Bench Press', type: 'weight_reps' },
     ]);
@@ -451,7 +454,10 @@ describe('processHevyExerciseTemplates', () => {
         source: 'Hevy',
         source_id: 'T1',
         modality: 'weight_distance',
-        primary_muscles: 'quadriceps',
+        category: 'strength',
+        calories_per_hour: 300,
+        equipment: 'body only',
+        primary_muscles: 'middle back',
         secondary_muscles: ['glutes'],
       }),
       CID

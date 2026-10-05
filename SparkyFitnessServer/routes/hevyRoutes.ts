@@ -93,6 +93,31 @@ router.post(
 );
 /**
  * @swagger
+ * /integrations/hevy/exercise-library:
+ *   delete:
+ *     summary: Remove exercises imported from the Hevy exercise library
+ *     tags: [External Integrations]
+ */
+router.delete(
+  '/exercise-library',
+  authMiddleware.authenticate,
+  async (req, res) => {
+    try {
+      res
+        .status(200)
+        .json(await hevyService.removeImportedExercises(req.userId));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log('error', `Error removing imported Hevy exercises: ${message}`);
+      res.status(500).json({
+        message: 'Error removing imported Hevy exercises',
+        error: message,
+      });
+    }
+  }
+);
+/**
+ * @swagger
  * /integrations/hevy/status:
  *   get:
  *     summary: Get Hevy connection status

@@ -8,6 +8,7 @@ import {
   linkStravaAccount,
   syncHevyData,
   syncHevyExercises,
+  removeHevyExercises,
   syncLiftosaurData,
   LiftosaurSyncResult,
   loginGarmin,
@@ -242,6 +243,26 @@ export const useSyncHevyExercisesMutation = () => {
       errorMessage: t(
         'integrations.hevyExercisesSyncError',
         'Hevy exercise sync failed. Please check your API key in settings.'
+      ),
+    },
+  });
+};
+
+export const useRemoveHevyExercisesMutation = () => {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: removeHevyExercises,
+    onSuccess: () => queryClient.invalidateQueries(),
+    meta: {
+      successMessage: t(
+        'integrations.hevyExercisesRemoveSuccess',
+        'Imported Hevy exercises removed.'
+      ),
+      errorMessage: t(
+        'integrations.hevyExercisesRemoveError',
+        'Could not remove the imported Hevy exercises.'
       ),
     },
   });

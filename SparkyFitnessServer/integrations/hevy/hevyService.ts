@@ -1,6 +1,6 @@
 import { setMockDataContext } from '../../utils/mockDataContext.js';
 import axios from 'axios';
-import { getSystemClient } from '../../db/poolManager.js';
+import { getClient, getSystemClient } from '../../db/poolManager.js';
 import { decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
 import { loadRawBundle } from '../../utils/diagnosticLogger.js';
@@ -189,6 +189,36 @@ async function syncExerciseLibrary(
     `Hevy exercise library sync for user ${userId}: ${result.created} added, ${result.skipped} already present.`
   );
   return { success: true, ...result };
+}
+/**
+ * Remove the exercises the library sync imported (Hevy-sourced, with a Hevy
+ * template id). Anything a workout preset, plan or diary entry still points at
+ * is kept, so no history or routine is lost.
+ */
+async function removeImportedExercises(userId: string) {
+  const client = await getClient(userId);
+  try {
+    const removed = await client.query(
+      `DELETE FROM exercises e
+       WHERE e.user_id = $1 AND e.source = 'Hevy' AND e.source_id IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM workout_preset_exercises x WHERE x.exercise_id = e.id)
+         AND NOT EXISTS (SELECT 1 FROM workout_plan_template_assignments x WHERE x.exercise_id = e.id)
+         AND NOT EXISTS (SELECT 1 FROM exercise_entries x WHERE x.exercise_id = e.id)`,
+      [userId]
+    );
+    const remaining = await client.query(
+      `SELECT COUNT(*)::int AS n FROM exercises
+       WHERE user_id = $1 AND source = 'Hevy' AND source_id IS NOT NULL`,
+      [userId]
+    );
+    return {
+      success: true,
+      removed: removed.rowCount ?? 0,
+      keptInUse: remaining.rows[0]?.n ?? 0,
+    };
+  } finally {
+    client.release();
+  }
 }
 /**
  * Synchronize Hevy data for a user.
@@ -442,6 +472,7 @@ export { getUserInfo };
 export { getWorkouts };
 export { getExerciseTemplates };
 export { syncExerciseLibrary };
+export { removeImportedExercises };
 export { syncHevyData };
 export { getStatus };
 export default {
@@ -449,6 +480,7 @@ export default {
   getWorkouts,
   getExerciseTemplates,
   syncExerciseLibrary,
+  removeImportedExercises,
   syncHevyData,
   getStatus,
 };

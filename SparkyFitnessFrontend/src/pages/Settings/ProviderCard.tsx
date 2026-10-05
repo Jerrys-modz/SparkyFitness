@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Link2Off,
   Dumbbell,
+  Eraser,
 } from 'lucide-react';
 import { decodeYazioAppId } from '@/utils/settings';
 import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProviderSettings';
@@ -43,6 +44,7 @@ import {
   useManualSyncStravaMutation,
   useSyncHevyMutation,
   useSyncHevyExercisesMutation,
+  useRemoveHevyExercisesMutation,
   useSyncLiftosaurMutation,
   useDisconnectLiftosaurMutation,
   useConnectCorosMutation,
@@ -197,6 +199,8 @@ export const ProviderCard = ({
     useSyncHevyMutation();
   const { mutate: syncHevyExercises, isPending: isSyncHevyExercisesPending } =
     useSyncHevyExercisesMutation();
+  const { mutate: removeHevyExercises, isPending: isRemoveHevyPending } =
+    useRemoveHevyExercisesMutation();
   const { mutate: syncLiftosaurData, isPending: isSyncLiftosaurPending } =
     useSyncLiftosaurMutation();
   const {
@@ -309,6 +313,7 @@ export const ProviderCard = ({
     isSyncCorosPending ||
     isSyncHevyPending ||
     isSyncHevyExercisesPending ||
+    isRemoveHevyPending ||
     isSyncLiftosaurPending ||
     isDisconnectLiftosaurPending;
 
@@ -506,6 +511,24 @@ export const ProviderCard = ({
             )}
         </div>
         <div className="flex items-center gap-2">
+          {config?.hasToken && provider.provider_type === 'hevy' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'Remove the exercises imported from the Hevy library? Exercises used in a routine, plan or diary entry are kept.'
+                  )
+                )
+                  removeHevyExercises();
+              }}
+              disabled={loading}
+              title="Remove imported Hevy exercises"
+            >
+              <Eraser className="h-4 w-4" />
+            </Button>
+          )}
           {config?.hasToken && provider.provider_type === 'hevy' && (
             <Button
               variant="outline"
