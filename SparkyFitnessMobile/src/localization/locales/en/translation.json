@@ -5826,7 +5826,10 @@
       "fiber": "Fiber (g)",
       "water": "Water (ml)",
       "exerciseCalories": "Exercise calories (kcal)",
-      "exerciseMinutes": "Exercise duration (min)"
-    }
+      "exerciseMinutes": "Exercise duration (min)",
+      "baselineCalories": "Baseline calories (kcal)"
+    },
+    "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target."
   }
 }

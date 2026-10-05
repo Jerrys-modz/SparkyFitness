@@ -5,8 +5,12 @@ import Toast from 'react-native-toast-message';
 import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
 import StatusView from '../components/StatusView';
-import { useServerConnection } from '../hooks';
-import { useGoalsQuery, useSaveGoalsMutation } from '../hooks/useGoals';
+import { useServerConnection, usePreferences } from '../hooks';
+import {
+  useAdjustedCalorieGoal,
+  useGoalsQuery,
+  useSaveGoalsMutation,
+} from '../hooks/useGoals';
 import type { DailyGoals } from '../types/goals';
 import type { RootStackScreenProps } from '../types/navigation';
 import { getTodayDate } from '../utils/dateUtils';
@@ -48,10 +52,17 @@ interface GoalsFormProps {
 const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
   const { t } = useTranslation();
   const { saveGoals, isPending } = useSaveGoalsMutation();
+  const { preferences } = usePreferences();
+  const isAdaptive = preferences?.calorie_goal_adjustment_mode === 'adaptive';
+  const adjustedCalories = useAdjustedCalorieGoal(date, isAdaptive);
   const [drafts, setDrafts] = useState(() => toDrafts(goals));
 
   const labels: Record<GoalField, string> = {
-    calories: t('goals.fields.calories', { defaultValue: 'Calories (kcal)' }),
+    calories: isAdaptive
+      ? t('goals.fields.baselineCalories', {
+          defaultValue: 'Baseline calories (kcal)',
+        })
+      : t('goals.fields.calories', { defaultValue: 'Calories (kcal)' }),
     protein: t('goals.fields.protein', { defaultValue: 'Protein (g)' }),
     carbs: t('goals.fields.carbs', { defaultValue: 'Carbs (g)' }),
     fat: t('goals.fields.fat', { defaultValue: 'Fat (g)' }),
@@ -107,6 +118,20 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
             'Daily targets that apply from today onward. Past days keep their goals.',
         })}
       </Text>
+      {isAdaptive && (
+        <Text className="text-sm text-text-secondary">
+          {adjustedCalories !== undefined
+            ? t('goals.adaptiveNoteToday', {
+                defaultValue:
+                  'Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.',
+                calories: Math.round(adjustedCalories),
+              })
+            : t('goals.adaptiveNote', {
+                defaultValue:
+                  'Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.',
+              })}
+        </Text>
+      )}
       {GOAL_FIELDS.map((field) => (
         <View key={field} className="gap-1">
           <Text className="text-sm font-medium text-text-primary">
