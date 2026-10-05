@@ -166,10 +166,11 @@ async function getExerciseTemplates(
   }
 }
 /**
- * Hevy has no how-to text, so borrow it from free-exercise-db: for each
- * Hevy-sourced exercise with no instructions, take the steps (and a picture,
- * if it has none) from a confident name match. Nothing is touched when there
- * is no match, and exercises that already have steps are left alone.
+ * Hevy has no how-to text, level, force or mechanic, so borrow them from
+ * free-exercise-db: each Hevy-sourced exercise with an empty field takes it
+ * from a confident name match (steps, level, force, mechanic, muscles,
+ * equipment, plus a picture if it has none). Only empty fields are filled, and
+ * nothing is touched when there is no match.
  */
 async function fillExerciseGuides(userId: string) {
   let candidates;
@@ -183,32 +184,72 @@ async function fillExerciseGuides(userId: string) {
     return { guidesAdded: 0, noMatch: 0, skipped: true };
   }
   const client = await getClient(userId);
-  let rows: { id: string; name: string; images: string | null }[];
+  type Row = {
+    id: string;
+    name: string;
+    images: string | null;
+    instructions: string | null;
+    level: string | null;
+    force: string | null;
+    mechanic: string | null;
+    equipment: string | null;
+    primary_muscles: string | null;
+    secondary_muscles: string | null;
+  };
+  let rows: Row[];
   try {
     const result = await client.query(
-      `SELECT id, name, images FROM exercises
-       WHERE user_id = $1 AND source = 'Hevy'
-         AND (instructions IS NULL OR instructions IN ('', '[]'))`,
+      `SELECT id, name, images, instructions, level, force, mechanic,
+              equipment, primary_muscles, secondary_muscles
+       FROM exercises
+       WHERE user_id = $1 AND source = 'Hevy'`,
       [userId]
     );
     rows = result.rows;
   } finally {
     client.release();
   }
+  const isEmpty = (value: string | null) =>
+    !value || value === '[]' || value === '';
+  // Hevy's catch-all equipment says nothing, so a real value may replace it.
+  const isVagueEquipment = (value: string | null) =>
+    isEmpty(value) || /^\[?\s*"?other"?\s*\]?$/i.test(value ?? '');
   let guidesAdded = 0;
   let noMatch = 0;
   for (const row of rows) {
+    const needs =
+      isEmpty(row.instructions) ||
+      !row.level ||
+      !row.force ||
+      !row.mechanic ||
+      isEmpty(row.primary_muscles) ||
+      isEmpty(row.secondary_muscles) ||
+      isVagueEquipment(row.equipment) ||
+      isEmpty(row.images);
+    if (!needs) continue;
     const match = findGuideMatch(row.name, candidates);
-    const steps = match?.instructions;
-    if (!match || !steps || (Array.isArray(steps) && steps.length === 0)) {
+    if (!match) {
       noMatch++;
       continue;
     }
-    const update: { instructions: string[] | string; images?: string[] } = {
-      instructions: steps,
-    };
-    const hasImage = !!row.images && row.images !== '[]';
-    if (!hasImage && match.images?.length) {
+    const update: Record<string, string | string[]> = {};
+    const steps = match.instructions;
+    if (isEmpty(row.instructions) && steps && steps.length > 0) {
+      update.instructions = steps;
+    }
+    if (!row.level && match.level) update.level = match.level;
+    if (!row.force && match.force) update.force = match.force;
+    if (!row.mechanic && match.mechanic) update.mechanic = match.mechanic;
+    if (isEmpty(row.primary_muscles) && match.primaryMuscles?.length) {
+      update.primary_muscles = match.primaryMuscles;
+    }
+    if (isEmpty(row.secondary_muscles) && match.secondaryMuscles?.length) {
+      update.secondary_muscles = match.secondaryMuscles;
+    }
+    if (isVagueEquipment(row.equipment) && match.equipment) {
+      update.equipment = match.equipment;
+    }
+    if (isEmpty(row.images) && match.images?.length) {
       const saved: string[] = [];
       for (const imagePath of match.images.slice(0, 2)) {
         try {
@@ -221,18 +262,19 @@ async function fillExerciseGuides(userId: string) {
           )) as string;
           saved.push(path.replace('/uploads/exercises/', ''));
         } catch {
-          // A missing picture shouldn't lose the steps.
+          // A missing picture shouldn't lose the rest.
         }
       }
       if (saved.length) update.images = saved;
     }
+    if (Object.keys(update).length === 0) continue;
     if (await exerciseRepository.updateExercise(row.id, userId, update)) {
       guidesAdded++;
     }
   }
   log(
     'info',
-    `Hevy exercise guides for user ${userId}: ${guidesAdded} added, ${noMatch} without a match.`
+    `Hevy exercise details for user ${userId}: ${guidesAdded} filled in, ${noMatch} without a match.`
   );
   return { guidesAdded, noMatch, skipped: false };
 }
@@ -548,6 +590,7 @@ export { getUserInfo };
 export { getWorkouts };
 export { getExerciseTemplates };
 export { syncExerciseLibrary };
+export { fillExerciseGuides };
 export { removeImportedExercises };
 export { syncHevyData };
 export { getStatus };
