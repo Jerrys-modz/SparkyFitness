@@ -192,6 +192,8 @@ export type RootStackParamList = {
         initialFood?: Partial<FoodFormData>;
         barcode?: string;
         providerType?: string;
+        /** Which AI read the label this form was filled in from. */
+        labelScanSource?: 'device' | 'server';
         pickerMode?: FoodPickerMode;
         returnDepth?: number;
         pendingScannedBarcode?: string;

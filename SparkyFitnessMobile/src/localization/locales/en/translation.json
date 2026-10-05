@@ -2344,7 +2344,8 @@
       "analyzeLabel": "Failed to analyze nutrition label. Please try again.",
       "loadPhoto": "Failed to load photo.",
       "lookupBarcode": "Couldn't look up this barcode. Please try again.",
-      "timeout": "Request timed out. Check your server connection."
+      "timeout": "Request timed out. Check your server connection.",
+      "retryOnDevice": "This iPhone could not read the label."
     },
     "permission": {
       "camera": "We need your permission to show the camera",
@@ -2387,7 +2388,9 @@
       "retakePhoto": "Retake photo",
       "takeLabelPhoto": "Take nutrition label photo",
       "takeMealPhoto": "Take meal photo"
-    }
+    },
+    "retryWithServer": "Read again with the server AI",
+    "retryOnDevice": "Read again on this iPhone"
   },
   "cycleToday": {
     "menstrualFlow": "Menstrual Flow",
