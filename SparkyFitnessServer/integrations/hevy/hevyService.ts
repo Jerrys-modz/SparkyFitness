@@ -9,6 +9,10 @@ import type { HevyExerciseTemplate } from './hevyDataProcessor.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 import { todayInZone, addDays, dayToUtcRange } from '@workspace/shared';
 import { logRawResponse } from '../../utils/diagnosticLogger.js';
+import exerciseRepository from '../../models/exercise.js';
+import freeExerciseDBService from '../freeexercisedb/FreeExerciseDBService.js';
+import { downloadImage } from '../../utils/imageDownloader.js';
+import { findGuideMatch } from './exerciseGuideMatcher.js';
 
 const HEVY_API_BASE_URL = 'https://api.hevyapp.com';
 
@@ -162,6 +166,77 @@ async function getExerciseTemplates(
   }
 }
 /**
+ * Hevy has no how-to text, so borrow it from free-exercise-db: for each
+ * Hevy-sourced exercise with no instructions, take the steps (and a picture,
+ * if it has none) from a confident name match. Nothing is touched when there
+ * is no match, and exercises that already have steps are left alone.
+ */
+async function fillExerciseGuides(userId: string) {
+  let candidates;
+  try {
+    candidates = await freeExerciseDBService.getAllExercises();
+  } catch (error) {
+    log(
+      'warn',
+      `Skipping Hevy exercise guides, free-exercise-db unavailable: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return { guidesAdded: 0, noMatch: 0, skipped: true };
+  }
+  const client = await getClient(userId);
+  let rows: { id: string; name: string; images: string | null }[];
+  try {
+    const result = await client.query(
+      `SELECT id, name, images FROM exercises
+       WHERE user_id = $1 AND source = 'Hevy'
+         AND (instructions IS NULL OR instructions IN ('', '[]'))`,
+      [userId]
+    );
+    rows = result.rows;
+  } finally {
+    client.release();
+  }
+  let guidesAdded = 0;
+  let noMatch = 0;
+  for (const row of rows) {
+    const match = findGuideMatch(row.name, candidates);
+    const steps = match?.instructions;
+    if (!match || !steps || (Array.isArray(steps) && steps.length === 0)) {
+      noMatch++;
+      continue;
+    }
+    const update: { instructions: string[] | string; images?: string[] } = {
+      instructions: steps,
+    };
+    const hasImage = !!row.images && row.images !== '[]';
+    if (!hasImage && match.images?.length) {
+      const saved: string[] = [];
+      for (const imagePath of match.images.slice(0, 2)) {
+        try {
+          const folder = imagePath
+            .split('/')[0]!
+            .replace(/[^a-zA-Z0-9_-]/g, '_');
+          const path = (await downloadImage(
+            freeExerciseDBService.getExerciseImageUrl(imagePath),
+            folder
+          )) as string;
+          saved.push(path.replace('/uploads/exercises/', ''));
+        } catch {
+          // A missing picture shouldn't lose the steps.
+        }
+      }
+      if (saved.length) update.images = saved;
+    }
+    if (await exerciseRepository.updateExercise(row.id, userId, update)) {
+      guidesAdded++;
+    }
+  }
+  log(
+    'info',
+    `Hevy exercise guides for user ${userId}: ${guidesAdded} added, ${noMatch} without a match.`
+  );
+  return { guidesAdded, noMatch, skipped: false };
+}
+/**
  * Copy the user's whole Hevy exercise library (built-in and custom) into
  * Sparky. Exercises that already exist by name are left as they are.
  */
@@ -188,7 +263,8 @@ async function syncExerciseLibrary(
     'info',
     `Hevy exercise library sync for user ${userId}: ${result.created} added, ${result.skipped} already present.`
   );
-  return { success: true, ...result };
+  const guides = await fillExerciseGuides(userId);
+  return { success: true, ...result, ...guides };
 }
 /**
  * Remove the exercises the library sync imported (Hevy-sourced, with a Hevy
