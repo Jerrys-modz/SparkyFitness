@@ -577,7 +577,9 @@
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "exerciseStatistics": "Exercise statistics",
-      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map"
+      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map",
+      "reports": "Reports",
+      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -586,7 +588,11 @@
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
-    "watchSettings": "Apple Watch"
+    "watchSettings": "Apple Watch",
+    "reports": "Reports",
+    "nutritionReport": "Nutrition",
+    "sleepAnalytics": "Sleep Analytics",
+    "moodReport": "Mood"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5809,5 +5815,60 @@
       "minutesAxis": "Minutes from start",
       "underOneMinute": "<1 min"
     }
+  },
+  "reports": {
+    "title": "Reports",
+    "nutrition": "Nutrition",
+    "nutritionSubtitle": "Calories, macros and daily averages",
+    "sleepAnalytics": "Sleep analytics",
+    "sleepAnalyticsSubtitle": "Stages, HRV, SpO2, respiration, stress and body battery",
+    "mood": "Mood",
+    "moodSubtitle": "Mood history and most logged moods",
+    "exercise": "Exercise",
+    "exerciseSubtitle": "Sets per muscle, body heat map and cardio sessions"
+  },
+  "nutritionReport": {
+    "title": "Nutrition",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "daysLogged": "Days logged",
+    "dailyAverages": "Daily averages",
+    "trendsByNutrient": "Trend by nutrient"
+  },
+  "moodReport": {
+    "title": "Mood",
+    "tooltip": "{{mood}} · {{date}}",
+    "averageMood": "Average mood",
+    "daysLogged": "Days logged",
+    "chartTitle": "Daily mood",
+    "loadFailed": "Failed to load mood entries",
+    "empty": "No mood entries in this period",
+    "summary": "Summary",
+    "topMoods": "Most logged"
+  },
+  "sleepAnalytics": {
+    "title": "Sleep Analytics",
+    "duration": "{{hours}}h {{minutes}}m",
+    "metrics": {
+      "sleepScore": "Sleep score",
+      "hrv": "Overnight HRV",
+      "restingHeartRate": "Resting heart rate",
+      "spo2": "Blood oxygen (SpO2)",
+      "respiration": "Respiration",
+      "stress": "Sleep stress",
+      "bodyBattery": "Body battery gained"
+    },
+    "empty": "No sleep data in this period",
+    "emptyHint": "Sync your health data to see sleep trends.",
+    "loadFailed": "Failed to load sleep data",
+    "stages": "Average night",
+    "stageDeep": "Deep",
+    "stageLight": "Light",
+    "stageRem": "REM",
+    "stageAwake": "Awake",
+    "tooltip": "{{value}} · {{date}}",
+    "averages": "Period averages"
   }
 }
