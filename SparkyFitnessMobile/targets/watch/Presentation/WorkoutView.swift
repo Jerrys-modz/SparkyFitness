@@ -199,7 +199,7 @@ private struct IntervalCaptionView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             if let caption = intervalCaption(plan: plan, now: context.date) {
                 Text(caption)
-                    .font(.caption2)
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.yellow)
                     .monospacedDigit()
             }
@@ -1005,6 +1005,27 @@ private struct CurrentSetView: View {
     }
 }
 
+/// Start and Stop on the timer cards: a small solid pill that matches the
+/// squircles around it. Big enough to hit, and quieter than a bordered button.
+private struct HoldPill: View {
+    let title: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: Haptics.tapping(action)) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.black)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 6)
+                .background(tint, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Hold countdown for a duration set. Tap starts it; at 0:00 it buzzes
 /// through the same rest-finished hook. `TimelineView` rather than a stored
 /// timer publisher: the store republishes every second and would freeze a
@@ -1023,21 +1044,19 @@ private struct HoldCountdown: View {
                 : totalSeconds
             VStack(spacing: 2) {
                 Text(Self.clock(remaining))
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 30, weight: .bold))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 if !started {
-                    Button("Start") {
+                    HoldPill(title: "Start", tint: .green) {
                         store.startHold(for: setId, seconds: totalSeconds)
                     }
-                    .font(.caption2)
-                    .buttonStyle(.bordered)
-                    .tint(.green)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+            .padding(.vertical, 8)
+            .background(WatchStyle.fill, in: WatchStyle.shape)
         }
     }
 
@@ -1058,9 +1077,10 @@ private struct HoldStopwatch: View {
             let elapsed = store.stopwatchElapsed(for: setId, now: context.date)
             VStack(spacing: 2) {
                 Text(Self.clock(elapsed ?? 0))
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 30, weight: .bold))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 if elapsed == nil {
                     if let previous = store.previousDurationSec(forSetId: setId) {
                         Text("Last \(Self.clock(previous))")
@@ -1068,24 +1088,18 @@ private struct HoldStopwatch: View {
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
-                    Button("Start") {
+                    HoldPill(title: "Start", tint: .green) {
                         store.startStopwatch(for: setId)
                     }
-                    .font(.caption2)
-                    .buttonStyle(.bordered)
-                    .tint(.green)
                 } else if store.isStopwatchRunning(for: setId) {
-                    Button("Stop") {
+                    HoldPill(title: "Stop", tint: .red) {
                         store.stopStopwatch(for: setId)
                     }
-                    .font(.caption2)
-                    .buttonStyle(.bordered)
-                    .tint(.red)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+            .padding(.vertical, 8)
+            .background(WatchStyle.fill, in: WatchStyle.shape)
         }
     }
 
