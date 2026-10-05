@@ -334,6 +334,9 @@ struct WatchContext: Codable, Equatable {
     /// The phone's active server when `startableWorkouts` was built. Sent
     /// back with a start request. Nil on a context from before this field.
     var workoutServerId: String? = nil
+    /// The phone's distance unit (`km` or `miles`). Decides whether a weighted
+    /// carry's distance is shown in metres or yards. Nil reads as metres.
+    var distanceUnit: String? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -395,6 +398,10 @@ struct WatchContext: Codable, Equatable {
     /// (a fresh watch install before first phone sync, or an unrecognized value).
     var effectiveWeightUnit: WeightUnit { weightUnit ?? .kg }
 
+    /// The unit a weighted carry's distance is shown in: metres, or yards when
+    /// the phone's distance unit is miles.
+    var effectiveCarryUnit: CarryUnit { distanceUnit == "miles" ? .yards : .meters }
+
     /// Whether button presses on the watch play a haptic. On until the phone
     /// says otherwise.
     var effectiveHapticsEnabled: Bool { hapticsEnabled ?? true }
@@ -432,6 +439,23 @@ struct WatchContext: Codable, Equatable {
 /// phone only converts at display time. This affects the crown dial and trend
 /// chart only. The phone's third option, `st_lbs` (stone + pounds), collapses
 /// to `.lbs` here — the crown dial only has room for one number, not a split.
+/// How a weighted carry's distance is shown and entered. The wire and the diary
+/// always hold km; this only decides the unit on screen.
+enum CarryUnit {
+    case meters
+    case yards
+
+    private static let yardsPerKm = 1093.6133
+
+    /// Units shown per km.
+    var perKm: Double { self == .yards ? Self.yardsPerKm : 1000 }
+    var title: String { self == .yards ? "YD" : "M" }
+    var suffix: String { self == .yards ? "yd" : "m" }
+
+    func fromKm(_ km: Double) -> Double { km * perKm }
+    func toKm(_ value: Double) -> Double { value / perKm }
+}
+
 enum WeightUnit: String, Codable {
     case kg
     case lbs

@@ -17,6 +17,7 @@ import {
 import { Edit, Trash2, Settings, Play } from 'lucide-react';
 import { formatWeight } from '@/utils/numberFormatting';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { carryDistanceFromKm, carryDistanceUnitLabel } from '@workspace/shared';
 import { formatMinutesToHHMM } from '@/utils/timeFormatters';
 import { ExerciseEntry, Exercise } from '@/types/exercises';
 import {
@@ -111,6 +112,11 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
     snapshot?.category
   );
   const isTimed = entryModality === 'duration';
+
+  const formatSetDistance = (km: number) =>
+    entryModality === 'weight_distance'
+      ? `${Number(carryDistanceFromKm(km, distanceUnit).toFixed(1))} ${carryDistanceUnitLabel(distanceUnit)}`
+      : formatDistance(km);
   // A bodyweight set's weight is added (+) or assisting (−).
   const isBodyweight = entryModality === 'bodyweight_reps';
 
@@ -303,7 +309,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
                   })
                 );
               if (set.distance != null)
-                parts.push(formatDistance(set.distance));
+                parts.push(formatSetDistance(set.distance));
               if (Number.isFinite(set.rpe)) parts.push(`RPE ${set.rpe}`);
               if (Number.isFinite(set.rir)) parts.push(`RIR ${set.rir}`);
               if (parts.length === 0) return null;

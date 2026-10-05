@@ -431,6 +431,7 @@
     "setRow": {
       "changeType": "Change type for set {{setNumber}}",
       "delete": "Delete set {{setNumber}}",
+      "distance": "Distance",
       "duration": "Duration",
       "log": "Log set {{setNumber}}",
       "reps": "Reps",
@@ -1814,7 +1815,9 @@
     "setOf_one": "Set {{number}} of {{count}}",
     "setOf_other": "Set {{number}} of {{count}}",
     "repCount_one": "{{formattedCount}} rep",
-    "repCount_other": "{{formattedCount}} reps"
+    "repCount_other": "{{formattedCount}} reps",
+    "modalityWeightDistance": "Weight & Distance (carries)",
+    "modalityWeightDuration": "Weight & Duration (loaded holds)"
   },
   "cycleCard": {
     "mode": {

@@ -3633,6 +3633,29 @@ describe('workoutSession', () => {
         setType: string | null = null
       ) => ({ setNumber: 1, setType, weight, reps });
 
+      it('formats weighted carries as weight × distance in metres or yards', () => {
+        const carry = { ...recentSet(40, null), distance: 0.03 };
+        expect(
+          formatRecentSessionSet(carry, 'kg', i18n.t, 'weight_distance', 'km')
+        ).toBe('40 × 30 m');
+        expect(
+          formatRecentSessionSet(
+            carry,
+            'kg',
+            i18n.t,
+            'weight_distance',
+            'miles'
+          )
+        ).toBe('40 × 32.8 yd');
+      });
+
+      it('formats loaded holds as weight × time', () => {
+        const hold = { ...recentSet(20, null), duration: 90 };
+        expect(
+          formatRecentSessionSet(hold, 'kg', i18n.t, 'weight_duration')
+        ).toBe('20 × 1:30');
+      });
+
       it('formats weight × reps, converting for the display unit', () => {
         expect(formatRecentSessionSet(recentSet(100, 5), 'kg', i18n.t)).toBe(
           '100 × 5'
@@ -4998,6 +5021,40 @@ describe('workoutSession', () => {
             rest_time: 30,
             notes: 'hold',
             rpe: 8,
+          });
+        });
+
+        it('converts carry distance from metres/yards to km on weight_distance', () => {
+          const metres = buildActivitySetsPayload(
+            [{ clientId: 'set-0', weight: '40', reps: '', distance: '30' }],
+            new Map(),
+            'kg',
+            'weight_distance'
+          );
+          expect(metres[0]).toMatchObject({ weight: 40, reps: null });
+          expect(metres[0].distance).toBeCloseTo(0.03, 6);
+          const yards = buildActivitySetsPayload(
+            [{ clientId: 'set-0', weight: '40', reps: '', distance: '100' }],
+            new Map(),
+            'kg',
+            'weight_distance',
+            undefined,
+            'miles'
+          );
+          expect(yards[0].distance).toBeCloseTo(0.09144, 4);
+        });
+
+        it('takes duration from the drafts on weight_duration', () => {
+          const payload = buildActivitySetsPayload(
+            [{ clientId: 'set-0', weight: '20', reps: '', duration: 90 }],
+            new Map(),
+            'kg',
+            'weight_duration'
+          );
+          expect(payload[0]).toMatchObject({
+            weight: 20,
+            reps: null,
+            duration: 90,
           });
         });
 
