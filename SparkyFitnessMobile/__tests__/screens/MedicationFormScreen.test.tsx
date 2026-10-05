@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { pressAction } from './helpers/nativeHeaderTestUtils';
 import MedicationFormScreen from '../../src/screens/MedicationFormScreen';
@@ -17,6 +17,15 @@ jest.mock('../../src/hooks/useMedications', () => ({
   useMedicationDetail: jest.fn(),
   useCreateMedication: jest.fn(),
   useUpdateMedication: jest.fn(),
+}));
+
+const mockEnsureCatalog = jest.fn();
+jest.mock('../../src/hooks/useCustomNutrients', () => ({
+  useCustomNutrients: () => ({ customNutrients: [] }),
+  useEnsureCatalogNutrients: () => ({
+    mutateAsync: mockEnsureCatalog,
+    isPending: false,
+  }),
 }));
 
 jest.mock('../../src/components/Icon', () => {
@@ -38,25 +47,34 @@ jest.mock('../../src/components/BottomSheetPicker', () => {
   return {
     __esModule: true,
     default: ({
-      options,
+      options: optionsProp,
+      sections,
       onSelect,
       value,
     }: {
-      options: { label: string; value: string }[];
+      options?: { label: string; value: string }[];
+      sections?: { options: { label: string; value: string }[] }[];
       onSelect: (value: string) => void;
       value: string;
-    }) => (
-      <View>
-        <Text>
-          {options.find((option) => option.value === value)?.label ?? ''}
-        </Text>
-        {options.map((option) => (
-          <Pressable key={option.value} onPress={() => onSelect(option.value)}>
-            <Text>{`opt-${option.value}`}</Text>
-          </Pressable>
-        ))}
-      </View>
-    ),
+    }) => {
+      const options =
+        optionsProp ?? (sections ?? []).flatMap((section) => section.options);
+      return (
+        <View>
+          <Text>
+            {options.find((option) => option.value === value)?.label ?? ''}
+          </Text>
+          {options.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() => onSelect(option.value)}
+            >
+              <Text>{`opt-${option.value}`}</Text>
+            </Pressable>
+          ))}
+        </View>
+      );
+    },
   };
 });
 
@@ -114,11 +132,15 @@ const baseMed: MedicationDetail = {
   schedules: [],
 };
 
-const renderScreen = (medicationId?: string) => {
+const renderScreen = (medicationId?: string, isSupplement?: boolean) => {
   const route: ScreenProps['route'] = {
     key: 'MedicationForm-key',
     name: 'MedicationForm',
-    params: medicationId ? { medicationId } : {},
+    params: medicationId
+      ? { medicationId }
+      : isSupplement
+        ? { isSupplement }
+        : {},
   };
   return render(
     <SafeAreaProvider initialMetrics={{ insets, frame }}>
@@ -246,5 +268,109 @@ describe('MedicationFormScreen — optional text fields', () => {
       }),
       expect.anything()
     );
+  });
+});
+
+describe('MedicationFormScreen — supplements', () => {
+  const createMutate = jest.fn();
+  const updateMutate = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockEnsureCatalog.mockResolvedValue({
+      resolved: [
+        { catalogId: 'vitamin_c', name: 'Vitamin C', fixedField: 'vitamin_c' },
+        { catalogId: 'magnesium', name: 'Magnesium' },
+      ],
+    });
+    mockUseMedicationDetail.mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof useMedicationDetail>);
+    mockUseCreateMedication.mockReturnValue({
+      mutate: createMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useCreateMedication>);
+    mockUseUpdateMedication.mockReturnValue({
+      mutate: updateMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateMedication>);
+  });
+
+  it('opens as a supplement with forms, nutrients and no strength or dose', () => {
+    const screen = renderScreen(undefined, true);
+
+    expect(screen.getByText('Nutrition per serving')).toBeTruthy();
+    expect(screen.getByText('opt-softgel')).toBeTruthy();
+    expect(screen.queryByText('opt-injection')).toBeNull();
+    expect(screen.queryByText('Strength')).toBeNull();
+    expect(screen.queryByText('Dose')).toBeNull();
+  });
+
+  it('turns a medication form into a supplement form', () => {
+    const screen = renderScreen();
+
+    expect(screen.queryByText('Nutrition per serving')).toBeNull();
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
+
+    expect(screen.getByText('Nutrition per serving')).toBeTruthy();
+    expect(screen.queryByText('Strength')).toBeNull();
+  });
+
+  it('saves the nutrients, creating the ones that are not built in', async () => {
+    const screen = renderScreen(undefined, true);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Daily Multi');
+    fireEvent.press(screen.getByText('opt-catalog:vitamin_c'));
+    fireEvent.press(screen.getByText('opt-catalog:magnesium'));
+    fireEvent.changeText(screen.getByLabelText('Vitamin C amount in mg'), '90');
+    fireEvent.changeText(
+      screen.getByLabelText('Magnesium amount in mg'),
+      '200'
+    );
+
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(mockEnsureCatalog).toHaveBeenCalledWith(['magnesium']);
+    expect(createMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Daily Multi',
+        is_supplement: true,
+        type_id: 'capsule',
+        dose_amount: 1,
+        dose_unit: 'serving',
+        strength_value: null,
+        nutrients: { vitamin_c: 90, custom_nutrients: { Magnesium: 200 } },
+      }),
+      expect.anything()
+    );
+  });
+
+  it('does not create nutrients for rows left blank', async () => {
+    const screen = renderScreen(undefined, true);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Zinc');
+    fireEvent.press(screen.getByText('opt-catalog:zinc'));
+
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(mockEnsureCatalog).not.toHaveBeenCalled();
+    expect(createMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ nutrients: {} }),
+      expect.anything()
+    );
+  });
+
+  it('refuses an amount that is not a number', () => {
+    const screen = renderScreen(undefined, true);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Zinc');
+    fireEvent.press(screen.getByText('opt-catalog:zinc'));
+    fireEvent.changeText(screen.getByLabelText('Zinc amount in mg'), 'lots');
+
+    pressAction(screen, mockNavigation, 'Save');
+
+    expect(createMutate).not.toHaveBeenCalled();
   });
 });
