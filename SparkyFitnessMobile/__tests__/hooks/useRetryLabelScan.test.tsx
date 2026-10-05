@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import { useRetryLabelScan } from '../../src/hooks/useRetryLabelScan';
-import { rememberLabelScan } from '../../src/services/labelScanSession';
+import {
+  rememberLabelScan,
+  getLabelScanPhoto,
+} from '../../src/services/labelScanSession';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import { scanNutritionLabel } from '../../src/services/api/externalFoodSearchApi';
 import { scanLabelOnDevice } from '../../src/services/onDeviceLabelScan';
@@ -114,6 +117,31 @@ describe('useRetryLabelScan', () => {
     });
 
     expect(navigation.replace).not.toHaveBeenCalled();
+  });
+
+  it('ignores a retry that finishes after a newer scan', async () => {
+    rememberLabelScan('old', 'device');
+    let release: (value: unknown) => void = () => {};
+    (scanNutritionLabel as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    const { result: hook } = renderHook(() =>
+      useRetryLabelScan(params('device'), navigation as never)
+    );
+
+    act(() => {
+      hook.current.retry();
+    });
+    rememberLabelScan('newer', 'server');
+    await act(async () => {
+      release(result);
+    });
+
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(getLabelScanPhoto()).toBe('newer');
   });
 
   it('keeps the form when the server read fails', async () => {

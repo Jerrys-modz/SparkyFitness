@@ -50,6 +50,9 @@ describe('AiSettingsScreen', () => {
 
   it('turns on-device label scanning on and off', () => {
     const { getByTestId } = renderScreen();
+    expect(getByTestId('ai-label-scan-switch').props.accessibilityLabel).toBe(
+      'Scan Labels On Device'
+    );
     fireEvent(getByTestId('ai-label-scan-switch'), 'valueChange', true);
     expect(useAppPreferencesStore.getState().onDeviceLabelScanEnabled).toBe(
       true
