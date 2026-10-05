@@ -38,7 +38,12 @@ function ToggleCard({
         <Text className="text-base font-semibold text-text-primary flex-shrink">
           {title}
         </Text>
-        <Switch testID={testID} onValueChange={onValueChange} value={value} />
+        <Switch
+          testID={testID}
+          accessibilityLabel={title}
+          onValueChange={onValueChange}
+          value={value}
+        />
       </View>
       <Text className="text-text-secondary text-sm mt-4">{description}</Text>
     </View>
@@ -50,7 +55,13 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const { data: provider, isLoading } = useActiveAiServiceSetting();
+  const {
+    data: provider,
+    isLoading,
+    isError,
+  } = useActiveAiServiceSetting({
+    throwOnFailure: true,
+  });
 
   const onDeviceLabelScanEnabled = useAppPreferencesStore(
     (s) => s.onDeviceLabelScanEnabled
@@ -93,11 +104,15 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
 
   const providerText = isLoading
     ? t('aiSettings.server.loading', { defaultValue: 'Checking…' })
-    : provider
-      ? `${provider.service_name}${provider.model_name ? ` · ${provider.model_name}` : ''}`
-      : t('aiSettings.server.none', {
-          defaultValue: 'No AI provider is configured',
-        });
+    : isError
+      ? t('aiSettings.server.error', {
+          defaultValue: 'Could not check the AI provider.',
+        })
+      : provider
+        ? `${provider.service_name}${provider.model_name ? ` · ${provider.model_name}` : ''}`
+        : t('aiSettings.server.none', {
+            defaultValue: 'No AI provider is configured',
+          });
 
   return (
     <View

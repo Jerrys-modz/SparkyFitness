@@ -80,20 +80,89 @@ function parsePrintedNumber(printed: string): number {
   );
 }
 
+const NUTRIENT_LABELS: { key: string; pattern: RegExp }[] = [
+  { key: 'calories', pattern: /\b(?:calories?|energy)\b/gi },
+  { key: 'protein', pattern: /\bproteins?\b/gi },
+  { key: 'carbs', pattern: /\b(?:carbohydrates?|carbs?)\b/gi },
+  { key: 'fat', pattern: /\bfat\b/gi },
+];
+
+function nutrientHits(text: string): { key: string; index: number }[] {
+  const hits: { key: string; index: number }[] = [];
+  for (const { key, pattern } of NUTRIENT_LABELS) {
+    pattern.lastIndex = 0;
+    for (const match of text.matchAll(pattern)) {
+      const index = match.index ?? 0;
+      if (key === 'fat') {
+        const before = text.slice(Math.max(0, index - 16), index).toLowerCase();
+        if (/(?:saturated|trans)\s*$/.test(before)) continue;
+      }
+      hits.push({ key, index });
+    }
+  }
+  hits.sort((a, b) => a.index - b.index);
+  return hits;
+}
+
+/** Numbers printed beside this nutrient, up to the next nutrient or line end. */
+function numbersBeside(text: string, key: string): number[] {
+  const hits = nutrientHits(text);
+  const hit = hits.find((item) => item.key === key);
+  if (!hit) return [];
+  const next = hits.find((item) => item.index > hit.index);
+  let end = next?.index ?? text.length;
+  const newline = text.indexOf('\n', hit.index);
+  if (newline >= 0 && newline < end) end = newline;
+  return (text.slice(hit.index, end).match(NUMBER_PATTERN) ?? [])
+    .map(parsePrintedNumber)
+    .filter((value) => Number.isFinite(value));
+}
+
 /**
- * True when every macro the model returned appears as a number in the text
- * recognised on the label. A value the model made up, or read off the wrong
- * column, is usually not printed anywhere. With no text read there is nothing
- * to check the numbers against, so the server-side scan takes over.
+ * Which column is per 100 g/ml when the label prints both. Null when the
+ * header does not say, so a one-column label is left alone.
+ */
+function per100ColumnIsFirst(text: string): boolean | null {
+  const lower = text.toLowerCase();
+  const per100 = lower.search(/\b100\s*(?:g|ml)\b/);
+  const serving = lower.search(/\b(?:serving|portion)\b/);
+  if (per100 < 0 || serving < 0) return null;
+  return per100 < serving;
+}
+
+/**
+ * True when every macro the model returned is the number printed beside that
+ * nutrient, and every one of them comes from the same column. A value from
+ * the per-serving column mixed with one from the per-100 column is rejected.
+ * With no text read there is nothing to check, so the server scan takes over.
  */
 export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
   const text = r.ocr_text?.trim();
   if (!text) return false;
-  const printed = new Set(
-    (text.match(NUMBER_PATTERN) ?? []).map(parsePrintedNumber)
-  );
-  return [r.calories, r.protein, r.carbs, r.fat].every(
-    (value) => value === null || printed.has(value)
+  const per100First = per100ColumnIsFirst(text);
+  const fields: [string, number | null][] = [
+    ['calories', r.calories],
+    ['protein', r.protein],
+    ['carbs', r.carbs],
+    ['fat', r.fat],
+  ];
+  const columnIndexes: number[] = [];
+  for (const [key, value] of fields) {
+    if (value === null) continue;
+    const numbers = numbersBeside(text, key);
+    if (numbers.length === 0) return false;
+    if (per100First !== null && numbers.length >= 2) {
+      const index = r.values_are_per_100 === per100First ? 0 : 1;
+      if (numbers[index] !== value) return false;
+    } else {
+      const index = numbers.indexOf(value);
+      if (index < 0) return false;
+      if (numbers.length >= 2) columnIndexes.push(index);
+    }
+  }
+  return (
+    columnIndexes.length === 0 ||
+    columnIndexes.every((index) => index === columnIndexes[0])
   );
 }
 
@@ -148,6 +217,19 @@ export async function scanLabelOnDevice(
     }
     if (!isPlausibleLabel(extraction)) {
       addLog('[Label Scan] On-device result implausible; falling back', 'INFO');
+      return null;
+    }
+    if (
+      !extraction.values_are_per_100 &&
+      !(
+        typeof extraction.serving_size === 'number' &&
+        extraction.serving_size > 0
+      )
+    ) {
+      addLog(
+        '[Label Scan] On-device result has no serving size; falling back',
+        'INFO'
+      );
       return null;
     }
     return toLabelScanResult(extraction);

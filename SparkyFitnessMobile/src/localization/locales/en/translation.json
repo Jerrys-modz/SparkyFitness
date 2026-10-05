@@ -6025,6 +6025,7 @@
     "server": {
       "title": "Server AI provider",
       "loading": "Checking…",
+      "error": "Could not check the AI provider.",
       "none": "No AI provider is configured",
       "description": "Used for chat, food photos and label scans unless an on-device option below handles them. Providers are set up in the web app."
     },

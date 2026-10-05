@@ -51,6 +51,7 @@ export function useRetryLabelScan(
 
   const retry = async () => {
     const photo = getLabelScanPhoto();
+    const capturedGeneration = getLabelScanGeneration();
     if (!photo || !source || retrying) return;
     const to: LabelScanSource = source === 'device' ? 'server' : 'device';
     setRetrying(true);
@@ -59,6 +60,8 @@ export function useRetryLabelScan(
         to === 'server'
           ? await scanNutritionLabel(photo, 'image/jpeg')
           : await scanLabelOnDevice(photo);
+      // A newer scan replaced this photo while the read was in flight.
+      if (getLabelScanGeneration() !== capturedGeneration) return;
       if (!result) {
         Toast.show({
           type: 'error',

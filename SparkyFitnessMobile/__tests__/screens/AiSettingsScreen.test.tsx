@@ -73,6 +73,9 @@ describe('AiSettingsScreen', () => {
   it('turns the on-device options on and off', () => {
     const { getByTestId } = renderScreen();
     fireEvent(getByTestId('ai-food-photo-switch'), 'valueChange', true);
+    expect(getByTestId('ai-label-scan-switch').props.accessibilityLabel).toBe(
+      'Scan Labels On Device'
+    );
     fireEvent(getByTestId('ai-label-scan-switch'), 'valueChange', true);
     const s = useAppPreferencesStore.getState();
     expect(s.onDeviceFoodPhotoEnabled).toBe(true);

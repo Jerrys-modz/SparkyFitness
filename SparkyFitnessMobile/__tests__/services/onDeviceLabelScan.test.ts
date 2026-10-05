@@ -94,6 +94,82 @@ describe('onDeviceLabelScan', () => {
     expect(isGroundedInLabelText(r)).toBe(true);
   });
 
+  it('rejects a mix of the per-serving and per-100 columns', () => {
+    const ocr = [
+      'Per serving Per 100g',
+      'Calories 100 400',
+      'Protein 2.5g 10g',
+      'Carbohydrate 15g 60g',
+      'Fat 3.75g 15g',
+    ].join('\n');
+    expect(
+      isGroundedInLabelText(
+        label({
+          calories: 100,
+          protein: 10,
+          carbs: 15,
+          fat: 3.75,
+          values_are_per_100: false,
+          ocr_text: ocr,
+        })
+      )
+    ).toBe(false);
+  });
+
+  it('accepts every macro from the column the model selected', () => {
+    const ocr = [
+      'Per serving Per 100g',
+      'Calories 100 400',
+      'Protein 2.5g 10g',
+      'Carbohydrate 15g 60g',
+      'Fat 3.75g 15g',
+    ].join('\n');
+    expect(
+      isGroundedInLabelText(
+        label({
+          calories: 100,
+          protein: 2.5,
+          carbs: 15,
+          fat: 3.75,
+          values_are_per_100: false,
+          ocr_text: ocr,
+        })
+      )
+    ).toBe(true);
+    expect(
+      isGroundedInLabelText(
+        label({
+          calories: 400,
+          protein: 10,
+          carbs: 60,
+          fat: 15,
+          values_are_per_100: true,
+          ocr_text: ocr,
+        })
+      )
+    ).toBe(true);
+  });
+
+  it('rejects a mix even when the label has no column header', () => {
+    const ocr = [
+      'Calories 100 400',
+      'Protein 2.5g 10g',
+      'Carbohydrate 15g 60g',
+      'Fat 3.75g 15g',
+    ].join('\n');
+    expect(
+      isGroundedInLabelText(
+        label({
+          calories: 100,
+          protein: 10,
+          carbs: 15,
+          fat: 3.75,
+          ocr_text: ocr,
+        })
+      )
+    ).toBe(false);
+  });
+
   it('rejects a macro that is not in the label text', () => {
     const r = label({
       ocr_text: 'Calories 180\nProtein 5g\nCarbs 26g\nFat 7g',
@@ -126,6 +202,29 @@ describe('onDeviceLabelScan', () => {
   it('falls back when the label text could not be read', async () => {
     mockModule.scanLabel.mockResolvedValue(label({ ocr_text: '' }));
     expect(await scanLabelOnDevice('b64')).toBeNull();
+  });
+
+  it('falls back when a per-serving label has no serving size', async () => {
+    mockModule.scanLabel.mockResolvedValue(
+      label({
+        serving_size: null,
+        ocr_text: 'Calories 180 Protein 4 Carbs 26 Fat 7',
+      })
+    );
+    expect(await scanLabelOnDevice('b64')).toBeNull();
+  });
+
+  it('keeps a per-100 label that has no serving size', async () => {
+    mockModule.scanLabel.mockResolvedValue(
+      label({
+        serving_size: null,
+        values_are_per_100: true,
+        ocr_text: 'Calories 180 Protein 4 Carbs 26 Fat 7',
+      })
+    );
+    const result = await scanLabelOnDevice('b64');
+    expect(result?.serving_size).toBe(100);
+    expect(result?.serving_unit).toBe('g');
   });
 
   it('returns null when unavailable, throwing, or implausible', async () => {
