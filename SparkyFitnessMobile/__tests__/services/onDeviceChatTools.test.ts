@@ -6,6 +6,7 @@ import {
 import { searchFoods } from '../../src/services/api/foodsApi';
 import { fetchMealTypes } from '../../src/services/api/mealTypesApi';
 import {
+  copyFoodEntries,
   createFoodEntry,
   deleteFoodEntry,
 } from '../../src/services/api/foodEntriesApi';
@@ -26,7 +27,6 @@ import {
   createExerciseEntry,
   searchExercises,
 } from '../../src/services/api/exerciseApi';
-import { copyFoodEntries } from '../../src/services/api/foodEntriesApi';
 
 jest.mock('../../src/services/api/foodsApi', () => ({
   searchFoods: jest.fn(),
