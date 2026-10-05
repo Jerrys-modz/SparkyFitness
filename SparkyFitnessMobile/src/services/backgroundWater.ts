@@ -77,14 +77,13 @@ export function buildBackgroundWaterConfig(
   };
 }
 
+let syncQueue: Promise<unknown> = Promise.resolve();
+
 /**
  * Keeps the native copy of the login in step with the setting. With the
  * setting off, or no container, or no signed-in server, the copy is erased, so
  * nothing about the account stays readable outside the app.
- */
-let syncQueue: Promise<unknown> = Promise.resolve();
-
-/**
+ *
  * Runs one sync or clear at a time, in the order asked. Without this, a sync
  * waiting on the stored login could finish after a clear and write the login
  * back after the user switched the setting off.
