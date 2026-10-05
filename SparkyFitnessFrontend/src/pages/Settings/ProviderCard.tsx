@@ -117,7 +117,7 @@ const PROVIDER_PORTALS: Record<string, { label: string; url: string }> = {
   },
   'canadian-nutrient-file': {
     label: 'Health Canada CNF Open Data Portal',
-    url: 'https://open.canada.ca/data/en/dataset/a289f1a2-8955-4089-8d76-590022f1be3d',
+    url: 'https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109',
   },
 };
 
