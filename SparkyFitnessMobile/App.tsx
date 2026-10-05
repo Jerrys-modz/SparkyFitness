@@ -82,6 +82,7 @@ import {
   SafeChat,
   SafeCalorieSettings,
   SafeMealTypeSettings,
+  SafeAiSettings,
   SafeFoodSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
@@ -935,6 +936,11 @@ function AppContent() {
               headerBackButtonDisplayMode: 'minimal',
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),
             })}
+          />
+          <Stack.Screen
+            name="AiSettings"
+            component={SafeAiSettings}
+            options={createStackScreenOptions(t('screens.aiSettings', { defaultValue: 'AI' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="SymptomHistory"
