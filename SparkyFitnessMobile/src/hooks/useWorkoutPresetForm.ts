@@ -1,10 +1,6 @@
 import { useCallback, useReducer, useRef } from 'react';
 import type { PresetSessionResponse, WorkoutFormat } from '@workspace/shared';
-import { weightFromKg } from '../utils/unitConversions';
-import {
-  resolveSnapshotModality,
-  setDistanceFromKm,
-} from '../utils/workoutSession';
+import { distanceFromKm, weightFromKg } from '../utils/unitConversions';
 import type { WorkoutDraftExercise, DraftSetType } from '../types/drafts';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import {
@@ -112,14 +108,9 @@ export function presetFormReducer(
               set.distance != null
                 ? String(
                     parseFloat(
-                      setDistanceFromKm(
-                        set.distance,
-                        action.distanceUnit,
-                        resolveSnapshotModality({
-                          modality: exercise.modality,
-                          category: exercise.category,
-                        })
-                      ).toFixed(2)
+                      distanceFromKm(set.distance, action.distanceUnit).toFixed(
+                        2
+                      )
                     )
                   )
                 : '',
@@ -167,11 +158,9 @@ export function presetFormReducer(
               set.distance != null
                 ? String(
                     parseFloat(
-                      setDistanceFromKm(
-                        set.distance,
-                        action.distanceUnit,
-                        resolveSnapshotModality(exercise.exercise_snapshot)
-                      ).toFixed(2)
+                      distanceFromKm(set.distance, action.distanceUnit).toFixed(
+                        2
+                      )
                     )
                   )
                 : '',

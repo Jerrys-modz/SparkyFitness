@@ -431,7 +431,6 @@
     "setRow": {
       "changeType": "Change type for set {{setNumber}}",
       "delete": "Delete set {{setNumber}}",
-      "distance": "Distance",
       "duration": "Duration",
       "log": "Log set {{setNumber}}",
       "reps": "Reps",
@@ -1815,9 +1814,7 @@
     "setOf_one": "Set {{number}} of {{count}}",
     "setOf_other": "Set {{number}} of {{count}}",
     "repCount_one": "{{formattedCount}} rep",
-    "repCount_other": "{{formattedCount}} reps",
-    "modalityWeightDistance": "Weight & Distance (carries)",
-    "modalityWeightDuration": "Weight & Duration (loaded holds)"
+    "repCount_other": "{{formattedCount}} reps"
   },
   "cycleCard": {
     "mode": {
@@ -4971,7 +4968,11 @@
     "moveDown": "Move {{name}} down",
     "reorderFailed": "Failed to reorder containers",
     "presets": "Quick-add presets",
-    "addPresetFailed": "Failed to add drink preset"
+    "addPresetFailed": "Failed to add drink preset",
+    "backgroundLog": {
+      "title": "Log water without opening the app",
+      "description": "Adds a Log water shortcut (Siri, Spotlight, Shortcuts and the Action button on iPhone; the app icon menu on Android) that logs one drink of the container shown on your dashboard and tells you the result without opening SparkyFitness. To do this while the app is closed, your server address and login are kept in a second, encrypted place on this phone. Turning this off, or removing your server, erases that copy."
+    }
   },
   "waterContainerEdit": {
     "createTitle": "Add container",

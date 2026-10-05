@@ -1108,7 +1108,6 @@ final class WatchSessionManager: NSObject, ObservableObject {
             weightKg: values.weightKg,
             reps: values.reps,
             duration: workoutStore.holdLoggedSeconds(for: step.plannedSet.setId),
-            distanceKm: step.plannedSet.carry == true ? values.distanceKm : nil,
             completedAt: Date()
         )
         transfer(OutboundPayloads.setCompleted(completed))

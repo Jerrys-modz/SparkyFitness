@@ -231,6 +231,7 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       './plugins/withAppLanguage',
       './plugins/withCalorieWidget',
       './plugins/withExactAlarmModule',
+      './plugins/withBackgroundWater',
       './plugins/withWorkoutNotification',
       './plugins/withEnrichedMarkdownNoMath',
       './plugins/withSceneLifecycle',

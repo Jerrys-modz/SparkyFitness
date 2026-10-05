@@ -73,8 +73,7 @@ enum ContextPayloadMapper {
             startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
-                : previous.workoutServerId,
-            distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit
+                : previous.workoutServerId
         )
     }
 
@@ -308,10 +307,7 @@ enum ContextPayloadMapper {
                     setType: rawSet["setType"] as? String,
                     targetDurationSec: intValue(rawSet["targetDurationSec"]),
                     previousDurationSec: intValue(rawSet["previousDurationSec"]),
-                    timed: rawSet["timed"] as? Bool,
-                    carry: rawSet["carry"] as? Bool,
-                    targetDistanceKm: doubleValue(rawSet["targetDistanceKm"]),
-                    weighted: rawSet["weighted"] as? Bool
+                    timed: rawSet["timed"] as? Bool
                 )
             }
             return PlannedExercise(
@@ -398,8 +394,7 @@ enum ContextPayloadMapper {
                 weightKg: doubleValue(raw["targetWeightKg"]),
                 reps: doubleValue(raw["targetReps"]),
                 durationSec: intValue(raw["targetDurationSec"]),
-                previousDurationSec: intValue(raw["previousDurationSec"]),
-                distanceKm: doubleValue(raw["targetDistanceKm"])
+                previousDurationSec: intValue(raw["previousDurationSec"])
             )
         }
         // Sets already logged on the phone. Absent from an older phone build.
