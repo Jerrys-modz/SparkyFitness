@@ -137,20 +137,33 @@ function per100ColumnIsFirst(text: string): boolean | null {
 /**
  * True when every macro the model returned is the number printed beside that
  * nutrient, and every one of them comes from the same column. A per-serving
- * size must itself be printed, so a made-up amount cannot become the basis
- * the form scales from. With no text read there is nothing to check, so the
- * server scan takes over.
+ * size, and any optional nutrient the model filled in, must be printed too.
+ * With no text read there is nothing to check, so the server scan takes over.
  */
 export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
   const text = r.ocr_text?.trim();
   if (!text) return false;
+  const printed = printedNumbers(text);
   if (
     !r.values_are_per_100 &&
     typeof r.serving_size === 'number' &&
     r.serving_size > 0 &&
-    !printedNumbers(text).includes(r.serving_size)
+    !printed.includes(r.serving_size)
   ) {
     return false;
+  }
+  for (const value of [
+    r.fiber,
+    r.saturated_fat,
+    r.trans_fat,
+    r.sodium,
+    r.sugars,
+    r.cholesterol,
+    r.potassium,
+    r.calcium,
+    r.iron,
+  ]) {
+    if (value !== null && !printed.includes(value)) return false;
   }
   const per100First = per100ColumnIsFirst(text);
   const fields: [string, number | null][] = [
