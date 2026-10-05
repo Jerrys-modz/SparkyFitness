@@ -1,6 +1,34 @@
 import SwiftUI
 import WatchKit
 
+/// Whether the Workout page is the one on screen. A page-style `TabView` keeps
+/// neighbouring pages alive, and a double-tap must not log a set from, say,
+/// the Water page. `ContentView` sets it from its page selection.
+private struct WorkoutPageActiveKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var workoutPageActive: Bool {
+        get { self[WorkoutPageActiveKey.self] }
+        set { self[WorkoutPageActiveKey.self] = newValue }
+    }
+}
+
+private extension View {
+    /// The watch's double-tap gesture (watchOS 11 and a supporting model)
+    /// presses this button. Older systems have no such gesture, so the button
+    /// is left alone.
+    @ViewBuilder
+    func doubleTapGesture(enabled: Bool) -> some View {
+        if #available(watchOS 11.0, *), enabled {
+            self.handGestureShortcut(.primaryAction)
+        } else {
+            self
+        }
+    }
+}
+
 /// Dark-theme category colours, in the same order as `SUPERSET_PALETTE_VARS`
 /// (`workoutSupersets.ts`). Run 0 is blue, then orange, violet, green, pink,
 /// teal, amber, slate. Values are the dark `--color-cat-*` tokens from
@@ -1010,6 +1038,8 @@ private struct CurrentSetView: View {
 private struct HoldPill: View {
     let title: String
     let tint: Color
+    /// Whether the watch's double-tap gesture presses this button.
+    var doubleTap = false
     let action: () -> Void
 
     var body: some View {
@@ -1023,6 +1053,7 @@ private struct HoldPill: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .doubleTapGesture(enabled: doubleTap)
     }
 }
 
@@ -1066,11 +1097,13 @@ private struct HoldCountdown: View {
 }
 
 /// Count-up timer for a duration set with no planned length. Start begins it;
-/// ticking the set logs the elapsed seconds.
+/// ticking the set logs the elapsed seconds. Double-tap stops a running one.
 private struct HoldStopwatch: View {
     let setId: String
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
+    @Environment(\.workoutPageActive) private var workoutPageActive
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -1092,7 +1125,14 @@ private struct HoldStopwatch: View {
                         store.startStopwatch(for: setId)
                     }
                 } else if store.isStopwatchRunning(for: setId) {
-                    HoldPill(title: "Stop", tint: .red) {
+                    // While the stopwatch runs the double-tap stops it; the
+                    // set's tick takes the gesture back once it has stopped.
+                    HoldPill(
+                        title: "Stop",
+                        tint: .red,
+                        doubleTap: workoutPageActive
+                            && checkIn.context.effectiveDoubleTapEnabled
+                    ) {
                         store.stopStopwatch(for: setId)
                     }
                 }
@@ -1153,6 +1193,17 @@ private struct StepControls: View {
     let onNext: () -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
+    @Environment(\.workoutPageActive) private var workoutPageActive
+
+    /// The current set's stopwatch is counting. Its Stop button holds the
+    /// double-tap while it is.
+    private var stopwatchRunning: Bool {
+        guard store.steps.indices.contains(store.currentStepIndex) else { return false }
+        return store.isStopwatchRunning(
+            for: store.steps[store.currentStepIndex].plannedSet.setId
+        )
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -1183,6 +1234,14 @@ private struct StepControls: View {
             }
             .buttonStyle(.plain)
             .disabled(isCompleted)
+            // Double-tap logs the set, but only while this page is showing and
+            // there is a set left to log. A running stopwatch owns the gesture
+            // (it stops the timer first) so a hold is not logged mid-count.
+            .doubleTapGesture(
+                enabled: workoutPageActive && !isCompleted
+                    && !stopwatchRunning
+                    && checkIn.context.effectiveDoubleTapEnabled
+            )
         }
     }
 }
