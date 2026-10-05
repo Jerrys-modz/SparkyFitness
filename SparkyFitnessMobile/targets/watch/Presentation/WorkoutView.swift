@@ -340,52 +340,55 @@ private struct ExerciseListView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                Text("\(exercises.count) Exercises")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .listRowBackground(Color.clear)
-            }
-            ForEach(blocks) { block in
-                Section {
-                    ForEach(block.exercises) { exercise in
-                        Button {
-                            Haptics.tap()
-                            onSelect(exercise.exerciseEntryId)
-                            dismiss()
-                        } label: {
-                            ExerciseRow(exercise: exercise)
+        // A stack only to give the sheet a title: watchOS puts it, small and
+        // grey, under the clock, which names the workout without a row.
+        NavigationStack {
+            List {
+                ForEach(blocks) { block in
+                    Section {
+                        ForEach(block.exercises) { exercise in
+                            Button {
+                                Haptics.tap()
+                                onSelect(exercise.exerciseEntryId)
+                                dismiss()
+                            } label: {
+                                ExerciseRow(exercise: exercise)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
                         }
-                        .buttonStyle(.plain)
-                    }
-                } header: {
-                    if let header = block.header, let run = block.supersetRun {
-                        Text(header)
-                            .foregroundStyle(SupersetPalette.color(for: run))
+                    } header: {
+                        if let header = block.header, let run = block.supersetRun {
+                            Text(header)
+                                .foregroundStyle(SupersetPalette.color(for: run))
+                        }
                     }
                 }
-            }
 
-            // Finishing lives here rather than on the set screen: this is the
-            // workout's overview, and an end-everything button one tap from
-            // the tick that logs a set is a mis-tap waiting to happen.
-            Section {
-                Button(role: .destructive) {
-                    Haptics.tap()
-                    confirmingFinish = true
-                } label: {
-                    Label("Finish Workout", systemImage: "flag.checkered")
-                        .font(.caption)
-                }
-                Button(role: .destructive) {
-                    Haptics.tap()
-                    confirmingDiscard = true
-                } label: {
-                    Label("Discard Workout", systemImage: "trash")
-                        .font(.caption)
+                // Finishing lives here rather than on the set screen: this is
+                // the workout's overview, and an end-everything button one tap
+                // from the tick that logs a set is a mis-tap waiting to happen.
+                Section {
+                    Button(role: .destructive) {
+                        Haptics.tap()
+                        confirmingFinish = true
+                    } label: {
+                        Label("Finish Workout", systemImage: "flag.checkered")
+                            .font(.caption)
+                    }
+                    .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
+                    Button(role: .destructive) {
+                        Haptics.tap()
+                        confirmingDiscard = true
+                    } label: {
+                        Label("Discard Workout", systemImage: "trash")
+                            .font(.caption)
+                    }
+                    .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
                 }
             }
+            .navigationTitle(store.plan?.workoutName ?? "Workout")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .confirmationDialog(
             "Finish workout?",
@@ -426,21 +429,26 @@ private struct ExerciseRow: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
-        HStack(spacing: 4) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(exercise.name)
-                    .font(.caption)
-                    .lineLimit(2)
-                Text(subtitle)
-                    .font(.system(size: 9))
+        let done = store.completedSetCount(for: exercise)
+        let isDone = store.isComplete(exercise)
+        HStack(spacing: 6) {
+            Text(exercise.name)
+                .font(.system(size: 15, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+            // Sets logged over sets planned: the logged count is the number
+            // that changes, so it carries the weight; green once all are in.
+            HStack(spacing: 0) {
+                Text("\(done)")
+                    .fontWeight(.bold)
+                    .foregroundStyle(isDone ? Color.green : Color.white)
+                Text("/\(exercise.sets.count)")
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 0)
-            if store.isComplete(exercise) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.green)
-            }
+            .font(.system(size: 15))
+            .monospacedDigit()
+            .fixedSize()
         }
         .padding(.leading, exercise.supersetRun == nil ? 0 : 8)
         .background(alignment: .leading) {
@@ -449,14 +457,6 @@ private struct ExerciseRow: View {
                     .frame(width: 3)
             }
         }
-    }
-
-    /// "3 Sets" until something is logged, then "1/3 Sets" — the count alone
-    /// stops being the useful number once the wearer is part way in.
-    private var subtitle: String {
-        let done = store.completedSetCount(for: exercise)
-        let total = exercise.sets.count
-        return done == 0 ? "\(total) Sets" : "\(done)/\(total) Sets"
     }
 }
 
@@ -1106,7 +1106,7 @@ private struct ValueBox: View {
         Button(action: Haptics.tapping(onTap)) {
             VStack(spacing: 0) {
                 Text(value)
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: 34, weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -1203,8 +1203,17 @@ private struct RestView: View {
                     .minimumScaleFactor(0.6)
             }
 
-            ProgressView(value: progress(now: now))
-                .tint(.blue)
+            // A thin track that fills as the rest runs down; the timer above
+            // is what to read, so this stays quiet.
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.12))
+                    Capsule()
+                        .fill(Color.blue)
+                        .frame(width: geometry.size.width * CGFloat(progress(now: now)))
+                }
+            }
+            .frame(height: 4)
 
             // Back 15 s, skip the rest, forward 15 s: three equal squircles.
             HStack(spacing: 8) {
