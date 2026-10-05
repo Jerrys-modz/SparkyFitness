@@ -1,5 +1,5 @@
 import { ExternalDataProvider } from '@/pages/Settings/ExternalProviderSettings';
-import { apiCall } from '@/api/api';
+import { apiCall, HttpApiError } from '@/api/api';
 import { DataProvider } from '@/types/settings';
 import { ExternalProviderTypes, CorosSyncResult } from '@workspace/shared';
 
@@ -522,7 +522,21 @@ export const handleManualSyncGoogleHealth = async (
       await new Promise((resolve) =>
         setTimeout(resolve, GOOGLE_HEALTH_SYNC_POLL_MS)
       );
-      if ((await fetchGoogleHealthLastSyncAt()) !== lastSyncBefore) {
+      let lastSyncNow: string | null;
+      try {
+        lastSyncNow = await fetchGoogleHealthLastSyncAt();
+      } catch (error: unknown) {
+        // A lost session will not come back by waiting; anything else may be
+        // a blip while the server-side sync carries on.
+        if (
+          error instanceof HttpApiError &&
+          (error.status === 401 || error.status === 403)
+        ) {
+          throw error;
+        }
+        continue;
+      }
+      if (lastSyncNow !== lastSyncBefore) {
         return;
       }
     }

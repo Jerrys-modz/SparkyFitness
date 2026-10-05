@@ -1,4 +1,4 @@
-import { apiCall } from '@/api/api';
+import { apiCall, HttpApiError } from '@/api/api';
 import {
   createExternalProvider,
   GOOGLE_HEALTH_SYNC_POLL_MS,
@@ -7,6 +7,7 @@ import {
 } from '@/api/Settings/externalProviderService';
 
 jest.mock('@/api/api', () => ({
+  ...jest.requireActual('@/api/api'),
   apiCall: jest.fn(),
 }));
 
@@ -56,12 +57,13 @@ describe('handleManualSyncGoogleHealth', () => {
     jest.useRealTimers();
   });
 
-  const mockLastSyncAt = (values: (string | null)[]) => {
+  const mockLastSyncAt = (values: (string | null | Error)[]) => {
     let statusCalls = 0;
     jest.mocked(apiCall).mockImplementation(async (endpoint: string) => {
       if (endpoint === STATUS) {
         const value = values[Math.min(statusCalls, values.length - 1)];
         statusCalls += 1;
+        if (value instanceof Error) throw value;
         return { lastSyncAt: value };
       }
       return { message: 'Google Health sync started.' };
@@ -99,6 +101,36 @@ describe('handleManualSyncGoogleHealth', () => {
 
     await jest.advanceTimersByTimeAsync(GOOGLE_HEALTH_SYNC_POLL_MS);
     await expect(sync).resolves.toBeUndefined();
+  });
+
+  it('keeps waiting through a failed status check', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockLastSyncAt([
+      '2026-10-04T10:00:00Z',
+      new Error('Failed to fetch'),
+      new HttpApiError('Bad Gateway', 502),
+      '2026-10-04T10:05:00Z',
+    ]);
+    const sync = handleManualSyncGoogleHealth();
+
+    await jest.advanceTimersByTimeAsync(GOOGLE_HEALTH_SYNC_POLL_MS * 3);
+    await expect(sync).resolves.toBeUndefined();
+  });
+
+  it('stops waiting when the session is gone', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockLastSyncAt([
+      '2026-10-04T10:00:00Z',
+      new HttpApiError('Authentication: Invalid or expired token.', 401),
+    ]);
+    const sync = handleManualSyncGoogleHealth();
+    const assertion = expect(sync).rejects.toThrow('expired token');
+
+    await jest.advanceTimersByTimeAsync(GOOGLE_HEALTH_SYNC_POLL_MS);
+    await assertion;
+    expect(
+      jest.mocked(apiCall).mock.calls.filter(([e]) => e === STATUS)
+    ).toHaveLength(2);
   });
 
   it('rejects when last_sync_at never changes', async () => {
