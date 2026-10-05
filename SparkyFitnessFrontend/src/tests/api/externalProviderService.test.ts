@@ -137,9 +137,7 @@ describe('handleManualSyncGoogleHealth', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     mockLastSyncAt(['2026-10-04T10:00:00Z']);
     const sync = handleManualSyncGoogleHealth();
-    const assertion = expect(sync).rejects.toThrow(
-      'No sync finished within 10 minutes'
-    );
+    const assertion = expect(sync).rejects.toThrow('It may still be running');
 
     await jest.advanceTimersByTimeAsync(
       GOOGLE_HEALTH_SYNC_TIMEOUT_MS + GOOGLE_HEALTH_SYNC_POLL_MS

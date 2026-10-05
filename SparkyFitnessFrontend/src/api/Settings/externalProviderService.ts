@@ -501,11 +501,13 @@ const fetchGoogleHealthLastSyncAt = async (): Promise<string | null> => {
 };
 
 export const GOOGLE_HEALTH_SYNC_POLL_MS = 5000;
-export const GOOGLE_HEALTH_SYNC_TIMEOUT_MS = 10 * 60 * 1000;
+export const GOOGLE_HEALTH_SYNC_TIMEOUT_MS = 3 * 60 * 1000;
 
 // The server answers 202 before the sync runs, because a full sync outlasts
 // common reverse-proxy timeouts. last_sync_at only moves when a sync succeeds,
-// so the call resolves once it changes and fails if it never does.
+// so the call resolves once it changes. A default sync finishes well within
+// the limit; a long date range may outlast it, so the timeout message does not
+// claim the sync failed.
 export const handleManualSyncGoogleHealth = async (
   startDate?: string,
   endDate?: string,
@@ -541,7 +543,7 @@ export const handleManualSyncGoogleHealth = async (
       }
     }
     throw new Error(
-      `No sync finished within ${GOOGLE_HEALTH_SYNC_TIMEOUT_MS / 60000} minutes. Check the server logs.`
+      'It may still be running, or it failed on the server. Check back in a few minutes.'
     );
   } catch (error: unknown) {
     console.error('Error initiating manual Google Health sync:', error);

@@ -593,7 +593,7 @@ export const useManualSyncGoogleHealthMutation = () => {
     meta: {
       errorMessage: t(
         'integrations.googleHealthSyncError',
-        'Google Health sync failed.'
+        'Google Health sync did not finish.'
       ),
     },
   });
