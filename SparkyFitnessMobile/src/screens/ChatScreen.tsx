@@ -61,7 +61,6 @@ import {
   askOnDeviceChat,
   type OnDeviceChatTurn,
 } from '../services/onDeviceChat';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { addLog } from '../services/LogService';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import {

@@ -86,7 +86,6 @@ import {
   SafeMealTypeSettings,
   SafeAiSettings,
   SafeFoodSettings,
-  SafeAiSettings,
   SafeAllergenSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,

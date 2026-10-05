@@ -99,6 +99,7 @@ export {
 } from '../utils/onDeviceChatContext';
 export type { OnDeviceChatTurn };
 
+/** @public Not read while on-device chat is switched off in ChatScreen. */
 export function isOnDeviceChatAvailable(): boolean {
   return (
     typeof OnDeviceNutritionModule?.chat === 'function' &&

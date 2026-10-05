@@ -231,7 +231,6 @@ export type RootStackParamList = {
         duplicateOf?: Exercise;
       }
     | { mode: 'edit-exercise'; exercise: Exercise; returnKey: string };
-  AiSettings: undefined;
   FoodScan:
     | {
         mode?: 'lookup';
