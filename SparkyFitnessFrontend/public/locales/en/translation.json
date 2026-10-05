@@ -817,7 +817,8 @@
     "gotIt": "Got it",
     "close": "Close",
     "swissFoodApi": "Swiss Food Composition Database API",
-    "usdaApi": "USDA Food Database API"
+    "usdaApi": "USDA Food Database API",
+    "canadianNutrientFileApi": "Canadian Nutrient File (Health Canada)"
   },
   "exercise": {
     "title": "Exercises",
@@ -1854,6 +1855,38 @@
         "success": "Synced data deleted.",
         "error": "Failed to delete synced data."
       }
+    },
+    "cnf": {
+      "dialogTitle": "Canadian Nutrient File Bulk Import & Sync",
+      "dialogDescription": "Import or update the complete Health Canada food catalog (~5,700 items) into your food library.",
+      "importingProgress": "Importing catalog in progress...",
+      "processed": "Processed",
+      "imported": "Imported",
+      "updated": "Updated",
+      "lastImportSuccess": "Catalog import completed successfully.",
+      "lastImportFailed": "Catalog import failed.",
+      "syncScopeLabel": "Sync Scope",
+      "modeLibraryOnly": "Sync library only (Recommended)",
+      "modeLibraryOnlyDesc": "Upserts food items, updates portion measures and saved recipe snapshots. Past diary entries are preserved untouched.",
+      "modeLibraryAndPast": "Sync library & past entries",
+      "modeLibraryAndPastDesc": "Updates the library and also recalculates historical diary logs logged from Canadian Nutrient File to match latest data.",
+      "languageLabel": "Catalog Language",
+      "sourceLabel": "Source",
+      "officialArchive": "Official Health Canada Open Data Archive (Default)",
+      "uploadZip": "Upload local ZIP archive (cnf-fcen-csv.zip)",
+      "needArchive": "Don't have the file?",
+      "downloadArchiveLink": "Download Official CNF ZIP (26 MB)",
+      "uploadHelp": "Select the official CNF ZIP archive downloaded from open.canada.ca.",
+      "dryRunLabel": "Sample Import (first 10 foods only)",
+      "dryRunHelp": "Import up to 10 foods to verify portion measurements and custom nutrient mappings before running the full import.",
+      "clearLibrary": "Clear CNF Library",
+      "startImport": "Start Import / Sync",
+      "confirmDeleteTitle": "Clear Canadian Nutrient File Library?",
+      "confirmDeleteDesc": "This will remove all Canadian Nutrient File foods from your library. Your past diary entries referencing these foods will be safely preserved.",
+      "licenceNotice": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>.",
+      "providerCardLicence": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>",
+      "providerSpecificDescription": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the <1>Open Government Licence – Canada</1>. It is free, public, and requires no credentials. Supported languages are <3>English (en)</3> and <5>French (fr)</5>.",
+      "providerSpecificPortal": "For more details, see the official portal at <1>Canadian Nutrient File</1>."
     },
     "foodExerciseDataProviders": {
       "title": "Food & Exercise Data Providers",

@@ -30,6 +30,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// progression bump applied), by set id. Sits between `editedValues` and
     /// the plan's own targets.
     @Published private(set) var targetOverrides: [String: SetValues] = [:]
+    /// Weight and reps as they stood when the set was logged, by set id.
+    /// A later phone target must not change the summary's volume.
+    private var loggedValues: [String: SetValues] = [:]
     /// Revision of `targetOverrides`, so an older queued update is ignored.
     private var targetRevision: Double = 0
     /// Revision of the last plan update from the phone (see `updatePlan`), so
@@ -55,9 +58,10 @@ final class WorkoutSessionStore: ObservableObject {
     private var heartRateSum: Double = 0
     private var heartRateCount: Int = 0
     private var heartRateMax: Double?
-    /// When the last live reading arrived, so the final drain's readings can
-    /// be told apart from ones already counted.
-    private var lastLiveHeartRateAt: Date?
+    /// Measurement seconds already folded into the totals above. The final
+    /// drain repeats readings the live callback already saw; a second counts
+    /// once. Persisted so a relaunch does not count them again.
+    private var countedHeartRateSeconds: Set<Int> = []
     /// Non-nil while a rest countdown is running before the next set.
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
@@ -219,12 +223,13 @@ final class WorkoutSessionStore: ObservableObject {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
         celebrate(prSetIds)
-        targetOverrides = targets
         let knownIds = Set(steps.map(\.plannedSet.setId))
         pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
         let newlyCompleted = phoneCompleted
             .subtracting(completedSetIds)
             .filter { knownIds.contains($0) }
+        targetOverrides = targets
+        rememberLoggedValues(for: newlyCompleted)
         if !newlyCompleted.isEmpty {
             completedSetIds.formUnion(newlyCompleted)
             if let step = currentStep, isCompleted(step) {
@@ -374,6 +379,7 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        loggedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
         planRevision = startingRevision
@@ -468,6 +474,7 @@ final class WorkoutSessionStore: ObservableObject {
         if !adopted.isEmpty {
             completedSetIds.formUnion(adopted)
             pendingUnknownCompletions.subtract(adopted)
+            rememberLoggedValues(for: adopted)
         }
         if let cursorSetId,
            let index = steps.firstIndex(where: { $0.plannedSet.setId == cursorSetId }) {
@@ -498,6 +505,7 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        loggedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
         planRevision = 0
@@ -519,24 +527,24 @@ final class WorkoutSessionStore: ObservableObject {
         clearSnapshot()
     }
 
-    func recordHeartRate(bpm: Double) {
+    func recordHeartRate(bpm: Double, measuredAt: Date = Date()) {
         latestBpm = bpm
-        lastLiveHeartRateAt = Date()
-        accumulateHeartRate(bpm)
+        accumulateHeartRate(bpm, at: measuredAt)
     }
 
-    /// Readings from the final HealthKit drain, which can include some the
-    /// live callback never delivered. Only those taken after the last live
-    /// reading are added, so a reading already counted is not counted twice.
+    /// Readings the live callback may not have delivered: the buffer still
+    /// held at stop, and the tail HealthKit writes only when the workout
+    /// finishes. A measurement second already counted is ignored.
     func recordFinalHeartRate(_ readings: [(at: Date, bpm: Double)]) {
-        let cutoff = lastLiveHeartRateAt ?? .distantPast
-        for reading in readings where reading.at > cutoff {
-            accumulateHeartRate(reading.bpm)
+        for reading in readings {
+            accumulateHeartRate(reading.bpm, at: reading.at)
         }
     }
 
-    private func accumulateHeartRate(_ bpm: Double) {
+    private func accumulateHeartRate(_ bpm: Double, at: Date) {
         guard bpm > 0 else { return }
+        let second = Int(at.timeIntervalSince1970.rounded())
+        guard countedHeartRateSeconds.insert(second).inserted else { return }
         heartRateSum += bpm
         heartRateCount += 1
         heartRateMax = max(heartRateMax ?? bpm, bpm)
@@ -546,7 +554,16 @@ final class WorkoutSessionStore: ObservableObject {
         heartRateSum = 0
         heartRateCount = 0
         heartRateMax = nil
-        lastLiveHeartRateAt = nil
+        countedHeartRateSeconds = []
+    }
+
+    /// Keeps the weight and reps a set had the moment it was logged. A later
+    /// target update must not rewrite it.
+    private func rememberLoggedValues(for setIds: some Sequence<String>) {
+        for id in setIds where loggedValues[id] == nil {
+            guard let step = steps.first(where: { $0.plannedSet.setId == id }) else { continue }
+            loggedValues[id] = values(for: step)
+        }
     }
 
     /// Totals for the workout in progress, or nil when no set was logged
@@ -557,7 +574,7 @@ final class WorkoutSessionStore: ObservableObject {
         var completed = 0
         for step in steps where completedSetIds.contains(step.plannedSet.setId) {
             completed += 1
-            let v = values(for: step)
+            let v = loggedValues[step.plannedSet.setId] ?? values(for: step)
             if let weight = v.weightKg, let reps = v.reps {
                 volumeKg += weight * reps
             }
@@ -774,6 +791,7 @@ final class WorkoutSessionStore: ObservableObject {
             holdLoggedHere = true
             stopHoldTimer()
         }
+        rememberLoggedValues(for: [step.plannedSet.setId])
         completedSetIds.insert(step.plannedSet.setId)
         wristLoggedSetIds.insert(step.plannedSet.setId)
 
@@ -967,6 +985,16 @@ final class WorkoutSessionStore: ObservableObject {
         /// clock instead of showing Start again. Optional so older snapshots
         /// still decode.
         var hold: HoldState?
+        /// See `loggedValues`. Optional so older snapshots still decode.
+        var loggedValues: [String: SetValues]?
+        /// Running heart-rate totals, so a relaunch does not start the
+        /// summary's average over. Optional so older snapshots still decode.
+        var heartRateSum: Double?
+        var heartRateCount: Int?
+        var heartRateMax: Double?
+        /// Measurement seconds already in those totals. Optional so older
+        /// snapshots still decode.
+        var countedHeartRateSeconds: [Int]?
     }
 
     /// A rest as stored in the snapshot.
@@ -1107,7 +1135,13 @@ final class WorkoutSessionStore: ObservableObject {
                 )
             },
             lastPhoneRest: lastPhoneRest,
-            hold: holdState
+            hold: holdState,
+            loggedValues: loggedValues,
+            heartRateSum: heartRateSum,
+            heartRateCount: heartRateCount,
+            heartRateMax: heartRateMax,
+            countedHeartRateSeconds: Array(countedHeartRateSeconds)
+
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -1130,6 +1164,11 @@ final class WorkoutSessionStore: ObservableObject {
         openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)
         editedValues = snapshot.editedValues
+        loggedValues = snapshot.loggedValues ?? [:]
+        heartRateSum = snapshot.heartRateSum ?? 0
+        heartRateCount = snapshot.heartRateCount ?? 0
+        heartRateMax = snapshot.heartRateMax
+        countedHeartRateSeconds = Set(snapshot.countedHeartRateSeconds ?? [])
         targetOverrides = snapshot.targetOverrides ?? [:]
         targetRevision = snapshot.targetRevision ?? 0
         planRevision = snapshot.planRevision ?? 0

@@ -1349,6 +1349,7 @@ router.post(
       if (
         food.provider_type !== 'openfoodfacts' &&
         food.provider_type !== 'swissfood' &&
+        food.provider_type !== 'canadian-nutrient-file' &&
         !providerId
       ) {
         return res.status(400).json({
