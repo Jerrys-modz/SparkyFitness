@@ -68,7 +68,17 @@ export function isPlausibleLabel(r: OnDeviceLabelExtraction): boolean {
 // Units a per-100 basis can be read in when the label counts liquids by volume.
 const VOLUME_UNITS = new Set(['ml', 'l', 'cl', 'dl', 'oz', 'fl oz', 'cup']);
 
-const NUMBER_PATTERN = /\d+(?:[.,]\d+)?/g;
+// A comma between groups of three ("1,000", "12,345.5") is a thousands
+// separator; any other comma ("1,5", "0,500") is a decimal comma.
+const NUMBER_PATTERN = /[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?/g;
+
+function parsePrintedNumber(printed: string): number {
+  return Number(
+    /^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?$/.test(printed)
+      ? printed.replace(/,/g, '')
+      : printed.replace(',', '.')
+  );
+}
 
 /**
  * True when every macro the model returned appears as a number in the text
@@ -80,7 +90,7 @@ export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
   const text = r.ocr_text?.trim();
   if (!text) return false;
   const printed = new Set(
-    (text.match(NUMBER_PATTERN) ?? []).map((n) => Number(n.replace(',', '.')))
+    (text.match(NUMBER_PATTERN) ?? []).map(parsePrintedNumber)
   );
   return [r.calories, r.protein, r.carbs, r.fat].every(
     (value) => value === null || printed.has(value)

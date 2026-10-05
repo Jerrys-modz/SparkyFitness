@@ -68,6 +68,32 @@ describe('onDeviceLabelScan', () => {
     expect(isGroundedInLabelText(r)).toBe(true);
   });
 
+  it('reads a comma between groups of three as a thousands separator', () => {
+    const r = label({
+      calories: 1000,
+      protein: 4,
+      carbs: 26,
+      fat: 7,
+      ocr_text: 'Energy 1,000 kcal\nProtein 4g\nCarbs 26g\nFat 7g',
+    });
+    expect(isGroundedInLabelText(r)).toBe(true);
+    // The same text must not also read as 1.
+    expect(isGroundedInLabelText({ ...r, calories: 1 } as typeof r)).toBe(
+      false
+    );
+  });
+
+  it('still reads a decimal comma', () => {
+    const r = label({
+      calories: 180,
+      protein: 4.5,
+      carbs: 26,
+      fat: 0.5,
+      ocr_text: 'Calories 180\nProtein 4,5g\nCarbs 26g\nFat 0,500g',
+    });
+    expect(isGroundedInLabelText(r)).toBe(true);
+  });
+
   it('rejects a macro that is not in the label text', () => {
     const r = label({
       ocr_text: 'Calories 180\nProtein 5g\nCarbs 26g\nFat 7g',

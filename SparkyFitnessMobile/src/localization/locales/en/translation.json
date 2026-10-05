@@ -3742,10 +3742,6 @@
       "title": "Estimate Food Photos On Device",
       "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Up to 4 photos of one meal are read together; more than that, or a photo it cannot estimate, uses the server AI provider."
     },
-    "onDeviceLabelScan": {
-      "title": "Scan Labels On Device",
-      "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
-    },
     "openFacts": {
       "title": "Adjust Open Food Facts Values",
       "description": "Open Food Facts uses values per 100g. This converts them to the product’s serving size."
@@ -6036,7 +6032,11 @@
         "appleIntelligenceNotEnabled": "Turn on Apple Intelligence in the iPhone Settings app first.",
         "modelNotReady": "The on-device model is still downloading. Try again in a while."
       },
-      "model": "{{name}} · {{size}}-token window"
+      "model": "{{name}} · {{size}}-token window",
+      "labelScan": {
+        "title": "Scan Labels On Device",
+        "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
+      }
     },
     "chatModel": {
       "title": "Chat model",

@@ -38,7 +38,10 @@ import { selectDisplayVariant } from '../utils/foodDetails';
 import { getApiErrorMessage } from '../services/api/errors';
 import { TimeoutError } from '../utils/concurrency';
 import { fireSuccessHaptic } from '../services/haptics';
-import { scanLabelOnDevice } from '../services/onDeviceLabelScan';
+import {
+  isOnDeviceLabelScanAvailable,
+  scanLabelOnDevice,
+} from '../services/onDeviceLabelScan';
 import {
   rememberLabelScan,
   type LabelScanSource,
@@ -552,17 +555,24 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         (await scanNutritionLabel(capturedPhoto.base64, 'image/jpeg'));
       const source: LabelScanSource = onDeviceResult ? 'device' : 'server';
       rememberLabelScan(capturedPhoto.base64, source);
-      // The toast survives the navigation below, so it shows on the form.
-      Toast.show({
-        type: 'info',
-        text1: onDeviceResult
-          ? t('foodScan.labelReadOnDevice', {
-              defaultValue: 'Label read on this iPhone',
-            })
-          : t('foodScan.labelReadByServer', {
-              defaultValue: 'Label read by the server AI',
-            }),
-      });
+      // The toast survives the navigation below, so it shows on the form. The
+      // server reading is only news when the on-device scan was tried first;
+      // otherwise it is the normal path and the form's banner says enough.
+      const triedOnDevice =
+        useAppPreferencesStore.getState().onDeviceLabelScanEnabled &&
+        isOnDeviceLabelScanAvailable();
+      if (onDeviceResult || triedOnDevice) {
+        Toast.show({
+          type: 'info',
+          text1: onDeviceResult
+            ? t('foodScan.labelReadOnDevice', {
+                defaultValue: 'Label read on this iPhone',
+              })
+            : t('foodScan.labelReadByServer', {
+                defaultValue: 'Label read by the server AI',
+              }),
+        });
+      }
       navigation.replace(
         'FoodForm',
         buildFoodFormParams({
