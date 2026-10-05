@@ -137,7 +137,12 @@ const TrainingConsistencyCard = ({ data }: TrainingConsistencyCardProps) => {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.muscle} className="border-t">
-                    <td className="py-1.5">{row.muscle}</td>
+                    <td className="py-1.5">
+                      {t(
+                        `muscleGroups.${row.muscle.toLowerCase()}`,
+                        row.muscle
+                      )}
+                    </td>
                     <td className="py-1.5 text-right font-semibold">
                       {row.thisWeek}
                     </td>
