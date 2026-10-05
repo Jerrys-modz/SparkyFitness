@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { localizeMuscle } from '@/utils/exerciseTaxonomy';
 import type { TrainingConsistency } from '@workspace/shared';
 
 /** Weeks drawn in the bar strip; the streak itself looks further back. */
@@ -137,12 +138,7 @@ const TrainingConsistencyCard = ({ data }: TrainingConsistencyCardProps) => {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.muscle} className="border-t">
-                    <td className="py-1.5">
-                      {t(
-                        `muscleGroups.${row.muscle.toLowerCase()}`,
-                        row.muscle
-                      )}
-                    </td>
+                    <td className="py-1.5">{localizeMuscle(t, row.muscle)}</td>
                     <td className="py-1.5 text-right font-semibold">
                       {row.thisWeek}
                     </td>
