@@ -5520,6 +5520,7 @@
     "garminLoginSuccess": "Garmin connected successfully.",
     "googleHealthLinkError": "Failed to link Google Health account.",
     "googleHealthLinkSuccess": "Google Health account successfully linked!",
+    "googleHealthSyncError": "Google Health sync failed.",
     "hevySyncError": "Hevy sync failed. Please check your API key in settings.",
     "hevySyncSuccess": "Hevy data synced successfully.",
     "liftosaurSyncError": "Liftosaur sync failed. Please check your API key in settings.",
