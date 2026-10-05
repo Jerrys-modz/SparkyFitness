@@ -34,7 +34,7 @@ export function useBackgroundWaterSync(
         : undefined;
     // Still loading: keep what the device holds rather than erasing it.
     if (!target) return;
-    const sync = (): void => void syncBackgroundWater(true, target);
+    const sync = (): void => void syncBackgroundWater(target);
     sync();
     return onAppBecameActive(sync);
   }, [id, name, volume, unit, servings, linkedFoodId]);

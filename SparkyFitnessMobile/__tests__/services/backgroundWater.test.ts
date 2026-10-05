@@ -63,19 +63,21 @@ describe('background water', () => {
     expect(buildBackgroundWaterConfig(null, container)).toBeNull();
   });
 
-  it('stores the config only while the setting is on', async () => {
+  it('stores the config for the signed-in server and container', async () => {
     mockGetActiveServerConfig.mockResolvedValue(server);
-    await syncBackgroundWater(true, container);
+    await syncBackgroundWater(container);
     expect(JSON.parse(mockSetConfig.mock.calls[0][0]).containerId).toBe(3);
+  });
 
-    mockSetConfig.mockClear();
-    await syncBackgroundWater(false, container);
-    expect(mockSetConfig).toHaveBeenCalledWith(null);
+  it('erases the copy when no server is signed in', async () => {
+    mockGetActiveServerConfig.mockResolvedValue(null);
+    await syncBackgroundWater(container);
+    expect(mockSetConfig).toHaveBeenLastCalledWith(null);
   });
 
   it('erases the copy without a container or on request', async () => {
     mockGetActiveServerConfig.mockResolvedValue(server);
-    await syncBackgroundWater(true, undefined);
+    await syncBackgroundWater(undefined);
     expect(mockSetConfig).toHaveBeenLastCalledWith(null);
     await clearBackgroundWater();
     expect(mockSetConfig).toHaveBeenLastCalledWith(null);

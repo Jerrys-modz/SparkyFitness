@@ -9,7 +9,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 
 /**
- * Lets JavaScript keep the opt-in copy of the login used by the "Log water"
+ * Lets JavaScript keep the copy of the login used by the "Log water"
  * shortcut. The launcher shortcut exists only while that copy does.
  */
 class BackgroundWaterModule(reactContext: ReactApplicationContext) :
