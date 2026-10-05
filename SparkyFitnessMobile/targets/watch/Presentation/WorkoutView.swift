@@ -261,8 +261,14 @@ private struct IntervalCaptionView: View {
 
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var session: WatchSessionManager
 
     @State private var showingExercises = false
+    /// A logged set held back while the wearer picks an effort. Held here and
+    /// not in `CurrentSetView`: logging a set starts the rest, which swaps that
+    /// view for `RestView` and would take the picker, and the set with it, away
+    /// before anything was sent. Sent once, on pick, skip or dismissal.
+    @State private var pendingRpe: PendingRpe?
 
     /// Always available, including during rest: Finish lives in the picker
     /// sheet, and hiding the chevron while resting left no way to end the
@@ -278,12 +284,27 @@ private struct ActiveWorkoutView: View {
                 IntervalCaptionView(plan: store.plan)
             }
 
-            if store.isResting {
-                RestView()
-            } else if let step = store.currentStep {
-                CurrentSetView(step: step)
-            } else {
-                WorkoutCompleteView()
+            Group {
+                if store.isResting {
+                    RestView()
+                } else if let step = store.currentStep {
+                    CurrentSetView(step: step) { pendingRpe = $0 }
+                } else {
+                    WorkoutCompleteView()
+                }
+            }
+            .sheet(item: $pendingRpe) { pending in
+                RpePickerView { rpe in
+                    session.sendSetCompleted(pending.step, values: pending.values, rpe: rpe)
+                    pendingRpe = nil
+                }
+                .onDisappear {
+                    // Swiped away: the set is still logged, just without an effort.
+                    if pendingRpe?.id == pending.id {
+                        session.sendSetCompleted(pending.step, values: pending.values)
+                        pendingRpe = nil
+                    }
+                }
             }
         }
         .padding(.horizontal, 4)
@@ -600,6 +621,8 @@ private struct MetricsStrip: View {
 
 private struct CurrentSetView: View {
     let step: WorkoutStep
+    /// Hands a logged set to the workout page to hold until an effort is picked.
+    let onAwaitRpe: (PendingRpe) -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var session: WatchSessionManager
@@ -608,10 +631,6 @@ private struct CurrentSetView: View {
     /// Which field the keypad is editing, if any.
     @State private var editing: EditableField?
     @State private var choosingType = false
-    /// A logged set held back while the wearer picks an effort. Sent once, on
-    /// pick, skip or dismissal.
-    @State private var pendingRpe: PendingRpe?
-
     /// Crown mode: the field the crown and a drag adjust in place, Hevy-style.
     @State private var crownField: EditableField?
     /// The value on screen while `crownField` is being adjusted. Written to
@@ -736,7 +755,7 @@ private struct CurrentSetView: View {
                 if let completed = store.completeCurrentSet() {
                     let values = store.values(for: completed)
                     if checkIn.context.effectiveRpeEnabled {
-                        pendingRpe = PendingRpe(step: completed, values: values)
+                        onAwaitRpe(PendingRpe(step: completed, values: values))
                     } else {
                         session.sendSetCompleted(completed, values: values)
                     }
@@ -760,19 +779,6 @@ private struct CurrentSetView: View {
             if editing == .distance { editing = nil }
         }
         .onDisappear { endCrownEditing() }
-        .sheet(item: $pendingRpe) { pending in
-            RpePickerView { rpe in
-                session.sendSetCompleted(pending.step, values: pending.values, rpe: rpe)
-                pendingRpe = nil
-            }
-            .onDisappear {
-                // Swiped away: the set is still logged, just without an effort.
-                if pendingRpe?.id == pending.id {
-                    session.sendSetCompleted(pending.step, values: pending.values)
-                    pendingRpe = nil
-                }
-            }
-        }
         .sheet(item: $editing) { field in
             NumericKeypadView(
                 title: title(for: field),
