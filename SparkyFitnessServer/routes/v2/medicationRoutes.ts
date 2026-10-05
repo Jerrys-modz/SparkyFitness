@@ -32,7 +32,13 @@ import glp1Service from '../../services/glp1Service.js';
 import medicationEntryRepository from '../../models/medicationEntryRepository.js';
 import medicationDisplayPreferenceRepository from '../../models/medicationDisplayPreferenceRepository.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
-import { instantToDay, todayInZone } from '@workspace/shared';
+import {
+  instantToDay,
+  supplementLookupQuerySchema,
+  todayInZone,
+} from '@workspace/shared';
+import { log } from '../../config/logging.js';
+import { lookupSupplementByUpc } from '../../services/supplementLookupService.js';
 
 const router = express.Router();
 
@@ -638,7 +644,32 @@ const deleteEntry: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Finds a supplement by the barcode on its package, from the NIH label database,
+// so the app can fill in its name, form and nutrition. Public product data: it
+// reads nothing of the user's, and a miss is an ordinary answer.
+const lookupSupplement: RequestHandler = async (req, res, next) => {
+  try {
+    const query = supplementLookupQuerySchema.safeParse(req.query);
+    if (!query.success) return badRequest(res, query.error);
+    try {
+      const product = await lookupSupplementByUpc(query.data.upc);
+      res.json({ product });
+    } catch (error) {
+      log(
+        'warn',
+        `Supplement label lookup failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      res
+        .status(502)
+        .json({ error: 'The supplement label database is unavailable' });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 router.get('/', listMedications);
+router.get('/supplement-lookup', lookupSupplement);
 router.post(
   '/',
   stripNutrientFieldsWithoutDiaryAccess({ keepSupplementFlag: true }),

@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { pressAction } from './helpers/nativeHeaderTestUtils';
 import MedicationFormScreen from '../../src/screens/MedicationFormScreen';
@@ -17,6 +18,11 @@ jest.mock('../../src/hooks/useMedications', () => ({
   useMedicationDetail: jest.fn(),
   useCreateMedication: jest.fn(),
   useUpdateMedication: jest.fn(),
+}));
+
+const mockLookupMutate = jest.fn();
+jest.mock('../../src/hooks/useSupplementLookup', () => ({
+  useSupplementLookup: () => ({ mutate: mockLookupMutate, isPending: false }),
 }));
 
 const mockEnsureCatalog = jest.fn();
@@ -84,6 +90,7 @@ const mockNavigation = {
   replace: jest.fn(),
   dispatch: jest.fn(),
   navigate: jest.fn(),
+  setParams: jest.fn(),
 } as unknown as ScreenProps['navigation'];
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -132,15 +139,22 @@ const baseMed: MedicationDetail = {
   schedules: [],
 };
 
-const renderScreen = (medicationId?: string, isSupplement?: boolean) => {
+const renderScreen = (
+  medicationId?: string,
+  isSupplement?: boolean,
+  extraParams: Partial<ScreenProps['route']['params']> = {}
+) => {
   const route: ScreenProps['route'] = {
     key: 'MedicationForm-key',
     name: 'MedicationForm',
-    params: medicationId
-      ? { medicationId }
-      : isSupplement
-        ? { isSupplement }
-        : {},
+    params: {
+      ...(medicationId
+        ? { medicationId }
+        : isSupplement
+          ? { isSupplement }
+          : {}),
+      ...extraParams,
+    },
   };
   return render(
     <SafeAreaProvider initialMetrics={{ insets, frame }}>
@@ -372,5 +386,130 @@ describe('MedicationFormScreen — supplements', () => {
     pressAction(screen, mockNavigation, 'Save');
 
     expect(createMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe('MedicationFormScreen — supplement barcode', () => {
+  const product = {
+    source: 'dsld' as const,
+    sourceId: '65059',
+    name: 'WeCare Naturally Vitamin D3',
+    brand: 'WeCare Naturally',
+    form: 'capsule' as const,
+    serving: '1 Capsule(s)',
+    fixed: [{ key: 'vitamin_c' as const, amount: 90 }],
+    catalog: [{ catalogId: 'vitamin_d', amount: 125 }],
+    unmatched: [
+      { name: 'Holy Basil', amount: 300, unit: 'mg' },
+      { name: 'Gelatin', amount: 1, unit: 'g' },
+    ],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    mockUseMedicationDetail.mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof useMedicationDetail>);
+    mockUseCreateMedication.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useCreateMedication>);
+    mockUseUpdateMedication.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateMedication>);
+  });
+
+  const scanned = () =>
+    renderScreen(undefined, true, {
+      pendingScannedBarcode: '858849003115',
+      scannedBarcodeNonce: 1,
+    });
+
+  it('opens the scanner and asks for the code back on this form', () => {
+    const screen = renderScreen(undefined, true);
+
+    fireEvent.press(screen.getByText('Scan barcode to fill in'));
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('FoodScan', {
+      mode: 'capture-barcode',
+      returnKey: 'MedicationForm-key',
+    });
+  });
+
+  it('only offers the scanner on a supplement', () => {
+    const screen = renderScreen();
+
+    expect(screen.queryByText('Scan barcode to fill in')).toBeNull();
+  });
+
+  it('looks up a scanned code once and clears it from the route', () => {
+    scanned();
+
+    expect(mockLookupMutate).toHaveBeenCalledTimes(1);
+    expect(mockLookupMutate).toHaveBeenCalledWith(
+      '858849003115',
+      expect.anything()
+    );
+    expect(mockNavigation.setParams).toHaveBeenCalledWith({
+      pendingScannedBarcode: undefined,
+      scannedBarcodeNonce: undefined,
+    });
+  });
+
+  it('fills in the name, form, serving and nutrients from the label', () => {
+    const screen = scanned();
+
+    act(() => {
+      mockLookupMutate.mock.calls[0][1].onSuccess({ product });
+    });
+
+    expect(screen.getByDisplayValue(product.name)).toBeTruthy();
+    expect(
+      screen.getByDisplayValue('Label serving: 1 Capsule(s)')
+    ).toBeTruthy();
+    expect(screen.getByDisplayValue('90')).toBeTruthy();
+    expect(screen.getByDisplayValue('125')).toBeTruthy();
+    expect(screen.getByText('Vitamin C')).toBeTruthy();
+    expect(screen.getByText('Vitamin D')).toBeTruthy();
+  });
+
+  it('says which ingredients were left out', () => {
+    const screen = scanned();
+
+    act(() => {
+      mockLookupMutate.mock.calls[0][1].onSuccess({ product });
+    });
+
+    expect(
+      screen.getByText('Not added from the label: Holy Basil, Gelatin')
+    ).toBeTruthy();
+  });
+
+  it('tells the user when the code is not in the database', () => {
+    scanned();
+
+    act(() => {
+      mockLookupMutate.mock.calls[0][1].onSuccess({ product: null });
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'No match found',
+      expect.stringContaining('not in the supplement label database')
+    );
+  });
+
+  it('tells the user when the database cannot be reached', () => {
+    scanned();
+
+    act(() => {
+      mockLookupMutate.mock.calls[0][1].onError(new Error('502'));
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Error',
+      expect.stringContaining('Could not reach')
+    );
   });
 });
