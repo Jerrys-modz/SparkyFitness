@@ -576,8 +576,6 @@
       "failedRecentItems": "Failed to load recent items.",
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
-      "exerciseStatistics": "Exercise statistics",
-      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map",
       "reports": "Reports",
       "reportsSubtitle": "Nutrition, sleep, mood and exercise trends"
     },
@@ -5830,11 +5828,27 @@
   "nutritionReport": {
     "title": "Nutrition",
     "calories": "Calories",
-    "protein": "Protein",
-    "carbs": "Carbs",
-    "fat": "Fat",
     "daysLogged": "Days logged",
     "dailyAverages": "Daily averages",
+    "loadFailed": "Failed to load nutrition data",
+    "empty": "No food logged in this period",
+    "kcal": "{{value}} kcal",
+    "grams": "{{value}} g",
+    "changeHint": "{{change}} vs previous {{days}} days",
+    "onTarget": "Within 10% of goal",
+    "daysOfLogged": "{{onTarget}} of {{total}} days",
+    "overGoal": "Over goal",
+    "underGoal": "Under goal",
+    "averageVsGoal": "Average vs goal",
+    "daysCount_one": "{{count}} day",
+    "daysCount_other": "{{count}} days",
+    "daysOfWindow": "{{logged}} of {{total}}",
+    "macroSplit": "Where your calories come from",
+    "goalAdherence": "Calorie goal",
+    "highlights": "Highlights",
+    "highestDay": "Highest day",
+    "lowestDay": "Lowest logged day",
+    "otherNutrients": "Other daily averages",
     "trendsByNutrient": "Trend by nutrient"
   },
   "moodReport": {
@@ -5846,7 +5860,12 @@
     "loadFailed": "Failed to load mood entries",
     "empty": "No mood entries in this period",
     "summary": "Summary",
-    "topMoods": "Most logged"
+    "topMoods": "Most logged",
+    "changeHint": "{{change}} vs previous {{days}} days",
+    "highlights": "Highlights",
+    "bestDay": "Best day",
+    "lowestDay": "Lowest day",
+    "byWeekday": "Average by weekday"
   },
   "sleepAnalytics": {
     "title": "Sleep Analytics",
@@ -5858,7 +5877,8 @@
       "spo2": "Blood oxygen (SpO2)",
       "respiration": "Respiration",
       "stress": "Sleep stress",
-      "bodyBattery": "Body battery gained"
+      "bodyBattery": "Body battery gained",
+      "duration": "Time asleep"
     },
     "empty": "No sleep data in this period",
     "emptyHint": "Sync your health data to see sleep trends.",
@@ -5869,6 +5889,16 @@
     "stageRem": "REM",
     "stageAwake": "Awake",
     "tooltip": "{{value}} · {{date}}",
-    "averages": "Period averages"
+    "averages": "Period averages",
+    "noChange": "Same as previous {{days}} days",
+    "changeHint": "{{change}} vs previous {{days}} days",
+    "routine": "Routine",
+    "efficiency": "Sleep efficiency",
+    "efficiencyHint": "Time asleep as a share of time in bed",
+    "avgBedtime": "Average bedtime",
+    "avgWake": "Average wake time",
+    "bedtimeVariability": "Bedtime consistency",
+    "variabilityValue": "±{{minutes}} min",
+    "variabilityHint": "Lower means a steadier routine"
   }
 }

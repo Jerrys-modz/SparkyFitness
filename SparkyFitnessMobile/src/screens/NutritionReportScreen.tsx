@@ -3,146 +3,308 @@ import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useNutritionTrends } from '../hooks/useNutritionTrends';
+import { useNutritionReport } from '../hooks/useNutritionReport';
 import { formatLocalizedNumber } from '../localization';
+import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
-import NutrientBarChart from '../components/NutrientBarChart';
+import MacroSplitBar from '../components/reports/MacroSplitBar';
+import CaloriesBarChart from '../components/CaloriesBarChart';
+import StatusView from '../components/StatusView';
 import Icon from '../components/Icon';
-import type { TrendRange } from '../utils/trendRange';
+import { formatTooltipDate } from '../components/charts/chartFormatting';
+import { average } from '../utils/mathUtils';
+import { percentChange } from '../utils/nutritionReport';
+import { TREND_RANGE_DAYS, type TrendRange } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type NutritionReportScreenProps = RootStackScreenProps<'NutritionReport'>;
-
-type NutrientConfig = {
-  key: 'calories' | 'protein' | 'carbs' | 'fat';
-  label: string;
-  unit: string;
-};
 
 const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
   navigation,
 }) => {
   const { t } = useTranslation();
   const [range, setRange] = useState<TrendRange>('30d');
-  const { data, isLoading, isError } = useNutritionTrends({ range });
+  const { report, isLoading, isError } = useNutritionReport({ range });
+  const days = TREND_RANGE_DAYS[range];
 
   const header = useScreenHeader({
     title: t('nutritionReport.title', { defaultValue: 'Nutrition' }),
     left: { kind: 'back' },
   });
 
-  const nutrients = useMemo<NutrientConfig[]>(
-    () => [
-      {
-        key: 'calories',
-        label: t('nutritionReport.calories', { defaultValue: 'Calories' }),
-        unit: ' kcal',
-      },
-      {
-        key: 'protein',
-        label: t('nutritionReport.protein', { defaultValue: 'Protein' }),
-        unit: 'g',
-      },
-      {
-        key: 'carbs',
-        label: t('nutritionReport.carbs', { defaultValue: 'Carbs' }),
-        unit: 'g',
-      },
-      {
-        key: 'fat',
-        label: t('nutritionReport.fat', { defaultValue: 'Fat' }),
-        unit: 'g',
-      },
-    ],
-    [t]
+  const fmt = (value: number, digits = 0) =>
+    formatLocalizedNumber(value, { maximumFractionDigits: digits });
+  const kcal = (value: number) =>
+    t('nutritionReport.kcal', {
+      defaultValue: '{{value}} kcal',
+      value: fmt(Math.round(value)),
+    });
+  const grams = (value: number) =>
+    t('nutritionReport.grams', {
+      defaultValue: '{{value}} g',
+      value: fmt(Math.round(value)),
+    });
+
+  const insights = report?.insights ?? null;
+  const averageCalories = useMemo(
+    () => average(report?.series.map((point) => point.calories) ?? []),
+    [report]
   );
 
-  const calorieSeries = useMemo(
-    () => data.map((point) => ({ day: point.date, value: point.calories })),
-    [data]
+  if (isLoading || isError) {
+    return (
+      <ReportScreenLayout
+        header={header}
+        range={range}
+        onRangeChange={setRange}
+      >
+        <StatusView
+          loading={isLoading}
+          icon="chart-bar"
+          iconTone="muted"
+          inline
+          title={
+            isError
+              ? t('nutritionReport.loadFailed', {
+                  defaultValue: 'Failed to load nutrition data',
+                })
+              : undefined
+          }
+        />
+      </ReportScreenLayout>
+    );
+  }
+
+  const change = percentChange(
+    insights?.averages?.calories ?? null,
+    insights?.previousAverageCalories ?? null
   );
+  const changeHint =
+    change === null
+      ? undefined
+      : t('nutritionReport.changeHint', {
+          defaultValue: '{{change}} vs previous {{days}} days',
+          change: `${change > 0 ? '+' : ''}${formatLocalizedNumber(change)}%`,
+          days,
+        });
 
-  // Days with nothing logged are zero-filled by the hook; averaging them in would read
-  // an unlogged day as a fast, so the average covers logged days only.
-  const { averages, loggedDays } = useMemo(() => {
-    const logged = data.filter((point) => point.calories > 0);
-    const mean = (key: NutrientConfig['key']) =>
-      logged.length === 0
-        ? null
-        : logged.reduce((sum, point) => sum + point[key], 0) / logged.length;
-    return {
-      loggedDays: logged.length,
-      averages: {
-        calories: mean('calories'),
-        protein: mean('protein'),
-        carbs: mean('carbs'),
-        fat: mean('fat'),
-      },
-    };
-  }, [data]);
+  const goal = insights?.goal;
+  const goalRows =
+    goal && goal.daysWithGoal > 0
+      ? [
+          {
+            label: t('nutritionReport.onTarget', {
+              defaultValue: 'Within 10% of goal',
+            }),
+            value: t('nutritionReport.daysOfLogged', {
+              defaultValue: '{{onTarget}} of {{total}} days',
+              onTarget: goal.onTarget,
+              total: goal.daysWithGoal,
+            }),
+            testID: 'nutrition-goal-on-target',
+          },
+          {
+            label: t('nutritionReport.overGoal', {
+              defaultValue: 'Over goal',
+            }),
+            value: t('nutritionReport.daysCount', {
+              defaultValue: '{{count}} days',
+              count: goal.over,
+            }),
+            testID: 'nutrition-goal-over',
+          },
+          {
+            label: t('nutritionReport.underGoal', {
+              defaultValue: 'Under goal',
+            }),
+            value: t('nutritionReport.daysCount', {
+              defaultValue: '{{count}} days',
+              count: goal.under,
+            }),
+            testID: 'nutrition-goal-under',
+          },
+          {
+            label: t('nutritionReport.averageVsGoal', {
+              defaultValue: 'Average vs goal',
+            }),
+            value: `${(goal.averageDifference ?? 0) > 0 ? '+' : ''}${kcal(
+              goal.averageDifference ?? 0
+            )}`,
+            testID: 'nutrition-goal-difference',
+          },
+        ]
+      : [];
 
-  const summaryRows = [
-    ...nutrients.map((nutrient) => ({
-      label: nutrient.label,
-      value:
-        averages[nutrient.key] === null
-          ? '-'
-          : `${formatLocalizedNumber(Math.round(averages[nutrient.key] ?? 0))}${nutrient.unit}`,
-      testID: `nutrition-average-${nutrient.key}`,
-    })),
-    {
-      label: t('nutritionReport.daysLogged', { defaultValue: 'Days logged' }),
-      value: formatLocalizedNumber(loggedDays),
-      testID: 'nutrition-days-logged',
-    },
-  ];
+  const dayRow = (
+    label: string,
+    extreme: { day: string; calories: number } | null,
+    testID: string
+  ) =>
+    extreme
+      ? [
+          {
+            label,
+            value: kcal(extreme.calories),
+            hint: formatTooltipDate(extreme.day),
+            testID,
+          },
+        ]
+      : [];
 
   return (
     <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
-      <NutrientBarChart
-        data={calorieSeries}
-        isLoading={isLoading}
-        isError={isError}
+      <CaloriesBarChart
+        data={report?.series ?? []}
+        isLoading={false}
+        isError={false}
         range={range}
-        nutrientLabel={nutrients[0].label}
-        unit=" kcal"
+        averageCalories={averageCalories}
+        goals={report?.goals}
       />
-      {!isLoading && !isError ? (
-        <ReportSummaryCard
-          title={t('nutritionReport.dailyAverages', {
-            defaultValue: 'Daily averages',
-          })}
-          rows={summaryRows}
-        />
-      ) : null}
-      <View className="bg-surface rounded-xl my-2 shadow-sm overflow-hidden">
-        <Text className="text-text-primary text-lg font-semibold p-4 pb-2">
-          {t('nutritionReport.trendsByNutrient', {
-            defaultValue: 'Trend by nutrient',
-          })}
-        </Text>
-        {nutrients.slice(1).map((nutrient) => (
-          <Pressable
-            key={nutrient.key}
-            testID={`nutrition-trend-${nutrient.key}`}
-            className="px-4 py-3 flex-row items-center justify-between border-t border-border-subtle"
-            onPress={() =>
-              navigation.navigate('NutrientTrends', {
-                nutrientKey: nutrient.key,
-                nutrientLabel: nutrient.label,
-                unit: nutrient.unit,
-              })
-            }
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
-          >
-            <Text className="text-text-primary text-base">
-              {nutrient.label}
+      {insights && insights.loggedDays > 0 && insights.averages ? (
+        <>
+          <ReportSummaryCard
+            title={t('nutritionReport.dailyAverages', {
+              defaultValue: 'Daily averages',
+            })}
+            rows={[
+              {
+                label: t('nutritionReport.calories', {
+                  defaultValue: 'Calories',
+                }),
+                value: kcal(insights.averages.calories),
+                hint: changeHint,
+                testID: 'nutrition-average-calories',
+              },
+              {
+                label: getNutrientLabel(t, 'protein'),
+                value: grams(insights.averages.protein),
+                testID: 'nutrition-average-protein',
+              },
+              {
+                label: getNutrientLabel(t, 'carbs'),
+                value: grams(insights.averages.carbs),
+                testID: 'nutrition-average-carbs',
+              },
+              {
+                label: getNutrientLabel(t, 'fat'),
+                value: grams(insights.averages.fat),
+                testID: 'nutrition-average-fat',
+              },
+              {
+                label: t('nutritionReport.daysLogged', {
+                  defaultValue: 'Days logged',
+                }),
+                value: t('nutritionReport.daysOfWindow', {
+                  defaultValue: '{{logged}} of {{total}}',
+                  logged: insights.loggedDays,
+                  total: days,
+                }),
+                testID: 'nutrition-days-logged',
+              },
+            ]}
+          />
+          {insights.macroSplit ? (
+            <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
+              <Text className="text-text-primary text-lg font-semibold mb-3">
+                {t('nutritionReport.macroSplit', {
+                  defaultValue: 'Where your calories come from',
+                })}
+              </Text>
+              <MacroSplitBar
+                split={insights.macroSplit}
+                labels={{
+                  protein: getNutrientLabel(t, 'protein'),
+                  carbs: getNutrientLabel(t, 'carbs'),
+                  fat: getNutrientLabel(t, 'fat'),
+                }}
+              />
+            </View>
+          ) : null}
+          {goalRows.length > 0 ? (
+            <ReportSummaryCard
+              title={t('nutritionReport.goalAdherence', {
+                defaultValue: 'Calorie goal',
+              })}
+              rows={goalRows}
+            />
+          ) : null}
+          {insights.highest ? (
+            <ReportSummaryCard
+              title={t('nutritionReport.highlights', {
+                defaultValue: 'Highlights',
+              })}
+              rows={[
+                ...dayRow(
+                  t('nutritionReport.highestDay', {
+                    defaultValue: 'Highest day',
+                  }),
+                  insights.highest,
+                  'nutrition-highest-day'
+                ),
+                ...dayRow(
+                  t('nutritionReport.lowestDay', {
+                    defaultValue: 'Lowest logged day',
+                  }),
+                  insights.lowest,
+                  'nutrition-lowest-day'
+                ),
+              ]}
+            />
+          ) : null}
+          {insights.extras.length > 0 ? (
+            <ReportSummaryCard
+              title={t('nutritionReport.otherNutrients', {
+                defaultValue: 'Other daily averages',
+              })}
+              rows={insights.extras.map((extra) => ({
+                label: getNutrientLabel(t, extra.key),
+                value: `${fmt(extra.average, extra.average < 10 ? 1 : 0)} ${
+                  NUTRIENT_META[extra.key]?.unit ?? ''
+                }`.trim(),
+                testID: `nutrition-extra-${extra.key}`,
+              }))}
+            />
+          ) : null}
+          <View className="bg-surface rounded-xl my-2 shadow-sm overflow-hidden">
+            <Text className="text-text-primary text-lg font-semibold p-4 pb-2">
+              {t('nutritionReport.trendsByNutrient', {
+                defaultValue: 'Trend by nutrient',
+              })}
             </Text>
-            <Icon name="chevron-forward" size={20} color="#999" />
-          </Pressable>
-        ))}
-      </View>
+            {(['protein', 'carbs', 'fat'] as const).map((key) => (
+              <Pressable
+                key={key}
+                testID={`nutrition-trend-${key}`}
+                className="px-4 py-3 flex-row items-center justify-between border-t border-border-subtle"
+                onPress={() =>
+                  navigation.navigate('NutrientTrends', {
+                    nutrientKey: key,
+                    nutrientLabel: getNutrientLabel(t, key),
+                    unit: 'g',
+                  })
+                }
+                style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+              >
+                <Text className="text-text-primary text-base">
+                  {getNutrientLabel(t, key)}
+                </Text>
+                <Icon name="chevron-forward" size={20} color="#999" />
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : (
+        <StatusView
+          icon="chart-bar"
+          iconTone="muted"
+          inline
+          title={t('nutritionReport.empty', {
+            defaultValue: 'No food logged in this period',
+          })}
+        />
+      )}
     </ReportScreenLayout>
   );
 };

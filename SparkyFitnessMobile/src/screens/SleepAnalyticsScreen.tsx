@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useSleepAnalytics } from '../hooks/useSleepAnalytics';
-import { formatLocalizedNumber } from '../localization';
+import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
 import TrendBarChart from '../components/TrendBarChart';
@@ -14,7 +14,7 @@ import type {
   SleepAnalyticsMetric,
   SleepAnalyticsPoint,
 } from '../utils/sleepAnalytics';
-import type { TrendRange } from '../utils/trendRange';
+import { TREND_RANGE_DAYS, type TrendRange } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type SleepAnalyticsScreenProps = RootStackScreenProps<'SleepAnalytics'>;
@@ -42,10 +42,24 @@ const formatSeconds = (
   });
 };
 
+const formatClock = (minutes: number | null): string => {
+  if (minutes === null) return '-';
+  const rounded = Math.round(minutes) % 1440;
+  return new Date(
+    2000,
+    0,
+    1,
+    Math.floor(rounded / 60),
+    rounded % 60
+  ).toLocaleTimeString(getAppLocale(), { hour: 'numeric', minute: '2-digit' });
+};
+
 const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
   const { t } = useTranslation();
   const [range, setRange] = useState<TrendRange>('30d');
-  const { analytics, isLoading, isError } = useSleepAnalytics({ range });
+  const { analytics, previousAnalytics, isLoading, isError } =
+    useSleepAnalytics({ range });
+  const days = TREND_RANGE_DAYS[range];
 
   const header = useScreenHeader({
     title: t('sleepAnalytics.title', { defaultValue: 'Sleep Analytics' }),
@@ -54,6 +68,14 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
 
   const metrics = useMemo<MetricConfig[]>(
     () => [
+      {
+        key: 'duration',
+        title: t('sleepAnalytics.metrics.duration', {
+          defaultValue: 'Time asleep',
+        }),
+        unit: ' h',
+        maximumFractionDigits: 1,
+      },
       {
         key: 'sleepScore',
         title: t('sleepAnalytics.metrics.sleepScore', {
@@ -148,9 +170,79 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
     ? metrics.filter((metric) => analytics.averages[metric.key] !== null)
     : [];
 
+  const changeHint = (metric: MetricConfig): string | undefined => {
+    const now = analytics?.averages[metric.key] ?? null;
+    const before = previousAnalytics?.averages[metric.key] ?? null;
+    if (now === null || before === null) return undefined;
+    const digits = metric.maximumFractionDigits;
+    const factor = 10 ** digits;
+    const diff = Math.round((now - before) * factor) / factor;
+    if (diff === 0) {
+      return t('sleepAnalytics.noChange', {
+        defaultValue: 'Same as previous {{days}} days',
+        days,
+      });
+    }
+    return t('sleepAnalytics.changeHint', {
+      defaultValue: '{{change}} vs previous {{days}} days',
+      change: `${diff > 0 ? '+' : ''}${formatMetric(diff, metric)}`,
+      days,
+    });
+  };
+
+  const routineRows = analytics
+    ? [
+        {
+          label: t('sleepAnalytics.efficiency', {
+            defaultValue: 'Sleep efficiency',
+          }),
+          value:
+            analytics.efficiencyPct === null
+              ? '-'
+              : `${formatLocalizedNumber(Math.round(analytics.efficiencyPct))}%`,
+          hint: t('sleepAnalytics.efficiencyHint', {
+            defaultValue: 'Time asleep as a share of time in bed',
+          }),
+          testID: 'sleep-efficiency',
+        },
+        {
+          label: t('sleepAnalytics.avgBedtime', {
+            defaultValue: 'Average bedtime',
+          }),
+          value: formatClock(analytics.averageBedtimeMinutes),
+          testID: 'sleep-avg-bedtime',
+        },
+        {
+          label: t('sleepAnalytics.avgWake', {
+            defaultValue: 'Average wake time',
+          }),
+          value: formatClock(analytics.averageWakeMinutes),
+          testID: 'sleep-avg-wake',
+        },
+        ...(analytics.bedtimeVariabilityMinutes === null
+          ? []
+          : [
+              {
+                label: t('sleepAnalytics.bedtimeVariability', {
+                  defaultValue: 'Bedtime consistency',
+                }),
+                value: t('sleepAnalytics.variabilityValue', {
+                  defaultValue: '±{{minutes}} min',
+                  minutes: Math.round(analytics.bedtimeVariabilityMinutes),
+                }),
+                hint: t('sleepAnalytics.variabilityHint', {
+                  defaultValue: 'Lower means a steadier routine',
+                }),
+                testID: 'sleep-bedtime-variability',
+              },
+            ]),
+      ]
+    : [];
+
   const averageRows = visibleMetrics.map((metric) => ({
     label: metric.title,
     value: formatMetric(analytics?.averages[metric.key] ?? 0, metric),
+    hint: changeHint(metric),
     testID: `sleep-average-${metric.key}`,
   }));
 
@@ -205,6 +297,12 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   testID: 'sleep-stage-awake',
                 },
               ]}
+            />
+          ) : null}
+          {routineRows.length > 0 ? (
+            <ReportSummaryCard
+              title={t('sleepAnalytics.routine', { defaultValue: 'Routine' })}
+              rows={routineRows}
             />
           ) : null}
           {visibleMetrics.map((metric) => (

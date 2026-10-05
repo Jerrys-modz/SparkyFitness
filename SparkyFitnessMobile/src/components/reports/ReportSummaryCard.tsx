@@ -4,6 +4,8 @@ import { Text, View } from 'react-native';
 export interface ReportSummaryRow {
   label: string;
   value: string;
+  /** A smaller second line under the value, e.g. a change against the previous period. */
+  hint?: string;
   testID?: string;
 }
 
@@ -24,10 +26,17 @@ const ReportSummaryCard: React.FC<{
           index < rows.length - 1 ? 'border-b border-border-subtle' : ''
         }`}
       >
-        <Text className="text-text-secondary text-sm">{row.label}</Text>
-        <Text className="text-text-primary text-sm font-semibold">
-          {row.value}
+        <Text className="text-text-secondary text-sm flex-1 mr-3">
+          {row.label}
         </Text>
+        <View className="items-end">
+          <Text className="text-text-primary text-sm font-semibold">
+            {row.value}
+          </Text>
+          {row.hint ? (
+            <Text className="text-text-muted text-xs mt-0.5">{row.hint}</Text>
+          ) : null}
+        </View>
       </View>
     ))}
   </View>
