@@ -10,6 +10,7 @@ import {
   useMedicationDetail,
   useCreateMedication,
   useUpdateMedication,
+  useUpdateMedicationSchedule,
 } from '../hooks/useMedications';
 import {
   useCustomNutrients,
@@ -118,6 +119,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   });
   const createMedication = useCreateMedication();
   const updateMedication = useUpdateMedication();
+  const updateSchedule = useUpdateMedicationSchedule();
   const ensureCatalog = useEnsureCatalogNutrients();
   const supplementLookup = useSupplementLookup();
   const { customNutrients: customNutrientDefs } = useCustomNutrients();
@@ -346,6 +348,35 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     };
 
     if (isEditing && medicationId) {
+      // A schedule's own dose wins over the medication's, and a supplement's
+      // dose counts servings. Turning a medication into a supplement therefore
+      // drops those overrides, or "2 tablets" would count two servings of the
+      // nutrients on every dose. A supplement keeps the ones it has.
+      if (isSupplement && existingMed && !existingMed.is_supplement) {
+        const overridden = (existingMed.schedules ?? []).filter(
+          (schedule) => schedule.dose_amount != null
+        );
+        try {
+          await Promise.all(
+            overridden.map((schedule) =>
+              updateSchedule.mutateAsync({
+                id: schedule.id,
+                medicationId,
+                body: { dose_amount: null },
+              })
+            )
+          );
+        } catch (error) {
+          Alert.alert(
+            t('common.error', { defaultValue: 'Error' }),
+            t('medications.supplement.scheduleResetFailed', {
+              defaultValue: 'Failed to reset the schedule doses: {{error}}',
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+          return;
+        }
+      }
       updateMedication.mutate(
         { id: medicationId, body: { ...base, is_active: form.isActive } },
         {
@@ -387,6 +418,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     nutrientRows,
     createMedication,
     updateMedication,
+    updateSchedule,
     ensureCatalog,
     navigation,
     t,

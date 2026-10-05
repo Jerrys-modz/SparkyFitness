@@ -8,6 +8,7 @@ import {
   useMedicationDetail,
   useCreateMedication,
   useUpdateMedication,
+  useUpdateMedicationSchedule,
 } from '../../src/hooks/useMedications';
 import type { MedicationDetail } from '@workspace/shared';
 import type { RootStackScreenProps } from '../../src/types/navigation';
@@ -18,6 +19,7 @@ jest.mock('../../src/hooks/useMedications', () => ({
   useMedicationDetail: jest.fn(),
   useCreateMedication: jest.fn(),
   useUpdateMedication: jest.fn(),
+  useUpdateMedicationSchedule: jest.fn(),
 }));
 
 const mockLookupMutate = jest.fn();
@@ -103,9 +105,22 @@ const mockUseMedicationDetail = useMedicationDetail as jest.MockedFunction<
 const mockUseCreateMedication = useCreateMedication as jest.MockedFunction<
   typeof useCreateMedication
 >;
+const mockUseUpdateSchedule =
+  useUpdateMedicationSchedule as jest.MockedFunction<
+    typeof useUpdateMedicationSchedule
+  >;
 const mockUseUpdateMedication = useUpdateMedication as jest.MockedFunction<
   typeof useUpdateMedication
 >;
+
+const mockUpdateScheduleAsync = jest.fn();
+beforeEach(() => {
+  mockUseUpdateSchedule.mockReturnValue({
+    mutateAsync: mockUpdateScheduleAsync,
+    isPending: false,
+  } as unknown as ReturnType<typeof useUpdateMedicationSchedule>);
+  mockUpdateScheduleAsync.mockReset().mockResolvedValue({});
+});
 
 const insets = { top: 0, bottom: 0, left: 0, right: 0 };
 const frame = { x: 0, y: 0, width: 390, height: 844 };
@@ -511,5 +526,79 @@ describe('MedicationFormScreen — supplement barcode', () => {
       'Error',
       expect.stringContaining('Could not reach')
     );
+  });
+});
+
+describe('MedicationFormScreen — converting to a supplement', () => {
+  const updateMutate = jest.fn();
+  const schedule = (id: string, doseAmount: number | null) =>
+    ({
+      id,
+      medication_id: 'med-1',
+      schedule_type_id: 'daily',
+      time_of_day: '08:00',
+      dose_amount: doseAmount,
+    }) as unknown as MedicationDetail['schedules'][number];
+
+  const setup = (isSupplement: boolean) => {
+    mockUseMedicationDetail.mockReturnValue({
+      data: {
+        ...baseMed,
+        is_supplement: isSupplement,
+        nutrients: {},
+        schedules: [schedule('s-1', 2), schedule('s-2', null)],
+      },
+    } as unknown as ReturnType<typeof useMedicationDetail>);
+    mockUseUpdateMedication.mockReturnValue({
+      mutate: updateMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateMedication>);
+    mockUseCreateMedication.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useCreateMedication>);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpdateScheduleAsync.mockResolvedValue({});
+  });
+
+  it('clears the schedule doses that would count extra servings', async () => {
+    setup(false);
+    const screen = renderScreen('med-1');
+
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(updateMutate).toHaveBeenCalled());
+    expect(mockUpdateScheduleAsync).toHaveBeenCalledTimes(1);
+    expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
+      id: 's-1',
+      medicationId: 'med-1',
+      body: { dose_amount: null },
+    });
+  });
+
+  it('does not save the medication if the schedules could not be reset', async () => {
+    setup(false);
+    mockUpdateScheduleAsync.mockRejectedValue(new Error('boom'));
+    const screen = renderScreen('med-1');
+
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(mockUpdateScheduleAsync).toHaveBeenCalled());
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the schedule doses of a supplement that is already one', async () => {
+    setup(true);
+    const screen = renderScreen('med-1');
+
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(updateMutate).toHaveBeenCalled());
+    expect(mockUpdateScheduleAsync).not.toHaveBeenCalled();
   });
 });
