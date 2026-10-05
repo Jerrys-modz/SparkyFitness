@@ -104,6 +104,12 @@ function nutrientHits(text: string): { key: string; index: number }[] {
   return hits;
 }
 
+function printedNumbers(text: string): number[] {
+  return (text.match(NUMBER_PATTERN) ?? [])
+    .map(parsePrintedNumber)
+    .filter((value) => Number.isFinite(value));
+}
+
 /** Numbers printed beside this nutrient, up to the next nutrient or line end. */
 function numbersBeside(text: string, key: string): number[] {
   const hits = nutrientHits(text);
@@ -113,9 +119,7 @@ function numbersBeside(text: string, key: string): number[] {
   let end = next?.index ?? text.length;
   const newline = text.indexOf('\n', hit.index);
   if (newline >= 0 && newline < end) end = newline;
-  return (text.slice(hit.index, end).match(NUMBER_PATTERN) ?? [])
-    .map(parsePrintedNumber)
-    .filter((value) => Number.isFinite(value));
+  return printedNumbers(text.slice(hit.index, end));
 }
 
 /**
@@ -132,13 +136,22 @@ function per100ColumnIsFirst(text: string): boolean | null {
 
 /**
  * True when every macro the model returned is the number printed beside that
- * nutrient, and every one of them comes from the same column. A value from
- * the per-serving column mixed with one from the per-100 column is rejected.
- * With no text read there is nothing to check, so the server scan takes over.
+ * nutrient, and every one of them comes from the same column. A per-serving
+ * size must itself be printed, so a made-up amount cannot become the basis
+ * the form scales from. With no text read there is nothing to check, so the
+ * server scan takes over.
  */
 export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
   const text = r.ocr_text?.trim();
   if (!text) return false;
+  if (
+    !r.values_are_per_100 &&
+    typeof r.serving_size === 'number' &&
+    r.serving_size > 0 &&
+    !printedNumbers(text).includes(r.serving_size)
+  ) {
+    return false;
+  }
   const per100First = per100ColumnIsFirst(text);
   const fields: [string, number | null][] = [
     ['calories', r.calories],

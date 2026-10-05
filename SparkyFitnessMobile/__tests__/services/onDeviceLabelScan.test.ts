@@ -63,7 +63,8 @@ describe('onDeviceLabelScan', () => {
 
   it('accepts values printed in the label text', () => {
     const r = label({
-      ocr_text: 'Calories 180\nProtein 4g\nTotal Carbohydrate 26,0g\nFat 7g',
+      ocr_text:
+        'Serving size 40g\nCalories 180\nProtein 4g\nTotal Carbohydrate 26,0g\nFat 7g',
     });
     expect(isGroundedInLabelText(r)).toBe(true);
   });
@@ -74,7 +75,8 @@ describe('onDeviceLabelScan', () => {
       protein: 4,
       carbs: 26,
       fat: 7,
-      ocr_text: 'Energy 1,000 kcal\nProtein 4g\nCarbs 26g\nFat 7g',
+      ocr_text:
+        'Serving size 40g\nEnergy 1,000 kcal\nProtein 4g\nCarbs 26g\nFat 7g',
     });
     expect(isGroundedInLabelText(r)).toBe(true);
     // The same text must not also read as 1.
@@ -89,13 +91,15 @@ describe('onDeviceLabelScan', () => {
       protein: 4.5,
       carbs: 26,
       fat: 0.5,
-      ocr_text: 'Calories 180\nProtein 4,5g\nCarbs 26g\nFat 0,500g',
+      ocr_text:
+        'Serving size 40g\nCalories 180\nProtein 4,5g\nCarbs 26g\nFat 0,500g',
     });
     expect(isGroundedInLabelText(r)).toBe(true);
   });
 
   it('rejects a mix of the per-serving and per-100 columns', () => {
     const ocr = [
+      'Serving size 40g',
       'Per serving Per 100g',
       'Calories 100 400',
       'Protein 2.5g 10g',
@@ -118,6 +122,7 @@ describe('onDeviceLabelScan', () => {
 
   it('accepts every macro from the column the model selected', () => {
     const ocr = [
+      'Serving size 40g',
       'Per serving Per 100g',
       'Calories 100 400',
       'Protein 2.5g 10g',
@@ -177,6 +182,14 @@ describe('onDeviceLabelScan', () => {
     expect(isGroundedInLabelText(r)).toBe(false);
   });
 
+  it('rejects a serving size that is not printed on the label', () => {
+    const r = label({
+      serving_size: 40,
+      ocr_text: 'Calories 180\nProtein 4g\nCarbs 26g\nFat 7g',
+    });
+    expect(isGroundedInLabelText(r)).toBe(false);
+  });
+
   it('does not trust values when no text was recognised', () => {
     expect(isGroundedInLabelText(label({ ocr_text: '' }))).toBe(false);
     expect(isGroundedInLabelText(label())).toBe(false);
@@ -192,11 +205,23 @@ describe('onDeviceLabelScan', () => {
 
   it('returns the mapped result when the model output is valid', async () => {
     mockModule.scanLabel.mockResolvedValue(
-      label({ ocr_text: 'Calories 180 Protein 4 Carbs 26 Fat 7' })
+      label({
+        ocr_text: 'Serving size 40g Calories 180 Protein 4 Carbs 26 Fat 7',
+      })
     );
     const r = await scanLabelOnDevice('b64');
     expect(r?.calories).toBe(180);
     expect(r?.vitamin_c).toBeNull();
+  });
+
+  it('falls back when the serving size is not printed', async () => {
+    mockModule.scanLabel.mockResolvedValue(
+      label({
+        serving_size: 40,
+        ocr_text: 'Calories 180 Protein 4 Carbs 26 Fat 7',
+      })
+    );
+    expect(await scanLabelOnDevice('b64')).toBeNull();
   });
 
   it('falls back when the label text could not be read', async () => {
