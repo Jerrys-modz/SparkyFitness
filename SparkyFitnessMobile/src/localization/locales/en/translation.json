@@ -606,7 +606,8 @@
     "reports": "Reports",
     "nutritionReport": "Nutrition",
     "sleepAnalytics": "Sleep Analytics",
-    "moodReport": "Mood"
+    "moodReport": "Mood",
+    "allergenSettings": "Allergens"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -3760,6 +3761,10 @@
     "onDeviceChat": {
       "title": "Sparky Chat On Device",
       "description": "Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log food, water or weight, or delete an entry. It is less capable than your server AI provider and the chat is saved to your Sparky history like the others."
+    },
+    "allergens": {
+      "title": "Allergens",
+      "subtitle": "Get warnings on foods and scans that contain allergens you track"
     }
   },
   "workoutComplete": {
@@ -6195,5 +6200,43 @@
     "stageAwake": "Awake",
     "tooltip": "{{value}} · {{date}}",
     "averages": "Period averages"
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "tree nuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
   }
 }

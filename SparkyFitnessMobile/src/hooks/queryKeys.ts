@@ -101,6 +101,8 @@ export const allProvidersFoodSearchQueryKey = (
 
 export const mealTypesQueryKey = ['mealTypes'] as const;
 
+export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
+
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
 
 export const goalsRangeQueryKey = (
