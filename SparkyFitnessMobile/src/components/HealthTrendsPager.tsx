@@ -31,12 +31,16 @@ type HealthTrendsPagerProps = {
   range: HealthTrendDateRange;
   weightUnit: string;
   waterUnit: string;
+  /** The live target weight. `target_weight` has no per-day history anywhere in the
+   * schema (a single scalar profile field), so this stays a flat line across the whole
+   * window by necessity -- there is nothing to step between. */
   weightGoal?: number | null;
-  hydrationGoal?: number | null;
-  /** The calorie goal for the Dashboard's currently selected date, passed through as one flat
-   * reference line across the whole window -- not re-adjusted per day like the bars are.
-   * 0/undefined draws none. */
-  calorieGoal?: number;
+  /** The resolved hydration goal for each day in the window, same order as
+   * `hydration.data`, stepping to a new value on the day it actually changed. */
+  hydrationGoals?: (number | null)[];
+  /** The resolved calorie goal for each day in the window, same order as
+   * `calories.data`, stepping to a new value on the day it actually changed. */
+  calorieGoals?: (number | null)[];
   visibleTrends: readonly HealthTrendKey[];
   activePage: number;
   onPageSelected: (page: number) => void;
@@ -67,8 +71,8 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
   weightUnit,
   waterUnit,
   weightGoal,
-  hydrationGoal,
-  calorieGoal,
+  hydrationGoals,
+  calorieGoals,
   visibleTrends,
   activePage,
   onPageSelected,
@@ -91,11 +95,11 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
         {...hydration}
         range={range}
         unit={waterUnit}
-        goal={hydrationGoal}
+        goals={hydrationGoals}
       />
     ),
     calories: () => (
-      <CaloriesBarChart {...calories} range={range} goal={calorieGoal} />
+      <CaloriesBarChart {...calories} range={range} goals={calorieGoals} />
     ),
   };
 

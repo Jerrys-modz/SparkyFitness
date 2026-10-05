@@ -2042,7 +2042,7 @@ CREATE TABLE public.exercise_entries (
     watch_telemetry_observed_at timestamp with time zone,
     watch_duration_minutes numeric,
     record_timezone text,
-    CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
+    CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
 
@@ -2294,7 +2294,7 @@ CREATE TABLE public.exercises (
     images text,
     is_quick_exercise boolean DEFAULT false,
     modality text DEFAULT 'weight_reps'::text NOT NULL,
-    CONSTRAINT exercises_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'duration'::text, 'duration_distance'::text])))
+    CONSTRAINT exercises_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
 
@@ -4042,6 +4042,57 @@ CREATE TABLE public.user_dashboard_layouts (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: user_fasting_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_fasting_preferences (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    auto_calculate boolean DEFAULT false NOT NULL,
+    default_protocol text DEFAULT '16-8'::text NOT NULL,
+    target_fasting_hours numeric(4,1) DEFAULT 16.0 NOT NULL,
+    target_eating_hours numeric(4,1) DEFAULT 8.0 NOT NULL,
+    calorie_threshold integer DEFAULT 10 NOT NULL,
+    pre_end_alert_minutes integer DEFAULT 30 NOT NULL,
+    eating_window_alert boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT user_fasting_preferences_calorie_threshold_check CHECK (((calorie_threshold >= 0) AND (calorie_threshold <= 500))),
+    CONSTRAINT user_fasting_preferences_eating_hours_check CHECK (((target_eating_hours >= (0)::numeric) AND (target_eating_hours <= (24)::numeric))),
+    CONSTRAINT user_fasting_preferences_fasting_hours_check CHECK (((target_fasting_hours > (0)::numeric) AND (target_fasting_hours <= (168)::numeric))),
+    CONSTRAINT user_fasting_preferences_pre_end_alert_check CHECK (((pre_end_alert_minutes >= 0) AND (pre_end_alert_minutes <= 180)))
+);
+
+
+--
+-- Name: TABLE user_fasting_preferences; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.user_fasting_preferences IS 'Per-user preferences for intermittent fasting targets, auto-calculation from food entries, and notification timing.';
+
+
+--
+-- Name: COLUMN user_fasting_preferences.auto_calculate; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_fasting_preferences.auto_calculate IS 'Whether fasting windows and current fasting status are automatically calculated from food entries.';
+
+
+--
+-- Name: COLUMN user_fasting_preferences.calorie_threshold; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_fasting_preferences.calorie_threshold IS 'Minimum calories in a food entry required to break a fast (ignoring plain water, black coffee, etc.).';
+
+
+--
+-- Name: COLUMN user_fasting_preferences.pre_end_alert_minutes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_fasting_preferences.pre_end_alert_minutes IS 'Advance warning notification in minutes before the target fasting goal is reached.';
 
 
 --
@@ -6120,6 +6171,22 @@ ALTER TABLE ONLY public."user"
 
 
 --
+-- Name: user_fasting_preferences user_fasting_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_fasting_preferences
+    ADD CONSTRAINT user_fasting_preferences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_fasting_preferences user_fasting_preferences_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_fasting_preferences
+    ADD CONSTRAINT user_fasting_preferences_user_id_key UNIQUE (user_id);
+
+
+--
 -- Name: user_ignored_updates user_ignored_updates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7045,6 +7112,13 @@ CREATE INDEX idx_user_cycle_display_preferences_user_id ON public.user_cycle_dis
 
 
 --
+-- Name: idx_user_fasting_preferences_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_fasting_preferences_user_id ON public.user_fasting_preferences USING btree (user_id);
+
+
+--
 -- Name: idx_user_goals_unique_user_date; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7560,6 +7634,13 @@ CREATE TRIGGER update_meal_foods_timestamp BEFORE UPDATE ON public.meal_foods FO
 --
 
 CREATE TRIGGER update_oidc_providers_updated_at BEFORE UPDATE ON public.oidc_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: user_fasting_preferences update_user_fasting_preferences_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_user_fasting_preferences_updated_at BEFORE UPDATE ON public.user_fasting_preferences FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -8864,6 +8945,14 @@ ALTER TABLE ONLY public.user_cycle_display_preferences
 
 ALTER TABLE ONLY public.user_dashboard_layouts
     ADD CONSTRAINT user_dashboard_layouts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_fasting_preferences user_fasting_preferences_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_fasting_preferences
+    ADD CONSTRAINT user_fasting_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -10277,6 +10366,13 @@ CREATE POLICY owner_policy ON public.user_cycle_display_preferences USING ((user
 
 
 --
+-- Name: user_fasting_preferences owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.user_fasting_preferences USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
+
+--
 -- Name: user_ignored_updates owner_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10979,6 +11075,12 @@ ALTER TABLE public.user_cycle_display_preferences ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.user_dashboard_layouts ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: user_fasting_preferences; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.user_fasting_preferences ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: user_goals; Type: ROW SECURITY; Schema: public; Owner: -
@@ -12195,6 +12297,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_cycle_display_preferences
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_dashboard_layouts TO sparky_app;
+
+
+--
+-- Name: TABLE user_fasting_preferences; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_fasting_preferences TO sparky_app;
 
 
 --

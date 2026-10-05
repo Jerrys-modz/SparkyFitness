@@ -47,6 +47,13 @@ import { getActiveServerConfigId } from '../services/storage';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
+/** The distance unit the watch shows weighted carries in: miles → yards, else metres. */
+export function watchDistanceUnit(
+  preference: string | null | undefined
+): 'km' | 'miles' {
+  return preference === 'miles' ? 'miles' : 'km';
+}
+
 export function startableWorkoutsForWatch(
   presets: readonly Pick<WorkoutPreset, 'id' | 'name' | 'exercises'>[]
 ): { presetId: string; name: string }[] {
@@ -215,6 +222,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     preferences?.default_weight_unit === 'st_lbs'
       ? 'lbs'
       : 'kg';
+  // A weighted carry's distance follows the phone's distance unit: the watch
+  // shows metres, or yards when the phone is set to miles.
+  const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
   const { presets } = useWorkoutPresets({ enabled });
   const startableWorkouts = useMemo(
     () => startableWorkoutsForWatch(presets),
@@ -535,6 +545,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         ackedClientIds: ackedClientIdsRef.current.slice(-20),
         failedClientIds: failedClientIdsRef.current.slice(-20),
         weightUnit,
+        distanceUnit,
         containers: watchContainers,
         // Goal and display unit ride outside the day gate: the watch treats
         // both as account configuration and carries them forward, which is
@@ -569,6 +580,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // aggregates are memoized, so an identical refetch doesn't cause a push.
   }, [
     weightUnit,
+    distanceUnit,
     hapticsEnabled,
     restAlertsEnabled,
     startableWorkouts,

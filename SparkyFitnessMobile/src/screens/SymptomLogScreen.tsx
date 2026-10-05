@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCSSVariable } from 'uniwind';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { FooterSaveBar } from '../components/FormScreenChrome';
+import Switch from '../components/ui/Switch';
 import SeveritySlider from '../components/symptoms/SeveritySlider';
 import SymptomLocationPicker from '../components/symptoms/SymptomLocationPicker';
 import TreatmentsSection, {
@@ -41,6 +43,7 @@ const IMPACT_OPTIONS: SymptomImpact[] = ['none', 'mild', 'moderate', 'severe'];
 
 export default function SymptomLogScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const [textMuted] = useCSSVariable(['--color-text-muted']) as [string];
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const { entryId, date } = route.params || {};
@@ -355,7 +358,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
           >
             {/* Symptom Selection Chips */}
             <View className="space-y-2">
-              <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
                 {t('symptoms.symptom', { defaultValue: 'Symptom' })}
               </Text>
               <View className="flex-row flex-wrap gap-1.5">
@@ -374,15 +377,13 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       }
                       className={`px-3 py-2 rounded-xl border ${
                         selected
-                          ? 'bg-primary border-primary'
-                          : 'bg-card border-border'
+                          ? 'bg-accent-primary border-accent-primary'
+                          : 'bg-surface border-border'
                       }`}
                     >
                       <Text
                         className={`text-xs font-semibold ${
-                          selected
-                            ? 'text-primary-foreground'
-                            : 'text-foreground'
+                          selected ? 'text-white' : 'text-text-primary'
                         }`}
                       >
                         {def.name}
@@ -408,15 +409,13 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       }
                       className={`px-3 py-2 rounded-xl border ${
                         selected
-                          ? 'bg-primary border-primary'
-                          : 'bg-card border-border'
+                          ? 'bg-accent-primary border-accent-primary'
+                          : 'bg-surface border-border'
                       }`}
                     >
                       <Text
                         className={`text-xs font-semibold ${
-                          selected
-                            ? 'text-primary-foreground'
-                            : 'text-foreground'
+                          selected ? 'text-white' : 'text-text-primary'
                         }`}
                       >
                         {builtIn.displayName}
@@ -431,38 +430,27 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                 placeholder={t('symptoms.orCustomName', {
                   defaultValue: 'Or type custom symptom...',
                 })}
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={textMuted || '#94a3b8'}
                 value={symptomName}
                 onChangeText={(text) => handleSelectSymptom(text)}
-                className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground mt-2"
+                className="bg-surface border border-border rounded-xl px-3.5 py-2.5 text-sm text-text-primary mt-2"
               />
             </View>
 
             {/* Ongoing vs Quick Log & Timing */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-3">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-3">
               <View className="flex-row justify-between items-center">
-                <Text className="text-sm font-semibold text-foreground">
+                <Text className="text-sm font-semibold text-text-primary">
                   {t('symptoms.ongoingEpisode', {
                     defaultValue: 'Track as ongoing episode',
                   })}
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setIsEpisodic(!isEpisodic)}
-                  className={`w-12 h-6 rounded-full p-0.5 ${
-                    isEpisodic ? 'bg-primary' : 'bg-muted'
-                  }`}
-                >
-                  <View
-                    className={`w-5 h-5 rounded-full bg-white transition-all ${
-                      isEpisodic ? 'translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </TouchableOpacity>
+                <Switch value={isEpisodic} onValueChange={setIsEpisodic} />
               </View>
 
               {isEpisodic && (
                 <View className="space-y-2 pt-2 border-t border-border/50">
-                  <Text className="text-xs text-muted-foreground">
+                  <Text className="text-xs text-text-muted">
                     {t('symptoms.startedWhen', {
                       defaultValue: 'Started when:',
                     })}
@@ -472,7 +460,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       onPress={() => setStartedAt(new Date().toISOString())}
                       className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
                     >
-                      <Text className="text-xs font-medium text-foreground">
+                      <Text className="text-xs font-medium text-text-primary">
                         {t('symptoms.timing.now', { defaultValue: 'Now' })}
                       </Text>
                     </TouchableOpacity>
@@ -480,7 +468,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       onPress={() => handleBackdate(15)}
                       className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
                     >
-                      <Text className="text-xs font-medium text-foreground">
+                      <Text className="text-xs font-medium text-text-primary">
                         {t('symptoms.timing.m15', { defaultValue: '-15m' })}
                       </Text>
                     </TouchableOpacity>
@@ -488,7 +476,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       onPress={() => handleBackdate(60)}
                       className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
                     >
-                      <Text className="text-xs font-medium text-foreground">
+                      <Text className="text-xs font-medium text-text-primary">
                         {t('symptoms.timing.h1', { defaultValue: '-1h' })}
                       </Text>
                     </TouchableOpacity>
@@ -496,7 +484,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       onPress={() => handleBackdate(180)}
                       className="px-2.5 py-1.5 rounded-lg bg-background border border-border"
                     >
-                      <Text className="text-xs font-medium text-foreground">
+                      <Text className="text-xs font-medium text-text-primary">
                         {t('symptoms.timing.h3', { defaultValue: '-3h' })}
                       </Text>
                     </TouchableOpacity>
@@ -519,7 +507,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Severity */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl">
               <SeveritySlider
                 scaleType={scaleType}
                 value={severity}
@@ -528,8 +516,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Location Picker */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.location', { defaultValue: 'Location' })}
               </Text>
               <SymptomLocationPicker
@@ -542,8 +530,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Qualities / Descriptors */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.qualities', { defaultValue: 'Pain Qualities' })}
               </Text>
               <View className="flex-row flex-wrap gap-1.5">
@@ -555,15 +543,15 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       onPress={() => toggleItem(qualities, setQualities, q)}
                       className={`px-3 py-1.5 rounded-full border ${
                         isSelected
-                          ? 'bg-blue-600/20 border-blue-500'
+                          ? 'bg-accent-primary/20 border-accent-primary'
                           : 'bg-background border-border'
                       }`}
                     >
                       <Text
                         className={`text-xs ${
                           isSelected
-                            ? 'text-blue-500 font-semibold'
-                            : 'text-foreground'
+                            ? 'text-accent-primary font-semibold'
+                            : 'text-text-primary'
                         }`}
                       >
                         {q}
@@ -575,8 +563,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Associated Symptoms / Aura */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.associated', {
                   defaultValue: 'Associated Symptoms / Aura',
                 })}
@@ -596,15 +584,15 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       }
                       className={`px-3 py-1.5 rounded-full border ${
                         isSelected
-                          ? 'bg-blue-600/20 border-blue-500'
+                          ? 'bg-accent-primary/20 border-accent-primary'
                           : 'bg-background border-border'
                       }`}
                     >
                       <Text
                         className={`text-xs ${
                           isSelected
-                            ? 'text-blue-500 font-semibold'
-                            : 'text-foreground'
+                            ? 'text-accent-primary font-semibold'
+                            : 'text-text-primary'
                         }`}
                       >
                         {item}
@@ -616,8 +604,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Triggers */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.triggers', { defaultValue: 'Triggers' })}
               </Text>
               <View className="flex-row flex-wrap gap-1.5">
@@ -637,7 +625,7 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                         className={`text-xs ${
                           isSelected
                             ? 'text-amber-500 font-semibold'
-                            : 'text-foreground'
+                            : 'text-text-primary'
                         }`}
                       >
                         {tr}
@@ -649,8 +637,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Treatments & Relief */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.treatments', {
                   defaultValue: 'Treatments & Relief',
                 })}
@@ -662,8 +650,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Impact on Day */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.impact', { defaultValue: 'Impact on Day' })}
               </Text>
               <View className="flex-row gap-1.5">
@@ -675,15 +663,13 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                       onPress={() => setImpact(isSelected ? null : opt)}
                       className={`flex-1 py-2 rounded-xl items-center border ${
                         isSelected
-                          ? 'bg-primary border-primary'
+                          ? 'bg-accent-primary border-accent-primary'
                           : 'bg-background border-border'
                       }`}
                     >
                       <Text
                         className={`text-xs font-semibold ${
-                          isSelected
-                            ? 'text-primary-foreground'
-                            : 'text-foreground'
+                          isSelected ? 'text-white' : 'text-text-primary'
                         }`}
                       >
                         {getImpactLabel(opt)}
@@ -695,8 +681,8 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
             </View>
 
             {/* Notes */}
-            <View className="bg-card border border-border p-3.5 rounded-2xl space-y-2">
-              <Text className="text-sm font-semibold text-foreground">
+            <View className="bg-surface border border-border p-3.5 rounded-2xl space-y-2">
+              <Text className="text-sm font-semibold text-text-primary">
                 {t('symptoms.notes', { defaultValue: 'Notes & Observations' })}
               </Text>
               <TextInput
@@ -705,10 +691,10 @@ export default function SymptomLogScreen({ navigation, route }: Props) {
                 placeholder={t('symptoms.notesPlaceholder', {
                   defaultValue: 'Any additional notes or observations...',
                 })}
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={textMuted || '#94a3b8'}
                 value={contextText}
                 onChangeText={setContextText}
-                className="bg-background border border-border rounded-xl p-3 text-sm text-foreground min-h-[80px]"
+                className="bg-background border border-border rounded-xl p-3 text-sm text-text-primary min-h-[80px]"
               />
             </View>
 

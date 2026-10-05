@@ -811,6 +811,15 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
         },
       ],
       source_id: metadata?.id,
+      ...(exerciseType != null
+        ? {
+            exercise_source_id: isSpecificType
+              ? String(exerciseType)
+              : sourceTitle
+                ? `${exerciseType}_${sourceTitle.toLowerCase()}`
+                : String(exerciseType),
+          }
+        : {}),
       ...extractTimezoneMetadata(rec),
     };
     output.push(attachWorkoutTelemetry(exerciseSession, rec));

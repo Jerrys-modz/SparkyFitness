@@ -1,7 +1,6 @@
 import measurementRepository from '../../models/measurementRepository.js';
 import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import exerciseRepository from '../../models/exercise.js';
-import activityDetailsRepository from '../../models/activityDetailsRepository.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import { log } from '../../config/logging.js';
 import { localDateToDay, todayInZone } from '@workspace/shared';
@@ -643,21 +642,24 @@ async function processFitbitActivities(
         },
       ],
     };
-    const newEntry = await exerciseEntryRepository.createExerciseEntry(
+    // Written with the entry so a re-sync replaces the detail instead of
+    // adding another copy.
+    await exerciseEntryRepository.createExerciseEntry(
       userId,
       entryData,
       createdByUserId,
-      'Fitbit'
+      'Fitbit',
+      null,
+      {
+        activityDetail: {
+          provider_name: 'Fitbit',
+          detail_type: 'full_activity_data',
+          detail_data: activity,
+          created_by_user_id: String(createdByUserId),
+          updated_by_user_id: String(createdByUserId),
+        },
+      }
     );
-    if (newEntry && newEntry.id) {
-      await activityDetailsRepository.createActivityDetail(userId, {
-        exercise_entry_id: newEntry.id,
-        provider_name: 'Fitbit',
-        detail_type: 'full_activity_data',
-        detail_data: activity,
-        created_by_user_id: createdByUserId,
-      });
-    }
   }
   // Step Fallback Optimization: Fetch all measurements in one range query to avoid queries-in-a-loop
   const dates = Object.keys(stepsPerDay).sort();
