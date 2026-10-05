@@ -59,6 +59,40 @@ router.post('/sync', authMiddleware.authenticate, async (req, res) => {
 });
 /**
  * @swagger
+ * /integrations/hevy/sync-exercises:
+ *   post:
+ *     summary: Copy the whole Hevy exercise library into Sparky
+ *     tags: [External Integrations]
+ */
+router.post(
+  '/sync-exercises',
+  authMiddleware.authenticate,
+  async (req, res) => {
+    try {
+      const result = await hevyService.syncExerciseLibrary(
+        req.userId,
+        req.userId,
+        req.body?.providerId
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log('error', `Error syncing Hevy exercise library: ${message}`);
+      if (message.includes('401')) {
+        return res.status(401).json({
+          message: 'Invalid Hevy API Key. Please check your key and try again.',
+          error: message,
+        });
+      }
+      res.status(500).json({
+        message: 'Error syncing Hevy exercise library',
+        error: message,
+      });
+    }
+  }
+);
+/**
+ * @swagger
  * /integrations/hevy/status:
  *   get:
  *     summary: Get Hevy connection status

@@ -33,6 +33,17 @@ interface HevyExercise {
   sets?: HevySet[] | null;
 }
 
+/** An entry in Hevy's exercise library (`/v1/exercise_templates`). */
+export interface HevyExerciseTemplate {
+  id: string;
+  title: string;
+  type?: string | null;
+  primary_muscle_group?: string | null;
+  secondary_muscle_groups?: string[] | null;
+  equipment?: string | null;
+  is_custom?: boolean;
+}
+
 /** A logged Hevy workout (one session). */
 export interface HevyWorkout {
   id: string;
@@ -183,6 +194,69 @@ async function processHevyWorkouts(
 /**
  * Process a single workout from Hevy.
  */
+// Hevy's exercise `type` mapped to the set editor each one needs.
+const HEVY_TYPE_TO_MODALITY: Record<string, string> = {
+  weight_reps: 'weight_reps',
+  reps_only: 'reps_only',
+  bodyweight_reps: 'bodyweight_reps',
+  bodyweight_assisted_reps: 'bodyweight_reps',
+  weight_duration: 'weight_duration',
+  duration: 'duration',
+  distance_duration: 'duration_distance',
+  short_distance_weight: 'weight_distance',
+};
+
+/**
+ * Add every exercise in the user's Hevy library that isn't already in Sparky
+ * (matched by name). Existing exercises are left untouched.
+ */
+async function processHevyExerciseTemplates(
+  userId: string,
+  createdByUserId: string,
+  templates: HevyExerciseTemplate[]
+) {
+  let created = 0;
+  let skipped = 0;
+  for (const template of templates) {
+    if (!template.title) continue;
+    const existing = await exerciseRepository.findExerciseByNameAndUserId(
+      template.title,
+      userId
+    );
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    const modality = template.type
+      ? HEVY_TYPE_TO_MODALITY[template.type]
+      : undefined;
+    const row = await exerciseRepository.createExercise(
+      {
+        user_id: userId,
+        name: template.title,
+        source: 'Hevy',
+        source_id: template.id,
+        is_custom: true,
+        shared_with_public: false,
+        equipment:
+          template.equipment && template.equipment !== 'none'
+            ? template.equipment
+            : null,
+        primary_muscles: template.primary_muscle_group || null,
+        secondary_muscles: template.secondary_muscle_groups?.length
+          ? template.secondary_muscle_groups
+          : null,
+        ...(modality ? { modality } : {}),
+      },
+      // @ts-expect-error TS(2554): repository accepts createdByUserId at runtime
+      createdByUserId
+    );
+    if (row) created++;
+    else log('error', `Failed to create Hevy exercise "${template.title}"`);
+  }
+  return { created, skipped, total: templates.length };
+}
+
 async function processSingleWorkout(
   userId: string,
   createdByUserId: string,
@@ -425,8 +499,10 @@ function mapSetType(hevyType: string): string {
   return mapping[hevyType] || 'Working Set';
 }
 export { processHevyUserInfo };
+export { processHevyExerciseTemplates };
 export { processHevyWorkouts };
 export default {
   processHevyUserInfo,
   processHevyWorkouts,
+  processHevyExerciseTemplates,
 };

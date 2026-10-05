@@ -5,6 +5,7 @@ import { decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
 import { loadRawBundle } from '../../utils/diagnosticLogger.js';
 import hevyDataProcessor from './hevyDataProcessor.js';
+import type { HevyExerciseTemplate } from './hevyDataProcessor.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 import { todayInZone, addDays, dayToUtcRange } from '@workspace/shared';
 import { logRawResponse } from '../../utils/diagnosticLogger.js';
@@ -159,6 +160,35 @@ async function getExerciseTemplates(
     );
     throw error;
   }
+}
+/**
+ * Copy the user's whole Hevy exercise library (built-in and custom) into
+ * Sparky. Exercises that already exist by name are left as they are.
+ */
+async function syncExerciseLibrary(
+  userId: string,
+  createdByUserId: string,
+  providerId?: string
+) {
+  const templates: HevyExerciseTemplate[] = [];
+  let page = 1;
+  let pageCount: number;
+  do {
+    const data = await getExerciseTemplates(userId, page, 100, providerId);
+    templates.push(...(data?.exercise_templates ?? []));
+    pageCount = data?.page_count ?? 1;
+    page++;
+  } while (page <= pageCount);
+  const result = await hevyDataProcessor.processHevyExerciseTemplates(
+    userId,
+    createdByUserId,
+    templates
+  );
+  log(
+    'info',
+    `Hevy exercise library sync for user ${userId}: ${result.created} added, ${result.skipped} already present.`
+  );
+  return { success: true, ...result };
 }
 /**
  * Synchronize Hevy data for a user.
@@ -411,12 +441,14 @@ async function getStatus(userId: any) {
 export { getUserInfo };
 export { getWorkouts };
 export { getExerciseTemplates };
+export { syncExerciseLibrary };
 export { syncHevyData };
 export { getStatus };
 export default {
   getUserInfo,
   getWorkouts,
   getExerciseTemplates,
+  syncExerciseLibrary,
   syncHevyData,
   getStatus,
 };

@@ -420,3 +420,41 @@ describe('processHevyWorkouts — raw JSON activity detail', () => {
     ).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('processHevyExerciseTemplates', () => {
+  it('adds library exercises that are missing and skips ones already present', async () => {
+    const { processHevyExerciseTemplates } =
+      await import('../integrations/hevy/hevyDataProcessor.js');
+    const exerciseRepository = (await import('../models/exercise.js')).default;
+    vi.mocked(exerciseRepository.findExerciseByNameAndUserId)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce({ id: 'have-it' } as never);
+    vi.mocked(exerciseRepository.createExercise).mockClear();
+
+    const result = await processHevyExerciseTemplates(UID, CID, [
+      {
+        id: 'T1',
+        title: 'Sled Push',
+        type: 'short_distance_weight',
+        primary_muscle_group: 'quadriceps',
+        secondary_muscle_groups: ['glutes'],
+        equipment: 'machine',
+      },
+      { id: 'T2', title: 'Bench Press', type: 'weight_reps' },
+    ]);
+
+    expect(result).toEqual({ created: 1, skipped: 1, total: 2 });
+    expect(exerciseRepository.createExercise).toHaveBeenCalledTimes(1);
+    expect(exerciseRepository.createExercise).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Sled Push',
+        source: 'Hevy',
+        source_id: 'T1',
+        modality: 'weight_distance',
+        primary_muscles: 'quadriceps',
+        secondary_muscles: ['glutes'],
+      }),
+      CID
+    );
+  });
+});
