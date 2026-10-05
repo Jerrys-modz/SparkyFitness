@@ -372,9 +372,6 @@ struct WatchContext: Codable, Equatable {
     /// The phone's distance unit (`km` or `miles`). Decides whether a weighted
     /// carry's distance is shown in metres or yards. Nil reads as metres.
     var distanceUnit: String? = nil
-    /// The unit a weighted carry's distance is shown in: metres, or yards when
-    /// the phone's distance unit is miles.
-    var effectiveCarryUnit: CarryUnit { distanceUnit == "miles" ? .yards : .meters }
 
     static let empty = WatchContext(
         today: nil,
