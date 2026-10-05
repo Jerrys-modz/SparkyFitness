@@ -1,12 +1,7 @@
+import type { MoodEntry } from '../../types/mood';
 import { apiFetch } from './apiClient';
 
-export interface MoodEntry {
-  id: string;
-  mood_value: number;
-  mood_tags: string[] | null;
-  notes: string | null;
-  entry_date: string;
-}
+export type { MoodEntry };
 
 export interface CustomMood {
   id: string;
