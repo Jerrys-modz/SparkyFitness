@@ -148,6 +148,15 @@ async function processStravaActivities(
         StravaActivity | undefined;
       const caloriesAuto =
         detailedActivity?.calories ?? activity.calories ?? undefined;
+      // Without a source_id the entry falls back to the manual
+      // one-per-exercise-per-day rule, so same-day activities of one type
+      // would overwrite each other.
+      const startedAt = activity.start_date ?? activity.start_date_local;
+      const sourceId = activity.id
+        ? activity.id.toString()
+        : startedAt
+          ? `strava-activity-${startedAt}`
+          : null;
       const entryData = {
         exercise_id: exercise.id,
         entry_date: entryDate,
@@ -164,7 +173,7 @@ async function processStravaActivities(
             : null,
         notes: `Synced from Strava. Type: ${sportType}${activity.moving_time ? `. Moving time: ${Math.round(activity.moving_time / 60)}min` : ''}${activity.total_elevation_gain ? `. Elevation: ${activity.total_elevation_gain}m` : ''}`,
         entry_source: 'Strava',
-        source_id: activity.id ? activity.id.toString() : null,
+        source_id: sourceId,
         sets: [
           {
             set_number: 1,
