@@ -460,47 +460,51 @@ private struct ExerciseRow: View {
     }
 }
 
-/// A chevron button a wrist can hit. The glyph alone is about 10 pt wide; this
-/// gives it a 44 pt-wide, 34 pt-tall hit area, and a soft backing so it reads
-/// as a button rather than as decoration. Dimmed while disabled.
-private struct ChevronButton: View {
+/// The one control shape on the workout screens: a flat dark squircle with a
+/// glyph in it. Big enough to hit with a thumb (44 pt tall in a row, 34 pt in
+/// the header), the same fill as the value cards, and dimmed while disabled.
+/// `prominent` is the single main action on a screen: white with a black glyph.
+private enum WatchStyle {
+    static let fill = Color(white: 0.14)
+    static let corner: CGFloat = 20
+    static var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: corner, style: .continuous)
+    }
+}
+
+private struct SquircleButton: View {
     let systemImage: String
-    var tint: Color = .primary
-    /// A round button, for the back control in the header; the previous and
-    /// next arrows stay rounded rectangles.
+    var prominent = false
+    /// A round button for the header.
     var circular = false
     let action: () -> Void
 
     var body: some View {
         Button(action: Haptics.tapping(action)) {
-            ChevronLabel(systemImage: systemImage, tint: tint, circular: circular)
+            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular)
         }
         .buttonStyle(.plain)
     }
 }
 
-private struct ChevronLabel: View {
+private struct SquircleLabel: View {
     let systemImage: String
-    let tint: Color
+    let prominent: Bool
     let circular: Bool
 
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: circular ? 17 : 12, style: .continuous)
+        let shape = RoundedRectangle(
+            cornerRadius: circular ? 17 : WatchStyle.corner,
+            style: .continuous
+        )
         Image(systemName: systemImage)
-            .font(.body.weight(.semibold))
-            .foregroundStyle(tint)
-            .frame(width: circular ? 34 : 44, height: 34)
-            .background(
-                LinearGradient(
-                    colors: [Color.white.opacity(0.2), Color.white.opacity(0.1)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                in: shape
-            )
-            .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
+            .font(.system(size: circular ? 15 : 20, weight: .semibold))
+            .foregroundStyle(prominent ? Color.black : Color.white.opacity(0.6))
+            .frame(maxWidth: circular ? CGFloat(34) : CGFloat.infinity)
+            .frame(height: circular ? 34 : 44)
+            .background(prominent ? Color.white : WatchStyle.fill, in: shape)
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.
             .contentShape(shape)
@@ -519,27 +523,15 @@ private struct MetricsStrip: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
-        HStack(spacing: 8) {
-            if let onBack = onBack {
-                ChevronButton(
-                    systemImage: "chevron.left",
-                    tint: .white,
-                    circular: true,
-                    action: onBack
-                )
-            }
-            Spacer(minLength: 0)
-            // The clock reads first, heart rate and calories under it, so the
-            // two small readings share a line instead of fighting for width.
-            VStack(alignment: .trailing, spacing: 0) {
+        HStack(alignment: .center, spacing: 8) {
+            // The clock reads first, small and quiet; heart rate and calories
+            // sit under it so the two readings share a line.
+            VStack(alignment: .leading, spacing: 0) {
                 Text(Self.elapsed(store.elapsedSeconds))
                     .font(.system(.callout, design: .rounded).weight(.semibold))
+                    .foregroundStyle(.secondary)
                     .minimumScaleFactor(0.7)
                 HStack(spacing: 6) {
-                    if let kcal = store.activeEnergyKcal {
-                        Self.metric("\(Int(kcal))", systemImage: "flame.fill")
-                            .foregroundStyle(.orange)
-                    }
                     if let bpm = store.latestBpm {
                         // Never truncated: a three-digit rate used to lose
                         // its last digits to the readings beside it.
@@ -548,8 +540,17 @@ private struct MetricsStrip: View {
                             .fixedSize()
                             .layoutPriority(1)
                     }
+                    if let kcal = store.activeEnergyKcal {
+                        Self.metric("\(Int(kcal))", systemImage: "flame.fill")
+                            .foregroundStyle(.orange)
+                    }
                 }
                 .font(.caption2)
+            }
+            Spacer(minLength: 0)
+            // Opens the exercise list, so it wears the list icon.
+            if let onBack = onBack {
+                SquircleButton(systemImage: "list.bullet", circular: true, action: onBack)
             }
         }
         .monospacedDigit()
@@ -1102,33 +1103,25 @@ private struct ValueBox: View {
     let onTap: () -> Void
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         Button(action: Haptics.tapping(onTap)) {
             VStack(spacing: 0) {
                 Text(value)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.system(size: 30, weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                 Text(unit)
-                    .font(.system(size: 10, weight: .semibold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(isSelected ? Color.green : Color.secondary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(
-                LinearGradient(
-                    colors: [Color.white.opacity(0.14), Color.white.opacity(0.07)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                in: shape
-            )
+            .padding(.vertical, 8)
+            .background(WatchStyle.fill, in: WatchStyle.shape)
+            // The card being adjusted by the crown or a drag.
             .overlay(
-                shape.strokeBorder(
-                    isSelected ? Color.green : Color.white.opacity(0.08),
-                    lineWidth: isSelected ? 2.5 : 0.5
+                WatchStyle.shape.strokeBorder(
+                    Color.white,
+                    lineWidth: isSelected ? 2.5 : 0
                 )
             )
         }
@@ -1148,32 +1141,34 @@ private struct StepControls: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
-        HStack(spacing: 6) {
-            ChevronButton(systemImage: "chevron.left", action: onPrevious)
+        HStack(spacing: 8) {
+            SquircleButton(systemImage: "chevron.left", action: onPrevious)
                 .disabled(store.currentStepIndex == 0)
-
+            SquircleButton(systemImage: "chevron.right", action: onNext)
+                .disabled(store.currentStepIndex >= store.steps.count - 1)
+            // The main action, white like the rest of the controls are not.
+            // Once the set is logged it turns into a green tick so a second
+            // tap reads as already done rather than inviting a double entry.
             Button {
                 Haptics.setLogged()
                 onComplete()
             } label: {
                 Image(systemName: isCompleted ? "checkmark.circle.fill" : "checkmark")
-                    .font(.title3)
+                    .font(.system(size: 20, weight: .semibold))
                     // Spelled `Color.x` rather than `.x`: the parameter is an
                     // opaque `some ShapeStyle`, which gives a ternary's two
                     // branches nothing to infer a shared type from.
                     .foregroundStyle(isCompleted ? Color.green : Color.black)
-                    .frame(maxWidth: .infinity, minHeight: 34)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
                     .background(
-                        isCompleted ? Color.green.opacity(0.2) : Color.green,
-                        in: Capsule()
+                        isCompleted ? Color.green.opacity(0.2) : Color.white,
+                        in: WatchStyle.shape
                     )
-                    .contentShape(Capsule())
+                    .contentShape(WatchStyle.shape)
             }
             .buttonStyle(.plain)
             .disabled(isCompleted)
-
-            ChevronButton(systemImage: "chevron.right", action: onNext)
-                .disabled(store.currentStepIndex >= store.steps.count - 1)
         }
     }
 }
@@ -1194,28 +1189,37 @@ private struct RestView: View {
     }
 
     private func content(now: Date) -> some View {
-        VStack(spacing: 3) {
-            HStack {
-                Button("Skip", action: Haptics.tapping { store.skipRest() })
-                    .font(.caption2)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.blue)
-                    .disabled(store.restPausedRemaining != nil)
-                Spacer()
+        VStack(spacing: 6) {
+            VStack(spacing: 0) {
                 if store.restPausedRemaining != nil {
                     Text("Paused")
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }
+                Text(remainingLabel(now: now))
+                    .font(.system(size: 44, weight: .bold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
-
-            Text(remainingLabel(now: now))
-                .font(.title2)
-                .fontWeight(.semibold)
-                .monospacedDigit()
 
             ProgressView(value: progress(now: now))
                 .tint(.blue)
+
+            // Back 15 s, skip the rest, forward 15 s: three equal squircles.
+            HStack(spacing: 8) {
+                SquircleButton(systemImage: "gobackward.15") {
+                    store.adjustRest(bySeconds: -15)
+                }
+                SquircleButton(systemImage: "forward.fill") {
+                    store.skipRest()
+                }
+                SquircleButton(systemImage: "goforward.15") {
+                    store.adjustRest(bySeconds: 15)
+                }
+            }
+            // Paused on the phone: it owns the rest until it resumes.
+            .disabled(store.restPausedRemaining != nil)
 
             if let next = store.currentStep {
                 VStack(spacing: 0) {
@@ -1223,23 +1227,14 @@ private struct RestView: View {
                         .font(.system(size: 9))
                         .foregroundStyle(nextSupersetColor(next) ?? Color.secondary)
                     Text(next.exerciseName)
-                        .font(.caption2)
+                        .font(.footnote.weight(.semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     Text(nextTargetLabel(for: next))
-                        .font(.system(size: 9))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
-
-            HStack(spacing: 4) {
-                Button("-15s", action: Haptics.tapping { store.adjustRest(bySeconds: -15) })
-                Button("+15s", action: Haptics.tapping { store.adjustRest(bySeconds: 15) })
-            }
-            .font(.caption2)
-            .buttonStyle(.bordered)
-            // Paused on the phone: it owns the rest until it resumes.
-            .disabled(store.restPausedRemaining != nil)
         }
     }
 
