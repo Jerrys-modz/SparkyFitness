@@ -500,23 +500,6 @@ struct WatchContext: Codable, Equatable {
 /// phone only converts at display time. This affects the crown dial and trend
 /// chart only. The phone's third option, `st_lbs` (stone + pounds), collapses
 /// to `.lbs` here — the crown dial only has room for one number, not a split.
-/// How a weighted carry's distance is shown and entered. The wire and the diary
-/// always hold km; this only decides the unit on screen.
-enum CarryUnit {
-    case meters
-    case yards
-
-    private static let yardsPerKm = 1093.6133
-
-    /// Units shown per km.
-    var perKm: Double { self == .yards ? Self.yardsPerKm : 1000 }
-    var title: String { self == .yards ? "YD" : "M" }
-    var suffix: String { self == .yards ? "yd" : "m" }
-
-    func fromKm(_ km: Double) -> Double { km * perKm }
-    func toKm(_ value: Double) -> Double { value / perKm }
-}
-
 enum WeightUnit: String, Codable {
     case kg
     case lbs
