@@ -46,6 +46,11 @@ vi.mock('../models/exercisePresetEntryRepository.js', () => ({
 vi.mock('../services/CalorieCalculationService.js', () => ({
   default: { estimateCaloriesBurnedPerHour: vi.fn().mockResolvedValue(300) },
 }));
+vi.mock('../utils/imageDownloader.js', () => ({
+  downloadImage: vi
+    .fn()
+    .mockResolvedValue('/uploads/exercises/hevy_T1/thumb.png'),
+}));
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 
 import { processHevyWorkouts } from '../integrations/hevy/hevyDataProcessor.js';
@@ -442,6 +447,7 @@ describe('processHevyExerciseTemplates', () => {
         primary_muscle_group: 'upper_back',
         secondary_muscle_groups: ['glutes', 'other'],
         equipment: 'none',
+        thumbnail_url: 'https://example.com/t1.png',
       },
       { id: 'T2', title: 'Bench Press', type: 'weight_reps' },
     ]);
@@ -454,6 +460,7 @@ describe('processHevyExerciseTemplates', () => {
         source: 'Hevy',
         source_id: 'T1',
         modality: 'weight_distance',
+        images: ['hevy_T1/thumb.png'],
         category: 'strength',
         calories_per_hour: 300,
         equipment: 'body only',

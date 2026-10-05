@@ -5,6 +5,7 @@ import activityDetailsRepository from '../../models/activityDetailsRepository.js
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepository.js';
 import calorieCalculationService from '../../services/CalorieCalculationService.js';
+import { downloadImage } from '../../utils/imageDownloader.js';
 import { log } from '../../config/logging.js';
 import {
   normalizeEquipment,
@@ -45,6 +46,7 @@ export interface HevyExerciseTemplate {
   secondary_muscle_groups?: string[] | null;
   equipment?: string | null;
   is_custom?: boolean;
+  thumbnail_url?: string | null;
 }
 
 /** A logged Hevy workout (one session). */
@@ -236,6 +238,31 @@ function hevyCategory(template: HevyExerciseTemplate): 'cardio' | 'strength' {
 }
 
 /**
+ * Save Hevy's thumbnail under the exercise uploads folder. Returns the path
+ * relative to /uploads/exercises (how exercise images are stored), or null
+ * when there is no thumbnail or it can't be fetched.
+ */
+async function saveHevyThumbnail(
+  template: HevyExerciseTemplate
+): Promise<string | null> {
+  if (!template.thumbnail_url) return null;
+  try {
+    const folder = `hevy_${template.id}`.replace(/[^a-zA-Z0-9]/g, '_');
+    const saved = (await downloadImage(
+      template.thumbnail_url,
+      folder
+    )) as string;
+    return saved.replace('/uploads/exercises/', '');
+  } catch (error) {
+    log(
+      'warn',
+      `Could not save Hevy thumbnail for "${template.title}": ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
+  }
+}
+
+/**
  * Add every exercise in the user's Hevy library that isn't already in Sparky
  * (matched by name). Existing exercises are left untouched.
  */
@@ -279,12 +306,14 @@ async function processHevyExerciseTemplates(
     const secondary = (template.secondary_muscle_groups ?? [])
       .map(hevyMuscle)
       .filter((m): m is string => m !== null);
+    const thumbnail = await saveHevyThumbnail(template);
     const row = await exerciseRepository.createExercise(
       {
         user_id: userId,
         name: template.title,
         source: 'Hevy',
         source_id: template.id,
+        images: thumbnail ? [thumbnail] : null,
         category,
         calories_per_hour: await caloriesPerHour(category),
         is_custom: true,
