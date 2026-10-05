@@ -187,6 +187,16 @@ struct WorkoutStep: Identifiable, Equatable {
     }
 }
 
+/// Totals shown on the watch once a workout is finished.
+struct WorkoutSummary: Equatable {
+    let durationSeconds: Int
+    let setsCompleted: Int
+    let volumeKg: Double
+    let averageBpm: Double?
+    let maxBpm: Double?
+    let activeEnergyKcal: Double?
+}
+
 /// What the wearer actually did for a set, once they have adjusted the
 /// targets. Absent fields mean "unchanged from target" — the watch only
 /// records an override when a value is edited.
