@@ -12,10 +12,6 @@ import { addLog } from './LogService';
 import { getAuthHeaders } from './api/authService';
 import { getActiveServerConfig, proxyHeadersToRecord } from './storage';
 
-export function isBackgroundWaterSupported(): boolean {
-  return BackgroundWaterModule != null;
-}
-
 /** What the native "Log water" shortcut needs to log a drink with the app closed. */
 export interface BackgroundWaterConfig {
   baseUrl: string;

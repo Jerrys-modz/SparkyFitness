@@ -16,7 +16,6 @@ import FooterActionBar from '../components/FooterActionBar';
 import Icon from '../components/Icon';
 import StatusView from '../components/StatusView';
 import Button from '../components/ui/Button';
-import Switch from '../components/ui/Switch';
 import {
   useWaterContainersQuery,
   useDeleteWaterContainerMutation,
@@ -27,8 +26,6 @@ import {
   useServerConnection,
 } from '../hooks';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { isBackgroundWaterSupported } from '../services/backgroundWater';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { WaterContainer } from '../types/measurements';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -47,12 +44,6 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
     '--color-cat-amber',
   ]) as [string, string];
   const [refreshing, setRefreshing] = useState(false);
-  const backgroundWaterEnabled = useAppPreferencesStore(
-    (state) => state.backgroundWaterEnabled
-  );
-  const setBackgroundWaterEnabled = useAppPreferencesStore(
-    (state) => state.setBackgroundWaterEnabled
-  );
   const { isConnected, isLoading: isConnectionLoading } = useServerConnection();
   const { containers, isLoading, isError, refetch } = useWaterContainersQuery({
     enabled: isConnected,
@@ -399,31 +390,6 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
                   </Pressable>
                 ))}
               </ScrollView>
-            </View>
-          ) : null
-        }
-        ListFooterComponent={
-          isBackgroundWaterSupported() ? (
-            <View className="bg-surface rounded-xl p-3 mt-4 shadow-sm">
-              <View className="flex-row justify-between items-center">
-                <Text className="text-base font-semibold text-text-primary flex-shrink">
-                  {t('waterContainers.backgroundLog.title', {
-                    defaultValue:
-                      'Let Siri and Shortcuts log without opening the app',
-                  })}
-                </Text>
-                <Switch
-                  testID="background-water-switch"
-                  value={backgroundWaterEnabled}
-                  onValueChange={setBackgroundWaterEnabled}
-                />
-              </View>
-              <Text className="text-text-secondary text-sm mt-3">
-                {t('waterContainers.backgroundLog.description', {
-                  defaultValue:
-                    'Adds Log water, Log weight, Start fast and End fast actions for Siri, Spotlight, Shortcuts and the Action button on iPhone (and a Log water entry in the app icon menu on Android). They run without opening SparkyFitness and tell you the result. Water uses the container shown on your dashboard. To work while the app is closed, your server address and login are kept in a second, encrypted place on this phone. Turning this off, or removing your server, erases that copy.',
-                })}
-              </Text>
             </View>
           ) : null
         }

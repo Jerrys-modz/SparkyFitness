@@ -4,19 +4,17 @@ import {
   onAppBecameActive,
   syncBackgroundWater,
 } from '../services/backgroundWater';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { usePreferences } from './usePreferences';
 
 /**
- * While the opt-in setting is on, keeps the native Siri and Shortcuts actions
- * pointed at the container the dashboard is using, the weight unit in use, and
- * holding the current login (a session token can be renewed while the app runs). Switching the
- * setting off erases the native copy.
+ * Keeps the native Siri, Shortcuts, widget and control actions pointed at the
+ * container the dashboard is using and the weight unit in use, and holding the
+ * current login (a session token can be renewed while the app runs). Removing
+ * the server erases the native copy.
  */
 export function useBackgroundWaterSync(
   container: WaterContainer | undefined
 ): void {
-  const enabled = useAppPreferencesStore((s) => s.backgroundWaterEnabled);
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
@@ -42,10 +40,8 @@ export function useBackgroundWaterSync(
             linked_food_id: linkedFoodId,
           }
         : undefined;
-    void syncBackgroundWater(enabled, target, weightUnit);
-    if (!enabled) return;
-    return onAppBecameActive(
-      () => void syncBackgroundWater(enabled, target, weightUnit)
-    );
-  }, [enabled, id, name, volume, unit, servings, linkedFoodId, weightUnit]);
+    const sync = (): void => void syncBackgroundWater(true, target, weightUnit);
+    sync();
+    return onAppBecameActive(sync);
+  }, [id, name, volume, unit, servings, linkedFoodId, weightUnit]);
 }
