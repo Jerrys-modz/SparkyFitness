@@ -466,11 +466,14 @@ private struct ExerciseRow: View {
 private struct ChevronButton: View {
     let systemImage: String
     var tint: Color = .primary
+    /// A round button, for the back control in the header; the previous and
+    /// next arrows stay rounded rectangles.
+    var circular = false
     let action: () -> Void
 
     var body: some View {
         Button(action: Haptics.tapping(action)) {
-            ChevronLabel(systemImage: systemImage, tint: tint)
+            ChevronLabel(systemImage: systemImage, tint: tint, circular: circular)
         }
         .buttonStyle(.plain)
     }
@@ -479,21 +482,28 @@ private struct ChevronButton: View {
 private struct ChevronLabel: View {
     let systemImage: String
     let tint: Color
+    let circular: Bool
 
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: circular ? 17 : 12, style: .continuous)
         Image(systemName: systemImage)
             .font(.body.weight(.semibold))
             .foregroundStyle(tint)
-            .frame(width: 44, height: 34)
+            .frame(width: circular ? 34 : 44, height: 34)
             .background(
-                Color.white.opacity(0.14),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                LinearGradient(
+                    colors: [Color.white.opacity(0.2), Color.white.opacity(0.1)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: shape
             )
+            .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(shape)
     }
 }
 
@@ -509,30 +519,39 @@ private struct MetricsStrip: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             if let onBack = onBack {
-                ChevronButton(systemImage: "chevron.left", tint: .blue, action: onBack)
+                ChevronButton(
+                    systemImage: "chevron.left",
+                    tint: .white,
+                    circular: true,
+                    action: onBack
+                )
             }
-            if let kcal = store.activeEnergyKcal {
-                Self.metric("\(Int(kcal))", systemImage: "flame.fill")
-                    .foregroundStyle(.orange)
-                    .minimumScaleFactor(0.7)
-            }
-            Text(Self.elapsed(store.elapsedSeconds))
-                .foregroundStyle(.secondary)
-                .minimumScaleFactor(0.7)
             Spacer(minLength: 0)
-            if let bpm = store.latestBpm {
-                // Never truncated: a three-digit rate used to lose its last
-                // digits to the calories and clock beside it. Those shrink
-                // first instead.
-                Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
-                    .foregroundStyle(.red)
-                    .fixedSize()
-                    .layoutPriority(1)
+            // The clock reads first, heart rate and calories under it, so the
+            // two small readings share a line instead of fighting for width.
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(Self.elapsed(store.elapsedSeconds))
+                    .font(.system(.callout, design: .rounded).weight(.semibold))
+                    .minimumScaleFactor(0.7)
+                HStack(spacing: 6) {
+                    if let kcal = store.activeEnergyKcal {
+                        Self.metric("\(Int(kcal))", systemImage: "flame.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    if let bpm = store.latestBpm {
+                        // Never truncated: a three-digit rate used to lose
+                        // its last digits to the readings beside it.
+                        Self.metric("\(Int(bpm.rounded()))", systemImage: "heart.fill")
+                            .foregroundStyle(.red)
+                            .fixedSize()
+                            .layoutPriority(1)
+                    }
+                }
+                .font(.caption2)
             }
         }
-        .font(.caption2)
         .monospacedDigit()
         .lineLimit(1)
     }
@@ -1083,24 +1102,34 @@ private struct ValueBox: View {
     let onTap: () -> Void
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         Button(action: Haptics.tapping(onTap)) {
             VStack(spacing: 0) {
                 Text(value)
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                 Text(unit)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(isSelected ? Color.green : Color.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
-            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+            .background(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.14), Color.white.opacity(0.07)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: shape
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.green, lineWidth: isSelected ? 2 : 0)
+                shape.strokeBorder(
+                    isSelected ? Color.green : Color.white.opacity(0.08),
+                    lineWidth: isSelected ? 2.5 : 0.5
+                )
             )
         }
         .buttonStyle(.plain)
