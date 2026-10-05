@@ -49,6 +49,12 @@ describe('parseAmount', () => {
     expect(parseAmount('abc')).toBeNull();
   });
 
+  it('rejects hex and exponent notation from pasted text', () => {
+    expect(parseAmount('0x10')).toBeNull();
+    expect(parseAmount('1e3')).toBeNull();
+    expect(parseAmount('Infinity')).toBeNull();
+  });
+
   it('keeps a typed zero', () => {
     expect(parseAmount('0')).toBe(0);
   });

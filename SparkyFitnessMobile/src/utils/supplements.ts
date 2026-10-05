@@ -9,6 +9,7 @@ import {
   type SupplementLookupProduct,
 } from '@workspace/shared';
 import { NUTRIENT_META } from '../constants/nutrients';
+import { parseDecimalInput } from './numericInput';
 
 /** Dose forms offered for a supplement; stored in the medication's `type_id`. */
 export const SUPPLEMENT_FORMS = [
@@ -157,9 +158,9 @@ export function rowsFromNutrients(
 
 /** A typed amount as a number, or null when blank or not a non-negative number. */
 export function parseAmount(text: string): number | null {
-  const trimmed = text.trim().replace(',', '.');
-  if (trimmed === '') return null;
-  const value = Number(trimmed);
+  if (text.trim() === '') return null;
+  // Not Number(): it would take hex and exponent notation from pasted text.
+  const value = parseDecimalInput(text);
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 

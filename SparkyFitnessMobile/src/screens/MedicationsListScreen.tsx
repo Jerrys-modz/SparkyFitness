@@ -50,13 +50,17 @@ const MedicationsListScreen: React.FC<MedicationsListScreenProps> = ({
     [medications]
   );
 
+  // The filter only shows while a supplement exists, so without one the list
+  // is unfiltered rather than stuck on a view with no control to leave it.
+  const activeSubtype: MedSubtype = hasSupplements ? subtype : 'all';
+
   const { active, inactive } = useMemo(() => {
-    const meds = filterMedsBySubtype(medications ?? [], subtype);
+    const meds = filterMedsBySubtype(medications ?? [], activeSubtype);
     return {
       active: meds.filter((m) => m.is_active),
       inactive: meds.filter((m) => !m.is_active),
     };
-  }, [medications, subtype]);
+  }, [medications, activeSubtype]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -241,14 +245,14 @@ const MedicationsListScreen: React.FC<MedicationsListScreenProps> = ({
                 <View className="px-4 pb-2">
                   <SegmentedControl
                     segments={subtypeSegments}
-                    activeKey={subtype}
+                    activeKey={activeSubtype}
                     onSelect={setSubtype}
                   />
                 </View>
               )}
               {active.length === 0 && inactive.length === 0 && (
                 <Text className="text-text-muted text-base text-center px-8 py-8">
-                  {subtype === 'supplements'
+                  {activeSubtype === 'supplements'
                     ? t('medications.supplement.none', {
                         defaultValue: 'No supplements yet',
                       })

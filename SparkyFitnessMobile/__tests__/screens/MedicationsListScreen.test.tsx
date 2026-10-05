@@ -247,6 +247,47 @@ describe('MedicationsListScreen', () => {
     expect(screen.queryByText('Vitamin D')).toBeNull();
   });
 
+  it('goes back to the full list when the last supplement is gone', () => {
+    const supplement = buildMedication({
+      id: 'sup-1',
+      name: 'Vitamin D',
+      is_supplement: true,
+      schedules: [],
+    });
+    const screen = setupScreen([buildMedication(), supplement]);
+
+    fireEvent.press(screen.getByText('Supplements'));
+    expect(screen.queryByText('Lisinopril')).toBeNull();
+
+    mockUseMedications.mockReturnValue({
+      data: [buildMedication()],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as unknown as ReturnType<typeof useMedications>);
+    screen.rerender(
+      <SafeAreaProvider
+        initialMetrics={{
+          insets: { top: 0, left: 0, right: 0, bottom: 0 },
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+        }}
+      >
+        <MedicationsListScreen
+          route={
+            {
+              key: 'MedicationsList-test',
+              name: 'MedicationsList',
+              params: undefined,
+            } as ScreenProps['route']
+          }
+          navigation={mockNavigation}
+        />
+      </SafeAreaProvider>
+    );
+
+    expect(screen.getByText('Lisinopril')).toBeTruthy();
+  });
+
   it('offers a medication or a supplement from the add button', () => {
     const screen = setupScreen([buildMedication()]);
 

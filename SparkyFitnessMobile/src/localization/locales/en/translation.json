@@ -1429,7 +1429,8 @@
       "servingNote": "Label serving: {{serving}}",
       "notAdded": "Not added from the label: {{names}}",
       "notAddedMore_one": "{{names}} and {{count}} more",
-      "notAddedMore_other": "{{names}} and {{count}} more"
+      "notAddedMore_other": "{{names}} and {{count}} more",
+      "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}"
     }
   },
   "scheduleSummary": {
