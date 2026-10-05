@@ -509,7 +509,6 @@ private struct CurrentSetView: View {
     @FocusState private var crownFocused: Bool
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
-    private var carryUnit: CarryUnit { checkIn.context.effectiveCarryUnit }
     private var inputStyle: SetInputStyle { checkIn.context.effectiveSetInputStyle }
 
     private var supersetColor: Color? {
@@ -518,14 +517,8 @@ private struct CurrentSetView: View {
     }
 
     private enum EditableField: Identifiable {
-        case weight, reps, distance
-        var id: Int {
-            switch self {
-            case .weight: return 0
-            case .reps: return 1
-            case .distance: return 2
-            }
-        }
+        case weight, reps
+        var id: Int { self == .weight ? 0 : 1 }
     }
 
     var body: some View {
@@ -551,15 +544,13 @@ private struct CurrentSetView: View {
             let holdSeconds = store.targetDurationSec(for: step)
             let timed = store.isTimed(step)
             HStack(spacing: 4) {
-                if !timed || values.weightKg != nil || store.isWeightedHold(step) {
+                if !timed || values.weightKg != nil {
                     valueBox(.weight)
                 }
                 if let holdSeconds {
                     HoldCountdown(setId: step.plannedSet.setId, totalSeconds: holdSeconds)
                 } else if timed {
                     HoldStopwatch(setId: step.plannedSet.setId)
-                } else if store.isCarry(step) {
-                    valueBox(.distance)
                 } else {
                     valueBox(.reps)
                 }
@@ -604,20 +595,14 @@ private struct CurrentSetView: View {
         // `crownStep`, captured when the box was selected.
         .onChange(of: step.plannedSet.setId) { endCrownEditing() }
         // crownValue is a number in the unit it was selected in. Committing
-        // after the phone switches kg/lb or m/yd would save that number in the new unit.
-        .onChange(of: unit) { discardCrownEdit(for: .weight) }
-        .onChange(of: carryUnit) {
-            discardCrownEdit(for: .distance)
-            // The keypad keeps the number typed in the old unit. Dismiss it
-            // instead of letting OK write that number through the new one.
-            if editing == .distance { editing = nil }
-        }
+        // after the phone switches kg/lb would save that number in the new unit.
+        .onChange(of: unit) { discardCrownWeightEdit() }
         .onDisappear { endCrownEditing() }
         .sheet(item: $editing) { field in
             NumericKeypadView(
                 title: title(for: field),
                 initial: storedValue(for: field),
-                allowsDecimal: field == .weight || field == .distance,
+                allowsDecimal: field == .weight,
                 allowsNegative: field == .weight && store.isBodyweight(step)
             ) { entered in
                 write(entered, to: field)
@@ -754,19 +739,14 @@ private struct CurrentSetView: View {
     private func scheduleCommit() {
         guard let field = crownField else { return }
         let unitAtSchedule = unit
-        let carryUnitAtSchedule = carryUnit
         pendingCommit?.cancel()
         pendingCommit = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
-            // The unit may have changed during the wait. A number from the
-            // old unit must not be written through the new one.
-            if field == .weight && unitAtSchedule != unit {
-                discardCrownEdit(for: .weight)
-                return
-            }
-            if field == .distance && carryUnitAtSchedule != carryUnit {
-                discardCrownEdit(for: .distance)
+            // The unit may have changed during the wait. A weight number from
+            // the old unit must not be written through the new one.
+            guard field != .weight || unitAtSchedule == unit else {
+                discardCrownWeightEdit()
                 return
             }
             commitCrownValue()
@@ -794,10 +774,10 @@ private struct CurrentSetView: View {
         crownStep = nil
     }
 
-    /// Drops an in-progress crown edit without saving. Used when the display
-    /// unit changes under a selected weight or distance box.
-    private func discardCrownEdit(for field: EditableField) {
-        guard crownField == field else { return }
+    /// Drops a weight edit without saving. Used when the display unit changes
+    /// under a selected weight box.
+    private func discardCrownWeightEdit() {
+        guard crownField == .weight else { return }
         pendingCommit?.cancel()
         pendingCommit = nil
         crownField = nil
@@ -817,10 +797,6 @@ private struct CurrentSetView: View {
         switch field {
         case .weight: return values.weightKg.map(unit.fromKg)
         case .reps: return values.reps
-        case .distance:
-            // Rounded to a tenth so a stored km value does not show float dust
-            // ("35.00000001") after a round trip through the unit.
-            return values.distanceKm.map { (carryUnit.fromKm($0) * 10).rounded() / 10 }
         }
     }
 
@@ -834,35 +810,20 @@ private struct CurrentSetView: View {
             store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(value))
         case .reps:
             store.setValue(for: step.plannedSet.setId, reps: value)
-        case .distance:
-            // Entered in metres or yards; the phone and the diary store km.
-            store.setValue(for: step.plannedSet.setId, distanceKm: carryUnit.toKm(value))
         }
     }
 
     private func title(for field: EditableField) -> String {
-        switch field {
-        case .weight: return unit == .lbs ? "LB" : "KG"
-        case .reps: return "REPS"
-        case .distance: return carryUnit.title
-        }
+        field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS"
     }
 
     /// Half a pound or kilo per crown detent, as Hevy does; a rep at a time.
     private func stepSize(for field: EditableField) -> Double {
-        switch field {
-        case .weight: return 0.5
-        case .reps: return 1
-        case .distance: return 5
-        }
+        field == .weight ? 0.5 : 1
     }
 
     private func maxValue(for field: EditableField) -> Double {
-        switch field {
-        case .weight: return unit == .lbs ? 1500 : 700
-        case .reps: return 200
-        case .distance: return 5000
-        }
+        field == .weight ? (unit == .lbs ? 1500 : 700) : 200
     }
 
     /// The number the crown or drag has stepped to. Not capped at the crown's
@@ -1177,14 +1138,6 @@ private struct RestView: View {
                 return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
             }
             return "\(step.label) · \(clock)"
-        }
-        if store.isCarry(step), let km = values.distanceKm {
-            let carry = checkIn.context.effectiveCarryUnit
-            let distance = Int(carry.fromKm(km).rounded())
-            if let weight = values.weightKg {
-                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(distance) \(carry.suffix)"
-            }
-            return "\(step.label) · \(distance) \(carry.suffix)"
         }
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):

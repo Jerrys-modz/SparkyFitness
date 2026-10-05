@@ -27,14 +27,7 @@ import {
   parseSignedDecimalInput,
 } from '../utils/numericInput';
 import { isDurationModality } from '../utils/workoutSession';
-import {
-  isBodyweightModality,
-  isWeightDistanceModality,
-  isWeightDurationModality,
-  type ExerciseModality,
-} from '@workspace/shared';
-
-type EditableField = 'weight' | 'reps' | 'duration' | 'distance';
+import { isBodyweightModality, type ExerciseModality } from '@workspace/shared';
 
 interface EditableSetRowProps {
   exerciseClientId: string;
@@ -43,27 +36,26 @@ interface EditableSetRowProps {
   reps: string;
   /** Integer seconds as display text; only rendered on duration-modality rows. */
   duration: string;
-  /** Distance as display text in the modality's unit (metres/yards for carries). */
-  distance?: string;
-  /** Label for the distance unit shown beside a carry's distance. */
-  distanceUnitLabel?: string;
   setNumber: number;
   isActive: boolean;
   /** The currently-active field for this row. Controls which input is focused
    *  and what the keyboard accessory's "Next" button does. ('rpe' comes from the
    *  shared editing hook but never occurs for activities — it falls through to
    *  the weight input, which is unreachable here.) */
-  activeField?: EditableField | 'rpe';
+  activeField?: 'weight' | 'reps' | 'duration' | 'rpe';
   /** The owning exercise's resolved modality; decides which inputs render. */
   modality?: ExerciseModality;
   weightUnit: string;
   nextSetKey?: string | null;
-  onActivateSet: (setKey: string, field: EditableField) => void;
+  onActivateSet: (
+    setKey: string,
+    field: 'weight' | 'reps' | 'duration'
+  ) => void;
   onDeactivate: () => void;
   onUpdateSetField: (
     exerciseClientId: string,
     setClientId: string,
-    field: EditableField,
+    field: 'weight' | 'reps' | 'duration',
     value: string
   ) => void;
   onRemoveSet: (exerciseClientId: string, setClientId: string) => void;
@@ -76,8 +68,6 @@ function EditableSetRow({
   weight,
   reps,
   duration,
-  distance = '',
-  distanceUnitLabel = '',
   setNumber,
   isActive,
   activeField = 'weight',
@@ -96,14 +86,6 @@ function EditableSetRow({
   const durationLike = isDurationModality(modality);
   const repsOnly = modality === 'reps_only';
   const bodyweight = isBodyweightModality(modality);
-  const weightDuration = isWeightDurationModality(modality);
-  const weightDistance = isWeightDistanceModality(modality);
-  // Weight rows whose second input is a time or a distance instead of reps.
-  const secondField = weightDuration
-    ? ('duration' as const)
-    : weightDistance
-      ? ('distance' as const)
-      : ('reps' as const);
   const firstField = durationLike
     ? ('duration' as const)
     : repsOnly
@@ -114,7 +96,6 @@ function EditableSetRow({
   const weightInputRef = useRef<TextInput>(null);
   const repsInputRef = useRef<TextInput>(null);
   const durationInputRef = useRef<TextInput>(null);
-  const distanceInputRef = useRef<TextInput>(null);
 
   const handleActivateWeight = useCallback(() => {
     onActivateSet(setKey, 'weight');
@@ -128,10 +109,6 @@ function EditableSetRow({
     onActivateSet(setKey, 'duration');
   }, [onActivateSet, setKey]);
 
-  const handleActivateDistance = useCallback(() => {
-    onActivateSet(setKey, 'distance');
-  }, [onActivateSet, setKey]);
-
   // Drive focus from parent-owned state so both initial activation (user taps
   // the display) and within-row advance (Next button moves weight → reps)
   // reliably move the keyboard to the right input.
@@ -142,9 +119,7 @@ function EditableSetRow({
         ? repsInputRef
         : activeField === 'duration'
           ? durationInputRef
-          : activeField === 'distance'
-            ? distanceInputRef
-            : weightInputRef;
+          : weightInputRef;
     return focusWithAndroidImeRetry(ref);
   }, [isActive, activeField]);
 
@@ -165,13 +140,6 @@ function EditableSetRow({
   const handleUpdateDuration = useCallback(
     (value: string) => {
       onUpdateSetField(exerciseClientId, setClientId, 'duration', value);
-    },
-    [exerciseClientId, onUpdateSetField, setClientId]
-  );
-
-  const handleUpdateDistance = useCallback(
-    (value: string) => {
-      onUpdateSetField(exerciseClientId, setClientId, 'distance', value);
     },
     [exerciseClientId, onUpdateSetField, setClientId]
   );
@@ -209,14 +177,6 @@ function EditableSetRow({
     [duration, handleUpdateDuration]
   );
 
-  const handleStepDistance = useCallback(
-    (direction: number) => {
-      const current = parseDecimalInput(distance) || 0;
-      handleUpdateDistance(String(Math.max(0, current + direction * 5)));
-    },
-    [distance, handleUpdateDistance]
-  );
-
   const handleRemove = useCallback(() => {
     onRemoveSet(exerciseClientId, setClientId);
   }, [exerciseClientId, onRemoveSet, setClientId]);
@@ -248,13 +208,7 @@ function EditableSetRow({
     // would briefly leave no TextInput focused, which drops the accessory.
     // Single-input rows (duration, reps-only) have no within-row hop.
     if (!durationLike && !repsOnly && activeField === 'weight') {
-      const ref =
-        secondField === 'duration'
-          ? durationInputRef
-          : secondField === 'distance'
-            ? distanceInputRef
-            : repsInputRef;
-      ref.current?.focus();
+      repsInputRef.current?.focus();
       return;
     }
     if (nextSetKey) {
@@ -266,7 +220,6 @@ function EditableSetRow({
     activeField,
     durationLike,
     repsOnly,
-    secondField,
     firstField,
     exerciseClientId,
     nextSetKey,
@@ -296,13 +249,6 @@ function EditableSetRow({
       ...(Platform.OS === 'ios' && { inputAccessoryViewID: accessoryId }),
     }),
     [accessoryId, handleActivateReps]
-  );
-  const distanceInputProps = useMemo(
-    () => ({
-      onFocus: handleActivateDistance,
-      ...(Platform.OS === 'ios' && { inputAccessoryViewID: accessoryId }),
-    }),
-    [accessoryId, handleActivateDistance]
   );
   const durationInputProps = useMemo(
     () => ({
@@ -355,40 +301,16 @@ function EditableSetRow({
                 </View>
               )}
               <View className="flex-1 items-center">
-                {weightDuration ? (
-                  <StepperInput
-                    compact
-                    value={duration}
-                    onChangeText={handleUpdateDuration}
-                    onIncrement={() => handleStepDuration(1)}
-                    onDecrement={() => handleStepDuration(-1)}
-                    keyboardType="number-pad"
-                    inputRef={durationInputRef}
-                    inputProps={durationInputProps}
-                  />
-                ) : weightDistance ? (
-                  <StepperInput
-                    compact
-                    value={distance}
-                    onChangeText={handleUpdateDistance}
-                    onIncrement={() => handleStepDistance(1)}
-                    onDecrement={() => handleStepDistance(-1)}
-                    keyboardType="decimal-pad"
-                    inputRef={distanceInputRef}
-                    inputProps={distanceInputProps}
-                  />
-                ) : (
-                  <StepperInput
-                    compact
-                    value={reps}
-                    onChangeText={handleUpdateReps}
-                    onIncrement={() => handleStepReps(1)}
-                    onDecrement={() => handleStepReps(-1)}
-                    keyboardType="number-pad"
-                    inputRef={repsInputRef}
-                    inputProps={repsInputProps}
-                  />
-                )}
+                <StepperInput
+                  compact
+                  value={reps}
+                  onChangeText={handleUpdateReps}
+                  onIncrement={() => handleStepReps(1)}
+                  onDecrement={() => handleStepReps(-1)}
+                  keyboardType="number-pad"
+                  inputRef={repsInputRef}
+                  inputProps={repsInputProps}
+                />
               </View>
             </>
           )}
@@ -423,19 +345,6 @@ function EditableSetRow({
   const displayWeight = weight ? `${signedWeight} ${weightUnit}` : '\u2013';
   const displayReps = reps || '\u2013';
   const displayDuration = duration || '\u2013';
-  const displayDistance = distance
-    ? `${distance} ${distanceUnitLabel}`.trim()
-    : '\u2013';
-  const displaySecond = weightDuration
-    ? displayDuration
-    : weightDistance
-      ? displayDistance
-      : displayReps;
-  const activateSecond = weightDuration
-    ? handleActivateDuration
-    : weightDistance
-      ? handleActivateDistance
-      : handleActivateReps;
 
   return (
     <ReanimatedSwipeable
@@ -474,12 +383,12 @@ function EditableSetRow({
             )}
             <TouchableOpacity
               className="flex-1 py-1"
-              onPress={activateSecond}
+              onPress={handleActivateReps}
               onLongPress={handleConfirmRemove}
               activeOpacity={0.6}
             >
               <Text className="text-base text-text-primary text-center">
-                {displaySecond}
+                {displayReps}
               </Text>
             </TouchableOpacity>
           </>

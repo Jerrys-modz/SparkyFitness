@@ -114,9 +114,6 @@ enum OutboundPayloads {
         if let duration = completedSet.duration {
             payload["duration"] = duration
         }
-        if let distanceKm = completedSet.distanceKm {
-            payload["distanceKm"] = distanceKm
-        }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         payload["completedAt"] = formatter.string(from: completedSet.completedAt)

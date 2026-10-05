@@ -1,7 +1,4 @@
-import {
-  startableWorkoutsForWatch,
-  watchDistanceUnit,
-} from '../../src/hooks/useWatchCheckInBridge';
+import { startableWorkoutsForWatch } from '../../src/hooks/useWatchCheckInBridge';
 
 const exercise = {
   id: 1,
@@ -26,14 +23,5 @@ describe('startableWorkoutsForWatch', () => {
       { presetId: '2', name: 'Pull' },
       { presetId: '4', name: 'Push' },
     ]);
-  });
-});
-
-describe('watchDistanceUnit', () => {
-  it('sends miles only when the phone is set to miles', () => {
-    expect(watchDistanceUnit('miles')).toBe('miles');
-    expect(watchDistanceUnit('km')).toBe('km');
-    expect(watchDistanceUnit(undefined)).toBe('km');
-    expect(watchDistanceUnit(null)).toBe('km');
   });
 });

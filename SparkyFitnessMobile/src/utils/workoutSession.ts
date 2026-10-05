@@ -17,9 +17,6 @@ import {
   NO_ADAPTIVE_ADJUSTMENT,
   adaptiveWeightStepKg,
   applyAdaptiveLoadFactorKg,
-  carryDistanceFromKm,
-  carryDistanceToKm,
-  carryDistanceUnitLabel,
   calculateRampedWeightKg,
   decideAdaptiveAdjustment,
   distributeProgressionReps,
@@ -28,8 +25,6 @@ import {
   isBodyweightModality,
   isCardioModality,
   isExerciseModality,
-  isWeightDistanceModality,
-  isWeightDurationModality,
   isWeightRampActive,
   resolveExerciseModality,
   setVolumeKg as sharedSetVolumeKg,
@@ -524,9 +519,7 @@ export function buildExercisesPayload(
         weight: isNaN(weight) ? null : weightToKg(weight, weightUnit),
         reps: isNaN(reps) ? null : reps,
         duration: set.duration ?? null,
-        distance: isNaN(distance)
-          ? null
-          : setDistanceToKm(distance, distanceUnit, modality),
+        distance: isNaN(distance) ? null : distanceToKm(distance, distanceUnit),
         ...(set.restTime != null ? { rest_time: set.restTime } : {}),
         notes: set.notes ?? null,
         rpe: set.rpe ?? null,
@@ -695,55 +688,7 @@ export function isDurationModality(modality: ExerciseModality): boolean {
   return modality === 'duration' || modality === 'duration_distance';
 }
 
-export { isCardioModality, isWeightDistanceModality, isWeightDurationModality };
-
-/** Whether a set of this modality stores a duration in seconds. */
-export function modalityStoresDuration(modality: ExerciseModality): boolean {
-  return isDurationModality(modality) || isWeightDurationModality(modality);
-}
-
-/** Whether a set of this modality stores a distance (km). */
-export function modalityStoresDistance(modality: ExerciseModality): boolean {
-  return isCardioModality(modality) || isWeightDistanceModality(modality);
-}
-
-/**
- * A set's distance in the unit it is edited and shown in: metres (yards when
- * the app shows miles) for weight-and-distance carries, km or miles for
- * everything else. Storage is always km.
- */
-export function setDistanceFromKm(
-  km: number,
-  distanceUnit: 'km' | 'miles',
-  modality?: ExerciseModality | null
-): number {
-  return modality != null && isWeightDistanceModality(modality)
-    ? carryDistanceFromKm(km, distanceUnit)
-    : distanceFromKm(km, distanceUnit);
-}
-
-/** Inverse of `setDistanceFromKm`. */
-export function setDistanceToKm(
-  value: number,
-  distanceUnit: 'km' | 'miles',
-  modality?: ExerciseModality | null
-): number {
-  return modality != null && isWeightDistanceModality(modality)
-    ? carryDistanceToKm(value, distanceUnit)
-    : distanceToKm(value, distanceUnit);
-}
-
-/** Short unit label matching `setDistanceFromKm`. */
-export function setDistanceUnitLabel(
-  distanceUnit: 'km' | 'miles',
-  modality?: ExerciseModality | null
-): string {
-  return modality != null && isWeightDistanceModality(modality)
-    ? carryDistanceUnitLabel(distanceUnit)
-    : distanceUnit === 'miles'
-      ? 'mi'
-      : 'km';
-}
+export { isCardioModality };
 
 /**
  * True when a workout card renders the Duration+Distance cardio form in place
@@ -805,7 +750,6 @@ export interface WorkoutCardSet {
   /** Raw draft strings backing the edit-mode controlled inputs (draft mapper only). */
   editWeightText?: string;
   editRepsText?: string;
-  editDistanceText?: string;
 }
 
 export interface WorkoutCardExercise {
@@ -897,12 +841,9 @@ export function draftExerciseToCardExercise(
         rest_time: set.restTime ?? null,
         notes: set.notes ?? null,
         duration: set.duration ?? null,
-        distance: isNaN(distance)
-          ? null
-          : setDistanceToKm(distance, distanceUnit, modality),
+        distance: isNaN(distance) ? null : distanceToKm(distance, distanceUnit),
         editWeightText: set.weight,
         editRepsText: set.reps,
-        editDistanceText: set.distance ?? '',
       };
     }),
   };
@@ -979,24 +920,6 @@ export function formatRecentSessionSet(
           maximumFractionDigits: 1,
         })
       : null;
-  if (modality != null && isWeightDistanceModality(modality)) {
-    const dist =
-      set.distance != null
-        ? `${formatLocalizedNumber(
-            setDistanceFromKm(set.distance, distanceUnit, modality),
-            { maximumFractionDigits: 1 }
-          )} ${setDistanceUnitLabel(distanceUnit, modality)}`
-        : null;
-    const parts = [w, dist].filter((part): part is string => part != null);
-    return parts.length > 0 ? `${prefix}${parts.join(' × ')}` : '–';
-  }
-  if (modality != null && isWeightDurationModality(modality)) {
-    const parts = [
-      w,
-      set.duration != null ? formatDurationSeconds(set.duration) : null,
-    ].filter((part): part is string => part != null);
-    return parts.length > 0 ? `${prefix}${parts.join(' × ')}` : '–';
-  }
   if (w != null && set.reps != null) return `${prefix}${w} × ${set.reps}`;
   if (w != null) return `${prefix}${w}`;
   if (set.reps != null)
@@ -1921,11 +1844,7 @@ export function buildWorkoutCompletionSummary(
       }
       if (isWarmupSetType(set.set_type)) continue;
       exerciseVolumeKg += setVolumeKg(set, modality, bodyWeightKg);
-      // Carry distances stay out of the workout's distance total: that tile
-      // reads as running/cycling distance.
-      if (set.distance != null && !isWeightDistanceModality(modality)) {
-        totalDistanceKm += set.distance;
-      }
+      if (set.distance != null) totalDistanceKm += set.distance;
       if (isDurationModality(modality)) {
         const seconds = effectiveSetDurationSec(set, modality);
         if (
@@ -2213,8 +2132,7 @@ export function buildActivitySetsPayload(
   originals: ReadonlyMap<string, ExerciseEntrySetResponse>,
   weightUnit: 'kg' | 'lbs',
   modality: ExerciseModality,
-  cardio?: CardioEffortValues,
-  distanceUnit: 'km' | 'miles' = 'km'
+  cardio?: CardioEffortValues
 ): ActivitySetPayload[] {
   if (cardio && draftSets.length === 0) {
     return [
@@ -2247,18 +2165,8 @@ export function buildActivitySetsPayload(
       set_number: index + 1,
       weight: isNaN(w) ? null : weightToKg(w, weightUnit),
       reps: isNaN(r) ? null : r,
-      ...(isDurationModality(modality) || isWeightDurationModality(modality)
+      ...(isDurationModality(modality)
         ? { duration: set.duration ?? null }
-        : {}),
-      ...(isWeightDistanceModality(modality)
-        ? (() => {
-            const distance = parseDecimalInput(set.distance ?? '');
-            return {
-              distance: isNaN(distance)
-                ? null
-                : setDistanceToKm(distance, distanceUnit, modality),
-            };
-          })()
         : {}),
       ...(cardio
         ? {
@@ -2317,12 +2225,12 @@ export function buildPresetExercisesPayload(
             // Modality-gated like the live builders: a session's junk duration
             // on a weights exercise must not become preset structure, and
             // distance is only meaningful on cardio sets.
-            duration: modalityStoresDuration(modality)
+            duration: isDurationModality(modality)
               ? (set.duration ?? null)
               : null,
             distance:
-              modalityStoresDistance(modality) && !isNaN(distance)
-                ? setDistanceToKm(distance, distanceUnit, modality)
+              isCardioModality(modality) && !isNaN(distance)
+                ? distanceToKm(distance, distanceUnit)
                 : null,
             rest_time: set.restTime ?? null,
             notes: set.notes ?? null,
@@ -2439,10 +2347,10 @@ function canonicalizeSessionSet(
     set_type: set.set_type ?? 'normal',
     reps,
     weight: canonicalDecimal(weight),
-    duration: modalityStoresDuration(modality)
+    duration: isDurationModality(modality)
       ? (set.duration ?? planned?.duration ?? null)
       : null,
-    distance: modalityStoresDistance(modality)
+    distance: isCardioModality(modality)
       ? canonicalDecimal(set.distance ?? planned?.distance ?? null)
       : null,
     rest_time: isCardioModality(modality) ? 0 : (set.rest_time ?? null),
@@ -2460,8 +2368,8 @@ function canonicalizePresetSet(
     set_type: set.set_type ?? 'normal',
     reps: set.reps ?? null,
     weight: canonicalDecimal(set.weight ?? null),
-    duration: modalityStoresDuration(modality) ? (set.duration ?? null) : null,
-    distance: modalityStoresDistance(modality)
+    duration: isDurationModality(modality) ? (set.duration ?? null) : null,
+    distance: isCardioModality(modality)
       ? canonicalDecimal(set.distance ?? null)
       : null,
     rest_time: isCardioModality(modality) ? 0 : (set.rest_time ?? null),

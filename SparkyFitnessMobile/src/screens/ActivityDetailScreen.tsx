@@ -25,10 +25,6 @@ import {
   getWorkoutSummary,
   isCardioModality,
   isDurationModality,
-  isWeightDistanceModality,
-  isWeightDurationModality,
-  setDistanceFromKm,
-  setDistanceUnitLabel,
   resolveSnapshotModality,
 } from '../utils/workoutSession';
 import {
@@ -125,7 +121,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [draftSets, setDraftSets] = useState<WorkoutDraftSet[]>([]);
   const [activeSetKey, setActiveSetKey] = useState<string | null>(null);
   const [activeSetField, setActiveSetField] = useState<
-    'weight' | 'reps' | 'duration' | 'distance'
+    'weight' | 'reps' | 'duration'
   >('weight');
   const modality = resolveSnapshotModality(session.exercise_snapshot);
   const durationLike = isDurationModality(modality);
@@ -140,11 +136,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     session.sets.length > 1 ||
     (!cardioEffort &&
       session.sets.some(
-        (s) =>
-          s.weight != null ||
-          s.reps != null ||
-          s.duration != null ||
-          (isWeightDistanceModality(modality) && s.distance != null)
+        (s) => s.weight != null || s.reps != null || s.duration != null
       ));
 
   const {
@@ -181,11 +173,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           set.distance != null
             ? String(
                 parseFloat(
-                  setDistanceFromKm(
-                    set.distance,
-                    distanceUnit,
-                    modality
-                  ).toFixed(2)
+                  distanceFromKm(set.distance, distanceUnit).toFixed(2)
                 )
               )
             : '',
@@ -246,7 +234,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     (
       _exerciseId: string,
       setClientId: string,
-      field: 'weight' | 'reps' | 'duration' | 'distance',
+      field: 'weight' | 'reps' | 'duration',
       value: string
     ) => {
       setDraftSets((prev) =>
@@ -265,7 +253,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 
   const activateSet = useCallback(
-    (key: string, field: 'weight' | 'reps' | 'duration' | 'distance') => {
+    (key: string, field: 'weight' | 'reps' | 'duration') => {
       setActiveSetKey(key);
       setActiveSetField(field);
     },
@@ -293,8 +281,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               : null,
             distanceKm: submission.distanceKm,
           }
-        : undefined,
-      distanceUnit
+        : undefined
     );
 
     const payload = {
@@ -743,7 +730,6 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 activeSetField={activeSetField}
                 modality={modality}
                 weightUnit={weightUnit}
-                distanceUnitLabel={setDistanceUnitLabel(distanceUnit, modality)}
                 onActivateSet={activateSet}
                 onDeactivateSet={deactivateSet}
                 onUpdateSetField={updateDraftSetField}
@@ -778,15 +764,9 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                       </Text>
                     )}
                     <Text className="text-xs font-semibold text-text-muted flex-1 text-center">
-                      {isWeightDurationModality(modality)
-                        ? t('activityDetail.labels.secondsShort', {
-                            defaultValue: 'Sec',
-                          })
-                        : isWeightDistanceModality(modality)
-                          ? setDistanceUnitLabel(distanceUnit, modality)
-                          : t('activityDetail.labels.reps', {
-                              defaultValue: 'Reps',
-                            })}
+                      {t('activityDetail.labels.reps', {
+                        defaultValue: 'Reps',
+                      })}
                     </Text>
                   </>
                 )}
@@ -799,21 +779,6 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 const displayReps = set.reps != null ? String(set.reps) : '-';
                 const seconds = effectiveSetDurationSec(set, modality);
                 const displayDuration = seconds != null ? String(seconds) : '-';
-                const displaySecond = isWeightDurationModality(modality)
-                  ? displayDuration
-                  : isWeightDistanceModality(modality)
-                    ? set.distance != null
-                      ? String(
-                          parseFloat(
-                            setDistanceFromKm(
-                              set.distance,
-                              distanceUnit,
-                              modality
-                            ).toFixed(1)
-                          )
-                        )
-                      : '-'
-                    : displayReps;
                 return (
                   <View key={set.id} className="flex-row py-1.5">
                     <Text className="text-sm text-text-muted w-10 text-center">
@@ -831,7 +796,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           </Text>
                         )}
                         <Text className="text-sm text-text-primary flex-1 text-center">
-                          {displaySecond}
+                          {displayReps}
                         </Text>
                       </>
                     )}

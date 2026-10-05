@@ -30,8 +30,6 @@ import { isBodyweightModality } from '@workspace/shared';
 import {
   extractPlannedSetValues,
   isDurationModality,
-  isWeightDistanceModality,
-  isWeightDurationModality,
   resolveSnapshotModality,
   stripPlannedSetValues,
 } from '../utils/workoutSession';
@@ -120,10 +118,9 @@ export function buildWatchWorkoutStartPayload(
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const target = targets.get(setId);
-        const modality = resolveSnapshotModality(exercise.exercise_snapshot);
-        const timed =
-          isDurationModality(modality) || isWeightDurationModality(modality);
-        const carry = isWeightDistanceModality(modality);
+        const timed = isDurationModality(
+          resolveSnapshotModality(exercise.exercise_snapshot)
+        );
         return {
           setId,
           targetReps: target?.reps ?? null,
@@ -131,9 +128,6 @@ export function buildWatchWorkoutStartPayload(
           targetDurationSec: target?.durationSec ?? null,
           previousDurationSec: target?.previousDurationSec ?? null,
           ...(timed ? { timed: true } : {}),
-          ...(carry ? { carry: true } : {}),
-          ...(isWeightDurationModality(modality) ? { weighted: true } : {}),
-          targetDistanceKm: target?.distanceKm ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
         };

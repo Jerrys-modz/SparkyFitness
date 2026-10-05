@@ -33,13 +33,11 @@ import ExerciseSetRestSheet, {
   type ExerciseSetRestUpdate,
 } from './ExerciseSetRestSheet';
 import WorkoutReorderList from './WorkoutReorderList';
-import { weightFromKg } from '../utils/unitConversions';
+import { distanceFromKm, weightFromKg } from '../utils/unitConversions';
 import {
   draftExerciseToCardExercise,
   exerciseFromDraft,
   rendersCardioEffortForm,
-  resolveSnapshotModality,
-  setDistanceFromKm,
 } from '../utils/workoutSession';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { SetInputField, SetRowAccessoryHandle } from './SetRowChrome';
@@ -315,11 +313,6 @@ const WorkoutFormExerciseList = forwardRef<
     (setId: string, patch: ActiveSetPatch) => {
       const owner = setOwnerByClientId.get(setId);
       if (!owner) return;
-      const ownerExercise = exercises.find((e) => e.clientId === owner);
-      const ownerModality = resolveSnapshotModality({
-        modality: ownerExercise?.exerciseModality,
-        category: ownerExercise?.exerciseCategory,
-      });
       if (patch.weight !== undefined) {
         const text =
           patch.weight == null
@@ -351,11 +344,7 @@ const WorkoutFormExerciseList = forwardRef<
             ? ''
             : String(
                 parseFloat(
-                  setDistanceFromKm(
-                    patch.distance,
-                    distanceUnit,
-                    ownerModality
-                  ).toFixed(2)
+                  distanceFromKm(patch.distance, distanceUnit).toFixed(2)
                 )
               );
         updateSetField(owner, setId, 'distance', text);
@@ -372,7 +361,6 @@ const WorkoutFormExerciseList = forwardRef<
     },
     [
       setOwnerByClientId,
-      exercises,
       updateSetField,
       updateSetMeta,
       weightUnit,
