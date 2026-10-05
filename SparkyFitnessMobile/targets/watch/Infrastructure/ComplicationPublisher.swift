@@ -45,6 +45,13 @@ enum ComplicationPublisher {
         static let kind = "energyGoalComplication"
     }
 
+    /// The Protein, Carbs and Fat complications read the energy snapshot too.
+    private static let macroKinds = [
+        "proteinGoalComplication",
+        "carbsGoalComplication",
+        "fatGoalComplication",
+    ]
+
     private enum Water {
         static let key = "waterGoalSnapshot"
         static let kind = "waterGoalComplication"
@@ -119,7 +126,8 @@ enum ComplicationPublisher {
                 fatGoal: goals.fatGrams?.goal
             ),
             forKey: Energy.key,
-            reloading: Energy.kind
+            reloading: Energy.kind,
+            alsoReloading: macroKinds
         )
     }
 
@@ -144,6 +152,15 @@ enum ComplicationPublisher {
             forKey: Steps.key,
             reloading: Steps.kind
         )
+    }
+
+    /// Removes the step count, for a phone that has none for today, so the
+    /// complication does not keep showing an earlier figure.
+    static func clearSteps() {
+        guard let defaults = sharedDefaults(),
+              defaults.data(forKey: Steps.key) != nil else { return }
+        defaults.removeObject(forKey: Steps.key)
+        WidgetCenter.shared.reloadTimelines(ofKind: Steps.kind)
     }
 
     /// Publishes the running fast (or none) for the Fasting complication. Not
@@ -196,7 +213,8 @@ enum ComplicationPublisher {
     private static func write<Snapshot: Codable & Equatable>(
         _ snapshot: Snapshot,
         forKey key: String,
-        reloading kind: String
+        reloading kind: String,
+        alsoReloading additionalKinds: [String] = []
     ) {
         guard let defaults = sharedDefaults() else { return }
 
@@ -210,6 +228,9 @@ enum ComplicationPublisher {
         defaults.set(data, forKey: key)
 
         WidgetCenter.shared.reloadTimelines(ofKind: kind)
+        for additionalKind in additionalKinds {
+            WidgetCenter.shared.reloadTimelines(ofKind: additionalKind)
+        }
     }
 
     /// The App Group suite both processes share.

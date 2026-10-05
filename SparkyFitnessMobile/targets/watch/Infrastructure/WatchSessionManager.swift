@@ -478,6 +478,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         if incoming.fastSynced == true { ComplicationPublisher.publish(fast: incoming.fast) }
         if let steps = incoming.steps {
             ComplicationPublisher.publish(steps: steps.count, goal: incoming.stepGoal ?? 10_000, for: steps.day)
+        } else if payload["steps"] != nil {
+            // The phone said it has no steps; an earlier count must not outlive that.
+            ComplicationPublisher.clearSteps()
         }
         if let water = incoming.water {
             ComplicationPublisher.publish(
