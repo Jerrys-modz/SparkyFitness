@@ -5840,6 +5840,15 @@
       "mustBe100": "Meal percentages must total 100%.",
       "total": "Total: {{total}}% (must be 100% to save)",
       "customNote": "You have custom meal types. Edit the meal distribution on the web."
+    },
+    "directions": {
+      "minimum": "Min",
+      "maximum": "Max",
+      "range": "Range",
+      "rangeMin": "Range min",
+      "rangeMax": "Range max",
+      "invalidRange": "A range needs a minimum and a maximum, with minimum not above maximum.",
+      "note": "Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers."
     }
   }
 }
