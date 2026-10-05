@@ -4,9 +4,9 @@ import WidgetKit
 
 // Water widget: today's intake against the goal, with a button that logs one
 // drink of the dashboard's container without opening the app (iOS 17+). The
-// button needs the opt-in "Let Siri and Shortcuts log without opening the app"
-// switch; without it the snapshot says `canLog` is false and the widget just
-// opens the app. Home Screen small/medium and the three Lock Screen shapes.
+// button needs the login the app keeps for the shortcuts while a server is
+// signed in; until the app has written a snapshot (`canLog` false) the widget
+// just opens the app. Home Screen small/medium and the three Lock Screen shapes.
 
 struct WaterSnapshot {
     let consumedMl: Double

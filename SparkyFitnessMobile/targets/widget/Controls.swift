@@ -4,9 +4,8 @@ import WidgetKit
 
 // Lock Screen and Control Center controls (iOS 18). Each is a button that runs
 // one of the Siri and Shortcuts intents (ShortcutIntents.swift) without opening
-// the app. They do nothing until the user turns on "Let Siri and Shortcuts log
-// without opening the app" in the app: that switch is what puts the login in the
-// shared Keychain group the intents read.
+// the app. They need the login the app keeps in the shared Keychain group the
+// intents read, which it writes while a server is signed in.
 
 @available(iOS 18.0, *)
 struct LogWaterControl: ControlWidget {

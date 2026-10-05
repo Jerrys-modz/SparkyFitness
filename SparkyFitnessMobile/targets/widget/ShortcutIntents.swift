@@ -7,10 +7,9 @@ import WidgetKit
 // happened on screen: Log water, Log weight, Start fast and End fast. They also
 // show up in Spotlight and can be put on the Action button.
 //
-// Opt-in. They do nothing until the user turns on the setting in the app, which
-// is what puts the login in the Keychain item read below (written by
-// modules/background-water). Turning it off or removing the server erases that
-// item.
+// They need the login the app keeps in the Keychain item read below (written by
+// modules/background-water while a server is signed in). Removing the active
+// server or signing out erases that item.
 //
 // This file is compiled into both the app target (copied there by
 // plugins/withBackgroundWater.ts, as intents must be in the app target to be
@@ -20,7 +19,7 @@ import WidgetKit
 
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
-private let setupMessage = "Turn on “Let Siri and Shortcuts log without opening the app” in SparkyFitness first."
+private let setupMessage = "Open SparkyFitness and sign in to a server first."
 
 /// The Keychain group the app and the widget extension share, filled in at
 /// build time. Nil means a build without it, where only the app can read it.
