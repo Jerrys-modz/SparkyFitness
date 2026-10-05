@@ -39,8 +39,12 @@ import { getApiErrorMessage } from '../services/api/errors';
 import { TimeoutError } from '../utils/concurrency';
 import { fireSuccessHaptic } from '../services/haptics';
 import { scanLabelOnDevice } from '../services/onDeviceLabelScan';
+import {
+  rememberLabelScan,
+  type LabelScanSource,
+} from '../services/labelScanSession';
+import { labelScanToInitialFood } from '../utils/labelScanFood';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { toFormString } from '../types/foodInfo';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { isFoodPhotoAvailable } from '../services/api/aiSettingsApi';
 import {
@@ -542,6 +546,8 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
       const result =
         onDeviceResult ??
         (await scanNutritionLabel(capturedPhoto.base64, 'image/jpeg'));
+      const source: LabelScanSource = onDeviceResult ? 'device' : 'server';
+      rememberLabelScan(capturedPhoto.base64, source);
       // The toast survives the navigation below, so it shows on the form.
       Toast.show({
         type: 'info',
@@ -556,32 +562,10 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
       navigation.replace(
         'FoodForm',
         buildFoodFormParams({
-          initialFood: {
-            name: result.name || '',
-            brand: result.brand || '',
-            servingSize: String(result.serving_size ?? ''),
-            servingUnit: result.serving_unit || 'g',
-            calories: String(result.calories ?? ''),
-            protein: String(result.protein ?? ''),
-            carbs: String(result.carbs ?? ''),
-            fat: String(result.fat ?? ''),
-            fiber: toFormString(result.fiber),
-            saturatedFat: toFormString(result.saturated_fat),
-            transFat: toFormString(result.trans_fat),
-            sodium: toFormString(result.sodium),
-            sugars: toFormString(result.sugars),
-            cholesterol: toFormString(result.cholesterol),
-            potassium: toFormString(result.potassium),
-            calcium: toFormString(result.calcium),
-            iron: toFormString(result.iron),
-            caffeineMg: toFormString(result.caffeine_mg),
-            waterMl: toFormString(result.water_ml),
-            alcoholG: toFormString(result.alcohol_g),
-            vitaminA: toFormString(result.vitamin_a),
-            vitaminC: toFormString(result.vitamin_c),
-          },
+          initialFood: labelScanToInitialFood(result),
           barcode: lookupError?.barcode ?? notFoundBarcode ?? undefined,
           providerType: 'label_scan',
+          labelScanSource: source,
         })
       );
     } catch {
