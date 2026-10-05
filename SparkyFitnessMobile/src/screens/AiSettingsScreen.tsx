@@ -115,10 +115,10 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
             </Text>
             <ToggleCard
               testID="ai-label-scan-switch"
-              title={t('foodSettings.onDeviceLabelScan.title', {
+              title={t('aiSettings.onDevice.labelScan.title', {
                 defaultValue: 'Scan Labels On Device',
               })}
-              description={t('foodSettings.onDeviceLabelScan.description', {
+              description={t('aiSettings.onDevice.labelScan.description', {
                 defaultValue:
                   'Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead.',
               })}
