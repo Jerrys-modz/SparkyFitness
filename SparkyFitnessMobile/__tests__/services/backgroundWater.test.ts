@@ -27,6 +27,10 @@ const owala = {
   unit: 'oz',
   servings_per_container: 2,
 };
+it('labels one serving in the container unit', () => {
+  expect(drinkVolumeLabel(owala)).toBe('16 oz');
+});
+
 const server = {
   id: 's1',
   url: 'https://sparky.example.com/',
@@ -66,19 +70,21 @@ describe('background water', () => {
     expect(buildBackgroundWaterConfig(null, container)).toBeNull();
   });
 
-  it('stores the config only while the setting is on', async () => {
+  it('stores the config for the signed-in server and container', async () => {
     mockGetActiveServerConfig.mockResolvedValue(server);
-    await syncBackgroundWater(true, container);
+    await syncBackgroundWater(container);
     expect(JSON.parse(mockSetConfig.mock.calls[0][0]).containerId).toBe(3);
+  });
 
-    mockSetConfig.mockClear();
-    await syncBackgroundWater(false, container);
-    expect(mockSetConfig).toHaveBeenCalledWith(null);
+  it('erases the copy when no server is signed in', async () => {
+    mockGetActiveServerConfig.mockResolvedValue(null);
+    await syncBackgroundWater(container);
+    expect(mockSetConfig).toHaveBeenLastCalledWith(null);
   });
 
   it('keeps the actions working with no container, and erases on request', async () => {
     mockGetActiveServerConfig.mockResolvedValue(server);
-    await syncBackgroundWater(true, undefined, 'lbs');
+    await syncBackgroundWater(undefined, 'lbs');
     expect(JSON.parse(mockSetConfig.mock.calls[0][0]).weightUnit).toBe('lbs');
     await clearBackgroundWater();
     expect(mockSetConfig).toHaveBeenLastCalledWith(null);

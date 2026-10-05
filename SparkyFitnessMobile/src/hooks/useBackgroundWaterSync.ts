@@ -40,7 +40,7 @@ export function useBackgroundWaterSync(
             linked_food_id: linkedFoodId,
           }
         : undefined;
-    const sync = (): void => void syncBackgroundWater(true, target, weightUnit);
+    const sync = (): void => void syncBackgroundWater(target, weightUnit);
     sync();
     return onAppBecameActive(sync);
   }, [id, name, volume, unit, servings, linkedFoodId, weightUnit]);

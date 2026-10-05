@@ -11,10 +11,10 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * The opt-in copy of the server address, login and water container the "Log
- * water" shortcut uses while the app is closed. Encrypted with a key that never
- * leaves the Android Keystore, and erased when the user switches the setting
- * off or signs out.
+ * The copy of the server address, login and water container the "Log water"
+ * shortcut uses while the app is closed. Encrypted with a key that never leaves
+ * the Android Keystore, and erased when the active server is removed or the
+ * user signs out.
  */
 object BackgroundWaterStore {
     private const val PREFS = "sparky_background_water"

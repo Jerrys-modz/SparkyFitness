@@ -1,4 +1,4 @@
-// Opt-in "Log water without opening the app".
+// "Log water without opening the app".
 //
 // iOS: adds the Siri and Shortcuts App Intents (plugins/ios/ShortcutActions.swift) to the app
 // target; intents are only discovered from the app target, so it cannot live in

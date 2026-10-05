@@ -73,36 +73,64 @@ export function buildBackgroundWaterConfig(
   };
 }
 
+let syncQueue: Promise<unknown> = Promise.resolve();
+
 /**
- * Keeps the native copy of the login in step with the setting. With the
- * setting off, or no container, or no signed-in server, the copy is erased, so
- * nothing about the account stays readable outside the app.
+ * Runs one sync or clear at a time, in the order asked. Without this, a sync
+ * waiting on the stored login could finish after a clear and write the login
+ * back after the server was removed.
  */
-export async function syncBackgroundWater(
-  enabled: boolean,
-  container: BackgroundWaterContainer | undefined,
-  weightUnit: 'kg' | 'lbs' = 'kg'
-): Promise<void> {
+function enqueue(task: () => Promise<void>): Promise<void> {
+  const result = syncQueue.then(task, task);
+  syncQueue = result;
+  return result;
+}
+
+async function store(config: BackgroundWaterConfig | null): Promise<void> {
   if (!BackgroundWaterModule) return;
   try {
-    const config = enabled
-      ? buildBackgroundWaterConfig(
-          await getActiveServerConfig(),
-          container,
-          weightUnit
-        )
-      : null;
-    await BackgroundWaterModule.setConfig(
+    const stored = await BackgroundWaterModule.setConfig(
       config ? JSON.stringify(config) : null
     );
+    if (stored === false) {
+      addLog('[Background water] The device refused to store it', 'WARNING');
+    }
   } catch (error) {
     addLog(`[Background water] Could not update: ${String(error)}`, 'WARNING');
   }
 }
 
+/**
+ * Keeps the native copy of the login in step with the signed-in server, the
+ * dashboard's container and the weight unit. With no signed-in server the copy
+ * is erased, so nothing about the account stays readable outside the app.
+ */
+export function syncBackgroundWater(
+  container: BackgroundWaterContainer | undefined,
+  weightUnit: 'kg' | 'lbs' = 'kg'
+): Promise<void> {
+  return enqueue(async () => {
+    if (!BackgroundWaterModule) return;
+    try {
+      await store(
+        buildBackgroundWaterConfig(
+          await getActiveServerConfig(),
+          container,
+          weightUnit
+        )
+      );
+    } catch (error) {
+      addLog(
+        `[Background water] Could not update: ${String(error)}`,
+        'WARNING'
+      );
+    }
+  });
+}
+
 /** Erases the native copy, e.g. when the user signs out or removes the server. */
-export async function clearBackgroundWater(): Promise<void> {
-  await syncBackgroundWater(false, undefined);
+export function clearBackgroundWater(): Promise<void> {
+  return enqueue(() => store(null));
 }
 
 export function onAppBecameActive(run: () => void): () => void {

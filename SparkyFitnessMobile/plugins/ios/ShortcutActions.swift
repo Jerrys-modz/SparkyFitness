@@ -6,10 +6,9 @@ import Security
 // happened on screen: Log water, Log weight, Start fast and End fast. They also
 // show up in Spotlight and can be put on the Action button.
 //
-// Opt-in. They do nothing until the user turns on the setting in the app, which
-// is what puts the login in the Keychain item read below (written by
-// modules/background-water). Turning it off or removing the server erases that
-// item.
+// They need the login the app keeps in the Keychain item read below (written by
+// modules/background-water while a server is signed in). Removing the active
+// server or signing out erases that item.
 //
 // This file is added to the app target by plugins/withBackgroundWater.ts: an
 // intent has to be in the app target to be discovered. The Keychain service and
@@ -17,7 +16,7 @@ import Security
 
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
-private let setupMessage = "Turn on “Let Siri and Shortcuts log without opening the app” in SparkyFitness first."
+private let setupMessage = "Open SparkyFitness and sign in to a server first."
 
 private struct ShortcutConfig: Decodable {
     let baseUrl: String
