@@ -116,6 +116,7 @@ import {
   SafeMedicationForm,
   SafeMedicationScheduleForm,
   SafeSymptomLog,
+  SafeMoodLog,
   SafeSymptomHistory,
   SafeManageSymptoms,
   SafeSymptomDefinitionEditor,
@@ -282,6 +283,7 @@ function AppContent() {
     handleAddMeasurements,
     handleAddProgressPhotos,
     handleAddSymptoms,
+    handleAddMood,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
@@ -973,6 +975,15 @@ function AppContent() {
             })}
           />
           <Stack.Screen
+            name="MoodLog"
+            component={SafeMoodLog}
+            options={createStackScreenOptions(t('screens.moodLog', { defaultValue: 'Mood' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
             name="SymptomHistory"
             component={SafeSymptomHistory}
             options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
@@ -996,7 +1007,7 @@ function AppContent() {
             })}
           />
         </Stack.Navigator>
-        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
+        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAddMood={handleAddMood} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
         <ReauthModal
           visible={showReauthModal}
           expiredConfigId={expiredConfigId}

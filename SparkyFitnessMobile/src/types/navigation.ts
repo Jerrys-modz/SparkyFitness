@@ -375,6 +375,7 @@ export type RootStackParamList = {
         date?: string;
       }
     | undefined;
+  MoodLog: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
