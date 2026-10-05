@@ -460,6 +460,43 @@ private struct ExerciseRow: View {
     }
 }
 
+/// A chevron button a wrist can hit. The glyph alone is about 10 pt wide; this
+/// gives it a 44 pt-wide, 34 pt-tall hit area, and a soft backing so it reads
+/// as a button rather than as decoration. Dimmed while disabled.
+private struct ChevronButton: View {
+    let systemImage: String
+    var tint: Color = .primary
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: Haptics.tapping(action)) {
+            ChevronLabel(systemImage: systemImage, tint: tint)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ChevronLabel: View {
+    let systemImage: String
+    let tint: Color
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(tint)
+            .frame(width: 44, height: 34)
+            .background(
+                Color.white.opacity(0.14),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .opacity(isEnabled ? 1 : 0.35)
+            // The whole box takes the tap, not only the glyph's pixels.
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
 /// Calories, elapsed time and heart rate on one line, always visible. Kept
 /// deliberately small: it is reference information, not the thing being
 /// interacted with, and the set values below need the room.
@@ -474,11 +511,7 @@ private struct MetricsStrip: View {
     var body: some View {
         HStack(spacing: 6) {
             if let onBack = onBack {
-                Button(action: Haptics.tapping(onBack)) {
-                    Image(systemName: "chevron.left")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.blue)
+                ChevronButton(systemImage: "chevron.left", tint: .blue, action: onBack)
             }
             if let kcal = store.activeEnergyKcal {
                 Self.metric("\(Int(kcal))", systemImage: "flame.fill")
@@ -1086,14 +1119,9 @@ private struct StepControls: View {
     @EnvironmentObject private var store: WorkoutSessionStore
 
     var body: some View {
-        HStack {
-            Button(action: Haptics.tapping(onPrevious)) {
-                Image(systemName: "chevron.left")
-            }
-            .buttonStyle(.plain)
-            .disabled(store.currentStepIndex == 0)
-
-            Spacer()
+        HStack(spacing: 6) {
+            ChevronButton(systemImage: "chevron.left", action: onPrevious)
+                .disabled(store.currentStepIndex == 0)
 
             Button {
                 Haptics.setLogged()
@@ -1105,22 +1133,18 @@ private struct StepControls: View {
                     // opaque `some ShapeStyle`, which gives a ternary's two
                     // branches nothing to infer a shared type from.
                     .foregroundStyle(isCompleted ? Color.green : Color.black)
-                    .frame(width: 52, height: 30)
+                    .frame(maxWidth: .infinity, minHeight: 34)
                     .background(
                         isCompleted ? Color.green.opacity(0.2) : Color.green,
                         in: Capsule()
                     )
+                    .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(isCompleted)
 
-            Spacer()
-
-            Button(action: Haptics.tapping(onNext)) {
-                Image(systemName: "chevron.right")
-            }
-            .buttonStyle(.plain)
-            .disabled(store.currentStepIndex >= store.steps.count - 1)
+            ChevronButton(systemImage: "chevron.right", action: onNext)
+                .disabled(store.currentStepIndex >= store.steps.count - 1)
         }
     }
 }
