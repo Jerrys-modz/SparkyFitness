@@ -11,6 +11,7 @@ import medicationDisplayPreferenceRepository from '../models/medicationDisplayPr
 import glp1Service from '../services/glp1Service.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import medicationRoutes from '../routes/v2/medicationRoutes.js';
+import { lookupSupplementByUpc } from '../services/supplementLookupService.js';
 
 vi.mock('../models/medicationRepository.js');
 vi.mock('../models/medicationPenRepository.js');
@@ -19,6 +20,9 @@ vi.mock('../models/titrationRepository.js');
 vi.mock('../models/medicationEntryRepository.js');
 vi.mock('../models/medicationDisplayPreferenceRepository.js');
 vi.mock('../services/glp1Service.js');
+vi.mock('../services/supplementLookupService.js', () => ({
+  lookupSupplementByUpc: vi.fn(),
+}));
 vi.mock('../utils/permissionUtils.js', () => ({
   canAccessUserData: vi.fn(),
 }));
@@ -361,6 +365,61 @@ describe('Medication Routes V2', () => {
         .send({ name: 'Metformin' });
 
       expect(canAccessUserData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /api/v2/medications/supplement-lookup', () => {
+    it('returns the product found for a barcode', async () => {
+      const product = { source: 'dsld', sourceId: '65059', name: 'Vitamin D3' };
+      vi.mocked(lookupSupplementByUpc).mockResolvedValue(product as never);
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ product });
+      expect(lookupSupplementByUpc).toHaveBeenCalledWith('858849003115');
+    });
+
+    it('answers with no product when nothing matches', async () => {
+      vi.mocked(lookupSupplementByUpc).mockResolvedValue(null);
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ product: null });
+    });
+
+    it('rejects a missing barcode', async () => {
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(400);
+      expect(lookupSupplementByUpc).not.toHaveBeenCalled();
+    });
+
+    it('reports a database that cannot be reached', async () => {
+      vi.mocked(lookupSupplementByUpc).mockRejectedValue(new Error('timeout'));
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(502);
+    });
+
+    it('is not mistaken for a medication id', async () => {
+      vi.mocked(lookupSupplementByUpc).mockResolvedValue(null);
+
+      await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(medicationRepository.getMedicationById).not.toHaveBeenCalled();
     });
   });
 

@@ -355,7 +355,13 @@ export type RootStackParamList = {
   WhatsNew: undefined;
   MedicationsList: undefined;
   MedicationDetail: { medicationId: string };
-  MedicationForm: { medicationId?: string };
+  MedicationForm: {
+    medicationId?: string;
+    isSupplement?: boolean;
+    /** Set by the barcode scanner when it returns a code. */
+    pendingScannedBarcode?: string;
+    scannedBarcodeNonce?: number;
+  };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
   SymptomLog:
     | {

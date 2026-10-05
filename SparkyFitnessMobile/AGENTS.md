@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-02_
+_Last updated: 2026-10-05_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -229,6 +229,7 @@ npx expo prebuild --clean
 - `PhotoDayWeight` renders the weight under a photo and, when the day has none, a prompt into `MeasurementsAdd` for that date. Used by the gallery, comparison and time-lapse; the Dashboard card keeps plain text because the card is already a touchable.
 - `CalendarSheet` takes an optional `markedDates`; Dashboard and Diary pass the photo days, fetched on first open of the picker rather than at mount (`useCheckInPhotoDates(calendarOpened)`).
 - Custom nutrients are fetched via `useCustomNutrients` from `GET /api/custom-nutrients`; nutrient display preferences use full-array replace through `preferencesApi.ts`.
+- Supplements are medications with `is_supplement` and a per-serving `nutrients` payload (`MedicationNutrients` in `@workspace/shared`), edited in `MedicationFormScreen` through `SupplementNutrientsEditor` and the pure helpers in `utils/supplements.ts`. Nutrients picked from `MICRONUTRIENT_CATALOG` that are not built-in columns get their custom nutrient created on save through `POST /api/custom-nutrients/from-catalog` (`useEnsureCatalogNutrients`), never when picked. A supplement is pinned to one `serving` dose; the Medications list filters All / Meds / Supplements with `filterMedsBySubtype`. On a supplement the form's "Scan barcode to fill in" opens `FoodScan` in `capture-barcode` mode, which hands the code back as the `pendingScannedBarcode` / `scannedBarcodeNonce` route params; `useSupplementLookup` calls `GET /api/v2/medications/supplement-lookup` and `rowsFromLookup` turns the product into editor rows.
 - Nutrient metadata and defaults live in `constants/nutrients.ts`; aggregation and visibility toggling live in `utils/nutrientUtils.ts`.
 - Measurements and water routes are in `measurementsApi.ts`; date-sensitive flows should preserve calendar-day strings and shared timezone helpers.
 

@@ -1345,7 +1345,10 @@
       "beforeMeal": "Before meal",
       "withMeal": "With meal",
       "afterMeal": "After meal",
-      "awayFromMeals": "Away from meals"
+      "awayFromMeals": "Away from meals",
+      "softgel": "Softgel",
+      "gummy": "Gummy",
+      "powder": "Powder"
     },
     "weekdays": {
       "title": "Days of Week",
@@ -1391,6 +1394,42 @@
     "inactiveCount_other": "Inactive ({{count}})",
     "mealRelation": {
       "awayFromMeals": "Away from meals"
+    },
+    "filter": {
+      "all": "All",
+      "meds": "Meds",
+      "supplements": "Supplements"
+    },
+    "supplement": {
+      "add": "Add Supplement",
+      "none": "No supplements yet",
+      "toggle": "This is a supplement",
+      "form": "Form",
+      "formTitle": "Supplement Form",
+      "newTitle": "New Supplement",
+      "editTitle": "Edit Supplement",
+      "nameRequired": "Please enter a supplement name.",
+      "invalidAmount": "Nutrient amounts must be numbers that are zero or more.",
+      "nutrientsFailed": "Failed to set up the nutrients: {{error}}",
+      "nutritionTitle": "Nutrition per serving",
+      "nutritionHint": "Enter the amounts from the label for one serving. Each dose you log adds them to your day.",
+      "energyAndMacros": "Energy and macros",
+      "vitaminsAndMinerals": "Vitamins, minerals and more",
+      "addNutrient": "Add nutrient",
+      "multivitaminPanel": "Multivitamin panel",
+      "amountA11y": "{{name}} amount in {{unit}}",
+      "removeNutrient": "Remove {{name}}",
+      "nutrientCount_one": "{{count}} nutrient",
+      "nutrientCount_other": "{{count}} nutrients",
+      "scan": "Scan barcode to fill in",
+      "lookingUp": "Looking up the label…",
+      "noMatchTitle": "No match found",
+      "noMatchMessage": "That barcode is not in the supplement label database. You can enter the label by hand.",
+      "lookupFailed": "Could not reach the supplement label database. Try again later.",
+      "servingNote": "Label serving: {{serving}}",
+      "notAdded": "Not added from the label: {{names}}",
+      "notAddedMore_one": "{{names}} and {{count}} more",
+      "notAddedMore_other": "{{names}} and {{count}} more"
     }
   },
   "scheduleSummary": {

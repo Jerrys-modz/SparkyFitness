@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Alert, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -11,14 +11,30 @@ import {
   useCreateMedication,
   useUpdateMedication,
 } from '../hooks/useMedications';
+import {
+  useCustomNutrients,
+  useEnsureCatalogNutrients,
+} from '../hooks/useCustomNutrients';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useSupplementLookup } from '../hooks/useSupplementLookup';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import Switch from '../components/ui/Switch';
 import type { RootStackScreenProps } from '../types/navigation';
 import { medicationTypeLabel } from '../utils/medicationLocalization';
 import { MEDICATION_TYPES } from '../types/medications';
+import SupplementNutrientsEditor from '../components/medications/SupplementNutrientsEditor';
+import {
+  SUPPLEMENT_FORMS,
+  buildNutrients,
+  catalogIdsToProvision,
+  parseAmount,
+  rowsFromLookup,
+  rowsFromNutrients,
+  unmatchedSummary,
+  type NutrientRow,
+} from '../utils/supplements';
 
 type MedicationFormScreenProps = RootStackScreenProps<'MedicationForm'>;
 
@@ -34,6 +50,7 @@ interface FormState {
   pharmacy: string;
   notes: string;
   isActive: boolean;
+  isSupplement: boolean;
 }
 
 const EMPTY_FORM: FormState = {
@@ -48,15 +65,21 @@ const EMPTY_FORM: FormState = {
   pharmacy: '',
   notes: '',
   isActive: true,
+  isSupplement: false,
 };
 
 const hasDetailsContent = (form: FormState): boolean =>
   Boolean(form.reason || form.prescriber || form.pharmacy || form.notes);
 
 function baseFromMed(
-  existingMed?: NonNullable<ReturnType<typeof useMedicationDetail>['data']>
+  existingMed?: NonNullable<ReturnType<typeof useMedicationDetail>['data']>,
+  startAsSupplement = false
 ): FormState {
-  if (!existingMed) return EMPTY_FORM;
+  if (!existingMed) {
+    return startAsSupplement
+      ? { ...EMPTY_FORM, isSupplement: true, typeId: 'capsule' }
+      : EMPTY_FORM;
+  }
   return {
     name: existingMed.name,
     typeId: existingMed.type_id ?? EMPTY_FORM.typeId,
@@ -73,6 +96,7 @@ function baseFromMed(
     pharmacy: existingMed.pharmacy ?? '',
     notes: existingMed.notes ?? '',
     isActive: existingMed.is_active,
+    isSupplement: existingMed.is_supplement ?? false,
   };
 }
 
@@ -82,6 +106,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const medicationId = route.params?.medicationId;
+  const startAsSupplement = route.params?.isSupplement ?? false;
   const isEditing = !!medicationId;
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
@@ -93,13 +118,96 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   });
   const createMedication = useCreateMedication();
   const updateMedication = useUpdateMedication();
+  const ensureCatalog = useEnsureCatalogNutrients();
+  const supplementLookup = useSupplementLookup();
+  const { customNutrients: customNutrientDefs } = useCustomNutrients();
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
 
   const form: FormState = useMemo(
-    () => ({ ...baseFromMed(existingMed), ...edits }),
-    [existingMed, edits]
+    () => ({ ...baseFromMed(existingMed, startAsSupplement), ...edits }),
+    [existingMed, edits, startAsSupplement]
   );
+
+  // null until the user changes a nutrient row; until then follow the saved
+  // supplement, so rows appear even when it arrives after mount.
+  const [nutrientEdits, setNutrientEdits] = useState<NutrientRow[] | null>(
+    null
+  );
+  const nutrientRows = useMemo(
+    () =>
+      nutrientEdits ??
+      rowsFromNutrients(existingMed?.nutrients, customNutrientDefs),
+    [nutrientEdits, existingMed, customNutrientDefs]
+  );
+  const isSupplement = form.isSupplement;
+  const [lookupNote, setLookupNote] = useState<string | null>(null);
+
+  // A barcode scanned on the scanner screen arrives as a one-shot route param.
+  const { pendingScannedBarcode, scannedBarcodeNonce } = route.params ?? {};
+  useEffect(() => {
+    if (scannedBarcodeNonce == null || pendingScannedBarcode == null) return;
+    navigation.setParams({
+      pendingScannedBarcode: undefined,
+      scannedBarcodeNonce: undefined,
+    });
+    supplementLookup.mutate(pendingScannedBarcode, {
+      onSuccess: ({ product }) => {
+        if (!product) {
+          setLookupNote(null);
+          Alert.alert(
+            t('medications.supplement.noMatchTitle', {
+              defaultValue: 'No match found',
+            }),
+            t('medications.supplement.noMatchMessage', {
+              defaultValue:
+                'That barcode is not in the supplement label database. You can enter the label by hand.',
+            })
+          );
+          return;
+        }
+        setEdits((prev) => ({
+          ...prev,
+          name: product.name,
+          typeId: product.form ?? prev.typeId ?? form.typeId,
+          notes:
+            (prev.notes ?? form.notes).trim() === '' && product.serving
+              ? t('medications.supplement.servingNote', {
+                  defaultValue: 'Label serving: {{serving}}',
+                  serving: product.serving,
+                })
+              : (prev.notes ?? form.notes),
+        }));
+        setNutrientEdits(rowsFromLookup(product));
+        const skipped = unmatchedSummary(product);
+        setLookupNote(
+          skipped
+            ? t('medications.supplement.notAdded', {
+                defaultValue: 'Not added from the label: {{names}}',
+                names:
+                  skipped.extra > 0
+                    ? t('medications.supplement.notAddedMore', {
+                        defaultValue: '{{names}} and {{count}} more',
+                        names: skipped.names,
+                        count: skipped.extra,
+                      })
+                    : skipped.names,
+              })
+            : null
+        );
+      },
+      onError: () =>
+        Alert.alert(
+          t('common.error', { defaultValue: 'Error' }),
+          t('medications.supplement.lookupFailed', {
+            defaultValue:
+              'Could not reach the supplement label database. Try again later.',
+          })
+        ),
+    });
+    // The lookup runs once per scan; the nonce is what makes a scan new.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannedBarcodeNonce, pendingScannedBarcode]);
 
   // null until the user toggles; until then follow the data, so a medication
   // with detail content opens expanded even when it arrives after mount.
@@ -113,15 +221,45 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     []
   );
 
-  const handleSave = useCallback(() => {
-    if (createMedication.isPending || updateMedication.isPending) return;
+  const handleSupplementToggle = useCallback(
+    (value: boolean) => {
+      setEdits((prev) => {
+        const typeId = prev.typeId ?? form.typeId;
+        const isSupplementForm = (
+          SUPPLEMENT_FORMS as readonly string[]
+        ).includes(typeId);
+        const nextType = value
+          ? isSupplementForm
+            ? typeId
+            : 'capsule'
+          : (MEDICATION_TYPES as readonly string[]).includes(typeId)
+            ? typeId
+            : 'pill';
+        return { ...prev, isSupplement: value, typeId: nextType };
+      });
+    },
+    [form.typeId]
+  );
+
+  const handleSave = useCallback(async () => {
+    if (
+      createMedication.isPending ||
+      updateMedication.isPending ||
+      ensureCatalog.isPending
+    ) {
+      return;
+    }
 
     if (!form.name.trim()) {
       Alert.alert(
         t('medications.form.required', { defaultValue: 'Required' }),
-        t('medications.form.nameRequired', {
-          defaultValue: 'Please enter a medication name.',
-        })
+        isSupplement
+          ? t('medications.supplement.nameRequired', {
+              defaultValue: 'Please enter a supplement name.',
+            })
+          : t('medications.form.nameRequired', {
+              defaultValue: 'Please enter a medication name.',
+            })
       );
       return;
     }
@@ -132,8 +270,9 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     const doseNum = form.doseAmount ? parseFloat(form.doseAmount) : null;
 
     if (
-      (form.strengthValue && !Number.isFinite(strengthNum)) ||
-      (form.doseAmount && !Number.isFinite(doseNum))
+      !isSupplement &&
+      ((form.strengthValue && !Number.isFinite(strengthNum)) ||
+        (form.doseAmount && !Number.isFinite(doseNum)))
     ) {
       Alert.alert(
         t('medications.form.invalidNumber', { defaultValue: 'Invalid number' }),
@@ -145,16 +284,64 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       return;
     }
 
+    if (
+      isSupplement &&
+      nutrientRows.some(
+        (row) => row.value.trim() !== '' && parseAmount(row.value) == null
+      )
+    ) {
+      Alert.alert(
+        t('medications.form.invalidNumber', { defaultValue: 'Invalid number' }),
+        t('medications.supplement.invalidAmount', {
+          defaultValue:
+            'Nutrient amounts must be numbers that are zero or more.',
+        })
+      );
+      return;
+    }
+
+    // Nutrients picked from the catalog need a custom nutrient to store the
+    // amount against. Created now, not when picked, so cancelling leaves none.
+    const resolvedNames: Record<string, string> = {};
+    if (isSupplement) {
+      const catalogIds = catalogIdsToProvision(nutrientRows);
+      if (catalogIds.length > 0) {
+        try {
+          const { resolved } = await ensureCatalog.mutateAsync(catalogIds);
+          for (const entry of resolved) {
+            if (!entry.fixedField) resolvedNames[entry.catalogId] = entry.name;
+          }
+        } catch (error) {
+          Alert.alert(
+            t('common.error', { defaultValue: 'Error' }),
+            t('medications.supplement.nutrientsFailed', {
+              defaultValue: 'Failed to set up the nutrients: {{error}}',
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+          return;
+        }
+      }
+    }
+
     const base = {
       name: form.name.trim(),
       type_id: form.typeId,
-      strength_value: strengthNum,
-      strength_unit: form.strengthUnit || null,
-      dose_amount: doseNum,
-      dose_unit: form.doseUnit || null,
+      is_supplement: isSupplement,
+      nutrients: isSupplement
+        ? buildNutrients(nutrientRows, resolvedNames)
+        : {},
+      // A supplement is taken in servings: the label's nutrition is per
+      // serving, and a dose logged is the number of servings.
+      strength_value: isSupplement ? null : strengthNum,
+      strength_unit: isSupplement ? null : form.strengthUnit || null,
+      dose_amount: isSupplement ? (existingMed?.dose_amount ?? 1) : doseNum,
+      dose_unit: isSupplement
+        ? (existingMed?.dose_unit ?? 'serving')
+        : form.doseUnit || null,
       reason_text: form.reason.trim() || null,
-      prescriber: form.prescriber.trim() || null,
-      pharmacy: form.pharmacy.trim() || null,
+      prescriber: isSupplement ? null : form.prescriber.trim() || null,
+      pharmacy: isSupplement ? null : form.pharmacy.trim() || null,
       notes: form.notes.trim() || null,
     };
 
@@ -194,37 +381,50 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   }, [
     form,
     isEditing,
+    isSupplement,
     medicationId,
+    existingMed,
+    nutrientRows,
     createMedication,
     updateMedication,
+    ensureCatalog,
     navigation,
     t,
   ]);
 
+  const screenTitle = isSupplement
+    ? isEditing
+      ? t('medications.supplement.editTitle', {
+          defaultValue: 'Edit Supplement',
+        })
+      : t('medications.supplement.newTitle', { defaultValue: 'New Supplement' })
+    : isEditing
+      ? t('medications.form.editTitle', { defaultValue: 'Edit Medication' })
+      : t('medications.form.newTitle', { defaultValue: 'New Medication' });
+
   const header = useScreenHeader({
-    title: isEditing
-      ? t('medications.form.editTitle', { defaultValue: 'Edit Medication' })
-      : t('medications.form.newTitle', { defaultValue: 'New Medication' }),
-    nativeTitle: isEditing
-      ? t('medications.form.editTitle', { defaultValue: 'Edit Medication' })
-      : t('medications.form.newTitle', { defaultValue: 'New Medication' }),
+    title: screenTitle,
+    nativeTitle: screenTitle,
     left: { kind: 'dismiss', onPress: () => navigation.goBack() },
     right: {
       kind: 'primary',
       label: t('common.save', { defaultValue: 'Save' }),
-      busy: createMedication.isPending || updateMedication.isPending,
+      busy:
+        createMedication.isPending ||
+        updateMedication.isPending ||
+        ensureCatalog.isPending,
       busyLabel: t('common.saving', { defaultValue: 'Saving…' }),
-      onPress: handleSave,
+      onPress: () => void handleSave(),
     },
   });
 
   const typeOptions = useMemo(
     () =>
-      MEDICATION_TYPES.map((id) => ({
+      (isSupplement ? SUPPLEMENT_FORMS : MEDICATION_TYPES).map((id) => ({
         label: medicationTypeLabel(id, t),
-        value: id,
+        value: id as string,
       })),
-    [t]
+    [isSupplement, t]
   );
 
   return (
@@ -260,71 +460,134 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
             />
           </View>
 
+          <View className="flex-row justify-between items-center">
+            <Text className="text-base text-text-primary flex-1 pr-3">
+              {t('medications.supplement.toggle', {
+                defaultValue: 'This is a supplement',
+              })}
+            </Text>
+            <Switch
+              value={isSupplement}
+              onValueChange={handleSupplementToggle}
+            />
+          </View>
+
           <View className="gap-1.5">
             <Text className="text-text-secondary text-sm font-medium">
-              {t('medications.form.type', { defaultValue: 'Type' })}
+              {isSupplement
+                ? t('medications.supplement.form', { defaultValue: 'Form' })
+                : t('medications.form.type', { defaultValue: 'Type' })}
             </Text>
             <BottomSheetPicker
               value={form.typeId}
               options={typeOptions}
               onSelect={(val) => updateField('typeId', val)}
-              title={t('medications.form.typeTitle', {
-                defaultValue: 'Medication Type',
-              })}
+              title={
+                isSupplement
+                  ? t('medications.supplement.formTitle', {
+                      defaultValue: 'Supplement Form',
+                    })
+                  : t('medications.form.typeTitle', {
+                      defaultValue: 'Medication Type',
+                    })
+              }
             />
           </View>
 
-          <View className="flex-row gap-4">
-            <View className="flex-1 gap-1.5">
-              <Text className="text-text-secondary text-sm font-medium">
-                {t('medications.form.strength', { defaultValue: 'Strength' })}
-              </Text>
-              <FormInput
-                placeholder="10"
-                value={form.strengthValue}
-                onChangeText={(v) => updateField('strengthValue', v)}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View className="flex-1 gap-1.5">
-              <Text className="text-text-secondary text-sm font-medium">
-                {t('medications.form.unit', { defaultValue: 'Unit' })}
-              </Text>
-              <FormInput
-                placeholder={t('medications.form.strengthUnitPlaceholder', {
-                  defaultValue: 'mg',
-                })}
-                value={form.strengthUnit}
-                onChangeText={(v) => updateField('strengthUnit', v)}
-              />
-            </View>
-          </View>
+          {!isSupplement && (
+            <>
+              <View className="flex-row gap-4">
+                <View className="flex-1 gap-1.5">
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {t('medications.form.strength', {
+                      defaultValue: 'Strength',
+                    })}
+                  </Text>
+                  <FormInput
+                    placeholder="10"
+                    value={form.strengthValue}
+                    onChangeText={(v) => updateField('strengthValue', v)}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View className="flex-1 gap-1.5">
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {t('medications.form.unit', { defaultValue: 'Unit' })}
+                  </Text>
+                  <FormInput
+                    placeholder={t('medications.form.strengthUnitPlaceholder', {
+                      defaultValue: 'mg',
+                    })}
+                    value={form.strengthUnit}
+                    onChangeText={(v) => updateField('strengthUnit', v)}
+                  />
+                </View>
+              </View>
 
-          <View className="flex-row gap-4">
-            <View className="flex-1 gap-1.5">
-              <Text className="text-text-secondary text-sm font-medium">
-                {t('medications.form.dose', { defaultValue: 'Dose' })}
+              <View className="flex-row gap-4">
+                <View className="flex-1 gap-1.5">
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {t('medications.form.dose', { defaultValue: 'Dose' })}
+                  </Text>
+                  <FormInput
+                    placeholder="1"
+                    value={form.doseAmount}
+                    onChangeText={(v) => updateField('doseAmount', v)}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View className="flex-1 gap-1.5">
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {t('medications.form.unit', { defaultValue: 'Unit' })}
+                  </Text>
+                  <FormInput
+                    placeholder={t('medications.form.doseUnitPlaceholder', {
+                      defaultValue: 'tablet',
+                    })}
+                    value={form.doseUnit}
+                    onChangeText={(v) => updateField('doseUnit', v)}
+                  />
+                </View>
+              </View>
+            </>
+          )}
+
+          {isSupplement && (
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('FoodScan', {
+                  mode: 'capture-barcode',
+                  returnKey: route.key,
+                })
+              }
+              disabled={supplementLookup.isPending}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              className="flex-row items-center gap-2 py-1 self-start"
+            >
+              <Icon name="scan" size={18} color={textMuted} />
+              <Text className="text-accent-primary text-base font-medium">
+                {supplementLookup.isPending
+                  ? t('medications.supplement.lookingUp', {
+                      defaultValue: 'Looking up the label…',
+                    })
+                  : t('medications.supplement.scan', {
+                      defaultValue: 'Scan barcode to fill in',
+                    })}
               </Text>
-              <FormInput
-                placeholder="1"
-                value={form.doseAmount}
-                onChangeText={(v) => updateField('doseAmount', v)}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View className="flex-1 gap-1.5">
-              <Text className="text-text-secondary text-sm font-medium">
-                {t('medications.form.unit', { defaultValue: 'Unit' })}
-              </Text>
-              <FormInput
-                placeholder={t('medications.form.doseUnitPlaceholder', {
-                  defaultValue: 'tablet',
-                })}
-                value={form.doseUnit}
-                onChangeText={(v) => updateField('doseUnit', v)}
-              />
-            </View>
-          </View>
+            </TouchableOpacity>
+          )}
+
+          {isSupplement && lookupNote != null && (
+            <Text className="text-text-muted text-sm">{lookupNote}</Text>
+          )}
+
+          {isSupplement && (
+            <SupplementNutrientsEditor
+              rows={nutrientRows}
+              onChange={setNutrientEdits}
+            />
+          )}
         </View>
 
         <TouchableOpacity
@@ -362,33 +625,39 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
               />
             </View>
 
-            <View className="gap-1.5">
-              <Text className="text-text-secondary text-sm font-medium">
-                {t('medications.form.prescriber', {
-                  defaultValue: 'Prescriber',
-                })}
-              </Text>
-              <FormInput
-                placeholder={t('medications.form.prescriberPlaceholder', {
-                  defaultValue: 'Dr. Ipsum',
-                })}
-                value={form.prescriber}
-                onChangeText={(v) => updateField('prescriber', v)}
-              />
-            </View>
+            {!isSupplement && (
+              <>
+                <View className="gap-1.5">
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {t('medications.form.prescriber', {
+                      defaultValue: 'Prescriber',
+                    })}
+                  </Text>
+                  <FormInput
+                    placeholder={t('medications.form.prescriberPlaceholder', {
+                      defaultValue: 'Dr. Ipsum',
+                    })}
+                    value={form.prescriber}
+                    onChangeText={(v) => updateField('prescriber', v)}
+                  />
+                </View>
 
-            <View className="gap-1.5">
-              <Text className="text-text-secondary text-sm font-medium">
-                {t('medications.form.pharmacy', { defaultValue: 'Pharmacy' })}
-              </Text>
-              <FormInput
-                placeholder={t('medications.form.pharmacyPlaceholder', {
-                  defaultValue: 'Sunny Pharmacy',
-                })}
-                value={form.pharmacy}
-                onChangeText={(v) => updateField('pharmacy', v)}
-              />
-            </View>
+                <View className="gap-1.5">
+                  <Text className="text-text-secondary text-sm font-medium">
+                    {t('medications.form.pharmacy', {
+                      defaultValue: 'Pharmacy',
+                    })}
+                  </Text>
+                  <FormInput
+                    placeholder={t('medications.form.pharmacyPlaceholder', {
+                      defaultValue: 'Sunny Pharmacy',
+                    })}
+                    value={form.pharmacy}
+                    onChangeText={(v) => updateField('pharmacy', v)}
+                  />
+                </View>
+              </>
+            )}
 
             <View className="gap-1.5">
               <Text className="text-text-secondary text-sm font-medium">
