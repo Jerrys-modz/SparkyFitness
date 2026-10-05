@@ -11,6 +11,7 @@ export const DASHBOARD_CARD_KEYS = [
   'cycle',
   'medications',
   'symptoms',
+  'mood',
   'progressPhotos',
   'healthTrends',
 ] as const;
@@ -41,6 +42,7 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.medications', { defaultValue: 'Medications' }),
   symptoms: (t) =>
     t('dashboardSettings.symptoms', { defaultValue: 'Symptoms' }),
+  mood: (t) => t('dashboardSettings.mood', { defaultValue: 'Mood' }),
   progressPhotos: (t) =>
     t('dashboardSettings.progressPhotos', {
       defaultValue: 'Progress Photos',
@@ -92,6 +94,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   symptoms: (t) =>
     t('dashboardSettings.symptomsSubtitle', {
       defaultValue: 'Show symptom status, active episodes, and quick logging',
+    }),
+  mood: (t) =>
+    t('dashboardSettings.moodSubtitle', {
+      defaultValue: "Show today's mood, a 7-day trend, and quick logging",
     }),
   progressPhotos: (t) =>
     t('dashboardSettings.progressPhotosSubtitle', {
