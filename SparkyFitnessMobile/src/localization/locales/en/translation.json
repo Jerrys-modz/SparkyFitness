@@ -5849,6 +5849,12 @@
       "rangeMax": "Range max",
       "invalidRange": "A range needs a minimum and a maximum, with minimum not above maximum.",
       "note": "Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers."
+    },
+    "calculator": {
+      "calculate": "Calculate",
+      "calculateField": "Calculate {{nutrient}}",
+      "calculateAll": "Calculate all from my profile",
+      "needsProfile": "Set your sex in your profile on the web to calculate recommended nutrient goals."
     }
   }
 }

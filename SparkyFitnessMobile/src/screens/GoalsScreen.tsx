@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
@@ -6,7 +6,9 @@ import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
-import { useServerConnection, usePreferences } from '../hooks';
+import Button from '../components/ui/Button';
+import { useProfile, useServerConnection, usePreferences } from '../hooks';
+import { useLatestMeasurementsOnOrBefore } from '../hooks/useMeasurements';
 import {
   useAdjustedCalorieGoal,
   useGoalsQuery,
@@ -19,9 +21,21 @@ import type {
   NutrientGoalType,
 } from '../services/api/nutrientGoalPreferencesApi';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
+import {
+  AddedSugarAlgorithm,
+  FatBreakdownAlgorithm,
+  MineralCalculationAlgorithm,
+  SugarCalculationAlgorithm,
+  VitaminCalculationAlgorithm,
+  calculateAge,
+  calculateSingleNutrientAutoValue,
+  getAutoCalculateFamily,
+  type AlgorithmBundle,
+  type UserNutrientData,
+} from '@workspace/shared';
 import type { DailyGoals } from '../types/goals';
 import type { RootStackScreenProps } from '../types/navigation';
-import { getTodayDate } from '../utils/dateUtils';
+import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
 import {
   WATER_UNIT_LABELS,
   volumeFromMl,
@@ -125,6 +139,14 @@ const toDrafts = (
 
 const parseDraft = (text: string): number => Number(text.replace(',', '.'));
 
+const ACTIVITY_LEVELS = ['not_much', 'light', 'moderate', 'heavy'] as const;
+
+const enumValue = <T extends string>(
+  values: Record<string, T>,
+  raw: string | undefined,
+  fallback: T
+): T => (Object.values(values).includes(raw as T) ? (raw as T) : fallback);
+
 interface DirectionDraft {
   goalType: NutrientGoalType;
   min: string;
@@ -178,8 +200,77 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const isAdaptive = preferences?.calorie_goal_adjustment_mode === 'adaptive';
   const adjustedCalories = useAdjustedCalorieGoal(date, isAdaptive);
   const waterUnit = preferences?.water_display_unit ?? 'ml';
+  const { profile } = useProfile();
+  const { latestMeasurements } = useLatestMeasurementsOnOrBefore({ date });
   const [initialDrafts] = useState(() => toDrafts(goals, waterUnit));
   const [drafts, setDrafts] = useState(initialDrafts);
+
+  const algorithms: AlgorithmBundle = useMemo(
+    () => ({
+      fatBreakdown: enumValue(
+        FatBreakdownAlgorithm,
+        preferences?.fat_breakdown_algorithm,
+        FatBreakdownAlgorithm.AHA_GUIDELINES
+      ),
+      minerals: enumValue(
+        MineralCalculationAlgorithm,
+        preferences?.mineral_calculation_algorithm,
+        MineralCalculationAlgorithm.RDA_STANDARD
+      ),
+      vitamins: enumValue(
+        VitaminCalculationAlgorithm,
+        preferences?.vitamin_calculation_algorithm,
+        VitaminCalculationAlgorithm.RDA_STANDARD
+      ),
+      sugar: enumValue(
+        SugarCalculationAlgorithm,
+        preferences?.sugar_calculation_algorithm,
+        SugarCalculationAlgorithm.WHO_GUIDELINES
+      ),
+      addedSugar: AddedSugarAlgorithm.WHO_MAXIMUM,
+    }),
+    [preferences]
+  );
+
+  // Several formulas depend on sex, so with it unknown the calculator is
+  // withheld rather than guessing a silently wrong recommendation.
+  const calcCalories = parseDraft(drafts.calories);
+  const calcFat = parseDraft(drafts.fat);
+  const userData: UserNutrientData | null = useMemo(() => {
+    if (profile?.gender !== 'male' && profile?.gender !== 'female') return null;
+    const activity = ACTIVITY_LEVELS.find(
+      (level) => level === preferences?.activity_level
+    );
+    return {
+      age: profile.date_of_birth
+        ? calculateAge(profile.date_of_birth, getDeviceTimezone())
+        : 0,
+      sex: profile.gender,
+      weightKg: Number(latestMeasurements?.weight) || 0,
+      calories: Number.isFinite(calcCalories) ? calcCalories : 0,
+      totalFatGrams: Number.isFinite(calcFat) ? calcFat : 0,
+      activityLevel: activity,
+    };
+  }, [profile, latestMeasurements, preferences, calcCalories, calcFat]);
+
+  const calculateField = (field: NutrientGoalField): number | null => {
+    if (!userData) return null;
+    const value = calculateSingleNutrientAutoValue(field, userData, algorithms);
+    return value === null ? null : Math.round(value * 10) / 10;
+  };
+
+  const applyCalculated = (fields: NutrientGoalField[]) => {
+    const updates: Partial<Record<GoalField, string>> = {};
+    for (const field of fields) {
+      const value = calculateField(field);
+      if (value !== null) updates[field] = String(value);
+    }
+    setDrafts((prev) => ({ ...prev, ...updates }));
+  };
+
+  const calculableFields = NUTRIENT_DIRECTION_FIELDS.filter(
+    (field) => getAutoCalculateFamily(field) !== null
+  );
 
   // Custom meal types carry their own percentages that must share the 100%
   // budget, so the four built-in meals are only editable on their own.
@@ -397,6 +488,21 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     );
   };
 
+  const renderCalculate = (field: NutrientGoalField) => (
+    <Button
+      variant="secondary"
+      onPress={() => applyCalculated([field])}
+      accessibilityLabel={t('goals.calculator.calculateField', {
+        defaultValue: 'Calculate {{nutrient}}',
+        nutrient: getNutrientLabel(t, field),
+      })}
+      className="py-2 self-start"
+      textClassName="text-xs"
+    >
+      {t('goals.calculator.calculate', { defaultValue: 'Calculate' })}
+    </Button>
+  );
+
   const renderFields = (fields: GoalField[]) =>
     fields.map((field) => (
       <View key={field} className="gap-1">
@@ -412,6 +518,9 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           accessibilityLabel={labels[field]}
           testID={`goal-input-${field}`}
         />
+        {userData &&
+          getAutoCalculateFamily(field) !== null &&
+          renderCalculate(field as NutrientGoalField)}
         {directionDrafts[field] && renderDirection(field as NutrientGoalField)}
       </View>
     ));
@@ -465,6 +574,25 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       {renderFields(MACRO_FIELDS)}
       {sectionTitle(
         t('goals.sections.nutrients', { defaultValue: 'Other nutrients' })
+      )}
+      {userData ? (
+        <Button
+          variant="secondary"
+          onPress={() => applyCalculated(calculableFields)}
+          className="py-2"
+          textClassName="text-sm"
+        >
+          {t('goals.calculator.calculateAll', {
+            defaultValue: 'Calculate all from my profile',
+          })}
+        </Button>
+      ) : (
+        <Text className="text-sm text-text-secondary">
+          {t('goals.calculator.needsProfile', {
+            defaultValue:
+              'Set your sex in your profile on the web to calculate recommended nutrient goals.',
+          })}
+        </Text>
       )}
       {renderFields(OTHER_NUTRIENT_FIELDS)}
       {sectionTitle(
