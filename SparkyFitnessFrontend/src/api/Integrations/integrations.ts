@@ -77,6 +77,21 @@ export const syncHevyData = async (
   });
 };
 
+export interface HevyExerciseSyncResult {
+  created: number;
+  skipped: number;
+  total: number;
+}
+
+export const syncHevyExercises = async (
+  providerId?: string
+): Promise<HevyExerciseSyncResult> => {
+  return apiCall('/integrations/hevy/sync-exercises', {
+    method: 'POST',
+    body: JSON.stringify({ providerId }),
+  });
+};
+
 export interface LiftosaurSyncResult {
   message?: string;
   workoutsImported?: number;

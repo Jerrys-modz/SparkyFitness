@@ -7,6 +7,7 @@ import {
   linkWithingsAccount,
   linkStravaAccount,
   syncHevyData,
+  syncHevyExercises,
   syncLiftosaurData,
   LiftosaurSyncResult,
   loginGarmin,
@@ -223,6 +224,24 @@ export const useSyncHevyMutation = () => {
       errorMessage: t(
         'integrations.hevySyncError',
         'Hevy sync failed. Please check your API key in settings.'
+      ),
+    },
+  });
+};
+
+export const useSyncHevyExercisesMutation = () => {
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (providerId?: string) => syncHevyExercises(providerId),
+    meta: {
+      successMessage: t(
+        'integrations.hevyExercisesSyncSuccess',
+        'Hevy exercise library synced.'
+      ),
+      errorMessage: t(
+        'integrations.hevyExercisesSyncError',
+        'Hevy exercise sync failed. Please check your API key in settings.'
       ),
     },
   });

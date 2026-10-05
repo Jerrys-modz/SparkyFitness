@@ -7,7 +7,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Trash2, Edit, Lock, RefreshCw, Link2Off } from 'lucide-react';
+import {
+  Trash2,
+  Edit,
+  Lock,
+  RefreshCw,
+  Link2Off,
+  Dumbbell,
+} from 'lucide-react';
 import { decodeYazioAppId } from '@/utils/settings';
 import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProviderSettings';
 import SyncRangeDialog from './SyncRangeDialog';
@@ -35,6 +42,7 @@ import {
   useManualSyncPolarMutation,
   useManualSyncStravaMutation,
   useSyncHevyMutation,
+  useSyncHevyExercisesMutation,
   useSyncLiftosaurMutation,
   useDisconnectLiftosaurMutation,
   useConnectCorosMutation,
@@ -187,6 +195,8 @@ export const ProviderCard = ({
     useManualSyncCorosMutation();
   const { mutate: syncHevyData, isPending: isSyncHevyPending } =
     useSyncHevyMutation();
+  const { mutate: syncHevyExercises, isPending: isSyncHevyExercisesPending } =
+    useSyncHevyExercisesMutation();
   const { mutate: syncLiftosaurData, isPending: isSyncLiftosaurPending } =
     useSyncLiftosaurMutation();
   const {
@@ -298,6 +308,7 @@ export const ProviderCard = ({
     isSyncStravaPending ||
     isSyncCorosPending ||
     isSyncHevyPending ||
+    isSyncHevyExercisesPending ||
     isSyncLiftosaurPending ||
     isDisconnectLiftosaurPending;
 
@@ -495,6 +506,19 @@ export const ProviderCard = ({
             )}
         </div>
         <div className="flex items-center gap-2">
+          {config?.hasToken && provider.provider_type === 'hevy' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncHevyExercises(provider.id)}
+              disabled={loading}
+              title="Sync exercise library"
+            >
+              <Dumbbell
+                className={`h-4 w-4 ${isSyncHevyExercisesPending ? 'animate-pulse' : ''}`}
+              />
+            </Button>
+          )}
           {config?.hasToken ? (
             <Button
               variant="outline"
