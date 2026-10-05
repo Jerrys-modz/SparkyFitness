@@ -11,15 +11,6 @@ import Security
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
 
-/// The Keychain group the app shares with the widget extension, so Lock Screen
-/// and Control Center controls can read the copy. Filled in at build time from
-/// Info.plist; nil in a build without it, where only the app can read it.
-private func sharedKeychainGroup() -> String? {
-    guard let group = Bundle.main.object(forInfoDictionaryKey: "SparkyKeychainGroup") as? String,
-          !group.isEmpty, !group.contains("$(") else { return nil }
-    return group
-}
-
 public class BackgroundWaterModule: Module {
     public func definition() -> ModuleDefinition {
         Name("BackgroundWater")
@@ -30,16 +21,9 @@ public class BackgroundWaterModule: Module {
                 kSecAttrService as String: backgroundWaterService,
                 kSecAttrAccount as String: backgroundWaterAccount,
             ]
-            // Remove any copy from before the shared group existed, then the
-            // current one.
             SecItemDelete(match as CFDictionary)
-            var current = match
-            if let group = sharedKeychainGroup() {
-                current[kSecAttrAccessGroup as String] = group
-                SecItemDelete(current as CFDictionary)
-            }
             guard let json, let data = json.data(using: .utf8) else { return true }
-            var add = current
+            var add = match
             add[kSecValueData as String] = data
             // Readable after the first unlock so a Shortcut run from the lock
             // screen still works; never copied to other devices.

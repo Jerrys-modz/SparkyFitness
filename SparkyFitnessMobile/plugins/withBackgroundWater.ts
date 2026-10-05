@@ -1,7 +1,7 @@
 // "Log water without opening the app".
 //
-// iOS: adds the Siri and Shortcuts App Intents (targets/widget/ShortcutIntents.swift,
-// plus plugins/ios/ShortcutProvider.swift) to the app target; intents are only discovered from the app target, so it cannot live in
+// iOS: adds the Siri and Shortcuts App Intents (plugins/ios/ShortcutActions.swift) to the app
+// target; intents are only discovered from the app target, so it cannot live in
 // the Expo module (modules/background-water) that stores the login for it.
 //
 // Android: copies the Kotlin sources (targets/android-background-water), adds
@@ -19,19 +19,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 
-// Both are compiled into the app target. The intents live in the widget target's
-// folder because the Lock Screen controls there run the same code; the provider
-// is app-only.
-const IOS_SOURCES = [
-  {
-    from: ['targets', 'widget', 'ShortcutIntents.swift'],
-    name: 'ShortcutIntents.swift',
-  },
-  {
-    from: ['plugins', 'ios', 'ShortcutProvider.swift'],
-    name: 'ShortcutProvider.swift',
-  },
-] as const;
+const IOS_SOURCE_FILE = 'ShortcutActions.swift';
 
 const MODULE_PACKAGE = 'com.sparkyapps.sparkyfitness.backgroundwater';
 const MODULE_PACKAGE_IMPORT = `import ${MODULE_PACKAGE}.BackgroundWaterPackage`;
@@ -60,12 +48,15 @@ const withBackgroundWater: ConfigPlugin = (config) => {
       const sourceRoot = IOSConfig.Paths.getSourceRoot(
         config.modRequest.projectRoot
       );
-      for (const source of IOS_SOURCES) {
-        await fs.promises.copyFile(
-          path.join(config.modRequest.projectRoot, ...source.from),
-          path.join(sourceRoot, source.name)
-        );
-      }
+      await fs.promises.copyFile(
+        path.join(
+          config.modRequest.projectRoot,
+          'plugins',
+          'ios',
+          IOS_SOURCE_FILE
+        ),
+        path.join(sourceRoot, IOS_SOURCE_FILE)
+      );
       return config;
     },
   ]);
@@ -74,16 +65,14 @@ const withBackgroundWater: ConfigPlugin = (config) => {
     const projectName = IOSConfig.XcodeUtils.getProjectName(
       config.modRequest.projectRoot
     );
-    for (const source of IOS_SOURCES) {
-      const filepath = `${projectName}/${source.name}`;
-      if (!config.modResults.hasFile(filepath)) {
-        // Defaults to the application target, not the watch or widget targets.
-        IOSConfig.XcodeUtils.addBuildSourceFileToGroup({
-          filepath,
-          groupName: projectName,
-          project: config.modResults,
-        });
-      }
+    const filepath = `${projectName}/${IOS_SOURCE_FILE}`;
+    if (!config.modResults.hasFile(filepath)) {
+      // Defaults to the application target, not the watch or widget targets.
+      IOSConfig.XcodeUtils.addBuildSourceFileToGroup({
+        filepath,
+        groupName: projectName,
+        project: config.modResults,
+      });
     }
     return config;
   });
