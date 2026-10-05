@@ -751,8 +751,14 @@ private struct CurrentSetView: View {
         // `crownStep`, captured when the box was selected.
         .onChange(of: step.plannedSet.setId) { endCrownEditing() }
         // crownValue is a number in the unit it was selected in. Committing
-        // after the phone switches kg/lb would save that number in the new unit.
-        .onChange(of: unit) { discardCrownWeightEdit() }
+        // after the phone switches kg/lb or m/yd would save that number in the new unit.
+        .onChange(of: unit) { discardCrownEdit(for: .weight) }
+        .onChange(of: carryUnit) {
+            discardCrownEdit(for: .distance)
+            // The keypad keeps the number typed in the old unit. Dismiss it
+            // instead of letting OK write that number through the new one.
+            if editing == .distance { editing = nil }
+        }
         .onDisappear { endCrownEditing() }
         .sheet(item: $pendingRpe) { pending in
             RpePickerView { rpe in
@@ -771,7 +777,7 @@ private struct CurrentSetView: View {
             NumericKeypadView(
                 title: title(for: field),
                 initial: storedValue(for: field),
-                allowsDecimal: field == .weight,
+                allowsDecimal: field == .weight || field == .distance,
                 allowsNegative: field == .weight && store.isBodyweight(step)
             ) { entered in
                 write(entered, to: field)
@@ -918,14 +924,19 @@ private struct CurrentSetView: View {
     private func scheduleCommit() {
         guard let field = crownField else { return }
         let unitAtSchedule = unit
+        let carryUnitAtSchedule = carryUnit
         pendingCommit?.cancel()
         pendingCommit = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
-            // The unit may have changed during the wait. A weight number from
-            // the old unit must not be written through the new one.
-            guard field != .weight || unitAtSchedule == unit else {
-                discardCrownWeightEdit()
+            // The unit may have changed during the wait. A number from the
+            // old unit must not be written through the new one.
+            if field == .weight && unitAtSchedule != unit {
+                discardCrownEdit(for: .weight)
+                return
+            }
+            if field == .distance && carryUnitAtSchedule != carryUnit {
+                discardCrownEdit(for: .distance)
                 return
             }
             commitCrownValue()
@@ -953,10 +964,10 @@ private struct CurrentSetView: View {
         crownStep = nil
     }
 
-    /// Drops a weight edit without saving. Used when the display unit changes
-    /// under a selected weight box.
-    private func discardCrownWeightEdit() {
-        guard crownField == .weight else { return }
+    /// Drops an in-progress crown edit without saving. Used when the display
+    /// unit changes under a selected weight or distance box.
+    private func discardCrownEdit(for field: EditableField) {
+        guard crownField == field else { return }
         pendingCommit?.cancel()
         pendingCommit = nil
         crownField = nil
@@ -1366,6 +1377,14 @@ private struct RestView: View {
                 return "\(kind) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
             }
             return "\(kind) · \(clock)"
+        }
+        if store.isCarry(step), let km = values.distanceKm {
+            let carry = checkIn.context.effectiveCarryUnit
+            let distance = Int(carry.fromKm(km).rounded())
+            if let weight = values.weightKg {
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(distance) \(carry.suffix)"
+            }
+            return "\(step.label) · \(distance) \(carry.suffix)"
         }
         if store.isCarry(step), let km = values.distanceKm {
             let carry = checkIn.context.effectiveCarryUnit

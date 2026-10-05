@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { SET_TABLE_LAYOUT, type SetTableModality } from '@/constants/exercises';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { carryDistanceUnitLabel } from '@/utils/unitConversions';
+import { carryDistanceUnitLabel } from '@workspace/shared';
 
 interface SetColumnHeadersProps {
   modality: SetTableModality;

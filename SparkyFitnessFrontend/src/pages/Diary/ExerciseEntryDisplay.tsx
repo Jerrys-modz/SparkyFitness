@@ -17,10 +17,7 @@ import {
 import { Edit, Trash2, Settings, Play } from 'lucide-react';
 import { formatWeight } from '@/utils/numberFormatting';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import {
-  carryDistanceFromKm,
-  carryDistanceUnitLabel,
-} from '@/utils/unitConversions';
+import { carryDistanceFromKm, carryDistanceUnitLabel } from '@workspace/shared';
 import { formatMinutesToHHMM } from '@/utils/timeFormatters';
 import { ExerciseEntry, Exercise } from '@/types/exercises';
 import {
