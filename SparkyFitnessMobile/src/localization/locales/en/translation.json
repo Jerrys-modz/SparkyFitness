@@ -1060,6 +1060,8 @@
     "medicationsSubtitle": "Show the medications card on the Dashboard",
     "symptoms": "Symptoms",
     "symptomsSubtitle": "Show symptom status, active episodes, and quick logging",
+    "mood": "Mood",
+    "moodSubtitle": "Show today's mood, a 7-day trend, and quick logging",
     "healthTrends": "Health Trends",
     "healthTrendsSubtitle": "Choose which graphs show on the Dashboard and their order",
     "progressPhotos": "Progress Photos",
@@ -4929,6 +4931,11 @@
       "thoughtful": "Thoughtful",
       "tired": "Tired",
       "worried": "Worried"
+    },
+    "card": {
+      "notLogged": "No mood logged today",
+      "log": "+ Log",
+      "trend7d": "7-Day Trend"
     }
   },
   "symptoms": {

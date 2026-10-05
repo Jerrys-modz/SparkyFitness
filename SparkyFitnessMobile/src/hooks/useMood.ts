@@ -60,6 +60,22 @@ export function useMoodEntries(range: HealthTrendDateRange) {
   };
 }
 
+/** Entries between two calendar days (inclusive), with normalized dates. */
+export function useMoodEntriesBetween(startDate: string, endDate: string) {
+  const query = useQuery({
+    queryKey: moodEntriesQueryKey(startDate, endDate),
+    queryFn: () => fetchMoodEntries(startDate, endDate),
+  });
+  return useMemo<MoodEntry[]>(
+    () =>
+      (query.data ?? []).map((entry) => ({
+        ...entry,
+        entry_date: normalizeDate(entry.entry_date),
+      })),
+    [query.data]
+  );
+}
+
 /** The entry logged for one calendar day, or null when there is none. */
 export function useMoodEntryForDate(date: string) {
   const query = useQuery({
