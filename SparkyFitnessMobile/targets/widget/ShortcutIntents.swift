@@ -75,7 +75,49 @@ private func isoString(_ date: Date) -> String {
 /// Keeps the water widget's snapshot in step with a drink logged or removed from
 /// outside the app, so the widget shows it at once instead of after the app next opens.
 private enum WaterSnapshotWriter {
-    static func addDrinks(_ count: Int) {
+    /// Puts the server's answer into the snapshot. The request answers with the
+    /// day's total, which is the truth: removing a drink takes off only what
+    /// the drink button logged, so counting a drink locally can show less than
+    /// the app does. Without a usable answer it falls back to counting.
+    /// Returns the total the snapshot now holds, if it could be read.
+    @discardableResult
+    static func apply(response: Data, fallbackDrinks: Int) -> Double? {
+        if
+            let object = (try? JSONSerialization.jsonObject(with: response)) as? [String: Any],
+            let total = (object["water_ml"] as? NSNumber)?.doubleValue,
+            total >= 0
+        {
+            return write { _ in total }
+        }
+        return addDrinks(fallbackDrinks)
+    }
+
+    /// What the snapshot holds for today, if there is one.
+    static func currentTotal() -> Double? {
+        guard
+            let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+            !group.isEmpty,
+            let defaults = UserDefaults(suiteName: group),
+            let data = defaults.data(forKey: "waterSnapshot"),
+            let snapshot = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            snapshot["date"] as? String == localDateString()
+        else { return nil }
+        return snapshot["consumedMl"] as? Double
+    }
+
+    @discardableResult
+    static func addDrinks(_ count: Int) -> Double? {
+        write { snapshot in
+            guard
+                let consumed = snapshot["consumedMl"] as? Double,
+                let drinkMl = snapshot["drinkMl"] as? Double
+            else { return nil }
+            // Taking a drink off never goes below nothing.
+            return max(0, consumed + drinkMl * Double(count))
+        }
+    }
+
+    private static func write(_ newTotal: ([String: Any]) -> Double?) -> Double? {
         guard
             let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
             !group.isEmpty,
@@ -83,11 +125,9 @@ private enum WaterSnapshotWriter {
             let data = defaults.data(forKey: "waterSnapshot"),
             var snapshot = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
             snapshot["date"] as? String == localDateString(),
-            let consumed = snapshot["consumedMl"] as? Double,
-            let drinkMl = snapshot["drinkMl"] as? Double
-        else { return }
-        // Taking a drink off never goes below nothing.
-        snapshot["consumedMl"] = max(0, consumed + drinkMl * Double(count))
+            let total = newTotal(snapshot)
+        else { return nil }
+        snapshot["consumedMl"] = total
         if let updated = try? JSONSerialization.data(withJSONObject: snapshot) {
             defaults.set(updated, forKey: "waterSnapshot")
             WidgetCenter.shared.reloadTimelines(ofKind: "waterWidget")
@@ -95,6 +135,7 @@ private enum WaterSnapshotWriter {
                 ControlCenter.shared.reloadControls(ofKind: "com.sparkyapps.sparkyfitness.control.waterToday")
             }
         }
+        return total
     }
 }
 
@@ -173,7 +214,7 @@ struct LogWaterIntent: AppIntent {
             guard let containerId = config.containerId, let name = config.containerName else {
                 return .result(dialog: "Pick a water container in SparkyFitness first.")
             }
-            _ = try await ShortcutCall.send(
+            let response = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/measurements/water-intake",
                 body: [
                     "entry_date": localDateString(),
@@ -181,7 +222,7 @@ struct LogWaterIntent: AppIntent {
                     "container_id": containerId,
                 ]
             )
-            WaterSnapshotWriter.addDrinks(drinks)
+            WaterSnapshotWriter.apply(response: response, fallbackDrinks: drinks)
             let what = config.volumeLabel.map { "\(name) (\($0))" } ?? name
             return .result(dialog: "Logged \(drinks) × \(what).")
         } catch let failure as ShortcutCall.Failure {
@@ -208,7 +249,8 @@ struct RemoveWaterIntent: AppIntent {
             guard let containerId = config.containerId, let name = config.containerName else {
                 return .result(dialog: "Pick a water container in SparkyFitness first.")
             }
-            _ = try await ShortcutCall.send(
+            let before = WaterSnapshotWriter.currentTotal()
+            let response = try await ShortcutCall.send(
                 config, method: "POST", path: "/api/measurements/water-intake",
                 body: [
                     "entry_date": localDateString(),
@@ -216,7 +258,12 @@ struct RemoveWaterIntent: AppIntent {
                     "container_id": containerId,
                 ]
             )
-            WaterSnapshotWriter.addDrinks(-1)
+            let after = WaterSnapshotWriter.apply(response: response, fallbackDrinks: -1)
+            // Only drinks logged with the drink button come off. Water logged
+            // another way is left alone, and the widget keeps showing it.
+            if let before, let after, after >= before {
+                return .result(dialog: "There was no drink to remove. Water logged another way stays.")
+            }
             return .result(dialog: "Removed 1 × \(name).")
         } catch let failure as ShortcutCall.Failure {
             return .result(dialog: IntentDialog(stringLiteral: failure.message))

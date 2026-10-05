@@ -51,6 +51,8 @@ struct WaterSnapshot {
     var goalText: String { goalMl > 0 ? formatted(goalMl) : "-" }
     /// "12 / 64 oz"
     var amountText: String { "\(consumedText) / \(goalText) \(unitLabel)" }
+    /// "/ 64 oz", under the amount inside the ring.
+    var goalLineText: String { "/ \(goalText) \(unitLabel)" }
 }
 
 private struct WaterSnapshotPayload: Decodable {
@@ -132,26 +134,30 @@ private struct WaterRing: View {
 private struct LogDrinkButton: View {
     let snapshot: WaterSnapshot
 
-    private func circle(_ symbol: String, color: Color) -> some View {
+    /// Plus is the solid button; minus is the quieter tinted one.
+    private func circle(_ symbol: String, solid: Bool, enabled: Bool = true) -> some View {
         Image(systemName: symbol)
-            .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: 32, height: 32)
-            .background(Circle().fill(color))
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(solid ? Color.white : Color.blue)
+            .frame(width: 34, height: 34)
+            .background(
+                Circle().fill(solid ? Color.blue : Color.blue.opacity(0.2))
+            )
+            .opacity(enabled ? 1 : 0.4)
     }
 
     var body: some View {
         if #available(iOS 17.0, *), snapshot.canLog, snapshot.drinkMl != nil {
-            HStack(spacing: 8) {
+            HStack(spacing: 14) {
                 Button(intent: RemoveWaterIntent()) {
-                    circle("minus", color: Color.blue.opacity(snapshot.consumedMl > 0 ? 0.55 : 0.2))
+                    circle("minus", solid: false, enabled: snapshot.consumedMl > 0)
                 }
                 .buttonStyle(.plain)
                 .disabled(snapshot.consumedMl <= 0)
                 .accessibilityLabel(localizedWidgetString("widget.water.remove"))
 
                 Button(intent: LogWaterIntent()) {
-                    circle("plus", color: Color.blue)
+                    circle("plus", solid: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(localizedWidgetString("widget.water.add"))
@@ -203,17 +209,32 @@ struct waterWidgetEntryView: View {
                 // Small: the ring and the amount, with the two buttons under
                 // them when they exist.
                 let hasButtons = entry.snapshot.canLog && entry.snapshot.drinkMl != nil
-                VStack(spacing: 4) {
-                    ring(size: hasButtons ? 58 : 78, stroke: hasButtons ? 7 : 8)
-                    Text(entry.snapshot.amountText)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
+                VStack(spacing: 10) {
+                    amountRing(size: hasButtons ? 92 : 112, stroke: hasButtons ? 9 : 11)
                     LogDrinkButton(snapshot: entry.snapshot)
                 }
             }
         }
         .widgetURL(URL(string: "sparkyfitnessmobile://"))
+    }
+
+    /// The ring with the amount inside it, for the small widget.
+    private func amountRing(size: CGFloat, stroke: CGFloat) -> some View {
+        WaterRing(progress: entry.snapshot.progress, size: size, strokeWidth: stroke)
+            .overlay(
+                VStack(spacing: 0) {
+                    Text(entry.snapshot.consumedText)
+                        .font(.system(size: size * 0.27, weight: .bold, design: .rounded))
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    Text(entry.snapshot.goalLineText)
+                        .font(.system(size: size * 0.13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, stroke + 4)
+            )
     }
 
     private func ring(size: CGFloat, stroke: CGFloat) -> some View {
