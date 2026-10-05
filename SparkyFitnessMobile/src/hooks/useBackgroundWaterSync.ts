@@ -16,6 +16,7 @@ export function useBackgroundWaterSync(
   container: WaterContainer | undefined
 ): void {
   const enabled = useAppPreferencesStore((s) => s.backgroundWaterEnabled);
+  const setEnabled = useAppPreferencesStore((s) => s.setBackgroundWaterEnabled);
   const id = container?.id;
   const name = container?.name;
   const volume = container?.volume;
@@ -35,8 +36,16 @@ export function useBackgroundWaterSync(
             linked_food_id: linkedFoodId,
           }
         : undefined;
-    void syncBackgroundWater(enabled, target);
+    // Still loading: keep what the device holds rather than erasing it.
+    if (enabled && !target) return;
+    const sync = (): void => {
+      void syncBackgroundWater(enabled, target).then((stored) => {
+        // Switching off erases whatever the device kept of the failed copy.
+        if (!stored) setEnabled(false);
+      });
+    };
+    sync();
     if (!enabled) return;
-    return onAppBecameActive(() => void syncBackgroundWater(enabled, target));
-  }, [enabled, id, name, volume, unit, servings, linkedFoodId]);
+    return onAppBecameActive(sync);
+  }, [enabled, setEnabled, id, name, volume, unit, servings, linkedFoodId]);
 }

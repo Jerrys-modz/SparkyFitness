@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Platform } from 'react-native';
 import * as QuickActions from 'expo-quick-actions';
 import Toast from 'react-native-toast-message';
@@ -50,9 +51,11 @@ async function logWaterDrink(): Promise<void> {
   const date = getTodayDate();
   try {
     const containers = await fetchWaterContainers();
+    // The water control on the dashboard picks the same way, so the drink
+    // matches what the app would log.
+    const standardContainers = containers.filter((c) => !c.is_quick_add);
     const container =
-      containers.find((c) => c.is_primary) ??
-      (containers.length === 1 ? containers[0] : undefined);
+      standardContainers.find((c) => c.is_primary) ?? standardContainers[0];
     await changeWaterIntake({
       entryDate: date,
       changeDrinks: 1,
@@ -119,6 +122,9 @@ export function runQuickAction(id: string): void {
  * running.
  */
 export function useQuickActions(enabled: boolean): void {
+  // The titles are read when the items are registered, so a language change
+  // has to register them again.
+  const language = useTranslation().i18n.language;
   useEffect(() => {
     if (!enabled || Platform.OS !== 'ios') return;
     void QuickActions.setItems(quickActionItems()).catch(() => undefined);
@@ -128,5 +134,5 @@ export function useQuickActions(enabled: boolean): void {
       runQuickAction(action.id)
     );
     return () => subscription.remove();
-  }, [enabled]);
+  }, [enabled, language]);
 }
