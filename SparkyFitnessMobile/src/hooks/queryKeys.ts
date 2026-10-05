@@ -24,6 +24,8 @@ export const preferencesQueryKey = ['userPreferences'] as const;
 
 export const profileQueryKey = ['userProfile'] as const;
 
+export const accountEmailQueryKey = ['accountEmail'] as const;
+
 export const waterContainersQueryKey = ['waterContainers'] as const;
 
 /** A day's individual logged drinks — the rows behind the day's water total. */

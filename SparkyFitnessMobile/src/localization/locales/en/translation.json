@@ -152,7 +152,8 @@
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
       "ai": "AI",
-      "goals": "Goals"
+      "goals": "Goals",
+      "profile": "Profile & Account"
     },
     "theme": {
       "title": "Theme",
@@ -596,7 +597,8 @@
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
     "aiSettings": "AI",
-    "caffeine": "Caffeine"
+    "caffeine": "Caffeine",
+    "profile": "Profile"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -749,7 +751,8 @@
       "generic": "Authentication failed. Please try again.",
       "connectionRetry": "Could not connect to server. Please try again.",
       "httpsRequiredEdit": "HTTPS is required for server connections. Please edit this configuration to use HTTPS.",
-      "httpsRequiredServer": "Server connections require HTTPS."
+      "httpsRequiredServer": "Server connections require HTTPS.",
+      "resetRequestFailed": "Failed to send the reset email. Please try again."
     },
     "authenticatorApp": "Authenticator App",
     "emailCode": "Email Code",
@@ -781,7 +784,9 @@
     "removeHeader": "Remove header {{number}}",
     "hideHeaderValue": "Hide header value",
     "showHeaderValue": "Show header value",
-    "noStandardMethods": "No standard sign-in methods are currently enabled on this server. Please use an API Key or contact an administrator."
+    "noStandardMethods": "No standard sign-in methods are currently enabled on this server. Please use an API Key or contact an administrator.",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordSent": "If an account exists for that email, a reset link is on its way. Open it to choose a new password."
   },
   "onboarding": {
     "subtitle": "Your self-hosted fitness tracker",
@@ -6062,5 +6067,29 @@
       "calculateAll": "Calculate all from my profile",
       "needsProfile": "Set your sex in your profile on the web to calculate recommended nutrient goals."
     }
+  },
+  "profile": {
+    "saved": "Profile updated",
+    "saveFailed": "Could not update your profile",
+    "avatarFailed": "Could not update your photo",
+    "timezoneFailed": "Could not update your timezone",
+    "resetSent": "Reset link sent",
+    "resetSentHint": "Check {{email}} and open the link to choose a new password.",
+    "resetFailed": "Could not send the reset email",
+    "cameraPermission": "Camera permission is required",
+    "cameraPermissionHint": "Enable camera access for SparkyFitness in Settings.",
+    "changePhoto": "Change photo",
+    "takePhoto": "Take photo",
+    "chooseFromLibrary": "Choose from library",
+    "resetPassword": "Reset password",
+    "resetConfirm": "Send a password reset link to {{email}}?",
+    "sendLink": "Send link",
+    "loadFailed": "Could not load your profile",
+    "name": "Name",
+    "namePlaceholder": "Your name",
+    "birthDate": "Birth date",
+    "birthDateUnset": "Not set",
+    "timezone": "Timezone",
+    "resetPasswordSubtitle": "Email me a link to choose a new password"
   }
 }
