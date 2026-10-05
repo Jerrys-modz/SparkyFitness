@@ -80,7 +80,7 @@ private struct MealItemEstimate {
 @available(iOS 27, *)
 @Generable
 private struct MealEstimate {
-    @Guide(description: "One sentence describing the meal")
+    @Guide(description: "A short title for the meal, two to five words, such as Buffalo chicken dip and chips. Not a sentence, and not the user's own description")
     let summary: String
     @Guide(description: "Each distinct food visible on the plate, at most 8")
     let items: [MealItemEstimate]
@@ -94,7 +94,11 @@ calories and macros for that weight.
 QUANTITY
 - Estimate the amount actually shown, not a typical serving. "2 eggs" is about \
 100 g in total, and every nutrient must cover the whole amount.
-- If the user gives a total weight, make the item weights add up to it.
+- If the user gives a total weight, make the item weights add up to it. Share \
+the total by how much of each food is really there: dense foods such as dips, \
+sauces, meat, rice and cheese weigh far more than light ones such as chips, \
+bread, salad or herbs for the same amount of space. Never split it evenly just \
+because there are two items.
 
 IDENTIFY WHAT IS ACTUALLY THERE
 - Look at the photo before you decide. Describe each food by what you can see \

@@ -142,6 +142,36 @@ function toConfidence(value: string): FoodPhotoEstimateConfidence {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+const MAX_TITLE_CHARS = 40;
+
+/**
+ * The model is asked for a short title, but small models tend to echo the
+ * user's description or write a sentence. A title that long, or that reads like
+ * a sentence, is replaced by the main foods' names.
+ */
+export function mealTitle(summary: string, itemNames: string[]): string {
+  const title = summary.trim().replace(/[.\s]+$/, '');
+  const looksLikeSentence =
+    /[.!?]/.test(title) || title.split(/\s+/).length > 8;
+  if (title && title.length <= MAX_TITLE_CHARS && !looksLikeSentence) {
+    return title;
+  }
+  const names = itemNames
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (names.length === 0) return title;
+  const joined =
+    names.length === 1
+      ? names[0]!
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const text =
+    joined.length > MAX_TITLE_CHARS
+      ? `${joined.slice(0, MAX_TITLE_CHARS - 1).trimEnd()}…`
+      : joined;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function toFoodPhotoEstimate(
   r: OnDeviceMealEstimate
 ): FoodPhotoEstimateResponse {
@@ -172,7 +202,10 @@ export function toFoodPhotoEstimate(
       ? 'medium'
       : 'high';
   return {
-    meal_summary: r.summary.trim(),
+    meal_summary: mealTitle(
+      r.summary,
+      items.map((i) => i.name)
+    ),
     overall_confidence: overall,
     confidence_reason: 'Estimated on this iPhone from the photo alone.',
     items,

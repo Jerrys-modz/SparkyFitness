@@ -13,6 +13,7 @@ import mockModuleImport from '../../modules/on-device-nutrition';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import {
   buildKnownFoodsHint,
+  mealTitle,
   estimateFoodPhotoOnDevice,
   isPlausibleMealEstimate,
   isOnDeviceEstimate,
@@ -158,6 +159,19 @@ describe('onDeviceFoodPhoto', () => {
     const context = mockModule.estimateMeal.mock.calls.at(-1)?.[3] as string;
     expect(context).toContain('vegetarian');
     expect(context).toContain('Ranch Flavor Tortilla Chips');
+  });
+
+  it('keeps a short title and replaces a sentence with the main foods', () => {
+    expect(mealTitle('Chicken and rice', ['x'])).toBe('Chicken and rice');
+    expect(
+      mealTitle('A bowl of Buffalo chicken wing dip and a serving of chips.', [
+        'Buffalo chicken wing dip',
+        'chips',
+      ])
+    ).toBe('Buffalo chicken wing dip and chips');
+    expect(mealTitle('', ['eggs', 'toast', 'bacon', 'fruit'])).toBe(
+      'Eggs, toast and bacon'
+    );
   });
 
   it('builds a short, de-duplicated list of known foods', () => {
