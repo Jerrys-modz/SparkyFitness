@@ -2492,6 +2492,15 @@ async function getModalitySuggestions(
       equipment: normalizeToStringArray(row.equipment),
     });
     const currentModality = resolveExerciseModality(row.modality, row.category);
+    // Plain weight & reps is what an unrecognised name falls back to, not a
+    // finding. Never offer it over a type that was set on purpose (Hevy marks
+    // an ab wheel as reps-only, for instance).
+    if (
+      suggestedModality === 'weight_reps' &&
+      currentModality !== 'weight_reps'
+    ) {
+      continue;
+    }
     if (suggestedModality !== currentModality) {
       suggestions.push({
         id: row.id,

@@ -69,6 +69,29 @@ describe('exercise modality suggestions', () => {
     ]);
   });
 
+  it('does not offer plain weight & reps over a type that was set on purpose', async () => {
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: uuidv4(),
+          name: 'Ab Wheel',
+          category: 'strength',
+          equipment: null,
+          modality: 'reps_only',
+        },
+        {
+          id: uuidv4(),
+          name: 'Band Pullaparts',
+          category: 'strength',
+          equipment: '["bands"]',
+          modality: 'reps_only',
+        },
+      ],
+    });
+
+    expect(await exerciseService.getModalitySuggestions(uuidv4())).toEqual([]);
+  });
+
   it('applies each chosen change and reports how many rows updated', async () => {
     mockClient.query.mockResolvedValue({ rows: [{ id: uuidv4() }] });
 
