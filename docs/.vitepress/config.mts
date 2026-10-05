@@ -173,6 +173,7 @@ export default defineConfig({
             { text: 'Preferences', link: '/features/settings/preferences' },
             { text: 'Calculation Settings', link: '/features/settings/calculation-settings' },
             { text: 'External Providers', link: '/features/settings/external-providers' },
+            { text: 'Canadian Nutrient File', link: '/features/settings/canadian-nutrient-file' },
             { text: 'Liftosaur', link: '/features/settings/liftosaur' },
             { text: 'Nutrient Display', link: '/features/settings/nutrient-display-settings' },
             { text: 'Login Management', link: '/features/settings/login-management' },
