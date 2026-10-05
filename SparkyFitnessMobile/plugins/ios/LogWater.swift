@@ -6,10 +6,9 @@ import Security
 // without opening the app, then shows the result on screen. Reachable from
 // Siri, Spotlight, the Shortcuts app and the Action button.
 //
-// Opt-in. It does nothing until the user turns on "Log water without opening
-// the app" in the app, which is what puts the login in the Keychain item read
-// below (written by modules/background-water). Turning it off or signing out
-// erases that item.
+// It needs the login the app keeps in the Keychain item read below (written by
+// modules/background-water while a server is signed in). Removing the active
+// server or signing out erases that item.
 //
 // This file is added to the app target by plugins/withBackgroundWater.ts: an
 // intent has to be in the app target to be discovered. The Keychain service and
@@ -59,7 +58,7 @@ struct LogWaterIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let config = BackgroundWaterConfig.load() else {
-            return .result(dialog: "Turn on “Log water without opening the app” in SparkyFitness first.")
+            return .result(dialog: "Open SparkyFitness and sign in to a server first.")
         }
         guard let url = URL(string: config.baseUrl + "/api/measurements/water-intake") else {
             return .result(dialog: "The SparkyFitness server address is not valid.")

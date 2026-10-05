@@ -67,34 +67,28 @@ export function buildBackgroundWaterConfig(
 let syncQueue: Promise<unknown> = Promise.resolve();
 
 /**
- * Keeps the native copy of the login in step with the setting. With the
- * setting off, or no container, or no signed-in server, the copy is erased, so
- * nothing about the account stays readable outside the app.
+ * Keeps the native copy of the login in step with the signed-in server and the
+ * dashboard's container. With no container, or no signed-in server, the copy
+ * is erased, so nothing about the account stays readable outside the app.
  *
  * Runs one sync or clear at a time, in the order asked. Without this, a sync
  * waiting on the stored login could finish after a clear and write the login
- * back after the user switched the setting off.
- *
- * Resolves false when the native side refused to store the copy, so the caller
- * can switch the setting off and erase what was left.
+ * back after the server was removed.
  */
 export function syncBackgroundWater(
-  enabled: boolean,
   container: BackgroundWaterContainer | undefined
-): Promise<boolean> {
-  const run = async (): Promise<boolean> => {
-    if (!BackgroundWaterModule) return true;
+): Promise<void> {
+  const run = async (): Promise<void> => {
+    if (!BackgroundWaterModule) return;
     try {
-      const config =
-        enabled && container
-          ? buildBackgroundWaterConfig(await getActiveServerConfig(), container)
-          : null;
+      const config = container
+        ? buildBackgroundWaterConfig(await getActiveServerConfig(), container)
+        : null;
       const stored = await BackgroundWaterModule.setConfig(
         config ? JSON.stringify(config) : null
       );
       if (stored === false) {
         addLog('[Background water] The device refused to store it', 'WARNING');
-        return false;
       }
     } catch (error) {
       addLog(
@@ -102,7 +96,6 @@ export function syncBackgroundWater(
         'WARNING'
       );
     }
-    return true;
   };
   const result = syncQueue.then(run, run);
   syncQueue = result;
@@ -111,7 +104,7 @@ export function syncBackgroundWater(
 
 /** Erases the native copy, e.g. when the user signs out or removes the server. */
 export async function clearBackgroundWater(): Promise<void> {
-  await syncBackgroundWater(false, undefined);
+  await syncBackgroundWater(undefined);
 }
 
 export function onAppBecameActive(run: () => void): () => void {

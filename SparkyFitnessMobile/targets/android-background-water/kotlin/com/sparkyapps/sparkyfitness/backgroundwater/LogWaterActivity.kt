@@ -29,7 +29,7 @@ class LogWaterActivity : Activity() {
     private fun logWater(context: Context) {
         val message = try {
             val json = BackgroundWaterStore.load(context)
-                ?: return toast(context, "Turn on “Log water without opening the app” in SparkyFitness first.")
+                ?: return toast(context, "Open SparkyFitness and sign in to a server first.")
             val config = JSONObject(json)
             val baseUrl = config.getString("baseUrl")
             val containerName = config.getString("containerName")

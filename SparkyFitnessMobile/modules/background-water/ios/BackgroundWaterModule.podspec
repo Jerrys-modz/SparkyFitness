@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name           = 'BackgroundWaterModule'
   s.version        = '1.0.0'
-  s.summary        = 'Keeps the opt-in copy of the login the Log water shortcut uses.'
+  s.summary        = 'Keeps the copy of the login the Log water shortcut uses.'
   s.author         = 'SparkyFitness'
   s.homepage       = 'https://github.com/CodeWithCJ/SparkyFitness'
   s.platforms      = { :ios => '15.1' }
