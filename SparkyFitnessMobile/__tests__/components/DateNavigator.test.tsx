@@ -152,5 +152,38 @@ describe('DateNavigator action', () => {
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Wybierz datę' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Następny dzień' })).toBeTruthy();
+    await i18n.changeLanguage('en');
+  });
+
+  test('color codes past date and retains weekday date label when showDateAlways is true', () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date(2025, 0, 15, 12));
+      const screen = render(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+          }}
+        >
+          <DateNavigator
+            title="Dashboard"
+            selectedDate="2025-01-14"
+            onPreviousDay={jest.fn()}
+            onNextDay={jest.fn()}
+            onToday={jest.fn()}
+            showDateAlways
+          />
+        </SafeAreaProvider>
+      );
+
+      const dateText = screen.getByText('Tue, Jan 14');
+      expect(dateText).toBeTruthy();
+      expect(dateText.props.style).toEqual(
+        expect.objectContaining({ color: expect.any(String) })
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
