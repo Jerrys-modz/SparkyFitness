@@ -17,7 +17,17 @@ export interface MoodReport {
   loggedDays: number;
   averageValue: number | null;
   topTags: MoodTagCount[];
+  /** The days with the highest and lowest daily mood; null when fewer than two days logged. */
+  best: MoodDayPoint | null;
+  lowest: MoodDayPoint | null;
+  /** Mean daily mood per weekday (0 = Sunday), only weekdays that have data. */
+  weekdayAverages: { weekday: number; value: number }[];
 }
+
+const weekdayOf = (day: string): number => {
+  const [year, month, d] = day.split('-').map(Number);
+  return new Date(year, month - 1, d).getDay();
+};
 
 /** The emoji and display name a 0-100 mood value stands for, per the shared band model. */
 export const moodForValue = (
@@ -71,7 +81,23 @@ export function buildMoodReport(
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
     .slice(0, topTagLimit);
 
+  const logged = points.filter((point) => point.entries > 0);
+  const ranked = [...logged].sort((a, b) => a.value - b.value);
+  const byWeekday = new Map<number, number[]>();
+  for (const point of logged) {
+    const weekday = weekdayOf(point.day);
+    const list = byWeekday.get(weekday) ?? [];
+    list.push(point.value);
+    byWeekday.set(weekday, list);
+  }
+  const weekdayAverages = [...byWeekday.entries()]
+    .map(([weekday, values]) => ({ weekday, value: average(values) ?? 0 }))
+    .sort((a, b) => a.weekday - b.weekday);
+
   return {
+    best: ranked.length > 1 ? ranked[ranked.length - 1] : null,
+    lowest: ranked.length > 1 ? ranked[0] : null,
+    weekdayAverages,
     days: points,
     loggedDays: dailyAverages.length,
     averageValue: average(dailyAverages),

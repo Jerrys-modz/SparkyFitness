@@ -54,6 +54,33 @@ describe('buildMoodReport', () => {
   });
 });
 
+describe('buildMoodReport highlights', () => {
+  it('finds the best and lowest day and averages by weekday', () => {
+    // 2026-10-05 is a Monday, 2026-10-12 the next Monday.
+    const report = buildMoodReport(
+      [
+        entry('2026-10-05', 40),
+        entry('2026-10-06', 90),
+        entry('2026-10-12', 60),
+      ],
+      '2026-10-05',
+      8
+    );
+    expect(report.best?.day).toBe('2026-10-06');
+    expect(report.lowest?.day).toBe('2026-10-05');
+    expect(report.weekdayAverages).toEqual([
+      { weekday: 1, value: 50 },
+      { weekday: 2, value: 90 },
+    ]);
+  });
+
+  it('has no best or lowest day with a single logged day', () => {
+    const report = buildMoodReport([entry('2026-10-05', 40)], '2026-10-05', 3);
+    expect(report.best).toBeNull();
+    expect(report.lowest).toBeNull();
+  });
+});
+
 describe('moodTagLabel', () => {
   it('keeps a custom mood literal', () => {
     expect(moodTagLabel('my-own-mood')).toBe('my-own-mood');

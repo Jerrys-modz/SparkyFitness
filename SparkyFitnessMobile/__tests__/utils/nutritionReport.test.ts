@@ -1,0 +1,95 @@
+import {
+  buildNutritionInsights,
+  percentChange,
+} from '../../src/utils/nutritionReport';
+import type { NutritionTrendPoint } from '../../src/services/api/reportsApi';
+
+const point = (
+  date: string,
+  calories: number,
+  extra: Partial<NutritionTrendPoint> = {}
+): NutritionTrendPoint =>
+  ({
+    date,
+    calories,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    dietary_fiber: 0,
+    sugars: 0,
+    sodium: 0,
+    water_ml: 0,
+    caffeine_mg: 0,
+    alcohol_g: 0,
+    ...extra,
+  }) as NutritionTrendPoint;
+
+describe('buildNutritionInsights', () => {
+  it('leaves unlogged days out of averages and counts logged days', () => {
+    const insights = buildNutritionInsights(
+      [point('d1', 2000), point('d2', 0), point('d3', 1000)],
+      [],
+      [null, null, null]
+    );
+    expect(insights.loggedDays).toBe(2);
+    expect(insights.averages?.calories).toBe(1500);
+    expect(insights.highest).toEqual({ day: 'd1', calories: 2000 });
+    expect(insights.lowest).toEqual({ day: 'd3', calories: 1000 });
+  });
+
+  it('splits macro calories 4/4/9 into shares that sum to 100', () => {
+    const insights = buildNutritionInsights(
+      [point('d1', 2000, { protein: 100, carbs: 200, fat: 50 })],
+      [],
+      [2000]
+    );
+    const split = insights.macroSplit!;
+    expect(split.proteinPct + split.carbsPct + split.fatPct).toBeCloseTo(100);
+    expect(Math.round(split.fatPct)).toBe(27);
+  });
+
+  it('classifies logged days against a ±10% goal band', () => {
+    const insights = buildNutritionInsights(
+      [point('d1', 2000), point('d2', 2500), point('d3', 1500), point('d4', 0)],
+      [],
+      [2000, 2000, 2000, 2000]
+    );
+    expect(insights.goal).toMatchObject({
+      daysWithGoal: 3,
+      onTarget: 1,
+      over: 1,
+      under: 1,
+    });
+    expect(insights.goal.averageDifference).toBeCloseTo(0);
+  });
+
+  it('only lists extra nutrients that were logged', () => {
+    const insights = buildNutritionInsights(
+      [point('d1', 2000, { dietary_fiber: 30, sodium: 2000 })],
+      [],
+      [null]
+    );
+    expect(insights.extras.map((e) => e.key)).toEqual([
+      'dietary_fiber',
+      'sodium',
+    ]);
+  });
+
+  it('takes the previous window average over its logged days', () => {
+    const insights = buildNutritionInsights(
+      [point('d1', 2000)],
+      [point('p1', 1000), point('p2', 0), point('p3', 3000)],
+      [null]
+    );
+    expect(insights.previousAverageCalories).toBe(2000);
+  });
+});
+
+describe('percentChange', () => {
+  it('rounds to whole percent and returns null without a baseline', () => {
+    expect(percentChange(1100, 1000)).toBe(10);
+    expect(percentChange(900, 1000)).toBe(-10);
+    expect(percentChange(1000, null)).toBeNull();
+    expect(percentChange(1000, 0)).toBeNull();
+  });
+});

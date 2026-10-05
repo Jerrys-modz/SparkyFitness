@@ -83,4 +83,34 @@ describe('buildSleepAnalytics', () => {
     expect(analytics.nightsWithData).toBe(0);
     expect(analytics.averages.hrv).toBeNull();
   });
+
+  it('reports time asleep in hours and efficiency against time in bed', () => {
+    const analytics = buildSleepAnalytics(
+      [
+        night('2026-10-01', {
+          time_asleep_in_seconds: 7 * 3600,
+          duration_in_seconds: 8 * 3600,
+        }),
+      ],
+      '2026-10-01',
+      1
+    );
+    expect(analytics.averages.duration).toBe(7);
+    expect(analytics.efficiencyPct).toBeCloseTo(87.5);
+  });
+
+  it('has no bedtime variability until three nights are in', () => {
+    const two = buildSleepAnalytics(
+      [night('2026-10-01'), night('2026-10-02')],
+      '2026-10-01',
+      2
+    );
+    expect(two.bedtimeVariabilityMinutes).toBeNull();
+    const three = buildSleepAnalytics(
+      [night('2026-10-01'), night('2026-10-02'), night('2026-10-03')],
+      '2026-10-01',
+      3
+    );
+    expect(three.bedtimeVariabilityMinutes).toBe(0);
+  });
 });

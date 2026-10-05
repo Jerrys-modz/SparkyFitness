@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useMoodReport } from '../hooks/useMoodReport';
-import { formatLocalizedNumber } from '../localization';
+import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
 import TrendBarChart from '../components/TrendBarChart';
@@ -13,7 +13,7 @@ import {
   moodTagLabel,
   type MoodDayPoint,
 } from '../utils/moodReport';
-import type { TrendRange } from '../utils/trendRange';
+import { TREND_RANGE_DAYS, type TrendRange } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type MoodReportScreenProps = RootStackScreenProps<'MoodReport'>;
@@ -23,7 +23,10 @@ const getMoodValue = (point: MoodDayPoint) => point.value;
 const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
   const { t } = useTranslation();
   const [range, setRange] = useState<TrendRange>('30d');
-  const { report, isLoading, isError } = useMoodReport({ range });
+  const { report, previousReport, isLoading, isError } = useMoodReport({
+    range,
+  });
+  const days = TREND_RANGE_DAYS[range];
 
   const header = useScreenHeader({
     title: t('moodReport.title', { defaultValue: 'Mood' }),
@@ -45,6 +48,44 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
   const averageMood =
     report?.averageValue != null ? moodForValue(report.averageValue) : null;
 
+  const previousAverage = previousReport?.averageValue ?? null;
+  const averageDiff =
+    report?.averageValue != null && previousAverage !== null
+      ? Math.round(report.averageValue - previousAverage)
+      : null;
+  const averageHint =
+    averageDiff === null
+      ? undefined
+      : t('moodReport.changeHint', {
+          defaultValue: '{{change}} vs previous {{days}} days',
+          change: `${averageDiff > 0 ? '+' : ''}${formatLocalizedNumber(averageDiff)}`,
+          days,
+        });
+
+  const dayRow = (
+    label: string,
+    point: MoodDayPoint | null,
+    testID: string
+  ) => {
+    const mood = point ? moodForValue(point.value) : null;
+    return point
+      ? [
+          {
+            label,
+            value: mood ? `${mood.emoji} ${mood.name}` : '-',
+            hint: formatTooltipDate(point.day),
+            testID,
+          },
+        ]
+      : [];
+  };
+
+  const weekdayName = (weekday: number) =>
+    // 2000-01-02 was a Sunday, so day 2 + weekday lands on that weekday.
+    new Date(2000, 0, 2 + weekday).toLocaleDateString(getAppLocale(), {
+      weekday: 'long',
+    });
+
   const rows = [
     {
       label: t('moodReport.averageMood', { defaultValue: 'Average mood' }),
@@ -54,6 +95,7 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
               Math.round(report.averageValue)
             )}`
           : '-',
+      hint: averageHint,
       testID: 'mood-average',
     },
     {
@@ -88,6 +130,38 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
             title={t('moodReport.summary', { defaultValue: 'Summary' })}
             rows={rows}
           />
+          {report.best ? (
+            <ReportSummaryCard
+              title={t('moodReport.highlights', { defaultValue: 'Highlights' })}
+              rows={[
+                ...dayRow(
+                  t('moodReport.bestDay', { defaultValue: 'Best day' }),
+                  report.best,
+                  'mood-best-day'
+                ),
+                ...dayRow(
+                  t('moodReport.lowestDay', { defaultValue: 'Lowest day' }),
+                  report.lowest,
+                  'mood-lowest-day'
+                ),
+              ]}
+            />
+          ) : null}
+          {report.weekdayAverages.length > 1 ? (
+            <ReportSummaryCard
+              title={t('moodReport.byWeekday', {
+                defaultValue: 'Average by weekday',
+              })}
+              rows={report.weekdayAverages.map(({ weekday, value }) => {
+                const mood = moodForValue(value);
+                return {
+                  label: weekdayName(weekday),
+                  value: mood ? `${mood.emoji} ${mood.name}` : '-',
+                  testID: `mood-weekday-${weekday}`,
+                };
+              })}
+            />
+          ) : null}
           {report.topTags.length > 0 ? (
             <ReportSummaryCard
               title={t('moodReport.topMoods', { defaultValue: 'Most logged' })}

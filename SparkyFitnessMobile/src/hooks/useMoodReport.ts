@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { fetchMoodEntries } from '../services/api/moodApi';
+import { addDays } from '../utils/dateUtils';
 import { buildMoodReport } from '../utils/moodReport';
 import {
   TREND_RANGE_DAYS,
@@ -9,21 +11,45 @@ import {
 import { moodEntriesQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
+/** Mood for a window and the one before it, so the report can show the change. */
 export function useMoodReport({ range }: { range: TrendRange }) {
+  const days = TREND_RANGE_DAYS[range];
   const { startDate, endDate } = trendRangeBounds(range);
+  const previousEnd = addDays(startDate, -1);
+  const previousStart = addDays(previousEnd, -(days - 1));
 
-  const query = useQuery({
-    queryKey: moodEntriesQueryKey(startDate, endDate),
-    queryFn: () => fetchMoodEntries(startDate, endDate),
-    select: (entries) =>
-      buildMoodReport(entries, startDate, TREND_RANGE_DAYS[range]),
+  const [current, previous] = useQueries({
+    queries: [
+      {
+        queryKey: moodEntriesQueryKey(startDate, endDate),
+        queryFn: () => fetchMoodEntries(startDate, endDate),
+      },
+      {
+        queryKey: moodEntriesQueryKey(previousStart, previousEnd),
+        queryFn: () => fetchMoodEntries(previousStart, previousEnd),
+      },
+    ],
   });
 
-  useRefetchOnFocus(query.refetch);
+  useRefetchOnFocus(current.refetch);
+
+  const report = useMemo(
+    () =>
+      current.data ? buildMoodReport(current.data, startDate, days) : null,
+    [current.data, startDate, days]
+  );
+  const previousReport = useMemo(
+    () =>
+      previous.data
+        ? buildMoodReport(previous.data, previousStart, days)
+        : null,
+    [previous.data, previousStart, days]
+  );
 
   return {
-    report: query.data ?? null,
-    isLoading: query.isLoading,
-    isError: query.isError,
+    report,
+    previousReport,
+    isLoading: current.isLoading,
+    isError: current.isError,
   };
 }
