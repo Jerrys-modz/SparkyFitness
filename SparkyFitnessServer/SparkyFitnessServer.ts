@@ -122,7 +122,7 @@ import { upsertEnvOidcProvider } from './utils/oidcEnvConfig.js';
 import userRepository from './models/userRepository.js';
 import genericHealthRoutes from './routes/genericHealthRoutes.js';
 
-import { getClientIp, clientIpMiddleware } from './utils/clientIp.js';
+import { clientIpMiddleware } from './utils/clientIp.js';
 import ipaddr from 'ipaddr.js';
 
 import { fileURLToPath } from 'url';
