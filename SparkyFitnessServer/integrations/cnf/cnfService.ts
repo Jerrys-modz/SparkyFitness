@@ -396,29 +396,12 @@ export async function searchCanadianNutrientFoods(
           );
         }
 
-        const defaultVariant = {
-          serving_size: 100,
-          serving_unit: 'g',
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0,
-          provider_nutrients: {},
-          provider_nutrient_units: {},
-          is_default: true,
-        };
-        return {
-          name: item.food_description,
-          brand: 'Canadian Nutrient File',
-          provider_external_id: String(item.food_code),
-          provider_type: 'canadian-nutrient-file' as const,
-          is_custom: false,
-          default_variant: defaultVariant,
-          variants: [defaultVariant],
-        };
+        return null;
       })
     );
-    mappedFoods.push(...chunkResults);
+    mappedFoods.push(
+      ...chunkResults.filter((food): food is CnfFoodDetail => food !== null)
+    );
   }
 
   return {
@@ -479,10 +462,13 @@ export async function getCanadianNutrientFoodDetails(
       throw new Error(`CNF nutrient API returned status ${nutrientRes.status}`);
     }
 
-    const rawNutrients = (await nutrientRes.json().catch(() => [])) as unknown;
-    const nutrientItems = Array.isArray(rawNutrients)
-      ? (rawNutrients as CnfNutrientItem[])
-      : [];
+    const rawNutrients = (await nutrientRes.json()) as unknown;
+    if (!Array.isArray(rawNutrients)) {
+      throw new Error(
+        'Invalid response format from CNF nutrient API: expected an array'
+      );
+    }
+    const nutrientItems = rawNutrients as CnfNutrientItem[];
 
     const rawServings = servingRes.ok
       ? ((await servingRes.json().catch(() => [])) as unknown)

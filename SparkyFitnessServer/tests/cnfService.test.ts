@@ -273,4 +273,69 @@ describe('cnfService - searchCanadianNutrientFoods & getCanadianNutrientFoodDeta
     const details = await getCanadianNutrientFoodDetails('571', 'en');
     expect(details.default_variant.calories).toBe(150);
   });
+
+  it('omits foods from search results when their detail request fails', async () => {
+    // 1st call for food directory (2 matches)
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { food_code: 101, food_description: 'Valid Apple' },
+        { food_code: 102, food_description: 'Broken Apple' },
+      ],
+    });
+    // Detail calls for food 101 (nutrient + serving)
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          food_code: 101,
+          nutrient_name_id: 208,
+          nutrient_value: 52,
+          nutrient_web_name: 'Energy (kcal)',
+        },
+      ],
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          conversion_factor_value: 1,
+          food_code: 101,
+          measure_name: '100g',
+        },
+      ],
+    });
+    // Detail call for food 102 (nutrient API fails with 500)
+    mockFetch.mockResolvedValueOnce({
+      status: 500,
+      ok: false,
+    });
+    mockFetch.mockResolvedValueOnce({
+      status: 500,
+      ok: false,
+    });
+
+    const result = await searchCanadianNutrientFoods('Apple', 1, 10);
+    // Broken apple must be omitted, not returned with 0 calories
+    expect(result.foods).toHaveLength(1);
+    expect(result.foods[0].name).toBe('Valid Apple');
+    expect(result.foods[0].default_variant.calories).toBe(52);
+  });
+
+  it('throws an error if nutrient API returns a non-array response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      json: async () => ({ error: 'Not an array' }),
+    });
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      json: async () => [],
+    });
+
+    await expect(getCanadianNutrientFoodDetails('999', 'en')).rejects.toThrow(
+      'Invalid response format from CNF nutrient API: expected an array'
+    );
+  });
 });
