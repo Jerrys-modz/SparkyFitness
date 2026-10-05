@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useCSSVariable } from 'uniwind';
 import Icon from '../Icon';
 import type { TreatmentEffectiveness } from '@workspace/shared';
 
@@ -50,6 +51,7 @@ export default function TreatmentsSection({
   onChange,
 }: TreatmentsSectionProps) {
   const { t } = useTranslation();
+  const [textMuted] = useCSSVariable(['--color-text-muted']) as [string];
   const [newTreatmentName, setNewTreatmentName] = useState('');
   const [newTreatmentKind, setNewTreatmentKind] = useState<
     'medication' | 'relief'
@@ -104,7 +106,7 @@ export default function TreatmentsSection({
       {treatments.map((treatment, idx) => (
         <View
           key={idx}
-          className="bg-card border border-border p-3 rounded-xl space-y-2"
+          className="bg-surface border border-border p-3 rounded-xl space-y-2"
         >
           <View className="flex-row justify-between items-center">
             <View className="flex-row items-center space-x-2 flex-1">
@@ -115,7 +117,7 @@ export default function TreatmentsSection({
                 size={16}
                 color={treatment.kind === 'medication' ? '#3b82f6' : '#10b981'}
               />
-              <Text className="text-sm font-semibold text-foreground flex-1">
+              <Text className="text-sm font-semibold text-text-primary flex-1">
                 {treatment.name_snapshot}
               </Text>
             </View>
@@ -140,13 +142,13 @@ export default function TreatmentsSection({
                           ? 'bg-amber-600 border-amber-600'
                           : opt.value === 'none'
                             ? 'bg-rose-600 border-rose-600'
-                            : 'bg-blue-600 border-blue-600'
+                            : 'bg-accent-primary border-accent-primary'
                       : 'bg-background border-border'
                   }`}
                 >
                   <Text
                     className={`text-[10px] font-bold ${
-                      isSelected ? 'text-white' : 'text-muted-foreground'
+                      isSelected ? 'text-white' : 'text-text-muted'
                     }`}
                   >
                     {renderEffectivenessLabel(opt.value)}
@@ -159,22 +161,24 @@ export default function TreatmentsSection({
       ))}
 
       {/* Add new treatment input */}
-      <View className="bg-card/50 border border-border p-3 rounded-xl space-y-2">
+      <View className="bg-surface/50 border border-border p-3 rounded-xl space-y-2">
         <View className="flex-row items-center space-x-2">
           <TextInput
             placeholder={t('symptoms.addTreatmentPlaceholder', {
               defaultValue: 'Add medicine or relief method...',
             })}
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={textMuted || '#94a3b8'}
             value={newTreatmentName}
             onChangeText={setNewTreatmentName}
-            className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+            className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-text-primary"
           />
           <TouchableOpacity
             onPress={handleAdd}
             disabled={!newTreatmentName.trim()}
             className={`px-3 py-2 rounded-lg items-center justify-center ${
-              newTreatmentName.trim() ? 'bg-primary' : 'bg-muted opacity-50'
+              newTreatmentName.trim()
+                ? 'bg-accent-primary'
+                : 'bg-raised opacity-50'
             }`}
           >
             <Icon name="add" size={18} color="#ffffff" />
@@ -195,7 +199,7 @@ export default function TreatmentsSection({
               className={`text-xs ${
                 newTreatmentKind === 'relief'
                   ? 'text-emerald-500 font-semibold'
-                  : 'text-muted-foreground'
+                  : 'text-text-muted'
               }`}
             >
               {t('symptoms.kinds.relief', {
@@ -207,15 +211,15 @@ export default function TreatmentsSection({
             onPress={() => setNewTreatmentKind('medication')}
             className={`px-3 py-1 rounded-full border ${
               newTreatmentKind === 'medication'
-                ? 'bg-blue-600/20 border-blue-500'
+                ? 'bg-accent-primary/20 border-accent-primary'
                 : 'bg-transparent border-border'
             }`}
           >
             <Text
               className={`text-xs ${
                 newTreatmentKind === 'medication'
-                  ? 'text-blue-500 font-semibold'
-                  : 'text-muted-foreground'
+                  ? 'text-accent-primary font-semibold'
+                  : 'text-text-muted'
               }`}
             >
               {t('symptoms.kinds.medication', { defaultValue: 'Medication' })}

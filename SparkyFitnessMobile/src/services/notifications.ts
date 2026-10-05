@@ -22,9 +22,13 @@ const HYDRATION_CHANNEL_ID = 'hydration';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
-function notificationCopy(key: string, defaultValue: string): string {
+function notificationCopy(
+  key: string,
+  defaultValue: string,
+  options?: Record<string, unknown>
+): string {
   // i18n-audit-ignore-next-line dynamic-i18n-key -- all call sites use literal notification catalog keys.
-  return i18n.t(key, { defaultValue });
+  return i18n.t(key, { defaultValue, ...options });
 }
 
 const REST_COMPLETE_CATEGORY = 'rest-complete';
@@ -36,6 +40,7 @@ const REST_COMPLETE_CATEGORY = 'rest-complete';
 export const COMPLETE_SET_ACTION = 'complete-set';
 
 export const MEDICATION_REMINDER_CATEGORY = 'medication-reminder';
+export const MEDICATION_REMINDER_GROUP_CATEGORY = 'medication-reminder-group';
 export const MEDICATION_TAKEN_ACTION = 'medication-taken';
 export const MEDICATION_SKIP_ACTION = 'medication-skip';
 
@@ -95,6 +100,27 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       options: { opensAppToForeground: false },
     },
   ]);
+  await Notifications.setNotificationCategoryAsync(
+    MEDICATION_REMINDER_GROUP_CATEGORY,
+    [
+      {
+        identifier: MEDICATION_TAKEN_ACTION,
+        buttonTitle: notificationCopy(
+          'notifications.actions.logAllAsTaken',
+          'Log all as taken'
+        ),
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: MEDICATION_SKIP_ACTION,
+        buttonTitle: notificationCopy(
+          'notifications.actions.skipAll',
+          'Skip all'
+        ),
+        options: { opensAppToForeground: false },
+      },
+    ]
+  );
   await Notifications.setNotificationCategoryAsync(
     MEDICATION_REMINDER_CATEGORY,
     [
@@ -495,6 +521,56 @@ export async function scheduleFastGoalNotification(
   } catch (err) {
     addLog(
       `scheduleFastGoalNotification failed: ${(err as Error).message}`,
+      'ERROR'
+    );
+    return null;
+  }
+}
+
+/**
+ * Schedules a notification 30 minutes (or custom minutes) prior to fasting goal completion.
+ */
+export async function scheduleFastPreEndNotification(
+  targetEndTime: string,
+  preEndMinutes: number = 30
+): Promise<string | null> {
+  const prefs = useAppPreferencesStore.getState();
+  if (!prefs.notificationsEnabled || !prefs.fastingGoalNotificationsEnabled)
+    return null;
+
+  const target = new Date(targetEndTime);
+  const preEnd = new Date(target.getTime() - preEndMinutes * 60 * 1000);
+  if (Number.isNaN(preEnd.getTime()) || preEnd.getTime() <= Date.now()) {
+    return null;
+  }
+
+  const granted = await ensureNotificationPermission();
+  if (!granted) return null;
+
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: notificationCopy(
+          'notifications.fastingPreEnd.title',
+          'Fasting goal ending soon'
+        ),
+        body: notificationCopy(
+          'notifications.fastingPreEnd.body',
+          `Your fast will reach its goal in ${preEndMinutes} minutes.`,
+          { minutes: preEndMinutes }
+        ),
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: preEnd,
+        channelId: FASTING_CHANNEL_ID,
+      },
+    });
+    return id;
+  } catch (err) {
+    addLog(
+      `scheduleFastPreEndNotification failed: ${(err as Error).message}`,
       'ERROR'
     );
     return null;

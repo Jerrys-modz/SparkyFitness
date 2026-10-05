@@ -84,6 +84,16 @@ jest.mock('../../src/components/ActiveWorkoutSetDetail', () => {
   };
 });
 
+// Body weight only matters to bodyweight exercises; the card must not need a
+// QueryClient for it in these tests.
+const mockUseBodyWeightKg = jest.fn(
+  (_date: unknown, _enabled: boolean) => null
+);
+jest.mock('../../src/hooks/useBodyWeightKg', () => ({
+  useBodyWeightKg: (date: unknown, enabled: boolean) =>
+    mockUseBodyWeightKg(date, enabled),
+}));
+
 jest.mock('../../src/hooks/useExerciseStats', () => ({
   useExerciseStats: jest.fn(() => ({ data: null })),
 }));
@@ -244,6 +254,29 @@ describe('ActiveWorkoutExerciseCard', () => {
       expect(utils.getByText('kg')).toBeTruthy();
       expect(utils.getByText('Reps')).toBeTruthy();
       expect(utils.queryByText('Sec')).toBeNull();
+    });
+
+    it('explains a bodyweight exercise with the body weight it counts', () => {
+      mockUseBodyWeightKg.mockReturnValue(90.7 as never);
+      const utils = renderCard(true, {
+        exercise: withModality('bodyweight_reps'),
+      });
+      expect(utils.getByTestId('bodyweight-banner')).toBeTruthy();
+      expect(utils.getByText(/counts your body weight \(/)).toBeTruthy();
+      expect(utils.getByText(/minus sign for assistance/)).toBeTruthy();
+      mockUseBodyWeightKg.mockReturnValue(null as never);
+    });
+
+    it('asks for a body weight when none is logged', () => {
+      const utils = renderCard(true, {
+        exercise: withModality('bodyweight_reps'),
+      });
+      expect(utils.getByText(/Log a body weight/)).toBeTruthy();
+    });
+
+    it('shows no bodyweight banner on a weighted exercise', () => {
+      const utils = renderCard(true, { exercise: withModality('weight_reps') });
+      expect(utils.queryByTestId('bodyweight-banner')).toBeNull();
     });
 
     it('drops the kg column for reps_only', () => {
@@ -1015,6 +1048,40 @@ describe('ActiveWorkoutExerciseCard', () => {
       // The trophy icon replaces the "Best" label visually; the accessible
       // name keeps the word.
       expect(getByLabelText('Best 100 × 5')).toBeTruthy();
+    });
+
+    it('shows an unweighted bodyweight rep PR as +0', () => {
+      mockUseExerciseStats.mockReturnValue({
+        data: {
+          bestSet: { weight: null, reps: 8, setNumber: 1 },
+          lastSet: null,
+        },
+      });
+      const exercise = makeExercise({
+        exercise_snapshot: {
+          ...makeExercise().exercise_snapshot!,
+          modality: 'bodyweight_reps',
+        } as never,
+        sets: [{ ...makeExercise().sets[0], id: 101, weight: null, reps: 12 }],
+      });
+      const { getByText, queryByText } = renderCard(true, {
+        mode: 'live',
+        exercise,
+        prSetIds: { '101': true },
+      });
+      expect(getByText('0 × 12')).toBeTruthy();
+      expect(queryByText('0 × 8')).toBeNull();
+    });
+
+    it('keeps a null-weight best hidden for a weighted exercise', () => {
+      mockUseExerciseStats.mockReturnValue({
+        data: {
+          bestSet: { weight: null, reps: 8, setNumber: 1 },
+          lastSet: null,
+        },
+      });
+      const { queryByTestId } = renderCard(true, { mode: 'live' });
+      expect(queryByTestId('icon-trophy-outline')).toBeNull();
     });
 
     it('surfaces the stamped session record when a set earned a PR', () => {

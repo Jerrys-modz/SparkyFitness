@@ -265,7 +265,9 @@
     "actions": {
       "completeSet": "Complete Set",
       "logAsTaken": "Log as taken",
-      "skip": "Skip"
+      "logAllAsTaken": "Log all as taken",
+      "skip": "Skip",
+      "skipAll": "Skip all"
     },
     "permission": {
       "notificationsOff": "Notifications off",
@@ -288,6 +290,10 @@
     "fasting": {
       "title": "Fasting goal reached",
       "body": "You've hit your fasting goal. Great work!"
+    },
+    "fastingPreEnd": {
+      "title": "Fasting goal ending soon",
+      "body": "Your fast will reach its goal in {{minutes}} minutes."
     },
     "hydration": {
       "title": "Time to hydrate 💧",
@@ -426,6 +432,7 @@
     "setRow": {
       "changeType": "Change type for set {{setNumber}}",
       "delete": "Delete set {{setNumber}}",
+      "distance": "Distance",
       "duration": "Duration",
       "log": "Log set {{setNumber}}",
       "reps": "Reps",
@@ -1087,6 +1094,8 @@
     "repeatRemindersSubtitle": "Repeat each reminder every 10 minutes, up to 3 times, until the dose is logged.",
     "hideMedicationNames": "Hide Medication Names",
     "hideMedicationNamesSubtitle": "Show a generic reminder instead of the medication name and dose.",
+    "consolidateReminders": "Consolidate Reminders",
+    "consolidateRemindersSubtitle": "Group medications scheduled for the same time into a single notification.",
     "hydration": "Hydration",
     "waterReminders": "Water Reminders",
     "waterRemindersSubtitle": "Remind you to drink when you haven't logged water in a while.",
@@ -1360,6 +1369,11 @@
     },
     "notificationScheduledDose": "You have a scheduled dose",
     "notificationScheduledDoseNamed": "Scheduled dose: {{name}}{{dose}}",
+    "notificationScheduledDoses_one": "You have {{count}} scheduled dose",
+    "notificationScheduledDoses_other": "You have {{count}} scheduled doses",
+    "notificationScheduledDosesNamed": "Scheduled doses: {{names}}",
+    "notificationScheduledDosesOverflow_one": "Scheduled doses: {{names}}, and {{count}} more",
+    "notificationScheduledDosesOverflow_other": "Scheduled doses: {{names}}, and {{count}} more",
     "inactiveA11y_one": "Inactive medication ({{count}})",
     "inactiveA11y_other": "Inactive medications ({{count}})",
     "inactiveCount_one": "Inactive ({{count}})",
@@ -1705,6 +1719,7 @@
     "trackingType": "Tracking Type",
     "modalityWeightReps": "Weight & Reps",
     "modalityReps": "Reps",
+    "modalityBodyweight": "Bodyweight (+/− weight)",
     "modalityDuration": "Duration",
     "modalityDurationDistance": "Duration & Distance",
     "levelBeginner": "Beginner",
@@ -1784,6 +1799,8 @@
     "workoutPresetCount_other": "{{formattedCount}} exercises",
     "metricVolumeShort": "Vol",
     "metricE1rmShort": "1RM",
+    "bodyweightBanner": "Bodyweight exercise: counts your body weight ({{bodyWeight}} {{unit}}) plus the weight you enter. Use a minus sign for assistance.",
+    "bodyweightBannerNoWeight": "Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume can be calculated.",
     "metricTenrmShort": "10RM",
     "kg": "kg",
     "lbs": "lbs",
@@ -1800,7 +1817,9 @@
     "setOf_one": "Set {{number}} of {{count}}",
     "setOf_other": "Set {{number}} of {{count}}",
     "repCount_one": "{{formattedCount}} rep",
-    "repCount_other": "{{formattedCount}} reps"
+    "repCount_other": "{{formattedCount}} reps",
+    "modalityWeightDistance": "Weight & Distance (carries)",
+    "modalityWeightDuration": "Weight & Duration (loaded holds)"
   },
   "cycleCard": {
     "mode": {
@@ -1860,10 +1879,17 @@
   },
   "fastingCard": {
     "title": "Fasting",
+    "auto": "Auto",
+    "autoFromMeal": "Auto · {{meal}}",
+    "eatingWindow": "Eating Window",
+    "eatingWindowOpen": "Eating Window",
+    "eatingWindowMeal": "Window · {{meal}}",
+    "eatingWindowProgress": "{{remaining}} remaining in eating window",
     "openDetails": "Open fasting details",
     "viewHistory": "View fasting history",
     "history": "History",
     "viewDetails": "View details",
+    "details": "Details",
     "goalProgress": "{{remaining}} to your {{goal}}h goal",
     "goalReached": "Goal reached · {{goal}}h",
     "elapsed": "{{elapsed}} elapsed",
@@ -2971,6 +2997,32 @@
   },
   "fastingDetail": {
     "title": "Fasting",
+    "tabs": {
+      "fasting": "Fasting",
+      "history": "History"
+    },
+    "startedAt": "Started {{time}}",
+    "targetAt": "Target {{time}}",
+    "closesAt": "Closes {{time}}",
+    "eatingBands": {
+      "open": {
+        "name": "Window Open",
+        "shortName": "Open"
+      },
+      "fuel": {
+        "name": "Optimal Fuel",
+        "shortName": "Fuel"
+      },
+      "sustain": {
+        "name": "Mid Window",
+        "shortName": "Sustain"
+      },
+      "closing": {
+        "name": "Window Closing",
+        "shortName": "Closing"
+      }
+    },
+    "metabolicState": "Metabolic State",
     "metabolicStages": "Metabolic Stages",
     "now": "now",
     "remaining": "{{percent}}% · {{time}} left",
@@ -2986,6 +3038,12 @@
     "noActiveFast": "No active fast",
     "startDescription": "Start a fast to track your fasting window and metabolic stages.",
     "startFast": "Start Fast",
+    "eatingWindowOpen": "Eating Window Open",
+    "remainingInEatingWindow": "Remaining in your eating window",
+    "eatingWindowHint": "Fasting will automatically resume after your eating window closes.",
+    "startFastEarly": "Start Fasting Now",
+    "eatingWindowOpened": "Window opened",
+    "eatingWindowCloses": "Window closes",
     "range": "{{start}}–{{end}} {{unit}}",
     "rangeOpen": "{{start}} {{unit}}+",
     "stages": {
@@ -3614,10 +3672,6 @@
     "onDeviceFoodPhoto": {
       "title": "Estimate Food Photos On Device",
       "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider."
-    },
-    "onDeviceLabelScan": {
-      "title": "Scan Labels On Device",
-      "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
     },
     "openFacts": {
       "title": "Adjust Open Food Facts Values",
@@ -5772,13 +5826,18 @@
     "server": {
       "title": "Server AI provider",
       "loading": "Checking…",
+      "error": "Could not check the AI provider.",
       "none": "No AI provider is configured",
       "description": "Used for food photos and label scans unless an on-device option below handles them. Providers are set up in the web app."
     },
     "onDevice": {
       "title": "On-device (Apple Intelligence)",
       "description": "These run on this phone. Anything the on-device model cannot handle falls back to the server provider.",
-      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready."
+      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready.",
+      "labelScan": {
+        "title": "Scan Labels On Device",
+        "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
+      }
     }
   }
 }
