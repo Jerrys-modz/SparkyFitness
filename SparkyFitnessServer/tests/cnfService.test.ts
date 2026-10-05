@@ -338,4 +338,32 @@ describe('cnfService - searchCanadianNutrientFoods & getCanadianNutrientFoodDeta
       'Invalid response format from CNF nutrient API: expected an array'
     );
   });
+
+  it('returns food details with default serving when serving-size request rejects', async () => {
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      json: async () => [
+        {
+          food_code: 888,
+          nutrient_name_id: 208,
+          nutrient_value: 120,
+          nutrient_web_name: 'Energy (kcal)',
+        },
+      ],
+    });
+    mockFetch.mockRejectedValueOnce(new Error('Network connection reset'));
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { food_code: 888, food_description: 'Resilient Food' },
+      ],
+    });
+
+    const details = await getCanadianNutrientFoodDetails('888', 'en');
+    expect(details.name).toBe('Resilient Food');
+    expect(details.default_variant.calories).toBe(120);
+    expect(details.default_variant.serving_size).toBe(100);
+    expect(details.default_variant.serving_unit).toBe('g');
+  });
 });

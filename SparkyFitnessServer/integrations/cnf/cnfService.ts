@@ -455,6 +455,14 @@ export async function getCanadianNutrientFoodDetails(
           Accept: 'application/json',
           'User-Agent': 'SparkyFitness/1.0',
         },
+      }).catch((err) => {
+        log(
+          'warn',
+          `[CNF] Failed to fetch serving sizes for food ${foodCode}: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+        return null;
       }),
     ]);
 
@@ -470,7 +478,7 @@ export async function getCanadianNutrientFoodDetails(
     }
     const nutrientItems = rawNutrients as CnfNutrientItem[];
 
-    const rawServings = servingRes.ok
+    const rawServings = servingRes?.ok
       ? ((await servingRes.json().catch(() => [])) as unknown)
       : [];
     const servingItems = Array.isArray(rawServings)
