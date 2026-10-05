@@ -611,7 +611,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // same pattern `WCSessionDelegate`'s callbacks use above.
         workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm, measuredAt in
             Task { @MainActor in
-                workoutStore?.recordHeartRate(bpm: bpm)
+                workoutStore?.recordHeartRate(bpm: bpm, measuredAt: measuredAt)
                 self?.sendLiveHeartRate(bpm, measuredAt: measuredAt)
             }
         }
@@ -1266,7 +1266,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         workoutHealthKit.stop(onBuffered: { [weak self] samples in
             MainActor.assumeIsolated {
-                guard let self, let closing else { return }
+                guard let self else { return }
+                self.workoutStore.recordFinalHeartRate(self.heartRateReadings(samples))
+                guard let closing else { return }
                 self.sendHeartRateBatch(
                     samples,
                     exerciseEntryId: closing.id,
@@ -1303,11 +1305,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 let next = self.pendingPlan
                 self.pendingPlan = nil
                 self.pendingSendStop = false
-                self.workoutStore.recordFinalHeartRate(
-                    samples.compactMap { sample in
-                        self.instantParser.date(from: sample.t).map { (at: $0, bpm: sample.bpm) }
-                    }
-                )
+                self.workoutStore.recordFinalHeartRate(self.heartRateReadings(samples))
                 let summary = next == nil ? self.workoutStore.makeSummary() : nil
                 self.workoutStore.reset()
                 self.workoutStore.recordSummary(summary)
@@ -1316,6 +1314,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     self.beginPlan(next)
                 }
             }
+        }
+    }
+
+    /// Measurement instants of a heart-rate batch, for the summary totals.
+    private func heartRateReadings(_ samples: [HeartRateSample]) -> [(at: Date, bpm: Double)] {
+        samples.compactMap { sample in
+            instantParser.date(from: sample.t).map { (at: $0, bpm: sample.bpm) }
         }
     }
 }
