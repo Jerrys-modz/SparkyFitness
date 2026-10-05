@@ -215,6 +215,18 @@ describe('onDeviceLabelScan', () => {
     ).toBe(true);
   });
 
+  it('rejects an optional value that only matches another nutrient', () => {
+    expect(
+      isGroundedInLabelText(
+        label({
+          fiber: 4,
+          ocr_text:
+            'Serving size 40g\nCalories 180\nProtein 4g\nCarbs 26g\nFat 7g',
+        })
+      )
+    ).toBe(false);
+  });
+
   it('does not trust values when no text was recognised', () => {
     expect(isGroundedInLabelText(label({ ocr_text: '' }))).toBe(false);
     expect(isGroundedInLabelText(label())).toBe(false);

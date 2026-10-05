@@ -73,6 +73,7 @@ const realIpHeader = ref<
   "none" | "CF-Connecting-IP" | "X-Forwarded-For" | "True-Client-IP"
 >("none");
 const trustedProxyHops = ref("1");
+const trustedProxies = ref("");
 const allowPrivateNetworkCors = ref(false);
 const extraTrustedOrigins = ref("");
 
@@ -234,11 +235,13 @@ function applyPreset(preset: "simple" | "full") {
     enableGarmin.value = false;
     garminIsCn.value = false;
     realIpHeader.value = "none";
+    trustedProxies.value = "";
   } else if (preset === "full") {
     customFrontendUrl.value = "https://fitness.example.com";
     allowPrivateNetworkCors.value = false;
     realIpHeader.value = "CF-Connecting-IP";
     trustedProxyHops.value = "1";
+    trustedProxies.value = "";
     enableNetworkNginx.value = true;
     enableDbIdentity.value = true;
     enableServerRuntime.value = true;
@@ -467,6 +470,9 @@ NGINX_LISTEN_PORT=${nginxListenPort.value}
       out += `SPARKY_FITNESS_REAL_IP_HEADER=${realIpHeader.value}\n`;
     } else {
       out += `SPARKY_FITNESS_TRUSTED_PROXY_HOPS=${trustedProxyHops.value}\n`;
+    }
+    if (trustedProxies.value.trim()) {
+      out += `SPARKY_FITNESS_TRUSTED_PROXIES=${trustedProxies.value.trim()}\n`;
     }
   }
 
@@ -1730,7 +1736,10 @@ onMounted(() => {
                 placeholder="127.0.0.11"
               />
               <span class="field-hint"
-                >DNS server for dynamic upstream resolution. Defaults to auto-detecting nameservers from <code>/etc/resolv.conf</code> (Docker default: <code>127.0.0.11</code>).</span
+                >DNS server for dynamic upstream resolution. Defaults to
+                auto-detecting nameservers from
+                <code>/etc/resolv.conf</code> (Docker default:
+                <code>127.0.0.11</code>).</span
               >
             </div>
             <div class="form-group">
@@ -1771,8 +1780,30 @@ onMounted(() => {
                 placeholder="1"
               />
               <span class="field-hint"
-                >Number of proxy layers between client and server. Default:
-                <code>1</code>.</span
+                >Number of reverse proxy layers between client and backend.
+                Default: <code>1</code> (bundled frontend Nginx). Behind an
+                external reverse proxy (e.g. NPM, Traefik, Caddy), set to
+                <code>2</code>.</span
+              >
+            </div>
+            <div class="form-group" v-if="realIpHeader === 'none'">
+              <label
+                >Trusted Proxy CIDRs
+                <code class="var-badge"
+                  >SPARKY_FITNESS_TRUSTED_PROXIES</code
+                ></label
+              >
+              <input
+                v-model="trustedProxies"
+                type="text"
+                class="text-input"
+                placeholder="192.168.1.50, 172.20.0.0/16"
+              />
+              <span class="field-hint"
+                >Enter only trusted proxy IPs or a proxy-only subnet (e.g.
+                <code>192.168.1.50, 172.20.0.0/16</code>). Every host in a
+                trusted range can forward client IPs; avoid broad private
+                ranges.</span
               >
             </div>
           </div>

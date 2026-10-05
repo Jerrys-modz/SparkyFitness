@@ -81,10 +81,21 @@ function parsePrintedNumber(printed: string): number {
 }
 
 const NUTRIENT_LABELS: { key: string; pattern: RegExp }[] = [
+  { key: 'serving_size', pattern: /\b(?:serving|portion)\s+size\b/gi },
   { key: 'calories', pattern: /\b(?:calories?|energy)\b/gi },
   { key: 'protein', pattern: /\bproteins?\b/gi },
   { key: 'carbs', pattern: /\b(?:carbohydrates?|carbs?)\b/gi },
   { key: 'fat', pattern: /\bfat\b/gi },
+  { key: 'fiber', pattern: /\b(?:dietary\s+)?fiber\b/gi },
+  { key: 'saturated_fat', pattern: /\bsaturated\s+fat\b/gi },
+  { key: 'trans_fat', pattern: /\btrans\s+fat\b/gi },
+  { key: 'sodium', pattern: /\bsodium\b/gi },
+  { key: 'added_sugars', pattern: /\badded\s+sugars?\b/gi },
+  { key: 'sugars', pattern: /\b(?:total\s+)?sugars?\b/gi },
+  { key: 'cholesterol', pattern: /\bcholesterol\b/gi },
+  { key: 'potassium', pattern: /\bpotassium\b/gi },
+  { key: 'calcium', pattern: /\bcalcium\b/gi },
+  { key: 'iron', pattern: /\biron\b/gi },
 ];
 
 function nutrientHits(text: string): { key: string; index: number }[] {
@@ -93,6 +104,14 @@ function nutrientHits(text: string): { key: string; index: number }[] {
     pattern.lastIndex = 0;
     for (const match of text.matchAll(pattern)) {
       const index = match.index ?? 0;
+      if (
+        key === 'sugars' &&
+        /\badded\s+$/.test(
+          text.slice(Math.max(0, index - 16), index).toLowerCase()
+        )
+      ) {
+        continue;
+      }
       if (key === 'fat') {
         const before = text.slice(Math.max(0, index - 16), index).toLowerCase();
         if (/(?:saturated|trans)\s*$/.test(before)) continue;
@@ -143,27 +162,29 @@ function per100ColumnIsFirst(text: string): boolean | null {
 export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
   const text = r.ocr_text?.trim();
   if (!text) return false;
-  const printed = printedNumbers(text);
   if (
     !r.values_are_per_100 &&
     typeof r.serving_size === 'number' &&
     r.serving_size > 0 &&
-    !printed.includes(r.serving_size)
+    !numbersBeside(text, 'serving_size').includes(r.serving_size)
   ) {
     return false;
   }
-  for (const value of [
-    r.fiber,
-    r.saturated_fat,
-    r.trans_fat,
-    r.sodium,
-    r.sugars,
-    r.cholesterol,
-    r.potassium,
-    r.calcium,
-    r.iron,
-  ]) {
-    if (value !== null && !printed.includes(value)) return false;
+  const optionalFields: [string, number | null][] = [
+    ['fiber', r.fiber],
+    ['saturated_fat', r.saturated_fat],
+    ['trans_fat', r.trans_fat],
+    ['sodium', r.sodium],
+    ['sugars', r.sugars],
+    ['cholesterol', r.cholesterol],
+    ['potassium', r.potassium],
+    ['calcium', r.calcium],
+    ['iron', r.iron],
+  ];
+  for (const [key, value] of optionalFields) {
+    if (value !== null && !numbersBeside(text, key).includes(value)) {
+      return false;
+    }
   }
   const per100First = per100ColumnIsFirst(text);
   const fields: [string, number | null][] = [
