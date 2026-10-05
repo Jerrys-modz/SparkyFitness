@@ -184,6 +184,16 @@ function WatchCheckInGate() {
 }
 
 /**
+ * Home Screen long-press shortcuts (iOS). Needs a server connection, since
+ * "Log water" posts straight to the server.
+ */
+function QuickActionsGate() {
+  const { isConnected: isServerConnected } = useServerConnection();
+  useQuickActions(isServerConnected);
+  return null;
+}
+
+/**
  * Unlike `WatchCheckInGate`, listeners stay up while the server is offline
  * so a set or heart-rate batch is not dropped. The /health poll only runs
  * when WatchConnectivity is available and a telemetry buffer still needs a
@@ -413,6 +423,7 @@ function AppContent() {
       }}
     >
       <WatchCheckInGate />
+      <QuickActionsGate />
       <WatchWorkoutGate />
       <VisualIntelligenceGate />
       <SafeAreaProvider>

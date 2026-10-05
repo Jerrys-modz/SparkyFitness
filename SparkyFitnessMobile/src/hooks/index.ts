@@ -26,6 +26,7 @@ export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
 export { useWatchFastingBridge } from './useWatchFastingBridge';
 export { useQuickActions } from './useQuickActions';
 export { useWatchPlanSync } from './useWatchPlanSync';
+export { useQuickActions } from './useQuickActions';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
