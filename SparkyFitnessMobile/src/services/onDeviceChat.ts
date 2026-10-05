@@ -8,6 +8,7 @@ import {
 } from './dailySummaryService';
 import type { DailySummary } from '../types/dailySummary';
 import { addLog } from './LogService';
+import { isOnDeviceLabelScanAvailable } from './onDeviceLabelScan';
 import { getTodayDate } from '../utils/dateUtils';
 import {
   buildChatContext,
@@ -97,6 +98,13 @@ export {
   MAX_CHAT_TURNS,
 } from '../utils/onDeviceChatContext';
 export type { OnDeviceChatTurn };
+
+export function isOnDeviceChatAvailable(): boolean {
+  return (
+    typeof OnDeviceNutritionModule?.chat === 'function' &&
+    isOnDeviceLabelScanAvailable()
+  );
+}
 
 let toolListenerAttached = false;
 

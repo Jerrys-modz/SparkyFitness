@@ -588,7 +588,9 @@
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "reports": "Reports",
-      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends"
+      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends",
+      "exerciseStatistics": "Exercise statistics",
+      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",

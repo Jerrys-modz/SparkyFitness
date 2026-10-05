@@ -41,6 +41,7 @@ import PresetSearchScreen from '../screens/PresetSearchScreen';
 import CalorieSettingsScreen from '../screens/CalorieSettingsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
+import AiSettingsScreen from '../screens/AiSettingsScreen';
 import FoodSettingsScreen from '../screens/FoodSettingsScreen';
 import AiSettingsScreen from '../screens/AiSettingsScreen';
 import AllergenSettingsScreen from '../screens/AllergenSettingsScreen';
@@ -149,6 +150,7 @@ export const SafeChat = withErrorBoundary(ChatScreen, 'Chat', { canGoBack: true 
 export const SafeGoals = withErrorBoundary(GoalsScreen, 'Goals', { canGoBack: true });
 export const SafeCalorieSettings = withErrorBoundary(CalorieSettingsScreen, 'CalorieSettings', { canGoBack: true });
 export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'MealTypeSettings', { canGoBack: true });
+export const SafeAiSettings = withErrorBoundary(AiSettingsScreen, 'AiSettings', { canGoBack: true });
 export const SafeFoodSettings = withErrorBoundary(FoodSettingsScreen, 'FoodSettings', { canGoBack: true });
 export const SafeAiSettings = withErrorBoundary(AiSettingsScreen, 'AiSettings', { canGoBack: true });
 export const SafeAllergenSettings = withErrorBoundary(AllergenSettingsScreen, 'AllergenSettings', { canGoBack: true });

@@ -18,6 +18,18 @@ export interface NativeServerTool {
   parameters: string;
 }
 
+export const SERVER_TOOL_CATEGORIES = [
+  'food',
+  'exercise',
+  'checkin',
+  'goals',
+  'reports',
+  'coaching',
+  'vision',
+  'profile',
+  'medications',
+] as const;
+
 /** Prefix that tells the tool bridge a call belongs to the server. */
 export const SERVER_TOOL_PREFIX = 'server:';
 

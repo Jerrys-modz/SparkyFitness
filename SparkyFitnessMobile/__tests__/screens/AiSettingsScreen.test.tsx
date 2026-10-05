@@ -72,12 +72,11 @@ describe('AiSettingsScreen', () => {
 
   it('turns the on-device options on and off', () => {
     const { getByTestId } = renderScreen();
+    fireEvent(getByTestId('ai-chat-switch'), 'valueChange', true);
     fireEvent(getByTestId('ai-food-photo-switch'), 'valueChange', true);
-    expect(getByTestId('ai-label-scan-switch').props.accessibilityLabel).toBe(
-      'Scan Labels On Device'
-    );
     fireEvent(getByTestId('ai-label-scan-switch'), 'valueChange', true);
     const s = useAppPreferencesStore.getState();
+    expect(s.onDeviceChatEnabled).toBe(true);
     expect(s.onDeviceFoodPhotoEnabled).toBe(true);
     expect(s.onDeviceLabelScanEnabled).toBe(true);
   });
@@ -85,8 +84,25 @@ describe('AiSettingsScreen', () => {
   it('hides the toggles where Apple Intelligence is unavailable', () => {
     mockAvailable = false;
     const { queryByTestId, getByText } = renderScreen();
-    expect(queryByTestId('ai-food-photo-switch')).toBeNull();
+    expect(queryByTestId('ai-chat-switch')).toBeNull();
     expect(getByText(/Not available on this device/)).toBeTruthy();
+  });
+
+  it('picks the chat model and shows the private servers status', () => {
+    const { getByText, getByTestId } = renderScreen();
+    expect(getByTestId('ai-cloud-status').props.children).toContain(
+      'Available'
+    );
+    fireEvent.press(getByText('Apple servers'));
+    expect(useAppPreferencesStore.getState().onDeviceChatModel).toBe('cloud');
+    fireEvent.press(getByText('Auto'));
+    expect(useAppPreferencesStore.getState().onDeviceChatModel).toBe('auto');
+  });
+
+  it('hides the model choice on a system without the private servers', () => {
+    mockCloudStatus = 'unsupported';
+    const { queryByTestId } = renderScreen();
+    expect(queryByTestId('ai-cloud-status')).toBeNull();
   });
 
   it('says why on-device AI is unavailable', () => {
@@ -100,6 +116,23 @@ describe('AiSettingsScreen', () => {
     const { getByTestId } = renderScreen();
     fireEvent.changeText(getByTestId('ai-about-you-input'), 'vegetarian');
     expect(useAppPreferencesStore.getState().aiUserContext).toBe('vegetarian');
+  });
+
+  it('switches chat tools to the server and picks its groups', () => {
+    const { getByText, getByTestId, queryByTestId } = renderScreen();
+    expect(queryByTestId('ai-tool-category-food')).toBeNull();
+    fireEvent.press(getByText('From server'));
+    expect(useAppPreferencesStore.getState().onDeviceChatToolSource).toBe(
+      'server'
+    );
+    fireEvent(getByTestId('ai-tool-category-reports'), 'valueChange', true);
+    expect(
+      useAppPreferencesStore.getState().onDeviceChatServerCategories
+    ).toContain('reports');
+    fireEvent(getByTestId('ai-tool-category-food'), 'valueChange', false);
+    expect(
+      useAppPreferencesStore.getState().onDeviceChatServerCategories
+    ).not.toContain('food');
   });
 
   it('shows which on-device model is in use and its window', () => {

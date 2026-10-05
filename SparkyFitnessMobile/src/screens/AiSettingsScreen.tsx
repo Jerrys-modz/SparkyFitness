@@ -6,10 +6,15 @@ import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import Switch from '../components/ui/Switch';
+import OnDeviceChatDebugPanel from '../components/OnDeviceChatDebugPanel';
+import SegmentedControl from '../components/SegmentedControl';
 import {
+  getCloudChatStatus,
   getOnDeviceModelInfo,
   getOnDeviceStatus,
 } from '../services/onDeviceChat';
+import { SERVER_TOOL_CATEGORIES } from '../services/onDeviceServerTools';
+import type { OnDeviceChatModel } from '../../modules/on-device-nutrition';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { isOnDeviceLabelScanAvailable } from '../services/onDeviceLabelScan';
@@ -75,7 +80,28 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const setOnDeviceFoodPhotoEnabled = useAppPreferencesStore(
     (s) => s.setOnDeviceFoodPhotoEnabled
   );
+  const onDeviceChatEnabled = useAppPreferencesStore(
+    (s) => s.onDeviceChatEnabled
+  );
+  const setOnDeviceChatEnabled = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatEnabled
+  );
+  const onDeviceChatModel = useAppPreferencesStore((s) => s.onDeviceChatModel);
+  const setOnDeviceChatModel = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatModel
+  );
+  const toolSource = useAppPreferencesStore((s) => s.onDeviceChatToolSource);
+  const setToolSource = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatToolSource
+  );
+  const serverCategories = useAppPreferencesStore(
+    (s) => s.onDeviceChatServerCategories
+  );
+  const setServerCategory = useAppPreferencesStore(
+    (s) => s.setOnDeviceChatServerCategory
+  );
   const onDeviceAvailable = useMemo(() => isOnDeviceLabelScanAvailable(), []);
+  const cloudStatus = useMemo(() => getCloudChatStatus(), []);
   const onDeviceStatus = useMemo(() => getOnDeviceStatus(), []);
   const modelInfo = useMemo(() => getOnDeviceModelInfo(), []);
   const aiUserContext = useAppPreferencesStore((s) => s.aiUserContext);
@@ -97,6 +123,21 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
         'The on-device model is still downloading. Try again in a while.',
     }),
   };
+  const cloudStatusText: Record<string, string> = {
+    available: t('aiSettings.chatModel.status.available', {
+      defaultValue: 'Available',
+    }),
+    quotaLimitReached: t('aiSettings.chatModel.status.quotaLimitReached', {
+      defaultValue: 'Usage limit reached for now. It will use this phone.',
+    }),
+    deviceNotEligible: t('aiSettings.chatModel.status.deviceNotEligible', {
+      defaultValue: 'Not available on this device.',
+    }),
+    systemNotReady: t('aiSettings.chatModel.status.systemNotReady', {
+      defaultValue: 'Not ready yet. Check that Apple Intelligence is set up.',
+    }),
+  };
+
   const header = useScreenHeader({
     title: t('screens.aiSettings', { defaultValue: 'AI' }),
     left: { kind: 'back' },
@@ -142,7 +183,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
           <Text className="text-text-secondary text-sm mt-2">
             {t('aiSettings.server.description', {
               defaultValue:
-                'Used for food photos and label scans unless an on-device option below handles them. Providers are set up in the web app.',
+                'Used for chat, food photos and label scans unless an on-device option below handles them. Providers are set up in the web app.',
             })}
           </Text>
         </View>
@@ -196,6 +237,18 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               value={onDeviceFoodPhotoEnabled}
               onValueChange={setOnDeviceFoodPhotoEnabled}
             />
+            <ToggleCard
+              testID="ai-chat-switch"
+              title={t('foodSettings.onDeviceChat.title', {
+                defaultValue: 'Sparky Chat On Device',
+              })}
+              description={t('foodSettings.onDeviceChat.description', {
+                defaultValue:
+                  'Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log food, water or weight, or delete an entry. It is less capable than your server AI provider and the chat is saved to your Sparky history like the others.',
+              })}
+              value={onDeviceChatEnabled}
+              onValueChange={setOnDeviceChatEnabled}
+            />
             <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
               <Text className="text-base font-semibold text-text-primary mb-1">
                 {t('aiSettings.aboutYou.title', { defaultValue: 'About you' })}
@@ -203,7 +256,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               <Text className="text-text-secondary text-sm mb-2">
                 {t('aiSettings.aboutYou.description', {
                   defaultValue:
-                    'Optional notes the on-device AI keeps in mind, such as vegetarian, no dairy, or a usual portion. They are used for meal photos and stay on this phone.',
+                    'Optional notes the on-device AI keeps in mind, such as vegetarian, no dairy, or a usual portion. They are used for chat and meal photos and stay on this phone.',
                 })}
               </Text>
               <TextInput
@@ -220,6 +273,107 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
                 style={{ textAlignVertical: 'top' }}
               />
             </View>
+            {cloudStatus !== 'unsupported' && (
+              <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+                <Text className="text-base font-semibold text-text-primary mb-3">
+                  {t('aiSettings.chatModel.title', {
+                    defaultValue: 'Chat model',
+                  })}
+                </Text>
+                <SegmentedControl<OnDeviceChatModel>
+                  segments={[
+                    {
+                      key: 'device',
+                      label: t('aiSettings.chatModel.device', {
+                        defaultValue: 'This phone',
+                      }),
+                    },
+                    {
+                      key: 'auto',
+                      label: t('aiSettings.chatModel.auto', {
+                        defaultValue: 'Auto',
+                      }),
+                    },
+                    {
+                      key: 'cloud',
+                      label: t('aiSettings.chatModel.cloud', {
+                        defaultValue: 'Apple servers',
+                      }),
+                    },
+                  ]}
+                  activeKey={onDeviceChatModel}
+                  onSelect={setOnDeviceChatModel}
+                />
+                <Text
+                  testID="ai-cloud-status"
+                  className="text-text-secondary text-sm mt-3"
+                >
+                  {t('aiSettings.chatModel.statusLabel', {
+                    defaultValue: 'Apple private servers: {{status}}',
+                    status: cloudStatusText[cloudStatus] ?? cloudStatus,
+                  })}
+                </Text>
+                <Text className="text-text-secondary text-sm mt-2">
+                  {t('aiSettings.chatModel.description', {
+                    defaultValue:
+                      'This phone keeps everything on the device. Auto uses this phone and moves to Apple’s Private Cloud Compute only when a conversation is too long for it. Apple servers always uses Private Cloud Compute, so your messages and diary snapshot leave the phone; Apple says it does not store them. Apple limits how much each person can use.',
+                  })}
+                </Text>
+              </View>
+            )}
+            <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+              <Text className="text-base font-semibold text-text-primary mb-3">
+                {t('aiSettings.tools.title', { defaultValue: 'Chat tools' })}
+              </Text>
+              <SegmentedControl<'builtin' | 'server'>
+                segments={[
+                  {
+                    key: 'builtin',
+                    label: t('aiSettings.tools.builtin', {
+                      defaultValue: 'Built-in',
+                    }),
+                  },
+                  {
+                    key: 'server',
+                    label: t('aiSettings.tools.server', {
+                      defaultValue: 'From server',
+                    }),
+                  },
+                ]}
+                activeKey={toolSource}
+                onSelect={setToolSource}
+              />
+              <Text className="text-text-secondary text-sm mt-3">
+                {toolSource === 'server'
+                  ? t('aiSettings.tools.serverDescription', {
+                      defaultValue:
+                        'The server lends the chat the same tools your other AI providers use, for the groups switched on below. Every tool that could change something asks you first. Each group adds to what the model has to read, so keep the list short. Needs a server with this feature; otherwise the built-in tools are used.',
+                    })
+                  : t('aiSettings.tools.builtinDescription', {
+                      defaultValue:
+                        'A small set of tools written into the app. Switch individual ones off under Chat testing.',
+                    })}
+              </Text>
+              {toolSource === 'server' &&
+                SERVER_TOOL_CATEGORIES.map((slug) => (
+                  <View
+                    key={slug}
+                    className="flex-row items-center justify-between py-2"
+                  >
+                    <Text className="text-text-primary text-sm">
+                      {t(`aiSettings.tools.categories.${slug}`, {
+                        defaultValue: slug,
+                      })}
+                    </Text>
+                    <Switch
+                      testID={`ai-tool-category-${slug}`}
+                      value={serverCategories.includes(slug)}
+                      onValueChange={(on) => setServerCategory(slug, on)}
+                    />
+                  </View>
+                ))}
+            </View>
+            <OnDeviceChatDebugPanel />
           </>
         ) : (
           <Text className="text-text-secondary text-sm">
