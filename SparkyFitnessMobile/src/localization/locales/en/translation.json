@@ -150,7 +150,8 @@
       "logs": "View Logs",
       "about": "About",
       "shareReport": "Share Diagnostic Report",
-      "watch": "Apple Watch"
+      "watch": "Apple Watch",
+      "goals": "Goals"
     },
     "theme": {
       "title": "Theme",
@@ -5808,6 +5809,24 @@
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
       "underOneMinute": "<1 min"
+    }
+  },
+  "goals": {
+    "title": "Goals",
+    "description": "Daily targets that apply from today onward. Past days keep their goals.",
+    "loading": "Loading goals…",
+    "loadFailed": "Could not load your goals.",
+    "saveFailed": "Failed to save goals.",
+    "invalidValue": "Enter a valid number for every goal.",
+    "fields": {
+      "calories": "Calories (kcal)",
+      "protein": "Protein (g)",
+      "carbs": "Carbs (g)",
+      "fat": "Fat (g)",
+      "fiber": "Fiber (g)",
+      "water": "Water (ml)",
+      "exerciseCalories": "Exercise calories (kcal)",
+      "exerciseMinutes": "Exercise duration (min)"
     }
   }
 }
