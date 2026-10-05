@@ -5537,6 +5537,9 @@
     "stateHidden": "Hidden"
   },
   "watchSettings": {
+    "gesturesTitle": "Gestures",
+    "doubleTapTitle": "Double-tap to log a set",
+    "doubleTapSubtitle": "Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.",
     "pagesTitle": "Pages",
     "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
     "reorder": "Reorder {{name}}",
