@@ -99,6 +99,36 @@ describe('exercise modality suggestions', () => {
     expect(await exerciseService.getModalitySuggestions(uuidv4())).toEqual([]);
   });
 
+  it('still offers distance for bike and aerobics cardio by name', async () => {
+    const bikeId = uuidv4();
+    const aerobicsId = uuidv4();
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: bikeId,
+          name: 'Air Bike',
+          category: 'cardio',
+          equipment: null,
+          modality: 'duration',
+        },
+        {
+          id: aerobicsId,
+          name: 'Aerobics',
+          category: 'cardio',
+          equipment: null,
+          modality: 'duration',
+        },
+      ],
+    });
+
+    const suggestions = await exerciseService.getModalitySuggestions(uuidv4());
+
+    expect(suggestions.map((s) => [s.id, s.suggestedModality])).toEqual([
+      [bikeId, 'duration_distance'],
+      [aerobicsId, 'duration_distance'],
+    ]);
+  });
+
   it('applies each chosen change and reports how many rows updated', async () => {
     mockClient.query.mockResolvedValue({ rows: [{ id: uuidv4() }] });
 

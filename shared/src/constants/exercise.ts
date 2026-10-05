@@ -124,7 +124,7 @@ const CARRY_NAME =
 const HOLD_NAME =
   /\b(planks?|side planks?|dead hangs?|bar hangs?|passive hangs?|active hangs?|wall sits?|l[- ]?sits?|hollow (body )?holds?|isometric holds?|static holds?|glute bridge holds?|iso holds?)\b/;
 const CARDIO_NAME =
-  /\b(running|jogging|treadmill|cycling|elliptical|swimming|stair ?climber|stair ?master|ski ?erg|assault bike|rowing machine|rower|spin bike|stationary bike)\b/;
+  /\b(running|jogging|treadmill|cycling|elliptical|swimming|stair ?climber|stair ?master|ski ?erg|assault bike|air bike|aerobics?|rowing machine|rower|spin bike|stationary bike)\b/;
 
 /**
  * Infer a modality from the exercise name as well as its category and
@@ -139,24 +139,37 @@ export function inferExerciseModality(input: {
   category?: string | null;
   equipment?: readonly (string | null | undefined)[] | string | null;
 }): ExerciseModality {
-  const name = input.name?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
-  if (name !== "") {
-    const weighted = /\b(weighted|loaded|with weight|plate|vest)\b/.test(name);
-    if (/\bassisted\b/.test(name) || /\bband[- ]assisted\b/.test(name)) {
-      return "bodyweight_reps";
-    }
-    if (CARRY_NAME.test(name)) return "weight_distance";
-    if (HOLD_NAME.test(name)) {
-      return weighted ? "weight_duration" : "duration";
-    }
-    if (weighted && ASSISTED_OR_WEIGHTED_BODYWEIGHT.test(name)) {
-      return "bodyweight_reps";
-    }
-    if (CARDIO_NAME.test(name) && !/\bbarbell\b|\bdumbbell\b/.test(name)) {
-      return "duration_distance";
-    }
+  return (
+    modalityFromName(input.name) ??
+    deriveExerciseModality(input.category, input.equipment)
+  );
+}
+
+/**
+ * The modality a name rule gives, or null when no rule matches. Callers that
+ * need to know whether a type is a firm finding or only a category/equipment
+ * guess use this directly.
+ */
+export function modalityFromName(
+  rawName: string | null | undefined,
+): ExerciseModality | null {
+  const name = rawName?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+  if (name === "") return null;
+  const weighted = /\b(weighted|loaded|with weight|plate|vest)\b/.test(name);
+  if (/\bassisted\b/.test(name) || /\bband[- ]assisted\b/.test(name)) {
+    return "bodyweight_reps";
   }
-  return deriveExerciseModality(input.category, input.equipment);
+  if (CARRY_NAME.test(name)) return "weight_distance";
+  if (HOLD_NAME.test(name)) {
+    return weighted ? "weight_duration" : "duration";
+  }
+  if (weighted && ASSISTED_OR_WEIGHTED_BODYWEIGHT.test(name)) {
+    return "bodyweight_reps";
+  }
+  if (CARDIO_NAME.test(name) && !/\bbarbell\b|\bdumbbell\b/.test(name)) {
+    return "duration_distance";
+  }
+  return null;
 }
 
 /**
