@@ -127,6 +127,27 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
+          {t('watchSettings.gesturesTitle', { defaultValue: 'Gestures' })}
+        </Text>
+        <SettingsRow
+          title={t('watchSettings.doubleTapTitle', {
+            defaultValue: 'Double-tap to log a set',
+          })}
+          subtitle={t('watchSettings.doubleTapSubtitle', {
+            defaultValue:
+              'Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              testID="watch-double-tap-switch"
+              value={watchDoubleTapEnabled}
+              onValueChange={setWatchDoubleTapEnabled}
+            />
+          }
+        />
+
+        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
           {t('watchSettings.setInputTitle', { defaultValue: 'Set input' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">
@@ -154,26 +175,6 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
           onSelect={setWatchSetInputStyle}
         />
 
-        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
-          {t('watchSettings.gesturesTitle', { defaultValue: 'Gestures' })}
-        </Text>
-        <SettingsRow
-          title={t('watchSettings.doubleTapTitle', {
-            defaultValue: 'Double-tap to log a set',
-          })}
-          subtitle={t('watchSettings.doubleTapSubtitle', {
-            defaultValue:
-              'Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.',
-          })}
-          subtitleNumberOfLines={0}
-          rightAccessory={
-            <Switch
-              testID="watch-double-tap-switch"
-              value={watchDoubleTapEnabled}
-              onValueChange={setWatchDoubleTapEnabled}
-            />
-          }
-        />
         <SettingsRow
           title={t('watchSettings.hrZonesTitle', {
             defaultValue: 'Heart-rate zone colours',

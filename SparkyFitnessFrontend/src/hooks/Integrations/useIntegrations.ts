@@ -621,6 +621,7 @@ export const useDisconnectGoogleHealthMutation = () => {
 };
 
 export const useManualSyncGoogleHealthMutation = () => {
+  const { t } = useTranslation();
   const invalidateSyncData = useDiaryInvalidation();
 
   return useMutation({
@@ -628,6 +629,12 @@ export const useManualSyncGoogleHealthMutation = () => {
       handleManualSyncGoogleHealth(startDate, endDate, mock),
     onSuccess: () => {
       invalidateSyncData();
+    },
+    meta: {
+      errorMessage: t(
+        'integrations.googleHealthSyncError',
+        'Google Health sync did not finish.'
+      ),
     },
   });
 };

@@ -5568,6 +5568,7 @@
     "garminLoginSuccess": "Garmin connected successfully.",
     "googleHealthLinkError": "Failed to link Google Health account.",
     "googleHealthLinkSuccess": "Google Health account successfully linked!",
+    "googleHealthSyncError": "Google Health sync did not finish.",
     "hevyExercisesRemoveError": "Could not remove the imported Hevy exercises.",
     "hevyExercisesRemoveSuccess": "Imported Hevy exercises removed.",
     "hevyExercisesSyncError": "Hevy exercise sync failed. Please check your API key in settings.",
