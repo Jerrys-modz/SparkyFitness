@@ -515,6 +515,30 @@ describe('useWatchWorkoutBridge', () => {
     expect(getStore().completedSetIds['101']).toBeDefined();
   });
 
+  it('writes the carry distance the watch entered as km', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+        weightKg: 40,
+        distanceKm: 0.03,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const set = getStore().session!.exercises[0].sets[0];
+    expect(set.weight).toBe(40);
+    expect(set.distance).toBe(0.03);
+    expect(getStore().completedSetIds['101']).toBeDefined();
+  });
+
   it('writes the hold the watch counted down, and leaves reps alone', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

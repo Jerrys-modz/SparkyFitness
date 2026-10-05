@@ -50,6 +50,9 @@ import {
   evaluateExerciseProgression,
   liveAdaptiveAdjustment,
   isDurationModality,
+  isWeightDistanceModality,
+  isWeightDurationModality,
+  setDistanceUnitLabel,
   rendersCardioEffortForm,
   resolveLiveAssumedSetValues,
   resolveSnapshotModality,
@@ -389,7 +392,14 @@ function ActiveWorkoutExerciseCard({
   // reps-only tables (both keep weight null); clamp the display to RPE, or
   // keep RIR when that's the chosen effort column. Never written back to the
   // shared preference.
-  const clampedToRpe = durationLike || modality === 'reps_only';
+  const weightDuration = isWeightDurationModality(modality);
+  const weightDistance = isWeightDistanceModality(modality);
+  // Loaded holds and carries log no reps, so volume and 1RM stay empty there too.
+  const clampedToRpe =
+    durationLike ||
+    modality === 'reps_only' ||
+    weightDuration ||
+    weightDistance;
   // The per-set ramp only means something where sets carry a weight.
   const weightRampApplies = !durationLike && modality !== 'reps_only';
   const effectiveMetricColumn =
@@ -1599,7 +1609,11 @@ function ActiveWorkoutExerciseCard({
                   </Text>
                 )}
                 <Text className="flex-1 text-center text-xs font-semibold uppercase text-text-muted">
-                  {t('workout.reps', { defaultValue: 'Reps' })}
+                  {weightDuration
+                    ? t('workout.sec', { defaultValue: 'Sec' })
+                    : weightDistance
+                      ? setDistanceUnitLabel(distanceUnit, modality)
+                      : t('workout.reps', { defaultValue: 'Reps' })}
                 </Text>
               </>
             )}

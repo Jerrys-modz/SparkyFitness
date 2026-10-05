@@ -499,7 +499,7 @@ async function queryExerciseActivities(
       // positive distance counts: a synced paddle can reuse a "General"
       // reps-only custom exercise and still carry a route.
       whereClauses.push(`(
-        COALESCE(modality, '') <> 'weight_reps'
+        COALESCE(modality, '') NOT IN ('weight_reps', 'weight_duration', 'weight_distance')
         AND LOWER(COALESCE(category, '')) NOT IN ('strength', 'powerlifting', 'olympic weightlifting', 'strongman')
         AND LOWER(exercise_name) !~* '\\m(strength|crunch|sit-?up|plank)\\M'
         AND (

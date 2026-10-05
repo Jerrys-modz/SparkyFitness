@@ -1,6 +1,15 @@
-import { Repeat, Dumbbell, Hourglass, Timer, Activity } from 'lucide-react';
+import {
+  Repeat,
+  Dumbbell,
+  Hourglass,
+  Timer,
+  Activity,
+  Ruler,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SET_TABLE_LAYOUT, type SetTableModality } from '@/constants/exercises';
+import { usePreferences } from '@/contexts/PreferencesContext';
+import { carryDistanceUnitLabel } from '@workspace/shared';
 
 interface SetColumnHeadersProps {
   modality: SetTableModality;
@@ -13,10 +22,11 @@ export const SetColumnHeaders = ({
   showRir = false,
 }: SetColumnHeadersProps) => {
   const { t } = useTranslation();
+  const { distanceUnit } = usePreferences();
   const cell =
     'text-[10px] font-bold uppercase text-muted-foreground tracking-wide flex items-center gap-1';
   const layout = SET_TABLE_LAYOUT[modality];
-  const { showReps, showWeight, signedWeight } = layout;
+  const { showReps, showWeight, showDistance, signedWeight } = layout;
   const gridClass = showRir ? layout.gridClassWithRir : layout.gridClass;
 
   return (
@@ -30,6 +40,15 @@ export const SetColumnHeaders = ({
           <div className={cell}>
             <Repeat className="h-3 w-3 mr-1 text-blue-500" />
             {t('workout.reps', 'Reps')}
+          </div>
+        )}
+        {showDistance && (
+          <div className={cell}>
+            <Ruler className="h-3 w-3 text-sky-500" />
+            {t('workout.distanceUnit', {
+              defaultValue: 'Distance ({{unit}})',
+              unit: carryDistanceUnitLabel(distanceUnit),
+            })}
           </div>
         )}
         {showWeight && (
