@@ -41,7 +41,7 @@ import {
   VitaminCalculationAlgorithmLabels,
   SugarCalculationAlgorithmLabels,
   AddedSugarAlgorithmLabels,
-} from '@/types/nutrientAlgorithms';
+} from '@workspace/shared';
 import {
   useDiaryInvalidation,
   useDailyProgressInvalidation,
