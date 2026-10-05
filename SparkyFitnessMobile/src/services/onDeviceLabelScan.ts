@@ -65,16 +65,20 @@ export function isPlausibleLabel(r: OnDeviceLabelExtraction): boolean {
   return true;
 }
 
+// Units a per-100 basis can be read in when the label counts liquids by volume.
+const VOLUME_UNITS = new Set(['ml', 'l', 'cl', 'dl', 'oz', 'fl oz', 'cup']);
+
 const NUMBER_PATTERN = /\d+(?:[.,]\d+)?/g;
 
 /**
  * True when every macro the model returned appears as a number in the text
  * recognised on the label. A value the model made up, or read off the wrong
- * column, is usually not printed anywhere. Skipped when no text was read.
+ * column, is usually not printed anywhere. With no text read there is nothing
+ * to check the numbers against, so the server-side scan takes over.
  */
 export function isGroundedInLabelText(r: OnDeviceLabelExtraction): boolean {
   const text = r.ocr_text?.trim();
-  if (!text) return true;
+  if (!text) return false;
   const printed = new Set(
     (text.match(NUMBER_PATTERN) ?? []).map((n) => Number(n.replace(',', '.')))
   );
@@ -91,7 +95,7 @@ export function toLabelScanResult(r: OnDeviceLabelExtraction): LabelScanResult {
     name: r.name,
     brand: r.brand,
     serving_size: per100 ? 100 : (r.serving_size ?? 0),
-    serving_unit: per100 ? (unit === 'ml' ? 'ml' : 'g') : unit || 'g',
+    serving_unit: per100 ? (VOLUME_UNITS.has(unit) ? 'ml' : 'g') : unit || 'g',
     calories: r.calories ?? 0,
     protein: r.protein ?? 0,
     carbs: r.carbs ?? 0,
