@@ -141,6 +141,9 @@ private struct WorkoutSummaryView: View {
                     .padding(.top, 4)
             }
             .padding(.horizontal, 4)
+            // The clock sits over the top of a scrolling page, so the title
+            // starts below it.
+            .padding(.top, 22)
         }
     }
 
