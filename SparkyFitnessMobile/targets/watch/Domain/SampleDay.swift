@@ -173,6 +173,75 @@ enum SampleDay {
         setOrder: []
     )
 
+    /// A loaded hold with a countdown, then a plain hold: the timer card beside
+    /// the weight card.
+    static let timedPlan = ActiveWorkoutPlan(
+        sessionId: "preview-timed",
+        workoutName: "Core",
+        exercises: [
+            PlannedExercise(
+                exerciseEntryId: "preview-timed-1",
+                name: "Weighted Plank",
+                supersetRun: nil,
+                sets: [
+                    PlannedSet(setId: "t1", targetReps: nil, targetWeightKg: 10, restSeconds: 60, setType: "normal", targetDurationSec: 45, weighted: true),
+                    PlannedSet(setId: "t2", targetReps: nil, targetWeightKg: 10, restSeconds: 60, setType: "normal", targetDurationSec: 45, weighted: true),
+                ]
+            ),
+            PlannedExercise(
+                exerciseEntryId: "preview-timed-2",
+                name: "Side Plank",
+                supersetRun: nil,
+                sets: [
+                    PlannedSet(setId: "t3", targetReps: nil, targetWeightKg: nil, restSeconds: 45, setType: "normal", targetDurationSec: 30),
+                ]
+            ),
+        ],
+        setOrder: []
+    )
+
+    /// A hold with no planned length, so the stopwatch shows, with last
+    /// session's time in grey.
+    static let stopwatchPlan = ActiveWorkoutPlan(
+        sessionId: "preview-stopwatch",
+        workoutName: "Pull Day",
+        exercises: [
+            PlannedExercise(
+                exerciseEntryId: "preview-stopwatch-1",
+                name: "Dead Hang",
+                supersetRun: nil,
+                sets: [
+                    PlannedSet(setId: "w1", targetReps: nil, targetWeightKg: nil, restSeconds: 60, setType: "normal", previousDurationSec: 52, timed: true),
+                    PlannedSet(setId: "w2", targetReps: nil, targetWeightKg: nil, restSeconds: 60, setType: "normal", previousDurationSec: 48, timed: true),
+                ]
+            ),
+        ],
+        setOrder: []
+    )
+
+    /// An AMRAP the phone started a couple of minutes ago, for the caption.
+    static var intervalPlan: ActiveWorkoutPlan {
+        ActiveWorkoutPlan(
+            sessionId: "preview-interval",
+            workoutName: "Conditioning",
+            exercises: [
+                PlannedExercise(
+                    exerciseEntryId: "preview-interval-1",
+                    name: "Kettlebell Swing",
+                    supersetRun: nil,
+                    sets: [
+                        PlannedSet(setId: "i1", targetReps: 15, targetWeightKg: 16, restSeconds: 0, setType: "normal"),
+                        PlannedSet(setId: "i2", targetReps: 15, targetWeightKg: 16, restSeconds: 0, setType: "normal"),
+                    ]
+                ),
+            ],
+            setOrder: [],
+            workoutFormat: "amrap",
+            timeCapSeconds: 600,
+            startedAt: Date().addingTimeInterval(-130)
+        )
+    }
+
     /// A plausible working heart rate mid-set. Only ever visible in a preview
     /// or on a real wrist — the simulator has no sensor behind
     /// `HKLiveWorkoutBuilder`, so it renders the no-BPM layout instead.
