@@ -75,7 +75,7 @@ import type {
   WorkoutPlanTemplate,
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
-import { formatDate, getDateRelationToToday } from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
@@ -191,7 +191,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           defaultValue: ': previous day',
         }),
         nextDayLabel: t('common.nextDay', { defaultValue: ': next day' }),
-        dateLabel: `${formatDate(selectedDate, dateLocale)} ▾`,
+        dateLabel: `${formatDateLabel(selectedDate, t, dateLocale)} ▾`,
         t,
         locale: dateLocale,
         leadingAction: hasFamilyDiaries
@@ -761,7 +761,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
           action={
             hasFamilyDiaries
               ? {

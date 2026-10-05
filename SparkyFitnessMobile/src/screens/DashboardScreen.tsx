@@ -73,7 +73,7 @@ import {
 } from '../utils/healthTrendPreferences';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
-import { formatDate, getDateRelationToToday } from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import {
   setNativeHeaderDatePickerOptions,
   type NativeHeaderDatePickerNavigation,
@@ -175,7 +175,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           defaultValue: ': previous day',
         }),
         nextDayLabel: t('common.nextDay', { defaultValue: ': next day' }),
-        dateLabel: `${formatDate(selectedDate, dateLocale)} ▾`,
+        dateLabel: `${formatDateLabel(selectedDate, t, dateLocale)} ▾`,
         t,
         locale: dateLocale,
       }
@@ -866,7 +866,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
         />
       ) : null}
       {renderedContent}
