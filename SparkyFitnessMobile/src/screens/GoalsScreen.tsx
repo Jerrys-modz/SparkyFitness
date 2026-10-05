@@ -15,6 +15,11 @@ import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import type { DailyGoals } from '../types/goals';
 import type { RootStackScreenProps } from '../types/navigation';
 import { getTodayDate } from '../utils/dateUtils';
+import {
+  WATER_UNIT_LABELS,
+  volumeFromMl,
+  volumeToMl,
+} from '../utils/unitConversions';
 
 type GoalsScreenProps = RootStackScreenProps<'Goals'>;
 
@@ -97,10 +102,19 @@ const ALL_FIELDS: GoalField[] = [
   ...MEAL_FIELDS,
 ];
 
-const toDrafts = (goals: DailyGoals): Record<GoalField, string> =>
-  Object.fromEntries(
+const toDrafts = (
+  goals: DailyGoals,
+  waterUnit: string
+): Record<GoalField, string> => {
+  const drafts = Object.fromEntries(
     ALL_FIELDS.map((field) => [field, String(goals[field] ?? 0)])
   ) as Record<GoalField, string>;
+  // Water is stored in ml; the field is edited in the user's water unit.
+  drafts.water_goal_ml = String(
+    Number(volumeFromMl(goals.water_goal_ml ?? 0, waterUnit).toFixed(2))
+  );
+  return drafts;
+};
 
 const parseDraft = (text: string): number => Number(text.replace(',', '.'));
 
@@ -116,7 +130,8 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
   const { preferences } = usePreferences();
   const isAdaptive = preferences?.calorie_goal_adjustment_mode === 'adaptive';
   const adjustedCalories = useAdjustedCalorieGoal(date, isAdaptive);
-  const [initialDrafts] = useState(() => toDrafts(goals));
+  const waterUnit = preferences?.water_display_unit ?? 'ml';
+  const [initialDrafts] = useState(() => toDrafts(goals, waterUnit));
   const [drafts, setDrafts] = useState(initialDrafts);
 
   // Custom meal types carry their own percentages that must share the 100%
@@ -147,7 +162,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
           defaultValue: 'Baseline calories (kcal)',
         })
       : nutrientLabel('calories'),
-    water_goal_ml: t('goals.fields.water', { defaultValue: 'Water (ml)' }),
+    water_goal_ml: t('goals.fields.water', {
+      defaultValue: 'Water ({{unit}})',
+      unit: WATER_UNIT_LABELS[waterUnit] ?? waterUnit,
+    }),
     target_exercise_calories_burned: t('goals.fields.exerciseCalories', {
       defaultValue: 'Exercise calories (kcal)',
     }),
@@ -178,7 +196,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
         });
         return;
       }
-      next[field] = value;
+      next[field] =
+        field === 'water_goal_ml'
+          ? Math.round(volumeToMl(value, waterUnit))
+          : value;
     }
     if (!mealTotalValid) {
       Toast.show({
@@ -205,6 +226,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
     drafts,
     initialDrafts,
     mealTotalValid,
+    waterUnit,
     saveGoals,
     onDone,
     t,

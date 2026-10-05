@@ -5819,7 +5819,7 @@
     "saveFailed": "Failed to save goals.",
     "invalidValue": "Enter a valid number for every goal.",
     "fields": {
-      "water": "Water (ml)",
+      "water": "Water ({{unit}})",
       "exerciseCalories": "Exercise calories (kcal)",
       "exerciseMinutes": "Exercise duration (min)",
       "baselineCalories": "Baseline calories (kcal)"
