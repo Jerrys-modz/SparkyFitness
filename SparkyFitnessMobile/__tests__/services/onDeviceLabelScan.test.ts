@@ -75,9 +75,9 @@ describe('onDeviceLabelScan', () => {
     expect(isGroundedInLabelText(r)).toBe(false);
   });
 
-  it('skips the text check when nothing was recognised', () => {
-    expect(isGroundedInLabelText(label({ ocr_text: '' }))).toBe(true);
-    expect(isGroundedInLabelText(label())).toBe(true);
+  it('does not trust values when no text was recognised', () => {
+    expect(isGroundedInLabelText(label({ ocr_text: '' }))).toBe(false);
+    expect(isGroundedInLabelText(label())).toBe(false);
   });
 
   it('maps per-100 labels to a 100 g serving', () => {
@@ -89,10 +89,17 @@ describe('onDeviceLabelScan', () => {
   });
 
   it('returns the mapped result when the model output is valid', async () => {
-    mockModule.scanLabel.mockResolvedValue(label());
+    mockModule.scanLabel.mockResolvedValue(
+      label({ ocr_text: 'Calories 180 Protein 4 Carbs 26 Fat 7' })
+    );
     const r = await scanLabelOnDevice('b64');
     expect(r?.calories).toBe(180);
     expect(r?.vitamin_c).toBeNull();
+  });
+
+  it('falls back when the label text could not be read', async () => {
+    mockModule.scanLabel.mockResolvedValue(label({ ocr_text: '' }));
+    expect(await scanLabelOnDevice('b64')).toBeNull();
   });
 
   it('returns null when unavailable, throwing, or implausible', async () => {

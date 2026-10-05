@@ -117,10 +117,10 @@ export default function OnDeviceChatDebugPanel() {
           className="text-text-primary text-sm"
         />
         <Text className="text-text-secondary text-xs mt-1">
-          How much of the model's window the lent server tools may use. The rest
-          of the window holds your messages, the diary snapshot and the answer.
-          Tools that do not fit are left out; the trace shows how many were
-          kept.
+          How much of the model&apos;s window the lent server tools may use. The
+          rest of the window holds your messages, the diary snapshot and the
+          answer. Tools that do not fit are left out; the trace shows how many
+          were kept.
         </Text>
       </View>
 
