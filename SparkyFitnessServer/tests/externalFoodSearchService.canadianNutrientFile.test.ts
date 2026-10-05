@@ -89,6 +89,8 @@ describe('externalFoodSearchService - canadian-nutrient-file', () => {
             protein: 20,
             carbs: 0,
             fat: 13,
+            provider_nutrients: {},
+            provider_nutrient_units: {},
             is_default: true,
           },
           variants: [],

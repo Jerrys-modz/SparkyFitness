@@ -27,6 +27,7 @@ import {
   getCnfImportStatus,
   deleteCnfLibraryFoods,
 } from '../services/cnfBulkImportService.js';
+import { cnfBulkImportRequestSchema } from '@workspace/shared';
 
 const cnfUpload = multer({
   storage: multer.memoryStorage(),
@@ -1099,20 +1100,46 @@ router.post(
   async (req, res, next) => {
     try {
       const userId = req.userId;
-      const syncPastEntries =
-        req.body?.syncPastEntries === true ||
-        req.body?.syncPastEntries === 'true';
+      const rawSync = req.body?.syncPastEntries;
+      const syncPastEntries = rawSync === true || rawSync === 'true';
       const language =
         req.body?.language === 'fr' ? ('fr' as const) : ('en' as const);
+
+      let maxFoods: number | undefined = undefined;
       const rawMaxFoods = req.body?.maxFoods;
-      const maxFoods =
-        rawMaxFoods !== undefined && rawMaxFoods !== null && rawMaxFoods !== ''
-          ? parseInt(String(rawMaxFoods), 10)
-          : undefined;
+      if (
+        rawMaxFoods !== undefined &&
+        rawMaxFoods !== null &&
+        rawMaxFoods !== ''
+      ) {
+        const parsed = Number(rawMaxFoods);
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+          return res
+            .status(400)
+            .json({ error: 'maxFoods must be a positive integer' });
+        }
+        maxFoods = parsed;
+      }
+
+      const rawArchiveUrl = req.body?.archiveUrl;
       const archiveUrl =
-        typeof req.body?.archiveUrl === 'string' && req.body.archiveUrl.trim()
-          ? req.body.archiveUrl.trim()
+        typeof rawArchiveUrl === 'string' && rawArchiveUrl.trim()
+          ? rawArchiveUrl.trim()
           : undefined;
+
+      const validation = cnfBulkImportRequestSchema.safeParse({
+        archiveUrl,
+        syncPastEntries,
+        language,
+        maxFoods,
+      });
+
+      if (!validation.success) {
+        return res.status(400).json({
+          error: 'Invalid request body',
+          details: validation.error.issues,
+        });
+      }
 
       const runWait = req.query.wait === 'true';
 

@@ -4,6 +4,7 @@ import {
   searchCanadianNutrientFoods,
   getCanadianNutrientFoodDetails,
   parseServingMeasure,
+  clearCnfCachesForTesting,
   CnfNutrientItem,
   CnfServingSizeItem,
 } from '../integrations/cnf/cnfService.js';
@@ -134,6 +135,7 @@ describe('cnfService - mapCanadianNutrientFood', () => {
 describe('cnfService - searchCanadianNutrientFoods & getCanadianNutrientFoodDetails', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearCnfCachesForTesting();
   });
 
   it('filters cached directory by query keywords', async () => {

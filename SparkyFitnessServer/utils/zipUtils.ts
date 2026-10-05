@@ -32,10 +32,22 @@ export function parseZipArchive(buffer: Buffer): ZipEntry[] {
   const cdSize = buffer.readUInt32LE(eocdOffset + 12);
   const cdOffset = buffer.readUInt32LE(eocdOffset + 16);
 
+  if (cdOffset + cdSize > buffer.length) {
+    throw new Error(
+      'Invalid ZIP archive: Central directory exceeds buffer bounds'
+    );
+  }
+
   const entries: ZipEntry[] = [];
   let currentOffset = cdOffset;
 
   for (let i = 0; i < totalEntries && currentOffset < cdOffset + cdSize; i++) {
+    if (currentOffset + 46 > buffer.length) {
+      throw new Error(
+        'Invalid ZIP archive: Central directory header exceeds buffer bounds'
+      );
+    }
+
     if (buffer.readUInt32LE(currentOffset) !== 0x02014b50) {
       break;
     }
@@ -48,16 +60,36 @@ export function parseZipArchive(buffer: Buffer): ZipEntry[] {
     const fileCommentLength = buffer.readUInt16LE(currentOffset + 32);
     const localHeaderOffset = buffer.readUInt32LE(currentOffset + 42);
 
+    const totalHeaderLength =
+      46 + fileNameLength + extraFieldLength + fileCommentLength;
+    if (currentOffset + totalHeaderLength > buffer.length) {
+      throw new Error(
+        'Invalid ZIP archive: Central directory record exceeds buffer bounds'
+      );
+    }
+
     const fileNameBytes = buffer.subarray(
       currentOffset + 46,
       currentOffset + 46 + fileNameLength
     );
     const fileName = fileNameBytes.toString('utf8');
 
+    if (localHeaderOffset + 30 > buffer.length) {
+      throw new Error(
+        'Invalid ZIP archive: Local header offset exceeds buffer bounds'
+      );
+    }
+
     const localFileNameLen = buffer.readUInt16LE(localHeaderOffset + 26);
     const localExtraLen = buffer.readUInt16LE(localHeaderOffset + 28);
     const fileDataOffset =
       localHeaderOffset + 30 + localFileNameLen + localExtraLen;
+
+    if (fileDataOffset + compressedSize > buffer.length) {
+      throw new Error(
+        'Invalid ZIP archive: Compressed data exceeds buffer bounds'
+      );
+    }
 
     const compressedData = buffer.subarray(
       fileDataOffset,

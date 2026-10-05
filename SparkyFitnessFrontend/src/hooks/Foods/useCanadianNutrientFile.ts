@@ -17,7 +17,7 @@ export function useCnfStatusQuery(options?: { enabled?: boolean }) {
     queryFn: fetchCnfStatus,
     refetchInterval: (query) => {
       const isRunning = query.state.data?.isRunning;
-      return isRunning ? 2000 : 15000;
+      return isRunning ? 2000 : false;
     },
     enabled: options?.enabled,
   });

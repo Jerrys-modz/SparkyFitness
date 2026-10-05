@@ -140,6 +140,28 @@ describe('foodIntegrationRoutes - Canadian Nutrient File endpoints', () => {
         { syncPastEntries: true, language: 'fr' }
       );
     });
+
+    it('returns 400 for non-positive or NaN maxFoods', async () => {
+      const res = await request(app)
+        .post('/api/foods/canadian-nutrient-file/bulk-import')
+        .send({
+          maxFoods: 'not-a-number',
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('maxFoods must be a positive integer');
+    });
+
+    it('returns 400 for non-HTTPS archiveUrl', async () => {
+      const res = await request(app)
+        .post('/api/foods/canadian-nutrient-file/bulk-import')
+        .send({
+          archiveUrl: 'http://insecure.com/cnf.zip',
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Invalid request body');
+    });
   });
 
   describe('DELETE /api/foods/canadian-nutrient-file', () => {

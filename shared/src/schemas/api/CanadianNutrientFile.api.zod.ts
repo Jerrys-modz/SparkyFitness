@@ -1,9 +1,16 @@
 import { z } from 'zod';
 
 export const cnfBulkImportRequestSchema = z.object({
-  archiveUrl: z.string().url().optional(),
+  archiveUrl: z
+    .string()
+    .url()
+    .refine((url) => url.startsWith('https://'), {
+      message: 'archiveUrl must be an HTTPS URL',
+    })
+    .optional(),
   syncPastEntries: z.boolean().optional().default(false),
   language: z.enum(['en', 'fr']).optional().default('en'),
+  maxFoods: z.number().int().positive().optional(),
 });
 
 export type CnfBulkImportRequest = z.infer<typeof cnfBulkImportRequestSchema>;

@@ -245,8 +245,13 @@ describe('cnfBulkImportService', () => {
     const result = await deleteCnfLibraryFoods('user-1');
     expect(result.deletedCount).toBe(42);
     expect(mockQuery).toHaveBeenCalledWith(
-      "DELETE FROM foods WHERE provider_type = 'canadian-nutrient-file' AND (shared_with_public = TRUE OR user_id = $1)",
+      "DELETE FROM foods WHERE provider_type = 'canadian-nutrient-file' AND user_id = $1",
       ['user-1']
     );
+  });
+
+  it('returns 0 deleted count if userId is not provided', async () => {
+    const result = await deleteCnfLibraryFoods(undefined);
+    expect(result.deletedCount).toBe(0);
   });
 });

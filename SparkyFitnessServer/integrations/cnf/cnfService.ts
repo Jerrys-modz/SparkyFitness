@@ -116,25 +116,35 @@ interface CachedFoodDirectory {
   foods: CnfFoodSummary[];
 }
 
-const foodDirectoryCache = new Map<'en' | 'fr', CachedFoodDirectory>();
+const foodDirectoryCache = new Map<string, CachedFoodDirectory>();
+const foodDetailCache = new Map<
+  string,
+  { timestamp: number; detail: CnfFoodDetail }
+>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export function clearCnfCachesForTesting(): void {
+  foodDirectoryCache.clear();
+  foodDetailCache.clear();
+}
 
 export async function getCnfFoodDirectory(
   language = 'en',
   customBaseUrl?: string | null
 ): Promise<CnfFoodSummary[]> {
   const queryLang = resolveLanguage(language);
-  const cached = foodDirectoryCache.get(queryLang);
-  const now = Date.now();
-
-  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-    return cached.foods;
-  }
-
   const rawBaseUrl = customBaseUrl?.trim() || DEFAULT_BASE_URL;
   let baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
   if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
     baseUrl = `https://${baseUrl}`;
+  }
+
+  const cacheKey = `${baseUrl}|${queryLang}`;
+  const cached = foodDirectoryCache.get(cacheKey);
+  const now = Date.now();
+
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.foods;
   }
 
   const url = `${baseUrl}/food/?lang=${queryLang}&type=json`;
@@ -159,7 +169,7 @@ export async function getCnfFoodDirectory(
       );
     }
 
-    foodDirectoryCache.set(queryLang, {
+    foodDirectoryCache.set(cacheKey, {
       timestamp: now,
       foods: items,
     });
@@ -364,44 +374,52 @@ export async function searchCanadianNutrientFoods(
   const offset = (page - 1) * pageSize;
   const paginated = matched.slice(offset, offset + pageSize);
 
-  const mappedFoods = await Promise.all(
-    paginated.map(async (item) => {
-      try {
-        const detail = await getCanadianNutrientFoodDetails(
-          String(item.food_code),
-          queryLang,
-          customBaseUrl
-        );
-        if (detail) {
-          return detail;
+  const mappedFoods: CnfFoodDetail[] = [];
+  const CONCURRENCY_LIMIT = 5;
+  for (let i = 0; i < paginated.length; i += CONCURRENCY_LIMIT) {
+    const chunk = paginated.slice(i, i + CONCURRENCY_LIMIT);
+    const chunkResults = await Promise.all(
+      chunk.map(async (item) => {
+        try {
+          const detail = await getCanadianNutrientFoodDetails(
+            String(item.food_code),
+            queryLang,
+            customBaseUrl
+          );
+          if (detail) {
+            return detail;
+          }
+        } catch (err) {
+          log(
+            'warn',
+            `Failed to fetch details for CNF food ${item.food_code}: ${err}`
+          );
         }
-      } catch (err) {
-        log(
-          'warn',
-          `Failed to fetch details for CNF food ${item.food_code}: ${err}`
-        );
-      }
 
-      const defaultVariant = {
-        serving_size: 100,
-        serving_unit: 'g',
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fat: 0,
-        is_default: true,
-      };
-      return {
-        name: item.food_description,
-        brand: 'Canadian Nutrient File',
-        provider_external_id: String(item.food_code),
-        provider_type: 'canadian-nutrient-file' as const,
-        is_custom: false,
-        default_variant: defaultVariant,
-        variants: [defaultVariant],
-      };
-    })
-  );
+        const defaultVariant = {
+          serving_size: 100,
+          serving_unit: 'g',
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          provider_nutrients: {},
+          provider_nutrient_units: {},
+          is_default: true,
+        };
+        return {
+          name: item.food_description,
+          brand: 'Canadian Nutrient File',
+          provider_external_id: String(item.food_code),
+          provider_type: 'canadian-nutrient-file' as const,
+          is_custom: false,
+          default_variant: defaultVariant,
+          variants: [defaultVariant],
+        };
+      })
+    );
+    mappedFoods.push(...chunkResults);
+  }
 
   return {
     foods: mappedFoods,
@@ -431,6 +449,13 @@ export async function getCanadianNutrientFoodDetails(
     baseUrl = `https://${baseUrl}`;
   }
 
+  const detailCacheKey = `${baseUrl}|${queryLang}|${foodCode}`;
+  const cachedDetail = foodDetailCache.get(detailCacheKey);
+  const now = Date.now();
+  if (cachedDetail && now - cachedDetail.timestamp < CACHE_TTL_MS) {
+    return cachedDetail.detail;
+  }
+
   const nutrientUrl = `${baseUrl}/nutrientamount/?id=${foodCode}&lang=${queryLang}&type=json`;
   const servingUrl = `${baseUrl}/servingsize/?id=${foodCode}&lang=${queryLang}&type=json`;
 
@@ -454,9 +479,16 @@ export async function getCanadianNutrientFoodDetails(
       throw new Error(`CNF nutrient API returned status ${nutrientRes.status}`);
     }
 
-    const nutrientItems = (await nutrientRes.json()) as CnfNutrientItem[];
-    const servingItems = servingRes.ok
-      ? ((await servingRes.json()) as CnfServingSizeItem[])
+    const rawNutrients = (await nutrientRes.json().catch(() => [])) as unknown;
+    const nutrientItems = Array.isArray(rawNutrients)
+      ? (rawNutrients as CnfNutrientItem[])
+      : [];
+
+    const rawServings = servingRes.ok
+      ? ((await servingRes.json().catch(() => [])) as unknown)
+      : [];
+    const servingItems = Array.isArray(rawServings)
+      ? (rawServings as CnfServingSizeItem[])
       : [];
 
     // Find food description from directory cache or first item description
@@ -470,12 +502,19 @@ export async function getCanadianNutrientFoodDetails(
         `Canadian Food #${foodCode}`;
     }
 
-    return mapCanadianNutrientFood(
+    const detail = mapCanadianNutrientFood(
       foodCode,
       description,
       nutrientItems,
       servingItems
     );
+
+    foodDetailCache.set(detailCacheKey, {
+      timestamp: now,
+      detail,
+    });
+
+    return detail;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log('error', `Error fetching Canadian Nutrient Food details: ${msg}`);

@@ -1866,7 +1866,11 @@
       "clearLibrary": "Clear CNF Library",
       "startImport": "Start Import / Sync",
       "confirmDeleteTitle": "Clear Canadian Nutrient File Library?",
-      "confirmDeleteDesc": "This will remove all Canadian Nutrient File foods from your library. Your past diary entries referencing these foods will be safely preserved."
+      "confirmDeleteDesc": "This will remove all Canadian Nutrient File foods from your library. Your past diary entries referencing these foods will be safely preserved.",
+      "licenceNotice": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>.",
+      "providerCardLicence": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>",
+      "providerSpecificDescription": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the <1>Open Government Licence – Canada</1>. It is free, public, and requires no credentials. Supported languages are <3>English (en)</3> and <5>French (fr)</5>.",
+      "providerSpecificPortal": "For more details, see the official portal at <1>Canadian Nutrient File</1>."
     },
     "foodExerciseDataProviders": {
       "title": "Food & Exercise Data Providers",

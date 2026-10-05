@@ -135,31 +135,11 @@ function parseCsv<T>(buffer: Buffer): T[] {
   return result.data;
 }
 
-/**
- * Imports Canadian Nutrient File data from a ZIP archive buffer.
- */
-export async function importCnfFromZipBuffer(
+async function executeCnfImport(
   userId: string,
   zipBuffer: Buffer,
   options: CnfSyncOptions = {}
 ): Promise<{ imported: number; updated: number; total: number }> {
-  const currentStatus = getCnfImportStatus(userId);
-  if (currentStatus.isRunning) {
-    throw new Error('A Canadian Nutrient File import is already running.');
-  }
-
-  updateJobStatus(userId, {
-    isRunning: true,
-    status: 'running',
-    progress: 0,
-    total: 0,
-    processed: 0,
-    imported: 0,
-    updated: 0,
-    error: undefined,
-    lastRunAt: new Date().toISOString(),
-  });
-
   try {
     const entries = parseZipArchive(zipBuffer);
 
@@ -390,10 +370,10 @@ export async function importCnfFromZipBuffer(
       try {
         await client.query('BEGIN');
 
-        // Batch lookup existing foods for this batch
+        // Batch lookup existing foods for this batch (scoped strictly to this user)
         const externalIds = preparedFoods.map((f) => f.externalId);
         const existing = (await client.query(
-          "SELECT id, provider_external_id FROM foods WHERE provider_type = 'canadian-nutrient-file' AND provider_external_id = ANY($1) AND (shared_with_public = TRUE OR user_id = $2)",
+          "SELECT id, provider_external_id FROM foods WHERE provider_type = 'canadian-nutrient-file' AND provider_external_id = ANY($1) AND user_id = $2",
           [externalIds, userId]
         )) as { rows: Array<{ id: string; provider_external_id: string }> };
 
@@ -438,7 +418,7 @@ export async function importCnfFromZipBuffer(
           importedCount += toInsert.length;
         }
 
-        // Batch UPDATE for existing foods
+        // Batch UPDATE for existing foods (scoped strictly to this user's records)
         if (toUpdate.length > 0) {
           const updateValues: (string | null)[] = [userId];
           const updateClauses: string[] = [];
@@ -457,11 +437,9 @@ export async function importCnfFromZipBuffer(
             `UPDATE foods AS f
              SET name = v.name,
                  brand = 'Canadian Nutrient File',
-                 user_id = $1,
-                 shared_with_public = TRUE,
                  updated_at = now()
              FROM (VALUES ${updateClauses.join(', ')}) AS v(name, id)
-             WHERE f.id = v.id`,
+             WHERE f.id = v.id AND f.user_id = $1`,
             updateValues
           );
 
@@ -595,7 +573,11 @@ export async function importCnfFromZipBuffer(
               const foodId = existingMap.get(item.externalId)!;
               const defVariant = item.mappedFood.default_variant;
               entryClauses.push(
-                `($${eP}::numeric, $${eP + 1}::numeric, $${eP + 2}::numeric, $${eP + 3}::numeric, $${eP + 4}::numeric, $${eP + 5}::jsonb, $${eP + 6}::uuid)`
+                `($${eP}::numeric, $${eP + 1}::numeric, $${eP + 2}::numeric, $${eP + 3}::numeric, $${eP + 4}::numeric, ` +
+                  `$${eP + 5}::numeric, $${eP + 6}::numeric, $${eP + 7}::numeric, $${eP + 8}::numeric, $${eP + 9}::numeric, ` +
+                  `$${eP + 10}::numeric, $${eP + 11}::numeric, $${eP + 12}::numeric, $${eP + 13}::numeric, $${eP + 14}::numeric, ` +
+                  `$${eP + 15}::numeric, $${eP + 16}::numeric, $${eP + 17}::numeric, $${eP + 18}::numeric, $${eP + 19}::numeric, ` +
+                  `$${eP + 20}::numeric, $${eP + 21}::jsonb, $${eP + 22}::uuid)`
               );
               entryValues.push(
                 defVariant.calories,
@@ -603,10 +585,26 @@ export async function importCnfFromZipBuffer(
                 defVariant.protein,
                 defVariant.carbs,
                 defVariant.fat,
+                defVariant.saturated_fat ?? null,
+                defVariant.polyunsaturated_fat ?? null,
+                defVariant.monounsaturated_fat ?? null,
+                defVariant.trans_fat ?? null,
+                defVariant.cholesterol ?? null,
+                defVariant.sodium ?? null,
+                defVariant.potassium ?? null,
+                defVariant.dietary_fiber ?? null,
+                defVariant.sugars ?? null,
+                defVariant.vitamin_a ?? null,
+                defVariant.vitamin_c ?? null,
+                defVariant.calcium ?? null,
+                defVariant.iron ?? null,
+                defVariant.caffeine_mg ?? null,
+                defVariant.water_ml ?? null,
+                defVariant.alcohol_g ?? null,
                 JSON.stringify(defVariant.custom_nutrients || {}),
                 foodId
               );
-              eP += 7;
+              eP += 23;
             }
 
             await client.query(
@@ -615,8 +613,30 @@ export async function importCnfFromZipBuffer(
                    protein = ROUND(v.protein * fe.quantity / NULLIF(v.serving_size, 0), 1),
                    carbs = ROUND(v.carbs * fe.quantity / NULLIF(v.serving_size, 0), 1),
                    fat = ROUND(v.fat * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   saturated_fat = ROUND(v.saturated_fat * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   polyunsaturated_fat = ROUND(v.polyunsaturated_fat * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   monounsaturated_fat = ROUND(v.monounsaturated_fat * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   trans_fat = ROUND(v.trans_fat * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   cholesterol = ROUND(v.cholesterol * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   sodium = ROUND(v.sodium * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   potassium = ROUND(v.potassium * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   dietary_fiber = ROUND(v.dietary_fiber * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   sugars = ROUND(v.sugars * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   vitamin_a = ROUND(v.vitamin_a * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   vitamin_c = ROUND(v.vitamin_c * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   calcium = ROUND(v.calcium * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   iron = ROUND(v.iron * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   caffeine_mg = ROUND(v.caffeine_mg * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   water_ml = ROUND(v.water_ml * fe.quantity / NULLIF(v.serving_size, 0), 1),
+                   alcohol_g = ROUND(v.alcohol_g * fe.quantity / NULLIF(v.serving_size, 0), 1),
                    custom_nutrients = v.custom_nutrients
-               FROM (VALUES ${entryClauses.join(', ')}) AS v(calories, serving_size, protein, carbs, fat, custom_nutrients, food_id)
+               FROM (VALUES ${entryClauses.join(', ')}) AS v(
+                 calories, serving_size, protein, carbs, fat,
+                 saturated_fat, polyunsaturated_fat, monounsaturated_fat, trans_fat,
+                 cholesterol, sodium, potassium, dietary_fiber, sugars,
+                 vitamin_a, vitamin_c, calcium, iron, caffeine_mg, water_ml, alcohol_g,
+                 custom_nutrients, food_id
+               )
                WHERE fe.food_id = v.food_id AND fe.user_id = $1`,
               entryValues
             );
@@ -675,6 +695,34 @@ export async function importCnfFromZipBuffer(
 }
 
 /**
+ * Imports Canadian Nutrient File data from a ZIP archive buffer.
+ */
+export async function importCnfFromZipBuffer(
+  userId: string,
+  zipBuffer: Buffer,
+  options: CnfSyncOptions = {}
+): Promise<{ imported: number; updated: number; total: number }> {
+  const currentStatus = getCnfImportStatus(userId);
+  if (currentStatus.isRunning) {
+    throw new Error('A Canadian Nutrient File import is already running.');
+  }
+
+  updateJobStatus(userId, {
+    isRunning: true,
+    status: 'running',
+    progress: 0,
+    total: 0,
+    processed: 0,
+    imported: 0,
+    updated: 0,
+    error: undefined,
+    lastRunAt: new Date().toISOString(),
+  });
+
+  return executeCnfImport(userId, zipBuffer, options);
+}
+
+/**
  * Downloads a CNF archive ZIP from a given URL and imports it.
  */
 export async function importCnfFromUrl(
@@ -682,20 +730,50 @@ export async function importCnfFromUrl(
   archiveUrl: string,
   options: CnfSyncOptions = {}
 ): Promise<{ imported: number; updated: number; total: number }> {
-  log('info', `Downloading CNF archive from ${archiveUrl} for user ${userId}`);
-  const res = await cnfFetch(archiveUrl, {
-    headers: {
-      'User-Agent': 'SparkyFitness/1.0',
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to download CNF archive: HTTP ${res.status}`);
+  const currentStatus = getCnfImportStatus(userId);
+  if (currentStatus.isRunning) {
+    throw new Error('A Canadian Nutrient File import is already running.');
   }
 
-  const arrayBuffer = await res.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  return importCnfFromZipBuffer(userId, buffer, options);
+  updateJobStatus(userId, {
+    isRunning: true,
+    status: 'running',
+    progress: 0,
+    total: 0,
+    processed: 0,
+    imported: 0,
+    updated: 0,
+    error: undefined,
+    lastRunAt: new Date().toISOString(),
+  });
+
+  try {
+    log(
+      'info',
+      `Downloading CNF archive from ${archiveUrl} for user ${userId}`
+    );
+    const res = await cnfFetch(archiveUrl, {
+      headers: {
+        'User-Agent': 'SparkyFitness/1.0',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to download CNF archive: HTTP ${res.status}`);
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return await executeCnfImport(userId, buffer, options);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    updateJobStatus(userId, {
+      isRunning: false,
+      status: 'failed',
+      error: errorMsg,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -705,11 +783,14 @@ export async function importCnfFromUrl(
 export async function deleteCnfLibraryFoods(
   userId?: string
 ): Promise<{ deletedCount: number }> {
+  if (!userId) {
+    return { deletedCount: 0 };
+  }
   const client = await getSystemClient();
   try {
     const res = await client.query(
-      "DELETE FROM foods WHERE provider_type = 'canadian-nutrient-file' AND (shared_with_public = TRUE OR user_id = $1)",
-      [userId || null]
+      "DELETE FROM foods WHERE provider_type = 'canadian-nutrient-file' AND user_id = $1",
+      [userId]
     );
     return { deletedCount: res.rowCount ?? 0 };
   } finally {

@@ -52,12 +52,12 @@ export async function triggerCnfBulkImport(
 
   return apiCall(url, {
     method: 'POST',
-    body: JSON.stringify({
+    body: {
       archiveUrl: params.archiveUrl,
       syncPastEntries: params.syncPastEntries ?? false,
       language: params.language ?? 'en',
       maxFoods: params.maxFoods,
-    }),
+    },
   });
 }
 

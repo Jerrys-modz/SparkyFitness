@@ -33,7 +33,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface CnfBulkImportDialogProps {
   open: boolean;
@@ -345,17 +345,20 @@ export function CnfBulkImportDialog({
               </div>
 
               <div className="rounded-md border bg-muted/30 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
-                Contains information published by Health Canada licensed under
-                the{' '}
-                <a
-                  href="https://open.canada.ca/en/open-government-licence-canada"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline font-medium"
-                >
-                  Open Government Licence – Canada
-                </a>
-                .
+                <Trans
+                  i18nKey="settings.cnf.licenceNotice"
+                  defaults="Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>."
+                  components={{
+                    1: (
+                      <a
+                        href="https://open.canada.ca/en/open-government-licence-canada"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium"
+                      />
+                    ),
+                  }}
+                />
               </div>
             </div>
           )}

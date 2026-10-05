@@ -634,31 +634,38 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'canadian-nutrient-file' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The Canadian Nutrient File (CNF) contains information published by
-            Health Canada under the{' '}
-            <a
-              href="https://open.canada.ca/en/open-government-licence-canada"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Open Government Licence – Canada
-            </a>
-            . It is free, public, and requires no credentials. Supported
-            languages are <strong>English (en)</strong> and{' '}
-            <strong>French (fr)</strong>.
+            <Trans
+              i18nKey="settings.cnf.providerSpecificDescription"
+              defaults="The Canadian Nutrient File (CNF) contains information published by Health Canada under the <1>Open Government Licence – Canada</1>. It is free, public, and requires no credentials. Supported languages are <3>English (en)</3> and <5>French (fr)</5>."
+              components={{
+                1: (
+                  <a
+                    href="https://open.canada.ca/en/open-government-licence-canada"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+                3: <strong />,
+                5: <strong />,
+              }}
+            />
           </p>
           <p className="text-sm text-muted-foreground">
-            For more details, see the official portal at{' '}
-            <a
-              href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Canadian Nutrient File (Health Canada)
-            </a>
-            .
+            <Trans
+              i18nKey="settings.cnf.providerSpecificPortal"
+              defaults="For more details, see the official portal at <1>Canadian Nutrient File</1>."
+              components={{
+                1: (
+                  <a
+                    href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}

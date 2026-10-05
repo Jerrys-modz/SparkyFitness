@@ -103,4 +103,16 @@ describe('zipUtils', () => {
     const invalidBuf = Buffer.from('not a zip file');
     expect(() => parseZipArchive(invalidBuf)).toThrow('Invalid ZIP archive');
   });
+
+  it('throws an error if central directory or local header offsets exceed buffer', () => {
+    const validZip = createMockZip([
+      {
+        name: 'test.csv',
+        content: 'hello world',
+      },
+    ]);
+    // Truncate the buffer so the central directory or data offsets exceed buffer length
+    const truncatedBuf = validZip.subarray(0, validZip.length - 15);
+    expect(() => parseZipArchive(truncatedBuf)).toThrow('Invalid ZIP archive');
+  });
 });

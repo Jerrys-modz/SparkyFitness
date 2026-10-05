@@ -23,6 +23,7 @@ import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProvi
 import SyncRangeDialog from './SyncRangeDialog';
 import type { SyncMockOptions } from './SyncRangeDialog';
 import { CnfBulkImportDialog } from './CnfBulkImportDialog';
+import { Trans } from 'react-i18next';
 
 import {
   useConnectFitbitMutation,
@@ -676,25 +677,30 @@ export const ProviderCard = ({
         {isCnf && (
           <>
             <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-              Contains information published by Health Canada licensed under the{' '}
-              <a
-                href="https://open.canada.ca/en/open-government-licence-canada"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline font-medium"
-              >
-                Open Government Licence – Canada
-              </a>
-              . Supported languages: <strong>English (en)</strong> and{' '}
-              <strong>French (fr)</strong>.{' '}
-              <a
-                href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline font-medium ml-1"
-              >
-                Canadian Nutrient File
-              </a>
+              <Trans
+                i18nKey="settings.cnf.providerCardLicence"
+                defaults="Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>"
+                components={{
+                  1: (
+                    <a
+                      href="https://open.canada.ca/en/open-government-licence-canada"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                    />
+                  ),
+                  3: <strong />,
+                  5: <strong />,
+                  7: (
+                    <a
+                      href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium ml-1"
+                    />
+                  ),
+                }}
+              />
             </p>
 
             {cnfStatus?.isRunning && (
@@ -841,10 +847,12 @@ export const ProviderCard = ({
         providerType={provider.provider_type}
       />
 
-      <CnfBulkImportDialog
-        open={isCnfDialogOpen}
-        onOpenChange={setIsCnfDialogOpen}
-      />
+      {isCnf && isAdminMode && (
+        <CnfBulkImportDialog
+          open={isCnfDialogOpen}
+          onOpenChange={setIsCnfDialogOpen}
+        />
+      )}
     </div>
   );
 };
