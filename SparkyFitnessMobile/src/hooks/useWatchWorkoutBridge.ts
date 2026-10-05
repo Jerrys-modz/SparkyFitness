@@ -382,7 +382,14 @@ export function useWatchWorkoutBridge(
   const handleSetCompleted = useCallback(
     async (payload: WatchSetCompletedPayload): Promise<void> => {
       if (!WatchConnectivity) return;
-      if (handledSetClientIdsRef.current.has(payload.clientId)) return;
+      addLog(
+        `Watch set-completed received (session ${payload.sessionId}, set ${payload.setId})`,
+        'INFO'
+      );
+      if (handledSetClientIdsRef.current.has(payload.clientId)) {
+        addLog('Watch set-completed ignored: already handled', 'INFO');
+        return;
+      }
       handledSetClientIdsRef.current.add(payload.clientId);
 
       const state = useActiveWorkoutStore.getState();
@@ -392,6 +399,13 @@ export function useWatchWorkoutBridge(
         // start) — nothing to complete it against.
         addLog(
           `Watch set-completed ignored: no matching active session (${payload.sessionId})`,
+          'WARNING'
+        );
+        return;
+      }
+      if (!state.steps.some((step) => step.setId === payload.setId)) {
+        addLog(
+          `Watch set-completed ignored: set ${payload.setId} is not in the live workout`,
           'WARNING'
         );
         return;
