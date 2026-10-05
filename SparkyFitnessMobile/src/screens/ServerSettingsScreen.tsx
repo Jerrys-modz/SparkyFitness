@@ -1,5 +1,3 @@
-import { clearBackgroundWater } from '../services/backgroundWater';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -50,9 +48,6 @@ const ServerSettingsScreen: React.FC<ServerSettingsScreenProps> = ({
   navigation,
 }) => {
   const { t } = useTranslation();
-  const setBackgroundWaterEnabled = useAppPreferencesStore(
-    (state) => state.setBackgroundWaterEnabled
-  );
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
@@ -135,13 +130,6 @@ const ServerSettingsScreen: React.FC<ServerSettingsScreenProps> = ({
     try {
       const wasActive = configId === activeConfig?.id;
       await deleteServerConfig(configId);
-      // The shortcut's copy of the login belongs to the server just removed.
-      if (wasActive) {
-        // Switched off too, or the sync would write the next server's login
-        // back without the user choosing that.
-        setBackgroundWaterEnabled(false);
-        await clearBackgroundWater();
-      }
       const remaining = await getAllServerConfigs();
       if (wasActive && remaining.length > 0) {
         await setActiveServerConfig(remaining[0].id);

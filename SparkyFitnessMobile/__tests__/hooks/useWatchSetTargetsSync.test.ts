@@ -365,6 +365,55 @@ describe('useWatchSetTargetsSync', () => {
     ]);
   });
 
+  it('sends a loaded hold with its weight and hold length, no reps', () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: 'Weighted Plank',
+      modality: 'weight_duration',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    session.exercises[0].sets[0].weight = 20;
+    session.exercises[0].sets[0].duration = 45;
+    session.exercises[0].sets[0].reps = 10;
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].targets[0]).toEqual({
+      setId: '101',
+      targetWeightKg: 20,
+      targetDurationSec: 45,
+    });
+  });
+
+  it('sends a carry with its weight and distance in km, no reps', () => {
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot = {
+      id: 'ex-1',
+      name: "Farmer's Carry",
+      modality: 'weight_distance',
+    } as (typeof session.exercises)[0]['exercise_snapshot'];
+    session.exercises[0].sets[0].weight = 40;
+    session.exercises[0].sets[0].distance = 0.03;
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session,
+        sessionId: 'session-1',
+        watchArmedAt: ARMED_AT,
+      });
+    });
+    renderHook(() => useWatchSetTargetsSync(true));
+    expect(mockUpdateSetTargets.mock.calls[0][0].targets[0]).toEqual({
+      setId: '101',
+      targetWeightKg: 40,
+      targetDistanceKm: 0.03,
+    });
+  });
+
   it("does not turn a cardio set's seeded reps into a countdown", () => {
     const session = makeSession();
     session.exercises[0].exercise_snapshot = {
