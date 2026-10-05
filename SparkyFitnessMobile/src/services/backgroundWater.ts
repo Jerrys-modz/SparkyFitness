@@ -82,26 +82,49 @@ export function buildBackgroundWaterConfig(
  * setting off, or no container, or no signed-in server, the copy is erased, so
  * nothing about the account stays readable outside the app.
  */
-export async function syncBackgroundWater(
+let syncQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs one sync or clear at a time, in the order asked. Without this, a sync
+ * waiting on the stored login could finish after a clear and write the login
+ * back after the user switched the setting off.
+ *
+ * Resolves false when the native side refused to store the copy, so the caller
+ * can switch the setting off and erase what was left.
+ */
+export function syncBackgroundWater(
   enabled: boolean,
   container: BackgroundWaterContainer | undefined,
   weightUnit: 'kg' | 'lbs' = 'kg'
-): Promise<void> {
-  if (!BackgroundWaterModule) return;
-  try {
-    const config = enabled
-      ? buildBackgroundWaterConfig(
-          await getActiveServerConfig(),
-          container,
-          weightUnit
-        )
-      : null;
-    await BackgroundWaterModule.setConfig(
-      config ? JSON.stringify(config) : null
-    );
-  } catch (error) {
-    addLog(`[Background water] Could not update: ${String(error)}`, 'WARNING');
-  }
+): Promise<boolean> {
+  const run = async (): Promise<boolean> => {
+    if (!BackgroundWaterModule) return true;
+    try {
+      const config = enabled
+        ? buildBackgroundWaterConfig(
+            await getActiveServerConfig(),
+            container,
+            weightUnit
+          )
+        : null;
+      const stored = await BackgroundWaterModule.setConfig(
+        config ? JSON.stringify(config) : null
+      );
+      if (stored === false) {
+        addLog('[Background water] The device refused to store it', 'WARNING');
+        return false;
+      }
+    } catch (error) {
+      addLog(
+        `[Background water] Could not update: ${String(error)}`,
+        'WARNING'
+      );
+    }
+    return true;
+  };
+  const result = syncQueue.then(run, run);
+  syncQueue = result;
+  return result;
 }
 
 /** Erases the native copy, e.g. when the user signs out or removes the server. */

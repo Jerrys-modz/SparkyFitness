@@ -27,6 +27,10 @@ const owala = {
   unit: 'oz',
   servings_per_container: 2,
 };
+it('labels one serving in the container unit', () => {
+  expect(drinkVolumeLabel(owala)).toBe('16 oz');
+});
+
 const server = {
   id: 's1',
   url: 'https://sparky.example.com/',
