@@ -189,7 +189,8 @@ private struct WaitingForWorkoutView: View {
             // stock list, so the first screen matches the ones after it.
             ScrollView {
                 VStack(spacing: 6) {
-                    ForEach(scheduled) { workout in
+                    // By position: two plans can share a name and a workout.
+                    ForEach(Array(scheduled.enumerated()), id: \.offset) { _, workout in
                         Button {
                             Haptics.tap()
                             start(presetId: workout.presetId)

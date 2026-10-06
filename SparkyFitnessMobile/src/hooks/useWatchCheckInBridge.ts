@@ -605,7 +605,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         startableWorkouts,
-        scheduledWorkouts,
+        // Built for `summaryDate`; a push that has crossed midnight before the
+        // hook re-rendered must not carry yesterday's plan.
+        scheduledWorkouts: today === summaryDate ? scheduledWorkouts : [],
         workoutServerId,
         maxHeartRate,
         rpeEnabled: watchRpeEnabled,
