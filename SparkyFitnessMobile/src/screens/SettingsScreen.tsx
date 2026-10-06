@@ -244,6 +244,17 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               iconColor={catPink}
             />
 
+            {isConnected && (
+              <SettingsRow
+                icon="person"
+                title={t('settings.rows.profile', {
+                  defaultValue: 'Profile & Account',
+                })}
+                onPress={() => navigation.navigate('Profile')}
+                iconColor={catBlue}
+              />
+            )}
+
             <SettingsRowGroup>
               <SettingsRow
                 icon="app-settings"
