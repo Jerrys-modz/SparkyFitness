@@ -87,7 +87,7 @@ async function logWaterDrink(): Promise<void> {
   }
 }
 
-const pendingNavigation: Array<() => void> = [];
+const pendingNavigation: (() => void)[] = [];
 
 /** Runs shortcuts queued before the navigator finished starting. */
 export function drainQuickActionNavigation(): void {
