@@ -17,12 +17,30 @@ const WIDGET_KIND = 'widget';
 const CALORIE_SNAPSHOT_KEY = 'calorieSnapshot';
 const MACRO_WIDGET_KIND = 'macroWidget';
 const MACRO_SNAPSHOT_KEY = 'macroSnapshot';
+const WATER_WIDGET_KIND = 'waterWidget';
+const WATER_SNAPSHOT_KEY = 'waterSnapshot';
+
+/** What the iOS water widget needs beyond the day's totals. */
+export interface WaterWidgetInfo {
+  /** What one tap of the widget's button adds, in millilitres. */
+  drinkMl: number | null;
+  /** The unit the app shows water in. */
+  unit: string;
+  /** Whether the no-open shortcut is on, so the widget may show its button. */
+  canLog: boolean;
+}
 
 const iosAppGroup = (
   Constants.expoConfig?.extra as { iosAppGroup?: string } | undefined
 )?.iosAppGroup;
 
-export function useWidgetSync(summary: DailySummary | undefined): void {
+export function useWidgetSync(
+  summary: DailySummary | undefined,
+  water?: WaterWidgetInfo
+): void {
+  const drinkMl = water?.drinkMl ?? null;
+  const waterUnit = water?.unit;
+  const canLog = water?.canLog ?? false;
   const date = summary?.date;
   const isToday = date === getTodayDate();
   const lastAndroidCalorieSnapshotKeyRef = useRef<string | null>(null);
@@ -78,10 +96,24 @@ export function useWidgetSync(summary: DailySummary | undefined): void {
           return;
         }
 
+        if (waterUnit) {
+          storage.set(WATER_SNAPSHOT_KEY, {
+            date,
+            consumedMl: summary.waterConsumed,
+            goalMl: summary.waterGoal,
+            // The storage takes only strings and numbers: 0 means none / off.
+            drinkMl: drinkMl ?? 0,
+            unit: waterUnit,
+            canLog: canLog ? 1 : 0,
+            lastUpdated,
+          });
+        }
+
         if (balance) {
           ExtensionStorage.reloadWidget(WIDGET_KIND);
         }
         ExtensionStorage.reloadWidget(MACRO_WIDGET_KIND);
+        if (waterUnit) ExtensionStorage.reloadWidget(WATER_WIDGET_KIND);
       } catch (error) {
         addLog(
           `[useWidgetSync] Failed to push snapshot to widget: ${error}`,
@@ -141,5 +173,5 @@ export function useWidgetSync(summary: DailySummary | undefined): void {
         }
       })();
     }
-  }, [summary, date, isToday]);
+  }, [summary, date, isToday, drinkMl, waterUnit, canLog]);
 }
