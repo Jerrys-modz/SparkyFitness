@@ -102,6 +102,10 @@ internal object WatchContext {
     }
   }
 
+  fun replace(next: WatchSnapshot) {
+    snapshot = next
+  }
+
   fun addPending(tap: PendingTap) {
     pending = pending + tap
   }
