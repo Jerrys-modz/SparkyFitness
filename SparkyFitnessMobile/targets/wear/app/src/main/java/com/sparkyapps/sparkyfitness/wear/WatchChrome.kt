@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.TimeText
@@ -47,14 +48,18 @@ internal object Palette {
 }
 
 @Composable
-internal fun WatchFrame(page: Int, content: @Composable BoxScope.() -> Unit) {
+internal fun WatchFrame(
+  page: Int,
+  horizontal: Dp = 32.dp,
+  content: @Composable BoxScope.() -> Unit,
+) {
   MaterialTheme {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
       TimeText()
       Box(
         Modifier
           .fillMaxSize()
-          .padding(start = 32.dp, end = 32.dp, top = 24.dp, bottom = 18.dp),
+          .padding(start = horizontal, end = horizontal, top = 24.dp, bottom = 18.dp),
         content = content,
       )
       Row(
@@ -76,12 +81,17 @@ internal fun WatchFrame(page: Int, content: @Composable BoxScope.() -> Unit) {
 @Composable
 internal fun CalorieRing(progress: Float, modifier: Modifier = Modifier) {
   Canvas(modifier) {
-    val stroke = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
+    val stroke = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+    val inset = stroke.width / 2f
+    val arcSize = Size(size.width - stroke.width, size.height - stroke.width)
+    val origin = Offset(inset, inset)
     drawArc(
       color = Palette.secondary.copy(alpha = 0.35f),
       startAngle = 0f,
       sweepAngle = 360f,
       useCenter = false,
+      topLeft = origin,
+      size = arcSize,
       style = stroke,
     )
     drawArc(
@@ -89,6 +99,8 @@ internal fun CalorieRing(progress: Float, modifier: Modifier = Modifier) {
       startAngle = -90f,
       sweepAngle = 360f * progress.coerceIn(0f, 1f),
       useCenter = false,
+      topLeft = origin,
+      size = arcSize,
       style = stroke,
     )
   }

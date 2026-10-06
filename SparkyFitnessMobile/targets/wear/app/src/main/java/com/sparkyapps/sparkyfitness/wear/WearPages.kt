@@ -44,7 +44,7 @@ internal fun GoalsPage(page: Int) {
   val eaten = snap.caloriesConsumed ?: 0
   val goal = if (remaining == null) 0 else eaten - remaining
   val progress = if (goal <= 0) 0f else (eaten.toFloat() / goal).coerceIn(0f, 1f)
-  WatchFrame(page) {
+  WatchFrame(page, horizontal = 14.dp) {
     if (snap.caloriesRemaining == null && snap.caloriesConsumed == null) {
       Text(
         "Open Sparky on your phone to sync today.",
@@ -61,13 +61,13 @@ internal fun GoalsPage(page: Int) {
       ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
           Stat(eaten.toString(), "Eaten", Modifier.weight(1f))
-          Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+          Box(Modifier.size(58.dp), contentAlignment = Alignment.Center) {
             CalorieRing(progress, Modifier.fillMaxSize())
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
               Text(
                 "${remaining ?: 0}",
                 color = Color.White,
-                fontSize = 18.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
               )
@@ -92,8 +92,8 @@ internal fun GoalsPage(page: Int) {
 @Composable
 private fun Stat(value: String, label: String, modifier: Modifier) {
   Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-    Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-    Text(label, color = Palette.secondary, fontSize = 9.sp, maxLines = 1)
+    Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    Text(label, color = Palette.secondary, fontSize = 8.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
   }
 }
 
@@ -202,7 +202,7 @@ internal fun CheckInPage(context: Context, page: Int) {
   val step = if (snap.unit == "lbs") 0.2 else 0.1
   val last = snap.lastWeightKg?.let { WatchContext.displayWeight(it) }
   val delta = if (last == null) null else weight - last
-  WatchFrame(page) {
+  WatchFrame(page, horizontal = 16.dp) {
     Column(
       Modifier.fillMaxSize(),
       horizontalAlignment = Alignment.CenterHorizontally,
@@ -255,11 +255,11 @@ internal fun CheckInPage(context: Context, page: Int) {
 
 @Composable
 private fun StepperLine(value: String, unit: String, onMinus: () -> Unit, onPlus: () -> Unit) {
-  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
     RoundButton("−", onMinus)
     Row(verticalAlignment = Alignment.Bottom) {
-      Text(value, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
-      Text(" $unit", color = Palette.secondary, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+      Text(value, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+      Text(" $unit", color = Palette.secondary, fontSize = 11.sp, modifier = Modifier.padding(bottom = 3.dp))
     }
     RoundButton("+", onPlus)
   }
@@ -269,7 +269,7 @@ private fun StepperLine(value: String, unit: String, onMinus: () -> Unit, onPlus
 private fun RoundButton(label: String, onClick: () -> Unit) {
   Box(
     Modifier
-      .size(32.dp)
+      .size(28.dp)
       .clip(RoundedCornerShape(10.dp))
       .background(Palette.card)
       .clickable(onClick = onClick),
