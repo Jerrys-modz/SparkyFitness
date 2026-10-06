@@ -5024,6 +5024,40 @@ describe('workoutSession', () => {
           });
         });
 
+        it('converts carry distance from metres/yards to km on weight_distance', () => {
+          const metres = buildActivitySetsPayload(
+            [{ clientId: 'set-0', weight: '40', reps: '', distance: '30' }],
+            new Map(),
+            'kg',
+            'weight_distance'
+          );
+          expect(metres[0]).toMatchObject({ weight: 40, reps: null });
+          expect(metres[0].distance).toBeCloseTo(0.03, 6);
+          const yards = buildActivitySetsPayload(
+            [{ clientId: 'set-0', weight: '40', reps: '', distance: '100' }],
+            new Map(),
+            'kg',
+            'weight_distance',
+            undefined,
+            'miles'
+          );
+          expect(yards[0].distance).toBeCloseTo(0.09144, 4);
+        });
+
+        it('takes duration from the drafts on weight_duration', () => {
+          const payload = buildActivitySetsPayload(
+            [{ clientId: 'set-0', weight: '20', reps: '', duration: 90 }],
+            new Map(),
+            'kg',
+            'weight_duration'
+          );
+          expect(payload[0]).toMatchObject({
+            weight: 20,
+            reps: null,
+            duration: 90,
+          });
+        });
+
         it('takes duration from the drafts on duration-modality exercises', () => {
           const payload = buildActivitySetsPayload(
             [{ clientId: 'set-0', weight: '', reps: '45', duration: 75 }],
