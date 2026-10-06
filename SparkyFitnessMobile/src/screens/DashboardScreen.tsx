@@ -75,7 +75,7 @@ import {
 } from '../utils/healthTrendPreferences';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
-import { formatDateLabel } from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import {
   setNativeHeaderDatePickerOptions,
   type NativeHeaderDatePickerNavigation,
@@ -145,8 +145,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const usesNativeTabs = useNativeIOSTabsActive();
   const insets = useSafeAreaInsets();
   const { defaultColor: nativeHeaderActionColor } = useHeaderActionColors();
+  const datePastColor =
+    (useCSSVariable('--color-date-past') as string) || '#f97316';
+  const dateFutureColor =
+    (useCSSVariable('--color-date-future') as string) || '#0ea5e9';
+
   const syncNativeHeaderDatePicker = useCallback(() => {
     if (!usesNativeTabs) return;
+
+    const relation = getDateRelationToToday(selectedDate);
+    const dateTintColor =
+      relation === 'past'
+        ? datePastColor
+        : relation === 'future'
+          ? dateFutureColor
+          : nativeHeaderActionColor;
 
     setNativeHeaderDatePickerOptions(
       navigation as unknown as NativeHeaderDatePickerNavigation,
@@ -156,6 +169,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         onDatePress: openCalendar,
         onNextDate: goToNextDay,
         tintColor: nativeHeaderActionColor,
+        dateTintColor,
         accessibilityLabel: t('dashboard.chooseDate', {
           defaultValue: 'Choose dashboard date',
         }),
@@ -169,15 +183,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       }
     );
   }, [
+    dateFutureColor,
+    dateLocale,
+    datePastColor,
     goToNextDay,
     goToPreviousDay,
     nativeHeaderActionColor,
     navigation,
     openCalendar,
     selectedDate,
-    usesNativeTabs,
     t,
-    dateLocale,
+    usesNativeTabs,
   ]);
 
   const { isConnected, isLoading: isConnectionLoading } = useServerConnection();
@@ -870,7 +886,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
         />
       ) : null}
       {renderedContent}
