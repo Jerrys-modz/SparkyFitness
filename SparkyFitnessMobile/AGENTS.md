@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-02_
+_Last updated: 2026-10-06_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -208,6 +208,7 @@ npx expo prebuild --clean
 - `DashboardScreen` and `DiaryScreen` share date navigation patterns and support gesture-driven date movement.
 - `DashboardScreen` drives hydration quick-add, card visibility, fasting summary, health trends, and widget sync.
 - Hydration reminders are local notifications owned by the headless `HydrationReminderReconciler` on `DashboardScreen` (always today, never `selectedDate`). `computeReminderSchedule` (`utils/hydrationReminder.ts`) builds a chain of up to 12 reminder times from the day's latest water `logged_at`, each inside the user's `[start, end)` window; `reconcileWaterReminders` (`hooks/useHydrationReminder.ts`) persists the scheduled ids under a signature and cancels/reschedules only when that signature changes. A chain rather than one ping because a scheduled notification cannot reschedule itself while the app is closed. Any mutation that logs water must invalidate `waterIntakeLogQueryKey(date)` or the reconciler keeps the old anchor. Paired watches receive these through OS notification mirroring; there is no watch-side code.
+- Allergen tracking: `AllergenSettingsScreen` (reached from Food Settings) manages `/api/allergen-preferences` through `useAllergenPreferences`; `AllergenBadges` marks tracked allergens on food rows and diary entries, and `AllergenWarning` is the banner on `FoodEntryAdd` (so barcode scans warn). Matching lives in `utils/allergens.ts`; foods carry `allergens`/`traces` on their default variant.
 - `DiaryScreen` owns meal type sections, measurement summaries, serving quick-adjust, swipe/long-press deletes, and AddSheet date propagation.
 - `DashboardSettingsScreen` controls dashboard card visibility and custom nutrient display preferences, and is the entry point to `HealthTrendsSettingsScreen`.
 - `HealthTrendsSettingsScreen` orders and hides the Health Trends graphs. One drag list holds the shown graphs, a `Hidden` divider, then the hidden ones; dragging a graph across the divider is what hides or shows it, so there are no switches. Every row including the divider shares `REORDER_ROW_HEIGHT`, keeping the stride uniform for the reorder worklets it shares with `WorkoutReorderList` and `MealTypeSettingsScreen` (`useReorderRowGeometry`, `useReorderRowPreviewStyle`, `createReorderRowPanGesture`, `resetReorderDragPreview`, all exported from `components/WorkoutReorderList.tsx`). Register a new graph in `constants/healthTrends.ts`; `HealthTrendsPager`'s render map is a total `Record<HealthTrendKey, ...>`, so registering one without rendering it is a compile error.

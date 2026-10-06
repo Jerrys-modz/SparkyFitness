@@ -41,6 +41,7 @@ import CalorieSettingsScreen from '../screens/CalorieSettingsScreen';
 import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
 import AiSettingsScreen from '../screens/AiSettingsScreen';
 import FoodSettingsScreen from '../screens/FoodSettingsScreen';
+import AllergenSettingsScreen from '../screens/AllergenSettingsScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
@@ -140,6 +141,7 @@ export const SafeCalorieSettings = withErrorBoundary(CalorieSettingsScreen, 'Cal
 export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'MealTypeSettings', { canGoBack: true });
 export const SafeAiSettings = withErrorBoundary(AiSettingsScreen, 'AiSettings', { canGoBack: true });
 export const SafeFoodSettings = withErrorBoundary(FoodSettingsScreen, 'FoodSettings', { canGoBack: true });
+export const SafeAllergenSettings = withErrorBoundary(AllergenSettingsScreen, 'AllergenSettings', { canGoBack: true });
 export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 'DashboardSettings', { canGoBack: true });
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });

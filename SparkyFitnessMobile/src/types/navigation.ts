@@ -343,6 +343,7 @@ export type RootStackParamList = {
   CalorieSettings: undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
+  AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;
