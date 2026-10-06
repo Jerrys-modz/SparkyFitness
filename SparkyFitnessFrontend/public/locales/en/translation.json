@@ -879,6 +879,8 @@
       "weightReps": "Weight & Reps",
       "repsOnly": "Reps",
       "bodyweightReps": "Bodyweight (+/− weight)",
+      "weightDistance": "Weight & Distance (carries)",
+      "weightDuration": "Weight & Duration (loaded holds)",
       "duration": "Duration",
       "durationDistance": "Duration & Distance"
     },
@@ -1361,6 +1363,7 @@
     "failedToLoadActivePlan": "Failed to load active workout plan."
   },
   "exerciseCard": {
+    "exerciseDbCredit": "Data and demonstrations © AscendAPI / ExerciseDB",
     "workoutLocation": "Gym / Location",
     "title": "Exercise",
     "addExercise": "Add Exercise",
@@ -5738,6 +5741,7 @@
     "durationMin": "Duration (min)",
     "durationSec": "Duration (s)",
     "durationSecShort": "Sec",
+    "distanceUnit": "Distance ({{unit}})",
     "durationSet": "Duration set {{setNumber}}",
     "notesPlaceholder": "Add a note for this set...",
     "reps": "Reps",

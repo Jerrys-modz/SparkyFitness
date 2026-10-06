@@ -12,6 +12,10 @@ import {
   exerciseWriteArrayFieldsSchema,
   type ExerciseWriteArrayFields,
 } from '@workspace/shared';
+import {
+  addExerciseDbExerciseBodySchema,
+  applyExerciseModalitySuggestionsBodySchema,
+} from '@workspace/shared';
 import { log } from '../config/logging.js';
 
 import { fileURLToPath } from 'url';
@@ -527,7 +531,7 @@ router.get('/search', authenticate, async (req, res, next) => {
  *                         nullable: true
  *                       modality:
  *                         type: string
- *                         enum: [weight_reps, reps_only, bodyweight_reps, duration, duration_distance]
+ *                         enum: [weight_reps, reps_only, bodyweight_reps, weight_duration, weight_distance, duration, duration_distance]
  *                         description: Derived from the provider category so import previews can pick a set editor.
  *                       calories_per_hour:
  *                         type: number
@@ -924,6 +928,139 @@ router.post(
     }
   }
 );
+/**
+ * @swagger
+ * /exercises/modality-suggestions:
+ *   get:
+ *     summary: Preview tracking-type changes for the user's own exercises
+ *     description: Re-runs automatic type detection (name, category, equipment) and lists exercises whose detected type differs from the stored one. Nothing is changed.
+ *     tags:
+ *       - Exercise & Workouts
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Suggested changes.
+ *       500:
+ *         description: Server error.
+ */
+router.get('/modality-suggestions', authenticate, async (req, res, next) => {
+  try {
+    res
+      .status(200)
+      .json(await exerciseService.getModalitySuggestions(req.userId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /exercises/modality-suggestions/apply:
+ *   post:
+ *     summary: Apply chosen tracking-type changes to the user's own exercises
+ *     tags:
+ *       - Exercise & Workouts
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - changes
+ *             properties:
+ *               changes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [id, modality]
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     modality:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Number of exercises updated.
+ *       400:
+ *         description: Invalid request body.
+ *       500:
+ *         description: Server error.
+ */
+router.post(
+  '/modality-suggestions/apply',
+  authenticate,
+  async (req, res, next) => {
+    const parsed = applyExerciseModalitySuggestionsBodySchema.safeParse(
+      req.body
+    );
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid request body.' });
+    }
+    try {
+      const updated = await exerciseService.applyModalitySuggestions(
+        req.userId,
+        parsed.data.changes
+      );
+      res.status(200).json({ updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /exercises/add-exercisedb:
+ *   post:
+ *     summary: Import an ExerciseDB exercise from the community mirror
+ *     description: Keeps the mirror's media link; nothing is downloaded.
+ *     tags:
+ *       - Exercise & Workouts
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [exerciseId]
+ *             properties:
+ *               exerciseId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: The imported (or already imported) exercise.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Exercise'
+ *       400:
+ *         description: Invalid request body.
+ *       500:
+ *         description: Server error.
+ */
+router.post('/add-exercisedb', authenticate, async (req, res, next) => {
+  const parsed = addExerciseDbExerciseBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Invalid request body.' });
+  }
+  try {
+    const exercise = await exerciseService.addExerciseDBExerciseToUserExercises(
+      req.userId,
+      parsed.data.exerciseId
+    );
+    res.status(201).json(exercise);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Endpoint to fetch an exercise by ID
 /**
  * @swagger
@@ -1002,7 +1139,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
  *             properties:
  *               exerciseData:
  *                 type: string
- *                 description: JSON string of exercise data (name, category, modality, equipment, muscle_groups, description, instructions, is_public). modality is one of weight_reps, reps_only, bodyweight_reps, duration, duration_distance; omitted or unrecognized values are derived from the category.
+ *                 description: JSON string of exercise data (name, category, modality, equipment, muscle_groups, description, instructions, is_public). modality is one of weight_reps, reps_only, bodyweight_reps, weight_duration, weight_distance, duration, duration_distance; omitted or unrecognized values are derived from the category.
  *                 example: '{"name": "Push-up", "category": "Strength", "modality": "reps_only", "equipment": ["None"], "muscle_groups": ["Chest", "Triceps"], "description": "A classic bodyweight exercise.", "instructions": ["Start in a plank position.", "Lower your body until your chest nearly touches the floor.", "Push back up to the starting position."], "is_public": true}'
  *               images:
  *                 type: array
@@ -1221,7 +1358,7 @@ router.post('/import-json', authenticate, async (req, res, next) => {
  *             properties:
  *               exerciseData:
  *                 type: string
- *                 description: JSON string of exercise data to update (name, category, modality, equipment, muscle_groups, description, instructions, is_public, images - existing image URLs). modality is one of weight_reps, reps_only, bodyweight_reps, duration, duration_distance; omitted or unrecognized values leave the stored modality untouched, and changing the category alone never re-derives it.
+ *                 description: JSON string of exercise data to update (name, category, modality, equipment, muscle_groups, description, instructions, is_public, images - existing image URLs). modality is one of weight_reps, reps_only, bodyweight_reps, weight_duration, weight_distance, duration, duration_distance; omitted or unrecognized values leave the stored modality untouched, and changing the category alone never re-derives it.
  *                 example: '{"name": "Updated Push-up", "category": "Strength", "modality": "reps_only", "equipment": ["None"], "muscle_groups": ["Chest", "Triceps"], "description": "An updated classic bodyweight exercise.", "instructions": ["Start in a plank position.", "Lower your body until your chest nearly touches the floor.", "Push back up to the starting position."], "is_public": true, "images": ["http://example.com/old_image.jpg"]}'
  *               images:
  *                 type: array

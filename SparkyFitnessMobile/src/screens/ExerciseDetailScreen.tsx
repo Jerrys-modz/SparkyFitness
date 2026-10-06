@@ -976,6 +976,14 @@ const ExerciseDetailScreen: React.FC<ExerciseDetailScreenProps> = ({
                           <Text className="text-text-primary text-base font-medium mt-1">
                             {sourceText}
                           </Text>
+                          {sourceText === 'exercisedb-oss' ? (
+                            <Text className="text-text-secondary text-xs mt-1">
+                              {t('exerciseDetail.exerciseDbCredit', {
+                                defaultValue:
+                                  'Data and demonstrations © AscendAPI / ExerciseDB',
+                              })}
+                            </Text>
+                          ) : null}
                         </View>
                       ) : null}
                     </View>

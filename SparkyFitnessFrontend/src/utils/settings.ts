@@ -48,6 +48,7 @@ const PROVIDERS_WITHOUT_APP_ID = [
   'free-exercise-db',
   'wger',
   'liftosaur',
+  'exercisedb-oss',
 ];
 const OAUTH_TOKEN_PROVIDERS = [
   'googlehealth',

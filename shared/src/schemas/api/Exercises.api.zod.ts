@@ -40,7 +40,9 @@ const exerciseStringArrayFieldSchema = z
   .union([z.array(z.string()), z.string()])
   .nullable()
   .optional()
-  .transform((value) => (value == null || Array.isArray(value) ? value : [value]));
+  .transform((value) =>
+    value == null || Array.isArray(value) ? value : [value],
+  );
 
 /**
  * The subset of the create/update exercise payload (`POST /exercises`,
@@ -155,4 +157,52 @@ export type ExternalExerciseSearchItem = z.infer<
 >;
 export type PaginatedExternalExerciseSearchResult = z.infer<
   typeof paginatedExternalExerciseSearchResultSchema
+>;
+
+// --- Modality suggestions (re-detecting types on existing exercises) ---
+
+/** One exercise whose detected tracking type differs from the stored one. */
+export const exerciseModalitySuggestionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  category: z.string().nullable(),
+  currentModality: exerciseModalitySchema,
+  suggestedModality: exerciseModalitySchema,
+});
+export type ExerciseModalitySuggestion = z.infer<
+  typeof exerciseModalitySuggestionSchema
+>;
+
+export const exerciseModalitySuggestionsResponseSchema = z.array(
+  exerciseModalitySuggestionSchema,
+);
+
+/** Body for applying the suggestions the user kept after previewing them. */
+export const applyExerciseModalitySuggestionsBodySchema = z
+  .object({
+    changes: z
+      .array(
+        z.object({
+          id: z.string().uuid(),
+          modality: exerciseModalitySchema,
+        }),
+      )
+      .min(1)
+      .max(500),
+  })
+  .strict();
+export type ApplyExerciseModalitySuggestionsBody = z.infer<
+  typeof applyExerciseModalitySuggestionsBodySchema
+>;
+
+// --- ExerciseDB catalog import ---
+
+/** Body for importing one ExerciseDB (community mirror) exercise. */
+export const addExerciseDbExerciseBodySchema = z
+  .object({
+    exerciseId: z.string().min(1).max(200),
+  })
+  .strict();
+export type AddExerciseDbExerciseBody = z.infer<
+  typeof addExerciseDbExerciseBodySchema
 >;

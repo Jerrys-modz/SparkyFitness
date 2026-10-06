@@ -604,7 +604,8 @@ async function createExercise(exerciseData: any) {
         resolveExerciseModality(
           exerciseData.modality,
           exerciseData.category,
-          normalizeToStringArray(exerciseData.equipment)
+          normalizeToStringArray(exerciseData.equipment),
+          exerciseData.name
         ),
       ]
     );
@@ -635,8 +636,9 @@ async function updateExercise(id: any, userId: any, updateData: any) {
         images = COALESCE($14, images),
         is_quick_exercise = COALESCE($15, is_quick_exercise),
         modality = COALESCE($16, modality),
+        source_id = COALESCE($17, source_id),
         updated_at = now()
-      WHERE id = $17
+      WHERE id = $18
       RETURNING *`,
       [
         updateData.name,
@@ -671,6 +673,7 @@ async function updateExercise(id: any, userId: any, updateData: any) {
         // Modality is authoritative once set: an omitted or unrecognized value
         // preserves it, and editing `category` alone never re-derives it.
         isExerciseModality(updateData.modality) ? updateData.modality : null,
+        typeof updateData.source_id === 'string' ? updateData.source_id : null,
         id,
       ]
     );
@@ -1191,6 +1194,31 @@ async function findExerciseByNameAndUserId(name: any, userId: any) {
     client.release();
   }
 }
+/** The user's own exercises with just the fields modality detection reads. */
+async function getUserExercisesForModalityReview(userId: string): Promise<
+  {
+    id: string;
+    name: string;
+    category: string | null;
+    equipment: string | null;
+    modality: string | null;
+  }[]
+> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT id, name, category, equipment, modality
+       FROM exercises
+       WHERE user_id = $1
+       ORDER BY name`,
+      [userId]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
 export { getExerciseById };
 export { getExerciseOwnerId };
 export { getOrCreateActiveCaloriesExercise };
@@ -1210,6 +1238,7 @@ export { getExerciseDeletionImpact };
 export { deleteExerciseAndDependencies };
 export { deleteExerciseEntriesForUser };
 export { findExerciseByNameAndUserId };
+export { getUserExercisesForModalityReview };
 export default {
   getExerciseById,
   getExerciseOwnerId,
@@ -1230,4 +1259,5 @@ export default {
   deleteExerciseAndDependencies,
   deleteExerciseEntriesForUser,
   findExerciseByNameAndUserId,
+  getUserExercisesForModalityReview,
 };

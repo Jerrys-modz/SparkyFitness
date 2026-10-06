@@ -50,6 +50,7 @@ export const createExternalProvider = async (
         'wger',
         'usda',
         'norish',
+        'exercisedb-oss',
       ].includes(payload.provider_type)
         ? null
         : payload.app_id || null,

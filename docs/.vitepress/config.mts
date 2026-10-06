@@ -159,6 +159,7 @@ export default defineConfig({
           items: [
             { text: 'Exercise Database Manager', link: '/features/exercises/exercise-database-manager' },
             { text: 'Exercise Search', link: '/features/exercises/exercise-search' },
+            { text: 'Exercise Catalogs', link: '/features/exercises/exercise-catalogs' },
             { text: 'Interval & WOD Workouts', link: '/features/exercises/interval-wod-workouts' },
             { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },

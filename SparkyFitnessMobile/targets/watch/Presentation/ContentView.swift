@@ -145,6 +145,8 @@ struct ContentView: View {
             TrendView()
         case .workout:
             WorkoutView()
+        case .nowPlaying:
+            NowPlayingPage()
         }
     }
 

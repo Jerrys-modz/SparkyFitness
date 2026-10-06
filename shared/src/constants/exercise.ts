@@ -1,7 +1,4 @@
-import {
-  isIgnoredEquipment,
-  normalizeEquipment,
-} from "./exerciseTaxonomy.ts";
+import { isIgnoredEquipment, normalizeEquipment } from "./exerciseTaxonomy.ts";
 
 /**
  * Exercise modality selects which per-set editor clients render
@@ -12,6 +9,11 @@ import {
  *   positive is load added (+20 kg on a dip belt), negative is assistance
  *   (−15 kg from a band or machine). Volume and estimated 1RM count the
  *   lifter's body weight plus that value (see `effectiveLoadKg`).
+ * - weight_duration: weight plus a duration in seconds, for loaded holds
+ *   (weighted plank, wall sit with a plate)
+ * - weight_distance: weight plus a distance, for carries and sled work
+ *   (farmer's walk, yoke, sandbag, sled push). The distance is stored in km
+ *   like every other set distance; clients show metres or yards
  * - duration: single duration-in-seconds input
  * - duration_distance: cardio backed by a single set carrying duration
  *   (seconds) + distance (km); clients render a duration+distance form for
@@ -22,6 +24,8 @@ export const EXERCISE_MODALITIES = [
   "weight_reps",
   "reps_only",
   "bodyweight_reps",
+  "weight_duration",
+  "weight_distance",
   "duration",
   "duration_distance",
 ] as const;
@@ -42,6 +46,29 @@ export function isExerciseModality(value: unknown): value is ExerciseModality {
  */
 export function isCardioModality(modality: ExerciseModality): boolean {
   return modality === "duration_distance";
+}
+
+/** Loaded holds: a weight and a duration per set, no reps. */
+export function isWeightDurationModality(modality: ExerciseModality): boolean {
+  return modality === "weight_duration";
+}
+
+/** Carries and sled work: a weight and a distance per set, no reps. */
+export function isWeightDistanceModality(modality: ExerciseModality): boolean {
+  return modality === "weight_distance";
+}
+
+/**
+ * Whether a set of this modality records reps. The two loaded-effort types
+ * replace reps with a duration or a distance, so a rep count is not entered,
+ * summed or used for volume and estimated 1RM on them.
+ */
+export function modalityRecordsReps(modality: ExerciseModality): boolean {
+  return (
+    modality === "weight_reps" ||
+    modality === "reps_only" ||
+    modality === "bodyweight_reps"
+  );
 }
 
 /** Whether sets of this modality carry a signed added/assisting weight. */
@@ -90,20 +117,64 @@ function isBodyweightOnlyEquipment(
   );
 }
 
+const ASSISTED_OR_WEIGHTED_BODYWEIGHT =
+  /\b(pull[- ]?ups?|chin[- ]?ups?|dips?|push[- ]?ups?|muscle[- ]?ups?|sit[- ]?ups?|inverted rows?|leg raises?|hanging leg raises?|bar dips?)\b/;
+const CARRY_NAME =
+  /\b(farmer'?s?|suitcase|waiter'?s?|rack|overhead|front rack|trap bar|yoke|sandbag|zercher)\s+(carry|carries|walk|walks|hold walk)\b|\b(carry|carries)\b|\byoke\b|\b(sled|prowler)\s+(push|pull|drag)\b/;
+const HOLD_NAME =
+  /\b(planks?|side planks?|dead hangs?|bar hangs?|passive hangs?|active hangs?|wall sits?|l[- ]?sits?|hollow (body )?holds?|isometric holds?|static holds?|glute bridge holds?|iso holds?)\b/;
+const CARDIO_NAME =
+  /\b(running|jogging|treadmill|cycling|elliptical|swimming|stair ?climber|stair ?master|ski ?erg|assault bike|rowing machine|rower|spin bike|stationary bike)\b/;
+
 /**
- * Explicit modality when valid, else derived from category. The first arg is
- * a plain string so unknown values (old servers, third-party callers) funnel
- * through the guard; the server create path uses this as its sanitize+derive
- * and clients use it as their old-server fallback.
+ * Infer a modality from the exercise name as well as its category and
+ * equipment. Name rules only fire for patterns that are unambiguous in gym
+ * vocabulary (a "farmer's carry" is a loaded distance, a "plank" is a timed
+ * hold, "assisted pull-up" is signed bodyweight); anything else falls through
+ * to `deriveExerciseModality`, so an unrecognised name never changes the
+ * result the category and equipment would give.
+ */
+export function inferExerciseModality(input: {
+  name?: string | null;
+  category?: string | null;
+  equipment?: readonly (string | null | undefined)[] | string | null;
+}): ExerciseModality {
+  const name = input.name?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+  if (name !== "") {
+    const weighted = /\b(weighted|loaded|with weight|plate|vest)\b/.test(name);
+    if (/\bassisted\b/.test(name) || /\bband[- ]assisted\b/.test(name)) {
+      return "bodyweight_reps";
+    }
+    if (CARRY_NAME.test(name)) return "weight_distance";
+    if (HOLD_NAME.test(name)) {
+      return weighted ? "weight_duration" : "duration";
+    }
+    if (weighted && ASSISTED_OR_WEIGHTED_BODYWEIGHT.test(name)) {
+      return "bodyweight_reps";
+    }
+    if (CARDIO_NAME.test(name) && !/\bbarbell\b|\bdumbbell\b/.test(name)) {
+      return "duration_distance";
+    }
+  }
+  return deriveExerciseModality(input.category, input.equipment);
+}
+
+/**
+ * Explicit modality when valid, else inferred from the name, category and
+ * equipment. The first arg is a plain string so unknown values (old servers,
+ * third-party callers) funnel through the guard; the server create path uses
+ * this as its sanitize+derive and clients use it as their old-server
+ * fallback.
  */
 export function resolveExerciseModality(
   modality: string | null | undefined,
   category: string | null | undefined,
   equipment?: readonly (string | null | undefined)[] | string | null,
+  name?: string | null,
 ): ExerciseModality {
   return isExerciseModality(modality)
     ? modality
-    : deriveExerciseModality(category, equipment);
+    : inferExerciseModality({ name, category, equipment });
 }
 
 // Workout sources that support nested exercise editing after creation.

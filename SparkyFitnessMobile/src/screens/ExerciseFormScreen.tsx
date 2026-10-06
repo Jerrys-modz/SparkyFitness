@@ -14,6 +14,7 @@ import { useCreateExercise, useUpdateExercise } from '../hooks';
 import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
 import {
   deriveExerciseModality,
+  inferExerciseModality,
   isExerciseModality,
   CANONICAL_MUSCLES,
   CANONICAL_EQUIPMENT,
@@ -48,6 +49,8 @@ const MODALITY_OPTIONS = [
   { value: 'weight_reps' },
   { value: 'reps_only' },
   { value: 'bodyweight_reps' },
+  { value: 'weight_distance' },
+  { value: 'weight_duration' },
   { value: 'duration' },
   { value: 'duration_distance' },
 ] as const;
@@ -261,7 +264,21 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
             defaultValue: 'e.g. Bulgarian Split Squat',
           })}
           value={state.name}
-          onChangeText={(name) => setState((prev) => ({ ...prev, name }))}
+          onChangeText={(name) =>
+            setState((prev) => ({
+              ...prev,
+              name,
+              ...(prev.modalityManuallySet
+                ? null
+                : {
+                    modality: inferExerciseModality({
+                      name,
+                      category: prev.category,
+                      equipment: prev.equipment,
+                    }),
+                  }),
+            }))
+          }
           autoCapitalize="words"
           autoCorrect={false}
           autoFocus
@@ -280,7 +297,13 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
                 category,
                 ...(prev.modalityManuallySet
                   ? null
-                  : { modality: deriveExerciseModality(category) }),
+                  : {
+                      modality: inferExerciseModality({
+                        name: prev.name,
+                        category,
+                        equipment: prev.equipment,
+                      }),
+                    }),
               }))
           )
         : null}

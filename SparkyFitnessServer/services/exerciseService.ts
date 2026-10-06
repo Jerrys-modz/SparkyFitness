@@ -18,10 +18,16 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
+import exerciseDBService, {
+  EXERCISEDB_OSS_PROVIDER_TYPE,
+} from '../integrations/exercisedb/ExerciseDBService.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import {
-  deriveExerciseModality,
+  inferExerciseModality,
+  resolveExerciseModality,
+  type ApplyExerciseModalitySuggestionsBody,
+  type ExerciseModalitySuggestion,
   canEditGroupedWorkout,
   setsDistanceKm,
   setsDurationMinutes,
@@ -1021,7 +1027,7 @@ function wgerDescriptionToInstructions(rawDescription: string): string[] {
 }
 
 async function searchExternalExercises(
-  _authenticatedUserId: string,
+  authenticatedUserId: string,
   query: string,
   providerId: string,
   providerType: ExternalProviderType,
@@ -1094,10 +1100,11 @@ async function searchExternalExercises(
           id: exercise.id.toString(),
           name: exercise.name,
           category: exercise.category?.name ?? 'Uncategorized',
-          modality: deriveExerciseModality(
-            exercise.category?.name,
-            exercise.equipment.map((e) => e.name)
-          ),
+          modality: inferExerciseModality({
+            name: exercise.name,
+            category: exercise.category?.name,
+            equipment: exercise.equipment.map((e) => e.name),
+          }),
           calories_per_hour: 0,
           source: 'wger',
           description: instructions[0] ?? exercise.name,
@@ -1143,10 +1150,11 @@ async function searchExternalExercises(
         id: exercise.id,
         name: exercise.name,
         category: exercise.category,
-        modality: deriveExerciseModality(
-          exercise.category,
-          normalizeToStringArray(exercise.equipment)
-        ),
+        modality: inferExerciseModality({
+          name: exercise.name,
+          category: exercise.category,
+          equipment: normalizeToStringArray(exercise.equipment),
+        }),
         calories_per_hour: 0,
         description: exercise.description,
         source: 'free-exercise-db',
@@ -1160,6 +1168,22 @@ async function searchExternalExercises(
         images: exercise.images.map((img: string) =>
           freeExerciseDBService.getExerciseImageUrl(img)
         ),
+      }));
+    } else if (providerType === EXERCISEDB_OSS_PROVIDER_TYPE) {
+      const result = await exerciseDBService.search(query, pageSize, offset);
+      totalCount = result.hasMore
+        ? Math.max(result.totalCount, offset + pageSize + 1)
+        : result.totalCount;
+      items = result.exercises.map(({ mediaUrl, ...exercise }) => ({
+        ...exercise,
+        modality: inferExerciseModality({
+          name: exercise.name,
+          category: exercise.category,
+          equipment: exercise.equipment,
+        }),
+        calories_per_hour: 0,
+        source: providerType,
+        images: mediaUrl ? [mediaUrl] : [],
       }));
     } else {
       throw new Error(
@@ -1356,6 +1380,47 @@ async function addNutritionixExerciseToUserExercises(
     throw error;
   }
 }
+/**
+ * Import an ExerciseDB exercise. The catalog's media is ExerciseDB's and is
+ * not ours to copy, so nothing is downloaded: the exercise keeps the provider's
+ * media URL and clients load it from there.
+ */
+async function addExerciseDBExerciseToUserExercises(
+  authenticatedUserId: string,
+  exerciseId: string
+) {
+  const existingExercise = await exerciseDb.getExerciseBySourceAndSourceId(
+    EXERCISEDB_OSS_PROVIDER_TYPE,
+    exerciseId,
+    authenticatedUserId
+  );
+  if (existingExercise) return existingExercise;
+
+  const details = await exerciseDBService.getById(exerciseId);
+  if (!details) throw new Error('ExerciseDB exercise not found.');
+
+  const images = details.mediaUrl ? [details.mediaUrl] : [];
+
+  return exerciseDb.createExercise({
+    id: uuidv4(),
+    source: EXERCISEDB_OSS_PROVIDER_TYPE,
+    source_id: details.id,
+    name: details.name,
+    level: details.level,
+    category: details.category,
+    equipment: details.equipment,
+    primary_muscles: details.primary_muscles,
+    secondary_muscles: details.secondary_muscles,
+    instructions: details.instructions,
+    images,
+    calories_per_hour: 0,
+    description: details.description,
+    user_id: authenticatedUserId,
+    is_custom: true,
+    shared_with_public: false,
+  });
+}
+
 async function addFreeExerciseDBExerciseToUserExercises(
   authenticatedUserId: string,
   freeExerciseDBId: string
@@ -2470,6 +2535,51 @@ async function getActivityDetailsByExerciseEntryIdAndProvider(
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * Re-run type detection over the user's own exercises and return the ones
+ * whose detected tracking type differs from what is stored. Nothing is
+ * changed until the user applies a chosen subset.
+ */
+async function getModalitySuggestions(
+  userId: string
+): Promise<ExerciseModalitySuggestion[]> {
+  const rows = await exerciseDb.getUserExercisesForModalityReview(userId);
+  const suggestions: ExerciseModalitySuggestion[] = [];
+  for (const row of rows) {
+    const suggestedModality = inferExerciseModality({
+      name: row.name,
+      category: row.category,
+      equipment: normalizeToStringArray(row.equipment),
+    });
+    const currentModality = resolveExerciseModality(row.modality, row.category);
+    if (suggestedModality !== currentModality) {
+      suggestions.push({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        currentModality,
+        suggestedModality,
+      });
+    }
+  }
+  return suggestions;
+}
+
+/** Apply the modality changes the user kept; returns how many were updated. */
+async function applyModalitySuggestions(
+  userId: string,
+  changes: ApplyExerciseModalitySuggestionsBody['changes']
+): Promise<number> {
+  let updated = 0;
+  for (const change of changes) {
+    const result = await exerciseDb.updateExercise(change.id, userId, {
+      modality: change.modality,
+    });
+    if (result) updated += 1;
+  }
+  return updated;
+}
+
 async function getExercisesNeedingReview(authenticatedUserId: any) {
   try {
     const exercisesNeedingReview =
@@ -2719,6 +2829,8 @@ export { getTopExercises };
 export { importExercisesFromCSV };
 export { importExercisesFromJson };
 export { getExercisesNeedingReview };
+export { getModalitySuggestions, applyModalitySuggestions };
+export { addExerciseDBExerciseToUserExercises };
 export { updateExerciseEntriesSnapshot };
 export { getActivityDetailsByExerciseEntryIdAndProvider };
 export { logWorkoutPresetGrouped };
@@ -2757,6 +2869,9 @@ export default {
   importExercisesFromCSV,
   importExercisesFromJson,
   getExercisesNeedingReview,
+  getModalitySuggestions,
+  applyModalitySuggestions,
+  addExerciseDBExerciseToUserExercises,
   updateExerciseEntriesSnapshot,
   getActivityDetailsByExerciseEntryIdAndProvider,
   logWorkoutPresetGrouped,

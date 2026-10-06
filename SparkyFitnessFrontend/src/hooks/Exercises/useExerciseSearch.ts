@@ -5,6 +5,7 @@ import {
   getTopExercises,
   addExternalExerciseToUserExercises,
   addNutritionixExercise,
+  addExerciseDBExercise,
   addFreeExerciseDBExercise,
   getAvailableEquipment,
   getAvailableMuscleGroups,
@@ -109,6 +110,7 @@ export const useAddExerciseMutation = () => {
       if (type === 'nutritionix') return addNutritionixExercise(exercise);
       if (type === 'free-exercise-db')
         return addFreeExerciseDBExercise(exercise.id);
+      if (type === 'exercisedb-oss') return addExerciseDBExercise(exercise.id);
       throw new Error('Unknown provider type');
     },
     onSuccess: () => {

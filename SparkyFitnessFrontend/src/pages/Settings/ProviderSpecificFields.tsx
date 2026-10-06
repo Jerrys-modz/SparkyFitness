@@ -650,6 +650,16 @@ export const ProviderSpecificFields = ({
         </div>
       )}
 
+      {provider.provider_type === 'exercisedb-oss' && (
+        <p className="col-span-2 text-sm text-muted-foreground">
+          Community-hosted mirror of the ExerciseDB catalog. It requires no
+          credentials. For personal, non-commercial and community use only.
+          Exercise data and demonstrations &copy; AscendAPI / ExerciseDB.
+          Imported exercises link to the provider&apos;s media; nothing is
+          downloaded.
+        </p>
+      )}
+
       {provider.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">

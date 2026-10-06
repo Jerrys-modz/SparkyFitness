@@ -14,6 +14,7 @@ import type {
   ExerciseAlternativesResponse,
   ExerciseHistoryResponse,
   ExerciseModality,
+  ExerciseModalitySuggestion,
   ExerciseStatsResponse,
   CreatePresetSessionRequest,
   UpdatePresetSessionRequest,
@@ -587,5 +588,29 @@ export const deleteExerciseFromLibrary = async (
     serviceName: 'Exercise API',
     operation: 'delete exercise',
     method: 'DELETE',
+  });
+};
+
+/** The user's own exercises whose detected tracking type differs from the stored one. */
+export const fetchModalitySuggestions = async (): Promise<
+  ExerciseModalitySuggestion[]
+> => {
+  const data = await apiFetch<ExerciseModalitySuggestion[]>({
+    endpoint: '/api/exercises/modality-suggestions',
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise type suggestions',
+  });
+  return Array.isArray(data) ? data : [];
+};
+
+export const applyModalitySuggestions = async (
+  changes: { id: string; modality: ExerciseModality }[]
+): Promise<{ updated: number }> => {
+  return apiFetch<{ updated: number }>({
+    endpoint: '/api/exercises/modality-suggestions/apply',
+    serviceName: 'Exercise API',
+    operation: 'apply exercise type suggestions',
+    method: 'POST',
+    body: { changes },
   });
 };

@@ -427,6 +427,7 @@
     "setRow": {
       "changeType": "Change type for set {{setNumber}}",
       "delete": "Delete set {{setNumber}}",
+      "distance": "Distance",
       "duration": "Duration",
       "log": "Log set {{setNumber}}",
       "reps": "Reps",
@@ -572,7 +573,9 @@
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "exerciseStatistics": "Exercise statistics",
-      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map"
+      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map",
+      "exerciseTypeReview": "Review exercise types",
+      "exerciseTypeReviewSubtitle": "Fix tracking types that were picked by hand"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -581,7 +584,8 @@
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
-    "watchSettings": "Apple Watch"
+    "watchSettings": "Apple Watch",
+    "exerciseTypeReview": "Review Exercise Types"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -1810,7 +1814,9 @@
     "setOf_one": "Set {{number}} of {{count}}",
     "setOf_other": "Set {{number}} of {{count}}",
     "repCount_one": "{{formattedCount}} rep",
-    "repCount_other": "{{formattedCount}} reps"
+    "repCount_other": "{{formattedCount}} reps",
+    "modalityWeightDistance": "Weight & Distance (carries)",
+    "modalityWeightDuration": "Weight & Duration (loaded holds)"
   },
   "cycleCard": {
     "mode": {
@@ -3046,6 +3052,7 @@
     "force": "Force",
     "mechanic": "Mechanic",
     "source": "Source",
+    "exerciseDbCredit": "Data and demonstrations © AscendAPI / ExerciseDB",
     "starting": "Starting…",
     "startWorkout": "Start Workout",
     "logExercise": "Log Exercise",
@@ -5763,5 +5770,18 @@
       "minutesAxis": "Minutes from start",
       "underOneMinute": "<1 min"
     }
+  },
+  "exerciseTypeReview": {
+    "intro": "These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone.",
+    "empty": "All your exercises already match",
+    "emptySubtitle": "Nothing to change.",
+    "error": "Could not load suggestions",
+    "retry": "Try again",
+    "apply_one": "Apply {{count}} change",
+    "apply_other": "Apply {{count}} changes",
+    "applied_one": "Updated {{count}} exercise",
+    "applied_other": "Updated {{count}} exercises",
+    "applyFailed": "Could not update exercises",
+    "change": "{{from}} → {{to}}"
   }
 }

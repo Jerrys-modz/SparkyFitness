@@ -238,6 +238,28 @@ export interface WatchPlannedSetPayload {
   targetReps?: number | null;
   /** Always kg, like every other weight this app moves to the watch. */
   targetWeightKg?: number | null;
+  /**
+   * Hold length in seconds for a duration exercise (plank, carry). Absent
+   * on a reps set. The watch counts this down instead of showing a reps box.
+   */
+  targetDurationSec?: number | null;
+  /** Last session's time for this set, in seconds, shown in gray on an idle stopwatch. */
+  previousDurationSec?: number | null;
+  /**
+   * True for a duration exercise, whether or not a hold length is planned.
+   * With no `targetDurationSec` the watch offers a stopwatch instead of a
+   * reps box.
+   */
+  timed?: boolean;
+  /**
+   * True for a weighted carry (weight and distance, no reps). The watch shows
+   * a distance box, in metres, in place of the reps box.
+   */
+  carry?: boolean;
+  /** True for a loaded hold: the watch keeps the weight box beside the timer. */
+  weighted?: boolean;
+  /** A carry's planned distance in km; the watch shows it in metres. */
+  targetDistanceKm?: number | null;
   /** Rest to run after this set, in seconds — the phone's own `WorkoutStep.restSec`. */
   restSeconds: number;
   /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
@@ -253,6 +275,12 @@ export interface WatchSetTargetPayload {
   /** Always kg, like every other weight this app moves to the watch. */
   targetWeightKg?: number;
   targetReps?: number;
+  /** Hold length in seconds. Absent leaves the watch on the plan's value. */
+  targetDurationSec?: number;
+  /** Last session's time, in seconds. Absent when there is none. */
+  previousDurationSec?: number;
+  /** A carry's distance in km. Absent leaves the watch on the plan's value. */
+  targetDistanceKm?: number;
 }
 
 /** One exercise in the plan the watch was armed with. */
@@ -325,6 +353,13 @@ export interface WatchSetCompletedPayload {
    */
   weightKg?: number | null;
   reps?: number | null;
+  /**
+   * Seconds the watch's hold countdown actually ran. Omitted when the wearer
+   * never started it, so the phone keeps the planned duration.
+   */
+  duration?: number | null;
+  /** A carry's distance in km, as entered on the watch (metres there). */
+  distanceKm?: number | null;
   /**
    * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
    * its own clock when this is absent (an older watch build, or a set logged
@@ -412,6 +447,28 @@ export interface WatchRestChangedPayload {
   endsAt?: number;
 }
 
+/** The wearer stopped a set's stopwatch on the watch. */
+export interface WatchSetTimerStoppedPayload {
+  sessionId: string;
+  setId: string;
+  /** Whole seconds the stopwatch ran. */
+  seconds: number;
+  /** Epoch ms of the run that stopped. Not applied to a different run. */
+  startedAt: number;
+}
+
+/**
+ * The wearer started a set's hold countdown or stopwatch on the watch.
+ * `startedAt` is epoch ms; the phone starts its own timer from it.
+ */
+export interface WatchSetTimerStartedPayload {
+  sessionId: string;
+  setId: string;
+  startedAt: number;
+  /** Epoch ms of the arm the timer belongs to. Absent from an older watch. */
+  armedAt?: number;
+}
+
 export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
@@ -436,6 +493,8 @@ export type WatchConnectivityEvents = {
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
+  onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
+  onSetTimerStopped: (payload: WatchSetTimerStoppedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
@@ -504,6 +563,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      * (never removes one) and moves past the set on screen if it is listed.
      */
     completedSetIds: string[];
+    /**
+     * The newest running set timer on the phone: set id to start time
+     * (epoch ms). The watch holds one timer, so at most one entry is sent. The
+     * watch starts its own hold countdown or stopwatch from that time, so
+     * both show the same clock. A timer the phone has stopped is absent.
+     */
+    setTimers?: Record<string, number>;
     /**
      * The phone's rest timer. The watch's rest follows it (+15s, pause,
      * Skip), except from an update that does not yet list a set logged on
