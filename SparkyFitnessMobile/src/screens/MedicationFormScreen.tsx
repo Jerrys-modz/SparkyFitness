@@ -514,6 +514,10 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     };
 
     if (isEditing && medicationId) {
+      // Cleared schedule doses, put back if the conversion does not finish.
+      // A later log would otherwise use the medication dose, not the override.
+      let restoreOverrides: (() => Promise<unknown>) | undefined;
+
       // A schedule's own dose wins over the medication's, and a supplement's
       // dose counts servings. Turning a medication into a supplement therefore
       // drops those overrides, or "2 tablets" would count two servings of the
@@ -522,8 +526,18 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         const overridden = (existingMed.schedules ?? []).filter(
           (schedule) => schedule.dose_amount != null
         );
+        restoreOverrides = () =>
+          Promise.allSettled(
+            overridden.map((schedule) =>
+              updateSchedule.mutateAsync({
+                id: schedule.id,
+                medicationId,
+                body: { dose_amount: schedule.dose_amount },
+              })
+            )
+          );
         try {
-          await Promise.all(
+          const resetResults = await Promise.allSettled(
             overridden.map((schedule) =>
               updateSchedule.mutateAsync({
                 id: schedule.id,
@@ -532,7 +546,14 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
               })
             )
           );
+          const resetFailure = resetResults.find(
+            (result) => result.status === 'rejected'
+          );
+          if (resetFailure?.status === 'rejected') {
+            throw resetFailure.reason;
+          }
         } catch (error) {
+          await restoreOverrides();
           Alert.alert(
             t('common.error', { defaultValue: 'Error' }),
             t('medications.supplement.scheduleResetFailed', {
@@ -547,14 +568,21 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         { id: medicationId, body: { ...base, is_active: form.isActive } },
         {
           onSuccess: () => navigation.goBack(),
-          onError: (error) =>
-            Alert.alert(
-              t('common.error', { defaultValue: 'Error' }),
-              t('medications.form.updateFailed', {
-                defaultValue: 'Failed to update medication: {{error}}',
-                error: error.message,
-              })
-            ),
+          onError: (error) => {
+            const report = () =>
+              Alert.alert(
+                t('common.error', { defaultValue: 'Error' }),
+                t('medications.form.updateFailed', {
+                  defaultValue: 'Failed to update medication: {{error}}',
+                  error: error.message,
+                })
+              );
+            if (!restoreOverrides) {
+              report();
+              return;
+            }
+            void restoreOverrides().finally(report);
+          },
         }
       );
     } else {

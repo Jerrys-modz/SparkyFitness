@@ -741,8 +741,39 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
     pressAction(screen, mockNavigation, 'Save');
 
-    await waitFor(() => expect(mockUpdateScheduleAsync).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
+        id: 's-1',
+        medicationId: 'med-1',
+        body: { dose_amount: 2 },
+      })
+    );
     expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it('puts the schedule doses back if saving the supplement fails', async () => {
+    setup(false);
+    updateMutate.mockImplementation((_vars, options) => {
+      options.onError(new Error('nope'));
+    });
+    const screen = renderScreen('med-1');
+
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() =>
+      expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
+        id: 's-1',
+        medicationId: 'med-1',
+        body: { dose_amount: 2 },
+      })
+    );
+    expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
+      id: 's-1',
+      medicationId: 'med-1',
+      body: { dose_amount: null },
+    });
+    expect(mockNavigation.goBack as jest.Mock).not.toHaveBeenCalled();
   });
 
   it('keeps the schedule doses of a supplement that is already one', async () => {
