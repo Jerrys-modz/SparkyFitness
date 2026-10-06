@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Alert, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -18,6 +24,7 @@ import {
 } from '../hooks/useCustomNutrients';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useSupplementLookup } from '../hooks/useSupplementLookup';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import Switch from '../components/ui/Switch';
@@ -31,7 +38,9 @@ import {
   buildNutrients,
   catalogIdsToProvision,
   parseAmount,
+  rowsFromLookup,
   rowsFromNutrients,
+  unmatchedSummary,
   type NutrientRow,
 } from '../utils/supplements';
 
@@ -142,6 +151,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   const updateMedication = useUpdateMedication();
   const updateSchedule = useUpdateMedicationSchedule();
   const ensureCatalog = useEnsureCatalogNutrients();
+  const supplementLookup = useSupplementLookup();
   const { customNutrients: customNutrientDefs } = useCustomNutrients();
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
@@ -163,6 +173,73 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     [nutrientEdits, existingMed, customNutrientDefs]
   );
   const isSupplement = form.isSupplement;
+  const [lookupNote, setLookupNote] = useState<string | null>(null);
+
+  // A barcode scanned on the scanner screen arrives as a one-shot route param.
+  const { pendingScannedBarcode, scannedBarcodeNonce } = route.params ?? {};
+  useEffect(() => {
+    if (scannedBarcodeNonce == null || pendingScannedBarcode == null) return;
+    navigation.setParams({
+      pendingScannedBarcode: undefined,
+      scannedBarcodeNonce: undefined,
+    });
+    supplementLookup.mutate(pendingScannedBarcode, {
+      onSuccess: ({ product }) => {
+        if (!product) {
+          setLookupNote(null);
+          Alert.alert(
+            t('medications.supplement.noMatchTitle', {
+              defaultValue: 'No match found',
+            }),
+            t('medications.supplement.noMatchMessage', {
+              defaultValue:
+                'That barcode is not in the supplement label database. You can enter the label by hand.',
+            })
+          );
+          return;
+        }
+        setEdits((prev) => ({
+          ...prev,
+          name: product.name,
+          typeId: product.form ?? prev.typeId ?? form.typeId,
+          notes:
+            (prev.notes ?? form.notes).trim() === '' && product.serving
+              ? t('medications.supplement.servingNote', {
+                  defaultValue: 'Label serving: {{serving}}',
+                  serving: product.serving,
+                })
+              : (prev.notes ?? form.notes),
+        }));
+        setNutrientEdits(rowsFromLookup(product));
+        const skipped = unmatchedSummary(product);
+        setLookupNote(
+          skipped
+            ? t('medications.supplement.notAdded', {
+                defaultValue: 'Not added from the label: {{names}}',
+                names:
+                  skipped.extra > 0
+                    ? t('medications.supplement.notAddedMore', {
+                        defaultValue: '{{names}} and {{count}} more',
+                        names: skipped.names,
+                        count: skipped.extra,
+                      })
+                    : skipped.names,
+              })
+            : null
+        );
+      },
+      onError: () =>
+        Alert.alert(
+          t('common.error', { defaultValue: 'Error' }),
+          t('medications.supplement.lookupFailed', {
+            defaultValue:
+              'Could not reach the supplement label database. Try again later.',
+          })
+        ),
+    });
+    // The lookup runs once per scan; the nonce is what makes a scan new.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannedBarcodeNonce, pendingScannedBarcode]);
 
   // null until the user toggles; until then follow the data, so a medication
   // with detail content opens expanded even when it arrives after mount.
@@ -653,6 +730,36 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                 </View>
               </View>
             </>
+          )}
+
+          {isSupplement && (
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('FoodScan', {
+                  mode: 'capture-barcode',
+                  returnKey: route.key,
+                })
+              }
+              disabled={supplementLookup.isPending}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              className="flex-row items-center gap-2 py-1 self-start"
+            >
+              <Icon name="scan" size={18} color={textMuted} />
+              <Text className="text-accent-primary text-base font-medium">
+                {supplementLookup.isPending
+                  ? t('medications.supplement.lookingUp', {
+                      defaultValue: 'Looking up the label…',
+                    })
+                  : t('medications.supplement.scan', {
+                      defaultValue: 'Scan barcode to fill in',
+                    })}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {isSupplement && lookupNote != null && (
+            <Text className="text-text-muted text-sm">{lookupNote}</Text>
           )}
 
           {isSupplement && (
