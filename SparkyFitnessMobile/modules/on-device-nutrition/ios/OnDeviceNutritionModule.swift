@@ -86,8 +86,16 @@ public class OnDeviceNutritionModule: Module {
                 else {
                     throw OnDeviceNutritionError.badImage
                 }
+                // OCRTool is a Vision-backed tool; it did not resolve against the
+                // iOS Simulator SDK in CI (see ios-build.yml device step), so the
+                // simulator session runs on the image attachment alone.
+                #if targetEnvironment(simulator)
+                let tools: [any Tool] = []
+                #else
+                let tools: [any Tool] = [OCRTool()]
+                #endif
                 let session = LanguageModelSession(
-                    tools: [OCRTool()],
+                    tools: tools,
                     instructions: extractionInstructions
                 )
                 let response = try await session.respond(
