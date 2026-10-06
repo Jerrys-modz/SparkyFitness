@@ -22,7 +22,7 @@ private struct NutritionLabelExtraction {
     let servingSize: Double?
     @Guide(description: "Serving size unit such as g, ml, oz, cup, piece")
     let servingUnit: String?
-    @Guide(description: "Calories (kcal) PER SERVING")
+    @Guide(description: "Calories (kcal) PER SERVING, the number next to the word Calories, not a Daily Value")
     let calories: Double?
     @Guide(description: "Protein in grams per serving")
     let protein: Double?
@@ -53,11 +53,34 @@ private struct NutritionLabelExtraction {
 }
 
 private let extractionInstructions = """
-You read nutrition facts labels from a photo. Copy numbers exactly as printed. \
-Never estimate or invent a value: leave a field empty when it is not printed. \
-Convert units to the ones requested in each field description. \
-Use the OCR tool to read the printed text so numbers are copied exactly.
+You read nutrition facts labels. You are given the label's text, recognised \
+line by line from the photo, and the photo itself. Copy numbers exactly as they \
+appear in the text; use the photo only to tell which column or row a number \
+belongs to. Prefer the PER SERVING column over %Daily Value and over per-100 \
+columns unless only per-100 is printed. Never estimate or invent a value: leave \
+a field empty when it is not printed. Do not copy a %Daily Value as a weight.
 """
+
+/// Text on the label, top to bottom, one recognised line per row. Run here
+/// rather than left to the model's OCR tool so the numbers the model sees are
+/// the printed ones, and so the caller can check the answer against them.
+private func recognizeLabelText(in image: CGImage) -> String {
+    let request = VNRecognizeTextRequest()
+    request.recognitionLevel = .accurate
+    // Language correction rewrites digits that look like letters, which is
+    // wrong for a table of numbers.
+    request.usesLanguageCorrection = false
+    let handler = VNImageRequestHandler(cgImage: image)
+    do {
+        try handler.perform([request])
+    } catch {
+        return ""
+    }
+    let lines = (request.results ?? [])
+        .sorted { $0.boundingBox.midY > $1.boundingBox.midY }
+        .compactMap { $0.topCandidates(1).first?.string }
+    return lines.joined(separator: "\n")
+}
 #endif
 
 public class OnDeviceNutritionModule: Module {
@@ -86,22 +109,14 @@ public class OnDeviceNutritionModule: Module {
                 else {
                     throw OnDeviceNutritionError.badImage
                 }
-                // OCRTool is a Vision-backed tool; it did not resolve against the
-                // iOS Simulator SDK in CI (see ios-build.yml device step), so the
-                // simulator session runs on the image attachment alone.
-                #if targetEnvironment(simulator)
-                let tools: [any Tool] = []
-                #else
-                let tools: [any Tool] = [OCRTool()]
-                #endif
-                let session = LanguageModelSession(
-                    tools: tools,
-                    instructions: extractionInstructions
-                )
+                let ocrText = recognizeLabelText(in: image)
+                let session = LanguageModelSession(instructions: extractionInstructions)
+                // Greedy: the same label should give the same numbers each time.
                 let response = try await session.respond(
-                    generating: NutritionLabelExtraction.self
+                    generating: NutritionLabelExtraction.self,
+                    options: GenerationOptions(sampling: .greedy)
                 ) {
-                    "Extract the nutrition facts from this label."
+                    "Label text:\n\(ocrText)\n\nExtract the nutrition facts from this label."
                     Attachment(image)
                 }
                 let r = response.content
@@ -124,6 +139,7 @@ public class OnDeviceNutritionModule: Module {
                     "calcium": r.calcium,
                     "iron": r.iron,
                     "values_are_per_100": r.valuesArePer100,
+                    "ocr_text": ocrText,
                 ]
             }
             #endif

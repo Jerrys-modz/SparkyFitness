@@ -9,6 +9,7 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 import mockModuleImport from '../../modules/on-device-nutrition';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import {
+  isGroundedInLabelText,
   isPlausibleLabel,
   scanLabelOnDevice,
   toLabelScanResult,
@@ -58,6 +59,25 @@ describe('onDeviceLabelScan', () => {
     ['energy far from macros', { calories: 900 }],
   ])('rejects %s', (_name, over) => {
     expect(isPlausibleLabel(label(over))).toBe(false);
+  });
+
+  it('accepts values printed in the label text', () => {
+    const r = label({
+      ocr_text: 'Calories 180\nProtein 4g\nTotal Carbohydrate 26,0g\nFat 7g',
+    });
+    expect(isGroundedInLabelText(r)).toBe(true);
+  });
+
+  it('rejects a macro that is not in the label text', () => {
+    const r = label({
+      ocr_text: 'Calories 180\nProtein 5g\nCarbs 26g\nFat 7g',
+    });
+    expect(isGroundedInLabelText(r)).toBe(false);
+  });
+
+  it('skips the text check when nothing was recognised', () => {
+    expect(isGroundedInLabelText(label({ ocr_text: '' }))).toBe(true);
+    expect(isGroundedInLabelText(label())).toBe(true);
   });
 
   it('maps per-100 labels to a 100 g serving', () => {
