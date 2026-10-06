@@ -35,6 +35,9 @@ class WatchConnectivityModule : Module() {
         WearLink.readCompletions(ctx) { payload, uri ->
           emitCompletion(payload, uri)
         }
+        WearLink.readHeartRates(ctx) { payload, uri ->
+          emitHeartRate(payload, uri)
+        }
         refreshNodes()
       }
     }
@@ -51,10 +54,22 @@ class WatchConnectivityModule : Module() {
     AsyncFunction("updateContext") { _: Map<String, Any?> -> }
     AsyncFunction("sendAck") { _: String, _: Boolean -> }
     AsyncFunction("updateIntervalTiming") { _: Map<String, Any?> -> }
-    AsyncFunction("setTelemetryOwner") { _: String -> }
-    AsyncFunction("pendingHeartRateBatches") { emptyList<Map<String, Any?>>() }
-    AsyncFunction("ackHeartRateBatches") { _: List<String> -> }
-    AsyncFunction("takeDroppedHeartRateBatchCount") { 0 }
+    AsyncFunction("setTelemetryOwner") { ownerId: String ->
+      val ctx = appContext.reactContext ?: return@AsyncFunction
+      HeartRateQueue.setOwner(ctx, ownerId)
+    }
+    AsyncFunction("pendingHeartRateBatches") {
+      val ctx = appContext.reactContext ?: return@AsyncFunction emptyList<Map<String, Any?>>()
+      HeartRateQueue.pending(ctx)
+    }
+    AsyncFunction("ackHeartRateBatches") { clientIds: List<String> ->
+      val ctx = appContext.reactContext ?: return@AsyncFunction
+      HeartRateQueue.ack(ctx, clientIds)
+    }
+    AsyncFunction("takeDroppedHeartRateBatchCount") {
+      val ctx = appContext.reactContext ?: return@AsyncFunction 0
+      HeartRateQueue.takeDropped(ctx)
+    }
 
     AsyncFunction("startWorkout") { plan: Map<String, Any?> ->
       send(WearLink.WORKOUT_START, plan, "workoutStart")
@@ -86,6 +101,13 @@ class WatchConnectivityModule : Module() {
     sendEvent("onSetCompleted", payload)
     val ctx = appContext.reactContext ?: return
     if (uri != null) WearLink.delete(ctx, uri)
+  }
+
+  fun emitHeartRate(payload: Map<String, Any?>, uri: android.net.Uri?) {
+    val ctx = appContext.reactContext ?: return
+    val event = HeartRateQueue.accept(ctx, payload)
+    if (uri != null) WearLink.delete(ctx, uri)
+    if (event != null) sendEvent("onHeartRateBatch", event)
   }
 
   companion object {

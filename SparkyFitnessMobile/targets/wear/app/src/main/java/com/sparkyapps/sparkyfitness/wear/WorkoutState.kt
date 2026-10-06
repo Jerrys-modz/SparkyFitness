@@ -22,10 +22,12 @@ internal object WearPaths {
   const val WORKOUT_STOP = "/sparky/workout/stop"
   const val SET_TARGETS = "/sparky/set/targets"
   const val SET_COMPLETED = "/sparky/set/completed"
+  const val HEART_RATE = "/sparky/heart-rate"
 }
 
 internal data class WearSet(
   val setId: String,
+  val exerciseEntryId: String,
   val exerciseName: String,
   val label: String,
   var weightKg: Double?,
@@ -58,7 +60,12 @@ internal object WorkoutHolder {
   var screen by mutableStateOf<WearScreen?>(null)
     private set
 
+  private var appContext: Context? = null
   private var plan: WearPlan? = null
+
+  fun bind(context: Context) {
+    appContext = context.applicationContext
+  }
   private var revision = 0L
   private var restEndsAtMs = 0L
   private var pendingSetId: String? = null
@@ -81,6 +88,7 @@ internal object WorkoutHolder {
         plan = null
         restEndsAtMs = 0L
         screen = null
+        appContext?.let { WearHeartRate.onStop(it) }
       }
     }
   }
@@ -154,7 +162,7 @@ internal object WorkoutHolder {
           for (i in 0 until buffer.count) {
             val item = buffer.get(i)
             val path = item.uri.path ?: continue
-            if (path.startsWith(WearPaths.SET_COMPLETED)) continue
+            if (path.startsWith(WearPaths.SET_COMPLETED) || path.startsWith(WearPaths.HEART_RATE)) continue
             val map = DataMapItem.fromDataItem(item).dataMap
             val json = map.getString("json") ?: continue
             found.add(Triple(path, json, map.getLong("at")))
@@ -187,6 +195,11 @@ internal object WorkoutHolder {
         restEndsAtMs = restEndsAtMs,
       )
     }
+    val ctx = appContext
+    val entry = step?.exerciseEntryId ?: current?.sets?.lastOrNull()?.exerciseEntryId
+    if (ctx == null) return
+    if (current == null || entry.isNullOrEmpty()) WearHeartRate.onStop(ctx)
+    else WearHeartRate.onExercise(ctx, current.sessionId, entry)
   }
 }
 
@@ -197,12 +210,14 @@ internal fun parsePlan(json: JSONObject): WearPlan? {
   val lookup = linkedMapOf<String, WearSet>()
   exercises.forEach { exercise ->
     val name = exercise.optString("name").ifEmpty { "Exercise" }
+    val entryId = exercise.optString("exerciseEntryId")
     val sets = exercise.optJSONArray("sets")?.objects().orEmpty()
     sets.forEachIndexed { index, set ->
       val setId = set.optString("setId")
       if (setId.isEmpty()) return@forEachIndexed
       lookup[setId] = WearSet(
         setId = setId,
+        exerciseEntryId = entryId,
         exerciseName = name,
         label = setLabel(set.optString("setType"), index + 1, sets.size),
         weightKg = set.optNumber("targetWeightKg"),
