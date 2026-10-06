@@ -258,6 +258,6 @@ enum SampleDay {
     static let workoutBpm: Double = 142
 
     /// Active energy a few minutes into the session, for the metrics strip.
-    static let workoutKcal: Double = 84
+    static let workoutKcal: Double = 284
 }
 #endif
