@@ -278,15 +278,17 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const dayExerciseEntries = dailySummary?.exerciseEntries;
   const scheduledWorkouts = useMemo(
     () =>
-      scheduledWorkoutsForWatch(activePlans, dayExerciseEntries ?? [], {
-        scheduledToday: t('exerciseSummary.scheduledToday', 'Scheduled Today'),
-        sessionOf: (current, total) =>
-          t(
-            'exerciseSummary.sessionNumber',
-            'Session {{current}} of {{total}}',
-            { current, total }
-          ),
-      }),
+      dayExerciseEntries === undefined
+        ? []
+        : scheduledWorkoutsForWatch(activePlans, dayExerciseEntries, {
+            scheduledToday: t('exerciseSummary.scheduledToday', 'Scheduled Today'),
+            sessionOf: (current, total) =>
+              t(
+                'exerciseSummary.sessionNumber',
+                'Session {{current}} of {{total}}',
+                { current, total }
+              ),
+          }),
     [activePlans, dayExerciseEntries, t]
   );
 
