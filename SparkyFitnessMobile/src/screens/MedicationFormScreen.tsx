@@ -25,6 +25,8 @@ import {
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useSupplementLookup } from '../hooks/useSupplementLookup';
+import { useExternalProviders } from '../hooks/useExternalProviders';
+import { SUPPLEMENT_LOOKUP_PROVIDER_TYPE } from '@workspace/shared';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import Switch from '../components/ui/Switch';
@@ -152,6 +154,11 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   const updateSchedule = useUpdateMedicationSchedule();
   const ensureCatalog = useEnsureCatalogNutrients();
   const supplementLookup = useSupplementLookup();
+  // The barcode lookup is an external provider: it only shows while one is active.
+  const { providers: lookupProviders } = useExternalProviders({
+    filterSet: SUPPLEMENT_LOOKUP_PROVIDER_TYPE_SET,
+  });
+  const canLookUpSupplements = lookupProviders.length > 0;
   const { customNutrients: customNutrientDefs } = useCustomNutrients();
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
@@ -732,7 +739,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
             </>
           )}
 
-          {isSupplement && (
+          {isSupplement && canLookUpSupplements && (
             <TouchableOpacity
               onPress={() =>
                 navigation.navigate('FoodScan', {
@@ -868,5 +875,9 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     </View>
   );
 };
+
+const SUPPLEMENT_LOOKUP_PROVIDER_TYPE_SET = new Set([
+  SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+]);
 
 export default MedicationFormScreen;
