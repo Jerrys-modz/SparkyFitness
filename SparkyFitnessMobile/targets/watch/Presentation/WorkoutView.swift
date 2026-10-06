@@ -718,11 +718,15 @@ private struct MetricsStrip: View {
                     if let kcal = store.activeEnergyKcal {
                         Self.metric("\(Int(kcal))", systemImage: "flame.fill")
                             .foregroundStyle(.orange)
+                            .fixedSize()
                     }
                 }
                 .font(.caption2)
             }
-            Spacer(minLength: 0)
+            // Takes every point the button leaves. Sized to its contents it
+            // was measured before the calorie reading arrived and clipped it,
+            // even at one digit.
+            .frame(maxWidth: .infinity, alignment: .leading)
             // Opens the exercise list, so it wears the list icon.
             if let onBack = onBack {
                 SquircleButton(systemImage: "list.bullet", circular: true, action: onBack)
