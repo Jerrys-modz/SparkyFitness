@@ -18,6 +18,7 @@ export const FOOD_PROVIDER_TYPES = [
   'yazio',
   'norish',
   'swissfood',
+  'canadian-nutrient-file',
 ] as const;
 
 export type FoodProviderType = (typeof FOOD_PROVIDER_TYPES)[number];
