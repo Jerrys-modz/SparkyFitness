@@ -6,8 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.wear.compose.foundation.pager.HorizontalPager
+import androidx.wear.compose.foundation.pager.rememberPagerState
 
-/** The set the phone armed, and the heart rate measured while it is on screen. */
+/** Goals, water, check-in, trend, and the live workout. Swipe between them. */
 class MainActivity : ComponentActivity() {
   private val sensorPermission = registerForActivityResult(
     ActivityResultContracts.RequestPermission()
@@ -19,14 +21,23 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     WorkoutHolder.bind(this)
     WorkoutHolder.pull(this)
+    PhoneBus.requestContext(this)
     setContent {
+      val start = if (WatchContext.snapshot.todayWeightKg != null) 0 else 2
+      val pager = rememberPagerState(initialPage = start) { 5 }
       LaunchedEffect(WearHeartRate.permissionNeeded) {
         if (WearHeartRate.permissionNeeded) {
           sensorPermission.launch(Manifest.permission.BODY_SENSORS)
         }
       }
-      WorkoutScreen(WorkoutHolder.screen, WearHeartRate.bpm) {
-        WorkoutHolder.complete(this)
+      HorizontalPager(state = pager) { page ->
+        when (page) {
+          0 -> GoalsPage()
+          1 -> WaterPage(this@MainActivity)
+          2 -> CheckInPage(this@MainActivity)
+          3 -> TrendPage()
+          else -> WorkoutScreen(this@MainActivity, WorkoutHolder.screen, WearHeartRate.bpm)
+        }
       }
     }
   }

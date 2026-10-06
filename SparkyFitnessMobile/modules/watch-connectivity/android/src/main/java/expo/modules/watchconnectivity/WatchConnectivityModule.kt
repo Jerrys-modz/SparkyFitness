@@ -38,6 +38,12 @@ class WatchConnectivityModule : Module() {
         WearLink.readHeartRates(ctx) { payload, uri ->
           emitHeartRate(payload, uri)
         }
+        WearLink.readPrefixed(ctx, WearLink.CHECK_IN) { payload, uri -> emitCheckIn(payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.WATER_DELETE) { payload, uri -> emitWaterDelete(payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.WATER) { payload, uri -> emitWater(payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.REST) { payload, uri -> emitRest(payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.WORKOUT_STOPPED) { payload, uri -> emitWorkoutStop(payload, uri) }
+        WearLink.readPrefixed(ctx, WearLink.REQUEST_CONTEXT) { _, uri -> emitContextRequest(uri) }
         refreshNodes()
       }
     }
@@ -51,8 +57,17 @@ class WatchConnectivityModule : Module() {
     Function("isReachable") { reachable }
     Function("isPaired") { paired }
 
-    AsyncFunction("updateContext") { _: Map<String, Any?> -> }
-    AsyncFunction("sendAck") { _: String, _: Boolean -> }
+    AsyncFunction("updateContext") { context: Map<String, Any?> ->
+      val ctx = appContext.reactContext ?: return@AsyncFunction
+      EventInbox.drain(ctx).forEach { item ->
+        deliver(item.event, item.payload, null)
+      }
+      WearLink.put(ctx, WearLink.CONTEXT, context)
+    }
+    AsyncFunction("sendAck") { clientId: String, ok: Boolean ->
+      val ctx = appContext.reactContext ?: return@AsyncFunction
+      WearLink.put(ctx, "${WearLink.ACK}/$clientId", mapOf("clientId" to clientId, "ok" to ok))
+    }
     AsyncFunction("updateIntervalTiming") { _: Map<String, Any?> -> }
     AsyncFunction("setTelemetryOwner") { ownerId: String ->
       val ctx = appContext.reactContext ?: return@AsyncFunction
@@ -108,6 +123,35 @@ class WatchConnectivityModule : Module() {
     val event = HeartRateQueue.accept(ctx, payload)
     if (uri != null) WearLink.delete(ctx, uri)
     if (event != null) sendEvent("onHeartRateBatch", event)
+  }
+
+  fun emitCheckIn(payload: Map<String, Any?>, uri: android.net.Uri?) =
+    deliver("onCheckIn", payload, uri)
+
+  fun emitWater(payload: Map<String, Any?>, uri: android.net.Uri?) =
+    deliver("onWaterIntake", payload, uri)
+
+  fun emitWaterDelete(payload: Map<String, Any?>, uri: android.net.Uri?) =
+    deliver("onWaterDelete", payload, uri)
+
+  fun emitRest(payload: Map<String, Any?>, uri: android.net.Uri?) =
+    deliver("onRestChanged", payload, uri)
+
+  fun emitWorkoutStop(payload: Map<String, Any?>, uri: android.net.Uri?) =
+    deliver("onWorkoutStop", payload, uri)
+
+  fun emitContextRequest(uri: android.net.Uri?) {
+    sendEvent("onContextRequest", emptyMap<String, Any>())
+    val ctx = appContext.reactContext ?: return
+    if (uri != null) WearLink.delete(ctx, uri)
+  }
+
+  private fun deliver(event: String, payload: Map<String, Any?>, uri: android.net.Uri?) {
+    val ctx = appContext.reactContext ?: return
+    val body = payload.filterKeys { it != "_event" }
+    if (uri != null) EventInbox.add(ctx, event, body)
+    sendEvent(event, body)
+    if (uri != null) WearLink.delete(ctx, uri)
   }
 
   companion object {

@@ -29,6 +29,7 @@ class WearWorkoutService : WearableListenerService() {
         WearPaths.WORKOUT_START -> WorkoutHolder.applyStart(body)
         WearPaths.WORKOUT_STOP -> WorkoutHolder.applyStop(body.optString("sessionId"))
         WearPaths.SET_TARGETS -> WorkoutHolder.applyTargets(body)
+        "/sparky/context" -> WatchContext.apply(body)
       }
     }
   }
