@@ -22,7 +22,7 @@ import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import {
   inferExerciseModality,
-  deriveExerciseModality,
+  modalityFromName,
   resolveExerciseModality,
   type ApplyExerciseModalitySuggestionsBody,
   type ExerciseModalitySuggestion,
@@ -2497,12 +2497,7 @@ async function getModalitySuggestions(
     // matched) is a guess. Only offer it over the default, never over a type
     // that was set on purpose: Hevy marks an ab wheel as reps-only and battle
     // ropes as duration-only.
-    const nameRuleMatched =
-      suggestedModality !==
-      deriveExerciseModality(
-        row.category,
-        normalizeToStringArray(row.equipment)
-      );
+    const nameRuleMatched = modalityFromName(row.name) !== null;
     if (!nameRuleMatched && currentModality !== 'weight_reps') {
       continue;
     }
