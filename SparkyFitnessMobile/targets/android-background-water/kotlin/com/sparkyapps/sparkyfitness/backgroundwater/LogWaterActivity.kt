@@ -31,7 +31,7 @@ class LogWaterActivity : Activity() {
             val json = BackgroundWaterStore.load(context)
                 ?: return toast(context, "Open SparkyFitness and sign in to a server first.")
             val config = JSONObject(json)
-            if (!config.has("containerId")) {
+            if (config.isNull("containerId") || config.isNull("containerName")) {
                 return toast(context, "Pick a water container in SparkyFitness first.")
             }
             val baseUrl = config.getString("baseUrl")
