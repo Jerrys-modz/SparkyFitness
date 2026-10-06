@@ -73,6 +73,7 @@ export const PREFERENCE_DEFAULTS = {
   askSparkyVisible: true,
   medicationsCardVisible: true,
   symptomsCardVisible: true,
+  moodCardVisible: true,
   progressPhotosCardVisible: true,
   healthTrendsCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
@@ -130,6 +131,7 @@ export type AppPreferencesData = {
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
   symptomsCardVisible: boolean;
+  moodCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   healthTrendsCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
@@ -206,6 +208,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
   setSymptomsCardVisible: (value: boolean) => void;
+  setMoodCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
@@ -319,6 +322,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setMedicationsCardVisible: (value) =>
         set({ medicationsCardVisible: value }),
       setSymptomsCardVisible: (value) => set({ symptomsCardVisible: value }),
+      setMoodCardVisible: (value) => set({ moodCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
       setHealthTrendsCardVisible: (value) =>
@@ -421,6 +425,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
         symptomsCardVisible: state.symptomsCardVisible,
+        moodCardVisible: state.moodCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
