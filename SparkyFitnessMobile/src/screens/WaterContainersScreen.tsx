@@ -10,12 +10,15 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import FooterActionBar from '../components/FooterActionBar';
 import Icon from '../components/Icon';
 import StatusView from '../components/StatusView';
+import BottomSheetPicker from '../components/BottomSheetPicker';
 import Button from '../components/ui/Button';
+import Switch from '../components/ui/Switch';
 import {
   useWaterContainersQuery,
   useDeleteWaterContainerMutation,
@@ -25,9 +28,16 @@ import {
   useAddDrinkPresetMutation,
   useServerConnection,
 } from '../hooks';
+import { usePreferences } from '../hooks/usePreferences';
+import {
+  dailySummaryRootQueryKey,
+  preferencesQueryKey,
+} from '../hooks/queryKeys';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { updatePreferences } from '../services/api/preferencesApi';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { WaterContainer } from '../types/measurements';
+import type { UserPreferences } from '../types/preferences';
 import type { RootStackScreenProps } from '../types/navigation';
 import { WATER_UNIT_LABELS, volumeFromMl } from '../utils/unitConversions';
 
@@ -59,6 +69,64 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
   });
   const { addDrinkPresetAsync, isPending: isAddingPreset } =
     useAddDrinkPresetMutation();
+
+  const queryClient = useQueryClient();
+  const { preferences } = usePreferences({ enabled: isConnected });
+  const waterDisplayUnit = preferences?.water_display_unit ?? 'ml';
+  const addExerciseWater = preferences?.add_exercise_water_to_goal ?? false;
+  const addFoodWater = preferences?.add_food_water_to_intake ?? false;
+
+  const unitOptions = [
+    {
+      label: t('waterContainers.settings.unitMl', {
+        defaultValue: 'Milliliters (ml)',
+      }),
+      value: 'ml' as const,
+    },
+    {
+      label: t('waterContainers.settings.unitOz', {
+        defaultValue: 'Fluid ounces (oz)',
+      }),
+      value: 'oz' as const,
+    },
+    {
+      label: t('waterContainers.settings.unitLiter', {
+        defaultValue: 'Liters',
+      }),
+      value: 'liter' as const,
+    },
+  ];
+
+  const preferencesMutation = useMutation({
+    mutationFn: (data: Partial<UserPreferences>) => updatePreferences(data),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: preferencesQueryKey });
+      const previous =
+        queryClient.getQueryData<UserPreferences>(preferencesQueryKey);
+      queryClient.setQueryData<UserPreferences>(preferencesQueryKey, (old) =>
+        old ? { ...old, ...data } : (data as UserPreferences)
+      );
+      return { previous };
+    },
+    onError: (_err, _data, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(preferencesQueryKey, context.previous);
+      }
+      Toast.show({
+        type: 'error',
+        text1: t('common.error', { defaultValue: 'Error' }),
+        text2: t('waterContainers.settings.updateFailed', {
+          defaultValue: 'Failed to update setting.',
+        }),
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: preferencesQueryKey });
+      // Both toggles change a day's water total or goal, and mobile's
+      // staleTime: Infinity means cached summaries never refetch on their own.
+      queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
+    },
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -365,33 +433,99 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
           />
         }
         ListHeaderComponent={
-          presetCatalog.length > 0 ? (
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-text-secondary mb-2">
-                {t('waterContainers.presets', {
-                  defaultValue: 'Quick-add presets',
+          <>
+            <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-base font-semibold text-text-primary">
+                  {t('waterContainers.settings.displayUnit', {
+                    defaultValue: 'Water display unit',
+                  })}
+                </Text>
+                <BottomSheetPicker
+                  value={waterDisplayUnit}
+                  options={unitOptions}
+                  onSelect={(value) =>
+                    preferencesMutation.mutate({ water_display_unit: value })
+                  }
+                  title={t('waterContainers.settings.displayUnit', {
+                    defaultValue: 'Water display unit',
+                  })}
+                  containerStyle={{ flex: 1, maxWidth: 200, marginLeft: 16 }}
+                />
+              </View>
+              <View className="flex-row justify-between items-center mt-4">
+                <Text className="text-sm text-text-primary flex-shrink pr-3">
+                  {t('waterContainers.settings.addExerciseWater', {
+                    defaultValue: 'Add exercise water loss to daily goal',
+                  })}
+                </Text>
+                <Switch
+                  value={addExerciseWater}
+                  onValueChange={(value) =>
+                    preferencesMutation.mutate({
+                      add_exercise_water_to_goal: value,
+                    })
+                  }
+                />
+              </View>
+              <Text className="text-text-secondary text-sm mt-2">
+                {t('waterContainers.settings.addExerciseWaterHint', {
+                  defaultValue:
+                    'Increases your daily water goal by the estimated sweat loss from activities.',
                 })}
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {presetCatalog.map((preset) => (
-                  <Pressable
-                    key={preset.id}
-                    accessibilityRole="button"
-                    disabled={isAddingPreset}
-                    className="bg-surface rounded-full px-4 py-2 mr-2 shadow-sm"
-                    style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
-                    onPress={() => void addPreset(preset.id)}
-                  >
-                    <Text className="text-sm font-medium text-text-primary">
-                      {/* Catalog reference data, like a food/exercise name --
-                          literal per the i18n contract, not run through t(). */}
-                      {preset.defaultName}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              <View className="flex-row justify-between items-center mt-4">
+                <Text className="text-sm text-text-primary flex-shrink pr-3">
+                  {t('waterContainers.settings.addFoodWater', {
+                    defaultValue: 'Count water from food toward your intake',
+                  })}
+                </Text>
+                <Switch
+                  value={addFoodWater}
+                  onValueChange={(value) =>
+                    preferencesMutation.mutate({
+                      add_food_water_to_intake: value,
+                    })
+                  }
+                />
+              </View>
+              <Text className="text-text-secondary text-sm mt-2">
+                {t('waterContainers.settings.addFoodWaterHint', {
+                  defaultValue:
+                    "Folds a logged food's water content into your daily water total, unless it's already counted by a linked container.",
+                })}
+              </Text>
             </View>
-          ) : null
+            {presetCatalog.length > 0 ? (
+              <View className="mb-4">
+                <Text className="text-sm font-semibold text-text-secondary mb-2">
+                  {t('waterContainers.presets', {
+                    defaultValue: 'Quick-add presets',
+                  })}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {presetCatalog.map((preset) => (
+                    <Pressable
+                      key={preset.id}
+                      accessibilityRole="button"
+                      disabled={isAddingPreset}
+                      className="bg-surface rounded-full px-4 py-2 mr-2 shadow-sm"
+                      style={({ pressed }) =>
+                        pressed ? { opacity: 0.7 } : null
+                      }
+                      onPress={() => void addPreset(preset.id)}
+                    >
+                      <Text className="text-sm font-medium text-text-primary">
+                        {/* Catalog reference data, like a food/exercise name --
+                          literal per the i18n contract, not run through t(). */}
+                        {preset.defaultName}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </>
         }
         ListEmptyComponent={
           <StatusView
