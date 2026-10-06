@@ -315,7 +315,10 @@ final class WorkoutSessionStore: ObservableObject {
     /// while the phone's own ping is hidden on the watch.
     private func endRestFromPhone() {
         guard let restEndsAt else { return }
-        let ranOut = restEndsAt.timeIntervalSinceNow <= 1.5
+        // A paused rest keeps its old deadline, which says nothing about
+        // whether it ran out: the phone skipping it is not a buzz.
+        let ranOut = restPausedRemaining == nil
+            && restEndsAt.timeIntervalSinceNow <= 1.5
         stopRestTimer()
         if ranOut { onRestFinished?() }
     }
