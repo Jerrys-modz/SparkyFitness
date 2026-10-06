@@ -15,7 +15,7 @@ import {
   KeyboardStickyView,
   type KeyboardAwareScrollViewRef,
 } from 'react-native-keyboard-controller';
-import { findDropSetBaseIndex } from '@workspace/shared';
+import { findDropSetBaseIndex, findWarmupBaseIndex } from '@workspace/shared';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -74,6 +74,8 @@ import {
   formatSetLoad,
   rendersCardioEffortForm,
   resolveSnapshotModality,
+  isCardioModality,
+  isDurationModality,
 } from '../utils/workoutSession';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useActiveWorkoutIntervalLifecycle } from '../hooks/useActiveWorkoutIntervalLifecycle';
@@ -236,6 +238,50 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     () => buildExerciseReorderItems(session?.exercises ?? []).length,
     [session]
   );
+  // The first working set's weight, typed or assumed, that a warm-up ramp
+  // builds towards. Null for cardio and timed exercises, or when that set has
+  // no weight yet.
+  const warmupWeightKg = useCallback(
+    (entryId: string): number | null => {
+      const ex = session?.exercises.find((e) => e.id === entryId);
+      if (!ex) return null;
+      const modality = resolveSnapshotModality(ex.exercise_snapshot);
+      if (isCardioModality(modality) || isDurationModality(modality))
+        return null;
+      const baseIndex = findWarmupBaseIndex(
+        ex.sets,
+        (s) => s.weight ?? plannedSetValues[String(s.id)]?.weight
+      );
+      if (baseIndex < 0) return null;
+      const base = ex.sets[baseIndex];
+      return Number(base.weight ?? plannedSetValues[String(base.id)]?.weight);
+    },
+    [session, plannedSetValues]
+  );
+  const canAddWarmups = useCallback(
+    (entryId: string): boolean => {
+      if (warmupWeightKg(entryId) == null) return false;
+      const ex = session?.exercises.find((e) => e.id === entryId);
+      // A warm-up already logged means the ramp is under way.
+      return !ex?.sets.some(
+        (s) =>
+          s.set_type === 'warmup' &&
+          (completedSetIds[String(s.id)] != null || s.completed_at != null)
+      );
+    },
+    [warmupWeightKg, session, completedSetIds]
+  );
+  const handleAddWarmups = useCallback(
+    (entryId: string) => {
+      const weightKg = warmupWeightKg(entryId);
+      if (weightKg == null) return;
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise(entryId, weightKg, weightUnit);
+    },
+    [warmupWeightKg, weightUnit]
+  );
+
   const handleOpenReorder = useCallback(() => {
     Keyboard.dismiss();
     setReorderVisible(true);
@@ -908,6 +954,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         onPressThumb={handlePressThumb}
         onToggleExerciseNote={handleToggleExerciseNote}
         onReplaceExercise={handleReplaceExercise}
+        canAddWarmups={canAddWarmups}
+        onAddWarmups={handleAddWarmups}
         onClearExerciseSets={handleClearExerciseSets}
         onRemoveExercise={handleRemoveExercise}
         onSelectSupersetPartner={(entryId, candidateId) => {

@@ -20,6 +20,9 @@ import type {
 import {
   buildIntervalPhases,
   calculateDropSetWeightsKg,
+  calculateWarmupSets,
+  isWarmupSetType,
+  WARMUP_REST_SEC,
   shiftPhasesForPause,
 } from '@workspace/shared';
 import type { Exercise } from '../types/exercise';
@@ -466,6 +469,17 @@ export interface ActiveWorkoutState {
   addDropSetsToExercise: (
     entryId: string,
     baseWeightKg: number,
+    unit: DropSetWeightUnit
+  ) => void;
+  /**
+   * Insert ramping warm-up sets (bar, then 50 / 70 / 85% of the working
+   * weight) ahead of the exercise's first working set. Warm-ups that have not
+   * been logged are replaced, so tapping again does not stack them; one that
+   * has been logged stops the action, since the ramp is already under way.
+   */
+  addWarmupSetsToExercise: (
+    entryId: string,
+    workingWeightKg: number,
     unit: DropSetWeightUnit
   ) => void;
   /**
@@ -2198,6 +2212,63 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           ...session,
           exercises: session.exercises.map((e) =>
             e.id === entryId ? { ...e, sets: newSets } : e
+          ),
+        };
+        set(buildSessionEditState(state, next));
+      },
+
+      addWarmupSetsToExercise: (entryId, workingWeightKg, unit) => {
+        const state = get();
+        const session = state.session;
+        if (!session) return;
+        const exercise = session.exercises.find((e) => e.id === entryId);
+        if (!exercise) return;
+
+        const warmups = calculateWarmupSets(workingWeightKg, unit);
+        if (warmups.length === 0) return;
+
+        const isLogged = (s: ExerciseEntrySetResponse) =>
+          state.completedSetIds[String(s.id)] != null || s.completed_at != null;
+        if (
+          exercise.sets.some((s) => isWarmupSetType(s.set_type) && isLogged(s))
+        )
+          return;
+
+        // None of the old warm-ups is logged (checked above), so all of them go
+        // and the new ramp leads the working sets.
+        const working = exercise.sets.filter(
+          (s) => !isWarmupSetType(s.set_type)
+        );
+
+        let tempId = nextTempSetId(session, state.setRenderKeys);
+        const warmupSets: ExerciseEntrySetResponse[] = warmups.map((w) => {
+          const created: ExerciseEntrySetResponse = {
+            id: tempId,
+            set_number: 0,
+            set_type: 'warmup',
+            weight: w.weightKg,
+            reps: w.reps,
+            duration: null,
+            distance: null,
+            rest_time: WARMUP_REST_SEC,
+            notes: null,
+            rpe: null,
+            rir: null,
+            is_pr: false,
+            completed_at: null,
+          };
+          tempId -= 1;
+          return created;
+        });
+
+        const sets = [...warmupSets, ...working].map((s, i) => ({
+          ...s,
+          set_number: i + 1,
+        }));
+        const next: PresetSessionResponse = {
+          ...session,
+          exercises: session.exercises.map((e) =>
+            e.id === entryId ? { ...e, sets } : e
           ),
         };
         set(buildSessionEditState(state, next));

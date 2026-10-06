@@ -1819,7 +1819,8 @@
     "repCount_one": "{{formattedCount}} rep",
     "repCount_other": "{{formattedCount}} reps",
     "modalityWeightDistance": "Weight & Distance (carries)",
-    "modalityWeightDuration": "Weight & Duration (loaded holds)"
+    "modalityWeightDuration": "Weight & Duration (loaded holds)",
+    "addWarmups": "Add warm-ups"
   },
   "cycleCard": {
     "mode": {
