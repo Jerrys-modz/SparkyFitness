@@ -124,7 +124,7 @@ const CARRY_NAME =
 const HOLD_NAME =
   /\b(planks?|side planks?|dead hangs?|bar hangs?|passive hangs?|active hangs?|wall sits?|l[- ]?sits?|hollow (body )?holds?|isometric holds?|static holds?|glute bridge holds?|iso holds?)\b/;
 const CARDIO_NAME =
-  /\b(running|jogging|treadmill|cycling|elliptical|swimming|stair ?climber|stair ?master|ski ?erg|assault bike|air bike|rowing machine|rower|spin bike|stationary bike)\b/;
+  /\b(running|jogging|treadmill|cycling|elliptical|swimming|stair ?climber|stair ?master|ski ?erg|assault bike|rowing machine|rower|spin bike|stationary bike)\b/;
 
 /**
  * Infer a modality from the exercise name as well as its category and
