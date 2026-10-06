@@ -2896,7 +2896,8 @@
     "selectRow": "Select row",
     "unknown": "Unknown",
     "avg": "Avg",
-    "max": "Max"
+    "max": "Max",
+    "tryAgain": "Try again"
   },
   "diary": {
     "nutritionSummary": "Nutrition Summary",
