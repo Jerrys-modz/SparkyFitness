@@ -3,6 +3,7 @@ import ImageIO
 import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
+import Vision  // OCRTool is a Vision-backed FoundationModels tool
 #endif
 
 // The Foundation Models image-attachment API ships with the iOS 27 SDK
