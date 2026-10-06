@@ -1,4 +1,5 @@
 import { waitFor } from '@testing-library/react-native';
+import Toast from 'react-native-toast-message';
 import {
   quickActionItems,
   runQuickAction,
@@ -8,6 +9,7 @@ import {
   fetchWaterContainers,
 } from '../../src/services/api/measurementsApi';
 import { navigationRef } from '../../src/components/ActiveWorkoutBar';
+import { DEFAULT_WATER_CONTAINER_ID } from '../../src/hooks/useWaterIntakeMutation';
 
 jest.mock('expo-quick-actions', () => ({
   setItems: jest.fn(),
@@ -54,6 +56,31 @@ describe('runQuickAction', () => {
         expect.objectContaining({ changeDrinks: 1, containerId: 2 })
       )
     );
+  });
+
+  it('logs one drink of the fallback container when none are saved', async () => {
+    (fetchWaterContainers as jest.Mock).mockResolvedValue([]);
+    runQuickAction('log-water');
+    await waitFor(() =>
+      expect(changeWaterIntake).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changeDrinks: 1,
+          containerId: DEFAULT_WATER_CONTAINER_ID,
+        })
+      )
+    );
+  });
+
+  it('shows an error toast when logging water fails', async () => {
+    (fetchWaterContainers as jest.Mock).mockRejectedValue(new Error('offline'));
+    runQuickAction('log-water');
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith({
+        type: 'error',
+        text1: 'Could not log water',
+      })
+    );
+    expect(changeWaterIntake).not.toHaveBeenCalled();
   });
 
   it('ignores unknown actions', () => {

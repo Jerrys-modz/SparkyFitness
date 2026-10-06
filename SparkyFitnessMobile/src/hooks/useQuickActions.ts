@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform } from 'react-native';
 import * as QuickActions from 'expo-quick-actions';
@@ -122,6 +122,7 @@ export function runQuickAction(id: string): void {
  * running.
  */
 export function useQuickActions(enabled: boolean): void {
+  const handledInitial = useRef(false);
   // The titles are read when the items are registered, so a language change
   // has to register them again.
   const language = useTranslation().i18n.language;
@@ -129,7 +130,10 @@ export function useQuickActions(enabled: boolean): void {
     if (!enabled || Platform.OS !== 'ios') return;
     void QuickActions.setItems(quickActionItems()).catch(() => undefined);
     const initial = QuickActions.initial;
-    if (initial) runQuickAction(initial.id);
+    if (initial && !handledInitial.current) {
+      handledInitial.current = true;
+      runQuickAction(initial.id);
+    }
     const subscription = QuickActions.addListener((action) =>
       runQuickAction(action.id)
     );
