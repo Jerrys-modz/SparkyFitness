@@ -99,6 +99,7 @@ import {
   SafeNutrientTrends,
   SafeExerciseStatistics,
   SafeCardioSession,
+  SafeRecordActivity,
   SafeFamilyMembers,
   SafeFamilyDiary,
   SafeFamilyMealDetail,
@@ -268,6 +269,7 @@ function AppContent() {
     handleAddMeasurements,
     handleAddProgressPhotos,
     handleAddSymptoms,
+    handleRecordActivity,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
@@ -691,6 +693,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.cardioSession', { defaultValue: 'Cardio Session' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
+            name="RecordActivity"
+            component={SafeRecordActivity}
+            options={createStackScreenOptions(t('screens.recordActivity', { defaultValue: 'Record Activity' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
             name="ExerciseSearch"
             component={SafeExerciseSearch}
             options={createStackScreenOptions(t('screens.selectExercise', { defaultValue: 'Select Exercise' }), {
@@ -966,7 +973,7 @@ function AppContent() {
             })}
           />
         </Stack.Navigator>
-        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
+        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onRecordActivity={handleRecordActivity} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
         <ReauthModal
           visible={showReauthModal}
           expiredConfigId={expiredConfigId}

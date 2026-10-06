@@ -311,6 +311,10 @@ export function useAddSheetActions({ syncMutation }: AddSheetActionsArgs) {
     navigateFromSheet('SymptomLog', { date });
   }, [getActiveDiaryDate, navigateFromSheet]);
 
+  const handleRecordActivity = useCallback(() => {
+    navigateFromSheet('RecordActivity');
+  }, [navigateFromSheet]);
+
   const handleAskSparky = useCallback(() => {
     navigateFromSheet('Chat');
   }, [navigateFromSheet]);
@@ -389,6 +393,7 @@ export function useAddSheetActions({ syncMutation }: AddSheetActionsArgs) {
     handleAddMeasurements,
     handleAddProgressPhotos,
     handleAddSymptoms,
+    handleRecordActivity,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
