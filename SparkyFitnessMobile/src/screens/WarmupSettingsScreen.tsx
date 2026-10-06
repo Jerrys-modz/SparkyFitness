@@ -72,8 +72,18 @@ const StepField: React.FC<StepFieldProps> = ({
         }}
         keyboardType="number-pad"
         selectTextOnFocus
-        className="text-base font-semibold text-center bg-raised rounded-lg"
-        style={{ width: 56, height: 40, color: textPrimary }}
+        className="font-semibold text-center bg-raised rounded-lg"
+        // A line height taller than the font pushes the digits down inside a
+        // fixed-height field on iOS; keep it equal and drop the padding so they
+        // sit in the middle.
+        style={{
+          width: 56,
+          height: 40,
+          paddingVertical: 0,
+          fontSize: 16,
+          lineHeight: 16,
+          color: textPrimary,
+        }}
       />
       {suffix ? (
         <Text className="text-text-secondary text-base ml-1.5">{suffix}</Text>
@@ -208,10 +218,10 @@ const WarmupSettingsScreen: React.FC<WarmupSettingsScreenProps> = () => {
             <View
               key={index}
               testID={`warmup-method-step-${index}`}
-              className="flex-row items-center py-2 border-t border-border-subtle"
+              className="flex-row items-center justify-center py-2 border-t border-border-subtle"
             >
               <Text
-                className="text-base font-bold w-8"
+                className="text-base font-bold mr-3"
                 style={{ color: '#FACC15' }}
               >
                 {t('warmupSettings.setLetter', { defaultValue: 'W' })}
