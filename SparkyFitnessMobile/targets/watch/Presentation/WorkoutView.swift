@@ -375,7 +375,13 @@ private struct ActiveWorkoutView: View {
                     WorkoutCompleteView()
                 }
             }
-            .sheet(item: $pendingRpe) { pending in
+        }
+        .padding(.horizontal, 4)
+        // Over the whole page rather than a sheet: a sheet brings the system's
+        // close button, which sat on top of the exercise name and left no room
+        // on a 40 mm screen. Skip closes it, and a set waits here until then.
+        .overlay {
+            if let pending = pendingRpe {
                 RpePickerView(
                     title: pending.step.exerciseName,
                     summary: pending.summary(unit: checkIn.context.effectiveWeightUnit)
@@ -383,16 +389,9 @@ private struct ActiveWorkoutView: View {
                     session.sendSetCompleted(pending.step, values: pending.values, rpe: rpe)
                     pendingRpe = nil
                 }
-                .onDisappear {
-                    // Swiped away: the set is still logged, just without an effort.
-                    if pendingRpe?.id == pending.id {
-                        session.sendSetCompleted(pending.step, values: pending.values)
-                        pendingRpe = nil
-                    }
-                }
+                .background(Color.black.ignoresSafeArea())
             }
         }
-        .padding(.horizontal, 4)
         .sheet(isPresented: $showingExercises) {
             ExerciseListView { exerciseEntryId in
                 store.jumpToExercise(exerciseEntryId)
@@ -1855,7 +1854,7 @@ private struct RpePickerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
                     .font(.system(size: 14, weight: .bold))
@@ -1866,13 +1865,15 @@ private struct RpePickerView: View {
                     .lineLimit(1)
             }
             .minimumScaleFactor(0.8)
+            // Room for the system clock, which sits over the top right.
+            .padding(.trailing, 52)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // The card the crown is adjusting, so it wears the white border the
             // set screen's selected value card does.
             VStack(spacing: 0) {
                 Text(valueText)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
                 Text("RPE")
@@ -1880,7 +1881,7 @@ private struct RpePickerView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
             .background(Self.fill, in: Self.shape)
             .overlay(Self.shape.stroke(Color.white, lineWidth: 2))
 
@@ -1890,7 +1891,7 @@ private struct RpePickerView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity, minHeight: 30)
+                .frame(maxWidth: .infinity, minHeight: 26)
 
             HStack(spacing: 4) {
                 Button { onDone(nil) } label: {
@@ -1898,7 +1899,7 @@ private struct RpePickerView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.6))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 40)
+                        .frame(height: 38)
                         .background(Self.fill, in: Self.shape)
                         .contentShape(Self.shape)
                 }
@@ -1908,7 +1909,7 @@ private struct RpePickerView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(Color.black)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 40)
+                        .frame(height: 38)
                         .background(Color.white, in: Self.shape)
                         .contentShape(Self.shape)
                 }
@@ -1916,6 +1917,7 @@ private struct RpePickerView: View {
             }
         }
         .padding(.horizontal, 4)
+        .padding(.bottom, 4)
         .focusable()
         .focused($focused)
         .digitalCrownRotation(
