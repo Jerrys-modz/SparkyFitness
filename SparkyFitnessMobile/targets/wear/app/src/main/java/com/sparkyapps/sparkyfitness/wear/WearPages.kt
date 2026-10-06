@@ -168,12 +168,7 @@ internal fun WaterPage(context: Context, page: Int) {
           horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-              Modifier.size(12.dp).clip(CircleShape).background(Palette.green),
-              contentAlignment = Alignment.Center,
-            ) {
-              Text("✓", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            }
+            SavedMark()
             val label = if (snap.waterGoalMl <= 0) "Water" else "${(fraction * 100).toInt()}% · ${formatWater(ml, snap.waterUnit)}"
             Text(
               label,
@@ -195,6 +190,7 @@ internal fun WaterPage(context: Context, page: Int) {
         }
         Column(
           Modifier.weight(1f).verticalScroll(rememberScrollState()),
+          horizontalAlignment = Alignment.CenterHorizontally,
           verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
           if (snap.containers.isEmpty()) {
@@ -218,9 +214,8 @@ internal fun WaterPage(context: Context, page: Int) {
 private fun WaterTile(title: String, detail: String?, tinted: Boolean, onClick: () -> Unit) {
   Column(
     Modifier
-      .fillMaxWidth()
-      .aspectRatio(1f)
-      .clip(RoundedCornerShape(16.dp))
+      .size(40.dp)
+      .clip(RoundedCornerShape(14.dp))
       .background(if (tinted) Palette.water.copy(alpha = 0.16f) else Palette.secondary.copy(alpha = 0.16f))
       .clickable(onClick = onClick)
       .padding(2.dp),
@@ -249,6 +244,16 @@ private fun DropIcon(modifier: Modifier) {
       close()
     }
     drawPath(path, Palette.water)
+  }
+}
+
+@Composable
+private fun SavedMark() {
+  Canvas(Modifier.size(13.dp)) {
+    drawCircle(Palette.green)
+    val width = size.minDimension * 0.12f
+    drawLine(Color.Black, Offset(size.width * 0.28f, size.height * 0.52f), Offset(size.width * 0.44f, size.height * 0.68f), width, StrokeCap.Round)
+    drawLine(Color.Black, Offset(size.width * 0.44f, size.height * 0.68f), Offset(size.width * 0.74f, size.height * 0.34f), width, StrokeCap.Round)
   }
 }
 
