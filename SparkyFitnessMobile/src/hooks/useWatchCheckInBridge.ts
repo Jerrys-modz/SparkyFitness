@@ -48,6 +48,8 @@ import { useCurrentFast } from './useFasting';
 import { toWatchFast } from '../utils/watchFast';
 import { estimateMaxHeartRate } from '../utils/heartRateZones';
 import { getActiveServerConfigId } from '../services/storage';
+import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
+import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -286,6 +288,26 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     date: summaryDate,
     enabled,
   });
+
+  // What the diary's plan banner offers today, so the watch's workout page can
+  // put it first. Same query and completion rule as that banner.
+  const { plans: activePlans } = useActiveWorkoutPlans(summaryDate, {
+    enabled,
+  });
+  const dayExerciseEntries = dailySummary?.exerciseEntries;
+  const scheduledWorkouts = useMemo(
+    () =>
+      scheduledWorkoutsForWatch(activePlans, dayExerciseEntries ?? [], {
+        scheduledToday: t('exerciseSummary.scheduledToday', 'Scheduled Today'),
+        sessionOf: (current, total) =>
+          t(
+            'exerciseSummary.sessionNumber',
+            'Session {{current}} of {{total}}',
+            { current, total }
+          ),
+      }),
+    [activePlans, dayExerciseEntries, t]
+  );
 
   // EVERY calorie figure sent to the watch comes from this one object — the
   // same one the phone's own summary bar (DiaryCalorieMacroSummary) and the
@@ -583,6 +605,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         startableWorkouts,
+        scheduledWorkouts,
         workoutServerId,
         maxHeartRate,
         rpeEnabled: watchRpeEnabled,
@@ -630,6 +653,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchRpeEnabled,
     watchHrZonesEnabled,
     watchFast,
+    scheduledWorkouts,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

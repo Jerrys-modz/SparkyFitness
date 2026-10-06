@@ -116,9 +116,20 @@ enum SampleDay {
             pageOrder: nil,
             hiddenPages: nil,
             setInputStyle: nil,
-            startableWorkouts: startableWorkouts
+            startableWorkouts: startableWorkouts,
+            scheduledWorkouts: scheduledWorkouts
         )
     }
+
+    /// What the active plan puts on today, for the top of the workout picker.
+    static let scheduledWorkouts = [
+        ScheduledWorkout(
+            presetId: "sample-2",
+            name: "Day 1 — Push (5 Day)",
+            planName: "main",
+            caption: "Scheduled Today"
+        ),
+    ]
 
     /// The saved workouts the idle workout page offers. Names run from one
     /// word to a two-line one, since the picker has to wrap on a 40mm.

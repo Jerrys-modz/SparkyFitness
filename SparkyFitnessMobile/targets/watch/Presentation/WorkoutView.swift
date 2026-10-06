@@ -165,8 +165,15 @@ private struct WaitingForWorkoutView: View {
     @State private var startingId: String?
 
     var body: some View {
-        let workouts = checkIn.context.startableWorkouts ?? []
-        if workouts.isEmpty {
+        let all = checkIn.context.startableWorkouts ?? []
+        // Today's planned workouts come first. Only ones the phone can start
+        // (it lists them among the saved workouts), and not again below.
+        let startableIds = Set(all.map(\.presetId))
+        let scheduled = (checkIn.context.scheduledWorkouts ?? [])
+            .filter { startableIds.contains($0.presetId) }
+        let scheduledIds = Set(scheduled.map(\.presetId))
+        let workouts = all.filter { !scheduledIds.contains($0.presetId) }
+        if workouts.isEmpty && scheduled.isEmpty {
             VStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.title2)
@@ -182,10 +189,21 @@ private struct WaitingForWorkoutView: View {
             // stock list, so the first screen matches the ones after it.
             ScrollView {
                 VStack(spacing: 6) {
+                    ForEach(scheduled) { workout in
+                        Button {
+                            Haptics.tap()
+                            start(presetId: workout.presetId)
+                        } label: {
+                            scheduledRow(workout)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(startingId != nil && startingId != workout.presetId)
+                        .opacity(startingId != nil && startingId != workout.presetId ? 0.4 : 1)
+                    }
                     ForEach(workouts) { workout in
                         Button {
                             Haptics.tap()
-                            start(workout)
+                            start(presetId: workout.presetId)
                         } label: {
                             Text(startingId == workout.presetId ? "Starting…" : workout.name)
                                 .font(.system(size: WatchStyle.s(16), weight: .semibold))
@@ -211,15 +229,51 @@ private struct WaitingForWorkoutView: View {
         }
     }
 
-    private func start(_ workout: StartableWorkout) {
+    /// Today's planned workout: the plan and what it is on, over the workout's
+    /// name, with a play mark. Tinted blue like the phone's plan card.
+    private func scheduledRow(_ workout: ScheduledWorkout) -> some View {
+        let blue = Color(red: 0.31, green: 0.51, blue: 0.96)
+        return HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                    Text(workout.planName.isEmpty
+                        ? workout.caption
+                        : "\(workout.planName) • \(workout.caption)")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .font(.system(size: WatchStyle.s(11), weight: .semibold))
+                .foregroundStyle(blue)
+                Text(startingId == workout.presetId ? "Starting…" : workout.name)
+                    .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "play.fill")
+                .font(.system(size: WatchStyle.s(13), weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: WatchStyle.s(30), height: WatchStyle.s(30))
+                .background(blue, in: Circle())
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, WatchStyle.s(10))
+        .background(blue.opacity(0.18), in: WatchStyle.shape)
+        .contentShape(WatchStyle.shape)
+    }
+
+    private func start(presetId: String) {
         guard startingId == nil else { return }
-        startingId = workout.presetId
+        startingId = presetId
         session.requestWorkoutStart(
-            presetId: workout.presetId,
+            presetId: presetId,
             serverId: checkIn.context.workoutServerId
         )
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            if startingId == workout.presetId {
+            if startingId == presetId {
                 startingId = nil
             }
         }
