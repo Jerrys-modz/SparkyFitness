@@ -720,6 +720,97 @@ async function getProvidersByType(providerType: any) {
     client.release();
   }
 }
+/**
+ * Claims the provider row(s) a sync is about to run on: the user's row with
+ * that id, or the user's row(s) of one provider type. A row is claimable when
+ * no sync holds it or the holder's claim is older than the expiry, which frees
+ * rows a crashed server left claimed. Concurrent claims serialize on the row
+ * lock, so only one of them can set sync_started_at.
+ */
+async function claimProviderSyncRows(
+  target:
+    | { userId: string; providerId: string }
+    | { userId: string; providerType: string },
+  claimedAt: Date,
+  expiryMinutes: number
+): Promise<{ matched: number; claimedIds: string[] }> {
+  // Always scoped to the user: provider ids can come from a request body, and
+  // this runs as the system client, so an id alone could claim another user's row.
+  const [where, params] =
+    'providerId' in target
+      ? ['id = $1 AND user_id = $2', [target.providerId, target.userId]]
+      : [
+          'user_id = $1 AND provider_type = $2',
+          [target.userId, target.providerType],
+        ];
+  const n = params.length;
+  const client = await getSystemClient();
+  try {
+    const result = await client.query(
+      `WITH target AS (
+         SELECT id FROM external_data_providers WHERE ${where}
+       ),
+       claimed AS (
+         UPDATE external_data_providers
+         SET sync_started_at = $${n + 1}
+         WHERE id IN (SELECT id FROM target)
+           AND (sync_started_at IS NULL
+             OR sync_started_at < $${n + 1}::timestamptz - make_interval(mins => $${n + 2}))
+         RETURNING id
+       )
+       SELECT (SELECT count(*)::int FROM target) AS matched,
+              COALESCE((SELECT array_agg(id::text) FROM claimed), '{}') AS claimed_ids`,
+      [...params, claimedAt, expiryMinutes]
+    );
+    return {
+      matched: result.rows[0].matched,
+      claimedIds: result.rows[0].claimed_ids,
+    };
+  } finally {
+    client.release();
+  }
+}
+// Clears only the claim this sync made, so a sync whose claim expired cannot
+// release a newer sync's claim on the same row.
+async function releaseProviderSyncRows(
+  ids: string[],
+  claimedAt: Date
+): Promise<void> {
+  if (ids.length === 0) return;
+  const client = await getSystemClient();
+  try {
+    await client.query(
+      `UPDATE external_data_providers
+       SET sync_started_at = NULL
+       WHERE id = ANY($1::uuid[]) AND sync_started_at = $2`,
+      [ids, claimedAt]
+    );
+  } finally {
+    client.release();
+  }
+}
+// Moves this sync's claim to a new time so a long sync keeps it past the
+// expiry. Only rows still holding this sync's claim move; returns their ids.
+async function renewProviderSyncRows(
+  ids: string[],
+  claimedAt: Date,
+  renewedAt: Date
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const client = await getSystemClient();
+  try {
+    const result = await client.query(
+      `UPDATE external_data_providers
+       SET sync_started_at = $3
+       WHERE id = ANY($1::uuid[]) AND sync_started_at = $2
+       RETURNING id::text`,
+      [ids, claimedAt, renewedAt]
+    );
+    return result.rows.map((row: { id: string }) => row.id);
+  } finally {
+    client.release();
+  }
+}
 // A user's active providers of the given types, in cascade order (manual
 // sort_order first, then most recently created). Backs the chatbot
 // lookup_food_nutrition provider cascade.
@@ -980,6 +1071,9 @@ export { checkExternalDataProviderAccess };
 export { deleteExternalDataProvider };
 export { getExternalDataProviderByUserIdAndProviderName };
 export { updateProviderLastSync };
+export { claimProviderSyncRows };
+export { releaseProviderSyncRows };
+export { renewProviderSyncRows };
 export { withProviderTokenLock };
 export { replaceGarminTokensIfUnchanged };
 export { getProvidersByType };
@@ -1000,6 +1094,9 @@ export default {
   deleteExternalDataProvider,
   getExternalDataProviderByUserIdAndProviderName,
   updateProviderLastSync,
+  claimProviderSyncRows,
+  releaseProviderSyncRows,
+  renewProviderSyncRows,
   withProviderTokenLock,
   replaceGarminTokensIfUnchanged,
   getProvidersByType,
