@@ -7,6 +7,7 @@ jest.mock('../../modules/on-device-nutrition', () => ({
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 import mockModuleImport from '../../modules/on-device-nutrition';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import {
   isPlausibleLabel,
   scanLabelOnDevice,
@@ -42,6 +43,7 @@ describe('onDeviceLabelScan', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockModule.isAvailable.mockReturnValue(true);
+    useAppPreferencesStore.setState({ onDeviceLabelScanEnabled: true });
   });
 
   it('accepts a coherent label', () => {
@@ -84,5 +86,12 @@ describe('onDeviceLabelScan', () => {
 
     mockModule.scanLabel.mockResolvedValue(label({ calories: 900 }));
     expect(await scanLabelOnDevice('b64')).toBeNull();
+  });
+
+  it('skips the on-device model when the setting is off', async () => {
+    useAppPreferencesStore.setState({ onDeviceLabelScanEnabled: false });
+    mockModule.scanLabel.mockResolvedValue(label());
+    expect(await scanLabelOnDevice('b64')).toBeNull();
+    expect(mockModule.scanLabel).not.toHaveBeenCalled();
   });
 });
