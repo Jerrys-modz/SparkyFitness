@@ -206,6 +206,14 @@ The initial App Store submission stays manual (see `umbrel/README.md`): `submiss
 
 ---
 
+#### `android-test-build.yml`
+
+**Purpose**: Build a sideloadable phone APK (release variant, debug-signed, JavaScript bundled) and a Wear OS debug APK for device testing, uploaded as workflow artifacts. Needs no release signing secrets.
+
+**Triggers**: Manual workflow dispatch only
+
+---
+
 #### `release-assets.yml`
 
 **Purpose**: Create release assets for published releases
