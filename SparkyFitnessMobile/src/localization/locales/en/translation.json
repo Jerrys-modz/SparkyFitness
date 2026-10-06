@@ -4737,6 +4737,17 @@
     "defaultContainer": "Default"
   },
   "waterContainers": {
+    "settings": {
+      "displayUnit": "Water display unit",
+      "unitMl": "Milliliters (ml)",
+      "unitOz": "Fluid ounces (oz)",
+      "unitLiter": "Liters",
+      "addExerciseWater": "Add exercise water loss to daily goal",
+      "addExerciseWaterHint": "Increases your daily water goal by the estimated sweat loss from activities.",
+      "addFoodWater": "Count water from food toward your intake",
+      "addFoodWaterHint": "Folds a logged food's water content into your daily water total, unless it's already counted by a linked container.",
+      "updateFailed": "Failed to update setting."
+    },
     "title": "Water containers",
     "add": "Add container",
     "loading": "Loading water containers...",
