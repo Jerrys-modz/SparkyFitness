@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import {
   Alert,
   ActivityIndicator,
@@ -20,6 +19,7 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { notificationText } from '../utils/recordingNotification';
 import { formatLocalizedNumber } from '../localization';
 import {
   RecordingPermissionError,
@@ -50,29 +50,6 @@ import type { RootStackScreenProps } from '../types/navigation';
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
-
-type NotificationText = { title: string; body: string };
-
-const notificationText = (
-  t: TFunction,
-  activity: RecordingActivity
-): NotificationText => ({
-  title: t('recordActivity.notification.title', {
-    defaultValue: 'Recording your activity',
-  }),
-  body:
-    activity === 'walk'
-      ? t('recordActivity.notification.bodyWalk', {
-          defaultValue: 'Tracking your walk with GPS',
-        })
-      : activity === 'run'
-        ? t('recordActivity.notification.bodyRun', {
-            defaultValue: 'Tracking your run with GPS',
-          })
-        : t('recordActivity.notification.bodyRide', {
-            defaultValue: 'Tracking your ride with GPS',
-          }),
-});
 
 const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({
   label,

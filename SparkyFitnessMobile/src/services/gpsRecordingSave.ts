@@ -1,15 +1,18 @@
 import type { Exercise } from '../types/exercise';
 import {
   attachExerciseEntryGpsTrack,
+  attachExerciseEntryWatchTelemetry,
   createExercise,
   createExerciseEntry,
   searchExercises,
 } from './api/exerciseApi';
 import {
   elapsedSeconds,
+  getHeartRateSamples,
   markRecordingSaved,
   type RecordingSession,
 } from './gpsRecordingService';
+import { addLog } from './LogService';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -110,5 +113,31 @@ export async function saveRecordedActivity(
     points: toWorkoutGpsPoints(points),
     laps: splitsToLapWindows(computeSplits(points, unitMeters)),
   });
+  await attachWatchHeartRate(entryId);
   return { entryId, entryDate };
+}
+
+/**
+ * Fills in heart rate from the watch (avg/max and zones) on the saved entry.
+ * Best effort: the activity and its route are already stored, so a failure
+ * here is logged and never blocks the save.
+ */
+async function attachWatchHeartRate(entryId: string): Promise<void> {
+  try {
+    const samples = await getHeartRateSamples();
+    // The server needs two readings to measure any time in a zone.
+    if (samples.length < 2) return;
+    await attachExerciseEntryWatchTelemetry(entryId, {
+      hrSamples: samples.map((sample) => ({
+        t: new Date(sample.t).toISOString(),
+        bpm: sample.bpm,
+      })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(
+      `[GPS Recording] Could not attach watch heart rate: ${message}`,
+      'WARNING'
+    );
+  }
 }

@@ -262,6 +262,36 @@ enum ContextPayloadMapper {
         return (sessionId, isoDate(from: payload["stoppedAt"]), payload["discarded"] as? Bool ?? false)
     }
 
+    /// A phone `recordingState` message. Nil when malformed, so a bad payload
+    /// leaves whatever the watch is showing alone.
+    static func recordingUpdate(from payload: [String: Any]) -> RecordingUpdate? {
+        guard let sessionId = payload["sessionId"] as? String,
+              let statusRaw = payload["status"] as? String,
+              let status = RecordingStatus(rawValue: statusRaw)
+        else { return nil }
+        let sentAt = doubleValue(payload["sentAt"]) ?? 0
+        if status == .ended {
+            return .ended(sessionId: sessionId, sentAt: sentAt)
+        }
+        // Epoch ms are parsed as Double: Int is 32-bit on arm64_32.
+        guard let activityRaw = payload["activity"] as? String,
+              let activity = RecordingActivity(rawValue: activityRaw),
+              let startedAtMs = doubleValue(payload["startedAt"])
+        else { return nil }
+        return .state(RecordingState(
+            sessionId: sessionId,
+            activity: activity,
+            status: status,
+            startedAt: Date(timeIntervalSince1970: startedAtMs / 1000),
+            pausedMs: doubleValue(payload["pausedMs"]) ?? 0,
+            pausedAt: doubleValue(payload["pausedAt"]).map { Date(timeIntervalSince1970: $0 / 1000) },
+            distanceMeters: doubleValue(payload["distanceMeters"]) ?? 0,
+            paceSeconds: doubleValue(payload["paceSeconds"]),
+            usesMiles: (payload["distanceUnit"] as? String) == "mi",
+            sentAt: sentAt
+        ))
+    }
+
     static func isoDate(from value: Any?) -> Date? {
         guard let string = value as? String else { return nil }
         let fractional = ISO8601DateFormatter()
