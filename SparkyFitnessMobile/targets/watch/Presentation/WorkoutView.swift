@@ -1809,9 +1809,9 @@ private struct PendingRpe: Identifiable {
     }
 }
 
-/// Effort picked after a set, laid out like Hevy's: the set it is for, one big
-/// value the Digital Crown changes, what that value means in reps left, and
-/// Skip / Save. `onDone(nil)` skips.
+/// Effort picked after a set: the set it is for, one big value card the Digital
+/// Crown changes through Hevy's scale, what that value means in reps left, and
+/// Skip / Save. Same flat dark squircles as the set screens. `onDone(nil)` skips.
 private struct RpePickerView: View {
     let title: String
     let summary: String
@@ -1819,6 +1819,9 @@ private struct RpePickerView: View {
 
     /// Hevy's scale. There is no 6.5: below 7 it is "4+ reps left" either way.
     private static let values: [Double] = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10]
+
+    private static let fill = Color(white: 0.14)
+    private static let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
 
     /// Crown position in `values`, as a Double because that is what the crown
     /// binds to. Starts on 8, the middle of what most working sets are.
@@ -1855,54 +1858,62 @@ private struct RpePickerView: View {
         VStack(spacing: 4) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
+                    .font(.system(size: 14, weight: .bold))
                     .lineLimit(1)
                 Text(summary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            .font(.system(size: 13, weight: .medium))
             .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(valueText)
-                .font(.system(size: 40, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.blue, lineWidth: 2)
-                )
-
-            Text("RPE")
-                .font(.system(size: 14, weight: .bold))
+            // The card the crown is adjusting, so it wears the white border the
+            // set screen's selected value card does.
+            VStack(spacing: 0) {
+                Text(valueText)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                Text("RPE")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Self.fill, in: Self.shape)
+            .overlay(Self.shape.stroke(Color.white, lineWidth: 2))
 
             Text(meaning)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 30)
 
-            Spacer(minLength: 0)
-
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Button { onDone(nil) } label: {
                     Text("Skip")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.6))
                         .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(Self.fill, in: Self.shape)
+                        .contentShape(Self.shape)
                 }
-                .tint(.gray)
+                .buttonStyle(.plain)
                 Button { onDone(value) } label: {
                     Text("Save")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.black)
                         .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(Color.white, in: Self.shape)
+                        .contentShape(Self.shape)
                 }
-                .tint(.blue)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .frame(height: 44)
         }
         .padding(.horizontal, 4)
         .focusable()
