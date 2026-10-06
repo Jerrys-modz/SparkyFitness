@@ -23,8 +23,6 @@ const EN_EXPECTED = {
   subtractFifteenSecondsShort: '-15s',
   skip: 'Skip',
   next: 'Next',
-  rep: 'rep',
-  reps: 'reps',
 };
 
 const PL_EXPECTED = {
@@ -44,8 +42,6 @@ const PL_EXPECTED = {
   subtractFifteenSecondsShort: '-15s',
   skip: 'Skip',
   next: 'Next',
-  rep: 'rep',
-  reps: 'reps',
 };
 
 const ES_EXPECTED = {
@@ -65,8 +61,6 @@ const ES_EXPECTED = {
   subtractFifteenSecondsShort: '-15s',
   skip: 'Skip',
   next: 'Next',
-  rep: 'rep',
-  reps: 'reps',
 };
 
 describe('workoutLiveActivityLabels', () => {
