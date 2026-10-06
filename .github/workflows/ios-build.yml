@@ -100,26 +100,6 @@ jobs:
         working-directory: SparkyFitnessMobile
         run: xcodebuild -list -workspace ios/SparkyFitness.xcworkspace
 
-      # The simulator SDK may omit device-only FoundationModels/Vision types, so
-      # compile the on-device nutrition module for a real device too. Compile
-      # only (no signing). Fast: builds just that pod and its dependencies.
-      - name: Compile on-device nutrition module for device
-        if: ${{ inputs.runner == 'xcode-27' }}
-        working-directory: SparkyFitnessMobile
-        run: |
-          xcodebuild \
-            -workspace ios/SparkyFitness.xcworkspace \
-            -scheme 'OnDeviceNutritionModule' \
-            -configuration Debug \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build-device \
-            COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="${{ runner.temp }}/xcode-compilation-cache" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
-
       # Scheme name comes from `name` in targets/watch/expo-target.config.js.
       # Note it is NOT "SparkyFitness Watch" — there is a sibling
       # SparkyFitnessWatchWidget target, so match this exactly.
