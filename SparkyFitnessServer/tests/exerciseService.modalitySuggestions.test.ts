@@ -99,14 +99,14 @@ describe('exercise modality suggestions', () => {
     expect(await exerciseService.getModalitySuggestions(uuidv4())).toEqual([]);
   });
 
-  it('still offers distance for bike and aerobics cardio by name', async () => {
+  it('still offers distance for assault bike and aerobics cardio by name', async () => {
     const bikeId = uuidv4();
     const aerobicsId = uuidv4();
     mockClient.query.mockResolvedValueOnce({
       rows: [
         {
           id: bikeId,
-          name: 'Air Bike',
+          name: 'Assault Bike',
           category: 'cardio',
           equipment: null,
           modality: 'duration',
