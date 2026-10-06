@@ -63,6 +63,19 @@ describe('ExerciseTypeReviewDialog', () => {
     );
   });
 
+  it('lets the user pick a different type than the suggested one', () => {
+    render(<ExerciseTypeReviewDialog open onOpenChange={jest.fn()} />);
+    fireEvent.change(screen.getAllByRole('combobox')[0]!, {
+      target: { value: 'reps_only' },
+    });
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!);
+    fireEvent.click(screen.getByRole('button', { name: /Apply 1 change/ }));
+    expect(mockApply).toHaveBeenCalledWith(
+      [{ id: 'e1', modality: 'reps_only' }],
+      expect.anything()
+    );
+  });
+
   it('says so when nothing needs changing', () => {
     mockSuggestions = [];
     render(<ExerciseTypeReviewDialog open onOpenChange={jest.fn()} />);

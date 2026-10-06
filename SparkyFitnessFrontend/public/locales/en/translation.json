@@ -878,7 +878,10 @@
     "typeReview": {
       "button": "Review exercise types",
       "title": "Review exercise types",
-      "description": "These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone.",
+      "description": "These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone, or pick a different type.",
+      "currently": "Now",
+      "changeTo": "Change {{name}} to",
+      "suggested": "suggested",
       "error": "Could not load suggestions",
       "empty": "All your exercises already match. Nothing to change.",
       "apply_one": "Apply {{count}} change",

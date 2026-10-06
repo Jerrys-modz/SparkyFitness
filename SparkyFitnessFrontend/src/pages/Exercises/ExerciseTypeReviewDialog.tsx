@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { isExerciseModality } from '@workspace/shared';
+import type { ExerciseModality } from '@workspace/shared';
 import { EXERCISE_MODALITY_OPTIONS } from '@/constants/exercises';
 import {
   useApplyExerciseTypeSuggestions,
@@ -37,6 +39,11 @@ const ExerciseTypeReviewDialog = ({
   // Everything starts selected; the user opts out of the ones to leave alone.
   const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
 
+  // Types the user picked instead of the suggested one, by exercise id.
+  const [overrides, setOverrides] = useState<
+    Readonly<Record<string, ExerciseModality>>
+  >({});
+
   const chosen = useMemo(
     () => (data ?? []).filter((item) => !skipped.has(item.id)),
     [data, skipped]
@@ -60,11 +67,12 @@ const ExerciseTypeReviewDialog = ({
     apply.mutate(
       chosen.map((item) => ({
         id: item.id,
-        modality: item.suggestedModality,
+        modality: overrides[item.id] ?? item.suggestedModality,
       })),
       {
         onSuccess: () => {
           setSkipped(new Set());
+          setOverrides({});
           onOpenChange(false);
         },
       }
@@ -81,7 +89,7 @@ const ExerciseTypeReviewDialog = ({
           <DialogDescription>
             {t(
               'exercise.typeReview.description',
-              'These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone.'
+              'These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone, or pick a different type.'
             )}
           </DialogDescription>
         </DialogHeader>
@@ -112,22 +120,51 @@ const ExerciseTypeReviewDialog = ({
         {data && data.length > 0 && (
           <ul className="max-h-[50vh] divide-y overflow-y-auto rounded-md border">
             {data.map((item) => (
-              <li key={item.id}>
-                <label className="flex cursor-pointer items-center gap-3 px-3 py-2">
-                  <Checkbox
-                    checked={!skipped.has(item.id)}
-                    onCheckedChange={() => toggle(item.id)}
-                  />
-                  <span className="flex-1">
-                    <span className="block text-sm font-medium">
-                      {item.name}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {modalityLabel(item.currentModality)} →{' '}
-                      {modalityLabel(item.suggestedModality)}
-                    </span>
+              <li key={item.id} className="flex items-center gap-3 px-3 py-2">
+                <Checkbox
+                  aria-label={item.name}
+                  checked={!skipped.has(item.id)}
+                  onCheckedChange={() => toggle(item.id)}
+                />
+                <span className="flex-1">
+                  <span className="block text-sm font-medium">{item.name}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t('exercise.typeReview.currently', 'Now')}:{' '}
+                    {modalityLabel(item.currentModality)}
                   </span>
-                </label>
+                </span>
+                <select
+                  aria-label={t(
+                    'exercise.typeReview.changeTo',
+                    'Change {{name}} to',
+                    { name: item.name }
+                  )}
+                  className="h-8 max-w-[11rem] rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                  value={overrides[item.id] ?? item.suggestedModality}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (!isExerciseModality(value)) return;
+                    setOverrides((prev) => ({ ...prev, [item.id]: value }));
+                    // Picking a type means the user wants this change.
+                    setSkipped((prev) => {
+                      if (!prev.has(item.id)) return prev;
+                      const next = new Set(prev);
+                      next.delete(item.id);
+                      return next;
+                    });
+                  }}
+                >
+                  {EXERCISE_MODALITY_OPTIONS.map(
+                    ({ value, labelKey, defaultLabel }) => (
+                      <option key={value} value={value}>
+                        {t(labelKey, defaultLabel)}
+                        {value === item.suggestedModality
+                          ? ` (${t('exercise.typeReview.suggested', 'suggested')})`
+                          : ''}
+                      </option>
+                    )
+                  )}
+                </select>
               </li>
             ))}
           </ul>
