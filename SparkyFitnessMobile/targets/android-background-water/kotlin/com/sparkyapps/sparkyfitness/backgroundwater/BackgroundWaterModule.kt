@@ -23,9 +23,9 @@ class BackgroundWaterModule(reactContext: ReactApplicationContext) :
         val context = reactApplicationContext
         val saved = BackgroundWaterStore.save(context, json)
         try {
-            if (json == null) {
+            if (json == null || !saved) {
                 ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(SHORTCUT_ID))
-            } else if (saved) {
+            } else {
                 val intent = Intent(context, LogWaterActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                 }
