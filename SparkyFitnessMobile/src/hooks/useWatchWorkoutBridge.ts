@@ -622,7 +622,8 @@ export function useWatchWorkoutBridge(
           `Watch workout-stop ignored: session ${payload.sessionId} is not the live one`,
           'DEBUG'
         );
-        if (payload.clientId) await WatchConnectivity.sendAck?.(payload.clientId, true);
+        if (payload.clientId)
+          await WatchConnectivity.sendAck?.(payload.clientId, true);
         return;
       }
       // Finishing on the watch ends the phone's live session too, the same
@@ -634,7 +635,8 @@ export function useWatchWorkoutBridge(
           `Watch finish kept the phone workout open: saving session ${payload.sessionId} failed`,
           'WARNING'
         );
-        if (payload.clientId) await WatchConnectivity.sendAck?.(payload.clientId, false);
+        if (payload.clientId)
+          await WatchConnectivity.sendAck?.(payload.clientId, false);
         return;
       }
       const celebration = buildWorkoutCelebration(
@@ -642,7 +644,8 @@ export function useWatchWorkoutBridge(
       );
       useActiveWorkoutStore.getState().clearWorkout();
       onWatchFinishedRef.current?.(celebration);
-      if (payload.clientId) await WatchConnectivity.sendAck?.(payload.clientId, true);
+      if (payload.clientId)
+        await WatchConnectivity.sendAck?.(payload.clientId, true);
     },
     [flushHeartRate]
   );
