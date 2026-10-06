@@ -45,7 +45,7 @@ concurrency:
 jobs:
   build:
     name: Compile iOS app and watchOS companion
-    runs-on: ${{ inputs.runner || 'macos-latest' }}
+    runs-on: ${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
