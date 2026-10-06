@@ -168,6 +168,7 @@ const HIDDEN_ROUTES = new Set<string>([
   'ExerciseSearch',
   'WorkoutAdd',
   'ActivityAdd',
+  'RecordActivity',
   'MealPlans',
   'MealPlanForm',
   'MealAdd',

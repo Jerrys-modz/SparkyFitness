@@ -228,6 +228,22 @@ final class WatchSessionManager: NSObject, ObservableObject {
         )
     }
 
+    /// Pause, resume or finish for the phone's GPS recording. Queued when the
+    /// phone is out of reach, like every other message that must not be lost.
+    func sendRecordingControl(sessionId: String, action: String) {
+        transfer(OutboundPayloads.recordingControl(sessionId: sessionId, action: action))
+    }
+
+    /// Heart-rate readings for the phone's GPS recording, queued like the
+    /// workout's batches: a phone out of range mid-run is normal.
+    func sendRecordingHeartRate(sessionId: String, clientId: String, samples: [HeartRateSample]) {
+        transfer(OutboundPayloads.recordingHeartRate(
+            sessionId: sessionId,
+            clientId: clientId,
+            samples: samples
+        ))
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
@@ -521,6 +537,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "intervalTiming": handle(intervalTiming: payload)
         case "setTargets": handle(setTargets: payload)
         case "workoutPlanUpdate": handle(workoutPlanUpdate: payload)
+        case "recordingState":
+            if let update = ContextPayloadMapper.recordingUpdate(from: payload) {
+                RecordingStore.shared.apply(update)
+            }
         default: break
         }
     }

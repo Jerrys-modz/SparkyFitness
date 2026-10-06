@@ -11,8 +11,17 @@ import userRepository from '../models/userRepository.js';
 import { parseISO, isValid } from 'date-fns';
 import {
   setsDurationMinutes,
+  type AttachExerciseEntryGpsTrackRequest,
   type HeartRateSampleRequest,
 } from '@workspace/shared';
+import { getClient } from '../db/poolManager.js';
+import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
+import {
+  deriveLaps,
+  deriveWorkoutTelemetry,
+  type LapWindow,
+  type TelemetryGpsPoint,
+} from './workoutTelemetryDerivation.js';
 import {
   computeHrZones,
   resolveMaxHr,
@@ -333,8 +342,136 @@ async function attachWatchTelemetryToExerciseEntry(
   );
 }
 
-export { importExerciseEntriesFromCsv, attachWatchTelemetryToExerciseEntry };
+/**
+ * Attaches a GPS track recorded on the phone to an exercise entry that already
+ * exists: the route, per-lap splits, and the summary fields the track implies
+ * (speed, elevation gain and loss, moving time).
+ *
+ * Re-posting the same track is safe. The track and laps upsert against the
+ * per-entry unique constraints, so a client retrying after a dropped response
+ * replaces the rows instead of duplicating them. Summary fields the entry
+ * already carries are left alone: the person's own distance and calories stay
+ * as they logged them.
+ */
+async function attachGpsTrackToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  track: AttachExerciseEntryGpsTrackRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  if (!ownerId || ownerId !== userId) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const entry = await exerciseEntryRepository.getExerciseEntryById(
+    exerciseEntryId,
+    userId
+  );
+  const entryDate: string | undefined = entry?.entry_date;
+  if (!entryDate) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+
+  const points: TelemetryGpsPoint[] = track.points
+    .filter((p) => Number.isFinite(Date.parse(p.t)))
+    .sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  if (points.length < 2) {
+    const error = new Error('GPS track needs at least two timestamped points.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 400;
+    throw error;
+  }
+  const lapWindows: LapWindow[] = (track.laps ?? [])
+    .filter(
+      (l) =>
+        Number.isFinite(Date.parse(l.start_time)) &&
+        Number.isFinite(Date.parse(l.end_time))
+    )
+    .sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time))
+    .map((lap, index) => ({ ...lap, lap_index: index + 1 }));
+  const laps = deriveLaps(lapWindows, points);
+  const derived = deriveWorkoutTelemetry(points);
+
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query('BEGIN');
+    await workoutTelemetryRepo._bulkInsertExerciseEntryGpsPointsWithClient(
+      client,
+      userId,
+      points.map((p) => ({
+        user_id: userId,
+        exercise_entry_id: exerciseEntryId,
+        entry_date: entryDate,
+        timestamp: new Date(p.t),
+        latitude: p.lat,
+        longitude: p.lon,
+        altitude_meters: p.alt ?? null,
+        speed_mps: p.speed ?? null,
+        heart_rate_bpm: p.hr ?? null,
+        cadence: p.cad ?? null,
+        power_watts: p.power ?? null,
+        distance_meters: p.dist ?? null,
+        horizontal_accuracy_meters: p.hacc ?? null,
+        vertical_accuracy_meters: p.vacc ?? null,
+        course_degrees: p.course ?? null,
+      }))
+    );
+    await workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient(
+      client,
+      userId,
+      laps.map((lap) => ({
+        user_id: userId,
+        exercise_entry_id: exerciseEntryId,
+        entry_date: entryDate,
+        lap_index: lap.lap_index,
+        start_time: new Date(lap.start_time),
+        end_time: new Date(lap.end_time),
+        duration_seconds: lap.duration_seconds,
+        distance_meters: lap.distance_meters,
+        calories: lap.calories,
+        avg_heart_rate: lap.avg_heart_rate,
+        max_heart_rate: lap.max_heart_rate,
+        avg_speed_mps: lap.avg_speed_mps,
+        max_speed_mps: lap.max_speed_mps,
+        avg_cadence: lap.avg_cadence,
+        avg_power_watts: lap.avg_power_watts,
+        elevation_gain_meters: lap.elevation_gain_meters,
+        elevation_loss_meters: lap.elevation_loss_meters,
+        moving_time_seconds: lap.moving_time_seconds,
+        avg_moving_speed_mps: lap.avg_moving_speed_mps,
+      }))
+    );
+    await exerciseEntryRepository._updateExerciseEntryTelemetryOnlyWithClient(
+      client,
+      exerciseEntryId,
+      userId,
+      derived
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export {
+  importExerciseEntriesFromCsv,
+  attachWatchTelemetryToExerciseEntry,
+  attachGpsTrackToExerciseEntry,
+};
 export default {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
+  attachGpsTrackToExerciseEntry,
 };

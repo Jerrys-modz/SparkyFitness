@@ -556,6 +556,40 @@ export interface WatchFastEndRequestPayload {
   clientId: string;
 }
 
+/**
+ * What the phone tells the watch about a GPS recording in progress (the phone
+ * records the route; the watch is a remote and heart-rate sensor). Times are
+ * epoch ms so the watch can run its own clock between updates: elapsed is
+ * `(pausedAt ?? now) - startedAt - pausedMs`.
+ */
+export interface WatchRecordingStatePayload {
+  sessionId: string;
+  activity: 'walk' | 'run' | 'ride';
+  status: 'recording' | 'paused' | 'finished' | 'ended';
+  startedAt: number;
+  pausedMs: number;
+  /** Epoch ms the current pause began; omitted unless paused. */
+  pausedAt?: number;
+  distanceMeters: number;
+  /** Seconds per km or mile, in the phone's distance unit; omitted when unknown. */
+  paceSeconds?: number;
+  distanceUnit: 'km' | 'mi';
+  /** Phone clock (epoch ms) at send time, so the watch drops out-of-order copies. */
+  sentAt: number;
+}
+
+export interface WatchRecordingControlPayload {
+  sessionId: string;
+  action: 'pause' | 'resume' | 'finish';
+}
+
+export interface WatchRecordingHeartRatePayload {
+  sessionId: string;
+  /** Dedupes a re-delivered queued batch. */
+  clientId: string;
+  samples: WatchHeartRateSamplePayload[];
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -573,6 +607,8 @@ export type WatchConnectivityEvents = {
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
   onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
+  onRecordingControl: (payload: WatchRecordingControlPayload) => void;
+  onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -581,6 +617,14 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   isPaired(): boolean;
   updateContext(context: WatchContextPayload): Promise<void>;
   sendAck(clientId: string, ok: boolean): Promise<void>;
+  /**
+   * Live stats for a phone GPS recording. `durable` queues the message as
+   * well (status changes); the periodic distance refresh is reachable-only.
+   */
+  updateRecordingState(
+    state: WatchRecordingStatePayload,
+    durable: boolean
+  ): Promise<void>;
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /**
    * The live workout's plan again after exercises, supersets or sets changed
