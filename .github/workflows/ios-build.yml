@@ -83,10 +83,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/xcode-compilation-cache
-          key: xcode-cas-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.run_id }}
+          key: xcode-cas-${{ runner.os }}-${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.run_id }}
           restore-keys: |
-            xcode-cas-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            xcode-cas-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-
+            xcode-cas-${{ runner.os }}-${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            xcode-cas-${{ runner.os }}-${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}-
 
       - name: Show toolchain
         run: |
@@ -243,10 +243,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/xcode-compilation-cache-app
-          key: xcode-cas-app-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.run_id }}
+          key: xcode-cas-app-${{ runner.os }}-${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.run_id }}
           restore-keys: |
-            xcode-cas-app-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            xcode-cas-app-${{ runner.os }}-${{ inputs.runner || 'macos-latest' }}-
+            xcode-cas-app-${{ runner.os }}-${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            xcode-cas-app-${{ runner.os }}-${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
