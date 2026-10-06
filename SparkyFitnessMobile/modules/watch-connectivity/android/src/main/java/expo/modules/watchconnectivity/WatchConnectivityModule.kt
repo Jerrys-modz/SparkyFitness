@@ -29,7 +29,7 @@ class WatchConnectivityModule : Module() {
     )
 
     OnCreate {
-      instance = this
+      instance = this@WatchConnectivityModule
       val ctx = appContext.reactContext
       if (ctx != null && playServices()) {
         WearLink.readCompletions(ctx) { payload, uri ->
@@ -38,13 +38,13 @@ class WatchConnectivityModule : Module() {
         WearLink.readHeartRates(ctx) { payload, uri ->
           emitHeartRate(payload, uri)
         }
-        WearLink.readPrefixed(ctx, WearLink.CHECK_IN) { payload, uri -> ingest("onCheckIn", payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.WATER_DELETE) { payload, uri -> ingest("onWaterDelete", payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.WATER) { payload, uri -> ingest("onWaterIntake", payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.REST) { payload, uri -> ingest("onRestChanged", payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.WORKOUT_STOPPED) { payload, uri -> ingest("onWorkoutStop", payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.SET_COMPLETED) { payload, uri -> ingest("onSetCompleted", payload, uri) }
-        WearLink.readPrefixed(ctx, WearLink.REQUEST_CONTEXT) { _, uri -> emitContextRequest(uri) }
+        WearLink.readPrefixed(ctx, WearLink.CHECK_IN, { payload, uri -> ingest("onCheckIn", payload, uri) })
+        WearLink.readPrefixed(ctx, WearLink.WATER_DELETE, { payload, uri -> ingest("onWaterDelete", payload, uri) })
+        WearLink.readPrefixed(ctx, WearLink.WATER, { payload, uri -> ingest("onWaterIntake", payload, uri) })
+        WearLink.readPrefixed(ctx, WearLink.REST, { payload, uri -> ingest("onRestChanged", payload, uri) })
+        WearLink.readPrefixed(ctx, WearLink.WORKOUT_STOPPED, { payload, uri -> ingest("onWorkoutStop", payload, uri) })
+        WearLink.readPrefixed(ctx, WearLink.SET_COMPLETED, { payload, uri -> ingest("onSetCompleted", payload, uri) })
+        WearLink.readPrefixed(ctx, WearLink.REQUEST_CONTEXT, { _, uri -> emitContextRequest(uri) })
         refreshNodes()
       }
     }
