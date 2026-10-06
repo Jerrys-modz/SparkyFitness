@@ -38,7 +38,10 @@ export function useWatchFastingBridge(enabled: boolean): void {
         const preset = FASTING_PRESETS.find((p) => p.id === payload.presetId);
         if (!preset) throw new Error(`Unknown preset ${payload.presetId}`);
         const current = await fetchCurrentFast();
-        if (!current) {
+        // A fast the server worked out from the user's meals is not a manual
+        // one: it is always "current" while auto-calculation is on, so it must
+        // not stop the wrist from starting a real fast.
+        if (!current || current.is_auto_calculated) {
           const now = Date.now();
           await startFast({
             startTime: new Date(now).toISOString(),
@@ -62,7 +65,9 @@ export function useWatchFastingBridge(enabled: boolean): void {
       handledRef.current.add(payload.clientId);
       try {
         const current = await fetchCurrentFast();
-        if (current) {
+        // A calculated fast has no row to end (the server cannot find its id), so
+        // there is nothing to do; it ends by itself when the next meal is logged.
+        if (current && !current.is_auto_calculated) {
           await endFast({
             id: current.id,
             startTime: current.start_time,
