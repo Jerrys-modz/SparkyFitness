@@ -152,7 +152,8 @@
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
       "ai": "AI",
-      "fasting": "Fasting"
+      "fasting": "Fasting",
+      "goals": "Goals"
     },
     "theme": {
       "title": "Theme",
@@ -6457,5 +6458,23 @@
     "pause": "Pause",
     "resume": "Resume",
     "finish": "Finish"
+  },
+  "goals": {
+    "title": "Goals",
+    "description": "Daily targets that apply from today onward. Past days keep their goals.",
+    "loading": "Loading goals…",
+    "loadFailed": "Could not load your goals.",
+    "saveFailed": "Failed to save goals.",
+    "invalidValue": "Enter a valid number for every goal.",
+    "fields": {
+      "calories": "Calories (kcal)",
+      "protein": "Protein (g)",
+      "carbs": "Carbs (g)",
+      "fat": "Fat (g)",
+      "fiber": "Fiber (g)",
+      "water": "Water (ml)",
+      "exerciseCalories": "Exercise calories (kcal)",
+      "exerciseMinutes": "Exercise duration (min)"
+    }
   }
 }
