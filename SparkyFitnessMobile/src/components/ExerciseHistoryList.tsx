@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, ActivityIndicator } from 'react-native';
 import type {
@@ -15,6 +15,8 @@ import {
   matchesSetRecord,
 } from '../utils/workoutSession';
 import { formatDateLabel } from '../utils/dateUtils';
+import ExerciseEffortCard from './ExerciseEffortCard';
+import { buildExerciseEffortSummary } from '../utils/exerciseEffort';
 
 interface ExerciseHistoryListProps {
   exerciseId: string;
@@ -180,6 +182,16 @@ const ExerciseHistoryList: React.FC<ExerciseHistoryListProps> = ({
     loadMore,
     hasMore,
   } = useExerciseHistory({ exerciseId });
+  // A bodyweight set's load is not its weight, so only plain lifts get a 1RM.
+  const effort = useMemo(
+    () =>
+      buildExerciseEffortSummary(
+        sessions,
+        exerciseId,
+        modality == null || modality === 'weight_reps'
+      ),
+    [sessions, exerciseId, modality]
+  );
 
   if (isLoading) {
     return (
@@ -218,6 +230,7 @@ const ExerciseHistoryList: React.FC<ExerciseHistoryListProps> = ({
 
   return (
     <>
+      <ExerciseEffortCard summary={effort} weightUnit={weightUnit} />
       {sessions.map((session) => (
         <SessionCard
           key={session.id}

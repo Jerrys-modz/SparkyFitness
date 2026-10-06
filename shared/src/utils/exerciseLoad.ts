@@ -56,6 +56,24 @@ export function epleyOneRepMaxKg(
 }
 
 /**
+ * Epley estimate that counts the reps left in the tank. An RPE of 8 means
+ * about two more reps were possible, so 100 kg for 5 reps at RPE 8 is judged
+ * as 100 kg for 7. With no RPE, or one outside 6 to 10 (more than four reps
+ * left is too loose a guess to count), it is plain Epley.
+ */
+export function effortAdjustedOneRepMaxKg(
+  loadKg: number | null | undefined,
+  reps: number | null | undefined,
+  rpe: number | null | undefined,
+): number {
+  const count = Number(reps) || 0;
+  const effort = Number(rpe);
+  const repsLeft =
+    Number.isFinite(effort) && effort >= 6 && effort <= 10 ? 10 - effort : 0;
+  return epleyOneRepMaxKg(loadKg, count > 0 ? count + repsLeft : count);
+}
+
+/**
  * The body weight that applies on a given day: the latest reading on or
  * before it, else the earliest one after it (a lifter who only weighed in
  * later is closer to that than to nothing). Null with no readings at all.
