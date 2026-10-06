@@ -12,6 +12,7 @@ import glp1Service from '../services/glp1Service.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import medicationRoutes from '../routes/v2/medicationRoutes.js';
 import { lookupSupplementByUpc } from '../services/supplementLookupService.js';
+import { lookupSupplementInOpenFoodFacts } from '../services/supplementOpenFoodFactsService.js';
 import { getActiveProvidersByTypes } from '../models/externalProviderRepository.js';
 
 vi.mock('../models/medicationRepository.js');
@@ -26,6 +27,9 @@ vi.mock('../models/externalProviderRepository.js', () => ({
 }));
 vi.mock('../services/supplementLookupService.js', () => ({
   lookupSupplementByUpc: vi.fn(),
+}));
+vi.mock('../services/supplementOpenFoodFactsService.js', () => ({
+  lookupSupplementInOpenFoodFacts: vi.fn(),
 }));
 vi.mock('../utils/permissionUtils.js', () => ({
   canAccessUserData: vi.fn(),
@@ -379,7 +383,7 @@ describe('Medication Routes V2', () => {
       ]);
     });
 
-    it('is refused while no dsld provider is active for the user', async () => {
+    it('is refused while no barcode source is active for the user', async () => {
       vi.mocked(getActiveProvidersByTypes).mockResolvedValue([]);
 
       const res = await request(app)
@@ -389,9 +393,79 @@ describe('Medication Routes V2', () => {
       expect(res.statusCode).toBe(404);
       expect(getActiveProvidersByTypes).toHaveBeenCalledWith(
         expect.anything(),
-        ['dsld']
+        ['dsld', 'openfoodfacts']
       );
       expect(lookupSupplementByUpc).not.toHaveBeenCalled();
+      expect(lookupSupplementInOpenFoodFacts).not.toHaveBeenCalled();
+    });
+
+    it('asks Open Food Facts when the label database has no match', async () => {
+      vi.mocked(getActiveProvidersByTypes).mockResolvedValue([
+        { id: 'p1', provider_type: 'dsld' },
+        { id: 'p2', provider_type: 'openfoodfacts' },
+      ] as never);
+      vi.mocked(lookupSupplementByUpc).mockResolvedValue(null);
+      const product = { source: 'off', sourceId: '4009932008937', name: 'Mg' };
+      vi.mocked(lookupSupplementInOpenFoodFacts).mockResolvedValue(
+        product as never
+      );
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=4009932008937')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ product });
+      expect(lookupSupplementInOpenFoodFacts).toHaveBeenCalledWith(
+        '4009932008937',
+        expect.objectContaining({ providerId: 'p2' })
+      );
+    });
+
+    it('does not ask Open Food Facts when the label database matched', async () => {
+      vi.mocked(getActiveProvidersByTypes).mockResolvedValue([
+        { id: 'p1', provider_type: 'dsld' },
+        { id: 'p2', provider_type: 'openfoodfacts' },
+      ] as never);
+      vi.mocked(lookupSupplementByUpc).mockResolvedValue({
+        source: 'dsld',
+        name: 'Vitamin D3',
+      } as never);
+
+      await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(lookupSupplementInOpenFoodFacts).not.toHaveBeenCalled();
+    });
+
+    it('still uses Open Food Facts when the label database is off', async () => {
+      vi.mocked(getActiveProvidersByTypes).mockResolvedValue([
+        { id: 'p2', provider_type: 'openfoodfacts' },
+      ] as never);
+      vi.mocked(lookupSupplementInOpenFoodFacts).mockResolvedValue(null);
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=4009932008937')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(200);
+      expect(lookupSupplementByUpc).not.toHaveBeenCalled();
+    });
+
+    it('is a 502 only when the label database failed and nothing else answered', async () => {
+      vi.mocked(getActiveProvidersByTypes).mockResolvedValue([
+        { id: 'p1', provider_type: 'dsld' },
+        { id: 'p2', provider_type: 'openfoodfacts' },
+      ] as never);
+      vi.mocked(lookupSupplementByUpc).mockRejectedValue(new Error('timeout'));
+      vi.mocked(lookupSupplementInOpenFoodFacts).mockResolvedValue(null);
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(502);
     });
 
     it('returns the product found for a barcode', async () => {
