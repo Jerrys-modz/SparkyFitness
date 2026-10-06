@@ -14,6 +14,7 @@ import {
   Dumbbell, // Used for Exercises
   Target, // Used for Goals
   Pill, // Used for Medications
+  ListChecks, // Used for Habits
   Shield,
   Plus,
   X,
@@ -138,6 +139,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('nav.medications', 'Medications'),
           icon: Pill,
         },
+        {
+          value: 'habits',
+          label: t('nav.habits', 'Habits'),
+          icon: ListChecks,
+        },
         { value: 'foods', label: t('nav.foods', 'Foods'), icon: Utensils },
         {
           value: 'exercises',
@@ -251,6 +257,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           value: '/medications',
           label: t('nav.medications', 'Medications'),
           icon: Pill,
+        },
+        {
+          value: '/habits',
+          label: t('nav.habits', 'Habits'),
+          icon: ListChecks,
         },
         { value: '/reports', label: t('nav.reports'), icon: BarChart3 },
         { value: '/foods', label: t('nav.foods'), icon: Utensils },

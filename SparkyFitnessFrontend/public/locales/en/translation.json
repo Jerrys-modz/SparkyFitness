@@ -712,6 +712,7 @@
     }
   },
   "nav": {
+    "habits": "Habits",
     "diary": "Diary",
     "checkin": "Check-In",
     "reports": "Reports",
