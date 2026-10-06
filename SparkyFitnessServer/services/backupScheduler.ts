@@ -117,7 +117,7 @@ export const scheduleBackupsOnStartup = async (): Promise<void> => {
           log('error', '[CRON] Failed to re-check backup settings:', err);
         }
       },
-      { noOverlap: true }
+      { noOverlap: true, timezone: 'UTC' }
     );
   }
 };

@@ -68,7 +68,7 @@ describe('backup settings re-check', () => {
       ([expr]) => expr === RECHECK
     );
     expect(rechecks).toHaveLength(1);
-    expect(rechecks[0][2]).toEqual({ noOverlap: true });
+    expect(rechecks[0][2]).toEqual({ noOverlap: true, timezone: 'UTC' });
   });
 
   it('picks up backups turned on after startup', async () => {
