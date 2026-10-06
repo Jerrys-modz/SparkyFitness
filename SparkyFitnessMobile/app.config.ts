@@ -249,7 +249,11 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
             'SparkyFitness uses your location to record the route, distance and pace of your walks, runs and rides.',
           locationAlwaysAndWhenInUsePermission: false,
           locationAlwaysPermission: false,
-          motionUsagePermission: false,
+          // The module links CoreMotion, so App Store Connect rejects the upload
+          // (ITMS-90683) without this purpose string, even though the app never
+          // asks for motion data. `false` would strip the key.
+          motionUsagePermission:
+            'SparkyFitness uses motion data to improve the distance and pace of your recorded walks, runs and rides.',
           isAndroidForegroundServiceEnabled: true,
           isAndroidBackgroundLocationEnabled: false,
           isIosBackgroundLocationEnabled: false,
