@@ -42,6 +42,14 @@ jest.mock('../../src/stores/diaryDateStore', () => ({
     selector({ selectedDate: '2026-07-29' }),
 }));
 
+jest.mock('../../src/hooks/useCustomNutrients', () => ({
+  useCustomNutrients: () => ({ customNutrients: [] }),
+  useEnsureCatalogNutrients: () => ({
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+}));
+
 jest.mock('../../src/components/Icon', () => {
   const { View } = require('react-native');
   return {

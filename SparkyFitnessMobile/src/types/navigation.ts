@@ -356,7 +356,7 @@ export type RootStackParamList = {
   WhatsNew: undefined;
   MedicationsList: undefined;
   MedicationDetail: { medicationId: string };
-  MedicationForm: { medicationId?: string };
+  MedicationForm: { medicationId?: string; isSupplement?: boolean };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
   SymptomLog:
     | {

@@ -12,6 +12,8 @@ import {
   useDeleteMedicationEntry,
   useLogDose,
 } from '../hooks/useMedications';
+import { useCustomNutrients } from '../hooks/useCustomNutrients';
+import { rowsFromNutrients } from '../utils/supplements';
 import { usePreferences } from '../hooks/usePreferences';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -56,6 +58,9 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
   const selectedDate = useDiaryDateStore((s) => s.selectedDate);
 
   const { data: med, isLoading } = useMedicationDetail(medicationId);
+  const { customNutrients: customNutrientDefs } = useCustomNutrients({
+    enabled: med?.is_supplement === true,
+  });
   const { data: entries } = useMedicationEntries({
     fromDate: selectedDate,
     toDate: selectedDate,
@@ -192,6 +197,10 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
     },
   });
 
+  const nutrientRows = useMemo(
+    () => rowsFromNutrients(med?.nutrients, customNutrientDefs),
+    [med?.nutrients, customNutrientDefs]
+  );
   const typeLabel = med ? medicationTypeLabel(med.type_id, t) : '';
   const doseLabel = med ? formatDose(med) : null;
   const strengthLabel = med ? formatStrengthPerUnit(med) : null;
@@ -425,6 +434,23 @@ const MedicationDetailScreen: React.FC<MedicationDetailScreenProps> = ({
               </Text>
             )}
           </View>
+
+          {med.is_supplement && nutrientRows.length > 0 && (
+            <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">
+              <Text className="text-sm font-semibold text-text-secondary mb-1">
+                {t('medications.supplement.nutritionTitle', {
+                  defaultValue: 'Nutrition per serving',
+                })}
+              </Text>
+              {nutrientRows.map((row) => (
+                <InfoRow
+                  key={row.id}
+                  label={row.label}
+                  value={`${row.value}${row.unit ? ` ${row.unit}` : ''}`}
+                />
+              ))}
+            </View>
+          )}
 
           {(med.prescriber || med.pharmacy || med.rx_number || med.notes) && (
             <View className="bg-surface rounded-xl p-4 mb-3 shadow-sm">
