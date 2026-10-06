@@ -2,6 +2,7 @@ package com.sparkyapps.sparkyfitness.backgroundwater
 
 import android.app.Activity
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -27,9 +28,13 @@ class LogWaterActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
-            val request = OneTimeWorkRequestBuilder<LogWaterWorker>()
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                .build()
+            val requestBuilder = OneTimeWorkRequestBuilder<LogWaterWorker>()
+            // Before Android 12 an expedited job runs as a foreground service,
+            // and this worker does not supply ForegroundInfo.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                requestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            }
+            val request = requestBuilder.build()
             WorkManager.getInstance(applicationContext).enqueue(request)
         } catch (e: Exception) {
             toast(applicationContext, "SparkyFitness could not log the water")
