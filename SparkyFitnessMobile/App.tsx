@@ -97,7 +97,6 @@ import {
   SafeDailyNutritionDetails,
   SafeNutrientTrends,
   SafeExerciseStatistics,
-  SafeExerciseTypeReview,
   SafeCardioSession,
   SafeFamilyMembers,
   SafeFamilyDiary,
@@ -684,11 +683,6 @@ function AppContent() {
             name="ExerciseStatistics"
             component={SafeExerciseStatistics}
             options={createStackScreenOptions(t('screens.exerciseStatistics', { defaultValue: 'Exercise Statistics' }), { headerBackButtonDisplayMode: 'minimal' })}
-          />
-          <Stack.Screen
-            name="ExerciseTypeReview"
-            component={SafeExerciseTypeReview}
-            options={createStackScreenOptions(t('screens.exerciseTypeReview', { defaultValue: 'Review Exercise Types' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="CardioSession"

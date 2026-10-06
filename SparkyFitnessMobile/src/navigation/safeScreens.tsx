@@ -73,7 +73,6 @@ import SymptomDefinitionEditorScreen from '../screens/SymptomDefinitionEditorScr
 import DailyNutritionDetailsScreen from '../screens/DailyNutritionDetailsScreen';
 import NutrientTrendsScreen from '../screens/NutrientTrendsScreen';
 import ExerciseStatisticsScreen from '../screens/ExerciseStatisticsScreen';
-import ExerciseTypeReviewScreen from '../screens/ExerciseTypeReviewScreen';
 import CardioSessionScreen from '../screens/CardioSessionScreen';
 import FamilyMembersScreen from '../screens/FamilyMembersScreen';
 import FamilyDiaryScreen from '../screens/FamilyDiaryScreen';
@@ -153,7 +152,6 @@ export const SafeWhatsNew = withErrorBoundary(WhatsNewScreen, 'WhatsNew', { canG
 export const SafeDailyNutritionDetails = withErrorBoundary(DailyNutritionDetailsScreen, 'DailyNutritionDetails', { canGoBack: true });
 export const SafeNutrientTrends = withErrorBoundary(NutrientTrendsScreen, 'NutrientTrends', { canGoBack: true });
 export const SafeExerciseStatistics = withErrorBoundary(ExerciseStatisticsScreen, 'ExerciseStatistics', { canGoBack: true });
-export const SafeExerciseTypeReview = withErrorBoundary(ExerciseTypeReviewScreen, 'ExerciseTypeReview', { canGoBack: true });
 export const SafeCardioSession = withErrorBoundary(CardioSessionScreen, 'CardioSession', { canGoBack: true });
 export const SafeFamilyMembers = withErrorBoundary(FamilyMembersScreen, 'FamilyMembers', { canGoBack: true });
 export const SafeFamilyDiary = withErrorBoundary(FamilyDiaryScreen, 'FamilyDiary', { canGoBack: true });

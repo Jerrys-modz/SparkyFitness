@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 
 import AddExerciseDialog from '@/pages/Exercises/AddExerciseDialog';
+import ExerciseTypeReviewDialog from '@/pages/Exercises/ExerciseTypeReviewDialog';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import {
   Plus,
@@ -183,6 +184,7 @@ const ExerciseDatabaseManager = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const [isAddExerciseDialogOpen, setIsAddExerciseDialogOpen] = useState(false);
+  const [isTypeReviewOpen, setIsTypeReviewOpen] = useState(false);
 
   const editableExerciseIds = (data?.exercises || [])
     .filter((ex) => ex.user_id === user?.id)
@@ -577,6 +579,13 @@ const ExerciseDatabaseManager = () => {
                   )}
                 </Button>
                 <Button
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => setIsTypeReviewOpen(true)}
+                >
+                  {t('exercise.typeReview.button', 'Review exercise types')}
+                </Button>
+                <Button
                   className="bg-slate-900 hover:bg-slate-800 text-white"
                   onClick={() => setIsAddExerciseDialogOpen(true)}
                 >
@@ -698,6 +707,10 @@ const ExerciseDatabaseManager = () => {
       )}
 
       <EditExerciseDialog form={editForm} />
+      <ExerciseTypeReviewDialog
+        open={isTypeReviewOpen}
+        onOpenChange={setIsTypeReviewOpen}
+      />
 
       {showSyncConfirmation && (
         <ConfirmationDialog
