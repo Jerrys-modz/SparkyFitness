@@ -12,6 +12,7 @@ import glp1Service from '../services/glp1Service.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import medicationRoutes from '../routes/v2/medicationRoutes.js';
 import { lookupSupplementByUpc } from '../services/supplementLookupService.js';
+import { getActiveProvidersByTypes } from '../models/externalProviderRepository.js';
 
 vi.mock('../models/medicationRepository.js');
 vi.mock('../models/medicationPenRepository.js');
@@ -20,6 +21,9 @@ vi.mock('../models/titrationRepository.js');
 vi.mock('../models/medicationEntryRepository.js');
 vi.mock('../models/medicationDisplayPreferenceRepository.js');
 vi.mock('../services/glp1Service.js');
+vi.mock('../models/externalProviderRepository.js', () => ({
+  getActiveProvidersByTypes: vi.fn(),
+}));
 vi.mock('../services/supplementLookupService.js', () => ({
   lookupSupplementByUpc: vi.fn(),
 }));
@@ -369,6 +373,27 @@ describe('Medication Routes V2', () => {
   });
 
   describe('GET /api/v2/medications/supplement-lookup', () => {
+    beforeEach(() => {
+      vi.mocked(getActiveProvidersByTypes).mockResolvedValue([
+        { id: 'p1', provider_type: 'dsld', provider_name: 'NIH DSLD' },
+      ]);
+    });
+
+    it('is refused while no dsld provider is active for the user', async () => {
+      vi.mocked(getActiveProvidersByTypes).mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/api/v2/medications/supplement-lookup?upc=858849003115')
+        .set('Cookie', cookie);
+
+      expect(res.statusCode).toBe(404);
+      expect(getActiveProvidersByTypes).toHaveBeenCalledWith(
+        expect.anything(),
+        ['dsld']
+      );
+      expect(lookupSupplementByUpc).not.toHaveBeenCalled();
+    });
+
     it('returns the product found for a barcode', async () => {
       const product = { source: 'dsld', sourceId: '65059', name: 'Vitamin D3' };
       vi.mocked(lookupSupplementByUpc).mockResolvedValue(product as never);

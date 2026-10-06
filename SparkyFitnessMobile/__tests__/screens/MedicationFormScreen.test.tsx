@@ -23,6 +23,11 @@ jest.mock('../../src/hooks/useMedications', () => ({
 }));
 
 const mockLookupMutate = jest.fn();
+jest.mock('../../src/hooks/useExternalProviders', () => ({
+  useExternalProviders: () => ({
+    providers: [{ id: 'p1', provider_type: 'dsld', is_active: true }],
+  }),
+}));
 jest.mock('../../src/hooks/useSupplementLookup', () => ({
   useSupplementLookup: () => ({ mutate: mockLookupMutate, isPending: false }),
 }));
