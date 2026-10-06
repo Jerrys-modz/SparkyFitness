@@ -4492,7 +4492,13 @@
     "weight": {
       "title": "Weight",
       "loadFailed": "Failed to load weight data",
-      "empty": "No weight data for this period"
+      "empty": "No weight data for this period",
+      "trend": "Trend",
+      "perWeek": "Per week",
+      "goalDate": "Goal date",
+      "steady": "Holding steady",
+      "awayFromGoal": "Moving away",
+      "tooFar": "Over 2 years"
     },
     "steps": {
       "title": "Steps",
