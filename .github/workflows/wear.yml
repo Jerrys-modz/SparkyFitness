@@ -55,6 +55,11 @@ jobs:
         working-directory: SparkyFitnessMobile/targets/wear
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Enable KVM
+        run: |
+          sudo chmod 666 /dev/kvm || true
+          ls -l /dev/kvm || true
+
       # Same idea as the watchOS job in ios-build.yml: a seeded debug launch,
       # then a screenshot of each page. The emulator has no paired phone.
       - name: Capture Wear screenshots
@@ -65,7 +70,8 @@ jobs:
           arch: x86
           profile: wearos_small_round
           disable-animations: true
-          emulator-options: -no-snapshot -no-boot-anim -no-window -no-audio
+          disable-linux-hw-accel: false
+          emulator-options: -no-snapshot -no-boot-anim -no-window -no-audio -gpu swiftshader_indirect
           script: bash SparkyFitnessMobile/targets/wear/screenshots.sh
 
       - name: Upload Wear screenshots
