@@ -32,6 +32,7 @@ internal object Palette {
   val orange = Color(0xFFFF9F0A)
   val blue = Color(0xFF0A84FF)
   val green = Color(0xFF30D158)
+  val water = Color(0xFF64D2FF)
   val red = Color(0xFFFF453A)
   val card = Color(0xFF3A3A3C)
   val secondary = Color(0xFF8E8E93)

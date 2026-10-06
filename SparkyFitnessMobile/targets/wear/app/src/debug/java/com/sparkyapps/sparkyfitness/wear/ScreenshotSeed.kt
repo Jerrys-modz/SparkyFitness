@@ -50,13 +50,12 @@ internal object ScreenshotSeed {
       fatGoal = 60,
       bmrKcal = 1700.0,
       containers = listOf(
-        WaterContainer(1, "Glass", 250.0),
-        WaterContainer(2, "Bottle", 500.0),
-        WaterContainer(3, "Large flask", 750.0),
+        WaterContainer(1, "Work", 618.1),
+        WaterContainer(2, "Owala", 473.2),
       ),
-      waterMl = 1500.0,
-      waterGoalMl = 2500.0,
-      waterUnit = "liter",
+      waterMl = 3333.0,
+      waterGoalMl = 3333.0,
+      waterUnit = "oz",
       drinks = listOf(
         DrinkRow("w3", "Bottle", 500.0, "14:20"),
         DrinkRow("w2", "Glass", 250.0, "11:05"),
