@@ -410,6 +410,34 @@ const auth = betterAuth({
     // sitting behind nginx (i.e. the default docker-compose setup).
     // Supersedes the old `trustProxy: true`, which was never a real option.
     trustedProxyHeaders: true,
+    // Client IP detection for Better Auth rate limiting and audit logging.
+    // Better Auth resolves client IP from `ipAddressHeaders`. We prioritize
+    // `x-client-ip` (injected by Express middleware from getClientIp(req),
+    // which honours SPARKY_FITNESS_TRUSTED_PROXY_HOPS and SPARKY_FITNESS_REAL_IP_HEADER).
+    // If SPARKY_FITNESS_TRUSTED_PROXIES is specified, Better Auth also trusts
+    // those CIDR ranges when inspecting multi-hop X-Forwarded-For chains directly.
+    ipAddress: {
+      ipAddressHeaders: [
+        'x-client-ip',
+        ...(process.env.SPARKY_FITNESS_REAL_IP_HEADER?.trim() &&
+        process.env.SPARKY_FITNESS_REAL_IP_HEADER.trim().toLowerCase() !==
+          'x-forwarded-for' &&
+        process.env.SPARKY_FITNESS_REAL_IP_HEADER.trim().toLowerCase() !==
+          'x-client-ip'
+          ? [process.env.SPARKY_FITNESS_REAL_IP_HEADER.trim().toLowerCase()]
+          : []),
+        'x-forwarded-for',
+      ],
+      ...(process.env.SPARKY_FITNESS_TRUSTED_PROXIES?.trim()
+        ? {
+            trustedProxies: process.env.SPARKY_FITNESS_TRUSTED_PROXIES.split(
+              ','
+            )
+              .map((p) => p.trim())
+              .filter(Boolean),
+          }
+        : {}),
+    },
     crossSubDomainCookies: {
       enabled: false,
     },
