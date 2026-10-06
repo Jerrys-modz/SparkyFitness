@@ -315,3 +315,5 @@ Before adding a feature or changing auth/permission behavior, read:
 - For work inside `SparkyFitnessServer/`, this file wins over repo-root guidance on package-specific details
 - Use `../AGENTS.md` for monorepo context
 - If a task spans multiple packages, combine this guide with the other affected package guides instead of relying on one file alone
+
+- On-device chat tools: `services/onDeviceChatToolService.ts` lends the chat tool surface (`buildChatToolSurface`) to the phone's on-device model. `GET /api/chat/on-device-tools?categories=` lists definitions (JSON Schema via `asSchema`) for the requested categories, core by default; `POST /api/chat/on-device-tools/:name` validates the arguments against the tool's own schema and runs it as the signed-in user, only if the tool is in the requested categories. Request/response schemas live in `shared/src/schemas/api/OnDeviceChatTools.api.zod.ts`.

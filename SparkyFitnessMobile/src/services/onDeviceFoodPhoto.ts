@@ -6,6 +6,8 @@ import type {
 import OnDeviceNutritionModule, {
   type OnDeviceMealEstimate,
 } from '../../modules/on-device-nutrition';
+import type { FoodsResponse } from '../types/foods';
+import { fetchFoods } from './api/foodsApi';
 import { addLog } from './LogService';
 import { isOnDeviceLabelScanAvailable } from './onDeviceLabelScan';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -18,8 +20,70 @@ const MAX_MEAL_CALORIES = 6000;
 // the band is wide; it only rejects numbers that cannot describe the same food.
 const ENERGY_TOLERANCE = 0.4;
 
+const MAX_KNOWN_FOODS = 40;
+const MAX_KNOWN_FOODS_CHARS = 1200;
+const KNOWN_FOODS_TIMEOUT_MS = 3000;
+
+/**
+ * Tells the model which foods the person already has, so an item that is one of
+ * them is named the way the library names it and then matches it exactly. The
+ * model on its own says "chips" where the library has "Ranch Flavor Tortilla
+ * Chips", and a name that vague cannot be matched with any confidence.
+ */
+export function buildKnownFoodsHint(
+  foods: Pick<FoodsResponse, 'recentFoods' | 'topFoods'> | undefined
+): string | null {
+  if (!foods) return null;
+  const seen = new Set<string>();
+  const names: string[] = [];
+  let chars = 0;
+  // Most-used first, then what was logged lately.
+  const ranked = [
+    ...[...(foods.topFoods ?? [])].sort(
+      (a, b) => (b.usage_count ?? 0) - (a.usage_count ?? 0)
+    ),
+    ...(foods.recentFoods ?? []),
+  ];
+  for (const food of ranked) {
+    const name = food.name?.trim();
+    if (!name || food.is_quick_food) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    if (names.length >= MAX_KNOWN_FOODS) break;
+    if (chars + name.length > MAX_KNOWN_FOODS_CHARS) break;
+    seen.add(key);
+    names.push(name);
+    chars += name.length + 2;
+  }
+  if (names.length === 0) return null;
+  return (
+    `Foods this person has saved: ${names.join('; ')}. When an item in the ` +
+    'photo is one of these, use exactly that name. Otherwise name each food ' +
+    'specifically, for example "tortilla chips" rather than "chips".'
+  );
+}
+
+/** The person's known foods, or nothing when offline or slow. */
+async function loadKnownFoodsHint(): Promise<string | null> {
+  try {
+    const foods = await Promise.race([
+      fetchFoods(),
+      new Promise<undefined>((resolve) =>
+        setTimeout(() => resolve(undefined), KNOWN_FOODS_TIMEOUT_MS)
+      ),
+    ]);
+    return buildKnownFoodsHint(foods);
+  } catch {
+    return null;
+  }
+}
+
+/** More photos than this crowd the small model's context window. */
+export const MAX_ON_DEVICE_PHOTOS = 4;
+
 export interface OnDeviceFoodPhotoInput {
-  base64Image: string;
+  /** One meal, from one or more angles. */
+  base64Images: string[];
   description?: string;
   /** Total weight of the meal in grams. */
   totalWeightGrams?: number;
@@ -78,6 +142,36 @@ function toConfidence(value: string): FoodPhotoEstimateConfidence {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+const MAX_TITLE_CHARS = 40;
+
+/**
+ * The model is asked for a short title, but small models tend to echo the
+ * user's description or write a sentence. A title that long, or that reads like
+ * a sentence, is replaced by the main foods' names.
+ */
+export function mealTitle(summary: string, itemNames: string[]): string {
+  const title = summary.trim().replace(/[.\s]+$/, '');
+  const looksLikeSentence =
+    /[.!?]/.test(title) || title.split(/\s+/).length > 8;
+  if (title && title.length <= MAX_TITLE_CHARS && !looksLikeSentence) {
+    return title;
+  }
+  const names = itemNames
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (names.length === 0) return title;
+  const joined =
+    names.length === 1
+      ? names[0]!
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const text =
+    joined.length > MAX_TITLE_CHARS
+      ? `${joined.slice(0, MAX_TITLE_CHARS - 1).trimEnd()}…`
+      : joined;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function toFoodPhotoEstimate(
   r: OnDeviceMealEstimate
 ): FoodPhotoEstimateResponse {
@@ -108,7 +202,10 @@ export function toFoodPhotoEstimate(
       ? 'medium'
       : 'high';
   return {
-    meal_summary: r.summary.trim(),
+    meal_summary: mealTitle(
+      r.summary,
+      items.map((i) => i.name)
+    ),
     overall_confidence: overall,
     confidence_reason: 'Estimated on this iPhone from the photo alone.',
     items,
@@ -136,11 +233,21 @@ export async function estimateFoodPhotoOnDevice(
 ): Promise<FoodPhotoEstimateResponse | null> {
   if (!useAppPreferencesStore.getState().onDeviceFoodPhotoEnabled) return null;
   if (!OnDeviceNutritionModule || !isOnDeviceFoodPhotoAvailable()) return null;
+  if (
+    input.base64Images.length === 0 ||
+    input.base64Images.length > MAX_ON_DEVICE_PHOTOS
+  ) {
+    return null;
+  }
   try {
+    const userNotes = useAppPreferencesStore.getState().aiUserContext.trim();
+    const knownFoods = await loadKnownFoodsHint();
+    const context = [userNotes, knownFoods].filter(Boolean).join('\n\n');
     const estimate = await OnDeviceNutritionModule.estimateMeal(
-      input.base64Image,
+      input.base64Images,
       input.description?.trim() || null,
-      input.totalWeightGrams ?? null
+      input.totalWeightGrams ?? null,
+      context || null
     );
     if (!isPlausibleMealEstimate(estimate)) {
       addLog(

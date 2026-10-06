@@ -40,6 +40,24 @@ export const loadChatHistory = (): Promise<ChatHistoryEntry[]> =>
   });
 
 /**
+ * Stores one chat message. The server saves server-side chats by itself when
+ * a stream finishes; on-device chats never reach that stream, so the app
+ * saves them here to keep one history across providers.
+ * POST /api/chat/save-history
+ */
+export const saveChatMessage = (
+  messageType: 'user' | 'assistant',
+  content: string
+): Promise<void> =>
+  apiFetch<void>({
+    endpoint: '/api/chat/save-history',
+    serviceName: 'Chat API',
+    operation: 'save chat message',
+    method: 'POST',
+    body: { content, messageType },
+  });
+
+/**
  * Clears all stored chat history for the user.
  * POST /api/chat/clear-all-history
  */

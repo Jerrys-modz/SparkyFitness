@@ -3671,7 +3671,7 @@
     },
     "onDeviceFoodPhoto": {
       "title": "Estimate Food Photos On Device",
-      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider."
+      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Up to 4 photos of one meal are read together; more than that, or a photo it cannot estimate, uses the server AI provider."
     },
     "openFacts": {
       "title": "Adjust Open Food Facts Values",
@@ -3684,6 +3684,10 @@
       "default": "Default",
       "retryTitle": "Retry with Open Food Facts",
       "retryDescription": "If no result is found, try Open Food Facts automatically."
+    },
+    "onDeviceChat": {
+      "title": "Sparky Chat On Device",
+      "description": "Answer Sparky chat with Apple Intelligence on this device. It can read your diary and, after you confirm, log food, water or weight, or delete an entry. It is less capable than your server AI provider and the chat is saved to your Sparky history like the others."
     }
   },
   "workoutComplete": {
@@ -3988,7 +3992,8 @@
       "goals": "Goals",
       "lookedUp": "Looked up {{name}}"
     },
-    "typing": "Sparky is typing"
+    "typing": "Sparky is typing",
+    "onDeviceBadge": "Answered on this device · asks before saving"
   },
   "foodImagePicker": {
     "photos": "Photos",
@@ -5852,7 +5857,7 @@
       "loading": "Checking…",
       "error": "Could not check the AI provider.",
       "none": "No AI provider is configured",
-      "description": "Used for food photos and label scans unless an on-device option below handles them. Providers are set up in the web app."
+      "description": "Used for chat, food photos and label scans unless an on-device option below handles them. Providers are set up in the web app."
     },
     "onDevice": {
       "title": "On-device (Apple Intelligence)",
@@ -5861,6 +5866,49 @@
       "labelScan": {
         "title": "Scan Labels On Device",
         "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
+      },
+      "reason": {
+        "deviceNotEligible": "This iPhone does not support Apple Intelligence.",
+        "appleIntelligenceNotEnabled": "Turn on Apple Intelligence in the iPhone Settings app first.",
+        "modelNotReady": "The on-device model is still downloading. Try again in a while."
+      },
+      "model": "{{name}} · {{size}}-token window"
+    },
+    "chatModel": {
+      "title": "Chat model",
+      "device": "This phone",
+      "auto": "Auto",
+      "cloud": "Apple servers",
+      "statusLabel": "Apple private servers: {{status}}",
+      "description": "This phone keeps everything on the device. Auto uses this phone and moves to Apple’s Private Cloud Compute only when a conversation is too long for it. Apple servers always uses Private Cloud Compute, so your messages and diary snapshot leave the phone; Apple says it does not store them. Apple limits how much each person can use.",
+      "status": {
+        "available": "Available",
+        "quotaLimitReached": "Usage limit reached for now. It will use this phone.",
+        "deviceNotEligible": "Not available on this device.",
+        "systemNotReady": "Not ready yet. Check that Apple Intelligence is set up."
+      }
+    },
+    "aboutYou": {
+      "title": "About you",
+      "description": "Optional notes the on-device AI keeps in mind, such as vegetarian, no dairy, or a usual portion. They are used for chat and meal photos and stay on this phone.",
+      "placeholder": "e.g. vegetarian, lactose intolerant"
+    },
+    "tools": {
+      "title": "Chat tools",
+      "builtin": "Built-in",
+      "server": "From server",
+      "builtinDescription": "A small set of tools written into the app. Switch individual ones off under Chat testing.",
+      "serverDescription": "The server lends the chat the same tools your other AI providers use, for the groups switched on below. Every tool that could change something asks you first. Each group adds to what the model has to read, so keep the list short. Needs a server with this feature; otherwise the built-in tools are used.",
+      "categories": {
+        "food": "Food and water",
+        "exercise": "Exercise and workouts",
+        "checkin": "Check-ins, sleep and symptoms",
+        "goals": "Goals",
+        "reports": "Reports and dashboard",
+        "coaching": "Coaching",
+        "vision": "Food photos",
+        "profile": "Profile, habits and integrations",
+        "medications": "Medications"
       }
     }
   }
