@@ -232,6 +232,14 @@ export interface WatchContextPayload {
    */
   startableWorkouts?: { presetId: string; name: string }[] | null;
   /**
+   * Today's planned workouts (from the active workout plans), shown above the
+   * saved ones. Each is also a saved workout, so a tap starts it by `presetId`
+   * like any other. Absent on an older phone.
+   */
+  scheduledWorkouts?:
+    | { presetId: string; name: string; planName: string; caption: string }[]
+    | null;
+  /**
    * The phone's active server when that list was built. The watch sends it
    * back with a start request so a queued tap cannot start a preset after
    * the phone has switched accounts.
