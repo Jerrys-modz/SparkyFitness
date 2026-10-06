@@ -69,6 +69,7 @@ import MedicationFormScreen from '../screens/MedicationFormScreen';
 import MedicationScheduleFormScreen from '../screens/MedicationScheduleFormScreen';
 import SymptomLogScreen from '../screens/SymptomLogScreen';
 import SymptomHistoryScreen from '../screens/SymptomHistoryScreen';
+import SymptomEpisodeDetailScreen from '../screens/SymptomEpisodeDetailScreen';
 import ManageSymptomsScreen from '../screens/ManageSymptomsScreen';
 import SymptomDefinitionEditorScreen from '../screens/SymptomDefinitionEditorScreen';
 import DailyNutritionDetailsScreen from '../screens/DailyNutritionDetailsScreen';
@@ -172,5 +173,6 @@ export const SafeMedicationScheduleForm = withErrorBoundary(MedicationScheduleFo
 
 export const SafeSymptomLog = withErrorBoundary(SymptomLogScreen, 'SymptomLog', { canGoBack: true });
 export const SafeSymptomHistory = withErrorBoundary(SymptomHistoryScreen, 'SymptomHistory', { canGoBack: true });
+export const SafeSymptomEpisodeDetail = withErrorBoundary(SymptomEpisodeDetailScreen, 'SymptomEpisodeDetail', { canGoBack: true });
 export const SafeManageSymptoms = withErrorBoundary(ManageSymptomsScreen, 'ManageSymptoms', { canGoBack: true });
 export const SafeSymptomDefinitionEditor = withErrorBoundary(SymptomDefinitionEditorScreen, 'SymptomDefinitionEditor', { canGoBack: true });

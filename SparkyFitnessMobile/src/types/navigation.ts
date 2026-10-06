@@ -367,6 +367,7 @@ export type RootStackParamList = {
       }
     | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
+  SymptomEpisodeDetail: { entryId: string };
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
 };
