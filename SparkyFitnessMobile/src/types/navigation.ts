@@ -355,6 +355,17 @@ export type RootStackParamList = {
   MedicationDetail: { medicationId: string };
   MedicationForm: { medicationId?: string };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
+  SymptomLog:
+    | {
+        entryId?: string;
+        symptomId?: string;
+        isOngoing?: boolean;
+        date?: string;
+      }
+    | undefined;
+  SymptomHistory: { symptomId?: string } | undefined;
+  ManageSymptoms: undefined;
+  SymptomDefinitionEditor: { definitionId?: string } | undefined;
 };
 
 declare global {

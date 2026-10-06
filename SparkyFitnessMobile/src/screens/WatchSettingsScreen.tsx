@@ -5,8 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { ReorderSwitchList } from '../components/ReorderSwitchList';
+import SegmentedControl from '../components/SegmentedControl';
 import { getNutrientLabel } from '../constants/nutrients';
-import { WATCH_PAGE_KEYS, WATCH_PAGE_LABELS } from '../constants/watchPages';
+import {
+  WATCH_PAGE_KEYS,
+  WATCH_PAGE_LABELS,
+  type WatchSetInputStyle,
+} from '../constants/watchPages';
 import { useCustomNutrients } from '../hooks/useCustomNutrients';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useServerConnection } from '../hooks/useServerConnection';
@@ -50,6 +55,12 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
   );
   const setWatchNutrientShown = useAppPreferencesStore(
     (s) => s.setWatchNutrientShown
+  );
+  const watchSetInputStyle = useAppPreferencesStore(
+    (s) => s.watchSetInputStyle
+  );
+  const setWatchSetInputStyle = useAppPreferencesStore(
+    (s) => s.setWatchSetInputStyle
   );
 
   const pageItems = useMemo(
@@ -98,6 +109,34 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
+          {t('watchSettings.setInputTitle', { defaultValue: 'Set input' })}
+        </Text>
+        <Text className="text-text-secondary text-sm mb-4">
+          {t('watchSettings.setInputDescription', {
+            defaultValue:
+              'How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.',
+          })}
+        </Text>
+        <SegmentedControl<WatchSetInputStyle>
+          segments={[
+            {
+              key: 'keypad',
+              label: t('watchSettings.setInputKeypad', {
+                defaultValue: 'Keypad',
+              }),
+            },
+            {
+              key: 'crown',
+              label: t('watchSettings.setInputCrown', {
+                defaultValue: 'Digital Crown',
+              }),
+            },
+          ]}
+          activeKey={watchSetInputStyle}
+          onSelect={setWatchSetInputStyle}
+        />
+
+        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
           {t('watchSettings.pagesTitle', { defaultValue: 'Pages' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">

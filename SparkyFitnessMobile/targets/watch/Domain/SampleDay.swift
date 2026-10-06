@@ -114,7 +114,8 @@ enum SampleDay {
             hapticsEnabled: true,
             restAlertsEnabled: true,
             pageOrder: nil,
-            hiddenPages: nil
+            hiddenPages: nil,
+            setInputStyle: nil
         )
     }
 

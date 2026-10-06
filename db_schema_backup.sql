@@ -430,6 +430,28 @@ $$;
 
 
 --
+-- Name: create_symptom_policy(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.create_symptom_policy(table_name text) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  EXECUTE format('DROP POLICY IF EXISTS select_policy ON public.%I;', table_name);
+  EXECUTE format('DROP POLICY IF EXISTS modify_policy ON public.%I;', table_name);
+
+  EXECUTE format('
+    CREATE POLICY select_policy ON public.%I FOR SELECT TO PUBLIC
+    USING (has_symptom_read_access(user_id));
+    CREATE POLICY modify_policy ON public.%I FOR ALL TO PUBLIC
+    USING (has_symptom_access(user_id))
+    WITH CHECK (has_symptom_access(user_id));
+  ', table_name, table_name);
+END;
+$$;
+
+
+--
 -- Name: create_user_centric_policy(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -669,7 +691,8 @@ CREATE FUNCTION public.has_any_meaningful_permission(perms jsonb) RETURNS boolea
     (perms->>'can_manage_diary')::boolean = true OR
     (perms->>'can_manage_checkin')::boolean = true OR
     (perms->>'can_view_reports')::boolean = true OR
-    (perms->>'can_manage_medications')::boolean = true
+    (perms->>'can_manage_medications')::boolean = true OR
+    (perms->>'can_manage_symptoms')::boolean = true
   );
 $$;
 
@@ -859,6 +882,45 @@ CREATE FUNCTION public.has_profile_read_access(owner_uuid uuid) RETURNS boolean
     AND fa.is_active = true
     AND (fa.access_end_date IS NULL OR fa.access_end_date > now())
     AND has_any_meaningful_permission(fa.access_permissions)
+  );
+$$;
+
+
+--
+-- Name: has_symptom_access(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.has_symptom_access(owner_uuid uuid) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT authenticated_user_id() = owner_uuid OR EXISTS (
+    SELECT 1 FROM public.family_access fa
+    WHERE fa.owner_user_id = owner_uuid
+    AND fa.family_user_id = authenticated_user_id()
+    AND fa.is_active = true
+    AND (fa.access_end_date IS NULL OR fa.access_end_date > now())
+    AND (fa.access_permissions->>'can_manage_symptoms')::boolean = true
+  );
+$$;
+
+
+--
+-- Name: has_symptom_read_access(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.has_symptom_read_access(owner_uuid uuid) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $$
+  SELECT authenticated_user_id() = owner_uuid OR EXISTS (
+    SELECT 1 FROM public.family_access fa
+    WHERE fa.owner_user_id = owner_uuid
+    AND fa.family_user_id = authenticated_user_id()
+    AND fa.is_active = true
+    AND (fa.access_end_date IS NULL OR fa.access_end_date > now())
+    AND (
+      (fa.access_permissions->>'can_manage_symptoms')::boolean = true OR
+      (fa.access_permissions->>'can_view_reports')::boolean = true
+    )
   );
 $$;
 
@@ -3758,6 +3820,69 @@ CREATE TABLE public.symptom_entries (
     source character varying(50) DEFAULT 'manual'::character varying NOT NULL,
     custom_fields jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    ended_at timestamp with time zone,
+    body_locations text[] DEFAULT '{}'::text[] NOT NULL,
+    qualities text[] DEFAULT '{}'::text[] NOT NULL,
+    associated_symptoms text[] DEFAULT '{}'::text[] NOT NULL,
+    triggers text[] DEFAULT '{}'::text[] NOT NULL,
+    phases jsonb DEFAULT '{}'::jsonb NOT NULL,
+    impact character varying(20),
+    peak_severity numeric,
+    severity_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
+    CONSTRAINT symptom_entries_episode_order_check CHECK (((ended_at IS NULL) OR (started_at IS NULL) OR (ended_at >= started_at))),
+    CONSTRAINT symptom_entries_impact_check CHECK (((impact IS NULL) OR ((impact)::text = ANY ((ARRAY['none'::character varying, 'mild'::character varying, 'moderate'::character varying, 'severe'::character varying])::text[]))))
+);
+
+
+--
+-- Name: symptom_entry_photos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.symptom_entry_photos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    symptom_entry_id uuid NOT NULL,
+    file_path text NOT NULL,
+    caption text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: symptom_entry_treatments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.symptom_entry_treatments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    symptom_entry_id uuid NOT NULL,
+    kind character varying(20) DEFAULT 'relief'::character varying NOT NULL,
+    medication_id uuid,
+    medication_entry_id uuid,
+    name_snapshot text NOT NULL,
+    dose_snapshot text,
+    taken_at timestamp with time zone,
+    effectiveness character varying(10),
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT symptom_entry_treatments_effectiveness_check CHECK (((effectiveness IS NULL) OR ((effectiveness)::text = ANY ((ARRAY['none'::character varying, 'partial'::character varying, 'full'::character varying])::text[])))),
+    CONSTRAINT symptom_entry_treatments_kind_check CHECK (((kind)::text = ANY ((ARRAY['medication'::character varying, 'relief'::character varying])::text[])))
+);
+
+
+--
+-- Name: symptom_free_days; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.symptom_free_days (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    entry_date date NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -3863,19 +3988,6 @@ CREATE TABLE public.user_custom_nutrients (
 
 
 --
--- Name: user_custom_symptom_locations; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.user_custom_symptom_locations (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
-    name text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
 -- Name: user_custom_symptoms; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3888,7 +4000,17 @@ CREATE TABLE public.user_custom_symptoms (
     unit character varying(20),
     is_glp1_flagged boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    category character varying(30) DEFAULT 'general'::character varying NOT NULL,
+    template character varying(30) DEFAULT 'generic'::character varying NOT NULL,
+    sections jsonb DEFAULT '{}'::jsonb NOT NULL,
+    custom_field_defs jsonb DEFAULT '[]'::jsonb NOT NULL,
+    is_episodic boolean DEFAULT false NOT NULL,
+    color character varying(20),
+    icon character varying(40),
+    is_pinned boolean DEFAULT false NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_archived boolean DEFAULT false NOT NULL
 );
 
 
@@ -4307,6 +4429,23 @@ COMMENT ON COLUMN public.user_preferences.target_bedtime IS 'The user''s intende
 --
 
 COMMENT ON COLUMN public.user_preferences.adaptive_workout_suggestions IS 'When true, workout suggestions adapt to session feedback (difficulty, pain). When false, progression behaves exactly as before feedback existed.';
+
+
+--
+-- Name: user_symptom_options; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_symptom_options (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    kind character varying(30) NOT NULL,
+    name text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_hidden boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT user_symptom_options_kind_check CHECK (((kind)::text = ANY ((ARRAY['location'::character varying, 'head_location'::character varying, 'quality'::character varying, 'associated'::character varying, 'trigger'::character varying, 'relief'::character varying])::text[])))
+);
 
 
 --
@@ -5725,6 +5864,30 @@ ALTER TABLE ONLY public.symptom_entries
 
 
 --
+-- Name: symptom_entry_photos symptom_entry_photos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_photos
+    ADD CONSTRAINT symptom_entry_photos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: symptom_entry_treatments symptom_entry_treatments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_treatments
+    ADD CONSTRAINT symptom_entry_treatments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: symptom_free_days symptom_free_days_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_free_days
+    ADD CONSTRAINT symptom_free_days_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: two_factor two_factor_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5813,11 +5976,11 @@ ALTER TABLE ONLY public.external_data_providers
 
 
 --
--- Name: user_custom_symptom_locations unique_user_symptom_location_name; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: symptom_free_days unique_user_symptom_free_day; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_custom_symptom_locations
-    ADD CONSTRAINT unique_user_symptom_location_name UNIQUE (user_id, name);
+ALTER TABLE ONLY public.symptom_free_days
+    ADD CONSTRAINT unique_user_symptom_free_day UNIQUE (user_id, entry_date);
 
 
 --
@@ -5826,6 +5989,14 @@ ALTER TABLE ONLY public.user_custom_symptom_locations
 
 ALTER TABLE ONLY public.user_custom_symptoms
     ADD CONSTRAINT unique_user_symptom_name UNIQUE (user_id, name);
+
+
+--
+-- Name: user_symptom_options unique_user_symptom_option; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_symptom_options
+    ADD CONSTRAINT unique_user_symptom_option UNIQUE (user_id, kind, name);
 
 
 --
@@ -5906,14 +6077,6 @@ ALTER TABLE ONLY public.user_custom_moods
 
 ALTER TABLE ONLY public.user_custom_nutrients
     ADD CONSTRAINT user_custom_nutrients_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_custom_symptom_locations user_custom_symptom_locations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_custom_symptom_locations
-    ADD CONSTRAINT user_custom_symptom_locations_pkey PRIMARY KEY (id);
 
 
 --
@@ -6050,6 +6213,14 @@ ALTER TABLE ONLY public."user"
 
 ALTER TABLE ONLY public.user_preferences
     ADD CONSTRAINT user_preferences_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: user_symptom_options user_symptom_options_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_symptom_options
+    ADD CONSTRAINT user_symptom_options_pkey PRIMARY KEY (id);
 
 
 --
@@ -6797,6 +6968,13 @@ CREATE INDEX idx_symptom_entries_medication_id ON public.symptom_entries USING b
 
 
 --
+-- Name: idx_symptom_entries_ongoing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entries_ongoing ON public.symptom_entries USING btree (user_id) WHERE ((started_at IS NOT NULL) AND (ended_at IS NULL));
+
+
+--
 -- Name: idx_symptom_entries_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6804,17 +6982,52 @@ CREATE INDEX idx_symptom_entries_user_id ON public.symptom_entries USING btree (
 
 
 --
+-- Name: idx_symptom_entries_user_symptom_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entries_user_symptom_date ON public.symptom_entries USING btree (user_id, symptom_id, entry_date);
+
+
+--
+-- Name: idx_symptom_entry_photos_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entry_photos_entry ON public.symptom_entry_photos USING btree (symptom_entry_id);
+
+
+--
+-- Name: idx_symptom_entry_photos_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entry_photos_user ON public.symptom_entry_photos USING btree (user_id);
+
+
+--
+-- Name: idx_symptom_entry_treatments_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entry_treatments_entry ON public.symptom_entry_treatments USING btree (symptom_entry_id);
+
+
+--
+-- Name: idx_symptom_entry_treatments_medication_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entry_treatments_medication_entry ON public.symptom_entry_treatments USING btree (medication_entry_id);
+
+
+--
+-- Name: idx_symptom_entry_treatments_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_symptom_entry_treatments_user ON public.symptom_entry_treatments USING btree (user_id);
+
+
+--
 -- Name: idx_user_custom_moods_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_user_custom_moods_user_id ON public.user_custom_moods USING btree (user_id);
-
-
---
--- Name: idx_user_custom_symptom_locations_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_user_custom_symptom_locations_user_id ON public.user_custom_symptom_locations USING btree (user_id);
 
 
 --
@@ -6878,6 +7091,13 @@ CREATE INDEX idx_user_mood_display_preferences_user_id ON public.user_mood_displ
 --
 
 CREATE INDEX idx_user_nutrient_goal_preferences_user_id ON public.user_nutrient_goal_preferences USING btree (user_id);
+
+
+--
+-- Name: idx_user_symptom_options_user_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_symptom_options_user_kind ON public.user_symptom_options USING btree (user_id, kind);
 
 
 --
@@ -7168,6 +7388,27 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.symptom_entries FOR EACH RO
 
 
 --
+-- Name: symptom_entry_photos set_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.symptom_entry_photos FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
+
+
+--
+-- Name: symptom_entry_treatments set_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.symptom_entry_treatments FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
+
+
+--
+-- Name: symptom_free_days set_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.symptom_free_days FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
+
+
+--
 -- Name: user_custom_moods set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7179,13 +7420,6 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.user_custom_moods FOR EACH 
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.user_custom_nutrients FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
-
-
---
--- Name: user_custom_symptom_locations set_timestamp; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.user_custom_symptom_locations FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
@@ -7214,6 +7448,13 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.user_medication_display_pre
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.user_mood_display_preferences FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
+
+
+--
+-- Name: user_symptom_options set_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.user_symptom_options FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
@@ -8514,6 +8755,62 @@ ALTER TABLE ONLY public.symptom_entries
 
 
 --
+-- Name: symptom_entry_photos symptom_entry_photos_symptom_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_photos
+    ADD CONSTRAINT symptom_entry_photos_symptom_entry_id_fkey FOREIGN KEY (symptom_entry_id) REFERENCES public.symptom_entries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: symptom_entry_photos symptom_entry_photos_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_photos
+    ADD CONSTRAINT symptom_entry_photos_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: symptom_entry_treatments symptom_entry_treatments_medication_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_treatments
+    ADD CONSTRAINT symptom_entry_treatments_medication_entry_id_fkey FOREIGN KEY (medication_entry_id) REFERENCES public.medication_entries(id) ON DELETE SET NULL;
+
+
+--
+-- Name: symptom_entry_treatments symptom_entry_treatments_medication_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_treatments
+    ADD CONSTRAINT symptom_entry_treatments_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id) ON DELETE SET NULL;
+
+
+--
+-- Name: symptom_entry_treatments symptom_entry_treatments_symptom_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_treatments
+    ADD CONSTRAINT symptom_entry_treatments_symptom_entry_id_fkey FOREIGN KEY (symptom_entry_id) REFERENCES public.symptom_entries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: symptom_entry_treatments symptom_entry_treatments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_entry_treatments
+    ADD CONSTRAINT symptom_entry_treatments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: symptom_free_days symptom_free_days_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.symptom_free_days
+    ADD CONSTRAINT symptom_free_days_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: two_factor two_factor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8543,14 +8840,6 @@ ALTER TABLE ONLY public.user_custom_moods
 
 ALTER TABLE ONLY public.user_custom_nutrients
     ADD CONSTRAINT user_custom_nutrients_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
-
-
---
--- Name: user_custom_symptom_locations user_custom_symptom_locations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_custom_symptom_locations
-    ADD CONSTRAINT user_custom_symptom_locations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -8679,6 +8968,14 @@ ALTER TABLE ONLY public.user_preferences
 
 ALTER TABLE ONLY public.user_preferences
     ADD CONSTRAINT user_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_symptom_options user_symptom_options_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_symptom_options
+    ADD CONSTRAINT user_symptom_options_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -9640,7 +9937,28 @@ CREATE POLICY modify_policy ON public.sleep_need_calculations USING (((public.au
 -- Name: symptom_entries modify_policy; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY modify_policy ON public.symptom_entries USING (public.has_medication_access(user_id)) WITH CHECK (public.has_medication_access(user_id));
+CREATE POLICY modify_policy ON public.symptom_entries USING ((public.has_symptom_access(user_id) AND (((source)::text <> 'cycle'::text) OR (public.authenticated_user_id() = user_id)))) WITH CHECK ((public.has_symptom_access(user_id) AND (((source)::text <> 'cycle'::text) OR (public.authenticated_user_id() = user_id))));
+
+
+--
+-- Name: symptom_entry_photos modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.symptom_entry_photos USING (public.has_symptom_access(user_id)) WITH CHECK (public.has_symptom_access(user_id));
+
+
+--
+-- Name: symptom_entry_treatments modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.symptom_entry_treatments USING (public.has_symptom_access(user_id)) WITH CHECK (public.has_symptom_access(user_id));
+
+
+--
+-- Name: symptom_free_days modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.symptom_free_days USING (public.has_symptom_access(user_id)) WITH CHECK (public.has_symptom_access(user_id));
 
 
 --
@@ -9665,17 +9983,10 @@ CREATE POLICY modify_policy ON public.user_custom_nutrients USING (public.has_di
 
 
 --
--- Name: user_custom_symptom_locations modify_policy; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY modify_policy ON public.user_custom_symptom_locations USING (public.has_medication_access(user_id)) WITH CHECK (public.has_medication_access(user_id));
-
-
---
 -- Name: user_custom_symptoms modify_policy; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY modify_policy ON public.user_custom_symptoms USING (public.has_medication_access(user_id)) WITH CHECK (public.has_medication_access(user_id));
+CREATE POLICY modify_policy ON public.user_custom_symptoms USING (public.has_symptom_access(user_id)) WITH CHECK (public.has_symptom_access(user_id));
 
 
 --
@@ -9725,6 +10036,13 @@ CREATE POLICY modify_policy ON public.user_nutrient_goal_preferences USING (publ
 --
 
 CREATE POLICY modify_policy ON public.user_preferences USING ((public.authenticated_user_id() = user_id)) WITH CHECK ((public.authenticated_user_id() = user_id));
+
+
+--
+-- Name: user_symptom_options modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.user_symptom_options USING (public.has_symptom_access(user_id)) WITH CHECK (public.has_symptom_access(user_id));
 
 
 --
@@ -10382,7 +10700,28 @@ CREATE POLICY select_policy ON public.sleep_need_calculations FOR SELECT USING (
 -- Name: symptom_entries select_policy; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY select_policy ON public.symptom_entries FOR SELECT USING (public.has_medication_read_access(user_id));
+CREATE POLICY select_policy ON public.symptom_entries FOR SELECT USING ((public.has_symptom_read_access(user_id) AND (((source)::text <> 'cycle'::text) OR (public.authenticated_user_id() = user_id))));
+
+
+--
+-- Name: symptom_entry_photos select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.symptom_entry_photos FOR SELECT USING (public.has_symptom_read_access(user_id));
+
+
+--
+-- Name: symptom_entry_treatments select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.symptom_entry_treatments FOR SELECT USING (public.has_symptom_read_access(user_id));
+
+
+--
+-- Name: symptom_free_days select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.symptom_free_days FOR SELECT USING (public.has_symptom_read_access(user_id));
 
 
 --
@@ -10407,17 +10746,10 @@ CREATE POLICY select_policy ON public.user_custom_nutrients FOR SELECT USING (pu
 
 
 --
--- Name: user_custom_symptom_locations select_policy; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY select_policy ON public.user_custom_symptom_locations FOR SELECT USING (public.has_medication_read_access(user_id));
-
-
---
 -- Name: user_custom_symptoms select_policy; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY select_policy ON public.user_custom_symptoms FOR SELECT USING (public.has_medication_read_access(user_id));
+CREATE POLICY select_policy ON public.user_custom_symptoms FOR SELECT USING (public.has_symptom_read_access(user_id));
 
 
 --
@@ -10467,6 +10799,13 @@ CREATE POLICY select_policy ON public.user_nutrient_goal_preferences FOR SELECT 
 --
 
 CREATE POLICY select_policy ON public.user_preferences FOR SELECT USING (public.has_profile_read_access(user_id));
+
+
+--
+-- Name: user_symptom_options select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.user_symptom_options FOR SELECT USING (public.has_symptom_read_access(user_id));
 
 
 --
@@ -10574,6 +10913,24 @@ ALTER TABLE public.sparky_chat_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.symptom_entries ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: symptom_entry_photos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.symptom_entry_photos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: symptom_entry_treatments; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.symptom_entry_treatments ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: symptom_free_days; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.symptom_free_days ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: external_data_providers update_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -10604,12 +10961,6 @@ ALTER TABLE public.user_custom_moods ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.user_custom_nutrients ENABLE ROW LEVEL SECURITY;
-
---
--- Name: user_custom_symptom_locations; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.user_custom_symptom_locations ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: user_custom_symptoms; Type: ROW SECURITY; Schema: public; Owner: -
@@ -10682,6 +11033,12 @@ ALTER TABLE public.user_oidc_links ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: user_symptom_options; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.user_symptom_options ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: user_water_containers; Type: ROW SECURITY; Schema: public; Owner: -
@@ -10896,6 +11253,13 @@ GRANT ALL ON FUNCTION public.create_shared_owner_policy(table_name text, id_colu
 
 
 --
+-- Name: FUNCTION create_symptom_policy(table_name text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.create_symptom_policy(table_name text) TO sparky_app;
+
+
+--
 -- Name: FUNCTION create_user_centric_policy(table_name text); Type: ACL; Schema: public; Owner: -
 --
 
@@ -11033,6 +11397,20 @@ GRANT ALL ON FUNCTION public.has_medication_read_access(owner_uuid uuid) TO spar
 --
 
 GRANT ALL ON FUNCTION public.has_profile_read_access(owner_uuid uuid) TO sparky_app;
+
+
+--
+-- Name: FUNCTION has_symptom_access(owner_uuid uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.has_symptom_access(owner_uuid uuid) TO sparky_app;
+
+
+--
+-- Name: FUNCTION has_symptom_read_access(owner_uuid uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.has_symptom_read_access(owner_uuid uuid) TO sparky_app;
 
 
 --
@@ -11743,6 +12121,27 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.symptom_entries TO sparky_app;
 
 
 --
+-- Name: TABLE symptom_entry_photos; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.symptom_entry_photos TO sparky_app;
+
+
+--
+-- Name: TABLE symptom_entry_treatments; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.symptom_entry_treatments TO sparky_app;
+
+
+--
+-- Name: TABLE symptom_free_days; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.symptom_free_days TO sparky_app;
+
+
+--
 -- Name: TABLE two_factor; Type: ACL; Schema: public; Owner: -
 --
 
@@ -11775,13 +12174,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_custom_moods TO sparky_ap
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_custom_nutrients TO sparky_app;
-
-
---
--- Name: TABLE user_custom_symptom_locations; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_custom_symptom_locations TO sparky_app;
 
 
 --
@@ -11880,6 +12272,13 @@ GRANT SELECT,USAGE ON SEQUENCE public.user_oidc_links_id_seq TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_preferences TO sparky_app;
+
+
+--
+-- Name: TABLE user_symptom_options; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_symptom_options TO sparky_app;
 
 
 --
