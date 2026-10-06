@@ -1,4 +1,8 @@
-import { useCurrentFast, useFastingGoalReconciler } from '../hooks/useFasting';
+import {
+  useCurrentFast,
+  useFastingGoalReconciler,
+  useFastingPreferences,
+} from '../hooks/useFasting';
 
 /**
  * Headless owner of fasting goal-notification reconciliation — renders nothing.
@@ -11,7 +15,13 @@ import { useCurrentFast, useFastingGoalReconciler } from '../hooks/useFasting';
  */
 const FastingGoalReconciler: React.FC = () => {
   const { data: currentFast, isLoading, refetch } = useCurrentFast();
-  useFastingGoalReconciler(currentFast, isLoading, refetch);
+  const { data: preferences } = useFastingPreferences();
+  useFastingGoalReconciler(
+    currentFast,
+    isLoading,
+    refetch,
+    preferences?.pre_end_alert_minutes
+  );
   return null;
 };
 
