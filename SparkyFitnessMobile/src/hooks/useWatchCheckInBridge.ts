@@ -281,7 +281,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       dayExerciseEntries === undefined
         ? []
         : scheduledWorkoutsForWatch(activePlans, dayExerciseEntries, {
-            scheduledToday: t('exerciseSummary.scheduledToday', 'Scheduled Today'),
+            scheduledToday: t(
+              'exerciseSummary.scheduledToday',
+              'Scheduled Today'
+            ),
             sessionOf: (current, total) =>
               t(
                 'exerciseSummary.sessionNumber',
