@@ -276,7 +276,7 @@ struct CompletedSet: Codable, Equatable {
     var setType: String? = nil
     /// Seconds the hold countdown ran. Nil when it was never started.
     var duration: Int? = nil
-    /// Effort (6-10 in half steps) the wearer picked. Nil when skipped.
+    /// Effort (1 to 10) the wearer picked. Nil when skipped.
     var rpe: Double? = nil
     /// A carry's distance in km, entered in metres on the watch.
     var distanceKm: Double? = nil

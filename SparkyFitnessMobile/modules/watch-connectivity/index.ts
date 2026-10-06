@@ -410,7 +410,7 @@ export interface WatchSetCompletedPayload {
    * type on the watch. Omitted leaves the plan's type.
    */
   setType?: string | null;
-  /** Effort the wearer picked, 6-10 in half steps. Omitted when skipped. */
+  /** Effort the wearer picked, 1 to 10. Omitted when skipped. */
   rpe?: number | null;
   /**
    * Seconds the watch's hold countdown actually ran. Omitted when the wearer
