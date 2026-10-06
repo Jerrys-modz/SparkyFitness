@@ -55,6 +55,8 @@ object BackgroundWaterStore {
             prefs.edit().putString(KEY_DATA, packed).apply()
             true
         } catch (e: Exception) {
+            // Keep no older copy: it could hold an earlier server or token.
+            prefs.edit().remove(KEY_DATA).apply()
             false
         }
     }

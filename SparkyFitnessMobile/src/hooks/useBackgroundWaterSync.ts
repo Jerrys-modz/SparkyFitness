@@ -29,6 +29,9 @@ export function useBackgroundWaterSync(
   const linkedFoodId = container?.linked_food_id;
 
   useEffect(() => {
+    // Until preferences load the weight unit is a guess, and a shortcut would
+    // log a pounds entry as kilograms.
+    if (preferences == null) return;
     const target =
       id != null && name != null && volume != null && unit != null
         ? {
@@ -43,5 +46,5 @@ export function useBackgroundWaterSync(
     const sync = (): void => void syncBackgroundWater(target, weightUnit);
     sync();
     return onAppBecameActive(sync);
-  }, [id, name, volume, unit, servings, linkedFoodId, weightUnit]);
+  }, [id, name, volume, unit, servings, linkedFoodId, preferences, weightUnit]);
 }
