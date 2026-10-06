@@ -178,14 +178,36 @@ private struct WaitingForWorkoutView: View {
             }
             .padding(.horizontal, 8)
         } else {
-            List(workouts) { workout in
-                Button {
-                    start(workout)
-                } label: {
-                    Text(startingId == workout.presetId ? "Starting…" : workout.name)
-                        .lineLimit(2)
+            // The same flat squircles as the set screens, rather than the
+            // stock list, so the first screen matches the ones after it.
+            ScrollView {
+                VStack(spacing: 6) {
+                    ForEach(workouts) { workout in
+                        Button {
+                            Haptics.tap()
+                            start(workout)
+                        } label: {
+                            Text(startingId == workout.presetId ? "Starting…" : workout.name)
+                                .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, WatchStyle.s(12))
+                                .background(WatchStyle.fill, in: WatchStyle.shape)
+                                .contentShape(WatchStyle.shape)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(startingId != nil && startingId != workout.presetId)
+                        .opacity(startingId != nil && startingId != workout.presetId ? 0.4 : 1)
+                    }
                 }
-                .disabled(startingId != nil)
+                .padding(.horizontal, 4)
+                // The clock sits over the top of a scrolling page, so the
+                // first row starts below it.
+                .padding(.top, WatchStyle.s(22))
             }
         }
     }
@@ -541,8 +563,20 @@ private struct ExerciseRow: View {
 /// the header), the same fill as the value cards, and dimmed while disabled.
 /// `prominent` is the single main action on a screen: white with a black glyph.
 private enum WatchStyle {
+    /// Screen height of the 44 mm watch the sizes below were drawn for. A 40 mm
+    /// screen is 12% shorter, so fixed sizes made the page taller than the
+    /// screen and pushed it up under the clock; a 49 mm one has room to spare.
+    private static let referenceHeight: CGFloat = 224
+    static let scale: CGFloat = {
+        let height = WKInterfaceDevice.current().screenBounds.height
+        return min(1.1, max(0.82, height / referenceHeight))
+    }()
+
+    /// A size drawn for the reference watch, fitted to this one.
+    static func s(_ value: CGFloat) -> CGFloat { (value * scale).rounded() }
+
     static let fill = Color(white: 0.14)
-    static let corner: CGFloat = 20
+    static let corner: CGFloat = WatchStyle.s(20)
     static var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: corner, style: .continuous)
     }
@@ -572,14 +606,14 @@ private struct SquircleLabel: View {
 
     var body: some View {
         let shape = RoundedRectangle(
-            cornerRadius: circular ? 17 : WatchStyle.corner,
+            cornerRadius: circular ? WatchStyle.s(14) : WatchStyle.corner,
             style: .continuous
         )
         Image(systemName: systemImage)
-            .font(.system(size: circular ? 15 : 20, weight: .semibold))
+            .font(.system(size: WatchStyle.s(circular ? 14 : 20), weight: .semibold))
             .foregroundStyle(prominent ? Color.black : Color.white.opacity(0.6))
-            .frame(maxWidth: circular ? CGFloat(34) : CGFloat.infinity)
-            .frame(height: circular ? 34 : 44)
+            .frame(maxWidth: circular ? WatchStyle.s(28) : CGFloat.infinity)
+            .frame(height: WatchStyle.s(circular ? 28 : 44))
             .background(prominent ? Color.white : WatchStyle.fill, in: shape)
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.
@@ -639,6 +673,10 @@ private struct MetricsStrip: View {
             // Opens the exercise list, so it wears the list icon.
             if let onBack = onBack {
                 SquircleButton(systemImage: "list.bullet", circular: true, action: onBack)
+                    // The system clock sits over the top right of the screen.
+                    // Drawn lower than the strip's own row so the button
+                    // clears it; an offset leaves the layout untouched.
+                    .offset(y: WatchStyle.s(12))
             }
         }
         .monospacedDigit()
@@ -1171,7 +1209,7 @@ private struct HoldCountdown: View {
                 : totalSeconds
             VStack(spacing: 2) {
                 Text(Self.clock(remaining))
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: WatchStyle.s(30), weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -1182,7 +1220,7 @@ private struct HoldCountdown: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, WatchStyle.s(8))
             .background(WatchStyle.fill, in: WatchStyle.shape)
         }
     }
@@ -1208,7 +1246,7 @@ private struct HoldStopwatch: View {
             // tall enough to push the page up under the clock.
             VStack(spacing: 1) {
                 Text(Self.clock(elapsed ?? 0))
-                    .font(.system(size: 26, weight: .bold))
+                    .font(.system(size: WatchStyle.s(26), weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -1236,7 +1274,7 @@ private struct HoldStopwatch: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, WatchStyle.s(6))
             .background(WatchStyle.fill, in: WatchStyle.shape)
         }
     }
@@ -1258,7 +1296,7 @@ private struct ValueBox: View {
         Button(action: Haptics.tapping(onTap)) {
             VStack(spacing: 0) {
                 Text(value)
-                    .font(.system(size: 34, weight: .bold))
+                    .font(.system(size: WatchStyle.s(34), weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -1267,7 +1305,7 @@ private struct ValueBox: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, WatchStyle.s(8))
             .background(WatchStyle.fill, in: WatchStyle.shape)
             // The card being adjusted by the crown or a drag.
             .overlay(
@@ -1317,13 +1355,13 @@ private struct StepControls: View {
                 onComplete()
             } label: {
                 Image(systemName: isCompleted ? "checkmark.circle.fill" : "checkmark")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: WatchStyle.s(20), weight: .semibold))
                     // Spelled `Color.x` rather than `.x`: the parameter is an
                     // opaque `some ShapeStyle`, which gives a ternary's two
                     // branches nothing to infer a shared type from.
                     .foregroundStyle(isCompleted ? Color.green : Color.black)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
+                    .frame(height: WatchStyle.s(44))
                     .background(
                         isCompleted ? Color.green.opacity(0.2) : Color.white,
                         in: WatchStyle.shape
@@ -1368,7 +1406,7 @@ private struct RestView: View {
                         .foregroundStyle(.orange)
                 }
                 Text(remainingLabel(now: now))
-                    .font(.system(size: 44, weight: .bold))
+                    .font(.system(size: WatchStyle.s(44), weight: .bold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)

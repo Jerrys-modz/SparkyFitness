@@ -115,9 +115,19 @@ enum SampleDay {
             restAlertsEnabled: true,
             pageOrder: nil,
             hiddenPages: nil,
-            setInputStyle: nil
+            setInputStyle: nil,
+            startableWorkouts: startableWorkouts
         )
     }
+
+    /// The saved workouts the idle workout page offers. Names run from one
+    /// word to a two-line one, since the picker has to wrap on a 40mm.
+    static let startableWorkouts = [
+        StartableWorkout(presetId: "sample-1", name: "2. Back and Biceps"),
+        StartableWorkout(presetId: "sample-2", name: "Day 1 — Push (5 Day)"),
+        StartableWorkout(presetId: "sample-3", name: "Day 1: Lower (3 Day)"),
+        StartableWorkout(presetId: "sample-4", name: "Legs"),
+    ]
 
     /// The state before the phone has ever synced — the other layout worth
     /// checking, since it's what a new install and a phone-free morning show.

@@ -179,24 +179,29 @@ jobs:
           BUNDLE_ID="org.SparkyApps.SparkyFitnessMobile1.dev.watchkitapp"
           mkdir -p screenshots
 
-          UDID=$(xcrun simctl list devices available -j | python3 -c "
-          import json, sys
-          devices = json.load(sys.stdin)['devices']
-          for runtime, entries in devices.items():
-              if 'watchOS' in runtime and entries:
-                  print(entries[0]['udid'])
-                  break
+          # The smallest and the largest watch on the image, so a layout that
+          # only fits one case shows up. A 40 mm screen is the tight one.
+          DEVICES=$(xcrun simctl list devices available -j | python3 -c "
+          import json, re, sys
+          found = []
+          for runtime, entries in json.load(sys.stdin)['devices'].items():
+              if 'watchOS' not in runtime:
+                  continue
+              for entry in entries:
+                  match = re.search(r'(\\d+)mm', entry['name'])
+                  if match:
+                      found.append((int(match.group(1)), entry['udid']))
+          found.sort()
+          if found:
+              print(found[0][0], found[0][1])
+              if found[-1][0] != found[0][0]:
+                  print(found[-1][0], found[-1][1])
           ")
-          if [ -z "${UDID:-}" ]; then
+          if [ -z "${DEVICES:-}" ]; then
             echo 'No watchOS simulator available on this image:'
             xcrun simctl list devices available
             exit 1
           fi
-          echo "Using watch simulator $UDID"
-
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl install "$UDID" "$APP"
 
           # $1 = output name, $2 = SPARKY_SCREENSHOT_WORKOUT, $3 = page,
           # $4 = optional SPARKY_SCREENSHOT_SHEET
@@ -210,17 +215,24 @@ jobs:
             # SwiftUI needs a moment to settle, and the rest countdown needs
             # to actually be counting before it is worth photographing.
             sleep 8
-            xcrun simctl io "$UDID" screenshot "screenshots/$1.png"
+            xcrun simctl io "$UDID" screenshot "screenshots/$1-$SIZE.png"
           }
 
-          shoot workout-active active workout
-          shoot workout-resting resting workout
-          shoot workout-idle none workout
-          shoot workout-exercises active workout exercises
-          shoot workout-timed timed workout
-          shoot workout-stopwatch stopwatch workout
-          shoot workout-interval interval workout
-          shoot goals none goals
+          while read -r SIZE UDID; do
+            echo "Using ${SIZE}mm watch simulator $UDID"
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl install "$UDID" "$APP"
+
+            shoot workout-active active workout
+            shoot workout-resting resting workout
+            shoot workout-idle none workout
+            shoot workout-exercises active workout exercises
+            shoot workout-timed timed workout
+            shoot workout-stopwatch stopwatch workout
+            shoot workout-interval interval workout
+            shoot goals none goals
+          done <<< "$DEVICES"
 
           ls -la screenshots
 
