@@ -47,6 +47,9 @@ class LogWaterActivity : Activity() {
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 15000
                 connection.readTimeout = 15000
+                // A redirect would resend the configured headers (a proxy credential
+                // can live in one) to another host; a 3xx fails below instead.
+                connection.instanceFollowRedirects = false
                 connection.doOutput = true
                 val headers = config.getJSONObject("headers")
                 for (name in headers.keys()) {

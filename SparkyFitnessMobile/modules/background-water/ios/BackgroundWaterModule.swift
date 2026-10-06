@@ -3,9 +3,9 @@ import Security
 
 // Holds the server address, login, weight unit and water container the Siri and
 // Shortcuts App Intents (plugins/ios/ShortcutActions.swift) need while the app
-// is closed. The copy exists only while the user has switched "Let Siri and
-// Shortcuts log without opening the app" on: JavaScript passes nil when it is switched off or the user signs out, which
-// erases it. It lives in the Keychain, never in UserDefaults or a file.
+// is closed. The copy exists while a server is signed in: JavaScript passes nil
+// when the user signs out or removes the server, which erases it. It lives in
+// the Keychain, never in UserDefaults or a file.
 //
 // The service and account below must match plugins/ios/ShortcutActions.swift.
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
