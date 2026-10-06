@@ -1,5 +1,4 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
-import { Platform } from 'react-native';
 
 /** A morning check-in captured on the Apple Watch. */
 export interface WatchCheckInPayload {
@@ -443,14 +442,9 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   takeDroppedHeartRateBatchCount(): Promise<number>;
 }
 
-// iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
-// null there and every caller must guard on it. Prefer the guarded hook in
-// src/hooks/useWatchCheckInBridge.ts over importing this module directly.
+// Null when this binary has no native module (web, or an Android build from
+// before the Wear bridge). Callers guard on `isSupported()`.
 const WatchConnectivityModule: WatchConnectivityModuleType | null =
-  Platform.OS === 'ios'
-    ? requireOptionalNativeModule<WatchConnectivityModuleType>(
-        'WatchConnectivity'
-      )
-    : null;
+  requireOptionalNativeModule<WatchConnectivityModuleType>('WatchConnectivity');
 
 export default WatchConnectivityModule;
