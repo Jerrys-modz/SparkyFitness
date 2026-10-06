@@ -69,7 +69,7 @@ describe('exercise modality suggestions', () => {
     ]);
   });
 
-  it('does not offer plain weight & reps over a type that was set on purpose', async () => {
+  it('does not offer a category-only guess over a type that was set on purpose', async () => {
     mockClient.query.mockResolvedValueOnce({
       rows: [
         {
@@ -85,6 +85,13 @@ describe('exercise modality suggestions', () => {
           category: 'strength',
           equipment: '["bands"]',
           modality: 'reps_only',
+        },
+        {
+          id: uuidv4(),
+          name: 'Battle Ropes',
+          category: 'cardio',
+          equipment: null,
+          modality: 'duration',
         },
       ],
     });

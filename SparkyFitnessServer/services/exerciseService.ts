@@ -22,6 +22,7 @@ import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import {
   inferExerciseModality,
+  deriveExerciseModality,
   resolveExerciseModality,
   type ApplyExerciseModalitySuggestionsBody,
   type ExerciseModalitySuggestion,
@@ -2492,13 +2493,17 @@ async function getModalitySuggestions(
       equipment: normalizeToStringArray(row.equipment),
     });
     const currentModality = resolveExerciseModality(row.modality, row.category);
-    // Plain weight & reps is what an unrecognised name falls back to, not a
-    // finding. Never offer it over a type that was set on purpose (Hevy marks
-    // an ab wheel as reps-only, for instance).
-    if (
-      suggestedModality === 'weight_reps' &&
-      currentModality !== 'weight_reps'
-    ) {
+    // A type that comes only from the category or equipment (no name rule
+    // matched) is a guess. Only offer it over the default, never over a type
+    // that was set on purpose: Hevy marks an ab wheel as reps-only and battle
+    // ropes as duration-only.
+    const nameRuleMatched =
+      suggestedModality !==
+      deriveExerciseModality(
+        row.category,
+        normalizeToStringArray(row.equipment)
+      );
+    if (!nameRuleMatched && currentModality !== 'weight_reps') {
       continue;
     }
     if (suggestedModality !== currentModality) {
