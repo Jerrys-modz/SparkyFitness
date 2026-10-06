@@ -181,11 +181,11 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
         // going with the screen locked, and shows the blue status-bar pill.
         NSLocationWhenInUseUsageDescription:
           'SparkyFitness uses your location to record the route, distance and pace of your walks, runs and rides.',
-        // Apple's upload check wants this key whenever the binary links the
-        // location APIs and declares the `location` background mode, even
-        // though only while-using access is ever requested.
-        NSLocationAlwaysAndWhenInUseUsageDescription:
-          'SparkyFitness uses your location to keep recording the route, distance and pace of a walk, run or ride while the screen is locked.',
+        // The location module links CoreMotion, and App Store Connect rejects
+        // the upload (ITMS-90683) without a purpose string, even though the
+        // app never asks for motion data.
+        NSMotionUsageDescription:
+          'SparkyFitness uses motion data to improve the distance and pace of your recorded walks, runs and rides.',
         NSPhotoLibraryUsageDescription:
           'SparkyFitness lets you choose photos from your library for your foods, meals, and diary entries.',
         NSAppTransportSecurity: {
