@@ -156,8 +156,8 @@ const ExerciseTypeReviewScreen: React.FC<
         >
           {t('exerciseTypeReview.apply', {
             count: chosen.length,
-            defaultValue: 'Apply {{count}} change',
-            defaultValue_other: 'Apply {{count}} changes',
+            defaultValue: 'Apply {{count}} changes',
+            defaultValue_one: 'Apply {{count}} change',
           })}
         </Button>
       </View>

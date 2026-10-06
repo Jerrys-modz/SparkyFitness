@@ -5776,9 +5776,9 @@
     "emptySubtitle": "Nothing to change.",
     "error": "Could not load suggestions",
     "retry": "Try again",
-    "apply": "Apply {{count}} change",
+    "apply_one": "Apply {{count}} change",
     "apply_other": "Apply {{count}} changes",
-    "applied": "Updated {{count}} exercise",
+    "applied_one": "Updated {{count}} exercise",
     "applied_other": "Updated {{count}} exercises",
     "applyFailed": "Could not update exercises",
     "change": "{{from}} → {{to}}"

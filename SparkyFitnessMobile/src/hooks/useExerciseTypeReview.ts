@@ -34,8 +34,8 @@ export function useApplyExerciseTypeSuggestions() {
         type: 'success',
         text1: i18n.t('exerciseTypeReview.applied', {
           count: updated,
-          defaultValue: 'Updated {{count}} exercise',
-          defaultValue_other: 'Updated {{count}} exercises',
+          defaultValue: 'Updated {{count}} exercises',
+          defaultValue_one: 'Updated {{count}} exercise',
         }),
       });
     },
