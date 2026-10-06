@@ -328,7 +328,7 @@ private fun Keypad(field: EditField, initial: Double?, onDismiss: () -> Unit, on
 }
 
 @Composable
-private fun Metrics(bpm: Int, kcal: Int, elapsed: String, onList: (() -> Unit)?, expand: Boolean = true) {
+private fun Metrics(bpm: Int, kcal: Int, elapsed: String, expand: Boolean = true, onList: (() -> Unit)? = null) {
   Row(
     if (expand) Modifier.fillMaxWidth() else Modifier,
     verticalAlignment = Alignment.CenterVertically,
