@@ -8,20 +8,22 @@ ACT=com.sparkyapps.sparkyfitness.wear.MainActivity
 APK=SparkyFitnessMobile/targets/wear/app/build/outputs/apk/debug/app-debug.apk
 OUT=SparkyFitnessMobile/screenshots
 
+ADB="${ANDROID_HOME:-/usr/local/lib/android/sdk}/platform-tools/adb"
+SERIAL=emulator-5554
+
 mkdir -p "$OUT"
 echo "Installing $APK"
-timeout 60 adb install -r "$APK"
+timeout 120 "$ADB" -s "$SERIAL" install -r "$APK"
 
 shoot() {
   echo "Shooting $1"
-  timeout 15 adb shell am force-stop "$PKG" || true
-  timeout 20 adb shell am start -n "$PKG/$ACT" \
+  timeout 15 "$ADB" -s "$SERIAL" shell am force-stop "$PKG" || true
+  timeout 20 "$ADB" -s "$SERIAL" shell am start -n "$PKG/$ACT" \
     --es sparky.screenshot 1 \
     --es sparky.workout "$2" \
     --es sparky.page "$3"
   sleep 6
-  timeout 20 adb shell screencap -p "/sdcard/$1.png"
-  timeout 20 adb pull "/sdcard/$1.png" "$OUT/$1.png"
+  timeout 20 "$ADB" -s "$SERIAL" exec-out screencap -p > "$OUT/$1.png"
 }
 
 shoot workout-active active workout
