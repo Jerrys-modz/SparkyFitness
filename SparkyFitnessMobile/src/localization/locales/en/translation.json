@@ -1409,7 +1409,8 @@
       "amountA11y": "{{name}} amount in {{unit}}",
       "removeNutrient": "Remove {{name}}",
       "nutrientCount_one": "{{count}} nutrient",
-      "nutrientCount_other": "{{count}} nutrients"
+      "nutrientCount_other": "{{count}} nutrients",
+      "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}"
     }
   },
   "scheduleSummary": {
