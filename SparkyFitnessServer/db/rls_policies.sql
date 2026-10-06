@@ -115,7 +115,8 @@ BEGIN
     'workout_feedback',
     'health_metric_samples',
     'vitals_entries',
-    'daily_health_metrics'
+    'daily_health_metrics',
+    'user_fasting_preferences'
   ]::text[])
   LOOP
     EXECUTE 'ALTER TABLE public.' || quote_ident(table_name) || ' ENABLE ROW LEVEL SECURITY;';
@@ -753,6 +754,9 @@ SELECT create_checkin_policy('user_custom_moods');
 
 -- Mood display preferences: personal picker config, owner-only.
 SELECT create_owner_policy('user_mood_display_preferences');
+
+-- Fasting preferences: personal targets and auto-calculation config, owner-only.
+SELECT create_owner_policy('user_fasting_preferences');
 
 
 -- Custom policies for special cases

@@ -4,6 +4,8 @@ import Toast from 'react-native-toast-message';
 import WatchConnectivity, {
   type WatchSetCompletedPayload,
   type WatchRestChangedPayload,
+  type WatchSetTimerStartedPayload,
+  type WatchSetTimerStoppedPayload,
   type WatchHeartRateBatchPayload,
   type WatchWorkoutStopPayload,
   type WatchWorkoutDiscardPayload,
@@ -186,6 +188,110 @@ function applyWatchRestChange(payload: WatchRestChangedPayload): void {
   if (deltaSec !== 0) state.adjustRest(deltaSec);
 }
 
+/**
+ * A hold countdown or stopwatch started on the watch starts the phone's
+ * stopwatch from the same moment. Ignored for another session, a set already
+ * logged, or a start time that cannot be right (a stale queued message).
+ */
+const MAX_WATCH_TIMER_AGE_MS = 3 * 60 * 60 * 1000;
+/** Epoch-ms round trip through the watch is not exact to the millisecond. */
+const SAME_TIMER_RUN_MS = 20;
+
+/**
+ * A watch start the phone clock moved forward (`min(startedAt, now)`). The
+ * stop still names the watch's original start, so that pair is remembered
+ * until the phone timer is no longer the one that start created.
+ */
+const clampedWatchTimerStart = new Map<
+  string,
+  { raw: number; stored: number }
+>();
+
+function sameTimerRun(active: number, startedAt: number): boolean {
+  return Math.abs(active - startedAt) <= SAME_TIMER_RUN_MS;
+}
+
+function applyWatchSetTimerStart(payload: WatchSetTimerStartedPayload): void {
+  const state = useActiveWorkoutStore.getState();
+  const now = Date.now();
+  const reason =
+    state.sessionId !== payload.sessionId
+      ? 'another session'
+      : state.completedSetIds[payload.setId] != null
+        ? 'set already logged'
+        : !Number.isFinite(payload.startedAt)
+          ? 'bad start time'
+          : now - payload.startedAt > MAX_WATCH_TIMER_AGE_MS
+            ? 'too old'
+            : null;
+  if (reason != null) {
+    addLog(
+      `Watch timer start ignored: ${reason} (set ${payload.setId})`,
+      'INFO'
+    );
+    return;
+  }
+  // A queued start from an earlier arm of the same saved session must not
+  // start a timer in the workout that replaced it.
+  if (
+    payload.armedAt != null &&
+    state.watchArmedAt != null &&
+    Math.abs(payload.armedAt - state.watchArmedAt) > 2000
+  ) {
+    return;
+  }
+  const before = state.setTimerStartedAt[payload.setId];
+  const stored = Math.min(payload.startedAt, now);
+  state.startSetTimer(payload.setId, stored);
+  const after =
+    useActiveWorkoutStore.getState().setTimerStartedAt[payload.setId];
+  if (before == null && after != null) {
+    if (after !== payload.startedAt) {
+      clampedWatchTimerStart.set(payload.setId, {
+        raw: payload.startedAt,
+        stored: after,
+      });
+    } else {
+      clampedWatchTimerStart.delete(payload.setId);
+    }
+  }
+  addLog(`Watch started the timer for set ${payload.setId}`, 'DEBUG');
+}
+
+/** The wearer stopped the stopwatch on the watch: stop the phone's too. */
+function applyWatchSetTimerStop(payload: WatchSetTimerStoppedPayload): void {
+  const state = useActiveWorkoutStore.getState();
+  const active = state.setTimerStartedAt[payload.setId];
+  const clamped = clampedWatchTimerStart.get(payload.setId);
+  const sameRun =
+    active != null &&
+    Number.isFinite(payload.startedAt) &&
+    (sameTimerRun(active, payload.startedAt) ||
+      (clamped != null &&
+        clamped.stored === active &&
+        sameTimerRun(clamped.raw, payload.startedAt)));
+  if (
+    state.sessionId !== payload.sessionId ||
+    state.completedSetIds[payload.setId] != null ||
+    !Number.isFinite(payload.seconds) ||
+    payload.seconds <= 0 ||
+    !sameRun
+  ) {
+    addLog(
+      `Watch timer stop ignored (set ${payload.setId}, ${payload.seconds}s)`,
+      'INFO'
+    );
+    return;
+  }
+  clampedWatchTimerStart.delete(payload.setId);
+  // Drop the running phone timer, then keep the time the wrist measured.
+  state.clearSetTimer(payload.setId);
+  state.updateSetField(payload.setId, {
+    duration: Math.round(payload.seconds),
+  });
+  addLog(`Watch stopped the timer for set ${payload.setId}`, 'DEBUG');
+}
+
 export function useWatchWorkoutBridge(
   enabled: boolean,
   serverConnected: boolean = true,
@@ -297,9 +403,15 @@ export function useWatchWorkoutBridge(
       const patch: ActiveSetPatch = {};
       if (payload.weightKg != null) patch.weight = payload.weightKg;
       if (payload.reps != null) patch.reps = payload.reps;
+      if (payload.duration != null)
+        patch.duration = Math.round(payload.duration);
       if (Object.keys(patch).length > 0) {
         state.updateSetField(payload.setId, patch);
       }
+      // The watch has reported the duration it timed. The phone's own
+      // stopwatch for this set (started from the watch's) is done.
+      state.clearSetTimer(payload.setId);
+      clampedWatchTimerStart.delete(payload.setId);
 
       state.completeSet(
         payload.setId,
@@ -777,6 +889,14 @@ export function useWatchWorkoutBridge(
       'onRestChanged',
       applyWatchRestChange
     );
+    const setTimerStartedSub = WatchConnectivity.addListener(
+      'onSetTimerStarted',
+      applyWatchSetTimerStart
+    );
+    const setTimerStoppedSub = WatchConnectivity.addListener(
+      'onSetTimerStopped',
+      applyWatchSetTimerStop
+    );
     const heartRateBatchSub = WatchConnectivity.addListener(
       'onHeartRateBatch',
       (payload) => {
@@ -817,6 +937,8 @@ export function useWatchWorkoutBridge(
       workoutDiscardSub.remove();
       setCompletedSub.remove();
       restChangedSub.remove();
+      setTimerStartedSub.remove();
+      setTimerStoppedSub.remove();
       heartRateBatchSub.remove();
       liveHeartRateSub.remove();
       workoutStopSub.remove();

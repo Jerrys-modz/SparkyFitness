@@ -60,7 +60,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
         revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
-        rest: PhoneRest?, armedAt: Date?
+        rest: PhoneRest?, armedAt: Date?, setTimers: [String: Date]?
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
@@ -600,7 +600,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: pending.revision,
                 targets: pending.targets,
                 completedSetIds: pending.completedSetIds,
-                phoneRest: pending.rest
+                phoneRest: pending.rest,
+                setTimers: pending.setTimers
             )
         }
         // Only this session's: another plan's targets may already be held
@@ -655,6 +656,25 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 sessionId: sessionId,
                 previousEndsAt: previousEndsAt,
                 endsAt: endsAt
+            ))
+        }
+        // A hold countdown or stopwatch started here starts the phone's too.
+        workoutStore.onSetTimerStartedHere = { [weak self] setId, startedAt in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.setTimerStarted(
+                sessionId: sessionId,
+                setId: setId,
+                startedAt: startedAt,
+                armedAt: self.workoutStore.plan?.armedAt
+            ))
+        }
+        workoutStore.onSetTimerStoppedHere = { [weak self] setId, startedAt, seconds in
+            guard let self, let sessionId = self.workoutStore.plan?.sessionId else { return }
+            self.transfer(OutboundPayloads.setTimerStopped(
+                sessionId: sessionId,
+                setId: setId,
+                seconds: seconds,
+                startedAt: startedAt
             ))
         }
         workoutStore.onExerciseWillChange = { [weak self] outgoingExerciseEntryId in
@@ -992,7 +1012,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 revision: update.revision,
                 targets: update.targets,
                 completedSetIds: update.completedSetIds,
-                phoneRest: update.rest
+                phoneRest: update.rest,
+                setTimers: ContextPayloadMapper.setTimers(from: payload)
             )
             return
         }
@@ -1009,7 +1030,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         pendingSetTargets[update.sessionId] = (
             update.revision, update.targets, update.completedSetIds, update.rest,
-            update.armedAt
+            update.armedAt, ContextPayloadMapper.setTimers(from: payload)
         )
     }
 
@@ -1106,6 +1127,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             setId: step.plannedSet.setId,
             weightKg: values.weightKg,
             reps: values.reps,
+            duration: workoutStore.holdLoggedSeconds(for: step.plannedSet.setId),
             completedAt: Date()
         )
         transfer(OutboundPayloads.setCompleted(completed))

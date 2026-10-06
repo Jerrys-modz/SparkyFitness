@@ -80,10 +80,7 @@ import {
 } from '../utils/nativeHeaderDatePicker';
 import { getNetCarbsValue } from '../utils/nutrientUtils';
 import { weightFromKg } from '../utils/unitConversions';
-import {
-  resolveHydrationGoal,
-  resolveWeightGoal,
-} from '../utils/healthTrendGoals';
+import { resolveWeightGoal } from '../utils/healthTrendGoals';
 
 const RANGE_SEGMENTS = (
   t: (key: string, options: { defaultValue: string }) => string
@@ -280,7 +277,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   // The hydration card and the hydration trend must agree on the unit, so both read it
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
-  const hydrationGoal = resolveHydrationGoal(summary?.waterGoal ?? 0);
 
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.
   const weightUnit: 'kg' | 'lbs' =
@@ -783,7 +779,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
               ) : null;
             case 'healthTrends':
               return healthTrendsCardVisible ? (
-                <React.Fragment key="healthTrends">
+                <View key="healthTrends" className="mb-3">
                   <Text className="text-text-primary text-xl font-bold mb-2">
                     {t('dashboard.healthTrends', {
                       defaultValue: 'Health Trends',
@@ -805,14 +801,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     range={trendsRange}
                     weightUnit={weightUnit}
                     waterUnit={waterDisplayUnit}
-                    hydrationGoal={hydrationGoal}
+                    hydrationGoals={trends.hydration.hydrationGoals}
                     weightGoal={weightGoal}
-                    calorieGoal={goal}
+                    calorieGoals={trends.calories.calorieGoals}
                     visibleTrends={visibleTrends}
                     activePage={chartPage}
                     onPageSelected={setChartPage}
                   />
-                </React.Fragment>
+                </View>
               ) : null;
             default:
               return null;

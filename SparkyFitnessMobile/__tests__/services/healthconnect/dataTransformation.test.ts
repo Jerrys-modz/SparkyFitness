@@ -848,7 +848,9 @@ describe('transformHealthRecords', () => {
       }) as TransformedExerciseSession[];
 
       expect(result[0].activityType).toBe('Running');
+      expect(result[0].exercise_source_id).toBe('56');
       expect(result[1].activityType).toBe('Biking (Stationary)');
+      expect(result[1].exercise_source_id).toBe('9');
     });
 
     test('ignores a blank title', () => {
