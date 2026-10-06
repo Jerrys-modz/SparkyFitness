@@ -250,7 +250,7 @@ function productName(label: DsldLabel): string {
 }
 
 /** One ingredient line, reduced to what the nutrient matching needs. */
-interface IngredientLine {
+export interface IngredientLine {
   name: string;
   amount: number | null | undefined;
   /** The unit as printed. */
@@ -261,7 +261,7 @@ interface IngredientLine {
   group?: string | null;
 }
 
-type NutrientTotals = Pick<
+export type NutrientTotals = Pick<
   SupplementLookupProduct,
   'fixed' | 'catalog' | 'unmatched'
 >;
@@ -272,7 +272,7 @@ type NutrientTotals = Pick<
  * photographed label's "%DV" or "CFU") as unmatched; the database path skips
  * those, since its rows carry no printed unit to show.
  */
-function totalIngredients(
+export function totalIngredients(
   lines: IngredientLine[],
   reportUnreadable: boolean
 ): NutrientTotals {

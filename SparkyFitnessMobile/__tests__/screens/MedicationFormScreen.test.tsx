@@ -529,6 +529,22 @@ describe('MedicationFormScreen — supplement barcode', () => {
     ).toBeTruthy();
   });
 
+  it('says when the product came from Open Food Facts', () => {
+    const screen = scanned();
+
+    act(() => {
+      mockLookupMutate.mock.calls[0][1].onSuccess({
+        product: { ...product, source: 'off', unmatched: [] },
+      });
+    });
+
+    expect(
+      screen.getByText(
+        'From Open Food Facts. Check the amounts against the label.'
+      )
+    ).toBeTruthy();
+  });
+
   it('tells the user when the code is not in the database', () => {
     scanned();
 
