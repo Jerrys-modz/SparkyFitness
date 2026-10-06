@@ -1408,6 +1408,15 @@
       "removeNutrient": "Remove {{name}}",
       "nutrientCount_one": "{{count}} nutrient",
       "nutrientCount_other": "{{count}} nutrients",
+      "scan": "Scan barcode to fill in",
+      "lookingUp": "Looking up the label…",
+      "noMatchTitle": "No match found",
+      "noMatchMessage": "That barcode is not in the supplement label database. You can enter the label by hand.",
+      "lookupFailed": "Could not reach the supplement label database. Try again later.",
+      "servingNote": "Label serving: {{serving}}",
+      "notAdded": "Not added from the label: {{names}}",
+      "notAddedMore_one": "{{names}} and {{count}} more",
+      "notAddedMore_other": "{{names}} and {{count}} more",
       "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}"
     }
   },
