@@ -101,6 +101,7 @@ internal object WearHeartRate {
         if (reading != null) {
           val previous = rawTotalKcal
           if (previous != null && reading + 0.01 < previous) {
+            calorieEpoch += 1
             reportedActiveKcal = 0.0
             exerciseStartedAt = System.currentTimeMillis()
           }
@@ -152,15 +153,15 @@ internal object WearHeartRate {
 
   fun onStop(context: Context) {
     appContext = context.applicationContext
-    flush()
-    sessionId = null
-    exerciseEntryId = null
+    if (sessionId == null && !flushing) {
+      stopSampling()
+      return
+    }
     bpm = 0
     kcal = -1
-    rawTotalKcal = null
-    reportedActiveKcal = 0.0
-    exerciseStartedAt = 0L
-    stopSampling()
+    stopAfterFlush = true
+    flush()
+    if (!flushing) finishStopped()
   }
 
   fun onPermissionResult(context: Context, granted: Boolean) {
@@ -241,9 +242,15 @@ internal object WearHeartRate {
   }
 
   private var flushing = false
+  private var flushAgain = false
+  private var stopAfterFlush = false
+  private var calorieEpoch = 0
 
   private fun flush() {
-    if (flushing) return
+    if (flushing) {
+      flushAgain = true
+      return
+    }
     val context = appContext ?: return
     val session = sessionId ?: return
     val exercise = exerciseEntryId ?: return
@@ -252,6 +259,7 @@ internal object WearHeartRate {
     val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedActiveKcal) }
     val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
     if (batch.isEmpty() && (delta == null || delta == 0.0) && minutes <= 0) return
+    val epoch = calorieEpoch
     flushing = true
     samples.clear()
     val body = JSONObject()
@@ -275,16 +283,43 @@ internal object WearHeartRate {
     val task = Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
     task.addOnSuccessListener {
       main.post {
-        flushing = false
-        if (cumulative != null && delta != null) reportedActiveKcal = cumulative
+        if (epoch == calorieEpoch && cumulative != null && delta != null) {
+          reportedActiveKcal = cumulative
+        }
+        afterFlush()
       }
     }
     task.addOnFailureListener {
       main.post {
-        flushing = false
         batch.asReversed().forEach { sample -> samples.addFirst(sample) }
+        afterFlush()
       }
     }
+  }
+
+  private fun afterFlush() {
+    flushing = false
+    if (flushAgain && sessionId != null) {
+      flushAgain = false
+      flush()
+      if (!flushing && stopAfterFlush) finishStopped()
+      return
+    }
+    if (stopAfterFlush) finishStopped()
+  }
+
+  private fun finishStopped() {
+    stopAfterFlush = false
+    flushAgain = false
+    sessionId = null
+    exerciseEntryId = null
+    bpm = 0
+    kcal = -1
+    rawTotalKcal = null
+    reportedActiveKcal = 0.0
+    exerciseStartedAt = 0L
+    samples.clear()
+    stopSampling()
   }
 
   /**

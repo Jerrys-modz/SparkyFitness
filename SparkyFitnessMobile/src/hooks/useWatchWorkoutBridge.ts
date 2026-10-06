@@ -614,6 +614,7 @@ export function useWatchWorkoutBridge(
 
   const handleWorkoutStop = useCallback(
     async (payload: WatchWorkoutStopPayload): Promise<void> => {
+      if (!WatchConnectivity) return;
       await flushHeartRate();
       const state = useActiveWorkoutStore.getState();
       if (state.sessionId !== payload.sessionId) {
@@ -665,43 +666,43 @@ export function useWatchWorkoutBridge(
   });
 
   useEffect(() => {
-    if (!enabled || !WatchConnectivity || !WatchConnectivity.isSupported())
-      return;
+    const connectivity = WatchConnectivity;
+    if (!enabled || !connectivity || !connectivity.isSupported()) return;
 
-    const setCompletedSub = WatchConnectivity.addListener(
+    const setCompletedSub = connectivity.addListener(
       'onSetCompleted',
       (payload) => {
         void handlersRef.current.handleSetCompleted(payload);
       }
     );
-    const restChangedSub = WatchConnectivity.addListener(
+    const restChangedSub = connectivity.addListener(
       'onRestChanged',
       (payload) => {
         applyWatchRestChange(payload);
         if (payload.clientId) {
-          void WatchConnectivity.sendAck?.(payload.clientId, true);
+          void connectivity.sendAck?.(payload.clientId, true);
         }
       }
     );
-    const heartRateBatchSub = WatchConnectivity.addListener(
+    const heartRateBatchSub = connectivity.addListener(
       'onHeartRateBatch',
       (payload) => {
         handlersRef.current.handleHeartRateBatch(payload);
       }
     );
-    const workoutStopSub = WatchConnectivity.addListener(
+    const workoutStopSub = connectivity.addListener(
       'onWorkoutStop',
       (payload) => {
         void handlersRef.current.handleWorkoutStop(payload);
       }
     );
-    void WatchConnectivity.pendingWorkoutEvents?.().then((events) => {
+    void connectivity.pendingWorkoutEvents?.().then((events) => {
       for (const event of events) {
         if (event.event === 'onSetCompleted') {
           void handlersRef.current.handleSetCompleted(event);
         } else if (event.event === 'onRestChanged') {
           applyWatchRestChange(event);
-          if (event.clientId) void WatchConnectivity.sendAck?.(event.clientId, true);
+          if (event.clientId) void connectivity.sendAck?.(event.clientId, true);
         } else if (event.event === 'onWorkoutStop') {
           void handlersRef.current.handleWorkoutStop(event);
         }
