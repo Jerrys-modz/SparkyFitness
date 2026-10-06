@@ -251,6 +251,7 @@ export interface WatchContextPayload {
    * The fast running now, or null for none. Left out until the phone has
    * heard from the server, so a watch keeps what it had.
    */
+  fastKnown?: boolean;
   fast?: {
     /** Epoch ms. */
     startedAt: number;

@@ -605,7 +605,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         // hook re-rendered must not carry yesterday's plan.
         scheduledWorkouts: today === summaryDate ? scheduledWorkouts : [],
         workoutServerId,
-        ...(watchFast !== undefined ? { fast: watchFast } : {}),
+        // `fast: null` (not fasting) is stripped before it reaches the watch,
+        // so the answer "the server has replied" travels as its own flag.
+        ...(watchFast !== undefined
+          ? { fast: watchFast, fastKnown: true }
+          : {}),
         steps:
           todayRow?.steps != null && todayRow.steps >= 0
             ? { day: today, count: Math.round(todayRow.steps) }
