@@ -281,6 +281,14 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               )}
               {isConnected && (
                 <SettingsRow
+                  icon="sparkles"
+                  title={t('settings.rows.ai', { defaultValue: 'AI' })}
+                  onPress={() => navigation.navigate('AiSettings')}
+                  iconColor={catTeal}
+                />
+              )}
+              {isConnected && (
+                <SettingsRow
                   icon="dashboard-settings"
                   title={t('settings.rows.dashboard', {
                     defaultValue: 'Dashboard',

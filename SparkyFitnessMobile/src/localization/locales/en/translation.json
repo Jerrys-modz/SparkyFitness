@@ -151,6 +151,7 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
+      "ai": "AI",
       "fasting": "Fasting"
     },
     "theme": {
@@ -588,6 +589,7 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
+    "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting"
   },
@@ -2279,6 +2281,8 @@
     "edit": "Edit measurements"
   },
   "foodScan": {
+    "labelReadOnDevice": "Label read on this iPhone",
+    "labelReadByServer": "Label read by the server AI",
     "segment": {
       "barcode": "Barcode",
       "label": "Label",
@@ -2291,7 +2295,8 @@
       "analyzeLabel": "Failed to analyze nutrition label. Please try again.",
       "loadPhoto": "Failed to load photo.",
       "lookupBarcode": "Couldn't look up this barcode. Please try again.",
-      "timeout": "Request timed out. Check your server connection."
+      "timeout": "Request timed out. Check your server connection.",
+      "retryOnDevice": "This iPhone could not read the label."
     },
     "permission": {
       "camera": "We need your permission to show the camera",
@@ -2334,7 +2339,9 @@
       "retakePhoto": "Retake photo",
       "takeLabelPhoto": "Take nutrition label photo",
       "takeMealPhoto": "Take meal photo"
-    }
+    },
+    "retryWithServer": "Read again with the server AI",
+    "retryOnDevice": "Read again on this iPhone"
   },
   "cycleToday": {
     "menstrualFlow": "Menstrual Flow",
@@ -5837,6 +5844,24 @@
       "setsTitle": "Sets per muscle",
       "noSets": "No sets logged this week or last.",
       "loadFailed": "Could not load your training consistency."
+    }
+  },
+  "aiSettings": {
+    "server": {
+      "title": "Server AI provider",
+      "loading": "Checking…",
+      "error": "Could not check the AI provider.",
+      "none": "No AI provider is configured",
+      "description": "Used for label scans unless an on-device option below handles them. Providers are set up in the web app."
+    },
+    "onDevice": {
+      "title": "On-device (Apple Intelligence)",
+      "description": "These run on this phone. Anything the on-device model cannot handle falls back to the server provider.",
+      "unavailable": "Not available on this device. It needs iOS 27 or later with Apple Intelligence turned on and ready.",
+      "labelScan": {
+        "title": "Scan Labels On Device",
+        "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
+      }
     }
   },
   "fastingSettings": {

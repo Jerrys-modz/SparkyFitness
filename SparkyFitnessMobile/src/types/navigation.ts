@@ -192,6 +192,8 @@ export type RootStackParamList = {
         initialFood?: Partial<FoodFormData>;
         barcode?: string;
         providerType?: string;
+        /** Which AI read the label this form was filled in from. */
+        labelScanSource?: 'device' | 'server';
         pickerMode?: FoodPickerMode;
         returnDepth?: number;
         pendingScannedBarcode?: string;
@@ -225,6 +227,7 @@ export type RootStackParamList = {
         duplicateOf?: Exercise;
       }
     | { mode: 'edit-exercise'; exercise: Exercise; returnKey: string };
+  AiSettings: undefined;
   FoodScan:
     | {
         mode?: 'lookup';
