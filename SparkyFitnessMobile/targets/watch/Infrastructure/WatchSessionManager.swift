@@ -240,6 +240,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return .queued
     }
 
+    /// Asks the phone to start one saved workout. Queued like a check-in: the
+    /// phone is often in a bag, and a tap that vanishes is the bug.
+    func requestWorkoutStart(presetId: String, serverId: String?) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.workoutStartRequest(presetId: presetId, serverId: serverId))
+    }
+
     /// Re-queues everything still unconfirmed. Used by the retry affordance and
     /// on app launch, since a transfer can be lost if the app was force-quit.
     func retryPending() {
@@ -582,7 +589,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         reportedEnergyKcal = 0
         bindHealthKitCallbacks()
         workoutHealthKit.requestAuthorization { [weak self] _ in
-            self?.workoutHealthKit.start(sessionId: plan.sessionId, workoutName: plan.workoutName)
+            guard let self else { return }
+            guard let current = self.workoutStore.plan,
+                  current.sessionId == plan.sessionId,
+                  Self.sameArm(current.armedAt, plan.armedAt) else { return }
+            self.workoutHealthKit.start(
+                sessionId: plan.sessionId,
+                workoutName: plan.workoutName
+            )
         }
     }
 
@@ -1051,6 +1065,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
             return
         }
         guard workoutStore.plan?.sessionId == stop.sessionId else { return }
+        // Thrown away on the phone: end the session without writing it to
+        // Health and without a summary. Nothing is sent back, the phone
+        // already dropped it. A finish already running cannot be taken back.
+        if stop.discarded, !collectionInFlight {
+            dropRunningWorkout(notifyPhone: false)
+            return
+        }
         requestFinish(sendStop: false)
     }
 
@@ -1142,6 +1163,39 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// the workout and the tail has been queued. See `finishCollection`.
     func endWorkout() {
         requestFinish(sendStop: true)
+    }
+
+    /// Abandons the workout. Nothing is saved to Health and no heart rate is
+    /// sent; the phone is told which session to drop, and clears it without
+    /// saving. Ignored while a finish is already running, which has the
+    /// session's tail in flight and cannot be taken back.
+    func discardWorkout() {
+        dropRunningWorkout(notifyPhone: true)
+    }
+
+    /// Ends the running workout without saving it. `notifyPhone` is false when
+    /// the phone is the one that discarded it.
+    private func dropRunningWorkout(notifyPhone: Bool) {
+        guard !collectionInFlight, let sessionId = workoutStore.plan?.sessionId else {
+            return
+        }
+        rememberEnded(sessionId, at: workoutStore.plan?.armedAt ?? Date())
+        workoutHealthKit.discard()
+        if notifyPhone {
+            transfer(
+                OutboundPayloads.workoutDiscard(
+                    sessionId: sessionId,
+                    armedAt: workoutStore.plan?.armedAt
+                )
+            )
+        }
+        let next = pendingPlan
+        pendingPlan = nil
+        pendingSendStop = false
+        workoutStore.reset()
+        if let next {
+            beginPlan(next)
+        }
     }
 
     /// A second finish or a plan change while `stop` is already running is

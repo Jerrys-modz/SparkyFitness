@@ -586,7 +586,10 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
               defaultValue: 'Discard anyway',
             }),
             style: 'destructive',
-            onPress: () => useActiveWorkoutStore.getState().clearWorkout(),
+            onPress: () =>
+              useActiveWorkoutStore
+                .getState()
+                .clearWorkout({ discarded: true }),
           },
         ]
       );
@@ -619,7 +622,9 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
             text: t('workout.discard', { defaultValue: 'Discard' }),
             style: 'destructive',
             onPress: () => {
-              useActiveWorkoutStore.getState().clearWorkout();
+              useActiveWorkoutStore
+                .getState()
+                .clearWorkout({ discarded: true });
               deleteWorkout(sessionId)
                 .then(() => {
                   if (entryDate != null)
