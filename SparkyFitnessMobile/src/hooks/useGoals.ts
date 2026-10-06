@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchDailyGoals, saveDailyGoals } from '../services/api/goalsApi';
+import {
+  fetchDailyGoals,
+  fetchGoalsRange,
+  saveDailyGoals,
+} from '../services/api/goalsApi';
 import type { DailyGoals } from '../types/goals';
-import { dailySummaryRootQueryKey, goalsQueryKey } from './queryKeys';
+import {
+  dailySummaryRootQueryKey,
+  goalsQueryKey,
+  goalsRangeQueryKey,
+} from './queryKeys';
 
 export function useGoalsQuery(date: string, { enabled = true } = {}) {
   const query = useQuery({
@@ -15,6 +23,16 @@ export function useGoalsQuery(date: string, { enabled = true } = {}) {
     isError: query.isError,
     refetch: query.refetch,
   };
+}
+
+/** Today's goal after adaptive/dynamic adjustments, which differs from the saved row. */
+export function useAdjustedCalorieGoal(date: string, enabled: boolean) {
+  const query = useQuery({
+    queryKey: goalsRangeQueryKey(date, date, true),
+    queryFn: () => fetchGoalsRange(date, date, true),
+    enabled,
+  });
+  return query.data?.[date]?.calories;
 }
 
 export function useSaveGoalsMutation() {
