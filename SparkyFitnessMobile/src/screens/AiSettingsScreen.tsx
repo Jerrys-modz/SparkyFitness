@@ -33,7 +33,12 @@ function ToggleCard({
         <Text className="text-base font-semibold text-text-primary flex-shrink">
           {title}
         </Text>
-        <Switch testID={testID} onValueChange={onValueChange} value={value} />
+        <Switch
+          testID={testID}
+          accessibilityLabel={title}
+          onValueChange={onValueChange}
+          value={value}
+        />
       </View>
       <Text className="text-text-secondary text-sm mt-4">{description}</Text>
     </View>
@@ -45,7 +50,13 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const { data: provider, isLoading } = useActiveAiServiceSetting();
+  const {
+    data: provider,
+    isLoading,
+    isError,
+  } = useActiveAiServiceSetting({
+    throwOnFailure: true,
+  });
 
   const onDeviceLabelScanEnabled = useAppPreferencesStore(
     (s) => s.onDeviceLabelScanEnabled
@@ -67,11 +78,15 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
 
   const providerText = isLoading
     ? t('aiSettings.server.loading', { defaultValue: 'Checking…' })
-    : provider
-      ? `${provider.service_name}${provider.model_name ? ` · ${provider.model_name}` : ''}`
-      : t('aiSettings.server.none', {
-          defaultValue: 'No AI provider is configured',
-        });
+    : isError
+      ? t('aiSettings.server.error', {
+          defaultValue: 'Could not check the AI provider.',
+        })
+      : provider
+        ? `${provider.service_name}${provider.model_name ? ` · ${provider.model_name}` : ''}`
+        : t('aiSettings.server.none', {
+            defaultValue: 'No AI provider is configured',
+          });
 
   return (
     <View
@@ -121,10 +136,10 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
             </Text>
             <ToggleCard
               testID="ai-label-scan-switch"
-              title={t('foodSettings.onDeviceLabelScan.title', {
+              title={t('aiSettings.onDevice.labelScan.title', {
                 defaultValue: 'Scan Labels On Device',
               })}
-              description={t('foodSettings.onDeviceLabelScan.description', {
+              description={t('aiSettings.onDevice.labelScan.description', {
                 defaultValue:
                   'Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead.',
               })}

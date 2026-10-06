@@ -89,7 +89,7 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
             )
           : null;
 
-      let bgColor = 'bg-surface-raised';
+      let bgColor = 'bg-raised';
       let textColor = 'text-text-muted';
       if (isFree) {
         bgColor = 'bg-emerald-500/15 border border-emerald-500/30';
@@ -202,7 +202,7 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
                   date: entry.entry_date,
                 })
               }
-              className="flex-row items-center justify-between p-2.5 rounded-lg bg-surface-raised border border-border"
+              className="flex-row items-center justify-between p-2.5 rounded-lg bg-raised border border-border"
             >
               <View className="flex-row items-center flex-1 mr-2">
                 <Text
@@ -213,8 +213,8 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
                     t('symptoms.symptom', { defaultValue: 'Symptom' })}
                 </Text>
                 {entry.severity !== null && (
-                  <View className="bg-primary/10 px-2 py-0.5 rounded-md">
-                    <Text className="text-[11px] font-semibold text-primary">
+                  <View className="bg-accent-primary/10 px-2 py-0.5 rounded-md">
+                    <Text className="text-[11px] font-semibold text-accent-primary">
                       {entry.severity}/10
                     </Text>
                   </View>
@@ -269,7 +269,7 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
           <View className="flex-row items-center space-x-1.5">
             <TouchableOpacity
               onPress={() => markFree.mutate(selectedDate)}
-              className="px-2.5 py-1.5 rounded-lg bg-surface-raised border border-border"
+              className="px-2.5 py-1.5 rounded-lg bg-raised border border-border"
             >
               <Text className="text-xs font-semibold text-text-secondary">
                 {t('symptoms.markFree', { defaultValue: 'Mark Free' })}
@@ -279,9 +279,9 @@ export default function SymptomsCard({ navigation, date }: SymptomsCardProps) {
               onPress={() =>
                 navigation.navigate('SymptomLog', { date: selectedDate })
               }
-              className="px-2.5 py-1.5 rounded-lg bg-primary ml-1.5"
+              className="px-2.5 py-1.5 rounded-lg bg-accent-primary ml-1.5"
             >
-              <Text className="text-xs font-semibold text-primary-foreground">
+              <Text className="text-xs font-semibold text-white">
                 {t('symptoms.logShort', { defaultValue: '+ Log' })}
               </Text>
             </TouchableOpacity>

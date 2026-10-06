@@ -158,3 +158,96 @@ export function buildCaloriesBarLayout(
     };
   });
 }
+
+/** The highest value the goal line's y-axis needs to reach, so the axis still covers a
+ * goal that exceeds every logged day -- the same "nice round scale up to the goal"
+ * behavior `TrendBarChart` uses for Steps/Hydration, generalized from one scalar goal to
+ * the highest value anywhere in the per-day array. */
+export function resolveEffectiveMaxCalories(
+  dataMax: number,
+  goals: (number | null | undefined)[]
+): number {
+  const positiveGoals = goals.filter(
+    (goal): goal is number => goal != null && goal > 0
+  );
+  return positiveGoals.length > 0
+    ? Math.max(dataMax, ...positiveGoals)
+    : dataMax;
+}
+
+export interface CaloriesGoalSegment {
+  p1: { x: number; y: number };
+  p2: { x: number; y: number };
+}
+
+/**
+ * Builds the dashed goal line's drawable segments: one flat hold per day at that day's
+ * resolved goal, plus a vertical riser wherever the value changed -- the Skia-canvas
+ * equivalent of `TrendGoalLine`'s `stepAfter` curve, since this chart draws its own
+ * columns rather than going through `CartesianChart`. Returns `null` when no day has a
+ * usable (positive) goal, matching `TrendGoalLine`'s "draw nothing" rule.
+ *
+ * Two edge segments extend the first and last resolved values out to the plot's left/right
+ * bounds, the same way `TrendGoalLine` extends its own line to the chart edges.
+ */
+export function buildCaloriesGoalSegments(
+  columns: CaloriesBarColumn[],
+  goals: (number | null | undefined)[],
+  maxCalories: number,
+  plotWidth: number,
+  plotHeight: number
+): CaloriesGoalSegment[] | null {
+  if (maxCalories <= 0) {
+    return null;
+  }
+
+  const yFor = (goal: number) => plotHeight - (goal / maxCalories) * plotHeight;
+
+  const resolved = columns
+    .map((column) => ({
+      x: column.x + column.width / 2,
+      goal: goals[column.dayIndex],
+    }))
+    .filter(
+      (entry): entry is { x: number; goal: number } =>
+        entry.goal != null && entry.goal > 0
+    );
+
+  if (resolved.length === 0) {
+    return null;
+  }
+
+  const segments: CaloriesGoalSegment[] = [];
+  const firstY = yFor(resolved[0].goal);
+  segments.push({
+    p1: { x: 0, y: firstY },
+    p2: { x: resolved[0].x, y: firstY },
+  });
+
+  for (let i = 0; i < resolved.length; i++) {
+    const current = resolved[i];
+    const currentY = yFor(current.goal);
+
+    if (i < resolved.length - 1) {
+      const next = resolved[i + 1];
+      const nextY = yFor(next.goal);
+      segments.push({
+        p1: { x: current.x, y: currentY },
+        p2: { x: next.x, y: currentY },
+      });
+      if (nextY !== currentY) {
+        segments.push({
+          p1: { x: next.x, y: currentY },
+          p2: { x: next.x, y: nextY },
+        });
+      }
+    } else {
+      segments.push({
+        p1: { x: current.x, y: currentY },
+        p2: { x: plotWidth, y: currentY },
+      });
+    }
+  }
+
+  return segments;
+}

@@ -1,5 +1,10 @@
-import type { ExerciseEntryHrZones, GpsTrackPoint } from '@workspace/shared';
+import type {
+  ExerciseEntryHrZones,
+  GpsTrackPoint,
+  IndividualSessionResponse,
+} from '@workspace/shared';
 import {
+  cardioSessionFromDiaryEntry,
   gpsHeartRateSeries,
   combinedHeartRateZoneRows,
   heartRateZoneRows,
@@ -199,5 +204,76 @@ describe('combinedHeartRateZoneRows', () => {
       { zone: 1, lowerBpm: 100, upperBpm: null, seconds: 0, share: 0 },
     ]);
     expect(combinedHeartRateZoneRows([])).toEqual([]);
+  });
+});
+
+describe('cardioSessionFromDiaryEntry', () => {
+  const entry = (
+    overrides: Partial<IndividualSessionResponse> = {}
+  ): IndividualSessionResponse =>
+    ({
+      type: 'individual',
+      id: 'e1',
+      name: 'Stair Climbing',
+      entry_date: '2026-10-01',
+      entry_time: '07:30:00',
+      duration_minutes: 20,
+      calories_burned: 150,
+      avg_heart_rate: 128,
+      distance: 2,
+      source: 'apple_health',
+      notes: null,
+      category: null,
+      sets: [],
+      exercise_snapshot: null,
+      ...overrides,
+    }) as IndividualSessionResponse;
+
+  it('maps a synced workout, converting distance to the display unit', () => {
+    const item = cardioSessionFromDiaryEntry(entry(), 'miles');
+    expect(item).toMatchObject({
+      id: 'e1',
+      exerciseName: 'Stair Climbing',
+      entryDate: '2026-10-01',
+      durationMinutes: 20,
+      avgHeartRate: 128,
+      distanceMeters: 2000,
+    });
+    expect(item!.distanceFormatted).toBeCloseTo(1.243, 2);
+  });
+
+  it('leaves in-app entries on the basic screen', () => {
+    for (const source of [
+      'manual',
+      'Manual',
+      'sparky',
+      'workout plan',
+      null,
+      undefined,
+    ]) {
+      expect(cardioSessionFromDiaryEntry(entry({ source }), 'km')).toBeNull();
+    }
+  });
+
+  it('titles a nameless synced workout', () => {
+    const item = cardioSessionFromDiaryEntry(
+      entry({ name: null, category: null, exercise_snapshot: null }),
+      'km'
+    );
+    expect(item?.exerciseName).toBe('Workout');
+  });
+
+  it('leaves strength sessions on the basic screen', () => {
+    const sets = [{ weight: 50, reps: 8 }] as IndividualSessionResponse['sets'];
+    expect(cardioSessionFromDiaryEntry(entry({ sets }), 'km')).toBeNull();
+  });
+
+  it('leaves a weight_reps snapshot with no sets on the basic screen', () => {
+    const exercise_snapshot = {
+      modality: 'weight_reps',
+    } as IndividualSessionResponse['exercise_snapshot'];
+    expect(
+      cardioSessionFromDiaryEntry(entry({ sets: [], exercise_snapshot }), 'km')
+    ).toBeNull();
   });
 });

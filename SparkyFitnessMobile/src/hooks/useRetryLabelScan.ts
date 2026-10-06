@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { scanNutritionLabel } from '../services/api/externalFoodSearchApi';
@@ -7,6 +7,8 @@ import {
   scanLabelOnDevice,
 } from '../services/onDeviceLabelScan';
 import {
+  clearLabelScanSession,
+  getLabelScanGeneration,
   getLabelScanPhoto,
   rememberLabelScan,
   type LabelScanSource,
@@ -36,6 +38,9 @@ export function useRetryLabelScan(
   );
   const source = params.labelScanSource;
   const [hasPhoto] = useState(() => getLabelScanPhoto() != null);
+  // Free the photo when the form closes, saved or not.
+  const [generation] = useState(getLabelScanGeneration);
+  useEffect(() => () => clearLabelScanSession(generation), [generation]);
   // Going to the server needs nothing; coming back needs the on-device scan.
   const canRetry =
     hasPhoto &&
@@ -46,6 +51,7 @@ export function useRetryLabelScan(
 
   const retry = async () => {
     const photo = getLabelScanPhoto();
+    const capturedGeneration = getLabelScanGeneration();
     if (!photo || !source || retrying) return;
     const to: LabelScanSource = source === 'device' ? 'server' : 'device';
     setRetrying(true);
@@ -54,6 +60,8 @@ export function useRetryLabelScan(
         to === 'server'
           ? await scanNutritionLabel(photo, 'image/jpeg')
           : await scanLabelOnDevice(photo);
+      // A newer scan replaced this photo while the read was in flight.
+      if (getLabelScanGeneration() !== capturedGeneration) return;
       if (!result) {
         Toast.show({
           type: 'error',

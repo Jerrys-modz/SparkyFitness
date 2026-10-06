@@ -486,6 +486,12 @@ private struct CurrentSetView: View {
     /// or drag has stepped to. Above the crown's range this stays on the real
     /// value; the binding itself cannot.
     @State private var crownBaseline: Double = 0
+    /// The same number without rounding. The crown reports in-between values
+    /// while it turns (10.3 reps), and a whole rep only shows up once enough of
+    /// them add up, so the turns are summed here and `crownBaseline` is this
+    /// rounded to a step. Stepping from the rounded number alone drops every
+    /// turn smaller than half a step, which is how reps stopped moving.
+    @State private var crownExact: Double = 0
     /// Last binding sample. A rebase writes this before moving the binding so
     /// that correction is not counted as a turn.
     @State private var crownSeen: Double?
@@ -503,6 +509,7 @@ private struct CurrentSetView: View {
     @FocusState private var crownFocused: Bool
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
+    private var carryUnit: CarryUnit { checkIn.context.effectiveCarryUnit }
     private var inputStyle: SetInputStyle { checkIn.context.effectiveSetInputStyle }
 
     private var supersetColor: Color? {
@@ -511,8 +518,14 @@ private struct CurrentSetView: View {
     }
 
     private enum EditableField: Identifiable {
-        case weight, reps
-        var id: Int { self == .weight ? 0 : 1 }
+        case weight, reps, distance
+        var id: Int {
+            switch self {
+            case .weight: return 0
+            case .reps: return 1
+            case .distance: return 2
+            }
+        }
     }
 
     var body: some View {
@@ -534,15 +547,28 @@ private struct CurrentSetView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
+            let values = store.values(for: step)
+            let holdSeconds = store.targetDurationSec(for: step)
+            let timed = store.isTimed(step)
             HStack(spacing: 4) {
-                valueBox(.weight)
-                valueBox(.reps)
+                if !timed || values.weightKg != nil || store.isWeightedHold(step) {
+                    valueBox(.weight)
+                }
+                if let holdSeconds {
+                    HoldCountdown(setId: step.plannedSet.setId, totalSeconds: holdSeconds)
+                } else if timed {
+                    HoldStopwatch(setId: step.plannedSet.setId)
+                } else if store.isCarry(step) {
+                    valueBox(.distance)
+                } else {
+                    valueBox(.reps)
+                }
             }
             .focusable(crownField != nil)
             .focused($crownFocused)
             .digitalCrownRotation(
                 $crownValue,
-                from: 0,
+                from: minValue(for: crownField ?? .weight),
                 through: maxValue(for: crownField ?? .weight),
                 by: stepSize(for: crownField ?? .weight),
                 // Low: at medium a small turn ran several plates past the one
@@ -578,14 +604,21 @@ private struct CurrentSetView: View {
         // `crownStep`, captured when the box was selected.
         .onChange(of: step.plannedSet.setId) { endCrownEditing() }
         // crownValue is a number in the unit it was selected in. Committing
-        // after the phone switches kg/lb would save that number in the new unit.
-        .onChange(of: unit) { discardCrownWeightEdit() }
+        // after the phone switches kg/lb or m/yd would save that number in the new unit.
+        .onChange(of: unit) { discardCrownEdit(for: .weight) }
+        .onChange(of: carryUnit) {
+            discardCrownEdit(for: .distance)
+            // The keypad keeps the number typed in the old unit. Dismiss it
+            // instead of letting OK write that number through the new one.
+            if editing == .distance { editing = nil }
+        }
         .onDisappear { endCrownEditing() }
         .sheet(item: $editing) { field in
             NumericKeypadView(
                 title: title(for: field),
                 initial: storedValue(for: field),
-                allowsDecimal: field == .weight
+                allowsDecimal: field == .weight || field == .distance,
+                allowsNegative: field == .weight && store.isBodyweight(step)
             ) { entered in
                 write(entered, to: field)
                 editing = nil
@@ -598,8 +631,11 @@ private struct CurrentSetView: View {
         let shown = isSelected && crownAdjusted
             ? editedValue(for: field)
             : storedValue(for: field)
+        let text = field == .weight && store.isBodyweight(step)
+            ? Self.bodyweightText(shown)
+            : Self.format(shown)
         return ValueBox(
-            value: Self.format(shown),
+            value: text,
             unit: title(for: field),
             isSelected: isSelected
         ) {
@@ -619,10 +655,11 @@ private struct CurrentSetView: View {
                     let steps = (-gesture.translation.height / 12).rounded()
                     guard steps != dragSteps else { return }
                     dragSteps = steps
-                    crownBaseline = max(start + steps * stepSize(for: field), 0)
+                    crownBaseline = max(start + steps * stepSize(for: field), minValue(for: field))
+                    crownExact = crownBaseline
                     crownAdjusted = true
                     if crownSeen == nil {
-                        crownSeen = min(max(crownValue, 0), maxValue(for: field))
+                        crownSeen = min(max(crownValue, minValue(for: field)), maxValue(for: field))
                     }
                     parkCrown(for: field)
                     scheduleCommit()
@@ -651,11 +688,13 @@ private struct CurrentSetView: View {
         let stored = storedValue(for: field)
         crownStep = step
         crownBaseline = stored ?? 0
+        crownExact = stored ?? 0
         crownAdjusted = false
         // Sit the sample on the cap when the stored number is above it, so
         // the clamp that follows is not counted as a turn. The first real
         // detent then steps from the stored number.
-        crownSeen = min(max(stored ?? 0, 0), maxValue(for: field))
+        let floor = minValue(for: field)
+        crownSeen = min(max(stored ?? 0, floor), maxValue(for: field))
         crownValue = stored ?? 0
         crownField = field
         // Next turn of the run loop: the row only becomes focusable once
@@ -665,12 +704,13 @@ private struct CurrentSetView: View {
 
     /// Each crown event is a step from the stored number. The binding clamps
     /// an above-range value onto its ceiling, and that jump is not a turn.
-    /// When the binding then runs out of room at zero, it is parked back on
-    /// the value so the same gesture can keep stepping down to zero.
+    /// When the binding then runs out of room at its floor, it is parked back
+    /// on the value so the same gesture can keep stepping down to that floor.
     private func noteCrownChange() {
         guard let field = crownField else { return }
         let ceiling = maxValue(for: field)
-        let crown = min(max(crownValue, 0), ceiling)
+        let floor = minValue(for: field)
+        let crown = min(max(crownValue, floor), ceiling)
         let previous = crownSeen
         crownSeen = crown
         guard let previous else { return }
@@ -685,7 +725,8 @@ private struct CurrentSetView: View {
         }
 
         let step = stepSize(for: field)
-        let next = max(((editedValue(for: field) + delta) / step).rounded() * step, 0)
+        crownExact = max(crownExact + delta, floor)
+        let next = max((crownExact / step).rounded() * step, floor)
         guard abs(next - crownBaseline) >= 0.000_1 else { return }
         crownBaseline = next
         crownAdjusted = true
@@ -693,16 +734,18 @@ private struct CurrentSetView: View {
         parkCrown(for: field)
     }
 
-    /// The binding only spans 0...max. Park it on the current value once it
-    /// hits zero while that value is still above zero, so the next detent is
-    /// another single step and the edit can reach zero.
+    /// The binding spans floor...max. Park it on the current value once it
+    /// hits the floor while that value is still above it, so the next detent
+    /// is another single step and the edit can reach the floor. The floor is
+    /// zero, or the negative cap for a bodyweight weight.
     private func parkCrown(for field: EditableField) {
         let ceiling = maxValue(for: field)
+        let floor = minValue(for: field)
         let step = stepSize(for: field)
         let value = editedValue(for: field)
-        let crown = min(max(crownValue, 0), ceiling)
-        guard value > step, crown <= step * 0.5 else { return }
-        let parked = min(value, ceiling)
+        let crown = min(max(crownValue, floor), ceiling)
+        guard value > floor + step, crown <= floor + step * 0.5 else { return }
+        let parked = min(max(value, floor), ceiling)
         guard parked > crown + 0.000_1 else { return }
         crownSeen = parked
         crownValue = parked
@@ -711,14 +754,19 @@ private struct CurrentSetView: View {
     private func scheduleCommit() {
         guard let field = crownField else { return }
         let unitAtSchedule = unit
+        let carryUnitAtSchedule = carryUnit
         pendingCommit?.cancel()
         pendingCommit = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
-            // The unit may have changed during the wait. A weight number from
-            // the old unit must not be written through the new one.
-            guard field != .weight || unitAtSchedule == unit else {
-                discardCrownWeightEdit()
+            // The unit may have changed during the wait. A number from the
+            // old unit must not be written through the new one.
+            if field == .weight && unitAtSchedule != unit {
+                discardCrownEdit(for: .weight)
+                return
+            }
+            if field == .distance && carryUnitAtSchedule != carryUnit {
+                discardCrownEdit(for: .distance)
                 return
             }
             commitCrownValue()
@@ -746,10 +794,10 @@ private struct CurrentSetView: View {
         crownStep = nil
     }
 
-    /// Drops a weight edit without saving. Used when the display unit changes
-    /// under a selected weight box.
-    private func discardCrownWeightEdit() {
-        guard crownField == .weight else { return }
+    /// Drops an in-progress crown edit without saving. Used when the display
+    /// unit changes under a selected weight or distance box.
+    private func discardCrownEdit(for field: EditableField) {
+        guard crownField == field else { return }
         pendingCommit?.cancel()
         pendingCommit = nil
         crownField = nil
@@ -769,6 +817,10 @@ private struct CurrentSetView: View {
         switch field {
         case .weight: return values.weightKg.map(unit.fromKg)
         case .reps: return values.reps
+        case .distance:
+            // Rounded to a tenth so a stored km value does not show float dust
+            // ("35.00000001") after a round trip through the unit.
+            return values.distanceKm.map { (carryUnit.fromKm($0) * 10).rounded() / 10 }
         }
     }
 
@@ -782,27 +834,55 @@ private struct CurrentSetView: View {
             store.setValue(for: step.plannedSet.setId, weightKg: unit.toKg(value))
         case .reps:
             store.setValue(for: step.plannedSet.setId, reps: value)
+        case .distance:
+            // Entered in metres or yards; the phone and the diary store km.
+            store.setValue(for: step.plannedSet.setId, distanceKm: carryUnit.toKm(value))
         }
     }
 
     private func title(for field: EditableField) -> String {
-        field == .weight ? (unit == .lbs ? "LB" : "KG") : "REPS"
+        switch field {
+        case .weight: return unit == .lbs ? "LB" : "KG"
+        case .reps: return "REPS"
+        case .distance: return carryUnit.title
+        }
     }
 
     /// Half a pound or kilo per crown detent, as Hevy does; a rep at a time.
     private func stepSize(for field: EditableField) -> Double {
-        field == .weight ? 0.5 : 1
+        switch field {
+        case .weight: return 0.5
+        case .reps: return 1
+        case .distance: return 5
+        }
     }
 
     private func maxValue(for field: EditableField) -> Double {
-        field == .weight ? (unit == .lbs ? 1500 : 700) : 200
+        switch field {
+        case .weight: return unit == .lbs ? 1500 : 700
+        case .reps: return 200
+        case .distance: return 5000
+        }
     }
 
     /// The number the crown or drag has stepped to. Not capped at the crown's
     /// max: a stored value above that max stays there until a step moves it.
     private func editedValue(for field: EditableField) -> Double {
         let step = stepSize(for: field)
-        return max((crownBaseline / step).rounded() * step, 0)
+        return max((crownBaseline / step).rounded() * step, minValue(for: field))
+    }
+
+    /// Bodyweight weight is a signed change. Everything else stops at zero.
+    private func minValue(for field: EditableField) -> Double {
+        field == .weight && store.isBodyweight(step) ? -maxValue(for: .weight) : 0
+    }
+
+    /// A bodyweight set's weight as a change to body weight: "BW +10",
+    /// "BW −20", or plain "BW" when nothing is added or taken off.
+    private static func bodyweightText(_ value: Double?) -> String {
+        guard let value, value != 0 else { return "BW" }
+        let magnitude = format(abs(value))
+        return value > 0 ? "BW +\(magnitude)" : "BW −\(magnitude)"
     }
 
     /// Whole numbers lose the decimal point — "60kg", not "60.0kg" — but a
@@ -812,6 +892,95 @@ private struct CurrentSetView: View {
         return value == value.rounded()
             ? String(Int(value))
             : String(format: "%.1f", value)
+    }
+}
+
+/// Hold countdown for a duration set. Tap starts it; at 0:00 it buzzes
+/// through the same rest-finished hook. `TimelineView` rather than a stored
+/// timer publisher: the store republishes every second and would freeze a
+/// `Timer.publish` the way the rest screen used to.
+private struct HoldCountdown: View {
+    let setId: String
+    let totalSeconds: Int
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let started = store.holdSetId == setId && store.holdEndsAt != nil
+            let remaining = started
+                ? (store.holdRemaining(for: setId, now: context.date) ?? 0)
+                : totalSeconds
+            VStack(spacing: 2) {
+                Text(Self.clock(remaining))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if !started {
+                    Button("Start") {
+                        store.startHold(for: setId, seconds: totalSeconds)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+    }
+}
+
+/// Count-up timer for a duration set with no planned length. Start begins it;
+/// ticking the set logs the elapsed seconds.
+private struct HoldStopwatch: View {
+    let setId: String
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = store.stopwatchElapsed(for: setId, now: context.date)
+            VStack(spacing: 2) {
+                Text(Self.clock(elapsed ?? 0))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                if elapsed == nil {
+                    if let previous = store.previousDurationSec(forSetId: setId) {
+                        Text("Last \(Self.clock(previous))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Button("Start") {
+                        store.startStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                } else if store.isStopwatchRunning(for: setId) {
+                    Button("Stop") {
+                        store.stopStopwatch(for: setId)
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private static func clock(_ seconds: Int) -> String {
+        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
     }
 }
 
@@ -1002,18 +1171,36 @@ private struct RestView: View {
     private func nextTargetLabel(for step: WorkoutStep) -> String {
         let values = store.values(for: step)
         let unit = checkIn.context.effectiveWeightUnit
+        if let seconds = store.targetDurationSec(for: step) {
+            let clock = String(format: "%d:%02d", seconds / 60, seconds % 60)
+            if let weight = values.weightKg {
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
+            }
+            return "\(step.label) · \(clock)"
+        }
+        if store.isCarry(step), let km = values.distanceKm {
+            let carry = checkIn.context.effectiveCarryUnit
+            let distance = Int(carry.fromKm(km).rounded())
+            if let weight = values.weightKg {
+                return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(distance) \(carry.suffix)"
+            }
+            return "\(step.label) · \(distance) \(carry.suffix)"
+        }
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):
-            let shown = unit.fromKg(weight)
-            let weightText = shown == shown.rounded()
-                ? String(Int(shown))
-                : String(format: "%.1f", shown)
-            return "\(step.label) · \(weightText)\(unit.suffix) × \(Int(reps))"
+            return "\(step.label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(Int(reps))"
         case let (nil, reps?):
             return "\(step.label) · \(Int(reps)) reps"
         default:
             return step.label
         }
+    }
+
+    private static func weightText(_ kg: Double, unit: WeightUnit) -> String {
+        let shown = unit.fromKg(kg)
+        return shown == shown.rounded()
+            ? String(Int(shown))
+            : String(format: "%.1f", shown)
     }
 }
 
@@ -1024,6 +1211,8 @@ private struct NumericKeypadView: View {
     let title: String
     let initial: Double?
     let allowsDecimal: Bool
+    /// Shows a ± key so an assisted bodyweight set can be entered below zero.
+    var allowsNegative: Bool = false
     let onCommit: (Double) -> Void
 
     @State private var entry: String = ""
@@ -1045,6 +1234,13 @@ private struct NumericKeypadView: View {
                 Text(title)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
+                if allowsNegative {
+                    Button("±", action: Haptics.tapping(toggleSign))
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 6)
+                        .background(Color.gray.opacity(0.25), in: Capsule())
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -1091,12 +1287,24 @@ private struct NumericKeypadView: View {
             : String(format: "%.1f", initial)
     }
 
+    /// Flips the typed value between added (+) and assisted (−). With nothing
+    /// typed yet a lone "-" waits for the digits.
+    private func toggleSign() {
+        if entry.hasPrefix("-") {
+            entry.removeFirst()
+        } else {
+            entry = "-" + entry
+        }
+    }
+
     private func press(_ key: String) {
         switch key {
         case "⌫":
             if !entry.isEmpty { entry.removeLast() }
         case ".":
-            if !entry.contains(".") { entry += entry.isEmpty ? "0." : "." }
+            if !entry.contains(".") {
+                entry += (entry.isEmpty || entry == "-") ? "0." : "."
+            }
         default:
             entry += key
         }
