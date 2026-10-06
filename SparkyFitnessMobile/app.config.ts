@@ -176,6 +176,11 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
         // string.
         NSCameraUsageDescription:
           'SparkyFitness uses the camera to photograph foods and meals, and to scan barcodes and nutrition labels.',
+        // GPS activity recording. Only while-using access is requested: the
+        // `location` background mode below keeps an already-started recording
+        // going with the screen locked, and shows the blue status-bar pill.
+        NSLocationWhenInUseUsageDescription:
+          'SparkyFitness uses your location to record the route, distance and pace of your walks, runs and rides.',
         NSPhotoLibraryUsageDescription:
           'SparkyFitness lets you choose photos from your library for your foods, meals, and diary entries.',
         NSAppTransportSecurity: {
@@ -192,7 +197,7 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
         // silent track playing during a rest, so the chime still sounds with
         // the app in the background. Nothing plays in the background unless
         // that setting is on and a rest is running.
-        UIBackgroundModes: ['audio'],
+        UIBackgroundModes: ['audio', 'location'],
         // Lets the Siri and Shortcuts actions and the Lock Screen controls find
         // the Keychain group the app shares with the widget extension.
         // Read by the Siri and Shortcuts actions to find the widget snapshots.
@@ -231,6 +236,23 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
           microphonePermission: false,
           recordAudioAndroid: false,
           enableBackgroundPlayback: false,
+        },
+      ],
+      [
+        // Recording only runs while the person is on a started activity, from a
+        // foreground service (Android) or the `location` background mode (iOS,
+        // set in infoPlist above). That needs no ACCESS_BACKGROUND_LOCATION,
+        // the permission Google Play reviews closely, so it stays off.
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'SparkyFitness uses your location to record the route, distance and pace of your walks, runs and rides.',
+          locationAlwaysAndWhenInUsePermission: false,
+          locationAlwaysPermission: false,
+          motionUsagePermission: false,
+          isAndroidForegroundServiceEnabled: true,
+          isAndroidBackgroundLocationEnabled: false,
+          isIosBackgroundLocationEnabled: false,
         },
       ],
       './plugins/withGlanceAndroidSupport',

@@ -104,6 +104,7 @@ import {
   SafeNutrientTrends,
   SafeExerciseStatistics,
   SafeCardioSession,
+  SafeRecordActivity,
   SafeFamilyMembers,
   SafeFamilyDiary,
   SafeFamilyMealDetail,
@@ -307,6 +308,7 @@ function AppContent() {
     handleAddProgressPhotos,
     handleAddSymptoms,
     handleAddMood,
+    handleRecordActivity,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
@@ -752,6 +754,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.cardioSession', { defaultValue: 'Cardio Session' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
+            name="RecordActivity"
+            component={SafeRecordActivity}
+            options={createStackScreenOptions(t('screens.recordActivity', { defaultValue: 'Record Activity' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
             name="ExerciseSearch"
             component={SafeExerciseSearch}
             options={createStackScreenOptions(t('screens.selectExercise', { defaultValue: 'Select Exercise' }), {
@@ -1067,6 +1074,7 @@ function AppContent() {
           onAddSymptoms={handleAddSymptoms}
           onAddMood={handleAddMood}
           onAddMindfulness={handleAddMindfulness}
+          onRecordActivity={handleRecordActivity}
           onAskSparky={handleAskSparky}
           onOpenCycle={handleOpenCycle}
           showCycleCard={cycleEnabled}

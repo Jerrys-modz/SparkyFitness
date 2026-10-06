@@ -34,6 +34,7 @@ interface AddSheetProps {
   onAddSymptoms?: () => void;
   onAddMood?: () => void;
   onAddMindfulness?: () => void;
+  onRecordActivity?: () => void;
   onOpenCycle?: () => void;
   showCycleCard?: boolean;
   cycleLabel?: string;
@@ -62,6 +63,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddSymptoms,
       onAddMood,
       onAddMindfulness,
+      onRecordActivity,
       onOpenCycle,
       showCycleCard,
       cycleLabel,
@@ -368,6 +370,15 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                 {renderCard(cards[2])}
                 {renderCard(cards[3])}
               </View>
+              {onRecordActivity
+                ? renderSecondaryRow(
+                    t('addSheet.recordActivity', {
+                      defaultValue: 'Record Activity',
+                    }),
+                    'location',
+                    onRecordActivity
+                  )
+                : null}
               {renderSecondaryRow(
                 t('addSheet.progressPhotos', {
                   defaultValue: 'Progress Photos',

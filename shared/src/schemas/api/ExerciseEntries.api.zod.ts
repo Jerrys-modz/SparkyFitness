@@ -2,6 +2,7 @@ import { z } from "zod";
 import { paginationSchema } from "./Pagination.api.zod.ts";
 import { exerciseModalitySchema } from "./Exercises.api.zod.ts";
 import { workoutFormatSchema } from "./WorkoutPresets.api.zod.ts";
+import { gpsTrackPointSchema } from "../database/ExerciseEntryGpsPoints.zod.ts";
 
 // --- Query contracts ---
 
@@ -664,8 +665,34 @@ export type ExerciseSnapshotResponse = z.infer<
 export type EntryExerciseSnapshotResponse = z.infer<
   typeof entryExerciseSnapshotResponseSchema
 >;
+// A GPS track recorded on the phone, attached to an entry created beforehand
+// through the ordinary create endpoint. Splits are sent as bare time windows;
+// the server derives per-lap distance, pace and elevation from the points, the
+// same way it does for tracks that arrive through health sync.
+export const attachExerciseEntryGpsTrackRequestSchema = z
+  .object({
+    // Two points minimum: a single fix draws no route and measures no distance.
+    // Capped well above a long recording (about 14 hours at one point per
+    // second) so one post cannot exhaust the parser.
+    points: z.array(gpsTrackPointSchema).min(2).max(50000),
+    laps: z
+      .array(
+        z.object({
+          lap_index: z.number().int().positive(),
+          start_time: z.string(),
+          end_time: z.string(),
+        }),
+      )
+      .max(1000)
+      .optional(),
+  })
+  .strict();
+
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
+>;
+export type AttachExerciseEntryGpsTrackRequest = z.infer<
+  typeof attachExerciseEntryGpsTrackRequestSchema
 >;
 export type HeartRateSampleRequest = z.infer<
   typeof heartRateSampleRequestSchema

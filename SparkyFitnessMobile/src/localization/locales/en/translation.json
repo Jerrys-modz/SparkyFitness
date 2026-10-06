@@ -501,7 +501,8 @@
     "syncHealth": "Sync Health Data",
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
-    "mindfulness": "Mindfulness"
+    "mindfulness": "Mindfulness",
+    "recordActivity": "Record Activity"
   },
   "screens": {
     "foods": "Foods",
@@ -606,7 +607,8 @@
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
-    "warmupSettings": "Warm-up Calculator"
+    "warmupSettings": "Warm-up Calculator",
+    "recordActivity": "Record Activity"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6236,5 +6238,68 @@
       "resume": "Resume",
       "finishAndSave": "Finish & Save"
     }
+  },
+  "recordActivity": {
+    "notification": {
+      "title": "Recording your activity",
+      "bodyWalk": "Tracking your walk with GPS",
+      "bodyRun": "Tracking your run with GPS",
+      "bodyRide": "Tracking your ride with GPS"
+    },
+    "unitMi": "mi",
+    "unitKm": "km",
+    "errors": {
+      "start": "Could not start recording",
+      "resume": "Could not resume recording",
+      "finish": "Could not finish recording",
+      "discard": "Could not discard recording",
+      "save": "Could not save activity",
+      "saveHint": "Your recording is kept on this phone. Try again.",
+      "pause": "Could not pause recording"
+    },
+    "discard": {
+      "title": "Discard this activity?",
+      "message": "The recorded route and stats will be deleted.",
+      "confirm": "Discard",
+      "action": "Discard"
+    },
+    "saved": "Activity saved",
+    "intro": "Record a walk, run or ride with your phone’s GPS. Recording continues with the screen locked.",
+    "activity": {
+      "walk": "Walk",
+      "run": "Run",
+      "ride": "Ride"
+    },
+    "permission": {
+      "denied": "SparkyFitness needs location access to record your route. You can allow it in Settings.",
+      "servicesOff": "Location services are turned off. Turn them on in Settings to record.",
+      "openSettings": "Open Settings"
+    },
+    "androidTips": {
+      "title": "Recording with the screen off",
+      "body": "Some phones stop apps that run in the background. If a recording has gaps, set SparkyFitness to “Unrestricted” in the phone’s battery settings.",
+      "link": "Phone-specific steps"
+    },
+    "start": "Start",
+    "unitFt": "ft",
+    "unitM": "m",
+    "perUnit": "/{{unit}}",
+    "routeA11y": "Map of your route so far",
+    "waitingForGps": "Waiting for a GPS fix…",
+    "status": {
+      "paused": "Paused",
+      "finished": "Finished"
+    },
+    "time": "Time",
+    "distance": "Distance",
+    "avgPace": "Avg pace",
+    "elevationLoss": "Elevation loss",
+    "currentPace": "Pace",
+    "elevationGain": "Elevation gain",
+    "splits": "Splits",
+    "save": "Save activity",
+    "pause": "Pause",
+    "resume": "Resume",
+    "finish": "Finish"
   }
 }
