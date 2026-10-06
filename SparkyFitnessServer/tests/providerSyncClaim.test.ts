@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import externalProviderRepository from '../models/externalProviderRepository.js';
 import { log } from '../config/logging.js';
 import {
   SYNC_CLAIM_EXPIRY_MINUTES,
+  SYNC_CLAIM_RENEW_MINUTES,
   startProviderSync,
 } from '../services/providerSyncClaim.js';
 
@@ -10,6 +11,7 @@ vi.mock('../models/externalProviderRepository.js', () => ({
   default: {
     claimProviderSyncRows: vi.fn(),
     releaseProviderSyncRows: vi.fn(),
+    renewProviderSyncRows: vi.fn(),
   },
 }));
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
@@ -150,5 +152,101 @@ describe('startProviderSync', () => {
       '[SYNC] Failed to release provider sync claim:',
       expect.any(Error)
     );
+  });
+
+  describe('while the sync runs', () => {
+    const renewEvery = SYNC_CLAIM_RENEW_MINUTES * 60 * 1000;
+    let finish: (value: string) => void;
+    const longSync = () =>
+      new Promise<string>((resolve) => {
+        finish = resolve;
+      });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.mocked(
+        externalProviderRepository.claimProviderSyncRows
+      ).mockResolvedValue({ matched: 1, claimedIds: ['p1'] });
+      vi.mocked(
+        externalProviderRepository.renewProviderSyncRows
+      ).mockResolvedValue(['p1']);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('renews the claim and releases with the latest renewed time', async () => {
+      const started = await startProviderSync(target, longSync);
+      const [, claimedAt] = vi.mocked(
+        externalProviderRepository.claimProviderSyncRows
+      ).mock.calls[0];
+
+      await vi.advanceTimersByTimeAsync(renewEvery);
+      await vi.advanceTimersByTimeAsync(renewEvery);
+
+      const renewals = vi.mocked(
+        externalProviderRepository.renewProviderSyncRows
+      ).mock.calls;
+      expect(renewals).toHaveLength(2);
+      expect(renewals[0][1]).toBe(claimedAt);
+      expect(renewals[1][1]).toBe(renewals[0][2]);
+
+      finish('synced');
+      await started!.running;
+      expect(
+        externalProviderRepository.releaseProviderSyncRows
+      ).toHaveBeenCalledWith(['p1'], renewals[1][2]);
+
+      await vi.advanceTimersByTimeAsync(renewEvery);
+      expect(
+        externalProviderRepository.renewProviderSyncRows
+      ).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits for a renewal in flight before releasing', async () => {
+      let finishRenewal = () => {};
+      vi.mocked(
+        externalProviderRepository.renewProviderSyncRows
+      ).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishRenewal = () => resolve(['p1']);
+          })
+      );
+      const started = await startProviderSync(target, longSync);
+      await vi.advanceTimersByTimeAsync(renewEvery);
+
+      finish('synced');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(
+        externalProviderRepository.releaseProviderSyncRows
+      ).not.toHaveBeenCalled();
+
+      finishRenewal();
+      await started!.running;
+      const [, , renewedAt] = vi.mocked(
+        externalProviderRepository.renewProviderSyncRows
+      ).mock.calls[0];
+      expect(
+        externalProviderRepository.releaseProviderSyncRows
+      ).toHaveBeenCalledWith(['p1'], renewedAt);
+    });
+
+    it('warns when the claim was lost', async () => {
+      vi.mocked(
+        externalProviderRepository.renewProviderSyncRows
+      ).mockResolvedValue([]);
+      const started = await startProviderSync(target, longSync);
+
+      await vi.advanceTimersByTimeAsync(renewEvery);
+
+      expect(log).toHaveBeenCalledWith(
+        'warn',
+        '[SYNC] A running sync lost its provider sync claim.'
+      );
+      finish('synced');
+      await started!.running;
+    });
   });
 });

@@ -145,6 +145,40 @@ describe('provider sync claims in the database', () => {
     expect(await syncStartedAt(garminId)).toBeNull();
   });
 
+  it('keeps a renewed claim past the expiry, and only its holder can renew it', async () => {
+    if (!dbAvailable) return;
+    const claimedAt = new Date(
+      Date.now() - (SYNC_CLAIM_EXPIRY_MINUTES + 1) * 60 * 1000
+    );
+    await db.query(
+      'UPDATE external_data_providers SET sync_started_at = $1 WHERE id = $2',
+      [claimedAt, garminId]
+    );
+
+    const renewedAt = new Date();
+    expect(
+      await externalProviderRepository.renewProviderSyncRows(
+        [garminId],
+        claimedAt,
+        renewedAt
+      )
+    ).toEqual([garminId]);
+    expect(
+      await claimProviderSync({ userId, providerId: garminId })
+    ).toBeNull();
+    expect(
+      await externalProviderRepository.renewProviderSyncRows(
+        [garminId],
+        claimedAt,
+        new Date()
+      )
+    ).toEqual([]);
+    expect(await syncStartedAt(garminId)).toEqual(renewedAt);
+
+    await releaseProviderSync({ ids: [garminId], claimedAt: renewedAt });
+    expect(await syncStartedAt(garminId)).toBeNull();
+  });
+
   it('does not claim another user’s row by id', async () => {
     if (!dbAvailable) return;
 

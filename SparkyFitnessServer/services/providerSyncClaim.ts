@@ -14,9 +14,10 @@ export interface ProviderSyncClaim {
   claimedAt: Date;
 }
 
-// Long enough for a normal sync; a server that dies mid-sync frees the account
-// after this.
+// A server that dies mid-sync frees the account after this. A running sync
+// renews its claim well inside it, so a long sync never loses the claim.
 export const SYNC_CLAIM_EXPIRY_MINUTES = 30;
+export const SYNC_CLAIM_RENEW_MINUTES = 5;
 
 export const SYNC_ALREADY_RUNNING_MESSAGE =
   'A sync is already running for this account. Try again in a few minutes.';
@@ -75,9 +76,10 @@ export async function releaseProviderSync(
 
 /**
  * Claims the account and starts `sync`, or returns null when another sync
- * holds it. The claim is released when the sync settles, so a caller that
- * replies before the sync finishes still keeps the account claimed until then.
- * `running` is wrapped because awaiting a returned promise would wait for it.
+ * holds it. The claim is renewed while the sync runs and released when it
+ * settles, so a caller that replies before the sync finishes still keeps the
+ * account claimed until then. `running` is wrapped because awaiting a returned
+ * promise would wait for it.
  */
 export async function startProviderSync<T>(
   target: SyncClaimTarget,
@@ -85,10 +87,37 @@ export async function startProviderSync<T>(
 ): Promise<{ running: Promise<T> } | null> {
   const claim = await claimProviderSync(target);
   if (!claim) return null;
+  let renewal: Promise<void> = Promise.resolve();
+  const renew = async () => {
+    const renewedAt = new Date();
+    try {
+      const renewed = await externalProviderRepository.renewProviderSyncRows(
+        claim.ids,
+        claim.claimedAt,
+        renewedAt
+      );
+      if (renewed.length > 0) claim.claimedAt = renewedAt;
+      if (renewed.length < claim.ids.length) {
+        log('warn', '[SYNC] A running sync lost its provider sync claim.');
+      }
+    } catch (error) {
+      log('warn', '[SYNC] Failed to renew provider sync claim:', error);
+    }
+  };
+  const timer = setInterval(
+    () => {
+      renewal = renewal.then(renew);
+    },
+    SYNC_CLAIM_RENEW_MINUTES * 60 * 1000
+  );
+  timer.unref();
   const running = (async () => {
     try {
       return await sync();
     } finally {
+      clearInterval(timer);
+      // Release with the latest renewed time, not one a renewal is replacing.
+      await renewal;
       await releaseProviderSync(claim);
     }
   })();

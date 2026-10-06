@@ -789,6 +789,28 @@ async function releaseProviderSyncRows(
     client.release();
   }
 }
+// Moves this sync's claim to a new time so a long sync keeps it past the
+// expiry. Only rows still holding this sync's claim move; returns their ids.
+async function renewProviderSyncRows(
+  ids: string[],
+  claimedAt: Date,
+  renewedAt: Date
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const client = await getSystemClient();
+  try {
+    const result = await client.query(
+      `UPDATE external_data_providers
+       SET sync_started_at = $3
+       WHERE id = ANY($1::uuid[]) AND sync_started_at = $2
+       RETURNING id::text`,
+      [ids, claimedAt, renewedAt]
+    );
+    return result.rows.map((row: { id: string }) => row.id);
+  } finally {
+    client.release();
+  }
+}
 // A user's active providers of the given types, in cascade order (manual
 // sort_order first, then most recently created). Backs the chatbot
 // lookup_food_nutrition provider cascade.
@@ -1051,6 +1073,7 @@ export { getExternalDataProviderByUserIdAndProviderName };
 export { updateProviderLastSync };
 export { claimProviderSyncRows };
 export { releaseProviderSyncRows };
+export { renewProviderSyncRows };
 export { withProviderTokenLock };
 export { replaceGarminTokensIfUnchanged };
 export { getProvidersByType };
@@ -1073,6 +1096,7 @@ export default {
   updateProviderLastSync,
   claimProviderSyncRows,
   releaseProviderSyncRows,
+  renewProviderSyncRows,
   withProviderTokenLock,
   replaceGarminTokensIfUnchanged,
   getProvidersByType,
