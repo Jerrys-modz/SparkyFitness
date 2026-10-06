@@ -17,14 +17,12 @@ internal object ScreenshotSeed {
     val workout = intent.getStringExtra("sparky.workout") ?: "none"
     if (workout == "none") {
       WorkoutHolder.clearScreen()
-      WearHeartRate.bpm = 0
-      WearHeartRate.kcal = -1
+      WearHeartRate.show(0, -1)
       return
     }
     val plan = parsePlan(samplePlan()) ?: return
     WorkoutHolder.seed(plan, workout)
-    WearHeartRate.bpm = 142
-    WearHeartRate.kcal = 86
+    WearHeartRate.show(142, 86)
   }
 
   private fun sample(): WatchSnapshot {
