@@ -34,11 +34,13 @@ import medicationDisplayPreferenceRepository from '../../models/medicationDispla
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 import {
   instantToDay,
+  SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
   supplementLookupQuerySchema,
   todayInZone,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import { lookupSupplementByUpc } from '../../services/supplementLookupService.js';
+import { getActiveProvidersByTypes } from '../../models/externalProviderRepository.js';
 
 const router = express.Router();
 
@@ -645,12 +647,21 @@ const deleteEntry: RequestHandler = async (req, res, next) => {
 };
 
 // Finds a supplement by the barcode on its package, from the NIH label database,
-// so the app can fill in its name, form and nutrition. Public product data: it
-// reads nothing of the user's, and a miss is an ordinary answer.
+// so the app can fill in its name, form and nutrition. It runs only while the user
+// can see an active `dsld` external provider, so it can be switched off like the
+// other providers. The product data is public: a miss is an ordinary answer.
 const lookupSupplement: RequestHandler = async (req, res, next) => {
   try {
     const query = supplementLookupQuerySchema.safeParse(req.query);
     if (!query.success) return badRequest(res, query.error);
+    const providers = await getActiveProvidersByTypes(req.userId, [
+      SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+    ]);
+    if (providers.length === 0) {
+      return res.status(404).json({
+        error: 'The supplement label database is not enabled',
+      });
+    }
     try {
       const product = await lookupSupplementByUpc(query.data.upc);
       res.json({ product });

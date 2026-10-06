@@ -27,6 +27,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Tandoor
 - Strava (partially tested)
 - [COROS](/features/settings/coros)
+- NIH Dietary Supplement Label Database (fills in a supplement from its barcode; public, no key, active by default — deactivate it to turn the supplement barcode scan off)
 
 ## Canadian Nutrient File (Health Canada)
 
