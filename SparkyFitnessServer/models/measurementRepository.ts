@@ -749,12 +749,27 @@ async function getCustomCategories(userId: any) {
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface CustomCategoryRow {
+  id: string;
+  name: string;
+  display_name: string | null;
+  frequency: string;
+  measurement_type: string;
+  data_type: string | null;
+}
 async function createCustomCategory(categoryData: any) {
   const client = await getClient(categoryData.created_by_user_id); // User-specific operation, using created_by_user_id for RLS context
   try {
+    // One category per user and name. A concurrent create of the same name
+    // waits for the first and then gets that category, with its settings, so a
+    // caller never applies its own defaults to a category someone else made.
+    const columns =
+      'id, name, display_name, frequency, measurement_type, data_type';
     const result = await client.query(
       `INSERT INTO custom_categories (user_id, name, display_name, frequency, measurement_type, data_type, created_by_user_id, updated_by_user_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, now(), now()) RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, now(), now())
+       ON CONFLICT (user_id, name) DO NOTHING
+       RETURNING ${columns}`,
       [
         categoryData.user_id,
         categoryData.name,
@@ -765,7 +780,16 @@ async function createCustomCategory(categoryData: any) {
         categoryData.created_by_user_id,
       ]
     );
-    return result.rows[0];
+    if (result.rows.length > 0) {
+      const category: CustomCategoryRow = result.rows[0];
+      return { id: category.id, created: true, category };
+    }
+    const existing = await client.query(
+      `SELECT ${columns} FROM custom_categories WHERE user_id = $1 AND name = $2`,
+      [categoryData.user_id, categoryData.name]
+    );
+    const category: CustomCategoryRow = existing.rows[0];
+    return { id: category.id, created: false, category };
   } finally {
     client.release();
   }
