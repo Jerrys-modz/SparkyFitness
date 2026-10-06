@@ -74,11 +74,17 @@ enum ContextPayloadMapper {
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
                 : previous.workoutServerId,
-            fast: payload.keys.contains("fast") ? fast(from: payload["fast"]) : previous.fast,
-            fastSynced: payload.keys.contains("fast") ? true : previous.fastSynced,
+            fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
+            fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal
         )
+    }
+
+    /// Whether the phone has answered about fasting. A null `fast` (not
+    /// fasting) is dropped on the way over, so `fastKnown` carries the answer.
+    private static func fastKnown(in payload: [String: Any]) -> Bool {
+        payload["fastKnown"] as? Bool == true || payload.keys.contains("fast")
     }
 
     /// Today's steps from the phone's `steps` key. Nil when absent or malformed.
