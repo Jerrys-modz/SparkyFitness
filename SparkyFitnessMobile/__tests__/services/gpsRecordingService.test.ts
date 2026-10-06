@@ -308,3 +308,35 @@ describe('watch heart rate', () => {
     expect(await getHeartRateSamples()).toEqual([{ t: T0, bpm: 130 }]);
   });
 });
+
+describe('pause edge cases', () => {
+  it('keeps the time recorded before a pause when finishing while paused', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(T0);
+    await startRecording({ activity: 'run', notification });
+    // 30 minutes in, pause, then wait 10 minutes before Finish.
+    jest.spyOn(Date, 'now').mockReturnValue(T0 + 30 * 60_000);
+    await pauseRecording();
+    jest.spyOn(Date, 'now').mockReturnValue(T0 + 40 * 60_000);
+    await finishRecording();
+
+    const finished = (await storedSession())!;
+    expect(finished.status).toBe('finished');
+    expect(elapsedSeconds(finished)).toBe(30 * 60);
+    jest.restoreAllMocks();
+  });
+
+  it('stays paused and can retry when resuming fails to start location updates', async () => {
+    await startRecording({ activity: 'run', notification });
+    await pauseRecording();
+    mockedLocation.startLocationUpdatesAsync.mockRejectedValueOnce(
+      new Error('foreground service refused')
+    );
+
+    await expect(resumeRecording(notification)).rejects.toThrow('refused');
+    expect((await storedSession())?.status).toBe('paused');
+    expect(mockedLocation.stopLocationUpdatesAsync).toHaveBeenCalled();
+
+    await resumeRecording(notification);
+    expect((await storedSession())?.status).toBe('recording');
+  });
+});
