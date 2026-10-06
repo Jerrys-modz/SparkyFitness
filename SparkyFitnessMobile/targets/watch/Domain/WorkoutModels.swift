@@ -14,14 +14,17 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// Always kg, like every other weight value this app moves between watch
     /// and phone — display converts via `CheckInStore`'s `effectiveWeightUnit`.
     let targetWeightKg: Double?
-    /// Rest to run after this set, in seconds — the phone's own
-    /// `WorkoutStep.restSec` (activeWorkoutStore.ts), carried over verbatim so
-    /// the watch's timer agrees with what the phone would have shown.
+    /// Rest taken before this set in the planned order, in seconds — the
+    /// phone's own `WorkoutStep.restSec` (activeWorkoutStore.ts). Only a
+    /// fallback for a phone that does not send `restAfterSeconds`.
     let restSeconds: Int
     /// `normal`, `warmup`, `drop`… straight from `exercise_entry_sets.set_type`.
     /// Drives the label above the values ("Warmup 1/2" rather than "Set 1/2");
     /// nil or an unrecognised value just reads as a normal set.
     let setType: String?
+    /// This set's own rest, in seconds: what the phone runs once it is logged
+    /// (`restSecBeforeNextSet`). Nil from a phone that predates it.
+    var restAfterSeconds: Int? = nil
 
     var id: String { setId }
 }

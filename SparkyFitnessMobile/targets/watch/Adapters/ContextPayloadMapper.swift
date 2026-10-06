@@ -250,7 +250,8 @@ enum ContextPayloadMapper {
                     targetReps: doubleValue(rawSet["targetReps"]),
                     targetWeightKg: doubleValue(rawSet["targetWeightKg"]),
                     restSeconds: intValue(rawSet["restSeconds"]) ?? 0,
-                    setType: rawSet["setType"] as? String
+                    setType: rawSet["setType"] as? String,
+                    restAfterSeconds: intValue(rawSet["restAfterSeconds"])
                 )
             }
             return PlannedExercise(

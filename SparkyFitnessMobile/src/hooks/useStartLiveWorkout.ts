@@ -25,6 +25,7 @@ import {
   maybePromptForExactAlarmPermission,
 } from '../services/notifications';
 import { getActiveServerConfig } from '../services/storage';
+import { getDefaultRestSec } from '../stores/appPreferencesStore';
 import { getTodayDate } from '../utils/dateUtils';
 import {
   extractPlannedSetValues,
@@ -109,6 +110,7 @@ export function buildWatchWorkoutStartPayload(
           targetReps: target?.reps ?? null,
           targetWeightKg: target?.weightKg ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
+          restAfterSeconds: set.rest_time ?? getDefaultRestSec(),
           setType: set.set_type ?? null,
         };
       }),
