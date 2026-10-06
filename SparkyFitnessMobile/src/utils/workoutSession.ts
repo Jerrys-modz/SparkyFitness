@@ -1110,6 +1110,32 @@ export interface AssumedSetOverrides {
  * weight. The base is the first set's *placeholder*, never what was typed or
  * logged into it, so lifting heavier on set 1 does not move later sets.
  */
+/**
+ * Pairs each current set with its counterpart in the last session, warm-ups
+ * with warm-ups and working sets with working sets, each in order. Pairing by
+ * plain position let warm-ups added ahead of the working sets take their
+ * history, leaving the working sets with a dash. A set with no counterpart
+ * (more sets than last time, or warm-ups where there were none) is undefined.
+ */
+export function alignPreviousSets<T extends { setType?: string | null }>(
+  sets: readonly { set_type?: string | null }[],
+  previousSets: readonly T[] | undefined
+): (T | undefined)[] {
+  const warmups = (previousSets ?? []).filter((s) =>
+    isWarmupSetType(s.setType)
+  );
+  const working = (previousSets ?? []).filter(
+    (s) => !isWarmupSetType(s.setType)
+  );
+  let warmupIndex = 0;
+  let workingIndex = 0;
+  return sets.map((set) =>
+    isWarmupSetType(set.set_type)
+      ? warmups[warmupIndex++]
+      : working[workingIndex++]
+  );
+}
+
 export function resolveAssumedSetValues(
   sets: readonly AssumableSet[],
   previousSets: readonly ExerciseRecentSessionSet[] | undefined,
@@ -1137,9 +1163,10 @@ export function resolveAssumedSetValues(
       distance: null,
     } as AssumedSetValues,
   };
+  const alignedPrevious = alignPreviousSets(sets, previousSets);
   return sets.map((set, index) => {
     const tier = set.set_type === 'warmup' ? 'warmup' : 'working';
-    const previous = previousSets?.[index];
+    const previous = alignedPrevious[index];
     const planned = plannedBySetId?.[String(set.id)];
 
     const progressedPreviousWeight =
