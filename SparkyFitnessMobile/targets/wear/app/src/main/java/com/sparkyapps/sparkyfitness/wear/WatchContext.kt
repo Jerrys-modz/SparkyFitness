@@ -43,6 +43,8 @@ internal data class WatchSnapshot(
   val drinks: List<DrinkRow> = emptyList(),
   val acked: Set<String> = emptySet(),
   val failed: Set<String> = emptySet(),
+  /** Server config that owns this snapshot. Empty until the phone says. */
+  val ownerId: String = "",
 )
 
 /** The phone's latest context, plus taps not confirmed yet. */
@@ -95,10 +97,13 @@ internal object WatchContext {
       drinks = drinks,
       acked = acked,
       failed = failed,
+      ownerId = json.optString("ownerId"),
     )
     Handler(Looper.getMainLooper()).post {
+      val previousOwner = snapshot.ownerId
       snapshot = next
       pending = pending.filter { it.clientId !in acked && it.clientId !in failed && it.day == next.today }
+      if (next.ownerId != previousOwner) WearHeartRate.onOwner()
     }
   }
 

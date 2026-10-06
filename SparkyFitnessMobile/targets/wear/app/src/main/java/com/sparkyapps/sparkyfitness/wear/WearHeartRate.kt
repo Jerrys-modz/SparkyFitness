@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,8 @@ import kotlin.math.roundToInt
  * batch matches the Apple Watch's active calories. One exercise at a time.
  */
 internal object WearHeartRate {
+  private const val TAG = "WearHeartRate"
+
   var bpm by mutableIntStateOf(0)
     private set
   /** Whole-workout calories, or -1 before the first reading. */
@@ -259,6 +262,12 @@ internal object WearHeartRate {
   private var inflightId: String? = null
   private var calorieEpoch = 0
 
+  /** The phone named a different server config. Send only this config's batches. */
+  fun onOwner() {
+    drainOutbox()
+    if (sessionId != null) flush()
+  }
+
   private fun flush() {
     if (flushing) {
       flushAgain = true
@@ -272,16 +281,17 @@ internal object WearHeartRate {
     val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedActiveKcal) }
     val minutes = (System.currentTimeMillis() - shownAt) / 60_000.0
     if (batch.isEmpty() && (delta == null || delta == 0.0) && minutes <= 0) return
+    val owner = WatchContext.snapshot.ownerId
+    if (owner.isEmpty()) return
     val epoch = calorieEpoch
     val flushGeneration = generation
     val stopping = stopAfterFlush
-    flushing = true
-    samples.clear()
     val body = JSONObject()
       .put("type", "heartRateBatch")
       .put("clientId", UUID.randomUUID().toString())
       .put("sessionId", session)
       .put("exerciseEntryId", exercise)
+      .put("ownerId", owner)
       .put(
         "samples",
         JSONArray().apply {
@@ -293,7 +303,9 @@ internal object WearHeartRate {
     if (delta != null) body.put("activeEnergyKcal", delta)
     if (minutes > 0) body.put("durationMinutes", minutes)
     val clientId = body.getString("clientId")
-    stage(body)
+    if (!stage(body)) return
+    flushing = true
+    samples.clear()
     inflightId = clientId
     val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/$clientId")
     request.dataMap.putString("json", body.toString())
@@ -315,7 +327,7 @@ internal object WearHeartRate {
         if (flushGeneration == generation) {
           dropStaged(clientId)
           batch.asReversed().forEach { sample -> samples.addFirst(sample) }
-        } else {
+        } else if (body.optString("ownerId") == WatchContext.snapshot.ownerId) {
           putStaged(body.toString())
         }
         afterFlush(false, flushGeneration, stopping)
@@ -323,13 +335,30 @@ internal object WearHeartRate {
     }
   }
 
-  /** A failed write for a workout that is no longer current. Retried on its
-   * own, with the session and exercise already in the JSON. */
-  private fun stage(body: JSONObject) {
-    val context = appContext ?: return
+  /** Writes the batch aside, then renames it into place. False leaves the
+   * in-memory samples where they are. */
+  private fun stage(body: JSONObject): Boolean {
+    val context = appContext ?: return false
     val dir = File(context.filesDir, "wear-hr-outbox")
-    if (!dir.isDirectory && !dir.mkdirs()) return
-    File(dir, "${body.getString("clientId")}.json").writeText(body.toString())
+    if (!dir.isDirectory && !dir.mkdirs()) return false
+    val clientId = body.getString("clientId")
+    val temp = File(dir, "$clientId.json.tmp")
+    val dest = File(dir, "$clientId.json")
+    return try {
+      temp.writeText(body.toString())
+      if (!temp.renameTo(dest)) {
+        temp.copyTo(dest, overwrite = true)
+        temp.delete()
+      }
+      val ready = dest.isFile && dest.length() > 0
+      if (!ready) dest.delete()
+      ready
+    } catch (error: Exception) {
+      temp.delete()
+      dest.delete()
+      Log.w(TAG, "outbox stage failed", error)
+      false
+    }
   }
 
   private fun dropStaged(clientId: String) {
@@ -339,15 +368,52 @@ internal object WearHeartRate {
 
   private fun drainOutbox() {
     val context = appContext ?: return
+    val owner = WatchContext.snapshot.ownerId
     val dir = File(context.filesDir, "wear-hr-outbox")
-    dir.listFiles()?.forEach { file ->
-      if (!file.isFile || file.nameWithoutExtension == inflightId) return@forEach
-      val json = try {
-        file.readText()
-      } catch (_: Exception) {
+    dir.listFiles()?.forEach { candidate ->
+      if (!candidate.isFile || candidate.name.endsWith(".bad")) return@forEach
+      val file = if (candidate.name.endsWith(".json.tmp")) {
+        val promoted = File(candidate.parentFile, candidate.name.removeSuffix(".tmp"))
+        if (!candidate.renameTo(promoted)) {
+          Log.w(TAG, "outbox promote failed ${candidate.name}")
+          return@forEach
+        }
+        promoted
+      } else if (candidate.name.endsWith(".json")) {
+        candidate
+      } else {
         return@forEach
       }
+      if (file.nameWithoutExtension == inflightId) return@forEach
+      val json = try {
+        file.readText()
+      } catch (error: Exception) {
+        Log.w(TAG, "outbox unreadable ${file.name}", error)
+        return@forEach
+      }
+      val body = try {
+        JSONObject(json)
+      } catch (error: Exception) {
+        quarantine(file, error)
+        return@forEach
+      }
+      val clientId = body.optString("clientId")
+      val fileOwner = body.optString("ownerId")
+      if (clientId.isEmpty() || fileOwner.isEmpty()) {
+        quarantine(file, IllegalStateException("missing owner"))
+        return@forEach
+      }
+      if (owner.isEmpty() || fileOwner != owner) return@forEach
       putStaged(json)
+    }
+  }
+
+  private fun quarantine(file: File, error: Exception) {
+    val bad = File(file.parentFile, "${file.nameWithoutExtension}.bad")
+    if (!file.renameTo(bad)) {
+      Log.w(TAG, "outbox quarantine failed ${file.name}", error)
+    } else {
+      Log.w(TAG, "outbox quarantined ${file.name}", error)
     }
   }
 
@@ -357,11 +423,16 @@ internal object WearHeartRate {
     val context = appContext ?: return
     val body = try {
       JSONObject(json)
-    } catch (_: Exception) {
+    } catch (error: Exception) {
+      Log.w(TAG, "outbox replay skipped", error)
       return
     }
     val clientId = body.optString("clientId")
-    if (clientId.isEmpty() || !retrying.add(clientId)) return
+    val fileOwner = body.optString("ownerId")
+    if (clientId.isEmpty() || fileOwner.isEmpty() || fileOwner != WatchContext.snapshot.ownerId) {
+      return
+    }
+    if (!retrying.add(clientId)) return
     val request = PutDataMapRequest.create("${WearPaths.HEART_RATE}/$clientId")
     request.dataMap.putString("json", json)
     request.dataMap.putLong("at", System.currentTimeMillis())
