@@ -21,6 +21,21 @@ export const SYNC_CLAIM_EXPIRY_MINUTES = 30;
 export const SYNC_ALREADY_RUNNING_MESSAGE =
   'A sync is already running for this account. Try again in a few minutes.';
 
+/** The 409 body a manual sync route sends when the account is already syncing. */
+export const SYNC_ALREADY_RUNNING_RESPONSE = {
+  error: SYNC_ALREADY_RUNNING_MESSAGE,
+  code: 'SYNC_ALREADY_RUNNING',
+};
+
+/** The row a manual sync runs on: the one the request named, else the user's row of that type. */
+export function syncClaimTarget(
+  userId: string,
+  providerType: string,
+  providerId?: string | null
+): SyncClaimTarget {
+  return providerId ? { userId, providerId } : { userId, providerType };
+}
+
 /**
  * Claims the account for one sync, or returns null when another sync holds it.
  * With no matching row the sync runs unclaimed and reports its own
