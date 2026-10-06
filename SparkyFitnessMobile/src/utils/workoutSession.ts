@@ -837,6 +837,8 @@ export interface WorkoutCardExercise {
     modality?: string | null;
     images?: string[] | null;
     mechanic?: string | null;
+    /** Used to round dumbbell warm-ups to dumbbell steps. */
+    equipment?: string[] | null;
   } | null;
   sets: WorkoutCardSet[];
   /** Raw draft string backing the edit-mode calories input (draft mapper only). */
@@ -866,6 +868,7 @@ export function draftExerciseToCardExercise(
     name: exercise.exerciseName,
     category: exercise.exerciseCategory,
     modality: exercise.exerciseModality ?? null,
+    equipment: exercise.exerciseEquipment ?? null,
     images: exercise.images,
   };
   const modality = resolveSnapshotModality(snapshot);

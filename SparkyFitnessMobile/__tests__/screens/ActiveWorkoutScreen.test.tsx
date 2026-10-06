@@ -440,10 +440,10 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
     pressSheetItem('warmups');
 
     const sets = useActiveWorkoutStore.getState().session!.exercises[1].sets;
-    // 60 kg first working set: bar, then 50%, 70% and 85% rounded to 2.5.
+    // 60 kg first working set: 40%, 60% and 80% rounded to 2.5.
     expect(
       sets.filter((s) => s.set_type === 'warmup').map((s) => s.weight)
-    ).toEqual([20, 30, 42.5, 50]);
+    ).toEqual([25, 35, 47.5]);
     expect(sets[sets.length - 1]!.set_type).toBe('normal');
 
     const first = sets[0]!;

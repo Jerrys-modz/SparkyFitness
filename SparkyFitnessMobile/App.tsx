@@ -94,6 +94,7 @@ import {
   SafeDiarySettings,
   SafeProfile,
   SafeWorkoutSettings,
+  SafeWarmupSettings,
   SafeServerSettings,
   SafePasskeySettings,
   SafeAppSettings,
@@ -916,6 +917,11 @@ function AppContent() {
             name="WorkoutSettings"
             component={SafeWorkoutSettings}
             options={createStackScreenOptions(t('screens.workoutSettings', { defaultValue: 'Workout Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="WarmupSettings"
+            component={SafeWarmupSettings}
+            options={createStackScreenOptions(t('screens.warmupSettings', { defaultValue: 'Warm-up Calculator' }), { headerBackTitle: t('screens.workoutSettings', { defaultValue: 'Workout Settings' }) })}
           />
           <Stack.Screen
             name="ServerSettings"

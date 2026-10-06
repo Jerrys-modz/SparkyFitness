@@ -610,7 +610,8 @@
     "moodReport": "Mood",
     "allergenSettings": "Allergens",
     "fastingSettings": "Fasting Settings",
-    "fasting": "Fasting"
+    "fasting": "Fasting",
+    "warmupSettings": "Warm-up Calculator"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -1163,7 +1164,9 @@
     "adaptiveCoachingAccessibility": "Adaptive suggestions",
     "duckMusic": "Lower music during cues",
     "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
-    "duckMusicAccessibility": "Lower music during cues"
+    "duckMusicAccessibility": "Lower music during cues",
+    "warmupCalculator": "Warm-up calculator",
+    "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise."
   },
   "restPeriod": {
     "title": "Rest period",
@@ -6354,5 +6357,24 @@
     "heatmapA11y": "Heatmap of days with a fast",
     "less": "Less",
     "more": "More"
+  },
+  "warmupSettings": {
+    "title": "Warm-up Calculator",
+    "description": "Use the warm-up calculator to quickly add percentage-based warm-up sets to exercises.",
+    "enabled": "Warm-up Calculator",
+    "enabledSubtitle": "When active, tap the three dots next to an exercise to add warm-up sets.",
+    "enabledAccessibility": "Warm-up calculator",
+    "method": "Warmup Method",
+    "methodSubtitle": "Each warm-up set is a percent of your first working set, for a number of reps.",
+    "setLetter": "W",
+    "percentLabel": "Warm-up {{number}} percent",
+    "repsLabel": "Warm-up {{number}} reps",
+    "removeSet": "Remove set",
+    "addSet": "Add set",
+    "reset": "Reset to default",
+    "plateRounding": "Plate rounding",
+    "plateRoundingSubtitle": "Set preferred plate weight increments for your warm-up calculations.",
+    "dumbbellRounding": "Dumbbell rounding",
+    "dumbbellRoundingSubtitle": "Set preferred dumbbell weight increments for your warm-up calculations."
   }
 }

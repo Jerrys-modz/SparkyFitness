@@ -4,23 +4,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type {
-  ExerciseEntryResponse,
-  ExerciseEntrySetResponse,
-  ExerciseModality,
-  ExerciseCoachingSignal,
-  ExerciseRecentSessionSet,
-  ExerciseSnapshotResponse,
-  IntervalEngineStep,
-  IntervalPhase,
-  PresetSessionResponse,
-  WorkoutFormat,
-  DropSetWeightUnit,
-} from '@workspace/shared';
 import {
+  type ExerciseEntryResponse,
+  type ExerciseEntrySetResponse,
+  type ExerciseModality,
+  type ExerciseCoachingSignal,
+  type ExerciseRecentSessionSet,
+  type ExerciseSnapshotResponse,
+  type IntervalEngineStep,
+  type IntervalPhase,
+  type PresetSessionResponse,
+  type WorkoutFormat,
+  type DropSetWeightUnit,
   buildIntervalPhases,
   calculateDropSetWeightsKg,
   calculateWarmupSets,
+  type WarmupOptions,
   isWarmupSetType,
   WARMUP_REST_SEC,
   shiftPhasesForPause,
@@ -480,7 +479,8 @@ export interface ActiveWorkoutState {
   addWarmupSetsToExercise: (
     entryId: string,
     workingWeightKg: number,
-    unit: DropSetWeightUnit
+    unit: DropSetWeightUnit,
+    options?: WarmupOptions
   ) => void;
   /**
    * Delete a set, renumbering the rest. Deleting an exercise's last remaining
@@ -2217,14 +2217,14 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         set(buildSessionEditState(state, next));
       },
 
-      addWarmupSetsToExercise: (entryId, workingWeightKg, unit) => {
+      addWarmupSetsToExercise: (entryId, workingWeightKg, unit, options) => {
         const state = get();
         const session = state.session;
         if (!session) return;
         const exercise = session.exercises.find((e) => e.id === entryId);
         if (!exercise) return;
 
-        const warmups = calculateWarmupSets(workingWeightKg, unit);
+        const warmups = calculateWarmupSets(workingWeightKg, unit, options);
         if (warmups.length === 0) return;
 
         const isLogged = (s: ExerciseEntrySetResponse) =>
