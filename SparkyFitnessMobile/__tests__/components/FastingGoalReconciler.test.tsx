@@ -5,11 +5,13 @@ import FastingGoalReconciler from '../../src/components/FastingGoalReconciler';
 import {
   useCurrentFast,
   useFastingGoalReconciler,
+  useFastingPreferences,
 } from '../../src/hooks/useFasting';
 
 jest.mock('../../src/hooks/useFasting', () => ({
   useCurrentFast: jest.fn(),
   useFastingGoalReconciler: jest.fn(),
+  useFastingPreferences: jest.fn(),
 }));
 
 const mockUseCurrentFast = useCurrentFast as jest.MockedFunction<
@@ -19,9 +21,16 @@ const mockReconciler = useFastingGoalReconciler as jest.MockedFunction<
   typeof useFastingGoalReconciler
 >;
 
+const mockUseFastingPreferences = useFastingPreferences as jest.MockedFunction<
+  typeof useFastingPreferences
+>;
+
 describe('FastingGoalReconciler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseFastingPreferences.mockReturnValue({
+      data: { pre_end_alert_minutes: 45 },
+    } as never);
   });
 
   it('forwards the live current-fast state into the reconciler and renders nothing', () => {
@@ -38,7 +47,12 @@ describe('FastingGoalReconciler', () => {
     // This headless component is the single owner of reconciliation — it must
     // pass the observed fast straight through so it keeps running even when the
     // visual FastingCard is hidden.
-    expect(mockReconciler).toHaveBeenCalledWith(currentFast, false, refetch);
+    expect(mockReconciler).toHaveBeenCalledWith(
+      currentFast,
+      false,
+      refetch,
+      45
+    );
     expect(toJSON()).toBeNull();
   });
 });

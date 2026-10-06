@@ -72,6 +72,7 @@ import {
   SafeActivityDetail,
   SafeFastingDetail,
   SafeCaffeineDetail,
+  SafeFastingSettings,
   SafeSleepDetail,
   SafeLogs,
   SafeSync,
@@ -807,6 +808,11 @@ function AppContent() {
             name="CaffeineDetail"
             component={SafeCaffeineDetail}
             options={createStackScreenOptions(t('screens.caffeine', { defaultValue: 'Caffeine' }), { headerBackTitle: t('navigation.diary', { defaultValue: 'Diary' }) })}
+          />
+          <Stack.Screen
+            name="FastingSettings"
+            component={SafeFastingSettings}
+            options={createStackScreenOptions(t('screens.fastingSettings', { defaultValue: 'Fasting Settings' }), { headerBackTitle: t('screens.fasting', { defaultValue: 'Fasting' }) })}
           />
           <Stack.Screen
             name="SleepDetail"
