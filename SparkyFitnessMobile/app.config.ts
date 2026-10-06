@@ -195,6 +195,8 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
         UIBackgroundModes: ['audio'],
         // Lets the Siri and Shortcuts actions and the Lock Screen controls find
         // the Keychain group the app shares with the widget extension.
+        // Read by the Siri and Shortcuts actions to find the widget snapshots.
+        APP_GROUP_IDENTIFIER: getIosAppGroup(),
         SparkyKeychainGroup: `$(AppIdentifierPrefix)${getIosAppGroup()}`,
       },
       entitlements: {
