@@ -413,6 +413,7 @@ private struct CurrentSetView: View {
 
     /// Which field the keypad is editing, if any.
     @State private var editing: EditableField?
+    @State private var choosingType = false
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
 
@@ -439,9 +440,15 @@ private struct CurrentSetView: View {
                         .foregroundStyle(supersetColor ?? Color.secondary)
                         .lineLimit(1)
                 }
-                Text(step.label)
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
+                Button {
+                    choosingType = true
+                } label: {
+                    Text(store.label(for: step))
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+                .disabled(store.isCompleted(step))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -482,6 +489,13 @@ private struct CurrentSetView: View {
                     store.setValue(for: step.plannedSet.setId, reps: entered)
                 }
                 editing = nil
+            }
+        }
+        .confirmationDialog("Set type", isPresented: $choosingType, titleVisibility: .visible) {
+            ForEach(SetKind.allCases, id: \.self) { kind in
+                Button(kind.menuTitle) {
+                    store.setSetType(for: step.plannedSet.setId, kind.rawValue)
+                }
             }
         }
     }
@@ -674,17 +688,18 @@ private struct RestView: View {
     private func nextTargetLabel(for step: WorkoutStep) -> String {
         let values = store.values(for: step)
         let unit = checkIn.context.effectiveWeightUnit
+        let kind = store.label(for: step)
         switch (values.weightKg, values.reps) {
         case let (weight?, reps?):
             let shown = unit.fromKg(weight)
             let weightText = shown == shown.rounded()
                 ? String(Int(shown))
                 : String(format: "%.1f", shown)
-            return "\(step.label) · \(weightText)\(unit.suffix) × \(Int(reps))"
+            return "\(kind) · \(weightText)\(unit.suffix) × \(Int(reps))"
         case let (nil, reps?):
-            return "\(step.label) · \(Int(reps)) reps"
+            return "\(kind) · \(Int(reps)) reps"
         default:
-            return step.label
+            return kind
         }
     }
 }
