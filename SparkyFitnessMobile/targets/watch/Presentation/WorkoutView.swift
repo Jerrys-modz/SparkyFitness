@@ -1853,7 +1853,7 @@ private struct RpePickerView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(title)
                     .lineLimit(1)
                 Text(summary)
