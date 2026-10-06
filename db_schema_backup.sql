@@ -2342,7 +2342,8 @@ CREATE TABLE public.external_data_providers (
     sync_frequency text DEFAULT 'manual'::text,
     oauth_state text,
     sort_order integer,
-    is_public boolean DEFAULT false NOT NULL
+    is_public boolean DEFAULT false NOT NULL,
+    sync_started_at timestamp with time zone
 );
 
 
