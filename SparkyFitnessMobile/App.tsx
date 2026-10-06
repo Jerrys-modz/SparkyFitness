@@ -71,6 +71,7 @@ import {
   SafeWorkoutComplete,
   SafeActivityDetail,
   SafeFastingDetail,
+  SafeFastingSettings,
   SafeSleepDetail,
   SafeLogs,
   SafeSync,
@@ -748,6 +749,11 @@ function AppContent() {
               headerShown: false,
               gestureEnabled: true,
             }}
+          />
+          <Stack.Screen
+            name="FastingSettings"
+            component={SafeFastingSettings}
+            options={createStackScreenOptions(t('screens.fastingSettings', { defaultValue: 'Fasting Settings' }), { headerBackTitle: t('screens.fasting', { defaultValue: 'Fasting' }) })}
           />
           <Stack.Screen
             name="SleepDetail"
