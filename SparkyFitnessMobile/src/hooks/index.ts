@@ -24,6 +24,7 @@ export { useWatchCheckInBridge } from './useWatchCheckInBridge';
 export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
 export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
 export { useWatchPlanSync } from './useWatchPlanSync';
+export { drainQuickActionNavigation, useQuickActions } from './useQuickActions';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';

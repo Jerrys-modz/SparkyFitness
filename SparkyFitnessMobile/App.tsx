@@ -20,7 +20,7 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useQuickActions, useWatchCheckInBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge } from './src/hooks';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import {
   useStartLiveWorkout,
@@ -167,6 +167,16 @@ const androidModalAnimation =
 function WatchCheckInGate() {
   const { isConnected: isServerConnected } = useServerConnection();
   useWatchCheckInBridge(isServerConnected);
+  return null;
+}
+
+/**
+ * Home Screen long-press shortcuts (iOS). Needs a server connection, since
+ * "Log water" posts straight to the server.
+ */
+function QuickActionsGate() {
+  const { isConnected: isServerConnected } = useServerConnection();
+  useQuickActions(isServerConnected);
   return null;
 }
 
@@ -379,6 +389,7 @@ function AppContent() {
       ref={rootNavigationRef}
       theme={navigationTheme}
       linking={linkingEnabled ? linking : undefined}
+      onReady={drainQuickActionNavigation}
       onStateChange={(state) => {
         // Enable deep-link handling once the user has left Onboarding.
         // Without this, widget URLs are ignored for the rest of the session
@@ -391,6 +402,7 @@ function AppContent() {
       }}
     >
       <WatchCheckInGate />
+      <QuickActionsGate />
       <WatchWorkoutGate />
       <SafeAreaProvider>
         {/* Inside SafeAreaProvider on purpose: the viewer positions its close
