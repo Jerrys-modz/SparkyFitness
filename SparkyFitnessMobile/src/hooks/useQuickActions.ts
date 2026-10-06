@@ -87,14 +87,24 @@ async function logWaterDrink(): Promise<void> {
   }
 }
 
-function whenNavigationReady(run: () => void, attempts = 40): void {
+const pendingNavigation: Array<() => void> = [];
+
+/** Runs shortcuts queued before the navigator finished starting. */
+export function drainQuickActionNavigation(): void {
+  if (!navigationRef.isReady()) return;
+  const pending = pendingNavigation.splice(0);
+  for (const run of pending) run();
+}
+
+function whenNavigationReady(run: () => void): void {
   if (navigationRef.isReady()) {
     run();
     return;
   }
-  if (attempts > 0) {
-    setTimeout(() => whenNavigationReady(run, attempts - 1), 250);
-  }
+  // A cold start can get here before linking finishes. Dropping the callback
+  // loses the shortcut the app was opened with, and the launch action is not
+  // tried again.
+  pendingNavigation.push(run);
 }
 
 export function runQuickAction(id: string): void {
