@@ -487,12 +487,19 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         ? buildNutrients(nutrientRows, resolvedNames)
         : {},
       // A supplement is taken in servings: the label's nutrition is per
-      // serving, and a dose logged is the number of servings.
+      // serving, and a dose logged is the number of servings. Converting a
+      // medication resets to one serving; an existing supplement keeps its dose.
       strength_value: isSupplement ? null : strengthNum,
       strength_unit: isSupplement ? null : form.strengthUnit || null,
-      dose_amount: isSupplement ? (existingMed?.dose_amount ?? 1) : doseNum,
+      dose_amount: isSupplement
+        ? existingMed?.is_supplement
+          ? (existingMed.dose_amount ?? 1)
+          : 1
+        : doseNum,
       dose_unit: isSupplement
-        ? (existingMed?.dose_unit ?? 'serving')
+        ? existingMed?.is_supplement
+          ? (existingMed.dose_unit ?? 'serving')
+          : 'serving'
         : form.doseUnit || null,
       reason_text: form.reason.trim() || null,
       prescriber: isSupplement ? null : form.prescriber.trim() || null,

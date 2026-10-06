@@ -714,6 +714,17 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     pressAction(screen, mockNavigation, 'Save');
 
     await waitFor(() => expect(updateMutate).toHaveBeenCalled());
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'med-1',
+        body: expect.objectContaining({
+          is_supplement: true,
+          dose_amount: 1,
+          dose_unit: 'serving',
+        }),
+      }),
+      expect.anything()
+    );
     expect(mockUpdateScheduleAsync).toHaveBeenCalledTimes(1);
     expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
       id: 's-1',
@@ -741,6 +752,15 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     pressAction(screen, mockNavigation, 'Save');
 
     await waitFor(() => expect(updateMutate).toHaveBeenCalled());
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          dose_amount: 1,
+          dose_unit: 'tablet',
+        }),
+      }),
+      expect.anything()
+    );
     expect(mockUpdateScheduleAsync).not.toHaveBeenCalled();
   });
 });
