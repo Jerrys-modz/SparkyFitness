@@ -146,7 +146,7 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
           })}
           subtitle={t('watchSettings.rpeSubtitle', {
             defaultValue:
-              'After you log a set on the watch, turn the Digital Crown to pick how hard it was, from 6 to 10, then tap Save, or tap Skip.',
+              'After you log a set on the watch, turn the Digital Crown to pick how hard it was, from 1 to 10, then tap Save, or tap Skip.',
           })}
           subtitleNumberOfLines={0}
           rightAccessory={

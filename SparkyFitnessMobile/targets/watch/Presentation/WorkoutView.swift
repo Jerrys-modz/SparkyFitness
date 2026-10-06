@@ -1490,15 +1490,18 @@ private struct RpePickerView: View {
     let summary: String
     let onDone: (Double?) -> Void
 
-    /// Hevy's scale. There is no 6.5: below 7 it is "4+ reps left" either way.
-    private static let values: [Double] = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10]
+    /// Hevy's scale from 6 up, with whole numbers below it down to 1. There is
+    /// no 6.5: from 6 down it is "4+ reps left" either way.
+    private static let values: [Double] = [1, 2, 3, 4, 5, 6, 7, 7.5, 8, 8.5, 9, 9.5, 10]
 
     private static let fill = Color(white: 0.14)
     private static let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
 
     /// Crown position in `values`, as a Double because that is what the crown
     /// binds to. Starts on 8, the middle of what most working sets are.
-    @State private var position: Double = 3
+    @State private var position: Double = Double(
+        RpePickerView.values.firstIndex(of: 8) ?? 0
+    )
     @FocusState private var focused: Bool
 
     private var index: Int {
@@ -1523,7 +1526,11 @@ private struct RpePickerView: View {
         case 8: return "Could've done 2 more reps"
         case 7.5: return "Could've maybe done 3 more reps"
         case 7: return "Could've done 3 more reps"
-        default: return "Could've done 4+ more reps"
+        case 6: return "Could've done 4+ more reps"
+        case 5: return "Could've done 5+ more reps"
+        case 4: return "Light effort"
+        case 3: return "Very light effort"
+        default: return "Little to no effort"
         }
     }
 
