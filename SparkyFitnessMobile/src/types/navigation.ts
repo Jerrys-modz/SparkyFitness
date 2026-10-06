@@ -338,6 +338,7 @@ export type RootStackParamList = {
   /** Cross-fading time-lapse of every photo for one angle, oldest to newest. */
   ProgressPhotoTimelapse: { angle?: PhotoType } | undefined;
   CalorieSettings: undefined;
+  Goals: undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
   DashboardSettings: undefined;

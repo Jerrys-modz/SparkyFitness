@@ -38,6 +38,7 @@ import SleepDetailScreen from '../screens/SleepDetailScreen';
 import ExerciseSearchScreen from '../screens/ExerciseSearchScreen';
 import PresetSearchScreen from '../screens/PresetSearchScreen';
 import CalorieSettingsScreen from '../screens/CalorieSettingsScreen';
+import GoalsScreen from '../screens/GoalsScreen';
 import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
 import FoodSettingsScreen from '../screens/FoodSettingsScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
@@ -135,6 +136,7 @@ export const SafeProgressPhotos = withErrorBoundary(ProgressPhotosScreen, 'Progr
 export const SafeProgressPhotoCompare = withErrorBoundary(ProgressPhotoCompareScreen, 'ProgressPhotoCompare', { canGoBack: true });
 export const SafeProgressPhotoTimelapse = withErrorBoundary(ProgressPhotoTimelapseScreen, 'ProgressPhotoTimelapse', { canGoBack: true });
 export const SafeChat = withErrorBoundary(ChatScreen, 'Chat', { canGoBack: true });
+export const SafeGoals = withErrorBoundary(GoalsScreen, 'Goals', { canGoBack: true });
 export const SafeCalorieSettings = withErrorBoundary(CalorieSettingsScreen, 'CalorieSettings', { canGoBack: true });
 export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'MealTypeSettings', { canGoBack: true });
 export const SafeFoodSettings = withErrorBoundary(FoodSettingsScreen, 'FoodSettings', { canGoBack: true });
