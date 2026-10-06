@@ -456,10 +456,10 @@ private fun signed(value: Double): String {
 }
 
 private fun formatOne(value: Double): String =
-  if (value % 1.0 == 0.0) value.toInt().toString() else String.format("%.1f", value)
+  if (value % 1.0 == 0.0) value.toInt().toString() else String.format(java.util.Locale.ROOT, "%.1f", value)
 
 private fun formatWater(ml: Double, unit: String): String = when (unit) {
-  "oz" -> String.format("%.1f", ml / 29.5735) + "oz"
-  "liter" -> String.format("%.2f", ml / 1000.0) + "L"
+  "oz" -> String.format(java.util.Locale.ROOT, "%.1f", ml / 29.5735) + "oz"
+  "liter" -> String.format(java.util.Locale.ROOT, "%.2f", ml / 1000.0) + "L"
   else -> "${ml.toInt()}ml"
 }
