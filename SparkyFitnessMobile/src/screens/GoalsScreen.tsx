@@ -4,13 +4,20 @@ import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
+import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import { useServerConnection, usePreferences } from '../hooks';
 import {
   useAdjustedCalorieGoal,
   useGoalsQuery,
+  useNutrientGoalPreferences,
   useSaveGoalsMutation,
+  useSaveNutrientGoalPreferences,
 } from '../hooks/useGoals';
+import type {
+  NutrientGoalPreferences,
+  NutrientGoalType,
+} from '../services/api/nutrientGoalPreferencesApi';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import type { DailyGoals } from '../types/goals';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -118,15 +125,55 @@ const toDrafts = (
 
 const parseDraft = (text: string): number => Number(text.replace(',', '.'));
 
+interface DirectionDraft {
+  goalType: NutrientGoalType;
+  min: string;
+  max: string;
+}
+
+const NUTRIENT_DIRECTION_FIELDS: NutrientGoalField[] = [
+  ...MACRO_FIELDS,
+  ...OTHER_NUTRIENT_FIELDS,
+];
+
+const toDirectionDrafts = (
+  directions: NutrientGoalPreferences
+): Record<string, DirectionDraft> =>
+  Object.fromEntries(
+    NUTRIENT_DIRECTION_FIELDS.filter((field) => directions[field]).map(
+      (field) => [
+        field,
+        {
+          goalType: directions[field].goalType,
+          min: String(directions[field].targetMin ?? ''),
+          max: String(directions[field].targetMax ?? ''),
+        },
+      ]
+    )
+  );
+
 interface GoalsFormProps {
   date: string;
   goals: DailyGoals;
+  directions?: NutrientGoalPreferences;
   onDone: () => void;
 }
 
-const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
+const GoalsForm: React.FC<GoalsFormProps> = ({
+  date,
+  goals,
+  directions,
+  onDone,
+}) => {
   const { t } = useTranslation();
-  const { saveGoals, isPending } = useSaveGoalsMutation();
+  const { saveGoals, isPending: isSavingGoals } = useSaveGoalsMutation();
+  const saveDirections = useSaveNutrientGoalPreferences();
+  const [isSavingDirections, setIsSavingDirections] = useState(false);
+  const isPending = isSavingGoals || isSavingDirections;
+  const [initialDirections] = useState(() =>
+    directions ? toDirectionDrafts(directions) : {}
+  );
+  const [directionDrafts, setDirectionDrafts] = useState(initialDirections);
   const { preferences } = usePreferences();
   const isAdaptive = preferences?.calorie_goal_adjustment_mode === 'adaptive';
   const adjustedCalories = useAdjustedCalorieGoal(date, isAdaptive);
@@ -210,8 +257,58 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
       });
       return;
     }
+    const directionUpdates: {
+      key: string;
+      preference: {
+        goalType: NutrientGoalType;
+        targetMin?: number;
+        targetMax?: number;
+      };
+    }[] = [];
+    for (const [key, draft] of Object.entries(directionDrafts)) {
+      const initial = initialDirections[key];
+      if (
+        initial &&
+        initial.goalType === draft.goalType &&
+        (draft.goalType !== 'target' ||
+          (initial.min === draft.min && initial.max === draft.max))
+      ) {
+        continue;
+      }
+      if (draft.goalType === 'target') {
+        const min = parseDraft(draft.min);
+        const max = parseDraft(draft.max);
+        if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
+          Toast.show({
+            type: 'error',
+            text1: t('goals.directions.invalidRange', {
+              defaultValue:
+                'A range needs a minimum and a maximum, with minimum not above maximum.',
+            }),
+          });
+          return;
+        }
+        directionUpdates.push({
+          key,
+          preference: { goalType: 'target', targetMin: min, targetMax: max },
+        });
+      } else {
+        directionUpdates.push({
+          key,
+          preference: { goalType: draft.goalType },
+        });
+      }
+    }
     try {
       await saveGoals({ date, goals: next, cascade: true });
+      if (directionUpdates.length > 0) {
+        setIsSavingDirections(true);
+        try {
+          await saveDirections(directionUpdates);
+        } finally {
+          setIsSavingDirections(false);
+        }
+      }
       onDone();
     } catch {
       Toast.show({
@@ -227,10 +324,78 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
     initialDrafts,
     mealTotalValid,
     waterUnit,
+    directionDrafts,
+    initialDirections,
+    saveDirections,
     saveGoals,
     onDone,
     t,
   ]);
+
+  const directionSegments: Segment<NutrientGoalType>[] = [
+    {
+      key: 'minimum',
+      label: t('goals.directions.minimum', { defaultValue: 'Min' }),
+    },
+    {
+      key: 'maximum',
+      label: t('goals.directions.maximum', { defaultValue: 'Max' }),
+    },
+    {
+      key: 'target',
+      label: t('goals.directions.range', { defaultValue: 'Range' }),
+    },
+  ];
+
+  const renderDirection = (field: NutrientGoalField) => {
+    const draft = directionDrafts[field];
+    const update = (patch: Partial<DirectionDraft>) =>
+      setDirectionDrafts((prev) => ({
+        ...prev,
+        [field]: { ...prev[field], ...patch },
+      }));
+    return (
+      <View className="gap-2 pt-1">
+        <SegmentedControl
+          segments={directionSegments}
+          activeKey={draft.goalType}
+          onSelect={(goalType) => update({ goalType })}
+        />
+        {draft.goalType === 'target' && (
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <FormInput
+                value={draft.min}
+                onChangeText={(min) => update({ min })}
+                keyboardType="decimal-pad"
+                placeholder={t('goals.directions.rangeMin', {
+                  defaultValue: 'Range min',
+                })}
+                accessibilityLabel={`${labels[field]} ${t(
+                  'goals.directions.rangeMin',
+                  { defaultValue: 'Range min' }
+                )}`}
+              />
+            </View>
+            <View className="flex-1">
+              <FormInput
+                value={draft.max}
+                onChangeText={(max) => update({ max })}
+                keyboardType="decimal-pad"
+                placeholder={t('goals.directions.rangeMax', {
+                  defaultValue: 'Range max',
+                })}
+                accessibilityLabel={`${labels[field]} ${t(
+                  'goals.directions.rangeMax',
+                  { defaultValue: 'Range max' }
+                )}`}
+              />
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderFields = (fields: GoalField[]) =>
     fields.map((field) => (
@@ -247,6 +412,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
           accessibilityLabel={labels[field]}
           testID={`goal-input-${field}`}
         />
+        {directionDrafts[field] && renderDirection(field as NutrientGoalField)}
       </View>
     ));
 
@@ -283,6 +449,14 @@ const GoalsForm: React.FC<GoalsFormProps> = ({ date, goals, onDone }) => {
                 defaultValue:
                   'Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.',
               })}
+        </Text>
+      )}
+      {Object.keys(directionDrafts).length > 0 && (
+        <Text className="text-sm text-text-secondary">
+          {t('goals.directions.note', {
+            defaultValue:
+              'Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers.',
+          })}
         </Text>
       )}
       {sectionTitle(
@@ -335,22 +509,24 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
   const { goals, isLoading, isError, refetch } = useGoalsQuery(date, {
     enabled: isConnected,
   });
+  const { directions, isLoading: isLoadingDirections } =
+    useNutrientGoalPreferences({ enabled: isConnected });
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
-  if (isLoading || isError || !goals) {
+  if (isLoading || isLoadingDirections || isError || !goals) {
     return (
       <StatusView
-        loading={isLoading}
-        icon={isLoading ? undefined : 'alert-circle'}
+        loading={isLoading || isLoadingDirections}
+        icon={isLoading || isLoadingDirections ? undefined : 'alert-circle'}
         title={
-          isLoading
+          isLoading || isLoadingDirections
             ? undefined
             : t('goals.loadFailed', {
                 defaultValue: 'Could not load your goals.',
               })
         }
         action={
-          isLoading
+          isLoading || isLoadingDirections
             ? undefined
             : {
                 label: t('common.retry', { defaultValue: 'Retry' }),
@@ -361,7 +537,14 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
     );
   }
 
-  return <GoalsForm date={date} goals={goals} onDone={goBack} />;
+  return (
+    <GoalsForm
+      date={date}
+      goals={goals}
+      directions={directions}
+      onDone={goBack}
+    />
+  );
 };
 
 export default GoalsScreen;
