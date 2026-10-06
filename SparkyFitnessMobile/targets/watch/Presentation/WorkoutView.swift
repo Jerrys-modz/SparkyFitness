@@ -205,9 +205,8 @@ private struct WaitingForWorkoutView: View {
                     }
                 }
                 .padding(.horizontal, 4)
-                // The clock sits over the top of a scrolling page, so the
-                // first row starts below it.
-                .padding(.top, WatchStyle.s(22))
+                // A scrolling page already starts below the clock.
+                .padding(.top, WatchStyle.s(4))
             }
         }
     }
