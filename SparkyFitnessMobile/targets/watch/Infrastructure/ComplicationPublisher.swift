@@ -124,6 +124,15 @@ enum ComplicationPublisher {
         )
     }
 
+    /// Removes the step count, for a phone that has none for today, so the
+    /// complication does not keep showing an earlier figure.
+    static func clearSteps() {
+        guard let defaults = sharedDefaults(),
+              defaults.data(forKey: Steps.key) != nil else { return }
+        defaults.removeObject(forKey: Steps.key)
+        WidgetCenter.shared.reloadTimelines(ofKind: Steps.kind)
+    }
+
     /// Publishes the running fast (or none) for the Fasting complication. Not
     /// day-scoped: a fast spans midnight, and the widget counts from its start.
     static func publish(fast: WatchFast?) {
