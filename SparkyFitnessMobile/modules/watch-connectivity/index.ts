@@ -1,5 +1,4 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
-import { Platform } from 'react-native';
 
 /** One row of the watch's Goals page: a nutrient's amount against its goal. */
 export interface WatchGoalNutrientPayload {
@@ -98,6 +97,11 @@ export interface WatchContextPayload {
    * push (a fresh install, say) never heard anything.
    */
   pushedAt: number;
+  /**
+   * Server config that owns this snapshot. The watch stamps heart-rate
+   * batches with it so a later account cannot claim them.
+   */
+  ownerId?: string | null;
   today: string;
   todayWeightKg?: number | null;
   todayBodyFatPercentage?: number | null;
@@ -195,6 +199,13 @@ export interface WatchContextPayload {
   carbsGoal?: number | null;
   fatConsumed?: number | null;
   fatGoal?: number | null;
+  /**
+   * Today's resting burn in kcal/day, from the same calorie balance as the
+   * figures above. Wear OS only measures total calories during a workout, so
+   * the watch subtracts this rate for the time the workout has been running.
+   * Missing or 0 means the watch does not send a calorie total at all.
+   */
+  bmrKcal?: number | null;
   /**
    * Configured water containers, for the watch's Water page — one tappable
    * square per entry. Sent in full on every push rather than fetched once by
@@ -451,6 +462,7 @@ export interface WatchHeartRateBatchPayload {
  * delivered twice, or late after that rest ended, changes nothing.
  */
 export interface WatchRestChangedPayload {
+  clientId?: string;
   sessionId: string;
   previousEndsAt?: number;
   /** Absent when the rest was skipped. */
@@ -480,6 +492,7 @@ export interface WatchSetTimerStartedPayload {
 }
 
 export interface WatchWorkoutStopPayload {
+  clientId?: string;
   sessionId: string;
 }
 
@@ -596,6 +609,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * is not on the JS thread.
    */
   pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
+  pendingWorkoutEvents(): Promise<
+    Array<
+      | ({ event: 'onSetCompleted' } & WatchSetCompletedPayload)
+      | ({ event: 'onRestChanged' } & WatchRestChangedPayload)
+      | ({ event: 'onWorkoutStop' } & WatchWorkoutStopPayload)
+    >
+  >;
   ackHeartRateBatches(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted
@@ -611,14 +631,9 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   takeDroppedHeartRateBatchCount(): Promise<number>;
 }
 
-// iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
-// null there and every caller must guard on it. Prefer the guarded hook in
-// src/hooks/useWatchCheckInBridge.ts over importing this module directly.
+// Null when this binary has no native module (web, or an Android build from
+// before the Wear bridge). Callers guard on `isSupported()`.
 const WatchConnectivityModule: WatchConnectivityModuleType | null =
-  Platform.OS === 'ios'
-    ? requireOptionalNativeModule<WatchConnectivityModuleType>(
-        'WatchConnectivity'
-      )
-    : null;
+  requireOptionalNativeModule<WatchConnectivityModuleType>('WatchConnectivity');
 
 export default WatchConnectivityModule;

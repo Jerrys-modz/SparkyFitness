@@ -26,6 +26,20 @@ This directory contains all GitHub Actions workflows for the SparkyFitness proje
 
 ---
 
+#### `wear.yml`
+
+**Purpose**: Compile the Wear OS companion so a broken watch build fails the pull request.
+
+**Triggers**: Pull requests and pushes to `main` that touch `SparkyFitnessMobile/targets/wear/`, plus manual runs
+
+**What it does**:
+
+- Installs Android 35 on the runner and Gradle 8.11.1
+- Runs `:app:assembleDebug` in the standalone Wear project
+- Boots a Wear emulator, seeds a sample day, and uploads screenshots of each page
+
+---
+
 #### `pr-validation.yml`
 
 **Purpose**: Validate that PR submissions follow contribution guidelines and required checkboxes are checked.
@@ -192,6 +206,14 @@ The initial App Store submission stays manual (see `umbrel/README.md`): `submiss
 
 ---
 
+#### `android-test-build.yml`
+
+**Purpose**: Build a sideloadable phone APK (release variant, debug-signed, JavaScript bundled) and a Wear OS debug APK for device testing, uploaded as workflow artifacts. Needs no release signing secrets.
+
+**Triggers**: Manual workflow dispatch, and pushes to `feat/wear-os` that touch this workflow or `SparkyFitnessMobile/targets/wear/`
+
+---
+
 #### `release-assets.yml`
 
 **Purpose**: Create release assets for published releases
@@ -228,7 +250,7 @@ A mobile surface missing from the translations repo is skipped with a notice, so
 
 Only locales listed in `SparkyFitnessMobile/src/localization/localeRegistry.json` are shipped on mobile. Others sync in as translation candidates, are reported by the i18n audit as non-blocking diagnostics, and are never bundled. The widget resources are the exception to "sync in": Android compiles every `values-*` directory and the iOS widget target ships every `.lproj` folder, so those two surfaces are pulled for registered locales only and a candidate's widget arrives on the sync after it is registered.
 
-**Triggers**: Manual workflow dispatch only. Requires the `TRANSLATIONS_PAT` secret.
+**Triggers**: Manual workflow dispatch, and pushes to `feat/wear-os` that touch this workflow or `SparkyFitnessMobile/targets/wear/`. Requires the `TRANSLATIONS_PAT` secret.
 
 ---
 

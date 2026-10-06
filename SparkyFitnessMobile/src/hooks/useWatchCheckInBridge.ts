@@ -31,6 +31,7 @@ import { getTodayDate, addDays } from '../utils/dateUtils';
 import { getServingVolume } from '../utils/unitConversions';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
+import { getActiveServerConfigId } from '../services/storage';
 import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -43,7 +44,6 @@ import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
-import { getActiveServerConfigId } from '../services/storage';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -102,6 +102,7 @@ const NO_FIGURES_FOR_TODAY = {
   carbsGoal: null,
   fatConsumed: null,
   fatGoal: null,
+  bmrKcal: null,
   waterConsumedMl: null,
   waterLog: [] as WatchWaterLogPayload[],
   goalNutrients: null,
@@ -314,6 +315,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const carbsGoal = dailySummary?.carbs.goal ?? null;
   const fatConsumed = dailySummary?.fat.consumed ?? null;
   const fatGoal = dailySummary?.fat.goal ?? null;
+  const bmrKcal = balance && balance.bmr > 0 ? balance.bmr : null;
 
   // Today's water totals for the watch's Water page bottle — same
   // `dailySummary` object as the phone's own hydration gauge reads, so the
@@ -440,6 +442,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       carbsGoal,
       fatConsumed,
       fatGoal,
+      bmrKcal,
       waterConsumedMl,
       waterLog: watchWaterLog,
       goalNutrients,
@@ -458,6 +461,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       carbsGoal,
       fatConsumed,
       fatGoal,
+      bmrKcal,
       waterConsumedMl,
       watchWaterLog,
       goalNutrients,
@@ -533,11 +537,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       const figures =
         summaryDate === today ? figuresForSummaryDate : NO_FIGURES_FOR_TODAY;
 
+      const ownerId = await getActiveServerConfigId();
+      if (generation !== pushGenerationRef.current) return;
+
       const context: WatchContextPayload = {
         // Keeps consecutive pushes distinct — see the field's own comment.
         // Without it an unchanged day pushes an identical dictionary, which
         // WatchConnectivity silently declines to redeliver.
         pushedAt: Date.now(),
+        ownerId,
         today,
         todayWeightKg: todayRow?.weight ?? null,
         todayBodyFatPercentage: todayRow?.bodyFat ?? null,

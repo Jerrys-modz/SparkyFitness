@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-10-04*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -18,6 +18,7 @@
 - `src/utils/` - timezone helpers (`todayInZone`, `instantToDay`, `dayToUtcRange`, `compareDays`, `addDays`, `isDayString`), cycle/menstruation helpers, and unit/calculation utilities.
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
+- `src/watch/` - wire contract for watch-to-phone messages (`WatchProtocol.ts` schemas plus `fixtures/*.json`). The Swift and Kotlin watch apps cannot import it; `SparkyFitnessMobile/__tests__/contracts/watchProtocol.test.ts` checks each fixture against the schema and against the Swift, Kotlin and phone-bridge sources.
 
 ## Naming Convention
 
