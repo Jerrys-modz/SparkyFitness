@@ -176,6 +176,7 @@ jobs:
           shoot workout-resting resting workout
           shoot workout-idle none workout
           shoot workout-exercises active workout exercises
+          shoot workout-rpe active workout rpe
           shoot goals none goals
 
           ls -la screenshots

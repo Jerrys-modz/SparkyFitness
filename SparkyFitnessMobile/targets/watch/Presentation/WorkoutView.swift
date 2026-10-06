@@ -237,8 +237,15 @@ private struct IntervalCaptionView: View {
 
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var checkIn: CheckInStore
 
     @State private var showingExercises = false
+    /// A logged set held back while the wearer picks an effort. Held here and
+    /// not in `CurrentSetView`: logging a set starts the rest, which swaps that
+    /// view for `RestView` and would take the screen, and the set with it,
+    /// away before anything was sent. Sent once, on save, skip or dismissal.
+    @State private var pendingRpe: PendingRpe?
 
     /// Always available, including during rest: Finish lives in the picker
     /// sheet, and hiding the chevron while resting left no way to end the
@@ -254,12 +261,30 @@ private struct ActiveWorkoutView: View {
                 IntervalCaptionView(plan: store.plan)
             }
 
-            if store.isResting {
-                RestView()
-            } else if let step = store.currentStep {
-                CurrentSetView(step: step)
-            } else {
-                WorkoutCompleteView()
+            Group {
+                if store.isResting {
+                    RestView()
+                } else if let step = store.currentStep {
+                    CurrentSetView(step: step) { pendingRpe = $0 }
+                } else {
+                    WorkoutCompleteView()
+                }
+            }
+            .sheet(item: $pendingRpe) { pending in
+                RpePickerView(
+                    title: pending.step.exerciseName,
+                    summary: pending.summary(unit: checkIn.context.effectiveWeightUnit)
+                ) { rpe in
+                    session.sendSetCompleted(pending.step, values: pending.values, rpe: rpe)
+                    pendingRpe = nil
+                }
+                .onDisappear {
+                    // Swiped away: the set is still logged, just without an effort.
+                    if pendingRpe?.id == pending.id {
+                        session.sendSetCompleted(pending.step, values: pending.values)
+                        pendingRpe = nil
+                    }
+                }
             }
         }
         .padding(.horizontal, 4)
@@ -272,6 +297,9 @@ private struct ActiveWorkoutView: View {
             #if DEBUG
             if ScreenshotSeed.opensExerciseList {
                 showingExercises = true
+            }
+            if ScreenshotSeed.opensRpe, let step = store.currentStep {
+                pendingRpe = PendingRpe(step: step, values: store.values(for: step))
             }
             #endif
         }
@@ -553,6 +581,9 @@ private struct MetricsStrip: View {
 
 private struct CurrentSetView: View {
     let step: WorkoutStep
+    /// Hands a logged set up to the workout page to hold until an effort is
+    /// picked (only called while the phone's effort setting is on).
+    let onAwaitRpe: (PendingRpe) -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var session: WatchSessionManager
@@ -677,7 +708,12 @@ private struct CurrentSetView: View {
                 // The value on screen is what gets logged, settled or not.
                 endCrownEditing()
                 if let completed = store.completeCurrentSet() {
-                    session.sendSetCompleted(completed, values: store.values(for: completed))
+                    let values = store.values(for: completed)
+                    if checkIn.context.effectiveRpeEnabled {
+                        onAwaitRpe(PendingRpe(step: completed, values: values))
+                    } else {
+                        session.sendSetCompleted(completed, values: values)
+                    }
                 }
             } onNext: {
                 endCrownEditing()
@@ -1427,6 +1463,137 @@ private struct NumericKeypadView: View {
 /// A store already mid-workout, for the canvases below. `completedSets` marks
 /// that many sets done — one is enough to put the view into its rest state,
 /// since completing a set starts that set's rest.
+/// A set that has been logged on the watch and is waiting for an effort pick.
+private struct PendingRpe: Identifiable {
+    let id = UUID()
+    let step: WorkoutStep
+    let values: SetValues
+
+    /// "Set 1/3: 65.0lbs × 12", with whichever of weight and reps the set has.
+    func summary(unit: WeightUnit) -> String {
+        var parts: [String] = []
+        if let kg = values.weightKg, kg > 0 {
+            parts.append(String(format: "%.1f%@", unit.fromKg(kg), unit.suffix))
+        }
+        if let reps = values.reps {
+            parts.append(String(format: "%.0f", reps))
+        }
+        let label = step.label
+        return parts.isEmpty ? label : "\(label): " + parts.joined(separator: " × ")
+    }
+}
+
+/// Effort picked after a set, laid out like Hevy's: the set it is for, one big
+/// value the Digital Crown changes, what that value means in reps left, and
+/// Skip / Save. `onDone(nil)` skips.
+private struct RpePickerView: View {
+    let title: String
+    let summary: String
+    let onDone: (Double?) -> Void
+
+    /// Hevy's scale. There is no 6.5: below 7 it is "4+ reps left" either way.
+    private static let values: [Double] = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10]
+
+    /// Crown position in `values`, as a Double because that is what the crown
+    /// binds to. Starts on 8, the middle of what most working sets are.
+    @State private var position: Double = 3
+    @FocusState private var focused: Bool
+
+    private var index: Int {
+        min(max(Int(position.rounded()), 0), Self.values.count - 1)
+    }
+
+    private var value: Double { Self.values[index] }
+
+    private var valueText: String {
+        value.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", value)
+            : String(format: "%.1f", value)
+    }
+
+    /// How much was left, in Hevy's words.
+    private var meaning: String {
+        switch value {
+        case 10: return "No more reps possible"
+        case 9.5: return "Could've maybe done 1 more rep"
+        case 9: return "Could've done 1 more rep"
+        case 8.5: return "Could've maybe done 2 more reps"
+        case 8: return "Could've done 2 more reps"
+        case 7.5: return "Could've maybe done 3 more reps"
+        case 7: return "Could've done 3 more reps"
+        default: return "Could've done 4+ more reps"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            VStack(spacing: 0) {
+                Text(title)
+                    .lineLimit(1)
+                Text(summary)
+                    .lineLimit(1)
+            }
+            .font(.system(size: 13, weight: .medium))
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(valueText)
+                .font(.system(size: 40, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.blue, lineWidth: 2)
+                )
+
+            Text("RPE")
+                .font(.system(size: 14, weight: .bold))
+
+            Text(meaning)
+                .font(.system(size: 14, weight: .medium))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 6) {
+                Button { onDone(nil) } label: {
+                    Text("Skip")
+                        .font(.system(size: 17, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                }
+                .tint(.gray)
+                Button { onDone(value) } label: {
+                    Text("Save")
+                        .font(.system(size: 17, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                }
+                .tint(.blue)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .frame(height: 44)
+        }
+        .padding(.horizontal, 4)
+        .focusable()
+        .focused($focused)
+        .digitalCrownRotation(
+            $position,
+            from: 0,
+            through: Double(Self.values.count - 1),
+            by: 1,
+            sensitivity: .low,
+            isContinuous: false,
+            isHapticFeedbackEnabled: true
+        )
+        .onAppear { focused = true }
+    }
+}
+
 @MainActor
 private func previewStore(
     bpm: Double? = SampleDay.workoutBpm,
