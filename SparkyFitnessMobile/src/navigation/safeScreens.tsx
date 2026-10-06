@@ -44,6 +44,8 @@ import FoodSettingsScreen from '../screens/FoodSettingsScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
+import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
+import CustomCategoryEditScreen from '../screens/CustomCategoryEditScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
 import WorkoutSettingsScreen from '../screens/WorkoutSettingsScreen';
 import ServerSettingsScreen from '../screens/ServerSettingsScreen';
@@ -144,6 +146,8 @@ export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
+export const SafeCustomCategories = withErrorBoundary(CustomCategoriesScreen, 'CustomCategories', { canGoBack: true });
+export const SafeCustomCategoryEdit = withErrorBoundary(CustomCategoryEditScreen, 'CustomCategoryEdit', { canGoBack: true });
 export const SafeWorkoutSettings = withErrorBoundary(WorkoutSettingsScreen, 'WorkoutSettings', { canGoBack: true });
 export const SafeServerSettings = withErrorBoundary(ServerSettingsScreen, 'ServerSettings', { canGoBack: true });
 export const SafePasskeySettings = withErrorBoundary(PasskeySettingsScreen, 'PasskeySettings', { canGoBack: true });
