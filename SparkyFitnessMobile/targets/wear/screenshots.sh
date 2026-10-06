@@ -16,6 +16,11 @@ echo "Installing $APK"
 "$ADB" -s "$SERIAL" devices -l
 timeout 180 "$ADB" -s "$SERIAL" install -r --no-streaming "$APK"
 
+# The first launch after install sits on the system splash. Open once and wait.
+"$ADB" -s "$SERIAL" shell am start -n "$PKG/$ACT" \
+  --es sparky.screenshot 1 --es sparky.workout none --es sparky.page goals
+sleep 15
+
 shoot() {
   echo "Shooting $1"
   timeout 15 "$ADB" -s "$SERIAL" shell am force-stop "$PKG" || true
@@ -23,7 +28,7 @@ shoot() {
     --es sparky.screenshot 1 \
     --es sparky.workout "$2" \
     --es sparky.page "$3"
-  sleep 6
+  sleep 10
   timeout 20 "$ADB" -s "$SERIAL" exec-out screencap -p > "$OUT/$1.png"
 }
 
