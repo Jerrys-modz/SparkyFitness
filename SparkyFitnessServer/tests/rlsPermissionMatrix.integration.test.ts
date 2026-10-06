@@ -257,6 +257,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     // getSystemClient (which bypasses RLS) touches it.
     openfoodfacts_product_read_rate_limit: 'custom',
     passkey_registration_tickets: 'custom',
+    rate_limit: 'custom',
   };
 
   // Expected helper substrings for the generic-policy domains.

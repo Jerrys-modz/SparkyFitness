@@ -77,6 +77,15 @@ const authPool = new Pool({
   password: process.env.SPARKY_FITNESS_DB_PASSWORD,
   // @ts-expect-error
   port: process.env.SPARKY_FITNESS_DB_PORT || 5432,
+  // pg returns bigint columns as strings, but Better Auth does arithmetic on
+  // them as numbers (rate_limit.last_request, epoch milliseconds); a string
+  // there turns the 429 retry-after into concatenated digits.
+  types: {
+    getTypeParser: (oid: number, format?: 'text' | 'binary') =>
+      oid === pg.types.builtins.INT8
+        ? Number
+        : pg.types.getTypeParser(oid, format),
+  },
 });
 // Better Auth holds this pool instance for the process lifetime, so it cannot be
 // swapped or ended the way poolManager's pools are during a restore. Without a
@@ -310,6 +319,11 @@ const auth = betterAuth({
   // Rate limiting for auth endpoints
   rateLimit: {
     enabled: true,
+    // Counted in the database rather than in memory so that every server
+    // instance enforces one shared limit per client address.
+    storage: 'database',
+    modelName: 'rate_limit',
+    fields: { lastRequest: 'last_request' },
     window: 60,
     max: 100,
     // Credential checks answer 401, which intrusion-detection tooling reads as

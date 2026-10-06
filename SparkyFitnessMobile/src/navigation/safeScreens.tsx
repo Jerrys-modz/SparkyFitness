@@ -42,6 +42,7 @@ import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
 import FoodSettingsScreen from '../screens/FoodSettingsScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
+import WatchSettingsScreen from '../screens/WatchSettingsScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
 import WorkoutSettingsScreen from '../screens/WorkoutSettingsScreen';
 import ServerSettingsScreen from '../screens/ServerSettingsScreen';
@@ -135,6 +136,7 @@ export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'M
 export const SafeFoodSettings = withErrorBoundary(FoodSettingsScreen, 'FoodSettings', { canGoBack: true });
 export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 'DashboardSettings', { canGoBack: true });
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
+export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
 export const SafeWorkoutSettings = withErrorBoundary(WorkoutSettingsScreen, 'WorkoutSettings', { canGoBack: true });
 export const SafeServerSettings = withErrorBoundary(ServerSettingsScreen, 'ServerSettings', { canGoBack: true });
