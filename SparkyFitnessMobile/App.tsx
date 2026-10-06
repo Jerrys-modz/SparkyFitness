@@ -111,6 +111,9 @@ import {
   SafeMedicationDetail,
   SafeMedicationForm,
   SafeMedicationScheduleForm,
+  SafeGlp1Tracker,
+  SafeGlp1PenForm,
+  SafeGlp1TitrationForm,
   SafeSymptomLog,
   SafeSymptomHistory,
   SafeManageSymptoms,
@@ -922,6 +925,29 @@ function AppContent() {
             name="MedicationScheduleForm"
             component={SafeMedicationScheduleForm}
             options={createStackScreenOptions(t('screens.medication', { defaultValue: 'Medication' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="Glp1Tracker"
+            component={SafeGlp1Tracker}
+            options={createStackScreenOptions(t('medications.glp1.tracker.title', { defaultValue: 'GLP-1 tracker' }), { headerBackTitle: t('screens.medication', { defaultValue: 'Medication' }) })}
+          />
+          <Stack.Screen
+            name="Glp1PenForm"
+            component={SafeGlp1PenForm}
+            options={createStackScreenOptions(t('medications.glp1.form.newPen', { defaultValue: 'New pen or vial' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="Glp1TitrationForm"
+            component={SafeGlp1TitrationForm}
+            options={createStackScreenOptions(t('medications.glp1.titration.newStep', { defaultValue: 'New step' }), {
               presentation: 'modal',
               headerBackButtonDisplayMode: 'minimal',
               ...(Platform.OS === 'android' ? androidModalAnimation : {}),
