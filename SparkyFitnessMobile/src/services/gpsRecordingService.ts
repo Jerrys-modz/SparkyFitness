@@ -332,16 +332,26 @@ export function resumeRecording(
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'paused') return;
+    const paused = session;
     const now = Date.now();
     session = {
-      ...session,
+      ...paused,
       status: 'recording',
-      pausedMs: session.pausedMs + (now - (session.pausedAt ?? now)),
+      pausedMs: paused.pausedMs + (now - (paused.pausedAt ?? now)),
       pausedAt: null,
-      seg: session.seg + 1,
+      seg: paused.seg + 1,
     };
     await persistSession();
-    await startUpdates(notification);
+    try {
+      await startUpdates(notification);
+    } catch (error) {
+      // Stay paused so the person can try again, and make sure no
+      // half-started task is left running.
+      session = paused;
+      await persistSession();
+      await stopUpdates();
+      throw error;
+    }
     publish();
   });
 }
@@ -352,10 +362,9 @@ export function finishRecording(): Promise<void> {
     await hydrate();
     if (!session || session.status === 'finished') return;
     const now = Date.now();
-    const pausedMs =
-      session.status === 'paused'
-        ? session.pausedMs + (now - (session.pausedAt ?? now))
-        : session.pausedMs;
+    // A paused finish ends the clock at `pausedAt`, so the final pause is
+    // already excluded: adding it to `pausedMs` would remove it twice.
+    const pausedMs = session.pausedMs;
     session = {
       ...session,
       status: 'finished',
