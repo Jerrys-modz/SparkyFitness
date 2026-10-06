@@ -21,6 +21,7 @@ import CycleInsightsView from '../components/wellness/CycleInsightsView';
 import CycleRing from '../components/wellness/CycleRing';
 import CycleAlerts from '../components/wellness/CycleAlerts';
 import FertilityCard from '../components/wellness/ttc/FertilityCard';
+import AppointmentsPanel from '../components/wellness/care/AppointmentsPanel';
 import PregnancyOverviewView from '../components/wellness/pregnancy/PregnancyOverviewView';
 
 import { buildCycleAlerts } from '@workspace/shared';
@@ -60,7 +61,7 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
   // pregnancy gets Tools; a middle-tab selection left over from the other mode
   // falls back to Overview.
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'trends' | 'tools' | 'history'
+    'overview' | 'trends' | 'tools' | 'care' | 'history'
   >('overview');
   const middleTab =
     mode === 'pregnant'
@@ -176,6 +177,10 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
             },
             middleTab,
             {
+              key: 'care',
+              label: t('cycleHub.care', { defaultValue: 'Care' }),
+            },
+            {
               key: 'history',
               label: t('cycleHub.history', { defaultValue: 'History' }),
             },
@@ -256,6 +261,12 @@ const CycleHubScreen: React.FC<CycleHubScreenProps> = ({ navigation }) => {
         {currentTab === 'tools' && (
           <View className="gap-3">
             <PregnancyOverviewView section="tools" />
+          </View>
+        )}
+
+        {currentTab === 'care' && (
+          <View className="gap-3">
+            <AppointmentsPanel />
           </View>
         )}
 

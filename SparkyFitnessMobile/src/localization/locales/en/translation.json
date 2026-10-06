@@ -5414,7 +5414,8 @@
       "day": "Day {{day}}",
       "dayCycle_one": "{{count}}-day cycle",
       "dayCycle_other": "{{count}}-day cycle"
-    }
+    },
+    "care": "Care"
   },
   "workoutPresetLibrary": {
     "configure": "Configure your server connection in Settings to view your workout presets."
@@ -5857,6 +5858,52 @@
         "title": "Scan Labels On Device",
         "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
       }
+    }
+  },
+  "kickCounter": {
+    "title": "Kick Counter",
+    "goal_one": "Aim for {{count}} movement",
+    "goal_other": "Aim for {{count}} movements",
+    "tap": "Tap to count a kick",
+    "stop": "End session",
+    "start": "Start counting",
+    "recent": "Recent sessions",
+    "movements_one": "{{count}} movement",
+    "movements_other": "{{count}} movements",
+    "error": "Could not save kick session"
+  },
+  "contractionTimer": {
+    "title": "Contraction Timer",
+    "fiveOneOne": "Your contractions look like a 5-1-1 pattern (about 5 minutes apart, about 1 minute long, for an hour). Consider contacting your provider. This is not medical advice.",
+    "seconds": "{{value}}s",
+    "minutes": "{{value}}m",
+    "start": "Start contraction",
+    "stop": "Stop",
+    "countLabel": "in last hour",
+    "apart": "apart",
+    "long": "long",
+    "duration": "Duration {{seconds}}s",
+    "interval": "Interval {{value}}",
+    "error": "Could not save contraction"
+  },
+  "appointments": {
+    "title": "Appointments",
+    "add": "Add",
+    "save": "Save appointment",
+    "appointment": "Appointment",
+    "empty": "No appointments yet.",
+    "titlePlaceholder": "Title (optional)",
+    "locationPlaceholder": "Location (optional)",
+    "delete": "Delete appointment",
+    "error": "Could not update appointments",
+    "types": {
+      "checkup": "Prenatal checkup",
+      "ultrasound": "Ultrasound / scan",
+      "glucose_test": "Glucose screening",
+      "bloodwork": "Bloodwork",
+      "specialist": "Specialist",
+      "class": "Birth / parenting class",
+      "other": "Other"
     }
   }
 }
