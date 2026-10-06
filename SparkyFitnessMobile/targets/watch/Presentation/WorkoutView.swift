@@ -641,7 +641,7 @@ private struct MetricsStrip: View {
                     .font(.system(.callout, design: .rounded).weight(.semibold))
                     .foregroundStyle(.secondary)
                     .minimumScaleFactor(0.7)
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     if let bpm = store.latestBpm {
                         // Never truncated: a three-digit rate used to lose
                         // its last digits to the readings beside it.
@@ -687,7 +687,11 @@ private struct MetricsStrip: View {
     private static func metric(_ value: String, systemImage: String) -> some View {
         HStack(spacing: 2) {
             Image(systemName: systemImage)
+            // Shrinks rather than truncates: the list button takes a slice of
+            // this strip, and a three-digit calorie count lost its last digit.
             Text(value)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
     }
 
