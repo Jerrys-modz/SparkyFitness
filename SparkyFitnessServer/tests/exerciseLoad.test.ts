@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bodyWeightOnDay,
   deriveExerciseModality,
+  inferExerciseModality,
   effectiveLoadKg,
   epleyOneRepMaxKg,
   isExerciseModality,
@@ -140,5 +141,43 @@ describe('weight_distance and weight_duration modalities', () => {
     expect(
       setVolumeKg({ weight: 100, reps: null }, 'weight_distance', 80)
     ).toBe(0);
+  });
+});
+
+describe('inferExerciseModality', () => {
+  const infer = (name: string, category = 'strength', equipment?: string[]) =>
+    inferExerciseModality({ name, category, equipment });
+
+  it('reads carries and sled work as weight & distance', () => {
+    expect(infer("Farmer's Carry")).toBe('weight_distance');
+    expect(infer('Suitcase Carry')).toBe('weight_distance');
+    expect(infer('Sled Push')).toBe('weight_distance');
+    expect(infer('Yoke Walk')).toBe('weight_distance');
+  });
+
+  it('reads holds as duration, loaded holds as weight & duration', () => {
+    expect(infer('Plank', 'abs')).toBe('duration');
+    expect(infer('Dead Hang')).toBe('duration');
+    expect(infer('Weighted Plank', 'abs')).toBe('weight_duration');
+    expect(infer('Weighted Wall Sit')).toBe('weight_duration');
+  });
+
+  it('reads assisted and weighted bodyweight moves as signed bodyweight', () => {
+    expect(infer('Assisted Pull-Up')).toBe('bodyweight_reps');
+    expect(infer('Weighted Dip')).toBe('bodyweight_reps');
+    expect(infer('Weighted Chin-Up')).toBe('bodyweight_reps');
+  });
+
+  it('reads machine cardio by name but not weighted rows', () => {
+    expect(infer('Treadmill Run')).toBe('duration_distance');
+    expect(infer('Stationary Bike')).toBe('duration_distance');
+    expect(infer('Barbell Row')).toBe('weight_reps');
+  });
+
+  it('falls back to category and equipment for unrecognised names', () => {
+    expect(infer('Bench Press')).toBe('weight_reps');
+    expect(infer('Burpee', 'strength', ['body only'])).toBe('bodyweight_reps');
+    expect(infer('Cooper Test', 'cardio')).toBe('duration_distance');
+    expect(infer('Walking Lunge')).toBe('weight_reps');
   });
 });

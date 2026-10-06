@@ -12,6 +12,7 @@ import {
   exerciseWriteArrayFieldsSchema,
   type ExerciseWriteArrayFields,
 } from '@workspace/shared';
+import { applyExerciseModalitySuggestionsBodySchema } from '@workspace/shared';
 import { log } from '../config/logging.js';
 
 import { fileURLToPath } from 'url';
@@ -924,6 +925,91 @@ router.post(
     }
   }
 );
+/**
+ * @swagger
+ * /exercises/modality-suggestions:
+ *   get:
+ *     summary: Preview tracking-type changes for the user's own exercises
+ *     description: Re-runs automatic type detection (name, category, equipment) and lists exercises whose detected type differs from the stored one. Nothing is changed.
+ *     tags:
+ *       - Exercise & Workouts
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Suggested changes.
+ *       500:
+ *         description: Server error.
+ */
+router.get('/modality-suggestions', authenticate, async (req, res, next) => {
+  try {
+    res
+      .status(200)
+      .json(await exerciseService.getModalitySuggestions(req.userId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /exercises/modality-suggestions/apply:
+ *   post:
+ *     summary: Apply chosen tracking-type changes to the user's own exercises
+ *     tags:
+ *       - Exercise & Workouts
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - changes
+ *             properties:
+ *               changes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [id, modality]
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     modality:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Number of exercises updated.
+ *       400:
+ *         description: Invalid request body.
+ *       500:
+ *         description: Server error.
+ */
+router.post(
+  '/modality-suggestions/apply',
+  authenticate,
+  async (req, res, next) => {
+    const parsed = applyExerciseModalitySuggestionsBodySchema.safeParse(
+      req.body
+    );
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid request body.' });
+    }
+    try {
+      const updated = await exerciseService.applyModalitySuggestions(
+        req.userId,
+        parsed.data.changes
+      );
+      res.status(200).json({ updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // Endpoint to fetch an exercise by ID
 /**
  * @swagger
