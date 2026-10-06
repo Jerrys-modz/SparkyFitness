@@ -233,31 +233,33 @@ private struct WaitingForWorkoutView: View {
     /// name, with a play mark. Tinted blue like the phone's plan card.
     private func scheduledRow(_ workout: ScheduledWorkout) -> some View {
         let blue = Color(red: 0.31, green: 0.51, blue: 0.96)
-        return HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                    Text(workout.planName.isEmpty
-                        ? workout.caption
-                        : "\(workout.planName) • \(workout.caption)")
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-                .font(.system(size: WatchStyle.s(11), weight: .semibold))
-                .foregroundStyle(blue)
+        return VStack(alignment: .leading, spacing: 4) {
+            // On its own line, across the whole row: beside the play mark
+            // there was no room for it on a 40 mm watch.
+            HStack(spacing: 4) {
+                Image(systemName: "calendar")
+                Text(workout.planName.isEmpty
+                    ? workout.caption
+                    : "\(workout.planName) • \(workout.caption)")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .font(.system(size: WatchStyle.s(11), weight: .semibold))
+            .foregroundStyle(blue)
+            HStack(spacing: 8) {
                 Text(startingId == workout.presetId ? "Starting…" : workout.name)
                     .font(.system(size: WatchStyle.s(16), weight: .semibold))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "play.fill")
+                    .font(.system(size: WatchStyle.s(13), weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: WatchStyle.s(30), height: WatchStyle.s(30))
+                    .background(blue, in: Circle())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "play.fill")
-                .font(.system(size: WatchStyle.s(13), weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: WatchStyle.s(30), height: WatchStyle.s(30))
-                .background(blue, in: Circle())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, WatchStyle.s(10))
