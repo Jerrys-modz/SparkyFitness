@@ -17,14 +17,6 @@ private let macroDateFormatter: DateFormatter = {
 enum MacroKind {
     case protein, carbs, fat
 
-    var kind: String {
-        switch self {
-        case .protein: return "proteinGoalComplication"
-        case .carbs: return "carbsGoalComplication"
-        case .fat: return "fatGoalComplication"
-        }
-    }
-
     var name: String {
         switch self {
         case .protein: return "Protein"
@@ -164,26 +156,53 @@ struct MacroComplicationView: View {
     }
 }
 
-private func macroConfiguration(_ macro: MacroKind) -> some WidgetConfiguration {
-    StaticConfiguration(kind: macro.kind, provider: MacroProvider(macro: macro)) { entry in
-        MacroComplicationView(macro: macro, entry: entry)
-            .containerBackground(.clear, for: .widget)
-    }
-    .configurationDisplayName("\(macro.name) Goal")
-    .description("How much of today's \(macro.name.lowercased()) goal you've reached.")
-    .supportedFamilies([
-        .accessoryCircular, .accessoryCorner, .accessoryRectangular, .accessoryInline,
-    ])
-}
-
 struct ProteinGoalComplication: Widget {
-    var body: some WidgetConfiguration { macroConfiguration(.protein) }
+    // Must match MacroKind.protein.kind. Literals throughout, like the other
+    // complications: a configuration built from interpolated strings crashed
+    // the extension at load on watchOS 27.
+    let kind: String = "proteinGoalComplication"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: MacroProvider(macro: .protein)) { entry in
+            MacroComplicationView(macro: .protein, entry: entry)
+                .containerBackground(.clear, for: .widget)
+        }
+        .configurationDisplayName("Protein Goal")
+        .description("How much of today's protein goal you've reached.")
+        .supportedFamilies([
+            .accessoryCircular, .accessoryCorner, .accessoryRectangular, .accessoryInline,
+        ])
+    }
 }
 
 struct CarbsGoalComplication: Widget {
-    var body: some WidgetConfiguration { macroConfiguration(.carbs) }
+    let kind: String = "carbsGoalComplication"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: MacroProvider(macro: .carbs)) { entry in
+            MacroComplicationView(macro: .carbs, entry: entry)
+                .containerBackground(.clear, for: .widget)
+        }
+        .configurationDisplayName("Carbs Goal")
+        .description("How much of today's carbs goal you've reached.")
+        .supportedFamilies([
+            .accessoryCircular, .accessoryCorner, .accessoryRectangular, .accessoryInline,
+        ])
+    }
 }
 
 struct FatGoalComplication: Widget {
-    var body: some WidgetConfiguration { macroConfiguration(.fat) }
+    let kind: String = "fatGoalComplication"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: MacroProvider(macro: .fat)) { entry in
+            MacroComplicationView(macro: .fat, entry: entry)
+                .containerBackground(.clear, for: .widget)
+        }
+        .configurationDisplayName("Fat Goal")
+        .description("How much of today's fat goal you've reached.")
+        .supportedFamilies([
+            .accessoryCircular, .accessoryCorner, .accessoryRectangular, .accessoryInline,
+        ])
+    }
 }
