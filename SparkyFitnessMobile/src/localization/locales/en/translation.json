@@ -36,6 +36,7 @@
     "save": "Save",
     "saving": "Saving…",
     "back": "Back",
+    "more": "more",
     "showLess": "Show less",
     "learnMore": "Learn more",
     "next": "Next",
@@ -94,7 +95,10 @@
     "selectOption": "Select an option",
     "requestTimedOut": "Request timed out. Check your server connection.",
     "nextStep": "Next step",
-    "notNow": "Not now"
+    "notNow": "Not now",
+    "undo": "Undo",
+    "all": "All",
+    "builtIn": "Built-in"
   },
   "settings": {
     "app": "App Settings",
@@ -145,7 +149,8 @@
       "whatsNew": "What's New",
       "logs": "View Logs",
       "about": "About",
-      "shareReport": "Share Diagnostic Report"
+      "shareReport": "Share Diagnostic Report",
+      "watch": "Apple Watch"
     },
     "theme": {
       "title": "Theme",
@@ -259,7 +264,9 @@
     "actions": {
       "completeSet": "Complete Set",
       "logAsTaken": "Log as taken",
-      "skip": "Skip"
+      "logAllAsTaken": "Log all as taken",
+      "skip": "Skip",
+      "skipAll": "Skip all"
     },
     "permission": {
       "notificationsOff": "Notifications off",
@@ -454,6 +461,7 @@
       "caloriesUnit": "kcal",
       "addSetLabel": "Add set",
       "heartRateFor": "Average heart rate for {{name}}",
+      "liveHeartRateFor": "Current heart rate for {{name}}",
       "heartRateUnit": "bpm"
     },
     "nextSet": "Next Set"
@@ -470,6 +478,7 @@
     "logWorkout": "Log Workout",
     "pastSets": "Past sets & reps",
     "wellness": "Wellness",
+    "symptoms": "Symptoms",
     "progressPhotos": "Progress Photos",
     "askSparky": "Ask Sparky",
     "syncHealth": "Sync Health Data",
@@ -529,6 +538,10 @@
     "pregnancySetup": "Pregnancy Setup",
     "medications": "Medications",
     "medication": "Medication",
+    "symptomLog": "Log Symptom",
+    "symptomHistory": "Symptom History",
+    "manageSymptoms": "Manage Symptoms",
+    "symptomDefinition": "Symptom Details",
     "library": {
       "noServerConfigured": "No server configured",
       "configureServer": "Configure your server connection in Settings to view your library.",
@@ -567,7 +580,8 @@
     "progressPhotoCompare": "Compare",
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
-    "cardioSession": "Cardio Session"
+    "cardioSession": "Cardio Session",
+    "watchSettings": "Apple Watch"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -599,6 +613,7 @@
     "power": "Power",
     "elevationGained": "Elevation Gained",
     "boneMass": "Bone Mass",
+    "bodyWaterMass": "Body Water Mass",
     "cervicalMucus": "Cervical Mucus",
     "cyclingPedalingCadence": "Cycling Pedaling Cadence",
     "intermenstrualBleeding": "Intermenstrual Bleeding",
@@ -1010,6 +1025,8 @@
     "cyclePregnancySubtitle": "Show the wellness card on the Dashboard",
     "medications": "Medications",
     "medicationsSubtitle": "Show the medications card on the Dashboard",
+    "symptoms": "Symptoms",
+    "symptomsSubtitle": "Show symptom status, active episodes, and quick logging",
     "healthTrends": "Health Trends",
     "healthTrendsSubtitle": "Choose which graphs show on the Dashboard and their order",
     "progressPhotos": "Progress Photos",
@@ -1070,6 +1087,8 @@
     "repeatRemindersSubtitle": "Repeat each reminder every 10 minutes, up to 3 times, until the dose is logged.",
     "hideMedicationNames": "Hide Medication Names",
     "hideMedicationNamesSubtitle": "Show a generic reminder instead of the medication name and dose.",
+    "consolidateReminders": "Consolidate Reminders",
+    "consolidateRemindersSubtitle": "Group medications scheduled for the same time into a single notification.",
     "hydration": "Hydration",
     "waterReminders": "Water Reminders",
     "waterRemindersSubtitle": "Remind you to drink when you haven't logged water in a while.",
@@ -1343,6 +1362,11 @@
     },
     "notificationScheduledDose": "You have a scheduled dose",
     "notificationScheduledDoseNamed": "Scheduled dose: {{name}}{{dose}}",
+    "notificationScheduledDoses_one": "You have {{count}} scheduled dose",
+    "notificationScheduledDoses_other": "You have {{count}} scheduled doses",
+    "notificationScheduledDosesNamed": "Scheduled doses: {{names}}",
+    "notificationScheduledDosesOverflow_one": "Scheduled doses: {{names}}, and {{count}} more",
+    "notificationScheduledDosesOverflow_other": "Scheduled doses: {{names}}, and {{count}} more",
     "inactiveA11y_one": "Inactive medication ({{count}})",
     "inactiveA11y_other": "Inactive medications ({{count}})",
     "inactiveCount_one": "Inactive ({{count}})",
@@ -1688,6 +1712,7 @@
     "trackingType": "Tracking Type",
     "modalityWeightReps": "Weight & Reps",
     "modalityReps": "Reps",
+    "modalityBodyweight": "Bodyweight (+/− weight)",
     "modalityDuration": "Duration",
     "modalityDurationDistance": "Duration & Distance",
     "levelBeginner": "Beginner",
@@ -1767,6 +1792,8 @@
     "workoutPresetCount_other": "{{formattedCount}} exercises",
     "metricVolumeShort": "Vol",
     "metricE1rmShort": "1RM",
+    "bodyweightBanner": "Bodyweight exercise: counts your body weight ({{bodyWeight}} {{unit}}) plus the weight you enter. Use a minus sign for assistance.",
+    "bodyweightBannerNoWeight": "Bodyweight exercise: counts your body weight plus the weight you enter. Use a minus sign for assistance. Log a body weight so volume can be calculated.",
     "metricTenrmShort": "10RM",
     "kg": "kg",
     "lbs": "lbs",
@@ -2741,6 +2768,7 @@
     "apiKeyUnsupported": "If you connect via an API Key, passkeys cannot be used.",
     "noneRegistered": "No Passkeys Registered",
     "noneHint": "Add this device or biometric credentials to sign in quickly next time.",
+    "disabledHint": "Passkey sign-in is turned off on this server.",
     "registeredOn": "Registered {{date}}",
     "deleteAccessibility": "Delete passkey",
     "add": "Add Passkey",
@@ -4720,8 +4748,148 @@
     "saveMessage": "Could not save measurements. Please try again."
   },
   "symptoms": {
+    "title": "Symptoms",
+    "history": "History",
+    "historyTitle": "Symptom History",
+    "logTitle": "Log Symptom",
+    "editTitle": "Edit Symptom",
+    "manageTitle": "Manage Symptoms",
+    "newDefinitionTitle": "New Symptom Type",
+    "editDefinitionTitle": "Edit Symptom Type",
+    "symptom": "Symptom",
+    "orCustomName": "Or type custom symptom...",
+    "ongoingEpisode": "Track as ongoing episode",
+    "startedWhen": "Started when:",
+    "endEpisodeNow": "End Episode Now",
+    "severityTitle": "Severity",
+    "location": "Location",
+    "qualities": "Pain Qualities",
+    "associated": "Associated Symptoms / Aura",
+    "triggers": "Triggers",
+    "treatments": "Treatments & Relief",
+    "impact": "Impact on Day",
+    "notes": "Notes & Observations",
+    "notesPlaceholder": "Any additional notes or observations...",
+    "logSymptom": "Log Symptom",
+    "logAnother": "Log another symptom",
+    "logShort": "+ Log",
+    "activeEpisode": "Active Episode",
+    "noneToday": "None today",
+    "anySymptomsQuestion": "Did you experience any symptoms or pain today?",
+    "markedSymptomFreeToday": "Marked symptom-free today",
+    "noSymptomsTodayPrompt": "No symptoms today?",
+    "markFree": "Mark Free",
+    "noSymptomsLoggedToday": "No symptoms recorded today",
+    "sparkline7d": "7-Day Trend",
+    "freeDaysShort": "free days",
+    "insights30d": "30-Day Insights",
+    "topTriggers": "Top Triggers",
+    "effectiveRelief": "Effective Relief",
+    "countTimes": "({{times}}x)",
+    "noneRecorded": "None recorded",
+    "activeOngoing": "Active Ongoing Episodes",
+    "noHistory": "No symptom logs found",
+    "noHistoryDesc": "Logs and past episodes for the last 30 days will show here.",
+    "yourCustomSymptoms": "Your Custom Symptoms",
+    "noCustomSymptoms": "No custom symptoms created yet.",
+    "createFirst": "+ Create Custom Symptom",
+    "builtInTemplates": "Standard Templates",
+    "namePlaceholder": "e.g. Migraine, Knee Pain, Acid Reflux",
+    "categories": {
+      "general": "General",
+      "head": "Headache / Head",
+      "pain": "Pain",
+      "gi": "GI / Digestive",
+      "respiratory": "Respiratory",
+      "skin": "Skin",
+      "mental": "Mental",
+      "other": "Other"
+    },
+    "templates": {
+      "generic": "Generic",
+      "headache": "Headache / Migraine",
+      "pain": "Body Pain",
+      "gi": "GI / Digestive",
+      "respiratory": "Respiratory",
+      "skin": "Skin Flare",
+      "mental": "Mental Health"
+    },
+    "scales": {
+      "oneToTen": "1 - 10 Scale",
+      "oneToFive": "1 - 5 Scale",
+      "noneToSevere": "None - Severe (5 levels)",
+      "count": "Count / Frequency",
+      "text": "Text / Notes Only"
+    },
+    "impacts": {
+      "none": "None",
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe"
+    },
+    "timing": {
+      "now": "Now",
+      "m15": "-15m",
+      "h1": "-1h",
+      "h3": "-3h",
+      "started": "Started",
+      "episode": "Episode"
+    },
+    "name": "Symptom Name",
+    "nameRequired": "Please enter a name for the symptom.",
+    "template": "Template (Pre-configured Sections)",
+    "category": "Category",
+    "scaleType": "Severity Scale",
+    "isEpisodic": "Duration-based episodes",
+    "isEpisodicDesc": "Tracks start time, ongoing banner, and total duration",
+    "isPinned": "Pin to top of list",
+    "isPinnedDesc": "Shows first in the quick logging chips",
+    "deleteTitle": "Delete Symptom Log",
+    "deleteConfirm": "Are you sure you want to delete this entry?",
+    "mapPerspective": "Left and right match your body",
+    "addTreatmentPlaceholder": "Add medicine or relief method...",
     "saveFailed": "Failed to save symptom",
-    "removeFailed": "Failed to remove symptom"
+    "updateFailed": "Could not update the symptom log",
+    "endFailed": "Could not end the episode",
+    "removeFailed": "Failed to remove symptom",
+    "saveDefinitionFailed": "Could not save the symptom",
+    "saveOptionFailed": "Could not save the option",
+    "severityFailed": "Could not update severity",
+    "freeFailed": "Could not update symptom-free status",
+    "photoFailed": "Could not upload the photo",
+    "views": {
+      "front": "Front",
+      "back": "Back"
+    },
+    "severity": {
+      "unset": "Not set",
+      "none": "None",
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "substantial": "Substantial",
+      "severe": "Severe",
+      "unbearable": "Unbearable"
+    },
+    "effectiveness": {
+      "helped": "Helped",
+      "partly": "Partly",
+      "didntHelp": "Didn't help",
+      "unknown": "Unsure"
+    },
+    "kinds": {
+      "relief": "Relief / Non-drug",
+      "medication": "Medication"
+    },
+    "actions": {
+      "endNow": "End now",
+      "stillOngoing": "Still ongoing"
+    },
+    "notification": {
+      "dailyTitle": "Symptom check-in",
+      "dailyBody": "How are you feeling today? Tap to log any symptoms.",
+      "nudgeTitle": "Episode still active?",
+      "nudgeBody": "{{name}} has been running for {{hours}} hours. Is it still ongoing or ended?"
+    }
   },
   "waterIntake": {
     "updateFailed": "Error",
@@ -5321,6 +5489,26 @@
     "moveDown": "Move down",
     "stateShown": "Shown",
     "stateHidden": "Hidden"
+  },
+  "watchSettings": {
+    "pagesTitle": "Pages",
+    "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this page sits on your watch",
+    "pages": {
+      "goals": "Goals",
+      "water": "Water",
+      "entry": "Weight check-in",
+      "trend": "Weight trend",
+      "workout": "Workout"
+    },
+    "nutrientsTitle": "Goals page nutrients",
+    "nutrientsDescription": "Choose the nutrients listed under the calorie ring on your watch, and drag to set their order. Each shows today’s amount against its goal.",
+    "nutrientReorderHint": "Changes where this nutrient sits on your watch",
+    "setInputTitle": "Set input",
+    "setInputDescription": "How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.",
+    "setInputKeypad": "Keypad",
+    "setInputCrown": "Digital Crown"
   },
   "progressPhotos": {
     "card": {

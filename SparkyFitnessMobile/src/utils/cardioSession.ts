@@ -1,8 +1,12 @@
 import type {
+  ExerciseActivityQueryItem,
   ExerciseEntryHrZones,
   GpsTrackPoint,
+  IndividualSessionResponse,
   WorkoutHeartRatePoint,
 } from '@workspace/shared';
+import { canEditGroupedWorkout } from '@workspace/shared';
+import { distanceFromKm } from './unitConversions';
 
 /** Trackpoints kept when drawing a route; plenty for a phone-width figure. */
 const MAX_ROUTE_POINTS = 1500;
@@ -200,17 +204,99 @@ export interface HeartRateZoneRow {
 export function heartRateZoneRows(
   zones: readonly ExerciseEntryHrZones[]
 ): HeartRateZoneRow[] {
-  const total = zones.reduce(
-    (sum, zone) => sum + Math.max(0, zone.seconds_in_zone),
-    0
-  );
-  return [...zones]
-    .sort((a, b) => a.zone_index - b.zone_index)
-    .map((zone) => ({
-      zone: zone.zone_index,
-      lowerBpm: zone.zone_lower_bpm,
-      upperBpm: zone.zone_upper_bpm,
-      seconds: Math.max(0, zone.seconds_in_zone),
-      share: total > 0 ? Math.max(0, zone.seconds_in_zone) / total : 0,
+  return combinedHeartRateZoneRows([zones]);
+}
+
+/**
+ * Time in each zone across several exercise entries: a whole workout, where
+ * the watch stored zones per exercise. Seconds add up by zone; a zone's
+ * bounds come from whichever entries carry them (they are computed from the
+ * same max heart rate, so they agree), widest first. One entry's rows are
+ * exactly `heartRateZoneRows` of it.
+ */
+export function combinedHeartRateZoneRows(
+  zonesPerEntry: readonly (readonly ExerciseEntryHrZones[])[]
+): HeartRateZoneRow[] {
+  const byZone = new Map<
+    number,
+    { lowerBpm: number | null; upperBpm: number | null; seconds: number }
+  >();
+  for (const zones of zonesPerEntry) {
+    for (const zone of zones) {
+      const row = byZone.get(zone.zone_index) ?? {
+        lowerBpm: null,
+        upperBpm: null,
+        seconds: 0,
+      };
+      row.seconds += Math.max(0, zone.seconds_in_zone);
+      if (zone.zone_lower_bpm != null) {
+        row.lowerBpm =
+          row.lowerBpm == null
+            ? zone.zone_lower_bpm
+            : Math.min(row.lowerBpm, zone.zone_lower_bpm);
+      }
+      if (zone.zone_upper_bpm != null) {
+        row.upperBpm =
+          row.upperBpm == null
+            ? zone.zone_upper_bpm
+            : Math.max(row.upperBpm, zone.zone_upper_bpm);
+      }
+      byZone.set(zone.zone_index, row);
+    }
+  }
+  const total = [...byZone.values()].reduce((sum, row) => sum + row.seconds, 0);
+  return [...byZone.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([zone, row]) => ({
+      zone,
+      lowerBpm: row.lowerBpm,
+      upperBpm: row.upperBpm,
+      seconds: row.seconds,
+      share: total > 0 ? row.seconds / total : 0,
     }));
+}
+
+/**
+ * Maps a diary workout to the shape the cardio detail screen takes, or null
+ * when that screen has nothing to add. Only synced workouts qualify: in-app
+ * entries (manual, sparky, workout plan, or no source) carry no route, heart
+ * rate, or zones, and strength sessions are logged as weight and reps.
+ */
+export function cardioSessionFromDiaryEntry(
+  session: IndividualSessionResponse,
+  distanceUnit: 'km' | 'miles'
+): ExerciseActivityQueryItem | null {
+  if (!session.entry_date) return null;
+  if (canEditGroupedWorkout(session.source)) return null;
+  if (session.exercise_snapshot?.modality === 'weight_reps') return null;
+  if (session.sets.some((set) => set.weight != null || set.reps != null)) {
+    return null;
+  }
+
+  const distanceKm =
+    session.distance != null && session.distance > 0 ? session.distance : null;
+  return {
+    id: session.id,
+    userId: '',
+    exerciseName:
+      session.name ??
+      session.exercise_snapshot?.name ??
+      session.category ??
+      'Workout',
+    category: session.category ?? session.exercise_snapshot?.category ?? null,
+    entryDate: session.entry_date,
+    entryTime: session.entry_time ?? null,
+    durationMinutes: session.duration_minutes,
+    movingDurationMinutes: null,
+    distanceMeters: distanceKm != null ? distanceKm * 1000 : null,
+    distanceFormatted:
+      distanceKm != null ? distanceFromKm(distanceKm, distanceUnit) : null,
+    avgPaceSecondsPerKm: null,
+    formattedPace: null,
+    caloriesBurned: session.calories_burned,
+    avgHeartRate: session.avg_heart_rate,
+    source: session.source,
+    notes: session.notes,
+    hasGpsTrack: false,
+  };
 }

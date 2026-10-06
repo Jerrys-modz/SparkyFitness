@@ -1,6 +1,8 @@
 import {
   buildCaloriesStackDays,
   buildCaloriesBarLayout,
+  buildCaloriesGoalSegments,
+  resolveEffectiveMaxCalories,
   type CaloriesStackDay,
 } from '../../../src/components/charts/caloriesStackLayout';
 import type { CaloriesDataPoint } from '../../../src/types/healthTrends';
@@ -188,5 +190,91 @@ describe('buildCaloriesBarLayout', () => {
         maxCalories: 100,
       })
     ).toEqual([]);
+  });
+});
+
+describe('resolveEffectiveMaxCalories', () => {
+  test('expands to the highest positive goal in the array', () => {
+    expect(resolveEffectiveMaxCalories(1000, [1800, null, 2000])).toBe(2000);
+  });
+
+  test('ignores null, undefined, zero, and negative entries', () => {
+    expect(resolveEffectiveMaxCalories(1000, [null, undefined, 0, -5])).toBe(
+      1000
+    );
+  });
+
+  test('leaves the data max alone when every goal is below it', () => {
+    expect(resolveEffectiveMaxCalories(3000, [1800, 2000])).toBe(3000);
+  });
+});
+
+describe('buildCaloriesGoalSegments', () => {
+  const days: CaloriesStackDay[] = [
+    {
+      day: '2026-09-19',
+      totalCalories: 100,
+      segments: [{ macro: 'protein', calories: 100 }],
+    },
+    {
+      day: '2026-09-20',
+      totalCalories: 50,
+      segments: [{ macro: 'protein', calories: 50 }],
+    },
+  ];
+
+  // width: 100, two days -> columns at x=5 (width 40, center 25) and x=55 (width 40,
+  // center 75), matching `buildCaloriesBarLayout`'s own fixture above.
+  const columns = buildCaloriesBarLayout(days, {
+    width: 100,
+    height: 50,
+    innerPadding: 0.2,
+    maxCalories: 2000,
+  });
+
+  test('returns null when every goal is null, undefined, zero, or negative', () => {
+    expect(
+      buildCaloriesGoalSegments(columns, [null, undefined], 2000, 100, 50)
+    ).toBeNull();
+  });
+
+  test('returns null when there are no columns yet (layout not measured)', () => {
+    expect(
+      buildCaloriesGoalSegments([], [1800, 2000], 2000, 100, 50)
+    ).toBeNull();
+  });
+
+  test('holds flat across a day whose goal did not change, then steps on the day it did', () => {
+    const segments = buildCaloriesGoalSegments(
+      columns,
+      [1800, 2000],
+      2000,
+      100,
+      50
+    );
+
+    // Day 1 goal 1800 -> y = 50 - (1800/2000)*50 = 5; day 2 goal 2000 -> y = 0.
+    expect(segments).toEqual([
+      { p1: { x: 0, y: 5 }, p2: { x: 25, y: 5 } },
+      { p1: { x: 25, y: 5 }, p2: { x: 75, y: 5 } },
+      { p1: { x: 75, y: 5 }, p2: { x: 75, y: 0 } },
+      { p1: { x: 75, y: 0 }, p2: { x: 100, y: 0 } },
+    ]);
+  });
+
+  test('skips a day whose goal did not resolve rather than breaking the line', () => {
+    const segments = buildCaloriesGoalSegments(
+      columns,
+      [1800, null],
+      2000,
+      100,
+      50
+    );
+
+    // Only day 1 resolved, so the line holds flat edge-to-edge at its value.
+    expect(segments).toEqual([
+      { p1: { x: 0, y: 5 }, p2: { x: 25, y: 5 } },
+      { p1: { x: 25, y: 5 }, p2: { x: 100, y: 5 } },
+    ]);
   });
 });

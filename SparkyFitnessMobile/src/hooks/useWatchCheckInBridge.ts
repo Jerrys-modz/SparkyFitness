@@ -36,7 +36,28 @@ import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary } from './useDailySummary';
+import { WATCH_PAGE_KEYS } from '../constants/watchPages';
+import { resolveKeyOrder } from '../utils/reorderUtils';
+import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
+import { useCustomNutrients } from './useCustomNutrients';
+import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
+import type { WorkoutPreset } from '../types/workoutPresets';
+import { useWorkoutPresets } from './useWorkoutPresets';
+
+/** Saved workouts the watch may start. Presets with no exercises are omitted:
+ * the server rejects a session that has none. */
+export function startableWorkoutsForWatch(
+  presets: readonly Pick<WorkoutPreset, 'id' | 'name' | 'exercises'>[]
+): { presetId: string; name: string }[] {
+  return presets
+    .filter(
+      (preset) => preset.name.trim() !== '' && preset.exercises.length > 0
+    )
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((preset) => ({ presetId: String(preset.id), name: preset.name }));
+}
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
 function goalProgress(consumed: number, goal: number): number {
@@ -77,6 +98,7 @@ const NO_FIGURES_FOR_TODAY = {
   bmrKcal: null,
   waterConsumedMl: null,
   waterLog: [] as WatchWaterLogPayload[],
+  goalNutrients: null,
 } as const;
 
 /**
@@ -170,11 +192,35 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const restAlertsEnabled = useAppPreferencesStore(
     (s) => s.notificationsEnabled && s.restTimerNotificationsEnabled
   );
+  // Settings → Apple Watch: which pages the watch shows, in what order.
+  // Device-local, so it rides the context rather than the server.
+  const watchPageOrder = useAppPreferencesStore((s) => s.watchPageOrder);
+  const hiddenWatchPages = useAppPreferencesStore((s) => s.hiddenWatchPages);
+  // And which nutrients its Goals page lists, in order.
+  const watchNutrientOrder = useAppPreferencesStore(
+    (s) => s.watchNutrientOrder
+  );
+  const shownWatchNutrients = useAppPreferencesStore(
+    (s) => s.shownWatchNutrients
+  );
+  // And how its workout page takes weight and reps.
+  const watchSetInputStyle = useAppPreferencesStore(
+    (s) => s.watchSetInputStyle
+  );
+  const { t } = useTranslation();
+  // Units for the custom nutrients the Goals page may list. Rides the same
+  // cached query the nutrition screens use.
+  const { customNutrients } = useCustomNutrients({ enabled });
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
       ? 'lbs'
       : 'kg';
+  const { presets } = useWorkoutPresets({ enabled });
+  const startableWorkouts = useMemo(
+    () => startableWorkoutsForWatch(presets),
+    [presets]
+  );
 
   // The calendar day everything below describes.
   //
@@ -347,6 +393,27 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Bundled so the day check below is one decision rather than sixteen. The
   // memo also keeps `pushContext`'s identity stable across renders that changed
   // nothing it reads.
+  // The Goals page's rows, from the same summary the macro figures above read.
+  // Memoized so an identical refetch doesn't give `pushContext` a new identity.
+  const goalNutrients = useMemo(() => {
+    if (!dailySummary) return null;
+    const customUnits = new Map(
+      customNutrients.map((def) => [def.name, def.unit || 'g'])
+    );
+    return buildWatchGoalNutrients(
+      dailySummary,
+      shownInOrder(watchNutrientOrder, shownWatchNutrients),
+      customUnits,
+      t
+    );
+  }, [
+    dailySummary,
+    customNutrients,
+    watchNutrientOrder,
+    shownWatchNutrients,
+    t,
+  ]);
+
   const figuresForSummaryDate = useMemo(
     () => ({
       calorieGoalProgress,
@@ -365,6 +432,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       bmrKcal,
       waterConsumedMl,
       waterLog: watchWaterLog,
+      goalNutrients,
     }),
     [
       calorieGoalProgress,
@@ -383,6 +451,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       bmrKcal,
       waterConsumedMl,
       watchWaterLog,
+      goalNutrients,
     ]
   );
 
@@ -401,6 +470,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // ordering that sticks.
     const generation = ++pushGenerationRef.current;
     try {
+      const workoutServerId = await getActiveServerConfigId();
       const today = getTodayDate();
       const startDate = addDays(today, -(HISTORY_DAYS - 1));
       const range = await fetchMeasurementsRange(startDate, today);
@@ -481,12 +551,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         waterDisplayUnit,
         hapticsEnabled,
         restAlertsEnabled,
+        startableWorkouts,
+        workoutServerId,
+        pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
+        hiddenPages: hiddenWatchPages,
+        setInputStyle: watchSetInputStyle,
         ...figures,
       };
 
       // Superseded while the fetch above was in flight — a newer push has
       // already sent, or is about to, from fresher state than this one holds.
       if (generation !== pushGenerationRef.current) return;
+      if ((await getActiveServerConfigId()) !== workoutServerId) return;
 
       await WatchConnectivity.updateContext(context);
     } catch (error) {
@@ -503,8 +579,12 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     weightUnit,
     hapticsEnabled,
     restAlertsEnabled,
+    startableWorkouts,
     waterGoalMl,
     waterDisplayUnit,
+    watchPageOrder,
+    hiddenWatchPages,
+    watchSetInputStyle,
     summaryDate,
     figuresForSummaryDate,
     watchContainers,

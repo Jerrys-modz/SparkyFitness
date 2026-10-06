@@ -40,6 +40,24 @@ struct MacroGoal: Codable, Equatable {
     var hasGoal: Bool { goal > 0 }
 }
 
+/// One row of the Goals page, as the phone's Settings → Apple Watch lists it:
+/// any nutrient, not just the three macros. Built on the phone from the same
+/// summary as the calorie figures, so the two never disagree.
+struct NutrientRow: Codable, Equatable, Identifiable {
+    /// The phone's nutrient key (`protein`, `dietary_fiber`, …) or a custom
+    /// nutrient's name. Picks the row's colour.
+    let key: String
+    let label: String
+    let unit: String
+    let consumed: Double
+    /// Nil when no goal is set: the row shows the amount alone.
+    let goal: Double?
+    /// Clamped 0...1 by the phone; 0 without a goal.
+    let progress: Double
+
+    var id: String { key }
+}
+
 /// Today's nutrition, mirrored from the phone's Dashboard for the Goals page.
 ///
 /// Arrives as flat keys in the context payload and is reassembled here (see
@@ -60,6 +78,10 @@ struct NutritionSnapshot: Codable, Equatable {
     let carbs: MacroGoal
     let fat: MacroGoal
     let protein: MacroGoal
+    /// The rows to list under the ring, in order. Nil from a phone build that
+    /// doesn't send them, which keeps the fixed protein, carbs and fat rows;
+    /// empty means the wearer chose to list none.
+    var rows: [NutrientRow]? = nil
 
     var isToday: Bool { day == CheckInDate.today() }
 }
@@ -210,6 +232,15 @@ struct WaterDeleteRequest: Codable, Equatable {
     let entryId: String
 }
 
+/// A saved workout the wearer can start from the wrist. The phone still
+/// creates the session; this is only the name to tap.
+struct StartableWorkout: Codable, Equatable, Identifiable {
+    let presetId: String
+    let name: String
+
+    var id: String { presetId }
+}
+
 /// Everything the phone relays to the watch: what to seed the crown with, and
 /// recent history to draw. Latest-value-only — delivered via
 /// `updateApplicationContext`, so a missed update is simply superseded.
@@ -286,6 +317,23 @@ struct WatchContext: Codable, Equatable {
     /// phone hasn't said, which reads as on. Use the `effective…` accessors.
     var hapticsEnabled: Bool?
     var restAlertsEnabled: Bool?
+    /// The phone's Settings → Apple Watch choices: page names in swipe order,
+    /// and the ones turned off. Optional for the same Codable reason as
+    /// `weightUnit`; nil means the phone hasn't said, which reads as the
+    /// factory order with every page shown. Read through `visiblePages`.
+    var pageOrder: [String]?
+    var hiddenPages: [String]?
+    /// How the workout page takes a set's weight and reps (`keypad` or
+    /// `crown`). Optional for the same Codable reason as `weightUnit`; read
+    /// `effectiveSetInputStyle`.
+    var setInputStyle: String?
+    /// Saved workouts the wearer can start here. Nil until the phone has
+    /// said; empty means there are none. Optional so an older context blob
+    /// still decodes.
+    var startableWorkouts: [StartableWorkout]? = nil
+    /// The phone's active server when `startableWorkouts` was built. Sent
+    /// back with a start request. Nil on a context from before this field.
+    var workoutServerId: String? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -306,7 +354,12 @@ struct WatchContext: Codable, Equatable {
         waterDisplayUnit: nil,
         generatedAt: nil,
         hapticsEnabled: nil,
-        restAlertsEnabled: nil
+        restAlertsEnabled: nil,
+        pageOrder: nil,
+        hiddenPages: nil,
+        setInputStyle: nil,
+        startableWorkouts: nil,
+        workoutServerId: nil
     )
 
     /// True when there is no value to anchor the Digital Crown to, which is the
@@ -323,6 +376,17 @@ struct WatchContext: Codable, Equatable {
     /// default rather than being Optional at the call site.
     func formattedWater(ml: Double) -> String {
         formatWaterMl(ml, unit: waterDisplayUnit ?? "ml")
+    }
+
+    /// The keypad until the phone says otherwise, or when it names a style
+    /// this build doesn't know.
+    var effectiveSetInputStyle: SetInputStyle {
+        setInputStyle.flatMap(SetInputStyle.init(rawValue:)) ?? .keypad
+    }
+
+    /// The pages to swipe between, in order — see `WatchPage.visible`.
+    func visiblePages(workoutActive: Bool) -> [WatchPage] {
+        WatchPage.visible(order: pageOrder, hidden: hiddenPages, workoutActive: workoutActive)
     }
 
     var hasSeed: Bool { todayWeightKg != nil || lastWeightKg != nil }
@@ -442,4 +506,13 @@ enum CheckInDate {
         display.dateFormat = "EEE d MMM"
         return display.string(from: date)
     }
+}
+
+/// How a set's weight and reps are entered on the workout page. Raw values are
+/// the wire strings (`WATCH_SET_INPUT_STYLES` on the phone).
+enum SetInputStyle: String {
+    /// A number keypad: exact values, typed.
+    case keypad
+    /// The Digital Crown, turned in plate steps (Hevy-style).
+    case crown
 }

@@ -1,5 +1,18 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 
+/** One row of the watch's Goals page: a nutrient's amount against its goal. */
+export interface WatchGoalNutrientPayload {
+  /** `NUTRIENT_META` key, or a custom nutrient's name. */
+  key: string;
+  label: string;
+  unit: string;
+  consumed: number;
+  /** Null when no goal is set; the row then shows the amount alone. */
+  goal: number | null;
+  /** consumed / goal, clamped to 0...1; 0 without a goal. */
+  progress: number;
+}
+
 /** A morning check-in captured on the Apple Watch. */
 export interface WatchCheckInPayload {
   /** Stable id generated on the watch, used to dedupe re-delivered transfers. */
@@ -123,6 +136,26 @@ export interface WatchContextPayload {
    */
   restAlertsEnabled?: boolean | null;
   /**
+   * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
+   * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
+   * with nothing hidden; the watch carries the last values forward.
+   */
+  pageOrder?: string[] | null;
+  hiddenPages?: string[] | null;
+  /**
+   * The rows the watch's Goals page lists under the calorie ring, in order
+   * (Settings → Apple Watch). Day-scoped like the calorie figures: null when
+   * this push can't vouch for today. Missing means an older phone build, and
+   * the watch falls back to protein, carbs and fat.
+   */
+  goalNutrients?: WatchGoalNutrientPayload[] | null;
+  /**
+   * Settings → Apple Watch: how the workout page takes a set's weight and
+   * reps, `keypad` or `crown`. Missing reads as the keypad; the watch carries
+   * the last value forward.
+   */
+  setInputStyle?: 'keypad' | 'crown' | null;
+  /**
    * Today's progress toward the phone's daily nutrition goals, each already
    * clamped to 0...1 — reaching or passing a goal always reads as 1, same
    * convention the iOS calorie widget already uses. Powers the watch's
@@ -194,6 +227,17 @@ export interface WatchContextPayload {
    * it wrong.
    */
   waterLog?: WatchWaterLogPayload[] | null;
+  /**
+   * Saved workouts the wearer can start from the wrist. Names and ids only;
+   * the phone still builds and arms the session. Absent on an older phone.
+   */
+  startableWorkouts?: { presetId: string; name: string }[] | null;
+  /**
+   * The phone's active server when that list was built. The watch sends it
+   * back with a start request so a queued tap cannot start a preset after
+   * the phone has switched accounts.
+   */
+  workoutServerId?: string | null;
 }
 
 /** One target set the watch shows for a planned exercise. */
@@ -205,6 +249,19 @@ export interface WatchPlannedSetPayload {
   targetReps?: number | null;
   /** Always kg, like every other weight this app moves to the watch. */
   targetWeightKg?: number | null;
+  /**
+   * Hold length in seconds for a duration exercise (plank, carry). Absent
+   * on a reps set. The watch counts this down instead of showing a reps box.
+   */
+  targetDurationSec?: number | null;
+  /** Last session's time for this set, in seconds, shown in gray on an idle stopwatch. */
+  previousDurationSec?: number | null;
+  /**
+   * True for a duration exercise, whether or not a hold length is planned.
+   * With no `targetDurationSec` the watch offers a stopwatch instead of a
+   * reps box.
+   */
+  timed?: boolean;
   /** Rest to run after this set, in seconds — the phone's own `WorkoutStep.restSec`. */
   restSeconds: number;
   /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
@@ -220,6 +277,10 @@ export interface WatchSetTargetPayload {
   /** Always kg, like every other weight this app moves to the watch. */
   targetWeightKg?: number;
   targetReps?: number;
+  /** Hold length in seconds. Absent leaves the watch on the plan's value. */
+  targetDurationSec?: number;
+  /** Last session's time, in seconds. Absent when there is none. */
+  previousDurationSec?: number;
 }
 
 /** One exercise in the plan the watch was armed with. */
@@ -234,6 +295,12 @@ export interface WatchPlannedExercisePayload {
    * is not a superset and stays null.
    */
   supersetRun: number | null;
+  /**
+   * True for a bodyweight exercise, whose weight is a signed change to body
+   * weight (+ added, − assisted). The watch lets that value go below zero and
+   * shows it as "BW +10" / "BW −20". Absent from an older phone build.
+   */
+  bodyweight?: boolean;
   sets: WatchPlannedSetPayload[];
 }
 
@@ -287,6 +354,11 @@ export interface WatchSetCompletedPayload {
   weightKg?: number | null;
   reps?: number | null;
   /**
+   * Seconds the watch's hold countdown actually ran. Omitted when the wearer
+   * never started it, so the phone keeps the planned duration.
+   */
+  duration?: number | null;
+  /**
    * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
    * its own clock when this is absent (an older watch build, or a set logged
    * here). Using arrival time instead pulls the next exercise's readings
@@ -296,6 +368,18 @@ export interface WatchSetCompletedPayload {
 }
 
 /** One heart-rate reading captured on the watch. */
+/**
+ * The reading on the wrist right now. Sent every few seconds while the phone
+ * is reachable and never queued, so it only ever describes the present.
+ */
+export interface WatchLiveHeartRatePayload {
+  sessionId: string;
+  exerciseEntryId: string;
+  bpm: number;
+  /** When the watch took it, epoch ms. */
+  at: number;
+}
+
 export interface WatchHeartRateSamplePayload {
   /** ISO 8601 instant. */
   t: string;
@@ -362,9 +446,43 @@ export interface WatchRestChangedPayload {
   endsAt?: number;
 }
 
+/** The wearer stopped a set's stopwatch on the watch. */
+export interface WatchSetTimerStoppedPayload {
+  sessionId: string;
+  setId: string;
+  /** Whole seconds the stopwatch ran. */
+  seconds: number;
+  /** Epoch ms of the run that stopped. Not applied to a different run. */
+  startedAt: number;
+}
+
+/**
+ * The wearer started a set's hold countdown or stopwatch on the watch.
+ * `startedAt` is epoch ms; the phone starts its own timer from it.
+ */
+export interface WatchSetTimerStartedPayload {
+  sessionId: string;
+  setId: string;
+  startedAt: number;
+  /** Epoch ms of the arm the timer belongs to. Absent from an older watch. */
+  armedAt?: number;
+}
+
 export interface WatchWorkoutStopPayload {
   clientId?: string;
   sessionId: string;
+}
+
+export interface WatchWorkoutDiscardPayload {
+  sessionId: string;
+  /** Epoch ms of the arm that was discarded. Absent from an older watch. */
+  armedAt?: number;
+}
+
+export interface WatchWorkoutStartRequestedPayload {
+  presetId: string;
+  /** Active server the list was built for. Empty when an older watch omitted it. */
+  serverId?: string;
 }
 
 export type WatchConnectivityEvents = {
@@ -375,8 +493,13 @@ export type WatchConnectivityEvents = {
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
+  onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
+  onSetTimerStopped: (payload: WatchSetTimerStoppedPayload) => void;
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
+  onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
+  onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -387,12 +510,27 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   sendAck(clientId: string, ok: boolean): Promise<void>;
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /**
+   * The live workout's plan again after exercises, supersets or sets changed
+   * on the phone mid-workout. The watch swaps it in without restarting,
+   * keeping what was logged there. `revision` (JS ms timestamp) only
+   * increases; the watch ignores a copy no newer than the last it took.
+   */
+  updateWorkoutPlan(
+    plan: WatchWorkoutStartPayload & { revision: number }
+  ): Promise<void>;
+  /**
    * Tells the watch the workout it was armed with has ended on the phone, so
    * it stops its HealthKit session and clears the Workout tab. Takes the
    * session id rather than being argument-less so a stop for an already
-   * superseded workout can be ignored watch-side.
+   * superseded workout can be ignored watch-side. `discarded` tells the watch
+   * the workout was thrown away, not finished: it ends the session without
+   * saving it to Health and shows no summary.
    */
-  stopWorkout(sessionId: string, stoppedAt: string): Promise<void>;
+  stopWorkout(
+    sessionId: string,
+    stoppedAt: string,
+    discarded: boolean
+  ): Promise<void>;
   /**
    * Absolute pause snapshot for the live session. `revision` only increases.
    * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.
@@ -425,6 +563,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      * (never removes one) and moves past the set on screen if it is listed.
      */
     completedSetIds: string[];
+    /**
+     * The newest running set timer on the phone: set id to start time
+     * (epoch ms). The watch holds one timer, so at most one entry is sent. The
+     * watch starts its own hold countdown or stopwatch from that time, so
+     * both show the same clock. A timer the phone has stopped is absent.
+     */
+    setTimers?: Record<string, number>;
     /**
      * The phone's rest timer. The watch's rest follows it (+15s, pause,
      * Skip), except from an update that does not yet list a set logged on

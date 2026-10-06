@@ -1033,6 +1033,94 @@ function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
             };
           });
           delete bodyObj.messages;
+          delete bodyObj.temperature; // Agent API presets reject temperature
+          // Convert Chat Completions tool-call history to Agent API input items
+          if (Array.isArray(bodyObj.input)) {
+            const converted: unknown[] = [];
+            for (const item of bodyObj.input as Array<
+              Record<string, unknown>
+            >) {
+              const emptyContent =
+                item.content === null ||
+                item.content === undefined ||
+                item.content === '' ||
+                (Array.isArray(item.content) && item.content.length === 0);
+              if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
+                if (!emptyContent) {
+                  converted.push({ role: 'assistant', content: item.content });
+                }
+                for (const call of item.tool_calls as Array<{
+                  id?: string;
+                  function?: { name?: string; arguments?: string };
+                }>) {
+                  converted.push({
+                    type: 'function_call',
+                    call_id: call.id,
+                    name: call.function?.name,
+                    arguments: call.function?.arguments ?? '{}',
+                  });
+                }
+              } else if (item.role === 'tool') {
+                const out =
+                  typeof item.content === 'string'
+                    ? item.content
+                    : JSON.stringify(item.content ?? '');
+                converted.push({
+                  type: 'function_call_output',
+                  call_id: item.tool_call_id,
+                  output: out.length > 0 ? out : '{}',
+                });
+              } else if (item.role === 'assistant' && emptyContent) {
+                continue;
+              } else {
+                converted.push(item);
+              }
+            }
+            bodyObj.input = converted;
+          }
+          // Agent API expects flat function tools, not the nested Chat Completions shape
+          if (Array.isArray(bodyObj.tools)) {
+            bodyObj.tools = (
+              bodyObj.tools as Array<Record<string, unknown>>
+            ).map((tool) => {
+              const fn = tool.function as
+                | {
+                    name?: string;
+                    description?: string;
+                    parameters?: unknown;
+                    strict?: boolean;
+                  }
+                | undefined;
+              if (tool.type === 'function' && fn) {
+                return {
+                  type: 'function',
+                  name: fn.name,
+                  description: fn.description ?? '',
+                  parameters: fn.parameters ?? {
+                    type: 'object',
+                    properties: {},
+                  },
+                  ...(fn.strict !== undefined ? { strict: fn.strict } : {}),
+                };
+              }
+              return tool;
+            });
+          }
+          const toolChoice = bodyObj.tool_choice as
+            | { type?: string; function?: { name?: string } }
+            | string
+            | undefined;
+          if (
+            toolChoice &&
+            typeof toolChoice === 'object' &&
+            toolChoice.type === 'function' &&
+            toolChoice.function?.name
+          ) {
+            bodyObj.tool_choice = {
+              type: 'function',
+              name: toolChoice.function.name,
+            };
+          }
 
           const rawModel =
             typeof bodyObj.model === 'string' ? bodyObj.model : 'fast';

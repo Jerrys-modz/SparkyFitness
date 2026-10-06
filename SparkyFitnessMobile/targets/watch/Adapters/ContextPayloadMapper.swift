@@ -59,10 +59,36 @@ enum ContextPayloadMapper {
                 Date(timeIntervalSince1970: $0 / 1000)
             },
             // Settings, so carried forward like the water goal: a push from a
-            // phone build that doesn't send them must not flip them back on.
+            // phone build that doesn't send them must not flip them back on
+            // or undo the page layout.
             hapticsEnabled: payload["hapticsEnabled"] as? Bool ?? previous.hapticsEnabled,
-            restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled
+            restAlertsEnabled: payload["restAlertsEnabled"] as? Bool ?? previous.restAlertsEnabled,
+            pageOrder: payload.keys.contains("pageOrder")
+                ? stringArray(payload["pageOrder"])
+                : previous.pageOrder,
+            hiddenPages: payload.keys.contains("hiddenPages")
+                ? stringArray(payload["hiddenPages"])
+                : previous.hiddenPages,
+            setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
+            startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
+            workoutServerId: payload.keys.contains("workoutServerId")
+                ? payload["workoutServerId"] as? String
+                : previous.workoutServerId
         )
+    }
+
+    /// Nil when the phone did not mention the key, so an older push does not
+    /// wipe a list the watch already has. An empty array is a real answer.
+    static func startableWorkouts(from payload: [String: Any]) -> [StartableWorkout]? {
+        guard let raw = payload["startableWorkouts"] else { return nil }
+        let rows = dictionaryArray(raw) ?? []
+        return rows.compactMap { row in
+            guard
+                let presetId = row["presetId"] as? String, !presetId.isEmpty,
+                let name = row["name"] as? String, !name.isEmpty
+            else { return nil }
+            return StartableWorkout(presetId: presetId, name: name)
+        }
     }
 
     static func history(from payload: [String: Any]) -> [HistoryPoint] {
@@ -111,8 +137,33 @@ enum ContextPayloadMapper {
                 consumed: value("proteinConsumed") ?? 0,
                 goal: value("proteinGoal") ?? 0,
                 progress: value("proteinGoalProgress") ?? 0
-            )
+            ),
+            rows: nutrientRows(from: payload)
         )
+    }
+
+    /// The Goals page rows the phone picked. Nil when the key is missing (an
+    /// older phone build), so the page keeps its fixed macros; a row missing
+    /// its key, label or amount is skipped rather than drawn as a zero.
+    static func nutrientRows(from payload: [String: Any]) -> [NutrientRow]? {
+        guard payload.keys.contains("goalNutrients"),
+              let rows = dictionaryArray(payload["goalNutrients"])
+        else { return nil }
+        return rows.compactMap { row in
+            guard
+                let key = row["key"] as? String,
+                let label = row["label"] as? String,
+                let consumed = row["consumed"] as? Double
+            else { return nil }
+            return NutrientRow(
+                key: key,
+                label: label,
+                unit: row["unit"] as? String ?? "",
+                consumed: consumed,
+                goal: (row["goal"] as? Double).flatMap { $0 > 0 ? $0 : nil },
+                progress: row["progress"] as? Double ?? 0
+            )
+        }
     }
 
     /// Today's water totals. Containers are deliberately not part of this —
@@ -201,9 +252,12 @@ enum ContextPayloadMapper {
     /// The session a phone-sent `workoutStop` names, and when the phone sent
     /// it. Nil session for a malformed payload, which is dropped rather than
     /// ending whatever is running.
-    static func workoutStop(from payload: [String: Any]) -> (sessionId: String, stoppedAt: Date?)? {
+    static func workoutStop(
+        from payload: [String: Any]
+    ) -> (sessionId: String, stoppedAt: Date?, discarded: Bool)? {
         guard let sessionId = payload["sessionId"] as? String else { return nil }
-        return (sessionId, isoDate(from: payload["stoppedAt"]))
+        // Absent from an older phone build, which only ever finished.
+        return (sessionId, isoDate(from: payload["stoppedAt"]), payload["discarded"] as? Bool ?? false)
     }
 
     static func isoDate(from value: Any?) -> Date? {
@@ -216,7 +270,20 @@ enum ContextPayloadMapper {
     /// The workout plan the phone armed the watch with. Nil when the payload
     /// is missing required fields — a malformed `workoutStart` is dropped
     /// rather than starting a session with holes in it.
-    static func workoutPlan(from payload: [String: Any]) -> ActiveWorkoutPlan? {
+    /// A mid-workout plan update: the same shape as `workoutStart`, plus a
+    /// `revision` (JS ms timestamp, a Double for the same 32-bit reason as
+    /// `setTargets`) so a duplicate or out-of-order copy is ignored.
+    static func workoutPlanUpdate(from payload: [String: Any]) -> (plan: ActiveWorkoutPlan, revision: Double)? {
+        guard let plan = workoutPlan(from: payload, allowEmpty: true),
+              let revision = doubleValue(payload["revision"])
+        else { return nil }
+        return (plan, revision)
+    }
+
+    /// `allowEmpty` is only for a mid-workout update. A start with no
+    /// exercises is still dropped. Deleting the last exercise keeps the phone
+    /// session, so the watch must take the empty list instead of ignoring it.
+    static func workoutPlan(from payload: [String: Any], allowEmpty: Bool = false) -> ActiveWorkoutPlan? {
         guard
             let sessionId = payload["sessionId"] as? String,
             let workoutName = payload["workoutName"] as? String,
@@ -237,17 +304,23 @@ enum ContextPayloadMapper {
                     targetReps: doubleValue(rawSet["targetReps"]),
                     targetWeightKg: doubleValue(rawSet["targetWeightKg"]),
                     restSeconds: intValue(rawSet["restSeconds"]) ?? 0,
-                    setType: rawSet["setType"] as? String
+                    setType: rawSet["setType"] as? String,
+                    targetDurationSec: intValue(rawSet["targetDurationSec"]),
+                    previousDurationSec: intValue(rawSet["previousDurationSec"]),
+                    timed: rawSet["timed"] as? Bool
                 )
             }
             return PlannedExercise(
                 exerciseEntryId: exerciseEntryId,
                 name: name,
                 supersetRun: intValue(raw["supersetRun"]),
+                bodyweight: raw["bodyweight"] as? Bool,
                 sets: sets
             )
         }
-        guard !exercises.isEmpty else { return nil }
+        // An empty `exercises` array is the phone deleting the last one.
+        // Exercises that failed to parse are not that, and stay a drop.
+        guard !exercises.isEmpty || (allowEmpty && rawExercises.isEmpty) else { return nil }
 
         let setOrder = stringArray(payload["setOrder"])
         let startedAt = isoDate(from: payload["startedAt"])
@@ -287,6 +360,20 @@ enum ContextPayloadMapper {
         return (sessionId, revision, pausedAt, Int((excludedMs / 1000).rounded()))
     }
 
+    /// Set timers running on the phone: set id to the moment it started.
+    /// Epoch ms as Doubles. Empty when the phone sent none, which is also what
+    /// an older phone build looks like.
+    static func setTimers(from payload: [String: Any]) -> [String: Date] {
+        guard let raw = payload["setTimers"] as? [String: Any] else { return [:] }
+        var timers: [String: Date] = [:]
+        for (setId, value) in raw {
+            if let ms = doubleValue(value) {
+                timers[setId] = Date(timeIntervalSince1970: ms / 1000)
+            }
+        }
+        return timers
+    }
+
     /// Current weight/reps targets for the live session's sets. `revision`
     /// is a JS millisecond timestamp, read as a Double: `Int` is 32-bit on
     /// arm64_32 watches and cannot hold it.
@@ -305,7 +392,9 @@ enum ContextPayloadMapper {
             guard let setId = raw["setId"] as? String else { continue }
             targets[setId] = SetValues(
                 weightKg: doubleValue(raw["targetWeightKg"]),
-                reps: doubleValue(raw["targetReps"])
+                reps: doubleValue(raw["targetReps"]),
+                durationSec: intValue(raw["targetDurationSec"]),
+                previousDurationSec: intValue(raw["previousDurationSec"])
             )
         }
         // Sets already logged on the phone. Absent from an older phone build.

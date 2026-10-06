@@ -80,6 +80,7 @@ struct WaterLogView: View {
             // delete for the same row, which the phone would then report as a
             // failure against a row that is legitimately gone.
             guard !isDeleting else { return }
+            Haptics.tap()
             pendingDeletion = entry
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -128,11 +129,13 @@ struct WaterLogView: View {
 
             HStack(spacing: 8) {
                 Button("No") {
+                    Haptics.tap()
                     pendingDeletion = nil
                 }
                 .buttonStyle(.bordered)
 
                 Button("Yes") {
+                    Haptics.tap()
                     delete(entry)
                 }
                 .buttonStyle(.borderedProminent)

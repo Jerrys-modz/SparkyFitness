@@ -26,22 +26,33 @@ import {
 } from '../services/notifications';
 import { getActiveServerConfig } from '../services/storage';
 import { getTodayDate } from '../utils/dateUtils';
+import { isBodyweightModality } from '@workspace/shared';
 import {
   extractPlannedSetValues,
+  isDurationModality,
+  resolveSnapshotModality,
   stripPlannedSetValues,
 } from '../utils/workoutSession';
 import type { LiveExerciseConfig } from '../utils/workoutSession';
 import { getSupersetRuns } from '../utils/workoutSupersets';
 import type { RootStackParamList } from '../types/navigation';
 
+/** One start at a time, across screens and the watch. */
+let liveWorkoutStartInFlight = false;
+
+/** Tests only. A failed start can leave the shared lock set. */
+export function __resetLiveWorkoutStartForTests(): void {
+  liveWorkoutStartInFlight = false;
+}
+
 export { syncWatchIntervalTiming } from '../stores/activeWorkoutStore';
 
-type StartLiveWorkoutNavigation = Pick<
+export type StartLiveWorkoutNavigation = Pick<
   NativeStackNavigationProp<RootStackParamList>,
   'replace' | 'isFocused' | 'navigate'
 >;
 
-interface StartLiveWorkoutArgs {
+export interface StartLiveWorkoutArgs {
   /** Session name; defaults to the form path's dated name ("Workout - Jul 6"). */
   name?: string;
   exercises: PresetSessionExerciseRequest[];
@@ -69,7 +80,7 @@ interface StartLiveWorkoutArgs {
  * with whatever the phone's own active-workout screen would show for the
  * same session.
  */
-function buildWatchWorkoutStartPayload(
+export function buildWatchWorkoutStartPayload(
   session: PresetSessionResponse,
   t: TFunction,
   armedAtMs: number
@@ -101,13 +112,22 @@ function buildWatchWorkoutStartPayload(
         exercise.exercise_snapshot?.name ??
         t('workout.exercise', { defaultValue: 'Exercise' }),
       supersetRun: supersetRunByEntryId.get(exercise.id) ?? null,
+      bodyweight: isBodyweightModality(
+        resolveSnapshotModality(exercise.exercise_snapshot)
+      ),
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const target = targets.get(setId);
+        const timed = isDurationModality(
+          resolveSnapshotModality(exercise.exercise_snapshot)
+        );
         return {
           setId,
           targetReps: target?.reps ?? null,
           targetWeightKg: target?.weightKg ?? null,
+          targetDurationSec: target?.durationSec ?? null,
+          previousDurationSec: target?.previousDurationSec ?? null,
+          ...(timed ? { timed: true } : {}),
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
         };
@@ -194,6 +214,9 @@ export function promptForActiveWorkoutConflict(
  * start. Owns the guard ordering: connection → no-other-workout → non-empty
  * payload → single-flight create → seed the store BEFORE navigating (the
  * ActiveWorkout screen auto-pops when entered without a session) → replace.
+ * The single-flight lock is shared by every caller. A screen and the watch
+ * each hold their own hook, and two of those could otherwise both create a
+ * session while none is active yet.
  * The replace is skipped when the calling screen lost focus mid-create (a
  * replace dispatched from an unfocused route is an unhandled action); the
  * session and store are already live, so the HUD bar covers re-entry.
@@ -233,8 +256,9 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
         });
         return;
       }
-      if (inFlightRef.current) return;
+      if (inFlightRef.current || liveWorkoutStartInFlight) return;
       inFlightRef.current = true;
+      liveWorkoutStartInFlight = true;
       setIsStarting(true);
 
       const entryDate = getTodayDate();
@@ -323,6 +347,10 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
           timeCapSeconds,
         });
         armWatchForActiveSession(t);
+        // Released once the store owns the session, so the next caller hits
+        // the in-progress prompt instead of creating another one. The
+        // instance lock stays set when this screen is replaced away.
+        liveWorkoutStartInFlight = false;
         if (navigation.isFocused()) {
           navigation.replace('ActiveWorkout');
           // The lock stays engaged: the replace unmounts the calling screen.
@@ -336,6 +364,7 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
       } catch {
         // useCrudMutation already showed the failure toast; re-enable the UI.
         inFlightRef.current = false;
+        liveWorkoutStartInFlight = false;
         setIsStarting(false);
       }
     },
