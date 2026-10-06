@@ -558,14 +558,14 @@ private struct SquircleLabel: View {
 
     var body: some View {
         let shape = RoundedRectangle(
-            cornerRadius: circular ? WatchStyle.s(17) : WatchStyle.corner,
+            cornerRadius: circular ? WatchStyle.s(14) : WatchStyle.corner,
             style: .continuous
         )
         Image(systemName: systemImage)
-            .font(.system(size: WatchStyle.s(circular ? 15 : 20), weight: .semibold))
+            .font(.system(size: WatchStyle.s(circular ? 14 : 20), weight: .semibold))
             .foregroundStyle(prominent ? Color.black : Color.white.opacity(0.6))
-            .frame(maxWidth: circular ? WatchStyle.s(34) : CGFloat.infinity)
-            .frame(height: WatchStyle.s(circular ? 34 : 44))
+            .frame(maxWidth: circular ? WatchStyle.s(28) : CGFloat.infinity)
+            .frame(height: WatchStyle.s(circular ? 28 : 44))
             .background(prominent ? Color.white : WatchStyle.fill, in: shape)
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.
@@ -613,6 +613,10 @@ private struct MetricsStrip: View {
             // Opens the exercise list, so it wears the list icon.
             if let onBack = onBack {
                 SquircleButton(systemImage: "list.bullet", circular: true, action: onBack)
+                    // The system clock sits over the top right of the screen.
+                    // Drawn lower than the strip's own row so the button
+                    // clears it; an offset leaves the layout untouched.
+                    .offset(y: WatchStyle.s(12))
             }
         }
         .monospacedDigit()
