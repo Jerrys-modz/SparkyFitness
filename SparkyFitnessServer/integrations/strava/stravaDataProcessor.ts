@@ -148,9 +148,9 @@ async function processStravaActivities(
         StravaActivity | undefined;
       const caloriesAuto =
         detailedActivity?.calories ?? activity.calories ?? undefined;
-      // Without a source_id the entry falls back to the manual
-      // one-per-exercise-per-day rule, so same-day activities of one type
-      // would overwrite each other.
+      // This source skips the manual duplicate check, so without a source_id
+      // createExerciseEntry finds no existing entry and every re-sync would
+      // save the activity again.
       const startedAt = activity.start_date ?? activity.start_date_local;
       const sourceId = activity.id
         ? activity.id.toString()

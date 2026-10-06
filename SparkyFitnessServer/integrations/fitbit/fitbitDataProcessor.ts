@@ -632,9 +632,9 @@ async function processFitbitActivities(
       avg_heart_rate: activity.averageHeartRate || null,
       notes: `Synced from Fitbit. Steps: ${activitySteps}${activity.duration ? `. Original duration: ${activity.duration}ms` : ''}`,
       entry_source: 'Fitbit',
-      // Without a source_id the entry falls back to the manual
-      // one-per-exercise-per-day rule, so same-day activities of one type
-      // would overwrite each other.
+      // This source skips the manual duplicate check, so without a source_id
+      // createExerciseEntry finds no existing entry and every re-sync would
+      // save the activity again.
       source_id: activity.logId
         ? activity.logId.toString()
         : `fitbit-activity-${activity.startTime}`,
