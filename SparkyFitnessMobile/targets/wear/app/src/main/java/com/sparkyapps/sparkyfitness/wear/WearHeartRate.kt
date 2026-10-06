@@ -63,6 +63,10 @@ internal object WearHeartRate {
   private data class Sample(val t: String, val bpm: Int)
 
   private val callback = object : ExerciseUpdateCallback {
+    override fun onRegistered() {}
+
+    override fun onRegistrationFailed(throwable: Throwable) {}
+
     override fun onExerciseUpdateReceived(update: ExerciseUpdate) {
       val boot = Instant.ofEpochMilli(
         System.currentTimeMillis() - SystemClock.elapsedRealtime()
@@ -78,7 +82,7 @@ internal object WearHeartRate {
       }
       val reading = try {
         if (DataType.CALORIES_TOTAL in update.latestMetrics.dataTypes) {
-          update.latestMetrics.getData(DataType.CALORIES_TOTAL).total
+          update.latestMetrics.getData(DataType.CALORIES_TOTAL)?.total
         } else {
           null
         }
