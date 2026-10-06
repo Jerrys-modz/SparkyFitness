@@ -1448,6 +1448,7 @@
       "nutrientCount_other": "{{count}} nutrients",
       "scan": "Scan barcode to fill in",
       "lookingUp": "Looking up the label…",
+      "fromOpenFoodFacts": "From Open Food Facts. Check the amounts against the label.",
       "scanLabel": "Scan label to fill in",
       "scanLabelHint": "Photograph the Supplement Facts panel.",
       "takePhoto": "Take photo",
