@@ -1,15 +1,18 @@
 package com.sparkyapps.sparkyfitness.wear
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import org.json.JSONArray
 import org.json.JSONObject
-import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.UUID
 
@@ -41,6 +44,10 @@ internal data class WearScreen(
   val label: String,
   val weightText: String,
   val repsText: String,
+  /** Epoch ms. Zero when the phone is not resting. */
+  val restEndsAtMs: Long = 0L,
+  /** The plan is still open and every set is logged. */
+  val finished: Boolean = false,
 )
 
 /**
@@ -53,6 +60,8 @@ internal object WorkoutHolder {
 
   private var plan: WearPlan? = null
   private var revision = 0L
+  private var restEndsAtMs = 0L
+  private var pendingSetId: String? = null
   private val main = Handler(Looper.getMainLooper())
 
   fun applyStart(json: JSONObject) {
@@ -60,6 +69,8 @@ internal object WorkoutHolder {
     main.post {
       plan = next
       revision = 0
+      restEndsAtMs = 0L
+      pendingSetId = null
       publish()
     }
   }
@@ -68,6 +79,7 @@ internal object WorkoutHolder {
     main.post {
       if (plan?.sessionId == sessionId) {
         plan = null
+        restEndsAtMs = 0L
         screen = null
       }
     }
@@ -89,40 +101,90 @@ internal object WorkoutHolder {
       json.optJSONArray("completedSetIds")?.strings()?.forEach { id ->
         byId[id]?.done = true
       }
+      restEndsAtMs = if (json.optString("restState") == "resting") {
+        json.optNumber("restEndsAt")?.toLong() ?: 0L
+      } else {
+        0L
+      }
       publish()
     }
   }
 
+  /** Stored locally first, then synced. Success means the phone will get it
+   * even if it is out of range right now, so the set can leave the screen. */
   fun complete(context: Context) {
     val current = plan ?: return
     val step = current.sets.firstOrNull { !it.done } ?: return
+    if (pendingSetId != null) return
+    pendingSetId = step.setId
+    val clientId = UUID.randomUUID().toString()
     val body = JSONObject()
       .put("type", "setCompleted")
-      .put("clientId", UUID.randomUUID().toString())
+      .put("clientId", clientId)
       .put("sessionId", current.sessionId)
       .put("setId", step.setId)
       .put("completedAt", Instant.now().toString())
     step.weightKg?.let { body.put("weightKg", it) }
     step.reps?.let { body.put("reps", it) }
-    val bytes = body.toString().toByteArray(StandardCharsets.UTF_8)
-    Wearable.getNodeClient(context).connectedNodes.addOnSuccessListener { nodes ->
-      val client = Wearable.getMessageClient(context)
-      nodes.forEach { node ->
-        client.sendMessage(node.id, WearPaths.SET_COMPLETED, bytes)
+    val request = PutDataMapRequest.create("${WearPaths.SET_COMPLETED}/$clientId")
+    request.dataMap.putString("json", body.toString())
+    request.dataMap.putLong("at", System.currentTimeMillis())
+    Wearable.getDataClient(context)
+      .putDataItem(request.asPutDataRequest().setUrgent())
+      .addOnSuccessListener {
+        main.post {
+          step.done = true
+          pendingSetId = null
+          publish()
+        }
       }
-    }
-    step.done = true
-    publish()
+      .addOnFailureListener {
+        main.post { if (pendingSetId == step.setId) pendingSetId = null }
+      }
+  }
+
+  /** Applies items already synced, in the order the phone wrote them. */
+  fun pull(context: Context) {
+    val uri = Uri.Builder().scheme("wear").path(WearPaths.PREFIX).build()
+    Wearable.getDataClient(context)
+      .getDataItems(uri, DataClient.FILTER_PREFIX)
+      .addOnSuccessListener { buffer ->
+        try {
+          val found = mutableListOf<Triple<String, String, Long>>()
+          for (i in 0 until buffer.count) {
+            val item = buffer.get(i)
+            val path = item.uri.path ?: continue
+            if (path.startsWith(WearPaths.SET_COMPLETED)) continue
+            val map = DataMapItem.fromDataItem(item).dataMap
+            val json = map.getString("json") ?: continue
+            found.add(Triple(path, json, map.getLong("at")))
+          }
+          found.sortedBy { it.third }.forEach { (path, json, _) ->
+            val body = JSONObject(json)
+            when (path) {
+              WearPaths.WORKOUT_START -> applyStart(body)
+              WearPaths.WORKOUT_STOP -> applyStop(body.optString("sessionId"))
+              WearPaths.SET_TARGETS -> applyTargets(body)
+            }
+          }
+        } finally {
+          buffer.release()
+        }
+      }
   }
 
   private fun publish() {
-    val step = plan?.sets?.firstOrNull { !it.done }
-    screen = step?.let {
-      WearScreen(
-        exerciseName = it.exerciseName,
-        label = it.label,
-        weightText = formatNumber(it.weightKg),
-        repsText = formatNumber(it.reps),
+    val current = plan
+    val step = current?.sets?.firstOrNull { !it.done }
+    screen = when {
+      current == null -> null
+      step == null -> WearScreen("", "", "", "", finished = true)
+      else -> WearScreen(
+        exerciseName = step.exerciseName,
+        label = step.label,
+        weightText = formatNumber(step.weightKg),
+        repsText = formatNumber(step.reps),
+        restEndsAtMs = restEndsAtMs,
       )
     }
   }

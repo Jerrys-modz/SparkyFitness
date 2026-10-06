@@ -1,16 +1,21 @@
 package expo.modules.watchconnectivity
 
 import android.content.Context
-import com.google.android.gms.wearable.CapabilityClient
+import android.net.Uri
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import org.json.JSONArray
 import org.json.JSONObject
-import java.nio.charset.StandardCharsets
 
 /**
- * Phone side of the Wear OS link. The watch app advertises
- * [CAPABILITY] and listens on [PREFIX]. Message paths here and in
- * `targets/wear` are the same strings on purpose.
+ * Phone side of the Wear OS link. Payloads are DataItems, not one-shot
+ * messages: a watch that is out of range when the phone sends still gets
+ * the item when it reconnects. Completions use a path per clientId so one
+ * does not overwrite another.
  */
 internal object WearLink {
   const val CAPABILITY = "sparky_fitness_wear"
@@ -20,50 +25,59 @@ internal object WearLink {
   const val SET_TARGETS = "$PREFIX/set/targets"
   const val SET_COMPLETED = "$PREFIX/set/completed"
 
-  private val lock = Any()
-  private val pending = ArrayDeque<Map<String, Any?>>()
-  var onMessage: ((Map<String, Any?>) -> Unit)? = null
-
-  fun offer(payload: Map<String, Any?>) {
-    val listener = synchronized(lock) { onMessage }
-    if (listener != null) {
-      listener(payload)
-    } else {
-      synchronized(lock) { pending.addLast(payload) }
-    }
-  }
-
-  fun attach(listener: (Map<String, Any?>) -> Unit) {
-    val queued = synchronized(lock) {
-      onMessage = listener
-      val copy = pending.toList()
-      pending.clear()
-      copy
-    }
-    queued.forEach(listener)
-  }
-
-  fun detach() {
-    synchronized(lock) { onMessage = null }
-  }
-
-  fun send(context: Context, path: String, payload: Map<String, Any?>) {
+  fun put(context: Context, path: String, payload: Map<String, Any?>) {
     val ready = jsonReady(payload) as? JSONObject ?: return
-    sendRaw(context, path, ready.toString().toByteArray(StandardCharsets.UTF_8))
+    val request = PutDataMapRequest.create(path)
+    request.dataMap.putString("json", ready.toString())
+    // A repeat of the same plan must still sync. DataItems are dropped
+    // when the bytes do not change.
+    request.dataMap.putLong("at", System.currentTimeMillis())
+    Wearable.getDataClient(context).putDataItem(request.asPutDataRequest().setUrgent())
   }
 
-  fun sendRaw(context: Context, path: String, bytes: ByteArray) {
-    Wearable.getCapabilityClient(context)
-      .getCapability(CAPABILITY, CapabilityClient.FILTER_REACHABLE)
-      .addOnSuccessListener { info ->
-        val client = Wearable.getMessageClient(context)
-        info.nodes.forEach { node ->
-          client.sendMessage(node.id, path, bytes)
+  fun putCompletion(context: Context, clientId: String, payload: Map<String, Any?>) {
+    put(context, "$SET_COMPLETED/$clientId", payload)
+  }
+
+  /** Completions already stored, including ones that arrived before JS. */
+  fun readCompletions(context: Context, onEach: (Map<String, Any?>, Uri) -> Unit) {
+    val uri = Uri.Builder().scheme("wear").path(SET_COMPLETED).build()
+    Wearable.getDataClient(context)
+      .getDataItems(uri, DataClient.FILTER_PREFIX)
+      .addOnSuccessListener { buffer ->
+        try {
+          for (i in 0 until buffer.count) {
+            val item = buffer.get(i)
+            val json = DataMapItem.fromDataItem(item).dataMap.getString("json") ?: continue
+            val payload = try {
+              payloadMap(json)
+            } catch (_: Exception) {
+              continue
+            }
+            onEach(payload, item.uri)
+          }
+        } finally {
+          buffer.release()
         }
       }
   }
 
-  /** Drops nulls. Nested maps and lists become JSON objects and arrays. */
+  fun delete(context: Context, uri: Uri) {
+    Wearable.getDataClient(context).deleteDataItems(uri)
+  }
+
+  fun completionsFrom(events: DataEventBuffer): List<Pair<Map<String, Any?>, Uri>> {
+    val out = mutableListOf<Pair<Map<String, Any?>, Uri>>()
+    for (event in events) {
+      if (event.type != DataEvent.TYPE_CHANGED) continue
+      val path = event.dataItem.uri.path ?: continue
+      if (!path.startsWith(SET_COMPLETED)) continue
+      val json = DataMapItem.fromDataItem(event.dataItem).dataMap.getString("json") ?: continue
+      out.add(payloadMap(json) to event.dataItem.uri)
+    }
+    return out
+  }
+
   fun jsonReady(value: Any?): Any? {
     return when (value) {
       null -> null
@@ -90,10 +104,7 @@ internal object WearLink {
     }
   }
 
-  fun payloadMap(bytes: ByteArray): Map<String, Any?> {
-    val obj = JSONObject(String(bytes, StandardCharsets.UTF_8))
-    return jsonToMap(obj)
-  }
+  fun payloadMap(json: String): Map<String, Any?> = jsonToMap(JSONObject(json))
 
   private fun jsonToMap(obj: JSONObject): Map<String, Any?> {
     val out = linkedMapOf<String, Any?>()

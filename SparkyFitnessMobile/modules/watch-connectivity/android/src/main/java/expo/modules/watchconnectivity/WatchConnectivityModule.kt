@@ -29,14 +29,18 @@ class WatchConnectivityModule : Module() {
     )
 
     OnCreate {
-      WearLink.attach { payload ->
-        sendEvent("onSetCompleted", payload)
+      instance = this
+      val ctx = appContext.reactContext
+      if (ctx != null && playServices()) {
+        WearLink.readCompletions(ctx) { payload, uri ->
+          emitCompletion(payload, uri)
+        }
+        refreshNodes()
       }
-      if (playServices()) refreshNodes()
     }
 
     OnDestroy {
-      WearLink.detach()
+      instance = null
     }
 
     Function("isSupported") { playServices() }
@@ -72,6 +76,22 @@ class WatchConnectivityModule : Module() {
   @Volatile private var reachable = false
   @Volatile private var paired = false
 
+  private val seenCompletions = HashSet<String>()
+
+  fun emitCompletion(payload: Map<String, Any?>, uri: android.net.Uri?) {
+    val clientId = payload["clientId"] as? String ?: return
+    synchronized(seenCompletions) {
+      if (!seenCompletions.add(clientId)) return
+    }
+    sendEvent("onSetCompleted", payload)
+    val ctx = appContext.reactContext ?: return
+    if (uri != null) WearLink.delete(ctx, uri)
+  }
+
+  companion object {
+    @Volatile var instance: WatchConnectivityModule? = null
+  }
+
   private fun playServices(): Boolean {
     val ctx = appContext.reactContext ?: return false
     return GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(ctx) ==
@@ -91,6 +111,6 @@ class WatchConnectivityModule : Module() {
     val ctx = appContext.reactContext ?: return
     val withType = LinkedHashMap(body)
     withType["type"] = type
-    WearLink.send(ctx, path, withType)
+    WearLink.put(ctx, path, withType)
   }
 }
