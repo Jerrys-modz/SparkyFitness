@@ -96,7 +96,9 @@ internal fun CheckInPage(context: Context) {
   var fat by remember(snap.lastBodyFat, snap.todayBodyFat) {
     mutableDoubleStateOf(snap.todayBodyFat ?: snap.lastBodyFat ?: 20.0)
   }
-  var includeFat by remember { mutableStateOf(snap.todayBodyFat != null || snap.lastBodyFat != null) }
+  var includeFat by remember(snap.lastBodyFat, snap.todayBodyFat) {
+    mutableStateOf(snap.todayBodyFat != null || snap.lastBodyFat != null)
+  }
   val step = if (snap.unit == "lbs") 0.2 else 0.1
   Page {
     Text("Check-in", color = Color.Gray, fontSize = 12.sp)

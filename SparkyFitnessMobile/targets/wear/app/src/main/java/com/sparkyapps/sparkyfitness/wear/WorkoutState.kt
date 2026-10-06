@@ -18,6 +18,7 @@ import java.util.UUID
 
 /** Paths shared with the phone module `WearLink`. */
 internal object WearPaths {
+  const val PREFIX = "/sparky"
   const val WORKOUT_START = "/sparky/workout/start"
   const val WORKOUT_STOP = "/sparky/workout/stop"
   const val SET_TARGETS = "/sparky/set/targets"
@@ -275,7 +276,11 @@ internal object WorkoutHolder {
             found.add(Triple(path, json, map.getLong("at")))
           }
           found.sortedBy { it.third }.forEach { (path, json, _) ->
-            val body = JSONObject(json)
+            val body = try {
+              JSONObject(json)
+            } catch (_: Exception) {
+              return@forEach
+            }
             when (path) {
               WearPaths.WORKOUT_START -> applyStart(body)
               WearPaths.WORKOUT_STOP -> applyStop(body.optString("sessionId"))
@@ -306,7 +311,7 @@ internal object WorkoutHolder {
     val ctx = appContext
     val entry = step?.exerciseEntryId ?: current?.sets?.lastOrNull()?.exerciseEntryId
     if (ctx == null) return
-    if (current == null || entry.isNullOrEmpty()) WearHeartRate.onStop(ctx)
+    if (current == null || step == null || entry.isNullOrEmpty()) WearHeartRate.onStop(ctx)
     else WearHeartRate.onExercise(ctx, current.sessionId, entry)
   }
 }

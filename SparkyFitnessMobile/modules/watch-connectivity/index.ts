@@ -350,6 +350,7 @@ export interface WatchHeartRateBatchPayload {
  * delivered twice, or late after that rest ended, changes nothing.
  */
 export interface WatchRestChangedPayload {
+  clientId?: string;
   sessionId: string;
   previousEndsAt?: number;
   /** Absent when the rest was skipped. */
@@ -357,6 +358,7 @@ export interface WatchRestChangedPayload {
 }
 
 export interface WatchWorkoutStopPayload {
+  clientId?: string;
   sessionId: string;
 }
 
@@ -434,6 +436,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * is not on the JS thread.
    */
   pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
+  pendingWorkoutEvents(): Promise<
+    Array<
+      | ({ event: 'onSetCompleted' } & WatchSetCompletedPayload)
+      | ({ event: 'onRestChanged' } & WatchRestChangedPayload)
+      | ({ event: 'onWorkoutStop' } & WatchWorkoutStopPayload)
+    >
+  >;
   ackHeartRateBatches(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted

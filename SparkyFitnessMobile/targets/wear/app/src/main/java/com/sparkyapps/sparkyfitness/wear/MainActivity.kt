@@ -6,6 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.wear.compose.foundation.pager.HorizontalPager
 import androidx.wear.compose.foundation.pager.rememberPagerState
 
@@ -23,8 +27,14 @@ class MainActivity : ComponentActivity() {
     WorkoutHolder.pull(this)
     PhoneBus.requestContext(this)
     setContent {
-      val start = if (WatchContext.snapshot.todayWeightKg != null) 0 else 2
-      val pager = rememberPagerState(initialPage = start) { 5 }
+      val pager = rememberPagerState(initialPage = 2) { 5 }
+      var landed by remember { mutableStateOf(false) }
+      LaunchedEffect(WatchContext.snapshot.today) {
+        if (landed || WatchContext.snapshot.today.isEmpty()) return@LaunchedEffect
+        landed = true
+        val page = if (WatchContext.snapshot.todayWeightKg != null) 0 else 2
+        if (pager.currentPage != page) pager.scrollToPage(page)
+      }
       LaunchedEffect(WearHeartRate.permissionNeeded) {
         if (WearHeartRate.permissionNeeded) {
           sensorPermission.launch(Manifest.permission.BODY_SENSORS)
