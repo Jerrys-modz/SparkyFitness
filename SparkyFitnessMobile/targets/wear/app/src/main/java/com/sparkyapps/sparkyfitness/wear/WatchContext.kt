@@ -103,7 +103,7 @@ internal object WatchContext {
       val previousOwner = snapshot.ownerId
       snapshot = next
       pending = pending.filter { it.clientId !in acked && it.clientId !in failed && it.day == next.today }
-      if (next.ownerId != previousOwner) WearHeartRate.onOwner()
+      if (next.ownerId != previousOwner) WearHeartRate.onOwner(previousOwner)
     }
   }
 

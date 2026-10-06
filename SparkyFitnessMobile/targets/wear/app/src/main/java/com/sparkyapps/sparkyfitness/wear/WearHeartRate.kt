@@ -134,6 +134,7 @@ internal object WearHeartRate {
 
   private val flushRunnable = object : Runnable {
     override fun run() {
+      dispatchRetained()
       flush()
       if (running) main.postDelayed(this, 60_000)
     }
@@ -143,6 +144,10 @@ internal object WearHeartRate {
     if (exercise.isEmpty()) return
     appContext = context.applicationContext
     drainOutbox()
+    val hadExercise = sessionId != null && exerciseEntryId != null
+    if (hadExercise && (session != sessionId || exercise != exerciseEntryId)) {
+      park()
+    }
     if (session != sessionId) {
       // A flush still in flight belongs to the previous workout. Its
       // completion must not run finishStopped against this one.
@@ -150,11 +155,11 @@ internal object WearHeartRate {
       stopAfterFlush = false
     }
     if (exercise != exerciseEntryId) {
-      flush()
       exerciseEntryId = exercise
       shownAt = System.currentTimeMillis()
     }
     sessionId = session
+    dispatchRetained()
     if (!permitted(context)) {
       if (!asked) permissionNeeded = true
       return
@@ -165,6 +170,7 @@ internal object WearHeartRate {
   fun onStop(context: Context) {
     appContext = context.applicationContext
     drainOutbox()
+    dispatchRetained()
     if (sessionId == null && !flushing) {
       stopSampling()
       return
@@ -262,10 +268,101 @@ internal object WearHeartRate {
   private var inflightId: String? = null
   private var calorieEpoch = 0
 
-  /** The phone named a different server config. Send only this config's batches. */
-  fun onOwner() {
+  private data class Retained(
+    val session: String,
+    val exercise: String,
+    val owner: String,
+    val samples: List<Sample>,
+    val delta: Double?,
+    val minutes: Double,
+  )
+
+  private val retained = ArrayDeque<Retained>()
+
+  /** The phone named a different server config. A real switch drops the
+   * live workout so its samples are not stamped as the new account. */
+  fun onOwner(previous: String) {
+    val current = WatchContext.snapshot.ownerId
+    if (previous.isNotEmpty() && previous != current) {
+      park(previous)
+      generation++
+      stopAfterFlush = false
+      flushAgain = false
+      finishStopped()
+      val kept = ArrayDeque<Retained>()
+      retained.forEach { if (it.owner.isNotEmpty()) kept.add(it) }
+      retained.clear()
+      retained.addAll(kept)
+    } else if (previous.isEmpty() && current.isNotEmpty()) {
+      val bound = ArrayDeque<Retained>()
+      retained.forEach { item ->
+        bound.add(if (item.owner.isEmpty()) item.copy(owner = current) else item)
+      }
+      retained.clear()
+      retained.addAll(bound)
+    }
     drainOutbox()
+    dispatchRetained()
     if (sessionId != null) flush()
+  }
+
+  /** Samples taken before an exercise or session change. They keep those
+   * ids even if this flush cannot be written yet. */
+  private fun park(owner: String = WatchContext.snapshot.ownerId) {
+    val session = sessionId ?: return
+    val exercise = exerciseEntryId ?: return
+    val batch = samples.toList()
+    val cumulative = activeKcal()
+    val delta = cumulative?.let { kotlin.math.max(0.0, it - reportedActiveKcal) }?.takeIf { it > 0 }
+    val minutes = if (shownAt > 0L) (System.currentTimeMillis() - shownAt) / 60_000.0 else 0.0
+    if (batch.isEmpty() && delta == null && minutes <= 0) return
+    samples.clear()
+    shownAt = System.currentTimeMillis()
+    if (cumulative != null && delta != null) reportedActiveKcal = cumulative
+    retained.addLast(
+      Retained(session, exercise, owner, batch, delta, minutes)
+    )
+  }
+
+  private fun dispatchRetained() {
+    if (retained.isEmpty()) return
+    val current = WatchContext.snapshot.ownerId
+    val pending = ArrayDeque<Retained>()
+    while (retained.isNotEmpty()) {
+      val item = retained.removeFirst()
+      val owner = item.owner.ifEmpty { current }
+      if (owner.isEmpty()) {
+        pending.addLast(item)
+        continue
+      }
+      val tagged = if (item.owner.isEmpty()) item.copy(owner = owner) else item
+      if (!sendRetained(tagged)) pending.addLast(tagged)
+    }
+    retained.addAll(pending)
+  }
+
+  /** True once the batch is on disk under its own session and exercise. */
+  private fun sendRetained(item: Retained): Boolean {
+    if (item.owner.isEmpty()) return false
+    val body = JSONObject()
+      .put("type", "heartRateBatch")
+      .put("clientId", UUID.randomUUID().toString())
+      .put("sessionId", item.session)
+      .put("exerciseEntryId", item.exercise)
+      .put("ownerId", item.owner)
+      .put(
+        "samples",
+        JSONArray().apply {
+          item.samples.forEach { sample ->
+            put(JSONObject().put("t", sample.t).put("bpm", sample.bpm))
+          }
+        }
+      )
+    if (item.delta != null) body.put("activeEnergyKcal", item.delta)
+    if (item.minutes > 0) body.put("durationMinutes", item.minutes)
+    if (!stage(body)) return false
+    if (item.owner == WatchContext.snapshot.ownerId) putStaged(body.toString())
+    return true
   }
 
   private fun flush() {
