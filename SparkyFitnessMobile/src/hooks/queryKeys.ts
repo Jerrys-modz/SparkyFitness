@@ -358,3 +358,6 @@ export const medicationEntriesQueryKey = (opts?: {
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;
+
+export const moodEntriesQueryKey = (startDate: string, endDate: string) =>
+  ['moodEntries', startDate, endDate] as const;
