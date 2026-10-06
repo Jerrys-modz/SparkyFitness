@@ -2,14 +2,20 @@ package com.sparkyapps.sparkyfitness.wear
 
 import android.content.Context
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,76 +25,169 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 
 @Composable
-internal fun GoalsPage() {
+internal fun GoalsPage(page: Int) {
   val snap = WatchContext.snapshot
-  Page {
-    Text("Goals", color = Color.Gray, fontSize = 12.sp)
+  val remaining = snap.caloriesRemaining
+  val eaten = snap.caloriesConsumed ?: 0
+  val goal = if (remaining == null) 0 else eaten - remaining
+  val progress = if (goal <= 0) 0f else (eaten.toFloat() / goal).coerceIn(0f, 1f)
+  WatchFrame(page) {
     if (snap.caloriesRemaining == null && snap.caloriesConsumed == null) {
       Text(
         "Open Sparky on your phone to sync today.",
-        color = Color.Gray,
+        color = Palette.secondary,
         fontSize = 12.sp,
         textAlign = TextAlign.Center,
+        modifier = Modifier.align(Alignment.Center),
       )
     } else {
-      Text("${snap.caloriesRemaining ?: 0}", color = Color.White, fontSize = 28.sp)
-      Text("left", color = Color.Gray, fontSize = 12.sp)
-      Text("Eaten ${snap.caloriesConsumed ?: 0}  Burned ${snap.caloriesBurned ?: 0}", color = Color.White, fontSize = 11.sp)
-      Macro("Protein", snap.proteinConsumed, snap.proteinGoal)
-      Macro("Carbs", snap.carbsConsumed, snap.carbsGoal)
-      Macro("Fat", snap.fatConsumed, snap.fatGoal)
+      Column(
+        Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+      ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+          Stat(eaten.toString(), "Eaten", Modifier.weight(1f))
+          Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+            CalorieRing(progress, Modifier.fillMaxSize())
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text(
+                "${remaining ?: 0}",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+              )
+              Text(
+                if ((remaining ?: 0) < 0) "Kcal over" else "Kcal left",
+                color = Palette.secondary,
+                fontSize = 8.sp,
+                maxLines = 1,
+              )
+            }
+          }
+          Stat((snap.caloriesBurned ?: 0).toString(), "Burned", Modifier.weight(1f))
+        }
+        MacroRow("Protein", snap.proteinConsumed, snap.proteinGoal, Palette.protein)
+        MacroRow("Carbs", snap.carbsConsumed, snap.carbsGoal, Palette.carbs)
+        MacroRow("Fat", snap.fatConsumed, snap.fatGoal, Palette.fat)
+      }
     }
   }
 }
 
 @Composable
-private fun Macro(name: String, eaten: Int?, goal: Int?) {
-  Text("$name  ${eaten ?: 0} / ${goal ?: 0} g", color = Color.White, fontSize = 12.sp)
+private fun Stat(value: String, label: String, modifier: Modifier) {
+  Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+    Text(label, color = Palette.secondary, fontSize = 9.sp, maxLines = 1)
+  }
 }
 
 @Composable
-internal fun WaterPage(context: Context) {
+private fun MacroRow(name: String, eaten: Int?, goal: Int?, color: Color) {
+  val progress = if (goal == null || goal <= 0) 0f else ((eaten ?: 0).toFloat() / goal).coerceIn(0f, 1f)
+  Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+      Text(name, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f), maxLines = 1)
+      Text("${eaten ?: 0}", color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+      Text(" / ${goal ?: 0}g", color = Palette.secondary, fontSize = 11.sp)
+    }
+    Box(
+      Modifier
+        .fillMaxWidth()
+        .height(5.dp)
+        .clip(RoundedCornerShape(3.dp))
+        .background(Palette.secondary.copy(alpha = 0.25f)),
+    ) {
+      Box(
+        Modifier
+          .fillMaxHeight()
+          .fillMaxWidth(progress)
+          .background(Brush.horizontalGradient(listOf(color.copy(alpha = 0.35f), color))),
+      )
+    }
+  }
+}
+
+@Composable
+internal fun WaterPage(context: Context, page: Int) {
   val snap = WatchContext.snapshot
   val pendingMl = WatchContext.pending.sumOf { it.ml }
   val ml = snap.waterMl + pendingMl
-  Page {
-    Text("Water", color = Color.Gray, fontSize = 12.sp)
-    Text(formatWater(ml, snap.waterUnit), color = Color.White, fontSize = 22.sp)
-    if (snap.waterGoalMl > 0) {
-      val pct = ((ml / snap.waterGoalMl) * 100).toInt().coerceIn(0, 999)
-      Text("$pct% of ${formatWater(snap.waterGoalMl, snap.waterUnit)}", color = Color.Gray, fontSize = 11.sp)
-    }
-    if (snap.containers.isEmpty()) {
-      Text("No bottles synced yet.", color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center)
-    }
-    snap.containers.forEach { container ->
-      Chip(
-        label = { Text(container.name) },
-        onClick = { PhoneBus.water(context, container) },
-      )
-    }
-    snap.drinks.take(8).forEach { drink ->
-      Chip(
-        label = { Text("${drink.name} ${formatWater(drink.volumeMl, snap.waterUnit)}") },
-        onClick = { PhoneBus.deleteDrink(context, drink.id) },
-      )
+  val fraction = if (snap.waterGoalMl <= 0) 0f else (ml / snap.waterGoalMl).toFloat().coerceIn(0f, 1f)
+  WatchFrame(page) {
+    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+      Column(Modifier.weight(1.4f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+        val pct = if (snap.waterGoalMl <= 0) "Water" else "${(fraction * 100).toInt()}%"
+        Text(pct, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Bottle(fraction, Modifier.weight(1f).fillMaxWidth().padding(vertical = 2.dp))
+        Text(formatWater(ml, snap.waterUnit), color = Palette.secondary, fontSize = 10.sp, maxLines = 1)
+      }
+      Column(
+        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+      ) {
+        if (snap.containers.isEmpty()) {
+          Text("No bottles yet", color = Palette.secondary, fontSize = 10.sp, textAlign = TextAlign.Center)
+        }
+        snap.containers.forEach { container ->
+          Box(
+            Modifier
+              .fillMaxWidth()
+              .height(46.dp)
+              .clip(RoundedCornerShape(12.dp))
+              .background(Color(0xFF64D2FF).copy(alpha = 0.18f))
+              .clickable { PhoneBus.water(context, container) },
+            contentAlignment = Alignment.Center,
+          ) {
+            Text(container.name, color = Color.White, fontSize = 11.sp, maxLines = 2, textAlign = TextAlign.Center)
+          }
+        }
+      }
     }
   }
 }
 
 @Composable
-internal fun CheckInPage(context: Context) {
+private fun Bottle(fraction: Float, modifier: Modifier) {
+  Canvas(modifier) {
+    val left = size.width * 0.22f
+    val right = size.width * 0.78f
+    val top = size.height * 0.08f
+    val bottom = size.height * 0.96f
+    drawRoundRect(
+      color = Palette.secondary.copy(alpha = 0.35f),
+      topLeft = Offset(left, top),
+      size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
+      cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
+      style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f),
+    )
+    val fillHeight = (bottom - top) * fraction
+    drawRoundRect(
+      color = Color(0xFF64D2FF),
+      topLeft = Offset(left, bottom - fillHeight),
+      size = androidx.compose.ui.geometry.Size(right - left, fillHeight),
+      cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+    )
+  }
+}
+
+@Composable
+internal fun CheckInPage(context: Context, page: Int) {
   val snap = WatchContext.snapshot
   var weight by remember(snap.today, snap.lastWeightKg, snap.todayWeightKg) {
     mutableDoubleStateOf(WatchContext.displayWeight(WatchContext.seedWeightKg()))
@@ -99,93 +198,140 @@ internal fun CheckInPage(context: Context) {
   var includeFat by remember(snap.lastBodyFat, snap.todayBodyFat) {
     mutableStateOf(snap.todayBodyFat != null || snap.lastBodyFat != null)
   }
+  var editingFat by remember { mutableStateOf(false) }
   val step = if (snap.unit == "lbs") 0.2 else 0.1
-  Page {
-    Text("Check-in", color = Color.Gray, fontSize = 12.sp)
-    Stepper(
-      label = "${formatOne(weight)} ${snap.unit}",
-      onMinus = { weight = (weight - step).coerceAtLeast(0.0) },
-      onPlus = { weight += step },
-    )
-    Chip(
-      label = { Text(if (includeFat) "Body fat ${formatOne(fat)}%" else "Add body fat") },
-      onClick = { includeFat = !includeFat },
-    )
-    if (includeFat) {
-      Stepper(
-        label = "${formatOne(fat)}%",
-        onMinus = { fat = (fat - 0.1).coerceAtLeast(0.0) },
-        onPlus = { fat = (fat + 0.1).coerceAtMost(100.0) },
-      )
-    }
-    Chip(
-      label = { Text("Save") },
-      onClick = {
-        PhoneBus.checkIn(context, WatchContext.toKg(weight), if (includeFat) fat else null)
-      },
-    )
-  }
-}
-
-@Composable
-internal fun TrendPage() {
-  val points = WatchContext.snapshot.history
-  Page {
-    Text("Weight", color = Color.Gray, fontSize = 12.sp)
-    if (points.size < 2) {
-      Text("Log a few days to see the trend.", color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center)
-    } else {
-      Canvas(Modifier.fillMaxWidth().height(72.dp)) {
-        val min = points.minOf { it.second }
-        val max = points.maxOf { it.second }.let { if (it == min) it + 1 else it }
-        val stepX = size.width / (points.size - 1)
-        points.forEachIndexed { index, point ->
-          if (index == 0) return@forEachIndexed
-          val previous = points[index - 1]
-          drawLine(
-            color = Color(0xFFFF9F0A),
-            start = Offset(stepX * (index - 1), y(previous.second, min, max, size.height)),
-            end = Offset(stepX * index, y(point.second, min, max, size.height)),
-            strokeWidth = 4f,
-            cap = StrokeCap.Round,
-          )
-        }
-      }
-      val last = points.last()
-      Text(
-        "${last.first}  ${formatOne(WatchContext.displayWeight(last.second))} ${WatchContext.snapshot.unit}",
-        color = Color.White,
-        fontSize = 12.sp,
-      )
-    }
-  }
-}
-
-@Composable
-private fun Stepper(label: String, onMinus: () -> Unit, onPlus: () -> Unit) {
-  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-    Chip(label = { Text("−") }, onClick = onMinus)
-    Text(label, color = Color.White, fontSize = 16.sp)
-    Chip(label = { Text("+") }, onClick = onPlus)
-  }
-}
-
-@Composable
-private fun Page(content: @Composable () -> Unit) {
-  MaterialTheme {
+  val last = snap.lastWeightKg?.let { WatchContext.displayWeight(it) }
+  val delta = if (last == null) null else weight - last
+  WatchFrame(page) {
     Column(
-      Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 20.dp),
+      Modifier.fillMaxSize(),
       horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(4.dp),
+      verticalArrangement = Arrangement.SpaceEvenly,
     ) {
-      content()
+      Text("Check-in", color = Palette.secondary, fontSize = 11.sp)
+      if (!editingFat) {
+        StepperLine(
+          value = formatOne(weight),
+          unit = snap.unit,
+          onMinus = { weight = (weight - step).coerceAtLeast(0.0) },
+          onPlus = { weight += step },
+        )
+        Text(
+          if (delta == null) " " else "${signed(delta)} ${snap.unit} since last",
+          color = Palette.secondary,
+          fontSize = 10.sp,
+        )
+      } else {
+        StepperLine(
+          value = formatOne(fat),
+          unit = "%",
+          onMinus = { fat = (fat - 0.1).coerceAtLeast(0.0) },
+          onPlus = { fat = (fat + 0.1).coerceAtMost(100.0) },
+        )
+      }
+      Text(
+        if (includeFat) "Body fat ${formatOne(fat)}%" else "Add body fat",
+        color = if (editingFat) Color.White else Palette.secondary,
+        fontSize = 12.sp,
+        modifier = Modifier.clickable {
+          if (!includeFat) includeFat = true
+          editingFat = !editingFat
+        },
+      )
+      Box(
+        Modifier
+          .clip(RoundedCornerShape(16.dp))
+          .background(Palette.green)
+          .clickable {
+            PhoneBus.checkIn(context, WatchContext.toKg(weight), if (includeFat) fat else null)
+          }
+          .padding(horizontal = 22.dp, vertical = 6.dp),
+      ) {
+        Text("Save", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+      }
     }
   }
 }
 
-private fun y(value: Double, min: Double, max: Double, height: Float): Float {
+@Composable
+private fun StepperLine(value: String, unit: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    RoundButton("−", onMinus)
+    Row(verticalAlignment = Alignment.Bottom) {
+      Text(value, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+      Text(" $unit", color = Palette.secondary, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+    }
+    RoundButton("+", onPlus)
+  }
+}
+
+@Composable
+private fun RoundButton(label: String, onClick: () -> Unit) {
+  Box(
+    Modifier
+      .size(32.dp)
+      .clip(RoundedCornerShape(10.dp))
+      .background(Palette.card)
+      .clickable(onClick = onClick),
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(label, color = Color.White, fontSize = 16.sp)
+  }
+}
+
+@Composable
+internal fun TrendPage(page: Int) {
+  val points = WatchContext.snapshot.history
+  val unit = WatchContext.snapshot.unit
+  WatchFrame(page) {
+    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+      Text("Weight", color = Palette.secondary, fontSize = 11.sp)
+      if (points.size < 2) {
+        Text(
+          "Log a few days to see the trend.",
+          color = Palette.secondary,
+          fontSize = 12.sp,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.padding(top = 16.dp),
+        )
+      } else {
+        val last = points.last()
+        Text(
+          "${formatOne(WatchContext.displayWeight(last.second))} $unit",
+          color = Color.White,
+          fontSize = 16.sp,
+          fontWeight = FontWeight.SemiBold,
+        )
+        Canvas(Modifier.fillMaxWidth().weight(1f).padding(vertical = 4.dp)) {
+          val min = points.minOf { it.second }
+          val max = points.maxOf { it.second }.let { if (it == min) it + 1 else it }
+          val stepX = size.width / (points.size - 1)
+          points.forEachIndexed { index, point ->
+            if (index == 0) return@forEachIndexed
+            val previous = points[index - 1]
+            drawLine(
+              color = Palette.orange,
+              start = Offset(stepX * (index - 1), trendY(previous.second, min, max, size.height)),
+              end = Offset(stepX * index, trendY(point.second, min, max, size.height)),
+              strokeWidth = 4f,
+              cap = StrokeCap.Round,
+            )
+          }
+        }
+        Text(last.first, color = Palette.secondary, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+      }
+    }
+  }
+}
+
+private fun trendY(value: Double, min: Double, max: Double, height: Float): Float {
   val fraction = ((value - min) / (max - min)).toFloat()
   return height - fraction * height
+}
+
+private fun signed(value: Double): String {
+  val text = formatOne(kotlin.math.abs(value))
+  return if (value >= 0) "+$text" else "-$text"
 }
 
 private fun formatOne(value: Double): String =
