@@ -248,35 +248,60 @@ function productName(label: DsldLabel): string {
     : `${brand} ${full}`;
 }
 
-/** Turns a label into the nutrients of one serving, in the app's units. */
-export function mapDsldLabel(label: DsldLabel): SupplementLookupProduct {
-  const servingOrder = label.servingSizes?.[0]?.order ?? 1;
+/** One ingredient line, reduced to what the nutrient matching needs. */
+export interface IngredientLine {
+  name: string;
+  amount: number | null | undefined;
+  /** The unit as printed. */
+  unit: string | null | undefined;
+  /** Extra words that settle an IU conversion (forms, notes). */
+  hint: string;
+  /** The label's own grouping, a second chance to name the nutrient. */
+  group?: string | null;
+}
+
+export type NutrientTotals = Pick<
+  SupplementLookupProduct,
+  'fixed' | 'catalog' | 'unmatched'
+>;
+
+/**
+ * Matches ingredient lines to nutrient fields and totals them in the app's
+ * units. `reportUnreadable` lists a line whose unit cannot be converted (a
+ * photographed label's "%DV" or "CFU") as unmatched; the database path skips
+ * those, since its rows carry no printed unit to show.
+ */
+export function totalIngredients(
+  lines: IngredientLine[],
+  reportUnreadable: boolean
+): NutrientTotals {
   const fixed = new Map<FoodVariantNutrientField, number>();
   const catalog = new Map<string, number>();
   const unmatched: SupplementLookupProduct['unmatched'] = [];
+  const addUnmatched = (line: IngredientLine) => {
+    if (unmatched.length < MAX_UNMATCHED) {
+      unmatched.push({
+        name: line.name,
+        amount: line.amount ?? null,
+        unit: line.unit ?? null,
+      });
+    }
+  };
 
-  for (const row of flattenRows(label.ingredientRows ?? [])) {
-    const name = row.name?.trim();
-    if (!name) continue;
-    const quantity = servingAmount(row, servingOrder);
-    const amount = quantity?.quantity;
-    if (
-      isMissing(amount) ||
-      !(amount > 0) ||
-      normalizeUnit(quantity?.unit) === null
-    )
+  for (const line of lines) {
+    const { name, amount, unit, hint } = line;
+    if (isMissing(amount) || !(amount > 0)) continue;
+    if (normalizeUnit(unit) === null) {
+      if (reportUnreadable) addUnmatched(line);
       continue;
+    }
 
     const normalizedName = normalizeNutrientName(name);
-    const hint = [name, row.notes, ...(row.forms ?? []).map((f) => f.name)]
-      .filter(Boolean)
-      .join(' ');
-
     const fixedTarget = FIXED_BY_NAME.get(normalizedName);
     const found =
       CATALOG_BY_NAME.get(normalizedName) ??
-      (row.ingredientGroup
-        ? CATALOG_BY_NAME.get(normalizeNutrientName(row.ingredientGroup))
+      (line.group
+        ? CATALOG_BY_NAME.get(normalizeNutrientName(line.group))
         : undefined);
     // A compound has no amount of its own; its parts are listed on their own.
     const entry = found?.components?.length ? undefined : found;
@@ -290,14 +315,10 @@ export function mapDsldLabel(label: DsldLabel): SupplementLookupProduct {
             catalogId: entry.id,
           }
         : null;
-    const converted = target
-      ? toTargetUnit(amount, quantity?.unit, target, hint)
-      : null;
+    const converted = target ? toTargetUnit(amount, unit, target, hint) : null;
 
     if (!target || isMissing(converted)) {
-      if (unmatched.length < MAX_UNMATCHED) {
-        unmatched.push({ name, amount, unit: quantity?.unit ?? null });
-      }
+      addUnmatched(line);
       continue;
     }
 
@@ -313,18 +334,41 @@ export function mapDsldLabel(label: DsldLabel): SupplementLookupProduct {
 
   const round = (value: number) => Math.round(value * 1e4) / 1e4;
   return {
-    source: 'dsld',
-    sourceId: String(label.id),
-    name: productName(label),
-    brand: label.brandName?.trim() || null,
-    form: formFromLabel(label),
-    serving: servingText(label),
     fixed: [...fixed].map(([key, amount]) => ({ key, amount: round(amount) })),
     catalog: [...catalog].map(([catalogId, amount]) => ({
       catalogId,
       amount: round(amount),
     })),
     unmatched,
+  };
+}
+
+/** Turns a label into the nutrients of one serving, in the app's units. */
+export function mapDsldLabel(label: DsldLabel): SupplementLookupProduct {
+  const servingOrder = label.servingSizes?.[0]?.order ?? 1;
+  const lines: IngredientLine[] = [];
+  for (const row of flattenRows(label.ingredientRows ?? [])) {
+    const name = row.name?.trim();
+    if (!name) continue;
+    const quantity = servingAmount(row, servingOrder);
+    lines.push({
+      name,
+      amount: quantity?.quantity,
+      unit: quantity?.unit,
+      hint: [name, row.notes, ...(row.forms ?? []).map((f) => f.name)]
+        .filter(Boolean)
+        .join(' '),
+      group: row.ingredientGroup,
+    });
+  }
+  return {
+    source: 'dsld',
+    sourceId: String(label.id),
+    name: productName(label),
+    brand: label.brandName?.trim() || null,
+    form: formFromLabel(label),
+    serving: servingText(label),
+    ...totalIngredients(lines, false),
   };
 }
 

@@ -154,7 +154,8 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   const updateSchedule = useUpdateMedicationSchedule();
   const ensureCatalog = useEnsureCatalogNutrients();
   const supplementLookup = useSupplementLookup();
-  // The barcode lookup is an external provider: it only shows while one is active.
+  // The barcode lookup runs on external providers: it only shows while one is
+  // active.
   const { providers: lookupProviders } = useExternalProviders({
     filterSet: SUPPLEMENT_LOOKUP_PROVIDER_TYPE_SET,
   });
@@ -219,21 +220,27 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         }));
         setNutrientEdits(rowsFromLookup(product));
         const skipped = unmatchedSummary(product);
-        setLookupNote(
-          skipped
-            ? t('medications.supplement.notAdded', {
-                defaultValue: 'Not added from the label: {{names}}',
-                names:
-                  skipped.extra > 0
-                    ? t('medications.supplement.notAddedMore', {
-                        defaultValue: '{{names}} and {{count}} more',
-                        names: skipped.names,
-                        count: skipped.extra,
-                      })
-                    : skipped.names,
+        const fromOff =
+          product.source === 'off'
+            ? t('medications.supplement.fromOpenFoodFacts', {
+                defaultValue:
+                  'From Open Food Facts. Check the amounts against the label.',
               })
-            : null
-        );
+            : null;
+        const notAdded = skipped
+          ? t('medications.supplement.notAdded', {
+              defaultValue: 'Not added from the label: {{names}}',
+              names:
+                skipped.extra > 0
+                  ? t('medications.supplement.notAddedMore', {
+                      defaultValue: '{{names}} and {{count}} more',
+                      names: skipped.names,
+                      count: skipped.extra,
+                    })
+                  : skipped.names,
+            })
+          : null;
+        setLookupNote([fromOff, notAdded].filter(Boolean).join(' ') || null);
       },
       onError: () =>
         Alert.alert(
@@ -876,8 +883,11 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   );
 };
 
+// Either barcode source is enough to offer the scan: the NIH label database or
+// Open Food Facts.
 const SUPPLEMENT_LOOKUP_PROVIDER_TYPE_SET = new Set([
   SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+  'openfoodfacts',
 ]);
 
 export default MedicationFormScreen;

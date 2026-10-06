@@ -30,7 +30,8 @@ export const supplementLookupUnmatchedSchema = z.object({
 });
 
 export const supplementLookupProductSchema = z.object({
-  source: z.literal("dsld"),
+  /** `dsld` for a database label, `off` for an Open Food Facts product. */
+  source: z.enum(["dsld", "off"]),
   sourceId: z.string(),
   name: z.string(),
   brand: z.string().nullable(),
