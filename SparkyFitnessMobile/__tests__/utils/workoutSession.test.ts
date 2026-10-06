@@ -3633,6 +3633,29 @@ describe('workoutSession', () => {
         setType: string | null = null
       ) => ({ setNumber: 1, setType, weight, reps });
 
+      it('formats weighted carries as weight × distance in metres or yards', () => {
+        const carry = { ...recentSet(40, null), distance: 0.03 };
+        expect(
+          formatRecentSessionSet(carry, 'kg', i18n.t, 'weight_distance', 'km')
+        ).toBe('40 × 30 m');
+        expect(
+          formatRecentSessionSet(
+            carry,
+            'kg',
+            i18n.t,
+            'weight_distance',
+            'miles'
+          )
+        ).toBe('40 × 32.8 yd');
+      });
+
+      it('formats loaded holds as weight × time', () => {
+        const hold = { ...recentSet(20, null), duration: 90 };
+        expect(
+          formatRecentSessionSet(hold, 'kg', i18n.t, 'weight_duration')
+        ).toBe('20 × 1:30');
+      });
+
       it('formats weight × reps, converting for the display unit', () => {
         expect(formatRecentSessionSet(recentSet(100, 5), 'kg', i18n.t)).toBe(
           '100 × 5'

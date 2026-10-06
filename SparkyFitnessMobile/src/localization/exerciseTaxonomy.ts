@@ -120,6 +120,14 @@ export function localizeExerciseTaxonomyValue(
       return t('workout.modalityBodyweight', {
         defaultValue: 'Bodyweight (+/− weight)',
       });
+    case 'modality:weight_distance':
+      return t('workout.modalityWeightDistance', {
+        defaultValue: 'Weight & Distance (carries)',
+      });
+    case 'modality:weight_duration':
+      return t('workout.modalityWeightDuration', {
+        defaultValue: 'Weight & Duration (loaded holds)',
+      });
     case 'modality:duration':
       return t('workout.modalityDuration', { defaultValue: 'Duration' });
     case 'modality:duration_distance':

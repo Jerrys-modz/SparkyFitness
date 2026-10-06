@@ -4,6 +4,10 @@ import {
   deriveExerciseModality,
   effectiveLoadKg,
   epleyOneRepMaxKg,
+  isExerciseModality,
+  isWeightDistanceModality,
+  isWeightDurationModality,
+  modalityRecordsReps,
   resolveExerciseModality,
   setVolumeKg,
 } from '@workspace/shared';
@@ -101,5 +105,40 @@ describe('bodyweight modality derivation', () => {
     expect(resolveExerciseModality('bodyweight_reps', 'strength')).toBe(
       'bodyweight_reps'
     );
+  });
+});
+
+describe('weight_distance and weight_duration modalities', () => {
+  it('are valid modalities and are told apart from each other', () => {
+    expect(isExerciseModality('weight_distance')).toBe(true);
+    expect(isExerciseModality('weight_duration')).toBe(true);
+    expect(isWeightDistanceModality('weight_distance')).toBe(true);
+    expect(isWeightDistanceModality('weight_duration')).toBe(false);
+    expect(isWeightDurationModality('weight_duration')).toBe(true);
+    expect(isWeightDurationModality('duration')).toBe(false);
+  });
+
+  it('do not record reps, while the rep-based modalities do', () => {
+    expect(modalityRecordsReps('weight_distance')).toBe(false);
+    expect(modalityRecordsReps('weight_duration')).toBe(false);
+    expect(modalityRecordsReps('duration')).toBe(false);
+    expect(modalityRecordsReps('weight_reps')).toBe(true);
+    expect(modalityRecordsReps('reps_only')).toBe(true);
+    expect(modalityRecordsReps('bodyweight_reps')).toBe(true);
+  });
+
+  it('keep an explicit choice over anything derived', () => {
+    expect(resolveExerciseModality('weight_distance', 'strongman')).toBe(
+      'weight_distance'
+    );
+    expect(
+      resolveExerciseModality('weight_duration', 'strength', 'body only')
+    ).toBe('weight_duration');
+  });
+
+  it('count no volume or estimated one-rep max, since no reps are logged', () => {
+    expect(
+      setVolumeKg({ weight: 100, reps: null }, 'weight_distance', 80)
+    ).toBe(0);
   });
 });
