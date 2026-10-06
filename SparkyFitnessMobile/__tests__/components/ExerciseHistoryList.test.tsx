@@ -277,4 +277,47 @@ describe('ExerciseHistoryList', () => {
     fireEvent.press(screen.getByText('Loading...'));
     expect(loadMore).not.toHaveBeenCalled();
   });
+
+  describe('effort card', () => {
+    it('shows nothing until a set has an RPE', () => {
+      mockUseExerciseHistory.mockReturnValue({
+        ...baseHookResult,
+        sessions: [makeIndividualSession([makeSet({ rpe: null })])],
+      });
+      expect(renderList().queryByTestId('exercise-effort-card')).toBeNull();
+    });
+
+    it('shows the last session average, the trend and the 1RM with effort', () => {
+      mockUseExerciseHistory.mockReturnValue({
+        ...baseHookResult,
+        sessions: [
+          makeIndividualSession([makeSet({ rpe: 9, reps: 5, weight: 100 })], {
+            entry_date: '2026-01-06',
+          }),
+          makeIndividualSession([makeSet({ rpe: 7, reps: 5, weight: 100 })], {
+            entry_date: '2026-01-02',
+          }),
+        ],
+      });
+      const screen = renderList();
+
+      expect(screen.getByTestId('exercise-effort-card')).toBeTruthy();
+      expect(screen.getByText('Avg RPE, last session')).toBeTruthy();
+      expect(screen.getByTestId('exercise-effort-bars')).toBeTruthy();
+      // The RPE 7 session is judged as 8 reps (3 left); reps alone gives 5.
+      expect(screen.getByText('Est. 1RM with effort')).toBeTruthy();
+      expect(screen.getByText('126.7 kg')).toBeTruthy();
+      expect(screen.getByText('116.7 kg')).toBeTruthy();
+    });
+
+    it('leaves the 1RM out for a bodyweight exercise', () => {
+      mockUseExerciseHistory.mockReturnValue({
+        ...baseHookResult,
+        sessions: [makeIndividualSession([makeSet({ rpe: 8 })])],
+      });
+      const screen = renderList({ modality: 'bodyweight_reps' });
+      expect(screen.getByTestId('exercise-effort-card')).toBeTruthy();
+      expect(screen.queryByText('Est. 1RM with effort')).toBeNull();
+    });
+  });
 });
