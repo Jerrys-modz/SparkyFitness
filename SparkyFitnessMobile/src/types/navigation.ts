@@ -324,6 +324,7 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  MindfulnessDetail: { selectedDate?: string } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;

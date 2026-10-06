@@ -3361,11 +3361,34 @@
     "tabs": {
       "fasting": "Fasting & Mood",
       "measurements": "Measurements",
+      "mindfulness": "Mindfulness",
       "photos": "Photos",
       "sleep": "Sleep",
       "symptoms": "Symptoms"
     },
     "noRecentActivity": "No recent activity found."
+  },
+  "mindfulness": {
+    "title": "Mindfulness",
+    "stats": {
+      "totalMinutes": "Mindful Minutes Today",
+      "sessionCount": "Sessions"
+    },
+    "pacer": {
+      "title": "Paced Breathing"
+    },
+    "timer": {
+      "title": "Meditation Timer"
+    },
+    "history": {
+      "title": "Today’s Sessions"
+    },
+    "actions": {
+      "logManual": "Log Session",
+      "breathe": "Breathe",
+      "timer": "Timer",
+      "log": "Log"
+    }
   },
   "sleepTimelineEditor": {
     "sleepTimeline": "Sleep Timeline",

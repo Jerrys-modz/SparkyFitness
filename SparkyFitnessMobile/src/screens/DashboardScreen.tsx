@@ -40,6 +40,7 @@ import CaffeineCard from '../components/CaffeineCard';
 import Icon from '../components/Icon';
 import MacroCard from '../components/MacroCard';
 import MedicationsCard from '../components/MedicationsCard';
+import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import SymptomsCard from '../components/SymptomsCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
@@ -63,6 +64,10 @@ import {
 } from '../hooks';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import {
+  useMindfulnessDay,
+  useMindfulnessMutations,
+} from '../hooks/useMindfulness';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -368,6 +373,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const healthTrendsCardVisible = useAppPreferencesStore(
     (s) => s.healthTrendsCardVisible
   );
+  const mindfulnessCardVisible = useAppPreferencesStore(
+    (s) => s.mindfulnessCardVisible
+  );
+
+  const { sessions: mindfulSessions, totalMindfulMinutes } =
+    useMindfulnessDay(selectedDate);
+  const {
+    saveSession: saveMindfulSession,
+    updateSession: updateMindfulSession,
+    deleteSession: deleteMindfulSession,
+  } = useMindfulnessMutations(selectedDate);
 
   const orderedDashboardCards = useMemo(
     () => resolveDashboardCardOrder(dashboardCardOrder),
@@ -399,6 +415,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: fastingRootQueryKey }),
       // MedicationsCard owns its own queries.
       queryClient.invalidateQueries({ queryKey: medicationsRootQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ['mindfulness'] }),
     ]);
     setRefreshing(false);
   }, [
@@ -825,6 +842,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     onPageSelected={setChartPage}
                   />
                 </View>
+              ) : null;
+            case 'mindfulness':
+              return mindfulnessCardVisible ? (
+                <MindfulnessCard
+                  key="mindfulness"
+                  sessions={mindfulSessions}
+                  totalMindfulMinutes={totalMindfulMinutes}
+                  selectedDate={selectedDate}
+                  onSaveSession={saveMindfulSession}
+                  onUpdateSession={updateMindfulSession}
+                  onDeleteSession={deleteMindfulSession}
+                  onPressDetails={() =>
+                    navigation.navigate('MindfulnessDetail', { selectedDate })
+                  }
+                />
               ) : null;
             default:
               return null;

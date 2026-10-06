@@ -11,6 +11,7 @@ import {
 import measurementRepository from '../models/measurementRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
+import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
 import type { WaterContainerResponse } from '@workspace/shared';
 
 vi.mock('../models/measurementRepository.js', () => ({
@@ -27,6 +28,9 @@ vi.mock('../models/waterContainerRepository.js', () => ({
 }));
 vi.mock('../models/genericHealthRepository.js', () => ({
   upsertDailyHealthMetrics: vi.fn(),
+}));
+vi.mock('../models/mindfulnessRepository.js', () => ({
+  createMindfulnessSession: vi.fn(),
 }));
 
 // Guards the registry against alias drift: every case label from the old
@@ -73,6 +77,11 @@ describe('health data handler registry', () => {
     ['basal_metabolic_rate', 'bmr'],
     ['BasalMetabolicRate', 'bmr'],
     ['resting_energy', 'bmr'],
+    ['MindfulnessSession', 'MindfulnessSession'],
+    ['MindfulSession', 'MindfulnessSession'],
+    ['mindfulness_session', 'MindfulnessSession'],
+    ['mindfulness', 'MindfulnessSession'],
+    ['mindful', 'MindfulnessSession'],
   ])("resolves '%s' to the '%s' handler", (rawType, canonicalKey) => {
     expect(resolveHandler(rawType)).toBe(HEALTH_TYPE_HANDLERS[canonicalKey]);
   });
@@ -592,5 +601,96 @@ describe('bodyWaterMassHandler.handleBatch', () => {
       status: 'error',
       error: 'Failed to process entry: connection lost',
     });
+  });
+});
+
+describe('mindfulnessHandler', () => {
+  const handler = HEALTH_TYPE_HANDLERS.MindfulnessSession;
+  const ctx = {
+    userId: 'user-123',
+    actingUserId: 'acting-456',
+    parsedDate: '2026-10-05',
+    entryTimestamp: '2026-10-05T10:00:00.000Z',
+    entryHour: 10,
+    resolveCategory: vi.fn(),
+  } as unknown as HealthEntryContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('successfully creates a mindfulness session with valid duration and telemetry', async () => {
+    vi.mocked(mindfulnessRepository.createMindfulnessSession).mockResolvedValue(
+      {
+        id: 'session-1',
+        user_id: 'user-123',
+        entry_date: '2026-10-05',
+        start_time: '2026-10-05T10:00:00.000Z',
+        end_time: '2026-10-05T10:15:00.000Z',
+        duration_seconds: 900,
+        session_type: 'meditation',
+        provider: 'apple_health',
+        external_id: 'ext-abc',
+        heart_rate_avg: 68,
+        heart_rate_start: 78,
+        heart_rate_end: 62,
+        hrv_rmssd: 55,
+        stress_level_start: null,
+        stress_level_end: null,
+        mood_entry_id: null,
+        notes: 'Morning breathwork',
+        created_at: '2026-10-05T10:15:00.000Z',
+        updated_at: '2026-10-05T10:15:00.000Z',
+      }
+    );
+
+    const result = await handler.handle(
+      {
+        type: 'MindfulnessSession',
+        duration_seconds: 900,
+        startTime: '2026-10-05T10:00:00.000Z',
+        endTime: '2026-10-05T10:15:00.000Z',
+        source: 'apple_health',
+        source_id: 'ext-abc',
+        session_type: 'meditation',
+        heart_rate_avg: 68,
+        heart_rate_start: 78,
+        heart_rate_end: 62,
+        hrv_rmssd: 55,
+        notes: 'Morning breathwork',
+      },
+      ctx
+    );
+
+    expect(result.status).toBe('success');
+    expect(mindfulnessRepository.createMindfulnessSession).toHaveBeenCalledWith(
+      'user-123',
+      expect.objectContaining({
+        duration_seconds: 900,
+        session_type: 'meditation',
+        provider: 'apple_health',
+        external_id: 'ext-abc',
+        heart_rate_avg: 68,
+        heart_rate_start: 78,
+        heart_rate_end: 62,
+        hrv_rmssd: 55,
+      }),
+      'acting-456'
+    );
+  });
+
+  it('rejects entries with non-positive duration', async () => {
+    const result = await handler.handle(
+      {
+        type: 'MindfulnessSession',
+        duration_seconds: 0,
+      },
+      ctx
+    );
+
+    expect(result.status).toBe('error');
+    if (result.status === 'error') {
+      expect(result.error).toContain('Invalid duration');
+    }
   });
 });
