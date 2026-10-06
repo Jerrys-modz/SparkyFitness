@@ -1994,6 +1994,7 @@ describe('workoutSession', () => {
           name: 'Bench Press',
           category: 'Strength',
           modality: null,
+          equipment: null,
           images: ['bench.png'],
         });
         expect(card.sets[0]).toMatchObject({

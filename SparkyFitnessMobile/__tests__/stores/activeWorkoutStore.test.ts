@@ -4076,20 +4076,18 @@ describe('activeWorkoutStore', () => {
         'warmup',
         'warmup',
         'warmup',
-        'warmup',
         'working',
         'working',
       ]);
-      expect(sets.slice(0, 4).map((x) => [x.weight, x.reps])).toEqual([
-        [20, 10],
-        [50, 5],
-        [70, 3],
-        [85, 1],
+      expect(sets.slice(0, 3).map((x) => [x.weight, x.reps])).toEqual([
+        [40, 5],
+        [60, 5],
+        [80, 3],
       ]);
-      expect(sets.map((x) => x.set_number)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(sets.map((x) => x.set_number)).toEqual([1, 2, 3, 4, 5]);
       // The working sets are untouched.
-      expect(sets.slice(4).map((x) => x.id)).toEqual([101, 102]);
-      expect(sets.slice(4).map((x) => x.weight)).toEqual([60, 70]);
+      expect(sets.slice(3).map((x) => x.id)).toEqual([101, 102]);
+      expect(sets.slice(3).map((x) => x.weight)).toEqual([60, 70]);
 
       const allIds = session.exercises.flatMap((e) => e.sets.map((x) => x.id));
       expect(new Set(allIds).size).toBe(allIds.length);
@@ -4101,11 +4099,11 @@ describe('activeWorkoutStore', () => {
       store.addWarmupSetsToExercise('ex-uuid-1', 80, 'kg');
 
       const sets = useActiveWorkoutStore.getState().session!.exercises[0].sets;
-      expect(sets.filter((x) => x.set_type === 'warmup')).toHaveLength(4);
+      expect(sets.filter((x) => x.set_type === 'warmup')).toHaveLength(3);
       expect(
         sets.filter((x) => x.set_type === 'warmup').map((x) => x.weight)
-      ).toEqual([20, 40, 55, 67.5]);
-      expect(sets.map((x) => x.set_number)).toEqual([1, 2, 3, 4, 5, 6]);
+      ).toEqual([32.5, 47.5, 65]);
+      expect(sets.map((x) => x.set_number)).toEqual([1, 2, 3, 4, 5]);
     });
 
     it('leaves the exercise alone once a warm-up has been logged', () => {
@@ -4126,12 +4124,13 @@ describe('activeWorkoutStore', () => {
       );
     });
 
-    it('adds nothing when the working weight is not above the bar', () => {
+    it('adds nothing when no step would be a loadable weight under the working weight', () => {
       const before =
         useActiveWorkoutStore.getState().session!.exercises[0].sets;
+      // 2 kg: every step rounds to 0 or up to 2.5, which is not under 2.
       useActiveWorkoutStore
         .getState()
-        .addWarmupSetsToExercise('ex-uuid-1', 20, 'kg');
+        .addWarmupSetsToExercise('ex-uuid-1', 2, 'kg');
       expect(useActiveWorkoutStore.getState().session!.exercises[0].sets).toBe(
         before
       );

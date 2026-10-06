@@ -348,6 +348,7 @@ export type RootStackParamList = {
   WatchSettings: undefined;
   DiarySettings: undefined;
   WorkoutSettings: undefined;
+  WarmupSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;

@@ -78,6 +78,7 @@ import {
   isDurationModality,
 } from '../utils/workoutSession';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { resolveWarmupOptions } from '../utils/warmupSettings';
 import { useActiveWorkoutIntervalLifecycle } from '../hooks/useActiveWorkoutIntervalLifecycle';
 import { useActiveWorkoutDiscard } from '../hooks/useActiveWorkoutDiscard';
 import { useActiveWorkoutFinish } from '../hooks/useActiveWorkoutFinish';
@@ -258,8 +259,12 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     },
     [session, plannedSetValues]
   );
+  const warmupCalculatorEnabled = useAppPreferencesStore(
+    (s) => s.warmupCalculatorEnabled
+  );
   const canAddWarmups = useCallback(
     (entryId: string): boolean => {
+      if (!warmupCalculatorEnabled) return false;
       if (warmupWeightKg(entryId) == null) return false;
       const ex = session?.exercises.find((e) => e.id === entryId);
       // A warm-up already logged means the ramp is under way.
@@ -269,17 +274,27 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           (completedSetIds[String(s.id)] != null || s.completed_at != null)
       );
     },
-    [warmupWeightKg, session, completedSetIds]
+    [warmupCalculatorEnabled, warmupWeightKg, session, completedSetIds]
   );
   const handleAddWarmups = useCallback(
     (entryId: string) => {
       const weightKg = warmupWeightKg(entryId);
       if (weightKg == null) return;
+      const ex = session?.exercises.find((e) => e.id === entryId);
       useActiveWorkoutStore
         .getState()
-        .addWarmupSetsToExercise(entryId, weightKg, weightUnit);
+        .addWarmupSetsToExercise(
+          entryId,
+          weightKg,
+          weightUnit,
+          resolveWarmupOptions(
+            useAppPreferencesStore.getState(),
+            weightUnit,
+            ex?.exercise_snapshot?.equipment
+          )
+        );
     },
-    [warmupWeightKg, weightUnit]
+    [warmupWeightKg, weightUnit, session]
   );
 
   const handleOpenReorder = useCallback(() => {

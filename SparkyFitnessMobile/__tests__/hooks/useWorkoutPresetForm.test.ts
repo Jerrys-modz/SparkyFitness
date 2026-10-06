@@ -94,6 +94,7 @@ describe('presetFormReducer', () => {
       exerciseName: 'Bench Press',
       exerciseCategory: 'strength',
       exerciseModality: null,
+      exerciseEquipment: [],
       images: ['bench.png'],
       progressionMode: 'rep_goal',
       repGoal: null,
