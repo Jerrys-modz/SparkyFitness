@@ -73,6 +73,7 @@ const NO_FIGURES_FOR_TODAY = {
   carbsGoal: null,
   fatConsumed: null,
   fatGoal: null,
+  bmrKcal: null,
   waterConsumedMl: null,
   waterLog: [] as WatchWaterLogPayload[],
 } as const;
@@ -254,6 +255,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const carbsGoal = dailySummary?.carbs.goal ?? null;
   const fatConsumed = dailySummary?.fat.consumed ?? null;
   const fatGoal = dailySummary?.fat.goal ?? null;
+  const bmrKcal = balance && balance.bmr > 0 ? balance.bmr : null;
 
   // Today's water totals for the watch's Water page bottle — same
   // `dailySummary` object as the phone's own hydration gauge reads, so the
@@ -359,6 +361,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       carbsGoal,
       fatConsumed,
       fatGoal,
+      bmrKcal,
       waterConsumedMl,
       waterLog: watchWaterLog,
     }),
@@ -376,6 +379,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       carbsGoal,
       fatConsumed,
       fatGoal,
+      bmrKcal,
       waterConsumedMl,
       watchWaterLog,
     ]
