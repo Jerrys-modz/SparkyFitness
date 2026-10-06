@@ -11,7 +11,11 @@ import medicationDisplayPreferenceRepository from '../models/medicationDisplayPr
 import glp1Service from '../services/glp1Service.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import medicationRoutes from '../routes/v2/medicationRoutes.js';
-import { lookupSupplementByUpc } from '../services/supplementLookupService.js';
+import {
+  lookupSupplementByUpc,
+  mapScannedLabel,
+} from '../services/supplementLookupService.js';
+import { extractSupplementLabel } from '../services/supplementLabelScanService.js';
 import { getActiveProvidersByTypes } from '../models/externalProviderRepository.js';
 
 vi.mock('../models/medicationRepository.js');
@@ -26,6 +30,13 @@ vi.mock('../models/externalProviderRepository.js', () => ({
 }));
 vi.mock('../services/supplementLookupService.js', () => ({
   lookupSupplementByUpc: vi.fn(),
+  mapScannedLabel: vi.fn(),
+}));
+vi.mock('../services/supplementLabelScanService.js', () => ({
+  extractSupplementLabel: vi.fn(),
+}));
+vi.mock('../utils/adminCheck.js', () => ({
+  resolveIsAdmin: vi.fn(async () => false),
 }));
 vi.mock('../utils/permissionUtils.js', () => ({
   canAccessUserData: vi.fn(),
@@ -445,6 +456,86 @@ describe('Medication Routes V2', () => {
         .set('Cookie', cookie);
 
       expect(medicationRepository.getMedicationById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('supplement label scan', () => {
+    const label = {
+      name: 'Zinc',
+      brand: null,
+      form: null,
+      serving: null,
+      ingredients: [{ name: 'Zinc', amount: 15, unit: 'mg' }],
+    };
+    const product = { source: 'label', name: 'Zinc' };
+
+    it('maps a label the phone read on device without running an AI', async () => {
+      vi.mocked(mapScannedLabel).mockReturnValue(product as never);
+
+      const res = await request(app)
+        .post('/api/v2/medications/supplement-label/map')
+        .set('Cookie', cookie)
+        .send(label);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ product });
+      expect(extractSupplementLabel).not.toHaveBeenCalled();
+    });
+
+    it('rejects a label with no ingredients list', async () => {
+      const res = await request(app)
+        .post('/api/v2/medications/supplement-label/map')
+        .set('Cookie', cookie)
+        .send({ name: 'Zinc' });
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('scans a photo with the vision provider', async () => {
+      vi.mocked(extractSupplementLabel).mockResolvedValue({
+        success: true,
+        label,
+      } as never);
+      vi.mocked(mapScannedLabel).mockReturnValue(product as never);
+
+      const res = await request(app)
+        .post('/api/v2/medications/supplement-label/scan')
+        .set('Cookie', cookie)
+        .send({ image: 'abc', mime_type: 'image/jpeg' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ product });
+      expect(extractSupplementLabel).toHaveBeenCalledWith(
+        'abc',
+        'image/jpeg',
+        expect.anything(),
+        false
+      );
+    });
+
+    it('answers 422 when no vision AI is configured', async () => {
+      vi.mocked(extractSupplementLabel).mockResolvedValue({
+        success: false,
+        category: 'no_ai_configured',
+        error: 'No AI service configured',
+      });
+
+      const res = await request(app)
+        .post('/api/v2/medications/supplement-label/scan')
+        .set('Cookie', cookie)
+        .send({ image: 'abc', mime_type: 'image/jpeg' });
+
+      expect(res.statusCode).toBe(422);
+    });
+
+    it('rejects a scan with no image', async () => {
+      const res = await request(app)
+        .post('/api/v2/medications/supplement-label/scan')
+        .set('Cookie', cookie)
+        .send({});
+
+      expect(res.statusCode).toBe(400);
+      expect(extractSupplementLabel).not.toHaveBeenCalled();
     });
   });
 
