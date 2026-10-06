@@ -328,7 +328,13 @@
       "workout": "Workout",
       "exercise": "Exercise",
       "set": "Set",
-      "setOf": "of"
+      "setOf": "of",
+      "subtractFifteenSeconds": "Subtract 15 seconds",
+      "subtractFifteenSecondsShort": "-15s",
+      "skip": "Skip",
+      "next": "Next",
+      "rep": "rep",
+      "reps": "reps"
     },
     "bar": {
       "clearWorkout": "Clear workout",

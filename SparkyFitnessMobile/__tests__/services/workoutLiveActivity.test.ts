@@ -237,6 +237,12 @@ describe('workoutLiveActivity', () => {
           exercise: 'Exercise',
           set: 'Set',
           setOf: 'of',
+          subtractFifteenSeconds: 'Subtract 15 seconds',
+          subtractFifteenSecondsShort: '-15s',
+          skip: 'Skip',
+          next: 'Next',
+          rep: 'rep',
+          reps: 'reps',
         },
         startedAt: FIXED_NOW,
         phase: 'active',
@@ -245,6 +251,9 @@ describe('workoutLiveActivity', () => {
         pausedRemainingLabel: null,
         setLine: 'Bench Press · Set 1 of 2',
         elapsedLabel: null,
+        exerciseName: 'Bench Press',
+        setProgress: 'Set 1 of 2',
+        targetLine: '60 kg × 10 reps',
       });
     });
 
@@ -505,6 +514,46 @@ describe('workoutLiveActivity', () => {
         expect.objectContaining({
           phase: 'resting',
           restEndsAt: FIXED_NOW + 75_000,
+        })
+      );
+    });
+
+    it('trims the current rest by 15s on rest-subtract-15', async () => {
+      await initHydrated();
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      await flushPromises();
+      const instance = createdInstances[0];
+
+      useActiveWorkoutStore.getState().completeSet('101');
+      await flushPromises();
+
+      fireInteraction('rest-subtract-15');
+      await flushPromises();
+
+      expect(instance.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          phase: 'resting',
+          restEndsAt: FIXED_NOW + 45_000,
+        })
+      );
+    });
+
+    it("shows the upcoming set's target in the user's weight unit while resting", async () => {
+      await initHydrated();
+      useActiveWorkoutStore.getState().setWeightUnit('lbs');
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      await flushPromises();
+      const instance = createdInstances[0];
+
+      useActiveWorkoutStore.getState().completeSet('101');
+      await flushPromises();
+
+      expect(instance.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          phase: 'resting',
+          exerciseName: 'Bench Press',
+          setProgress: 'Set 2 of 2',
+          targetLine: expect.stringMatching(/^\d+(\.\d)? lbs × \d+ reps$/),
         })
       );
     });
