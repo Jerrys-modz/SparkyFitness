@@ -1,10 +1,14 @@
 import {
   attachExerciseEntryGpsTrack,
+  attachExerciseEntryWatchTelemetry,
   createExercise,
   createExerciseEntry,
   searchExercises,
 } from '../../src/services/api/exerciseApi';
-import { markRecordingSaved } from '../../src/services/gpsRecordingService';
+import {
+  getHeartRateSamples,
+  markRecordingSaved,
+} from '../../src/services/gpsRecordingService';
 import {
   resolveRecordingExercise,
   saveRecordedActivity,
@@ -17,12 +21,16 @@ jest.mock('../../src/services/api/exerciseApi');
 jest.mock('../../src/services/gpsRecordingService', () => ({
   elapsedSeconds: jest.fn(() => 1500),
   markRecordingSaved: jest.fn(() => Promise.resolve()),
+  getHeartRateSamples: jest.fn(() => Promise.resolve([])),
 }));
+jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 const mockedSearch = jest.mocked(searchExercises);
 const mockedCreateExercise = jest.mocked(createExercise);
 const mockedCreateEntry = jest.mocked(createExerciseEntry);
 const mockedAttach = jest.mocked(attachExerciseEntryGpsTrack);
+const mockedTelemetry = jest.mocked(attachExerciseEntryWatchTelemetry);
+const mockedHeartRate = jest.mocked(getHeartRateSamples);
 
 const DEG_PER_METER = 1 / 111_194.9;
 const T0 = new Date(2026, 9, 6, 7, 5, 0).getTime();
@@ -145,5 +153,40 @@ describe('saveRecordedActivity', () => {
       'offline'
     );
     expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('attaches watch heart rate to the saved entry', async () => {
+    mockedHeartRate.mockResolvedValueOnce([
+      { t: T0, bpm: 120 },
+      { t: T0 + 30_000, bpm: 130 },
+    ]);
+
+    await saveRecordedActivity(session, points, 'km');
+
+    expect(mockedTelemetry).toHaveBeenCalledWith('entry-1', {
+      hrSamples: [
+        { t: new Date(T0).toISOString(), bpm: 120 },
+        { t: new Date(T0 + 30_000).toISOString(), bpm: 130 },
+      ],
+    });
+  });
+
+  it('skips heart rate with fewer than two readings', async () => {
+    mockedHeartRate.mockResolvedValueOnce([{ t: T0, bpm: 120 }]);
+    await saveRecordedActivity(session, points, 'km');
+    expect(mockedTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('still saves when the heart-rate upload fails', async () => {
+    mockedHeartRate.mockResolvedValueOnce([
+      { t: T0, bpm: 120 },
+      { t: T0 + 30_000, bpm: 130 },
+    ]);
+    mockedTelemetry.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual({
+      entryId: 'entry-1',
+      entryDate: '2026-10-06',
+    });
   });
 });

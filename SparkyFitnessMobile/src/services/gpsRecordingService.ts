@@ -27,6 +27,7 @@ import {
 export const GPS_RECORDING_TASK_NAME = 'sparky-gps-recording';
 
 const SESSION_KEY = '@SparkyFitness/gpsRecording/session';
+const HEART_RATE_KEY = '@SparkyFitness/gpsRecording/heartRate';
 const chunkKey = (index: number) =>
   `@SparkyFitness/gpsRecording/chunk/${index}`;
 /** Points per stored chunk: bounds how much is rewritten on each fix. */
@@ -52,6 +53,22 @@ export interface RecordingSession {
   savedEntryId: string | null;
 }
 
+/** One heart-rate reading from a paired watch during the recording. */
+export interface RecordedHeartRate {
+  /** Epoch ms. */
+  t: number;
+  bpm: number;
+}
+
+interface StoredHeartRate {
+  samples: RecordedHeartRate[];
+  /** Batches already taken, so a re-delivered queued batch is not added twice. */
+  batchIds: string[];
+}
+
+/** Batch ids remembered; far more than a recording ever produces. */
+const MAX_BATCH_IDS = 500;
+
 export interface RecordingSnapshot {
   session: RecordingSession | null;
   points: readonly RecordedPoint[];
@@ -70,6 +87,7 @@ export class RecordingPermissionError extends Error {
 let session: RecordingSession | null = null;
 let points: RecordedPoint[] = [];
 let snapshot: RecordingSnapshot = { session: null, points: [] };
+let heartRate: StoredHeartRate = { samples: [], batchIds: [] };
 let hydrated: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 // The task callback and the screen's own writes share one session, so every
@@ -136,8 +154,12 @@ export function hydrate(): Promise<void> {
           if (!chunk) break;
           loaded.push(...(JSON.parse(chunk) as RecordedPoint[]));
         }
+        const storedHeartRate = await AsyncStorage.getItem(HEART_RATE_KEY);
         session = stored;
         points = loaded;
+        heartRate = storedHeartRate
+          ? (JSON.parse(storedHeartRate) as StoredHeartRate)
+          : { samples: [], batchIds: [] };
         publish();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -347,6 +369,42 @@ export function finishRecording(): Promise<void> {
   });
 }
 
+/**
+ * Adds a batch of watch heart-rate readings to the recording. Ignored when the
+ * batch belongs to a different recording or was already taken. Still accepted
+ * after Finish: the watch's last batch is often queued and lands late.
+ */
+export function addHeartRateSamples(
+  sessionId: string,
+  batchId: string,
+  readings: readonly RecordedHeartRate[]
+): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.id !== sessionId) return;
+    if (batchId && heartRate.batchIds.includes(batchId)) return;
+    const valid = readings.filter(
+      (reading) =>
+        Number.isFinite(reading.t) && reading.bpm > 0 && reading.bpm < 300
+    );
+    if (valid.length === 0) return;
+    heartRate = {
+      samples: [...heartRate.samples, ...valid].sort((a, b) => a.t - b.t),
+      batchIds: batchId
+        ? [...heartRate.batchIds, batchId].slice(-MAX_BATCH_IDS)
+        : heartRate.batchIds,
+    };
+    await AsyncStorage.setItem(HEART_RATE_KEY, JSON.stringify(heartRate));
+  });
+}
+
+/** Heart-rate readings collected so far, oldest first. */
+export async function getHeartRateSamples(): Promise<RecordedHeartRate[]> {
+  await queue.catch(() => undefined);
+  await hydrate();
+  return heartRate.samples.slice();
+}
+
 /** Records that the diary entry exists, so a retried save only re-sends the track. */
 export function markRecordingSaved(entryId: string): Promise<void> {
   return enqueue(async () => {
@@ -363,8 +421,10 @@ export function discardRecording(): Promise<void> {
     await hydrate();
     await stopUpdates();
     await clearStoredPoints();
+    await AsyncStorage.removeItem(HEART_RATE_KEY);
     session = null;
     points = [];
+    heartRate = { samples: [], batchIds: [] };
     await persistSession();
     publish();
   });
@@ -388,6 +448,7 @@ export function elapsedSeconds(
 export function resetRecordingStateForTests(): void {
   session = null;
   points = [];
+  heartRate = { samples: [], batchIds: [] };
   hydrated = null;
   queue = Promise.resolve();
   publish();
