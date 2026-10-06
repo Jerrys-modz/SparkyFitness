@@ -16,6 +16,8 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 import {
   GPS_RECORDING_TASK_NAME,
   RecordingPermissionError,
+  addHeartRateSamples,
+  getHeartRateSamples,
   discardRecording,
   elapsedSeconds,
   finishRecording,
@@ -250,5 +252,59 @@ describe('elapsedSeconds', () => {
       finishedAt: 1_070_000,
     };
     expect(elapsedSeconds(finished, 9_999_999)).toBe(50);
+  });
+});
+
+describe('watch heart rate', () => {
+  it('keeps readings for the live recording, sorted, and drops repeats of a batch', async () => {
+    await startRecording({ activity: 'run', notification });
+    const id = (await storedSession())!.id;
+
+    await addHeartRateSamples(id, 'b2', [{ t: T0 + 60_000, bpm: 150 }]);
+    await addHeartRateSamples(id, 'b1', [{ t: T0 + 30_000, bpm: 140 }]);
+    await addHeartRateSamples(id, 'b1', [{ t: T0 + 30_000, bpm: 140 }]);
+
+    expect(await getHeartRateSamples()).toEqual([
+      { t: T0 + 30_000, bpm: 140 },
+      { t: T0 + 60_000, bpm: 150 },
+    ]);
+  });
+
+  it('ignores another recording and implausible readings', async () => {
+    await startRecording({ activity: 'run', notification });
+    const id = (await storedSession())!.id;
+
+    await addHeartRateSamples('rec-other', 'b1', [{ t: T0, bpm: 140 }]);
+    await addHeartRateSamples(id, 'b2', [
+      { t: T0, bpm: 0 },
+      { t: T0, bpm: 400 },
+    ]);
+
+    expect(await getHeartRateSamples()).toEqual([]);
+  });
+
+  it('still takes a late batch after Finish and is cleared by discard', async () => {
+    await startRecording({ activity: 'run', notification });
+    const id = (await storedSession())!.id;
+    await finishRecording();
+
+    await addHeartRateSamples(id, 'late', [{ t: T0, bpm: 120 }]);
+    expect(await getHeartRateSamples()).toHaveLength(1);
+
+    await discardRecording();
+    expect(await getHeartRateSamples()).toEqual([]);
+    expect(
+      await AsyncStorage.getItem('@SparkyFitness/gpsRecording/heartRate')
+    ).toBeNull();
+  });
+
+  it('survives a restart', async () => {
+    await startRecording({ activity: 'run', notification });
+    const id = (await storedSession())!.id;
+    await addHeartRateSamples(id, 'b1', [{ t: T0, bpm: 130 }]);
+
+    resetRecordingStateForTests();
+
+    expect(await getHeartRateSamples()).toEqual([{ t: T0, bpm: 130 }]);
   });
 });

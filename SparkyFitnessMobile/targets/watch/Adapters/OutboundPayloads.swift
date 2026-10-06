@@ -31,6 +31,8 @@ enum OutboundPayloads {
         static let setTimerStopped = "setTimerStopped"
         static let workoutStartRequested = "workoutStartRequested"
         static let presetUpdateAnswer = "presetUpdateAnswer"
+        static let recordingControl = "recordingControl"
+        static let recordingHeartRate = "recordingHeartRate"
     }
 
     /// A morning check-in awaiting a server write.
@@ -161,6 +163,31 @@ enum OutboundPayloads {
             payload["durationMinutes"] = minutes
         }
         return payload
+    }
+
+    /// Pause, resume or finish for the phone's GPS recording. `action` is one
+    /// of "pause", "resume", "finish" (`WatchRecordingControlPayload`).
+    static func recordingControl(sessionId: String, action: String) -> [String: Any] {
+        [
+            "type": Kind.recordingControl,
+            "sessionId": sessionId,
+            "action": action,
+        ]
+    }
+
+    /// Heart-rate readings taken during a phone GPS recording. `clientId`
+    /// lets the phone drop a re-delivered copy of a queued batch.
+    static func recordingHeartRate(
+        sessionId: String,
+        clientId: String,
+        samples: [HeartRateSample]
+    ) -> [String: Any] {
+        [
+            "type": Kind.recordingHeartRate,
+            "sessionId": sessionId,
+            "clientId": clientId,
+            "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
+        ]
     }
 
     /// The reading the wrist is showing right now. Only ever sent as a live

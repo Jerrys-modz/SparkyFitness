@@ -1,0 +1,200 @@
+import { act, renderHook } from '@testing-library/react-native';
+
+jest.mock('../../modules/watch-connectivity', () => ({
+  __esModule: true,
+  default: {
+    isReachable: jest.fn(() => true),
+    updateRecordingState: jest.fn(() => Promise.resolve()),
+    addListener: jest.fn(),
+  },
+}));
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
+}));
+jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/gpsRecordingService', () => ({
+  useGpsRecording: jest.fn(),
+  hydrate: jest.fn(() => Promise.resolve()),
+  pauseRecording: jest.fn(() => Promise.resolve()),
+  resumeRecording: jest.fn(() => Promise.resolve()),
+  finishRecording: jest.fn(() => Promise.resolve()),
+  addHeartRateSamples: jest.fn(() => Promise.resolve()),
+}));
+
+import { useWatchRecordingBridge } from '../../src/hooks/useWatchRecordingBridge';
+import * as service from '../../src/services/gpsRecordingService';
+
+const watch = (
+  jest.requireMock('../../modules/watch-connectivity') as {
+    default: {
+      isReachable: jest.Mock;
+      updateRecordingState: jest.Mock;
+      addListener: jest.Mock;
+    };
+  }
+).default;
+const mockedService = service as jest.Mocked<typeof service>;
+
+const baseSession = {
+  id: 'rec-1',
+  activity: 'run' as const,
+  status: 'recording' as const,
+  startedAt: 1_000,
+  finishedAt: null,
+  pausedAt: null,
+  pausedMs: 0,
+  seg: 0,
+  savedEntryId: null,
+};
+
+const point = (t: number, lat: number) => ({
+  t,
+  lat,
+  lon: 0,
+  alt: null,
+  hacc: 5,
+  seg: 0,
+});
+
+type Handlers = Record<string, (payload: unknown) => void>;
+let handlers: Handlers;
+
+function setSnapshot(
+  session: typeof baseSession | null,
+  points: ReturnType<typeof point>[] = []
+) {
+  (mockedService.useGpsRecording as jest.Mock).mockReturnValue({
+    session,
+    points,
+  });
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  handlers = {};
+  watch.addListener.mockImplementation(
+    (name: string, handler: (payload: unknown) => void) => {
+      handlers[name] = handler;
+      return { remove: jest.fn() };
+    }
+  );
+  setSnapshot(null);
+});
+
+describe('useWatchRecordingBridge', () => {
+  it('does nothing when the watch is not supported', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(false));
+    expect(watch.updateRecordingState).not.toHaveBeenCalled();
+    expect(watch.addListener).not.toHaveBeenCalled();
+  });
+
+  it('sends the status durably when a recording starts', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'rec-1',
+        activity: 'run',
+        status: 'recording',
+        startedAt: 1_000,
+        distanceUnit: 'km',
+      }),
+      true
+    );
+  });
+
+  it('freezes the clock on the watch when paused or finished', () => {
+    setSnapshot({ ...baseSession, status: 'paused', pausedAt: 9_000 });
+    const { rerender } = renderHook(() => useWatchRecordingBridge(true));
+    expect(watch.updateRecordingState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'paused', pausedAt: 9_000 }),
+      true
+    );
+
+    setSnapshot({ ...baseSession, status: 'finished', finishedAt: 20_000 });
+    rerender({});
+    expect(watch.updateRecordingState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'finished', pausedAt: 20_000 }),
+      true
+    );
+  });
+
+  it('refreshes distance and pace every few seconds while recording and reachable', () => {
+    // Fake timers only here: Testing Library's own cleanup hangs under them.
+    jest.useFakeTimers();
+    setSnapshot(baseSession, [point(1_000, 0), point(31_000, 0.0009)]);
+    renderHook(() => useWatchRecordingBridge(true));
+    watch.updateRecordingState.mockClear();
+
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'recording',
+        distanceMeters: expect.any(Number),
+      }),
+      false
+    );
+    const sent = watch.updateRecordingState.mock.calls[0][0];
+    expect(sent.distanceMeters).toBeGreaterThan(90);
+
+    watch.updateRecordingState.mockClear();
+    watch.isReachable.mockReturnValue(false);
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(watch.updateRecordingState).not.toHaveBeenCalled();
+    watch.isReachable.mockReturnValue(true);
+    jest.useRealTimers();
+  });
+
+  it('tells the watch the recording ended once the session is gone', () => {
+    setSnapshot(baseSession);
+    const { rerender } = renderHook(() => useWatchRecordingBridge(true));
+    watch.updateRecordingState.mockClear();
+
+    setSnapshot(null);
+    rerender({});
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'rec-1', status: 'ended' }),
+      true
+    );
+  });
+
+  it('applies pause, resume and finish from the watch to the live recording only', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    handlers.onRecordingControl({ sessionId: 'rec-1', action: 'pause' });
+    handlers.onRecordingControl({ sessionId: 'rec-1', action: 'resume' });
+    handlers.onRecordingControl({ sessionId: 'rec-1', action: 'finish' });
+    handlers.onRecordingControl({ sessionId: 'rec-old', action: 'finish' });
+
+    expect(mockedService.pauseRecording).toHaveBeenCalledTimes(1);
+    expect(mockedService.resumeRecording).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.any(String) })
+    );
+    expect(mockedService.finishRecording).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores heart-rate batches with their ids and times in epoch ms', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    handlers.onRecordingHeartRate({
+      sessionId: 'rec-1',
+      clientId: 'batch-1',
+      samples: [{ t: '2026-10-06T10:00:00.000Z', bpm: 141 }],
+    });
+
+    expect(mockedService.addHeartRateSamples).toHaveBeenCalledWith(
+      'rec-1',
+      'batch-1',
+      [{ t: Date.UTC(2026, 9, 6, 10, 0, 0), bpm: 141 }]
+    );
+  });
+});
