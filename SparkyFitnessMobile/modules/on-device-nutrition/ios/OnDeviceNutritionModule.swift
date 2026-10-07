@@ -172,6 +172,48 @@ it. Never claim something was done unless the tool said so. If no tool fits, \
 say so. You are not a doctor: for medical questions, suggest seeing a professional.
 """
 
+@available(iOS 27, *)
+@Generable
+private struct MealItemEstimate {
+    @Guide(description: "Plain food name, e.g. grilled chicken breast")
+    let name: String
+    @Guide(description: "Estimated weight of this item in grams, as served")
+    let grams: Double
+    @Guide(description: "Short portion description such as 1 cup or 2 slices")
+    let portion: String
+    @Guide(description: "Total calories (kcal) for this item at that weight")
+    let calories: Double
+    @Guide(description: "Protein in grams for this item at that weight")
+    let protein: Double
+    @Guide(description: "Total carbohydrate in grams for this item at that weight")
+    let carbs: Double
+    @Guide(description: "Total fat in grams for this item at that weight")
+    let fat: Double
+    @Guide(description: "Dietary fiber in grams for this item at that weight")
+    let fiber: Double
+    @Guide(description: "Total sugars in grams for this item at that weight")
+    let sugar: Double
+    @Guide(description: "How sure you are about this item: high, medium or low")
+    let confidence: String
+}
+
+@available(iOS 27, *)
+@Generable
+private struct MealEstimate {
+    @Guide(description: "One sentence describing the meal")
+    let summary: String
+    @Guide(description: "Each distinct food visible on the plate, at most 8")
+    let items: [MealItemEstimate]
+}
+
+private let mealInstructions = """
+You estimate the nutrition of a meal from a photo. List each distinct food you \
+can see as its own item with an estimated weight in grams and the calories and \
+macros for that weight. Use typical values for the food as prepared. If the user \
+gives a total weight, make the item weights add up to it. Be conservative: do not \
+add foods you cannot see, and use low confidence when unsure.
+"""
+
 private let extractionInstructions = """
 You read nutrition facts labels. You are given the label's text, recognised \
 line by line from the photo, and the photo itself. Copy numbers exactly as they \
@@ -991,6 +1033,55 @@ public class OnDeviceNutritionModule: Module {
                         ["name": ingredient.name, "amount": ingredient.amount, "unit": ingredient.unit]
                     },
                     "ocr_text": ocrText,
+                ]
+            }
+            #endif
+            throw OnDeviceNutritionError.unavailable
+        }
+
+        // Estimates a meal from one photo. Returns a dictionary the JS side turns
+        // into the server's estimate shape, or throws so the caller falls back.
+        AsyncFunction("estimateMeal") { (base64: String, description: String?, totalGrams: Double?) -> [String: Any?] in
+            #if compiler(>=6.4) && canImport(FoundationModels)
+            if #available(iOS 27, *) {
+                guard let data = Data(base64Encoded: base64),
+                    let source = CGImageSourceCreateWithData(data as CFData, nil),
+                    let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+                else {
+                    throw OnDeviceNutritionError.badImage
+                }
+                let session = LanguageModelSession(instructions: mealInstructions)
+                var prompt = "Estimate the nutrition of this meal."
+                if let description, !description.isEmpty {
+                    prompt += " The user says: \(description)."
+                }
+                if let totalGrams, totalGrams > 0 {
+                    prompt += " The whole meal weighs \(Int(totalGrams)) g."
+                }
+                let response = try await session.respond(
+                    generating: MealEstimate.self,
+                    options: GenerationOptions(sampling: .greedy)
+                ) {
+                    prompt
+                    Attachment(image)
+                }
+                let meal = response.content
+                return [
+                    "summary": meal.summary,
+                    "items": meal.items.map { item in
+                        [
+                            "name": item.name,
+                            "grams": item.grams,
+                            "portion": item.portion,
+                            "calories": item.calories,
+                            "protein": item.protein,
+                            "carbs": item.carbs,
+                            "fat": item.fat,
+                            "fiber": item.fiber,
+                            "sugar": item.sugar,
+                            "confidence": item.confidence,
+                        ] as [String: Any]
+                    },
                 ]
             }
             #endif

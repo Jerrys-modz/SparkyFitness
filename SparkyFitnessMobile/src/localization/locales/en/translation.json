@@ -3915,7 +3915,7 @@
     },
     "onDeviceFoodPhoto": {
       "title": "Estimate Food Photos On Device",
-      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Up to 4 photos of one meal are read together; more than that, or a photo it cannot estimate, uses the server AI provider."
+      "description": "Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider."
     },
     "openFacts": {
       "title": "Adjust Open Food Facts Values",
