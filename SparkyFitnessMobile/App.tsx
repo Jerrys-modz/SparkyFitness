@@ -157,6 +157,8 @@ import ActiveWorkoutBar, {
   notifyActiveWorkoutBarSwipeProgress,
 } from './src/components/ActiveWorkoutBar';
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
+import PendingPresetUpdatePrompt from './src/components/PendingPresetUpdatePrompt';
+import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateStore';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import { useNativeIOSTabsActive, useNativeIOSHeadersActive } from './src/services/nativeTabBarPreference';
@@ -213,6 +215,15 @@ function QuickActionsGate() {
 // to the same completion screen the phone's own Finish lands on; anywhere
 // else, clearing is enough (the active-workout bar just disappears).
 function handleWatchFinishedWorkout(celebration: WorkoutCelebration | null) {
+  if (
+    celebration?.sourcePresetId != null &&
+    (!rootNavigationRef.isReady() ||
+      rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout')
+  ) {
+    // The completion screen will not open, so its "Update preset?" check
+    // would never run. Hold it for the prompt mounted in the navigator.
+    usePendingPresetUpdateStore.getState().setPending(celebration);
+  }
   if (!rootNavigationRef.isReady()) return;
   if (rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout') return;
   if (celebration != null) {
@@ -437,6 +448,7 @@ function AppContent() {
       <QuickActionsGate />
       <WatchWorkoutGate />
       <VisualIntelligenceGate />
+      <PendingPresetUpdatePrompt />
       <SafeAreaProvider>
         {/* Inside SafeAreaProvider on purpose: the viewer positions its close
             button against the insets, so mounting it at the app root crashes

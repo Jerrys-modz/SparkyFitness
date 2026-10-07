@@ -26,6 +26,12 @@ interface UseWorkoutCompletePresetSyncArgs {
   plannedSetValues: Record<string, AssumedSetValues>;
   /** Live placeholder inputs; see buildPresetUpdateExercises. */
   assumeSources?: Omit<AssumedValueSources, 'plannedSetValues'>;
+  /**
+   * Called once there is nothing left to ask: no preset to compare, nothing
+   * that needs updating, or the prompt was answered. For callers that keep the
+   * check pending until then.
+   */
+  onSettled?: () => void;
 }
 
 export function useWorkoutCompletePresetSync({
@@ -35,6 +41,7 @@ export function useWorkoutCompletePresetSync({
   completedSetIds,
   plannedSetValues,
   assumeSources,
+  onSettled,
 }: UseWorkoutCompletePresetSyncArgs) {
   const { t } = useTranslation();
   const { profile } = useProfile();
@@ -42,18 +49,30 @@ export function useWorkoutCompletePresetSync({
   const { updatePresetAsync } = useUpdateWorkoutPreset();
   const [sourcePreset, setSourcePreset] = useState<WorkoutPreset | null>(null);
   const promptedRef = useRef(false);
+  const onSettledRef = useRef(onSettled);
+  useEffect(() => {
+    onSettledRef.current = onSettled;
+  });
 
   useEffect(() => {
-    if (sourcePresetId == null) return;
+    if (sourcePresetId == null) {
+      onSettledRef.current?.();
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
         const config = await getActiveServerConfig();
-        if (cancelled || config?.id !== sourceServerConfigId) return;
+        if (cancelled) return;
+        if (config?.id !== sourceServerConfigId) {
+          onSettledRef.current?.();
+          return;
+        }
         const preset = await getWorkoutPresetById(sourcePresetId);
         if (!cancelled) setSourcePreset(preset);
       } catch {
         // Deleted mid-workout (404) or unreachable — no prompt.
+        if (!cancelled) onSettledRef.current?.();
       }
     })();
     return () => {
@@ -77,8 +96,20 @@ export function useWorkoutCompletePresetSync({
 
   useEffect(() => {
     if (promptedRef.current || !isFocused) return;
-    if (sourcePreset == null || presetUpdateExercises == null) return;
-    if (!sourcePreset.user_id || profile?.id !== sourcePreset.user_id) return;
+    if (sourcePreset == null) return;
+    if (presetUpdateExercises == null) {
+      onSettledRef.current?.();
+      return;
+    }
+    if (!sourcePreset.user_id) {
+      onSettledRef.current?.();
+      return;
+    }
+    if (profile?.id == null) return;
+    if (profile.id !== sourcePreset.user_id) {
+      onSettledRef.current?.();
+      return;
+    }
     const presetId = sourcePreset.id;
     const exercises = presetUpdateExercises;
     const timer = setTimeout(() => {
@@ -98,6 +129,7 @@ export function useWorkoutCompletePresetSync({
               defaultValue: 'Keep Preset',
             }),
             style: 'cancel',
+            onPress: () => onSettledRef.current?.(),
           },
           {
             text: t('workoutComplete.actions.update', {
@@ -119,6 +151,7 @@ export function useWorkoutCompletePresetSync({
                 } catch {
                   // useUpdateWorkoutPreset already showed the failure toast.
                 }
+                onSettledRef.current?.();
               })();
             },
           },
