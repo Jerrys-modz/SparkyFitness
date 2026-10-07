@@ -3,12 +3,12 @@ import Security
 import WidgetKit
 
 // Holds the server address, login, weight unit and water container the Siri and
-// Shortcuts App Intents (plugins/ios/ShortcutActions.swift) need while the app
+// Shortcuts App Intents (targets/widget/ShortcutIntents.swift) need while the app
 // is closed. The copy exists while a server is signed in: JavaScript passes nil
 // when the user signs out or removes the server, which erases it. It lives in
 // the Keychain, never in UserDefaults or a file.
 //
-// The service and account below must match plugins/ios/ShortcutActions.swift.
+// The service and account below must match targets/widget/ShortcutIntents.swift.
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
 
