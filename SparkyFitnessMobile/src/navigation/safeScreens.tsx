@@ -48,7 +48,6 @@ import AllergenSettingsScreen from '../screens/AllergenSettingsScreen';
 import CustomNutrientsScreen from '../screens/CustomNutrientsScreen';
 import CustomNutrientFormScreen from '../screens/CustomNutrientFormScreen';
 import NutrientDisplaySettingsScreen from '../screens/NutrientDisplaySettingsScreen';
-import NutrientGoalDirectionScreen from '../screens/NutrientGoalDirectionScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
@@ -166,7 +165,6 @@ export const SafeAllergenSettings = withErrorBoundary(AllergenSettingsScreen, 'A
 export const SafeCustomNutrients = withErrorBoundary(CustomNutrientsScreen, 'CustomNutrients', { canGoBack: true });
 export const SafeCustomNutrientForm = withErrorBoundary(CustomNutrientFormScreen, 'CustomNutrientForm', { canGoBack: true });
 export const SafeNutrientDisplaySettings = withErrorBoundary(NutrientDisplaySettingsScreen, 'NutrientDisplaySettings', { canGoBack: true });
-export const SafeNutrientGoalDirection = withErrorBoundary(NutrientGoalDirectionScreen, 'NutrientGoalDirection', { canGoBack: true });
 export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 'DashboardSettings', { canGoBack: true });
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });

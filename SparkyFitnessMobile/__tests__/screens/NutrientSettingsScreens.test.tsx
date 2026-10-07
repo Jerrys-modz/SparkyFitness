@@ -1,11 +1,10 @@
 import React from 'react';
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import CustomNutrientFormScreen from '../../src/screens/CustomNutrientFormScreen';
 import NutrientDisplaySettingsScreen from '../../src/screens/NutrientDisplaySettingsScreen';
-import NutrientGoalDirectionScreen from '../../src/screens/NutrientGoalDirectionScreen';
 import { initializeI18n } from '../../src/localization/i18n';
 import {
   createCustomNutrient,
@@ -17,11 +16,6 @@ import {
   resetNutrientDisplayPreference,
   updateNutrientDisplayPreference,
 } from '../../src/services/api/preferencesApi';
-import {
-  fetchNutrientGoalPreferences,
-  resetNutrientGoalPreference,
-  updateNutrientGoalPreference,
-} from '../../src/services/api/nutrientGoalPreferencesApi';
 
 jest.mock('../../src/hooks/useServerConnection', () => ({
   useServerConnection: () => ({ isConnected: true, isLoading: false }),
@@ -49,7 +43,6 @@ jest.mock('react-native-toast-message', () => ({
 }));
 jest.mock('../../src/services/api/customNutrientsApi');
 jest.mock('../../src/services/api/preferencesApi');
-jest.mock('../../src/services/api/nutrientGoalPreferencesApi');
 
 const insets = { top: 0, bottom: 0, left: 0, right: 0 };
 const frame = { x: 0, y: 0, width: 390, height: 844 };
@@ -199,79 +192,6 @@ describe('NutrientDisplaySettingsScreen', () => {
         'quick_info',
         'mobile'
       )
-    );
-  });
-});
-
-describe('NutrientGoalDirectionScreen', () => {
-  beforeEach(() => {
-    (fetchNutrientGoalPreferences as jest.Mock).mockResolvedValue({
-      protein: { goalType: 'minimum' },
-      sodium: { goalType: 'maximum' },
-      water_ml: { goalType: 'minimum' },
-    });
-    (updateNutrientGoalPreference as jest.Mock).mockResolvedValue({});
-    (resetNutrientGoalPreference as jest.Mock).mockResolvedValue({});
-  });
-
-  test('lists nutrients but never offers water as a goal', async () => {
-    const { findByTestId, queryByTestId } = renderWithProviders(
-      <NutrientGoalDirectionScreen {...({ navigation: {} } as never)} />
-    );
-
-    await findByTestId('goal-direction-protein');
-    expect(queryByTestId('goal-direction-water_ml')).toBeNull();
-  });
-
-  test('switching to Max saves the new direction', async () => {
-    const { findByTestId, getAllByText } = renderWithProviders(
-      <NutrientGoalDirectionScreen {...({ navigation: {} } as never)} />
-    );
-    await findByTestId('goal-direction-protein');
-
-    // Rows render in key order: protein first, so its Max segment is first.
-    fireEvent.press(getAllByText('Max')[0]!);
-
-    await waitFor(() =>
-      expect(updateNutrientGoalPreference).toHaveBeenCalledWith('protein', {
-        goalType: 'maximum',
-        targetMin: undefined,
-        targetMax: undefined,
-      })
-    );
-  });
-
-  test('Range saves only once a valid band is entered', async () => {
-    const { findByTestId, getAllByText, getByTestId } = renderWithProviders(
-      <NutrientGoalDirectionScreen {...({ navigation: {} } as never)} />
-    );
-    await findByTestId('goal-direction-protein');
-
-    fireEvent.press(getAllByText('Range')[0]!);
-    expect(updateNutrientGoalPreference).not.toHaveBeenCalled();
-
-    fireEvent.changeText(getByTestId('goal-direction-min-protein'), '100');
-    fireEvent.changeText(getByTestId('goal-direction-max-protein'), '150');
-    await act(async () => {
-      fireEvent.press(getByTestId('goal-direction-save-protein'));
-    });
-
-    expect(updateNutrientGoalPreference).toHaveBeenCalledWith('protein', {
-      goalType: 'target',
-      targetMin: 100,
-      targetMax: 150,
-    });
-  });
-
-  test('reset removes the override', async () => {
-    const { findByTestId } = renderWithProviders(
-      <NutrientGoalDirectionScreen {...({ navigation: {} } as never)} />
-    );
-
-    fireEvent.press(await findByTestId('goal-direction-reset-sodium'));
-
-    await waitFor(() =>
-      expect(resetNutrientGoalPreference).toHaveBeenCalledWith('sodium')
     );
   });
 });

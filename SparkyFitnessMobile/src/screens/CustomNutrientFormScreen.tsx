@@ -21,8 +21,8 @@ import {
   dailySummaryRootQueryKey,
   foodsQueryKey,
   nutrientDisplayPreferencesQueryKey,
-  nutrientGoalPreferencesQueryKey,
 } from '../hooks/queryKeys';
+import { nutrientGoalPreferencesQueryKey } from '../hooks/useGoals';
 import {
   createCustomNutrient,
   deleteCustomNutrient,

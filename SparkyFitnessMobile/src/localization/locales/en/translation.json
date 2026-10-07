@@ -3942,9 +3942,7 @@
       "custom": "Custom Nutrients",
       "customSubtitle": "Create and edit your own nutrients",
       "display": "Nutrient Display",
-      "displaySubtitle": "Choose and order the nutrients shown in each view",
-      "goalDirection": "Goal Direction",
-      "goalDirectionSubtitle": "Set whether each nutrient goal is a minimum, maximum, or range"
+      "displaySubtitle": "Choose and order the nutrients shown in each view"
     }
   },
   "workoutComplete": {
@@ -6651,21 +6649,5 @@
       "reportTabular": "Report (Tabular)",
       "reportChart": "Report (Chart)"
     }
-  },
-  "nutrientGoalDirection": {
-    "title": "Goal Direction",
-    "loading": "Loading goal directions...",
-    "loadFailed": "Failed to load goal directions",
-    "description": "Min means more is better, Max means stay under the goal, and Range means land between two values.",
-    "min": "Min",
-    "max": "Max",
-    "range": "Range",
-    "to": "to",
-    "minPlaceholder": "Min",
-    "maxPlaceholder": "Max",
-    "reset": "Reset",
-    "resetOne": "Reset {{name}} to default",
-    "invalidBand": "Enter a valid min that is at most max.",
-    "saveFailed": "Failed to save goal direction."
   }
 }

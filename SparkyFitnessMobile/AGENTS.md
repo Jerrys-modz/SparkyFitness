@@ -184,7 +184,7 @@ npx expo prebuild --clean
 - Estimation posts to `POST /api/foods/estimate-food-photo` through `estimateFoodPhoto(...)` in `externalFoodSearchApi.ts` and uses typed `FoodPhotoEstimateError` codes from `@workspace/shared`.
 - Food-photo request/response changes cross package boundaries: update shared schema and server route/service with mobile.
 - Keep `auto_scale_online_imports` separate from Open Food Facts-specific scaling preferences in `FoodSettingsScreen`.
-- Nutrient management lives under Food Settings: `CustomNutrientsScreen` / `CustomNutrientFormScreen` (create, edit, delete; renames and deletes invalidate display, goal-direction, goals and daily-summary caches since the nutrient name is the key), `NutrientDisplaySettingsScreen` (per view group, `mobile` platform only; `summary` and `diary` keep their Dashboard/Diary screens), and `NutrientGoalDirectionScreen` (minimum / maximum / target band; a target needs both bounds, so Range saves only once a valid band is entered).
+- Nutrient management lives under Food Settings: `CustomNutrientsScreen` / `CustomNutrientFormScreen` (create, edit, delete; renames and deletes invalidate display, goals and daily-summary caches since the nutrient name is the key), and `NutrientDisplaySettingsScreen` (per view group, `mobile` platform only; `summary` and `diary` keep their Dashboard/Diary screens). A nutrient's goal direction is edited on the Goals screen.
 
 ## Exercise, Workouts, And Fasting
 
