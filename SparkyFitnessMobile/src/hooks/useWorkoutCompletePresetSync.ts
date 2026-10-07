@@ -69,6 +69,8 @@ export function useWorkoutCompletePresetSync({
             completedSetIds,
             plannedSetValues,
             assumeSources,
+            // Heavier or lighter than the preset is not worth a prompt.
+            structureOnly: true,
           }),
     [sourcePreset, session, completedSetIds, plannedSetValues, assumeSources]
   );
