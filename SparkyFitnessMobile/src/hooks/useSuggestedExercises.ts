@@ -2,11 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchSuggestedExercises } from '../services/api/exerciseApi';
 import { suggestedExercisesQueryKey } from './queryKeys';
 
-export function useSuggestedExercises() {
+export function useSuggestedExercises(options?: { enabled?: boolean }) {
   const query = useQuery({
     queryKey: suggestedExercisesQueryKey,
     queryFn: () => fetchSuggestedExercises(),
     staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: options?.enabled ?? true,
   });
 
   return {

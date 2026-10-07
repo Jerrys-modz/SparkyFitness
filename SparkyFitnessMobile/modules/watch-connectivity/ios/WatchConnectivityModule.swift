@@ -32,6 +32,9 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
+    /// The wearer added or removed a set or exercise on the watch, or changed a
+    /// set's type. The phone applies it to the live workout.
+    var onWorkoutEdit: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -108,6 +111,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
             onWorkoutStartRequested?(payload)
+        case "workoutEdit":
+            onWorkoutEdit?(payload)
         default:
             break
         }
@@ -240,7 +245,8 @@ public class WatchConnectivityModule: Module {
             "onLiveHeartRate",
             "onWorkoutStop",
             "onWorkoutDiscard",
-            "onWorkoutStartRequested"
+            "onWorkoutStartRequested",
+            "onWorkoutEdit"
         )
 
         OnCreate {
@@ -376,6 +382,17 @@ public class WatchConnectivityModule: Module {
                     "presetId": payload["presetId"] as? String ?? "",
                     "serverId": payload["serverId"] as? String ?? "",
                 ])
+            }
+            self.delegateHandler.onWorkoutEdit = { [weak self] payload in
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "action": payload["action"] as? String ?? "",
+                ]
+                for key in ["exerciseEntryId", "setId", "exerciseId", "setType"] {
+                    if let value = payload[key] as? String { event[key] = value }
+                }
+                self?.sendEvent("onWorkoutEdit", event)
             }
             self.delegateHandler.activate()
         }

@@ -30,6 +30,7 @@ enum OutboundPayloads {
         static let setTimerStarted = "setTimerStarted"
         static let setTimerStopped = "setTimerStopped"
         static let workoutStartRequested = "workoutStartRequested"
+        static let workoutEdit = "workoutEdit"
     }
 
     /// A morning check-in awaiting a server write.
@@ -84,6 +85,39 @@ enum OutboundPayloads {
         ]
         if let serverId, !serverId.isEmpty {
             payload["serverId"] = serverId
+        }
+        return payload
+    }
+
+    /// An add, delete or set-type change in the running workout. `clientId`
+    /// lets the phone drop a copy delivered twice (live, then queued).
+    static func workoutEdit(
+        sessionId: String,
+        clientId: String,
+        action: WorkoutEditAction
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.workoutEdit,
+            "sessionId": sessionId,
+            "clientId": clientId,
+        ]
+        switch action {
+        case .addSet(let exerciseEntryId):
+            payload["action"] = "addSet"
+            payload["exerciseEntryId"] = exerciseEntryId
+        case .deleteSet(let setId):
+            payload["action"] = "deleteSet"
+            payload["setId"] = setId
+        case .setSetType(let setId, let type):
+            payload["action"] = "setSetType"
+            payload["setId"] = setId
+            payload["setType"] = type
+        case .addExercise(let exerciseId):
+            payload["action"] = "addExercise"
+            payload["exerciseId"] = exerciseId
+        case .deleteExercise(let exerciseEntryId):
+            payload["action"] = "deleteExercise"
+            payload["exerciseEntryId"] = exerciseEntryId
         }
         return payload
     }
