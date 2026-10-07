@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { PresetSessionResponse } from '@workspace/shared';
 import { useWorkoutCompletePresetSync } from '../../src/hooks/useWorkoutCompletePresetSync';
@@ -108,5 +108,33 @@ describe('useWorkoutCompletePresetSync onSettled', () => {
     );
     await waitFor(() => expect(onSettled).toHaveBeenCalled());
     expect(onNeedsUpdate).not.toHaveBeenCalled();
+  });
+
+  it('holds the prompt until the app is in front', async () => {
+    (buildPresetUpdateExercises as jest.Mock).mockReturnValue([{}]);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    Object.defineProperty(AppState, 'currentState', {
+      value: 'background',
+      configurable: true,
+    });
+    let onChange: ((state: string) => void) | undefined;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_event, handler) => {
+        onChange = handler as (state: string) => void;
+        return { remove: jest.fn() } as never;
+      });
+    const onNeedsUpdate = jest.fn();
+    renderHook(() =>
+      useWorkoutCompletePresetSync({ ...args(jest.fn()), onNeedsUpdate })
+    );
+    await waitFor(() => expect(onNeedsUpdate).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(alert).not.toHaveBeenCalled();
+
+    act(() => onChange?.('active'));
+    await waitFor(() => expect(alert).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
   });
 });

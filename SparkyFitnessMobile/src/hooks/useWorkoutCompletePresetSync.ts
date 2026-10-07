@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useIsFocused } from '@react-navigation/native';
 import type { PresetSessionResponse } from '@workspace/shared';
@@ -17,6 +17,12 @@ import type { WorkoutPreset } from '../types/workoutPresets';
 import type { CompletedSetMap } from '../stores/activeWorkoutStore';
 
 const UPDATE_PRESET_PROMPT_DELAY_MS = 800;
+
+// Anything but background/inactive counts as in front, so a state that is
+// not reported yet does not hold the prompt back.
+function isAppInBackground(state: string | null | undefined): boolean {
+  return state === 'background' || state === 'inactive';
+}
 
 interface UseWorkoutCompletePresetSyncArgs {
   session: PresetSessionResponse;
@@ -53,6 +59,18 @@ export function useWorkoutCompletePresetSync({
   const { t } = useTranslation();
   const { profile } = useProfile();
   const isFocused = useIsFocused();
+  // An alert raised while the app is in the background is lost, so the prompt
+  // waits for the app to be in front (a watch finish resolves it while the
+  // phone is locked).
+  const [appActive, setAppActive] = useState(
+    !isAppInBackground(AppState.currentState)
+  );
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) =>
+      setAppActive(!isAppInBackground(state))
+    );
+    return () => sub.remove();
+  }, []);
   const { updatePresetAsync } = useUpdateWorkoutPreset();
   const [sourcePreset, setSourcePreset] = useState<WorkoutPreset | null>(null);
   const promptedRef = useRef(false);
@@ -113,7 +131,7 @@ export function useWorkoutCompletePresetSync({
   }, [sourcePreset, presetUpdateExercises, profile?.id]);
 
   useEffect(() => {
-    if (promptedRef.current || !isFocused) return;
+    if (promptedRef.current || !isFocused || !appActive) return;
     if (sourcePreset == null) return;
     if (presetUpdateExercises == null) {
       onSettledRef.current?.();
@@ -179,6 +197,7 @@ export function useWorkoutCompletePresetSync({
     return () => clearTimeout(timer);
   }, [
     isFocused,
+    appActive,
     sourcePreset,
     presetUpdateExercises,
     profile?.id,
