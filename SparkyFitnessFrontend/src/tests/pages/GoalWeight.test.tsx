@@ -10,11 +10,13 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (
       _key: string,
-      arg?: string | { defaultValue?: string; unit?: string }
+      arg?: string | { defaultValue?: string; unit?: string; max?: number }
     ) =>
       typeof arg === 'string'
         ? arg
-        : (arg?.defaultValue ?? '').replace('{{unit}}', arg?.unit ?? ''),
+        : (arg?.defaultValue ?? '')
+            .replace('{{unit}}', arg?.unit ?? '')
+            .replace('{{max}}', String(arg?.max ?? '')),
   }),
 }));
 jest.mock('@/hooks/useAuth', () => ({
@@ -73,6 +75,41 @@ describe('GoalWeight', () => {
     render(<GoalWeight />);
     fireEvent.click(screen.getByText('Clear'));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(null));
+  });
+
+  it('keeps Save off until the field is edited, so a rounded value is not resubmitted', () => {
+    targetWeight = '80.02';
+    render(<GoalWeight />);
+    expect(
+      screen.getByText('Save goal weight').closest('button')
+    ).toBeDisabled();
+  });
+
+  it('does not save above the server limit', () => {
+    render(<GoalWeight />);
+    fireEvent.change(screen.getByLabelText('Goal weight (kg)'), {
+      target: { value: '1000' },
+    });
+    expect(
+      screen.getByText('Save goal weight').closest('button')
+    ).toBeDisabled();
+    expect(
+      screen.getByText('Enter a weight above zero and up to 999.99 kg.')
+    ).toBeInTheDocument();
+  });
+
+  it('converts an unsaved draft when the unit preference changes', async () => {
+    weightUnit = 'lbs';
+    const { rerender } = render(<GoalWeight />);
+    fireEvent.change(screen.getByLabelText('Goal weight (lbs)'), {
+      target: { value: '180' },
+    });
+    weightUnit = 'kg';
+    rerender(<GoalWeight />);
+    expect(screen.getByLabelText('Goal weight (kg)')).toHaveValue(81.6);
+    fireEvent.click(screen.getByText('Save goal weight'));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    expect(mutateAsync.mock.calls[0][0]).toBeCloseTo(81.6, 1);
   });
 
   it('hides Clear when no goal is saved', () => {

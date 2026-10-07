@@ -91,6 +91,22 @@ describe('Onboarding Routes', () => {
       );
     });
 
+    it('rounds to the two decimals the column stores', async () => {
+      // @ts-expect-error TS(2339)
+      onboardingService.setTargetWeight.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .put('/onboarding/target-weight')
+        .send({ targetWeight: 82.456 });
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toEqual({ targetWeight: 82.46 });
+      expect(onboardingService.setTargetWeight).toHaveBeenCalledWith(
+        'testUserId',
+        82.46
+      );
+    });
+
     it('clears the target weight with null', async () => {
       // @ts-expect-error TS(2339)
       onboardingService.setTargetWeight.mockResolvedValue(undefined);
@@ -111,6 +127,7 @@ describe('Onboarding Routes', () => {
       { targetWeight: -5 },
       { targetWeight: 1000 },
       { targetWeight: 999.996 },
+      { targetWeight: 0.001 },
       { targetWeight: '80' },
       {},
     ])('rejects %j with 400', async (body) => {

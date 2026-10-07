@@ -726,22 +726,6 @@
     "wellness": "Wellness",
     "symptoms": "Symptoms"
   },
-  "nutrientInsights": {
-    "title": "Nutrient Insights",
-    "score": "Nutrition score",
-    "basis": "Average daily intake over {{count}} logged days compared with your goals.",
-    "empty": "Log food and set nutrient goals in Goals to see how your intake compares.",
-    "limit": "limit {{value}}",
-    "suggestionsTitle": "Foods to fill the gaps",
-    "noSuggestions": "No gaps to fill, or none of your recent foods help with them.",
-    "perServing": "Per {{serving}}:",
-    "status": {
-      "deficient": "Deficient",
-      "low": "Low",
-      "onTarget": "On target",
-      "over": "Over limit"
-    }
-  },
   "nutrition": {
     "calories": "Calories",
     "protein": "Protein",
@@ -891,20 +875,6 @@
       "replaceTitle": "Replace Exercise",
       "replaceSuccess": "Exercise replaced",
       "suggestedTab": "Suggested"
-    },
-    "typeReview": {
-      "button": "Review exercise types",
-      "title": "Review exercise types",
-      "description": "These exercises would be tracked differently based on their name, category and equipment. Uncheck any you want to leave alone, or pick a different type.",
-      "currently": "Now",
-      "changeTo": "Change {{name}} to",
-      "suggested": "suggested",
-      "error": "Could not load suggestions",
-      "empty": "All your exercises already match. Nothing to change.",
-      "apply_one": "Apply {{count}} change",
-      "apply_other": "Apply {{count}} changes",
-      "applied": "Exercise types updated",
-      "applyFailed": "Could not update exercise types"
     },
     "modality": {
       "weightReps": "Weight & Reps",
@@ -2814,7 +2784,7 @@
       "goalWeight": "Goal Weight",
       "goalWeightDescription": "Your target weight. The weight trend chart uses it to project when you will reach it.",
       "goalWeightInputLabel": "Goal weight ({{unit}})",
-      "goalWeightInvalid": "Enter a weight greater than zero.",
+      "goalWeightInvalid": "Enter a weight above zero and up to {{max}} {{unit}}.",
       "goalWeightSave": "Save goal weight",
       "goalWeightClear": "Clear",
       "goalWeightSaved": "Goal weight saved.",
@@ -2956,8 +2926,7 @@
     "selectRow": "Select row",
     "unknown": "Unknown",
     "avg": "Avg",
-    "max": "Max",
-    "tryAgain": "Try again"
+    "max": "Max"
   },
   "diary": {
     "nutritionSummary": "Nutrition Summary",
@@ -3893,10 +3862,6 @@
     "sessionNamePlaceholder": "Custom name (e.g., Push Day, Legs)"
   },
   "reports": {
-    "weightTrend": "Trend",
-    "weightTrendSummary": "Trend {{weight}}",
-    "weightTrendRate": "{{rate}} per week",
-    "weightGoalForecast": "Goal projected {{date}}",
     "alcohol": {
       "weeklyAlcohol": "Weekly Alcohol Intake",
       "standardDrinks": "std drinks",
@@ -5597,10 +5562,6 @@
     "googleHealthLinkError": "Failed to link Google Health account.",
     "googleHealthLinkSuccess": "Google Health account successfully linked!",
     "googleHealthSyncError": "Google Health sync did not finish.",
-    "hevyExercisesRemoveError": "Could not remove the imported Hevy exercises.",
-    "hevyExercisesRemoveSuccess": "Imported Hevy exercises removed.",
-    "hevyExercisesSyncError": "Hevy exercise sync failed. Please check your API key in settings.",
-    "hevyExercisesSyncSuccess": "Hevy exercise library synced.",
     "hevySyncError": "Hevy sync failed. Please check your API key in settings.",
     "hevySyncSuccess": "Hevy data synced successfully.",
     "liftosaurSyncError": "Liftosaur sync failed. Please check your API key in settings.",
@@ -6511,7 +6472,6 @@
       "tooHard": "Holding weight: last time felt too hard.",
       "tooHardRepeated": "Lighter today: too hard two sessions running.",
       "highEffort": "Holding weight: your last sets were near max effort.",
-      "lowEffort": "A step heavier: your last sets were logged as easy.",
       "tooEasyRepeated": "A step heavier: too easy two sessions running."
     },
     "declined": "Using your usual suggestion.",
