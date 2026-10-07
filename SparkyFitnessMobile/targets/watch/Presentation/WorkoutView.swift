@@ -343,7 +343,6 @@ private struct IntervalCaptionView: View {
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var session: WatchSessionManager
-    @EnvironmentObject private var session: WatchSessionManager
     @EnvironmentObject private var checkIn: CheckInStore
 
     @State private var showingExercises = false
