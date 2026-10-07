@@ -10,6 +10,7 @@ import {
   formatXLabel7d,
   formatXLabel30d90d,
   formatTooltipDate,
+  formatDateWithYear,
   computeNiceYAxisScale,
 } from './charts/chartFormatting';
 import LineSeriesMark from './charts/LineSeriesMark';
@@ -317,7 +318,7 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
               label={t('charts.weight.goalDate', { defaultValue: 'Goal date' })}
               value={
                 forecast.status === 'toward-goal' && forecast.daysToGoal != null
-                  ? formatTooltipDate(
+                  ? formatDateWithYear(
                       addDays(data[data.length - 1].day, forecast.daysToGoal)
                     )
                   : forecast.status === 'steady'
