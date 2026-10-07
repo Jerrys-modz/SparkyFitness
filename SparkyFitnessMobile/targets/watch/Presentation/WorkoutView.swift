@@ -498,6 +498,7 @@ private enum WorkoutPageID: Hashable {
 /// Shown after the last set is logged. Finish used to live only in the
 /// exercise-picker sheet, which was easy to miss.
 private struct WorkoutCompleteView: View {
+    @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var session: WatchSessionManager
 
     var body: some View {
@@ -507,7 +508,9 @@ private struct WorkoutCompleteView: View {
                 .font(.headline)
             Button("Finish") {
                 Haptics.tap()
-                session.endWorkout()
+                // The usual way to end a workout: after the last set. It asks
+                // about updating the saved workout, like the other Finish.
+                if !store.askPresetUpdateBeforeFinish() { session.endWorkout() }
             }
             .font(.caption)
             .tint(.green)
