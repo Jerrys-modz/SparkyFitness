@@ -89,6 +89,7 @@ npx expo prebuild --clean
 
 - `src/components/` - reusable UI, charts, settings rows, custom tab bar, add sheet, workout HUD, form chrome, library rows, diary rows, serving sheets, food/workout editors, fasting UI, writeback UI, and `ui/` primitives.
 - `src/components/auth/` - MFA UI shared by onboarding, setup, and reauth.
+- `src/components/glp1/` - GLP-1 tracker cards (injection log, site body map, modeled level, pen/vial inventory, titration, daily check-in) used by `Glp1TrackerScreen`; hooks in `useGlp1.ts` (query keys sit under the `medications` root so `invalidateMedicationEntryCaches` refreshes them). Body-map geometry and the contract types come from `@workspace/shared`.
 - `src/screens/` - top-level route destinations: dashboard, diary, family member/diary/meal/copy-review flows, settings, sync, logs, Whats New, fasting, food search/scan/photo, library CRUD flows, workout/activity flows, and measurement entry.
 - `src/navigation/` - navigation-level modules such as `safeScreens.tsx`, the error-boundary-wrapped screen components registered in `App.tsx`. (`FoodPhotoFlow` lives in `src/components/`.)
 - `src/hooks/` - TanStack Query hooks, auth/connection hooks, library/search/mutation hooks, measurement/water/check-in hooks, fasting hooks, workout form hooks, widget sync, query client, query keys, and cache helpers.
