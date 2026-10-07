@@ -23,6 +23,10 @@ import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  isReadOnlyApiKeyPermissions,
+  type ApiKeyScope,
+} from '@workspace/shared';
+import {
   useApiKeysQuery,
   useCreateApiKeyMutation,
   useDeleteApiKeyMutation,
@@ -38,6 +42,7 @@ export const ApiSettings = () => {
   const [newApiKeyExpiresIn, setNewApiKeyExpiresIn] = useState<number | null>(
     null
   );
+  const [newApiKeyScope, setNewApiKeyScope] = useState<ApiKeyScope>('full');
   const { data: apiKeys = [], isLoading: isFetchingKeys } = useApiKeysQuery(
     user?.id
   );
@@ -59,7 +64,9 @@ export const ApiSettings = () => {
     try {
       const data = await createKey({
         name: newApiKeyDescription || 'New API Key',
-        expiresIn: newApiKeyExpiresIn || undefined,
+        // null = never expires (the server defaults an omitted value to 1 year)
+        expiresIn: newApiKeyExpiresIn,
+        scope: newApiKeyScope,
       });
 
       if (data && data.key) {
@@ -233,6 +240,27 @@ export const ApiSettings = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2 w-full sm:w-48">
+              <Label htmlFor="api-key-scope">
+                {t('settings.apiKeyManagement.access', 'Access')}
+              </Label>
+              <Select
+                value={newApiKeyScope}
+                onValueChange={(val) => setNewApiKeyScope(val as ApiKeyScope)}
+              >
+                <SelectTrigger id="api-key-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">
+                    {t('settings.apiKeyManagement.accessFull', 'Full access')}
+                  </SelectItem>
+                  <SelectItem value="read">
+                    {t('settings.apiKeyManagement.accessRead', 'Read-only')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               onClick={handleGenerateApiKey}
               disabled={generatingApiKey}
@@ -291,6 +319,11 @@ export const ApiSettings = () => {
                     {!key.enabled && (
                       <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded border uppercase font-bold">
                         {t('settings.apiKeyManagement.disabled', 'Disabled')}
+                      </span>
+                    )}
+                    {isReadOnlyApiKeyPermissions(key.permissions) && (
+                      <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded border uppercase font-bold">
+                        {t('settings.apiKeyManagement.accessRead', 'Read-only')}
                       </span>
                     )}
                   </div>
