@@ -219,6 +219,13 @@ enum SetKind: String, CaseIterable {
 }
 
 /// Totals shown on the watch once a workout is finished.
+/// The phone asking whether to save a finished workout's changes into the
+/// saved workout it was started from.
+struct PresetUpdateOffer: Equatable {
+    let sessionId: String
+    let presetName: String
+}
+
 struct WorkoutSummary: Equatable {
     let durationSeconds: Int
     let setsCompleted: Int
@@ -226,6 +233,9 @@ struct WorkoutSummary: Equatable {
     let averageBpm: Double?
     let maxBpm: Double?
     let activeEnergyKcal: Double?
+    /// The workout it describes, so a question the phone asks about it can be
+    /// matched to this summary and not to a later one.
+    var sessionId: String? = nil
 }
 
 /// What the wearer actually did for a set, once they have adjusted the

@@ -1,14 +1,21 @@
-import { useCallback, useMemo } from 'react';
-import { AppState } from 'react-native';
-import { useWorkoutCompletePresetSync } from '../hooks/useWorkoutCompletePresetSync';
-import { notifyPresetUpdateAvailable } from '../services/notifications';
-import { usePendingPresetUpdateStore } from '../stores/pendingPresetUpdateStore';
-import type { WorkoutCelebration } from '../utils/workoutCelebration';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import WatchConnectivity from '../../modules/watch-connectivity';
+import {
+  useWorkoutCompletePresetSync,
+  type PresetUpdateOffer,
+} from '../hooks/useWorkoutCompletePresetSync';
+import {
+  usePendingPresetUpdateStore,
+  type PendingPresetUpdate,
+} from '../stores/pendingPresetUpdateStore';
 
 /**
  * Asks "Update preset?" for a workout finished on the watch while the phone
  * was elsewhere, the same question the completion screen asks after a phone
- * finish. Mount inside the navigation container (the prompt waits for focus).
+ * finish. The watch is asked first, on its post-workout summary; the phone's
+ * own prompt waits for the app to be in front and covers a watch that was out
+ * of reach or never answered. Mount inside the navigation container (the
+ * prompt waits for focus).
  */
 export default function PendingPresetUpdatePrompt() {
   const pending = usePendingPresetUpdateStore((s) => s.pending);
@@ -18,20 +25,21 @@ export default function PendingPresetUpdatePrompt() {
   // old one's "already prompted" state.
   return (
     <PendingPrompt
-      key={pending.finishedAt}
-      celebration={pending}
+      key={pending.celebration.finishedAt}
+      pending={pending}
       onSettled={clearPending}
     />
   );
 }
 
 function PendingPrompt({
-  celebration,
+  pending,
   onSettled,
 }: {
-  celebration: WorkoutCelebration;
+  pending: PendingPresetUpdate;
   onSettled: () => void;
 }) {
+  const { celebration, sessionId } = pending;
   const {
     session,
     sourcePresetId,
@@ -55,13 +63,39 @@ function PendingPrompt({
         : undefined,
     [previousSessionSets, exerciseConfigs, weightUnit, workoutFormat]
   );
-  // The prompt waits for the app to be in front. With the phone locked or in
-  // a pocket, an alert (mirrored to the watch) says there is something to do.
-  const handleNeedsUpdate = useCallback((presetName: string) => {
-    if (AppState.currentState !== 'active') {
-      void notifyPresetUpdateAvailable(presetName);
-    }
-  }, []);
+
+  const updateRef = useRef<PresetUpdateOffer['update'] | null>(null);
+  const answeredRef = useRef(false);
+
+  // The wearer's answer to the question on the watch.
+  useEffect(() => {
+    if (WatchConnectivity == null) return;
+    const sub = WatchConnectivity.addListener(
+      'onPresetUpdateAnswer',
+      (answer) => {
+        if (answer.sessionId !== sessionId || answeredRef.current) return;
+        answeredRef.current = true;
+        void (async () => {
+          if (answer.update) await updateRef.current?.();
+          onSettled();
+        })();
+      }
+    );
+    return () => sub.remove();
+  }, [sessionId, onSettled]);
+
+  const handleNeedsUpdate = useCallback(
+    (offer: PresetUpdateOffer) => {
+      updateRef.current = offer.update;
+      // Not reachable is fine: the phone's own prompt still shows.
+      void WatchConnectivity?.offerPresetUpdate(
+        sessionId,
+        offer.presetName
+      ).catch(() => {});
+    },
+    [sessionId]
+  );
+
   useWorkoutCompletePresetSync({
     session,
     sourcePresetId,

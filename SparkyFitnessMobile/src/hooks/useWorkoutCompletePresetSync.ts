@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AppState } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -24,6 +24,12 @@ function isAppInBackground(state: string | null | undefined): boolean {
   return state === 'background' || state === 'inactive';
 }
 
+export interface PresetUpdateOffer {
+  presetName: string;
+  /** Writes the workout's exercises into the preset, with the success toast. */
+  update: () => Promise<void>;
+}
+
 interface UseWorkoutCompletePresetSyncArgs {
   session: PresetSessionResponse;
   sourcePresetId?: number | null;
@@ -40,10 +46,10 @@ interface UseWorkoutCompletePresetSyncArgs {
   onSettled?: () => void;
   /**
    * Called once when the preset turns out to need updating, before the prompt
-   * waits for the screen to be in front. Lets a caller that cannot show the
-   * prompt yet say so some other way.
+   * waits for the screen to be in front. Lets a caller ask somewhere else (the
+   * watch) and apply the update itself if the answer is yes.
    */
-  onNeedsUpdate?: (presetName: string) => void;
+  onNeedsUpdate?: (offer: PresetUpdateOffer) => void;
 }
 
 export function useWorkoutCompletePresetSync({
@@ -122,13 +128,34 @@ export function useWorkoutCompletePresetSync({
     [sourcePreset, session, completedSetIds, plannedSetValues, assumeSources]
   );
 
+  const applyUpdate = useCallback(async () => {
+    if (sourcePreset == null || presetUpdateExercises == null) return;
+    try {
+      await updatePresetAsync({
+        id: sourcePreset.id,
+        payload: { exercises: presetUpdateExercises },
+      });
+      Toast.show({
+        type: 'success',
+        text1: t('workoutComplete.success.presetUpdated', {
+          defaultValue: 'Preset updated',
+        }),
+      });
+    } catch {
+      // useUpdateWorkoutPreset already showed the failure toast.
+    }
+  }, [sourcePreset, presetUpdateExercises, updatePresetAsync, t]);
+
   useEffect(() => {
     if (announcedRef.current) return;
     if (sourcePreset == null || presetUpdateExercises == null) return;
     if (!sourcePreset.user_id || profile?.id !== sourcePreset.user_id) return;
     announcedRef.current = true;
-    onNeedsUpdateRef.current?.(sourcePreset.name);
-  }, [sourcePreset, presetUpdateExercises, profile?.id]);
+    onNeedsUpdateRef.current?.({
+      presetName: sourcePreset.name,
+      update: applyUpdate,
+    });
+  }, [sourcePreset, presetUpdateExercises, profile?.id, applyUpdate]);
 
   useEffect(() => {
     if (promptedRef.current || !isFocused || !appActive) return;
@@ -146,8 +173,6 @@ export function useWorkoutCompletePresetSync({
       onSettledRef.current?.();
       return;
     }
-    const presetId = sourcePreset.id;
-    const exercises = presetUpdateExercises;
     const timer = setTimeout(() => {
       promptedRef.current = true;
       Alert.alert(
@@ -173,20 +198,7 @@ export function useWorkoutCompletePresetSync({
             }),
             onPress: () => {
               void (async () => {
-                try {
-                  await updatePresetAsync({
-                    id: presetId,
-                    payload: { exercises },
-                  });
-                  Toast.show({
-                    type: 'success',
-                    text1: t('workoutComplete.success.presetUpdated', {
-                      defaultValue: 'Preset updated',
-                    }),
-                  });
-                } catch {
-                  // useUpdateWorkoutPreset already showed the failure toast.
-                }
+                await applyUpdate();
                 onSettledRef.current?.();
               })();
             },
@@ -201,7 +213,7 @@ export function useWorkoutCompletePresetSync({
     sourcePreset,
     presetUpdateExercises,
     profile?.id,
-    updatePresetAsync,
+    applyUpdate,
     t,
   ]);
 }

@@ -55,6 +55,11 @@ final class WorkoutSessionStore: ObservableObject {
     /// dismiss it or arm another workout. Not persisted: it is a keepsake of
     /// the moment, not session state.
     @Published private(set) var lastSummary: WorkoutSummary?
+    /// The phone's question, after a finish, about saving this workout's
+    /// changes into its saved workout. Nil unless it is for the summary on
+    /// screen. Not persisted, like the summary it sits on.
+    @Published private(set) var presetOffer: PresetUpdateOffer?
+    private var heldPresetOffer: PresetUpdateOffer?
     private var heartRateSum: Double = 0
     private var heartRateCount: Int = 0
     private var heartRateMax: Double?
@@ -392,6 +397,8 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         lastSummary = nil
+        presetOffer = nil
+        heldPresetOffer = nil
         resetHeartRateStats()
         wristLoggedSetIds = []
         celebratedPrSetIds = []
@@ -588,16 +595,45 @@ final class WorkoutSessionStore: ObservableObject {
             volumeKg: volumeKg,
             averageBpm: heartRateCount > 0 ? heartRateSum / Double(heartRateCount) : nil,
             maxBpm: heartRateMax,
-            activeEnergyKcal: activeEnergyKcal
+            activeEnergyKcal: activeEnergyKcal,
+            sessionId: plan?.sessionId
         )
     }
 
     func recordSummary(_ summary: WorkoutSummary?) {
         lastSummary = summary
+        presetOffer = nil
+        // An offer that beat the summary here, for this same workout.
+        if let held = heldPresetOffer, held.sessionId == summary?.sessionId {
+            presetOffer = held
+        }
+        heldPresetOffer = nil
     }
 
     func dismissSummary() {
         lastSummary = nil
+        presetOffer = nil
+        heldPresetOffer = nil
+    }
+
+    /// Takes the phone's update question, but only for the summary showing
+    /// now: a late one for an earlier workout must not interrupt this one.
+    ///
+    /// The phone answers within a couple of seconds, which can be before the
+    /// watch has finished writing the workout to Health and shown its summary,
+    /// so an early one is held for `recordSummary` to pick up.
+    func receivePresetOffer(sessionId: String, presetName: String) {
+        let offer = PresetUpdateOffer(sessionId: sessionId, presetName: presetName)
+        if let summary = lastSummary, summary.sessionId == sessionId {
+            presetOffer = offer
+        } else {
+            heldPresetOffer = offer
+        }
+    }
+
+    /// Closes the question. The caller sends the answer to the phone.
+    func clearPresetOffer() {
+        presetOffer = nil
     }
 
     func recordActiveEnergy(kcal: Double) {

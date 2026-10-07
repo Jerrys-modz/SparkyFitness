@@ -290,10 +290,6 @@
       "bodySetProgressReps_other": "{{setProgress}} · {{formattedCount}} reps target",
       "bodySetProgressDuration": "{{setProgress}} · {{duration}} target"
     },
-    "presetUpdate": {
-      "title": "Update your preset?",
-      "body": "Your workout changed from \"{{preset}}\". Open SparkyFitness to review."
-    },
     "fasting": {
       "title": "Fasting goal reached",
       "body": "You've hit your fasting goal. Great work!"

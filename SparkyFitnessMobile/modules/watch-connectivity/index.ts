@@ -538,6 +538,14 @@ export interface WatchWorkoutDiscardPayload {
   armedAt?: number;
 }
 
+/** The wearer's answer to the "update this workout?" question the phone put on
+ * the watch after a workout finished. */
+export interface WatchPresetUpdateAnswerPayload {
+  sessionId: string;
+  /** True to write the workout's changes into the saved workout. */
+  update: boolean;
+}
+
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
   /** Active server the list was built for. Empty when an older watch omitted it. */
@@ -609,6 +617,7 @@ export type WatchConnectivityEvents = {
   onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
   onRecordingControl: (payload: WatchRecordingControlPayload) => void;
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
+  onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -648,6 +657,13 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     stoppedAt: string,
     discarded: boolean
   ): Promise<void>;
+  /**
+   * Asks the wearer, on the post-workout summary, whether to save a finished
+   * workout's changes into its saved workout. Sent live only: the question
+   * means nothing once the summary is gone, so a watch out of reach is simply
+   * not asked. Resolves false when it could not be sent.
+   */
+  offerPresetUpdate(sessionId: string, presetName: string): Promise<boolean>;
   /**
    * Absolute pause snapshot for the live session. `revision` only increases.
    * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.

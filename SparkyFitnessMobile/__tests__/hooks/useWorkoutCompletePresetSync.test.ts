@@ -95,7 +95,11 @@ describe('useWorkoutCompletePresetSync onSettled', () => {
     renderHook(() =>
       useWorkoutCompletePresetSync({ ...args(jest.fn()), onNeedsUpdate })
     );
-    await waitFor(() => expect(onNeedsUpdate).toHaveBeenCalledWith('Push'));
+    await waitFor(() =>
+      expect(onNeedsUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ presetName: 'Push' })
+      )
+    );
     expect(onNeedsUpdate).toHaveBeenCalledTimes(1);
   });
 

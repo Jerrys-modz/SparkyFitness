@@ -214,7 +214,10 @@ function QuickActionsGate() {
 // from outside any screen. If the phone is sitting on that workout, move it
 // to the same completion screen the phone's own Finish lands on; anywhere
 // else, clearing is enough (the active-workout bar just disappears).
-function handleWatchFinishedWorkout(celebration: WorkoutCelebration | null) {
+function handleWatchFinishedWorkout(
+  celebration: WorkoutCelebration | null,
+  sessionId: string
+) {
   if (
     celebration?.sourcePresetId != null &&
     (!rootNavigationRef.isReady() ||
@@ -222,7 +225,7 @@ function handleWatchFinishedWorkout(celebration: WorkoutCelebration | null) {
   ) {
     // The completion screen will not open, so its "Update preset?" check
     // would never run. Hold it for the prompt mounted in the navigator.
-    usePendingPresetUpdateStore.getState().setPending(celebration);
+    usePendingPresetUpdateStore.getState().setPending({ celebration, sessionId });
   }
   if (!rootNavigationRef.isReady()) return;
   if (rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout') return;

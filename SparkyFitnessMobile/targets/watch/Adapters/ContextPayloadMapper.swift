@@ -314,6 +314,18 @@ enum ContextPayloadMapper {
 
     // MARK: - Workout
 
+    /// The phone's question about a finished workout's saved workout. Nil for
+    /// a malformed payload, which is dropped rather than shown.
+    static func presetUpdateOffer(
+        from payload: [String: Any]
+    ) -> (sessionId: String, presetName: String)? {
+        guard let sessionId = payload["sessionId"] as? String,
+              let presetName = payload["presetName"] as? String,
+              !presetName.isEmpty
+        else { return nil }
+        return (sessionId, presetName)
+    }
+
     /// The session a phone-sent `workoutStop` names, and when the phone sent
     /// it. Nil session for a malformed payload, which is dropped rather than
     /// ending whatever is running.

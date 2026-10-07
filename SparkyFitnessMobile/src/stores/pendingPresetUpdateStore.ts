@@ -7,16 +7,22 @@ import type { WorkoutCelebration } from '../utils/workoutCelebration';
  * screen, so its "Update preset?" check waits here until the app shows the
  * prompt. Kept in memory only: it is a one-time question, not data.
  */
+export interface PendingPresetUpdate {
+  celebration: WorkoutCelebration;
+  /** The watch's id for the workout, to match its answer. */
+  sessionId: string;
+}
+
 interface PendingPresetUpdateState {
-  pending: WorkoutCelebration | null;
-  setPending: (celebration: WorkoutCelebration) => void;
+  pending: PendingPresetUpdate | null;
+  setPending: (pending: PendingPresetUpdate) => void;
   clearPending: () => void;
 }
 
 export const usePendingPresetUpdateStore = create<PendingPresetUpdateState>(
   (set) => ({
     pending: null,
-    setPending: (celebration) => set({ pending: celebration }),
+    setPending: (pending) => set({ pending }),
     clearPending: () => set({ pending: null }),
   })
 );

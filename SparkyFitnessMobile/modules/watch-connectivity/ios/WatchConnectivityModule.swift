@@ -36,6 +36,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
     var onRecordingControl: (([String: Any]) -> Void)?
     var onRecordingHeartRate: (([String: Any]) -> Void)?
+    /// The wearer answered the update-this-workout question on the summary.
+    var onPresetUpdateAnswer: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -120,6 +122,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRecordingControl?(payload)
         case "recordingHeartRate":
             onRecordingHeartRate?(payload)
+        case "presetUpdateAnswer":
+            onPresetUpdateAnswer?(payload)
         default:
             break
         }
@@ -256,7 +260,8 @@ public class WatchConnectivityModule: Module {
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
             "onRecordingControl",
-            "onRecordingHeartRate"
+            "onRecordingHeartRate",
+            "onPresetUpdateAnswer"
         )
 
         OnCreate {
@@ -419,6 +424,12 @@ public class WatchConnectivityModule: Module {
                     "samples": payload["samples"] as? [[String: Any]] ?? [],
                 ])
             }
+            self.delegateHandler.onPresetUpdateAnswer = { [weak self] payload in
+                self?.sendEvent("onPresetUpdateAnswer", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "update": payload["update"] as? Bool ?? false,
+                ])
+            }
             self.delegateHandler.activate()
         }
 
@@ -535,6 +546,24 @@ public class WatchConnectivityModule: Module {
             } else {
                 WCSession.default.transferUserInfo(payload)
             }
+        }
+
+        /// Puts the update-this-workout question on the watch's post-workout
+        /// summary. Live only, never queued: the summary it belongs to is gone
+        /// by the time a queued copy could arrive. False when the watch cannot
+        /// be reached, so the caller knows only the phone will ask.
+        AsyncFunction("offerPresetUpdate") { (sessionId: String, presetName: String) -> Bool in
+            guard WCSession.isSupported(), WCSession.default.isReachable else { return false }
+            WCSession.default.sendMessage(
+                [
+                    "type": "presetUpdateOffer",
+                    "sessionId": sessionId,
+                    "presetName": presetName,
+                ],
+                replyHandler: nil,
+                errorHandler: nil
+            )
+            return true
         }
 
         /// Pause or resume the cap. Always queued, so a watch out of range

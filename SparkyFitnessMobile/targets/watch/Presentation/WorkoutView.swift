@@ -106,6 +106,7 @@ private struct PersonalRecordBanner: View {
 private struct WorkoutSummaryView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var checkIn: CheckInStore
+    @EnvironmentObject private var session: WatchSessionManager
     let summary: WorkoutSummary
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
@@ -145,6 +146,24 @@ private struct WorkoutSummaryView: View {
             // starts below it.
             .padding(.top, 22)
         }
+        // The phone's question, once it has compared the workout with the one
+        // it came from. Only buttons close it, so it cannot be swiped away
+        // without an answer.
+        .alert(
+            "Update Workout?",
+            isPresented: Binding(get: { store.presetOffer != nil }, set: { _ in }),
+            presenting: store.presetOffer
+        ) { offer in
+            Button("Update") { answer(offer, update: true) }
+            Button("Keep Original", role: .cancel) { answer(offer, update: false) }
+        } message: { offer in
+            Text("Save the changes you made to \"\(offer.presetName)\"?")
+        }
+    }
+
+    private func answer(_ offer: PresetUpdateOffer, update: Bool) {
+        store.clearPresetOffer()
+        session.sendPresetUpdateAnswer(sessionId: offer.sessionId, update: update)
     }
 
     private func row(_ title: String, _ value: String) -> some View {

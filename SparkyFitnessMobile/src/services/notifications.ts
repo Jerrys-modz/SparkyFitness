@@ -32,7 +32,6 @@ function notificationCopy(
 }
 
 const REST_COMPLETE_CATEGORY = 'rest-complete';
-const PRESET_UPDATE_CATEGORY = 'preset-update';
 /**
  * actionIdentifier of the "Complete Set" button on the rest-complete ping.
  * Responses are dispatched to the store by `initWorkoutNotificationActions`
@@ -374,43 +373,6 @@ export async function maybePromptForExactAlarmPermission(): Promise<void> {
   } catch (err) {
     addLog(
       `maybePromptForExactAlarmPermission failed: ${(err as Error).message}`,
-      'ERROR'
-    );
-  }
-}
-
-/**
- * Tells the lifter a finished workout changed its source preset, when the
- * "Update preset?" question cannot be shown yet because the app is not in
- * front (a finish on the watch). iOS mirrors the alert to the watch while the
- * phone is locked. Tapping it opens the app, where the question waits.
- */
-export async function notifyPresetUpdateAvailable(
-  presetName: string
-): Promise<void> {
-  const prefs = useAppPreferencesStore.getState();
-  if (!prefs.notificationsEnabled) return;
-  if (!(await ensureNotificationPermission())) return;
-  try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: notificationCopy(
-          'notifications.presetUpdate.title',
-          'Update your preset?'
-        ),
-        body: notificationCopy(
-          'notifications.presetUpdate.body',
-          'Your workout changed from "{{preset}}". Open SparkyFitness to review.',
-          { preset: presetName }
-        ),
-        sound: true,
-        categoryIdentifier: PRESET_UPDATE_CATEGORY,
-      },
-      trigger: null,
-    });
-  } catch (err) {
-    addLog(
-      `notifyPresetUpdateAvailable failed: ${(err as Error).message}`,
       'ERROR'
     );
   }
