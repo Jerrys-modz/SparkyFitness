@@ -76,6 +76,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
     finishedAt,
     sourcePresetId,
     sourceServerConfigId,
+    presetCheckHandledElsewhere,
     plannedSetValues,
     previousSessionSets,
     exerciseConfigs,
@@ -177,7 +178,7 @@ function WorkoutCompleteScreen({ navigation, route }: Props) {
   );
   useWorkoutCompletePresetSync({
     session,
-    sourcePresetId,
+    sourcePresetId: presetCheckHandledElsewhere ? null : sourcePresetId,
     sourceServerConfigId,
     completedSetIds,
     plannedSetValues,

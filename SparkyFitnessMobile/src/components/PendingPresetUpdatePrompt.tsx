@@ -84,14 +84,38 @@ function PendingPrompt({
     return () => sub.remove();
   }, [sessionId, onSettled]);
 
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (retryRef.current != null) clearTimeout(retryRef.current);
+    },
+    []
+  );
+
   const handleNeedsUpdate = useCallback(
     (offer: PresetUpdateOffer) => {
       updateRef.current = offer.update;
-      // Not reachable is fine: the phone's own prompt still shows.
-      void WatchConnectivity?.offerPresetUpdate(
-        sessionId,
-        offer.presetName
-      ).catch(() => {});
+      // The watch only hears a live message, and can be briefly out of reach
+      // as its workout session winds down, so try again a few times. Not
+      // reachable at all is fine: the phone's own prompt still shows.
+      const attempt = (left: number) => {
+        void (async () => {
+          let sent = false;
+          try {
+            sent =
+              (await WatchConnectivity?.offerPresetUpdate(
+                sessionId,
+                offer.presetName
+              )) === true;
+          } catch {
+            sent = false;
+          }
+          if (!sent && left > 0 && !answeredRef.current) {
+            retryRef.current = setTimeout(() => attempt(left - 1), 3000);
+          }
+        })();
+      };
+      attempt(5);
     },
     [sessionId]
   );

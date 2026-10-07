@@ -221,19 +221,22 @@ function handleWatchFinishedWorkout(
   celebration: WorkoutCelebration | null,
   sessionId: string
 ) {
-  if (
-    celebration?.sourcePresetId != null &&
-    (!rootNavigationRef.isReady() ||
-      rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout')
-  ) {
-    // The completion screen will not open, so its "Update preset?" check
-    // would never run. Hold it for the prompt mounted in the navigator.
+  // Always held for the prompt mounted in the navigator, even when the
+  // completion screen opens: that prompt is what asks the watch first, and
+  // the completion screen then leaves the check to it.
+  const holdsPresetCheck = celebration?.sourcePresetId != null;
+  if (celebration != null && holdsPresetCheck) {
     usePendingPresetUpdateStore.getState().setPending({ celebration, sessionId });
   }
   if (!rootNavigationRef.isReady()) return;
   if (rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout') return;
   if (celebration != null) {
-    rootNavigationRef.dispatch(StackActions.replace('WorkoutComplete', celebration));
+    rootNavigationRef.dispatch(
+      StackActions.replace('WorkoutComplete', {
+        ...celebration,
+        presetCheckHandledElsewhere: holdsPresetCheck,
+      })
+    );
   } else if (rootNavigationRef.canGoBack()) {
     rootNavigationRef.goBack();
   }
