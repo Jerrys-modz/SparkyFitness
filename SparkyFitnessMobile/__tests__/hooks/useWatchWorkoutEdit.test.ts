@@ -93,4 +93,41 @@ describe('applyWatchWorkoutEdit', () => {
     await edit({ action: 'addExercise', exerciseId: 'ex-1' });
     expect(actions.addExercise).not.toHaveBeenCalled();
   });
+
+  it('lets a later delivery add the exercise after a failed lookup', async () => {
+    (fetchExerciseById as jest.Mock)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ id: 'ex-1', name: 'Bench Press' });
+    const payload = {
+      sessionId: 'sess-1',
+      clientId: 'retry-1',
+      action: 'addExercise' as const,
+      exerciseId: 'ex-1',
+    };
+    await applyWatchWorkoutEdit(payload);
+    expect(actions.addExercise).not.toHaveBeenCalled();
+    await applyWatchWorkoutEdit(payload);
+    expect(actions.addExercise).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a second delivery while the exercise is still loading', async () => {
+    let resolve: (value: unknown) => void = () => {};
+    (fetchExerciseById as jest.Mock).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    const payload = {
+      sessionId: 'sess-1',
+      clientId: 'slow-1',
+      action: 'addExercise' as const,
+      exerciseId: 'ex-1',
+    };
+    const first = applyWatchWorkoutEdit(payload);
+    await applyWatchWorkoutEdit(payload);
+    resolve({ id: 'ex-1', name: 'Bench Press' });
+    await first;
+    expect(fetchExerciseById).toHaveBeenCalledTimes(1);
+    expect(actions.addExercise).toHaveBeenCalledTimes(1);
+  });
 });
