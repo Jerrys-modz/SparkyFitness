@@ -93,3 +93,31 @@ describe('buildWatchWorkoutStartPayload set kinds', () => {
     expect(set.timed).toBeUndefined();
   });
 });
+
+describe('buildWatchWorkoutStartPayload fromPreset', () => {
+  beforeEach(() => {
+    __resetActiveWorkoutStoreForTests();
+  });
+
+  const build = (session: PresetSessionResponse, sourcePresetId?: number) => {
+    act(() => {
+      useActiveWorkoutStore
+        .getState()
+        .startWorkout(session, sourcePresetId ? { sourcePresetId } : undefined);
+    });
+    return buildWatchWorkoutStartPayload(
+      session,
+      ((_key: string, opts?: { defaultValue?: string }) =>
+        opts?.defaultValue ?? '') as never,
+      Date.now()
+    );
+  };
+
+  it('tells the watch the workout came from a saved one', () => {
+    expect(build(sessionWith('reps', {}), 7).fromPreset).toBe(true);
+  });
+
+  it('says nothing for a workout that did not', () => {
+    expect(build(sessionWith('reps', {})).fromPreset).toBeUndefined();
+  });
+});
