@@ -163,6 +163,15 @@ struct WorkoutActionsPage: View {
             confirmingFinish: $confirmingFinish,
             confirmingDiscard: $confirmingDiscard
         )
+        .onAppear {
+            #if DEBUG
+            if ScreenshotSeed.opensFinishDialog {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    confirmingFinish = true
+                }
+            }
+            #endif
+        }
     }
 }
 

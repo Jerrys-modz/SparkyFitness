@@ -60,7 +60,13 @@ enum ScreenshotSeed {
     /// exerciseoptions or actions.
     static var workoutPage: String? {
         let v = ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"]
+        if v == "finishdialog" { return "actions" }
         return ["setoptions", "exerciseoptions", "actions"].contains(v) ? v : nil
+    }
+
+    /// Opens the Finish confirmation on the workout page.
+    static var opensFinishDialog: Bool {
+        ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "finishdialog"
     }
 
     private static var workoutState: WorkoutState {

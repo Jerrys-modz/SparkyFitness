@@ -233,6 +233,7 @@ jobs:
             shoot workout-exercise-options active workout exerciseoptions
             shoot workout-actions active workout actions
             shoot workout-update-alert active workout updatealert
+            shoot workout-finish-dialog active workout finishdialog
             shoot workout-timed timed workout
             shoot workout-stopwatch stopwatch workout
             shoot workout-interval interval workout
