@@ -10,6 +10,7 @@
 export const WATCH_PAGE_KEYS = [
   'goals',
   'water',
+  'medications',
   'entry',
   'trend',
   'workout',
@@ -30,6 +31,8 @@ export const WATCH_PAGE_LABELS: Record<
 > = {
   goals: (t) => t('watchSettings.pages.goals', { defaultValue: 'Goals' }),
   water: (t) => t('watchSettings.pages.water', { defaultValue: 'Water' }),
+  medications: (t) =>
+    t('watchSettings.pages.medications', { defaultValue: 'Medications' }),
   entry: (t) =>
     t('watchSettings.pages.entry', { defaultValue: 'Weight check-in' }),
   trend: (t) =>
