@@ -331,28 +331,30 @@ private struct ActiveWorkoutView: View {
         // can be done to the set, to the exercise, and to the workout. Each is
         // one screen tall and the scroll snaps to it. The crown scrolls only
         // while no value box has claimed it for adjusting a number.
-        ScrollView {
-            VStack(spacing: 0) {
-                setScreen
-                    .containerRelativeFrame(.vertical, alignment: .top)
-                    .id(WorkoutPageID.set)
-                if let step = store.currentStep {
-                    SetOptionsPage(step: step)
-                        .containerRelativeFrame(.vertical)
-                        .id(WorkoutPageID.setOptions)
-                    ExerciseOptionsPage(step: step)
-                        .containerRelativeFrame(.vertical)
-                        .id(WorkoutPageID.exerciseOptions)
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 0) {
+                    setScreen
+                        .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
+                        .id(WorkoutPageID.set)
+                    if let step = store.currentStep {
+                        SetOptionsPage(step: step)
+                            .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                            .id(WorkoutPageID.setOptions)
+                        ExerciseOptionsPage(step: step)
+                            .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                            .id(WorkoutPageID.exerciseOptions)
+                    }
+                    WorkoutActionsPage()
+                        .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                        .id(WorkoutPageID.actions)
                 }
-                WorkoutActionsPage()
-                    .containerRelativeFrame(.vertical)
-                    .id(WorkoutPageID.actions)
+                .scrollTargetLayout()
             }
-            .scrollTargetLayout()
+            .scrollPosition(id: $page)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollIndicators(.hidden)
         }
-        .scrollPosition(id: $page)
-        .scrollTargetBehavior(.paging)
-        .scrollIndicators(.hidden)
         // A set logged here or on the phone, an edit, or a jump from the
         // list moves the cursor: back to the set screen.
         .onChange(of: store.currentStep?.plannedSet.setId) { page = .set }
@@ -366,6 +368,12 @@ private struct ActiveWorkoutView: View {
             #if DEBUG
             if ScreenshotSeed.opensExerciseList {
                 showingExercises = true
+            }
+            switch ScreenshotSeed.workoutPage {
+            case "setoptions": page = .setOptions
+            case "exerciseoptions": page = .exerciseOptions
+            case "actions": page = .actions
+            default: break
             }
             #endif
         }
