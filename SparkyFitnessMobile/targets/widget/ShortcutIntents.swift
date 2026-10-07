@@ -394,33 +394,39 @@ struct EndFastIntent: AppIntent {
 }
 
 /// Opens SparkyFitness on a food screen, for the Scan food and Log food
-/// controls. A control's button cannot be trusted to open a URL on its own, so
-/// this leaves a note in the shared app group and the app, once it is in
-/// front, reads it and goes there (`useControlRouteHandoff`). It is hidden
-/// from Shortcuts and Siri: it exists only for the controls.
+/// controls. A control cannot be relied on to open a custom URL (Apple's
+/// guidance is universal links only, and custom schemes fail on some iOS 18
+/// releases), but `openAppWhenRun` does bring the app forward, so each of these
+/// leaves a note in the shared app group and the app, once it is in front, reads
+/// it and goes there (`useControlRouteHandoff`). They take no parameters on
+/// purpose: reports of controls that would not open the app all involve
+/// intents with extra parameters. The file is compiled into the app target as
+/// well as the widget extension, which a control that opens the app needs.
+private func leaveControlRoute(_ route: String) {
+    if let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+       let defaults = UserDefaults(suiteName: group) {
+        defaults.set(route, forKey: "pendingControlRoute")
+    }
+}
+
 @available(iOS 18.0, *)
-struct OpenFoodScreenIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open SparkyFitness"
-    static var isDiscoverable: Bool = false
+struct ScanFoodControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Scan food"
     static var openAppWhenRun: Bool = true
 
-    /// "scan" for the barcode scanner, "search" for food search.
-    @Parameter(title: "Screen")
-    var screen: String
-
-    init() {
-        screen = "search"
+    func perform() async throws -> some IntentResult {
+        leaveControlRoute("scan")
+        return .result()
     }
+}
 
-    init(screen: String) {
-        self.screen = screen
-    }
+@available(iOS 18.0, *)
+struct LogFoodControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log food"
+    static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
-        if let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
-           let defaults = UserDefaults(suiteName: group) {
-            defaults.set(screen, forKey: "pendingControlRoute")
-        }
+        leaveControlRoute("search")
         return .result()
     }
 }
