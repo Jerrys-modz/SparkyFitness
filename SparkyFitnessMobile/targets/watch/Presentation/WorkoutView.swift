@@ -848,7 +848,6 @@ private struct CurrentSetView: View {
 
     /// Which field the keypad is editing, if any.
     @State private var editing: EditableField?
-    @State private var choosingType = false
     /// Crown mode: the field the crown and a drag adjust in place, Hevy-style.
     @State private var crownField: EditableField?
     /// The value on screen while `crownField` is being adjusted. Written to
@@ -914,15 +913,9 @@ private struct CurrentSetView: View {
                         .foregroundStyle(supersetColor ?? Color.secondary)
                         .lineLimit(1)
                 }
-                Button {
-                    choosingType = true
-                } label: {
-                    Text(store.label(for: step))
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
-                .buttonStyle(.plain)
-                .disabled(store.isCompleted(step))
+                Text(store.label(for: step))
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1006,13 +999,6 @@ private struct CurrentSetView: View {
             ) { entered in
                 write(entered, to: field)
                 editing = nil
-            }
-        }
-        .confirmationDialog("Set type", isPresented: $choosingType, titleVisibility: .visible) {
-            ForEach(SetKind.allCases, id: \.self) { kind in
-                Button(kind.menuTitle) {
-                    store.setSetType(for: step.plannedSet.setId, kind.rawValue)
-                }
             }
         }
     }
