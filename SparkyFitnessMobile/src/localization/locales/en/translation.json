@@ -154,7 +154,8 @@
       "ai": "AI",
       "goals": "Goals",
       "profile": "Profile & Account",
-      "fasting": "Fasting"
+      "fasting": "Fasting",
+      "customMeasurements": "Custom Measurements"
     },
     "theme": {
       "title": "Theme",
@@ -6648,5 +6649,53 @@
       "reportTabular": "Report (Tabular)",
       "reportChart": "Report (Chart)"
     }
+  },
+  "customCategories": {
+    "title": "Custom measurements",
+    "add": "Add category",
+    "loading": "Loading custom measurements...",
+    "loadFailed": "Failed to load custom measurements",
+    "loadFailedSubtitle": "Check your connection and try again.",
+    "noServer": "No server configured",
+    "noServerSubtitle": "Configure your server connection to manage custom measurements.",
+    "goToSettings": "Go to Settings",
+    "emptyTitle": "No custom categories yet",
+    "emptySubtitle": "Add a category such as blood sugar to track your own measurements.",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}",
+    "deleteTitle": "Delete category",
+    "deleteMessage": "Delete {{name}}? Measurements logged under it will no longer be available.",
+    "deleteSuccess": "Category deleted",
+    "deleteFailed": "Failed to delete category"
+  },
+  "customCategoryEdit": {
+    "createTitle": "Add category",
+    "editTitle": "Edit category",
+    "loading": "Loading category...",
+    "name": "Name",
+    "namePlaceholder": "e.g. Blood Sugar",
+    "nameHelp": "Internal identifier used for syncing",
+    "displayName": "Display name (optional)",
+    "displayNamePlaceholder": "e.g. Morning Blood Sugar Level",
+    "displayNameHelp": "Optional custom name shown in the app",
+    "measurementType": "Measurement type",
+    "measurementTypePlaceholder": "e.g. mg/dL",
+    "unitPrecisionNote": "Using standard units (like kcal, mmHg, bpm) automatically optimizes chart precision.",
+    "dataType": "Data type",
+    "dataTypeNumeric": "Numeric",
+    "dataTypeText": "Text",
+    "frequency": "Frequency",
+    "frequencyAll": "All (unlimited entries)",
+    "frequencyDaily": "Daily (one per day)",
+    "frequencyHourly": "Hourly (one per hour)",
+    "frequencyAllShort": "Unlimited",
+    "frequencyDailyShort": "Daily",
+    "frequencyHourlyShort": "Hourly",
+    "errors": {
+      "title": "Check the form",
+      "required": "Name and measurement type are required."
+    },
+    "saveSuccess": "Category saved",
+    "saveFailed": "Failed to save category"
   }
 }

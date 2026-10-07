@@ -96,6 +96,8 @@ import {
   SafeWatchSettings,
   SafeDiarySettings,
   SafeProfile,
+  SafeCustomCategories,
+  SafeCustomCategoryEdit,
   SafeWorkoutSettings,
   SafeWarmupSettings,
   SafeServerSettings,
@@ -952,6 +954,16 @@ function AppContent() {
             name="Profile"
             component={SafeProfile}
             options={createStackScreenOptions(t('screens.profile', { defaultValue: 'Profile' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="CustomCategories"
+            component={SafeCustomCategories}
+            options={createStackScreenOptions(t('customCategories.title', { defaultValue: 'Custom measurements' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="CustomCategoryEdit"
+            component={SafeCustomCategoryEdit}
+            options={createStackScreenOptions(t('customCategoryEdit.editTitle', { defaultValue: 'Edit category' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
           />
           <Stack.Screen
             name="WatchSettings"
