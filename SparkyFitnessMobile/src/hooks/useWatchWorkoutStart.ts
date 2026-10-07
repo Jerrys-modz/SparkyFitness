@@ -4,6 +4,7 @@ import WatchConnectivity, {
 } from '../../modules/watch-connectivity';
 import { queryClient } from './queryClient';
 import { workoutPresetsQueryKey } from './queryKeys';
+import { fetchActiveWorkoutPlans } from '../services/api/workoutPlansApi';
 import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
 import { getActiveServerConfigId } from '../services/storage';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
@@ -12,6 +13,8 @@ import {
   buildPresetLiveExerciseConfigs,
   buildPresetStartExercisesPayload,
 } from '../utils/workoutSession';
+import { getTodayDate } from '../utils/dateUtils';
+import { findDueAssignmentForPreset } from '../utils/workoutPlanSchedule';
 import type { StartLiveWorkoutArgs } from './useStartLiveWorkout';
 
 type StartFn = (args: StartLiveWorkoutArgs) => Promise<void>;
@@ -70,9 +73,28 @@ export function useWatchWorkoutStart(
       ) {
         return;
       }
+      // A preset that is due today under an active plan counts toward that
+      // plan, the same as starting it from the Diary, so the "Scheduled
+      // Today" card clears. Plans that fail to load just start it plain.
+      let assignmentId: number | undefined;
+      try {
+        const plans = await fetchActiveWorkoutPlans(getTodayDate());
+        const due = findDueAssignmentForPreset(plans, preset.id);
+        if (due?.id) assignmentId = Number(due.id);
+      } catch {
+        // start without the plan link
+      }
+      if (!aliveRef.current) return;
+      const exercises = buildPresetStartExercisesPayload(preset).map(
+        (exercise) =>
+          assignmentId == null
+            ? exercise
+            : { ...exercise, workout_plan_assignment_id: assignmentId }
+      );
       await startRef.current({
         name: preset.name,
-        exercises: buildPresetStartExercisesPayload(preset),
+        exercises,
+        workoutPlanAssignmentId: assignmentId,
         exerciseConfigs: buildPresetLiveExerciseConfigs(preset),
         sourcePresetId: preset.id,
         workoutFormat: preset.workout_format ?? 'standard',
