@@ -52,8 +52,9 @@ struct EndFastControl: ControlWidget {
     }
 }
 
-// These two open the app on the screen they name, using the same deep links as
-// the Home Screen widgets. They are here so Control Center and the Lock Screen
+// These two open the app on the screen they name through `OpenFoodScreenIntent`,
+// which leaves the destination in the shared app group for the app to pick up.
+// They are here so Control Center and the Lock Screen
 // can hold the everyday ways in, not only the ones that log in the background.
 
 @available(iOS 18.0, *)
@@ -62,7 +63,7 @@ struct ScanFoodControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
-            ControlWidgetButton(action: OpenURLIntent(URL(string: "sparkyfitnessmobile://scan")!)) {
+            ControlWidgetButton(action: OpenFoodScreenIntent(screen: "scan")) {
                 Label("widget.control.scan_food.name", systemImage: "barcode.viewfinder")
             }
         }
@@ -77,7 +78,7 @@ struct SearchFoodControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
-            ControlWidgetButton(action: OpenURLIntent(URL(string: "sparkyfitnessmobile://search")!)) {
+            ControlWidgetButton(action: OpenFoodScreenIntent(screen: "search")) {
                 Label("widget.control.search_food.name", systemImage: "magnifyingglass")
             }
         }
