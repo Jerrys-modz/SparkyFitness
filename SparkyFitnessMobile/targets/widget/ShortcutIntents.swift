@@ -71,6 +71,20 @@ private func isoString(_ date: Date) -> String {
     return formatter.string(from: date)
 }
 
+/// Answers a redirect with its own 3xx response instead of following it, so the
+/// saved login and proxy headers never go to another host.
+private final class RefuseRedirects: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
+    }
+}
+
 /// Keeps the water widget's snapshot in step with a drink logged or removed from
 /// outside the app, so the widget shows it at once instead of after the app next opens.
 private enum WaterSnapshotWriter {
@@ -179,7 +193,7 @@ private enum ShortcutCall {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         }
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await URLSession.shared.data(for: request, delegate: RefuseRedirects())
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if (200..<300).contains(status) { return data }
             if status == 401 || status == 403 { throw Failure.expired }
