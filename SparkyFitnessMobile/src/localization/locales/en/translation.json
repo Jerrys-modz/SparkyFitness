@@ -1414,7 +1414,8 @@
       "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule.",
       "unnamedSchedule": "a schedule",
       "modeUpdateNotApplied": "The requested supplement mode was not applied.",
-      "nutrientsNotSaved": "The supplement was created, but its nutrient values were not saved because this account has no diary access."
+      "nutrientsNotSaved": "The supplement was created, but its nutrient values were not saved because this account has no diary access.",
+      "nutrientsNotUpdated": "The nutrient changes were not saved."
     }
   },
   "scheduleSummary": {

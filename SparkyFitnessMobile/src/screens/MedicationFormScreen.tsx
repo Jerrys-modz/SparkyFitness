@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Alert, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -69,6 +69,29 @@ const EMPTY_FORM: FormState = {
 
 const hasDetailsContent = (form: FormState): boolean =>
   Boolean(form.reason || form.prescriber || form.pharmacy || form.notes);
+
+/** Order-independent check, so a stored payload can come back with keys shuffled. */
+const sameNutrients = (
+  left: { custom_nutrients?: Record<string, number> } | null | undefined,
+  right: { custom_nutrients?: Record<string, number> } | null | undefined
+): boolean => {
+  const keyOf = (
+    nutrients: { custom_nutrients?: Record<string, number> } | null | undefined
+  ) => {
+    const source = nutrients ?? {};
+    const fixed = Object.entries(source)
+      .filter(
+        ([key, value]) =>
+          key !== 'custom_nutrients' && typeof value === 'number'
+      )
+      .sort(([a], [b]) => a.localeCompare(b));
+    const custom = Object.entries(source.custom_nutrients ?? {}).sort(
+      ([a], [b]) => a.localeCompare(b)
+    );
+    return JSON.stringify([fixed, custom]);
+  };
+  return keyOf(left) === keyOf(right);
+};
 
 function baseFromMed(
   existingMed?: NonNullable<ReturnType<typeof useMedicationDetail>['data']>,
@@ -173,182 +196,233 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     [form.typeId]
   );
 
+  const savingRef = useRef(false);
   const handleSave = useCallback(async () => {
     if (
+      savingRef.current ||
       createMedication.isPending ||
       updateMedication.isPending ||
+      updateSchedule.isPending ||
       ensureCatalog.isPending
     ) {
       return;
     }
+    // Set before any await. A schedule reset can outlast the header's
+    // duplicate-press window, and isPending is still false until it starts.
+    savingRef.current = true;
+    try {
+      if (!form.name.trim()) {
+        Alert.alert(
+          t('medications.form.required', { defaultValue: 'Required' }),
+          isSupplement
+            ? t('medications.supplement.nameRequired', {
+                defaultValue: 'Please enter a supplement name.',
+              })
+            : t('medications.form.nameRequired', {
+                defaultValue: 'Please enter a medication name.',
+              })
+        );
+        return;
+      }
 
-    if (!form.name.trim()) {
-      Alert.alert(
-        t('medications.form.required', { defaultValue: 'Required' }),
-        isSupplement
-          ? t('medications.supplement.nameRequired', {
-              defaultValue: 'Please enter a supplement name.',
-            })
-          : t('medications.form.nameRequired', {
-              defaultValue: 'Please enter a medication name.',
-            })
-      );
-      return;
-    }
+      const strengthNum = form.strengthValue
+        ? parseFloat(form.strengthValue)
+        : null;
+      const doseNum = form.doseAmount ? parseFloat(form.doseAmount) : null;
 
-    const strengthNum = form.strengthValue
-      ? parseFloat(form.strengthValue)
-      : null;
-    const doseNum = form.doseAmount ? parseFloat(form.doseAmount) : null;
+      if (
+        !isSupplement &&
+        ((form.strengthValue && !Number.isFinite(strengthNum)) ||
+          (form.doseAmount && !Number.isFinite(doseNum)))
+      ) {
+        Alert.alert(
+          t('medications.form.invalidNumber', {
+            defaultValue: 'Invalid number',
+          }),
+          t('medications.form.invalidNumberMessage', {
+            defaultValue:
+              'Please enter valid numeric values for strength and dose.',
+          })
+        );
+        return;
+      }
 
-    if (
-      !isSupplement &&
-      ((form.strengthValue && !Number.isFinite(strengthNum)) ||
-        (form.doseAmount && !Number.isFinite(doseNum)))
-    ) {
-      Alert.alert(
-        t('medications.form.invalidNumber', { defaultValue: 'Invalid number' }),
-        t('medications.form.invalidNumberMessage', {
-          defaultValue:
-            'Please enter valid numeric values for strength and dose.',
-        })
-      );
-      return;
-    }
+      if (
+        isSupplement &&
+        nutrientRows.some(
+          (row) => row.value.trim() !== '' && parseAmount(row.value) == null
+        )
+      ) {
+        Alert.alert(
+          t('medications.form.invalidNumber', {
+            defaultValue: 'Invalid number',
+          }),
+          t('medications.supplement.invalidAmount', {
+            defaultValue:
+              'Nutrient amounts must be numbers that are zero or more.',
+          })
+        );
+        return;
+      }
 
-    if (
-      isSupplement &&
-      nutrientRows.some(
-        (row) => row.value.trim() !== '' && parseAmount(row.value) == null
-      )
-    ) {
-      Alert.alert(
-        t('medications.form.invalidNumber', { defaultValue: 'Invalid number' }),
-        t('medications.supplement.invalidAmount', {
-          defaultValue:
-            'Nutrient amounts must be numbers that are zero or more.',
-        })
-      );
-      return;
-    }
-
-    // Nutrients picked from the catalog need a custom nutrient to store the
-    // amount against. Created now, not when picked, so cancelling leaves none.
-    const resolvedNames: Record<string, string> = {};
-    if (isSupplement) {
-      const catalogIds = catalogIdsToProvision(nutrientRows);
-      if (catalogIds.length > 0) {
-        try {
-          const { resolved } = await ensureCatalog.mutateAsync(catalogIds);
-          for (const entry of resolved) {
-            if (!entry.fixedField) resolvedNames[entry.catalogId] = entry.name;
+      // Nutrients picked from the catalog need a custom nutrient to store the
+      // amount against. Created now, not when picked, so cancelling leaves none.
+      const resolvedNames: Record<string, string> = {};
+      if (isSupplement) {
+        const catalogIds = catalogIdsToProvision(nutrientRows);
+        if (catalogIds.length > 0) {
+          try {
+            const { resolved } = await ensureCatalog.mutateAsync(catalogIds);
+            for (const entry of resolved) {
+              if (!entry.fixedField)
+                resolvedNames[entry.catalogId] = entry.name;
+            }
+          } catch (error) {
+            Alert.alert(
+              t('common.error', { defaultValue: 'Error' }),
+              t('medications.supplement.nutrientsFailed', {
+                defaultValue: 'Failed to set up the nutrients: {{error}}',
+                error: error instanceof Error ? error.message : String(error),
+              })
+            );
+            return;
           }
-        } catch (error) {
-          Alert.alert(
-            t('common.error', { defaultValue: 'Error' }),
-            t('medications.supplement.nutrientsFailed', {
-              defaultValue: 'Failed to set up the nutrients: {{error}}',
-              error: error instanceof Error ? error.message : String(error),
-            })
-          );
-          return;
         }
       }
-    }
 
-    const base = {
-      name: form.name.trim(),
-      type_id: form.typeId,
-      is_supplement: isSupplement,
-      nutrients: isSupplement
-        ? buildNutrients(nutrientRows, resolvedNames)
-        : {},
-      // A supplement is taken in servings: the label's nutrition is per
-      // serving, and a dose logged is the number of servings. Converting a
-      // medication resets to one serving; an existing supplement keeps its dose.
-      strength_value: isSupplement ? null : strengthNum,
-      strength_unit: isSupplement ? null : form.strengthUnit || null,
-      dose_amount: isSupplement
-        ? existingMed?.is_supplement
-          ? (existingMed.dose_amount ?? 1)
-          : 1
-        : doseNum,
-      dose_unit: isSupplement
-        ? existingMed?.is_supplement
-          ? (existingMed.dose_unit ?? 'serving')
-          : 'serving'
-        : form.doseUnit || null,
-      reason_text: form.reason.trim() || null,
-      prescriber: isSupplement ? null : form.prescriber.trim() || null,
-      pharmacy: isSupplement ? null : form.pharmacy.trim() || null,
-      notes: form.notes.trim() || null,
-    };
+      const base = {
+        name: form.name.trim(),
+        type_id: form.typeId,
+        is_supplement: isSupplement,
+        nutrients: isSupplement
+          ? buildNutrients(nutrientRows, resolvedNames)
+          : {},
+        // A supplement is taken in servings: the label's nutrition is per
+        // serving, and a dose logged is the number of servings. Converting a
+        // medication resets to one serving; an existing supplement keeps its dose.
+        strength_value: isSupplement ? null : strengthNum,
+        strength_unit: isSupplement ? null : form.strengthUnit || null,
+        dose_amount: isSupplement
+          ? existingMed?.is_supplement
+            ? (existingMed.dose_amount ?? 1)
+            : 1
+          : doseNum,
+        dose_unit: isSupplement
+          ? existingMed?.is_supplement
+            ? (existingMed.dose_unit ?? 'serving')
+            : 'serving'
+          : form.doseUnit || null,
+        reason_text: form.reason.trim() || null,
+        prescriber: isSupplement ? null : form.prescriber.trim() || null,
+        pharmacy: isSupplement ? null : form.pharmacy.trim() || null,
+        notes: form.notes.trim() || null,
+      };
 
-    if (isEditing && medicationId) {
-      // Cleared schedule doses, put back if the conversion does not finish.
-      // A later log would otherwise use the medication dose, not the override.
-      let restoreOverrides: (() => Promise<string[]>) | undefined;
-      const doseRestoreWarning = (failed: string[]): string | null =>
-        failed.length === 0
-          ? null
-          : t('medications.supplement.scheduleRestoreFailed', {
-              defaultValue:
-                'The dose for {{schedules}} could not be restored. Set it again on the schedule.',
-              schedules: failed.join(', '),
+      if (isEditing && medicationId) {
+        // Cleared schedule doses, put back if the conversion does not finish.
+        // A later log would otherwise use the medication dose, not the override.
+        let restoreOverrides: (() => Promise<string[]>) | undefined;
+        const doseRestoreWarning = (failed: string[]): string | null =>
+          failed.length === 0
+            ? null
+            : t('medications.supplement.scheduleRestoreFailed', {
+                defaultValue:
+                  'The dose for {{schedules}} could not be restored. Set it again on the schedule.',
+                schedules: failed.join(', '),
+              });
+
+        // A schedule's own dose wins over the medication's, and a supplement's
+        // dose counts servings. Turning a medication into a supplement therefore
+        // drops those overrides, or "2 tablets" would count two servings of the
+        // nutrients on every dose. A supplement keeps the ones it has.
+        if (isSupplement && existingMed && !existingMed.is_supplement) {
+          const overridden = (existingMed.schedules ?? []).filter(
+            (schedule) => schedule.dose_amount != null
+          );
+          restoreOverrides = async () => {
+            const results = await Promise.allSettled(
+              overridden.map((schedule) =>
+                updateSchedule.mutateAsync({
+                  id: schedule.id,
+                  medicationId,
+                  body: { dose_amount: schedule.dose_amount },
+                })
+              )
+            );
+            return results.flatMap((result, index) => {
+              if (result.status !== 'rejected') return [];
+              const time = overridden[index]?.time_of_day;
+              return [
+                time
+                  ? formatLocalizedTimeOfDay(time)
+                  : t('medications.supplement.unnamedSchedule', {
+                      defaultValue: 'a schedule',
+                    }),
+              ];
             });
-
-      // A schedule's own dose wins over the medication's, and a supplement's
-      // dose counts servings. Turning a medication into a supplement therefore
-      // drops those overrides, or "2 tablets" would count two servings of the
-      // nutrients on every dose. A supplement keeps the ones it has.
-      if (isSupplement && existingMed && !existingMed.is_supplement) {
-        const overridden = (existingMed.schedules ?? []).filter(
-          (schedule) => schedule.dose_amount != null
-        );
-        restoreOverrides = async () => {
-          const results = await Promise.allSettled(
-            overridden.map((schedule) =>
-              updateSchedule.mutateAsync({
-                id: schedule.id,
-                medicationId,
-                body: { dose_amount: schedule.dose_amount },
-              })
-            )
-          );
-          return results.flatMap((result, index) => {
-            if (result.status !== 'rejected') return [];
-            const time = overridden[index]?.time_of_day;
-            return [
-              time
-                ? formatLocalizedTimeOfDay(time)
-                : t('medications.supplement.unnamedSchedule', {
-                    defaultValue: 'a schedule',
-                  }),
-            ];
-          });
-        };
-        try {
-          const resetResults = await Promise.allSettled(
-            overridden.map((schedule) =>
-              updateSchedule.mutateAsync({
-                id: schedule.id,
-                medicationId,
-                body: { dose_amount: null },
-              })
-            )
-          );
-          const resetFailure = resetResults.find(
-            (result) => result.status === 'rejected'
-          );
-          if (resetFailure?.status === 'rejected') {
-            throw resetFailure.reason;
+          };
+          try {
+            const resetResults = await Promise.allSettled(
+              overridden.map((schedule) =>
+                updateSchedule.mutateAsync({
+                  id: schedule.id,
+                  medicationId,
+                  body: { dose_amount: null },
+                })
+              )
+            );
+            const resetFailure = resetResults.find(
+              (result) => result.status === 'rejected'
+            );
+            if (resetFailure?.status === 'rejected') {
+              throw resetFailure.reason;
+            }
+          } catch (error) {
+            const failed = await restoreOverrides();
+            const warning = doseRestoreWarning(failed);
+            const message = t('medications.supplement.scheduleResetFailed', {
+              defaultValue: 'Failed to reset the schedule doses: {{error}}',
+              error: error instanceof Error ? error.message : String(error),
+            });
+            Alert.alert(
+              t('common.error', { defaultValue: 'Error' }),
+              warning ? `${message}\n\n${warning}` : message
+            );
+            return;
           }
+        }
+        let updated;
+        try {
+          updated = await updateMedication.mutateAsync({
+            id: medicationId,
+            body: { ...base, is_active: form.isActive },
+          });
         } catch (error) {
-          const failed = await restoreOverrides();
+          const report = (warning: string | null) => {
+            const message = t('medications.form.updateFailed', {
+              defaultValue: 'Failed to update medication: {{error}}',
+              error: error instanceof Error ? error.message : String(error),
+            });
+            Alert.alert(
+              t('common.error', { defaultValue: 'Error' }),
+              warning ? `${message}\n\n${warning}` : message
+            );
+          };
+          if (!restoreOverrides) {
+            report(null);
+            return;
+          }
+          report(doseRestoreWarning(await restoreOverrides()));
+          return;
+        }
+        // Without diary access the server drops the mode change and
+        // keeps the stored supplement flag. Closing would hide that.
+        // The schedule overrides were already cleared, so put them back.
+        if (updated.is_supplement !== isSupplement) {
+          const failed = restoreOverrides ? await restoreOverrides() : [];
           const warning = doseRestoreWarning(failed);
-          const message = t('medications.supplement.scheduleResetFailed', {
-            defaultValue: 'Failed to reset the schedule doses: {{error}}',
-            error: error instanceof Error ? error.message : String(error),
+          const message = t('medications.supplement.modeUpdateNotApplied', {
+            defaultValue: 'The requested supplement mode was not applied.',
           });
           Alert.alert(
             t('common.error', { defaultValue: 'Error' }),
@@ -356,82 +430,53 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           );
           return;
         }
-      }
-      updateMedication.mutate(
-        { id: medicationId, body: { ...base, is_active: form.isActive } },
-        {
-          onSuccess: async (updated) => {
-            // Without diary access the server drops the mode change and
-            // keeps the stored supplement flag. Closing would hide that.
-            // The schedule overrides were already cleared, so put them back.
-            if (updated.is_supplement !== isSupplement) {
-              const failed = restoreOverrides ? await restoreOverrides() : [];
-              const warning = doseRestoreWarning(failed);
-              const message = t('medications.supplement.modeUpdateNotApplied', {
-                defaultValue: 'The requested supplement mode was not applied.',
-              });
-              Alert.alert(
-                t('common.error', { defaultValue: 'Error' }),
-                warning ? `${message}\n\n${warning}` : message
-              );
-              return;
-            }
-            navigation.goBack();
-          },
-          onError: (error) => {
-            const report = (warning: string | null) => {
-              const message = t('medications.form.updateFailed', {
-                defaultValue: 'Failed to update medication: {{error}}',
-                error: error.message,
-              });
-              Alert.alert(
-                t('common.error', { defaultValue: 'Error' }),
-                warning ? `${message}\n\n${warning}` : message
-              );
-            };
-            if (!restoreOverrides) {
-              report(null);
-              return;
-            }
-            void restoreOverrides().then((failed) =>
-              report(doseRestoreWarning(failed))
-            );
-          },
+        // The same access strips nutrient edits and returns the old payload.
+        if (isSupplement && !sameNutrients(updated.nutrients, base.nutrients)) {
+          Alert.alert(
+            t('common.error', { defaultValue: 'Error' }),
+            t('medications.supplement.nutrientsNotUpdated', {
+              defaultValue: 'The nutrient changes were not saved.',
+            })
+          );
+          return;
         }
-      );
-    } else {
-      createMedication.mutate(
-        { ...base, is_active: form.isActive },
-        {
-          onSuccess: (med) => {
-            // Create keeps the supplement flag but can drop the nutrient
-            // payload when this account cannot write diary data.
-            if (
-              isSupplement &&
-              Object.keys(base.nutrients).length > 0 &&
-              Object.keys(med.nutrients ?? {}).length === 0
-            ) {
+        navigation.goBack();
+      } else {
+        createMedication.mutate(
+          { ...base, is_active: form.isActive },
+          {
+            onSuccess: (med) => {
+              // Create keeps the supplement flag but can drop the nutrient
+              // payload when this account cannot write diary data.
+              if (
+                isSupplement &&
+                Object.keys(base.nutrients).length > 0 &&
+                Object.keys(med.nutrients ?? {}).length === 0
+              ) {
+                Alert.alert(
+                  t('common.error', { defaultValue: 'Error' }),
+                  t('medications.supplement.nutrientsNotSaved', {
+                    defaultValue:
+                      'The supplement was created, but its nutrient values were not saved because this account has no diary access.',
+                  })
+                );
+                return;
+              }
+              navigation.replace('MedicationDetail', { medicationId: med.id });
+            },
+            onError: (error) =>
               Alert.alert(
                 t('common.error', { defaultValue: 'Error' }),
-                t('medications.supplement.nutrientsNotSaved', {
-                  defaultValue:
-                    'The supplement was created, but its nutrient values were not saved because this account has no diary access.',
+                t('medications.form.createFailed', {
+                  defaultValue: 'Failed to create medication: {{error}}',
+                  error: error.message,
                 })
-              );
-              return;
-            }
-            navigation.replace('MedicationDetail', { medicationId: med.id });
-          },
-          onError: (error) =>
-            Alert.alert(
-              t('common.error', { defaultValue: 'Error' }),
-              t('medications.form.createFailed', {
-                defaultValue: 'Failed to create medication: {{error}}',
-                error: error.message,
-              })
-            ),
-        }
-      );
+              ),
+          }
+        );
+      }
+    } finally {
+      savingRef.current = false;
     }
   }, [
     form,
@@ -468,6 +513,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       busy:
         createMedication.isPending ||
         updateMedication.isPending ||
+        updateSchedule.isPending ||
         ensureCatalog.isPending,
       busyLabel: t('common.saving', { defaultValue: 'Saving…' }),
       onPress: () => void handleSave(),

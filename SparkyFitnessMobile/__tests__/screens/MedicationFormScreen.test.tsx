@@ -172,6 +172,7 @@ describe('MedicationFormScreen — optional text fields', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    updateMutate.mockResolvedValue({ is_supplement: false, nutrients: {} });
     mockUseMedicationDetail.mockReturnValue({
       data: baseMed,
     } as unknown as ReturnType<typeof useMedicationDetail>);
@@ -181,6 +182,7 @@ describe('MedicationFormScreen — optional text fields', () => {
     } as unknown as ReturnType<typeof useCreateMedication>);
     mockUseUpdateMedication.mockReturnValue({
       mutate: updateMutate,
+      mutateAsync: updateMutate,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateMedication>);
   });
@@ -195,18 +197,15 @@ describe('MedicationFormScreen — optional text fields', () => {
 
     pressAction(screen, mockNavigation, 'Save');
 
-    expect(updateMutate).toHaveBeenCalledWith(
-      {
-        id: 'med-1',
-        body: expect.objectContaining({
-          reason_text: null,
-          prescriber: null,
-          pharmacy: null,
-          notes: null,
-        }),
-      },
-      expect.anything()
-    );
+    expect(updateMutate).toHaveBeenCalledWith({
+      id: 'med-1',
+      body: expect.objectContaining({
+        reason_text: null,
+        prescriber: null,
+        pharmacy: null,
+        notes: null,
+      }),
+    });
   });
 
   it('treats whitespace-only input as cleared', () => {
@@ -216,10 +215,10 @@ describe('MedicationFormScreen — optional text fields', () => {
 
     pressAction(screen, mockNavigation, 'Save');
 
-    expect(updateMutate).toHaveBeenCalledWith(
-      { id: 'med-1', body: expect.objectContaining({ reason_text: null }) },
-      expect.anything()
-    );
+    expect(updateMutate).toHaveBeenCalledWith({
+      id: 'med-1',
+      body: expect.objectContaining({ reason_text: null }),
+    });
   });
 
   it('passes through non-empty values trimmed', () => {
@@ -232,18 +231,15 @@ describe('MedicationFormScreen — optional text fields', () => {
 
     pressAction(screen, mockNavigation, 'Save');
 
-    expect(updateMutate).toHaveBeenCalledWith(
-      {
-        id: 'med-1',
-        body: expect.objectContaining({
-          reason_text: 'Migraines',
-          prescriber: 'Dr. Smith',
-          pharmacy: 'Corner Pharmacy',
-          notes: 'Take with food',
-        }),
-      },
-      expect.anything()
-    );
+    expect(updateMutate).toHaveBeenCalledWith({
+      id: 'med-1',
+      body: expect.objectContaining({
+        reason_text: 'Migraines',
+        prescriber: 'Dr. Smith',
+        pharmacy: 'Corner Pharmacy',
+        notes: 'Take with food',
+      }),
+    });
   });
 
   it('collapses detail fields on create until the Details toggle is expanded', () => {
@@ -309,6 +305,7 @@ describe('MedicationFormScreen — supplements', () => {
     } as unknown as ReturnType<typeof useCreateMedication>);
     mockUseUpdateMedication.mockReturnValue({
       mutate: updateMutate,
+      mutateAsync: updateMutate,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateMedication>);
   });
@@ -451,6 +448,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     } as unknown as ReturnType<typeof useMedicationDetail>);
     mockUseUpdateMedication.mockReturnValue({
       mutate: updateMutate,
+      mutateAsync: updateMutate,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateMedication>);
     mockUseCreateMedication.mockReturnValue({
@@ -462,6 +460,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUpdateScheduleAsync.mockResolvedValue({});
+    updateMutate.mockResolvedValue({ is_supplement: true, nutrients: {} });
   });
 
   it('clears the schedule doses that would count extra servings', async () => {
@@ -480,8 +479,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
           dose_amount: 1,
           dose_unit: 'serving',
         }),
-      }),
-      expect.anything()
+      })
     );
     expect(mockUpdateScheduleAsync).toHaveBeenCalledTimes(1);
     expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
@@ -511,9 +509,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
   it('puts the schedule doses back if saving the supplement fails', async () => {
     setup(false);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    updateMutate.mockImplementation((_vars, options) => {
-      options.onError(new Error('nope'));
-    });
+    updateMutate.mockRejectedValue(new Error('nope'));
     const screen = renderScreen('med-1');
 
     fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
@@ -542,9 +538,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
   it('stays open when the server keeps the old supplement setting', async () => {
     setup(false);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    updateMutate.mockImplementation((_vars, options) => {
-      options.onSuccess({ is_supplement: false });
-    });
+    updateMutate.mockResolvedValue({ is_supplement: false });
     const screen = renderScreen('med-1');
 
     fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
@@ -565,9 +559,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
 
   it('leaves the form when the server applied the supplement setting', async () => {
     setup(false);
-    updateMutate.mockImplementation((_vars, options) => {
-      options.onSuccess({ is_supplement: true });
-    });
+    updateMutate.mockResolvedValue({ is_supplement: true, nutrients: {} });
     const screen = renderScreen('med-1');
 
     fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
@@ -576,6 +568,63 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     await waitFor(() =>
       expect(mockNavigation.goBack as jest.Mock).toHaveBeenCalled()
     );
+  });
+
+  it('ignores a second save while the first is still in flight', async () => {
+    setup(true);
+    let release: (value: unknown) => void = () => {};
+    updateMutate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    const screen = renderScreen('med-1');
+
+    pressAction(screen, mockNavigation, 'Save');
+    pressAction(screen, mockNavigation, 'Save');
+
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    release({ is_supplement: true, nutrients: {} });
+    await waitFor(() =>
+      expect(mockNavigation.goBack as jest.Mock).toHaveBeenCalled()
+    );
+  });
+
+  it('stays open when the server drops nutrient edits', async () => {
+    mockUseMedicationDetail.mockReturnValue({
+      data: {
+        ...baseMed,
+        is_supplement: true,
+        type_id: 'capsule',
+        nutrients: { vitamin_c: 90 },
+        schedules: [],
+      },
+    } as unknown as ReturnType<typeof useMedicationDetail>);
+    mockUseUpdateMedication.mockReturnValue({
+      mutate: updateMutate,
+      mutateAsync: updateMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateMedication>);
+    updateMutate.mockResolvedValue({
+      is_supplement: true,
+      nutrients: { vitamin_c: 90 },
+    });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const screen = renderScreen('med-1');
+
+    fireEvent.changeText(
+      screen.getByLabelText('Vitamin C amount in mg'),
+      '100'
+    );
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(alert).toHaveBeenCalled());
+    expect(String(alert.mock.calls[0]?.[1])).toContain(
+      'nutrient changes were not saved'
+    );
+    expect(mockNavigation.goBack as jest.Mock).not.toHaveBeenCalled();
+    alert.mockRestore();
   });
 
   it('keeps the schedule doses of a supplement that is already one', async () => {
@@ -591,8 +640,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
           dose_amount: 1,
           dose_unit: 'tablet',
         }),
-      }),
-      expect.anything()
+      })
     );
     expect(mockUpdateScheduleAsync).not.toHaveBeenCalled();
   });
