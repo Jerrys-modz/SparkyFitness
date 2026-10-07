@@ -736,23 +736,23 @@ describe('MedicationFormScreen — converting to a supplement', () => {
   it('does not save the medication if the schedules could not be reset', async () => {
     setup(false);
     mockUpdateScheduleAsync.mockRejectedValue(new Error('boom'));
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const screen = renderScreen('med-1');
 
     fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
     pressAction(screen, mockNavigation, 'Save');
 
-    await waitFor(() =>
-      expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
-        id: 's-1',
-        medicationId: 'med-1',
-        body: { dose_amount: 2 },
-      })
-    );
+    await waitFor(() => expect(alert).toHaveBeenCalled());
+    const message = String(alert.mock.calls[0]?.[1]);
+    expect(message).toContain('boom');
+    expect(message).toContain('08:00');
     expect(updateMutate).not.toHaveBeenCalled();
+    alert.mockRestore();
   });
 
   it('puts the schedule doses back if saving the supplement fails', async () => {
     setup(false);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     updateMutate.mockImplementation((_vars, options) => {
       options.onError(new Error('nope'));
     });
@@ -774,6 +774,11 @@ describe('MedicationFormScreen — converting to a supplement', () => {
       body: { dose_amount: null },
     });
     expect(mockNavigation.goBack as jest.Mock).not.toHaveBeenCalled();
+    await waitFor(() => expect(alert).toHaveBeenCalled());
+    expect(String(alert.mock.calls.at(-1)?.[1])).not.toContain(
+      'could not be restored'
+    );
+    alert.mockRestore();
   });
 
   it('keeps the schedule doses of a supplement that is already one', async () => {

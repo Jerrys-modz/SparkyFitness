@@ -1467,7 +1467,8 @@
       "notAdded": "Not added from the label: {{names}}",
       "notAddedMore_one": "{{names}} and {{count}} more",
       "notAddedMore_other": "{{names}} and {{count}} more",
-      "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}"
+      "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}",
+      "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule."
     },
     "glp1": {
       "inventory": {
