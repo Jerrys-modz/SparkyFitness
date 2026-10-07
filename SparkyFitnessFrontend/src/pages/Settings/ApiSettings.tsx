@@ -208,7 +208,7 @@ export const ApiSettings = () => {
                 )}
               />
             </div>
-            <div className="space-y-2 w-full sm:w-48">
+            <div className="space-y-2 w-full sm:w-48 sm:shrink-0">
               <Label htmlFor="api-key-expiry">
                 {t('settings.apiKeyManagement.expiresIn', 'Expires In')}
               </Label>
