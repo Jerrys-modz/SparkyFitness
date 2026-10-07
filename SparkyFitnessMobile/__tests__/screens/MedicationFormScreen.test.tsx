@@ -431,7 +431,10 @@ describe('MedicationFormScreen — supplements', () => {
 
     await waitFor(() => expect(alert).toHaveBeenCalled());
     expect(String(alert.mock.calls[0]?.[1])).toContain('nutrient values');
-    expect(mockNavigation.replace as jest.Mock).not.toHaveBeenCalled();
+    expect(mockNavigation.replace as jest.Mock).toHaveBeenCalledWith(
+      'MedicationDetail',
+      { medicationId: 'new-1' }
+    );
     alert.mockRestore();
   });
 

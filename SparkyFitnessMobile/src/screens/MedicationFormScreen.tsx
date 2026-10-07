@@ -465,6 +465,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           Object.keys(base.nutrients).length > 0 &&
           Object.keys(med.nutrients ?? {}).length === 0
         ) {
+          // The row exists. Staying here would let Save create another one.
           Alert.alert(
             t('common.error', { defaultValue: 'Error' }),
             t('medications.supplement.nutrientsNotSaved', {
@@ -472,7 +473,6 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                 'The supplement was created, but its nutrient values were not saved because this account has no diary access.',
             })
           );
-          return;
         }
         navigation.replace('MedicationDetail', { medicationId: med.id });
       }
