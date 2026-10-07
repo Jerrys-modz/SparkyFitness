@@ -711,7 +711,21 @@
       "description": "Select a medication from the list to view schedules, notes, and GLP-1 coaching tools."
     }
   },
+  "habits": {
+    "title": "Habits & Supplements",
+    "subtitle": "Tick off daily habits and supplements and keep your streaks going.",
+    "checklistTitle": "Checklist",
+    "progress": "{{done}} of {{total}} done",
+    "empty": "No habits yet. Add one below, for example \"Vitamin D\" or \"Stretch\".",
+    "streakDays": "{{count}} day streak",
+    "delete": "Delete habit",
+    "deleteTitle": "Delete habit?",
+    "deleteDescription": "This removes the habit and all of its history.",
+    "addPlaceholder": "New habit or supplement",
+    "add": "Add"
+  },
   "nav": {
+    "habits": "Habits",
     "diary": "Diary",
     "checkin": "Check-In",
     "reports": "Reports",

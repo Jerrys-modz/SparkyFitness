@@ -6,6 +6,7 @@ export * from "./schemas/api/CaffeineKinetics.api.zod.ts";
 export * from "./schemas/api/CanadianNutrientFile.api.zod.ts";
 export * from "./schemas/api/CorosSync.api.zod.ts";
 export * from "./schemas/api/CustomCategories.api.zod.ts";
+export * from "./schemas/api/Habits.api.zod.ts";
 export * from "./schemas/api/CustomMeasurements.api.zod.ts";
 export * from "./schemas/api/LatestCustomEntries.api.zod.ts";
 export * from "./schemas/api/CheckInMeasurements.api.zod.ts";
