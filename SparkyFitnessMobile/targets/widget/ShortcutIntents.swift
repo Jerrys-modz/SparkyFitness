@@ -430,3 +430,16 @@ struct LogFoodControlIntent: AppIntent {
         return .result()
     }
 }
+
+/// Opens SparkyFitness on whatever screen it was on, for the Calories left
+/// control. Same reasoning as the food controls: `openAppWhenRun`, no
+/// parameters, no URL.
+@available(iOS 18.0, *)
+struct OpenAppControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open SparkyFitness"
+    static var openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        .result()
+    }
+}
