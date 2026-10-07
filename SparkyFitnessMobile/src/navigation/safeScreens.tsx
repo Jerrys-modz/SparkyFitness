@@ -36,6 +36,7 @@ import ActivityDetailScreen from '../screens/ActivityDetailScreen';
 import FastingDetailScreen from '../screens/FastingDetailScreen';
 import CaffeineDetailScreen from '../screens/CaffeineDetailScreen';
 import FastingSettingsScreen from '../screens/FastingSettingsScreen';
+import MindfulnessDetailScreen from '../screens/MindfulnessDetailScreen';
 import SleepDetailScreen from '../screens/SleepDetailScreen';
 import ExerciseSearchScreen from '../screens/ExerciseSearchScreen';
 import PresetSearchScreen from '../screens/PresetSearchScreen';
@@ -150,6 +151,7 @@ export const SafeActivityDetail = withErrorBoundary(ActivityDetailScreen, 'Activ
 export const SafeFastingDetail = withErrorBoundary(FastingDetailScreen, 'FastingDetail', { canGoBack: true });
 export const SafeCaffeineDetail = withErrorBoundary(CaffeineDetailScreen, 'CaffeineDetail', { canGoBack: true });
 export const SafeFastingSettings = withErrorBoundary(FastingSettingsScreen, 'FastingSettings', { canGoBack: true });
+export const SafeMindfulnessDetail = withErrorBoundary(MindfulnessDetailScreen, 'MindfulnessDetail', { canGoBack: true });
 export const SafeSleepDetail = withErrorBoundary(SleepDetailScreen, 'SleepDetail', { canGoBack: true });
 export const SafeLogs = withErrorBoundary(LogScreen, 'Logs', { canGoBack: true });
 export const SafeSync = withErrorBoundary(SyncScreen, 'Sync', { canGoBack: true });

@@ -333,6 +333,7 @@ export type RootStackParamList = {
   FastingDetail: undefined;
   CaffeineDetail: { date: string };
   FastingSettings: undefined;
+  MindfulnessDetail: { selectedDate?: string } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;
