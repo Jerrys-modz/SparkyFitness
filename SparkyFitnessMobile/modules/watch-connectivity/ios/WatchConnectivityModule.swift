@@ -38,8 +38,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRecordingHeartRate: (([String: Any]) -> Void)?
     /// The wearer answered the update-this-workout question on the summary.
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
-    /// The wearer added or removed a set or exercise on the watch. The phone
-    /// applies it to the live workout.
+    /// The wearer added or removed a set or exercise on the watch, or changed a
+    /// set's type. The phone applies it to the live workout.
     var onWorkoutEdit: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
@@ -442,7 +442,7 @@ public class WatchConnectivityModule: Module {
                     "clientId": payload["clientId"] as? String ?? "",
                     "action": payload["action"] as? String ?? "",
                 ]
-                for key in ["exerciseEntryId", "setId", "exerciseId"] {
+                for key in ["exerciseEntryId", "setId", "exerciseId", "setType"] {
                     if let value = payload[key] as? String { event[key] = value }
                 }
                 self?.sendEvent("onWorkoutEdit", event)

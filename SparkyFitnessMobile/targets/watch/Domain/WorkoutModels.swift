@@ -244,6 +244,7 @@ struct WorkoutSummary: Equatable {
 enum WorkoutEditAction: Equatable {
     case addSet(exerciseEntryId: String)
     case deleteSet(setId: String)
+    case setSetType(setId: String, type: String)
     case addExercise(exerciseId: String)
     case deleteExercise(exerciseEntryId: String)
 }

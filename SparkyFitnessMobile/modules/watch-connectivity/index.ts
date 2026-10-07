@@ -553,19 +553,22 @@ export interface WatchPresetUpdateAnswerPayload {
 }
 
 /**
- * A set or exercise added or deleted on the watch's workout page. `clientId` lets the phone drop a
+ * An edit made on the watch's workout page. `clientId` lets the phone drop a
  * copy delivered twice. `sessionId` ties it to the workout it was made in.
  */
 export interface WatchWorkoutEditPayload {
   sessionId: string;
   clientId: string;
-  action: 'addSet' | 'deleteSet' | 'addExercise' | 'deleteExercise';
+  action:
+    'addSet' | 'deleteSet' | 'setSetType' | 'addExercise' | 'deleteExercise';
   /** For `addSet` and `deleteExercise`. */
   exerciseEntryId?: string;
-  /** For `deleteSet`. */
+  /** For `deleteSet` and `setSetType`. */
   setId?: string;
   /** For `addExercise`: the library exercise to add. */
   exerciseId?: string;
+  /** For `setSetType`: `normal`, `warmup`, `drop` or `failure`. */
+  setType?: string;
 }
 
 export interface WatchWorkoutStartRequestedPayload {
