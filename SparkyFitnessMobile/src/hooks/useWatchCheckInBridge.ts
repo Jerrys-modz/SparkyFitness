@@ -10,6 +10,7 @@ import WatchConnectivity, {
   type WatchWaterIntakePayload,
   type WatchWaterDeletePayload,
   type WatchWaterLogPayload,
+  type WatchMedicationTakenPayload,
 } from '../../modules/watch-connectivity';
 import {
   upsertCheckIn,
@@ -20,6 +21,14 @@ import {
   deleteWaterIntakeLogEntry,
 } from '../services/api/measurementsApi';
 import {
+  listMedications,
+  listEntries,
+  createEntry,
+  updateEntry,
+} from '../services/api/medicationsApi';
+import {
+  medicationsListQueryKey,
+  medicationEntriesQueryKey,
   measurementsQueryKey,
   measurementsRangeQueryKey,
   dailySummaryQueryKey,
@@ -27,7 +36,10 @@ import {
   waterIntakeLogQueryKey,
 } from './queryKeys';
 import { refreshHealthSyncCache } from './refreshHealthSyncCache';
-import { getTodayDate, addDays } from '../utils/dateUtils';
+import { getTodayDate, addDays, getDeviceTimezone } from '../utils/dateUtils';
+import { medicationsForWatch } from '../utils/watchMedications';
+import { entryMatchesDose } from '../utils/medications';
+import { invalidateMedicationEntryCaches } from './invalidateMedicationEntryCaches';
 import { getServingVolume } from '../utils/unitConversions';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
@@ -106,6 +118,7 @@ const NO_FIGURES_FOR_TODAY = {
   fatGoal: null,
   waterConsumedMl: null,
   waterLog: [] as WatchWaterLogPayload[],
+  medications: null,
   goalNutrients: null,
 } as const;
 
@@ -180,6 +193,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // handledClientIdsRef) since check-in ids and water-tap ids are separate
   // namespaces the watch generates independently.
   const handledWaterClientIdsRef = useRef<Set<string>>(new Set());
+  // And for medication doses. In memory only: the write reads the day's entries
+  // first, so a redelivery after a restart finds the dose already logged
+  // instead of needing a persisted reservation to stay safe.
+  const handledMedicationClientIdsRef = useRef<Set<string>>(new Set());
   // Client ids the server refused. Rides in every context push beside
   // `ackedClientIds`, so a failed water tap reaches a watch whose phone was
   // never reachable — the immediate `sendAck` below can't manage that, and the
@@ -375,6 +392,38 @@ export function useWatchCheckInBridge(enabled: boolean): void {
 
   const timeFormat = preferences?.time_format ?? null;
 
+  // Today's scheduled doses for the watch's Medications page. Same list and
+  // entry queries the phone's own MedicationsCard reads (and invalidates on
+  // every dose write), so the two never disagree about what is taken.
+  const { data: activeMedications } = useQuery({
+    queryKey: medicationsListQueryKey({ activeOnly: true }),
+    queryFn: () => listMedications({ activeOnly: true }),
+    enabled,
+  });
+  const { data: medicationEntries } = useQuery({
+    queryKey: medicationEntriesQueryKey({
+      fromDate: summaryDate,
+      toDate: summaryDate,
+    }),
+    queryFn: () => listEntries({ fromDate: summaryDate, toDate: summaryDate }),
+    enabled,
+  });
+  // Null until both queries have answered: an empty list is a real "nothing
+  // scheduled today" and must not be mistaken for "not loaded yet".
+  const watchMedications = useMemo(
+    () =>
+      activeMedications && medicationEntries
+        ? medicationsForWatch(
+            activeMedications,
+            medicationEntries,
+            summaryDate,
+            getDeviceTimezone(),
+            timeFormat
+          )
+        : null,
+    [activeMedications, medicationEntries, summaryDate, timeFormat]
+  );
+
   // Memoized because `pushContext` below closes over it. A fresh array every
   // render would either churn the listener subscription that watches
   // pushContext's identity, or — if left out of the dep list — leave it
@@ -470,6 +519,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       fatGoal,
       waterConsumedMl,
       waterLog: watchWaterLog,
+      medications: watchMedications,
       goalNutrients,
     }),
     [
@@ -488,6 +538,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       fatGoal,
       waterConsumedMl,
       watchWaterLog,
+      watchMedications,
       goalNutrients,
     ]
   );
@@ -983,6 +1034,109 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     [ensureAckStateHydrated, persistAckState]
   );
 
+  /**
+   * A dose ticked on the watch's Medications page. Acknowledged like a water
+   * tap (reserve the id, write, ack both ways, push), but the write itself is
+   * idempotent: it reads the day's entries first and only creates one when the
+   * slot has none, so a redelivery that slips past the dedupe set cannot log
+   * the dose twice. A skipped or schedule-less (web-logged) entry for the slot
+   * is updated to taken instead, the same way the phone's own dose row does.
+   */
+  const handleMedicationTaken = useCallback(
+    async (payload: WatchMedicationTakenPayload): Promise<void> => {
+      if (!WatchConnectivity) return;
+      await ensureAckStateHydrated();
+      if (
+        payload.clientId &&
+        handledMedicationClientIdsRef.current.has(payload.clientId)
+      ) {
+        // Same rule as `handleWaterTap`: only re-acknowledge what landed.
+        if (ackedClientIdsRef.current.includes(payload.clientId)) {
+          await WatchConnectivity.sendAck(payload.clientId, true);
+        }
+        return;
+      }
+      if (payload.clientId)
+        handledMedicationClientIdsRef.current.add(payload.clientId);
+
+      try {
+        const entries = await listEntries({
+          fromDate: payload.entryDate,
+          toDate: payload.entryDate,
+        });
+        const existing = entries.find((e) =>
+          entryMatchesDose(e, payload.medicationId, payload.scheduleId)
+        );
+        const alreadyTaken =
+          existing?.status === 'taken' || existing?.status === 'prn_taken';
+        if (!alreadyTaken) {
+          const takenAt = new Date().toISOString();
+          if (existing) {
+            await updateEntry(existing.id, {
+              schedule_id: payload.scheduleId,
+              status: 'taken',
+              taken_at: takenAt,
+            });
+          } else {
+            await createEntry({
+              medication_id: payload.medicationId,
+              schedule_id: payload.scheduleId,
+              status: 'taken',
+              entry_date: payload.entryDate,
+              taken_at: takenAt,
+            });
+          }
+        }
+
+        ackedClientIdsRef.current = [
+          ...ackedClientIdsRef.current,
+          payload.clientId,
+        ].slice(-20);
+        failedClientIdsRef.current = failedClientIdsRef.current.filter(
+          (id) => id !== payload.clientId
+        );
+        await persistAckState();
+        await WatchConnectivity.sendAck(payload.clientId, true);
+
+        // Awaited so the push below carries the new entry.
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: medicationEntriesQueryKey({
+              fromDate: payload.entryDate,
+              toDate: payload.entryDate,
+            }),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: dailySummaryQueryKey(payload.entryDate),
+          }),
+        ]);
+        invalidateMedicationEntryCaches(queryClient);
+
+        addLog(
+          `Watch medication dose logged for ${payload.entryDate}: ${payload.medicationId}`,
+          'INFO'
+        );
+        await pushContextRef.current();
+      } catch (error) {
+        if (payload.clientId) {
+          handledMedicationClientIdsRef.current.delete(payload.clientId);
+          failedClientIdsRef.current = [
+            ...failedClientIdsRef.current,
+            payload.clientId,
+          ].slice(-20);
+          await persistAckState();
+          await WatchConnectivity.sendAck(payload.clientId, false);
+        }
+        addLog(
+          `Watch medication dose failed to save: ${String(error)}`,
+          'ERROR'
+        );
+        await pushContextRef.current();
+      }
+    },
+    [ensureAckStateHydrated, persistAckState]
+  );
+
   // Latest handlers, read by the subscriptions below.
   //
   // Without this, the subscription effect had to list every handler as a dep,
@@ -997,6 +1151,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     handleCheckIn,
     handleWaterTap,
     handleWaterDelete,
+    handleMedicationTaken,
     pushContext,
     catchUpToToday,
   });
@@ -1005,6 +1160,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       handleCheckIn,
       handleWaterTap,
       handleWaterDelete,
+      handleMedicationTaken,
       pushContext,
       catchUpToToday,
     };
@@ -1040,6 +1196,12 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         onEvent(handlersRef.current.handleWaterDelete)(payload);
       }
     );
+    const medicationTakenSub = WatchConnectivity.addListener(
+      'onMedicationTaken',
+      (payload) => {
+        onEvent(handlersRef.current.handleMedicationTaken)(payload);
+      }
+    );
     const contextRequestSub = WatchConnectivity.addListener(
       'onContextRequest',
       () => {
@@ -1068,6 +1230,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       checkInSub.remove();
       waterIntakeSub.remove();
       waterDeleteSub.remove();
+      medicationTakenSub.remove();
       contextRequestSub.remove();
       reachabilitySub.remove();
       appStateSub.remove();

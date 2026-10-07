@@ -17,6 +17,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterIntake: (([String: Any]) -> Void)?
     /// A request from the watch to delete one logged drink.
     var onWaterDelete: (([String: Any]) -> Void)?
+    /// A scheduled dose marked taken on the watch, awaiting a server write.
+    var onMedicationTaken: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
@@ -92,6 +94,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterIntake?(payload)
         case "waterDelete":
             onWaterDelete?(payload)
+        case "medicationTaken":
+            onMedicationTaken?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
         case "restChanged":
@@ -236,6 +240,7 @@ public class WatchConnectivityModule: Module {
             "onContextRequest",
             "onWaterIntake",
             "onWaterDelete",
+            "onMedicationTaken",
             "onSetCompleted",
             "onRestChanged",
             "onSetTimerStarted",
@@ -282,6 +287,14 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onWaterDelete", [
                     "clientId": payload["clientId"] as? String ?? "",
                     "entryId": payload["entryId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onMedicationTaken = { [weak self] payload in
+                self?.sendEvent("onMedicationTaken", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "entryDate": payload["entryDate"] as? String ?? "",
+                    "medicationId": payload["medicationId"] as? String ?? "",
+                    "scheduleId": payload["scheduleId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onSetCompleted = { [weak self] payload in
