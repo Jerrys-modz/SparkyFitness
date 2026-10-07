@@ -55,7 +55,7 @@ private struct NutritionLabelExtraction {
 @available(iOS 27, *)
 @Generable
 private struct MealItemEstimate {
-    @Guide(description: "Specific name of the food as it looks in the photo, including how it is cooked and any visible brand, e.g. pan-seared chicken thigh with skin, or Oikos Triple Zero vanilla yogurt")
+    @Guide(description: "Plain food name, e.g. grilled chicken breast")
     let name: String
     @Guide(description: "Estimated weight of this item in grams, as served")
     let grams: Double
@@ -99,19 +99,6 @@ the total by how much of each food is really there: dense foods such as dips, \
 sauces, meat, rice and cheese weigh far more than light ones such as chips, \
 bread, salad or herbs for the same amount of space. Never split it evenly just \
 because there are two items.
-
-IDENTIFY WHAT IS ACTUALLY THERE
-- Look at the photo before you decide. Describe each food by what you can see \
-(shape, colour, cooking method, toppings, packaging), not by what a plate like \
-this usually holds. Do not fall back on a stock meal such as eggs, bacon or \
-toast because it is breakfast time.
-- Read any brand, product name or label on packaging, cups, wrappers or \
-menus and use that product's real values.
-- Count and measure: use the number of pieces and their size relative to the \
-plate, utensils or hands. Avoid round placeholder weights like 30 g or 120 g \
-unless that is genuinely what you see.
-- If you cannot tell what a food is, name your best specific guess and mark \
-the item low confidence.
 
 PHOTOS
 - Use every photo once. Several photos usually show the same meal from \
@@ -172,48 +159,6 @@ it. Never claim something was done unless the tool said so. If no tool fits, \
 say so. You are not a doctor: for medical questions, suggest seeing a professional.
 """
 
-@available(iOS 27, *)
-@Generable
-private struct MealItemEstimate {
-    @Guide(description: "Plain food name, e.g. grilled chicken breast")
-    let name: String
-    @Guide(description: "Estimated weight of this item in grams, as served")
-    let grams: Double
-    @Guide(description: "Short portion description such as 1 cup or 2 slices")
-    let portion: String
-    @Guide(description: "Total calories (kcal) for this item at that weight")
-    let calories: Double
-    @Guide(description: "Protein in grams for this item at that weight")
-    let protein: Double
-    @Guide(description: "Total carbohydrate in grams for this item at that weight")
-    let carbs: Double
-    @Guide(description: "Total fat in grams for this item at that weight")
-    let fat: Double
-    @Guide(description: "Dietary fiber in grams for this item at that weight")
-    let fiber: Double
-    @Guide(description: "Total sugars in grams for this item at that weight")
-    let sugar: Double
-    @Guide(description: "How sure you are about this item: high, medium or low")
-    let confidence: String
-}
-
-@available(iOS 27, *)
-@Generable
-private struct MealEstimate {
-    @Guide(description: "One sentence describing the meal")
-    let summary: String
-    @Guide(description: "Each distinct food visible on the plate, at most 8")
-    let items: [MealItemEstimate]
-}
-
-private let mealInstructions = """
-You estimate the nutrition of a meal from a photo. List each distinct food you \
-can see as its own item with an estimated weight in grams and the calories and \
-macros for that weight. Use typical values for the food as prepared. If the user \
-gives a total weight, make the item weights add up to it. Be conservative: do not \
-add foods you cannot see, and use low confidence when unsure.
-"""
-
 private let extractionInstructions = """
 You read nutrition facts labels. You are given the label's text, recognised \
 line by line from the photo, and the photo itself. Copy numbers exactly as they \
@@ -261,12 +206,12 @@ printed.
 /// Text on the label, top to bottom, one recognised line per row. Run here
 /// rather than left to the model's OCR tool so the numbers the model sees are
 /// the printed ones, and so the caller can check the answer against them.
-private func recognizeLabelText(in image: CGImage, correctWords: Bool = false) -> String {
+private func recognizeLabelText(in image: CGImage) -> String {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     // Language correction rewrites digits that look like letters, which is
-    // wrong for a table of numbers; brand names on packaging want it.
-    request.usesLanguageCorrection = correctWords
+    // wrong for a table of numbers.
+    request.usesLanguageCorrection = false
     let handler = VNImageRequestHandler(cgImage: image)
     do {
         try handler.perform([request])
@@ -950,21 +895,9 @@ public class OnDeviceNutritionModule: Module {
                     instructions += "\n\nNOTES FROM THE USER\n\(userContext)"
                 }
                 let session = LanguageModelSession(instructions: instructions)
-                // Packaging, jars and wrappers in the photo carry brand and
-                // product names the model reads unreliably; hand it the text.
-                let printed = images
-                    .map { recognizeLabelText(in: $0, correctWords: true) }
-                    .joined(separator: "\n")
-                    .split(separator: "\n")
-                    .filter { $0.count >= 4 }
-                    .prefix(40)
-                    .joined(separator: "\n")
                 var prompt = images.count == 1
                     ? "Estimate the nutrition of this meal."
                     : "Estimate the nutrition of this one meal, shown in \(images.count) photos."
-                if !printed.isEmpty {
-                    prompt += "\n\nText printed on packaging in the photos (may include brand and product names; ignore anything that is not a food):\n\(printed)\n"
-                }
                 if let description, !description.isEmpty {
                     prompt += " The user says: \(description)."
                 }
@@ -1033,55 +966,6 @@ public class OnDeviceNutritionModule: Module {
                         ["name": ingredient.name, "amount": ingredient.amount, "unit": ingredient.unit]
                     },
                     "ocr_text": ocrText,
-                ]
-            }
-            #endif
-            throw OnDeviceNutritionError.unavailable
-        }
-
-        // Estimates a meal from one photo. Returns a dictionary the JS side turns
-        // into the server's estimate shape, or throws so the caller falls back.
-        AsyncFunction("estimateMeal") { (base64: String, description: String?, totalGrams: Double?) -> [String: Any?] in
-            #if compiler(>=6.4) && canImport(FoundationModels)
-            if #available(iOS 27, *) {
-                guard let data = Data(base64Encoded: base64),
-                    let source = CGImageSourceCreateWithData(data as CFData, nil),
-                    let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-                else {
-                    throw OnDeviceNutritionError.badImage
-                }
-                let session = LanguageModelSession(instructions: mealInstructions)
-                var prompt = "Estimate the nutrition of this meal."
-                if let description, !description.isEmpty {
-                    prompt += " The user says: \(description)."
-                }
-                if let totalGrams, totalGrams > 0 {
-                    prompt += " The whole meal weighs \(Int(totalGrams)) g."
-                }
-                let response = try await session.respond(
-                    generating: MealEstimate.self,
-                    options: GenerationOptions(sampling: .greedy)
-                ) {
-                    prompt
-                    Attachment(image)
-                }
-                let meal = response.content
-                return [
-                    "summary": meal.summary,
-                    "items": meal.items.map { item in
-                        [
-                            "name": item.name,
-                            "grams": item.grams,
-                            "portion": item.portion,
-                            "calories": item.calories,
-                            "protein": item.protein,
-                            "carbs": item.carbs,
-                            "fat": item.fat,
-                            "fiber": item.fiber,
-                            "sugar": item.sugar,
-                            "confidence": item.confidence,
-                        ] as [String: Any]
-                    },
                 ]
             }
             #endif
