@@ -117,8 +117,14 @@ async function upsertStepData(
       );
       result = updateResult.rows[0];
     } else {
+      // A concurrent write may have created the day since the lookup; apply
+      // the same max-wins update to it instead of failing on the unique key.
       const insertResult = await client.query(
-        'INSERT INTO check_in_measurements (user_id, entry_date, steps, created_by_user_id, updated_by_user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4, now(), now()) RETURNING *',
+        `INSERT INTO check_in_measurements AS cm (user_id, entry_date, steps, created_by_user_id, updated_by_user_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $4, now(), now())
+         ON CONFLICT (user_id, entry_date) DO UPDATE
+         SET steps = GREATEST(EXCLUDED.steps, cm.steps), updated_at = now(), updated_by_user_id = EXCLUDED.updated_by_user_id
+         RETURNING *`,
         [userId, date, value, actingUserId]
       );
       result = insertResult.rows[0];
@@ -404,7 +410,15 @@ async function upsertCheckInMeasurements(
         new Date().toISOString(),
         new Date().toISOString(),
       ];
-      query = `INSERT INTO check_in_measurements (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+      // A concurrent write may have created the day since the lookup; update
+      // it the same way the branch above would instead of failing on the key.
+      const conflictUpdates = measurementKeys
+        .map((key) => `${key} = EXCLUDED.${key}`)
+        .join(', ');
+      query = `INSERT INTO check_in_measurements (${cols.join(', ')}) VALUES (${placeholders})
+        ON CONFLICT (user_id, entry_date) DO UPDATE
+        SET ${conflictUpdates}, updated_at = now(), updated_by_user_id = EXCLUDED.updated_by_user_id
+        RETURNING *`;
     }
     const result = await client.query(query, values);
     return result.rows[0];
@@ -542,10 +556,22 @@ async function bulkUpsertCheckInMeasurements(
           nowIso,
           nowIso,
         ]);
+        // A concurrent write may have created a day since the lookup; merge
+        // into it exactly as the batch UPDATE above does.
+        const conflictUpdates = insertColumns
+          .map((column) =>
+            column === 'steps'
+              ? 'steps = GREATEST(EXCLUDED.steps, cm.steps)'
+              : `${column} = COALESCE(EXCLUDED.${column}, cm.${column})`
+          )
+          .join(', ');
         const insertResult = await client.query(
           format(
-            `INSERT INTO check_in_measurements (user_id, entry_date, ${insertColumns.join(', ')}, created_by_user_id, updated_by_user_id, created_at, updated_at)
-             VALUES %L RETURNING *`,
+            `INSERT INTO check_in_measurements AS cm (user_id, entry_date, ${insertColumns.join(', ')}, created_by_user_id, updated_by_user_id, created_at, updated_at)
+             VALUES %L
+             ON CONFLICT (user_id, entry_date) DO UPDATE
+             SET ${conflictUpdates}, updated_at = now(), updated_by_user_id = EXCLUDED.updated_by_user_id
+             RETURNING *`,
             insertRows
           )
         );
