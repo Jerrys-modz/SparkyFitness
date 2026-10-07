@@ -9,6 +9,7 @@ import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import ZoomableChart from '@/components/ZoomableChart';
 import ReportsControls from '@/pages/Reports/ReportsControls';
 import NutritionPeriodSummary from '@/pages/Reports/NutritionPeriodSummary';
+import NutrientInsightsCard from '@/pages/Reports/NutrientInsightsCard';
 import { WeeklyAlcoholCard } from '@/pages/Reports/WeeklyAlcoholCard';
 import HydrationTrendChart from '@/pages/Reports/HydrationTrendChart';
 import NutritionChartsGrid from '@/pages/Reports/NutritionChartsGrid';
@@ -225,6 +226,13 @@ const Reports = () => {
                 customNutrients={customNutrients}
                 goals={goalData}
                 calorieBalanceByDate={calorieBalanceByDate}
+              />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary>
+              <NutrientInsightsCard
+                nutritionData={nutritionData}
+                customNutrients={customNutrients}
+                goals={goalData}
               />
             </ChartErrorBoundary>
             <ChartErrorBoundary>
