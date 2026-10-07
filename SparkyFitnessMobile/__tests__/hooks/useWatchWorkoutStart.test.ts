@@ -1,5 +1,6 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useWatchWorkoutStart } from '../../src/hooks/useWatchWorkoutStart';
+import { fetchDailySummary } from '../../src/services/api/dailySummaryApi';
 import { fetchActiveWorkoutPlans } from '../../src/services/api/workoutPlansApi';
 import { getWorkoutPresetById } from '../../src/services/api/workoutPresetsApi';
 import { getActiveServerConfigId } from '../../src/services/storage';
@@ -22,6 +23,9 @@ jest.mock('../../src/services/storage', () => ({
 }));
 jest.mock('../../src/services/api/workoutPlansApi', () => ({
   fetchActiveWorkoutPlans: jest.fn(),
+}));
+jest.mock('../../src/services/api/dailySummaryApi', () => ({
+  fetchDailySummary: jest.fn(),
 }));
 jest.mock('../../src/services/api/workoutPresetsApi', () => ({
   getWorkoutPresetById: jest.fn(),
@@ -70,6 +74,10 @@ describe('useWatchWorkoutStart plan link', () => {
     (getActiveServerConfigId as jest.Mock).mockReset();
     (getActiveServerConfigId as jest.Mock).mockResolvedValue('srv');
     (fetchActiveWorkoutPlans as jest.Mock).mockReset();
+    (fetchDailySummary as jest.Mock).mockReset();
+    (fetchDailySummary as jest.Mock).mockResolvedValue({
+      exerciseSessions: [],
+    });
     useActiveWorkoutStore.setState({ sessionId: null, sourcePresetId: null });
   });
 
@@ -82,6 +90,24 @@ describe('useWatchWorkoutStart plan link', () => {
 
   it('starts the preset plain when no plan assignment matches', async () => {
     (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([plan('43')]);
+    const args = await fire();
+    expect(args.workoutPlanAssignmentId).toBeUndefined();
+    expect(args.exercises[0]!.workout_plan_assignment_id).toBeUndefined();
+  });
+
+  it('starts the preset plain when that assignment is already logged today', async () => {
+    (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([plan('42')]);
+    (fetchDailySummary as jest.Mock).mockResolvedValue({
+      exerciseSessions: [{ workout_plan_assignment_id: '7' }],
+    });
+    const args = await fire();
+    expect(args.workoutPlanAssignmentId).toBeUndefined();
+    expect(args.exercises[0]!.workout_plan_assignment_id).toBeUndefined();
+  });
+
+  it('starts the preset plain when the diary fails to load', async () => {
+    (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([plan('42')]);
+    (fetchDailySummary as jest.Mock).mockRejectedValue(new Error('x'));
     const args = await fire();
     expect(args.workoutPlanAssignmentId).toBeUndefined();
     expect(args.exercises[0]!.workout_plan_assignment_id).toBeUndefined();
@@ -133,6 +159,30 @@ describe('useWatchWorkoutStart plan link', () => {
     await waitFor(() =>
       expect(getActiveServerConfigId).toHaveBeenCalledTimes(3)
     );
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('does not start a request that outlived a disable and re-enable', async () => {
+    let release: (plans: ReturnType<typeof plan>[]) => void = () => {};
+    (fetchActiveWorkoutPlans as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    const start = jest.fn(async () => {});
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useWatchWorkoutStart(enabled, true, start),
+      { initialProps: { enabled: true } }
+    );
+    handler?.({ presetId: '42', serverId: 'srv' });
+    await waitFor(() => expect(fetchActiveWorkoutPlans).toHaveBeenCalled());
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    await act(async () => {
+      release([plan('42')]);
+    });
     expect(start).not.toHaveBeenCalled();
   });
 });
