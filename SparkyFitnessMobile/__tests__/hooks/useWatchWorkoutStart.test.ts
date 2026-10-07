@@ -80,6 +80,13 @@ describe('useWatchWorkoutStart plan link', () => {
     expect(args.exercises[0]!.workout_plan_assignment_id).toBe(7);
   });
 
+  it('starts the preset plain when no plan assignment matches', async () => {
+    (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([plan('43')]);
+    const args = await fire();
+    expect(args.workoutPlanAssignmentId).toBeUndefined();
+    expect(args.exercises[0]!.workout_plan_assignment_id).toBeUndefined();
+  });
+
   it('starts the preset plain when no plan is due or plans fail to load', async () => {
     (fetchActiveWorkoutPlans as jest.Mock).mockRejectedValue(new Error('x'));
     const args = await fire();
