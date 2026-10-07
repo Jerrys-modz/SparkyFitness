@@ -261,12 +261,7 @@ private struct EndWorkoutDialogs: ViewModifier {
                     // re-rendering against a plan that `endWorkout` has
                     // already cleared.
                     beforeEnding()
-                    if store.changedFromPreset {
-                        // The workout screen asks first, then ends it.
-                        store.askingPresetUpdate = true
-                    } else {
-                        session.endWorkout()
-                    }
+                    if !store.askPresetUpdateBeforeFinish() { session.endWorkout() }
                 }
                 Button("Cancel", role: .cancel) { Haptics.tap() }
             } message: {

@@ -630,6 +630,15 @@ final class WorkoutSessionStore: ObservableObject {
         return Self.structure(of: plan) != baselineStructure
     }
 
+    /// Called when Finish is confirmed. Raises the "Update Workout?" question
+    /// and returns true when the workout changed from its saved one; the
+    /// caller then waits for the answer instead of ending the workout.
+    func askPresetUpdateBeforeFinish() -> Bool {
+        guard changedFromPreset else { return false }
+        askingPresetUpdate = true
+        return true
+    }
+
     func recordActiveEnergy(kcal: Double) {
         activeEnergyKcal = kcal
     }
