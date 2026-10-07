@@ -703,7 +703,7 @@ const WorkoutFormExerciseList = forwardRef<
       if (warmups.length > 0) {
         items.push({
           key: 'warmups',
-          label: t('workoutForm.addWarmups', {
+          label: t('workout.addWarmups', {
             defaultValue: 'Add warm-ups',
           }),
           onPress: () => addWarmupSets(clientId, warmups, WARMUP_REST_SEC),
