@@ -50,6 +50,11 @@ interface UseWorkoutCompletePresetSyncArgs {
    * watch) and apply the update itself if the answer is yes.
    */
   onNeedsUpdate?: (offer: PresetUpdateOffer) => void;
+  /**
+   * The question was already answered somewhere else (the watch), so the
+   * phone does not ask it again. The caller applies the answer itself.
+   */
+  skipPrompt?: boolean;
 }
 
 export function useWorkoutCompletePresetSync({
@@ -61,6 +66,7 @@ export function useWorkoutCompletePresetSync({
   assumeSources,
   onSettled,
   onNeedsUpdate,
+  skipPrompt = false,
 }: UseWorkoutCompletePresetSyncArgs) {
   const { t } = useTranslation();
   const { profile } = useProfile();
@@ -173,6 +179,7 @@ export function useWorkoutCompletePresetSync({
       onSettledRef.current?.();
       return;
     }
+    if (skipPrompt) return;
     const timer = setTimeout(() => {
       promptedRef.current = true;
       Alert.alert(
@@ -214,6 +221,7 @@ export function useWorkoutCompletePresetSync({
     presetUpdateExercises,
     profile?.id,
     applyUpdate,
+    skipPrompt,
     t,
   ]);
 }

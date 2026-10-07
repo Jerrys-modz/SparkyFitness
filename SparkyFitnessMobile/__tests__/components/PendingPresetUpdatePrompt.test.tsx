@@ -5,6 +5,7 @@ import type { WorkoutCelebration } from '../../src/utils/workoutCelebration';
 
 let capturedArgs: {
   onSettled?: () => void;
+  skipPrompt?: boolean;
   onNeedsUpdate?: (offer: {
     presetName: string;
     update: () => Promise<void>;
@@ -18,7 +19,6 @@ jest.mock('../../src/hooks/useWorkoutCompletePresetSync', () => ({
 
 let answerHandler:
   ((p: { sessionId: string; update: boolean }) => void) | null = null;
-const mockOffer = jest.fn(() => Promise.resolve(true));
 jest.mock('../../modules/watch-connectivity', () => ({
   __esModule: true,
   default: {
@@ -26,7 +26,6 @@ jest.mock('../../modules/watch-connectivity', () => ({
       answerHandler = cb;
       return { remove: jest.fn() };
     }),
-    offerPresetUpdate: (...args: unknown[]) => mockOffer(...(args as [])),
   },
 }));
 
@@ -39,6 +38,11 @@ const celebration = {
   finishedAt: 1,
 } as unknown as WorkoutCelebration;
 
+const offer = (update = jest.fn(async () => {})) => ({
+  presetName: 'Push',
+  update,
+});
+
 describe('PendingPresetUpdatePrompt', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,6 +50,7 @@ describe('PendingPresetUpdatePrompt', () => {
     capturedArgs = {};
     usePendingPresetUpdateStore.setState({
       pending: { celebration, sessionId: 'sess-1' },
+      answers: {},
     });
   });
 
@@ -55,19 +60,42 @@ describe('PendingPresetUpdatePrompt', () => {
     expect(capturedArgs.onSettled).toBeUndefined();
   });
 
-  it('asks the watch once the preset turns out to need updating', () => {
+  it('keeps the phone prompt on while the watch has not answered', () => {
     render(<PendingPresetUpdatePrompt />);
-    capturedArgs.onNeedsUpdate?.({
-      presetName: 'Push',
-      update: jest.fn(async () => {}),
-    });
-    expect(mockOffer).toHaveBeenCalledWith('sess-1', 'Push');
+    expect(capturedArgs.skipPrompt).toBe(false);
   });
 
-  it('applies the update and settles when the watch says yes', async () => {
+  it('updates the preset when the watch said yes before the workout arrived', async () => {
+    const update = jest.fn(async () => {});
+    usePendingPresetUpdateStore.getState().setAnswer('sess-1', true);
+    render(<PendingPresetUpdatePrompt />);
+    expect(capturedArgs.skipPrompt).toBe(true);
+    await act(async () => {
+      capturedArgs.onNeedsUpdate?.(offer(update));
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(usePendingPresetUpdateStore.getState().pending).toBeNull();
+    expect(usePendingPresetUpdateStore.getState().answers).toEqual({});
+  });
+
+  it('settles without updating when the watch said keep', async () => {
+    const update = jest.fn(async () => {});
+    usePendingPresetUpdateStore.getState().setAnswer('sess-1', false);
+    render(<PendingPresetUpdatePrompt />);
+    await act(async () => {
+      capturedArgs.onNeedsUpdate?.(offer(update));
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(usePendingPresetUpdateStore.getState().pending).toBeNull();
+  });
+
+  it('applies an answer that arrives after the workout does', async () => {
     const update = jest.fn(async () => {});
     render(<PendingPresetUpdatePrompt />);
-    capturedArgs.onNeedsUpdate?.({ presetName: 'Push', update });
+    await act(async () => {
+      capturedArgs.onNeedsUpdate?.(offer(update));
+    });
+    expect(update).not.toHaveBeenCalled();
     await act(async () => {
       answerHandler?.({ sessionId: 'sess-1', update: true });
     });
@@ -75,22 +103,11 @@ describe('PendingPresetUpdatePrompt', () => {
     expect(usePendingPresetUpdateStore.getState().pending).toBeNull();
   });
 
-  it('settles without updating when the watch says keep', async () => {
-    const update = jest.fn(async () => {});
-    render(<PendingPresetUpdatePrompt />);
-    capturedArgs.onNeedsUpdate?.({ presetName: 'Push', update });
-    await act(async () => {
-      answerHandler?.({ sessionId: 'sess-1', update: false });
-    });
-    expect(update).not.toHaveBeenCalled();
-    expect(usePendingPresetUpdateStore.getState().pending).toBeNull();
-  });
-
   it('ignores an answer for another workout', async () => {
     const update = jest.fn(async () => {});
     render(<PendingPresetUpdatePrompt />);
-    capturedArgs.onNeedsUpdate?.({ presetName: 'Push', update });
     await act(async () => {
+      capturedArgs.onNeedsUpdate?.(offer(update));
       answerHandler?.({ sessionId: 'other', update: true });
     });
     expect(update).not.toHaveBeenCalled();

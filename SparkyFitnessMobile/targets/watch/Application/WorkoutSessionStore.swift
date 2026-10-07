@@ -55,14 +55,13 @@ final class WorkoutSessionStore: ObservableObject {
     /// dismiss it or arm another workout. Not persisted: it is a keepsake of
     /// the moment, not session state.
     @Published private(set) var lastSummary: WorkoutSummary?
-    /// The phone's question, after a finish, about saving this workout's
-    /// changes into its saved workout. Nil unless it is for the summary on
-    /// screen. Not persisted, like the summary it sits on.
-    @Published private(set) var presetOffer: PresetUpdateOffer?
-    private var heldPresetOffer: PresetUpdateOffer?
-    /// Workouts whose question was answered, so a queued copy arriving later
-    /// does not ask again.
-    private var answeredOfferSessions: Set<String> = []
+    /// What the plan looked like when the workout started, to tell whether
+    /// the exercises or sets have changed since. Not persisted: a restored
+    /// workout simply is not asked.
+    private var baselineStructure: [String]?
+    /// Set when Finish is tapped on a workout that changed from its saved
+    /// workout; the workout screen asks whether to update it before ending.
+    @Published var askingPresetUpdate = false
     private var heartRateSum: Double = 0
     private var heartRateCount: Int = 0
     private var heartRateMax: Double?
@@ -400,8 +399,8 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         lastSummary = nil
-        presetOffer = nil
-        heldPresetOffer = nil
+        askingPresetUpdate = false
+        baselineStructure = Self.structure(of: plan)
         resetHeartRateStats()
         wristLoggedSetIds = []
         celebratedPrSetIds = []
@@ -442,7 +441,8 @@ final class WorkoutSessionStore: ObservableObject {
             capEndsAt: plan.capEndsAt,
             pausedAt: pausedAt,
             excludedPauseSeconds: excludedPauseSeconds,
-            intervalRevision: revision
+            intervalRevision: revision,
+            fromPreset: plan.fromPreset
         )
         persistSnapshot(reportedEnergyKcal: nil)
     }
@@ -478,7 +478,8 @@ final class WorkoutSessionStore: ObservableObject {
             capEndsAt: current.capEndsAt,
             pausedAt: current.pausedAt,
             excludedPauseSeconds: current.excludedPauseSeconds,
-            intervalRevision: current.intervalRevision
+            intervalRevision: current.intervalRevision,
+            fromPreset: current.fromPreset
         )
         steps = Self.steps(for: newPlan)
         let adopted = pendingUnknownCompletions.filter { id in
@@ -513,6 +514,7 @@ final class WorkoutSessionStore: ObservableObject {
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {
+        askingPresetUpdate = false
         plan = nil
         steps = []
         currentStepIndex = 0
@@ -605,40 +607,27 @@ final class WorkoutSessionStore: ObservableObject {
 
     func recordSummary(_ summary: WorkoutSummary?) {
         lastSummary = summary
-        presetOffer = nil
-        // An offer that beat the summary here, for this same workout.
-        if let held = heldPresetOffer, held.sessionId == summary?.sessionId {
-            presetOffer = held
-        }
-        heldPresetOffer = nil
     }
 
     func dismissSummary() {
         lastSummary = nil
-        presetOffer = nil
-        heldPresetOffer = nil
     }
 
-    /// Takes the phone's update question, but only for the summary showing
-    /// now: a late one for an earlier workout must not interrupt this one.
-    ///
-    /// The phone answers within a couple of seconds, which can be before the
-    /// watch has finished writing the workout to Health and shown its summary,
-    /// so an early one is held for `recordSummary` to pick up.
-    func receivePresetOffer(sessionId: String, presetName: String) {
-        guard !answeredOfferSessions.contains(sessionId) else { return }
-        let offer = PresetUpdateOffer(sessionId: sessionId, presetName: presetName)
-        if let summary = lastSummary, summary.sessionId == sessionId {
-            presetOffer = offer
-        } else {
-            heldPresetOffer = offer
+    /// The exercises and the number and kind of sets in each, in order: what
+    /// a saved workout is made of. Weights and reps are left out, as on the
+    /// phone, so loading more weight does not count as a change.
+    private static func structure(of plan: ActiveWorkoutPlan) -> [String] {
+        plan.exercises.map { exercise in
+            let sets = exercise.sets.map { $0.setType ?? "normal" }.joined(separator: ",")
+            return "\(exercise.name)|\(sets)"
         }
     }
 
-    /// Closes the question. The caller sends the answer to the phone.
-    func clearPresetOffer() {
-        if let id = presetOffer?.sessionId { answeredOfferSessions.insert(id) }
-        presetOffer = nil
+    /// Started from a saved workout and since changed: exercises or sets were
+    /// added or removed. Only then does Finish ask whether to update it.
+    var changedFromPreset: Bool {
+        guard let plan, plan.fromPreset == true, let baselineStructure else { return false }
+        return Self.structure(of: plan) != baselineStructure
     }
 
     func recordActiveEnergy(kcal: Double) {

@@ -602,10 +602,6 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "ack": handle(ack: payload)
         case "workoutStart": handle(workoutStart: payload)
         case "workoutStop": handle(workoutStopFromPhone: payload)
-        case "presetUpdateOffer":
-            if let offer = ContextPayloadMapper.presetUpdateOffer(from: payload) {
-                workoutStore.receivePresetOffer(sessionId: offer.sessionId, presetName: offer.presetName)
-            }
         case "intervalTiming": handle(intervalTiming: payload)
         case "setTargets": handle(setTargets: payload)
         case "workoutPlanUpdate": handle(workoutPlanUpdate: payload)

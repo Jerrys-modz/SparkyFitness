@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WatchConnectivity from '../../modules/watch-connectivity';
 import {
   useWorkoutCompletePresetSync,
@@ -10,16 +10,33 @@ import {
 } from '../stores/pendingPresetUpdateStore';
 
 /**
- * Asks "Update preset?" for a workout finished on the watch while the phone
- * was elsewhere, the same question the completion screen asks after a phone
- * finish. The watch is asked first, on its post-workout summary; the phone's
- * own prompt waits for the app to be in front and covers a watch that was out
- * of reach or never answered. Mount inside the navigation container (the
- * prompt waits for focus).
+ * Handles "Update preset?" for a workout finished on the watch while the
+ * phone was elsewhere, where the completion screen never opens. The watch
+ * asks the question itself when Finish is tapped (as Hevy does) and sends the
+ * answer, which is applied here once the finished workout arrives. Without an
+ * answer (the watch had nothing to ask, or was out of reach) the phone's own
+ * prompt covers it once the app is in front. Mount inside the navigation
+ * container (the prompt waits for focus).
  */
 export default function PendingPresetUpdatePrompt() {
   const pending = usePendingPresetUpdateStore((s) => s.pending);
   const clearPending = usePendingPresetUpdateStore((s) => s.clearPending);
+
+  // Always listening, not only while a finish is pending: the answer is given
+  // on the watch before the finished workout reaches the phone.
+  useEffect(() => {
+    if (WatchConnectivity == null) return;
+    const sub = WatchConnectivity.addListener(
+      'onPresetUpdateAnswer',
+      (answer) => {
+        usePendingPresetUpdateStore
+          .getState()
+          .setAnswer(answer.sessionId, answer.update);
+      }
+    );
+    return () => sub.remove();
+  }, []);
+
   if (pending == null) return null;
   // Keyed so a newer finish starts a fresh check rather than reusing the
   // old one's "already prompted" state.
@@ -64,61 +81,35 @@ function PendingPrompt({
     [previousSessionSets, exerciseConfigs, weightUnit, workoutFormat]
   );
 
-  const updateRef = useRef<PresetUpdateOffer['update'] | null>(null);
-  const answeredRef = useRef(false);
+  const answer = usePendingPresetUpdateStore((s) => s.answers[sessionId]);
+  const clearAnswer = usePendingPresetUpdateStore((s) => s.clearAnswer);
+  const [offer, setOffer] = useState<PresetUpdateOffer | null>(null);
+  const handledRef = useRef(false);
+
+  const settle = useCallback(() => {
+    clearAnswer(sessionId);
+    onSettled();
+  }, [clearAnswer, sessionId, onSettled]);
 
   // The wearer's answer to the question on the watch.
   useEffect(() => {
-    if (WatchConnectivity == null) return;
-    const sub = WatchConnectivity.addListener(
-      'onPresetUpdateAnswer',
-      (answer) => {
-        if (answer.sessionId !== sessionId || answeredRef.current) return;
-        answeredRef.current = true;
-        void (async () => {
-          if (answer.update) await updateRef.current?.();
-          onSettled();
-        })();
-      }
-    );
-    return () => sub.remove();
-  }, [sessionId, onSettled]);
+    if (answer === undefined || handledRef.current) return;
+    if (!answer) {
+      handledRef.current = true;
+      settle();
+      return;
+    }
+    if (offer == null) return;
+    handledRef.current = true;
+    void (async () => {
+      await offer.update();
+      settle();
+    })();
+  }, [answer, offer, settle]);
 
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (retryRef.current != null) clearTimeout(retryRef.current);
-    },
-    []
-  );
-
-  const handleNeedsUpdate = useCallback(
-    (offer: PresetUpdateOffer) => {
-      updateRef.current = offer.update;
-      // The watch only hears a live message, and can be briefly out of reach
-      // as its workout session winds down, so try again a few times. Not
-      // reachable at all is fine: the phone's own prompt still shows.
-      const attempt = (left: number) => {
-        void (async () => {
-          let sent = false;
-          try {
-            sent =
-              (await WatchConnectivity?.offerPresetUpdate(
-                sessionId,
-                offer.presetName
-              )) === true;
-          } catch {
-            sent = false;
-          }
-          if (!sent && left > 0 && !answeredRef.current) {
-            retryRef.current = setTimeout(() => attempt(left - 1), 3000);
-          }
-        })();
-      };
-      attempt(5);
-    },
-    [sessionId]
-  );
+  const handleNeedsUpdate = useCallback((needed: PresetUpdateOffer) => {
+    setOffer(needed);
+  }, []);
 
   useWorkoutCompletePresetSync({
     session,
@@ -127,8 +118,9 @@ function PendingPrompt({
     completedSetIds,
     plannedSetValues,
     assumeSources,
-    onSettled,
+    onSettled: settle,
     onNeedsUpdate: handleNeedsUpdate,
+    skipPrompt: answer !== undefined,
   });
   return null;
 }

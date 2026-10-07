@@ -246,6 +246,7 @@ private struct EndWorkoutDialogs: ViewModifier {
     let beforeEnding: () -> Void
 
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var store: WorkoutSessionStore
 
     func body(content: Content) -> some View {
         content
@@ -260,7 +261,12 @@ private struct EndWorkoutDialogs: ViewModifier {
                     // re-rendering against a plan that `endWorkout` has
                     // already cleared.
                     beforeEnding()
-                    session.endWorkout()
+                    if store.changedFromPreset {
+                        // The workout screen asks first, then ends it.
+                        store.askingPresetUpdate = true
+                    } else {
+                        session.endWorkout()
+                    }
                 }
                 Button("Cancel", role: .cancel) { Haptics.tap() }
             } message: {

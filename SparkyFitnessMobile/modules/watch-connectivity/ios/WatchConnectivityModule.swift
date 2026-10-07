@@ -582,28 +582,6 @@ public class WatchConnectivityModule: Module {
         /// summary. Live only, never queued: the summary it belongs to is gone
         /// by the time a queued copy could arrive. False when the watch cannot
         /// be reached, so the caller knows only the phone will ask.
-        AsyncFunction("offerPresetUpdate") { (sessionId: String, presetName: String) -> Bool in
-            guard WCSession.isSupported() else { return false }
-            let payload: [String: Any] = [
-                "type": "presetUpdateOffer",
-                "sessionId": sessionId,
-                "presetName": presetName,
-            ]
-            if WCSession.default.isReachable {
-                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
-            } else {
-                // Out of reach right now (the phone app was closed and woke
-                // only briefly): queue it, so the watch still gets the
-                // question when the link is back. The watch matches it to its
-                // summary by session id and ignores one it already answered.
-                WCSession.default.outstandingUserInfoTransfers
-                    .filter { ($0.userInfo["type"] as? String) == "presetUpdateOffer" }
-                    .forEach { $0.cancel() }
-                WCSession.default.transferUserInfo(payload)
-            }
-            return true
-        }
-
         /// Pause or resume the cap. Always queued, so a watch out of range
         /// still hears it, and sent immediately when reachable so the cap
         /// freezes without waiting for the queue. The watch keeps a snapshot

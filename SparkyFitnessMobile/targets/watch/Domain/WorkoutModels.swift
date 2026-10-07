@@ -97,6 +97,9 @@ struct ActiveWorkoutPlan: Codable, Equatable {
     let excludedPauseSeconds: Int?
     /// Phone's pause/resume counter. A lower number is an older message.
     let intervalRevision: Int?
+    /// The workout was started from a saved one, so Finish asks whether to
+    /// update it when the exercises or sets changed. Nil from an older phone.
+    let fromPreset: Bool?
 
     init(
         sessionId: String,
@@ -110,7 +113,8 @@ struct ActiveWorkoutPlan: Codable, Equatable {
         capEndsAt: Date? = nil,
         pausedAt: Date? = nil,
         excludedPauseSeconds: Int? = nil,
-        intervalRevision: Int? = nil
+        intervalRevision: Int? = nil,
+        fromPreset: Bool? = nil
     ) {
         self.sessionId = sessionId
         self.workoutName = workoutName
@@ -124,6 +128,7 @@ struct ActiveWorkoutPlan: Codable, Equatable {
         self.pausedAt = pausedAt
         self.excludedPauseSeconds = excludedPauseSeconds
         self.intervalRevision = intervalRevision
+        self.fromPreset = fromPreset
     }
 }
 
@@ -219,13 +224,6 @@ enum SetKind: String, CaseIterable {
 }
 
 /// Totals shown on the watch once a workout is finished.
-/// The phone asking whether to save a finished workout's changes into the
-/// saved workout it was started from.
-struct PresetUpdateOffer: Equatable {
-    let sessionId: String
-    let presetName: String
-}
-
 struct WorkoutSummary: Equatable {
     let durationSeconds: Int
     let setsCompleted: Int

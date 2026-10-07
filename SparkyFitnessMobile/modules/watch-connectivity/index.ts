@@ -426,6 +426,11 @@ export interface WatchWorkoutStartPayload {
    * `startedAt`.
    */
   capEndsAt?: string | null;
+  /**
+   * The workout came from a saved workout. The watch asks whether to update
+   * it when Finish is tapped on a workout whose exercises or sets changed.
+   */
+  fromPreset?: boolean;
 }
 
 /** One set logged on the watch during an active workout. */
@@ -575,8 +580,8 @@ export interface WatchWorkoutDiscardPayload {
   armedAt?: number;
 }
 
-/** The wearer's answer to the "update this workout?" question the phone put on
- * the watch after a workout finished. */
+/** The wearer's answer to the watch's "update this workout?" question, asked
+ * when they tap Finish on a workout started from a saved one and changed. */
 export interface WatchPresetUpdateAnswerPayload {
   sessionId: string;
   /** True to write the workout's changes into the saved workout. */
@@ -715,14 +720,6 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     stoppedAt: string,
     discarded: boolean
   ): Promise<void>;
-  /**
-   * Asks the wearer, on the post-workout summary, whether to save a finished
-   * workout's changes into its saved workout. Sent live when the watch is
-   * reachable, otherwise queued, since the phone app may have been closed and
-   * only woken briefly by the finish. The watch matches it to its summary by
-   * session id. Resolves false only when WatchConnectivity is unsupported.
-   */
-  offerPresetUpdate(sessionId: string, presetName: string): Promise<boolean>;
   /**
    * Absolute pause snapshot for the live session. `revision` only increases.
    * `excludedPauseMs` is time already resumed, so a late pause cannot undo it.
