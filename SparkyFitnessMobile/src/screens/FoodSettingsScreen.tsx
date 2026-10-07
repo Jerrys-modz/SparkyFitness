@@ -208,16 +208,6 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
             })}
             onPress={() => navigation.navigate('NutrientDisplaySettings')}
           />
-          <SettingsRow
-            title={t('foodSettings.nutrients.goalDirection', {
-              defaultValue: 'Goal Direction',
-            })}
-            subtitle={t('foodSettings.nutrients.goalDirectionSubtitle', {
-              defaultValue:
-                'Set whether each nutrient goal is a minimum, maximum, or range',
-            })}
-            onPress={() => navigation.navigate('NutrientGoalDirection')}
-          />
         </SettingsRowGroup>
 
         {/* {t('foodSettings.netCarbs.title', { defaultValue: 'Show Net Carbs' })} */}
