@@ -359,7 +359,12 @@ private struct ActiveWorkoutView: View {
                     title: pending.step.exerciseName,
                     summary: pending.summary(unit: checkIn.context.effectiveWeightUnit)
                 ) { rpe in
-                    session.sendSetCompleted(pending.step, values: pending.values, rpe: rpe)
+                    session.sendSetCompleted(
+                        pending.step,
+                        values: pending.values,
+                        rpe: rpe,
+                        completedAt: pending.completedAt
+                    )
                     pendingRpe = nil
                 }
                 .background(Color.black.ignoresSafeArea())
@@ -376,7 +381,11 @@ private struct ActiveWorkoutView: View {
                 showingExercises = true
             }
             if ScreenshotSeed.opensRpe, let step = store.currentStep {
-                pendingRpe = PendingRpe(step: step, values: store.values(for: step))
+                pendingRpe = PendingRpe(
+                    step: step,
+                    values: store.values(for: step),
+                    completedAt: Date()
+                )
             }
             #endif
         }
@@ -864,7 +873,7 @@ private struct CurrentSetView: View {
                 if let completed = store.completeCurrentSet() {
                     let values = store.values(for: completed)
                     if checkIn.context.effectiveRpeEnabled {
-                        onAwaitRpe(PendingRpe(step: completed, values: values))
+                        onAwaitRpe(PendingRpe(step: completed, values: values, completedAt: Date()))
                     } else {
                         session.sendSetCompleted(completed, values: values)
                     }
@@ -1646,6 +1655,9 @@ private struct PendingRpe: Identifiable {
     let id = UUID()
     let step: WorkoutStep
     let values: SetValues
+    /// When the set was ticked, not when its effort was saved: the phone starts
+    /// its rest from this, so the two timers end together.
+    let completedAt: Date
 
     /// "Set 1/3: 65.0lbs × 12", with whichever of weight and reps the set has.
     func summary(unit: WeightUnit) -> String {
