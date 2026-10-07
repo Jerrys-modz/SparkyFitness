@@ -72,7 +72,7 @@ router.post('/', authenticate, async (req, res, next) => {
 });
 const targetWeightBodySchema = z.object({
   // Kilograms, matching the NUMERIC(5,2) column; null clears the goal.
-  targetWeight: z.number().gt(0).lt(1000).nullable(),
+  targetWeight: z.number().gt(0).max(999.99).nullable(),
 });
 /**
  * @swagger
@@ -102,7 +102,7 @@ router.put('/target-weight', authenticate, async (req, res, next) => {
     const parsed = targetWeightBodySchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
-        error: 'targetWeight must be a number between 0 and 1000 kg, or null.',
+        error: 'targetWeight must be a number above 0 and at most 999.99 kg, or null.',
       });
     }
     await onboardingService.setTargetWeight(
