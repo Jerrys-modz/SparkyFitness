@@ -76,6 +76,7 @@ describe('WatchSettingsScreen', () => {
       'workout',
       'goals',
       'water',
+      'medications',
       'entry',
       'trend',
     ]);
@@ -119,6 +120,7 @@ describe('WatchSettingsScreen', () => {
     expect(useAppPreferencesStore.getState().watchPageOrder).toEqual([
       'water',
       'goals',
+      'medications',
       'entry',
       'trend',
       'workout',
@@ -127,7 +129,7 @@ describe('WatchSettingsScreen', () => {
 
   test('the last page still shown cannot be turned off', () => {
     useAppPreferencesStore.setState({
-      hiddenWatchPages: ['goals', 'water', 'entry', 'trend'],
+      hiddenWatchPages: ['goals', 'water', 'medications', 'entry', 'trend'],
     });
 
     renderScreen();
