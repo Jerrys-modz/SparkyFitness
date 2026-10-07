@@ -1334,7 +1334,10 @@
       "beforeMeal": "Before meal",
       "withMeal": "With meal",
       "afterMeal": "After meal",
-      "awayFromMeals": "Away from meals"
+      "awayFromMeals": "Away from meals",
+      "softgel": "Softgel",
+      "gummy": "Gummy",
+      "powder": "Powder"
     },
     "weekdays": {
       "title": "Days of Week",
@@ -1380,6 +1383,39 @@
     "inactiveCount_other": "Inactive ({{count}})",
     "mealRelation": {
       "awayFromMeals": "Away from meals"
+    },
+    "filter": {
+      "all": "All",
+      "meds": "Meds",
+      "supplements": "Supplements"
+    },
+    "supplement": {
+      "add": "Add Supplement",
+      "none": "No supplements yet",
+      "toggle": "This is a supplement",
+      "form": "Form",
+      "formTitle": "Supplement Form",
+      "newTitle": "New Supplement",
+      "editTitle": "Edit Supplement",
+      "nameRequired": "Please enter a supplement name.",
+      "invalidAmount": "Nutrient amounts must be numbers that are zero or more.",
+      "nutrientsFailed": "Failed to set up the nutrients: {{error}}",
+      "nutritionTitle": "Nutrition per serving",
+      "nutritionHint": "Enter the amounts from the label for one serving. Each dose you log adds them to your day.",
+      "energyAndMacros": "Energy and macros",
+      "vitaminsAndMinerals": "Vitamins, minerals and more",
+      "addNutrient": "Add nutrient",
+      "multivitaminPanel": "Multivitamin panel",
+      "amountA11y": "{{name}} amount in {{unit}}",
+      "removeNutrient": "Remove {{name}}",
+      "nutrientCount_one": "{{count}} nutrient",
+      "nutrientCount_other": "{{count}} nutrients",
+      "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}",
+      "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule.",
+      "unnamedSchedule": "a schedule",
+      "modeUpdateNotApplied": "The requested supplement mode was not applied.",
+      "nutrientsNotSaved": "The supplement was created, but its nutrient values were not saved because this account has no diary access.",
+      "nutrientsNotUpdated": "The nutrient changes were not saved."
     }
   },
   "scheduleSummary": {
