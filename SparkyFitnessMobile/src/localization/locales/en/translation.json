@@ -1468,7 +1468,8 @@
       "notAddedMore_one": "{{names}} and {{count}} more",
       "notAddedMore_other": "{{names}} and {{count}} more",
       "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}",
-      "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule."
+      "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule.",
+      "unnamedSchedule": "a schedule"
     },
     "glp1": {
       "inventory": {
