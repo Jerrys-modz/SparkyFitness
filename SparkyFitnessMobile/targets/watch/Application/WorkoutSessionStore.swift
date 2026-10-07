@@ -635,7 +635,13 @@ final class WorkoutSessionStore: ObservableObject {
     /// caller then waits for the answer instead of ending the workout.
     func askPresetUpdateBeforeFinish() -> Bool {
         guard changedFromPreset else { return false }
-        askingPresetUpdate = true
+        // Raised a moment later: the Finish confirmation or the exercise sheet
+        // is still closing, and SwiftUI drops an alert presented over a
+        // dismissal in progress, which left Finish doing nothing at all.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            askingPresetUpdate = true
+        }
         return true
     }
 
