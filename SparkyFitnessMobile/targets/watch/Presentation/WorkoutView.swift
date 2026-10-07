@@ -370,6 +370,7 @@ private struct ActiveWorkoutView: View {
     /// view for `RestView` and would take the picker, and the set with it, away
     /// before anything was sent. Sent once, on pick, skip or dismissal.
     @State private var pendingRpe: PendingRpe?
+    @State private var page: WorkoutPageID? = .set
 
     /// Always available, including during rest: Finish lives in the picker
     /// sheet, and hiding the chevron while resting left no way to end the
@@ -379,22 +380,35 @@ private struct ActiveWorkoutView: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
-            MetricsStrip(onBack: openExerciseList)
-            if let format = store.plan?.workoutFormat?.lowercased(), format != "standard" {
-                IntervalCaptionView(plan: store.plan)
-            }
-
-            Group {
-                if store.isResting {
-                    RestView()
-                } else if let step = store.currentStep {
-                    CurrentSetView(step: step) { pendingRpe = $0 }
-                } else {
-                    WorkoutCompleteView()
+        // The set screen, then (scrolling up from the bottom, as in Hevy) what
+        // can be done to the set, to the exercise, and to the workout. Each is
+        // one screen tall and the scroll snaps to it. The crown scrolls only
+        // while no value box has claimed it for adjusting a number.
+        ScrollView {
+            VStack(spacing: 0) {
+                setScreen
+                    .containerRelativeFrame(.vertical, alignment: .top)
+                    .id(WorkoutPageID.set)
+                if let step = store.currentStep {
+                    SetOptionsPage(step: step)
+                        .containerRelativeFrame(.vertical)
+                        .id(WorkoutPageID.setOptions)
+                    ExerciseOptionsPage(step: step)
+                        .containerRelativeFrame(.vertical)
+                        .id(WorkoutPageID.exerciseOptions)
                 }
+                WorkoutActionsPage()
+                    .containerRelativeFrame(.vertical)
+                    .id(WorkoutPageID.actions)
             }
+            .scrollTargetLayout()
         }
+        .scrollPosition(id: $page)
+        .scrollTargetBehavior(.paging)
+        .scrollIndicators(.hidden)
+        // A set logged here or on the phone, an edit, or a jump from the
+        // list moves the cursor: back to the set screen.
+        .onChange(of: store.currentStep?.plannedSet.setId) { page = .set }
         .padding(.horizontal, 4)
         // Over the whole page rather than a sheet: a sheet brings the system's
         // close button, which sat on top of the exercise name and left no room
@@ -436,6 +450,29 @@ private struct ActiveWorkoutView: View {
             #endif
         }
     }
+
+    private var setScreen: some View {
+        VStack(spacing: 4) {
+            MetricsStrip(onBack: openExerciseList)
+            if let format = store.plan?.workoutFormat?.lowercased(), format != "standard" {
+                IntervalCaptionView(plan: store.plan)
+            }
+
+            Group {
+                if store.isResting {
+                    RestView()
+                } else if let step = store.currentStep {
+                    CurrentSetView(step: step) { pendingRpe = $0 }
+                } else {
+                    WorkoutCompleteView()
+                }
+            }
+        }
+    }
+}
+
+private enum WorkoutPageID: Hashable {
+    case set, setOptions, exerciseOptions, actions
 }
 
 /// Shown after the last set is logged. Finish used to live only in the
@@ -478,11 +515,11 @@ private struct ExerciseListView: View {
     let onSelect: (String) -> Void
 
     @EnvironmentObject private var store: WorkoutSessionStore
-    @EnvironmentObject private var session: WatchSessionManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var confirmingFinish = false
     @State private var confirmingDiscard = false
+    @State private var addingExercise = false
 
     private var exercises: [PlannedExercise] { store.plan?.exercises ?? [] }
 
@@ -553,6 +590,17 @@ private struct ExerciseListView: View {
                     }
                 }
 
+                Section {
+                    Button {
+                        Haptics.tap()
+                        addingExercise = true
+                    } label: {
+                        Label("Add Exercise", systemImage: "plus")
+                            .font(.caption)
+                    }
+                    .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
+                }
+
                 // Finishing lives here rather than on the set screen: this is
                 // the workout's overview, and an end-everything button one tap
                 // from the tick that logs a set is a mis-tap waiting to happen.
@@ -578,36 +626,14 @@ private struct ExerciseListView: View {
             .navigationTitle(store.plan?.workoutName ?? "Workout")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .confirmationDialog(
-            "Finish workout?",
-            isPresented: $confirmingFinish,
-            titleVisibility: .visible
-        ) {
-            Button("Finish", role: .destructive) {
-                Haptics.tap()
-                // Dismissed first so the sheet is not re-rendering against a
-                // plan that `endWorkout` has already cleared.
-                dismiss()
-                session.endWorkout()
-            }
-            Button("Cancel", role: .cancel) { Haptics.tap() }
-        } message: {
-            Text("Heart rate for this session is sent to your phone.")
-        }
-        .confirmationDialog(
-            "Discard workout?",
-            isPresented: $confirmingDiscard,
-            titleVisibility: .visible
-        ) {
-            Button("Discard", role: .destructive) {
-                Haptics.tap()
-                dismiss()
-                session.discardWorkout()
-            }
-            Button("Cancel", role: .cancel) { Haptics.tap() }
-        } message: {
-            Text("This workout won't be saved.")
-        }
+        .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
+        // Dismissed first so the sheet is not re-rendering against a plan
+        // that `endWorkout` has already cleared.
+        .endWorkoutDialogs(
+            confirmingFinish: $confirmingFinish,
+            confirmingDiscard: $confirmingDiscard,
+            beforeEnding: { dismiss() }
+        )
     }
 }
 

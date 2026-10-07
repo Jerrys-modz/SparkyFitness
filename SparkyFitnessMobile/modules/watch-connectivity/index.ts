@@ -257,6 +257,12 @@ export interface WatchContextPayload {
    */
   startableWorkouts?: { presetId: string; name: string }[] | null;
   /**
+   * Exercises the wearer can add to a running workout from the wrist: recent
+   * ones first, then the most used. Names and ids only; the phone loads the
+   * exercise itself. Absent on an older phone.
+   */
+  suggestedExercises?: { exerciseId: string; name: string }[] | null;
+  /**
    * Today's planned workouts (from the active workout plans), shown above the
    * saved ones. Each is also a saved workout, so a tap starts it by `presetId`
    * like any other. Absent on an older phone.
@@ -546,6 +552,25 @@ export interface WatchPresetUpdateAnswerPayload {
   update: boolean;
 }
 
+/**
+ * An edit made on the watch's workout page. `clientId` lets the phone drop a
+ * copy delivered twice. `sessionId` ties it to the workout it was made in.
+ */
+export interface WatchWorkoutEditPayload {
+  sessionId: string;
+  clientId: string;
+  action:
+    'addSet' | 'deleteSet' | 'setSetType' | 'addExercise' | 'deleteExercise';
+  /** For `addSet` and `deleteExercise`. */
+  exerciseEntryId?: string;
+  /** For `deleteSet` and `setSetType`. */
+  setId?: string;
+  /** For `addExercise`: the library exercise to add. */
+  exerciseId?: string;
+  /** For `setSetType`: `normal`, `warmup`, `drop` or `failure`. */
+  setType?: string;
+}
+
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
   /** Active server the list was built for. Empty when an older watch omitted it. */
@@ -618,6 +643,7 @@ export type WatchConnectivityEvents = {
   onRecordingControl: (payload: WatchRecordingControlPayload) => void;
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
   onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
+  onWorkoutEdit: (payload: WatchWorkoutEditPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
