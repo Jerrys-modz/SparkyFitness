@@ -40,11 +40,6 @@ export async function applyWatchWorkoutEdit(
     case 'deleteSet':
       if (payload.setId) live.deleteSet(payload.setId);
       return;
-    case 'setSetType':
-      if (payload.setId && payload.setType) {
-        live.updateSetField(payload.setId, { set_type: payload.setType });
-      }
-      return;
     case 'deleteExercise':
       if (payload.exerciseEntryId) live.removeExercise(payload.exerciseEntryId);
       return;
@@ -69,8 +64,7 @@ export async function applyWatchWorkoutEdit(
 }
 
 /**
- * Lets the watch add and remove sets and exercises, and change a set's type,
- * in the workout it is running. iOS-only; a no-op everywhere else.
+ * Lets the watch add and remove sets and exercises in the workout it is running. iOS-only; a no-op everywhere else.
  */
 export function useWatchWorkoutEdit(enabled: boolean): void {
   useEffect(() => {

@@ -13,7 +13,6 @@ jest.mock('../../src/services/api/exerciseApi', () => ({
 const actions = {
   addSetToExercise: jest.fn(),
   deleteSet: jest.fn(),
-  updateSetField: jest.fn(),
   removeExercise: jest.fn(),
   addExercise: jest.fn(),
 };
@@ -46,13 +45,6 @@ describe('applyWatchWorkoutEdit', () => {
     await edit({ action: 'deleteExercise', exerciseEntryId: 'entry-2' });
     expect(actions.deleteSet).toHaveBeenCalledWith('12');
     expect(actions.removeExercise).toHaveBeenCalledWith('entry-2');
-  });
-
-  it('changes a set type', async () => {
-    await edit({ action: 'setSetType', setId: '12', setType: 'warmup' });
-    expect(actions.updateSetField).toHaveBeenCalledWith('12', {
-      set_type: 'warmup',
-    });
   });
 
   it('loads and adds an exercise', async () => {

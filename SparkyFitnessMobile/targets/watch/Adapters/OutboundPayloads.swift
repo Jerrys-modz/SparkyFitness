@@ -105,7 +105,7 @@ enum OutboundPayloads {
         ]
     }
 
-    /// An add, delete or set-type change in the running workout. `clientId`
+    /// An add or delete of a set or exercise in the running workout. `clientId`
     /// lets the phone drop a copy delivered twice (live, then queued).
     static func workoutEdit(
         sessionId: String,
@@ -124,10 +124,6 @@ enum OutboundPayloads {
         case .deleteSet(let setId):
             payload["action"] = "deleteSet"
             payload["setId"] = setId
-        case .setSetType(let setId, let type):
-            payload["action"] = "setSetType"
-            payload["setId"] = setId
-            payload["setType"] = type
         case .addExercise(let exerciseId):
             payload["action"] = "addExercise"
             payload["exerciseId"] = exerciseId
