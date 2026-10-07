@@ -240,7 +240,7 @@ export const ApiSettings = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 w-full sm:w-48">
+            <div className="space-y-2 w-full sm:w-48 sm:shrink-0">
               <Label htmlFor="api-key-scope">
                 {t('settings.apiKeyManagement.access', 'Access')}
               </Label>
