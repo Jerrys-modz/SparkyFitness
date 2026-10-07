@@ -13,6 +13,7 @@ struct SetOptionsPage: View {
     let step: WorkoutStep
 
     @EnvironmentObject private var session: WatchSessionManager
+    @State private var choosingType = false
     @State private var confirmingDelete = false
 
     var body: some View {
@@ -21,12 +22,21 @@ struct SetOptionsPage: View {
                 Haptics.tap()
                 session.sendWorkoutEdit(.addSet(exerciseEntryId: step.exerciseEntryId))
             }
+            Button("Set Type") {
+                Haptics.tap()
+                choosingType = true
+            }
             Button("Delete Set") {
                 Haptics.tap()
                 confirmingDelete = true
             }
             .tint(.red)
             .buttonStyle(.borderedProminent)
+        }
+        .sheet(isPresented: $choosingType) {
+            SetTypeSheet(current: step.plannedSet.setType) { type in
+                session.sendWorkoutEdit(.setSetType(setId: step.plannedSet.setId, type: type))
+            }
         }
         .confirmationDialog(
             "Delete this set?",
@@ -40,6 +50,42 @@ struct SetOptionsPage: View {
             Button("Cancel", role: .cancel) { Haptics.tap() }
         } message: {
             Text("An exercise's last set removes the exercise.")
+        }
+    }
+}
+
+private struct SetTypeSheet: View {
+    let current: String?
+    let onPick: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private let types: [(id: String, name: String)] = [
+        ("normal", "Normal"),
+        ("warmup", "Warm-up"),
+        ("drop", "Drop set"),
+        ("failure", "Failure"),
+    ]
+
+    var body: some View {
+        NavigationStack {
+            List(types, id: \.id) { type in
+                Button {
+                    Haptics.tap()
+                    onPick(type.id)
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(type.name)
+                        Spacer(minLength: 0)
+                        if (current ?? "normal").lowercased() == type.id {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Set Type")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
