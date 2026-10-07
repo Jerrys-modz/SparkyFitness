@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import { authenticate } from '../middleware/authMiddleware.js';
 import onboardingService from '../services/onboardingService.js';
 const router = express.Router();
@@ -65,6 +66,50 @@ router.post('/', authenticate, async (req, res, next) => {
     }
     await onboardingService.processOnboardingData(userId, onboardingData);
     res.status(201).json({ message: 'Onboarding completed successfully.' });
+  } catch (error) {
+    next(error);
+  }
+});
+const targetWeightBodySchema = z.object({
+  // Kilograms, matching the NUMERIC(5,2) column; null clears the goal.
+  targetWeight: z.number().gt(0).max(999.99).nullable(),
+});
+/**
+ * @swagger
+ * /onboarding/target-weight:
+ *   put:
+ *     summary: Set or clear the user's target weight (kg)
+ *     tags: [Goals & Personalization]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               targetWeight: { type: number, nullable: true }
+ *             required: [targetWeight]
+ *     responses:
+ *       200:
+ *         description: Target weight saved.
+ *       400:
+ *         description: Invalid target weight.
+ */
+router.put('/target-weight', authenticate, async (req, res, next) => {
+  try {
+    const parsed = targetWeightBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'targetWeight must be a number above 0 and at most 999.99 kg, or null.',
+      });
+    }
+    await onboardingService.setTargetWeight(
+      req.userId,
+      parsed.data.targetWeight
+    );
+    res.status(200).json({ targetWeight: parsed.data.targetWeight });
   } catch (error) {
     next(error);
   }
