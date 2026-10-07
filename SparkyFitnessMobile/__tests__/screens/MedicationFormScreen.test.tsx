@@ -12,6 +12,7 @@ import {
 } from '../../src/hooks/useMedications';
 import type { MedicationDetail } from '@workspace/shared';
 import type { RootStackScreenProps } from '../../src/types/navigation';
+import { formatLocalizedTimeOfDay } from '../../src/utils/medicationScheduleLocalization';
 
 type ScreenProps = RootStackScreenProps<'MedicationForm'>;
 
@@ -465,7 +466,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     await waitFor(() => expect(alert).toHaveBeenCalled());
     const message = String(alert.mock.calls[0]?.[1]);
     expect(message).toContain('boom');
-    expect(message).toContain('08:00');
+    expect(message).toContain(formatLocalizedTimeOfDay('08:00'));
     expect(updateMutate).not.toHaveBeenCalled();
     alert.mockRestore();
   });

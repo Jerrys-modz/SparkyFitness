@@ -23,6 +23,7 @@ import Icon from '../components/Icon';
 import Switch from '../components/ui/Switch';
 import type { RootStackScreenProps } from '../types/navigation';
 import { medicationTypeLabel } from '../utils/medicationLocalization';
+import { formatLocalizedTimeOfDay } from '../utils/medicationScheduleLocalization';
 import { MEDICATION_TYPES } from '../types/medications';
 import SupplementNutrientsEditor from '../components/medications/SupplementNutrientsEditor';
 import {
@@ -317,7 +318,13 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           return results.flatMap((result, index) => {
             if (result.status !== 'rejected') return [];
             const time = overridden[index]?.time_of_day;
-            return [time ? time : 'a schedule'];
+            return [
+              time
+                ? formatLocalizedTimeOfDay(time)
+                : t('medications.supplement.unnamedSchedule', {
+                    defaultValue: 'a schedule',
+                  }),
+            ];
           });
         };
         try {

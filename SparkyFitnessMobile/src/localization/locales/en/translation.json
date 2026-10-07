@@ -1411,7 +1411,8 @@
       "nutrientCount_one": "{{count}} nutrient",
       "nutrientCount_other": "{{count}} nutrients",
       "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}",
-      "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule."
+      "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule.",
+      "unnamedSchedule": "a schedule"
     }
   },
   "scheduleSummary": {
