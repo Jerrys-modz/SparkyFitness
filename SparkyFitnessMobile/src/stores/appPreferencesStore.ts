@@ -440,6 +440,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
+        mindfulnessCardVisible: state.mindfulnessCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,

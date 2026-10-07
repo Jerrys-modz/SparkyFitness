@@ -65,7 +65,10 @@ type BreathPhase = 'inhale' | 'holdIn' | 'exhale' | 'holdOut';
 interface BreathworkModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (durationSeconds: number, sessionType: string) => void;
+  onSave: (
+    durationSeconds: number,
+    sessionType: string
+  ) => void | Promise<unknown>;
 }
 
 export const BreathworkModal: React.FC<BreathworkModalProps> = ({
@@ -203,11 +206,15 @@ export const BreathworkModal: React.FC<BreathworkModalProps> = ({
     setIsActive(false);
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     const finalSeconds = elapsedSeconds;
     resetState();
     if (finalSeconds > 0) {
-      onSave(finalSeconds, 'breathwork');
+      try {
+        await onSave(finalSeconds, 'breathwork');
+      } catch {
+        // Handled by onSave
+      }
     }
     onClose();
   };

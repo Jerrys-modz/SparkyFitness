@@ -37,7 +37,13 @@ export type CreateMindfulnessSessionBody = z.infer<
 >;
 
 export const updateMindfulnessSessionBodySchema =
-  createMindfulnessSessionBodySchema.partial().omit({ user_id: true });
+  createMindfulnessSessionBodySchema
+    .partial()
+    .omit({ user_id: true })
+    .extend({
+      session_type: z.string().optional(),
+      provider: z.string().optional(),
+    });
 export type UpdateMindfulnessSessionBody = z.infer<
   typeof updateMindfulnessSessionBodySchema
 >;

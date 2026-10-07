@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
@@ -19,6 +19,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -56,30 +66,27 @@ interface MindfulnessSectionProps {
 
 const BREATHING_PATTERNS = {
   box: {
-    name: 'Box Breathing',
-    desc: 'Focus & Stress Relief',
     inhale: 4,
     hold1: 4,
     exhale: 4,
     hold2: 4,
   },
   relax: {
-    name: '4-7-8 Relaxation',
-    desc: 'Deep Calm & Sleep Prep',
     inhale: 4,
     hold1: 7,
     exhale: 8,
     hold2: 0,
   },
   coherence: {
-    name: 'Coherent Resonance',
-    desc: 'HRV Maximization',
-    inhale: 5.5,
+    inhale: 5,
     hold1: 0,
-    exhale: 5.5,
+    exhale: 5,
     hold2: 0,
   },
 };
+
+type BreathingPatternKey = keyof typeof BREATHING_PATTERNS;
+type BreathPhase = 'Inhale' | 'Hold' | 'Exhale' | 'Rest';
 
 export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
   selectedDate,
@@ -92,10 +99,12 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
     useUpdateMindfulnessSessionMutation();
   const { mutateAsync: deleteSession } = useDeleteMindfulnessSessionMutation();
 
-  // Dialog states
+  // Dialog & Action states
   const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
   const [editingSession, setEditingSession] =
     useState<MindfulnessSessionResponse | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [activeTool, setActiveTool] = useState<'none' | 'breathe' | 'timer'>(
     'none'
   );
@@ -111,21 +120,55 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
   const [formHrv, setFormHrv] = useState('');
 
   // Breathing Pacer State
-  const [patternKey, setPatternKey] =
-    useState<keyof typeof BREATHING_PATTERNS>('box');
+  const [patternKey, setPatternKey] = useState<BreathingPatternKey>('box');
   const [isBreathingActive, setIsBreathingActive] = useState(false);
-  const [breathPhase, setBreathPhase] = useState<
-    'Inhale' | 'Hold' | 'Exhale' | 'Rest'
-  >('Inhale');
+  const [breathPhase, setBreathPhase] = useState<BreathPhase>('Inhale');
   const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(4);
   const [breathElapsed, setBreathElapsed] = useState(0);
+  const breathPhaseRef = useRef<BreathPhase>('Inhale');
+  breathPhaseRef.current = breathPhase;
 
   // Meditation Timer State
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerTargetSeconds, setTimerTargetSeconds] = useState(600); // 10 min default
   const [timerElapsed, setTimerElapsed] = useState(0);
 
-  // Breathing interval loop
+  const getPatternName = (key: BreathingPatternKey) => {
+    switch (key) {
+      case 'box':
+        return t('mindfulness.pacer.boxName', 'Box Breathing');
+      case 'relax':
+        return t('mindfulness.pacer.relaxName', '4-7-8 Relaxation');
+      case 'coherence':
+        return t('mindfulness.pacer.coherenceName', 'Coherent Resonance');
+    }
+  };
+
+  const getPatternDesc = (key: BreathingPatternKey) => {
+    switch (key) {
+      case 'box':
+        return t('mindfulness.pacer.boxDesc', 'Focus & Stress Relief');
+      case 'relax':
+        return t('mindfulness.pacer.relaxDesc', 'Deep Calm & Sleep Prep');
+      case 'coherence':
+        return t('mindfulness.pacer.coherenceDesc', 'HRV Maximization');
+    }
+  };
+
+  const getPhaseName = (phase: BreathPhase) => {
+    switch (phase) {
+      case 'Inhale':
+        return t('mindfulness.pacer.inhale', 'Inhale');
+      case 'Hold':
+        return t('mindfulness.pacer.hold', 'Hold');
+      case 'Exhale':
+        return t('mindfulness.pacer.exhale', 'Exhale');
+      case 'Rest':
+        return t('mindfulness.pacer.rest', 'Rest');
+    }
+  };
+
+  // Breathing interval loop (ref-based phase tracking avoids drift and interval teardown churn)
   useEffect(() => {
     if (!isBreathingActive) return;
 
@@ -135,37 +178,44 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
 
       setPhaseSecondsLeft((prev) => {
         if (prev <= 1) {
-          // Advance phase
-          if (breathPhase === 'Inhale') {
+          const currentPhase = breathPhaseRef.current;
+          let nextPhase: BreathPhase;
+          let nextDuration: number;
+
+          if (currentPhase === 'Inhale') {
             if (pattern.hold1 > 0) {
-              setBreathPhase('Hold');
-              return pattern.hold1;
+              nextPhase = 'Hold';
+              nextDuration = pattern.hold1;
             } else {
-              setBreathPhase('Exhale');
-              return pattern.exhale;
+              nextPhase = 'Exhale';
+              nextDuration = pattern.exhale;
             }
-          } else if (breathPhase === 'Hold') {
-            setBreathPhase('Exhale');
-            return pattern.exhale;
-          } else if (breathPhase === 'Exhale') {
+          } else if (currentPhase === 'Hold') {
+            nextPhase = 'Exhale';
+            nextDuration = pattern.exhale;
+          } else if (currentPhase === 'Exhale') {
             if (pattern.hold2 > 0) {
-              setBreathPhase('Rest');
-              return pattern.hold2;
+              nextPhase = 'Rest';
+              nextDuration = pattern.hold2;
             } else {
-              setBreathPhase('Inhale');
-              return pattern.inhale;
+              nextPhase = 'Inhale';
+              nextDuration = pattern.inhale;
             }
           } else {
-            setBreathPhase('Inhale');
-            return pattern.inhale;
+            nextPhase = 'Inhale';
+            nextDuration = pattern.inhale;
           }
+
+          breathPhaseRef.current = nextPhase;
+          setBreathPhase(nextPhase);
+          return nextDuration;
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isBreathingActive, breathPhase, patternKey]);
+  }, [isBreathingActive, patternKey]);
 
   // Meditation Timer interval loop
   useEffect(() => {
@@ -186,6 +236,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
 
   const handleStartBreathing = () => {
     const pattern = BREATHING_PATTERNS[patternKey];
+    breathPhaseRef.current = 'Inhale';
     setBreathPhase('Inhale');
     setPhaseSecondsLeft(pattern.inhale);
     setBreathElapsed(0);
@@ -200,7 +251,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
         duration_seconds: breathElapsed,
         session_type: 'breathwork',
         provider: 'manual',
-        notes: `${BREATHING_PATTERNS[patternKey].name} session`,
+        notes: `${getPatternName(patternKey)} session`,
       });
       setBreathElapsed(0);
     }
@@ -284,6 +335,17 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
     setFormHrv('');
   };
 
+  const handleConfirmDelete = async () => {
+    if (!sessionToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteSession(sessionToDelete);
+      setSessionToDelete(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatSeconds = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -318,7 +380,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
           <CardContent>
             <p className="text-xs text-muted-foreground">
               {summary?.session_count ?? 0}{' '}
-              {summary?.session_count === 1 ? 'session' : 'sessions'} recorded
+              {summary?.session_count === 1
+                ? t('mindfulness.stats.recorded_one', 'session recorded')
+                : t('mindfulness.stats.recorded_other', 'sessions recorded')}
             </p>
           </CardContent>
         </Card>
@@ -331,7 +395,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               {t('mindfulness.pacer.title', 'Paced Breathing')}
             </CardDescription>
             <CardTitle className="text-lg font-semibold">
-              Breathwork Guide
+              {t('mindfulness.pacer.subtitle', 'Breathwork Guide')}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -343,7 +407,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               }
               className="w-full border-blue-500/30 hover:bg-blue-500/10 text-blue-400"
             >
-              {activeTool === 'breathe' ? 'Hide Pacer' : 'Launch Pacer'}
+              {activeTool === 'breathe'
+                ? t('mindfulness.pacer.hide', 'Hide Pacer')
+                : t('mindfulness.pacer.launch', 'Launch Pacer')}
             </Button>
           </CardContent>
         </Card>
@@ -355,7 +421,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               {t('mindfulness.timer.title', 'Meditation Timer')}
             </CardDescription>
             <CardTitle className="text-lg font-semibold">
-              Open / Timed Session
+              {t('mindfulness.timer.subtitle', 'Open / Timed Session')}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -367,7 +433,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               }
               className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-400"
             >
-              {activeTool === 'timer' ? 'Hide Timer' : 'Launch Timer'}
+              {activeTool === 'timer'
+                ? t('mindfulness.timer.hide', 'Hide Timer')
+                : t('mindfulness.timer.launch', 'Launch Timer')}
             </Button>
           </CardContent>
         </Card>
@@ -381,11 +449,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Wind className="w-5 h-5 text-blue-400" />
-                  {BREATHING_PATTERNS[patternKey].name}
+                  {getPatternName(patternKey)}
                 </CardTitle>
-                <CardDescription>
-                  {BREATHING_PATTERNS[patternKey].desc}
-                </CardDescription>
+                <CardDescription>{getPatternDesc(patternKey)}</CardDescription>
               </div>
 
               {!isBreathingActive && (
@@ -402,7 +468,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                       onClick={() => setPatternKey(key)}
                       className="text-xs"
                     >
-                      {BREATHING_PATTERNS[key].name.split(' ')[0]}
+                      {getPatternName(key).split(' ')[0]}
                     </Button>
                   ))}
                 </div>
@@ -424,7 +490,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               />
               <div className="z-10 text-center">
                 <p className="text-2xl font-bold tracking-wide text-foreground">
-                  {isBreathingActive ? breathPhase : 'Ready'}
+                  {isBreathingActive
+                    ? getPhaseName(breathPhase)
+                    : t('mindfulness.pacer.ready', 'Ready')}
                 </p>
                 {isBreathingActive && (
                   <p className="text-4xl font-extrabold text-blue-400 mt-1 font-mono">
@@ -441,7 +509,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   className="bg-blue-600 hover:bg-blue-500 text-white px-8"
                 >
                   <Play className="w-4 h-4 mr-2" />
-                  Begin Breathing
+                  {t('mindfulness.pacer.begin', 'Begin Breathing')}
                 </Button>
               ) : (
                 <Button
@@ -450,7 +518,8 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   className="px-8"
                 >
                   <Pause className="w-4 h-4 mr-2" />
-                  Complete ({formatSeconds(breathElapsed)})
+                  {t('mindfulness.pacer.complete', 'Complete')} (
+                  {formatSeconds(breathElapsed)})
                 </Button>
               )}
             </div>
@@ -466,10 +535,13 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Timer className="w-5 h-5 text-purple-400" />
-                  Meditation Session Timer
+                  {t('mindfulness.timer.heading', 'Meditation Session Timer')}
                 </CardTitle>
                 <CardDescription>
-                  Quiet focus with automated completion recording
+                  {t(
+                    'mindfulness.timer.description',
+                    'Quiet focus with automated completion recording'
+                  )}
                 </CardDescription>
               </div>
 
@@ -509,7 +581,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   className="bg-purple-600 hover:bg-purple-500 text-white px-8"
                 >
                   <Play className="w-4 h-4 mr-2" />
-                  {timerElapsed > 0 ? 'Resume' : 'Start Timer'}
+                  {timerElapsed > 0
+                    ? t('mindfulness.timer.resume', 'Resume')
+                    : t('mindfulness.timer.start', 'Start Timer')}
                 </Button>
               ) : (
                 <Button
@@ -518,7 +592,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   className="px-8"
                 >
                   <Pause className="w-4 h-4 mr-2" />
-                  Pause
+                  {t('mindfulness.timer.pause', 'Pause')}
                 </Button>
               )}
 
@@ -529,7 +603,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   className="px-6"
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Save & Finish
+                  {t('mindfulness.timer.saveAndFinish', 'Save & Finish')}
                 </Button>
               )}
             </div>
@@ -545,7 +619,11 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               {t('mindfulness.history.title', 'Today’s Sessions')}
             </CardTitle>
             <CardDescription>
-              Wearable imports and manual entries for {selectedDate}
+              {t(
+                'mindfulness.history.subtitle',
+                'Wearable imports and manual entries for {{date}}',
+                { date: selectedDate }
+              )}
             </CardDescription>
           </div>
           <Button size="sm" onClick={handleOpenCreate} className="gap-2">
@@ -556,17 +634,22 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
         <CardContent>
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground text-sm">
-              Loading mindfulness data...
+              {t('mindfulness.history.loading', 'Loading mindfulness data...')}
             </div>
           ) : !summary?.sessions || summary.sessions.length === 0 ? (
             <div className="py-10 text-center border border-dashed rounded-xl border-border/60">
               <Sparkles className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
               <p className="text-sm font-medium text-foreground">
-                No mindfulness sessions recorded for this day
+                {t(
+                  'mindfulness.history.emptyTitle',
+                  'No mindfulness sessions recorded for this day'
+                )}
               </p>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                Take a quick 5-minute breathing break, meditate, or log a
-                wearable session from Apple Health / Garmin.
+                {t(
+                  'mindfulness.history.emptyDescription',
+                  'Take a quick 5-minute breathing break, meditate, or log a wearable session from Apple Health / Garmin.'
+                )}
               </p>
             </div>
           ) : (
@@ -579,7 +662,10 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm capitalize">
-                        {session.session_type}
+                        {t(
+                          `mindfulness.types.${session.session_type}`,
+                          session.session_type
+                        )}
                       </span>
                       {session.provider && session.provider !== 'manual' && (
                         <Badge
@@ -624,7 +710,7 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                       size="icon"
                       className="text-muted-foreground hover:text-foreground h-8 w-8"
                       onClick={() => handleOpenEdit(session)}
-                      title="Edit session"
+                      title={t('mindfulness.actions.edit', 'Edit session')}
                     >
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -632,8 +718,8 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                       variant="ghost"
                       size="icon"
                       className="text-muted-foreground hover:text-destructive h-8 w-8"
-                      onClick={() => deleteSession(session.id)}
-                      title="Delete session"
+                      onClick={() => setSessionToDelete(session.id)}
+                      title={t('mindfulness.actions.delete', 'Delete session')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -657,14 +743,19 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
           <DialogHeader>
             <DialogTitle>
               {editingSession
-                ? 'Edit Mindfulness Session'
-                : 'Log Mindfulness Session'}
+                ? t('mindfulness.dialog.editTitle', 'Edit Mindfulness Session')
+                : t(
+                    'mindfulness.dialog.createTitle',
+                    'Log Mindfulness Session'
+                  )}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleManualSubmit} className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="minutes">Minutes</Label>
+                <Label htmlFor="minutes">
+                  {t('mindfulness.dialog.minutes', 'Minutes')}
+                </Label>
                 <Input
                   id="minutes"
                   type="number"
@@ -676,7 +767,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="seconds">Seconds</Label>
+                <Label htmlFor="seconds">
+                  {t('mindfulness.dialog.seconds', 'Seconds')}
+                </Label>
                 <Input
                   id="seconds"
                   type="number"
@@ -691,25 +784,41 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sessionType">Type</Label>
+              <Label htmlFor="sessionType">
+                {t('mindfulness.dialog.type', 'Type')}
+              </Label>
               <Select value={formType} onValueChange={setFormType}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="meditation">Meditation</SelectItem>
-                  <SelectItem value="breathwork">Breathwork</SelectItem>
-                  <SelectItem value="reflection">Reflection</SelectItem>
-                  <SelectItem value="walking">Mindful Walking</SelectItem>
-                  <SelectItem value="yoga">Yoga</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="meditation">
+                    {t('mindfulness.types.meditation', 'Meditation')}
+                  </SelectItem>
+                  <SelectItem value="breathwork">
+                    {t('mindfulness.types.breathwork', 'Breathwork')}
+                  </SelectItem>
+                  <SelectItem value="reflection">
+                    {t('mindfulness.types.reflection', 'Reflection')}
+                  </SelectItem>
+                  <SelectItem value="walking">
+                    {t('mindfulness.types.walking', 'Mindful Walking')}
+                  </SelectItem>
+                  <SelectItem value="yoga">
+                    {t('mindfulness.types.yoga', 'Yoga')}
+                  </SelectItem>
+                  <SelectItem value="other">
+                    {t('mindfulness.types.other', 'Other')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="hrAvg">Avg Heart Rate (bpm)</Label>
+                <Label htmlFor="hrAvg">
+                  {t('mindfulness.dialog.hrAvg', 'Avg Heart Rate (bpm)')}
+                </Label>
                 <Input
                   id="hrAvg"
                   type="number"
@@ -720,7 +829,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="hrv">HRV RMSSD (ms)</Label>
+                <Label htmlFor="hrv">
+                  {t('mindfulness.dialog.hrv', 'HRV RMSSD (ms)')}
+                </Label>
                 <Input
                   id="hrv"
                   type="number"
@@ -733,7 +844,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="hrStart">Start HR (bpm)</Label>
+                <Label htmlFor="hrStart">
+                  {t('mindfulness.dialog.hrStart', 'Start HR (bpm)')}
+                </Label>
                 <Input
                   id="hrStart"
                   type="number"
@@ -744,7 +857,9 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="hrEnd">End HR (bpm)</Label>
+                <Label htmlFor="hrEnd">
+                  {t('mindfulness.dialog.hrEnd', 'End HR (bpm)')}
+                </Label>
                 <Input
                   id="hrEnd"
                   type="number"
@@ -756,10 +871,15 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">
+                {t('mindfulness.dialog.notes', 'Notes')}
+              </Label>
               <Textarea
                 id="notes"
-                placeholder="How did this session feel?"
+                placeholder={t(
+                  'mindfulness.dialog.notesPlaceholder',
+                  'How did this session feel?'
+                )}
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 rows={2}
@@ -775,21 +895,58 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                   setEditingSession(null);
                 }}
               >
-                Cancel
+                {t('mindfulness.actions.cancel', 'Cancel')}
               </Button>
               <Button type="submit" disabled={isCreating || isUpdating}>
                 {editingSession
                   ? isUpdating
-                    ? 'Saving...'
-                    : 'Update Session'
+                    ? t('mindfulness.actions.saving', 'Saving...')
+                    : t('mindfulness.dialog.update', 'Update Session')
                   : isCreating
-                    ? 'Saving...'
-                    : 'Save Session'}
+                    ? t('mindfulness.actions.saving', 'Saving...')
+                    : t('mindfulness.dialog.save', 'Save Session')}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog
+        open={!!sessionToDelete}
+        onOpenChange={(open) => !open && setSessionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t(
+                'mindfulness.deleteDialog.title',
+                'Delete Mindfulness Session'
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'mindfulness.deleteDialog.description',
+                'Are you sure you want to delete this mindfulness session? This action cannot be undone.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              {t('mindfulness.actions.cancel', 'Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting
+                ? t('mindfulness.deleteDialog.deleting', 'Deleting...')
+                : t('mindfulness.deleteDialog.confirm', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

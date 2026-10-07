@@ -52,7 +52,7 @@ describe('MindfulnessDetailScreen', () => {
   const mockDeleteSession = jest.fn();
 
   beforeAll(async () => {
-    await initializeI18n();
+    await initializeI18n('en');
   });
 
   beforeEach(() => {

@@ -14,7 +14,10 @@ import Icon from '../Icon';
 interface MeditationTimerModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (durationSeconds: number, sessionType: string) => void;
+  onSave: (
+    durationSeconds: number,
+    sessionType: string
+  ) => void | Promise<unknown>;
 }
 
 const PRESET_MINUTES = [5, 10, 15, 20];
@@ -94,7 +97,7 @@ export const MeditationTimerModal: React.FC<MeditationTimerModalProps> = ({
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     let finalSeconds = 0;
     if (mode === 'countdown') {
       finalSeconds = selectedMinutes * 60 - secondsRemaining;
@@ -104,7 +107,11 @@ export const MeditationTimerModal: React.FC<MeditationTimerModalProps> = ({
 
     resetState();
     if (finalSeconds > 0) {
-      onSave(finalSeconds, 'meditation');
+      try {
+        await onSave(finalSeconds, 'meditation');
+      } catch {
+        // Handled by onSave
+      }
     }
     onClose();
   };

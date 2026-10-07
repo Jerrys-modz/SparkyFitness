@@ -24,11 +24,8 @@ export const useCreateMindfulnessSessionMutation = () => {
   return useMutation({
     mutationFn: (data: CreateMindfulnessSessionBody) =>
       createMindfulnessSession(data),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mindfulnessKeys.all });
-      queryClient.invalidateQueries({
-        queryKey: mindfulnessKeys.daySummary(variables.entry_date),
-      });
     },
   });
 };

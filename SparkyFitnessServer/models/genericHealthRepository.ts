@@ -242,7 +242,7 @@ export async function upsertDailyHealthMetrics(
          lactate_threshold_speed_mps, walking_asymmetry_percentage, hill_score, race_prediction_5k_seconds,
          race_prediction_10k_seconds, race_prediction_half_marathon_seconds, race_prediction_marathon_seconds,
          recovery_time_hours, training_readiness_score, endurance_score, weekly_training_load, acute_training_load,
-         chronic_training_load, acwr_ratio, avg_stress_level, max_stress_level, body_battery_charged, body_battery_dra          body_battery_highest, body_battery_lowest, total_mindful_minutes, updated_at)
+         chronic_training_load, acwr_ratio, avg_stress_level, max_stress_level, body_battery_charged, body_battery_drained, body_battery_highest, body_battery_lowest, total_mindful_minutes, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, NOW())
        ON CONFLICT (user_id, entry_date, source_provider)
        DO UPDATE SET

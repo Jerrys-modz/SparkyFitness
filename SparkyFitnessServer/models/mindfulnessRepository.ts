@@ -77,6 +77,24 @@ export async function createMindfulnessSession(
         $11, $12, $13, $14,
         $15, $16, $17
       )
+      ON CONFLICT (user_id, provider, external_id)
+        WHERE external_id IS NOT NULL
+      DO UPDATE SET
+        entry_date = EXCLUDED.entry_date,
+        start_time = COALESCE(EXCLUDED.start_time, mindfulness_sessions.start_time),
+        end_time = COALESCE(EXCLUDED.end_time, mindfulness_sessions.end_time),
+        duration_seconds = EXCLUDED.duration_seconds,
+        session_type = EXCLUDED.session_type,
+        heart_rate_avg = COALESCE(EXCLUDED.heart_rate_avg, mindfulness_sessions.heart_rate_avg),
+        heart_rate_start = COALESCE(EXCLUDED.heart_rate_start, mindfulness_sessions.heart_rate_start),
+        heart_rate_end = COALESCE(EXCLUDED.heart_rate_end, mindfulness_sessions.heart_rate_end),
+        hrv_rmssd = COALESCE(EXCLUDED.hrv_rmssd, mindfulness_sessions.hrv_rmssd),
+        stress_level_start = COALESCE(EXCLUDED.stress_level_start, mindfulness_sessions.stress_level_start),
+        stress_level_end = COALESCE(EXCLUDED.stress_level_end, mindfulness_sessions.stress_level_end),
+        mood_entry_id = COALESCE(EXCLUDED.mood_entry_id, mindfulness_sessions.mood_entry_id),
+        notes = COALESCE(EXCLUDED.notes, mindfulness_sessions.notes),
+        updated_by_user_id = EXCLUDED.created_by_user_id,
+        updated_at = NOW()
       RETURNING *`,
       [
         userId,

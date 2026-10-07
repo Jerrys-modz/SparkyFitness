@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import FormInput from '../FormInput';
 import Icon from '../Icon';
+import Toast from 'react-native-toast-message';
 import { BreathworkModal } from './BreathworkModal';
 import { MeditationTimerModal } from './MeditationTimerModal';
 import type {
@@ -132,25 +133,39 @@ export const MindfulnessSessionModal: React.FC<
   };
 
   const handleBreathworkSave = async (durationSecs: number, sType: string) => {
-    await onSave({
-      entry_date: selectedDate,
-      duration_seconds: durationSecs,
-      session_type: sType,
-      provider: 'manual',
-    });
-    setBreathworkVisible(false);
-    onClose();
+    try {
+      await onSave({
+        entry_date: selectedDate,
+        duration_seconds: durationSecs,
+        session_type: sType,
+        provider: 'manual',
+      });
+      setBreathworkVisible(false);
+      onClose();
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: t('common.error', { defaultValue: 'Error' }),
+      });
+    }
   };
 
   const handleTimerSave = async (durationSecs: number, sType: string) => {
-    await onSave({
-      entry_date: selectedDate,
-      duration_seconds: durationSecs,
-      session_type: sType,
-      provider: 'manual',
-    });
-    setTimerVisible(false);
-    onClose();
+    try {
+      await onSave({
+        entry_date: selectedDate,
+        duration_seconds: durationSecs,
+        session_type: sType,
+        provider: 'manual',
+      });
+      setTimerVisible(false);
+      onClose();
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: t('common.error', { defaultValue: 'Error' }),
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -191,6 +206,11 @@ export const MindfulnessSessionModal: React.FC<
         await onSave(payload);
       }
       onClose();
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: t('common.error', { defaultValue: 'Error' }),
+      });
     } finally {
       setIsSubmitting(false);
     }
