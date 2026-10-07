@@ -71,8 +71,14 @@ router.post('/', authenticate, async (req, res, next) => {
   }
 });
 const targetWeightBodySchema = z.object({
-  // Kilograms, matching the NUMERIC(5,2) column; null clears the goal.
-  targetWeight: z.number().gt(0).max(999.99).nullable(),
+  // Kilograms, matching the NUMERIC(5,2) column: rounded to two decimals as
+  // the column would, and refused if that leaves nothing. Null clears the goal.
+  targetWeight: z
+    .number()
+    .max(999.99)
+    .nullable()
+    .transform((kg) => (kg === null ? null : Math.round(kg * 100) / 100))
+    .refine((kg) => kg === null || kg > 0),
 });
 /**
  * @swagger

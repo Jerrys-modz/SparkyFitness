@@ -10,6 +10,9 @@ import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import { useSetTargetWeight } from '@/hooks/Onboarding/useOnboarding';
 import { kgToLbs, lbsToKg } from '@/utils/unitConversions';
 
+/** Largest goal the server accepts: the `numeric(5,2)` column's maximum. */
+const MAX_GOAL_WEIGHT_KG = 999.99;
+
 export const GoalWeight = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -29,15 +32,41 @@ export const GoalWeight = () => {
         ).toString()
       : '';
 
-  // `null` means the user has not edited; show what is saved.
-  const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? savedDisplay;
+  // `null` means the user has not edited; show what is saved. A draft keeps
+  // the unit it was typed in, so changing the unit preference while it is
+  // unsaved converts it instead of reading the same number in the new unit.
+  const [draft, setDraft] = useState<{
+    text: string;
+    unit: 'kg' | 'lbs';
+  } | null>(null);
+  const draftNumber = draft == null ? NaN : Number(draft.text);
+  const value =
+    draft == null
+      ? savedDisplay
+      : draft.unit === inputUnit || !Number.isFinite(draftNumber)
+        ? draft.text
+        : Number(
+            (inputUnit === 'kg'
+              ? lbsToKg(draftNumber)
+              : kgToLbs(draftNumber)
+            ).toFixed(1)
+          ).toString();
   const parsed = Number(value);
-  const isValid = value.trim() !== '' && Number.isFinite(parsed) && parsed > 0;
+  const parsedKg = inputUnit === 'kg' ? parsed : lbsToKg(parsed);
+  // The server stores NUMERIC(5,2), so anything above 999.99 kg is refused.
+  const maxDisplay =
+    inputUnit === 'kg'
+      ? MAX_GOAL_WEIGHT_KG
+      : Math.floor(kgToLbs(MAX_GOAL_WEIGHT_KG) * 10) / 10;
+  const isValid =
+    value.trim() !== '' &&
+    Number.isFinite(parsed) &&
+    parsedKg > 0 &&
+    parsedKg <= MAX_GOAL_WEIGHT_KG;
 
   const handleSave = async () => {
     if (!isValid) return;
-    await saveTargetWeight(inputUnit === 'kg' ? parsed : lbsToKg(parsed));
+    await saveTargetWeight(parsedKg);
     setDraft(null);
   };
 
@@ -74,19 +103,26 @@ export const GoalWeight = () => {
             step="0.1"
             inputMode="decimal"
             value={value}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) =>
+              setDraft({ text: e.target.value, unit: inputUnit })
+            }
           />
-          {draft !== null && !isValid && draft.trim() !== '' && (
+          {draft !== null && !isValid && draft.text.trim() !== '' && (
             <p className="text-xs text-destructive">
-              {t(
-                'goals.goalsSettings.goalWeightInvalid',
-                'Enter a weight greater than zero.'
-              )}
+              {t('goals.goalsSettings.goalWeightInvalid', {
+                max: maxDisplay,
+                unit: inputUnit,
+                defaultValue:
+                  'Enter a weight above zero and up to {{max}} {{unit}}.',
+              })}
             </p>
           )}
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSave} disabled={saving || !isValid}>
+          <Button
+            onClick={handleSave}
+            disabled={saving || draft === null || !isValid}
+          >
             {t('goals.goalsSettings.goalWeightSave', 'Save goal weight')}
           </Button>
           {savedDisplay !== '' && (

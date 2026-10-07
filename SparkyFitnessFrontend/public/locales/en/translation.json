@@ -2784,7 +2784,7 @@
       "goalWeight": "Goal Weight",
       "goalWeightDescription": "Your target weight. The weight trend chart uses it to project when you will reach it.",
       "goalWeightInputLabel": "Goal weight ({{unit}})",
-      "goalWeightInvalid": "Enter a weight greater than zero.",
+      "goalWeightInvalid": "Enter a weight above zero and up to {{max}} {{unit}}.",
       "goalWeightSave": "Save goal weight",
       "goalWeightClear": "Clear",
       "goalWeightSaved": "Goal weight saved.",
