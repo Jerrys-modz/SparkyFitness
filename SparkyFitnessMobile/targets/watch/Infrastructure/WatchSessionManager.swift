@@ -1202,7 +1202,12 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// Sends one completed set, carrying whatever the wearer typed. Queued
     /// like a check-in — a hole in the diary from a dropped delivery is not an
     /// acceptable loss, unlike a stretch of missing heart rate.
-    func sendSetCompleted(_ step: WorkoutStep, values: SetValues, rpe: Double? = nil) {
+    func sendSetCompleted(
+        _ step: WorkoutStep,
+        values: SetValues,
+        rpe: Double? = nil,
+        completedAt: Date = Date()
+    ) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
         let completed = CompletedSet(
             clientId: UUID().uuidString,
@@ -1214,7 +1219,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
             duration: workoutStore.holdLoggedSeconds(for: step.plannedSet.setId),
             rpe: rpe,
             distanceKm: step.plannedSet.carry == true ? values.distanceKm : nil,
-            completedAt: Date()
+            completedAt: completedAt
         )
         transfer(OutboundPayloads.setCompleted(completed))
     }
