@@ -392,3 +392,35 @@ struct EndFastIntent: AppIntent {
         }
     }
 }
+
+/// Opens SparkyFitness on a food screen, for the Scan food and Log food
+/// controls. A control's button cannot be trusted to open a URL on its own, so
+/// this leaves a note in the shared app group and the app, once it is in
+/// front, reads it and goes there (`useControlRouteHandoff`). It is hidden
+/// from Shortcuts and Siri: it exists only for the controls.
+@available(iOS 18.0, *)
+struct OpenFoodScreenIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open SparkyFitness"
+    static var isDiscoverable: Bool = false
+    static var openAppWhenRun: Bool = true
+
+    /// "scan" for the barcode scanner, "search" for food search.
+    @Parameter(title: "Screen")
+    var screen: String
+
+    init() {
+        screen = "search"
+    }
+
+    init(screen: String) {
+        self.screen = screen
+    }
+
+    func perform() async throws -> some IntentResult {
+        if let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+           let defaults = UserDefaults(suiteName: group) {
+            defaults.set(screen, forKey: "pendingControlRoute")
+        }
+        return .result()
+    }
+}
