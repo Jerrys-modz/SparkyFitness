@@ -208,14 +208,14 @@ export const BreathworkModal: React.FC<BreathworkModalProps> = ({
 
   const handleFinish = async () => {
     const finalSeconds = elapsedSeconds;
-    resetState();
     if (finalSeconds > 0) {
       try {
         await onSave(finalSeconds, 'breathwork');
       } catch {
-        // Handled by onSave
+        return;
       }
     }
+    resetState();
     onClose();
   };
 

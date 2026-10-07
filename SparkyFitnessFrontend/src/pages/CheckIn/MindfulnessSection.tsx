@@ -936,7 +936,10 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
               {t('mindfulness.actions.cancel', 'Cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmDelete();
+              }}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

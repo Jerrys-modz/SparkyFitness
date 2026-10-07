@@ -105,14 +105,14 @@ export const MeditationTimerModal: React.FC<MeditationTimerModalProps> = ({
       finalSeconds = stopwatchSeconds;
     }
 
-    resetState();
     if (finalSeconds > 0) {
       try {
         await onSave(finalSeconds, 'meditation');
       } catch {
-        // Handled by onSave
+        return;
       }
     }
+    resetState();
     onClose();
   };
 
