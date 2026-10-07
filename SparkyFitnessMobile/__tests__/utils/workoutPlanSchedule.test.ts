@@ -4,6 +4,7 @@ import type {
   WorkoutPlanTemplate,
 } from '../../src/types/workoutPlans';
 import {
+  findDueAssignmentForPreset,
   getLoggedAssignmentIds,
   scheduledWorkoutsForWatch,
 } from '../../src/utils/workoutPlanSchedule';
@@ -153,5 +154,25 @@ describe('getLoggedAssignmentIds', () => {
       { id: 2, exercises: [{ workout_plan_assignment_id: 'b' }] },
     ] as unknown as ExerciseSessionResponse[]);
     expect([...ids].sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('findDueAssignmentForPreset', () => {
+  it('finds the due assignment for a preset id, weekly or sequential', () => {
+    const due = assignment('7', { workout_preset_id: '42' });
+    const other = assignment('8', { workout_preset_id: '43' });
+    const weekly = plan({
+      assignments: [due, other],
+      next_assignment: other,
+      next_assignments: [due, other],
+    });
+    expect(findDueAssignmentForPreset([weekly], 42)?.id).toBe('7');
+    const sequential = plan({
+      schedule_type: 'sequential',
+      assignments: [due, other],
+      next_assignment: other,
+    });
+    expect(findDueAssignmentForPreset([sequential], 43)?.id).toBe('8');
+    expect(findDueAssignmentForPreset([sequential], 42)).toBeNull();
   });
 });
