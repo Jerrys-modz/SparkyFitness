@@ -8,6 +8,7 @@ import foodRepository from '../models/foodRepository.js';
 import moodRepository from '../models/moodRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
+import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
 import { resolveActivityMapping } from './workoutActivityMapping.js';
 import {
   computeHrZones,
@@ -1462,6 +1463,85 @@ const moodHandler: HealthTypeHandler = {
   },
 };
 
+const mindfulnessHandler: HealthTypeHandler = {
+  async handle(entry, ctx) {
+    const rawDuration =
+      entry.duration_seconds ??
+      entry.duration ??
+      (entry.value !== null && entry.value !== undefined
+        ? Number(entry.value) * 60
+        : undefined);
+    const durationSeconds = Number(rawDuration);
+    if (isNaN(durationSeconds) || durationSeconds <= 0) {
+      return {
+        status: 'error',
+        error:
+          'Invalid duration for MindfulnessSession. Must be greater than 0 seconds.',
+      };
+    }
+    const sessionType =
+      typeof entry.session_type === 'string'
+        ? entry.session_type
+        : 'meditation';
+    const provider =
+      typeof entry.source === 'string' ? entry.source : 'apple_health';
+    const externalId = entry.source_id
+      ? String(entry.source_id)
+      : entry.id
+        ? String(entry.id)
+        : null;
+    try {
+      const heartRateAvgRaw =
+        entry.heart_rate_avg !== null && entry.heart_rate_avg !== undefined
+          ? Number(entry.heart_rate_avg)
+          : entry.avg_heart_rate !== null && entry.avg_heart_rate !== undefined
+            ? Number(entry.avg_heart_rate)
+            : null;
+      const heartRateStartRaw =
+        entry.heart_rate_start !== null && entry.heart_rate_start !== undefined
+          ? Number(entry.heart_rate_start)
+          : null;
+      const heartRateEndRaw =
+        entry.heart_rate_end !== null && entry.heart_rate_end !== undefined
+          ? Number(entry.heart_rate_end)
+          : null;
+      const hrvRmssdRaw =
+        entry.hrv_rmssd !== null && entry.hrv_rmssd !== undefined
+          ? Number(entry.hrv_rmssd)
+          : null;
+
+      const result = await mindfulnessRepository.createMindfulnessSession(
+        ctx.userId,
+        {
+          entry_date: ctx.parsedDate,
+          start_time: entry.startTime ? String(entry.startTime) : null,
+          end_time: entry.endTime ? String(entry.endTime) : null,
+          duration_seconds: Math.round(durationSeconds),
+          session_type: sessionType,
+          provider,
+          external_id: externalId,
+          heart_rate_avg: heartRateAvgRaw,
+          heart_rate_start: heartRateStartRaw,
+          heart_rate_end: heartRateEndRaw,
+          hrv_rmssd: hrvRmssdRaw,
+          notes: entry.notes ? String(entry.notes) : null,
+        },
+        ctx.actingUserId
+      );
+      return { status: 'success', data: result };
+    } catch (mindfulError) {
+      const message =
+        mindfulError instanceof Error
+          ? mindfulError.message
+          : String(mindfulError);
+      return {
+        status: 'error',
+        error: `Failed to process MindfulnessSession entry: ${message}`,
+      };
+    }
+  },
+};
+
 /**
  * Columns the client is allowed to set directly via `telemetry`.
  *
@@ -2134,6 +2214,7 @@ export const HEALTH_TYPE_HANDLERS: Record<string, HealthTypeHandler> = {
   Nutrition: nutritionHandler,
   sleep_entry: sleepEntryHandler,
   Mood: moodHandler,
+  MindfulnessSession: mindfulnessHandler,
 };
 
 // Lookup-only normalization of incoming type spellings to canonical handler
@@ -2159,6 +2240,10 @@ export const TYPE_ALIASES: Record<string, string> = {
   resting_energy: 'bmr',
   ExerciseSession: 'Workout',
   mood: 'Mood',
+  MindfulSession: 'MindfulnessSession',
+  mindfulness_session: 'MindfulnessSession',
+  mindfulness: 'MindfulnessSession',
+  mindful: 'MindfulnessSession',
 };
 
 /**

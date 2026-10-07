@@ -71,6 +71,7 @@ import {
   SafeWorkoutComplete,
   SafeActivityDetail,
   SafeFastingDetail,
+  SafeMindfulnessDetail,
   SafeSleepDetail,
   SafeLogs,
   SafeSync,
@@ -127,6 +128,9 @@ import { FullWindowOverlay } from 'react-native-screens';
 import type { RootStackParamList } from './src/types/navigation';
 import type { WorkoutCelebration } from './src/utils/workoutCelebration';
 import AddSheet, { addSheetRef } from './src/components/AddSheet';
+import { MindfulnessSessionModal } from './src/components/mindfulness/MindfulnessSessionModal';
+import { useMindfulnessMutations } from './src/hooks/useMindfulness';
+import { useDiaryDateStore } from './src/stores/diaryDateStore';
 import { toastConfig } from './src/components/ui/toastConfig';
 import { TabsLayout } from './src/components/TabsLayout';
 import { createIOSSmallNativeHeaderOptions } from './src/utils/nativeHeaderItems';
@@ -283,6 +287,15 @@ function AppContent() {
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
+
+  const [mindfulnessLogModalVisible, setMindfulnessLogModalVisible] =
+    useState(false);
+  const selectedDiaryDate = useDiaryDateStore((s) => s.selectedDate);
+  const { saveSession: saveMindfulSession } =
+    useMindfulnessMutations(selectedDiaryDate);
+  const handleAddMindfulness = useCallback(() => {
+    setMindfulnessLogModalVisible(true);
+  }, []);
 
   const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
   const cycleSheetLabel = cycleDiscreet
@@ -763,6 +776,14 @@ function AppContent() {
             }}
           />
           <Stack.Screen
+            name="MindfulnessDetail"
+            component={SafeMindfulnessDetail}
+            options={{
+              headerShown: false,
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
             name="SleepDetail"
             component={SafeSleepDetail}
             options={createStackScreenOptions(t('screens.sleep', { defaultValue: 'Sleep' }), { headerBackTitle: t('navigation.diary', { defaultValue: 'Diary' }) })}
@@ -978,7 +999,30 @@ function AppContent() {
             })}
           />
         </Stack.Navigator>
-        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
+        <AddSheet
+          ref={addSheetRef}
+          onAddFood={handleAddFood}
+          onStartWorkout={handleStartWorkout}
+          onAddActivity={handleAddActivity}
+          onLogWorkout={handleLogWorkout}
+          onSyncHealthData={handleSyncHealthData}
+          onBarcodeScan={handleBarcodeScan}
+          onAddMeasurements={handleAddMeasurements}
+          onAddProgressPhotos={handleAddProgressPhotos}
+          onAddSymptoms={handleAddSymptoms}
+          onAddMindfulness={handleAddMindfulness}
+          onAskSparky={handleAskSparky}
+          onOpenCycle={handleOpenCycle}
+          showCycleCard={cycleEnabled}
+          cycleLabel={cycleSheetLabel}
+          onDismissWithoutAction={handleAddSheetDismissWithoutAction}
+        />
+        <MindfulnessSessionModal
+          visible={mindfulnessLogModalVisible}
+          onClose={() => setMindfulnessLogModalVisible(false)}
+          onSave={saveMindfulSession}
+          selectedDate={selectedDiaryDate}
+        />
         <ReauthModal
           visible={showReauthModal}
           expiredConfigId={expiredConfigId}

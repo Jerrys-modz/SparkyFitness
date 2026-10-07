@@ -324,6 +324,7 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  MindfulnessDetail: { selectedDate?: string } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;
@@ -356,7 +357,7 @@ export type RootStackParamList = {
   WhatsNew: undefined;
   MedicationsList: undefined;
   MedicationDetail: { medicationId: string };
-  MedicationForm: { medicationId?: string };
+  MedicationForm: { medicationId?: string; isSupplement?: boolean };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
   SymptomLog:
     | {

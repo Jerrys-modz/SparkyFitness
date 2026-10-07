@@ -3364,11 +3364,98 @@
     "tabs": {
       "fasting": "Fasting & Mood",
       "measurements": "Measurements",
+      "mindfulness": "Mindfulness",
       "photos": "Photos",
       "sleep": "Sleep",
       "symptoms": "Symptoms"
     },
     "noRecentActivity": "No recent activity found."
+  },
+  "mindfulness": {
+    "title": "Mindfulness",
+    "stats": {
+      "totalMinutes": "Mindful Minutes Today",
+      "sessionCount": "Sessions",
+      "recorded_one": "session recorded",
+      "recorded_other": "sessions recorded"
+    },
+    "pacer": {
+      "title": "Paced Breathing",
+      "subtitle": "Breathwork Guide",
+      "hide": "Hide Pacer",
+      "launch": "Launch Pacer",
+      "boxName": "Box Breathing",
+      "boxDesc": "Focus & Stress Relief",
+      "relaxName": "4-7-8 Relaxation",
+      "relaxDesc": "Deep Calm & Sleep Prep",
+      "coherenceName": "Coherent Resonance",
+      "coherenceDesc": "HRV Maximization",
+      "inhale": "Inhale",
+      "hold": "Hold",
+      "exhale": "Exhale",
+      "rest": "Rest",
+      "ready": "Ready",
+      "begin": "Begin Breathing",
+      "complete": "Complete"
+    },
+    "timer": {
+      "title": "Meditation Timer",
+      "subtitle": "Open / Timed Session",
+      "heading": "Meditation Session Timer",
+      "description": "Quiet focus with automated completion recording",
+      "hide": "Hide Timer",
+      "launch": "Launch Timer",
+      "start": "Start Timer",
+      "resume": "Resume",
+      "pause": "Pause",
+      "saveAndFinish": "Save & Finish"
+    },
+    "history": {
+      "title": "Today’s Sessions",
+      "subtitle": "Wearable imports and manual entries for {{date}}",
+      "loading": "Loading mindfulness data...",
+      "emptyTitle": "No mindfulness sessions recorded for this day",
+      "emptyDescription": "Take a quick 5-minute breathing break, meditate, or log a wearable session from Apple Health / Garmin."
+    },
+    "actions": {
+      "logManual": "Log Session",
+      "breathe": "Breathe",
+      "timer": "Timer",
+      "log": "Log",
+      "edit": "Edit session",
+      "delete": "Delete session",
+      "cancel": "Cancel",
+      "saving": "Saving..."
+    },
+    "types": {
+      "meditation": "Meditation",
+      "breathwork": "Breathwork",
+      "reflection": "Reflection",
+      "walking": "Mindful Walking",
+      "yoga": "Yoga",
+      "other": "Other"
+    },
+    "dialog": {
+      "editTitle": "Edit Mindfulness Session",
+      "createTitle": "Log Mindfulness Session",
+      "minutes": "Minutes",
+      "seconds": "Seconds",
+      "type": "Type",
+      "hrAvg": "Avg Heart Rate (bpm)",
+      "hrv": "HRV RMSSD (ms)",
+      "hrStart": "Start HR (bpm)",
+      "hrEnd": "End HR (bpm)",
+      "notes": "Notes",
+      "notesPlaceholder": "How did this session feel?",
+      "save": "Save Session",
+      "update": "Update Session"
+    },
+    "deleteDialog": {
+      "title": "Delete Mindfulness Session",
+      "description": "Are you sure you want to delete this mindfulness session? This action cannot be undone.",
+      "confirm": "Delete",
+      "deleting": "Deleting..."
+    }
   },
   "sleepTimelineEditor": {
     "sleepTimeline": "Sleep Timeline",
