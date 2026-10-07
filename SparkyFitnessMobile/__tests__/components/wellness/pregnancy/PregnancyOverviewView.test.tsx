@@ -58,6 +58,20 @@ jest.mock(
     return { __esModule: true, default: () => <View testID="safety-search" /> };
   }
 );
+jest.mock('../../../../src/components/wellness/pregnancy/KickCounter', () => {
+  const { View } = require('react-native');
+  return { __esModule: true, default: () => <View testID="kick-counter" /> };
+});
+jest.mock(
+  '../../../../src/components/wellness/pregnancy/ContractionTimer',
+  () => {
+    const { View } = require('react-native');
+    return {
+      __esModule: true,
+      default: () => <View testID="contraction-timer" />,
+    };
+  }
+);
 
 describe('PregnancyOverviewView', () => {
   beforeEach(() => {
@@ -71,6 +85,8 @@ describe('PregnancyOverviewView', () => {
     expect(getByTestId('week-banner')).toBeTruthy();
     expect(getByTestId('baby-growth')).toBeTruthy();
     expect(getByTestId('weekly-checklist')).toBeTruthy();
+    expect(queryByTestId('kick-counter')).toBeNull();
+    expect(queryByTestId('contraction-timer')).toBeNull();
     expect(queryByTestId('bump-photos')).toBeNull();
     expect(queryByTestId('safety-search')).toBeNull();
   });
@@ -79,6 +95,8 @@ describe('PregnancyOverviewView', () => {
     const { getByTestId, queryByTestId } = render(
       <PregnancyOverviewView section="tools" />
     );
+    expect(getByTestId('kick-counter')).toBeTruthy();
+    expect(getByTestId('contraction-timer')).toBeTruthy();
     expect(getByTestId('bump-photos')).toBeTruthy();
     expect(getByTestId('safety-search')).toBeTruthy();
     expect(queryByTestId('week-banner')).toBeNull();

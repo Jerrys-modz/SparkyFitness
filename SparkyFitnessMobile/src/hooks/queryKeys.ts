@@ -339,6 +339,8 @@ export const pregnancyCurrentQueryKey = ['pregnancyCurrent'] as const;
 export const pregnancyOverviewQueryKey = ['pregnancyOverview'] as const;
 export const pregnancyChecklistQueryKey = ['pregnancyChecklist'] as const;
 export const pregnancyPhotosQueryKey = ['pregnancyPhotos'] as const;
+export const pregnancyContractionsQueryKey = ['pregnancyContractions'] as const;
+export const appointmentsQueryKey = ['appointments'] as const;
 
 export const moodEntriesRootQueryKey = ['moodEntries'] as const;
 export const moodEntriesQueryKey = (startDate: string, endDate: string) =>

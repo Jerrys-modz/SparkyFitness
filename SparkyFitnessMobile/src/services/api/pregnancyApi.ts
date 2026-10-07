@@ -1,8 +1,14 @@
 import { apiFetch } from './apiClient';
 import type {
+  ContractionStats,
+  SharedContraction,
+  SharedKickSession,
+} from '@workspace/shared';
+import type {
   SharedPregnancy,
   PregnancyOverview,
   PregnancyChecklistItem,
+  HealthAppointment,
 } from '../../types/womensHealth';
 
 export const getCurrent = async (): Promise<SharedPregnancy | null> => {
@@ -89,5 +95,118 @@ export const upsertChecklistItem = async (
     operation: 'upsert checklist item',
     method: 'PUT',
     body,
+  });
+};
+
+// --- Kick counter ---
+
+export const startKickSession = async (
+  pregnancyId: string
+): Promise<SharedKickSession> => {
+  return apiFetch<SharedKickSession>({
+    endpoint: '/api/v2/pregnancy/kicks/start',
+    serviceName: 'Pregnancy API',
+    operation: 'start kick session',
+    method: 'POST',
+    body: { pregnancy_id: pregnancyId },
+  });
+};
+
+export interface UpdateKickSessionBody {
+  kick_count?: number;
+  kick_times?: string[];
+  ended?: boolean;
+}
+
+export const updateKickSession = async (
+  id: string,
+  body: UpdateKickSessionBody
+): Promise<SharedKickSession> => {
+  return apiFetch<SharedKickSession>({
+    endpoint: `/api/v2/pregnancy/kicks/${encodeURIComponent(id)}`,
+    serviceName: 'Pregnancy API',
+    operation: 'update kick session',
+    method: 'PUT',
+    body,
+  });
+};
+
+// --- Contraction timer ---
+
+interface ContractionAnalysis {
+  contractions: SharedContraction[];
+  stats: ContractionStats;
+}
+
+export const getContractions = async (): Promise<ContractionAnalysis> => {
+  return apiFetch<ContractionAnalysis>({
+    endpoint: '/api/v2/pregnancy/contractions',
+    serviceName: 'Pregnancy API',
+    operation: 'get contractions',
+  });
+};
+
+export const createContraction = async (
+  pregnancyId: string,
+  startedAt: string
+): Promise<SharedContraction> => {
+  return apiFetch<SharedContraction>({
+    endpoint: '/api/v2/pregnancy/contractions',
+    serviceName: 'Pregnancy API',
+    operation: 'create contraction',
+    method: 'POST',
+    body: { pregnancy_id: pregnancyId, started_at: startedAt },
+  });
+};
+
+export const updateContraction = async (
+  id: string,
+  body: { ended_at?: string | null; intensity?: number | null }
+): Promise<SharedContraction> => {
+  return apiFetch<SharedContraction>({
+    endpoint: `/api/v2/pregnancy/contractions/${encodeURIComponent(id)}`,
+    serviceName: 'Pregnancy API',
+    operation: 'update contraction',
+    method: 'PUT',
+    body,
+  });
+};
+
+// --- Appointments ---
+
+export interface CreateAppointmentBody {
+  scheduled_at: string;
+  appointment_type: string;
+  title?: string | null;
+  location?: string | null;
+  notes?: string | null;
+}
+
+export const listAppointments = async (): Promise<HealthAppointment[]> => {
+  return apiFetch<HealthAppointment[]>({
+    endpoint: '/api/v2/pregnancy/appointments',
+    serviceName: 'Pregnancy API',
+    operation: 'list appointments',
+  });
+};
+
+export const createAppointment = async (
+  body: CreateAppointmentBody
+): Promise<HealthAppointment> => {
+  return apiFetch<HealthAppointment>({
+    endpoint: '/api/v2/pregnancy/appointments',
+    serviceName: 'Pregnancy API',
+    operation: 'create appointment',
+    method: 'POST',
+    body,
+  });
+};
+
+export const deleteAppointment = async (id: string): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/v2/pregnancy/appointments/${encodeURIComponent(id)}`,
+    serviceName: 'Pregnancy API',
+    operation: 'delete appointment',
+    method: 'DELETE',
   });
 };
