@@ -360,16 +360,19 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       updateMedication.mutate(
         { id: medicationId, body: { ...base, is_active: form.isActive } },
         {
-          onSuccess: (updated) => {
+          onSuccess: async (updated) => {
             // Without diary access the server drops the mode change and
             // keeps the stored supplement flag. Closing would hide that.
+            // The schedule overrides were already cleared, so put them back.
             if (updated.is_supplement !== isSupplement) {
+              const failed = restoreOverrides ? await restoreOverrides() : [];
+              const warning = doseRestoreWarning(failed);
+              const message = t('medications.supplement.modeUpdateNotApplied', {
+                defaultValue: 'The requested supplement mode was not applied.',
+              });
               Alert.alert(
                 t('common.error', { defaultValue: 'Error' }),
-                t('medications.supplement.modeUpdateNotApplied', {
-                  defaultValue:
-                    'The requested supplement mode was not applied.',
-                })
+                warning ? `${message}\n\n${warning}` : message
               );
               return;
             }

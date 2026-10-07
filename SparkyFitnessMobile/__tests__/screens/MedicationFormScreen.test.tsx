@@ -554,6 +554,11 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     expect(String(alert.mock.calls[0]?.[1])).toContain(
       'supplement mode was not applied'
     );
+    expect(mockUpdateScheduleAsync).toHaveBeenCalledWith({
+      id: 's-1',
+      medicationId: 'med-1',
+      body: { dose_amount: 2 },
+    });
     expect(mockNavigation.goBack as jest.Mock).not.toHaveBeenCalled();
     alert.mockRestore();
   });
