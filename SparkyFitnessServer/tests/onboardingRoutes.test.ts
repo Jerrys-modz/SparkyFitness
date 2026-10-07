@@ -110,6 +110,7 @@ describe('Onboarding Routes', () => {
       { targetWeight: 0 },
       { targetWeight: -5 },
       { targetWeight: 1000 },
+      { targetWeight: 999.996 },
       { targetWeight: '80' },
       {},
     ])('rejects %j with 400', async (body) => {
