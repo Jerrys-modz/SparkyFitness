@@ -286,7 +286,15 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     if (isEditing && medicationId) {
       // Cleared schedule doses, put back if the conversion does not finish.
       // A later log would otherwise use the medication dose, not the override.
-      let restoreOverrides: (() => Promise<unknown>) | undefined;
+      let restoreOverrides: (() => Promise<string[]>) | undefined;
+      const doseRestoreWarning = (failed: string[]): string | null =>
+        failed.length === 0
+          ? null
+          : t('medications.supplement.scheduleRestoreFailed', {
+              defaultValue:
+                'The dose for {{schedules}} could not be restored. Set it again on the schedule.',
+              schedules: failed.join(', '),
+            });
 
       // A schedule's own dose wins over the medication's, and a supplement's
       // dose counts servings. Turning a medication into a supplement therefore
@@ -296,8 +304,8 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         const overridden = (existingMed.schedules ?? []).filter(
           (schedule) => schedule.dose_amount != null
         );
-        restoreOverrides = () =>
-          Promise.allSettled(
+        restoreOverrides = async () => {
+          const results = await Promise.allSettled(
             overridden.map((schedule) =>
               updateSchedule.mutateAsync({
                 id: schedule.id,
@@ -306,6 +314,12 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
               })
             )
           );
+          return results.flatMap((result, index) => {
+            if (result.status !== 'rejected') return [];
+            const time = overridden[index]?.time_of_day;
+            return [time ? time : 'a schedule'];
+          });
+        };
         try {
           const resetResults = await Promise.allSettled(
             overridden.map((schedule) =>
@@ -323,13 +337,15 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
             throw resetFailure.reason;
           }
         } catch (error) {
-          await restoreOverrides();
+          const failed = await restoreOverrides();
+          const warning = doseRestoreWarning(failed);
+          const message = t('medications.supplement.scheduleResetFailed', {
+            defaultValue: 'Failed to reset the schedule doses: {{error}}',
+            error: error instanceof Error ? error.message : String(error),
+          });
           Alert.alert(
             t('common.error', { defaultValue: 'Error' }),
-            t('medications.supplement.scheduleResetFailed', {
-              defaultValue: 'Failed to reset the schedule doses: {{error}}',
-              error: error instanceof Error ? error.message : String(error),
-            })
+            warning ? `${message}\n\n${warning}` : message
           );
           return;
         }
@@ -339,19 +355,23 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         {
           onSuccess: () => navigation.goBack(),
           onError: (error) => {
-            const report = () =>
+            const report = (warning: string | null) => {
+              const message = t('medications.form.updateFailed', {
+                defaultValue: 'Failed to update medication: {{error}}',
+                error: error.message,
+              });
               Alert.alert(
                 t('common.error', { defaultValue: 'Error' }),
-                t('medications.form.updateFailed', {
-                  defaultValue: 'Failed to update medication: {{error}}',
-                  error: error.message,
-                })
+                warning ? `${message}\n\n${warning}` : message
               );
+            };
             if (!restoreOverrides) {
-              report();
+              report(null);
               return;
             }
-            void restoreOverrides().finally(report);
+            void restoreOverrides().then((failed) =>
+              report(doseRestoreWarning(failed))
+            );
           },
         }
       );
