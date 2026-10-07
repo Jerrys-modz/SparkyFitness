@@ -1028,6 +1028,10 @@ final class WorkoutSessionStore: ObservableObject {
         /// Measurement seconds already in those totals. Optional so older
         /// snapshots still decode.
         var countedHeartRateSeconds: [Int]?
+        /// What the plan looked like when the workout started, so a relaunch
+        /// still knows whether it changed. Optional so older snapshots still
+        /// decode.
+        var baselineStructure: [String]?
     }
 
     /// A rest as stored in the snapshot.
@@ -1173,8 +1177,8 @@ final class WorkoutSessionStore: ObservableObject {
             heartRateSum: heartRateSum,
             heartRateCount: heartRateCount,
             heartRateMax: heartRateMax,
-            countedHeartRateSeconds: Array(countedHeartRateSeconds)
-
+            countedHeartRateSeconds: Array(countedHeartRateSeconds),
+            baselineStructure: baselineStructure
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -1213,6 +1217,9 @@ final class WorkoutSessionStore: ObservableObject {
         heartRateSentThrough = snapshot.heartRateSentThrough
         lastPhoneRest = snapshot.lastPhoneRest
         restoreRest(snapshot.rest)
+        // `start(with:)` took the baseline from the plan as it was saved, which
+        // may already include changes; the stored one is the real starting plan.
+        if let stored = snapshot.baselineStructure { baselineStructure = stored }
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
     }
