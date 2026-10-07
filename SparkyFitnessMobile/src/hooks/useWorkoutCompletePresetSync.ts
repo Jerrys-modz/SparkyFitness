@@ -32,6 +32,12 @@ interface UseWorkoutCompletePresetSyncArgs {
    * check pending until then.
    */
   onSettled?: () => void;
+  /**
+   * Called once when the preset turns out to need updating, before the prompt
+   * waits for the screen to be in front. Lets a caller that cannot show the
+   * prompt yet say so some other way.
+   */
+  onNeedsUpdate?: (presetName: string) => void;
 }
 
 export function useWorkoutCompletePresetSync({
@@ -42,6 +48,7 @@ export function useWorkoutCompletePresetSync({
   plannedSetValues,
   assumeSources,
   onSettled,
+  onNeedsUpdate,
 }: UseWorkoutCompletePresetSyncArgs) {
   const { t } = useTranslation();
   const { profile } = useProfile();
@@ -50,9 +57,12 @@ export function useWorkoutCompletePresetSync({
   const [sourcePreset, setSourcePreset] = useState<WorkoutPreset | null>(null);
   const promptedRef = useRef(false);
   const onSettledRef = useRef(onSettled);
+  const onNeedsUpdateRef = useRef(onNeedsUpdate);
   useEffect(() => {
     onSettledRef.current = onSettled;
+    onNeedsUpdateRef.current = onNeedsUpdate;
   });
+  const announcedRef = useRef(false);
 
   useEffect(() => {
     if (sourcePresetId == null) {
@@ -93,6 +103,14 @@ export function useWorkoutCompletePresetSync({
           }),
     [sourcePreset, session, completedSetIds, plannedSetValues, assumeSources]
   );
+
+  useEffect(() => {
+    if (announcedRef.current) return;
+    if (sourcePreset == null || presetUpdateExercises == null) return;
+    if (!sourcePreset.user_id || profile?.id !== sourcePreset.user_id) return;
+    announcedRef.current = true;
+    onNeedsUpdateRef.current?.(sourcePreset.name);
+  }, [sourcePreset, presetUpdateExercises, profile?.id]);
 
   useEffect(() => {
     if (promptedRef.current || !isFocused) return;

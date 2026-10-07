@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { AppState } from 'react-native';
 import { useWorkoutCompletePresetSync } from '../hooks/useWorkoutCompletePresetSync';
+import { notifyPresetUpdateAvailable } from '../services/notifications';
 import { usePendingPresetUpdateStore } from '../stores/pendingPresetUpdateStore';
 import type { WorkoutCelebration } from '../utils/workoutCelebration';
 
@@ -53,6 +55,13 @@ function PendingPrompt({
         : undefined,
     [previousSessionSets, exerciseConfigs, weightUnit, workoutFormat]
   );
+  // The prompt waits for the app to be in front. With the phone locked or in
+  // a pocket, an alert (mirrored to the watch) says there is something to do.
+  const handleNeedsUpdate = useCallback((presetName: string) => {
+    if (AppState.currentState !== 'active') {
+      void notifyPresetUpdateAvailable(presetName);
+    }
+  }, []);
   useWorkoutCompletePresetSync({
     session,
     sourcePresetId,
@@ -61,6 +70,7 @@ function PendingPrompt({
     plannedSetValues,
     assumeSources,
     onSettled,
+    onNeedsUpdate: handleNeedsUpdate,
   });
   return null;
 }

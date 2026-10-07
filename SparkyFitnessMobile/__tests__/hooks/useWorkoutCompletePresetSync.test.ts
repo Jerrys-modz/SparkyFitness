@@ -87,4 +87,26 @@ describe('useWorkoutCompletePresetSync onSettled', () => {
     renderHook(() => useWorkoutCompletePresetSync(args(onSettled)));
     await waitFor(() => expect(onSettled).toHaveBeenCalled());
   });
+
+  it('says a preset needs updating before the prompt is shown', async () => {
+    (buildPresetUpdateExercises as jest.Mock).mockReturnValue([{}]);
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onNeedsUpdate = jest.fn();
+    renderHook(() =>
+      useWorkoutCompletePresetSync({ ...args(jest.fn()), onNeedsUpdate })
+    );
+    await waitFor(() => expect(onNeedsUpdate).toHaveBeenCalledWith('Push'));
+    expect(onNeedsUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not say so when nothing needs updating', async () => {
+    (buildPresetUpdateExercises as jest.Mock).mockReturnValue(null);
+    const onNeedsUpdate = jest.fn();
+    const onSettled = jest.fn();
+    renderHook(() =>
+      useWorkoutCompletePresetSync({ ...args(onSettled), onNeedsUpdate })
+    );
+    await waitFor(() => expect(onSettled).toHaveBeenCalled());
+    expect(onNeedsUpdate).not.toHaveBeenCalled();
+  });
 });
