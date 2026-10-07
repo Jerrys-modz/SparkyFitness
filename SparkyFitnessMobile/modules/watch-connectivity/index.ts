@@ -56,6 +56,30 @@ export interface WatchWaterDeletePayload {
   entryId: string;
 }
 
+/** A scheduled dose marked taken on the Apple Watch. */
+export interface WatchMedicationTakenPayload {
+  /** Stable id generated on the watch, to dedupe a re-delivered transfer. */
+  clientId: string;
+  /** Calendar day (`yyyy-MM-dd`) in the wearer's local timezone. */
+  entryDate: string;
+  medicationId: string;
+  scheduleId: string;
+}
+
+/** One of today's scheduled dose slots, relayed to the watch's Medications page. */
+export interface WatchMedicationDosePayload {
+  /** `medicationId:scheduleId` — unique per dose slot. */
+  id: string;
+  medicationId: string;
+  scheduleId: string;
+  name: string;
+  /** Pre-formatted dose ("10 mg"), empty when the medication has none. */
+  detail: string;
+  /** Pre-formatted time of day in the account's 12/24-hour convention, empty when untimed. */
+  time: string;
+  status: 'pending' | 'taken' | 'skipped';
+}
+
 /**
  * One logged drink relayed to the watch's water log view. Manual entries
  * only — synced records (Apple Health and friends) carry no container and
@@ -251,6 +275,13 @@ export interface WatchContextPayload {
    * it wrong.
    */
   waterLog?: WatchWaterLogPayload[] | null;
+  /**
+   * Today's scheduled medication doses, soonest first, for the watch's
+   * Medications page. Day-scoped like the water figures: blanked (null) when
+   * the push crosses midnight, so the watch shows "not synced" rather than
+   * yesterday's ticks. An empty array means nothing is scheduled today.
+   */
+  medications?: WatchMedicationDosePayload[] | null;
   /**
    * Saved workouts the wearer can start from the wrist. Names and ids only;
    * the phone still builds and arms the session. Absent on an older phone.
@@ -629,6 +660,7 @@ export type WatchConnectivityEvents = {
   onContextRequest: () => void;
   onWaterIntake: (payload: WatchWaterIntakePayload) => void;
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
+  onMedicationTaken: (payload: WatchMedicationTakenPayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;

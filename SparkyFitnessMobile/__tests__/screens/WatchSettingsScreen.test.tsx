@@ -76,6 +76,7 @@ describe('WatchSettingsScreen', () => {
       'workout',
       'goals',
       'water',
+      'medications',
       'entry',
       'trend',
       'fasting',
@@ -121,6 +122,7 @@ describe('WatchSettingsScreen', () => {
     expect(useAppPreferencesStore.getState().watchPageOrder).toEqual([
       'water',
       'goals',
+      'medications',
       'entry',
       'trend',
       'workout',
@@ -134,6 +136,7 @@ describe('WatchSettingsScreen', () => {
       hiddenWatchPages: [
         'goals',
         'water',
+        'medications',
         'entry',
         'trend',
         'fasting',
