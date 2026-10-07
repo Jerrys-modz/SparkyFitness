@@ -206,6 +206,12 @@ describe('WeightLineChart', () => {
       expect(screen.getByText('Goal date')).toBeTruthy();
     });
 
+    it('includes the year in the projected goal date', () => {
+      renderChart(lossSeries(60), 90);
+
+      expect(screen.getByText(/\b20\d{2}\b/)).toBeTruthy();
+    });
+
     it('omits the goal tile when no goal is set', () => {
       renderChart(lossSeries(60));
 
