@@ -335,18 +335,18 @@ private struct ActiveWorkoutView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     setScreen
-                        .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
+                        .workoutPage(geo, alignment: .top)
                         .id(WorkoutPageID.set)
                     if let step = store.currentStep {
                         SetOptionsPage(step: step)
-                            .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                            .workoutPage(geo)
                             .id(WorkoutPageID.setOptions)
                         ExerciseOptionsPage(step: step)
-                            .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                            .workoutPage(geo)
                             .id(WorkoutPageID.exerciseOptions)
                     }
                     WorkoutActionsPage()
-                        .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                        .workoutPage(geo)
                         .id(WorkoutPageID.actions)
                 }
                 .scrollTargetLayout()
@@ -354,6 +354,10 @@ private struct ActiveWorkoutView: View {
             .scrollPosition(id: $page)
             .scrollTargetBehavior(.viewAligned)
             .scrollIndicators(.hidden)
+            // Pages are laid out against the whole screen, so each snaps to
+            // exactly one screen; `workoutPage` puts the content back inside
+            // the area the clock and page dots leave free.
+            .ignoresSafeArea(edges: .vertical)
         }
         // A set logged here or on the phone, an edit, or a jump from the
         // list moves the cursor: back to the set screen.
@@ -1693,3 +1697,18 @@ private func previewStore(
         .environmentObject(WatchSessionManager.shared)
 }
 #endif
+
+
+private extension View {
+    /// One full screen tall, with the content kept inside the safe area, so
+    /// it sits where a plain page would.
+    func workoutPage(_ geo: GeometryProxy, alignment: Alignment = .center) -> some View {
+        self
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+            .padding(.top, geo.safeAreaInsets.top)
+            .padding(.bottom, geo.safeAreaInsets.bottom)
+            .frame(
+                height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
+            )
+    }
+}

@@ -182,7 +182,7 @@ private struct EditPage<Content: View>: View {
             content
                 .font(.system(size: 15, weight: .semibold))
         }
-        .padding(.top, 22)
+        .frame(maxHeight: .infinity, alignment: .center)
         .padding(.horizontal, 2)
     }
 }
