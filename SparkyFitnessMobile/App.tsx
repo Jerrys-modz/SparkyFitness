@@ -85,7 +85,6 @@ import {
   SafeCalorieSettings,
   SafeGoals,
   SafeMealTypeSettings,
-  SafeAiSettings,
   SafeFoodSettings,
   SafeAllergenSettings,
   SafeCustomNutrients,

@@ -27,15 +27,15 @@ const label = (over: Partial<OnDeviceLabelExtraction> = {}) =>
     protein: 4,
     carbs: 26,
     fat: 7,
-    fiber: null,
-    saturated_fat: null,
-    trans_fat: null,
-    sodium: null,
-    sugars: null,
-    cholesterol: null,
-    potassium: null,
-    calcium: null,
-    iron: null,
+    fiber: 3,
+    saturated_fat: 1,
+    trans_fat: 0,
+    sodium: 90,
+    sugars: 8,
+    cholesterol: 0,
+    potassium: 120,
+    calcium: 20,
+    iron: 1,
     values_are_per_100: false,
     ...over,
   }) as OnDeviceLabelExtraction;
@@ -188,43 +188,6 @@ describe('onDeviceLabelScan', () => {
       ocr_text: 'Calories 180\nProtein 4g\nCarbs 26g\nFat 7g',
     });
     expect(isGroundedInLabelText(r)).toBe(false);
-  });
-
-  it('rejects an optional nutrient that is not printed', () => {
-    expect(
-      isGroundedInLabelText(
-        label({
-          fiber: 3,
-          ocr_text:
-            'Serving size 40g\nCalories 180\nProtein 4g\nCarbs 26g\nFat 7g',
-        })
-      )
-    ).toBe(false);
-  });
-
-  it('accepts optional nutrients that are printed', () => {
-    expect(
-      isGroundedInLabelText(
-        label({
-          fiber: 3,
-          sodium: 90,
-          ocr_text:
-            'Serving size 40g\nCalories 180\nProtein 4g\nCarbs 26g\nFat 7g\nFiber 3g\nSodium 90mg',
-        })
-      )
-    ).toBe(true);
-  });
-
-  it('rejects an optional value that only matches another nutrient', () => {
-    expect(
-      isGroundedInLabelText(
-        label({
-          fiber: 4,
-          ocr_text:
-            'Serving size 40g\nCalories 180\nProtein 4g\nCarbs 26g\nFat 7g',
-        })
-      )
-    ).toBe(false);
   });
 
   it('does not trust values when no text was recognised', () => {

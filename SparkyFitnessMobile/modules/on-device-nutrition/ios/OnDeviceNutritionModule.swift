@@ -55,7 +55,7 @@ private struct NutritionLabelExtraction {
 @available(iOS 27, *)
 @Generable
 private struct MealItemEstimate {
-    @Guide(description: "Plain food name, e.g. grilled chicken breast")
+    @Guide(description: "Specific name of the food as it looks in the photo, including how it is cooked and any visible brand, e.g. pan-seared chicken thigh with skin, or Oikos Triple Zero vanilla yogurt")
     let name: String
     @Guide(description: "Estimated weight of this item in grams, as served")
     let grams: Double
@@ -99,6 +99,19 @@ the total by how much of each food is really there: dense foods such as dips, \
 sauces, meat, rice and cheese weigh far more than light ones such as chips, \
 bread, salad or herbs for the same amount of space. Never split it evenly just \
 because there are two items.
+
+IDENTIFY WHAT IS ACTUALLY THERE
+- Look at the photo before you decide. Describe each food by what you can see \
+(shape, colour, cooking method, toppings, packaging), not by what a plate like \
+this usually holds. Do not fall back on a stock meal such as eggs, bacon or \
+toast because it is breakfast time.
+- Read any brand, product name or label on packaging, cups, wrappers or \
+menus and use that product's real values.
+- Count and measure: use the number of pieces and their size relative to the \
+plate, utensils or hands. Avoid round placeholder weights like 30 g or 120 g \
+unless that is genuinely what you see.
+- If you cannot tell what a food is, name your best specific guess and mark \
+the item low confidence.
 
 PHOTOS
 - Use every photo once. Several photos usually show the same meal from \
@@ -206,12 +219,12 @@ printed.
 /// Text on the label, top to bottom, one recognised line per row. Run here
 /// rather than left to the model's OCR tool so the numbers the model sees are
 /// the printed ones, and so the caller can check the answer against them.
-private func recognizeLabelText(in image: CGImage) -> String {
+private func recognizeLabelText(in image: CGImage, correctWords: Bool = false) -> String {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     // Language correction rewrites digits that look like letters, which is
-    // wrong for a table of numbers.
-    request.usesLanguageCorrection = false
+    // wrong for a table of numbers; brand names on packaging want it.
+    request.usesLanguageCorrection = correctWords
     let handler = VNImageRequestHandler(cgImage: image)
     do {
         try handler.perform([request])
@@ -895,9 +908,21 @@ public class OnDeviceNutritionModule: Module {
                     instructions += "\n\nNOTES FROM THE USER\n\(userContext)"
                 }
                 let session = LanguageModelSession(instructions: instructions)
+                // Packaging, jars and wrappers in the photo carry brand and
+                // product names the model reads unreliably; hand it the text.
+                let printed = images
+                    .map { recognizeLabelText(in: $0, correctWords: true) }
+                    .joined(separator: "\n")
+                    .split(separator: "\n")
+                    .filter { $0.count >= 4 }
+                    .prefix(40)
+                    .joined(separator: "\n")
                 var prompt = images.count == 1
                     ? "Estimate the nutrition of this meal."
                     : "Estimate the nutrition of this one meal, shown in \(images.count) photos."
+                if !printed.isEmpty {
+                    prompt += "\n\nText printed on packaging in the photos (may include brand and product names; ignore anything that is not a food):\n\(printed)\n"
+                }
                 if let description, !description.isEmpty {
                     prompt += " The user says: \(description)."
                 }
