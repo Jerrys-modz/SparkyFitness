@@ -34,7 +34,6 @@ interface AddSheetProps {
   onAddSymptoms?: () => void;
   onAddMood?: () => void;
   onRecordActivity?: () => void;
-  onAddMood?: () => void;
   onOpenCycle?: () => void;
   showCycleCard?: boolean;
   cycleLabel?: string;
@@ -63,7 +62,6 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddSymptoms,
       onAddMood,
       onRecordActivity,
-      onAddMood,
       onOpenCycle,
       showCycleCard,
       cycleLabel,

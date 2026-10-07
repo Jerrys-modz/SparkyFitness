@@ -82,6 +82,7 @@ import {
   SafeProgressPhotoCompare,
   SafeProgressPhotoTimelapse,
   SafeChat,
+  SafeAiSettings,
   SafeCalorieSettings,
   SafeGoals,
   SafeMealTypeSettings,
