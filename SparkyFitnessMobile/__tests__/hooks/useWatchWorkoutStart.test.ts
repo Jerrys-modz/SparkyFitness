@@ -2,6 +2,8 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import { useWatchWorkoutStart } from '../../src/hooks/useWatchWorkoutStart';
 import { fetchActiveWorkoutPlans } from '../../src/services/api/workoutPlansApi';
 import { getWorkoutPresetById } from '../../src/services/api/workoutPresetsApi';
+import { getActiveServerConfigId } from '../../src/services/storage';
+import { useActiveWorkoutStore } from '../../src/stores/activeWorkoutStore';
 
 let handler: ((p: { presetId: string; serverId: string }) => void) | null =
   null;
@@ -65,6 +67,10 @@ async function fire() {
 describe('useWatchWorkoutStart plan link', () => {
   beforeEach(() => {
     (getWorkoutPresetById as jest.Mock).mockResolvedValue(preset);
+    (getActiveServerConfigId as jest.Mock).mockReset();
+    (getActiveServerConfigId as jest.Mock).mockResolvedValue('srv');
+    (fetchActiveWorkoutPlans as jest.Mock).mockReset();
+    useActiveWorkoutStore.setState({ sessionId: null, sourcePresetId: null });
   });
 
   it('links the session to the plan assignment due for the preset', async () => {
@@ -79,5 +85,44 @@ describe('useWatchWorkoutStart plan link', () => {
     const args = await fire();
     expect(args.workoutPlanAssignmentId).toBeUndefined();
     expect(args.exercises[0]!.workout_plan_assignment_id).toBeUndefined();
+  });
+
+  it('does not start when the server changes during the plan fetch', async () => {
+    (getActiveServerConfigId as jest.Mock).mockImplementation(async () => {
+      const calls = (getActiveServerConfigId as jest.Mock).mock.calls.length;
+      return calls >= 3 ? 'other' : 'srv';
+    });
+    (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([plan('42')]);
+    const start = jest.fn(async () => {});
+    renderHook(() => useWatchWorkoutStart(true, true, start));
+    handler?.({ presetId: '42', serverId: 'srv' });
+    await waitFor(() => expect(fetchActiveWorkoutPlans).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(getActiveServerConfigId).toHaveBeenCalledTimes(3)
+    );
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('does not start when the same preset is already live after the plan fetch', async () => {
+    let release: (plans: ReturnType<typeof plan>[]) => void = () => {};
+    (fetchActiveWorkoutPlans as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    const start = jest.fn(async () => {});
+    renderHook(() => useWatchWorkoutStart(true, true, start));
+    handler?.({ presetId: '42', serverId: 'srv' });
+    await waitFor(() => expect(fetchActiveWorkoutPlans).toHaveBeenCalled());
+    useActiveWorkoutStore.setState({
+      sessionId: 'live',
+      sourcePresetId: 42,
+    });
+    release([plan('42')]);
+    await waitFor(() =>
+      expect(getActiveServerConfigId).toHaveBeenCalledTimes(3)
+    );
+    expect(start).not.toHaveBeenCalled();
   });
 });

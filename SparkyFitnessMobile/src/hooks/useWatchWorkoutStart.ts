@@ -85,6 +85,16 @@ export function useWatchWorkoutStart(
         // start without the plan link
       }
       if (!aliveRef.current) return;
+      // The plan fetch can outlive the checks above. A server switch or a
+      // second start of this preset in that gap must not start anyway.
+      const liveAfter = useActiveWorkoutStore.getState();
+      if (
+        (await getActiveServerConfigId()) !== serverId ||
+        !aliveRef.current ||
+        (liveAfter.sessionId != null && liveAfter.sourcePresetId === preset.id)
+      ) {
+        return;
+      }
       const exercises = buildPresetStartExercisesPayload(preset).map(
         (exercise) =>
           assignmentId == null
