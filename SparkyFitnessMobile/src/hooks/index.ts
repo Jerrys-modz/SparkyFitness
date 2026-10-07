@@ -27,7 +27,11 @@ export { useWatchFastingBridge } from './useWatchFastingBridge';
 export { useWatchRecordingBridge } from './useWatchRecordingBridge';
 export { useWatchPlanSync } from './useWatchPlanSync';
 export { useWatchWorkoutEdit } from './useWatchWorkoutEdit';
-export { drainQuickActionNavigation, useQuickActions } from './useQuickActions';
+export {
+  drainQuickActionNavigation,
+  useControlRouteHandoff,
+  useQuickActions,
+} from './useQuickActions';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
