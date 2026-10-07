@@ -3793,6 +3793,15 @@
     "allergens": {
       "title": "Allergens",
       "subtitle": "Get warnings on foods and scans that contain allergens you track"
+    },
+    "nutrients": {
+      "title": "Nutrients",
+      "custom": "Custom Nutrients",
+      "customSubtitle": "Create and edit your own nutrients",
+      "display": "Nutrient Display",
+      "displaySubtitle": "Choose and order the nutrients shown in each view",
+      "goalDirection": "Goal Direction",
+      "goalDirectionSubtitle": "Set whether each nutrient goal is a minimum, maximum, or range"
     }
   },
   "workoutComplete": {
@@ -6453,5 +6462,67 @@
     "pause": "Pause",
     "resume": "Resume",
     "finish": "Finish"
+  },
+  "customNutrients": {
+    "title": "Custom Nutrients",
+    "add": "Add custom nutrient",
+    "loading": "Loading custom nutrients...",
+    "loadFailed": "Failed to load custom nutrients",
+    "empty": "No custom nutrients yet",
+    "emptyHint": "Track anything the built-in nutrients do not cover, such as magnesium or omega-3.",
+    "description": "Tap a nutrient to edit its name, unit, or provider aliases.",
+    "editTitle": "Edit nutrient",
+    "createTitle": "Add nutrient",
+    "notFound": "Custom nutrient not found",
+    "name": "Nutrient name",
+    "namePlaceholder": "e.g., Magnesium",
+    "unit": "Unit",
+    "unitPlaceholder": "e.g., mg, µg, IU",
+    "aliases": "Provider aliases",
+    "aliasPlaceholder": "Type a name, then press return",
+    "aliasesHelp": "Names online food databases use for this nutrient. When you import a food, matching provider fields fill this nutrient.",
+    "required": "Nutrient name and unit are required.",
+    "saveFailed": "Failed to save custom nutrient",
+    "deleteFailed": "Failed to delete custom nutrient",
+    "delete": "Delete nutrient",
+    "deleteTitle": "Delete custom nutrient",
+    "deleteMessage": "Delete {{name}}? You can also remove it from past goals and diary entries.",
+    "deleteKeepHistory": "Delete, keep history",
+    "deleteAllHistory": "Delete and remove history"
+  },
+  "nutrientDisplay": {
+    "title": "Nutrient Display",
+    "loading": "Loading nutrient display...",
+    "loadFailed": "Failed to load nutrient display",
+    "description": "Choose which nutrients this app shows in each place, and their order. Dashboard and Diary have their own settings.",
+    "groupPicker": "Show in",
+    "updateFailed": "Failed to update nutrient display.",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "show": "Show {{name}}",
+    "reset": "Reset to default",
+    "groups": {
+      "quickInfo": "Quick Info",
+      "foodDatabase": "Food Database",
+      "goal": "Goal",
+      "reportTabular": "Report (Tabular)",
+      "reportChart": "Report (Chart)"
+    }
+  },
+  "nutrientGoalDirection": {
+    "title": "Goal Direction",
+    "loading": "Loading goal directions...",
+    "loadFailed": "Failed to load goal directions",
+    "description": "Min means more is better, Max means stay under the goal, and Range means land between two values.",
+    "min": "Min",
+    "max": "Max",
+    "range": "Range",
+    "to": "to",
+    "minPlaceholder": "Min",
+    "maxPlaceholder": "Max",
+    "reset": "Reset",
+    "resetOne": "Reset {{name}} to default",
+    "invalidBand": "Enter a valid min that is at most max.",
+    "saveFailed": "Failed to save goal direction."
   }
 }
