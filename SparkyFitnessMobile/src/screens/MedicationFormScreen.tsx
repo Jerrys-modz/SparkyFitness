@@ -360,7 +360,21 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       updateMedication.mutate(
         { id: medicationId, body: { ...base, is_active: form.isActive } },
         {
-          onSuccess: () => navigation.goBack(),
+          onSuccess: (updated) => {
+            // Without diary access the server drops the mode change and
+            // keeps the stored supplement flag. Closing would hide that.
+            if (updated.is_supplement !== isSupplement) {
+              Alert.alert(
+                t('common.error', { defaultValue: 'Error' }),
+                t('medications.supplement.modeUpdateNotApplied', {
+                  defaultValue:
+                    'The requested supplement mode was not applied.',
+                })
+              );
+              return;
+            }
+            navigation.goBack();
+          },
           onError: (error) => {
             const report = (warning: string | null) => {
               const message = t('medications.form.updateFailed', {
@@ -387,6 +401,22 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         { ...base, is_active: form.isActive },
         {
           onSuccess: (med) => {
+            // Create keeps the supplement flag but can drop the nutrient
+            // payload when this account cannot write diary data.
+            if (
+              isSupplement &&
+              Object.keys(base.nutrients).length > 0 &&
+              Object.keys(med.nutrients ?? {}).length === 0
+            ) {
+              Alert.alert(
+                t('common.error', { defaultValue: 'Error' }),
+                t('medications.supplement.nutrientsNotSaved', {
+                  defaultValue:
+                    'The supplement was created, but its nutrient values were not saved because this account has no diary access.',
+                })
+              );
+              return;
+            }
             navigation.replace('MedicationDetail', { medicationId: med.id });
           },
           onError: (error) =>

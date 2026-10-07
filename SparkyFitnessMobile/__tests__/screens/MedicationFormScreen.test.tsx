@@ -390,6 +390,43 @@ describe('MedicationFormScreen — supplements', () => {
 
     expect(createMutate).not.toHaveBeenCalled();
   });
+
+  it('warns when a created supplement comes back without its nutrients', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    createMutate.mockImplementation((_body, options) => {
+      options.onSuccess({ id: 'new-1', nutrients: {} });
+    });
+    const screen = renderScreen(undefined, true);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Daily Multi');
+    fireEvent.press(screen.getByText('opt-catalog:vitamin_c'));
+    fireEvent.changeText(screen.getByLabelText('Vitamin C amount in mg'), '90');
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(alert).toHaveBeenCalled());
+    expect(String(alert.mock.calls[0]?.[1])).toContain('nutrient values');
+    expect(mockNavigation.replace as jest.Mock).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  it('opens the new supplement when its nutrients were saved', async () => {
+    createMutate.mockImplementation((_body, options) => {
+      options.onSuccess({ id: 'new-1', nutrients: { vitamin_c: 90 } });
+    });
+    const screen = renderScreen(undefined, true);
+
+    fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Daily Multi');
+    fireEvent.press(screen.getByText('opt-catalog:vitamin_c'));
+    fireEvent.changeText(screen.getByLabelText('Vitamin C amount in mg'), '90');
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() =>
+      expect(mockNavigation.replace as jest.Mock).toHaveBeenCalledWith(
+        'MedicationDetail',
+        { medicationId: 'new-1' }
+      )
+    );
+  });
 });
 
 describe('MedicationFormScreen — converting to a supplement', () => {
@@ -500,6 +537,40 @@ describe('MedicationFormScreen — converting to a supplement', () => {
       'could not be restored'
     );
     alert.mockRestore();
+  });
+
+  it('stays open when the server keeps the old supplement setting', async () => {
+    setup(false);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    updateMutate.mockImplementation((_vars, options) => {
+      options.onSuccess({ is_supplement: false });
+    });
+    const screen = renderScreen('med-1');
+
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(alert).toHaveBeenCalled());
+    expect(String(alert.mock.calls[0]?.[1])).toContain(
+      'supplement mode was not applied'
+    );
+    expect(mockNavigation.goBack as jest.Mock).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  it('leaves the form when the server applied the supplement setting', async () => {
+    setup(false);
+    updateMutate.mockImplementation((_vars, options) => {
+      options.onSuccess({ is_supplement: true });
+    });
+    const screen = renderScreen('med-1');
+
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', true);
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() =>
+      expect(mockNavigation.goBack as jest.Mock).toHaveBeenCalled()
+    );
   });
 
   it('keeps the schedule doses of a supplement that is already one', async () => {
