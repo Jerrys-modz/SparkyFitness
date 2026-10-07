@@ -717,9 +717,10 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   ): Promise<void>;
   /**
    * Asks the wearer, on the post-workout summary, whether to save a finished
-   * workout's changes into its saved workout. Sent live only: the question
-   * means nothing once the summary is gone, so a watch out of reach is simply
-   * not asked. Resolves false when it could not be sent.
+   * workout's changes into its saved workout. Sent live when the watch is
+   * reachable, otherwise queued, since the phone app may have been closed and
+   * only woken briefly by the finish. The watch matches it to its summary by
+   * session id. Resolves false only when WatchConnectivity is unsupported.
    */
   offerPresetUpdate(sessionId: string, presetName: string): Promise<boolean>;
   /**

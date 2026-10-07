@@ -60,6 +60,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// screen. Not persisted, like the summary it sits on.
     @Published private(set) var presetOffer: PresetUpdateOffer?
     private var heldPresetOffer: PresetUpdateOffer?
+    /// Workouts whose question was answered, so a queued copy arriving later
+    /// does not ask again.
+    private var answeredOfferSessions: Set<String> = []
     private var heartRateSum: Double = 0
     private var heartRateCount: Int = 0
     private var heartRateMax: Double?
@@ -623,6 +626,7 @@ final class WorkoutSessionStore: ObservableObject {
     /// watch has finished writing the workout to Health and shown its summary,
     /// so an early one is held for `recordSummary` to pick up.
     func receivePresetOffer(sessionId: String, presetName: String) {
+        guard !answeredOfferSessions.contains(sessionId) else { return }
         let offer = PresetUpdateOffer(sessionId: sessionId, presetName: presetName)
         if let summary = lastSummary, summary.sessionId == sessionId {
             presetOffer = offer
@@ -633,6 +637,7 @@ final class WorkoutSessionStore: ObservableObject {
 
     /// Closes the question. The caller sends the answer to the phone.
     func clearPresetOffer() {
+        if let id = presetOffer?.sessionId { answeredOfferSessions.insert(id) }
         presetOffer = nil
     }
 

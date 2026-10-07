@@ -583,16 +583,24 @@ public class WatchConnectivityModule: Module {
         /// by the time a queued copy could arrive. False when the watch cannot
         /// be reached, so the caller knows only the phone will ask.
         AsyncFunction("offerPresetUpdate") { (sessionId: String, presetName: String) -> Bool in
-            guard WCSession.isSupported(), WCSession.default.isReachable else { return false }
-            WCSession.default.sendMessage(
-                [
-                    "type": "presetUpdateOffer",
-                    "sessionId": sessionId,
-                    "presetName": presetName,
-                ],
-                replyHandler: nil,
-                errorHandler: nil
-            )
+            guard WCSession.isSupported() else { return false }
+            let payload: [String: Any] = [
+                "type": "presetUpdateOffer",
+                "sessionId": sessionId,
+                "presetName": presetName,
+            ]
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            } else {
+                // Out of reach right now (the phone app was closed and woke
+                // only briefly): queue it, so the watch still gets the
+                // question when the link is back. The watch matches it to its
+                // summary by session id and ignores one it already answered.
+                WCSession.default.outstandingUserInfoTransfers
+                    .filter { ($0.userInfo["type"] as? String) == "presetUpdateOffer" }
+                    .forEach { $0.cancel() }
+                WCSession.default.transferUserInfo(payload)
+            }
             return true
         }
 
