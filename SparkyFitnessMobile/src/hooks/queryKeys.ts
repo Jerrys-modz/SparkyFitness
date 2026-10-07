@@ -382,3 +382,6 @@ export const glp1SiteSuggestionQueryKey = (medicationId: string) =>
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;
+
+export const moodEntriesQueryKey = (startDate: string, endDate: string) =>
+  ['moodEntries', startDate, endDate] as const;
