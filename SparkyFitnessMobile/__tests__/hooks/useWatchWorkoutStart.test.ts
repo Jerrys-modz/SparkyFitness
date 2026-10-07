@@ -88,18 +88,21 @@ describe('useWatchWorkoutStart plan link', () => {
   });
 
   it('does not start when the server changes during the plan fetch', async () => {
+    let plansFetched = false;
+    let sawNewServer = false;
     (getActiveServerConfigId as jest.Mock).mockImplementation(async () => {
-      const calls = (getActiveServerConfigId as jest.Mock).mock.calls.length;
-      return calls >= 3 ? 'other' : 'srv';
+      if (!plansFetched) return 'srv';
+      sawNewServer = true;
+      return 'other';
     });
-    (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([plan('42')]);
+    (fetchActiveWorkoutPlans as jest.Mock).mockImplementation(async () => {
+      plansFetched = true;
+      return [plan('42')];
+    });
     const start = jest.fn(async () => {});
     renderHook(() => useWatchWorkoutStart(true, true, start));
     handler?.({ presetId: '42', serverId: 'srv' });
-    await waitFor(() => expect(fetchActiveWorkoutPlans).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(getActiveServerConfigId).toHaveBeenCalledTimes(3)
-    );
+    await waitFor(() => expect(sawNewServer).toBe(true));
     expect(start).not.toHaveBeenCalled();
   });
 
