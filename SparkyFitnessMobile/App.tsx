@@ -87,7 +87,6 @@ import {
   SafeCustomNutrients,
   SafeCustomNutrientForm,
   SafeNutrientDisplaySettings,
-  SafeNutrientGoalDirection,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
   SafeWatchSettings,
@@ -821,11 +820,6 @@ function AppContent() {
             name="NutrientDisplaySettings"
             component={SafeNutrientDisplaySettings}
             options={createStackScreenOptions(t('nutrientDisplay.title', { defaultValue: 'Nutrient Display' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
-          />
-          <Stack.Screen
-            name="NutrientGoalDirection"
-            component={SafeNutrientGoalDirection}
-            options={createStackScreenOptions(t('nutrientGoalDirection.title', { defaultValue: 'Goal Direction' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
           />
           <Stack.Screen
             name="MealTypeSettings"
