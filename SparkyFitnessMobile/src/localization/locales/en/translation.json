@@ -2889,7 +2889,17 @@
   "exerciseHistory": {
     "noSetData": "No set data",
     "loadError": "Couldn't load history.",
-    "empty": "No sessions logged yet."
+    "empty": "No sessions logged yet.",
+    "columns": {
+      "set": "Set",
+      "weightReps": "Weight & reps",
+      "timeDistance": "Time & distance",
+      "time": "Time",
+      "weightDistance": "Weight & distance",
+      "weightTime": "Weight & time",
+      "reps": "Reps",
+      "rpe": "RPE"
+    }
   },
   "foodFormPersistence": {
     "discardTitle": "Discard unsaved equivalents?",
