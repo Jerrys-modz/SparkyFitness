@@ -173,11 +173,13 @@ describe('MedicationFormScreen — optional text fields', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     updateMutate.mockResolvedValue({ is_supplement: false, nutrients: {} });
+    createMutate.mockResolvedValue({ id: 'new-1', nutrients: {} });
     mockUseMedicationDetail.mockReturnValue({
       data: baseMed,
     } as unknown as ReturnType<typeof useMedicationDetail>);
     mockUseCreateMedication.mockReturnValue({
       mutate: createMutate,
+      mutateAsync: createMutate,
       isPending: false,
     } as unknown as ReturnType<typeof useCreateMedication>);
     mockUseUpdateMedication.mockReturnValue({
@@ -261,6 +263,33 @@ describe('MedicationFormScreen — optional text fields', () => {
     expect(screen.getByPlaceholderText('Dr. Ipsum')).toBeTruthy();
   });
 
+  it('ignores a second create while the first is still in flight', async () => {
+    mockUseMedicationDetail.mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof useMedicationDetail>);
+    let release: (value: unknown) => void = () => {};
+    createMutate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    const screen = renderScreen();
+
+    fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Metformin');
+    pressAction(screen, mockNavigation, 'Save');
+    pressAction(screen, mockNavigation, 'Save');
+
+    expect(createMutate).toHaveBeenCalledTimes(1);
+    release({ id: 'new-1', nutrients: {} });
+    await waitFor(() =>
+      expect(mockNavigation.replace as jest.Mock).toHaveBeenCalledWith(
+        'MedicationDetail',
+        { medicationId: 'new-1' }
+      )
+    );
+  });
+
   it('sends null for empty optional fields on create', () => {
     mockUseMedicationDetail.mockReturnValue({
       data: undefined,
@@ -278,8 +307,7 @@ describe('MedicationFormScreen — optional text fields', () => {
         prescriber: null,
         pharmacy: null,
         notes: null,
-      }),
-      expect.anything()
+      })
     );
   });
 });
@@ -290,6 +318,10 @@ describe('MedicationFormScreen — supplements', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    createMutate.mockResolvedValue({
+      id: 'new-1',
+      nutrients: { vitamin_c: 90 },
+    });
     mockEnsureCatalog.mockResolvedValue({
       resolved: [
         { catalogId: 'vitamin_c', name: 'Vitamin C', fixedField: 'vitamin_c' },
@@ -301,6 +333,7 @@ describe('MedicationFormScreen — supplements', () => {
     } as unknown as ReturnType<typeof useMedicationDetail>);
     mockUseCreateMedication.mockReturnValue({
       mutate: createMutate,
+      mutateAsync: createMutate,
       isPending: false,
     } as unknown as ReturnType<typeof useCreateMedication>);
     mockUseUpdateMedication.mockReturnValue({
@@ -355,8 +388,7 @@ describe('MedicationFormScreen — supplements', () => {
         dose_unit: 'serving',
         strength_value: null,
         nutrients: { vitamin_c: 90, custom_nutrients: { Magnesium: 200 } },
-      }),
-      expect.anything()
+      })
     );
   });
 
@@ -371,8 +403,7 @@ describe('MedicationFormScreen — supplements', () => {
     await waitFor(() => expect(createMutate).toHaveBeenCalled());
     expect(mockEnsureCatalog).not.toHaveBeenCalled();
     expect(createMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ nutrients: {} }),
-      expect.anything()
+      expect.objectContaining({ nutrients: {} })
     );
   });
 
@@ -390,9 +421,7 @@ describe('MedicationFormScreen — supplements', () => {
 
   it('warns when a created supplement comes back without its nutrients', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    createMutate.mockImplementation((_body, options) => {
-      options.onSuccess({ id: 'new-1', nutrients: {} });
-    });
+    createMutate.mockResolvedValue({ id: 'new-1', nutrients: {} });
     const screen = renderScreen(undefined, true);
 
     fireEvent.changeText(screen.getByPlaceholderText('Ipsumol'), 'Daily Multi');
@@ -407,8 +436,9 @@ describe('MedicationFormScreen — supplements', () => {
   });
 
   it('opens the new supplement when its nutrients were saved', async () => {
-    createMutate.mockImplementation((_body, options) => {
-      options.onSuccess({ id: 'new-1', nutrients: { vitamin_c: 90 } });
+    createMutate.mockResolvedValue({
+      id: 'new-1',
+      nutrients: { vitamin_c: 90 },
     });
     const screen = renderScreen(undefined, true);
 
@@ -453,6 +483,7 @@ describe('MedicationFormScreen — converting to a supplement', () => {
     } as unknown as ReturnType<typeof useUpdateMedication>);
     mockUseCreateMedication.mockReturnValue({
       mutate: jest.fn(),
+      mutateAsync: jest.fn(),
       isPending: false,
     } as unknown as ReturnType<typeof useCreateMedication>);
   };

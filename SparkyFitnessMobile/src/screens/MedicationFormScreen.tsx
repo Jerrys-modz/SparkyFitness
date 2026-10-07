@@ -442,38 +442,39 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         }
         navigation.goBack();
       } else {
-        createMedication.mutate(
-          { ...base, is_active: form.isActive },
-          {
-            onSuccess: (med) => {
-              // Create keeps the supplement flag but can drop the nutrient
-              // payload when this account cannot write diary data.
-              if (
-                isSupplement &&
-                Object.keys(base.nutrients).length > 0 &&
-                Object.keys(med.nutrients ?? {}).length === 0
-              ) {
-                Alert.alert(
-                  t('common.error', { defaultValue: 'Error' }),
-                  t('medications.supplement.nutrientsNotSaved', {
-                    defaultValue:
-                      'The supplement was created, but its nutrient values were not saved because this account has no diary access.',
-                  })
-                );
-                return;
-              }
-              navigation.replace('MedicationDetail', { medicationId: med.id });
-            },
-            onError: (error) =>
-              Alert.alert(
-                t('common.error', { defaultValue: 'Error' }),
-                t('medications.form.createFailed', {
-                  defaultValue: 'Failed to create medication: {{error}}',
-                  error: error.message,
-                })
-              ),
-          }
-        );
+        let med;
+        try {
+          med = await createMedication.mutateAsync({
+            ...base,
+            is_active: form.isActive,
+          });
+        } catch (error) {
+          Alert.alert(
+            t('common.error', { defaultValue: 'Error' }),
+            t('medications.form.createFailed', {
+              defaultValue: 'Failed to create medication: {{error}}',
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+          return;
+        }
+        // Create keeps the supplement flag but can drop the nutrient
+        // payload when this account cannot write diary data.
+        if (
+          isSupplement &&
+          Object.keys(base.nutrients).length > 0 &&
+          Object.keys(med.nutrients ?? {}).length === 0
+        ) {
+          Alert.alert(
+            t('common.error', { defaultValue: 'Error' }),
+            t('medications.supplement.nutrientsNotSaved', {
+              defaultValue:
+                'The supplement was created, but its nutrient values were not saved because this account has no diary access.',
+            })
+          );
+          return;
+        }
+        navigation.replace('MedicationDetail', { medicationId: med.id });
       }
     } finally {
       savingRef.current = false;
