@@ -1469,7 +1469,10 @@
       "notAddedMore_other": "{{names}} and {{count}} more",
       "scheduleResetFailed": "Failed to reset the schedule doses: {{error}}",
       "scheduleRestoreFailed": "The dose for {{schedules}} could not be restored. Set it again on the schedule.",
-      "unnamedSchedule": "a schedule"
+      "unnamedSchedule": "a schedule",
+      "modeUpdateNotApplied": "The requested supplement mode was not applied.",
+      "nutrientsNotSaved": "The supplement was created, but its nutrient values were not saved because this account has no diary access.",
+      "nutrientsNotUpdated": "The nutrient changes were not saved."
     },
     "glp1": {
       "inventory": {
