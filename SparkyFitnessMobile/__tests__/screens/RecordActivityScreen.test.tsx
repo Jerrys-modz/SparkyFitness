@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import RecordActivityScreen from '../../src/screens/RecordActivityScreen';
@@ -16,6 +16,7 @@ import {
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
+import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
 import type { RootStackScreenProps } from '../../src/types/navigation';
@@ -120,7 +121,10 @@ describe('RecordActivityScreen', () => {
   beforeAll(async () => {
     await initializeI18n('en');
   });
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useLiveHeartRateStore.setState({ reading: null });
+  });
 
   it('starts a recording of the chosen activity', async () => {
     state(null);
@@ -234,6 +238,38 @@ describe('RecordActivityScreen', () => {
         /This recording started at .*1:10.* and was still running/
       )
     ).toBeTruthy();
+  });
+
+  it('shows the watch heart rate while recording, and nothing without one', async () => {
+    state(session(), track);
+    const screen = await renderScreen();
+    expect(screen.queryByText('Heart rate')).toBeNull();
+
+    act(() => {
+      useLiveHeartRateStore.getState().record({
+        sessionId: 'rec-1',
+        exerciseEntryId: '',
+        bpm: 148,
+        at: Date.now(),
+      });
+    });
+
+    expect(screen.getByText('Heart rate')).toBeTruthy();
+    expect(screen.getByText('148')).toBeTruthy();
+    expect(screen.getByText('bpm')).toBeTruthy();
+  });
+
+  it('does not show a heart rate once the recording is finished', async () => {
+    useLiveHeartRateStore.getState().record({
+      sessionId: 'rec-1',
+      exerciseEntryId: '',
+      bpm: 148,
+      at: Date.now(),
+    });
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Heart rate')).toBeNull();
   });
 
   it('does not offer the notice for a finished recording', async () => {

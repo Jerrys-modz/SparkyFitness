@@ -19,6 +19,10 @@ final class RecordingHealthKitController: NSObject {
     /// call.
     var onBatchReady: (([HeartRateSample]) -> Void)?
 
+    /// Called on the main queue with each new reading as it is taken, ahead of
+    /// the batch it will also be part of. Display only.
+    var onLiveReading: ((Double, Date) -> Void)?
+
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
@@ -171,6 +175,7 @@ extension RecordingHealthKitController: HKLiveWorkoutBuilderDelegate {
         guard bpm > 0 else { return }
         DispatchQueue.main.async { [weak self] in
             self?.append(bpm: bpm, at: interval.end)
+            self?.onLiveReading?(bpm, interval.end)
         }
     }
 }
