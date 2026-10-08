@@ -34,6 +34,10 @@ const TODAY = '2026-10-07';
 
 type QueryCall = [string, unknown[]?];
 
+/**
+ * Stubs getClient with a client whose query() returns the given results in
+ * order, then an empty result.
+ */
 const mockClient = (results: Array<Record<string, unknown>> = []) => {
   const query = vi.fn(async () => results.shift() ?? { rows: [], rowCount: 0 });
   const client = { query, release: vi.fn() };
@@ -41,6 +45,7 @@ const mockClient = (results: Array<Record<string, unknown>> = []) => {
   return client;
 };
 
+/** Collapses whitespace so SQL can be compared on one line. */
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
 describe('deleteExerciseEntriesByTemplateId', () => {
