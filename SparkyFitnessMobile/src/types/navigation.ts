@@ -310,6 +310,9 @@ export type RootStackParamList = {
     sourcePresetId: number | null;
     sourceServerConfigId: string | null;
     plannedSetValues: Record<string, AssumedSetValues>;
+    // Set when the workout was finished on the watch: the app-level prompt
+    // asks "Update preset?" (on the watch first), so this screen does not.
+    presetCheckHandledElsewhere?: boolean;
     // The rest of the live placeholder inputs, so the prompt can ignore
     // values the ramp or progression filled in. Optional: older snapshots.
     previousSessionSets?: Record<string, ExerciseRecentSessionSet[]>;
