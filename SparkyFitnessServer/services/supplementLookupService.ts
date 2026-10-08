@@ -268,9 +268,10 @@ export type NutrientTotals = Pick<
 
 /**
  * Matches ingredient lines to nutrient fields and totals them in the app's
- * units. `reportUnreadable` lists a line whose unit cannot be converted (a
- * photographed label's "%DV" or "CFU") as unmatched; the database path skips
- * those, since its rows carry no printed unit to show.
+ * units. `reportUnreadable` lists a line whose unit is missing or cannot be
+ * converted (a photographed label's "%DV" or "CFU") as unmatched, so the app
+ * can say it was left out. "NP" and "not present" are never listed: they say
+ * the ingredient is absent.
  */
 export function totalIngredients(
   lines: IngredientLine[],
@@ -293,7 +294,8 @@ export function totalIngredients(
     const { name, amount, unit, hint } = line;
     if (isMissing(amount) || !(amount > 0)) continue;
     if (normalizeUnit(unit) === null) {
-      if (reportUnreadable) addUnmatched(line);
+      const notPresent = /^(np|not present)$/i.test(unit?.trim() ?? '');
+      if (reportUnreadable && !notPresent) addUnmatched(line);
       continue;
     }
 
@@ -369,7 +371,7 @@ export function mapDsldLabel(label: DsldLabel): SupplementLookupProduct {
     brand: label.brandName?.trim() || null,
     form: formFromLabel(label),
     serving: servingText(label),
-    ...totalIngredients(lines, false),
+    ...totalIngredients(lines, true),
   };
 }
 

@@ -213,6 +213,23 @@ describe('mapDsldLabel', () => {
     ]);
   });
 
+  it('lists a quantity whose unit cannot be read, but not one marked not present', () => {
+    const product = mapDsldLabel(
+      label({
+        ingredientRows: [
+          row('Lactobacillus', 5, 'Billion CFU'),
+          row('Biotin', 30, null),
+          row('Silicon Dioxide', 5, 'NP'),
+          row('Gelatin', 5, 'Not Present'),
+        ],
+      })
+    );
+    expect(product.unmatched).toEqual([
+      { name: 'Lactobacillus', amount: 5, unit: 'Billion CFU' },
+      { name: 'Biotin', amount: 30, unit: null },
+    ]);
+  });
+
   it('does not use a compound on its own', () => {
     const product = mapDsldLabel(
       label({
