@@ -72,6 +72,7 @@ enum ContextPayloadMapper {
             setInputStyle: payload["setInputStyle"] as? String ?? previous.setInputStyle,
             startableWorkouts: startableWorkouts(from: payload) ?? previous.startableWorkouts,
             scheduledWorkouts: scheduledWorkouts(from: payload) ?? previous.scheduledWorkouts,
+            suggestedExercises: suggestedExercises(from: payload) ?? previous.suggestedExercises,
             workoutServerId: payload.keys.contains("workoutServerId")
                 ? payload["workoutServerId"] as? String
                 : previous.workoutServerId,
@@ -91,6 +92,19 @@ enum ContextPayloadMapper {
                 let name = row["name"] as? String, !name.isEmpty
             else { return nil }
             return StartableWorkout(presetId: presetId, name: name)
+        }
+    }
+
+    /// Same rule as `startableWorkouts`: nil when the key is absent.
+    static func suggestedExercises(from payload: [String: Any]) -> [SuggestedExercise]? {
+        guard let raw = payload["suggestedExercises"] else { return nil }
+        let rows = dictionaryArray(raw) ?? []
+        return rows.compactMap { row in
+            guard
+                let exerciseId = row["exerciseId"] as? String, !exerciseId.isEmpty,
+                let name = row["name"] as? String, !name.isEmpty
+            else { return nil }
+            return SuggestedExercise(exerciseId: exerciseId, name: name)
         }
     }
 
