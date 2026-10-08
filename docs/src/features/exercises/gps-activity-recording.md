@@ -27,7 +27,19 @@ Distance, pace and splits follow your distance unit (kilometres or miles).
 
 For a treadmill or any session without GPS, choose **Indoor** under the activity before you tap **Start**. No location access is asked for and no route is recorded. You get the clock and pause and resume, and a paired Apple Watch still adds your heart rate.
 
-When you tap **Finish**, you can enter the distance your treadmill or machine shows. It's optional: leave it empty to log just the time. The distance is used as you typed it, in your distance unit, because a phone can't measure distance reliably without GPS.
+When you tap **Finish**, you can enter the distance your treadmill or machine shows. It's optional: leave it empty to log just the time. The distance is used as you typed it, in your distance unit.
+
+### Estimated distance and learning your stride
+
+On an iPhone, the distance field is filled in for you from your phone's step count and your stride length. The first time, iOS asks for Motion & Fitness access so SparkyFitness can read your steps. Paused time is left out.
+
+A phone can't measure treadmill distance exactly, so treat the estimate as a starting point:
+
+- **At first it's rough.** Until the app has learned your stride it uses a typical one, and the screen says so.
+- **Change it to match your treadmill.** When you correct the distance, the app works out your stride from it and uses that next time. It learns walking and running separately, and the estimate gets closer over a few sessions. If you leave the estimate as it is, nothing is learned.
+- **Outdoor recordings help too.** A saved outdoor walk or run, whose GPS distance is known, also teaches the app your stride if you've already allowed Motion & Fitness access. It never asks for access just to learn.
+
+Your stride is kept on your phone only. On Android, or if you don't allow access, the field starts empty and you type the distance. There's no step estimate for a ride.
 
 The saved activity is logged as **Indoor Walking**, **Indoor Running** or **Indoor Cycling**, and has no route or splits.
 
