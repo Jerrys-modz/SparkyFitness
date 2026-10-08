@@ -70,6 +70,29 @@ describe('acceptFix', () => {
     expect(acceptFix(undefined, raw(0, 0, { hacc: 120 }), 0, 'run')).toBeNull();
   });
 
+  it('waits for a tighter fix to open the track', () => {
+    // Fine for the middle of a track, too loose to start one.
+    expect(acceptFix(undefined, raw(0, 0, { hacc: 40 }), 0, 'walk')).toBeNull();
+    expect(
+      acceptFix(undefined, raw(0, 0, { hacc: 20 }), 0, 'walk')
+    ).not.toBeNull();
+  });
+
+  it('holds the first fix after a resume to the same bar', () => {
+    const prev = acceptFix(undefined, raw(0, 0), 0, 'walk')!;
+    expect(acceptFix(prev, raw(60, 80, { hacc: 40 }), 1, 'walk')).toBeNull();
+    expect(
+      acceptFix(prev, raw(60, 80, { hacc: 20 }), 1, 'walk')
+    ).not.toBeNull();
+  });
+
+  it('keeps a looser fix once the stretch is under way', () => {
+    const prev = acceptFix(undefined, raw(0, 0), 0, 'walk')!;
+    expect(
+      acceptFix(prev, raw(20, 30, { hacc: 40 }), 0, 'walk')
+    ).not.toBeNull();
+  });
+
   it('drops out-of-range coordinates and non-finite times', () => {
     expect(
       acceptFix(undefined, { t: 1, lat: 91, lon: 0 }, 0, 'run')
