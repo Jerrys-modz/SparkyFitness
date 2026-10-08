@@ -13,6 +13,7 @@ import { bridgeBearerAuthHeader } from './utils/bearerAuthBridge.js';
 import { endPool } from './db/poolManager.js';
 import { log } from './config/logging.js';
 import { authenticate } from './middleware/authMiddleware.js';
+import { isReadOnlyApiKeyAuthMutation } from './middleware/readOnlyApiKeyGuard.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { applySignOutCookieCleanup } from './middleware/signOutCookieCleanup.js';
 import {
@@ -420,6 +421,17 @@ app.use(async (req, res, next) => {
         'error',
         `Failed to bridge Bearer auth header in early interceptor: ${e}`
       );
+    }
+
+    // A read-only API key must not reach Better Auth's own mutations either
+    // (creating a new full-access key, changing the password, ...). These
+    // routes never pass through `authenticate`, so check here (issue #2678).
+    if (await isReadOnlyApiKeyAuthMutation(req)) {
+      log(
+        'warn',
+        `[AUTH HANDLER] Read-only API key refused for ${req.method} ${req.path}`
+      );
+      return res.status(403).json({ error: 'This API key is read-only.' });
     }
 
     // 2. Manual Sign-Out Cleanup: preserve sparky_active_user_id delete
