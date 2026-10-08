@@ -13,6 +13,10 @@ Record a walk, run or ride with your phone's GPS in the mobile app. It works on 
 5. Tap **Finish** when you're done. You'll see the route, your totals and per-km (or per-mile) splits.
 6. Tap **Save activity** to add it to your diary, or **Discard** to throw it away.
 
+You can tap **Discard** at any point, while recording or paused as well as after finishing. You'll be asked to confirm first.
+
+If you leave the screen mid-recording, it doesn't disappear. A bar appears above the tab bar, the same as for a strength workout, with the elapsed time, distance and pace. Use it to pause or resume, or discard, and tap it to go back to the recording. A finished recording that hasn't been saved stays there too, with a check mark that opens it so you can save it.
+
 The saved activity is an ordinary diary entry with its route, distance, elevation gain and loss, and splits. It appears in Exercise Statistics and opens in the same cardio session view as activities imported from Garmin, Apple Health or Health Connect.
 
 Distance, pace and splits follow your distance unit (kilometres or miles).
@@ -41,6 +45,8 @@ If you have a paired Apple Watch with the SparkyFitness app, it follows a record
 - The watch opens on a recording page showing the clock, distance and pace, with your current heart rate beside the status.
 - Pause, resume and finish work from your wrist. Finishing stops the recording and the page tells you to save it on your iPhone.
 - The watch measures your heart rate during the activity. It shows live on the watch and on the phone's recording screen (the phone shows it while the watch is in range). After you save, the average, maximum and time in each heart-rate zone appear on the activity.
+
+Nothing is written to Apple Health from the watch until you decide. Saving the activity on your iPhone adds the workout to Apple Health; discarding it doesn't.
 
 The phone still records the route with its own GPS, so keep it with you. Heart rate is attached after the activity is saved. If the watch was out of range for part of it, the readings it held are sent when it reconnects, and the activity can be saved before that. Readings that arrive after saving are not added.
 

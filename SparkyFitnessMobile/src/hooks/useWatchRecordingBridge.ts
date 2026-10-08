@@ -52,10 +52,14 @@ export function useWatchRecordingBridge(enabled: boolean): void {
   // The last recording the watch was told about, so its end can be reported
   // after the session is gone from the store.
   const lastSent = useRef<{ id: string; status: WatchStatus } | null>(null);
+  // The newest session seen, to tell a saved recording from a discarded one
+  // once it has left the store: only a saved one has a diary entry id.
+  const lastSession = useRef<RecordingSnapshot['session']>(null);
 
   // Declared first so the effects below read the current render's values.
   useEffect(() => {
     latest.current = snapshot;
+    if (snapshot.session) lastSession.current = snapshot.session;
     unitRef.current = unit;
     tRef.current = t;
   });
@@ -113,8 +117,12 @@ export function useWatchRecordingBridge(enabled: boolean): void {
       );
     } else if (lastSent.current) {
       // Saved or discarded: the session left the store.
-      endRecording(lastSent.current.id, unitRef.current);
+      const saved =
+        lastSession.current?.id === lastSent.current.id &&
+        lastSession.current.savedEntryId != null;
+      endRecording(lastSent.current.id, unitRef.current, !saved);
       lastSent.current = null;
+      lastSession.current = null;
     }
   }, [enabled, sessionId, status]);
 
@@ -191,7 +199,11 @@ export function useWatchRecordingBridge(enabled: boolean): void {
   }, [enabled]);
 }
 
-function endRecording(sessionId: string, unit: 'km' | 'mi'): void {
+function endRecording(
+  sessionId: string,
+  unit: 'km' | 'mi',
+  discarded: boolean
+): void {
   void WatchConnectivity?.updateRecordingState(
     {
       sessionId,
@@ -202,6 +214,7 @@ function endRecording(sessionId: string, unit: 'km' | 'mi'): void {
       distanceMeters: 0,
       distanceUnit: unit,
       sentAt: Date.now(),
+      discarded,
     },
     true
   ).catch((error: unknown) => logError('send end', error));
