@@ -135,6 +135,52 @@ export function isPlausibleMealEstimate(r: OnDeviceMealEstimate): boolean {
   return mealCalories <= MAX_MEAL_CALORIES;
 }
 
+/**
+ * The model is asked to make the items add up to the weight the user entered,
+ * and small models mostly do not. When a total is given, the item weights are
+ * scaled to it (the largest item takes the rounding remainder) and each item's
+ * calories and macros are scaled by the same factor, so the numbers still
+ * describe the same food.
+ */
+export function scaleEstimateToTotalWeight(
+  estimate: OnDeviceMealEstimate,
+  totalGrams: number
+): OnDeviceMealEstimate {
+  const target = Math.round(totalGrams);
+  const current = estimate.items.reduce((sum, item) => sum + item.grams, 0);
+  if (!(target > 0) || !(current > 0)) return estimate;
+  const factor = target / current;
+  if (Math.abs(factor - 1) < 0.005) return estimate;
+
+  const scaled = estimate.items.map((item) =>
+    Math.max(1, Math.round(item.grams * factor))
+  );
+  const remainder = target - scaled.reduce((sum, grams) => sum + grams, 0);
+  if (remainder !== 0) {
+    let largest = 0;
+    scaled.forEach((grams, index) => {
+      if (grams > scaled[largest]!) largest = index;
+    });
+    scaled[largest] = Math.max(1, scaled[largest]! + remainder);
+  }
+  return {
+    ...estimate,
+    items: estimate.items.map((item, index) => {
+      const itemFactor = item.grams > 0 ? scaled[index]! / item.grams : 1;
+      return {
+        ...item,
+        grams: scaled[index]!,
+        calories: item.calories * itemFactor,
+        protein: item.protein * itemFactor,
+        carbs: item.carbs * itemFactor,
+        fat: item.fat * itemFactor,
+        fiber: item.fiber * itemFactor,
+        sugar: item.sugar * itemFactor,
+      };
+    }),
+  };
+}
+
 function toConfidence(value: string): FoodPhotoEstimateConfidence {
   const v = value.trim().toLowerCase();
   return v === 'high' || v === 'medium' ? v : 'low';
@@ -255,6 +301,22 @@ export async function estimateFoodPhotoOnDevice(
         'INFO'
       );
       return null;
+    }
+    // Keep to the weight the user gave, whatever the model made up.
+    const total = input.totalWeightGrams;
+    if (total !== undefined && total > 0) {
+      const scaled = scaleEstimateToTotalWeight(estimate, total);
+      if (!isPlausibleMealEstimate(scaled)) {
+        addLog(
+          '[Food Photo] Estimate scaled to the entered weight is implausible; falling back',
+          'INFO'
+        );
+        return null;
+      }
+      return {
+        ...toFoodPhotoEstimate(scaled),
+        user_weight_reconciliation: `Scaled to the ${Math.round(total)} g you entered.`,
+      };
     }
     return toFoodPhotoEstimate(estimate);
   } catch (error) {

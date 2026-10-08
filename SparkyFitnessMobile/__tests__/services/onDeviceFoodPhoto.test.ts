@@ -15,6 +15,7 @@ import {
   buildKnownFoodsHint,
   mealTitle,
   estimateFoodPhotoOnDevice,
+  scaleEstimateToTotalWeight,
   isPlausibleMealEstimate,
   toFoodPhotoEstimate,
 } from '../../src/services/onDeviceFoodPhoto';
@@ -131,6 +132,36 @@ describe('onDeviceFoodPhoto', () => {
       null
     );
     expect(result?.meal_summary).toBe('Chicken and rice');
+  });
+
+  it('scales the items to the weight the user entered', () => {
+    const scaled = scaleEstimateToTotalWeight(meal(), 540);
+    expect(scaled.items.reduce((sum, item) => sum + item.grams, 0)).toBe(540);
+    // 270 g to 540 g doubles each item and its calories and macros.
+    expect(scaled.items[0].grams).toBe(meal().items[0].grams * 2);
+    expect(scaled.items[0].calories).toBeCloseTo(meal().items[0].calories * 2);
+    expect(scaled.items[0].protein).toBeCloseTo(meal().items[0].protein * 2);
+  });
+
+  it('puts the rounding remainder on the largest item so the total is exact', () => {
+    const scaled = scaleEstimateToTotalWeight(meal(), 301);
+    expect(scaled.items.reduce((sum, item) => sum + item.grams, 0)).toBe(301);
+  });
+
+  it('leaves an estimate that already matches the weight alone', () => {
+    const estimate = meal();
+    expect(scaleEstimateToTotalWeight(estimate, 270)).toBe(estimate);
+    expect(scaleEstimateToTotalWeight(estimate, 0)).toBe(estimate);
+  });
+
+  it('returns an estimate whose total is the weight the user entered', async () => {
+    mockModule.estimateMeal.mockResolvedValue(meal());
+    const result = await estimateFoodPhotoOnDevice({
+      base64Images: ['x'],
+      totalWeightGrams: 400,
+    });
+    expect(result?.totals.total_grams).toBe(400);
+    expect(result?.user_weight_reconciliation).toContain('400');
   });
 
   it('returns null when the module throws or the estimate is implausible', async () => {
