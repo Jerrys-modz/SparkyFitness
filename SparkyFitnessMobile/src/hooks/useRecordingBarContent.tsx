@@ -186,20 +186,22 @@ export function useRecordingBarContent({
     ? t('recordActivity.bar.saveHint', {
         defaultValue: 'Tap to review and save',
       })
-    : points.length < 2
-      ? t('recordActivity.waitingForGps', {
-          defaultValue: 'Waiting for a GPS fix…',
-        })
-      : `${formatLocalizedNumber(summary.distanceMeters / unitMeters, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })} ${unitLabel} · ${formatPace(
-          paceSecondsPerUnit(
-            summary.distanceMeters,
-            summary.activeSeconds,
-            unitMeters
-          )
-        )} ${paceUnit}`;
+    : session.indoor
+      ? t('recordActivity.location.indoor', { defaultValue: 'Indoor' })
+      : points.length < 2
+        ? t('recordActivity.waitingForGps', {
+            defaultValue: 'Waiting for a GPS fix…',
+          })
+        : `${formatLocalizedNumber(summary.distanceMeters / unitMeters, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} ${unitLabel} · ${formatPace(
+            paceSecondsPerUnit(
+              summary.distanceMeters,
+              summary.activeSeconds,
+              unitMeters
+            )
+          )} ${paceUnit}`;
 
   const leftButton = (
     <Pressable

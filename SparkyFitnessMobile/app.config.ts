@@ -250,10 +250,12 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
           locationAlwaysAndWhenInUsePermission: false,
           locationAlwaysPermission: false,
           // The module links CoreMotion, so App Store Connect rejects the upload
-          // (ITMS-90683) without this purpose string, even though the app never
-          // asks for motion data. `false` would strip the key.
+          // (ITMS-90683) without this purpose string. It is also the text iOS
+          // shows when the step counter (`expo-sensors` Pedometer) asks for
+          // Motion & Fitness, so it says what the steps are used for. `false`
+          // would strip the key.
           motionUsagePermission:
-            'SparkyFitness uses motion data to improve the distance and pace of your recorded walks, runs and rides.',
+            'SparkyFitness uses your step count to estimate the distance of indoor walks and runs, and to learn your stride from your recorded walks and runs.',
           isAndroidForegroundServiceEnabled: true,
           isAndroidBackgroundLocationEnabled: false,
           isIosBackgroundLocationEnabled: false,

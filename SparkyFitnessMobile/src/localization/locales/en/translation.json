@@ -6682,6 +6682,20 @@
       "discard": "Discard recording",
       "review": "Review and save"
     },
+    "introIndoor": "Record a treadmill or other indoor session. No GPS is used, and you can enter the distance your machine shows when you finish.",
+    "location": {
+      "outdoor": "Outdoor",
+      "indoor": "Indoor"
+    },
+    "indoorDistance": {
+      "title": "Distance",
+      "hint": "Optional. Enter the distance your treadmill or machine shows.",
+      "estimateLearned_one": "Estimated from {{formattedCount}} step using your stride. Change it to match your treadmill and the app keeps learning.",
+      "estimateLearned_other": "Estimated from {{formattedCount}} steps using your stride. Change it to match your treadmill and the app keeps learning.",
+      "estimateRough_one": "A rough estimate from {{formattedCount}} step with a typical stride. Enter what your treadmill shows and the app learns yours.",
+      "estimateRough_other": "A rough estimate from {{formattedCount}} steps with a typical stride. Enter what your treadmill shows and the app learns yours.",
+      "invalid": "Enter a distance of zero or more."
+    },
     "heartRate": "Heart rate",
     "errors": {
       "start": "Could not start recording",

@@ -14,13 +14,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
+import FormInput from '../components/FormInput';
 import SegmentedControl from '../components/SegmentedControl';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
 import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
+import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import {
   RecordingPermissionError,
@@ -92,6 +95,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   // Set when the person taps Start here, so a session that is already there
   // when the screen opens can be told apart from one started on this visit.
   const [startedHere, setStartedHere] = useState(false);
+  // Indoor (treadmill) recording: no GPS, and the distance is typed in at the
+  // end from whatever the machine shows.
+  const [indoor, setIndoor] = useState(false);
+  // Null until the person types: the field then shows the step-based estimate,
+  // and clearing it leaves it empty rather than bringing the estimate back.
+  const [indoorDistanceText, setIndoorDistanceText] = useState<string | null>(
+    null
+  );
 
   useScreenHeader({
     title: t('screens.recordActivity', { defaultValue: 'Record Activity' }),
@@ -168,6 +179,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           setStartedHere(true);
           await startRecording({
             activity,
+            indoor,
             notification: notificationText(t, activity),
           });
         },
@@ -175,7 +187,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, run, t]
+    [activity, indoor, run, t]
   );
 
   const handleResume = useCallback(
@@ -231,11 +243,34 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     );
   }, [run, t]);
 
+  const indoorEstimate = useIndoorDistanceEstimate(session);
+  const estimateText = indoorEstimate
+    ? ((indoorEstimate.distanceKm * METERS_PER_KM) / unitMeters).toFixed(2)
+    : '';
+  const shownDistanceText = indoorDistanceText ?? estimateText;
+  const indoorDistance =
+    shownDistanceText.trim() === ''
+      ? null
+      : parseDecimalInput(shownDistanceText);
+  const indoorDistanceInvalid =
+    indoorDistance !== null &&
+    (!Number.isFinite(indoorDistance) || indoorDistance < 0);
+  const indoorDistanceKm =
+    indoorDistance !== null && Number.isFinite(indoorDistance)
+      ? (indoorDistance * unitMeters) / METERS_PER_KM
+      : null;
+
   const handleSave = useCallback(async () => {
     if (!session) return;
     setBusy(true);
     try {
-      const saved = await saveRecordedActivity(session, points, distanceUnit);
+      const saved = await saveRecordedActivity(
+        session,
+        points,
+        distanceUnit,
+        session.indoor ? indoorDistanceKm : null,
+        session.indoor ? indoorEstimate : null
+      );
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
       Toast.show({
@@ -257,7 +292,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     } finally {
       setBusy(false);
     }
-  }, [distanceUnit, navigation, points, queryClient, session, t]);
+  }, [
+    distanceUnit,
+    indoorDistanceKm,
+    indoorEstimate,
+    navigation,
+    points,
+    queryClient,
+    session,
+    t,
+  ]);
 
   const number = (value: number, digits = 2) =>
     formatLocalizedNumber(value, {
@@ -280,10 +324,15 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       return (
         <>
           <Text className="text-text-secondary text-sm mb-3">
-            {t('recordActivity.intro', {
-              defaultValue:
-                'Record a walk, run or ride with your phone’s GPS. Recording continues with the screen locked.',
-            })}
+            {indoor
+              ? t('recordActivity.introIndoor', {
+                  defaultValue:
+                    'Record a treadmill or other indoor session. No GPS is used, and you can enter the distance your machine shows when you finish.',
+                })
+              : t('recordActivity.intro', {
+                  defaultValue:
+                    'Record a walk, run or ride with your phone’s GPS. Recording continues with the screen locked.',
+                })}
           </Text>
           <SegmentedControl<RecordingActivity>
             segments={[
@@ -309,6 +358,26 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             activeKey={activity}
             onSelect={setActivity}
           />
+          <View className="mt-3">
+            <SegmentedControl<'outdoor' | 'indoor'>
+              segments={[
+                {
+                  key: 'outdoor',
+                  label: t('recordActivity.location.outdoor', {
+                    defaultValue: 'Outdoor',
+                  }),
+                },
+                {
+                  key: 'indoor',
+                  label: t('recordActivity.location.indoor', {
+                    defaultValue: 'Indoor',
+                  }),
+                },
+              ]}
+              activeKey={indoor ? 'indoor' : 'outdoor'}
+              onSelect={(key) => setIndoor(key === 'indoor')}
+            />
+          </View>
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm mb-3">
@@ -332,7 +401,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               </Button>
             </View>
           ) : null}
-          {Platform.OS === 'android' ? (
+          {Platform.OS === 'android' && !indoor ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm font-semibold mb-1">
                 {t('recordActivity.androidTips.title', {
@@ -389,6 +458,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       unit: unitLabel,
     });
     const finished = session.status === 'finished';
+    const indoorSession = session.indoor === true;
     // Still running from before this visit (or from earlier in it): say when it
     // began so a leftover recording is never mistaken for a new one.
     const carriedOver = !startedHere && !finished;
@@ -409,7 +479,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
           </View>
         ) : null}
-        {points.length > 1 ? (
+        {indoorSession ? null : points.length > 1 ? (
           <View className="mb-4">
             <RouteMap
               points={mapPoints}
@@ -445,47 +515,57 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             {formatClock(active)}
           </Text>
         </View>
-        <View className="flex-row mb-3">
-          <Stat
-            label={t('recordActivity.distance', { defaultValue: 'Distance' })}
-            value={number(distance / unitMeters)}
-            unit={unitLabel}
-          />
-          <Stat
-            label={t('recordActivity.avgPace', { defaultValue: 'Avg pace' })}
-            value={formatPace(avgPace)}
-            unit={paceUnit}
-          />
-        </View>
-        <View className="flex-row mb-4">
-          {finished ? (
-            <Stat
-              label={t('recordActivity.elevationLoss', {
-                defaultValue: 'Elevation loss',
-              })}
-              value={number(
-                distanceUnit === 'miles'
-                  ? summary.elevationLossMeters * FEET_PER_METER
-                  : summary.elevationLossMeters,
-                0
+        {indoorSession ? null : (
+          <>
+            <View className="flex-row mb-3">
+              <Stat
+                label={t('recordActivity.distance', {
+                  defaultValue: 'Distance',
+                })}
+                value={number(distance / unitMeters)}
+                unit={unitLabel}
+              />
+              <Stat
+                label={t('recordActivity.avgPace', {
+                  defaultValue: 'Avg pace',
+                })}
+                value={formatPace(avgPace)}
+                unit={paceUnit}
+              />
+            </View>
+            <View className="flex-row mb-4">
+              {finished ? (
+                <Stat
+                  label={t('recordActivity.elevationLoss', {
+                    defaultValue: 'Elevation loss',
+                  })}
+                  value={number(
+                    distanceUnit === 'miles'
+                      ? summary.elevationLossMeters * FEET_PER_METER
+                      : summary.elevationLossMeters,
+                    0
+                  )}
+                  unit={elevationUnit}
+                />
+              ) : (
+                <Stat
+                  label={t('recordActivity.currentPace', {
+                    defaultValue: 'Pace',
+                  })}
+                  value={formatPace(currentPace)}
+                  unit={paceUnit}
+                />
               )}
-              unit={elevationUnit}
-            />
-          ) : (
-            <Stat
-              label={t('recordActivity.currentPace', { defaultValue: 'Pace' })}
-              value={formatPace(currentPace)}
-              unit={paceUnit}
-            />
-          )}
-          <Stat
-            label={t('recordActivity.elevationGain', {
-              defaultValue: 'Elevation gain',
-            })}
-            value={number(elevation, 0)}
-            unit={elevationUnit}
-          />
-        </View>
+              <Stat
+                label={t('recordActivity.elevationGain', {
+                  defaultValue: 'Elevation gain',
+                })}
+                value={number(elevation, 0)}
+                unit={elevationUnit}
+              />
+            </View>
+          </>
+        )}
         {heartRate != null && !finished ? (
           <View className="flex-row mb-4">
             <Stat
@@ -524,9 +604,85 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             ))}
           </View>
         ) : null}
+        {finished && indoorSession ? (
+          <View className="bg-surface rounded-xl p-4 mb-4">
+            <Text className="text-text-primary text-base font-bold mb-1">
+              {t('recordActivity.indoorDistance.title', {
+                defaultValue: 'Distance',
+              })}
+            </Text>
+            <Text className="text-text-secondary text-sm mb-3">
+              {indoorEstimate
+                ? indoorEstimate.calibrated
+                  ? t('recordActivity.indoorDistance.estimateLearned', {
+                      count: indoorEstimate.steps,
+                      formattedCount: formatLocalizedNumber(
+                        indoorEstimate.steps,
+                        {
+                          maximumFractionDigits: 0,
+                        }
+                      ),
+                      defaultValue:
+                        'Estimated from {{formattedCount}} steps using your stride. Change it to match your treadmill and the app keeps learning.',
+                      defaultValue_one:
+                        'Estimated from {{formattedCount}} step using your stride. Change it to match your treadmill and the app keeps learning.',
+                      defaultValue_other:
+                        'Estimated from {{formattedCount}} steps using your stride. Change it to match your treadmill and the app keeps learning.',
+                    })
+                  : t('recordActivity.indoorDistance.estimateRough', {
+                      count: indoorEstimate.steps,
+                      formattedCount: formatLocalizedNumber(
+                        indoorEstimate.steps,
+                        {
+                          maximumFractionDigits: 0,
+                        }
+                      ),
+                      defaultValue:
+                        'A rough estimate from {{formattedCount}} steps with a typical stride. Enter what your treadmill shows and the app learns yours.',
+                      defaultValue_one:
+                        'A rough estimate from {{formattedCount}} step with a typical stride. Enter what your treadmill shows and the app learns yours.',
+                      defaultValue_other:
+                        'A rough estimate from {{formattedCount}} steps with a typical stride. Enter what your treadmill shows and the app learns yours.',
+                    })
+                : t('recordActivity.indoorDistance.hint', {
+                    defaultValue:
+                      'Optional. Enter the distance your treadmill or machine shows.',
+                  })}
+            </Text>
+            <View className="flex-row items-center">
+              <FormInput
+                className="flex-1"
+                keyboardType="decimal-pad"
+                value={shownDistanceText}
+                placeholder="0.00"
+                accessibilityLabel={t('recordActivity.indoorDistance.title', {
+                  defaultValue: 'Distance',
+                })}
+                onChangeText={(text) => {
+                  if (text !== '' && !DECIMAL_INPUT_REGEX.test(text)) return;
+                  setIndoorDistanceText(text);
+                }}
+              />
+              <Text className="text-text-secondary text-base ml-3">
+                {unitLabel}
+              </Text>
+            </View>
+            {indoorDistanceInvalid ? (
+              <Text className="text-text-danger-subtle text-sm mt-2">
+                {t('recordActivity.indoorDistance.invalid', {
+                  defaultValue: 'Enter a distance of zero or more.',
+                })}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {finished ? (
           <>
-            <Button loading={busy} onPress={() => void handleSave()}>
+            <Button
+              loading={busy}
+              disabled={indoorSession && indoorDistanceInvalid}
+              onPress={() => void handleSave()}
+            >
               {t('recordActivity.save', { defaultValue: 'Save activity' })}
             </Button>
             <Button
