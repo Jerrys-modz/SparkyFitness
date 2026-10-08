@@ -481,15 +481,16 @@ struct LogFoodControlIntent: AppIntent {
     }
 }
 
-/// Opens SparkyFitness on whatever screen it was on, for the Calories left
-/// control. Same reasoning as the food controls: `openAppWhenRun`, no
-/// parameters, no URL.
+/// Opens the food diary, for the Calories left control. Same reasoning as the
+/// food controls: `openAppWhenRun`, no parameters, no URL, and the app reads the
+/// note once it is in front.
 @available(iOS 18.0, *)
-struct OpenAppControlIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open SparkyFitness"
+struct OpenDiaryControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open food diary"
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
-        .result()
+        leaveControlRoute("diary")
+        return .result()
     }
 }
