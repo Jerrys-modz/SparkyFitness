@@ -1417,7 +1417,7 @@
       "lookingUp": "Looking up the label…",
       "fromOpenFoodFacts": "From Open Food Facts. Check the amounts against the label.",
       "noMatchTitle": "No match found",
-      "noMatchMessage": "That barcode is not in the supplement label database. You can enter the label by hand.",
+      "noMatchMessage": "No supplement was found for that barcode. You can enter the label by hand.",
       "lookupFailed": "Could not reach the supplement label database. Try again later.",
       "servingNote": "Label serving: {{serving}}",
       "notAdded": "Not added from the label: {{names}}",

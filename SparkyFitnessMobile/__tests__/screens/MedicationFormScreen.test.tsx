@@ -612,7 +612,7 @@ describe('MedicationFormScreen — supplement barcode', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'No match found',
-      expect.stringContaining('not in the supplement label database')
+      expect.stringContaining('No supplement was found for that barcode')
     );
   });
 

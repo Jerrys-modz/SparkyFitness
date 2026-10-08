@@ -215,7 +215,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
             }),
             t('medications.supplement.noMatchMessage', {
               defaultValue:
-                'That barcode is not in the supplement label database. You can enter the label by hand.',
+                'No supplement was found for that barcode. You can enter the label by hand.',
             })
           );
           return;
