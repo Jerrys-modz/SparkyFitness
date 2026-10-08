@@ -56,8 +56,8 @@ final class WorkoutSessionStore: ObservableObject {
     /// the moment, not session state.
     @Published private(set) var lastSummary: WorkoutSummary?
     /// What the plan looked like when the workout started, to tell whether
-    /// the exercises or sets have changed since. Not persisted: a restored
-    /// workout simply is not asked.
+    /// the exercises or sets have changed since. Persisted with the snapshot
+    /// so a restored workout is still compared to the plan it started as.
     private var baselineStructure: [String]?
     /// Set when Finish is tapped on a workout that changed from its saved
     /// workout; the workout screen asks whether to update it before ending.
@@ -552,11 +552,13 @@ final class WorkoutSessionStore: ObservableObject {
 
     /// The exercises and the number and kind of sets in each, in order: what
     /// a saved workout is made of. Weights and reps are left out, as on the
-    /// phone, so loading more weight does not count as a change.
+    /// phone, so loading more weight does not count as a change. The
+    /// superset grouping and the exercise's own id are included, so a
+    /// grouping change or two exercises with the same name still count.
     private static func structure(of plan: ActiveWorkoutPlan) -> [String] {
         plan.exercises.map { exercise in
             let sets = exercise.sets.map { $0.setType ?? "normal" }.joined(separator: ",")
-            return "\(exercise.name)|\(sets)"
+            return "\(exercise.exerciseEntryId)|\(exercise.name)|\(exercise.supersetRun.map(String.init) ?? "-")|\(sets)"
         }
     }
 

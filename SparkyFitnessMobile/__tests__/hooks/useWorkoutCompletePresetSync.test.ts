@@ -13,8 +13,9 @@ jest.mock('react-native-toast-message', () => ({ show: jest.fn() }));
 jest.mock('../../src/hooks/useProfile', () => ({
   useProfile: () => ({ profile: { id: 'user-1' } }),
 }));
+const mockUpdatePresetAsync = jest.fn();
 jest.mock('../../src/hooks/useWorkoutPresetMutations', () => ({
-  useUpdateWorkoutPreset: () => ({ updatePresetAsync: jest.fn() }),
+  useUpdateWorkoutPreset: () => ({ updatePresetAsync: mockUpdatePresetAsync }),
 }));
 jest.mock('../../src/services/api/workoutPresetsApi', () => ({
   getWorkoutPresetById: jest.fn(),
@@ -42,6 +43,7 @@ function args(onSettled: () => void, sourcePresetId: number | null = 5) {
 describe('useWorkoutCompletePresetSync onSettled', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUpdatePresetAsync.mockResolvedValue(undefined);
     (getActiveServerConfig as jest.Mock).mockResolvedValue({ id: 'srv' });
     (getWorkoutPresetById as jest.Mock).mockResolvedValue({
       id: 5,
@@ -79,6 +81,41 @@ describe('useWorkoutCompletePresetSync onSettled', () => {
     const buttons = alert.mock.calls[0]![2]!;
     act(() => buttons[0]!.onPress?.());
     expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles after the preset update succeeds', async () => {
+    (buildPresetUpdateExercises as jest.Mock).mockReturnValue([{}]);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onSettled = jest.fn();
+    renderHook(() => useWorkoutCompletePresetSync(args(onSettled)));
+    await waitFor(() => expect(alert).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
+    const buttons = alert.mock.calls[0]![2]!;
+    await act(async () => {
+      buttons[1]!.onPress?.();
+    });
+    await waitFor(() => expect(onSettled).toHaveBeenCalledTimes(1));
+  });
+
+  it('asks again instead of settling when the preset update fails', async () => {
+    (buildPresetUpdateExercises as jest.Mock).mockReturnValue([{}]);
+    mockUpdatePresetAsync.mockRejectedValue(new Error('offline'));
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onSettled = jest.fn();
+    renderHook(() => useWorkoutCompletePresetSync(args(onSettled)));
+    await waitFor(() => expect(alert).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
+    const buttons = alert.mock.calls[0]![2]!;
+    await act(async () => {
+      buttons[1]!.onPress?.();
+    });
+    await waitFor(() => expect(mockUpdatePresetAsync).toHaveBeenCalled());
+    expect(onSettled).not.toHaveBeenCalled();
+    await waitFor(() => expect(alert).toHaveBeenCalledTimes(2), {
+      timeout: 3000,
+    });
   });
 
   it('settles when the preset cannot be loaded', async () => {

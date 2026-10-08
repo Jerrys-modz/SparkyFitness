@@ -484,10 +484,6 @@ public class WatchConnectivityModule: Module {
             }
         }
 
-        /// Puts the update-this-workout question on the watch's post-workout
-        /// summary. Live only, never queued: the summary it belongs to is gone
-        /// by the time a queued copy could arrive. False when the watch cannot
-        /// be reached, so the caller knows only the phone will ask.
         /// Pause or resume the cap. Always queued, so a watch out of range
         /// still hears it, and sent immediately when reachable so the cap
         /// freezes without waiting for the queue. The watch keeps a snapshot
