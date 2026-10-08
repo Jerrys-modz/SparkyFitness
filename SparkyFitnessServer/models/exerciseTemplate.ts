@@ -96,6 +96,25 @@ async function createExerciseEntriesFromTemplate(
       const currentDayOfWeek = dayOfWeek(entryDate);
       for (const assignment of template.assignments) {
         if (assignment.day_of_week === currentDayOfWeek) {
+          // A row for this assignment and day already stands for the session:
+          // one the user logged, one they edited (kept when the plan was
+          // updated), or a legacy generated row that could not be told apart
+          // from a logged one. Generating another would duplicate it.
+          const existingForDay = await client.query(
+            `SELECT 1 FROM exercise_entries
+             WHERE user_id = $1
+               AND workout_plan_assignment_id = $2
+               AND entry_date = $3
+             LIMIT 1`,
+            [userId, assignment.id, entryDate]
+          );
+          if (existingForDay.rows.length > 0) {
+            log(
+              'info',
+              `createExerciseEntriesFromTemplate - Assignment ${assignment.id} already has an entry on ${entryDate}; not generating another.`
+            );
+            continue;
+          }
           const processExercise = async (
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             exerciseId: any,
@@ -186,7 +205,8 @@ async function createExerciseEntriesFromTemplate(
 // be regenerated (or dropped when the plan is deactivated or deleted). Only rows
 // stamped with WORKOUT_PLAN_ENTRY_SOURCE are generated; a workout the user
 // logged from a plan session carries the same workout_plan_assignment_id but
-// its own source, and must survive (#2677).
+// its own source, and must survive (#2677). A generated row the user has since
+// edited (updated_at moved past created_at) is theirs now and survives too.
 async function deleteExerciseEntriesByTemplateId(
   templateId: string | number,
   userId: string,
@@ -201,6 +221,7 @@ async function deleteExerciseEntriesByTemplateId(
       `DELETE FROM exercise_preset_entries
        WHERE user_id = $1
          AND source = $4
+         AND NOT COALESCE(updated_at > created_at + interval '2 seconds', false)
          AND id IN (
            SELECT DISTINCT exercise_preset_entry_id
            FROM exercise_entries
@@ -211,6 +232,11 @@ async function deleteExerciseEntriesByTemplateId(
                SELECT id FROM workout_plan_template_assignments
                WHERE template_id = $2
              )
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM exercise_entries edited
+           WHERE edited.exercise_preset_entry_id = exercise_preset_entries.id
+             AND edited.updated_at > edited.created_at + interval '2 seconds'
          )`,
       [userId, templateId, today, WORKOUT_PLAN_ENTRY_SOURCE]
     );
@@ -234,6 +260,7 @@ async function deleteExerciseEntriesByTemplateId(
              WHERE template_id = $2
          )
          AND (source = $4 OR (source = 'Manual' AND entry_date > $3))
+         AND NOT COALESCE(updated_at > created_at + interval '2 seconds', false)
        RETURNING id`,
       [userId, templateId, today, WORKOUT_PLAN_ENTRY_SOURCE]
     );

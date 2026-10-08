@@ -56,7 +56,11 @@ describe('deleteExerciseEntriesByTemplateId', () => {
     const [presetSql, presetParams] = client.query.mock
       .calls[0] as unknown as QueryCall;
     expect(normalize(presetSql)).toMatch(
-      /^DELETE FROM exercise_preset_entries WHERE user_id = \$1 AND source = \$4 AND id IN/
+      /^DELETE FROM exercise_preset_entries WHERE user_id = \$1 AND source = \$4 AND NOT COALESCE\(updated_at > created_at \+ interval '2 seconds', false\) AND id IN/
+    );
+    // A session whose workouts the user edited in place is theirs now.
+    expect(normalize(presetSql)).toContain(
+      "edited.updated_at > edited.created_at + interval '2 seconds'"
     );
     expect(presetParams).toEqual([
       USER_ID,
@@ -80,6 +84,10 @@ describe('deleteExerciseEntriesByTemplateId', () => {
     // still carry the default 'Manual' source. Today's 'Manual' rows stay.
     expect(sql).toContain(
       "AND (source = $4 OR (source = 'Manual' AND entry_date > $3))"
+    );
+    // A generated row the user edited in place is kept.
+    expect(sql).toContain(
+      "AND NOT COALESCE(updated_at > created_at + interval '2 seconds', false)"
     );
     expect(entryParams).toEqual([
       USER_ID,
@@ -165,5 +173,44 @@ describe('createExerciseEntriesFromTemplate', () => {
         workoutPlanAssignmentId: 8,
       }
     );
+  });
+
+  it('does not generate an entry for an assignment that already has one that day', async () => {
+    // A legacy generated row, or one the user logged or edited, survives the
+    // delete; generating again would duplicate it.
+    mockClient([
+      {
+        rows: [
+          {
+            id: TEMPLATE_ID,
+            user_id: USER_ID,
+            start_date: TODAY,
+            end_date: TODAY,
+            is_active: true,
+            assignments: [
+              {
+                id: 7,
+                day_of_week: 3,
+                workout_preset_id: null,
+                exercise_id: 'exercise-1',
+              },
+              {
+                id: 8,
+                day_of_week: 3,
+                workout_preset_id: 11,
+                exercise_id: null,
+              },
+            ],
+          },
+        ],
+      },
+      { rows: [{ '?column?': 1 }] },
+      { rows: [{ '?column?': 1 }] },
+    ]);
+
+    await createExerciseEntriesFromTemplate(TEMPLATE_ID, USER_ID, TODAY);
+
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
   });
 });
