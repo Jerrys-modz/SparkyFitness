@@ -15,7 +15,11 @@ import {
   KeyboardStickyView,
   type KeyboardAwareScrollViewRef,
 } from 'react-native-keyboard-controller';
-import { findDropSetBaseIndex, findWarmupBaseIndex } from '@workspace/shared';
+import {
+  calculateWarmupSets,
+  findDropSetBaseIndex,
+  findWarmupBaseIndex,
+} from '@workspace/shared';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -262,19 +266,53 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const warmupCalculatorEnabled = useAppPreferencesStore(
     (s) => s.warmupCalculatorEnabled
   );
+  const warmupMethod = useAppPreferencesStore((s) => s.warmupMethod);
+  const warmupPlateRounding = useAppPreferencesStore(
+    (s) => s.warmupPlateRounding
+  );
+  const warmupDumbbellRounding = useAppPreferencesStore(
+    (s) => s.warmupDumbbellRounding
+  );
   const canAddWarmups = useCallback(
     (entryId: string): boolean => {
       if (!warmupCalculatorEnabled) return false;
-      if (warmupWeightKg(entryId) == null) return false;
+      const weightKg = warmupWeightKg(entryId);
+      if (weightKg == null) return false;
       const ex = session?.exercises.find((e) => e.id === entryId);
       // A warm-up already logged means the ramp is under way.
-      return !ex?.sets.some(
-        (s) =>
-          s.set_type === 'warmup' &&
-          (completedSetIds[String(s.id)] != null || s.completed_at != null)
+      if (
+        ex?.sets.some(
+          (s) =>
+            s.set_type === 'warmup' &&
+            (completedSetIds[String(s.id)] != null || s.completed_at != null)
+        )
+      ) {
+        return false;
+      }
+      // A weight findWarmupBaseIndex accepts can still round to nothing
+      // (2 kg against the default 2.5 kg plate step). Hide the action then.
+      return (
+        calculateWarmupSets(
+          weightKg,
+          weightUnit,
+          resolveWarmupOptions(
+            { warmupMethod, warmupPlateRounding, warmupDumbbellRounding },
+            weightUnit,
+            ex?.exercise_snapshot?.equipment
+          )
+        ).length > 0
       );
     },
-    [warmupCalculatorEnabled, warmupWeightKg, session, completedSetIds]
+    [
+      warmupCalculatorEnabled,
+      warmupWeightKg,
+      session,
+      completedSetIds,
+      weightUnit,
+      warmupMethod,
+      warmupPlateRounding,
+      warmupDumbbellRounding,
+    ]
   );
   const handleAddWarmups = useCallback(
     (entryId: string) => {

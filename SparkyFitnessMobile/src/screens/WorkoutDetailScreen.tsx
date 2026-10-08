@@ -33,6 +33,7 @@ import {
   getWorkoutSummary,
   getExerciseVolumeKg,
   hasBodyweightExercise,
+  isWarmupSetType,
   formatVolume,
   canReorderDraftExercises,
   exerciseFromSnapshot,
@@ -637,6 +638,7 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       ? formState.exercises.reduce(
           (sum, ex) =>
             ex.sets.reduce((s, set) => {
+              if (isWarmupSetType(set.setType)) return s;
               const w = parseSetWeight(
                 set.weight,
                 resolveExerciseModality(

@@ -30,7 +30,7 @@ Under **Settings → Workout Settings → Warm-up calculator**:
 ## How the sets behave
 
 - They use the **Warm-up** set type, so they stay out of volume, personal records and progression, the same as warm-ups you add by hand. They stay editable, and you log them like any other set.
-- Each has a 60 second rest.
+- Each has a 60-second rest.
 - Tapping **Add warm-ups** again replaces warm-ups you have not logged yet instead of adding more. Once you have logged a warm-up, the option is hidden for that exercise.
 - The option is not shown for cardio or timed exercises, or when the first working set has no weight yet.
 - In an active workout, a warm-up row's **Prev** value comes from your last warm-up of that exercise, and a working set's comes from your last working set.

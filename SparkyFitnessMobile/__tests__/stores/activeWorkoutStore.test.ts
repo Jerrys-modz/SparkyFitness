@@ -3047,6 +3047,56 @@ describe('activeWorkoutStore', () => {
       expect(state.session).toBe(reordered); // untouched — no positional graft
       expect(state.hasUnsavedChanges).toBe(true);
     });
+
+    it('grafts when the sent set ids still match a value-only edit', () => {
+      useActiveWorkoutStore.getState().updateSetField('101', { weight: 65 });
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+      useActiveWorkoutStore.getState().updateSetField('101', { weight: 70 });
+
+      useActiveWorkoutStore
+        .getState()
+        .applyServerSession(
+          makeRecreatedSession(),
+          sentRevision,
+          SENT_ENTRY_IDS,
+          [['101', '102'], ['201']]
+        );
+
+      const sets = useActiveWorkoutStore.getState().session!.exercises[0].sets;
+      expect(sets.map((s) => s.id)).toEqual([501, 502]);
+      expect(sets[0].weight).toBe(70);
+      expect(useActiveWorkoutStore.getState().hasUnsavedChanges).toBe(true);
+    });
+
+    it('skips the graft when warm-ups were prepended after the sent set ids', () => {
+      useActiveWorkoutStore.getState().updateSetField('101', { weight: 65 });
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+      const sentSetIds = useActiveWorkoutStore
+        .getState()
+        .session!.exercises.map((e) => e.sets.map((s) => String(s.id)));
+
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise('ex-uuid-1', 100, 'kg');
+      const withWarmups = useActiveWorkoutStore.getState().session;
+
+      useActiveWorkoutStore
+        .getState()
+        .applyServerSession(
+          makeRecreatedSession(),
+          sentRevision,
+          SENT_ENTRY_IDS,
+          sentSetIds
+        );
+
+      const state = useActiveWorkoutStore.getState();
+      expect(state.session).toBe(withWarmups);
+      expect(state.hasUnsavedChanges).toBe(true);
+      const ids = state.session!.exercises[0].sets.map((s) => s.id);
+      expect(ids).toContain(101);
+      expect(ids).toContain(102);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
   });
 
   describe('setRenderKeys (stable render keys across id churn)', () => {
@@ -4122,6 +4172,43 @@ describe('activeWorkoutStore', () => {
       expect(useActiveWorkoutStore.getState().session!.exercises[0].sets).toBe(
         before
       );
+    });
+
+    it('moves the cursor onto the first warm-up when it sat on the first working set, and clears rest', async () => {
+      mockSchedule.mockResolvedValueOnce('notif-warmup-cursor');
+      useActiveWorkoutStore.getState().completeActiveSet();
+      await flushPromises();
+      // Rest is running, but the cursor is back on the set the ramp leads.
+      useActiveWorkoutStore.setState({ activeSetId: '101' });
+
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise('ex-uuid-1', 100, 'kg');
+
+      const state = useActiveWorkoutStore.getState();
+      const first = state.session!.exercises[0].sets[0];
+      expect(first.set_type).toBe('warmup');
+      expect(state.activeSetId).toBe(String(first.id));
+      expect(state.rest.state).toBe('ready');
+      expect(mockCancel).toHaveBeenCalledWith('notif-warmup-cursor');
+    });
+
+    it('leaves the cursor and its rest alone when it is on a later working set', async () => {
+      mockSchedule.mockResolvedValueOnce('notif-later-set');
+      useActiveWorkoutStore.getState().completeActiveSet();
+      await flushPromises();
+      mockCancel.mockClear();
+      expect(useActiveWorkoutStore.getState().activeSetId).toBe('102');
+      const restBefore = useActiveWorkoutStore.getState().rest;
+
+      useActiveWorkoutStore
+        .getState()
+        .addWarmupSetsToExercise('ex-uuid-1', 100, 'kg');
+
+      const state = useActiveWorkoutStore.getState();
+      expect(state.activeSetId).toBe('102');
+      expect(state.rest).toBe(restBefore);
+      expect(mockCancel).not.toHaveBeenCalled();
     });
 
     it('adds nothing when no step would be a loadable weight under the working weight', () => {
