@@ -14,11 +14,11 @@ import Icon, { type IconName } from './Icon';
 import Button from './ui/Button';
 import { useSheetBackdrop } from './ui/sheetChrome';
 import {
-  ADD_MENU_ITEM_KEYS,
+  ADD_MENU_ITEM_ICONS,
   type AddMenuItemKey,
 } from '../constants/addMenuItems';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { resolveKeyOrder } from '../utils/reorderUtils';
+import { resolveAddMenuCards, rowKeys } from '../utils/addMenu';
 
 export interface AddSheetRef {
   present: (options?: { initialMenu?: 'exercise' }) => void;
@@ -48,9 +48,11 @@ interface AddSheetProps {
   onDismissWithoutAction?: () => void;
 }
 
-interface ActionCard {
+/** What one item in the sheet looks like and does, as a card or a row. */
+interface MenuItemDef {
   label: string;
   icon: IconName;
+  /** Missing for Exercise, which opens the sub-menu instead. */
   onPress?: () => void;
 }
 
@@ -88,6 +90,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     const pendingInitialMenuRef = useRef<'exercise' | null>(null);
     const presentFrameRef = useRef<number | null>(null);
     const [showExerciseMenu, setShowExerciseMenu] = useState(false);
+    const addMenuCards = useAppPreferencesStore((st) => st.addMenuCards);
     const addMenuOrder = useAppPreferencesStore((st) => st.addMenuOrder);
     const hiddenAddMenuItems = useAppPreferencesStore(
       (st) => st.hiddenAddMenuItems
@@ -217,68 +220,47 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       [clearScheduledPresent]
     );
 
-    const cards: ActionCard[] = [
-      {
-        label: t('addSheet.food', { defaultValue: 'Food' }),
-        icon: 'food',
-        onPress: onAddFood,
-      },
-      {
-        label: t('addSheet.exercise', { defaultValue: 'Exercise' }),
-        icon: 'exercise-weights',
-      },
-      {
-        label: t('addSheet.measurements', { defaultValue: 'Measurements' }),
-        icon: 'measurements',
-        onPress: onAddMeasurements,
-      },
-      {
-        label: t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
-        icon: 'scan',
-        onPress: onBarcodeScan,
-      },
-    ];
+    // Exercise has no action of its own: it opens the sub-menu, wherever it sits.
+    const press = (onPress?: () => void) => {
+      if (onPress) {
+        handleAction(onPress);
+        return;
+      }
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setShowExerciseMenu(true);
+    };
 
-    const renderCard = (card: ActionCard) => (
+    const renderCard = (key: string, def: MenuItemDef) => (
       <Button
-        key={card.label}
+        key={key}
         variant="primary"
         className="flex-1 py-5 mx-1.5"
         style={{ backgroundColor: raisedBg }}
-        onPress={() => {
-          if (card.onPress) {
-            handleAction(card.onPress);
-          } else {
-            LayoutAnimation.configureNext(
-              LayoutAnimation.Presets.easeInEaseOut
-            );
-            setShowExerciseMenu(true);
-          }
-        }}
+        onPress={() => press(def.onPress)}
       >
-        <Icon name={card.icon} size={32} color={accentPrimary} />
-        <Text className="text-text-primary text-sm font-medium mt-2">
-          {card.label}
+        <Icon name={def.icon} size={32} color={accentPrimary} />
+        <Text
+          className="text-text-primary text-sm font-medium mt-2 text-center"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
+          {def.label}
         </Text>
       </Button>
     );
 
-    const renderSecondaryRow = (
-      key: string,
-      label: string,
-      icon: IconName,
-      onPress: () => void
-    ) => (
+    const renderSecondaryRow = (key: string, def: MenuItemDef) => (
       <Button
         key={key}
         variant="primary"
         className="flex-row items-center justify-center py-3 mx-1.5 mt-3"
         style={{ backgroundColor: raisedBg }}
-        onPress={() => handleAction(onPress)}
+        onPress={() => press(def.onPress)}
       >
-        <Icon name={icon} size={20} color={accentPrimary} />
+        <Icon name={def.icon} size={20} color={accentPrimary} />
         <Text className="text-text-primary text-sm font-medium ml-2">
-          {label}
+          {def.label}
         </Text>
       </Button>
     );
@@ -317,27 +299,41 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       </Button>
     );
 
-    // Rows the app can offer right now, keyed so the saved order and hidden
-    // list from Settings → Add menu can arrange them. A row whose handler or
-    // feature is off is simply absent, whatever the arrangement says.
-    const secondaryRowDefs: Partial<
-      Record<
-        AddMenuItemKey,
-        { label: string; icon: IconName; onPress: () => void }
-      >
-    > = {
+    // Everything the app can offer right now, keyed so the saved arrangement
+    // from Settings → Add menu can place it. An item whose handler or feature
+    // is off is simply absent, whatever the arrangement says.
+    const itemDefs: Partial<Record<AddMenuItemKey, MenuItemDef>> = {
+      food: {
+        label: t('addSheet.food', { defaultValue: 'Food' }),
+        icon: ADD_MENU_ITEM_ICONS.food,
+        onPress: onAddFood,
+      },
+      exercise: {
+        label: t('addSheet.exercise', { defaultValue: 'Exercise' }),
+        icon: ADD_MENU_ITEM_ICONS.exercise,
+      },
+      measurements: {
+        label: t('addSheet.measurements', { defaultValue: 'Measurements' }),
+        icon: ADD_MENU_ITEM_ICONS.measurements,
+        onPress: onAddMeasurements,
+      },
+      scanFood: {
+        label: t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
+        icon: ADD_MENU_ITEM_ICONS.scanFood,
+        onPress: onBarcodeScan,
+      },
       recordActivity: onRecordActivity && {
         label: t('addSheet.recordActivity', {
           defaultValue: 'Record Activity',
         }),
-        icon: 'location',
+        icon: ADD_MENU_ITEM_ICONS.recordActivity,
         onPress: onRecordActivity,
       },
       progressPhotos: {
         label: t('addSheet.progressPhotos', {
           defaultValue: 'Progress Photos',
         }),
-        icon: 'camera',
+        icon: ADD_MENU_ITEM_ICONS.progressPhotos,
         onPress: onAddProgressPhotos,
       },
       wellness:
@@ -346,43 +342,63 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
               label:
                 cycleLabel ??
                 t('addSheet.wellness', { defaultValue: 'Wellness' }),
-              icon: cycleIcon ?? 'wellness-filled',
+              icon: cycleIcon ?? ADD_MENU_ITEM_ICONS.wellness,
               onPress: onOpenCycle,
             }
           : undefined,
       symptoms: onAddSymptoms && {
         label: t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
-        icon: 'symptoms',
+        icon: ADD_MENU_ITEM_ICONS.symptoms,
         onPress: onAddSymptoms,
       },
       mood: onAddMood && {
         label: t('addSheet.mood', { defaultValue: 'Mood' }),
-        icon: 'mood',
+        icon: ADD_MENU_ITEM_ICONS.mood,
         onPress: onAddMood,
       },
       mindfulness: onAddMindfulness && {
         label: t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
-        icon: 'exercise-yoga',
+        icon: ADD_MENU_ITEM_ICONS.mindfulness,
         onPress: onAddMindfulness,
       },
       askSparky: {
         label: t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
-        icon: 'sparkles',
+        icon: ADD_MENU_ITEM_ICONS.askSparky,
         onPress: onAskSparky,
       },
       syncHealth: {
         label: t('addSheet.syncHealth', { defaultValue: 'Sync Health Data' }),
-        icon: 'sync',
+        icon: ADD_MENU_ITEM_ICONS.syncHealth,
         onPress: onSyncHealthData,
       },
     };
-    const secondaryRows = resolveKeyOrder(addMenuOrder, ADD_MENU_ITEM_KEYS)
+    const cardKeys = resolveAddMenuCards(addMenuCards);
+    // The four big cards, two to a line. An unavailable one leaves its slot
+    // empty, so a line with one card keeps that card at half width.
+    const cardLines: React.ReactNode[] = [];
+    for (let start = 0; start < cardKeys.length; start += 2) {
+      const line = cardKeys.slice(start, start + 2).flatMap((key) => {
+        const def = itemDefs[key];
+        return def ? [renderCard(key, def)] : [];
+      });
+      if (line.length === 0) continue;
+      if (line.length === 1) {
+        line.push(<View key={`spacer-${start}`} className="flex-1 mx-1.5" />);
+      }
+      cardLines.push(
+        <View
+          key={`line-${start}`}
+          className={start === 0 ? 'flex-row mb-3' : 'flex-row'}
+        >
+          {line}
+        </View>
+      );
+    }
+    const secondaryRows = rowKeys(addMenuOrder, cardKeys)
       .filter((key) => !hiddenAddMenuItems.includes(key))
       .flatMap((key) => {
-        const row = secondaryRowDefs[key];
-        return row
-          ? [renderSecondaryRow(key, row.label, row.icon, row.onPress)]
-          : [];
+        const def = itemDefs[key];
+        return def ? [renderSecondaryRow(key, def)] : [];
       });
 
     return (
@@ -442,14 +458,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
             </>
           ) : (
             <>
-              <View className="flex-row mb-3">
-                {renderCard(cards[0])}
-                {renderCard(cards[1])}
-              </View>
-              <View className="flex-row">
-                {renderCard(cards[2])}
-                {renderCard(cards[3])}
-              </View>
+              {cardLines}
               {secondaryRows}
             </>
           )}

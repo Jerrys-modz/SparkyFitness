@@ -1,11 +1,18 @@
+import type { IconName } from '../components/Icon';
+
 /**
- * The rows under the four cards in the + sheet, in the order the sheet shipped
- * with. A saved order is reconciled against this array (`resolveKeyOrder`), so
- * a row added later shows up, at the end, for users who already arranged theirs.
- * The four cards (Food, Exercise, Measurements, Scan Food) are not here: they
- * stay put, and Exercise opens its own sub-menu.
+ * Everything the + sheet can offer, in the order it shipped with: the four
+ * cards, then the rows. Any item can sit in one of the four card slots
+ * (`addMenuCards`) or in the rows below them. A saved order is reconciled
+ * against this array (`resolveKeyOrder`), so an item added later shows up, at
+ * the end, for users who already arranged theirs. Exercise opens its own
+ * sub-menu wherever it sits.
  */
 export const ADD_MENU_ITEM_KEYS = [
+  'food',
+  'exercise',
+  'measurements',
+  'scanFood',
   'recordActivity',
   'progressPhotos',
   'wellness',
@@ -18,6 +25,17 @@ export const ADD_MENU_ITEM_KEYS = [
 
 export type AddMenuItemKey = (typeof ADD_MENU_ITEM_KEYS)[number];
 
+/** How many big cards the sheet has room for: two rows of two. */
+export const ADD_MENU_CARD_COUNT = 4;
+
+/** The cards the sheet shipped with. */
+export const DEFAULT_ADD_MENU_CARDS: AddMenuItemKey[] = [
+  'food',
+  'exercise',
+  'measurements',
+  'scanFood',
+];
+
 type Translator = (key: string, options: { defaultValue: string }) => string;
 
 /**
@@ -29,6 +47,11 @@ export const ADD_MENU_ITEM_LABELS: Record<
   AddMenuItemKey,
   (t: Translator) => string
 > = {
+  food: (t) => t('addSheet.food', { defaultValue: 'Food' }),
+  exercise: (t) => t('addSheet.exercise', { defaultValue: 'Exercise' }),
+  measurements: (t) =>
+    t('addSheet.measurements', { defaultValue: 'Measurements' }),
+  scanFood: (t) => t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
   recordActivity: (t) =>
     t('addSheet.recordActivity', { defaultValue: 'Record Activity' }),
   progressPhotos: (t) =>
@@ -41,4 +64,20 @@ export const ADD_MENU_ITEM_LABELS: Record<
   askSparky: (t) => t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
   syncHealth: (t) =>
     t('addSheet.syncHealth', { defaultValue: 'Sync Health Data' }),
+};
+
+/** Each item's icon, on a card and in a row. */
+export const ADD_MENU_ITEM_ICONS: Record<AddMenuItemKey, IconName> = {
+  food: 'food',
+  exercise: 'exercise-weights',
+  measurements: 'measurements',
+  scanFood: 'scan',
+  recordActivity: 'location',
+  progressPhotos: 'camera',
+  wellness: 'wellness-filled',
+  symptoms: 'symptoms',
+  mood: 'mood',
+  mindfulness: 'exercise-yoga',
+  askSparky: 'sparkles',
+  syncHealth: 'sync',
 };

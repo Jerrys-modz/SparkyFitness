@@ -153,6 +153,33 @@ describe('AddSheet', () => {
     __resetAppPreferencesStoreForTests();
   });
 
+  it('puts a chosen item on a big card and the old card in the rows', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.setState({
+      addMenuCards: ['askSparky', 'exercise', 'measurements', 'scanFood'],
+    });
+    const onAskSparky = jest.fn();
+    const { getByText } = renderAddSheet({ onAskSparky });
+
+    // Ask Sparky is a card now, Food is a row, and both still work.
+    fireEvent.press(getByText('Ask Sparky'));
+    expect(onAskSparky).toHaveBeenCalled();
+    expect(getByText('Food')).toBeTruthy();
+    __resetAppPreferencesStoreForTests();
+  });
+
+  it('opens the exercise sub-menu from a row', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.setState({
+      addMenuCards: ['food', 'mood', 'measurements', 'scanFood'],
+    });
+    const { getByText } = renderAddSheet({ onAddMood: jest.fn() });
+
+    fireEvent.press(getByText('Exercise'));
+    expect(getByText('Workout')).toBeTruthy();
+    __resetAppPreferencesStoreForTests();
+  });
+
   it('renders the Measurements tile in the main grid', () => {
     const { ref, getByText } = renderAddSheet();
 
