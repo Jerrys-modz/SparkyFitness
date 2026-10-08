@@ -13,6 +13,11 @@ import {
   type RecordingSession,
 } from './gpsRecordingService';
 import { addLog } from './LogService';
+import {
+  learnFromIndoorEntry,
+  learnFromOutdoorRecording,
+  type IndoorDistanceEstimate,
+} from './stepDistance';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -91,13 +96,15 @@ export interface SavedRecording {
  *
  * An indoor session has no route: its distance is whatever the person read off
  * the machine (`indoorDistanceKm`, null to leave it out), and there is no
- * track to send.
+ * track to send. `indoorEstimate` is the step-based distance it was prefilled
+ * with: a distance the person changed teaches the app their stride.
  */
 export async function saveRecordedActivity(
   session: RecordingSession,
   points: readonly RecordedPoint[],
   distanceUnit: 'km' | 'miles',
-  indoorDistanceKm: number | null = null
+  indoorDistanceKm: number | null = null,
+  indoorEstimate: IndoorDistanceEstimate | null = null
 ): Promise<SavedRecording> {
   const indoor = session.indoor === true;
   const started = new Date(session.startedAt);
@@ -128,6 +135,30 @@ export async function saveRecordedActivity(
     });
     entryId = created.id;
     await markRecordingSaved(entryId);
+    // Once, with the entry: a retry of a failed track upload must not teach
+    // the same session twice. Best effort, never part of the save failing.
+    try {
+      if (indoor) {
+        await learnFromIndoorEntry(
+          session.activity,
+          indoorEstimate,
+          indoorDistanceKm
+        );
+      } else if (session.finishedAt != null) {
+        await learnFromOutdoorRecording(
+          {
+            activity: session.activity,
+            startedAt: session.startedAt,
+            finishedAt: session.finishedAt,
+            activeSeconds: durationSeconds,
+          },
+          (distanceKm ?? 0) * METERS_PER_KM
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      addLog(`[GPS Recording] Could not learn stride: ${message}`, 'WARNING');
+    }
   }
 
   if (!indoor) {

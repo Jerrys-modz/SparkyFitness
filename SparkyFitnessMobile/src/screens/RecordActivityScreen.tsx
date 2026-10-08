@@ -18,6 +18,7 @@ import FormInput from '../components/FormInput';
 import SegmentedControl from '../components/SegmentedControl';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
 import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
@@ -97,7 +98,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   // Indoor (treadmill) recording: no GPS, and the distance is typed in at the
   // end from whatever the machine shows.
   const [indoor, setIndoor] = useState(false);
-  const [indoorDistanceText, setIndoorDistanceText] = useState('');
+  // Null until the person types: the field then shows the step-based estimate,
+  // and clearing it leaves it empty rather than bringing the estimate back.
+  const [indoorDistanceText, setIndoorDistanceText] = useState<string | null>(
+    null
+  );
 
   useScreenHeader({
     title: t('screens.recordActivity', { defaultValue: 'Record Activity' }),
@@ -238,10 +243,15 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     );
   }, [run, t]);
 
+  const indoorEstimate = useIndoorDistanceEstimate(session);
+  const estimateText = indoorEstimate
+    ? ((indoorEstimate.distanceKm * METERS_PER_KM) / unitMeters).toFixed(2)
+    : '';
+  const shownDistanceText = indoorDistanceText ?? estimateText;
   const indoorDistance =
-    indoorDistanceText.trim() === ''
+    shownDistanceText.trim() === ''
       ? null
-      : parseDecimalInput(indoorDistanceText);
+      : parseDecimalInput(shownDistanceText);
   const indoorDistanceInvalid =
     indoorDistance !== null &&
     (!Number.isFinite(indoorDistance) || indoorDistance < 0);
@@ -258,7 +268,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         session,
         points,
         distanceUnit,
-        session.indoor ? indoorDistanceKm : null
+        session.indoor ? indoorDistanceKm : null,
+        session.indoor ? indoorEstimate : null
       );
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
@@ -284,6 +295,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   }, [
     distanceUnit,
     indoorDistanceKm,
+    indoorEstimate,
     navigation,
     points,
     queryClient,
@@ -600,16 +612,48 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               })}
             </Text>
             <Text className="text-text-secondary text-sm mb-3">
-              {t('recordActivity.indoorDistance.hint', {
-                defaultValue:
-                  'Optional. Enter the distance your treadmill or machine shows.',
-              })}
+              {indoorEstimate
+                ? indoorEstimate.calibrated
+                  ? t('recordActivity.indoorDistance.estimateLearned', {
+                      count: indoorEstimate.steps,
+                      formattedCount: formatLocalizedNumber(
+                        indoorEstimate.steps,
+                        {
+                          maximumFractionDigits: 0,
+                        }
+                      ),
+                      defaultValue:
+                        'Estimated from {{formattedCount}} steps using your stride. Change it to match your treadmill and the app keeps learning.',
+                      defaultValue_one:
+                        'Estimated from {{formattedCount}} step using your stride. Change it to match your treadmill and the app keeps learning.',
+                      defaultValue_other:
+                        'Estimated from {{formattedCount}} steps using your stride. Change it to match your treadmill and the app keeps learning.',
+                    })
+                  : t('recordActivity.indoorDistance.estimateRough', {
+                      count: indoorEstimate.steps,
+                      formattedCount: formatLocalizedNumber(
+                        indoorEstimate.steps,
+                        {
+                          maximumFractionDigits: 0,
+                        }
+                      ),
+                      defaultValue:
+                        'A rough estimate from {{formattedCount}} steps with a typical stride. Enter what your treadmill shows and the app learns yours.',
+                      defaultValue_one:
+                        'A rough estimate from {{formattedCount}} step with a typical stride. Enter what your treadmill shows and the app learns yours.',
+                      defaultValue_other:
+                        'A rough estimate from {{formattedCount}} steps with a typical stride. Enter what your treadmill shows and the app learns yours.',
+                    })
+                : t('recordActivity.indoorDistance.hint', {
+                    defaultValue:
+                      'Optional. Enter the distance your treadmill or machine shows.',
+                  })}
             </Text>
             <View className="flex-row items-center">
               <FormInput
                 className="flex-1"
                 keyboardType="decimal-pad"
-                value={indoorDistanceText}
+                value={shownDistanceText}
                 placeholder="0.00"
                 accessibilityLabel={t('recordActivity.indoorDistance.title', {
                   defaultValue: 'Distance',
