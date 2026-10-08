@@ -51,6 +51,12 @@ export interface RecordingSession {
   seg: number;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
+  /**
+   * A treadmill or other indoor session: no location task and no route, just
+   * the clock (and a paired watch's heart rate). Absent on sessions saved by
+   * an earlier build, which were all outdoors.
+   */
+  indoor?: boolean;
 }
 
 /** One heart-rate reading from a paired watch during the recording. */
@@ -244,6 +250,8 @@ TaskManager.defineTask(GPS_RECORDING_TASK_NAME, async ({ data, error }) => {
 
 export interface StartRecordingOptions {
   activity: RecordingActivity;
+  /** Record without GPS: no permission is asked and no location task runs. */
+  indoor?: boolean;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -287,18 +295,21 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (session) throw new Error('A recording is already in progress.');
-    if (!(await Location.hasServicesEnabledAsync())) {
-      throw new RecordingPermissionError(
-        'services-disabled',
-        'Location services are turned off.'
-      );
-    }
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (!permission.granted) {
-      throw new RecordingPermissionError(
-        'denied',
-        'Location permission was not granted.'
-      );
+    const indoor = options.indoor === true;
+    if (!indoor) {
+      if (!(await Location.hasServicesEnabledAsync())) {
+        throw new RecordingPermissionError(
+          'services-disabled',
+          'Location services are turned off.'
+        );
+      }
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        throw new RecordingPermissionError(
+          'denied',
+          'Location permission was not granted.'
+        );
+      }
     }
     const now = Date.now();
     session = {
@@ -311,18 +322,24 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       pausedMs: 0,
       seg: 0,
       savedEntryId: null,
+      ...(indoor && { indoor: true }),
     };
     points = [];
     await persistSession();
-    try {
-      await startUpdates(options.notification);
-    } catch (error) {
-      session = null;
-      await persistSession();
-      throw error;
+    if (!indoor) {
+      try {
+        await startUpdates(options.notification);
+      } catch (error) {
+        session = null;
+        await persistSession();
+        throw error;
+      }
     }
     publish();
-    addLog(`[GPS Recording] Started ${options.activity} recording`, 'INFO');
+    addLog(
+      `[GPS Recording] Started ${indoor ? 'indoor ' : ''}${options.activity} recording`,
+      'INFO'
+    );
   });
 }
 
@@ -375,7 +392,10 @@ export function resumeRecording(
     try {
       // The task normally survived the pause. It only needs starting again
       // when the OS or a relaunch dropped it in the meantime.
-      if (!(await updatesRunning())) await startUpdates(notification);
+      // An indoor session never had a task to restart.
+      if (!paused.indoor && !(await updatesRunning())) {
+        await startUpdates(notification);
+      }
     } catch (error) {
       // Stay paused so the person can try again, and make sure no
       // half-started task is left running.
