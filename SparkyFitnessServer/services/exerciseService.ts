@@ -396,6 +396,18 @@ async function prepareExerciseEntryForCreate(
     avg_heart_rate: entryData.avg_heart_rate ?? null,
   };
 }
+/**
+ * Creates a diary exercise entry, with its sets and any activity details.
+ *
+ * @param authenticatedUserId - User the entry belongs to.
+ * @param actingUserId - User performing the action (differs for caregivers).
+ * @param entryData - Entry fields, sets and optional activity_details.
+ * @param options - `skipDuplicateCheck` always inserts instead of merging into
+ *   an existing entry for the same assignment and date; `entrySource` is the
+ *   stored source (default 'Manual'; workout plans pass
+ *   WORKOUT_PLAN_ENTRY_SOURCE).
+ * @returns The created entry.
+ */
 async function createExerciseEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticatedUserId: any,

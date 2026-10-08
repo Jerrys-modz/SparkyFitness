@@ -15,6 +15,18 @@ import {
 // plan is edited, toggled or deleted.
 export const WORKOUT_PLAN_ENTRY_SOURCE = 'Workout Plan';
 
+/**
+ * Generates the diary rows of a prefill plan from `today` (or the plan's start
+ * date, if later) to its end date, one per matching weekday assignment. Every
+ * row is stamped with WORKOUT_PLAN_ENTRY_SOURCE. An assignment and date that
+ * still has a row after deleteExerciseEntriesByTemplateId (a logged workout, an
+ * edited generated row, a legacy row from today) is skipped, so no duplicate is
+ * created next to it.
+ *
+ * @param templateId - Workout plan template to generate entries for.
+ * @param userId - Owner of the plan and of the generated entries.
+ * @param today - The user's current day (YYYY-MM-DD).
+ */
 async function createExerciseEntriesFromTemplate(
   templateId: string | number,
   userId: string,
@@ -91,10 +103,40 @@ async function createExerciseEntriesFromTemplate(
     );
     // Start from today if template start_date is in the past
     let currentDay = compareDays(startDay, today) < 0 ? today : startDay;
+    // Rows still linked to an assignment at this point survived the cleanup in
+    // deleteExerciseEntriesByTemplateId: a workout the user logged, a generated
+    // row the user edited, or a legacy row from today. Generating another row
+    // for that assignment and date would duplicate it, so those days are skipped.
+    const existingResult = await client.query(
+      `SELECT DISTINCT workout_plan_assignment_id,
+              to_char(entry_date, 'YYYY-MM-DD') AS entry_date
+       FROM exercise_entries
+       WHERE user_id = $1
+         AND entry_date >= $2
+         AND workout_plan_assignment_id = ANY($3::int[])`,
+      [
+        userId,
+        currentDay,
+        template.assignments.map((a: { id: number }) => a.id),
+      ]
+    );
+    const alreadyLogged = new Set(
+      existingResult.rows.map(
+        (row: { workout_plan_assignment_id: number; entry_date: string }) =>
+          `${row.workout_plan_assignment_id}|${row.entry_date}`
+      )
+    );
     while (compareDays(currentDay, endDay) <= 0) {
       const entryDate = currentDay;
       const currentDayOfWeek = dayOfWeek(entryDate);
       for (const assignment of template.assignments) {
+        if (alreadyLogged.has(`${assignment.id}|${entryDate}`)) {
+          log(
+            'info',
+            `createExerciseEntriesFromTemplate - Assignment ${assignment.id} already has an entry on ${entryDate}; not generating another.`
+          );
+          continue;
+        }
         if (assignment.day_of_week === currentDayOfWeek) {
           // A row for this assignment and day already stands for the session:
           // one the user logged, one they edited (kept when the plan was
@@ -152,8 +194,8 @@ async function createExerciseEntriesFromTemplate(
               },
               // Always insert: the dedupe lookup matches on assignment and
               // date, so it would merge this row into (and overwrite) a
-              // workout the user logged from the plan today. Earlier generated
-              // rows are removed before regeneration, so nothing to merge with.
+              // workout the user logged from the plan today. Days that still
+              // have a row for this assignment are skipped above.
               {
                 entrySource: WORKOUT_PLAN_ENTRY_SOURCE,
                 skipDuplicateCheck: true,

@@ -34,6 +34,10 @@ const TODAY = '2026-10-07';
 
 type QueryCall = [string, unknown[]?];
 
+/**
+ * Stubs getClient with a client whose query() returns the given results in
+ * order, then an empty result.
+ */
 const mockClient = (results: Array<Record<string, unknown>> = []) => {
   const query = vi.fn(async () => results.shift() ?? { rows: [], rowCount: 0 });
   const client = { query, release: vi.fn() };
@@ -41,6 +45,7 @@ const mockClient = (results: Array<Record<string, unknown>> = []) => {
   return client;
 };
 
+/** Collapses whitespace so SQL can be compared on one line. */
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
 describe('deleteExerciseEntriesByTemplateId', () => {
@@ -62,12 +67,26 @@ describe('deleteExerciseEntriesByTemplateId', () => {
     expect(normalize(presetSql)).toContain(
       "edited.updated_at > edited.created_at + interval '2 seconds'"
     );
+    expect(normalize(presetSql)).toContain('AND id IN (');
     expect(presetParams).toEqual([
       USER_ID,
       TEMPLATE_ID,
       TODAY,
       WORKOUT_PLAN_ENTRY_SOURCE,
     ]);
+  });
+
+  it('keeps a generated session once the user edited it or any of its exercises', async () => {
+    const client = mockClient();
+
+    await deleteExerciseEntriesByTemplateId(TEMPLATE_ID, USER_ID, TODAY);
+
+    const [presetSql] = client.query.mock.calls[0] as unknown as QueryCall;
+    const sql = normalize(presetSql);
+    expect(sql).toContain('AND updated_at <= created_at');
+    expect(sql).toContain(
+      'AND NOT EXISTS ( SELECT 1 FROM exercise_entries edited WHERE edited.exercise_preset_entry_id = exercise_preset_entries.id AND edited.updated_at > edited.created_at )'
+    );
   });
 
   it('only deletes standalone entries the plan generated, never children of a logged session', async () => {
@@ -145,7 +164,8 @@ describe('createExerciseEntriesFromTemplate', () => {
           },
         ],
       },
-      { rows: [] },
+      { rows: [] }, // no surviving rows for these assignments
+      { rows: [] }, // sets of assignment 7
     ]);
 
     await createExerciseEntriesFromTemplate(TEMPLATE_ID, USER_ID, TODAY);

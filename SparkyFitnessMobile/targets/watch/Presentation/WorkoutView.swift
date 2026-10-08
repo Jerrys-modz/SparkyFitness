@@ -106,6 +106,7 @@ private struct PersonalRecordBanner: View {
 private struct WorkoutSummaryView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var checkIn: CheckInStore
+    @EnvironmentObject private var session: WatchSessionManager
     let summary: WorkoutSummary
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
@@ -358,6 +359,16 @@ private struct ActiveWorkoutView: View {
     /// HealthKit session from the wrist.
     private var openExerciseList: (() -> Void)? {
         { showingExercises = true }
+    }
+
+    /// Sends the answer first so the phone has it by the time it hears the
+    /// workout ended, then ends the workout.
+    private func finish(updatingPreset update: Bool) {
+        store.askingPresetUpdate = false
+        if let sessionId = store.plan?.sessionId {
+            session.sendPresetUpdateAnswer(sessionId: sessionId, update: update)
+        }
+        session.endWorkout()
     }
 
     var body: some View {
