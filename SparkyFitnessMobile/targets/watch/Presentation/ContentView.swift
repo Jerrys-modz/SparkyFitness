@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 /// Router for the watch app. First run is a one-time gate; after that, Goals,
 /// Water, Entry, Trend and Workout are pages the wearer swipes between —
@@ -75,6 +76,7 @@ struct ContentView: View {
             // would otherwise have nothing to draw from — even though the
             // app's own pages are happily showing the persisted context.
             session.refreshComplications()
+            pickUpControlRoute()
 
             #if DEBUG
             // Last, so nothing above re-applies an empty phone context over
@@ -98,6 +100,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             store.pruneStaleDayData()
+            pickUpControlRoute()
             // Cheap, local, and works with the phone out of range — unlike
             // `requestContext()` below, which needs it reachable right now.
             session.adoptReceivedContext()
@@ -127,6 +130,33 @@ struct ContentView: View {
             // weight yet, that one-time entry is still owed, and the requested
             // page is simply waiting behind it rather than being skipped.
             page = requested
+        }
+    }
+
+    /// What a Control Center or Action button control asked for, left in the
+    /// shared app group by `WatchControlIntents.swift`. Read once, then cleared,
+    /// so it can't run twice.
+    private func pickUpControlRoute() {
+        guard let route = WatchControlRoute.take() else { return }
+        switch route {
+        case "logWater":
+            // The first container the phone sent: the wearer set the order, and
+            // a control cannot ask which one they meant.
+            if let container = store.context.waterContainers?.first {
+                WKInterfaceDevice.current().play(.click)
+                let clientId = store.recordWaterTap(
+                    volumeMl: container.servingVolumeMl,
+                    containerId: container.id
+                )
+                session.sendWaterTap(containerId: container.id, clientId: clientId)
+            }
+            // Land on the Water page either way, so the wearer sees the result
+            // (or, with no containers synced yet, why nothing was logged).
+            if let requested = shown(.water) { page = requested }
+        case "fasting":
+            if let requested = shown(.fasting) { page = requested }
+        default:
+            break
         }
     }
 
