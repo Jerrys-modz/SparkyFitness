@@ -458,6 +458,7 @@ describe('presetFormReducer', () => {
           type: 'POPULATE_FROM_PRESET',
           preset: withEquipment,
           weightUnit: 'kg',
+          distanceUnit: 'km',
           clientIds,
         }
       );
@@ -813,6 +814,7 @@ describe('presetFormReducer', () => {
           type: 'POPULATE_FROM_SESSION',
           session: withEquipment,
           weightUnit: 'kg',
+          distanceUnit: 'km',
           clientIds,
         }
       );
