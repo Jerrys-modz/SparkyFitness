@@ -38,9 +38,9 @@ Some Android phone makers stop background apps aggressively. If a recording has 
 
 If you have a paired Apple Watch with the SparkyFitness app, it follows a recording the phone makes:
 
-- The watch opens on a recording page showing the clock, distance and pace.
+- The watch opens on a recording page showing the clock, distance and pace, with your current heart rate beside the status.
 - Pause, resume and finish work from your wrist. Finishing stops the recording and the page tells you to save it on your iPhone.
-- The watch measures your heart rate during the activity. After you save, the average, maximum and time in each heart-rate zone appear on the activity.
+- The watch measures your heart rate during the activity. It shows live on the watch and on the phone's recording screen (the phone shows it while the watch is in range). After you save, the average, maximum and time in each heart-rate zone appear on the activity.
 
 The phone still records the route with its own GPS, so keep it with you. Heart rate is attached after the activity is saved. If the watch was out of range for part of it, the readings it held are sent when it reconnects, and the activity can be saved before that. Readings that arrive after saving are not added.
 

@@ -23,6 +23,7 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
 
 import { useWatchRecordingBridge } from '../../src/hooks/useWatchRecordingBridge';
 import * as service from '../../src/services/gpsRecordingService';
+import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 
 const watch = (
   jest.requireMock('../../modules/watch-connectivity') as {
@@ -79,6 +80,7 @@ beforeEach(() => {
     }
   );
   setSnapshot(null);
+  useLiveHeartRateStore.setState({ reading: null });
 });
 
 describe('useWatchRecordingBridge', () => {
@@ -179,6 +181,51 @@ describe('useWatchRecordingBridge', () => {
       expect.objectContaining({ title: expect.any(String) })
     );
     expect(mockedService.finishRecording).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the live reading for the recording in progress', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    handlers.onLiveHeartRate({
+      sessionId: 'rec-1',
+      exerciseEntryId: '',
+      bpm: 143.6,
+      at: 5_000,
+    });
+
+    expect(useLiveHeartRateStore.getState().reading).toEqual({
+      sessionId: 'rec-1',
+      exerciseEntryId: '',
+      bpm: 144,
+      at: 5_000,
+    });
+  });
+
+  it('ignores live readings for another session or with no usable value', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    handlers.onLiveHeartRate({
+      sessionId: 'rec-old',
+      exerciseEntryId: '',
+      bpm: 150,
+      at: 5_000,
+    });
+    handlers.onLiveHeartRate({
+      sessionId: 'rec-1',
+      exerciseEntryId: '',
+      bpm: 0,
+      at: 5_000,
+    });
+    handlers.onLiveHeartRate({
+      sessionId: 'rec-1',
+      exerciseEntryId: '',
+      bpm: 150,
+      at: Number.NaN,
+    });
+
+    expect(useLiveHeartRateStore.getState().reading).toBeNull();
   });
 
   it('stores heart-rate batches with their ids and times in epoch ms', () => {

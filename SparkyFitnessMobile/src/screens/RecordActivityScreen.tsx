@@ -19,6 +19,7 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import {
@@ -77,6 +78,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       : t('recordActivity.unitKm', { defaultValue: 'km' });
 
   const { session, points } = useGpsRecording();
+  const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -487,6 +489,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             unit={elevationUnit}
           />
         </View>
+        {heartRate != null && !finished ? (
+          <View className="flex-row mb-4">
+            <Stat
+              label={t('recordActivity.heartRate', {
+                defaultValue: 'Heart rate',
+              })}
+              value={number(heartRate, 0)}
+              unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
+            />
+          </View>
+        ) : null}
         {finished && splits.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4">
             <Text className="text-text-primary text-base font-bold mb-2">

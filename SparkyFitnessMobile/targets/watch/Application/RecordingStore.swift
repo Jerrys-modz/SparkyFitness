@@ -12,6 +12,14 @@ final class RecordingStore: ObservableObject {
 
     @Published private(set) var state: RecordingState?
 
+    /// The newest heart rate, shown beside the status while readings keep
+    /// arriving. Cleared when they stop for `liveHeartRateMaxAge`, and
+    /// whenever the recording is not running, so a stale number never sits on
+    /// the page.
+    @Published private(set) var liveHeartRate: Int?
+    private var staleReadingTask: Task<Void, Never>?
+    private static let liveHeartRateMaxAge: TimeInterval = 15
+
     /// True while there is a recording to show, including a finished one the
     /// phone has not saved yet.
     var isActive: Bool { state != nil }
@@ -27,6 +35,9 @@ final class RecordingStore: ObservableObject {
         healthKit.onBatchReady = { [weak self] samples in
             Task { @MainActor in self?.sendHeartRate(samples) }
         }
+        healthKit.onLiveReading = { [weak self] bpm, at in
+            Task { @MainActor in self?.receiveLiveHeartRate(bpm, at: at) }
+        }
     }
 
     func apply(_ update: RecordingUpdate) {
@@ -37,6 +48,7 @@ final class RecordingStore: ObservableObject {
             // A recording that is still collecting when the phone ends it was
             // discarded; one that finished first is already saved.
             finishCollection(discard: true)
+            clearLiveHeartRate()
             state = nil
         case .state(let incoming):
             if endedSessionIds.contains(incoming.sessionId) { return }
@@ -46,6 +58,7 @@ final class RecordingStore: ObservableObject {
             }
             let previous = state
             state = incoming
+            if incoming.status != .recording { clearLiveHeartRate() }
             updateCollection(previous: previous, current: incoming)
         }
     }
@@ -89,6 +102,34 @@ final class RecordingStore: ObservableObject {
         case .ended:
             break
         }
+    }
+
+    /// Shows the reading on the wrist and tells the phone, which shows it on
+    /// its recording screen. The phone copy is a live message only (see
+    /// `WatchSessionManager.sendRecordingLiveHeartRate`); the batches are what
+    /// reach the diary.
+    private func receiveLiveHeartRate(_ bpm: Double, at date: Date) {
+        guard let state, state.status == .recording,
+              collectingFor == state.sessionId, bpm > 0
+        else { return }
+        liveHeartRate = Int(bpm.rounded())
+        staleReadingTask?.cancel()
+        staleReadingTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.liveHeartRateMaxAge * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.liveHeartRate = nil
+        }
+        WatchSessionManager.shared.sendRecordingLiveHeartRate(
+            sessionId: state.sessionId,
+            bpm: bpm,
+            measuredAt: date
+        )
+    }
+
+    private func clearLiveHeartRate() {
+        staleReadingTask?.cancel()
+        staleReadingTask = nil
+        liveHeartRate = nil
     }
 
     private func finishCollection(discard: Bool) {
