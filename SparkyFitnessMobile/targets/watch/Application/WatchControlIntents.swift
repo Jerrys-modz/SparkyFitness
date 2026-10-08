@@ -11,10 +11,9 @@ import Foundation
 // the app because only it can reach the phone, and the app is the one that
 // keeps the queue for a phone that is out of range.
 //
-// This file exists twice, identically: here for the app and in
-// targets/watch-widget for the extension, because a control that opens the app
-// needs its intent compiled into both. `watchControlIntents.test.ts` fails if
-// the two copies drift apart.
+// Compiled into both the app and the widget extension, since a control that
+// opens the app needs its intent in both. targets/watch-widget/
+// WatchControlIntents.swift is a symlink to this file, so there is one copy.
 private func leaveWatchControlRoute(_ route: String) {
     if let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
        let defaults = UserDefaults(suiteName: group) {
