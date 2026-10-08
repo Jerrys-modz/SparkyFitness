@@ -11,7 +11,7 @@ struct exportWatchWidgets: WidgetBundle {
         FatGoalComplication()
         FastingComplication()
         StepsComplication()
-        if #available(watchOS 11.0, *) {
+        if #available(watchOS 26.0, *) {
             LogWaterWatchControl()
             FastingWatchControl()
         }
