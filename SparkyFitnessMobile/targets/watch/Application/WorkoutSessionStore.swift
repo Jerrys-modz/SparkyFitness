@@ -55,6 +55,13 @@ final class WorkoutSessionStore: ObservableObject {
     /// dismiss it or arm another workout. Not persisted: it is a keepsake of
     /// the moment, not session state.
     @Published private(set) var lastSummary: WorkoutSummary?
+    /// What the plan looked like when the workout started, to tell whether
+    /// the exercises or sets have changed since. Not persisted: a restored
+    /// workout simply is not asked.
+    private var baselineStructure: [String]?
+    /// Set when Finish is tapped on a workout that changed from its saved
+    /// workout; the workout screen asks whether to update it before ending.
+    @Published var askingPresetUpdate = false
     private var heartRateSum: Double = 0
     private var heartRateCount: Int = 0
     private var heartRateMax: Double?
@@ -335,6 +342,8 @@ final class WorkoutSessionStore: ObservableObject {
         activeEnergyKcal = nil
         elapsedSeconds = 0
         lastSummary = nil
+        askingPresetUpdate = false
+        baselineStructure = Self.structure(of: plan)
         resetHeartRateStats()
         stopRestTimer()
         clearHold()
@@ -372,7 +381,8 @@ final class WorkoutSessionStore: ObservableObject {
             capEndsAt: plan.capEndsAt,
             pausedAt: pausedAt,
             excludedPauseSeconds: excludedPauseSeconds,
-            intervalRevision: revision
+            intervalRevision: revision,
+            fromPreset: plan.fromPreset
         )
         persistSnapshot(reportedEnergyKcal: nil)
     }
@@ -408,7 +418,8 @@ final class WorkoutSessionStore: ObservableObject {
             capEndsAt: current.capEndsAt,
             pausedAt: current.pausedAt,
             excludedPauseSeconds: current.excludedPauseSeconds,
-            intervalRevision: current.intervalRevision
+            intervalRevision: current.intervalRevision,
+            fromPreset: current.fromPreset
         )
         steps = Self.steps(for: newPlan)
         let adopted = pendingUnknownCompletions.filter { id in
@@ -443,6 +454,7 @@ final class WorkoutSessionStore: ObservableObject {
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {
+        askingPresetUpdate = false
         plan = nil
         steps = []
         currentStepIndex = 0
@@ -525,7 +537,8 @@ final class WorkoutSessionStore: ObservableObject {
             volumeKg: volumeKg,
             averageBpm: heartRateCount > 0 ? heartRateSum / Double(heartRateCount) : nil,
             maxBpm: heartRateMax,
-            activeEnergyKcal: activeEnergyKcal
+            activeEnergyKcal: activeEnergyKcal,
+            sessionId: plan?.sessionId
         )
     }
 
@@ -535,6 +548,42 @@ final class WorkoutSessionStore: ObservableObject {
 
     func dismissSummary() {
         lastSummary = nil
+    }
+
+    /// The exercises and the number and kind of sets in each, in order: what
+    /// a saved workout is made of. Weights and reps are left out, as on the
+    /// phone, so loading more weight does not count as a change.
+    private static func structure(of plan: ActiveWorkoutPlan) -> [String] {
+        plan.exercises.map { exercise in
+            let sets = exercise.sets.map { $0.setType ?? "normal" }.joined(separator: ",")
+            return "\(exercise.name)|\(sets)"
+        }
+    }
+
+    /// Started from a saved workout and since changed: exercises or sets were
+    /// added or removed. Only then does Finish ask whether to update it.
+    var changedFromPreset: Bool {
+        guard let plan, plan.fromPreset == true, let baselineStructure else { return false }
+        return Self.structure(of: plan) != baselineStructure
+    }
+
+    /// Called when Finish is confirmed. Raises the "Update Workout?" question
+    /// and returns true when the workout changed from its saved one; the
+    /// caller then waits for the answer instead of ending the workout.
+    func askPresetUpdateBeforeFinish() -> Bool {
+        guard changedFromPreset else { return false }
+        // Raised a moment later: the Finish confirmation or the exercise sheet
+        // is still closing, and SwiftUI drops an alert presented over a
+        // dismissal in progress, which left Finish doing nothing at all.
+        // The workout can end or be replaced in that moment, so the raise is
+        // only for the one that was finishing.
+        let sessionId = plan?.sessionId
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard let self, self.plan?.sessionId == sessionId else { return }
+            self.askingPresetUpdate = true
+        }
+        return true
     }
 
     func recordActiveEnergy(kcal: Double) {
@@ -892,6 +941,10 @@ final class WorkoutSessionStore: ObservableObject {
         /// Measurement seconds already in those totals. Optional so older
         /// snapshots still decode.
         var countedHeartRateSeconds: [Int]?
+        /// What the plan looked like when the workout started, so a relaunch
+        /// still knows whether it changed. Optional so older snapshots still
+        /// decode.
+        var baselineStructure: [String]?
     }
 
     /// A set timer as stored in the snapshot.
@@ -1021,7 +1074,8 @@ final class WorkoutSessionStore: ObservableObject {
             heartRateSum: heartRateSum,
             heartRateCount: heartRateCount,
             heartRateMax: heartRateMax,
-            countedHeartRateSeconds: Array(countedHeartRateSeconds)
+            countedHeartRateSeconds: Array(countedHeartRateSeconds),
+            baselineStructure: baselineStructure
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -1058,6 +1112,9 @@ final class WorkoutSessionStore: ObservableObject {
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
         heartRateSentThrough = snapshot.heartRateSentThrough
+        // `start(with:)` took the baseline from the plan as it was saved, which
+        // may already include changes; the stored one is the real starting plan.
+        if let stored = snapshot.baselineStructure { baselineStructure = stored }
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
     }

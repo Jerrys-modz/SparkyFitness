@@ -32,6 +32,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
+    /// The wearer answered the update-this-workout question on the summary.
+    var onPresetUpdateAnswer: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -108,6 +110,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
             onWorkoutStartRequested?(payload)
+        case "presetUpdateAnswer":
+            onPresetUpdateAnswer?(payload)
         default:
             break
         }
@@ -240,7 +244,8 @@ public class WatchConnectivityModule: Module {
             "onLiveHeartRate",
             "onWorkoutStop",
             "onWorkoutDiscard",
-            "onWorkoutStartRequested"
+            "onWorkoutStartRequested",
+            "onPresetUpdateAnswer"
         )
 
         OnCreate {
@@ -377,6 +382,12 @@ public class WatchConnectivityModule: Module {
                     "serverId": payload["serverId"] as? String ?? "",
                 ])
             }
+            self.delegateHandler.onPresetUpdateAnswer = { [weak self] payload in
+                self?.sendEvent("onPresetUpdateAnswer", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "update": payload["update"] as? Bool ?? false,
+                ])
+            }
             self.delegateHandler.activate()
         }
 
@@ -473,6 +484,10 @@ public class WatchConnectivityModule: Module {
             }
         }
 
+        /// Puts the update-this-workout question on the watch's post-workout
+        /// summary. Live only, never queued: the summary it belongs to is gone
+        /// by the time a queued copy could arrive. False when the watch cannot
+        /// be reached, so the caller knows only the phone will ask.
         /// Pause or resume the cap. Always queued, so a watch out of range
         /// still hears it, and sent immediately when reachable so the cap
         /// freezes without waiting for the queue. The watch keeps a snapshot
