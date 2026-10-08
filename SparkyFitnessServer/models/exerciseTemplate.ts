@@ -9,13 +9,16 @@ import {
   setsDurationMinutes,
 } from '@workspace/shared';
 
+// Source stamped on every diary row that a prefill plan generates. Entries a
+// user logs from a plan session keep their own source ('manual', 'Manual',
+// ...), so this is what tells generated rows apart from logged workouts when a
+// plan is edited, toggled or deleted.
+export const WORKOUT_PLAN_ENTRY_SOURCE = 'Workout Plan';
+
 async function createExerciseEntriesFromTemplate(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  templateId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  today: any
+  templateId: string | number,
+  userId: string,
+  today: string
 ) {
   const { default: exerciseService } =
     await import('../services/exerciseService.js');
@@ -116,15 +119,27 @@ async function createExerciseEntriesFromTemplate(
               'info',
               `createExerciseEntriesFromTemplate - Assignment day_of_week (${assignment.day_of_week}) matches currentDayOfWeek (${currentDayOfWeek}) for date ${entryDate}. Creating exercise entry.`
             );
-            await exerciseService.createExerciseEntry(userId, userId, {
-              exercise_id: exerciseId,
-              duration_minutes: durationMinutes,
-              calories_burned: caloriesBurned,
-              entry_date: entryDate,
-              notes: notes,
-              sets: sets,
-              workout_plan_assignment_id: assignment.id,
-            });
+            await exerciseService.createExerciseEntry(
+              userId,
+              userId,
+              {
+                exercise_id: exerciseId,
+                duration_minutes: durationMinutes,
+                calories_burned: caloriesBurned,
+                entry_date: entryDate,
+                notes: notes,
+                sets: sets,
+                workout_plan_assignment_id: assignment.id,
+              },
+              // Always insert: the dedupe lookup matches on assignment and
+              // date, so it would merge this row into (and overwrite) a
+              // workout the user logged from the plan today. Earlier generated
+              // rows are removed before regeneration, so nothing to merge with.
+              {
+                entrySource: WORKOUT_PLAN_ENTRY_SOURCE,
+                skipDuplicateCheck: true,
+              }
+            );
           };
           if (assignment.exercise_id) {
             const setsResult = await client.query(
@@ -144,7 +159,7 @@ async function createExerciseEntriesFromTemplate(
               assignment.workout_preset_id,
               entryDate,
               {
-                source: 'Workout Plan',
+                source: WORKOUT_PLAN_ENTRY_SOURCE,
                 workoutPlanAssignmentId: assignment.id,
               }
             );
@@ -167,13 +182,15 @@ async function createExerciseEntriesFromTemplate(
   }
 }
 
+// Removes the diary rows a prefill plan generated from `today` on, so they can
+// be regenerated (or dropped when the plan is deactivated or deleted). Only rows
+// stamped with WORKOUT_PLAN_ENTRY_SOURCE are generated; a workout the user
+// logged from a plan session carries the same workout_plan_assignment_id but
+// its own source, and must survive (#2677).
 async function deleteExerciseEntriesByTemplateId(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  templateId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  today: any
+  templateId: string | number,
+  userId: string,
+  today: string
 ) {
   const client = await getClient(userId); // User-specific operation
   try {
@@ -183,6 +200,7 @@ async function deleteExerciseEntriesByTemplateId(
     const presetResult = await client.query(
       `DELETE FROM exercise_preset_entries
        WHERE user_id = $1
+         AND source = $4
          AND id IN (
            SELECT DISTINCT exercise_preset_entry_id
            FROM exercise_entries
@@ -194,24 +212,30 @@ async function deleteExerciseEntriesByTemplateId(
                WHERE template_id = $2
              )
          )`,
-      [userId, templateId, today]
+      [userId, templateId, today, WORKOUT_PLAN_ENTRY_SOURCE]
     );
     log(
       'info',
       `Deleted ${presetResult.rowCount} exercise preset entries associated with workout plan template ${templateId} for user ${userId}.`
     );
 
-    // Also remove any exercise_entries that belong to the template but were
-    // not under a preset entry (e.g. individual-exercise assignments).
+    // Also remove generated exercise_entries that are not under a preset entry
+    // (individual-exercise assignments). Rows generated before these were
+    // stamped carry the default 'Manual' source; the ones dated after today
+    // are still removed so they do not linger as duplicates. Today's rows with
+    // that source cannot be told apart from a logged workout and are kept.
     const result = await client.query(
       `DELETE FROM exercise_entries
        WHERE user_id = $1
          AND entry_date >= $3
+         AND exercise_preset_entry_id IS NULL
          AND workout_plan_assignment_id IN (
              SELECT id FROM workout_plan_template_assignments
              WHERE template_id = $2
-         ) RETURNING id`,
-      [userId, templateId, today]
+         )
+         AND (source = $4 OR (source = 'Manual' AND entry_date > $3))
+       RETURNING id`,
+      [userId, templateId, today, WORKOUT_PLAN_ENTRY_SOURCE]
     );
     log(
       'info',

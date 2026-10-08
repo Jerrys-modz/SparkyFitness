@@ -211,16 +211,12 @@ async function updateWorkoutPlanTemplate(
       'Forbidden: You do not have permission to update this workout plan template.'
     );
   }
-  let existingTemplate: Awaited<
-    ReturnType<typeof workoutPlanTemplateRepository.getWorkoutPlanTemplateById>
-  > | null = null;
-  if (updateData.schedule_type || updateData.assignments) {
-    existingTemplate =
-      await workoutPlanTemplateRepository.getWorkoutPlanTemplateById(
-        templateId,
-        userId
-      );
-  }
+  // Also needed to know whether the stored plan generates diary entries at all.
+  const existingTemplate =
+    await workoutPlanTemplateRepository.getWorkoutPlanTemplateById(
+      templateId,
+      userId
+    );
   // If schedule_type changed between weekly and sequential, require updated assignments
   if (
     updateData.schedule_type &&
@@ -250,16 +246,30 @@ async function updateWorkoutPlanTemplate(
       userId,
       updateData.currentClientDate
     );
-    // When a plan is updated, remove the old exercise entries that were created from it.
-    log(
-      'info',
-      `updateWorkoutPlanTemplate service - Deleting old exercise entries for template ${templateId}`
-    );
-    await exerciseRepository.deleteExerciseEntriesByTemplateId(
-      templateId,
-      userId,
-      today
-    );
+    // When a prefill plan is updated, remove the entries it generated so they
+    // can be regenerated. A prompt or sequential plan never generates entries;
+    // every row linked to it was logged by the user, so there is nothing to
+    // remove.
+    const storedPlanGeneratesEntries =
+      !existingTemplate ||
+      (existingTemplate.schedule_type !== 'sequential' &&
+        existingTemplate.entry_mode !== 'prompt');
+    if (storedPlanGeneratesEntries) {
+      log(
+        'info',
+        `updateWorkoutPlanTemplate service - Deleting generated exercise entries for template ${templateId}`
+      );
+      await exerciseRepository.deleteExerciseEntriesByTemplateId(
+        templateId,
+        userId,
+        today
+      );
+    } else {
+      log(
+        'info',
+        `updateWorkoutPlanTemplate service - Template ${templateId} does not generate entries (prompt or sequential), nothing to delete`
+      );
+    }
     const shouldUnlinkHistoricalEntries =
       existingTemplate?.schedule_type === 'weekly' &&
       updateData.schedule_type === 'sequential';

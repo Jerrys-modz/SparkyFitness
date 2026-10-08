@@ -403,9 +403,10 @@ async function createExerciseEntry(
   actingUserId: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entryData: any,
-  options: { skipDuplicateCheck?: boolean } = {}
+  options: { skipDuplicateCheck?: boolean; entrySource?: string } = {}
 ) {
   try {
+    const { entrySource = 'Manual', ...createOptions } = options;
     const snapshotEntryData = await prepareExerciseEntryForCreate(
       authenticatedUserId,
       entryData
@@ -415,9 +416,9 @@ async function createExerciseEntry(
       authenticatedUserId,
       snapshotEntryData,
       actingUserId,
-      'Manual',
+      entrySource,
       null,
-      options
+      createOptions
     );
     // If activity_details are provided, create them
     if (entryData.activity_details && entryData.activity_details.length > 0) {
