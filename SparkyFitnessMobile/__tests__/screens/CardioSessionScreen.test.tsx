@@ -92,6 +92,67 @@ describe('CardioSessionScreen', () => {
     await initializeI18n('en');
   });
 
+  // A GymKit stair stepper in Apple Health: 17 min, 56 flights, 597 ft.
+  const STAIRS = {
+    id: 'stairs-1',
+    exerciseName: 'Stair Climbing',
+    entryDate: '2026-10-08',
+    distanceFormatted: null,
+    durationMinutes: 16.93,
+    formattedPace: null,
+    avgHeartRate: 157,
+    caloriesBurned: 219,
+    floorsClimbed: 56,
+    elevationGainMeters: 181.9,
+  } as ExerciseActivityQueryItem;
+
+  it('shows floors climbed and elevation gain for a stair workout', () => {
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const screen = render(<CardioSessionScreen {...props(STAIRS)} />);
+
+    expect(screen.getByText('Floors climbed')).toBeTruthy();
+    expect(screen.getByText('56 floors')).toBeTruthy();
+    expect(screen.getByText('Elevation gain')).toBeTruthy();
+    expect(screen.getByText('182 m')).toBeTruthy();
+    expect(screen.getByText('157 bpm')).toBeTruthy();
+    expect(screen.getByText('219 Cal')).toBeTruthy();
+  });
+
+  it('shows elevation in feet when the distance unit is miles', () => {
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const imperial = {
+      ...props(STAIRS),
+      route: {
+        key: 'CardioSession',
+        name: 'CardioSession',
+        params: { session: STAIRS, distanceUnit: 'miles' },
+      },
+    } as unknown as RootStackScreenProps<'CardioSession'>;
+    const screen = render(<CardioSessionScreen {...imperial} />);
+
+    // 181.9 m is the 597 ft Apple Fitness shows.
+    expect(screen.getByText('597 ft')).toBeTruthy();
+  });
+
+  it('says "1 floor" for a single floor', () => {
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const screen = render(
+      <CardioSessionScreen
+        {...props({ ...STAIRS, floorsClimbed: 1 } as ExerciseActivityQueryItem)}
+      />
+    );
+
+    expect(screen.getByText('1 floor')).toBeTruthy();
+  });
+
+  it('leaves out floors and elevation when the workout has none', () => {
+    mockDetail.mockReturnValue(detail());
+    const screen = render(<CardioSessionScreen {...props()} />);
+
+    expect(screen.queryByText('Floors climbed')).toBeNull();
+    expect(screen.queryByText('Elevation gain')).toBeNull();
+  });
+
   it('shows the session stats, route, heart rate, and zones', () => {
     mockDetail.mockReturnValue(detail());
     const screen = render(<CardioSessionScreen {...props()} />);
