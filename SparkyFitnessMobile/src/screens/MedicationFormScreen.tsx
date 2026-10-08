@@ -164,9 +164,17 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
 
+  const baseForm = useMemo(
+    () => baseFromMed(existingMed, startAsSupplement),
+    [existingMed, startAsSupplement]
+  );
+  // A lookup finishes after a render of its own, and a refetch may have
+  // changed the saved medication since, so it reads the base from here.
+  const latestBaseForm = useRef(baseForm);
+  latestBaseForm.current = baseForm;
   const form: FormState = useMemo(
-    () => ({ ...baseFromMed(existingMed, startAsSupplement), ...edits }),
-    [existingMed, edits, startAsSupplement]
+    () => ({ ...baseForm, ...edits }),
+    [baseForm, edits]
   );
 
   // null until the user changes a nutrient row; until then follow the saved
@@ -181,6 +189,11 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     [nutrientEdits, existingMed, customNutrientDefs]
   );
   const isSupplement = form.isSupplement;
+  // Whether the supplement switch is on right now, for a lookup that finishes
+  // after it was turned off: a result must not leave a supplement-only type on
+  // a medication.
+  const isSupplementRef = useRef(isSupplement);
+  isSupplementRef.current = isSupplement;
   const [lookupNote, setLookupNote] = useState<string | null>(null);
 
   // A barcode scanned on the scanner screen arrives as a one-shot route param.
@@ -193,6 +206,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     });
     supplementLookup.mutate(pendingScannedBarcode, {
       onSuccess: ({ product }) => {
+        if (!isSupplementRef.current) return;
         if (!product) {
           setLookupNote(null);
           Alert.alert(
@@ -206,18 +220,22 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           );
           return;
         }
-        setEdits((prev) => ({
-          ...prev,
-          name: product.name,
-          typeId: product.form ?? prev.typeId ?? form.typeId,
-          notes:
-            (prev.notes ?? form.notes).trim() === '' && product.serving
-              ? t('medications.supplement.servingNote', {
-                  defaultValue: 'Label serving: {{serving}}',
-                  serving: product.serving,
-                })
-              : (prev.notes ?? form.notes),
-        }));
+        setEdits((prev) => {
+          const base = latestBaseForm.current;
+          const notes = prev.notes ?? base.notes;
+          return {
+            ...prev,
+            name: product.name,
+            typeId: product.form ?? prev.typeId ?? base.typeId,
+            notes:
+              notes.trim() === '' && product.serving
+                ? t('medications.supplement.servingNote', {
+                    defaultValue: 'Label serving: {{serving}}',
+                    serving: product.serving,
+                  })
+                : notes,
+          };
+        });
         setNutrientEdits(rowsFromLookup(product));
         const skipped = unmatchedSummary(product);
         const fromOff =

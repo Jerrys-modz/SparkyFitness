@@ -563,6 +563,18 @@ describe('MedicationFormScreen — supplement barcode', () => {
     expect(screen.getByText('Vitamin D')).toBeTruthy();
   });
 
+  it('ignores a result that arrives after the supplement switch was turned off', () => {
+    const screen = scanned();
+
+    fireEvent(screen.getAllByRole('switch')[0], 'valueChange', false);
+    act(() => {
+      mockLookupMutate.mock.calls[0][1].onSuccess({ product });
+    });
+
+    expect(screen.queryByDisplayValue(product.name)).toBeNull();
+    expect(screen.queryByText('Vitamin C')).toBeNull();
+  });
+
   it('says which ingredients were left out', () => {
     const screen = scanned();
 
