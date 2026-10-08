@@ -472,16 +472,6 @@ private struct ActiveWorkoutView: View {
         }
     }
 
-    /// Sends the answer first so the phone has it by the time it hears the
-    /// workout ended, then ends the workout.
-    private func finish(updatingPreset update: Bool) {
-        store.askingPresetUpdate = false
-        if let sessionId = store.plan?.sessionId {
-            session.sendPresetUpdateAnswer(sessionId: sessionId, update: update)
-        }
-        session.endWorkout()
-    }
-
     private var setScreen: some View {
         VStack(spacing: 4) {
             MetricsStrip(onBack: openExerciseList)
