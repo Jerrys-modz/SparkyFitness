@@ -154,7 +154,7 @@ struct CaloriesLeftControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
-            ControlWidgetButton(action: OpenAppControlIntent()) {
+            ControlWidgetButton(action: OpenDiaryControlIntent()) {
                 Label(
                     snapshot.hasData
                         ? "\(localizedNumberString(snapshot.remaining)) \(localizedWidgetString("widget.kcal_left"))"
