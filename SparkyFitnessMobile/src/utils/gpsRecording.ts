@@ -88,6 +88,14 @@ export const MIN_STEP_METERS = 3;
 export const HEARTBEAT_MS = 15_000;
 
 /**
+ * The first fix of a stretch (the start, or the first one after a resume) has
+ * nothing to be checked against, so it has to be good on its own. A cold start
+ * often opens with a fix tens of metres off, which would put a spike at the
+ * head of the route; waiting a few seconds for a tighter one avoids it.
+ */
+export const STRETCH_START_MAX_ACCURACY_M = 25;
+
+/**
  * Decides whether a fix joins the track. Rejects the unusable (no
  * coordinates, poor accuracy, out of order), the physically impossible
  * (implied speed), and standing-still jitter.
@@ -115,6 +123,10 @@ export function acceptFix(
       ? fix.hacc
       : null;
   if (hacc !== null && hacc > profile.maxAccuracyM) return null;
+  const startsStretch = !previous || previous.seg !== seg;
+  if (startsStretch && hacc !== null && hacc > STRETCH_START_MAX_ACCURACY_M) {
+    return null;
+  }
 
   const point: RecordedPoint = {
     t: fix.t,
