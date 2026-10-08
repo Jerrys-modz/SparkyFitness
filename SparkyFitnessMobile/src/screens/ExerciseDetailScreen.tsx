@@ -30,7 +30,7 @@ import SafeImage from '../components/SafeImage';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import ExerciseHistoryList from '../components/ExerciseHistoryList';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
-import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
+import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
 import ActionSheet, {
   type ActionSheetItem,
   type ActionSheetRef,
@@ -175,15 +175,18 @@ const ExerciseDetailScreen: React.FC<ExerciseDetailScreenProps> = ({
       navigation.navigate('WorkoutDetail', { session });
       return;
     }
-    const cardioSession = cardioSessionFromDiaryEntry(session, distanceUnit);
-    if (cardioSession) {
-      navigation.navigate('CardioSession', {
-        session: cardioSession,
-        distanceUnit,
-      });
-      return;
-    }
-    navigation.navigate('ActivityDetail', { session });
+    void cardioSessionForDiaryEntry(session, distanceUnit).then(
+      (cardioSession) => {
+        if (cardioSession) {
+          navigation.navigate('CardioSession', {
+            session: cardioSession,
+            distanceUnit,
+          });
+          return;
+        }
+        navigation.navigate('ActivityDetail', { session });
+      }
+    );
   };
   // Same UUID guard as hydration: the stats and history routes 400 on non-UUID
   // ids (e.g. external-provider exercises), so those get no History tab.
