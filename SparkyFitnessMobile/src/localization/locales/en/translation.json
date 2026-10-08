@@ -5871,6 +5871,13 @@
     "unitMi": "mi",
     "unitKm": "km",
     "unitBpm": "bpm",
+    "bar": {
+      "recording": "Recording",
+      "saveHint": "Tap to review and save",
+      "open": "Open recording",
+      "discard": "Discard recording",
+      "review": "Review and save"
+    },
     "heartRate": "Heart rate",
     "errors": {
       "start": "Could not start recording",

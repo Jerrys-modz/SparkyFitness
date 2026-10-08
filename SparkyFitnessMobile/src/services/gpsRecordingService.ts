@@ -117,6 +117,17 @@ export function useGpsRecording(): RecordingSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+const getHasRecording = (): boolean => snapshot.session != null;
+
+/**
+ * Whether a recording exists (running, paused or finished but unsaved). A
+ * boolean, so a screen that only reserves room for the recording bar does not
+ * re-render on every location fix the way `useGpsRecording` would.
+ */
+export function useHasGpsRecording(): boolean {
+  return useSyncExternalStore(subscribe, getHasRecording, getHasRecording);
+}
+
 async function persistSession(): Promise<void> {
   if (session) {
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));

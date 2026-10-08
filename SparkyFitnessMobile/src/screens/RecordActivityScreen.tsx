@@ -397,7 +397,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       <>
         {carriedOver ? (
           <View className="bg-surface rounded-xl p-4 mb-4">
-            <Text className="text-text-primary text-sm mb-3">
+            <Text className="text-text-primary text-sm">
               {t('recordActivity.carriedOver', {
                 defaultValue:
                   'This recording started at {{time}} and was still running on this phone.',
@@ -407,9 +407,6 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
                 ),
               })}
             </Text>
-            <Button variant="outline" disabled={busy} onPress={handleDiscard}>
-              {t('recordActivity.discard.action', { defaultValue: 'Discard' })}
-            </Button>
           </View>
         ) : null}
         {points.length > 1 ? (
@@ -570,6 +567,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               {t('recordActivity.finish', { defaultValue: 'Finish' })}
             </Button>
           </View>
+        )}
+        {finished ? null : (
+          <Button
+            variant="destructive"
+            className="mt-2"
+            disabled={busy}
+            onPress={handleDiscard}
+          >
+            {t('recordActivity.discard.action', { defaultValue: 'Discard' })}
+          </Button>
         )}
       </>
     );

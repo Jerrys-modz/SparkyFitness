@@ -30,6 +30,9 @@ final class RecordingStore: ObservableObject {
     private var endedSessionIds: [String] = []
     /// The recording heart rate is being collected for.
     private var collectingFor: String?
+    /// The finished recording whose Apple Health workout is waiting for the
+    /// phone to say whether it was saved or discarded.
+    private var heldFor: String?
 
     private init() {
         healthKit.onBatchReady = { [weak self] samples in
@@ -42,12 +45,18 @@ final class RecordingStore: ObservableObject {
 
     func apply(_ update: RecordingUpdate) {
         switch update {
-        case .ended(let sessionId, _):
+        case .ended(let sessionId, _, let discarded):
             remember(ended: sessionId)
+            // A finished recording's workout has been held for this verdict:
+            // saved goes to Apple Health, discarded goes nowhere.
+            if heldFor == sessionId {
+                heldFor = nil
+                healthKit.resolveHeld(save: !discarded)
+            }
             guard state?.sessionId == sessionId else { return }
-            // A recording that is still collecting when the phone ends it was
-            // discarded; one that finished first is already saved.
-            finishCollection(discard: true)
+            // Still collecting when the phone ends it: it was thrown away
+            // before it finished.
+            finishCollection(.discard)
             clearLiveHeartRate()
             state = nil
         case .state(let incoming):
@@ -84,6 +93,8 @@ final class RecordingStore: ObservableObject {
                 // recording then runs without heart rate.
                 guard !WorkoutSessionStore.shared.isActive else { return }
                 collectingFor = current.sessionId
+                // Starting a recording settles any workout still held.
+                heldFor = nil
                 WorkoutHealthKitController.shared.requestAuthorization { [weak self] _ in
                     Task { @MainActor in
                         // The recording may have finished while the prompt was up.
@@ -98,7 +109,7 @@ final class RecordingStore: ObservableObject {
         case .paused:
             if collectingFor == current.sessionId { healthKit.pause() }
         case .finished:
-            if collectingFor == current.sessionId { finishCollection(discard: false) }
+            if collectingFor == current.sessionId { finishCollection(.hold) }
         case .ended:
             break
         }
@@ -132,10 +143,11 @@ final class RecordingStore: ObservableObject {
         liveHeartRate = nil
     }
 
-    private func finishCollection(discard: Bool) {
+    private func finishCollection(_ outcome: RecordingHealthKitController.Outcome) {
         guard let sessionId = collectingFor else { return }
         collectingFor = nil
-        healthKit.stop(discard: discard) { [weak self] samples in
+        if outcome == .hold { heldFor = sessionId }
+        healthKit.stop(outcome) { [weak self] samples in
             Task { @MainActor in self?.sendHeartRate(samples, sessionId: sessionId) }
         }
     }

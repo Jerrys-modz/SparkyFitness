@@ -85,6 +85,7 @@ struct RecordingState: Equatable {
 /// What a `recordingState` message means for the watch.
 enum RecordingUpdate: Equatable {
     case state(RecordingState)
-    /// The phone saved or discarded this recording.
-    case ended(sessionId: String, sentAt: Double)
+    /// The phone saved or discarded this recording. `discarded` is false when
+    /// it was saved, and also when an older phone build did not say.
+    case ended(sessionId: String, sentAt: Double, discarded: Bool)
 }
