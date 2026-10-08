@@ -7,6 +7,7 @@ import {
   useAppPreferencesStore,
   __resetAppPreferencesStoreForTests,
 } from '../../src/stores/appPreferencesStore';
+import { rowKeys } from '../../src/utils/addMenu';
 import { initializeI18n } from '../../src/localization/i18n';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -64,7 +65,9 @@ describe('AddMenuSettingsScreen', () => {
 
     const keys = orderedRowKeys();
     expect(keys.slice(0, 2)).toEqual(['askSparky', 'mood']);
-    expect(keys).toHaveLength(ADD_MENU_ITEM_KEYS.length);
+    // Everything except the four cards is a row.
+    expect(keys).toHaveLength(ADD_MENU_ITEM_KEYS.length - 4);
+    expect(keys).not.toContain('food');
   });
 
   test('toggling a row hides and shows it', () => {
@@ -89,10 +92,41 @@ describe('AddMenuSettingsScreen', () => {
       { nativeEvent: { actionName: 'increment' } }
     );
 
-    expect(useAppPreferencesStore.getState().addMenuOrder.slice(0, 2)).toEqual([
-      'progressPhotos',
-      'recordActivity',
-    ]);
+    const state = useAppPreferencesStore.getState();
+    expect(rowKeys(state.addMenuOrder, state.addMenuCards).slice(0, 2)).toEqual(
+      ['progressPhotos', 'recordActivity']
+    );
+  });
+
+  test('a card slot shows its item and the rest are rows', () => {
+    renderScreen();
+
+    expect(screen.getByTestId('add-menu-slot-0').props.accessibilityLabel).toBe(
+      'Big button 1: Food'
+    );
+    expect(screen.getByTestId('add-menu-slot-3').props.accessibilityLabel).toBe(
+      'Big button 4: Scan Food'
+    );
+    expect(orderedRowKeys()).not.toContain('scanFood');
+  });
+
+  test('putting a row item on a card sends the old card to the rows', () => {
+    useAppPreferencesStore
+      .getState()
+      .setAddMenuCards(['mood', 'exercise', 'measurements', 'scanFood']);
+    renderScreen();
+
+    expect(orderedRowKeys()).toContain('food');
+    expect(orderedRowKeys()).not.toContain('mood');
+  });
+
+  test('giving a hidden row a card shows it again', () => {
+    useAppPreferencesStore.setState({ hiddenAddMenuItems: ['mood'] });
+    useAppPreferencesStore
+      .getState()
+      .setAddMenuCards(['mood', 'exercise', 'measurements', 'scanFood']);
+
+    expect(useAppPreferencesStore.getState().hiddenAddMenuItems).toEqual([]);
   });
 
   test('reset puts the order and hidden rows back', () => {
@@ -106,6 +140,12 @@ describe('AddMenuSettingsScreen', () => {
 
     const state = useAppPreferencesStore.getState();
     expect(state.addMenuOrder).toEqual([...ADD_MENU_ITEM_KEYS]);
+    expect(state.addMenuCards).toEqual([
+      'food',
+      'exercise',
+      'measurements',
+      'scanFood',
+    ]);
     expect(state.hiddenAddMenuItems).toEqual([]);
   });
 });
