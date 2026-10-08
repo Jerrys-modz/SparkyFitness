@@ -6317,6 +6317,16 @@
       "discard": "Discard recording",
       "review": "Review and save"
     },
+    "introIndoor": "Record a treadmill or other indoor session. No GPS is used, and you can enter the distance your machine shows when you finish.",
+    "location": {
+      "outdoor": "Outdoor",
+      "indoor": "Indoor"
+    },
+    "indoorDistance": {
+      "title": "Distance",
+      "hint": "Optional. Enter the distance your treadmill or machine shows.",
+      "invalid": "Enter a distance of zero or more."
+    },
     "heartRate": "Heart rate",
     "errors": {
       "start": "Could not start recording",

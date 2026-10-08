@@ -364,3 +364,44 @@ describe('pause edge cases', () => {
     expect((await storedSession())?.status).toBe('recording');
   });
 });
+
+describe('indoor recording', () => {
+  it('starts without asking for location or running a location task', async () => {
+    await startRecording({ activity: 'walk', indoor: true, notification });
+
+    expect(mockedLocation.hasServicesEnabledAsync).not.toHaveBeenCalled();
+    expect(
+      mockedLocation.requestForegroundPermissionsAsync
+    ).not.toHaveBeenCalled();
+    expect(mockedLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+    const stored = await storedSession();
+    expect(stored?.status).toBe('recording');
+    expect(stored?.indoor).toBe(true);
+  });
+
+  it('starts even when location services are off or permission is denied', async () => {
+    mockedLocation.hasServicesEnabledAsync.mockResolvedValue(false);
+    mockedLocation.requestForegroundPermissionsAsync.mockResolvedValue({
+      granted: false,
+    } as Location.LocationPermissionResponse);
+
+    await startRecording({ activity: 'run', indoor: true, notification });
+
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('pauses and resumes without starting a location task', async () => {
+    await startRecording({ activity: 'run', indoor: true, notification });
+    await pauseRecording();
+    mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValue(false);
+    await resumeRecording(notification);
+
+    expect(mockedLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('keeps an outdoor session outdoor', async () => {
+    await startRecording({ activity: 'run', notification });
+    expect((await storedSession())?.indoor).toBeUndefined();
+  });
+});
