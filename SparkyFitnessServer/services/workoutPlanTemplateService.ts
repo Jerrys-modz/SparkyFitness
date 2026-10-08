@@ -188,6 +188,18 @@ async function getWorkoutPlanTemplateById(
   return template;
 }
 
+/**
+ * Updates a workout plan template owned by the user. For a stored prefill plan
+ * the entries it generated from today on are removed first (logged and edited
+ * entries are kept, see deleteExerciseEntriesByTemplateId); prompt and
+ * sequential plans never generate entries, so nothing is removed. If the
+ * updated plan is an active weekly prefill plan, its entries are regenerated.
+ *
+ * @param userId - Owner of the template.
+ * @param templateId - Template to update.
+ * @param updateData - Changed fields, assignments and the client's current date.
+ * @returns The updated plan.
+ */
 async function updateWorkoutPlanTemplate(
   userId: string,
   templateId: string | number,

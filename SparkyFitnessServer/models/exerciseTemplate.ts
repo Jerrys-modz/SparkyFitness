@@ -15,6 +15,18 @@ import {
 // plan is edited, toggled or deleted.
 export const WORKOUT_PLAN_ENTRY_SOURCE = 'Workout Plan';
 
+/**
+ * Generates the diary rows of a prefill plan from `today` (or the plan's start
+ * date, if later) to its end date, one per matching weekday assignment. Every
+ * row is stamped with WORKOUT_PLAN_ENTRY_SOURCE. An assignment and date that
+ * still has a row after deleteExerciseEntriesByTemplateId (a logged workout, an
+ * edited generated row, a legacy row from today) is skipped, so no duplicate is
+ * created next to it.
+ *
+ * @param templateId - Workout plan template to generate entries for.
+ * @param userId - Owner of the plan and of the generated entries.
+ * @param today - The user's current day (YYYY-MM-DD).
+ */
 async function createExerciseEntriesFromTemplate(
   templateId: string | number,
   userId: string,
@@ -212,19 +224,26 @@ async function createExerciseEntriesFromTemplate(
   }
 }
 
-// Removes the diary rows a prefill plan generated from `today` on, so they can
-// be regenerated (or dropped when the plan is deactivated or deleted). Only rows
-// stamped with WORKOUT_PLAN_ENTRY_SOURCE are generated; a workout the user
-// logged from a plan session carries the same workout_plan_assignment_id but
-// its own source, and must survive (#2677).
-//
-// A generated row the user edited in place (sets, reps, notes, a watch sync) is
-// the user's workout now and is kept too. Generated rows are inserted in one
-// statement with created_at and updated_at both defaulting to now(); every
-// update path sets updated_at = now(), so updated_at > created_at marks an
-// edited row. A generated session counts as edited when the session row or any
-// of its exercises was updated (updateGroupedWorkoutSession updates the session
-// row on every save).
+/**
+ * Removes the diary rows a prefill plan generated from `today` on, so they can
+ * be regenerated (or dropped when the plan is deactivated or deleted). Only rows
+ * stamped with WORKOUT_PLAN_ENTRY_SOURCE are generated; a workout the user
+ * logged from a plan session carries the same workout_plan_assignment_id but
+ * its own source, and must survive (#2677).
+ *
+ * A generated row the user edited in place (sets, reps, notes, a watch sync) is
+ * the user's workout now and is kept too. Generated rows are inserted in one
+ * statement with created_at and updated_at both defaulting to now(); every
+ * update path sets updated_at = now(), so updated_at > created_at marks an
+ * edited row. A generated session counts as edited when the session row or any
+ * of its exercises was updated (updateGroupedWorkoutSession updates the session
+ * row on every save).
+ *
+ * @param templateId - Workout plan template whose generated entries are removed.
+ * @param userId - Owner of the plan and of the entries.
+ * @param today - The user's current day (YYYY-MM-DD); earlier days are kept.
+ * @returns Number of deleted preset sessions plus standalone entries.
+ */
 async function deleteExerciseEntriesByTemplateId(
   templateId: string | number,
   userId: string,
