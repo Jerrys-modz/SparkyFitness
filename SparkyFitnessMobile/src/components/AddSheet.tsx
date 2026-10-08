@@ -13,6 +13,12 @@ import { useTranslation } from 'react-i18next';
 import Icon, { type IconName } from './Icon';
 import Button from './ui/Button';
 import { useSheetBackdrop } from './ui/sheetChrome';
+import {
+  ADD_MENU_ITEM_KEYS,
+  type AddMenuItemKey,
+} from '../constants/addMenuItems';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { resolveKeyOrder } from '../utils/reorderUtils';
 
 export interface AddSheetRef {
   present: (options?: { initialMenu?: 'exercise' }) => void;
@@ -82,6 +88,10 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     const pendingInitialMenuRef = useRef<'exercise' | null>(null);
     const presentFrameRef = useRef<number | null>(null);
     const [showExerciseMenu, setShowExerciseMenu] = useState(false);
+    const addMenuOrder = useAppPreferencesStore((st) => st.addMenuOrder);
+    const hiddenAddMenuItems = useAppPreferencesStore(
+      (st) => st.hiddenAddMenuItems
+    );
 
     const [surfaceBg, textMuted, accentPrimary, raisedBg, textSecondary] =
       useCSSVariable([
@@ -254,11 +264,13 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
     );
 
     const renderSecondaryRow = (
+      key: string,
       label: string,
       icon: IconName,
       onPress: () => void
     ) => (
       <Button
+        key={key}
         variant="primary"
         className="flex-row items-center justify-center py-3 mx-1.5 mt-3"
         style={{ backgroundColor: raisedBg }}
@@ -304,6 +316,74 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         </Text>
       </Button>
     );
+
+    // Rows the app can offer right now, keyed so the saved order and hidden
+    // list from Settings → Add menu can arrange them. A row whose handler or
+    // feature is off is simply absent, whatever the arrangement says.
+    const secondaryRowDefs: Partial<
+      Record<
+        AddMenuItemKey,
+        { label: string; icon: IconName; onPress: () => void }
+      >
+    > = {
+      recordActivity: onRecordActivity && {
+        label: t('addSheet.recordActivity', {
+          defaultValue: 'Record Activity',
+        }),
+        icon: 'location',
+        onPress: onRecordActivity,
+      },
+      progressPhotos: {
+        label: t('addSheet.progressPhotos', {
+          defaultValue: 'Progress Photos',
+        }),
+        icon: 'camera',
+        onPress: onAddProgressPhotos,
+      },
+      wellness:
+        showCycleCard && onOpenCycle
+          ? {
+              label:
+                cycleLabel ??
+                t('addSheet.wellness', { defaultValue: 'Wellness' }),
+              icon: cycleIcon ?? 'wellness-filled',
+              onPress: onOpenCycle,
+            }
+          : undefined,
+      symptoms: onAddSymptoms && {
+        label: t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
+        icon: 'symptoms',
+        onPress: onAddSymptoms,
+      },
+      mood: onAddMood && {
+        label: t('addSheet.mood', { defaultValue: 'Mood' }),
+        icon: 'mood',
+        onPress: onAddMood,
+      },
+      mindfulness: onAddMindfulness && {
+        label: t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+        icon: 'exercise-yoga',
+        onPress: onAddMindfulness,
+      },
+      askSparky: {
+        label: t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
+        icon: 'sparkles',
+        onPress: onAskSparky,
+      },
+      syncHealth: {
+        label: t('addSheet.syncHealth', { defaultValue: 'Sync Health Data' }),
+        icon: 'sync',
+        onPress: onSyncHealthData,
+      },
+    };
+    const secondaryRows = resolveKeyOrder(addMenuOrder, ADD_MENU_ITEM_KEYS)
+      .filter((key) => !hiddenAddMenuItems.includes(key))
+      .flatMap((key) => {
+        const row = secondaryRowDefs[key];
+        return row
+          ? [renderSecondaryRow(key, row.label, row.icon, row.onPress)]
+          : [];
+      });
 
     return (
       <BottomSheetModal
@@ -370,61 +450,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                 {renderCard(cards[2])}
                 {renderCard(cards[3])}
               </View>
-              {onRecordActivity
-                ? renderSecondaryRow(
-                    t('addSheet.recordActivity', {
-                      defaultValue: 'Record Activity',
-                    }),
-                    'location',
-                    onRecordActivity
-                  )
-                : null}
-              {renderSecondaryRow(
-                t('addSheet.progressPhotos', {
-                  defaultValue: 'Progress Photos',
-                }),
-                'camera',
-                onAddProgressPhotos
-              )}
-              {showCycleCard && onOpenCycle
-                ? renderSecondaryRow(
-                    cycleLabel ??
-                      t('addSheet.wellness', { defaultValue: 'Wellness' }),
-                    cycleIcon ?? 'wellness-filled',
-                    onOpenCycle
-                  )
-                : null}
-              {onAddSymptoms
-                ? renderSecondaryRow(
-                    t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
-                    'symptoms',
-                    onAddSymptoms
-                  )
-                : null}
-              {onAddMood
-                ? renderSecondaryRow(
-                    t('addSheet.mood', { defaultValue: 'Mood' }),
-                    'mood',
-                    onAddMood
-                  )
-                : null}
-              {onAddMindfulness
-                ? renderSecondaryRow(
-                    t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
-                    'exercise-yoga',
-                    onAddMindfulness
-                  )
-                : null}
-              {renderSecondaryRow(
-                t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
-                'sparkles',
-                onAskSparky
-              )}
-              {renderSecondaryRow(
-                t('addSheet.syncHealth', { defaultValue: 'Sync Health Data' }),
-                'sync',
-                onSyncHealthData
-              )}
+              {secondaryRows}
             </>
           )}
         </BottomSheetView>

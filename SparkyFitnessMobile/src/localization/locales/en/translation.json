@@ -351,7 +351,8 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
-    "aiSettings": "AI"
+    "aiSettings": "AI",
+    "addMenuSettings": "Add menu"
   },
   "workoutPlans": {
     "changeScheduleTitle": "Change schedule type?",
@@ -419,5 +420,93 @@
     "emptySubtitle": "Schedule your saved workouts on set days, or as a cycle you work through.",
     "moreAssignments_one": "+{{count}} more",
     "moreAssignments_other": "+{{count}} more"
+  },
+  "settings": {
+    "app": "App Settings",
+    "language": {
+      "title": "Language",
+      "system": "System",
+      "english": "English",
+      "polish": "Polski",
+      "spanish": "Español",
+      "simplifiedChinese": "简体中文",
+      "traditionalChinese": "正體中文",
+      "cantoneseTraditional": "正體粵語",
+      "german": "Deutsch",
+      "french": "Français",
+      "hungarian": "Magyar",
+      "italian": "Italiano",
+      "latvian": "Latviešu",
+      "norwegianBokmal": "Norsk bokmål",
+      "dutch": "Nederlands",
+      "brazilianPortuguese": "Português (Brasil)",
+      "russian": "Русский",
+      "pickerHint": "Opens language selection menu",
+      "changeFailed": "Couldn't change the language",
+      "managedByIOS": "Managed by iOS",
+      "iosSettingsHint": "Change this app's language in iOS Settings",
+      "openSettingsFailed": "Could not open iOS Settings",
+      "iosSubtitle": "{{language}} · {{managedBy}}"
+    },
+    "lastSynced": "Last synced {{time}}",
+    "addServer": "Tap to add a server",
+    "title": "Settings",
+    "shareReportFailed": "Failed to share diagnostic report: {{error}}",
+    "serverConnected": "Server settings. Connected.",
+    "serverConnectionFailed": "Server settings. Connection failed.",
+    "serverNotConfigured": "Server settings. No server configured.",
+    "shareReportDescription": "Exports a local diagnostic report (app version, sync status, logs). No personal health or food data is included. Nothing is sent automatically.",
+    "rows": {
+      "server": "Server",
+      "healthSync": "Health Data Sync",
+      "app": "App Settings",
+      "calories": "Calories & BMR",
+      "food": "Food",
+      "dashboard": "Dashboard",
+      "diary": "Diary",
+      "wellness": "Wellness",
+      "cyclePregnancy": "Cycle & Pregnancy",
+      "workout": "Workout",
+      "whatsNew": "What's New",
+      "logs": "View Logs",
+      "about": "About",
+      "shareReport": "Share Diagnostic Report",
+      "watch": "Apple Watch",
+      "addMenu": "Add menu",
+      "ai": "AI",
+      "goals": "Goals",
+      "profile": "Profile & Account",
+      "fasting": "Fasting",
+      "customMeasurements": "Custom Measurements"
+    },
+    "theme": {
+      "title": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "amoled": "AMOLED",
+      "system": "System"
+    },
+    "liquidGlass": {
+      "title": "Liquid Glass navigation",
+      "subtitle": "Use the iOS 26 glass tab bar and screen headers."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Rest timers, fasting goals, and medication reminders."
+    },
+    "haptics": {
+      "title": "Haptic Feedback",
+      "subtitle": "Light vibrations for timers and confirmations."
+    },
+    "cameraShutter": {
+      "title": "Camera shutter",
+      "subtitle": "Play a sound when capturing photos."
+    }
+  },
+  "addMenuSettings": {
+    "description": "Drag a row by its handle to change where it sits in the + menu. Toggle a row off to hide it. Food, Exercise, Measurements and Scan Food always stay on top.",
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this row sits in the + menu",
+    "reset": "Reset to default"
   }
 }

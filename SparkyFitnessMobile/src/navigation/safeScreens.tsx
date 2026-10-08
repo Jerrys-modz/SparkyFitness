@@ -53,6 +53,7 @@ import NutrientDisplaySettingsScreen from '../screens/NutrientDisplaySettingsScr
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
+import AddMenuSettingsScreen from '../screens/AddMenuSettingsScreen';
 import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
 import CustomCategoryEditScreen from '../screens/CustomCategoryEditScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
@@ -175,6 +176,7 @@ export const SafeNutrientDisplaySettings = withErrorBoundary(NutrientDisplaySett
 export const SafeDashboardSettings = withErrorBoundary(DashboardSettingsScreen, 'DashboardSettings', { canGoBack: true });
 export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsScreen, 'HealthTrendsSettings', { canGoBack: true });
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });
+export const SafeAddMenuSettings = withErrorBoundary(AddMenuSettingsScreen, 'AddMenuSettings', { canGoBack: true });
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
 export const SafeProfile = withErrorBoundary(ProfileScreen, 'Profile', { canGoBack: true });
 export const SafeCustomCategories = withErrorBoundary(CustomCategoriesScreen, 'CustomCategories', { canGoBack: true });

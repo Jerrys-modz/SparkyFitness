@@ -1,6 +1,10 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import AddSheet, { type AddSheetRef } from '../../src/components/AddSheet';
+import {
+  __resetAppPreferencesStoreForTests,
+  useAppPreferencesStore,
+} from '../../src/stores/appPreferencesStore';
 
 const mockBottomSheetControls = {
   openCount: 0,
@@ -129,6 +133,24 @@ describe('AddSheet', () => {
 
     expect(mockBottomSheetControls.openCount).toBe(1);
     expect(onDismissWithoutAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the rows in the saved order and leaves out hidden ones', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.setState({
+      addMenuOrder: ['syncHealth', 'askSparky'],
+      hiddenAddMenuItems: ['progressPhotos'],
+    });
+    const { queryByText, toJSON } = renderAddSheet();
+
+    expect(queryByText('Progress Photos')).toBeNull();
+    const text = JSON.stringify(toJSON());
+    // Saved rows first, then the rest in their usual order.
+    expect(text.indexOf('Sync Health Data')).toBeLessThan(
+      text.indexOf('Ask Sparky')
+    );
+    expect(text.indexOf('Ask Sparky')).toBeLessThan(text.indexOf('Symptoms'));
+    __resetAppPreferencesStoreForTests();
   });
 
   it('renders the Measurements tile in the main grid', () => {
