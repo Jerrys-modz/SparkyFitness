@@ -1721,6 +1721,7 @@ describe('workoutFormReducer', () => {
         type: 'POPULATE_FROM_PRESET',
         preset,
         weightUnit: 'kg',
+        distanceUnit: 'km',
         date: '2026-03-20',
         clientIds: presetClientIds(preset),
       });
