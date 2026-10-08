@@ -148,6 +148,12 @@ struct MacroComplicationView: View {
         return "\(amount.consumed)/\(amount.goal)g"
     }
 
+    /// "81/150" for the corner's curved label, which clips anything longer.
+    private var cornerLabel: String {
+        guard let amount = entry.amount else { return "\(percent)%" }
+        return "\(amount.consumed)/\(amount.goal)"
+    }
+
     /// The figure that fits inside a small ring: grams eaten, else percent.
     private var shortText: String {
         entry.amount.map { "\($0.consumed)" } ?? "\(percent)"
@@ -168,13 +174,16 @@ struct MacroComplicationView: View {
     private var content: some View {
         switch family {
         case .accessoryCorner:
-            Text(shortText)
+            // The curved label has room for about seven characters before it
+            // is clipped, so the macro's letter goes in the corner itself and
+            // the label carries only "81/150" (or the percent), with no unit.
+            Text(macro.letter)
                 .font(.system(.title3, design: .rounded).weight(.semibold))
-                .minimumScaleFactor(0.6)
                 .foregroundStyle(macro.tint)
                 .widgetLabel {
                     ProgressView(value: entry.progress) {
-                        Text("\(macro.letter) \(amountText)")
+                        Text(cornerLabel)
+                            .minimumScaleFactor(0.7)
                     }
                     .tint(macro.tint)
                 }
