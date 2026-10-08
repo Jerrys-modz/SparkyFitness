@@ -151,6 +151,7 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
+      "addMenu": "Add menu",
       "ai": "AI",
       "goals": "Goals",
       "profile": "Profile & Account",
@@ -604,6 +605,7 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
+    "addMenuSettings": "Add menu",
     "aiSettings": "AI",
     "caffeine": "Caffeine",
     "profile": "Profile",
@@ -3449,6 +3451,12 @@
     "emptySubtitle": "Schedule your saved workouts on set days, or as a cycle you work through.",
     "moreAssignments_one": "+{{count}} more",
     "moreAssignments_other": "+{{count}} more"
+  },
+  "addMenuSettings": {
+    "description": "Drag a row by its handle to change where it sits in the + menu. Toggle a row off to hide it. Food, Exercise, Measurements and Scan Food always stay on top.",
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this row sits in the + menu",
+    "reset": "Reset to default"
   },
   "mealPlans": {
     "title": "Meal plans",

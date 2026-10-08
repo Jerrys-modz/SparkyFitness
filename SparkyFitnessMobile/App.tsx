@@ -98,6 +98,7 @@ import {
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
   SafeWatchSettings,
+  SafeAddMenuSettings,
   SafeDiarySettings,
   SafeProfile,
   SafeCustomCategories,
@@ -1009,6 +1010,11 @@ function AppContent() {
             name="WatchSettings"
             component={SafeWatchSettings}
             options={createStackScreenOptions(t('screens.watchSettings', { defaultValue: 'Apple Watch' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="AddMenuSettings"
+            component={SafeAddMenuSettings}
+            options={createStackScreenOptions(t('screens.addMenuSettings', { defaultValue: 'Add menu' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="WorkoutSettings"
