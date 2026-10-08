@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
     env:
-      GRADLE_OPTS: "-Dorg.gradle.jvmargs=\"-Xmx6144m -XX:MaxMetaspaceSize=1024m\""
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=\"-Xmx6144m -XX:MaxMetaspaceSize=1024m\" -Dorg.gradle.caching=true"
 
     steps:
       - name: Checkout repository
@@ -46,7 +46,7 @@ jobs:
           APP_VARIANT=production npx expo prebuild --platform android
           sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m/' android/gradle.properties
           sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64/' android/gradle.properties
-          echo "org.gradle.caching=true" >> android/gradle.properties
+          printf '\norg.gradle.caching=true\n' >> android/gradle.properties
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
