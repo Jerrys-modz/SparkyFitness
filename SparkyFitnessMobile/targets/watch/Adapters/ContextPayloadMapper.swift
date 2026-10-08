@@ -292,7 +292,11 @@ enum ContextPayloadMapper {
         else { return nil }
         let sentAt = doubleValue(payload["sentAt"]) ?? 0
         if status == .ended {
-            return .ended(sessionId: sessionId, sentAt: sentAt)
+            return .ended(
+                sessionId: sessionId,
+                sentAt: sentAt,
+                discarded: payload["discarded"] as? Bool ?? false
+            )
         }
         // Epoch ms are parsed as Double: Int is 32-bit on arm64_32.
         guard let activityRaw = payload["activity"] as? String,

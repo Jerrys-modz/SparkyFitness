@@ -540,6 +540,13 @@ export interface WatchRecordingStatePayload {
   distanceUnit: 'km' | 'mi';
   /** Phone clock (epoch ms) at send time, so the watch drops out-of-order copies. */
   sentAt: number;
+  /**
+   * Only on `ended`: true when the recording was thrown away, false when it
+   * was saved to the diary. The watch holds its Apple Health workout until it
+   * hears which, so a discarded activity is never written to Health. Absent
+   * from an older phone build, which the watch treats as saved.
+   */
+  discarded?: boolean;
 }
 
 export interface WatchRecordingControlPayload {

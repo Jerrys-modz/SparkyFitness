@@ -45,7 +45,7 @@ const baseSession = {
   pausedAt: null,
   pausedMs: 0,
   seg: 0,
-  savedEntryId: null,
+  savedEntryId: null as string | null,
 };
 
 const point = (t: number, lat: number) => ({
@@ -163,6 +163,41 @@ describe('useWatchRecordingBridge', () => {
 
     expect(watch.updateRecordingState).toHaveBeenCalledWith(
       expect.objectContaining({ sessionId: 'rec-1', status: 'ended' }),
+      true
+    );
+  });
+
+  it('says a recording that left the store without a diary entry was discarded', () => {
+    setSnapshot({ ...baseSession, status: 'finished' });
+    const { rerender } = renderHook(() => useWatchRecordingBridge(true));
+    watch.updateRecordingState.mockClear();
+
+    setSnapshot(null);
+    rerender({});
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'ended', discarded: true }),
+      true
+    );
+  });
+
+  it('says a recording that was saved to the diary was not discarded', () => {
+    setSnapshot({ ...baseSession, status: 'finished' });
+    const { rerender } = renderHook(() => useWatchRecordingBridge(true));
+    // The save records the entry id on the session before it clears it.
+    setSnapshot({
+      ...baseSession,
+      status: 'finished',
+      savedEntryId: 'entry-1',
+    });
+    rerender({});
+    watch.updateRecordingState.mockClear();
+
+    setSnapshot(null);
+    rerender({});
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'ended', discarded: false }),
       true
     );
   });

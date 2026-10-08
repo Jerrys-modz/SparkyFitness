@@ -12,6 +12,13 @@ import HealthKit
 /// The workout it saves to Apple Health carries `SparkyFitnessSessionId`, the
 /// same own-write marker `WorkoutHealthKitController` uses, so the phone's
 /// inbound sync skips it instead of filing the run a second time.
+///
+/// Nothing is written to Apple Health until the phone says whether the
+/// recording was saved or discarded. When it finishes, the collection is
+/// stopped but the workout is held (`Outcome.hold`); the phone's verdict then
+/// finishes it (`resolveHeld(save: true)`) or throws it away. A workout that
+/// was already written cannot be reliably taken back out of Health, since
+/// deleting the `HKWorkout` does not remove every sample attached to it.
 final class RecordingHealthKitController: NSObject {
     static let shared = RecordingHealthKitController()
 
@@ -23,9 +30,26 @@ final class RecordingHealthKitController: NSObject {
     /// the batch it will also be part of. Display only.
     var onLiveReading: ((Double, Date) -> Void)?
 
+    /// What happens to the workout when collection stops.
+    enum Outcome {
+        /// Write it to Apple Health now.
+        case save
+        /// Throw it away; nothing reaches Apple Health.
+        case discard
+        /// Stop collecting but keep the workout until `resolveHeld`.
+        case hold
+    }
+
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    /// A finished recording's workout, waiting for the phone's verdict.
+    private var heldBuilder: HKLiveWorkoutBuilder?
+    /// A hold was asked for but `endCollection` has not finished, so there is
+    /// nothing to finish or discard yet.
+    private var holdInFlight = false
+    /// The phone's verdict arrived while a hold was still in flight.
+    private var earlyVerdict: Bool?
     private var pendingSamples: [HeartRateSample] = []
     private var pendingTimes: Set<String> = []
     private var batchTimer: Timer?
@@ -44,6 +68,10 @@ final class RecordingHealthKitController: NSObject {
     /// still works, just without heart rate.
     func start(sessionId: String, activity: RecordingActivity) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
+
+        // A new recording while an earlier one is still undecided: keep the
+        // earlier workout rather than lose it.
+        resolveHeld(save: true)
 
         let configuration = HKWorkoutConfiguration()
         switch activity {
@@ -91,9 +119,30 @@ final class RecordingHealthKitController: NSObject {
         session?.resume()
     }
 
-    /// Ends the session and hands back the readings not yet sent.
-    /// `discard` drops the workout instead of saving it to Apple Health.
-    func stop(discard: Bool, completion: @escaping ([HeartRateSample]) -> Void) {
+    /// Applies the phone's verdict to a workout held by `stop(.hold)`: write it
+    /// to Apple Health when the recording was saved, drop it when it was
+    /// discarded. Does nothing when nothing is held.
+    func resolveHeld(save: Bool) {
+        if let held = heldBuilder {
+            heldBuilder = nil
+            Self.complete(held, save: save)
+        } else if holdInFlight {
+            earlyVerdict = save
+        }
+    }
+
+    private static func complete(_ builder: HKLiveWorkoutBuilder, save: Bool) {
+        if save {
+            builder.finishWorkout { _, _ in }
+        } else {
+            builder.discardWorkout()
+        }
+    }
+
+    /// Ends the session and hands back the readings not yet sent. `outcome`
+    /// says what becomes of the workout: written to Apple Health, discarded,
+    /// or held until the phone decides.
+    func stop(_ outcome: Outcome, completion: @escaping ([HeartRateSample]) -> Void) {
         stopBatchTimer()
         let held = pendingSamples
         pendingSamples = []
@@ -103,12 +152,25 @@ final class RecordingHealthKitController: NSObject {
         }
         self.session = nil
         self.builder = nil
+        if outcome == .hold { holdInFlight = true }
         session.end()
-        endingBuilder.endCollection(withEnd: Date()) { _, _ in
-            if discard {
+        endingBuilder.endCollection(withEnd: Date()) { [weak self] _, _ in
+            switch outcome {
+            case .discard:
                 endingBuilder.discardWorkout()
-            } else {
+            case .save:
                 endingBuilder.finishWorkout { _, _ in }
+            case .hold:
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.holdInFlight = false
+                    if let verdict = self.earlyVerdict {
+                        self.earlyVerdict = nil
+                        Self.complete(endingBuilder, save: verdict)
+                    } else {
+                        self.heldBuilder = endingBuilder
+                    }
+                }
             }
             DispatchQueue.main.async { completion(held) }
         }
