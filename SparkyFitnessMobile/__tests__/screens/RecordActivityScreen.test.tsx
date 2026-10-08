@@ -293,15 +293,47 @@ describe('RecordActivityScreen', () => {
     expect(screen.queryByText(/was still running on this phone/)).toBeNull();
   });
 
-  it('lets the person discard a recording that was already running', async () => {
+  it('offers Discard while recording and while paused, and asks first', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    for (const status of ['recording', 'paused'] as const) {
+      state(
+        session({
+          status,
+          pausedAt: status === 'paused' ? Date.now() : null,
+        }),
+        track
+      );
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Discard'));
+
+      expect(alert).toHaveBeenCalledTimes(1);
+      alert.mockClear();
+      screen.unmount();
+    }
+    expect(discardRecording).not.toHaveBeenCalled();
+  });
+
+  it('discards a running recording once the person confirms', async () => {
     state(session(), track);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const screen = await renderScreen();
 
     fireEvent.press(screen.getByText('Discard'));
+    const confirm = alert.mock.calls[0][2]?.find(
+      (button) => button.style === 'destructive'
+    );
+    confirm?.onPress?.();
 
-    expect(alert).toHaveBeenCalled();
-    expect(discardRecording).not.toHaveBeenCalled();
+    await waitFor(() => expect(discardRecording).toHaveBeenCalled());
+  });
+
+  it('keeps the carried-over notice to a note, with a single Discard on the screen', async () => {
+    state(session(), track);
+    const screen = await renderScreen();
+
+    expect(screen.getByText(/was still running on this phone/)).toBeTruthy();
+    expect(screen.getAllByText('Discard')).toHaveLength(1);
   });
 
   it('asks before discarding a finished recording', async () => {
