@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import RecordActivityScreen from '../../src/screens/RecordActivityScreen';
@@ -8,6 +8,7 @@ import {
   RecordingPermissionError,
   discardRecording,
   finishRecording,
+  hydrate,
   pauseRecording,
   startRecording,
   useGpsRecording,
@@ -15,6 +16,7 @@ import {
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
+import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
 import type { RootStackScreenProps } from '../../src/types/navigation';
@@ -100,22 +102,33 @@ const props = {
   route: { key: 'RecordActivity', name: 'RecordActivity' },
 } as unknown as RootStackScreenProps<'RecordActivity'>;
 
-const renderScreen = () =>
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <RecordActivityScreen {...props} />
-    </QueryClientProvider>
+const renderUi = () => (
+  <QueryClientProvider client={new QueryClient()}>
+    <RecordActivityScreen {...props} />
+  </QueryClientProvider>
+);
+
+// The screen shows a spinner until the saved-session check finishes.
+const renderScreen = async () => {
+  const screen = render(renderUi());
+  await waitFor(() =>
+    expect(screen.queryByTestId('record-activity-loading')).toBeNull()
   );
+  return screen;
+};
 
 describe('RecordActivityScreen', () => {
   beforeAll(async () => {
     await initializeI18n('en');
   });
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useLiveHeartRateStore.setState({ reading: null });
+  });
 
   it('starts a recording of the chosen activity', async () => {
     state(null);
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     fireEvent.press(screen.getByText('Ride'));
     fireEvent.press(screen.getByText('Start'));
@@ -132,7 +145,7 @@ describe('RecordActivityScreen', () => {
     jest
       .mocked(startRecording)
       .mockRejectedValueOnce(new RecordingPermissionError('denied', 'no'));
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     fireEvent.press(screen.getByText('Start'));
 
@@ -141,7 +154,7 @@ describe('RecordActivityScreen', () => {
 
   it('shows the clock, distance and pace while recording, and pauses', async () => {
     state(session(), track);
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     expect(screen.getByText('12:34')).toBeTruthy();
     expect(screen.getByText('2.50')).toBeTruthy();
@@ -154,7 +167,7 @@ describe('RecordActivityScreen', () => {
 
   it('finishes from the live screen', async () => {
     state(session(), track);
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     fireEvent.press(screen.getByText('Finish'));
     await waitFor(() => expect(finishRecording).toHaveBeenCalled());
@@ -165,7 +178,7 @@ describe('RecordActivityScreen', () => {
     jest
       .mocked(saveRecordedActivity)
       .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-06' });
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     expect(screen.getByText('Splits')).toBeTruthy();
     expect(screen.getByText('1 km')).toBeTruthy();
@@ -187,7 +200,7 @@ describe('RecordActivityScreen', () => {
   it('keeps the recording when the save fails', async () => {
     state(session({ status: 'finished', finishedAt: Date.now() }), track);
     jest.mocked(saveRecordedActivity).mockRejectedValue(new Error('offline'));
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     fireEvent.press(screen.getByText('Save activity'));
 
@@ -196,10 +209,105 @@ describe('RecordActivityScreen', () => {
     expect(navigation.goBack).not.toHaveBeenCalled();
   });
 
-  it('asks before discarding a finished recording', () => {
+  it('shows a spinner, not Start, until the saved-session check finishes', async () => {
+    state(null);
+    let finishCheck: () => void = () => {};
+    jest.mocked(hydrate).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishCheck = resolve;
+      })
+    );
+    const screen = render(renderUi());
+
+    expect(screen.getByTestId('record-activity-loading')).toBeTruthy();
+    expect(screen.queryByText('Start')).toBeNull();
+
+    finishCheck();
+    expect(await screen.findByText('Start')).toBeTruthy();
+  });
+
+  it('says when a recording that was already running began', async () => {
+    state(
+      session({ startedAt: new Date(2026, 9, 8, 13, 10).getTime() }),
+      track
+    );
+    const screen = await renderScreen();
+
+    expect(
+      screen.getByText(
+        /This recording started at .*1:10.* and was still running/
+      )
+    ).toBeTruthy();
+  });
+
+  it('shows the watch heart rate while recording, and nothing without one', async () => {
+    state(session(), track);
+    const screen = await renderScreen();
+    expect(screen.queryByText('Heart rate')).toBeNull();
+
+    act(() => {
+      useLiveHeartRateStore.getState().record({
+        sessionId: 'rec-1',
+        exerciseEntryId: '',
+        bpm: 148,
+        at: Date.now(),
+      });
+    });
+
+    expect(screen.getByText('Heart rate')).toBeTruthy();
+    expect(screen.getByText('148')).toBeTruthy();
+    expect(screen.getByText('bpm')).toBeTruthy();
+  });
+
+  it('does not show a heart rate once the recording is finished', async () => {
+    useLiveHeartRateStore.getState().record({
+      sessionId: 'rec-1',
+      exerciseEntryId: '',
+      bpm: 148,
+      at: Date.now(),
+    });
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Heart rate')).toBeNull();
+  });
+
+  it('does not offer the notice for a finished recording', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    const screen = await renderScreen();
+
+    expect(screen.queryByText(/was still running on this phone/)).toBeNull();
+  });
+
+  it('does not show the notice for a recording started on this screen', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Start'));
+    await waitFor(() => expect(startRecording).toHaveBeenCalled());
+    // The service publishes the new session once start resolves.
+    state(session(), track);
+    screen.rerender(renderUi());
+
+    expect(screen.getByText('Pause')).toBeTruthy();
+    expect(screen.queryByText(/was still running on this phone/)).toBeNull();
+  });
+
+  it('lets the person discard a recording that was already running', async () => {
+    state(session(), track);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Discard'));
+
+    expect(alert).toHaveBeenCalled();
+    expect(discardRecording).not.toHaveBeenCalled();
+  });
+
+  it('asks before discarding a finished recording', async () => {
     state(session({ status: 'finished', finishedAt: Date.now() }), track);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const screen = renderScreen();
+    const screen = await renderScreen();
 
     fireEvent.press(screen.getByText('Discard'));
 

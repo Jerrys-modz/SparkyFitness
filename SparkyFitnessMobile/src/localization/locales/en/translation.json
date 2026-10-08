@@ -6662,6 +6662,8 @@
     },
     "unitMi": "mi",
     "unitKm": "km",
+    "unitBpm": "bpm",
+    "heartRate": "Heart rate",
     "errors": {
       "start": "Could not start recording",
       "resume": "Could not resume recording",
@@ -6678,6 +6680,7 @@
       "action": "Discard"
     },
     "saved": "Activity saved",
+    "carriedOver": "This recording started at {{time}} and was still running on this phone.",
     "intro": "Record a walk, run or ride with your phone’s GPS. Recording continues with the screen locked.",
     "activity": {
       "walk": "Walk",

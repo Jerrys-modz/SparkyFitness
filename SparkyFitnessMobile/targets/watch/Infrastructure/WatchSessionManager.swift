@@ -228,6 +228,33 @@ final class WatchSessionManager: NSObject, ObservableObject {
         )
     }
 
+    private var lastRecordingLiveHeartRateAt: Date?
+
+    /// The current reading for the phone's GPS recording, sent as the same
+    /// live-only message the strength workout uses (an empty
+    /// `exerciseEntryId`, since a recording has none). Dropped when the phone
+    /// cannot be reached right now: the batches carry the readings for the
+    /// diary.
+    func sendRecordingLiveHeartRate(sessionId: String, bpm: Double, measuredAt: Date) {
+        guard Date().timeIntervalSince(measuredAt) <= Self.liveHeartRateMaxAge else { return }
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable, bpm > 0 else { return }
+        let now = Date()
+        if let last = lastRecordingLiveHeartRateAt, now.timeIntervalSince(last) < Self.liveHeartRateInterval {
+            return
+        }
+        lastRecordingLiveHeartRateAt = now
+        WCSession.default.sendMessage(
+            OutboundPayloads.liveHeartRate(
+                sessionId: sessionId,
+                exerciseEntryId: "",
+                bpm: bpm,
+                at: measuredAt
+            ),
+            replyHandler: nil,
+            errorHandler: nil
+        )
+    }
+
     /// Pause, resume or finish for the phone's GPS recording. Queued when the
     /// phone is out of reach, like every other message that must not be lost.
     func sendRecordingControl(sessionId: String, action: String) {

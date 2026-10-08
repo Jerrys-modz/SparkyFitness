@@ -19,8 +19,9 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
-import { formatLocalizedNumber } from '../localization';
+import { formatLocalizedNumber, getAppLocale } from '../localization';
 import {
   RecordingPermissionError,
   discardRecording,
@@ -77,12 +78,20 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       : t('recordActivity.unitKm', { defaultValue: 'km' });
 
   const { session, points } = useGpsRecording();
+  const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
   const [permissionProblem, setPermissionProblem] = useState<
     'denied' | 'services-disabled' | null
   >(null);
   const [now, setNow] = useState(() => Date.now());
+  // Whether the check for a recording an earlier run left on disk has finished.
+  // Until it has, the screen cannot tell "nothing recording" from "not loaded
+  // yet", and would show Start for a moment before jumping to a live recording.
+  const [ready, setReady] = useState(false);
+  // Set when the person taps Start here, so a session that is already there
+  // when the screen opens can be told apart from one started on this visit.
+  const [startedHere, setStartedHere] = useState(false);
 
   useScreenHeader({
     title: t('screens.recordActivity', { defaultValue: 'Record Activity' }),
@@ -94,7 +103,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
 
   // Pick up a recording an earlier run left behind (app killed mid-activity).
   useEffect(() => {
-    void hydrate();
+    let active = true;
+    void hydrate().finally(() => {
+      if (active) setReady(true);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const isLive = session?.status === 'recording';
@@ -148,6 +163,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       run(
         async () => {
           setPermissionProblem(null);
+          // Before the await: the session publishes inside startRecording, and
+          // the "already recording" notice must not flash for one render.
+          setStartedHere(true);
           await startRecording({
             activity,
             notification: notificationText(t, activity),
@@ -248,6 +266,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     });
 
   const body = (() => {
+    if (!ready) {
+      return (
+        <View
+          testID="record-activity-loading"
+          className="items-center justify-center py-16"
+        >
+          <ActivityIndicator />
+        </View>
+      );
+    }
     if (!session) {
       return (
         <>
@@ -361,9 +389,29 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       unit: unitLabel,
     });
     const finished = session.status === 'finished';
+    // Still running from before this visit (or from earlier in it): say when it
+    // began so a leftover recording is never mistaken for a new one.
+    const carriedOver = !startedHere && !finished;
 
     return (
       <>
+        {carriedOver ? (
+          <View className="bg-surface rounded-xl p-4 mb-4">
+            <Text className="text-text-primary text-sm mb-3">
+              {t('recordActivity.carriedOver', {
+                defaultValue:
+                  'This recording started at {{time}} and was still running on this phone.',
+                time: new Date(session.startedAt).toLocaleTimeString(
+                  getAppLocale(),
+                  { hour: 'numeric', minute: '2-digit' }
+                ),
+              })}
+            </Text>
+            <Button variant="outline" disabled={busy} onPress={handleDiscard}>
+              {t('recordActivity.discard.action', { defaultValue: 'Discard' })}
+            </Button>
+          </View>
+        ) : null}
         {points.length > 1 ? (
           <View className="mb-4">
             <RouteMap
@@ -441,6 +489,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             unit={elevationUnit}
           />
         </View>
+        {heartRate != null && !finished ? (
+          <View className="flex-row mb-4">
+            <Stat
+              label={t('recordActivity.heartRate', {
+                defaultValue: 'Heart rate',
+              })}
+              value={number(heartRate, 0)}
+              unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
+            />
+          </View>
+        ) : null}
         {finished && splits.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4">
             <Text className="text-text-primary text-base font-bold mb-2">
