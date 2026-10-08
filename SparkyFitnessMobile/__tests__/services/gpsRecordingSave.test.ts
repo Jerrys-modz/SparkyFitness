@@ -190,3 +190,54 @@ describe('saveRecordedActivity', () => {
     });
   });
 });
+
+describe('saveRecordedActivity for an indoor session', () => {
+  const indoor: RecordingSession = { ...session, indoor: true };
+
+  it('logs the entered distance and sends no route', async () => {
+    const saved = await saveRecordedActivity(indoor, [], 'km', 5.2);
+
+    expect(saved).toEqual({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    expect(mockedCreateEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exercise_name: 'Indoor Running',
+        distance: 5.2,
+        sets: [expect.objectContaining({ distance: 5.2, duration: 1500 })],
+      })
+    );
+    expect(mockedAttach).not.toHaveBeenCalled();
+  });
+
+  it('leaves the distance out when none was entered', async () => {
+    await saveRecordedActivity(indoor, [], 'km', null);
+    await saveRecordedActivity(indoor, [], 'km', 0);
+
+    for (const [payload] of mockedCreateEntry.mock.calls) {
+      expect(payload.distance).toBeNull();
+      expect(payload.sets?.[0].distance).toBeNull();
+    }
+  });
+
+  it('names each activity so sport detection reads it as one sport', async () => {
+    await saveRecordedActivity({ ...indoor, activity: 'walk' }, [], 'km');
+    await saveRecordedActivity({ ...indoor, activity: 'ride' }, [], 'km');
+
+    expect(mockedCreateEntry.mock.calls.map(([p]) => p.exercise_name)).toEqual([
+      'Indoor Walking',
+      'Indoor Cycling',
+    ]);
+  });
+
+  it('still attaches the watch heart rate', async () => {
+    mockedHeartRate.mockResolvedValue([
+      { t: T0, bpm: 120 },
+      { t: T0 + 5000, bpm: 124 },
+    ]);
+    await saveRecordedActivity(indoor, [], 'km', 3);
+
+    expect(mockedTelemetry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({ hrSamples: expect.any(Array) })
+    );
+  });
+});
