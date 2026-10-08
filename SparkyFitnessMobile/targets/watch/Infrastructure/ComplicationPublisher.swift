@@ -8,6 +8,16 @@ struct GoalProgress: Equatable {
     let protein: Double
     let carbs: Double
     let fat: Double
+    /// Grams eaten and the goal behind each fraction, so a macro complication
+    /// can show the numbers. Nil from a phone that does not send them.
+    var proteinGrams: MacroGrams? = nil
+    var carbsGrams: MacroGrams? = nil
+    var fatGrams: MacroGrams? = nil
+}
+
+struct MacroGrams: Equatable {
+    let consumed: Double
+    let goal: Double
 }
 
 /// The watch app's only writer to shared App Group storage, and the only
@@ -72,6 +82,12 @@ enum ComplicationPublisher {
         let proteinGoalProgress: Double
         let carbsGoalProgress: Double
         let fatGoalProgress: Double
+        let proteinConsumed: Double?
+        let proteinGoal: Double?
+        let carbsConsumed: Double?
+        let carbsGoal: Double?
+        let fatConsumed: Double?
+        let fatGoal: Double?
     }
 
     /// Field names here are decoded by `WaterGoalComplication`.
@@ -94,7 +110,13 @@ enum ComplicationPublisher {
                 calorieGoalProgress: goals.calories,
                 proteinGoalProgress: goals.protein,
                 carbsGoalProgress: goals.carbs,
-                fatGoalProgress: goals.fat
+                fatGoalProgress: goals.fat,
+                proteinConsumed: goals.proteinGrams?.consumed,
+                proteinGoal: goals.proteinGrams?.goal,
+                carbsConsumed: goals.carbsGrams?.consumed,
+                carbsGoal: goals.carbsGrams?.goal,
+                fatConsumed: goals.fatGrams?.consumed,
+                fatGoal: goals.fatGrams?.goal
             ),
             forKey: Energy.key,
             reloading: Energy.kind

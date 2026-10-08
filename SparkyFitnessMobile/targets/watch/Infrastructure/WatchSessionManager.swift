@@ -381,7 +381,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     calories: nutrition.calorieProgress,
                     protein: nutrition.protein.progress,
                     carbs: nutrition.carbs.progress,
-                    fat: nutrition.fat.progress
+                    fat: nutrition.fat.progress,
+                    proteinGrams: MacroGrams(consumed: nutrition.protein.consumed, goal: nutrition.protein.goal),
+                    carbsGrams: MacroGrams(consumed: nutrition.carbs.consumed, goal: nutrition.carbs.goal),
+                    fatGrams: MacroGrams(consumed: nutrition.fat.consumed, goal: nutrition.fat.goal)
                 ),
                 for: nutrition.day
             )

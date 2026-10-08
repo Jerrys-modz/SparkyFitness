@@ -274,7 +274,17 @@ enum ContextPayloadMapper {
             let fat = value("fatGoalProgress")
         else { return nil }
 
-        return GoalProgress(calories: calories, protein: protein, carbs: carbs, fat: fat)
+        func grams(_ consumed: String, _ goal: String) -> MacroGrams? {
+            guard let eaten = value(consumed), let target = value(goal) else { return nil }
+            return MacroGrams(consumed: eaten, goal: target)
+        }
+
+        return GoalProgress(
+            calories: calories, protein: protein, carbs: carbs, fat: fat,
+            proteinGrams: grams("proteinConsumed", "proteinGoal"),
+            carbsGrams: grams("carbsConsumed", "carbsGoal"),
+            fatGrams: grams("fatConsumed", "fatGoal")
+        )
     }
 
     // MARK: - Workout
