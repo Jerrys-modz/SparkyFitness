@@ -166,7 +166,29 @@ describe('collecting fixes', () => {
       '@SparkyFitness/gpsRecording/chunk/0'
     );
     expect(JSON.parse(raw as string)).toHaveLength(1);
-    expect(mockedLocation.stopLocationUpdatesAsync).toHaveBeenCalled();
+  });
+
+  it('keeps the location task running through a pause', async () => {
+    await startRecording({ activity: 'run', notification });
+    await pauseRecording();
+    expect(mockedLocation.stopLocationUpdatesAsync).not.toHaveBeenCalled();
+    expect((await storedSession())?.status).toBe('paused');
+  });
+
+  it('resumes without starting the task again when it is still running', async () => {
+    await startRecording({ activity: 'run', notification });
+    await pauseRecording();
+    await resumeRecording(notification);
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledTimes(1);
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('starts the task again on resume when the OS dropped it', async () => {
+    await startRecording({ activity: 'run', notification });
+    await pauseRecording();
+    mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValueOnce(false);
+    await resumeRecording(notification);
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledTimes(2);
   });
 
   it('starts a new segment on resume so the pause is not counted as distance', async () => {
@@ -328,6 +350,8 @@ describe('pause edge cases', () => {
   it('stays paused and can retry when resuming fails to start location updates', async () => {
     await startRecording({ activity: 'run', notification });
     await pauseRecording();
+    // The task was dropped while paused, so resume has to start it again.
+    mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValueOnce(false);
     mockedLocation.startLocationUpdatesAsync.mockRejectedValueOnce(
       new Error('foreground service refused')
     );

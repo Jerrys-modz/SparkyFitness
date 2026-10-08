@@ -315,13 +315,32 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
   });
 }
 
+/** Whether the location task is currently registered with the OS. */
+async function updatesRunning(): Promise<boolean> {
+  try {
+    return await Location.hasStartedLocationUpdatesAsync(
+      GPS_RECORDING_TASK_NAME
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pausing only flips the session status; the location task keeps running and
+ * `ingestFixes` drops its fixes until the person resumes. Stopping the task
+ * here would make resume start it again, and that cannot be done from the
+ * background: iOS ignores a while-using location start made out of sight, and
+ * Android 12+ refuses to start a foreground service. A resume sent from the
+ * watch with the phone locked would then either throw or leave a recording
+ * that never receives a fix.
+ */
 export function pauseRecording(): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'recording') return;
     session = { ...session, status: 'paused', pausedAt: Date.now() };
     await persistSession();
-    await stopUpdates();
     publish();
   });
 }
@@ -343,7 +362,9 @@ export function resumeRecording(
     };
     await persistSession();
     try {
-      await startUpdates(notification);
+      // The task normally survived the pause. It only needs starting again
+      // when the OS or a relaunch dropped it in the meantime.
+      if (!(await updatesRunning())) await startUpdates(notification);
     } catch (error) {
       // Stay paused so the person can try again, and make sure no
       // half-started task is left running.
