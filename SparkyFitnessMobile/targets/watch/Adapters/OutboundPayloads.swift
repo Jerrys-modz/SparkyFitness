@@ -177,7 +177,9 @@ enum OutboundPayloads {
 
     /// The reading the wrist is showing right now. Only ever sent as a live
     /// message, never queued: a reading that arrives minutes late describes
-    /// nothing, and the batch carries the same samples for the diary.
+    /// nothing, and the batch carries the same samples for the diary. For a
+    /// phone GPS recording `sessionId` is the recording's id and
+    /// `exerciseEntryId` is empty.
     static func liveHeartRate(
         sessionId: String,
         exerciseEntryId: String,

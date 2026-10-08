@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
+  type WatchLiveHeartRatePayload,
   type WatchRecordingControlPayload,
   type WatchRecordingHeartRatePayload,
   type WatchRecordingStatePayload,
@@ -15,6 +16,7 @@ import {
   type RecordingSnapshot,
 } from '../services/gpsRecordingService';
 import { addLog } from '../services/LogService';
+import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
 import {
   currentPaceSecondsPerUnit,
@@ -32,7 +34,8 @@ type WatchStatus = WatchRecordingStatePayload['status'];
 /**
  * Ties the phone's GPS recording to the Apple Watch. The phone still records
  * the route; the watch shows time, distance and pace, can pause, resume or
- * finish, and streams heart rate, which is attached to the saved activity.
+ * finish, and streams heart rate: live, for the recording screen, and in
+ * batches, which are attached to the saved activity.
  *
  * Mounted headlessly (see `WatchWorkoutGate`), so controls from the wrist work
  * with the recording screen closed.
@@ -164,9 +167,26 @@ export function useWatchRecordingBridge(enabled: boolean): void {
         ).catch((error: unknown) => logError('store heart rate', error));
       }
     );
+    // The wrist's current reading, display only. The batches above are what
+    // reach the diary, so a dropped live message costs nothing.
+    const live = WatchConnectivity.addListener(
+      'onLiveHeartRate',
+      (payload: WatchLiveHeartRatePayload) => {
+        const { session } = latest.current;
+        if (!session || session.id !== payload.sessionId) return;
+        if (!(payload.bpm > 0) || !Number.isFinite(payload.at)) return;
+        useLiveHeartRateStore.getState().record({
+          sessionId: payload.sessionId,
+          exerciseEntryId: payload.exerciseEntryId,
+          bpm: Math.round(payload.bpm),
+          at: payload.at,
+        });
+      }
+    );
     return () => {
       control.remove();
       heartRate.remove();
+      live.remove();
     };
   }, [enabled]);
 }

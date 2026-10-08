@@ -5870,6 +5870,8 @@
     },
     "unitMi": "mi",
     "unitKm": "km",
+    "unitBpm": "bpm",
+    "heartRate": "Heart rate",
     "errors": {
       "start": "Could not start recording",
       "resume": "Could not resume recording",

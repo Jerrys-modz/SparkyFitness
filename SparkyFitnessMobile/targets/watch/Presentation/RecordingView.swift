@@ -22,6 +22,15 @@ struct RecordingView: View {
             HStack(spacing: 4) {
                 Image(systemName: state.activity.symbol)
                 Text(statusText(for: state))
+                if let bpm = recording.liveHeartRate {
+                    Image(systemName: "heart.fill")
+                        .foregroundStyle(.red)
+                    Text("\(bpm)")
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                        .accessibilityLabel("Heart rate \(bpm) beats per minute")
+                }
             }
             .font(.caption2)
             .foregroundStyle(state.status == .recording ? Color.green : Color.secondary)
