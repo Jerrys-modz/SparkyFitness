@@ -2,10 +2,10 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// Controls for the watch's Control Center and Action button (watchOS 11). Each
+// Controls for the watch's Control Center and Action button (watchOS 26). Each
 // opens the watch app, which does the work: see WatchControlIntents.swift.
 
-@available(watchOS 11.0, *)
+@available(watchOS 26.0, *)
 struct LogWaterWatchControl: ControlWidget {
     static let kind = "com.sparkyapps.sparkyfitness.watchcontrol.logWater"
 
@@ -20,7 +20,7 @@ struct LogWaterWatchControl: ControlWidget {
     }
 }
 
-@available(watchOS 11.0, *)
+@available(watchOS 26.0, *)
 struct FastingWatchControl: ControlWidget {
     static let kind = "com.sparkyapps.sparkyfitness.watchcontrol.fasting"
 

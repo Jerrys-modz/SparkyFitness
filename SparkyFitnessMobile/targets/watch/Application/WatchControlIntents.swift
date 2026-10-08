@@ -1,7 +1,7 @@
 import AppIntents
 import Foundation
 
-// Buttons for the watch's Control Center and Action button (watchOS 11), made
+// Buttons for the watch's Control Center and Action button (watchOS 26), made
 // in targets/watch-widget/WatchControls.swift. Each opens the watch app and
 // leaves a note in the shared app group saying what the wearer wanted; the app,
 // once it is in front, reads it (`ContentView.pickUpControlRoute`) and does it.
