@@ -472,6 +472,18 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
     expect(sheetItemKeys()).not.toContain('warmups');
   });
 
+  it('hides warm-ups when the working weight cannot build a loadable ramp', () => {
+    __resetActiveWorkoutStoreForTests();
+    const session = makeSession();
+    // 2 kg against the default 2.5 kg plate step rounds to nothing under it.
+    session.exercises[1].sets[0].weight = 2;
+    useActiveWorkoutStore.getState().startWorkout(session);
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-b-overflow'));
+    expect(sheetItemKeys()).not.toContain('warmups');
+  });
+
   it('swaps to the candidate pick list in place and back', () => {
     const { getByTestId } = renderScreen();
     fireEvent.press(getByTestId('card-ex-a-overflow'));
