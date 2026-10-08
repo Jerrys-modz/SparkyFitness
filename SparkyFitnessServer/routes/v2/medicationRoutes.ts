@@ -35,12 +35,22 @@ import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 import {
   instantToDay,
   SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+  supplementLabelExtractionSchema,
+  supplementLabelScanRequestSchema,
   supplementLookupQuerySchema,
   type SupplementLookupProduct,
   todayInZone,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
-import { lookupSupplementByUpc } from '../../services/supplementLookupService.js';
+import { resolveIsAdmin } from '../../utils/adminCheck.js';
+import {
+  lookupSupplementByUpc,
+  mapScannedLabel,
+} from '../../services/supplementLookupService.js';
+import {
+  extractSupplementLabel,
+  type SupplementLabelScanErrorCategory,
+} from '../../services/supplementLabelScanService.js';
 import { lookupSupplementInOpenFoodFacts } from '../../services/supplementOpenFoodFactsService.js';
 import { getActiveProvidersByTypes } from '../../models/externalProviderRepository.js';
 
@@ -705,8 +715,64 @@ const lookupSupplement: RequestHandler = async (req, res, next) => {
   }
 };
 
+const SUPPLEMENT_LABEL_ERROR_HTTP_STATUS: Record<
+  SupplementLabelScanErrorCategory,
+  number
+> = {
+  no_ai_configured: 422,
+  unsupported_provider: 422,
+  api_key_missing: 422,
+  custom_url_missing: 422,
+  private_network_forbidden: 403,
+  unsupported_media: 400,
+  refused: 422,
+  truncated: 422,
+  no_content: 422,
+  parse_error: 422,
+  upstream_error: 502,
+  timeout: 504,
+};
+
+// Reads a photographed Supplement Facts panel with the user's vision AI provider
+// and answers with the same product the barcode lookup does.
+const scanSupplementLabel: RequestHandler = async (req, res, next) => {
+  try {
+    const body = supplementLabelScanRequestSchema.safeParse(req.body);
+    if (!body.success) return badRequest(res, body.error);
+    const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
+    const result = await extractSupplementLabel(
+      body.data.image,
+      body.data.mime_type,
+      req.userId,
+      isAdmin
+    );
+    if (!result.success) {
+      const status = SUPPLEMENT_LABEL_ERROR_HTTP_STATUS[result.category] ?? 500;
+      return res.status(status).json({ error: result.error });
+    }
+    res.json({ product: mapScannedLabel(result.label) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Maps a panel the phone already read on device. No AI runs here: the server
+// only matches the ingredients to nutrients and converts the units, so both
+// readers share one set of rules.
+const mapSupplementLabel: RequestHandler = async (req, res, next) => {
+  try {
+    const body = supplementLabelExtractionSchema.safeParse(req.body);
+    if (!body.success) return badRequest(res, body.error);
+    res.json({ product: mapScannedLabel(body.data) });
+  } catch (error) {
+    next(error);
+  }
+};
+
 router.get('/', listMedications);
 router.get('/supplement-lookup', lookupSupplement);
+router.post('/supplement-label/scan', scanSupplementLabel);
+router.post('/supplement-label/map', mapSupplementLabel);
 router.post(
   '/',
   stripNutrientFieldsWithoutDiaryAccess({ keepSupplementFlag: true }),

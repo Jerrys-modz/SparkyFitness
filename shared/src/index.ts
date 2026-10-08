@@ -24,6 +24,7 @@ export * from "./schemas/api/FoodEntries.api.zod.ts";
 export * from "./schemas/api/FoodEntryCopy.api.zod.ts";
 export * from "./schemas/api/FoodPhotoEstimate.api.zod.ts";
 export * from "./schemas/api/SupplementLookup.api.zod.ts";
+export * from "./schemas/api/SupplementLabelScan.api.zod.ts";
 export * from "./schemas/api/FoodPhotoLog.api.zod.ts";
 export * from "./schemas/api/OpenFoodFactsAutomaticSync.api.zod.ts";
 export * from "./schemas/api/OpenFoodFactsContribution.api.zod.ts";

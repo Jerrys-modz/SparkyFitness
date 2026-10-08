@@ -7,6 +7,8 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Alert, TouchableOpacity } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import Toast from 'react-native-toast-message';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
@@ -25,8 +27,13 @@ import {
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useSupplementLookup } from '../hooks/useSupplementLookup';
+import { useSupplementLabelScan } from '../hooks/useSupplementLabelScan';
+import { prepareLabelPhoto } from '../utils/labelPhoto';
 import { useExternalProviders } from '../hooks/useExternalProviders';
-import { SUPPLEMENT_LOOKUP_PROVIDER_TYPE } from '@workspace/shared';
+import {
+  SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+  type SupplementLookupProduct,
+} from '@workspace/shared';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import Switch from '../components/ui/Switch';
@@ -154,6 +161,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   const updateSchedule = useUpdateMedicationSchedule();
   const ensureCatalog = useEnsureCatalogNutrients();
   const supplementLookup = useSupplementLookup();
+  const labelScan = useSupplementLabelScan();
   // The barcode lookup runs on external providers: it only shows while one is
   // active.
   const { providers: lookupProviders } = useExternalProviders({
@@ -196,6 +204,160 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   isSupplementRef.current = isSupplement;
   const [lookupNote, setLookupNote] = useState<string | null>(null);
 
+  // Fills the form from a supplement found by barcode or read from a photo.
+  const applyLookupProduct = (product: SupplementLookupProduct) => {
+    setEdits((prev) => {
+      const base = latestBaseForm.current;
+      const notes = prev.notes ?? base.notes;
+      return {
+        ...prev,
+        name: product.name || prev.name || base.name,
+        typeId: product.form ?? prev.typeId ?? base.typeId,
+        notes:
+          notes.trim() === '' && product.serving
+            ? t('medications.supplement.servingNote', {
+                defaultValue: 'Label serving: {{serving}}',
+                serving: product.serving,
+              })
+            : notes,
+      };
+    });
+    setNutrientEdits(rowsFromLookup(product));
+    const skipped = unmatchedSummary(product);
+    const fromOff =
+      product.source === 'off'
+        ? t('medications.supplement.fromOpenFoodFacts', {
+            defaultValue:
+              'From Open Food Facts. Check the amounts against the label.',
+          })
+        : null;
+    const notAdded = skipped
+      ? t('medications.supplement.notAdded', {
+          defaultValue: 'Not added from the label: {{names}}',
+          names:
+            skipped.extra > 0
+              ? t('medications.supplement.notAddedMore', {
+                  defaultValue: '{{names}} and {{count}} more',
+                  names: skipped.names,
+                  count: skipped.extra,
+                })
+              : skipped.names,
+        })
+      : null;
+    setLookupNote([fromOff, notAdded].filter(Boolean).join(' ') || null);
+  };
+
+  // Photographing the Supplement Facts panel covers products the barcode
+  // database does not have. The system crop editor doubles as the "frame the
+  // label" step, which is what makes vision models read it reliably.
+  const pickerLock = useRef(false);
+  const readLabelPhoto = async (source: 'camera' | 'library') => {
+    if (pickerLock.current) return;
+    pickerLock.current = true;
+    try {
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: 'images',
+        allowsEditing: true,
+        quality: 0.85,
+        base64: true,
+      };
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync({
+              ...options,
+              allowsMultipleSelection: false,
+            });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      const prepared = asset?.uri ? await prepareLabelPhoto(asset) : null;
+      if (!prepared) {
+        Alert.alert(
+          t('common.error', { defaultValue: 'Error' }),
+          t('medications.supplement.photoFailed', {
+            defaultValue: 'Could not use that photo. Try another one.',
+          })
+        );
+        return;
+      }
+      labelScan.mutate(prepared.base64, {
+        onSuccess: ({ product, source: reader }) => {
+          if (!isSupplementRef.current) return;
+          if (!product || (!product.fixed.length && !product.catalog.length)) {
+            setLookupNote(null);
+            Alert.alert(
+              t('medications.supplement.labelNoMatchTitle', {
+                defaultValue: 'Nothing readable',
+              }),
+              t('medications.supplement.labelNoMatchMessage', {
+                defaultValue:
+                  'No supplement facts could be read from that photo. Crop closely to the Supplement Facts panel, or enter the label by hand.',
+              })
+            );
+            return;
+          }
+          applyLookupProduct(product);
+          Toast.show({
+            type: 'info',
+            text1:
+              reader === 'device'
+                ? t('medications.supplement.labelReadOnDevice', {
+                    defaultValue: 'Label read on this iPhone',
+                  })
+                : t('medications.supplement.labelReadByServer', {
+                    defaultValue: 'Label read by the server AI',
+                  }),
+          });
+        },
+        onError: () =>
+          Alert.alert(
+            t('common.error', { defaultValue: 'Error' }),
+            t('medications.supplement.labelFailed', {
+              defaultValue:
+                'Could not read the label. Check that an AI provider is set up and try again.',
+            })
+          ),
+      });
+    } catch {
+      Alert.alert(
+        t('common.error', { defaultValue: 'Error' }),
+        t('medications.supplement.photoFailed', {
+          defaultValue: 'Could not use that photo. Try another one.',
+        })
+      );
+    } finally {
+      pickerLock.current = false;
+    }
+  };
+
+  const chooseLabelSource = () =>
+    Alert.alert(
+      t('medications.supplement.scanLabel', {
+        defaultValue: 'Scan label to fill in',
+      }),
+      t('medications.supplement.scanLabelHint', {
+        defaultValue: 'Photograph the Supplement Facts panel.',
+      }),
+      [
+        {
+          text: t('medications.supplement.takePhoto', {
+            defaultValue: 'Take photo',
+          }),
+          onPress: () => void readLabelPhoto('camera'),
+        },
+        {
+          text: t('medications.supplement.choosePhoto', {
+            defaultValue: 'Choose from library',
+          }),
+          onPress: () => void readLabelPhoto('library'),
+        },
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+      ]
+    );
+
   // A barcode scanned on the scanner screen arrives as a one-shot route param.
   const { pendingScannedBarcode, scannedBarcodeNonce } = route.params ?? {};
   useEffect(() => {
@@ -220,45 +382,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           );
           return;
         }
-        setEdits((prev) => {
-          const base = latestBaseForm.current;
-          const notes = prev.notes ?? base.notes;
-          return {
-            ...prev,
-            name: product.name,
-            typeId: product.form ?? prev.typeId ?? base.typeId,
-            notes:
-              notes.trim() === '' && product.serving
-                ? t('medications.supplement.servingNote', {
-                    defaultValue: 'Label serving: {{serving}}',
-                    serving: product.serving,
-                  })
-                : notes,
-          };
-        });
-        setNutrientEdits(rowsFromLookup(product));
-        const skipped = unmatchedSummary(product);
-        const fromOff =
-          product.source === 'off'
-            ? t('medications.supplement.fromOpenFoodFacts', {
-                defaultValue:
-                  'From Open Food Facts. Check the amounts against the label.',
-              })
-            : null;
-        const notAdded = skipped
-          ? t('medications.supplement.notAdded', {
-              defaultValue: 'Not added from the label: {{names}}',
-              names:
-                skipped.extra > 0
-                  ? t('medications.supplement.notAddedMore', {
-                      defaultValue: '{{names}} and {{count}} more',
-                      names: skipped.names,
-                      count: skipped.extra,
-                    })
-                  : skipped.names,
-            })
-          : null;
-        setLookupNote([fromOff, notAdded].filter(Boolean).join(' ') || null);
+        applyLookupProduct(product);
       },
       onError: () =>
         Alert.alert(
@@ -785,6 +909,27 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                     })
                   : t('medications.supplement.scan', {
                       defaultValue: 'Scan barcode to fill in',
+                    })}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {isSupplement && (
+            <TouchableOpacity
+              onPress={chooseLabelSource}
+              disabled={labelScan.isPending || supplementLookup.isPending}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              className="flex-row items-center gap-2 py-1 self-start"
+            >
+              <Icon name="camera" size={18} color={textMuted} />
+              <Text className="text-accent-primary text-base font-medium">
+                {labelScan.isPending
+                  ? t('medications.supplement.readingLabel', {
+                      defaultValue: 'Reading the label…',
+                    })
+                  : t('medications.supplement.scanLabel', {
+                      defaultValue: 'Scan label to fill in',
                     })}
               </Text>
             </TouchableOpacity>
