@@ -85,27 +85,36 @@ function PendingPrompt({
   const clearAnswer = usePendingPresetUpdateStore((s) => s.clearAnswer);
   const [offer, setOffer] = useState<PresetUpdateOffer | null>(null);
   const handledRef = useRef(false);
+  const applyingRef = useRef(false);
 
   const settle = useCallback(() => {
     clearAnswer(sessionId);
     onSettled();
   }, [clearAnswer, sessionId, onSettled]);
 
-  // The wearer's answer to the question on the watch.
+  // The wearer's answer to the question on the watch. A failed write keeps
+  // the workout pending and drops the answer, so the phone can ask instead.
   useEffect(() => {
-    if (answer === undefined || handledRef.current) return;
+    if (answer === undefined || handledRef.current || applyingRef.current)
+      return;
     if (!answer) {
       handledRef.current = true;
       settle();
       return;
     }
     if (offer == null) return;
-    handledRef.current = true;
+    applyingRef.current = true;
     void (async () => {
-      await offer.update();
+      const ok = await offer.update();
+      applyingRef.current = false;
+      if (!ok) {
+        clearAnswer(sessionId);
+        return;
+      }
+      handledRef.current = true;
       settle();
     })();
-  }, [answer, offer, settle]);
+  }, [answer, offer, settle, clearAnswer, sessionId]);
 
   const handleNeedsUpdate = useCallback((needed: PresetUpdateOffer) => {
     setOffer(needed);

@@ -15,6 +15,8 @@ export interface PendingPresetUpdate {
 
 interface PendingPresetUpdateState {
   pending: PendingPresetUpdate | null;
+  /** Finishes that arrived while a prompt was already waiting. */
+  pendingQueue: PendingPresetUpdate[];
   /**
    * What the wearer answered on the watch's "Update Workout?" question, by the
    * watch's workout id. It is asked when Finish is tapped, so it can arrive
@@ -30,9 +32,19 @@ interface PendingPresetUpdateState {
 export const usePendingPresetUpdateStore = create<PendingPresetUpdateState>(
   (set) => ({
     pending: null,
+    pendingQueue: [],
     answers: {},
-    setPending: (pending) => set({ pending }),
-    clearPending: () => set({ pending: null }),
+    setPending: (pending) =>
+      set((state) =>
+        state.pending == null
+          ? { pending }
+          : { pendingQueue: [...state.pendingQueue, pending] }
+      ),
+    clearPending: () =>
+      set((state) => ({
+        pending: state.pendingQueue[0] ?? null,
+        pendingQueue: state.pendingQueue.slice(1),
+      })),
     setAnswer: (sessionId, update) =>
       set((state) => ({ answers: { ...state.answers, [sessionId]: update } })),
     clearAnswer: (sessionId) =>

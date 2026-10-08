@@ -26,8 +26,8 @@ function isAppInBackground(state: string | null | undefined): boolean {
 
 export interface PresetUpdateOffer {
   presetName: string;
-  /** Writes the workout's exercises into the preset, with the success toast. */
-  update: () => Promise<void>;
+  /** Writes the workout's exercises into the preset. Resolves false when the write fails, so the question can be asked again. */
+  update: () => Promise<boolean>;
 }
 
 interface UseWorkoutCompletePresetSyncArgs {
@@ -86,6 +86,7 @@ export function useWorkoutCompletePresetSync({
   const { updatePresetAsync } = useUpdateWorkoutPreset();
   const [sourcePreset, setSourcePreset] = useState<WorkoutPreset | null>(null);
   const promptedRef = useRef(false);
+  const [promptNonce, setPromptNonce] = useState(0);
   const onSettledRef = useRef(onSettled);
   const onNeedsUpdateRef = useRef(onNeedsUpdate);
   useEffect(() => {
@@ -134,8 +135,8 @@ export function useWorkoutCompletePresetSync({
     [sourcePreset, session, completedSetIds, plannedSetValues, assumeSources]
   );
 
-  const applyUpdate = useCallback(async () => {
-    if (sourcePreset == null || presetUpdateExercises == null) return;
+  const applyUpdate = useCallback(async (): Promise<boolean> => {
+    if (sourcePreset == null || presetUpdateExercises == null) return false;
     try {
       await updatePresetAsync({
         id: sourcePreset.id,
@@ -147,8 +148,10 @@ export function useWorkoutCompletePresetSync({
           defaultValue: 'Preset updated',
         }),
       });
+      return true;
     } catch {
       // useUpdateWorkoutPreset already showed the failure toast.
+      return false;
     }
   }, [sourcePreset, presetUpdateExercises, updatePresetAsync, t]);
 
@@ -205,8 +208,14 @@ export function useWorkoutCompletePresetSync({
             }),
             onPress: () => {
               void (async () => {
-                await applyUpdate();
-                onSettledRef.current?.();
+                if (await applyUpdate()) {
+                  onSettledRef.current?.();
+                  return;
+                }
+                // The alert is already gone. Ask again instead of dropping
+                // the question because the write failed.
+                promptedRef.current = false;
+                setPromptNonce((n) => n + 1);
               })();
             },
           },
@@ -222,6 +231,7 @@ export function useWorkoutCompletePresetSync({
     profile?.id,
     applyUpdate,
     skipPrompt,
+    promptNonce,
     t,
   ]);
 }
