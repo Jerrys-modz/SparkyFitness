@@ -638,9 +638,13 @@ final class WorkoutSessionStore: ObservableObject {
         // Raised a moment later: the Finish confirmation or the exercise sheet
         // is still closing, and SwiftUI drops an alert presented over a
         // dismissal in progress, which left Finish doing nothing at all.
-        Task { @MainActor in
+        // The workout can end or be replaced in that moment, so the raise is
+        // only for the one that was finishing.
+        let sessionId = plan?.sessionId
+        Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 450_000_000)
-            askingPresetUpdate = true
+            guard let self, self.plan?.sessionId == sessionId else { return }
+            self.askingPresetUpdate = true
         }
         return true
     }
