@@ -11,10 +11,28 @@ import WidgetKit
 struct LogWaterControl: ControlWidget {
     static let kind = "com.sparkyapps.sparkyfitness.control.logWater"
 
+    // The value is read from the snapshot the Home Screen water widget reads;
+    // iOS asks for it when the control is shown and again after the control's
+    // own intent runs, so the total moves when a drink is logged.
+    struct Provider: ControlValueProvider {
+        var previewValue: WaterSnapshot {
+            WaterSnapshot(consumedMl: 946, goalMl: 2840, drinkMl: 473, unit: "oz", canLog: true)
+        }
+
+        func currentValue() async throws -> WaterSnapshot {
+            loadWaterSnapshot()
+        }
+    }
+
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: Self.kind) {
+        StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
+            // Tapping logs a drink; the label is today's total once the phone
+            // has sent one.
             ControlWidgetButton(action: LogWaterIntent()) {
-                Label("widget.control.log_water.name", systemImage: "drop.fill")
+                Label(
+                    snapshot.hasData ? snapshot.amountText : localizedWidgetString("widget.control.log_water.name"),
+                    systemImage: "drop.fill"
+                )
             }
         }
         .displayName("widget.control.log_water.name")
@@ -108,35 +126,6 @@ struct RemoveWaterControl: ControlWidget {
 // tile reads like a small widget. The value comes from the same snapshots the
 // Home Screen widgets read; iOS asks for it when the control is shown and again
 // after the control's own intent runs.
-
-@available(iOS 18.0, *)
-struct WaterTodayControl: ControlWidget {
-    static let kind = "com.sparkyapps.sparkyfitness.control.waterToday"
-
-    struct Provider: ControlValueProvider {
-        var previewValue: WaterSnapshot {
-            WaterSnapshot(consumedMl: 946, goalMl: 2840, drinkMl: 473, unit: "oz", canLog: true)
-        }
-
-        func currentValue() async throws -> WaterSnapshot {
-            loadWaterSnapshot()
-        }
-    }
-
-    var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
-            // Tapping logs a drink, like Log water; the label is today's total.
-            ControlWidgetButton(action: LogWaterIntent()) {
-                Label(
-                    snapshot.hasData ? snapshot.amountText : localizedWidgetString("widget.water.title"),
-                    systemImage: "drop.fill"
-                )
-            }
-        }
-        .displayName("widget.control.water_today.name")
-        .description("widget.control.water_today.description")
-    }
-}
 
 @available(iOS 18.0, *)
 struct CaloriesLeftControl: ControlWidget {
