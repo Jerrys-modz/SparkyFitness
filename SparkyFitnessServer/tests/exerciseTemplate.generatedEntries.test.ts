@@ -56,14 +56,28 @@ describe('deleteExerciseEntriesByTemplateId', () => {
     const [presetSql, presetParams] = client.query.mock
       .calls[0] as unknown as QueryCall;
     expect(normalize(presetSql)).toMatch(
-      /^DELETE FROM exercise_preset_entries WHERE user_id = \$1 AND source = \$4 AND id IN/
+      /^DELETE FROM exercise_preset_entries WHERE user_id = \$1 AND source = \$4 AND /
     );
+    expect(normalize(presetSql)).toContain('AND id IN (');
     expect(presetParams).toEqual([
       USER_ID,
       TEMPLATE_ID,
       TODAY,
       WORKOUT_PLAN_ENTRY_SOURCE,
     ]);
+  });
+
+  it('keeps a generated session once the user edited it or any of its exercises', async () => {
+    const client = mockClient();
+
+    await deleteExerciseEntriesByTemplateId(TEMPLATE_ID, USER_ID, TODAY);
+
+    const [presetSql] = client.query.mock.calls[0] as unknown as QueryCall;
+    const sql = normalize(presetSql);
+    expect(sql).toContain('AND updated_at <= created_at');
+    expect(sql).toContain(
+      'AND NOT EXISTS ( SELECT 1 FROM exercise_entries edited WHERE edited.exercise_preset_entry_id = exercise_preset_entries.id AND edited.updated_at > edited.created_at )'
+    );
   });
 
   it('only deletes standalone entries the plan generated, never children of a logged session', async () => {
@@ -81,6 +95,8 @@ describe('deleteExerciseEntriesByTemplateId', () => {
     expect(sql).toContain(
       "AND (source = $4 OR (source = 'Manual' AND entry_date > $3))"
     );
+    // A generated row the user edited in place is theirs now and stays.
+    expect(sql).toContain('AND updated_at <= created_at');
     expect(entryParams).toEqual([
       USER_ID,
       TEMPLATE_ID,
@@ -137,7 +153,8 @@ describe('createExerciseEntriesFromTemplate', () => {
           },
         ],
       },
-      { rows: [] },
+      { rows: [] }, // no surviving rows for these assignments
+      { rows: [] }, // sets of assignment 7
     ]);
 
     await createExerciseEntriesFromTemplate(TEMPLATE_ID, USER_ID, TODAY);
@@ -165,5 +182,54 @@ describe('createExerciseEntriesFromTemplate', () => {
         workoutPlanAssignmentId: 8,
       }
     );
+  });
+
+  it('does not generate a second row for a day that already has one for the assignment', async () => {
+    // A workout the user logged (or a generated row they edited) survives the
+    // cleanup; regenerating that day would duplicate it.
+    const client = mockClient([
+      {
+        rows: [
+          {
+            id: TEMPLATE_ID,
+            user_id: USER_ID,
+            start_date: TODAY,
+            end_date: TODAY,
+            is_active: true,
+            assignments: [
+              {
+                id: 7,
+                day_of_week: 3,
+                workout_preset_id: null,
+                exercise_id: 'exercise-1',
+              },
+              {
+                id: 8,
+                day_of_week: 3,
+                workout_preset_id: 11,
+                exercise_id: null,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        rows: [
+          { workout_plan_assignment_id: 7, entry_date: TODAY },
+          { workout_plan_assignment_id: 8, entry_date: TODAY },
+        ],
+      },
+    ]);
+
+    await createExerciseEntriesFromTemplate(TEMPLATE_ID, USER_ID, TODAY);
+
+    const [existingSql, existingParams] = client.query.mock
+      .calls[1] as unknown as QueryCall;
+    expect(normalize(existingSql)).toContain(
+      'AND workout_plan_assignment_id = ANY($3::int[])'
+    );
+    expect(existingParams).toEqual([USER_ID, TODAY, [7, 8]]);
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
   });
 });

@@ -91,10 +91,40 @@ async function createExerciseEntriesFromTemplate(
     );
     // Start from today if template start_date is in the past
     let currentDay = compareDays(startDay, today) < 0 ? today : startDay;
+    // Rows still linked to an assignment at this point survived the cleanup in
+    // deleteExerciseEntriesByTemplateId: a workout the user logged, a generated
+    // row the user edited, or a legacy row from today. Generating another row
+    // for that assignment and date would duplicate it, so those days are skipped.
+    const existingResult = await client.query(
+      `SELECT DISTINCT workout_plan_assignment_id,
+              to_char(entry_date, 'YYYY-MM-DD') AS entry_date
+       FROM exercise_entries
+       WHERE user_id = $1
+         AND entry_date >= $2
+         AND workout_plan_assignment_id = ANY($3::int[])`,
+      [
+        userId,
+        currentDay,
+        template.assignments.map((a: { id: number }) => a.id),
+      ]
+    );
+    const alreadyLogged = new Set(
+      existingResult.rows.map(
+        (row: { workout_plan_assignment_id: number; entry_date: string }) =>
+          `${row.workout_plan_assignment_id}|${row.entry_date}`
+      )
+    );
     while (compareDays(currentDay, endDay) <= 0) {
       const entryDate = currentDay;
       const currentDayOfWeek = dayOfWeek(entryDate);
       for (const assignment of template.assignments) {
+        if (alreadyLogged.has(`${assignment.id}|${entryDate}`)) {
+          log(
+            'info',
+            `createExerciseEntriesFromTemplate - Assignment ${assignment.id} already has an entry on ${entryDate}; not generating another.`
+          );
+          continue;
+        }
         if (assignment.day_of_week === currentDayOfWeek) {
           const processExercise = async (
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,8 +163,8 @@ async function createExerciseEntriesFromTemplate(
               },
               // Always insert: the dedupe lookup matches on assignment and
               // date, so it would merge this row into (and overwrite) a
-              // workout the user logged from the plan today. Earlier generated
-              // rows are removed before regeneration, so nothing to merge with.
+              // workout the user logged from the plan today. Days that still
+              // have a row for this assignment are skipped above.
               {
                 entrySource: WORKOUT_PLAN_ENTRY_SOURCE,
                 skipDuplicateCheck: true,
@@ -187,6 +217,14 @@ async function createExerciseEntriesFromTemplate(
 // stamped with WORKOUT_PLAN_ENTRY_SOURCE are generated; a workout the user
 // logged from a plan session carries the same workout_plan_assignment_id but
 // its own source, and must survive (#2677).
+//
+// A generated row the user edited in place (sets, reps, notes, a watch sync) is
+// the user's workout now and is kept too. Generated rows are inserted in one
+// statement with created_at and updated_at both defaulting to now(); every
+// update path sets updated_at = now(), so updated_at > created_at marks an
+// edited row. A generated session counts as edited when the session row or any
+// of its exercises was updated (updateGroupedWorkoutSession updates the session
+// row on every save).
 async function deleteExerciseEntriesByTemplateId(
   templateId: string | number,
   userId: string,
@@ -201,6 +239,13 @@ async function deleteExerciseEntriesByTemplateId(
       `DELETE FROM exercise_preset_entries
        WHERE user_id = $1
          AND source = $4
+         AND updated_at <= created_at
+         AND NOT EXISTS (
+           SELECT 1
+           FROM exercise_entries edited
+           WHERE edited.exercise_preset_entry_id = exercise_preset_entries.id
+             AND edited.updated_at > edited.created_at
+         )
          AND id IN (
            SELECT DISTINCT exercise_preset_entry_id
            FROM exercise_entries
@@ -234,6 +279,7 @@ async function deleteExerciseEntriesByTemplateId(
              WHERE template_id = $2
          )
          AND (source = $4 OR (source = 'Manual' AND entry_date > $3))
+         AND updated_at <= created_at
        RETURNING id`,
       [userId, templateId, today, WORKOUT_PLAN_ENTRY_SOURCE]
     );
