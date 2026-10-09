@@ -84,6 +84,19 @@ describe('groundSupplementLabel', () => {
     ).toBeNull();
   });
 
+  it('falls back when an amount is taken from a different line', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ingredients: [
+            { name: 'Vitamin C', amount: 90, unit: 'mg' },
+            { name: 'Zinc', amount: 90, unit: 'mg' },
+          ],
+        })
+      )
+    ).toBeNull();
+  });
+
   it('drops one ungrounded line when most of the label checks out', () => {
     const label = groundSupplementLabel(
       extraction({

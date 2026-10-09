@@ -52,17 +52,16 @@ function nameKey(name: string): string | null {
 }
 
 /**
- * Keeps the ingredients whose name and amount both appear in the text the
- * phone recognised on the label. Null when too few do, so the caller falls
- * back to the server instead of pre-filling numbers the label does not print.
+ * Keeps the ingredients whose name and amount both appear on the same line
+ * the phone recognised. Null when too few do, so the caller falls back to the
+ * server instead of pre-filling a number printed on a different line.
  */
 export function groundSupplementLabel(
   r: OnDeviceSupplementExtraction
 ): SupplementLabelExtraction | null {
   const text = r.ocr_text?.trim();
   if (!text) return null;
-  const lower = text.toLowerCase();
-  const numbers = printedNumbers(text);
+  const ocrRows = text.split(/\r?\n/);
 
   const lines = r.ingredients.filter((i) => i.name.trim() !== '');
   const grounded = lines.filter((ingredient) => {
@@ -72,7 +71,11 @@ export function groundSupplementLabel(
       return false;
     }
     const key = nameKey(ingredient.name);
-    return numbers.has(amount) && (key === null || lower.includes(key));
+    return ocrRows.some(
+      (row) =>
+        printedNumbers(row).has(amount) &&
+        (key === null || row.toLowerCase().includes(key))
+    );
   });
   const withAmount = grounded.filter((i) => i.amount !== null);
   if (withAmount.length === 0) return null;
