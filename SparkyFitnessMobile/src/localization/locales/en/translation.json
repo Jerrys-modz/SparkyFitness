@@ -6732,6 +6732,13 @@
     "perUnit": "/{{unit}}",
     "routeA11y": "Map of your route so far",
     "waitingForGps": "Waiting for a GPS fix…",
+    "countdown": {
+      "title": "Start countdown",
+      "off": "Off",
+      "seconds": "{{seconds}} s",
+      "getReady": "Get ready",
+      "cancel": "Cancel"
+    },
     "audioCues": {
       "title": "Voice cues",
       "description": "Speaks your time at each kilometer or mile, and when you pause or resume."
