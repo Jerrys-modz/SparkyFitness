@@ -485,6 +485,7 @@
     "pastSets": "Past sets & reps",
     "wellness": "Wellness",
     "symptoms": "Symptoms",
+    "mood": "Mood",
     "progressPhotos": "Progress Photos",
     "askSparky": "Ask Sparky",
     "syncHealth": "Sync Health Data",
@@ -546,6 +547,7 @@
     "medications": "Medications",
     "medication": "Medication",
     "symptomLog": "Log Symptom",
+    "moodLog": "Mood",
     "symptomHistory": "Symptom History",
     "manageSymptoms": "Manage Symptoms",
     "symptomDefinition": "Symptom Details",
@@ -1036,6 +1038,8 @@
     "medicationsSubtitle": "Show the medications card on the Dashboard",
     "symptoms": "Symptoms",
     "symptomsSubtitle": "Show symptom status, active episodes, and quick logging",
+    "mood": "Mood",
+    "moodSubtitle": "Show today's mood, a 7-day trend, and quick logging",
     "healthTrends": "Health Trends",
     "healthTrendsSubtitle": "Choose which graphs show on the Dashboard and their order",
     "progressPhotos": "Progress Photos",
@@ -4852,6 +4856,43 @@
   "checkIn": {
     "saveFailed": "Save failed",
     "saveMessage": "Could not save measurements. Please try again."
+  },
+  "mood": {
+    "logTitle": "Mood",
+    "overall": "Overall mood",
+    "tags": "Moods",
+    "notesPlaceholder": "Add a note (optional)",
+    "loggingForDate": "Logging for {{date}}",
+    "chartTitle": "Mood over time",
+    "mostCommon": "Most common moods",
+    "chartEmpty": "No mood logged for this period",
+    "chartLoadFailed": "Failed to load mood data",
+    "loadFailed": "Could not load this day's mood",
+    "saveFailed": "Could not save mood",
+    "names": {
+      "angry": "Angry",
+      "anxious": "Anxious",
+      "calm": "Calm",
+      "confident": "Confident",
+      "energetic": "Energetic",
+      "excited": "Excited",
+      "happy": "Happy",
+      "irritable": "Irritable",
+      "low": "Low energy",
+      "neutral": "Neutral",
+      "sad": "Sad",
+      "sensitive": "Sensitive",
+      "thoughtful": "Thoughtful",
+      "tired": "Tired",
+      "worried": "Worried"
+    },
+    "card": {
+      "notLogged": "No mood logged for this day",
+      "emptyA11y": "Mood on {{date}}: none logged",
+      "loggedA11y": "Mood on {{date}}: {{mood}}",
+      "log": "+ Log",
+      "trend7d": "7-Day Trend"
+    }
   },
   "symptoms": {
     "title": "Symptoms",

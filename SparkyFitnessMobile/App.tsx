@@ -115,6 +115,7 @@ import {
   SafeMedicationForm,
   SafeMedicationScheduleForm,
   SafeSymptomLog,
+  SafeMoodLog,
   SafeSymptomHistory,
   SafeManageSymptoms,
   SafeSymptomDefinitionEditor,
@@ -302,6 +303,7 @@ function AppContent() {
     handleAddMeasurements,
     handleAddProgressPhotos,
     handleAddSymptoms,
+    handleAddMood,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
@@ -997,6 +999,15 @@ function AppContent() {
             })}
           />
           <Stack.Screen
+            name="MoodLog"
+            component={SafeMoodLog}
+            options={createStackScreenOptions(t('screens.moodLog', { defaultValue: 'Mood' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
             name="AiSettings"
             component={SafeAiSettings}
             options={createStackScreenOptions(t('screens.aiSettings', { defaultValue: 'AI' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
@@ -1036,6 +1047,7 @@ function AppContent() {
           onAddMeasurements={handleAddMeasurements}
           onAddProgressPhotos={handleAddProgressPhotos}
           onAddSymptoms={handleAddSymptoms}
+          onAddMood={handleAddMood}
           onAddMindfulness={handleAddMindfulness}
           onAskSparky={handleAskSparky}
           onOpenCycle={handleOpenCycle}

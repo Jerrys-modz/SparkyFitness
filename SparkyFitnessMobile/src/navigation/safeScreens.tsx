@@ -70,6 +70,7 @@ import MedicationDetailScreen from '../screens/MedicationDetailScreen';
 import MedicationFormScreen from '../screens/MedicationFormScreen';
 import MedicationScheduleFormScreen from '../screens/MedicationScheduleFormScreen';
 import SymptomLogScreen from '../screens/SymptomLogScreen';
+import MoodLogScreen from '../screens/MoodLogScreen';
 import SymptomHistoryScreen from '../screens/SymptomHistoryScreen';
 import ManageSymptomsScreen from '../screens/ManageSymptomsScreen';
 import SymptomDefinitionEditorScreen from '../screens/SymptomDefinitionEditorScreen';
@@ -174,6 +175,7 @@ export const SafeMedicationDetail = withErrorBoundary(MedicationDetailScreen, 'M
 export const SafeMedicationForm = withErrorBoundary(MedicationFormScreen, 'MedicationForm', { canGoBack: true });
 export const SafeMedicationScheduleForm = withErrorBoundary(MedicationScheduleFormScreen, 'MedicationScheduleForm', { canGoBack: true });
 
+export const SafeMoodLog = withErrorBoundary(MoodLogScreen, 'MoodLog', { canGoBack: true });
 export const SafeSymptomLog = withErrorBoundary(SymptomLogScreen, 'SymptomLog', { canGoBack: true });
 export const SafeSymptomHistory = withErrorBoundary(SymptomHistoryScreen, 'SymptomHistory', { canGoBack: true });
 export const SafeManageSymptoms = withErrorBoundary(ManageSymptomsScreen, 'ManageSymptoms', { canGoBack: true });
