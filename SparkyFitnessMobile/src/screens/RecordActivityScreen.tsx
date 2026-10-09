@@ -30,6 +30,7 @@ import {
   finishRecording,
   getRecordingPreferences,
   hydrate,
+  markLap,
   pauseRecording,
   resumeRecording,
   setRecordingPreference,
@@ -39,6 +40,7 @@ import {
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { addLog } from '../services/LogService';
 import {
+  computeLaps,
   computeSplits,
   currentPaceSecondsPerUnit,
   formatClock,
@@ -46,6 +48,7 @@ import {
   METERS_PER_KM,
   METERS_PER_MILE,
   paceSecondsPerUnit,
+  splitBars,
   summarizeRecording,
   type RecordingActivity,
 } from '../utils/gpsRecording';
@@ -54,6 +57,37 @@ import type { RootStackScreenProps } from '../types/navigation';
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
+
+/** One split or lap: label, pace, and a bar that is longer the faster it was. */
+const SplitRow: React.FC<{
+  label: string;
+  detail?: string;
+  pace: string;
+  fraction: number;
+  fastest: boolean;
+  fastestLabel: string;
+}> = ({ label, detail, pace, fraction, fastest, fastestLabel }) => (
+  <View className="py-1">
+    <View className="flex-row justify-between">
+      <Text className="text-text-secondary text-sm">
+        {label}
+        {detail ? ` · ${detail}` : ''}
+      </Text>
+      <Text className="text-text-primary text-sm font-semibold">
+        {fastest ? `${fastestLabel} · ` : ''}
+        {pace}
+      </Text>
+    </View>
+    <View className="h-1.5 rounded-full bg-form-disabled mt-1">
+      <View
+        className={`h-1.5 rounded-full ${
+          fastest ? 'bg-accent-primary' : 'bg-text-muted'
+        }`}
+        style={{ width: `${Math.round(fraction * 100)}%` }}
+      />
+    </View>
+  </View>
+);
 
 const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({
   label,
@@ -145,6 +179,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     () =>
       session?.status === 'finished' ? computeSplits(points, unitMeters) : [],
     [points, session?.status, unitMeters]
+  );
+  const lapMarks = session?.laps;
+  const laps = useMemo(
+    () =>
+      session?.status === 'finished' && lapMarks && lapMarks.length > 0
+        ? computeLaps(points, lapMarks)
+        : [],
+    [points, session?.status, lapMarks]
+  );
+  const splitBarsFor = useMemo(
+    () => splitBars(splits, unitMeters),
+    [splits, unitMeters]
+  );
+  const lapBarsFor = useMemo(
+    () => splitBars(laps, unitMeters),
+    [laps, unitMeters]
   );
 
   const run = useCallback(
@@ -571,30 +621,61 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
         ) : null}
+        {finished && laps.length > 0 ? (
+          <View className="bg-surface rounded-xl p-4 mb-4">
+            <Text className="text-text-primary text-base font-bold mb-2">
+              {t('recordActivity.laps', { defaultValue: 'Laps' })}
+            </Text>
+            {laps.map((lap, i) => (
+              <SplitRow
+                key={lap.index}
+                label={t('recordActivity.lapLabel', {
+                  defaultValue: 'Lap {{number}}',
+                  number: lap.index,
+                })}
+                detail={`${number(lap.distanceMeters / unitMeters, 2)} ${unitLabel} · ${formatClock(lap.durationSeconds)}`}
+                pace={`${formatPace(
+                  paceSecondsPerUnit(
+                    lap.distanceMeters,
+                    lap.durationSeconds,
+                    unitMeters
+                  )
+                )} ${paceUnit}`}
+                fraction={lapBarsFor[i].fraction}
+                fastest={lapBarsFor[i].fastest}
+                fastestLabel={t('recordActivity.fastest', {
+                  defaultValue: 'Fastest',
+                })}
+              />
+            ))}
+          </View>
+        ) : null}
         {finished && splits.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4">
             <Text className="text-text-primary text-base font-bold mb-2">
               {t('recordActivity.splits', { defaultValue: 'Splits' })}
             </Text>
-            {splits.map((split) => (
-              <View key={split.index} className="flex-row justify-between py-1">
-                <Text className="text-text-secondary text-sm">
-                  {split.partial
+            {splits.map((split, i) => (
+              <SplitRow
+                key={split.index}
+                label={`${
+                  split.partial
                     ? number(split.distanceMeters / unitMeters)
-                    : String(split.index)}{' '}
-                  {unitLabel}
-                </Text>
-                <Text className="text-text-primary text-sm font-semibold">
-                  {formatPace(
-                    paceSecondsPerUnit(
-                      split.distanceMeters,
-                      split.durationSeconds,
-                      unitMeters
-                    )
-                  )}{' '}
-                  {paceUnit}
-                </Text>
-              </View>
+                    : String(split.index)
+                } ${unitLabel}`}
+                pace={`${formatPace(
+                  paceSecondsPerUnit(
+                    split.distanceMeters,
+                    split.durationSeconds,
+                    unitMeters
+                  )
+                )} ${paceUnit}`}
+                fraction={splitBarsFor[i].fraction}
+                fastest={splitBarsFor[i].fastest}
+                fastestLabel={t('recordActivity.fastest', {
+                  defaultValue: 'Fastest',
+                })}
+              />
             ))}
           </View>
         ) : null}
@@ -613,33 +694,45 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             </Button>
           </>
         ) : (
-          <View className="flex-row">
-            <Button
-              variant="secondary"
-              className="flex-1 mr-2"
-              loading={busy}
-              onPress={() =>
-                void (session.status === 'recording'
-                  ? run(
-                      pauseRecording,
-                      t('recordActivity.errors.pause', {
-                        defaultValue: 'Could not pause recording',
-                      })
-                    )
-                  : handleResume())
-              }
-            >
-              {session.status === 'recording'
-                ? t('recordActivity.pause', { defaultValue: 'Pause' })
-                : t('recordActivity.resume', { defaultValue: 'Resume' })}
-            </Button>
-            <Button
-              className="flex-1 ml-2"
-              disabled={busy}
-              onPress={() => void handleFinish()}
-            >
-              {t('recordActivity.finish', { defaultValue: 'Finish' })}
-            </Button>
+          <View>
+            {session.status === 'recording' ? (
+              <Button
+                variant="outline"
+                className="mb-2"
+                disabled={busy}
+                onPress={() => void markLap()}
+              >
+                {t('recordActivity.lap', { defaultValue: 'Lap' })}
+              </Button>
+            ) : null}
+            <View className="flex-row">
+              <Button
+                variant="secondary"
+                className="flex-1 mr-2"
+                loading={busy}
+                onPress={() =>
+                  void (session.status === 'recording'
+                    ? run(
+                        pauseRecording,
+                        t('recordActivity.errors.pause', {
+                          defaultValue: 'Could not pause recording',
+                        })
+                      )
+                    : handleResume())
+                }
+              >
+                {session.status === 'recording'
+                  ? t('recordActivity.pause', { defaultValue: 'Pause' })
+                  : t('recordActivity.resume', { defaultValue: 'Resume' })}
+              </Button>
+              <Button
+                className="flex-1 ml-2"
+                disabled={busy}
+                onPress={() => void handleFinish()}
+              >
+                {t('recordActivity.finish', { defaultValue: 'Finish' })}
+              </Button>
+            </View>
           </View>
         )}
         {finished ? null : (
