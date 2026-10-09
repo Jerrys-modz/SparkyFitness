@@ -13,16 +13,14 @@ import BabyGrowthView from './BabyGrowthView';
 import WeeklyChecklist from './WeeklyChecklist';
 import BumpPhotoJournal from './BumpPhotoJournal';
 import FoodMedSafetySearch from './FoodMedSafetySearch';
-import KickCounter from './KickCounter';
-import ContractionTimer from './ContractionTimer';
 import Button from '../../ui/Button';
 import type { RootStackParamList } from '../../../types/navigation';
 
 interface PregnancyOverviewViewProps {
   /**
    * `overview` renders this week's content (week banner, baby growth, weekly
-   * checklist); `tools` renders the interactive cards (kick counter,
-   * contraction timer, bump photo journal, safety search).
+   * checklist); `tools` renders the interactive cards (bump photo journal,
+   * safety search).
    */
   section: 'overview' | 'tools';
 }
@@ -89,17 +87,10 @@ const PregnancyOverviewView: React.FC<PregnancyOverviewViewProps> = ({
             <ActivityIndicator color={accentColor} />
           </View>
         ) : (
-          <>
-            <KickCounter
-              pregnancyId={pregnancy.id}
-              recentSessions={overview?.recentKickSessions}
-            />
-            <ContractionTimer pregnancyId={pregnancy.id} />
-            <BumpPhotoJournal
-              pregnancyId={pregnancy.id}
-              currentWeek={gestationalAge.week}
-            />
-          </>
+          <BumpPhotoJournal
+            pregnancyId={pregnancy.id}
+            currentWeek={gestationalAge.week}
+          />
         )}
 
         <FoodMedSafetySearch />

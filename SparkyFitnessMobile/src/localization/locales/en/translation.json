@@ -5864,8 +5864,7 @@
       "day": "Day {{day}}",
       "dayCycle_one": "{{count}}-day cycle",
       "dayCycle_other": "{{count}}-day cycle"
-    },
-    "care": "Care"
+    }
   },
   "workoutPresetLibrary": {
     "configure": "Configure your server connection in Settings to view your workout presets."
