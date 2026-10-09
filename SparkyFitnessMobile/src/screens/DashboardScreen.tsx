@@ -296,12 +296,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { summaryNutrients, refetch: refetchNutrientPrefs } =
     useNutrientDisplayPreferences({ enabled: isConnected });
 
-  useWidgetSync(summary);
-
   useBackgroundWaterSync(activeWaterContainer);
   // The hydration card and the hydration trend must agree on the unit, so both read it
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
+  useWidgetSync(summary, {
+    drinkMl: servingVolume ?? null,
+    unit: waterDisplayUnit,
+    canLog: true,
+  });
 
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.
   const weightUnit: 'kg' | 'lbs' =

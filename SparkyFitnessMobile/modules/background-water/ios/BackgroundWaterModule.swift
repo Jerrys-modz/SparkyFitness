@@ -1,13 +1,14 @@
 import ExpoModulesCore
 import Security
+import WidgetKit
 
 // Holds the server address, login, weight unit and water container the Siri and
-// Shortcuts App Intents (plugins/ios/ShortcutActions.swift) need while the app
+// Shortcuts App Intents (targets/widget/ShortcutIntents.swift) need while the app
 // is closed. The copy exists while a server is signed in: JavaScript passes nil
 // when the user signs out or removes the server, which erases it. It lives in
 // the Keychain, never in UserDefaults or a file.
 //
-// The service and account below must match plugins/ios/ShortcutActions.swift.
+// The service and account below must match targets/widget/ShortcutIntents.swift.
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
 
@@ -44,7 +45,29 @@ public class BackgroundWaterModule: Module {
             // Readable after the first unlock so a Shortcut run from the lock
             // screen still works; never copied to other devices.
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+            if SecItemAdd(add as CFDictionary, nil) == errSecSuccess { return true }
+            // The shared group needs the Keychain Sharing entitlement in the
+            // provisioning profile. Without it the add is refused, and the
+            // app-only copy still keeps the Shortcuts actions working.
+            if current[kSecAttrAccessGroup as String] != nil {
+                var appOnly = match
+                appOnly[kSecValueData as String] = data
+                appOnly[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+                return SecItemAdd(appOnly as CFDictionary, nil) == errSecSuccess
+            }
+            return false
+        }
+
+        /// Asks Control Center and the Lock Screen to read the numbers on the
+        /// controls that show one again. `WidgetCenter` reloads widgets only;
+        /// controls have their own call, so without this a control keeps the
+        /// number it was first shown with.
+        Function("reloadControls") { (kinds: [String]) in
+            if #available(iOS 18.0, *) {
+                for kind in kinds {
+                    ControlCenter.shared.reloadControls(ofKind: kind)
+                }
+            }
         }
     }
 }

@@ -54,6 +54,14 @@ describe('useControlRouteHandoff', () => {
     expect(navigationRef.navigate).toHaveBeenCalledWith('FoodSearch');
   });
 
+  it('opens the food diary for the Calories left control', () => {
+    mockStore.value = 'diary';
+    renderHook(() => useControlRouteHandoff(true));
+    expect(navigationRef.navigate).toHaveBeenCalledWith('Tabs', {
+      screen: 'Diary',
+    });
+  });
+
   it('does nothing without a note, and ignores one it does not know', () => {
     renderHook(() => useControlRouteHandoff(true));
     mockStore.value = 'nonsense';
