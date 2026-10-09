@@ -47,6 +47,7 @@ export const createExternalProvider = async (
         'mealie',
         'tandoor',
         'free-exercise-db',
+        'exercisedb',
         'wger',
         'usda',
         'norish',
