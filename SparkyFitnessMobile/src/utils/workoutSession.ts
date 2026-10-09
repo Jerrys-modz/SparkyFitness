@@ -2503,6 +2503,21 @@ function canonicalExercisesEqual(
   );
 }
 
+/** Same exercises in the same order, with the same number and kind of sets:
+ * what changes when the lifter adds, drops or reorders work, as opposed to
+ * just loading a different weight or reps. */
+function canonicalExerciseStructureEqual(
+  a: CanonicalPresetExercise,
+  b: CanonicalPresetExercise
+): boolean {
+  return (
+    a.exercise_id === b.exercise_id &&
+    a.superset_group === b.superset_group &&
+    a.sets.length === b.sets.length &&
+    a.sets.every((set, i) => set.set_type === b.sets[i]?.set_type)
+  );
+}
+
 export function buildPresetUpdateExercises(
   session: PresetSessionResponse,
   preset: WorkoutPreset,
@@ -2515,6 +2530,12 @@ export function buildPresetUpdateExercises(
      * difference from the preset counts.
      */
     assumeSources?: Omit<AssumedValueSources, 'plannedSetValues'>;
+    /**
+     * Only a change in structure counts as different (exercises, order,
+     * supersets, set count and types). Weights, reps and the like do not,
+     * so a lifter who just loaded more weight is not asked about it.
+     */
+    structureOnly?: boolean;
   }
 ): WorkoutPresetExercisePayload[] | null {
   // An exercise whose library row has been deleted cannot go into a preset at
@@ -2663,7 +2684,9 @@ export function buildPresetUpdateExercises(
   const equivalent =
     fromSession.length === fromPreset.length &&
     fromSession.every((exercise, i) =>
-      canonicalExercisesEqual(exercise, fromPreset[i])
+      opts.structureOnly
+        ? canonicalExerciseStructureEqual(exercise, fromPreset[i])
+        : canonicalExercisesEqual(exercise, fromPreset[i])
     );
   return equivalent ? null : fromSession;
 }

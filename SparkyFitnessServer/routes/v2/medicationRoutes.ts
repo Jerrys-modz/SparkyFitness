@@ -32,7 +32,17 @@ import glp1Service from '../../services/glp1Service.js';
 import medicationEntryRepository from '../../models/medicationEntryRepository.js';
 import medicationDisplayPreferenceRepository from '../../models/medicationDisplayPreferenceRepository.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
-import { instantToDay, todayInZone } from '@workspace/shared';
+import {
+  instantToDay,
+  SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+  supplementLookupQuerySchema,
+  type SupplementLookupProduct,
+  todayInZone,
+} from '@workspace/shared';
+import { log } from '../../config/logging.js';
+import { lookupSupplementByUpc } from '../../services/supplementLookupService.js';
+import { lookupSupplementInOpenFoodFacts } from '../../services/supplementOpenFoodFactsService.js';
+import { getActiveProvidersByTypes } from '../../models/externalProviderRepository.js';
 
 const router = express.Router();
 
@@ -638,7 +648,65 @@ const deleteEntry: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Finds a supplement by the barcode on its package so the app can fill in its name,
+// form and nutrition. The NIH label database answers first; Open Food Facts covers
+// products it lacks (mostly outside the US). Each source runs only while the user
+// can see it as an active external provider (`dsld`, `openfoodfacts`), so either
+// can be switched off like the other providers. A miss is an ordinary answer.
+const lookupSupplement: RequestHandler = async (req, res, next) => {
+  try {
+    const query = supplementLookupQuerySchema.safeParse(req.query);
+    if (!query.success) return badRequest(res, query.error);
+    const providers = await getActiveProvidersByTypes(req.userId, [
+      SUPPLEMENT_LOOKUP_PROVIDER_TYPE,
+      'openfoodfacts',
+    ]);
+    const useDsld = providers.some(
+      (p: { provider_type: string }) =>
+        p.provider_type === SUPPLEMENT_LOOKUP_PROVIDER_TYPE
+    );
+    const offProvider = providers.find(
+      (p: { id: string; provider_type: string }) =>
+        p.provider_type === 'openfoodfacts'
+    );
+    if (!useDsld && !offProvider) {
+      return res.status(404).json({
+        error: 'No supplement barcode source is enabled',
+      });
+    }
+
+    let product: SupplementLookupProduct | null = null;
+    let dsldFailed = false;
+    if (useDsld) {
+      try {
+        product = await lookupSupplementByUpc(query.data.upc);
+      } catch (error) {
+        dsldFailed = true;
+        log(
+          'warn',
+          `Supplement label lookup failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    if (!product && offProvider) {
+      product = await lookupSupplementInOpenFoodFacts(query.data.upc, {
+        userId: req.userId,
+        providerId: offProvider.id,
+      });
+    }
+    if (!product && dsldFailed) {
+      return res
+        .status(502)
+        .json({ error: 'The supplement label database is unavailable' });
+    }
+    res.json({ product });
+  } catch (error) {
+    next(error);
+  }
+};
+
 router.get('/', listMedications);
+router.get('/supplement-lookup', lookupSupplement);
 router.post(
   '/',
   stripNutrientFieldsWithoutDiaryAccess({ keepSupplementFlag: true }),

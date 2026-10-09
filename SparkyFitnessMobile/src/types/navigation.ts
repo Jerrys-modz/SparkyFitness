@@ -192,6 +192,8 @@ export type RootStackParamList = {
         initialFood?: Partial<FoodFormData>;
         barcode?: string;
         providerType?: string;
+        /** Which AI read the label this form was filled in from. */
+        labelScanSource?: 'device' | 'server';
         pickerMode?: FoodPickerMode;
         returnDepth?: number;
         pendingScannedBarcode?: string;
@@ -225,6 +227,7 @@ export type RootStackParamList = {
         duplicateOf?: Exercise;
       }
     | { mode: 'edit-exercise'; exercise: Exercise; returnKey: string };
+  AiSettings: undefined;
   FoodScan:
     | {
         mode?: 'lookup';
@@ -307,6 +310,9 @@ export type RootStackParamList = {
     sourcePresetId: number | null;
     sourceServerConfigId: string | null;
     plannedSetValues: Record<string, AssumedSetValues>;
+    // Set when the workout was finished on the watch: the app-level prompt
+    // asks "Update preset?" (on the watch first), so this screen does not.
+    presetCheckHandledElsewhere?: boolean;
     // The rest of the live placeholder inputs, so the prompt can ignore
     // values the ramp or progression filled in. Optional: older snapshots.
     previousSessionSets?: Record<string, ExerciseRecentSessionSet[]>;
@@ -321,6 +327,7 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  MindfulnessDetail: { selectedDate?: string } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;
@@ -353,7 +360,13 @@ export type RootStackParamList = {
   WhatsNew: undefined;
   MedicationsList: undefined;
   MedicationDetail: { medicationId: string };
-  MedicationForm: { medicationId?: string };
+  MedicationForm: {
+    medicationId?: string;
+    isSupplement?: boolean;
+    /** Set by the barcode scanner when it returns a code. */
+    pendingScannedBarcode?: string;
+    scannedBarcodeNonce?: number;
+  };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
   Glp1Tracker: { medicationId: string };
   Glp1PenForm: { medicationId: string; penId?: string };

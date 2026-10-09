@@ -75,7 +75,7 @@ import type {
   WorkoutPlanTemplate,
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
-import { formatDateLabel } from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
@@ -157,11 +157,23 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     defaultValue: 'Open family diaries',
   });
   const accentColor = useCSSVariable('--color-accent-primary') as string;
+  const datePastColor =
+    (useCSSVariable('--color-date-past') as string) || '#f97316';
+  const dateFutureColor =
+    (useCSSVariable('--color-date-future') as string) || '#0ea5e9';
   const usesNativeTabs = useNativeIOSTabsActive();
   const { defaultColor: nativeHeaderActionColor } = useHeaderActionColors();
 
   const syncNativeHeaderDatePicker = useCallback(() => {
     if (!usesNativeTabs) return;
+
+    const relation = getDateRelationToToday(selectedDate);
+    const dateTintColor =
+      relation === 'past'
+        ? datePastColor
+        : relation === 'future'
+          ? dateFutureColor
+          : nativeHeaderActionColor;
 
     setNativeHeaderDatePickerOptions(
       navigation as unknown as NativeHeaderDatePickerNavigation,
@@ -171,6 +183,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         onDatePress: openCalendar,
         onNextDate: goToNextDay,
         tintColor: nativeHeaderActionColor,
+        dateTintColor,
         accessibilityLabel: t('diary.chooseDate', {
           defaultValue: 'Choose diary date',
         }),
@@ -192,18 +205,20 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       }
     );
   }, [
+    dateFutureColor,
+    dateLocale,
+    datePastColor,
+    familyDiariesAccessibilityLabel,
     goToNextDay,
     goToPreviousDay,
+    hasFamilyDiaries,
     nativeHeaderActionColor,
     navigation,
-    openFamilyDiaries,
     openCalendar,
+    openFamilyDiaries,
     selectedDate,
-    familyDiariesAccessibilityLabel,
-    hasFamilyDiaries,
-    usesNativeTabs,
     t,
-    dateLocale,
+    usesNativeTabs,
   ]);
 
   useLayoutEffect(() => {
@@ -695,6 +710,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 navigation.navigate('MeasurementsAdd', { date: selectedDate })
               }
             />
+
             {/* Below the measurements: both are the same check-in, keyed on
                 (user_id, entry_date) server-side. */}
             <CheckInPhotosSummary
@@ -746,7 +762,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
           action={
             hasFamilyDiaries
               ? {
