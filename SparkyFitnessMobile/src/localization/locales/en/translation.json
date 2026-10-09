@@ -2051,7 +2051,8 @@
     "repCount_other": "{{formattedCount}} reps",
     "addWarmups": "Add warm-ups",
     "modalityWeightDistance": "Weight & Distance (carries)",
-    "modalityWeightDuration": "Weight & Duration (loaded holds)"
+    "modalityWeightDuration": "Weight & Duration (loaded holds)",
+    "addWarmups": "Add warm-ups"
   },
   "cycleCard": {
     "mode": {
@@ -6890,6 +6891,25 @@
       "class": "Birth / parenting class",
       "other": "Other"
     }
+  },
+  "warmupSettings": {
+    "title": "Warm-up Calculator",
+    "description": "Use the warm-up calculator to quickly add percentage-based warm-up sets to exercises.",
+    "enabled": "Warm-up Calculator",
+    "enabledSubtitle": "When active, tap the three dots next to an exercise to add warm-up sets.",
+    "enabledAccessibility": "Warm-up calculator",
+    "method": "Warmup Method",
+    "methodSubtitle": "Each warm-up set is a percent of your first working set, for a number of reps.",
+    "setLetter": "W",
+    "percentLabel": "Warm-up {{number}} percent",
+    "repsLabel": "Warm-up {{number}} reps",
+    "removeSet": "Remove set",
+    "addSet": "Add set",
+    "reset": "Reset to default",
+    "plateRounding": "Plate rounding",
+    "plateRoundingSubtitle": "Set preferred plate weight increments for your warm-up calculations.",
+    "dumbbellRounding": "Dumbbell rounding",
+    "dumbbellRoundingSubtitle": "Set preferred dumbbell weight increments for your warm-up calculations."
   },
   "mindfulness": {
     "card": {
