@@ -755,6 +755,36 @@ describe('MedicationFormScreen — supplement barcode', () => {
       );
     });
 
+    it('keeps saved nutrients when the label maps none', async () => {
+      mockUseMedicationDetail.mockReturnValue({
+        data: {
+          ...baseMed,
+          name: 'Daily Multi',
+          is_supplement: true,
+          type_id: 'capsule',
+          nutrients: { vitamin_c: 90 },
+        },
+      } as unknown as ReturnType<typeof useMedicationDetail>);
+      const screen = renderScreen('med-1');
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: {
+            ...labelProduct,
+            name: 'Creatine',
+            fixed: [],
+            catalog: [],
+            unmatched: [{ name: 'Creatine', amount: 5000, unit: 'mg' }],
+          },
+          source: 'server',
+        });
+      });
+
+      expect(screen.getByDisplayValue('Creatine')).toBeTruthy();
+      expect(screen.getByDisplayValue('90')).toBeTruthy();
+    });
+
     it('reports a failed read', async () => {
       const screen = renderScreen(undefined, true);
 

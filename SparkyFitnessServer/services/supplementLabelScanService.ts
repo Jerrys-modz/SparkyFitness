@@ -52,12 +52,14 @@ const asText = (value: unknown): string | null =>
 
 /** A number the model wrote as a string ("1,000", "1 200", "400") is read, not rejected. */
 function asAmount(value: unknown): number | null {
-  const n =
-    typeof value === 'number'
-      ? value
-      : typeof value === 'string'
-        ? Number(value.replace(/[\s,\u00A0\u202F]/g, ''))
-        : NaN;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+  if (typeof value !== 'string') return null;
+  const compact = value.replace(/[\s,\u00A0\u202F]/g, '');
+  // Number('') is 0, so a blank amount must not become a measured zero.
+  if (compact === '') return null;
+  const n = Number(compact);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 

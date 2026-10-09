@@ -228,7 +228,9 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
             : notes,
       };
     });
-    setNutrientEdits(rowsFromLookup(product));
+    // No mapped rows must not replace nutrients already on the form.
+    const lookupRows = rowsFromLookup(product);
+    if (lookupRows.length > 0) setNutrientEdits(lookupRows);
     const skipped = unmatchedSummary(product);
     const fromOff =
       product.source === 'off'
