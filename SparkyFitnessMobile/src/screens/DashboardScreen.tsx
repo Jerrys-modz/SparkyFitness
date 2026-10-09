@@ -65,6 +65,7 @@ import {
   useWidgetSync,
 } from '../hooks';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
+import { moodEntriesRootQueryKey } from '../hooks/queryKeys';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
 import {
   useMindfulnessDay,
@@ -420,6 +421,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       // MedicationsCard owns its own queries.
       queryClient.invalidateQueries({ queryKey: medicationsRootQueryKey }),
       queryClient.invalidateQueries({ queryKey: ['mindfulness'] }),
+      // MoodCard owns its own query.
+      queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
     ]);
     setRefreshing(false);
   }, [
