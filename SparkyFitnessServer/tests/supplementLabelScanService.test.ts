@@ -29,6 +29,7 @@ describe('normalizeSupplementLabel', () => {
       ingredients: [
         { name: 'Vitamin C', amount: '90', unit: 'mg' },
         { name: 'Calcium', amount: '1,000', unit: 'mg' },
+        { name: 'Magnesium', amount: '1 200', unit: 'mg' },
         { amount: 5, unit: 'mg' },
         { name: 'Zinc', amount: 'n/a', unit: null },
       ],
@@ -42,6 +43,7 @@ describe('normalizeSupplementLabel', () => {
       ingredients: [
         { name: 'Vitamin C', amount: 90, unit: 'mg' },
         { name: 'Calcium', amount: 1000, unit: 'mg' },
+        { name: 'Magnesium', amount: 1200, unit: 'mg' },
         { name: 'Zinc', amount: null, unit: null },
       ],
     });

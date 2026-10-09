@@ -711,7 +711,13 @@ describe('MedicationFormScreen — supplement barcode', () => {
       await takePhoto(screen);
       act(() => {
         mockLabelMutate.mock.calls[0][1].onSuccess({
-          product: { ...labelProduct, catalog: [], fixed: [] },
+          product: {
+            ...labelProduct,
+            name: '',
+            catalog: [],
+            fixed: [],
+            unmatched: [],
+          },
           source: 'server',
         });
       });
@@ -719,6 +725,33 @@ describe('MedicationFormScreen — supplement barcode', () => {
       expect(Alert.alert).toHaveBeenLastCalledWith(
         'Nothing readable',
         expect.stringContaining('No supplement facts')
+      );
+    });
+
+    it('fills the name when every ingredient is outside the catalog', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: {
+            ...labelProduct,
+            name: 'Creatine',
+            fixed: [],
+            catalog: [],
+            unmatched: [{ name: 'Creatine', amount: 5000, unit: 'mg' }],
+          },
+          source: 'server',
+        });
+      });
+
+      expect(screen.getByDisplayValue('Creatine')).toBeTruthy();
+      expect(
+        screen.getByText('Not added from the label: Creatine')
+      ).toBeTruthy();
+      expect(Alert.alert).not.toHaveBeenCalledWith(
+        'Nothing readable',
+        expect.anything()
       );
     });
 

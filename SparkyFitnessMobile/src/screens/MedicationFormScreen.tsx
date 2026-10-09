@@ -293,7 +293,13 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       labelScan.mutate(prepared.base64, {
         onSuccess: ({ product, source: reader }) => {
           if (!isSupplementRef.current) return;
-          if (!product || (!product.fixed.length && !product.catalog.length)) {
+          if (
+            !product ||
+            (!product.fixed.length &&
+              !product.catalog.length &&
+              !product.unmatched.length &&
+              !product.name)
+          ) {
             setLookupNote(null);
             Alert.alert(
               t('medications.supplement.labelNoMatchTitle', {

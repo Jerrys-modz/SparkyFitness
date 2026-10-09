@@ -50,13 +50,13 @@ const FORMS = new Set([
 const asText = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 
-/** A number the model wrote as a string ("1,000", "400") is read, not rejected. */
+/** A number the model wrote as a string ("1,000", "1 200", "400") is read, not rejected. */
 function asAmount(value: unknown): number | null {
   const n =
     typeof value === 'number'
       ? value
       : typeof value === 'string'
-        ? Number(value.replace(/,/g, ''))
+        ? Number(value.replace(/[\s,\u00A0\u202F]/g, ''))
         : NaN;
   return Number.isFinite(n) && n >= 0 ? n : null;
 }

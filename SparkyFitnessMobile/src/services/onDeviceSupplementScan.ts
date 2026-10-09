@@ -81,7 +81,7 @@ function ingredientAmounts(text: string): { value: number; unit: string }[] {
     const unitMatch = /^\s*([^\s\d,.;|]+)/.exec(after);
     if (!unitMatch) continue;
     const printed = unitMatch[1].replace(/[^a-zA-Z%µμ]+$/g, '').toLowerCase();
-    if (!printed || printed === '%') continue;
+    if (!printed || printed.startsWith('%') || printed === 'dv') continue;
     found.push({ value: num.value, unit: printed });
   }
   return found;

@@ -197,6 +197,22 @@ describe('groundSupplementLabel', () => {
     ).toBeNull();
   });
 
+  it('does not count a glued %DV as a second amount', () => {
+    for (const ocr_text of [
+      'Vitamin C 90 mg 100%DV',
+      'Vitamin C 90 mg 100 DV',
+    ]) {
+      expect(
+        groundSupplementLabel(
+          extraction({
+            ocr_text,
+            ingredients: [{ name: 'Vitamin C', amount: 90, unit: 'mg' }],
+          })
+        )?.ingredients
+      ).toEqual([{ name: 'Vitamin C', amount: 90, unit: 'mg' }]);
+    }
+  });
+
   it('does not borrow an amount from a similarly named ingredient', () => {
     expect(
       groundSupplementLabel(
