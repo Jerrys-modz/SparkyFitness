@@ -21,6 +21,7 @@ import {
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
+  computeLaps,
   computeSplits,
   METERS_PER_KM,
   METERS_PER_MILE,
@@ -166,7 +167,13 @@ export async function saveRecordedActivity(
       distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
     await attachExerciseEntryGpsTrack(entryId, {
       points: toWorkoutGpsPoints(points),
-      laps: splitsToLapWindows(computeSplits(points, unitMeters)),
+      // Laps the person marked replace the automatic splits: they are the
+      // intervals they meant to compare.
+      laps: splitsToLapWindows(
+        session.laps && session.laps.length > 0
+          ? computeLaps(points, session.laps)
+          : computeSplits(points, unitMeters)
+      ),
     });
   }
   await attachWatchHeartRate(entryId);

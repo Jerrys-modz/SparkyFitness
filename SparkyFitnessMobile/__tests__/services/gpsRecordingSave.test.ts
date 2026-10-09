@@ -141,6 +141,18 @@ describe('saveRecordedActivity', () => {
     expect(mockedAttach.mock.calls[0][1].laps).toHaveLength(2);
   });
 
+  it('uploads the laps the person marked instead of automatic splits', async () => {
+    // Points run 62.5 s apart; one mark halfway makes two laps.
+    await saveRecordedActivity(
+      { ...session, laps: [points[5].t] },
+      points,
+      'km'
+    );
+    const { laps } = mockedAttach.mock.calls[0][1];
+    expect(laps).toHaveLength(2);
+    expect(laps?.[0].end_time).toBe(new Date(points[5].t).toISOString());
+  });
+
   it('does not log the activity twice when only the track upload failed', async () => {
     await saveRecordedActivity(
       { ...session, savedEntryId: 'entry-9' },

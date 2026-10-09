@@ -32,6 +32,7 @@ import {
   elapsedSeconds,
   finishRecording,
   ingestFixes,
+  markLap,
   markRecordingSaved,
   pauseRecording,
   resetRecordingStateForTests,
@@ -516,5 +517,27 @@ describe('voice cues', () => {
     await pauseRecording();
     await resumeRecording(notification);
     expect(spoken()).toEqual(['Paused', 'Resumed']);
+  });
+});
+
+describe('laps', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('records a lap press while recording and ignores a double tap', async () => {
+    jest.useFakeTimers({ now: T0 + 60_000 });
+    await startRecording({ activity: 'run', notification });
+    expect(await markLap()).toBe(1);
+    jest.setSystemTime(T0 + 61_000);
+    expect(await markLap()).toBeNull();
+    jest.setSystemTime(T0 + 90_000);
+    expect(await markLap()).toBe(2);
+    expect((await storedSession())?.laps).toEqual([T0 + 60_000, T0 + 90_000]);
+  });
+
+  it('does nothing while paused', async () => {
+    await startRecording({ activity: 'run', notification });
+    await pauseRecording();
+    expect(await markLap()).toBeNull();
+    expect((await storedSession())?.laps).toBeUndefined();
   });
 });

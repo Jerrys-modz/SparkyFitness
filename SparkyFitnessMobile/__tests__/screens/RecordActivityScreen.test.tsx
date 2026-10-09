@@ -11,6 +11,7 @@ import {
   hydrate,
   pauseRecording,
   startRecording,
+  markLap,
   useGpsRecording,
   type RecordingSession,
   type RecordingSnapshot,
@@ -34,6 +35,7 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     RecordingPermissionError,
     useGpsRecording: jest.fn(),
     hydrate: jest.fn(() => Promise.resolve()),
+    markLap: jest.fn(() => Promise.resolve(1)),
     startRecording: jest.fn(() => Promise.resolve()),
     pauseRecording: jest.fn(() => Promise.resolve()),
     resumeRecording: jest.fn(() => Promise.resolve()),
@@ -177,6 +179,32 @@ describe('RecordActivityScreen', () => {
         })
       )
     );
+  });
+
+  it('marks a lap while recording, but not while paused', async () => {
+    state(session(), track);
+    const screen = await renderScreen();
+    fireEvent.press(screen.getByText('Lap'));
+    expect(markLap).toHaveBeenCalledTimes(1);
+
+    state(session({ status: 'paused', pausedAt: Date.now() }), track);
+    screen.rerender(renderUi());
+    expect(screen.queryByText('Lap')).toBeNull();
+  });
+
+  it('lists marked laps and flags the fastest after finishing', async () => {
+    state(
+      session({
+        status: 'finished',
+        finishedAt: Date.now(),
+        laps: [1_000_000 + 250_000],
+      }),
+      track
+    );
+    const screen = await renderScreen();
+    expect(screen.getByText('Laps')).toBeTruthy();
+    expect(screen.getByText('Lap 1 · 1.00 km · 4:10')).toBeTruthy();
+    expect(screen.getAllByText(/Fastest/).length).toBeGreaterThan(0);
   });
 
   it('explains a denied location permission and offers Settings', async () => {
