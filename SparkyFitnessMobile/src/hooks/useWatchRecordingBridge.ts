@@ -10,6 +10,7 @@ import {
   addHeartRateSamples,
   finishRecording,
   hydrate,
+  markLap,
   pauseRecording,
   resumeRecording,
   useGpsRecording,
@@ -88,6 +89,7 @@ export function useWatchRecordingBridge(enabled: boolean): void {
       pausedMs: session.pausedMs,
       distanceMeters: Math.round(summarizeRecording(points).distanceMeters),
       distanceUnit: unitRef.current,
+      lapCount: session.laps?.length ?? 0,
       sentAt: Date.now(),
     };
     if (session.status === 'paused' && session.pausedAt != null) {
@@ -157,7 +159,9 @@ export function useWatchRecordingBridge(enabled: boolean): void {
                 )
               : payload.action === 'finish'
                 ? finishRecording()
-                : null;
+                : payload.action === 'lap'
+                  ? markLap(payload.at)
+                  : null;
         run?.catch((error: unknown) => logError(payload.action, error));
       }
     );

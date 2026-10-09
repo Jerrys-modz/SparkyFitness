@@ -621,21 +621,33 @@ const MIN_LAP_GAP_MS = 3000;
  * pause has no distance to measure. Returns the new lap number, or null when
  * the press was ignored.
  */
-export function markLap(): Promise<number | null> {
+export function markLap(pressedAt?: number): Promise<number | null> {
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'recording') return null;
     const now = Date.now();
+    // A press made on the watch can arrive late over the queued transport, so
+    // it carries when it was pressed. Anything in the future or before the
+    // recording began is a bad clock, and counts as now.
+    const at =
+      pressedAt !== undefined &&
+      Number.isFinite(pressedAt) &&
+      pressedAt >= session.startedAt &&
+      pressedAt <= now + 5000
+        ? Math.min(pressedAt, now)
+        : now;
     const laps = session.laps ?? [];
-    if (laps.length > 0 && now - laps[laps.length - 1] < MIN_LAP_GAP_MS) {
+    // Also drops a re-delivered copy of a press already taken.
+    if (laps.some((mark) => Math.abs(mark - at) < MIN_LAP_GAP_MS)) {
       return null;
     }
-    session = { ...session, laps: [...laps, now] };
+    const marks = [...laps, at].sort((a, b) => a - b);
+    session = { ...session, laps: marks };
     await persistSession();
     publish();
     if (session.audioCues) {
       const marked = computeLaps(points, session.laps ?? []);
-      const lap = marked.find((l) => l.endT === now);
+      const lap = marked.find((l) => l.endT === at);
       if (lap) {
         speakRecordingCue(
           lapCue(i18n.t.bind(i18n), {
@@ -647,7 +659,7 @@ export function markLap(): Promise<number | null> {
         );
       }
     }
-    return laps.length + 1;
+    return marks.length;
   });
 }
 

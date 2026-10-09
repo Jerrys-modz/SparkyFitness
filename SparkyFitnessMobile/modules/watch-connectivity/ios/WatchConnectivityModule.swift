@@ -448,10 +448,14 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onWorkoutEdit", event)
             }
             self.delegateHandler.onRecordingControl = { [weak self] payload in
-                self?.sendEvent("onRecordingControl", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "action": payload["action"] as? String ?? "",
-                ])
+                ]
+                // When the wearer pressed it (epoch ms); a queued control can
+                // arrive long after, and a lap belongs to the press.
+                if let at = (payload["at"] as? NSNumber)?.doubleValue { event["at"] = at }
+                self?.sendEvent("onRecordingControl", event)
             }
             self.delegateHandler.onRecordingHeartRate = { [weak self] payload in
                 self?.sendEvent("onRecordingHeartRate", [
