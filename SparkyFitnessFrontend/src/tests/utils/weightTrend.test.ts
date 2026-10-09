@@ -1,5 +1,6 @@
 import {
   addDays,
+  assessGoalForecast,
   computeWeightTrend,
   forecastGoalDate,
   summarizeWeightTrend,
@@ -73,5 +74,40 @@ describe('summarizeWeightTrend / forecastGoalDate', () => {
       series(Array.from({ length: 28 }, (_, i) => 90 - i * 0.005))
     );
     expect(forecastGoalDate(slow, 70)).toBeNull();
+  });
+});
+
+describe('assessGoalForecast', () => {
+  const trendOf = (step: number, count = 28, start = 90) =>
+    computeWeightTrend(
+      series(Array.from({ length: count }, (_, i) => start + i * step))
+    );
+
+  it('says why there is no forecast', () => {
+    expect(assessGoalForecast([], 80).status).toBe('insufficient-data');
+    expect(assessGoalForecast(trendOf(-0.1, 3), 80).status).toBe(
+      'insufficient-data'
+    );
+    expect(assessGoalForecast(trendOf(-0.1), null).status).toBe('no-goal');
+  });
+
+  it('projects a date when heading toward the target', () => {
+    const result = assessGoalForecast(trendOf(-0.1), 85);
+    expect(result.status).toBe('toward-goal');
+    expect(result.forecast!.daysRemaining).toBeGreaterThan(0);
+  });
+
+  it('tells moving away, holding steady and too far apart', () => {
+    expect(assessGoalForecast(trendOf(-0.1), 95).status).toBe('away-from-goal');
+    expect(assessGoalForecast(trendOf(0), 80).status).toBe('steady');
+    expect(assessGoalForecast(trendOf(-0.02), 70).status).toBe('too-far');
+  });
+
+  it('agrees with forecastGoalDate', () => {
+    const points = trendOf(-0.1);
+    expect(forecastGoalDate(points, 85)).toEqual(
+      assessGoalForecast(points, 85).forecast
+    );
+    expect(forecastGoalDate(points, 95)).toBeNull();
   });
 });

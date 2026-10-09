@@ -16,11 +16,11 @@ import {
 import LineSeriesMark from './charts/LineSeriesMark';
 import TrendGoalLine from './charts/TrendGoalLine';
 import type { WeightDataPoint } from '../hooks/useMeasurementsRange';
-import { addDays } from '../utils/dateUtils';
 import {
-  computeTrendWeights,
-  computeWeightForecast,
-} from '../utils/weightTrend';
+  assessGoalForecast,
+  computeWeightTrend,
+  summarizeWeightTrend,
+} from '@workspace/shared';
 import type { HealthTrendDateRange } from '../types/healthTrends';
 import ChartTouchOverlay, {
   ChartLayoutReporter,
@@ -111,13 +111,29 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
   const hasData = useMemo(() => data.length > 0, [data]);
 
   // The smoothed trend rides along each weigh-in so both series share one x axis.
+  // Same smoothing and forecast as the web Reports chart (`@workspace/shared`),
+  // so a given set of weigh-ins reads the same on both.
+  const trendPoints = useMemo(
+    () =>
+      computeWeightTrend(
+        data.map((point) => ({ date: point.day, weight: point.weight }))
+      ),
+    [data]
+  );
   const chartData = useMemo(() => {
-    const trend = computeTrendWeights(data);
-    return data.map((point, index) => ({ ...point, trend: trend[index] }));
-  }, [data]);
-  const forecast = useMemo(
-    () => computeWeightForecast(data, goal),
-    [data, goal]
+    const trendByDay = new Map(trendPoints.map((p) => [p.date, p.trend]));
+    return data.map((point) => ({
+      ...point,
+      trend: trendByDay.get(point.day) ?? point.weight,
+    }));
+  }, [data, trendPoints]);
+  const summary = useMemo(
+    () => summarizeWeightTrend(trendPoints),
+    [trendPoints]
+  );
+  const goalForecast = useMemo(
+    () => assessGoalForecast(trendPoints, goal),
+    [trendPoints, goal]
   );
 
   // A nice round scale, not just an auto-fit one, so the axis labels in whole units instead
@@ -296,20 +312,20 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
         </View>
       )}
 
-      {!isLoading && !isError && hasData && forecast.trendWeight != null && (
+      {!isLoading && !isError && hasData && summary != null && (
         <View className="flex-row mt-3" testID="weight-forecast-summary">
           <SummaryTile
             testID="weight-forecast-trend"
             label={t('charts.weight.trend', { defaultValue: 'Trend' })}
-            value={`${formatWeightValue(forecast.trendWeight)} ${unit}`}
+            value={`${formatWeightValue(summary.currentTrend)} ${unit}`}
           />
           <SummaryTile
             testID="weight-forecast-rate"
             label={t('charts.weight.perWeek', { defaultValue: 'Per week' })}
             value={
-              forecast.ratePerWeek == null
+              summary.weeklyRate == null
                 ? '—'
-                : `${forecast.ratePerWeek > 0 ? '+' : ''}${formatWeightValue(forecast.ratePerWeek)} ${unit}`
+                : `${summary.weeklyRate > 0 ? '+' : ''}${formatWeightValue(summary.weeklyRate)} ${unit}`
             }
           />
           {goal != null && goal > 0 && (
@@ -317,19 +333,17 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
               testID="weight-forecast-goal"
               label={t('charts.weight.goalDate', { defaultValue: 'Goal date' })}
               value={
-                forecast.status === 'toward-goal' && forecast.daysToGoal != null
-                  ? formatDateWithYear(
-                      addDays(data[data.length - 1].day, forecast.daysToGoal)
-                    )
-                  : forecast.status === 'steady'
+                goalForecast.status === 'toward-goal' && goalForecast.forecast
+                  ? formatDateWithYear(goalForecast.forecast.date)
+                  : goalForecast.status === 'steady'
                     ? t('charts.weight.steady', {
                         defaultValue: 'Holding steady',
                       })
-                    : forecast.status === 'away-from-goal'
+                    : goalForecast.status === 'away-from-goal'
                       ? t('charts.weight.awayFromGoal', {
                           defaultValue: 'Moving away',
                         })
-                      : forecast.status === 'too-far'
+                      : goalForecast.status === 'too-far'
                         ? t('charts.weight.tooFar', {
                             defaultValue: 'Over 2 years',
                           })

@@ -119,6 +119,63 @@ function weeklyRateOf(points: readonly WeightTrendPoint[]): number | null {
   return (num / den) * 7;
 }
 
+/** Why a goal forecast is, or is not, available. */
+export type GoalForecastStatus =
+  | "insufficient-data"
+  | "no-goal"
+  | "steady"
+  | "toward-goal"
+  | "away-from-goal"
+  | "too-far";
+
+export interface GoalForecastAssessment {
+  status: GoalForecastStatus;
+  /** Only when `status` is `toward-goal`. */
+  forecast: GoalForecast | null;
+}
+
+/** A weekly change under this share of the trend weight reads as holding steady. */
+const FLAT_RATE_FRACTION_PER_WEEK = 0.0005;
+
+/**
+ * Where the trend stands against `target`: heading there (with the projected
+ * date), holding steady, moving away, too far out to call, or not enough data.
+ * Callers that only want the date use `forecastGoalDate`.
+ */
+export function assessGoalForecast(
+  points: readonly WeightTrendPoint[],
+  target: number | null | undefined,
+): GoalForecastAssessment {
+  const last = points[points.length - 1];
+  const rate = weeklyRateOf(points);
+  if (!last || rate === null) {
+    return { status: "insufficient-data", forecast: null };
+  }
+  if (target == null || !Number.isFinite(target) || target <= 0) {
+    return { status: "no-goal", forecast: null };
+  }
+  if (Math.abs(rate) < last.trend * FLAT_RATE_FRACTION_PER_WEEK) {
+    return { status: "steady", forecast: null };
+  }
+
+  const remaining = target - last.trend;
+  // Already at the target: nothing left to project.
+  if (remaining === 0) return { status: "steady", forecast: null };
+  if (Math.sign(remaining) !== Math.sign(rate)) {
+    return { status: "away-from-goal", forecast: null };
+  }
+
+  const daysRemaining = Math.ceil((remaining / rate) * 7);
+  if (daysRemaining <= 0) return { status: "steady", forecast: null };
+  if (daysRemaining > MAX_FORECAST_DAYS) {
+    return { status: "too-far", forecast: null };
+  }
+  return {
+    status: "toward-goal",
+    forecast: { date: addDays(last.date, daysRemaining), daysRemaining },
+  };
+}
+
 /**
  * Projects when the trend reaches `target` at the current rate. Returns null
  * when there is too little data, the trend is flat or moving away from the
@@ -128,15 +185,5 @@ export function forecastGoalDate(
   points: readonly WeightTrendPoint[],
   target: number | null | undefined,
 ): GoalForecast | null {
-  if (target == null || !Number.isFinite(target) || target <= 0) return null;
-  const last = points[points.length - 1];
-  const rate = weeklyRateOf(points);
-  if (!last || rate === null || rate === 0) return null;
-
-  const remaining = target - last.trend;
-  if (remaining === 0 || Math.sign(remaining) !== Math.sign(rate)) return null;
-
-  const daysRemaining = Math.ceil((remaining / rate) * 7);
-  if (daysRemaining <= 0 || daysRemaining > MAX_FORECAST_DAYS) return null;
-  return { date: addDays(last.date, daysRemaining), daysRemaining };
+  return assessGoalForecast(points, target).forecast;
 }
