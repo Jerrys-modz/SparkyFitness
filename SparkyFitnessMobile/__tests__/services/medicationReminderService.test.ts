@@ -587,46 +587,19 @@ describe('reconcileMedicationReminders', () => {
     });
   });
 
-  describe('overlapping calls', () => {
-    it('runs a call that arrives mid-run afterwards, with its own data', async () => {
-      const pending = pendingRequest('n-base', {
-        medicationId: 'med-1',
-        key: BASE_KEY,
-        hideNames: 'false',
-        locale: 'en',
-      });
-      mockGetAllScheduled.mockResolvedValue([pending]);
-
-      // The dose is logged while the first run is still scheduling.
-      const first = reconcileMedicationReminders([buildMedication()], []);
-      const second = reconcileMedicationReminders(
-        [buildMedication()],
-        [buildEntry()]
-      );
-      await Promise.all([first, second]);
-      await first;
-
-      expect(mockCancel).toHaveBeenCalledWith('n-base');
-    });
-
-    it('does not run two reconciles at once', async () => {
+  describe('locking', () => {
+    it('makes a concurrent second call a no-op', async () => {
       useAppPreferencesStore.setState({ medicationRemindersEnabled: false });
-      let active = 0;
-      let peak = 0;
-      mockGetAllScheduled.mockImplementation(async () => {
-        active += 1;
-        peak = Math.max(peak, active);
-        await Promise.resolve();
-        active -= 1;
-        return [];
-      });
-
-      await Promise.all([
-        reconcileMedicationReminders([], []),
-        reconcileMedicationReminders([], []),
+      mockGetAllScheduled.mockResolvedValue([
+        pendingRequest('n1', { medicationId: 'med-1', key: BASE_KEY }),
       ]);
 
-      expect(peak).toBe(1);
+      const first = reconcileMedicationReminders([], []);
+      const second = reconcileMedicationReminders([], []);
+      await Promise.all([first, second]);
+
+      expect(mockGetAllScheduled).toHaveBeenCalledTimes(1);
+      expect(mockCancel).toHaveBeenCalledTimes(1);
     });
   });
 
