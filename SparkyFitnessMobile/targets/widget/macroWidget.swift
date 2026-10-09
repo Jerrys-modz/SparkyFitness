@@ -285,16 +285,23 @@ struct macroWidgetEntryView: View {
     }
 
     private var lockCircular: some View {
-        MacroLockRing(snapshot: entry.snapshot)
+        let calories = entry.snapshot.hasData
+            ? localizedNumberString(entry.snapshot.caloriesConsumed)
+            : "-"
+        return MacroLockRing(snapshot: entry.snapshot)
             .overlay(
-                Text(entry.snapshot.hasData ? localizedNumberString(entry.snapshot.caloriesConsumed) : "-")
+                Text(calories)
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
                     .padding(.horizontal, 6)
             )
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(lockSummary)
+            .accessibilityLabel(
+                String(format: localizedWidgetString("widget.a11y.kcal"), calories)
+                    + ", "
+                    + lockSummary
+            )
     }
 
     private var lockRectangular: some View {
@@ -324,14 +331,19 @@ struct macroWidgetEntryView: View {
 
     private var lockInline: some View {
         let snapshot = entry.snapshot
-        return Label(
-            [snapshot.proteinGrams, snapshot.carbsGrams, snapshot.fatGrams]
-                .map { localizedNumberString($0) }
-                .joined(separator: " · ")
-                + " "
-                + String(format: localizedWidgetString("widget.grams"), "").trimmingCharacters(in: .whitespaces),
-            systemImage: "fork.knife"
-        )
+        let text = [
+            (localizedWidgetString("widget.protein"), snapshot.proteinGrams),
+            (localizedWidgetString("widget.carbs"), snapshot.carbsGrams),
+            (localizedWidgetString("widget.fat"), snapshot.fatGrams),
+        ]
+        .map { name, grams in
+            "\(name) " + String(
+                format: localizedWidgetString("widget.grams"),
+                localizedNumberString(grams)
+            )
+        }
+        .joined(separator: " · ")
+        return Label(text, systemImage: "fork.knife")
     }
 
     private var smallBody: some View {

@@ -29,6 +29,33 @@ private func sharedKeychainGroup() -> String? {
     return group
 }
 
+/// The widget extension is an `.appex`. App Intents compiled into the app,
+/// including Shortcuts, run in the `.app`.
+private func isAppTargetProcess() -> Bool {
+    Bundle.main.bundleURL.pathExtension != "appex"
+}
+
+/// Reads the shortcut login. Passing no access group searches every group this
+/// process can use, not a specific one.
+private func copyShortcutItem(accessGroup: String?) -> (data: Data, accessGroup: String?)? {
+    var query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: backgroundWaterService,
+        kSecAttrAccount as String: backgroundWaterAccount,
+        kSecReturnData as String: true,
+        kSecReturnAttributes as String: true,
+        kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    if let accessGroup {
+        query[kSecAttrAccessGroup as String] = accessGroup
+    }
+    var result: AnyObject?
+    guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+          let item = result as? [String: Any],
+          let data = item[kSecValueData as String] as? Data else { return nil }
+    return (data, item[kSecAttrAccessGroup as String] as? String)
+}
+
 private struct ShortcutConfig: Decodable {
     let baseUrl: String
     let headers: [String: String]
@@ -39,20 +66,43 @@ private struct ShortcutConfig: Decodable {
     let weightUnit: String?
 
     static func load() -> ShortcutConfig? {
-        var query: [String: Any] = [
+        let sharedGroup = sharedKeychainGroup()
+        if let shared = copyShortcutItem(accessGroup: sharedGroup) {
+            return try? JSONDecoder().decode(ShortcutConfig.self, from: shared.data)
+        }
+        // Older builds stored this with no access group, so it sits in the
+        // app's private group. Searching without a group only walks groups
+        // this process belongs to: the app can see that private item, the
+        // widget cannot. Move it into the shared group the first time the
+        // app, including an app Shortcut, reads it. A Lock Screen control
+        // used before that still needs the app opened once.
+        guard isAppTargetProcess(),
+              let sharedGroup,
+              let legacy = copyShortcutItem(accessGroup: nil),
+              legacy.accessGroup != sharedGroup,
+              let config = try? JSONDecoder().decode(ShortcutConfig.self, from: legacy.data) else {
+            return nil
+        }
+        var add: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: backgroundWaterService,
             kSecAttrAccount as String: backgroundWaterAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecAttrAccessGroup as String: sharedGroup,
+            kSecValueData as String: legacy.data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
-        if let group = sharedKeychainGroup() {
-            query[kSecAttrAccessGroup as String] = group
+        let status = SecItemAdd(add as CFDictionary, nil)
+        if status == errSecSuccess || status == errSecDuplicateItem,
+           let legacyGroup = legacy.accessGroup {
+            let delete: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: backgroundWaterService,
+                kSecAttrAccount as String: backgroundWaterAccount,
+                kSecAttrAccessGroup as String: legacyGroup,
+            ]
+            SecItemDelete(delete as CFDictionary)
         }
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return try? JSONDecoder().decode(ShortcutConfig.self, from: data)
+        return config
     }
 }
 
