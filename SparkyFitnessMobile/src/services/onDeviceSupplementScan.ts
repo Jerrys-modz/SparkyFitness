@@ -29,32 +29,60 @@ const FORMS = new Set([
 // other comma is a decimal comma ("1,5").
 const NUMBER_PATTERN = /[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?/g;
 
-function printedNumbers(text: string): Set<number> {
-  const numbers = new Set<number>();
-  for (const printed of text.match(NUMBER_PATTERN) ?? []) {
-    const value = Number(
-      /^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?$/.test(printed)
-        ? printed.replace(/,/g, '')
-        : printed.replace(',', '.')
-    );
-    if (Number.isFinite(value)) numbers.add(value);
-  }
-  return numbers;
+function parsePrinted(printed: string): number {
+  return Number(
+    /^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?$/.test(printed)
+      ? printed.replace(/,/g, '')
+      : printed.replace(',', '.')
+  );
 }
 
-/** The ingredient's first word of three letters or more, lower-cased. */
-function nameKey(name: string): string | null {
-  const word = name
-    .toLowerCase()
-    .split(/[^a-z]+/)
-    .find((part) => part.length >= 3);
-  return word ?? null;
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Every letter or number in the name, so "Vitamin D" is not just "vitamin". */
+function nameTokens(name: string): string[] {
+  return name.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+}
+
+function rowConfirmsName(row: string, name: string): boolean {
+  const tokens = nameTokens(name);
+  if (tokens.length === 0) return false;
+  const lower = row.toLowerCase();
+  return tokens.every((token) =>
+    new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(token)}(?:[^a-z0-9]|$)`).test(
+      lower
+    )
+  );
+}
+
+/** The amount must sit next to its unit, so a %DV on the same line does not count. */
+function rowHasAmountAndUnit(
+  row: string,
+  amount: number,
+  unit: string | null
+): boolean {
+  const normalized = unit?.trim();
+  if (!normalized) return false;
+  const unitPattern = new RegExp(
+    `^\\s*${escapeRegExp(normalized)}(?![a-zA-Z])`,
+    'i'
+  );
+  const pattern = new RegExp(NUMBER_PATTERN.source, 'g');
+  for (const match of row.matchAll(pattern)) {
+    if (parsePrinted(match[0]) !== amount) continue;
+    const after = row.slice((match.index ?? 0) + match[0].length);
+    if (unitPattern.test(after)) return true;
+  }
+  return false;
 }
 
 /**
- * Keeps the ingredients whose name and amount both appear on the same line
- * the phone recognised. Null when too few do, so the caller falls back to the
- * server instead of pre-filling a number printed on a different line.
+ * Keeps the ingredients whose full name, amount, and unit all appear on the
+ * same line the phone recognised. A bare number, including a %DV, does not
+ * count. Null when too few lines check out, so the caller falls back to the
+ * server.
  */
 export function groundSupplementLabel(
   r: OnDeviceSupplementExtraction
@@ -65,16 +93,15 @@ export function groundSupplementLabel(
 
   const lines = r.ingredients.filter((i) => i.name.trim() !== '');
   const grounded = lines.filter((ingredient) => {
-    const { amount } = ingredient;
+    const { amount, unit } = ingredient;
     if (amount === null) return true;
     if (!Number.isFinite(amount) || amount < 0 || amount > MAX_AMOUNT) {
       return false;
     }
-    const key = nameKey(ingredient.name);
     return ocrRows.some(
       (row) =>
-        printedNumbers(row).has(amount) &&
-        (key === null || row.toLowerCase().includes(key))
+        rowHasAmountAndUnit(row, amount, unit) &&
+        rowConfirmsName(row, ingredient.name)
     );
   });
   const withAmount = grounded.filter((i) => i.amount !== null);

@@ -84,6 +84,46 @@ describe('groundSupplementLabel', () => {
     ).toBeNull();
   });
 
+  it('does not treat a percent daily value as the amount', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ingredients: [{ name: 'Vitamin C', amount: 100, unit: 'mg' }],
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('does not borrow an amount from a similarly named ingredient', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: ['Vitamin C 90 mg', 'Vitamin D 15 mcg'].join('\n'),
+          ingredients: [
+            { name: 'Vitamin C', amount: 90, unit: 'mg' },
+            { name: 'Vitamin D', amount: 90, unit: 'mg' },
+          ],
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('keeps vitamins that share a word when each line matches', () => {
+    const label = groundSupplementLabel(
+      extraction({
+        ocr_text: ['Vitamin C 90 mg', 'Vitamin D 15 mcg'].join('\n'),
+        ingredients: [
+          { name: 'Vitamin C', amount: 90, unit: 'mg' },
+          { name: 'Vitamin D', amount: 15, unit: 'mcg' },
+        ],
+      })
+    );
+    expect(label?.ingredients.map((i) => i.name)).toEqual([
+      'Vitamin C',
+      'Vitamin D',
+    ]);
+  });
+
   it('falls back when an amount is taken from a different line', () => {
     expect(
       groundSupplementLabel(
