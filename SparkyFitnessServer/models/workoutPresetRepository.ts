@@ -10,10 +10,12 @@ import {
 } from '../utils/dbSearchHelper.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
 
+type PresetRowWithExercises = { exercises?: { equipment?: unknown }[] };
+
 /** exercises.equipment is JSON text. Warm-up rounding needs a string array. */
-function parsePresetExerciseEquipment<
-  T extends { exercises?: { equipment?: unknown }[] },
->(row: T | undefined): T | undefined {
+function parsePresetExerciseEquipment<T extends PresetRowWithExercises>(
+  row: T | undefined
+): T | undefined {
   if (!row?.exercises) return row;
   for (const exercise of row.exercises) {
     exercise.equipment = parseJsonArrayField(
@@ -247,7 +249,9 @@ async function getWorkoutPresets(userId: any, page = 1, limit = 10) {
       [limit, offset]
     );
     return {
-      presets: result.rows.map((row) => parsePresetExerciseEquipment(row)),
+      presets: result.rows.map((row: PresetRowWithExercises) =>
+        parsePresetExerciseEquipment(row)
+      ),
       total,
       page,
       limit,
@@ -638,7 +642,9 @@ async function searchWorkoutPresets(
       selectQueryParams.push(limit);
     }
     const result = await client.query(query, selectQueryParams);
-    return result.rows.map((row) => parsePresetExerciseEquipment(row));
+    return result.rows.map((row: PresetRowWithExercises) =>
+      parsePresetExerciseEquipment(row)
+    );
   } finally {
     client.release();
   }
