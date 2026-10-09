@@ -19,6 +19,8 @@ import type {
   UpdateTitrationStepInput,
   SerumCurveResponse,
   SiteSuggestionResponse,
+  SupplementLabelExtraction,
+  SupplementLookupResponse,
 } from '@workspace/shared';
 import { AI_TIMEOUT_MS } from '../../utils/concurrency';
 

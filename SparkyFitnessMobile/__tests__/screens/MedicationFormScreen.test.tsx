@@ -634,8 +634,107 @@ describe('MedicationFormScreen — supplement barcode', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'No match found',
-      expect.stringContaining('not in the supplement label database')
+      expect.stringContaining('No supplement was found for that barcode')
     );
+  });
+
+  describe('scanning the label', () => {
+    const labelProduct = {
+      source: 'label' as const,
+      sourceId: 'label',
+      name: 'Zinc Plus',
+      brand: null,
+      form: 'capsule' as const,
+      serving: '1 Capsule',
+      fixed: [],
+      catalog: [{ catalogId: 'zinc', amount: 15 }],
+      unmatched: [],
+    };
+
+    const takePhoto = async (screen: ReturnType<typeof renderScreen>) => {
+      mockLaunchCamera.mockResolvedValue({
+        canceled: false,
+        assets: [
+          { uri: 'file://raw.jpg', base64: 'AAA', width: 800, height: 600 },
+        ],
+      });
+      fireEvent.press(screen.getByText('Scan label to fill in'));
+      const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)[2] as {
+        text: string;
+        onPress?: () => void;
+      }[];
+      await act(async () => {
+        buttons.find((b) => b.text === 'Take photo')?.onPress?.();
+      });
+    };
+
+    it('only offers the label scan on a supplement', () => {
+      const screen = renderScreen();
+
+      expect(screen.queryByText('Scan label to fill in')).toBeNull();
+    });
+
+    it('offers the camera and the library', () => {
+      const screen = renderScreen(undefined, true);
+
+      fireEvent.press(screen.getByText('Scan label to fill in'));
+
+      const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)[2] as {
+        text: string;
+      }[];
+      expect(buttons.map((b) => b.text)).toEqual([
+        'Take photo',
+        'Choose from library',
+        'Cancel',
+      ]);
+    });
+
+    it('sends the photo to be read and fills the form from the result', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+
+      expect(mockLabelMutate).toHaveBeenCalledWith('AAA', expect.anything());
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: labelProduct,
+          source: 'device',
+        });
+      });
+      expect(screen.getByDisplayValue('Zinc Plus')).toBeTruthy();
+      expect(screen.getByDisplayValue('15')).toBeTruthy();
+    });
+
+    it('says so when nothing could be read from the photo', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: { ...labelProduct, catalog: [], fixed: [] },
+          source: 'server',
+        });
+      });
+
+      expect(Alert.alert).toHaveBeenLastCalledWith(
+        'Nothing readable',
+        expect.stringContaining('No supplement facts')
+      );
+    });
+
+    it('reports a failed read', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onError(new Error('422'));
+      });
+
+      expect(Alert.alert).toHaveBeenLastCalledWith(
+        'Error',
+        expect.stringContaining('Could not read the label')
+      );
+    });
   });
 
   it('tells the user when the database cannot be reached', () => {
@@ -870,245 +969,5 @@ describe('MedicationFormScreen — converting to a supplement', () => {
       })
     );
     expect(mockUpdateScheduleAsync).not.toHaveBeenCalled();
-  });
-});
-
-describe('MedicationFormScreen — supplement barcode', () => {
-  const product = {
-    source: 'dsld' as const,
-    sourceId: '65059',
-    name: 'WeCare Naturally Vitamin D3',
-    brand: 'WeCare Naturally',
-    form: 'capsule' as const,
-    serving: '1 Capsule(s)',
-    fixed: [{ key: 'vitamin_c' as const, amount: 90 }],
-    catalog: [{ catalogId: 'vitamin_d', amount: 125 }],
-    unmatched: [
-      { name: 'Holy Basil', amount: 300, unit: 'mg' },
-      { name: 'Gelatin', amount: 1, unit: 'g' },
-    ],
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
-    mockUseMedicationDetail.mockReturnValue({
-      data: undefined,
-    } as unknown as ReturnType<typeof useMedicationDetail>);
-    mockUseCreateMedication.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    } as unknown as ReturnType<typeof useCreateMedication>);
-    mockUseUpdateMedication.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    } as unknown as ReturnType<typeof useUpdateMedication>);
-  });
-
-  const scanned = () =>
-    renderScreen(undefined, true, {
-      pendingScannedBarcode: '858849003115',
-      scannedBarcodeNonce: 1,
-    });
-
-  it('opens the scanner and asks for the code back on this form', () => {
-    const screen = renderScreen(undefined, true);
-
-    fireEvent.press(screen.getByText('Scan barcode to fill in'));
-
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('FoodScan', {
-      mode: 'capture-barcode',
-      returnKey: 'MedicationForm-key',
-    });
-  });
-
-  it('only offers the scanner on a supplement', () => {
-    const screen = renderScreen();
-
-    expect(screen.queryByText('Scan barcode to fill in')).toBeNull();
-  });
-
-  it('looks up a scanned code once and clears it from the route', () => {
-    scanned();
-
-    expect(mockLookupMutate).toHaveBeenCalledTimes(1);
-    expect(mockLookupMutate).toHaveBeenCalledWith(
-      '858849003115',
-      expect.anything()
-    );
-    expect(mockNavigation.setParams).toHaveBeenCalledWith({
-      pendingScannedBarcode: undefined,
-      scannedBarcodeNonce: undefined,
-    });
-  });
-
-  it('fills in the name, form, serving and nutrients from the label', () => {
-    const screen = scanned();
-
-    act(() => {
-      mockLookupMutate.mock.calls[0][1].onSuccess({ product });
-    });
-
-    expect(screen.getByDisplayValue(product.name)).toBeTruthy();
-    expect(
-      screen.getByDisplayValue('Label serving: 1 Capsule(s)')
-    ).toBeTruthy();
-    expect(screen.getByDisplayValue('90')).toBeTruthy();
-    expect(screen.getByDisplayValue('125')).toBeTruthy();
-    expect(screen.getByText('Vitamin C')).toBeTruthy();
-    expect(screen.getByText('Vitamin D')).toBeTruthy();
-  });
-
-  it('says which ingredients were left out', () => {
-    const screen = scanned();
-
-    act(() => {
-      mockLookupMutate.mock.calls[0][1].onSuccess({ product });
-    });
-
-    expect(
-      screen.getByText('Not added from the label: Holy Basil, Gelatin')
-    ).toBeTruthy();
-  });
-
-  it('says when the product came from Open Food Facts', () => {
-    const screen = scanned();
-
-    act(() => {
-      mockLookupMutate.mock.calls[0][1].onSuccess({
-        product: { ...product, source: 'off', unmatched: [] },
-      });
-    });
-
-    expect(
-      screen.getByText(
-        'From Open Food Facts. Check the amounts against the label.'
-      )
-    ).toBeTruthy();
-  });
-
-  it('tells the user when the code is not in the database', () => {
-    scanned();
-
-    act(() => {
-      mockLookupMutate.mock.calls[0][1].onSuccess({ product: null });
-    });
-
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'No match found',
-      expect.stringContaining('not in the supplement label database')
-    );
-  });
-
-  describe('scanning the label', () => {
-    const labelProduct = {
-      source: 'label' as const,
-      sourceId: 'label',
-      name: 'Zinc Plus',
-      brand: null,
-      form: 'capsule' as const,
-      serving: '1 Capsule',
-      fixed: [],
-      catalog: [{ catalogId: 'zinc', amount: 15 }],
-      unmatched: [],
-    };
-
-    const takePhoto = async (screen: ReturnType<typeof renderScreen>) => {
-      mockLaunchCamera.mockResolvedValue({
-        canceled: false,
-        assets: [
-          { uri: 'file://raw.jpg', base64: 'AAA', width: 800, height: 600 },
-        ],
-      });
-      fireEvent.press(screen.getByText('Scan label to fill in'));
-      const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)[2] as {
-        text: string;
-        onPress?: () => void;
-      }[];
-      await act(async () => {
-        buttons.find((b) => b.text === 'Take photo')?.onPress?.();
-      });
-    };
-
-    it('only offers the label scan on a supplement', () => {
-      const screen = renderScreen();
-
-      expect(screen.queryByText('Scan label to fill in')).toBeNull();
-    });
-
-    it('offers the camera and the library', () => {
-      const screen = renderScreen(undefined, true);
-
-      fireEvent.press(screen.getByText('Scan label to fill in'));
-
-      const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)[2] as {
-        text: string;
-      }[];
-      expect(buttons.map((b) => b.text)).toEqual([
-        'Take photo',
-        'Choose from library',
-        'Cancel',
-      ]);
-    });
-
-    it('sends the photo to be read and fills the form from the result', async () => {
-      const screen = renderScreen(undefined, true);
-
-      await takePhoto(screen);
-
-      expect(mockLabelMutate).toHaveBeenCalledWith('AAA', expect.anything());
-      act(() => {
-        mockLabelMutate.mock.calls[0][1].onSuccess({
-          product: labelProduct,
-          source: 'device',
-        });
-      });
-      expect(screen.getByDisplayValue('Zinc Plus')).toBeTruthy();
-      expect(screen.getByDisplayValue('15')).toBeTruthy();
-    });
-
-    it('says so when nothing could be read from the photo', async () => {
-      const screen = renderScreen(undefined, true);
-
-      await takePhoto(screen);
-      act(() => {
-        mockLabelMutate.mock.calls[0][1].onSuccess({
-          product: { ...labelProduct, catalog: [], fixed: [] },
-          source: 'server',
-        });
-      });
-
-      expect(Alert.alert).toHaveBeenLastCalledWith(
-        'Nothing readable',
-        expect.stringContaining('No supplement facts')
-      );
-    });
-
-    it('reports a failed read', async () => {
-      const screen = renderScreen(undefined, true);
-
-      await takePhoto(screen);
-      act(() => {
-        mockLabelMutate.mock.calls[0][1].onError(new Error('422'));
-      });
-
-      expect(Alert.alert).toHaveBeenLastCalledWith(
-        'Error',
-        expect.stringContaining('Could not read the label')
-      );
-    });
-  });
-
-  it('tells the user when the database cannot be reached', () => {
-    scanned();
-
-    act(() => {
-      mockLookupMutate.mock.calls[0][1].onError(new Error('502'));
-    });
-
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Error',
-      expect.stringContaining('Could not reach')
-    );
   });
 });

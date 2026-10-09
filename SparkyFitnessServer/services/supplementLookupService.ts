@@ -400,10 +400,12 @@ export function mapScannedLabel(
 
 // --- Lookup -----------------------------------------------------------------
 
-async function getJson<T>(fetchImpl: FetchLike, url: string): Promise<T> {
-  const response = await fetchImpl(url, {
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
+async function getJson<T>(
+  fetchImpl: FetchLike,
+  url: string,
+  signal: AbortSignal
+): Promise<T> {
+  const response = await fetchImpl(url, { signal });
   if (!response.ok) {
     throw new Error(`Supplement label database answered ${response.status}`);
   }
@@ -422,13 +424,17 @@ export async function lookupSupplementByUpc(
   const digits = normalizeUpc(upc);
   if (!digits) return null;
 
+  // One deadline for the whole scan. A fresh timeout on every search and
+  // label request can outlast the client's wait before the fallback answers.
+  const deadline = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const seen = new Set<string>();
   const matches: DsldLabel[] = [];
   for (const phrase of upcSearchPhrases(digits)) {
     const url = `${DSLD_BASE_URL}/search-filter?q=${encodeURIComponent(`"${phrase}"`)}&size=${MAX_CANDIDATES}`;
     const result = await getJson<{ hits?: { _id: string | number }[] }>(
       fetchImpl,
-      url
+      url,
+      deadline
     );
     for (const hit of result.hits ?? []) {
       const id = String(hit._id);
@@ -437,7 +443,8 @@ export async function lookupSupplementByUpc(
       // The search is free text, so the label's own code has to agree.
       const label = await getJson<DsldLabel>(
         fetchImpl,
-        `${DSLD_BASE_URL}/label/${encodeURIComponent(id)}`
+        `${DSLD_BASE_URL}/label/${encodeURIComponent(id)}`,
+        deadline
       );
       if (sameUpc(label.upcSku, digits)) matches.push(label);
     }

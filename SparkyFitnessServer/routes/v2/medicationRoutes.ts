@@ -476,6 +476,60 @@ const requireDiaryForSupplementDose = (
  *       - { in: path, name: viewGroup, required: true, schema: { type: string } }
  *       - { in: path, name: platform, required: true, schema: { type: string } }
  *     responses: { 204: { description: Deleted. }, 404: { description: Not found. } }
+ *
+ * /v2/medications/supplement-label/scan:
+ *   post:
+ *     summary: Read a Supplement Facts photo with the user's vision AI provider
+ *     tags: [Medications & GLP-1]
+ *     security: [{ cookieAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [image, mime_type]
+ *             properties:
+ *               image: { type: string, description: Base64-encoded label photo }
+ *               mime_type: { type: string }
+ *     responses:
+ *       200: { description: The mapped supplement product. }
+ *       400: { description: Invalid request, or an unsupported image type. }
+ *       403: { description: The AI provider URL is on a private network. }
+ *       422: { description: No usable AI provider, or the model did not return a readable label. }
+ *       502: { description: The vision provider failed. }
+ *       504: { description: The vision provider timed out. }
+ * /v2/medications/supplement-label/map:
+ *   post:
+ *     summary: Map an on-device Supplement Facts reading onto a supplement product
+ *     description: No AI runs here. The server only matches ingredients and converts units.
+ *     tags: [Medications & GLP-1]
+ *     security: [{ cookieAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, brand, form, serving, ingredients]
+ *             properties:
+ *               name: { type: string, nullable: true, maxLength: 200 }
+ *               brand: { type: string, nullable: true, maxLength: 200 }
+ *               form: { type: string, nullable: true, enum: [tablet, capsule, softgel, gummy, powder, liquid] }
+ *               serving: { type: string, nullable: true, maxLength: 100 }
+ *               ingredients:
+ *                 type: array
+ *                 maxItems: 120
+ *                 items:
+ *                   type: object
+ *                   required: [name, amount, unit]
+ *                   properties:
+ *                     name: { type: string, maxLength: 200 }
+ *                     amount: { type: number, nullable: true, minimum: 0 }
+ *                     unit: { type: string, nullable: true, maxLength: 40 }
+ *     responses:
+ *       200: { description: The mapped supplement product. }
+ *       400: { description: Invalid request. }
  */
 
 // Small helper to send a uniform 400 for Zod failures.

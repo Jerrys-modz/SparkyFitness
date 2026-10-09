@@ -357,6 +357,32 @@ describe('lookupSupplementByUpc', () => {
       lookupSupplementByUpc('858849003115', fetchImpl)
     ).rejects.toThrow('503');
   });
+
+  it('uses one deadline for the search and every label it opens', async () => {
+    const signals: AbortSignal[] = [];
+    const fetchImpl = vi.fn(
+      async (url: string, init?: { signal?: AbortSignal }) => {
+        if (init?.signal) signals.push(init.signal);
+        if (url.includes('search-filter')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ hits: [{ _id: 1 }, { _id: 2 }] }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => label({ upcSku: '858849003115' }),
+        };
+      }
+    );
+
+    await lookupSupplementByUpc('858849003115', fetchImpl);
+
+    expect(signals.length).toBeGreaterThan(1);
+    expect(signals.every((signal) => signal === signals[0])).toBe(true);
+  });
 });
 
 describe('mapScannedLabel', () => {
