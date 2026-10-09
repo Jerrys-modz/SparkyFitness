@@ -6,6 +6,7 @@ import type {
   WorkoutHeartRatePoint,
 } from '@workspace/shared';
 import { canEditGroupedWorkout } from '@workspace/shared';
+import { toFiniteNumber } from './numericInput';
 import { distanceFromKm } from './unitConversions';
 
 /** Trackpoints kept when drawing a route; plenty for a phone-width figure. */
@@ -280,6 +281,11 @@ export function cardioSessionFromDiaryEntry(
 
   const distanceKm =
     session.distance != null && session.distance > 0 ? session.distance : null;
+  // The entry row comes straight from the database, where these columns are
+  // numeric and so arrive as strings. Empty and zero both mean "not measured",
+  // matching the server's activity item, so a walk shows no "0 floors".
+  const floors = toFiniteNumber(session.floors_climbed);
+  const elevationGain = toFiniteNumber(session.elevation_gain_meters);
   return {
     id: session.id,
     userId: '',
@@ -300,6 +306,8 @@ export function cardioSessionFromDiaryEntry(
     formattedPace: null,
     caloriesBurned: session.calories_burned,
     avgHeartRate: session.avg_heart_rate,
+    floorsClimbed: floors > 0 ? floors : null,
+    elevationGainMeters: elevationGain > 0 ? elevationGain : null,
     source: session.source,
     notes: session.notes,
     hasGpsTrack: false,
