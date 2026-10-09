@@ -9,6 +9,11 @@ import {
   type RecordedPoint,
   type RecordingActivity,
 } from '../utils/gpsRecording';
+import {
+  INITIAL_AUTO_PAUSE_STATE,
+  stepAutoPause,
+  type AutoPauseState,
+} from '../utils/autoPause';
 
 /**
  * Records a walk, run or ride from the phone's GPS.
@@ -27,6 +32,7 @@ import {
 export const GPS_RECORDING_TASK_NAME = 'sparky-gps-recording';
 
 const SESSION_KEY = '@SparkyFitness/gpsRecording/session';
+const AUTO_PAUSE_PREF_KEY = '@SparkyFitness/gpsRecording/autoPause';
 const HEART_RATE_KEY = '@SparkyFitness/gpsRecording/heartRate';
 const chunkKey = (index: number) =>
   `@SparkyFitness/gpsRecording/chunk/${index}`;
@@ -49,6 +55,10 @@ export interface RecordingSession {
   pausedMs: number;
   /** Current stretch; goes up on every resume. */
   seg: number;
+  /** Whether the recording pauses itself when the person stops moving. */
+  autoPause?: boolean;
+  /** True while paused by auto-pause rather than by the person. */
+  autoPaused?: boolean;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
   /**
@@ -95,6 +105,9 @@ let points: RecordedPoint[] = [];
 let snapshot: RecordingSnapshot = { session: null, points: [] };
 let heartRate: StoredHeartRate = { samples: [], batchIds: [] };
 let hydrated: Promise<void> | null = null;
+// Detector memory for auto-pause. Not persisted: after a relaunch it just
+// starts watching again.
+let autoPauseState: AutoPauseState = INITIAL_AUTO_PAUSE_STATE;
 const listeners = new Set<() => void>();
 // The task callback and the screen's own writes share one session, so every
 // read-modify-write runs on this chain instead of overlapping.
@@ -194,10 +207,47 @@ export function hydrate(): Promise<void> {
 export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
   return enqueue(async () => {
     await hydrate();
-    if (!session || session.status !== 'recording') return;
+    if (!session) return;
     const firstTouched = Math.floor(points.length / CHUNK_SIZE);
     let added = 0;
+    let sessionChanged = false;
     for (const fix of fixes) {
+      if (session.autoPause && isWatchingForAutoPause(session)) {
+        const step = stepAutoPause(
+          autoPauseState,
+          fix,
+          session.activity,
+          session.status === 'paused'
+        );
+        autoPauseState = step.state;
+        if (step.action.type === 'pause') {
+          session = {
+            ...session,
+            status: 'paused',
+            pausedAt: step.action.at,
+            autoPaused: true,
+          };
+          sessionChanged = true;
+          addLog('[GPS Recording] Auto-paused', 'INFO');
+        } else if (step.action.type === 'resume') {
+          session = {
+            ...session,
+            status: 'recording',
+            pausedMs:
+              session.pausedMs +
+              Math.max(
+                0,
+                step.action.at - (session.pausedAt ?? step.action.at)
+              ),
+            pausedAt: null,
+            seg: session.seg + 1,
+            autoPaused: false,
+          };
+          sessionChanged = true;
+          addLog('[GPS Recording] Auto-resumed', 'INFO');
+        }
+      }
+      if (session.status !== 'recording') continue;
       const accepted = acceptFix(
         points[points.length - 1],
         fix,
@@ -209,13 +259,42 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
         added++;
       }
     }
-    if (added === 0) return;
+    if (sessionChanged) await persistSession();
+    if (added === 0) {
+      if (sessionChanged) publish();
+      return;
+    }
     const lastTouched = Math.floor((points.length - 1) / CHUNK_SIZE);
     for (let index = firstTouched; index <= lastTouched; index++) {
       await persistChunk(index);
     }
     publish();
   });
+}
+
+/** Auto-pause watches a running recording and one it paused itself. */
+function isWatchingForAutoPause(current: RecordingSession): boolean {
+  return (
+    current.status === 'recording' ||
+    (current.status === 'paused' && current.autoPaused === true)
+  );
+}
+
+/** Whether new recordings pause themselves; on unless the person turned it off. */
+export async function getAutoPausePreference(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(AUTO_PAUSE_PREF_KEY)) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export async function setAutoPausePreference(enabled: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(AUTO_PAUSE_PREF_KEY, enabled ? 'on' : 'off');
+  } catch {
+    // The choice just won't be remembered.
+  }
 }
 
 function toRawFix(location: Location.LocationObject): RawFix {
@@ -252,6 +331,8 @@ export interface StartRecordingOptions {
   activity: RecordingActivity;
   /** Record without GPS: no permission is asked and no location task runs. */
   indoor?: boolean;
+  /** Pause automatically while the person is standing still. */
+  autoPause?: boolean;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -321,9 +402,12 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       pausedAt: null,
       pausedMs: 0,
       seg: 0,
+      autoPause: options.autoPause === true,
+      autoPaused: false,
       savedEntryId: null,
       ...(indoor && { indoor: true }),
     };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     points = [];
     await persistSession();
     if (!indoor) {
@@ -367,7 +451,13 @@ export function pauseRecording(): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'recording') return;
-    session = { ...session, status: 'paused', pausedAt: Date.now() };
+    session = {
+      ...session,
+      status: 'paused',
+      pausedAt: Date.now(),
+      autoPaused: false,
+    };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
     publish();
   });
@@ -387,7 +477,9 @@ export function resumeRecording(
       pausedMs: paused.pausedMs + (now - (paused.pausedAt ?? now)),
       pausedAt: null,
       seg: paused.seg + 1,
+      autoPaused: false,
     };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
     try {
       // The task normally survived the pause. It only needs starting again
@@ -422,6 +514,7 @@ export function finishRecording(): Promise<void> {
       status: 'finished',
       finishedAt: session.status === 'paused' ? (session.pausedAt ?? now) : now,
       pausedAt: null,
+      autoPaused: false,
       pausedMs,
     };
     await persistSession();
@@ -510,6 +603,7 @@ export function resetRecordingStateForTests(): void {
   session = null;
   points = [];
   heartRate = { samples: [], batchIds: [] };
+  autoPauseState = INITIAL_AUTO_PAUSE_STATE;
   hydrated = null;
   queue = Promise.resolve();
   publish();

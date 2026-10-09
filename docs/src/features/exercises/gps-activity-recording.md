@@ -51,6 +51,14 @@ Points are saved on the phone as they arrive. Nothing is sent to your server unt
 
 ---
 
+## Auto-pause
+
+Turn on **Auto-pause** before you start and the recording pauses itself when you stop (a red light, tying a shoe) and carries on when you move again. It judges speed from the GPS, so it works with the screen locked. The clock stops from the moment you actually stopped, not from when the pause was noticed, and restarts from when you began moving. A rolling start is needed to resume, so a shuffle in place won't restart it. It waits about 10 seconds when walking, 8 running and 6 riding before pausing.
+
+A pause you make yourself is never undone automatically; only an auto-pause resumes on its own. You can resume an auto-pause by hand at any time. The choice is remembered for next time.
+
+---
+
 ## Recording with the screen locked
 
 - **iOS:** recording keeps running in the background and the status bar shows the blue location indicator. Only "while using the app" location access is needed.
