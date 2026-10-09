@@ -34,7 +34,7 @@ describe('MoodCard on Dashboard', () => {
 
   it('offers a log button when nothing is logged for the day', () => {
     mockUseMoodEntries.mockReturnValue([]);
-    const { getByText } = render(
+    const { getByText, getByLabelText } = render(
       <MoodCard navigation={navigation} date="2026-10-05" />
     );
 
