@@ -10,8 +10,6 @@ import type {
   UpdateMedicationEntryInput,
   CreateScheduleInput,
   UpdateScheduleInput,
-  SupplementLabelExtraction,
-  SupplementLookupResponse,
   MedicationPen,
   InjectionEntry,
   LogInjectionInput,
