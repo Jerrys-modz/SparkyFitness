@@ -426,3 +426,6 @@ export const runProgramQueryKey = ['runProgram'] as const;
 export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
 export const runningTrendsQueryKey = (startDate: string, endDate: string) =>
   ['cardioSessions', 'runningTrends', startDate, endDate] as const;
+
+export const runningRecordsQueryKey = () =>
+  ['cardioSessions', 'runningRecords'] as const;

@@ -3,11 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import {
   addDays,
   buildRunningTrends,
+  predictRaceTimes,
+  runningEfforts,
   startOfWeek,
+  toWeekStart,
   type ExerciseActivityQueryItem,
 } from '@workspace/shared';
-import { fetchCardioSessionsPage } from '../services/api/exerciseStatsApi';
-import { runningTrendsQueryKey } from './queryKeys';
+import {
+  fetchCardioSessionsPage,
+  fetchPersonalRecords,
+} from '../services/api/exerciseStatsApi';
+import { runningRecordsQueryKey, runningTrendsQueryKey } from './queryKeys';
+import { usePreferences } from './usePreferences';
 import { getTodayDate } from '../utils/dateUtils';
 
 /** Weeks of running shown on the trends card. */
@@ -36,33 +43,54 @@ async function fetchWindow(
 }
 
 /**
- * Weekly mileage, longest run and efficiency over the last twelve weeks. Its
- * key sits in the `cardioSessions` family, so the Cardio view's refresh and
- * the exercise cache invalidation reload it with the session list.
+ * Weekly mileage, longest run, efficiency and race-time estimates. Weeks begin
+ * on the account's first day of the week. The keys sit in the `cardioSessions`
+ * family, so the Cardio view's refresh and the exercise cache invalidation
+ * reload them with the session list.
  */
 export function useRunningTrends(enabled = true) {
+  const { preferences } = usePreferences();
+  const weekStartsOn = toWeekStart(preferences?.first_day_of_week);
   const today = getTodayDate();
   const startDate = addDays(
-    startOfWeek(today),
+    startOfWeek(today, weekStartsOn),
     -7 * (RUNNING_TRENDS_WEEKS - 1)
   );
 
-  const query = useQuery({
+  const sessions = useQuery({
     queryKey: runningTrendsQueryKey(startDate, today),
     queryFn: () => fetchWindow(startDate, today),
+    enabled,
+  });
+  const records = useQuery({
+    queryKey: runningRecordsQueryKey(),
+    queryFn: () => fetchPersonalRecords('metric'),
     enabled,
   });
 
   const trends = useMemo(
     () =>
-      query.data
-        ? buildRunningTrends(query.data, {
+      sessions.data
+        ? buildRunningTrends(sessions.data, {
             today,
             weeks: RUNNING_TRENDS_WEEKS,
+            weekStartsOn,
           })
         : null,
-    [query.data, today]
+    [sessions.data, today, weekStartsOn]
+  );
+  const raceTimes = useMemo(
+    () =>
+      records.data
+        ? predictRaceTimes(runningEfforts(records.data.cardioPRs))
+        : [],
+    [records.data]
   );
 
-  return { trends, isLoading: query.isLoading, isError: query.isError };
+  return {
+    trends,
+    raceTimes,
+    isLoading: sessions.isLoading,
+    isError: sessions.isError,
+  };
 }
