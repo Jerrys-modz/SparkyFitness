@@ -1,16 +1,36 @@
 import Foundation
 import HealthKit
 
-/// What the wearer is recording from the wrist alone. Indoor only for now:
-/// there is no route, and the distance is the watch's own estimate from its
-/// motion sensors. Raw values are for logging, not the wire.
+/// Where a wrist-only recording happens. Indoors there is no route and the
+/// distance is the watch's own estimate from its motion sensors; outdoors the
+/// watch's GPS records a route and measures the distance.
+enum WatchRunPlace: String {
+    case indoor, outdoor
+
+    var locationType: HKWorkoutSessionLocationType {
+        switch self {
+        case .indoor: return .indoor
+        case .outdoor: return .outdoor
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .indoor: return "Indoor"
+        case .outdoor: return "Outdoor"
+        }
+    }
+}
+
+/// What the wearer is recording from the wrist alone. Raw values are for
+/// logging, not the wire.
 enum WatchRunKind: String {
     case walk, run
 
-    var title: String {
+    func title(_ place: WatchRunPlace) -> String {
         switch self {
-        case .walk: return "Indoor walk"
-        case .run: return "Indoor run"
+        case .walk: return "\(place.label) walk"
+        case .run: return "\(place.label) run"
         }
     }
 

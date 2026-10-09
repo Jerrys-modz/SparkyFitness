@@ -1,13 +1,16 @@
+import CoreLocation
 import Foundation
 import HealthKit
 
-/// An indoor walk or run recorded on the wrist alone.
+/// A walk or run recorded on the wrist alone, indoors or out.
 ///
-/// A real `HKWorkoutSession` with `locationType = .indoor`, so the watch
-/// estimates distance from its motion sensors and samples heart rate at
-/// workout rate. When the wearer finishes, the workout is written to Apple
-/// Health; the phone's existing HealthKit import then files it in the diary
-/// like any other watch workout. Nothing is sent over the watch connection,
+/// A real `HKWorkoutSession`. Indoors (`locationType = .indoor`) the watch
+/// estimates distance from its motion sensors; outdoors it uses its own GPS
+/// for distance and records the route, which is attached to the workout when
+/// it is saved. Heart rate is sampled at workout rate either way. When the
+/// wearer finishes, the workout (and route) is written to Apple Health; the
+/// phone's existing HealthKit import then files it in the diary like any
+/// other watch workout. Nothing is sent over the watch connection,
 /// so the phone being out of range changes nothing: Health syncs on its own
 /// when the two meet again.
 ///
@@ -20,7 +23,7 @@ import HealthKit
 ///
 /// A session left running when the app is killed is not re-attached by this
 /// controller: it cannot tell whose session it would be recovering.
-final class WatchRunHealthKitController: NSObject {
+final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     static let shared = WatchRunHealthKitController()
 
     /// Called on the main queue when new figures are available.
@@ -32,6 +35,13 @@ final class WatchRunHealthKitController: NSObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var metrics = WatchRunMetrics()
+
+    // Outdoor only.
+    private var locationManager: CLLocationManager?
+    private var routeBuilder: HKWorkoutRouteBuilder?
+    /// Whether fixes are being added to the route right now: off while paused,
+    /// so standing still at a light does not draw a stray tail.
+    private var collectingRoute = false
 
     var hasLiveSession: Bool { session != nil }
 
@@ -56,6 +66,7 @@ final class WatchRunHealthKitController: NSObject {
         }
         let share: Set<HKSampleType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
+            HKSeriesType.workoutRoute(),
         ]
         let read: Set<HKObjectType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
@@ -68,12 +79,12 @@ final class WatchRunHealthKitController: NSObject {
     /// Starts the session. Returns false, leaving nothing running, when
     /// HealthKit is unavailable or a session is already live.
     @discardableResult
-    func start(_ kind: WatchRunKind) -> Bool {
+    func start(_ kind: WatchRunKind, place: WatchRunPlace) -> Bool {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return false }
 
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = kind.activityType
-        configuration.locationType = .indoor
+        configuration.locationType = place.locationType
 
         do {
             let newSession = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
@@ -92,6 +103,7 @@ final class WatchRunHealthKitController: NSObject {
             let now = Date()
             newSession.startActivity(with: now)
             newBuilder.beginCollection(withStart: now) { _, _ in }
+            if place == .outdoor { startRoute() }
             return true
         } catch {
             session = nil
@@ -102,10 +114,12 @@ final class WatchRunHealthKitController: NSObject {
 
     func pause() {
         session?.pause()
+        collectingRoute = false
     }
 
     func resume() {
         session?.resume()
+        collectingRoute = routeBuilder != nil
     }
 
     /// Ends the session and writes the workout to Apple Health (`save`) or
@@ -117,20 +131,82 @@ final class WatchRunHealthKitController: NSObject {
             return
         }
         let finalElapsed = endingBuilder.elapsedTime
+        let endingRoute = routeBuilder
+        stopRoute()
         self.session = nil
         self.builder = nil
         session.end()
         endingBuilder.endCollection(withEnd: Date()) { [weak self] _, _ in
             if save {
-                endingBuilder.finishWorkout { _, _ in }
+                endingBuilder.finishWorkout { workout, _ in
+                    // The route can only be attached to a saved workout.
+                    if let workout, let endingRoute {
+                        endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
+                    }
+                }
             } else {
                 endingBuilder.discardWorkout()
+                endingRoute?.discard()
             }
             DispatchQueue.main.async {
                 completion(self?.metrics ?? WatchRunMetrics(), finalElapsed)
             }
         }
     }
+}
+
+// MARK: - Route (outdoor)
+
+extension WatchRunHealthKitController {
+    /// Starts the watch's GPS and a route builder. The location prompt shows
+    /// the first time; fixes start arriving once it is allowed. A denied
+    /// permission leaves a workout with no route, and the distance the
+    /// session estimates without GPS.
+    fileprivate func startRoute() {
+        routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
+        let manager = CLLocationManager()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.activityType = .fitness
+        locationManager = manager
+        collectingRoute = true
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.startUpdatingLocation()
+        default:
+            break
+        }
+    }
+
+    fileprivate func stopRoute() {
+        locationManager?.stopUpdatingLocation()
+        locationManager?.delegate = nil
+        locationManager = nil
+        collectingRoute = false
+        routeBuilder = nil
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.startUpdatingLocation()
+        default:
+            break
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard collectingRoute, let routeBuilder else { return }
+        // Apple's guidance: drop fixes with no usable accuracy, and ones too
+        // coarse to draw a believable line.
+        let usable = locations.filter { $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy <= 50 }
+        guard !usable.isEmpty else { return }
+        routeBuilder.insertRouteData(usable) { _, _ in }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
 }
 
 extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
@@ -145,6 +221,8 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.session = nil
             self?.builder = nil
+            self?.routeBuilder?.discard()
+            self?.stopRoute()
             self?.onFailure?()
         }
     }

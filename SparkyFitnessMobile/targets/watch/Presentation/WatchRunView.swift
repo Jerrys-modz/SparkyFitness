@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Record an indoor walk or run from the wrist alone. Idle, it offers the two
-/// activities; running, it shows the clock, distance, pace and heart rate with
+/// Record a walk or run from the wrist alone, indoors or out. Idle, it offers
+/// the four choices; running, it shows the clock, distance, pace and heart rate with
 /// pause and finish; after finishing, a short summary.
 struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
@@ -25,32 +25,36 @@ struct WatchRunView: View {
     // MARK: - Idle
 
     private var idle: some View {
-        VStack(spacing: 8) {
-            Text("Record")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if run.canStart {
-                startButton(.run)
-                startButton(.walk)
-            } else {
-                Text(blockedReason)
-                    .font(.caption2)
+        ScrollView {
+            VStack(spacing: 8) {
+                Text("Record")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                if run.canStart {
+                    startButton(.run, place: .outdoor)
+                    startButton(.walk, place: .outdoor)
+                    startButton(.run, place: .indoor)
+                    startButton(.walk, place: .indoor)
+                } else {
+                    Text(blockedReason)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
     }
 
-    private func startButton(_ kind: WatchRunKind) -> some View {
+    private func startButton(_ kind: WatchRunKind, place: WatchRunPlace) -> some View {
         Button {
             Haptics.tap()
-            run.start(kind)
+            run.start(kind, place: place)
         } label: {
-            Label(kind.title, systemImage: kind.symbol)
+            Label(kind.title(place), systemImage: kind.symbol)
                 .frame(maxWidth: .infinity)
         }
-        .tint(.green)
+        .tint(place == .outdoor ? .green : .blue)
     }
 
     /// Only one workout can run on the watch, so say which one is in the way.
@@ -70,7 +74,7 @@ struct WatchRunView: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: run.kind.symbol)
-                Text(run.phase == .paused ? "\(run.kind.title) paused" : run.kind.title)
+                Text(run.phase == .paused ? "\(run.kind.title(run.place)) paused" : run.kind.title(run.place))
                 if let bpm = run.metrics.heartRate {
                     Image(systemName: "heart.fill")
                         .foregroundStyle(.red)
@@ -141,7 +145,7 @@ struct WatchRunView: View {
         if let summary = run.summary {
             ScrollView {
                 VStack(spacing: 6) {
-                    Text("\(summary.kind.title) saved")
+                    Text("\(summary.kind.title(summary.place)) saved")
                         .font(.caption)
                         .foregroundStyle(.green)
                     Text(RecordingState.clock(summary.elapsed))
