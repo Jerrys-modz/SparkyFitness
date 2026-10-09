@@ -589,7 +589,8 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
-    "aiSettings": "AI"
+    "aiSettings": "AI",
+    "warmupSettings": "Warm-up Calculator"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -1135,7 +1136,9 @@
     "adaptiveCoachingAccessibility": "Adaptive suggestions",
     "duckMusic": "Lower music during cues",
     "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
-    "duckMusicAccessibility": "Lower music during cues"
+    "duckMusicAccessibility": "Lower music during cues",
+    "warmupCalculator": "Warm-up calculator",
+    "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise."
   },
   "restPeriod": {
     "title": "Rest period",
@@ -1868,7 +1871,8 @@
     "repCount_one": "{{formattedCount}} rep",
     "repCount_other": "{{formattedCount}} reps",
     "modalityWeightDistance": "Weight & Distance (carries)",
-    "modalityWeightDuration": "Weight & Duration (loaded holds)"
+    "modalityWeightDuration": "Weight & Duration (loaded holds)",
+    "addWarmups": "Add warm-ups"
   },
   "cycleCard": {
     "mode": {
@@ -5915,6 +5919,25 @@
         "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
       }
     }
+  },
+  "warmupSettings": {
+    "title": "Warm-up Calculator",
+    "description": "Use the warm-up calculator to quickly add percentage-based warm-up sets to exercises.",
+    "enabled": "Warm-up Calculator",
+    "enabledSubtitle": "When active, tap the three dots next to an exercise to add warm-up sets.",
+    "enabledAccessibility": "Warm-up calculator",
+    "method": "Warmup Method",
+    "methodSubtitle": "Each warm-up set is a percent of your first working set, for a number of reps.",
+    "setLetter": "W",
+    "percentLabel": "Warm-up {{number}} percent",
+    "repsLabel": "Warm-up {{number}} reps",
+    "removeSet": "Remove set",
+    "addSet": "Add set",
+    "reset": "Reset to default",
+    "plateRounding": "Plate rounding",
+    "plateRoundingSubtitle": "Set preferred plate weight increments for your warm-up calculations.",
+    "dumbbellRounding": "Dumbbell rounding",
+    "dumbbellRoundingSubtitle": "Set preferred dumbbell weight increments for your warm-up calculations."
   },
   "mindfulness": {
     "card": {

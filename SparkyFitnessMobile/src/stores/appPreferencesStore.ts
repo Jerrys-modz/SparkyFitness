@@ -5,6 +5,13 @@ import {
   clampGuidedCountdownSec,
   clampGuidedSpeechRate,
 } from '@workspace/shared';
+import {
+  DEFAULT_WARMUP_DUMBBELL_ROUNDING,
+  DEFAULT_WARMUP_METHOD,
+  DEFAULT_WARMUP_PLATE_ROUNDING,
+  normalizeWarmupMethod,
+  type WarmupMethodStep,
+} from '@workspace/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
@@ -95,6 +102,10 @@ export const PREFERENCE_DEFAULTS = {
   restChimeThroughSilent: false,
   duckMusicDuringCues: false,
   workoutKeepAwakeEnabled: false,
+  warmupCalculatorEnabled: true,
+  warmupMethod: DEFAULT_WARMUP_METHOD.map((step) => ({ ...step })),
+  warmupPlateRounding: { ...DEFAULT_WARMUP_PLATE_ROUNDING },
+  warmupDumbbellRounding: { ...DEFAULT_WARMUP_DUMBBELL_ROUNDING },
   guidedWorkoutEnabled: false,
   guidedVoiceId: null as string | null,
   guidedSpeechRate: DEFAULT_GUIDED_SPEECH_RATE as number,
@@ -164,6 +175,14 @@ export type AppPreferencesData = {
    */
   duckMusicDuringCues: boolean;
   workoutKeepAwakeEnabled: boolean;
+  /** Offer "Add warm-ups" on an exercise's menu. */
+  warmupCalculatorEnabled: boolean;
+  /** The warm-up ramp: percent of the working weight x reps, ascending. */
+  warmupMethod: WarmupMethodStep[];
+  /** Step warm-up weights round to on a bar, per display unit. */
+  warmupPlateRounding: { kg: number; lbs: number };
+  /** Step warm-up weights round to for dumbbell exercises, per display unit. */
+  warmupDumbbellRounding: { kg: number; lbs: number };
   /** Guided workout mode (#1507): spoken cues + guided card. Off by default. */
   guidedWorkoutEnabled: boolean;
   /** expo-speech voice identifier; null uses the device default for the app language. */
@@ -234,6 +253,10 @@ export interface AppPreferencesState extends AppPreferencesData {
   setRestChimeThroughSilent: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
+  setWarmupCalculatorEnabled: (value: boolean) => void;
+  setWarmupMethod: (steps: readonly WarmupMethodStep[]) => void;
+  setWarmupPlateRounding: (unit: 'kg' | 'lbs', value: number) => void;
+  setWarmupDumbbellRounding: (unit: 'kg' | 'lbs', value: number) => void;
   setGuidedWorkoutEnabled: (value: boolean) => void;
   setGuidedVoiceId: (value: string | null) => void;
   setGuidedSpeechRate: (value: number) => void;
@@ -365,6 +388,21 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDuckMusicDuringCues: (value) => set({ duckMusicDuringCues: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
+      setWarmupCalculatorEnabled: (value) =>
+        set({ warmupCalculatorEnabled: value }),
+      setWarmupMethod: (steps) =>
+        set({ warmupMethod: normalizeWarmupMethod(steps) }),
+      setWarmupPlateRounding: (unit, value) =>
+        set((state) => ({
+          warmupPlateRounding: { ...state.warmupPlateRounding, [unit]: value },
+        })),
+      setWarmupDumbbellRounding: (unit, value) =>
+        set((state) => ({
+          warmupDumbbellRounding: {
+            ...state.warmupDumbbellRounding,
+            [unit]: value,
+          },
+        })),
       setGuidedWorkoutEnabled: (value) => set({ guidedWorkoutEnabled: value }),
       setGuidedVoiceId: (value) => set({ guidedVoiceId: value }),
       setGuidedSpeechRate: (value) =>
@@ -461,6 +499,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         restChimeThroughSilent: state.restChimeThroughSilent,
         duckMusicDuringCues: state.duckMusicDuringCues,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
+        warmupCalculatorEnabled: state.warmupCalculatorEnabled,
+        warmupMethod: state.warmupMethod,
+        warmupPlateRounding: state.warmupPlateRounding,
+        warmupDumbbellRounding: state.warmupDumbbellRounding,
         guidedWorkoutEnabled: state.guidedWorkoutEnabled,
         guidedVoiceId: state.guidedVoiceId,
         guidedSpeechRate: state.guidedSpeechRate,
