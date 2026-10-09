@@ -59,6 +59,14 @@ A pause you make yourself is never undone automatically; only an auto-pause resu
 
 ---
 
+## Voice cues
+
+Turn on **Voice cues** before you start and the phone speaks as you go: your total time and the time of the last kilometer or mile each time you complete one, and "Paused", "Auto paused" or "Resumed" when that happens. It also says your distance and time when you finish. Cues use the distance unit from your settings and the app language, and they're spoken with the screen locked and the phone's silent switch on. If you're playing music it keeps playing, and it dips while a cue is spoken when **Lower music during cues** is on.
+
+The setting is off by default and is remembered for next time. Cues are spoken by the phone, so use earphones or a watch speaker if you don't want them out loud.
+
+---
+
 ## Recording with the screen locked
 
 - **iOS:** recording keeps running in the background and the status bar shows the blue location indicator. Only "while using the app" location access is needed.

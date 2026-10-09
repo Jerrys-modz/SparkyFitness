@@ -6371,6 +6371,29 @@
     "perUnit": "/{{unit}}",
     "routeA11y": "Map of your route so far",
     "waitingForGps": "Waiting for a GPS fix…",
+    "audioCues": {
+      "title": "Voice cues",
+      "description": "Speaks your time at each kilometer or mile, and when you pause or resume."
+    },
+    "cues": {
+      "started": "Recording started",
+      "paused": "Paused",
+      "autoPaused": "Auto paused",
+      "resumed": "Resumed",
+      "splitKm": "{{distance}}. Time {{time}}. Last kilometer {{split}}.",
+      "splitMiles": "{{distance}}. Time {{time}}. Last mile {{split}}.",
+      "finished": "Recording finished. {{distance}}. Time {{time}}.",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "seconds_one": "{{count}} second",
+      "seconds_other": "{{count}} seconds",
+      "kilometers_one": "{{count}} kilometer",
+      "kilometers_other": "{{count}} kilometers",
+      "miles_one": "{{count}} mile",
+      "miles_other": "{{count}} miles"
+    },
     "autoPause": {
       "title": "Auto-pause",
       "description": "Pauses the clock when you stop and carries on when you move."

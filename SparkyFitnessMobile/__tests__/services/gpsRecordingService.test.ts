@@ -12,7 +12,17 @@ jest.mock('expo-location', () => ({
   hasStartedLocationUpdatesAsync: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/recordingCues', () => ({
+  beginRecordingCues: jest.fn(),
+  endRecordingCues: jest.fn(),
+  stopRecordingCues: jest.fn(),
+  speakRecordingCue: jest.fn(),
+}));
 
+import {
+  beginRecordingCues,
+  speakRecordingCue,
+} from '../../src/services/recordingCues';
 import {
   GPS_RECORDING_TASK_NAME,
   RecordingPermissionError,
@@ -456,5 +466,55 @@ describe('auto-pause', () => {
     const stored = await storedSession();
     expect(stored?.status).toBe('recording');
     expect(stored?.autoPaused).toBe(false);
+  });
+});
+
+describe('voice cues', () => {
+  const stepNorth = (seconds: number, metersNorth: number) => ({
+    ...fix(seconds, metersNorth),
+    speed: 3,
+  });
+  const spoken = () =>
+    (speakRecordingCue as jest.Mock).mock.calls.map(([text]) => text as string);
+
+  it('stays quiet unless asked', async () => {
+    await startRecording({ activity: 'run', notification });
+    await ingestFixes([stepNorth(0, 0), stepNorth(200, 1100)]);
+    expect(speakRecordingCue).not.toHaveBeenCalled();
+    expect(beginRecordingCues).not.toHaveBeenCalled();
+  });
+
+  it('announces each completed kilometer once', async () => {
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    expect(beginRecordingCues).toHaveBeenCalled();
+    (speakRecordingCue as jest.Mock).mockClear();
+
+    await ingestFixes([stepNorth(0, 0), stepNorth(100, 500)]);
+    expect(spoken()).toHaveLength(0);
+
+    await ingestFixes([stepNorth(210, 1100)]);
+    expect(spoken()).toHaveLength(1);
+    expect(spoken()[0]).toMatch(/^1 kilometer\. Time /);
+
+    // More of the same kilometer must not repeat it.
+    await ingestFixes([stepNorth(230, 1200)]);
+    expect(spoken()).toHaveLength(1);
+    expect((await storedSession())?.cuedSplits).toBe(1);
+  });
+
+  it('says only the latest when several kilometers land in one batch', async () => {
+    await startRecording({ activity: 'ride', audioCues: 'km', notification });
+    (speakRecordingCue as jest.Mock).mockClear();
+    await ingestFixes([stepNorth(0, 0), stepNorth(200, 3100)]);
+    expect(spoken()).toHaveLength(1);
+    expect(spoken()[0]).toMatch(/^3 kilometers\./);
+  });
+
+  it('speaks pauses and resumes', async () => {
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    (speakRecordingCue as jest.Mock).mockClear();
+    await pauseRecording();
+    await resumeRecording(notification);
+    expect(spoken()).toEqual(['Paused', 'Resumed']);
   });
 });
