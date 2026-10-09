@@ -13,6 +13,7 @@ export const WATCH_PAGE_KEYS = [
   'entry',
   'trend',
   'workout',
+  'run',
 ] as const;
 
 export type WatchPageKey = (typeof WATCH_PAGE_KEYS)[number];
@@ -35,6 +36,7 @@ export const WATCH_PAGE_LABELS: Record<
   trend: (t) =>
     t('watchSettings.pages.trend', { defaultValue: 'Weight trend' }),
   workout: (t) => t('watchSettings.pages.workout', { defaultValue: 'Workout' }),
+  run: (t) => t('watchSettings.pages.run', { defaultValue: 'Run and walk' }),
 };
 
 /** What the watch's Goals page lists until the wearer picks: the three macros. */

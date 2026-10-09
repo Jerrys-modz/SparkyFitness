@@ -391,8 +391,13 @@ struct WatchContext: Codable, Equatable {
     }
 
     /// The pages to swipe between, in order — see `WatchPage.visible`.
-    func visiblePages(workoutActive: Bool) -> [WatchPage] {
-        WatchPage.visible(order: pageOrder, hidden: hiddenPages, workoutActive: workoutActive)
+    func visiblePages(workoutActive: Bool, runActive: Bool = false) -> [WatchPage] {
+        WatchPage.visible(
+            order: pageOrder,
+            hidden: hiddenPages,
+            workoutActive: workoutActive,
+            runActive: runActive
+        )
     }
 
     var hasSeed: Bool { todayWeightKg != nil || lastWeightKg != nil }
