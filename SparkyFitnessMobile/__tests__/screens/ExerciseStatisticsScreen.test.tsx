@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import {
   buildRunningTrends,
+  predictRaceTimes,
   type ExerciseDashboardSummary,
 } from '@workspace/shared';
 
@@ -168,6 +169,7 @@ describe('ExerciseStatisticsScreen', () => {
     mockUseCardioSessions.mockReturnValue(cardioResult());
     mockUseRunningTrends.mockReturnValue({
       trends: null,
+      raceTimes: [],
       isLoading: false,
       isError: false,
     });
@@ -312,6 +314,9 @@ describe('ExerciseStatisticsScreen', () => {
         ],
         { today: '2026-09-27' }
       ),
+      raceTimes: predictRaceTimes([
+        { distanceStandard: '5k', bestTimeSeconds: 1500 },
+      ]),
       isLoading: false,
       isError: false,
     });
@@ -321,6 +326,12 @@ describe('ExerciseStatisticsScreen', () => {
     expect(screen.getByText('Running, last 12 weeks')).toBeTruthy();
     // This week and the longest run are the same 5 km run.
     expect(screen.getAllByText('5.0 km')).toHaveLength(2);
+    // A 5K in 25:00 scales to the other distances.
+    expect(screen.getByText('Race time estimates')).toBeTruthy();
+    expect(screen.getByText('10K')).toBeTruthy();
+    // Too far to extrapolate a marathon from a 5K.
+    expect(screen.queryByText('Marathon')).toBeNull();
+    expect(screen.getByText('Half marathon')).toBeTruthy();
   });
 
   it('leaves the trends out when there are no runs', () => {

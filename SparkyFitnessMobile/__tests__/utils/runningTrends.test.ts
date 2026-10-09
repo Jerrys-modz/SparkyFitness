@@ -2,6 +2,7 @@ import {
   buildRunningTrends,
   isRunningActivity,
   startOfWeek,
+  toWeekStart,
   type RunningTrendsActivity,
 } from '@workspace/shared';
 
@@ -28,6 +29,24 @@ describe('startOfWeek', () => {
     expect(startOfWeek('2026-09-21')).toBe('2026-09-21');
     expect(startOfWeek('2026-09-27', 0)).toBe('2026-09-27');
     expect(startOfWeek('2026-09-26', 0)).toBe('2026-09-20');
+  });
+});
+
+describe('toWeekStart and any first day of the week', () => {
+  it('reads a stored preference and falls back to Monday', () => {
+    expect(toWeekStart(0)).toBe(0);
+    expect(toWeekStart(6)).toBe(6);
+    expect(toWeekStart(7)).toBe(1);
+    expect(toWeekStart(undefined)).toBe(1);
+    expect(toWeekStart('1')).toBe(1);
+    expect(toWeekStart(null, 0)).toBe(0);
+  });
+
+  it('opens the week on whichever day was chosen', () => {
+    // Wednesday 2026-09-23.
+    expect(startOfWeek('2026-09-23', 3)).toBe('2026-09-23');
+    expect(startOfWeek('2026-09-22', 3)).toBe('2026-09-16');
+    expect(startOfWeek('2026-09-23', 6)).toBe('2026-09-19');
   });
 });
 

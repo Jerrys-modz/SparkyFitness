@@ -57,14 +57,27 @@ const MAX_PLAUSIBLE_HR = 220;
 /** A run needs a believable distance and duration to count at all. */
 const MIN_RUN_METERS = 100;
 
+/** 0 = Sunday ... 6 = Saturday, as the `first_day_of_week` preference stores it. */
+export type WeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Reads a stored `first_day_of_week` value, falling back to Monday. */
+export function toWeekStart(value: unknown, fallback: WeekStart = 1): WeekStart {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 6
+    ? (value as WeekStart)
+    : fallback;
+}
+
 /** 0 = Sunday ... 6 = Saturday, for a YYYY-MM-DD calendar day. */
 function weekdayOf(day: string): number {
   const [year, month, date] = day.split("-").map(Number);
   return new Date(Date.UTC(year!, month! - 1, date!)).getUTCDay();
 }
 
-/** First day of the week containing `day`. `weekStartsOn`: 0 Sunday, 1 Monday. */
-export function startOfWeek(day: string, weekStartsOn: 0 | 1 = 1): string {
+/** First day of the week containing `day`. `weekStartsOn`: 0 Sunday ... 6 Saturday. */
+export function startOfWeek(day: string, weekStartsOn: WeekStart = 1): string {
   const back = (weekdayOf(day) - weekStartsOn + 7) % 7;
   return addDays(day, -back);
 }
@@ -87,7 +100,7 @@ const mean = (values: readonly number[]): number =>
  */
 export function buildRunningTrends(
   activities: readonly RunningTrendsActivity[],
-  options: { today: string; weeks?: number; weekStartsOn?: 0 | 1 },
+  options: { today: string; weeks?: number; weekStartsOn?: WeekStart },
 ): RunningTrends {
   const weekCount = options.weeks ?? 12;
   const weekStartsOn = options.weekStartsOn ?? 1;

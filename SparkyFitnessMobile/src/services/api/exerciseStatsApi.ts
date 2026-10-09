@@ -1,5 +1,6 @@
 import type {
   ExerciseActivityQueryResponse,
+  ExercisePRMatrixResponse,
   ExerciseEntryGpsPoints,
   ExerciseEntryHrZones,
   ExerciseEntryResponse,
@@ -41,6 +42,16 @@ export const fetchCardioSessionsPage = ({
     operation: 'fetch cardio sessions',
   });
 };
+
+/** Cardio personal records, one per sport group and distance. */
+export const fetchPersonalRecords = (
+  unitSystem: 'metric' | 'imperial'
+): Promise<ExercisePRMatrixResponse> =>
+  apiFetch<ExercisePRMatrixResponse>({
+    endpoint: `/api/exercise-stats/prs?unitSystem=${unitSystem}`,
+    serviceName: SERVICE,
+    operation: 'fetch personal records',
+  });
 
 export const fetchExerciseEntry = (
   id: string

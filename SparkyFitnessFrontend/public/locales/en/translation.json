@@ -6304,6 +6304,26 @@
       "noMatches": "No activities matched the query filters."
     },
     "cardio": {
+      "trends": {
+        "title": "Running, last 12 weeks",
+        "thisWeek": "This week",
+        "thisWeekAbove": "This week, {{percent}}% above your recent average",
+        "thisWeekBelow": "This week, {{percent}}% below your recent average",
+        "longestRun": "Longest run",
+        "efficiency": "Efficiency",
+        "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort.",
+        "raceTimes": "Race time estimates",
+        "race5k": "5K",
+        "race10k": "10K",
+        "raceHalf": "Half marathon",
+        "raceMarathon": "Marathon",
+        "basis1k": "1K",
+        "basis1mi": "mile",
+        "basis15k": "15K",
+        "yourRecord": "your record",
+        "fromBest": "from your {{distance}}",
+        "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for."
+      },
       "sessionsTitle": "Sessions",
       "sessionsHint": "Tap a workout for its route and heart rate.",
       "noSessions": "No cardio workouts in this date range.",
