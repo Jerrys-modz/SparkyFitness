@@ -20,7 +20,7 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, useWatchCheckInBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge } from './src/hooks';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import {
   useStartLiveWorkout,
@@ -71,6 +71,7 @@ import {
   SafeWorkoutComplete,
   SafeActivityDetail,
   SafeFastingDetail,
+  SafeMindfulnessDetail,
   SafeSleepDetail,
   SafeLogs,
   SafeSync,
@@ -82,6 +83,7 @@ import {
   SafeChat,
   SafeCalorieSettings,
   SafeMealTypeSettings,
+  SafeAiSettings,
   SafeFoodSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
@@ -129,6 +131,9 @@ import { FullWindowOverlay } from 'react-native-screens';
 import type { RootStackParamList } from './src/types/navigation';
 import type { WorkoutCelebration } from './src/utils/workoutCelebration';
 import AddSheet, { addSheetRef } from './src/components/AddSheet';
+import { MindfulnessSessionModal } from './src/components/mindfulness/MindfulnessSessionModal';
+import { useMindfulnessMutations } from './src/hooks/useMindfulness';
+import { useDiaryDateStore } from './src/stores/diaryDateStore';
 import { toastConfig } from './src/components/ui/toastConfig';
 import { TabsLayout } from './src/components/TabsLayout';
 import { createIOSSmallNativeHeaderOptions } from './src/utils/nativeHeaderItems';
@@ -139,6 +144,8 @@ import ActiveWorkoutBar, {
   notifyActiveWorkoutBarSwipeProgress,
 } from './src/components/ActiveWorkoutBar';
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
+import PendingPresetUpdatePrompt from './src/components/PendingPresetUpdatePrompt';
+import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateStore';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import { useNativeIOSTabsActive, useNativeIOSHeadersActive } from './src/services/nativeTabBarPreference';
@@ -173,6 +180,18 @@ function WatchCheckInGate() {
 }
 
 /**
+ * Home Screen long-press shortcuts (iOS). Needs a server connection, since
+ * "Log water" posts straight to the server.
+ */
+function QuickActionsGate() {
+  const { isConnected: isServerConnected } = useServerConnection();
+  useQuickActions(isServerConnected);
+  // The Scan food and Log food controls hand their screen over through the app group.
+  useControlRouteHandoff(isServerConnected);
+  return null;
+}
+
+/**
  * Unlike `WatchCheckInGate`, listeners stay up while the server is offline
  * so a set or heart-rate batch is not dropped. The /health poll only runs
  * when WatchConnectivity is available and a telemetry buffer still needs a
@@ -183,11 +202,26 @@ function WatchCheckInGate() {
 // from outside any screen. If the phone is sitting on that workout, move it
 // to the same completion screen the phone's own Finish lands on; anywhere
 // else, clearing is enough (the active-workout bar just disappears).
-function handleWatchFinishedWorkout(celebration: WorkoutCelebration | null) {
+function handleWatchFinishedWorkout(
+  celebration: WorkoutCelebration | null,
+  sessionId: string
+) {
+  // Always held for the prompt mounted in the navigator, even when the
+  // completion screen opens: that prompt is what asks the watch first, and
+  // the completion screen then leaves the check to it.
+  const holdsPresetCheck = celebration?.sourcePresetId != null;
+  if (celebration != null && holdsPresetCheck) {
+    usePendingPresetUpdateStore.getState().setPending({ celebration, sessionId });
+  }
   if (!rootNavigationRef.isReady()) return;
   if (rootNavigationRef.getCurrentRoute()?.name !== 'ActiveWorkout') return;
   if (celebration != null) {
-    rootNavigationRef.dispatch(StackActions.replace('WorkoutComplete', celebration));
+    rootNavigationRef.dispatch(
+      StackActions.replace('WorkoutComplete', {
+        ...celebration,
+        presetCheckHandledElsewhere: holdsPresetCheck,
+      })
+    );
   } else if (rootNavigationRef.canGoBack()) {
     rootNavigationRef.goBack();
   }
@@ -275,6 +309,15 @@ function AppContent() {
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
+
+  const [mindfulnessLogModalVisible, setMindfulnessLogModalVisible] =
+    useState(false);
+  const selectedDiaryDate = useDiaryDateStore((s) => s.selectedDate);
+  const { saveSession: saveMindfulSession } =
+    useMindfulnessMutations(selectedDiaryDate);
+  const handleAddMindfulness = useCallback(() => {
+    setMindfulnessLogModalVisible(true);
+  }, []);
 
   const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
   const cycleSheetLabel = cycleDiscreet
@@ -381,6 +424,7 @@ function AppContent() {
       ref={rootNavigationRef}
       theme={navigationTheme}
       linking={linkingEnabled ? linking : undefined}
+      onReady={drainQuickActionNavigation}
       onStateChange={(state) => {
         // Enable deep-link handling once the user has left Onboarding.
         // Without this, widget URLs are ignored for the rest of the session
@@ -393,7 +437,9 @@ function AppContent() {
       }}
     >
       <WatchCheckInGate />
+      <QuickActionsGate />
       <WatchWorkoutGate />
+      <PendingPresetUpdatePrompt />
       <SafeAreaProvider>
         {/* Inside SafeAreaProvider on purpose: the viewer positions its close
             button against the insets, so mounting it at the app root crashes
@@ -753,6 +799,14 @@ function AppContent() {
             }}
           />
           <Stack.Screen
+            name="MindfulnessDetail"
+            component={SafeMindfulnessDetail}
+            options={{
+              headerShown: false,
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
             name="SleepDetail"
             component={SafeSleepDetail}
             options={createStackScreenOptions(t('screens.sleep', { defaultValue: 'Sleep' }), { headerBackTitle: t('navigation.diary', { defaultValue: 'Diary' }) })}
@@ -963,6 +1017,11 @@ function AppContent() {
             })}
           />
           <Stack.Screen
+            name="AiSettings"
+            component={SafeAiSettings}
+            options={createStackScreenOptions(t('screens.aiSettings', { defaultValue: 'AI' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
             name="SymptomHistory"
             component={SafeSymptomHistory}
             options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
@@ -986,7 +1045,30 @@ function AppContent() {
             })}
           />
         </Stack.Navigator>
-        <AddSheet ref={addSheetRef} onAddFood={handleAddFood} onStartWorkout={handleStartWorkout} onAddActivity={handleAddActivity} onLogWorkout={handleLogWorkout} onSyncHealthData={handleSyncHealthData} onBarcodeScan={handleBarcodeScan} onAddMeasurements={handleAddMeasurements} onAddProgressPhotos={handleAddProgressPhotos} onAddSymptoms={handleAddSymptoms} onAskSparky={handleAskSparky} onOpenCycle={handleOpenCycle} showCycleCard={cycleEnabled} cycleLabel={cycleSheetLabel} onDismissWithoutAction={handleAddSheetDismissWithoutAction} />
+        <AddSheet
+          ref={addSheetRef}
+          onAddFood={handleAddFood}
+          onStartWorkout={handleStartWorkout}
+          onAddActivity={handleAddActivity}
+          onLogWorkout={handleLogWorkout}
+          onSyncHealthData={handleSyncHealthData}
+          onBarcodeScan={handleBarcodeScan}
+          onAddMeasurements={handleAddMeasurements}
+          onAddProgressPhotos={handleAddProgressPhotos}
+          onAddSymptoms={handleAddSymptoms}
+          onAddMindfulness={handleAddMindfulness}
+          onAskSparky={handleAskSparky}
+          onOpenCycle={handleOpenCycle}
+          showCycleCard={cycleEnabled}
+          cycleLabel={cycleSheetLabel}
+          onDismissWithoutAction={handleAddSheetDismissWithoutAction}
+        />
+        <MindfulnessSessionModal
+          visible={mindfulnessLogModalVisible}
+          onClose={() => setMindfulnessLogModalVisible(false)}
+          onSave={saveMindfulSession}
+          selectedDate={selectedDiaryDate}
+        />
         <ReauthModal
           visible={showReauthModal}
           expiredConfigId={expiredConfigId}

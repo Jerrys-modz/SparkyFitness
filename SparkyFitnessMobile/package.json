@@ -1,6 +1,6 @@
 {
   "name": "sparkyfitnessmobile",
-  "version": "1.7.3",
+  "version": "1.8.0",
   "private": true,
   "expo": {
     "autolinking": {
@@ -81,6 +81,7 @@
     "expo-navigation-bar": "~57.0.2",
     "expo-network": "~57.0.2",
     "expo-notifications": "~57.0.21",
+    "expo-quick-actions": "~6.0.2",
     "expo-secure-store": "~57.0.4",
     "expo-sharing": "~57.0.22",
     "expo-speech": "~57.0.3",
