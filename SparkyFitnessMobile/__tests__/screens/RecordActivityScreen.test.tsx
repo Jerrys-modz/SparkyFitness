@@ -39,8 +39,10 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     finishRecording: jest.fn(() => Promise.resolve()),
     discardRecording: jest.fn(() => Promise.resolve()),
     elapsedSeconds: jest.fn(() => 754),
-    getAutoPausePreference: jest.fn(() => Promise.resolve(true)),
-    setAutoPausePreference: jest.fn(() => Promise.resolve()),
+    getRecordingPreferences: jest.fn(() =>
+      Promise.resolve({ autoPause: true, audioCues: false })
+    ),
+    setRecordingPreference: jest.fn(() => Promise.resolve()),
   };
 });
 jest.mock('../../src/services/gpsRecordingSave', () => ({
@@ -152,6 +154,22 @@ describe('RecordActivityScreen', () => {
     await waitFor(() =>
       expect(startRecording).toHaveBeenCalledWith(
         expect.objectContaining({ autoPause: false })
+      )
+    );
+  });
+
+  it('passes voice cues in the distance unit once switched on', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent(screen.getByTestId('audio-cues-switch'), 'valueChange', true);
+    fireEvent.press(screen.getByText('Start'));
+
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audioCues: expect.stringMatching(/^(km|miles)$/),
+        })
       )
     );
   });
