@@ -77,6 +77,7 @@ export const PREFERENCE_DEFAULTS = {
   onDeviceLabelScanEnabled: true,
   onDeviceFoodPhotoEnabled: false,
   healthTrendsCardVisible: true,
+  mindfulnessCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
@@ -137,6 +138,7 @@ export type AppPreferencesData = {
   onDeviceLabelScanEnabled: boolean;
   onDeviceFoodPhotoEnabled: boolean;
   healthTrendsCardVisible: boolean;
+  mindfulnessCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
@@ -217,6 +219,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
+  setMindfulnessCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
@@ -337,6 +340,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ onDeviceFoodPhotoEnabled: value }),
       setHealthTrendsCardVisible: (value) =>
         set({ healthTrendsCardVisible: value }),
+      setMindfulnessCardVisible: (value) =>
+        set({ mindfulnessCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
@@ -441,6 +446,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
+        mindfulnessCardVisible: state.mindfulnessCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,

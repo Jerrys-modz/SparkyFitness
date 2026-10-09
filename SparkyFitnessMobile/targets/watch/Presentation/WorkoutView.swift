@@ -79,6 +79,7 @@ struct WorkoutView: View {
 private struct WorkoutSummaryView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var checkIn: CheckInStore
+    @EnvironmentObject private var session: WatchSessionManager
     let summary: WorkoutSummary
 
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
@@ -315,6 +316,7 @@ private struct IntervalCaptionView: View {
 
 private struct ActiveWorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var session: WatchSessionManager
 
     @State private var showingExercises = false
 
@@ -323,6 +325,16 @@ private struct ActiveWorkoutView: View {
     /// HealthKit session from the wrist.
     private var openExerciseList: (() -> Void)? {
         { showingExercises = true }
+    }
+
+    /// Sends the answer first so the phone has it by the time it hears the
+    /// workout ended, then ends the workout.
+    private func finish(updatingPreset update: Bool) {
+        store.askingPresetUpdate = false
+        if let sessionId = store.plan?.sessionId {
+            session.sendPresetUpdateAnswer(sessionId: sessionId, update: update)
+        }
+        session.endWorkout()
     }
 
     var body: some View {
@@ -341,6 +353,20 @@ private struct ActiveWorkoutView: View {
             }
         }
         .padding(.horizontal, 4)
+        // Asked when Finish is tapped on a workout that changed from the saved
+        // one it started from, as Hevy does. Only buttons close it.
+        .alert(
+            "Update Workout?",
+            isPresented: Binding(
+                get: { store.askingPresetUpdate },
+                set: { _ in }
+            )
+        ) {
+            Button("Update") { finish(updatingPreset: true) }
+            Button("Keep Original", role: .cancel) { finish(updatingPreset: false) }
+        } message: {
+            Text("Save the changes you made to \"\(store.plan?.workoutName ?? "")\"?")
+        }
         .sheet(isPresented: $showingExercises) {
             ExerciseListView { exerciseEntryId in
                 store.jumpToExercise(exerciseEntryId)
@@ -351,6 +377,9 @@ private struct ActiveWorkoutView: View {
             if ScreenshotSeed.opensExerciseList {
                 showingExercises = true
             }
+            if ScreenshotSeed.opensPresetUpdate {
+                store.askingPresetUpdate = true
+            }
             #endif
         }
     }
@@ -359,6 +388,7 @@ private struct ActiveWorkoutView: View {
 /// Shown after the last set is logged. Finish used to live only in the
 /// exercise-picker sheet, which was easy to miss.
 private struct WorkoutCompleteView: View {
+    @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var session: WatchSessionManager
 
     var body: some View {
@@ -368,7 +398,7 @@ private struct WorkoutCompleteView: View {
                 .font(.headline)
             Button("Finish") {
                 Haptics.tap()
-                session.endWorkout()
+                if !store.askPresetUpdateBeforeFinish() { session.endWorkout() }
             }
             .font(.caption)
             .tint(.green)
@@ -506,7 +536,7 @@ private struct ExerciseListView: View {
                 // Dismissed first so the sheet is not re-rendering against a
                 // plan that `endWorkout` has already cleared.
                 dismiss()
-                session.endWorkout()
+                if !store.askPresetUpdateBeforeFinish() { session.endWorkout() }
             }
             Button("Cancel", role: .cancel) { Haptics.tap() }
         } message: {

@@ -46,6 +46,11 @@ enum ScreenshotSeed {
         ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "exercises"
     }
 
+    /// Opens the "Update Workout?" question on appear.
+    static var opensPresetUpdate: Bool {
+        ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "updatealert"
+    }
+
     private static var workoutState: WorkoutState {
         WorkoutState(
             rawValue: ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_WORKOUT"] ?? ""
