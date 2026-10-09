@@ -1,11 +1,15 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
-import type { ExerciseDashboardSummary } from '@workspace/shared';
+import {
+  buildRunningTrends,
+  type ExerciseDashboardSummary,
+} from '@workspace/shared';
 
 import ExerciseStatisticsScreen from '../../src/screens/ExerciseStatisticsScreen';
 import { useExerciseDashboard } from '../../src/hooks/useExerciseDashboard';
 import { usePreferences } from '../../src/hooks/usePreferences';
 import { useCardioSessions } from '../../src/hooks/useCardioSessions';
+import { useRunningTrends } from '../../src/hooks/useRunningTrends';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
@@ -30,6 +34,9 @@ jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
 }));
 
+jest.mock('../../src/hooks/useRunningTrends', () => ({
+  useRunningTrends: jest.fn(),
+}));
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: jest.fn(() => ({
     preferences: { default_weight_unit: 'kg' },
@@ -75,6 +82,9 @@ const mockUseExerciseDashboard = useExerciseDashboard as jest.MockedFunction<
 >;
 const mockUseCardioSessions = useCardioSessions as jest.MockedFunction<
   typeof useCardioSessions
+>;
+const mockUseRunningTrends = useRunningTrends as jest.MockedFunction<
+  typeof useRunningTrends
 >;
 const mockUsePreferences = usePreferences as jest.MockedFunction<
   typeof usePreferences
@@ -156,6 +166,11 @@ describe('ExerciseStatisticsScreen', () => {
     navigation.navigate.mockReset();
     mockGender = null;
     mockUseCardioSessions.mockReturnValue(cardioResult());
+    mockUseRunningTrends.mockReturnValue({
+      trends: null,
+      isLoading: false,
+      isError: false,
+    });
     mockUsePreferences.mockReturnValue({
       preferences: { default_weight_unit: 'kg' },
     } as ReturnType<typeof usePreferences>);
@@ -280,6 +295,39 @@ describe('ExerciseStatisticsScreen', () => {
       session: RUN,
       distanceUnit: 'km',
     });
+  });
+
+  it('shows the running trends above the sessions when there are runs', () => {
+    mockUseRunningTrends.mockReturnValue({
+      trends: buildRunningTrends(
+        [
+          {
+            exerciseName: 'Morning Run',
+            category: 'running',
+            entryDate: '2026-09-26',
+            durationMinutes: 30,
+            distanceMeters: 5000,
+            avgHeartRate: 150,
+          },
+        ],
+        { today: '2026-09-27' }
+      ),
+      isLoading: false,
+      isError: false,
+    });
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+
+    expect(screen.getByText('Running, last 12 weeks')).toBeTruthy();
+    // This week and the longest run are the same 5 km run.
+    expect(screen.getAllByText('5.0 km')).toHaveLength(2);
+  });
+
+  it('leaves the trends out when there are no runs', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+
+    expect(screen.queryByText('Running, last 12 weeks')).toBeNull();
   });
 
   it('loads older cardio sessions on request', () => {

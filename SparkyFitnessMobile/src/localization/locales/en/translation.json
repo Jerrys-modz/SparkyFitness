@@ -5874,6 +5874,16 @@
       "zone": "Zone {{zone}}",
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
+      "trends": {
+        "title": "Running, last 12 weeks",
+        "thisWeek": "This week",
+        "thisWeekAbove": "This week, {{percent}}% above your recent average",
+        "thisWeekBelow": "This week, {{percent}}% below your recent average",
+        "chartA11y": "Weekly running distance for the last 12 weeks",
+        "longestRun": "Longest run",
+        "efficiency": "Efficiency",
+        "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
+      },
       "underOneMinute": "<1 min"
     },
     "consistency": {
