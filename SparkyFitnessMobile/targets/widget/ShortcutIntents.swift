@@ -10,13 +10,50 @@ import Security
 // modules/background-water while a server is signed in). Removing the active
 // server or signing out erases that item.
 //
-// This file is added to the app target by plugins/withBackgroundWater.ts: an
-// intent has to be in the app target to be discovered. The Keychain service and
-// account must match modules/background-water.
+// This file is compiled into both the app target (copied there by
+// plugins/withBackgroundWater.ts, as intents must be in the app target to be
+// discovered) and the widget extension, so Lock Screen and Control Center
+// controls run these same intents. The Keychain service, account and shared
+// access group must match modules/background-water.
 
 private let backgroundWaterService = "com.sparkyapps.sparkyfitness.backgroundWater"
 private let backgroundWaterAccount = "config"
 private let setupMessage = "Open SparkyFitness and sign in to a server first."
+
+/// The Keychain group the app and the widget extension share, filled in at
+/// build time. Nil means a build without it, where only the app can read it.
+private func sharedKeychainGroup() -> String? {
+    guard let group = Bundle.main.object(forInfoDictionaryKey: "SparkyKeychainGroup") as? String,
+          !group.isEmpty, !group.contains("$(") else { return nil }
+    return group
+}
+
+/// The widget extension is an `.appex`. App Intents compiled into the app,
+/// including Shortcuts, run in the `.app`.
+private func isAppTargetProcess() -> Bool {
+    Bundle.main.bundleURL.pathExtension != "appex"
+}
+
+/// Reads the shortcut login. Passing no access group searches every group this
+/// process can use, not a specific one.
+private func copyShortcutItem(accessGroup: String?) -> (data: Data, accessGroup: String?)? {
+    var query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: backgroundWaterService,
+        kSecAttrAccount as String: backgroundWaterAccount,
+        kSecReturnData as String: true,
+        kSecReturnAttributes as String: true,
+        kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    if let accessGroup {
+        query[kSecAttrAccessGroup as String] = accessGroup
+    }
+    var result: AnyObject?
+    guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+          let item = result as? [String: Any],
+          let data = item[kSecValueData as String] as? Data else { return nil }
+    return (data, item[kSecAttrAccessGroup as String] as? String)
+}
 
 private struct ShortcutConfig: Decodable {
     let baseUrl: String
@@ -28,17 +65,43 @@ private struct ShortcutConfig: Decodable {
     let weightUnit: String?
 
     static func load() -> ShortcutConfig? {
-        let query: [String: Any] = [
+        let sharedGroup = sharedKeychainGroup()
+        if let shared = copyShortcutItem(accessGroup: sharedGroup) {
+            return try? JSONDecoder().decode(ShortcutConfig.self, from: shared.data)
+        }
+        // Older builds stored this with no access group, so it sits in the
+        // app's private group. Searching without a group only walks groups
+        // this process belongs to: the app can see that private item, the
+        // widget cannot. Move it into the shared group the first time the
+        // app, including an app Shortcut, reads it. A Lock Screen control
+        // used before that still needs the app opened once.
+        guard isAppTargetProcess(),
+              let sharedGroup,
+              let legacy = copyShortcutItem(accessGroup: nil),
+              legacy.accessGroup != sharedGroup,
+              let config = try? JSONDecoder().decode(ShortcutConfig.self, from: legacy.data) else {
+            return nil
+        }
+        var add: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: backgroundWaterService,
             kSecAttrAccount as String: backgroundWaterAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecAttrAccessGroup as String: sharedGroup,
+            kSecValueData as String: legacy.data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return try? JSONDecoder().decode(ShortcutConfig.self, from: data)
+        let status = SecItemAdd(add as CFDictionary, nil)
+        if status == errSecSuccess || status == errSecDuplicateItem,
+           let legacyGroup = legacy.accessGroup {
+            let delete: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: backgroundWaterService,
+                kSecAttrAccount as String: backgroundWaterAccount,
+                kSecAttrAccessGroup as String: legacyGroup,
+            ]
+            SecItemDelete(delete as CFDictionary)
+        }
+        return config
     }
 }
 
@@ -271,35 +334,40 @@ struct EndFastIntent: AppIntent {
     }
 }
 
-@available(iOS 16.0, *)
-struct SparkyFitnessShortcuts: AppShortcutsProvider {
-    static var appShortcuts: [AppShortcut] {
-        AppShortcut(
-            intent: LogWaterIntent(),
-            phrases: [
-                "Log water in \(.applicationName)",
-                "Add water to \(.applicationName)",
-            ],
-            shortTitle: "Log water",
-            systemImageName: "drop.fill"
-        )
-        AppShortcut(
-            intent: StartFastIntent(),
-            phrases: ["Start a fast in \(.applicationName)"],
-            shortTitle: "Start fast",
-            systemImageName: "timer"
-        )
-        AppShortcut(
-            intent: EndFastIntent(),
-            phrases: ["End my fast in \(.applicationName)"],
-            shortTitle: "End fast",
-            systemImageName: "stop.circle"
-        )
-        AppShortcut(
-            intent: LogWeightIntent(),
-            phrases: ["Log my weight in \(.applicationName)"],
-            shortTitle: "Log weight",
-            systemImageName: "scalemass"
-        )
+/// Opens SparkyFitness on a food screen, for the Scan food and Log food
+/// controls. A control cannot be relied on to open a custom URL (Apple's
+/// guidance is universal links only, and custom schemes fail on some iOS 18
+/// releases), but `openAppWhenRun` does bring the app forward, so each of these
+/// leaves a note in the shared app group and the app, once it is in front, reads
+/// it and goes there (`useControlRouteHandoff`). They take no parameters on
+/// purpose: reports of controls that would not open the app all involve
+/// intents with extra parameters. The file is compiled into the app target as
+/// well as the widget extension, which a control that opens the app needs.
+private func leaveControlRoute(_ route: String) {
+    if let group = Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_IDENTIFIER") as? String,
+       let defaults = UserDefaults(suiteName: group) {
+        defaults.set(route, forKey: "pendingControlRoute")
+    }
+}
+
+@available(iOS 18.0, *)
+struct ScanFoodControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Scan food"
+    static var openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        leaveControlRoute("scan")
+        return .result()
+    }
+}
+
+@available(iOS 18.0, *)
+struct LogFoodControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log food"
+    static var openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        leaveControlRoute("search")
+        return .result()
     }
 }

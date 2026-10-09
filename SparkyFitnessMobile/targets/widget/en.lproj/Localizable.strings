@@ -15,3 +15,13 @@
 "widget.a11y.kcal" = "%@ kcal";
 "widget.search_food" = "Search food";
 "widget.scan_barcode" = "Scan barcode";
+"widget.control.log_water.name" = "Log water";
+"widget.control.log_water.description" = "Logs a drink of your water container without opening SparkyFitness.";
+"widget.control.start_fast.name" = "Start fast";
+"widget.control.start_fast.description" = "Starts a 16 hour fast without opening SparkyFitness.";
+"widget.control.end_fast.name" = "End fast";
+"widget.control.end_fast.description" = "Ends your running fast without opening SparkyFitness.";
+"widget.control.scan_food.name" = "Scan food";
+"widget.control.scan_food.description" = "Opens SparkyFitness ready to scan a barcode.";
+"widget.control.search_food.name" = "Log food";
+"widget.control.search_food.description" = "Opens SparkyFitness on food search.";
