@@ -16,7 +16,6 @@ export const WATCH_PAGE_KEYS = [
   'workout',
   'fasting',
   'steps',
-  'run',
 ] as const;
 
 export type WatchPageKey = (typeof WATCH_PAGE_KEYS)[number];
@@ -43,7 +42,6 @@ export const WATCH_PAGE_LABELS: Record<
   workout: (t) => t('watchSettings.pages.workout', { defaultValue: 'Workout' }),
   fasting: (t) => t('watchSettings.pages.fasting', { defaultValue: 'Fasting' }),
   steps: (t) => t('watchSettings.pages.steps', { defaultValue: 'Steps' }),
-  run: (t) => t('watchSettings.pages.run', { defaultValue: 'Run and walk' }),
 };
 
 /** What the watch's Goals page lists until the wearer picks: the three macros. */

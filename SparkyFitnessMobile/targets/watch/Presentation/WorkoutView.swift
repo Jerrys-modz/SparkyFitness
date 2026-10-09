@@ -60,6 +60,7 @@ private enum SupersetPalette {
 /// way. `<` and `>` walk the whole workout's sets in order.
 struct WorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var run: WatchRunStore
 
     var body: some View {
         Group {
@@ -73,6 +74,10 @@ struct WorkoutView: View {
                         }
                     }
                     .animation(.easeOut(duration: 0.25), value: store.prBannerExercise)
+            } else if run.isActive {
+                // A walk or run recorded on the wrist alone, started from the
+                // Cardio row below.
+                WatchRunView()
             } else if let summary = store.lastSummary {
                 WorkoutSummaryView(summary: summary)
             } else {
@@ -160,6 +165,9 @@ private struct WorkoutSummaryView: View {
 private struct WaitingForWorkoutView: View {
     @EnvironmentObject private var checkIn: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var run: WatchRunStore
+    /// Whether the Cardio choices are up.
+    @State private var choosingCardio = false
     /// The preset just tapped. Blocks a second tap from starting two
     /// sessions before the first one arrives. Cleared after a few seconds
     /// so a start the phone could not finish can be tried again.
@@ -174,7 +182,7 @@ private struct WaitingForWorkoutView: View {
             .filter { startableIds.contains($0.presetId) }
         let scheduledIds = Set(scheduled.map(\.presetId))
         let workouts = all.filter { !scheduledIds.contains($0.presetId) }
-        if workouts.isEmpty && scheduled.isEmpty {
+        if workouts.isEmpty && scheduled.isEmpty && !run.canStart {
             VStack(spacing: 6) {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.title2)
@@ -190,6 +198,25 @@ private struct WaitingForWorkoutView: View {
             // stock list, so the first screen matches the ones after it.
             ScrollView {
                 VStack(spacing: 6) {
+                    // One row for every walk and run; the choices are behind
+                    // it. Hidden while something else holds the watch's single
+                    // workout session.
+                    if run.canStart {
+                        Button {
+                            Haptics.tap()
+                            choosingCardio = true
+                        } label: {
+                            Label("Cardio", systemImage: "figure.run")
+                                .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                                .foregroundStyle(.green)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, WatchStyle.s(12))
+                                .background(WatchStyle.fill, in: WatchStyle.shape)
+                                .contentShape(WatchStyle.shape)
+                        }
+                        .buttonStyle(.plain)
+                    }
                     // By position: two plans can share a name and a workout.
                     ForEach(Array(scheduled.enumerated()), id: \.offset) { _, workout in
                         Button {
@@ -227,6 +254,12 @@ private struct WaitingForWorkoutView: View {
                 .padding(.horizontal, 4)
                 // A scrolling page already starts below the clock.
                 .padding(.top, WatchStyle.s(4))
+                .sheet(isPresented: $choosingCardio) {
+                    CardioChoicesView { kind, place in
+                        choosingCardio = false
+                        run.start(kind, place: place)
+                    }
+                }
             }
         }
     }
@@ -2009,5 +2042,34 @@ private extension View {
             .frame(
                 height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
             )
+    }
+}
+
+/// The walks and runs the watch can record on its own, under Outdoor and
+/// Indoor. Outdoors uses the watch's GPS and records a route; indoors there is
+/// no route and the distance is the watch's own estimate.
+private struct CardioChoicesView: View {
+    let onChoose: (WatchRunKind, WatchRunPlace) -> Void
+
+    var body: some View {
+        List {
+            Section("Outdoor") {
+                row(.run, .outdoor)
+                row(.walk, .outdoor)
+            }
+            Section("Indoor") {
+                row(.run, .indoor)
+                row(.walk, .indoor)
+            }
+        }
+    }
+
+    private func row(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
+        Button {
+            Haptics.tap()
+            onChoose(kind, place)
+        } label: {
+            Label(kind == .run ? "Run" : "Walk", systemImage: kind.symbol)
+        }
     }
 }

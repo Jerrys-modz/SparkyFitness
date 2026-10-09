@@ -113,7 +113,7 @@ The watch's own GPS is not used, and the activity is saved to Apple Health once,
 
 ## Recording a walk or run on the watch alone
 
-The watch app has a **Run and walk** page (you can hide or reorder it in Settings → Apple Watch). Choose **Outdoor run**, **Outdoor walk**, **Indoor run** or **Indoor walk** and the watch records on its own, with no phone needed:
+On the watch's **Workout** page, above your saved workouts, tap **Cardio** and choose **Run** or **Walk** under **Outdoor** or **Indoor**. The watch then records on its own, with no phone needed:
 
 - The page shows the clock, distance, pace and heart rate, with pause, resume and finish.
 - **Outdoors** the watch uses its own GPS for the distance and records the route. The first time, it asks for location access ("while using the app" is enough). If you say no, you still get the workout, just without a route.

@@ -81,7 +81,6 @@ describe('WatchSettingsScreen', () => {
       'trend',
       'fasting',
       'steps',
-      'run',
     ]);
     expect(orderedRowKeys()).toHaveLength(WATCH_PAGE_KEYS.length);
   });
@@ -129,7 +128,6 @@ describe('WatchSettingsScreen', () => {
       'workout',
       'fasting',
       'steps',
-      'run',
     ]);
   });
 
@@ -143,7 +141,6 @@ describe('WatchSettingsScreen', () => {
         'trend',
         'fasting',
         'steps',
-        'run',
       ],
     });
 

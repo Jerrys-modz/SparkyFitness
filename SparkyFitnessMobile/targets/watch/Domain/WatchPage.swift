@@ -8,9 +8,6 @@ import Foundation
 /// the other drop it. Case order is the factory swipe order.
 enum WatchPage: String, CaseIterable {
     case goals, water, medications, entry, trend, workout, fasting, steps
-    /// Record an indoor walk or run from the wrist alone. Arrangeable like the
-    /// others, and shown whatever the wearer hid while one is running.
-    case run
     /// System Now Playing. Not arrangeable: it sits right after the Workout
     /// page, and only while a workout is running.
     case nowPlaying
@@ -24,9 +21,6 @@ enum WatchPage: String, CaseIterable {
     /// order doesn't mention (one added in a later build) goes on the end, so a
     /// new page is never hidden just because the order predates it.
     ///
-    /// A hidden Run page likewise still shows while a wrist-only recording is
-    /// running, so it is never left running with no page to stop it from.
-    ///
     /// A hidden Workout page still shows while a workout is running: the phone
     /// starts workouts on the wrist, and hiding the page it lands on would
     /// leave that workout with nowhere to be tracked. An order that hides
@@ -35,8 +29,7 @@ enum WatchPage: String, CaseIterable {
     static func visible(
         order: [String]?,
         hidden: [String]?,
-        workoutActive: Bool,
-        runActive: Bool = false
+        workoutActive: Bool
     ) -> [WatchPage] {
         var ordered: [WatchPage] = []
         for name in order ?? [] {
@@ -50,9 +43,7 @@ enum WatchPage: String, CaseIterable {
 
         let hiddenPages = Set((hidden ?? []).compactMap(WatchPage.init(rawValue:)))
         let shown = ordered.filter { page in
-            !hiddenPages.contains(page)
-                || (page == .workout && workoutActive)
-                || (page == .run && runActive)
+            !hiddenPages.contains(page) || (page == .workout && workoutActive)
         }
         let pages = shown.isEmpty ? ordered : shown
         guard workoutActive else { return pages }
