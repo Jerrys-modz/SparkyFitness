@@ -6474,7 +6474,17 @@
       "perMile": "/mi",
       "underOneMinute": "<1 min",
       "exportGpx": "Export GPX",
-      "exportGpxFailed": "Could not export the route"
+      "exportGpxFailed": "Could not export the route",
+      "trends": {
+        "title": "Running, last 12 weeks",
+        "thisWeek": "This week",
+        "thisWeekAbove": "This week, {{percent}}% above your recent average",
+        "thisWeekBelow": "This week, {{percent}}% below your recent average",
+        "chartA11y": "Weekly running distance for the last 12 weeks",
+        "longestRun": "Longest run",
+        "efficiency": "Efficiency",
+        "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
+      }
     },
     "load": {
       "title": "Training Load",
