@@ -604,8 +604,7 @@ async function createExercise(exerciseData: any) {
         resolveExerciseModality(
           exerciseData.modality,
           exerciseData.category,
-          normalizeToStringArray(exerciseData.equipment),
-          exerciseData.name
+          normalizeToStringArray(exerciseData.equipment)
         ),
       ]
     );
@@ -1194,31 +1193,6 @@ async function findExerciseByNameAndUserId(name: any, userId: any) {
     client.release();
   }
 }
-/** The user's own exercises with just the fields modality detection reads. */
-async function getUserExercisesForModalityReview(userId: string): Promise<
-  {
-    id: string;
-    name: string;
-    category: string | null;
-    equipment: string | null;
-    modality: string | null;
-  }[]
-> {
-  const client = await getClient(userId);
-  try {
-    const result = await client.query(
-      `SELECT id, name, category, equipment, modality
-       FROM exercises
-       WHERE user_id = $1
-       ORDER BY name`,
-      [userId]
-    );
-    return result.rows;
-  } finally {
-    client.release();
-  }
-}
-
 export { getExerciseById };
 export { getExerciseOwnerId };
 export { getOrCreateActiveCaloriesExercise };
@@ -1238,7 +1212,6 @@ export { getExerciseDeletionImpact };
 export { deleteExerciseAndDependencies };
 export { deleteExerciseEntriesForUser };
 export { findExerciseByNameAndUserId };
-export { getUserExercisesForModalityReview };
 export default {
   getExerciseById,
   getExerciseOwnerId,
@@ -1259,5 +1232,4 @@ export default {
   deleteExerciseAndDependencies,
   deleteExerciseEntriesForUser,
   findExerciseByNameAndUserId,
-  getUserExercisesForModalityReview,
 };

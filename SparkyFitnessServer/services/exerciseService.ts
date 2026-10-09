@@ -21,11 +21,7 @@ import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import {
-  inferExerciseModality,
-  modalityFromName,
-  resolveExerciseModality,
-  type ApplyExerciseModalitySuggestionsBody,
-  type ExerciseModalitySuggestion,
+  deriveExerciseModality,
   canEditGroupedWorkout,
   setsDistanceKm,
   setsDurationMinutes,
@@ -1111,11 +1107,10 @@ async function searchExternalExercises(
           id: exercise.id.toString(),
           name: exercise.name,
           category: exercise.category?.name ?? 'Uncategorized',
-          modality: inferExerciseModality({
-            name: exercise.name,
-            category: exercise.category?.name,
-            equipment: exercise.equipment.map((e) => e.name),
-          }),
+          modality: deriveExerciseModality(
+            exercise.category?.name,
+            exercise.equipment.map((e) => e.name)
+          ),
           calories_per_hour: 0,
           source: 'wger',
           description: instructions[0] ?? exercise.name,
@@ -1161,11 +1156,10 @@ async function searchExternalExercises(
         id: exercise.id,
         name: exercise.name,
         category: exercise.category,
-        modality: inferExerciseModality({
-          name: exercise.name,
-          category: exercise.category,
-          equipment: normalizeToStringArray(exercise.equipment),
-        }),
+        modality: deriveExerciseModality(
+          exercise.category,
+          normalizeToStringArray(exercise.equipment)
+        ),
         calories_per_hour: 0,
         description: exercise.description,
         source: 'free-exercise-db',
@@ -2489,59 +2483,6 @@ async function getActivityDetailsByExerciseEntryIdAndProvider(
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-/**
- * Re-run type detection over the user's own exercises and return the ones
- * whose detected tracking type differs from what is stored. Nothing is
- * changed until the user applies a chosen subset.
- */
-async function getModalitySuggestions(
-  userId: string
-): Promise<ExerciseModalitySuggestion[]> {
-  const rows = await exerciseDb.getUserExercisesForModalityReview(userId);
-  const suggestions: ExerciseModalitySuggestion[] = [];
-  for (const row of rows) {
-    const suggestedModality = inferExerciseModality({
-      name: row.name,
-      category: row.category,
-      equipment: normalizeToStringArray(row.equipment),
-    });
-    const currentModality = resolveExerciseModality(row.modality, row.category);
-    // A type that comes only from the category or equipment (no name rule
-    // matched) is a guess. Only offer it over the default, never over a type
-    // that was set on purpose: Hevy marks an ab wheel as reps-only and battle
-    // ropes as duration-only.
-    const nameRuleMatched = modalityFromName(row.name) !== null;
-    if (!nameRuleMatched && currentModality !== 'weight_reps') {
-      continue;
-    }
-    if (suggestedModality !== currentModality) {
-      suggestions.push({
-        id: row.id,
-        name: row.name,
-        category: row.category,
-        currentModality,
-        suggestedModality,
-      });
-    }
-  }
-  return suggestions;
-}
-
-/** Apply the modality changes the user kept; returns how many were updated. */
-async function applyModalitySuggestions(
-  userId: string,
-  changes: ApplyExerciseModalitySuggestionsBody['changes']
-): Promise<number> {
-  let updated = 0;
-  for (const change of changes) {
-    const result = await exerciseDb.updateExercise(change.id, userId, {
-      modality: change.modality,
-    });
-    if (result) updated += 1;
-  }
-  return updated;
-}
-
 async function getExercisesNeedingReview(authenticatedUserId: any) {
   try {
     const exercisesNeedingReview =
@@ -2791,7 +2732,6 @@ export { getTopExercises };
 export { importExercisesFromCSV };
 export { importExercisesFromJson };
 export { getExercisesNeedingReview };
-export { getModalitySuggestions, applyModalitySuggestions };
 export { updateExerciseEntriesSnapshot };
 export { getActivityDetailsByExerciseEntryIdAndProvider };
 export { logWorkoutPresetGrouped };
@@ -2830,8 +2770,6 @@ export default {
   importExercisesFromCSV,
   importExercisesFromJson,
   getExercisesNeedingReview,
-  getModalitySuggestions,
-  applyModalitySuggestions,
   updateExerciseEntriesSnapshot,
   getActivityDetailsByExerciseEntryIdAndProvider,
   logWorkoutPresetGrouped,

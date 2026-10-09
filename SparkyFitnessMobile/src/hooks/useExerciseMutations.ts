@@ -39,7 +39,7 @@ import {
 // Library/catalog mutations don't have an `entryDate`, so they cannot reuse
 // `invalidateExerciseCache` (which is keyed to a date). Use this helper to
 // invalidate the library/search/recents/count/diary/preset caches after create/update/delete.
-export function invalidateExerciseLibraryCaches(qc: QueryClient) {
+function invalidateExerciseLibraryCaches(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: suggestedExercisesQueryKey });
   void qc.invalidateQueries({ queryKey: ['exercises', 'count'] });
   void qc.resetQueries({ queryKey: ['exercisesLibrary'] });

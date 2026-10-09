@@ -381,35 +381,6 @@ describe('ExerciseFormScreen — create mode', () => {
     });
   });
 
-  it('detects the tracking type from the name until the picker is touched', async () => {
-    const createExerciseAsync = jest.fn().mockResolvedValue(baseExercise);
-    mockUseCreateExercise.mockReturnValue({
-      createExerciseAsync,
-      isPending: false,
-    } as any);
-    const route = {
-      key: 'ExerciseForm-key',
-      name: 'ExerciseForm' as const,
-      params: { mode: 'create-exercise' as const },
-    };
-    const screen = render(
-      <SafeAreaProvider initialMetrics={{ insets, frame }}>
-        <ExerciseFormScreen navigation={navigation} route={route as any} />
-      </SafeAreaProvider>
-    );
-
-    fireEvent.changeText(
-      screen.getByPlaceholderText('e.g. Bulgarian Split Squat'),
-      "Farmer's Carry"
-    );
-    pressAction(screen, navigation, 'Save');
-    await waitFor(() => {
-      expect(createExerciseAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ modality: 'weight_distance' })
-      );
-    });
-  });
-
   it('pins a manual modality pick across later category changes', async () => {
     const createExerciseAsync = jest.fn().mockResolvedValue(baseExercise);
     mockUseCreateExercise.mockReturnValue({

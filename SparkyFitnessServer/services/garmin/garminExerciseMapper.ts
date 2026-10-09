@@ -1,6 +1,6 @@
 import { log } from '../../config/logging.js';
 import exerciseRepository from '../../models/exercise.js';
-import { inferExerciseModality } from '@workspace/shared';
+import { deriveExerciseModality } from '@workspace/shared';
 
 const GARMIN_CARDIO_CATEGORY_INDICATORS = [
   'running',
@@ -226,10 +226,7 @@ export async function getOrCreateGarminExercise(
         mappedCategory !== 'general'
       ) {
         updates.category = mappedCategory;
-        updates.modality = inferExerciseModality({
-          name: exercise.name,
-          category: mappedCategory,
-        });
+        updates.modality = deriveExerciseModality(mappedCategory);
       }
       // Backfill muscles for a previously-created Garmin exercise that has none, so
       // the body map and muscle-group reports work for entries synced before this
@@ -273,10 +270,7 @@ export async function getOrCreateGarminExercise(
         await exerciseRepository.updateExercise(exercise.id, userId, {
           name: formattedName,
           category: mappedCategory,
-          modality: inferExerciseModality({
-            name: formattedName,
-            category: mappedCategory,
-          }),
+          modality: deriveExerciseModality(mappedCategory),
           ...(hasNoMuscles && primaryMuscles.length > 0
             ? {
                 primary_muscles: primaryMuscles,
