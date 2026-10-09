@@ -1,71 +1,23 @@
 import SwiftUI
 
-/// Record a walk or run from the wrist alone, indoors or out. Idle, it offers
-/// the four choices; running, it shows the clock, distance, pace and heart rate with
-/// pause and finish; after finishing, a short summary.
+/// A walk or run recorded from the wrist alone, shown on the Workout page once
+/// started from its Cardio row: the clock, distance, pace and heart rate with
+/// pause and finish, then a short summary.
 struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
-    @EnvironmentObject private var workout: WorkoutSessionStore
-    @EnvironmentObject private var recording: RecordingStore
 
     private var usesMiles: Bool { store.context.distanceUnit == "miles" }
 
     var body: some View {
         switch run.phase {
         case .idle:
-            idle
+            Color.clear
         case .running, .paused:
             live
         case .finished:
             finished
         }
-    }
-
-    // MARK: - Idle
-
-    private var idle: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                Text("Record")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if run.canStart {
-                    startButton(.run, place: .outdoor)
-                    startButton(.walk, place: .outdoor)
-                    startButton(.run, place: .indoor)
-                    startButton(.walk, place: .indoor)
-                } else {
-                    Text(blockedReason)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            .padding(.horizontal, 4)
-        }
-    }
-
-    private func startButton(_ kind: WatchRunKind, place: WatchRunPlace) -> some View {
-        Button {
-            Haptics.tap()
-            run.start(kind, place: place)
-        } label: {
-            Label(kind.title(place), systemImage: kind.symbol)
-                .frame(maxWidth: .infinity)
-        }
-        .tint(place == .outdoor ? .green : .blue)
-    }
-
-    /// Only one workout can run on the watch, so say which one is in the way.
-    private var blockedReason: String {
-        if recording.isActive {
-            return "Your iPhone is recording an activity."
-        }
-        if workout.isActive {
-            return "Finish your workout to record a run."
-        }
-        return "Another workout is running."
     }
 
     // MARK: - Running

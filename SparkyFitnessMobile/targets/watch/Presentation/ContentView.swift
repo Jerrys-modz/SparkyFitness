@@ -27,9 +27,10 @@ struct ContentView: View {
 
     /// The pages in swipe order, as the phone last arranged them.
     private var pages: [WatchPage] {
+        // A wrist-only run lives on the Workout page, so it keeps that page
+        // showing (and Now Playing beside it) just as a strength workout does.
         let arranged = store.context.visiblePages(
-            workoutActive: workout.isActive,
-            runActive: run.isActive
+            workoutActive: workout.isActive || run.isActive
         )
         // The phone's GPS recording goes first while it runs, whatever the
         // wearer arranged: it is the thing they are doing right now.
@@ -163,8 +164,6 @@ struct ContentView: View {
             NowPlayingPage()
         case .recording:
             RecordingView()
-        case .run:
-            WatchRunView()
         }
     }
 
@@ -189,8 +188,7 @@ struct ContentView: View {
     /// app opens on.
     private var initialPage: WatchPage {
         if recording.isActive { return .recording }
-        if workout.isActive { return .workout }
-        if run.isActive { return .run }
+        if workout.isActive || run.isActive { return .workout }
         return pages.first ?? .goals
     }
 }
