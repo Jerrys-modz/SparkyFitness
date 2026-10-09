@@ -1,4 +1,7 @@
-import type { SupplementLabelExtraction } from '@workspace/shared';
+import {
+  supplementLabelExtractionSchema,
+  type SupplementLabelExtraction,
+} from '@workspace/shared';
 import OnDeviceNutritionModule, {
   type OnDeviceSupplementExtraction,
 } from '../../modules/on-device-nutrition';
@@ -78,7 +81,7 @@ export function groundSupplementLabel(
   }
 
   const form = r.form?.trim().toLowerCase() ?? null;
-  return {
+  const parsed = supplementLabelExtractionSchema.safeParse({
     name: r.name.trim() || null,
     brand: r.brand.trim() || null,
     form:
@@ -91,7 +94,8 @@ export function groundSupplementLabel(
       amount: i.amount,
       unit: i.unit?.trim() || null,
     })),
-  };
+  });
+  return parsed.success ? parsed.data : null;
 }
 
 /**

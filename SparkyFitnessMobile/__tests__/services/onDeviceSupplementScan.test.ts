@@ -107,6 +107,12 @@ describe('groundSupplementLabel', () => {
       groundSupplementLabel(extraction({ form: 'lozenge' }))?.form
     ).toBeNull();
   });
+
+  it('falls back when the reading is outside the server schema', () => {
+    expect(
+      groundSupplementLabel(extraction({ name: 'A'.repeat(201) }))
+    ).toBeNull();
+  });
 });
 
 describe('scanSupplementLabelOnDevice', () => {
