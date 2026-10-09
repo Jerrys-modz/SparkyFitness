@@ -205,6 +205,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
         {running.trends && running.trends.totalRuns > 0 ? (
           <RunningTrendsCard
             trends={running.trends}
+            raceTimes={running.raceTimes}
             distanceUnit={cardio.distanceUnit}
           />
         ) : null}
