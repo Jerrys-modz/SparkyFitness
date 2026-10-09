@@ -7,6 +7,7 @@ import type {
 } from '@workspace/shared';
 import { canEditGroupedWorkout } from '@workspace/shared';
 import { toFiniteNumber } from './numericInput';
+import { haversineMeters } from './gpsRecording';
 import { distanceFromKm } from './unitConversions';
 
 /** Trackpoints kept when drawing a route; plenty for a phone-width figure. */
@@ -312,4 +313,71 @@ export function cardioSessionFromDiaryEntry(
     notes: session.notes,
     hasGpsTrack: false,
   };
+}
+
+export interface PacePoint {
+  /** Distance from the start, in the display unit (km or mi). */
+  distance: number;
+  /** Seconds per display unit. */
+  paceSeconds: number;
+}
+
+/** Each pace reading spans at least this long, which smooths GPS jitter. */
+const PACE_WINDOW_SECONDS = 30;
+/** Readings slower than this (seconds per unit) are standing still. */
+const MAX_PACE_SECONDS = 3600;
+/** Points kept for the chart. */
+const MAX_PACE_POINTS = 400;
+
+/**
+ * Pace along a recorded or imported route: for each stretch of at least
+ * `PACE_WINDOW_SECONDS` between trackpoints, the seconds per kilometer or mile
+ * over it, plotted at the distance where it ended. Stretches that are
+ * standing still are left out, so a red light is a gap and not a spike to an
+ * hour per kilometer. Uses each point's own `dist` when the track carries it,
+ * and falls back to the path length between fixes.
+ */
+export function paceSeriesFromTrack(
+  points: readonly GpsTrackPoint[],
+  unitMeters: number
+): PacePoint[] {
+  if (points.length < 2 || !(unitMeters > 0)) return [];
+  const samples: { t: number; meters: number }[] = [];
+  let running = 0;
+  let previous: GpsTrackPoint | null = null;
+  for (const point of points) {
+    const t = Date.parse(point.t);
+    if (!Number.isFinite(t)) continue;
+    if (typeof point.dist === 'number' && Number.isFinite(point.dist)) {
+      running = point.dist;
+    } else if (previous) {
+      running += haversineMeters(previous, point);
+    }
+    previous = point;
+    if (samples.length > 0 && t <= samples[samples.length - 1].t) continue;
+    samples.push({ t, meters: running });
+  }
+
+  const series: PacePoint[] = [];
+  let anchor = samples[0];
+  for (let i = 1; i < samples.length; i++) {
+    const sample = samples[i];
+    const seconds = (sample.t - anchor.t) / 1000;
+    if (seconds < PACE_WINDOW_SECONDS) continue;
+    const meters = sample.meters - anchor.meters;
+    if (meters > 0) {
+      const pace = seconds / (meters / unitMeters);
+      if (pace > 0 && pace <= MAX_PACE_SECONDS) {
+        series.push({
+          distance: sample.meters / unitMeters,
+          paceSeconds: pace,
+        });
+      }
+    }
+    anchor = sample;
+  }
+
+  if (series.length <= MAX_PACE_POINTS) return series;
+  const step = Math.ceil(series.length / MAX_PACE_POINTS);
+  return series.filter((_, i) => i % step === 0 || i === series.length - 1);
 }

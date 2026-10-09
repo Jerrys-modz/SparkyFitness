@@ -6078,7 +6078,12 @@
         "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for.",
         "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
       },
-      "underOneMinute": "<1 min"
+      "underOneMinute": "<1 min",
+      "kilometersAxis": "Kilometers from start",
+      "milesAxis": "Miles from start",
+      "bestPace": "Best {{value}}",
+      "perKm": "/km",
+      "perMile": "/mi"
     },
     "consistency": {
       "title": "Training Consistency",
