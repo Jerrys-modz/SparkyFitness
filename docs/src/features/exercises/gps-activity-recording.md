@@ -87,17 +87,18 @@ The watch's own GPS is not used, and the activity is saved to Apple Health once,
 
 ---
 
-## Recording an indoor walk or run on the watch alone
+## Recording a walk or run on the watch alone
 
-The watch app has a **Run and walk** page (you can hide or reorder it in Settings → Apple Watch). Choose **Indoor run** or **Indoor walk** and the watch records on its own, with no phone needed:
+The watch app has a **Run and walk** page (you can hide or reorder it in Settings → Apple Watch). Choose **Outdoor run**, **Outdoor walk**, **Indoor run** or **Indoor walk** and the watch records on its own, with no phone needed:
 
 - The page shows the clock, distance, pace and heart rate, with pause, resume and finish.
-- With no GPS indoors, the distance is the watch's own estimate from its motion sensors. It gets better the more you use the watch outdoors with your phone, since Apple calibrates it from outdoor workouts.
-- Finishing saves the workout to Apple Health. SparkyFitness brings it in on its next sync like any other watch workout, so it appears in your diary with distance, heart rate and calories. If the phone is out of range, nothing is lost; it syncs when they meet again.
+- **Outdoors** the watch uses its own GPS for the distance and records the route. The first time, it asks for location access ("while using the app" is enough). If you say no, you still get the workout, just without a route.
+- **Indoors** there is no GPS, so the distance is the watch's own estimate from its motion sensors. It gets better the more you use the watch outdoors, since Apple calibrates it from outdoor workouts.
+- Finishing saves the workout (and the route) to Apple Health. SparkyFitness brings it in on its next sync like any other watch workout, so it appears in your diary with distance, heart rate, calories and the route. If the phone is out of range, nothing is lost; it syncs when they meet again.
 
 The watch can only run one workout at a time. The page tells you if your iPhone is recording an activity or a strength workout is running, and it won't start in that case.
 
-Outdoor recording from the watch's own GPS isn't available yet.
+Unlike a recording the phone makes, a watch-only recording has no voice cues, auto-pause or laps yet.
 
 ---
 

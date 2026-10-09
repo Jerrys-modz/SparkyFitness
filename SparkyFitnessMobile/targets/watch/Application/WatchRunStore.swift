@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-/// The wrist-only indoor walk or run: what to show, and the start, pause,
+/// The wrist-only walk or run, indoors or out: what to show, and the start, pause,
 /// resume and finish actions. See `WatchRunHealthKitController` for how it is
 /// recorded and handed to the phone (through Apple Health).
 @MainActor
@@ -19,6 +19,7 @@ final class WatchRunStore: ObservableObject {
     /// What a finished recording leaves for the summary page.
     struct Summary: Equatable {
         let kind: WatchRunKind
+        let place: WatchRunPlace
         let elapsed: TimeInterval
         let metrics: WatchRunMetrics
         let saved: Bool
@@ -26,6 +27,7 @@ final class WatchRunStore: ObservableObject {
 
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var kind: WatchRunKind = .run
+    @Published private(set) var place: WatchRunPlace = .indoor
     @Published private(set) var metrics = WatchRunMetrics()
     @Published private(set) var summary: Summary?
 
@@ -58,16 +60,17 @@ final class WatchRunStore: ObservableObject {
     /// the count, so it stays right across pauses.
     var elapsed: TimeInterval { healthKit.elapsed }
 
-    func start(_ kind: WatchRunKind) {
+    func start(_ kind: WatchRunKind, place: WatchRunPlace) {
         guard canStart else { return }
         self.kind = kind
+        self.place = place
         summary = nil
         metrics = WatchRunMetrics()
         phase = .running
         healthKit.requestAuthorization { [weak self] in
             Task { @MainActor in
                 guard let self, self.phase == .running else { return }
-                if !self.healthKit.start(kind) { self.phase = .idle }
+                if !self.healthKit.start(kind, place: place) { self.phase = .idle }
             }
         }
     }
@@ -98,12 +101,13 @@ final class WatchRunStore: ObservableObject {
     private func end(save: Bool) {
         guard phase == .running || phase == .paused else { return }
         let ending = kind
+        let endingPlace = place
         healthKit.end(save: save) { [weak self] metrics, elapsed in
             Task { @MainActor in
                 guard let self else { return }
                 self.metrics = metrics
                 if save {
-                    self.summary = Summary(kind: ending, elapsed: elapsed, metrics: metrics, saved: true)
+                    self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished
                 } else {
                     self.phase = .idle
