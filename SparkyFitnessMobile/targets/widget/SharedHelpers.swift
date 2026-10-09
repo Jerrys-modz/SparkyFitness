@@ -80,6 +80,7 @@ private func fallbackWidgetString(_ key: String) -> String {
     case "widget.grams": return "%@ g"
     case "widget.a11y.kcal_left": return "%@ kcal left"
     case "widget.a11y.kcal": return "%@ kcal"
+    case "widget.control.log_water.name": return "Log water"
     case "widget.water.name": return "Water"
     case "widget.water.description": return "Today's water intake, with a button to log a drink."
     case "widget.water.title": return "Water"
