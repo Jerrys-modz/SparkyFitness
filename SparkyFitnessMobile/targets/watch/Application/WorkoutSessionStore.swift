@@ -122,6 +122,8 @@ final class WorkoutSessionStore: ObservableObject {
     /// celebrated here.
     private var wristLoggedSetIds: Set<String> = []
     private var celebratedPrSetIds: Set<String> = []
+    /// Watch-logged records still waiting for their own banner, in workout order.
+    private var pendingPrSetIds: [String] = []
     private var prBannerTask: Task<Void, Never>?
 
     private var elapsedTimer: Timer?
@@ -262,14 +264,30 @@ final class WorkoutSessionStore: ObservableObject {
 
     /// Fires the record celebration for sets logged here that the phone has
     /// flagged. The phone decides what a record is; the watch only reacts.
+    /// Several in one update each get a banner, in workout order.
     private func celebrate(_ prSetIds: Set<String>) {
         let fresh = prSetIds
             .intersection(wristLoggedSetIds)
             .subtracting(celebratedPrSetIds)
+            .subtracting(pendingPrSetIds)
         guard !fresh.isEmpty else { return }
-        celebratedPrSetIds.formUnion(fresh)
-        let name = steps.first { fresh.contains($0.plannedSet.setId) }?.exerciseName
-        prBannerExercise = name ?? ""
+        let ordered = steps.compactMap { step -> String? in
+            let id = step.plannedSet.setId
+            return fresh.contains(id) ? id : nil
+        }
+        pendingPrSetIds.append(contentsOf: ordered)
+        // A flagged id with no step still buzzes, after the ones we can name.
+        pendingPrSetIds.append(contentsOf: fresh.subtracting(ordered))
+        presentNextPr()
+    }
+
+    /// Shows the next queued record once the banner is clear. An id counts as
+    /// celebrated only when its banner is shown, so a later one is not dropped.
+    private func presentNextPr() {
+        guard prBannerExercise == nil, !pendingPrSetIds.isEmpty else { return }
+        let setId = pendingPrSetIds.removeFirst()
+        celebratedPrSetIds.insert(setId)
+        prBannerExercise = steps.first { $0.plannedSet.setId == setId }?.exerciseName ?? ""
         onPersonalRecord?()
         prBannerTask?.cancel()
         prBannerTask = Task { [weak self] in
@@ -281,7 +299,13 @@ final class WorkoutSessionStore: ObservableObject {
 
     func dismissPrBanner() {
         prBannerTask?.cancel()
+        prBannerTask = nil
         prBannerExercise = nil
+        guard !pendingPrSetIds.isEmpty else { return }
+        // Next turn, so the banner can leave before the following record.
+        Task { @MainActor [weak self] in
+            self?.presentNextPr()
+        }
     }
 
     /// Brings the rest on screen in line with the phone's.
@@ -386,6 +410,7 @@ final class WorkoutSessionStore: ObservableObject {
         resetHeartRateStats()
         wristLoggedSetIds = []
         celebratedPrSetIds = []
+        pendingPrSetIds = []
         dismissPrBanner()
         stopRestTimer()
         clearHold()
@@ -514,6 +539,7 @@ final class WorkoutSessionStore: ObservableObject {
         resetHeartRateStats()
         wristLoggedSetIds = []
         celebratedPrSetIds = []
+        pendingPrSetIds = []
         dismissPrBanner()
         startedAt = nil
         exerciseWindowStartedAt = [:]
