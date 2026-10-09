@@ -29,6 +29,16 @@ Points are saved on the phone as they arrive. Nothing is sent to your server unt
 
 ---
 
+## Laps and the run summary
+
+While recording, tap **Lap** to mark a lap, for example at the end of a hard interval or at each lap of a track. It's available while the recording is running, not while paused, and a second tap within three seconds is ignored. With voice cues on, the phone says the lap number, distance and time.
+
+When you finish, the summary lists your laps and your splits per kilometer or mile. Each row has a bar, longer for a faster one, and the fastest is labelled, so a fading last kilometer or a strong negative split is easy to see. A short final stretch is shown but never counted as your fastest.
+
+If you marked laps, those are what's saved with the activity, because they're the intervals you meant to compare. If you didn't, your per-kilometer or per-mile splits are saved as before.
+
+---
+
 ## Auto-pause
 
 Turn on **Auto-pause** before you start and the recording pauses itself when you stop (a red light, tying a shoe) and carries on when you move again. It judges speed from the GPS, so it works with the screen locked. The clock stops from the moment you actually stopped, not from when the pause was noticed, and restarts from when you began moving. A rolling start is needed to resume, so a shuffle in place won't restart it. It waits about 10 seconds when walking, 8 running and 6 riding before pausing.
