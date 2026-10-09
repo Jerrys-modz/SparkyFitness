@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
+import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -27,9 +28,11 @@ import {
   discardRecording,
   elapsedSeconds,
   finishRecording,
+  getAutoPausePreference,
   hydrate,
   pauseRecording,
   resumeRecording,
+  setAutoPausePreference,
   startRecording,
   useGpsRecording,
 } from '../services/gpsRecordingService';
@@ -81,6 +84,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
+  const [autoPause, setAutoPause] = useState(true);
   const [permissionProblem, setPermissionProblem] = useState<
     'denied' | 'services-disabled' | null
   >(null);
@@ -102,6 +106,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   });
 
   // Pick up a recording an earlier run left behind (app killed mid-activity).
+  useEffect(() => {
+    void getAutoPausePreference().then(setAutoPause);
+  }, []);
+
   useEffect(() => {
     let active = true;
     void hydrate().finally(() => {
@@ -168,6 +176,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           setStartedHere(true);
           await startRecording({
             activity,
+            autoPause,
             notification: notificationText(t, activity),
           });
         },
@@ -175,7 +184,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, run, t]
+    [activity, autoPause, run, t]
   );
 
   const handleResume = useCallback(
@@ -309,6 +318,32 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             activeKey={activity}
             onSelect={setActivity}
           />
+          <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+            <View className="flex-1 mr-3">
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('recordActivity.autoPause.title', {
+                  defaultValue: 'Auto-pause',
+                })}
+              </Text>
+              <Text className="text-text-secondary text-xs mt-0.5">
+                {t('recordActivity.autoPause.description', {
+                  defaultValue:
+                    'Pauses the clock when you stop and carries on when you move.',
+                })}
+              </Text>
+            </View>
+            <Switch
+              testID="auto-pause-switch"
+              accessibilityLabel={t('recordActivity.autoPause.title', {
+                defaultValue: 'Auto-pause',
+              })}
+              value={autoPause}
+              onValueChange={(value) => {
+                setAutoPause(value);
+                void setAutoPausePreference(value);
+              }}
+            />
+          </View>
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm mb-3">
@@ -431,7 +466,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         <View className="items-center mb-4">
           <Text className="text-text-muted text-xs">
             {session.status === 'paused'
-              ? t('recordActivity.status.paused', { defaultValue: 'Paused' })
+              ? session.autoPaused
+                ? t('recordActivity.status.autoPaused', {
+                    defaultValue: 'Auto-paused',
+                  })
+                : t('recordActivity.status.paused', { defaultValue: 'Paused' })
               : finished
                 ? t('recordActivity.status.finished', {
                     defaultValue: 'Finished',

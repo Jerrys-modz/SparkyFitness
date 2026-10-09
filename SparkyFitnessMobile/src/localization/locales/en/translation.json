@@ -5918,8 +5918,13 @@
     "perUnit": "/{{unit}}",
     "routeA11y": "Map of your route so far",
     "waitingForGps": "Waiting for a GPS fix…",
+    "autoPause": {
+      "title": "Auto-pause",
+      "description": "Pauses the clock when you stop and carries on when you move."
+    },
     "status": {
       "paused": "Paused",
+      "autoPaused": "Auto-paused",
       "finished": "Finished"
     },
     "time": "Time",
