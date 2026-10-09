@@ -31,17 +31,25 @@ import {
   discardRecording,
   elapsedSeconds,
   finishRecording,
+  COUNTDOWN_CHOICES,
   getRecordingPreferences,
   hydrate,
   markLap,
   pauseRecording,
   resumeRecording,
+  setCountdownPreference,
   setRecordingPreference,
   startRecording,
   useGpsRecording,
 } from '../services/gpsRecordingService';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
+import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
+import {
+  beginRecordingCues,
+  speakRecordingCue,
+  stopRecordingCues,
+} from '../services/recordingCues';
 import {
   computeLaps,
   computeSplits,
@@ -123,6 +131,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const [busy, setBusy] = useState(false);
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+  // Seconds left before recording begins, or null when no countdown is running.
+  const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
     'denied' | 'services-disabled' | null
   >(null);
@@ -156,6 +167,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     void getRecordingPreferences().then((preferences) => {
       setAutoPause(preferences.autoPause);
       setAudioCues(preferences.audioCues);
+      setCountdownSeconds(preferences.countdownSeconds);
     });
   }, []);
 
@@ -257,6 +269,35 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       ),
     [activity, audioCues, autoPause, distanceUnit, indoor, run, t]
   );
+  // Counts down once a second, then starts. Each number is felt and, with
+  // voice cues on, spoken.
+  useEffect(() => {
+    if (countdownLeft === null) return;
+    if (countdownLeft === 0) {
+      setCountdownLeft(null);
+      void handleStart();
+      return;
+    }
+    fireSelectionHaptic();
+    if (audioCues) speakRecordingCue(String(countdownLeft));
+    const id = setTimeout(() => setCountdownLeft(countdownLeft - 1), 1000);
+    return () => clearTimeout(id);
+  }, [countdownLeft, audioCues, handleStart]);
+
+  const handleStartPress = useCallback(() => {
+    if (countdownSeconds === 0) {
+      void handleStart();
+      return;
+    }
+    setPermissionProblem(null);
+    if (audioCues) beginRecordingCues();
+    setCountdownLeft(countdownSeconds);
+  }, [audioCues, countdownSeconds, handleStart]);
+
+  const cancelCountdown = useCallback(() => {
+    setCountdownLeft(null);
+    if (audioCues) stopRecordingCues();
+  }, [audioCues]);
 
   const handleResume = useCallback(
     () =>
@@ -388,6 +429,26 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       );
     }
+    if (!session && countdownLeft !== null) {
+      return (
+        <View className="items-center py-16">
+          <Text
+            className="text-text-primary text-8xl font-bold"
+            accessibilityLiveRegion="assertive"
+          >
+            {countdownLeft}
+          </Text>
+          <Text className="text-text-secondary text-sm mt-2 mb-8">
+            {t('recordActivity.countdown.getReady', {
+              defaultValue: 'Get ready',
+            })}
+          </Text>
+          <Button variant="outline" onPress={cancelCountdown}>
+            {t('recordActivity.countdown.cancel', { defaultValue: 'Cancel' })}
+          </Button>
+        </View>
+      );
+    }
     if (!session) {
       return (
         <>
@@ -498,6 +559,33 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
           </View>
+          <View className="bg-surface rounded-xl p-4 mt-4">
+            <Text className="text-text-primary text-sm font-semibold mb-2">
+              {t('recordActivity.countdown.title', {
+                defaultValue: 'Start countdown',
+              })}
+            </Text>
+            <SegmentedControl<string>
+              segments={COUNTDOWN_CHOICES.map((seconds) => ({
+                key: String(seconds),
+                label:
+                  seconds === 0
+                    ? t('recordActivity.countdown.off', {
+                        defaultValue: 'Off',
+                      })
+                    : t('recordActivity.countdown.seconds', {
+                        seconds,
+                        defaultValue: '{{seconds}} s',
+                      }),
+              }))}
+              activeKey={String(countdownSeconds)}
+              onSelect={(key) => {
+                const seconds = Number(key);
+                setCountdownSeconds(seconds);
+                void setCountdownPreference(seconds);
+              }}
+            />
+          </View>
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm mb-3">
@@ -546,11 +634,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               </Button>
             </View>
           ) : null}
-          <Button
-            className="mt-6"
-            loading={busy}
-            onPress={() => void handleStart()}
-          >
+          <Button className="mt-6" loading={busy} onPress={handleStartPress}>
             {t('recordActivity.start', { defaultValue: 'Start' })}
           </Button>
         </>
