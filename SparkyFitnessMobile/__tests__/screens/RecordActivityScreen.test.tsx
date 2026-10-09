@@ -42,11 +42,25 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     discardRecording: jest.fn(() => Promise.resolve()),
     elapsedSeconds: jest.fn(() => 754),
     getRecordingPreferences: jest.fn(() =>
-      Promise.resolve({ autoPause: true, audioCues: false })
+      Promise.resolve({
+        autoPause: true,
+        audioCues: false,
+        countdownSeconds: 0,
+      })
     ),
     setRecordingPreference: jest.fn(() => Promise.resolve()),
+    setCountdownPreference: jest.fn(() => Promise.resolve()),
+    COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
+jest.mock('../../src/services/recordingCues', () => ({
+  beginRecordingCues: jest.fn(),
+  speakRecordingCue: jest.fn(),
+  stopRecordingCues: jest.fn(),
+}));
+jest.mock('../../src/services/haptics', () => ({
+  fireSelectionHaptic: jest.fn(),
+}));
 jest.mock('../../src/services/gpsRecordingSave', () => ({
   saveRecordedActivity: jest.fn(),
 }));
@@ -200,6 +214,41 @@ describe('RecordActivityScreen', () => {
     expect(screen.getByText('Laps')).toBeTruthy();
     expect(screen.getByText('Lap 1 · 1.00 km · 4:10')).toBeTruthy();
     expect(screen.getAllByText(/Fastest/).length).toBeGreaterThan(0);
+  });
+
+  it('counts down before it starts recording, and Cancel stops it', async () => {
+    state(null);
+    const screen = await renderScreen();
+    jest.useFakeTimers();
+    try {
+      fireEvent.press(screen.getByText('3 s'));
+      fireEvent.press(screen.getByText('Start'));
+      expect(screen.getByText('3')).toBeTruthy();
+      expect(startRecording).not.toHaveBeenCalled();
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText('2')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Cancel'));
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(startRecording).not.toHaveBeenCalled();
+      expect(screen.getByText('Start')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Start'));
+      // Each tick re-renders and arms the next, so step a second at a time.
+      for (let tick = 0; tick < 4; tick++) {
+        await act(async () => {
+          jest.advanceTimersByTime(1000);
+        });
+      }
+      expect(startRecording).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('explains a denied location permission and offers Settings', async () => {
