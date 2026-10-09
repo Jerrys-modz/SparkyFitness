@@ -44,9 +44,18 @@ import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
 import { getActiveServerConfigId } from '../services/storage';
+import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
+import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
+/** The distance unit the watch shows weighted carries in: miles → yards, else metres. */
+export function watchDistanceUnit(
+  preference: string | null | undefined
+): 'km' | 'miles' {
+  return preference === 'miles' ? 'miles' : 'km';
+}
+
 export function startableWorkoutsForWatch(
   presets: readonly Pick<WorkoutPreset, 'id' | 'name' | 'exercises'>[]
 ): { presetId: string; name: string }[] {
@@ -188,6 +197,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const { preferences } = usePreferences();
   // Device-local settings the watch's haptics follow.
   const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
+  const watchDoubleTapEnabled = useAppPreferencesStore(
+    (s) => s.watchDoubleTapEnabled
+  );
   const restAlertsEnabled = useAppPreferencesStore(
     (s) => s.notificationsEnabled && s.restTimerNotificationsEnabled
   );
@@ -215,6 +227,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     preferences?.default_weight_unit === 'st_lbs'
       ? 'lbs'
       : 'kg';
+  // A weighted carry's distance follows the phone's distance unit: the watch
+  // shows metres, or yards when the phone is set to miles.
+  const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
   const { presets } = useWorkoutPresets({ enabled });
   const startableWorkouts = useMemo(
     () => startableWorkoutsForWatch(presets),
@@ -254,6 +269,31 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     date: summaryDate,
     enabled,
   });
+
+  // What the diary's plan banner offers today, so the watch's workout page can
+  // put it first. Same query and completion rule as that banner.
+  const { plans: activePlans } = useActiveWorkoutPlans(summaryDate, {
+    enabled,
+  });
+  const dayExerciseEntries = dailySummary?.exerciseEntries;
+  const scheduledWorkouts = useMemo(
+    () =>
+      dayExerciseEntries === undefined
+        ? []
+        : scheduledWorkoutsForWatch(activePlans, dayExerciseEntries, {
+            scheduledToday: t(
+              'exerciseSummary.scheduledToday',
+              'Scheduled Today'
+            ),
+            sessionOf: (current, total) =>
+              t(
+                'exerciseSummary.sessionNumber',
+                'Session {{current}} of {{total}}',
+                { current, total }
+              ),
+          }),
+    [activePlans, dayExerciseEntries, t]
+  );
 
   // EVERY calorie figure sent to the watch comes from this one object — the
   // same one the phone's own summary bar (DiaryCalorieMacroSummary) and the
@@ -535,6 +575,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         ackedClientIds: ackedClientIdsRef.current.slice(-20),
         failedClientIds: failedClientIdsRef.current.slice(-20),
         weightUnit,
+        distanceUnit,
         containers: watchContainers,
         // Goal and display unit ride outside the day gate: the watch treats
         // both as account configuration and carries them forward, which is
@@ -543,7 +584,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         waterDisplayUnit,
         hapticsEnabled,
         restAlertsEnabled,
+        doubleTapEnabled: watchDoubleTapEnabled,
         startableWorkouts,
+        // Built for `summaryDate`; a push that has crossed midnight before the
+        // hook re-rendered must not carry yesterday's plan.
+        scheduledWorkouts: today === summaryDate ? scheduledWorkouts : [],
         workoutServerId,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
@@ -569,9 +614,12 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // aggregates are memoized, so an identical refetch doesn't cause a push.
   }, [
     weightUnit,
+    distanceUnit,
     hapticsEnabled,
     restAlertsEnabled,
+    watchDoubleTapEnabled,
     startableWorkouts,
+    scheduledWorkouts,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,

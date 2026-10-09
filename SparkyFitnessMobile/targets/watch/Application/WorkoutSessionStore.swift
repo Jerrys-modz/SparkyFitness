@@ -30,6 +30,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// progression bump applied), by set id. Sits between `editedValues` and
     /// the plan's own targets.
     @Published private(set) var targetOverrides: [String: SetValues] = [:]
+    /// Weight and reps as they stood when the set was logged, by set id.
+    /// A later phone target must not change the summary's volume.
+    private var loggedValues: [String: SetValues] = [:]
     /// Revision of `targetOverrides`, so an older queued update is ignored.
     private var targetRevision: Double = 0
     /// Revision of the last plan update from the phone (see `updatePlan`), so
@@ -48,6 +51,24 @@ final class WorkoutSessionStore: ObservableObject {
     @Published private(set) var latestBpm: Double?
     @Published private(set) var activeEnergyKcal: Double?
     @Published private(set) var elapsedSeconds: Int = 0
+    /// What the wearer just finished, shown on the Workout page until they
+    /// dismiss it or arm another workout. Not persisted: it is a keepsake of
+    /// the moment, not session state.
+    @Published private(set) var lastSummary: WorkoutSummary?
+    /// What the plan looked like when the workout started, to tell whether
+    /// the exercises or sets have changed since. Persisted with the snapshot
+    /// so a restored workout is still compared to the plan it started as.
+    private var baselineStructure: [String]?
+    /// Set when Finish is tapped on a workout that changed from its saved
+    /// workout; the workout screen asks whether to update it before ending.
+    @Published var askingPresetUpdate = false
+    private var heartRateSum: Double = 0
+    private var heartRateCount: Int = 0
+    private var heartRateMax: Double?
+    /// Measurement seconds already folded into the totals above. The final
+    /// drain repeats readings the live callback already saw; a second counts
+    /// once. Persisted so a relaunch does not count them again.
+    private var countedHeartRateSeconds: Set<Int> = []
     /// Non-nil while a rest countdown is running before the next set.
     @Published private(set) var restEndsAt: Date?
     /// The rest's full length, so the progress bar has a denominator.
@@ -191,12 +212,13 @@ final class WorkoutSessionStore: ObservableObject {
     ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
-        targetOverrides = targets
         let knownIds = Set(steps.map(\.plannedSet.setId))
         pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
         let newlyCompleted = phoneCompleted
             .subtracting(completedSetIds)
             .filter { knownIds.contains($0) }
+        targetOverrides = targets
+        rememberLoggedValues(for: newlyCompleted)
         if !newlyCompleted.isEmpty {
             completedSetIds.formUnion(newlyCompleted)
             if let step = currentStep, isCompleted(step) {
@@ -310,6 +332,7 @@ final class WorkoutSessionStore: ObservableObject {
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        loggedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
         planRevision = startingRevision
@@ -318,6 +341,10 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
+        lastSummary = nil
+        askingPresetUpdate = false
+        baselineStructure = Self.structure(of: plan)
+        resetHeartRateStats()
         stopRestTimer()
         clearHold()
         startedAt = Date()
@@ -354,7 +381,8 @@ final class WorkoutSessionStore: ObservableObject {
             capEndsAt: plan.capEndsAt,
             pausedAt: pausedAt,
             excludedPauseSeconds: excludedPauseSeconds,
-            intervalRevision: revision
+            intervalRevision: revision,
+            fromPreset: plan.fromPreset
         )
         persistSnapshot(reportedEnergyKcal: nil)
     }
@@ -390,7 +418,8 @@ final class WorkoutSessionStore: ObservableObject {
             capEndsAt: current.capEndsAt,
             pausedAt: current.pausedAt,
             excludedPauseSeconds: current.excludedPauseSeconds,
-            intervalRevision: current.intervalRevision
+            intervalRevision: current.intervalRevision,
+            fromPreset: current.fromPreset
         )
         steps = Self.steps(for: newPlan)
         let adopted = pendingUnknownCompletions.filter { id in
@@ -399,6 +428,7 @@ final class WorkoutSessionStore: ObservableObject {
         if !adopted.isEmpty {
             completedSetIds.formUnion(adopted)
             pendingUnknownCompletions.subtract(adopted)
+            rememberLoggedValues(for: adopted)
         }
         if let cursorSetId,
            let index = steps.firstIndex(where: { $0.plannedSet.setId == cursorSetId }) {
@@ -424,11 +454,13 @@ final class WorkoutSessionStore: ObservableObject {
     /// Clears local state. Does not itself notify the phone — callers that
     /// mean "the wearer ended this" send `workoutStop` separately.
     func reset() {
+        askingPresetUpdate = false
         plan = nil
         steps = []
         currentStepIndex = 0
         completedSetIds = []
         editedValues = [:]
+        loggedValues = [:]
         targetOverrides = [:]
         targetRevision = 0
         planRevision = 0
@@ -437,6 +469,7 @@ final class WorkoutSessionStore: ObservableObject {
         latestBpm = nil
         activeEnergyKcal = nil
         elapsedSeconds = 0
+        resetHeartRateStats()
         startedAt = nil
         exerciseWindowStartedAt = [:]
         exerciseWindowSeconds = [:]
@@ -446,8 +479,113 @@ final class WorkoutSessionStore: ObservableObject {
         clearSnapshot()
     }
 
-    func recordHeartRate(bpm: Double) {
+    func recordHeartRate(bpm: Double, measuredAt: Date = Date()) {
         latestBpm = bpm
+        accumulateHeartRate(bpm, at: measuredAt)
+    }
+
+    /// Readings the live callback may not have delivered: the buffer still
+    /// held at stop, and the tail HealthKit writes only when the workout
+    /// finishes. A measurement second already counted is ignored.
+    func recordFinalHeartRate(_ readings: [(at: Date, bpm: Double)]) {
+        for reading in readings {
+            accumulateHeartRate(reading.bpm, at: reading.at)
+        }
+    }
+
+    private func accumulateHeartRate(_ bpm: Double, at: Date) {
+        guard bpm > 0 else { return }
+        let second = Int(at.timeIntervalSince1970.rounded())
+        guard countedHeartRateSeconds.insert(second).inserted else { return }
+        heartRateSum += bpm
+        heartRateCount += 1
+        heartRateMax = max(heartRateMax ?? bpm, bpm)
+    }
+
+    private func resetHeartRateStats() {
+        heartRateSum = 0
+        heartRateCount = 0
+        heartRateMax = nil
+        countedHeartRateSeconds = []
+    }
+
+    /// Keeps the weight and reps a set had the moment it was logged. A later
+    /// target update must not rewrite it.
+    private func rememberLoggedValues(for setIds: some Sequence<String>) {
+        for id in setIds where loggedValues[id] == nil {
+            guard let step = steps.first(where: { $0.plannedSet.setId == id }) else { continue }
+            loggedValues[id] = values(for: step)
+        }
+    }
+
+    /// Totals for the workout in progress, or nil when no set was logged
+    /// (nothing worth celebrating). Call before `reset()`.
+    func makeSummary() -> WorkoutSummary? {
+        guard plan != nil, !completedSetIds.isEmpty else { return nil }
+        var volumeKg = 0.0
+        var completed = 0
+        for step in steps where completedSetIds.contains(step.plannedSet.setId) {
+            completed += 1
+            let v = loggedValues[step.plannedSet.setId] ?? values(for: step)
+            if let weight = v.weightKg, let reps = v.reps {
+                volumeKg += weight * reps
+            }
+        }
+        return WorkoutSummary(
+            durationSeconds: elapsedSeconds,
+            setsCompleted: completed,
+            volumeKg: volumeKg,
+            averageBpm: heartRateCount > 0 ? heartRateSum / Double(heartRateCount) : nil,
+            maxBpm: heartRateMax,
+            activeEnergyKcal: activeEnergyKcal,
+            sessionId: plan?.sessionId
+        )
+    }
+
+    func recordSummary(_ summary: WorkoutSummary?) {
+        lastSummary = summary
+    }
+
+    func dismissSummary() {
+        lastSummary = nil
+    }
+
+    /// The exercises and the number and kind of sets in each, in order: what
+    /// a saved workout is made of. Weights and reps are left out, as on the
+    /// phone, so loading more weight does not count as a change. The
+    /// superset grouping and the exercise's own id are included, so a
+    /// grouping change or two exercises with the same name still count.
+    private static func structure(of plan: ActiveWorkoutPlan) -> [String] {
+        plan.exercises.map { exercise in
+            let sets = exercise.sets.map { $0.setType ?? "normal" }.joined(separator: ",")
+            return "\(exercise.exerciseEntryId)|\(exercise.name)|\(exercise.supersetRun.map(String.init) ?? "-")|\(sets)"
+        }
+    }
+
+    /// Started from a saved workout and since changed: exercises or sets were
+    /// added or removed. Only then does Finish ask whether to update it.
+    var changedFromPreset: Bool {
+        guard let plan, plan.fromPreset == true, let baselineStructure else { return false }
+        return Self.structure(of: plan) != baselineStructure
+    }
+
+    /// Called when Finish is confirmed. Raises the "Update Workout?" question
+    /// and returns true when the workout changed from its saved one; the
+    /// caller then waits for the answer instead of ending the workout.
+    func askPresetUpdateBeforeFinish() -> Bool {
+        guard changedFromPreset else { return false }
+        // Raised a moment later: the Finish confirmation or the exercise sheet
+        // is still closing, and SwiftUI drops an alert presented over a
+        // dismissal in progress, which left Finish doing nothing at all.
+        // The workout can end or be replaced in that moment, so the raise is
+        // only for the one that was finishing.
+        let sessionId = plan?.sessionId
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard let self, self.plan?.sessionId == sessionId else { return }
+            self.askingPresetUpdate = true
+        }
+        return true
     }
 
     func recordActiveEnergy(kcal: Double) {
@@ -626,6 +764,7 @@ final class WorkoutSessionStore: ObservableObject {
             holdLoggedHere = true
             stopHoldTimer()
         }
+        rememberLoggedValues(for: [step.plannedSet.setId])
         completedSetIds.insert(step.plannedSet.setId)
 
         // The next set still to do, not simply the next one: a set further on
@@ -794,6 +933,20 @@ final class WorkoutSessionStore: ObservableObject {
         /// clock instead of showing Start again. Optional so older snapshots
         /// still decode.
         var hold: HoldState?
+        /// See `loggedValues`. Optional so older snapshots still decode.
+        var loggedValues: [String: SetValues]?
+        /// Running heart-rate totals, so a relaunch does not start the
+        /// summary's average over. Optional so older snapshots still decode.
+        var heartRateSum: Double?
+        var heartRateCount: Int?
+        var heartRateMax: Double?
+        /// Measurement seconds already in those totals. Optional so older
+        /// snapshots still decode.
+        var countedHeartRateSeconds: [Int]?
+        /// What the plan looked like when the workout started, so a relaunch
+        /// still knows whether it changed. Optional so older snapshots still
+        /// decode.
+        var baselineStructure: [String]?
     }
 
     /// A set timer as stored in the snapshot.
@@ -918,7 +1071,13 @@ final class WorkoutSessionStore: ObservableObject {
             targetRevision: targetRevision,
             planRevision: planRevision,
             pendingUnknownCompletions: Array(pendingUnknownCompletions),
-            hold: holdState
+            hold: holdState,
+            loggedValues: loggedValues,
+            heartRateSum: heartRateSum,
+            heartRateCount: heartRateCount,
+            heartRateMax: heartRateMax,
+            countedHeartRateSeconds: Array(countedHeartRateSeconds),
+            baselineStructure: baselineStructure
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -941,6 +1100,11 @@ final class WorkoutSessionStore: ObservableObject {
         openCurrentExerciseWindow()
         completedSetIds = Set(snapshot.completedSetIds)
         editedValues = snapshot.editedValues
+        loggedValues = snapshot.loggedValues ?? [:]
+        heartRateSum = snapshot.heartRateSum ?? 0
+        heartRateCount = snapshot.heartRateCount ?? 0
+        heartRateMax = snapshot.heartRateMax
+        countedHeartRateSeconds = Set(snapshot.countedHeartRateSeconds ?? [])
         targetOverrides = snapshot.targetOverrides ?? [:]
         targetRevision = snapshot.targetRevision ?? 0
         planRevision = snapshot.planRevision ?? 0
@@ -950,6 +1114,9 @@ final class WorkoutSessionStore: ObservableObject {
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
         restoredReportedEnergyKcal = snapshot.reportedEnergyKcal
         heartRateSentThrough = snapshot.heartRateSentThrough
+        // `start(with:)` took the baseline from the plan as it was saved, which
+        // may already include changes; the stored one is the real starting plan.
+        if let stored = snapshot.baselineStructure { baselineStructure = stored }
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
     }

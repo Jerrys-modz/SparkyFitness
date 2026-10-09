@@ -51,8 +51,8 @@ jest.mock('../../src/components/CaloriesBarChart', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
-    default: () =>
-      ReactModule.createElement(View, { testID: 'calories-chart' }),
+    default: (props: Record<string, unknown>) =>
+      ReactModule.createElement(View, { testID: 'calories-chart', ...props }),
   };
 });
 
@@ -550,15 +550,15 @@ describe('HealthTrendsPager', () => {
     expect(onPageSelected).toHaveBeenCalledWith(2);
   });
 
-  test('passes hydrationGoal only to the hydration page', () => {
+  test('passes hydrationGoals only to the hydration page', () => {
     renderPager({
       weight: weightSeries,
       hydration: hydrationSeries,
       visibleTrends: ['steps', 'weight', 'hydration'],
-      hydrationGoal: 2500,
+      hydrationGoals: [2500],
     });
 
-    expect(screen.getByTestId('hydration-chart').props.goal).toBe(2500);
+    expect(screen.getByTestId('hydration-chart').props.goals).toEqual([2500]);
     expect(screen.getByTestId('weight-chart').props.goal).toBeUndefined();
   });
 
@@ -571,6 +571,20 @@ describe('HealthTrendsPager', () => {
     });
 
     expect(screen.getByTestId('weight-chart').props.goal).toBe(70);
-    expect(screen.getByTestId('hydration-chart').props.goal).toBeUndefined();
+    expect(screen.getByTestId('hydration-chart').props.goals).toBeUndefined();
+  });
+
+  test('passes calorieGoals only to the calories page', () => {
+    renderPager({
+      weight: weightSeries,
+      calories: caloriesSeries,
+      visibleTrends: ['steps', 'weight', 'calories'],
+      calorieGoals: [1800, 2000],
+    });
+
+    expect(screen.getByTestId('calories-chart').props.goals).toEqual([
+      1800, 2000,
+    ]);
+    expect(screen.getByTestId('weight-chart').props.goal).toBeUndefined();
   });
 });

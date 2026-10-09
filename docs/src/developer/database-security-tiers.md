@@ -43,6 +43,7 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `cycles` | Derived/manually-corrected period & cycle history records | Owner-Only | Owner-Only |
 | `user_cycle_display_preferences` | Private preference on cycle dashboard tile/card visibility | Owner-Only | Owner-Only |
 | `user_mood_display_preferences` | Personal show/hide config for the mood picker | Owner-Only | Owner-Only |
+| `user_fasting_preferences` | Personal intermittent fasting targets, protocol, and auto-calculation configuration | Owner-Only | Owner-Only |
 | `cycle_test_entries` | Ovulation (OPK) and pregnancy test logs | Owner-Only | Owner-Only |
 | `pregnancies` | Pregnancy records (due date, status, linked prenatal medication) | Owner-Only | Owner-Only |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions | Owner-Only | Owner-Only |
@@ -156,6 +157,7 @@ Symptoms are their own domain (they used to share the medications permission). P
 | `daily_sleep_need` | Sleep goals calculated for the day | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `fasting_logs` | Logs of fasting timelines (start/end fast) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `mood_entries` | Logged mood and energy levels | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
+| `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `day_classification_cache` | Daily summary caching logs | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `custom_categories` | User-defined custom measurement categories (e.g. GLP-1 daily check-in metrics) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `custom_measurements` | Logged values for custom measurement categories | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
@@ -178,7 +180,7 @@ These tables store global configuration settings, lookup values, and reference m
 | `backup_settings` | Automated database backup timing and storage credentials | Admin-Only | Admin-Only |
 | `sso_provider` | Active Single Sign-On providers (Google, Apple, etc.) | Admin-Only | Public (Login page) |
 | `oidc_providers` | OpenID Connect integration settings and metadata | Admin-Only | Public |
-| `external_provider_types` | Search provider configurations lookup (FATSecret, USDA) | Admin-Only | Authenticated Users |
+| `external_provider_types` | Search provider configurations lookup (FatSecret, USDA, Canadian Nutrient File) | Admin-Only | Authenticated Users |
 | `medication_types` | Medication categories lookup (GLP-1, Insulin, ADHD, etc.) | Admin-Only | Authenticated Users |
 | `medication_route_types` | Medication administration route lookup (Subcutaneous, Oral) | Admin-Only | Authenticated Users |
 | `medication_schedule_types`| Medication scheduling frequencies lookup (Daily, Weekly) | Admin-Only | Authenticated Users |

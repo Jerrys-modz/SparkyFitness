@@ -13,6 +13,7 @@ import { bridgeBearerAuthHeader } from './utils/bearerAuthBridge.js';
 import { endPool } from './db/poolManager.js';
 import { log } from './config/logging.js';
 import { authenticate } from './middleware/authMiddleware.js';
+import { isReadOnlyApiKeyAuthMutation } from './middleware/readOnlyApiKeyGuard.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { applySignOutCookieCleanup } from './middleware/signOutCookieCleanup.js';
 import {
@@ -94,6 +95,7 @@ import cycleRoutesV2 from './routes/v2/cycleRoutes.js';
 import pregnancyRoutesV2 from './routes/v2/pregnancyRoutes.js';
 import reportRoutesV2 from './routes/v2/reportRoutes.js';
 import nutritionKineticsRoutesV2 from './routes/v2/nutritionKineticsRoutes.js';
+import mindfulnessRoutesV2 from './routes/v2/mindfulnessRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import reviewRoutes from './routes/reviewRoutes.js';
@@ -122,6 +124,9 @@ import { upsertEnvOidcProvider } from './utils/oidcEnvConfig.js';
 import userRepository from './models/userRepository.js';
 import genericHealthRoutes from './routes/genericHealthRoutes.js';
 
+import { clientIpMiddleware } from './utils/clientIp.js';
+import ipaddr from 'ipaddr.js';
+
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,18 +137,61 @@ const app = express();
 // where only the frontend container's nginx is in front. Add a hop for each
 // extra proxy (reverse proxy, tunnel connector, load balancer) or req.ip will
 // resolve to an internal address shared by every visitor.
+// Alternatively, SPARKY_FITNESS_TRUSTED_PROXIES can specify explicit CIDR blocks / IPs.
+const trustedProxiesEnv = process.env.SPARKY_FITNESS_TRUSTED_PROXIES?.trim();
 const trustedProxyHops = Number.parseInt(
   process.env.SPARKY_FITNESS_TRUSTED_PROXY_HOPS ?? '',
   10
 );
-app.set(
-  'trust proxy',
-  Number.isInteger(trustedProxyHops) && trustedProxyHops >= 0
-    ? trustedProxyHops
-    : 1
-);
+if (trustedProxiesEnv) {
+  const rawProxies = trustedProxiesEnv
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const validProxies = rawProxies.filter((p) => {
+    if (ipaddr.isValid(p)) return true;
+    try {
+      ipaddr.parseCIDR(p);
+      return true;
+    } catch {
+      console.warn(
+        `[WARN] Skipping invalid SPARKY_FITNESS_TRUSTED_PROXIES entry: "${p}"`
+      );
+      return false;
+    }
+  });
+  if (validProxies.length > 0) {
+    app.set('trust proxy', validProxies);
+  } else {
+    console.warn(
+      '[WARN] No valid CIDRs/IPs found in SPARKY_FITNESS_TRUSTED_PROXIES. Falling back to hop count.'
+    );
+    app.set(
+      'trust proxy',
+      Number.isInteger(trustedProxyHops) && trustedProxyHops >= 0
+        ? trustedProxyHops
+        : 1
+    );
+  }
+} else {
+  app.set(
+    'trust proxy',
+    Number.isInteger(trustedProxyHops) && trustedProxyHops >= 0
+      ? trustedProxyHops
+      : 1
+  );
+}
 // 304s from ETag revalidation break the iOS mobile app (#1353).
 app.set('etag', false);
+
+// Inject the canonical client IP into x-client-ip for Better Auth and downstream
+// handlers. Express computes req.ip using the 'trust proxy' configuration above
+// (or getClientIp resolves it from SPARKY_FITNESS_REAL_IP_HEADER).
+// Setting req.headers['x-client-ip'] ensures Better Auth can accurately identify
+// the real client IP behind reverse proxy chains instead of rejecting multi-hop
+// X-Forwarded-For headers and falling back to a shared rate-limit bucket.
+// Any client-supplied x-client-ip header is overwritten to prevent spoofing.
+app.use(clientIpMiddleware);
 const PORT = process.env.SPARKY_FITNESS_SERVER_PORT || 3010;
 console.log(
   `DEBUG: SPARKY_FITNESS_FRONTEND_URL is: ${process.env.SPARKY_FITNESS_FRONTEND_URL}`
@@ -373,6 +421,17 @@ app.use(async (req, res, next) => {
         'error',
         `Failed to bridge Bearer auth header in early interceptor: ${e}`
       );
+    }
+
+    // A read-only API key must not reach Better Auth's own mutations either
+    // (creating a new full-access key, changing the password, ...). These
+    // routes never pass through `authenticate`, so check here (issue #2678).
+    if (await isReadOnlyApiKeyAuthMutation(req)) {
+      log(
+        'warn',
+        `[AUTH HANDLER] Read-only API key refused for ${req.method} ${req.path}`
+      );
+      return res.status(403).json({ error: 'This API key is read-only.' });
     }
 
     // 2. Manual Sign-Out Cleanup: preserve sparky_active_user_id delete
@@ -733,6 +792,7 @@ app.use('/api/v2/cycle', cycleRoutesV2);
 app.use('/api/v2/pregnancy', pregnancyRoutesV2);
 app.use('/api/v2/reports', reportRoutesV2);
 app.use('/api/v2/nutrition', nutritionKineticsRoutesV2);
+app.use('/api/v2/mindfulness', mindfulnessRoutesV2);
 app.use('/api/workout-presets', workoutPresetRoutes);
 app.use('/api/workout-plan-templates', workoutPlanTemplateRoutes);
 app.use('/api/review', reviewRoutes);

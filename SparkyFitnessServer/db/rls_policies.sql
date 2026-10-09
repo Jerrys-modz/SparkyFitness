@@ -47,6 +47,7 @@ BEGIN
     'meals',
     'meal_types',
     'mood_entries',
+    'mindfulness_sessions',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -115,7 +116,8 @@ BEGIN
     'workout_feedback',
     'health_metric_samples',
     'vitals_entries',
-    'daily_health_metrics'
+    'daily_health_metrics',
+    'user_fasting_preferences'
   ]::text[])
   LOOP
     EXECUTE 'ALTER TABLE public.' || quote_ident(table_name) || ' ENABLE ROW LEVEL SECURITY;';
@@ -750,9 +752,13 @@ SELECT create_owner_policy('health_appointments');
 -- check-in delegates — so custom moods follow the same check-in policy for
 -- consistency (a delegate managing the owner's check-in sees the owner's moods).
 SELECT create_checkin_policy('user_custom_moods');
+SELECT create_checkin_policy('mindfulness_sessions');
 
 -- Mood display preferences: personal picker config, owner-only.
 SELECT create_owner_policy('user_mood_display_preferences');
+
+-- Fasting preferences: personal targets and auto-calculation config, owner-only.
+SELECT create_owner_policy('user_fasting_preferences');
 
 
 -- Custom policies for special cases

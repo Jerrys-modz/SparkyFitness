@@ -33,9 +33,10 @@ describe('getProviderDisplayName', () => {
 
 describe('FOOD_PROVIDER_TYPES', () => {
   it('covers the active backend providers without legacy nutritionix', () => {
-    expect(FOOD_PROVIDER_TYPES).toHaveLength(8);
+    expect(FOOD_PROVIDER_TYPES).toHaveLength(9);
     expect(FOOD_PROVIDER_TYPES).not.toContain('nutritionix');
     expect(FOOD_PROVIDER_TYPES).toContain('openfoodfacts');
     expect(FOOD_PROVIDER_TYPES).toContain('usda');
+    expect(FOOD_PROVIDER_TYPES).toContain('canadian-nutrient-file');
   });
 });

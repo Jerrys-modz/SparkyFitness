@@ -18,11 +18,13 @@ import {
   formatWeightDisplay,
   getServingVolume,
   volumeFromMl,
+  formatVolumeForUnit,
+} from '../../src/utils/unitConversions';
+import {
   carryDistanceFromKm,
   carryDistanceToKm,
   carryDistanceUnitLabel,
-  formatVolumeForUnit,
-} from '../../src/utils/unitConversions';
+} from '@workspace/shared';
 import i18n, {
   getAppLocale,
   initializeI18n,

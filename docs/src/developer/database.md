@@ -128,7 +128,9 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | Table | Purpose |
 |-------|---------|
 | `fasting_logs` | Fasting timeline logs (start/end fast) |
+| `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
 | `mood_entries` | Logged mood and energy levels |
+| `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
 | `medication_schedules` | Reminders and schedules for medications |
@@ -187,7 +189,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `global_settings` | Application feature flags and config |
 | `sso_provider` | Active Single Sign-On providers |
 | `oidc_providers` | OpenID Connect integration settings |
-| `external_provider_types` | Search provider configurations (FatSecret, USDA) |
+| `external_provider_types` | Search provider configurations (FatSecret, USDA, Canadian Nutrient File) |
 | `external_data_providers` | Configured API integration credentials, including personal or global Open Food Facts accounts |
 | `openfoodfacts_product_read_rate_limit` | Singleton lease and cooldown coordinating Open Food Facts product reads across server instances |
 | `openfoodfacts_sync_queue` | Dormant revision-aware automatic upload state and retained history; unused by manual contributions |

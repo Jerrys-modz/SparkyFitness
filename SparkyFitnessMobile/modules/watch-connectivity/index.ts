@@ -121,6 +121,11 @@ export interface WatchContextPayload {
    */
   weightUnit?: 'kg' | 'lbs' | null;
   /**
+   * The phone's distance unit. A weighted carry's distance is shown on the
+   * watch in metres for `km` and yards for `miles`. Missing reads as `km`.
+   */
+  distanceUnit?: 'km' | 'miles' | null;
+  /**
    * The phone's Settings → Haptics switch. The watch plays button haptics
    * and the rest-end buzz only while this is on. Missing reads as on.
    */
@@ -131,6 +136,11 @@ export interface WatchContextPayload {
    * Missing reads as on.
    */
   restAlertsEnabled?: boolean | null;
+  /**
+   * Settings → Apple Watch → Double-tap to log a set. The watch ignores the
+   * double-tap gesture while this is off. Missing reads as on.
+   */
+  doubleTapEnabled?: boolean | null;
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
@@ -221,6 +231,14 @@ export interface WatchContextPayload {
    * the phone still builds and arms the session. Absent on an older phone.
    */
   startableWorkouts?: { presetId: string; name: string }[] | null;
+  /**
+   * Today's planned workouts (from the active workout plans), shown above the
+   * saved ones. Each is also a saved workout, so a tap starts it by `presetId`
+   * like any other. Absent on an older phone.
+   */
+  scheduledWorkouts?:
+    | { presetId: string; name: string; planName: string; caption: string }[]
+    | null;
   /**
    * The phone's active server when that list was built. The watch sends it
    * back with a start request so a queued tap cannot start a preset after
@@ -337,6 +355,11 @@ export interface WatchWorkoutStartPayload {
    * `startedAt`.
    */
   capEndsAt?: string | null;
+  /**
+   * The workout came from a saved workout. The watch asks whether to update
+   * it when Finish is tapped on a workout whose exercises or sets changed.
+   */
+  fromPreset?: boolean;
 }
 
 /** One set logged on the watch during an active workout. */
@@ -479,6 +502,14 @@ export interface WatchWorkoutDiscardPayload {
   armedAt?: number;
 }
 
+/** The wearer's answer to the watch's "update this workout?" question, asked
+ * when they tap Finish on a workout started from a saved one and changed. */
+export interface WatchPresetUpdateAnswerPayload {
+  sessionId: string;
+  /** True to write the workout's changes into the saved workout. */
+  update: boolean;
+}
+
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
   /** Active server the list was built for. Empty when an older watch omitted it. */
@@ -500,6 +531,7 @@ export type WatchConnectivityEvents = {
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
+  onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

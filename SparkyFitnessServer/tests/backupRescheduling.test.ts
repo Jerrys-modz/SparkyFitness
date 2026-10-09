@@ -50,7 +50,7 @@ describe('rescheduleBackups', () => {
     expect(mocks.schedule).not.toHaveBeenCalled();
     expect(mocks.log).toHaveBeenCalledWith(
       'info',
-      expect.stringContaining('applies them when it restarts')
+      expect.stringContaining('applies them within 5 minutes')
     );
   });
 });

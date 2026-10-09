@@ -247,6 +247,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.workoutStartRequest(presetId: presetId, serverId: serverId))
     }
 
+    /// Tells the phone whether to write a finished workout's changes into its
+    /// saved workout. Queued like a tap on the picker: the phone is often in a
+    /// bag, and an answer that vanishes leaves the question open on the phone.
+    func sendPresetUpdateAnswer(sessionId: String, update: Bool) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.presetUpdateAnswer(sessionId: sessionId, update: update))
+    }
+
     /// Re-queues everything still unconfirmed. Used by the retry affordance and
     /// on app launch, since a transfer can be lost if the app was force-quit.
     func retryPending() {
@@ -611,7 +619,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // same pattern `WCSessionDelegate`'s callbacks use above.
         workoutHealthKit.onHeartRate = { [weak self, weak workoutStore] bpm, measuredAt in
             Task { @MainActor in
-                workoutStore?.recordHeartRate(bpm: bpm)
+                workoutStore?.recordHeartRate(bpm: bpm, measuredAt: measuredAt)
                 self?.sendLiveHeartRate(bpm, measuredAt: measuredAt)
             }
         }
@@ -1267,7 +1275,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         workoutHealthKit.stop(onBuffered: { [weak self] samples in
             MainActor.assumeIsolated {
-                guard let self, let closing else { return }
+                guard let self else { return }
+                self.workoutStore.recordFinalHeartRate(self.heartRateReadings(samples))
+                guard let closing else { return }
                 self.sendHeartRateBatch(
                     samples,
                     exerciseEntryId: closing.id,
@@ -1304,12 +1314,22 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 let next = self.pendingPlan
                 self.pendingPlan = nil
                 self.pendingSendStop = false
+                self.workoutStore.recordFinalHeartRate(self.heartRateReadings(samples))
+                let summary = next == nil ? self.workoutStore.makeSummary() : nil
                 self.workoutStore.reset()
+                self.workoutStore.recordSummary(summary)
                 self.collectionInFlight = false
                 if let next {
                     self.beginPlan(next)
                 }
             }
+        }
+    }
+
+    /// Measurement instants of a heart-rate batch, for the summary totals.
+    private func heartRateReadings(_ samples: [HeartRateSample]) -> [(at: Date, bpm: Double)] {
+        samples.compactMap { sample in
+            instantParser.date(from: sample.t).map { (at: $0, bpm: sample.bpm) }
         }
     }
 }
