@@ -84,6 +84,50 @@ describe('groundSupplementLabel', () => {
     ).toBeNull();
   });
 
+  it('reads a space as a thousands separator', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Calcium 1 200 mg',
+          ingredients: [{ name: 'Calcium', amount: 200, unit: 'mg' }],
+        })
+      )
+    ).toBeNull();
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Calcium 1 200 mg',
+          ingredients: [{ name: 'Calcium', amount: 1200, unit: 'mg' }],
+        })
+      )?.ingredients
+    ).toEqual([{ name: 'Calcium', amount: 1200, unit: 'mg' }]);
+  });
+
+  it('does not accept an amount when another unit is on the same line', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Vitamin C 90 mg Zinc 15 mcg',
+          ingredients: [{ name: 'Zinc', amount: 90, unit: 'mg' }],
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('keeps ingredients separated when their units differ', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Vitamin C 90 mg; Zinc 15 mcg',
+          ingredients: [
+            { name: 'Vitamin C', amount: 90, unit: 'mg' },
+            { name: 'Zinc', amount: 15, unit: 'mcg' },
+          ],
+        })
+      )?.ingredients.map((i) => i.name)
+    ).toEqual(['Vitamin C', 'Zinc']);
+  });
+
   it('does not treat the digits of a leading-dot decimal as the amount', () => {
     expect(
       groundSupplementLabel(

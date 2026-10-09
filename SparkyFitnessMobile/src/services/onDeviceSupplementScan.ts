@@ -25,17 +25,19 @@ const FORMS = new Set([
   'liquid',
 ]);
 
-// A comma between groups of three is a thousands separator ("1,000"); any
-// other comma is a decimal comma ("1,5"). A leading dot (".5") is part of the
-// number, so the digits after it are not a separate amount.
+// A comma or a space between groups of three is a thousands separator
+// ("1,000", "1 200"). Any other comma is a decimal comma ("1,5"). A leading
+// dot (".5") is part of the number, so the digits after it are not a separate
+// amount.
 const NUMBER_PATTERN =
-  /[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?|\.\d+/g;
+  /[1-9]\d{0,2}(?:[ \u00A0\u202F]\d{3})+(?:[.,]\d+)?|[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?|\.\d+/g;
 
 function parsePrinted(printed: string): number {
+  const compact = printed.replace(/[ \u00A0\u202F]/g, '');
   return Number(
-    /^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?$/.test(printed)
-      ? printed.replace(/,/g, '')
-      : printed.replace(',', '.')
+    /^[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?$/.test(compact)
+      ? compact.replace(/,/g, '')
+      : compact.replace(',', '.')
   );
 }
 
@@ -59,30 +61,36 @@ function completeNumbers(
     const prev = index > 0 ? text[index - 1] : '';
     const next = text[index + raw.length] ?? '';
     if (/[\d.,]/.test(prev) || /[\d.,]/.test(next)) continue;
+    // "200" in "1 200" is the rest of the thousands group, not its own amount.
+    const before = text.slice(0, index);
+    if (/^\d{3}$/.test(raw) && /\d[ \u00A0\u202F]+$/.test(before)) continue;
+    if (/^[ \u00A0\u202F]+\d{3}(?!\d)/.test(text.slice(index + raw.length))) {
+      continue;
+    }
     const value = parsePrinted(raw);
     if (Number.isFinite(value)) found.push({ index, raw, value });
   }
   return found;
 }
 
-function amountsWithUnit(text: string, unit: string): number[] {
-  const want = unit.trim().toLowerCase();
-  const amounts: number[] = [];
+/** Every amount on the slice except a %DV, whatever its unit. */
+function ingredientAmounts(text: string): { value: number; unit: string }[] {
+  const found: { value: number; unit: string }[] = [];
   for (const num of completeNumbers(text)) {
     const after = text.slice(num.index + num.raw.length);
     const unitMatch = /^\s*([^\s\d,.;|]+)/.exec(after);
     if (!unitMatch) continue;
     const printed = unitMatch[1].replace(/[^a-zA-Z%µμ]+$/g, '').toLowerCase();
-    if (printed === want) amounts.push(num.value);
+    if (!printed || printed === '%') continue;
+    found.push({ value: num.value, unit: printed });
   }
-  return amounts;
+  return found;
 }
 
 /**
  * True only when one slice of the row (split on ";" or "|") names this
- * ingredient once and has exactly one amount in its unit, and that amount is
- * the extracted one. Two amounts on the same slice belong to different
- * ingredients, so the line is left ungrounded and the server scan runs.
+ * ingredient once and that slice has exactly one amount. A second amount,
+ * even in another unit, makes the slice ambiguous, so the server scan runs.
  */
 function rowGroundsIngredient(
   row: string,
@@ -90,7 +98,7 @@ function rowGroundsIngredient(
   amount: number,
   unit: string | null
 ): boolean {
-  const normalized = unit?.trim();
+  const normalized = unit?.trim().toLowerCase();
   const tokens = nameTokens(name);
   if (!normalized || tokens.length === 0) return false;
   const namePattern = new RegExp(
@@ -100,8 +108,14 @@ function rowGroundsIngredient(
   let grounded = 0;
   for (const segment of row.split(/[;|]/)) {
     if (segment.match(namePattern)?.length !== 1) continue;
-    const amounts = amountsWithUnit(segment, normalized);
-    if (amounts.length === 1 && amounts[0] === amount) grounded += 1;
+    const amounts = ingredientAmounts(segment);
+    if (
+      amounts.length === 1 &&
+      amounts[0].unit === normalized &&
+      amounts[0].value === amount
+    ) {
+      grounded += 1;
+    }
   }
   return grounded === 1;
 }
