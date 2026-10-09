@@ -5833,13 +5833,9 @@
       "meals": "Meal calorie distribution"
     },
     "meals": {
-      "breakfast": "Breakfast (%)",
-      "lunch": "Lunch (%)",
-      "dinner": "Dinner (%)",
-      "snacks": "Snacks (%)",
       "mustBe100": "Meal percentages must total 100%.",
       "total": "Total: {{total}}% (must be 100% to save)",
-      "customNote": "You have custom meal types. Edit the meal distribution on the web."
+      "mealPercent": "{{meal}} (%)"
     },
     "directions": {
       "minimum": "Min",

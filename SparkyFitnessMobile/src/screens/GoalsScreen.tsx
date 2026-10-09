@@ -7,7 +7,13 @@ import FormScreenChrome from '../components/FormScreenChrome';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import Button from '../components/ui/Button';
-import { useProfile, useServerConnection, usePreferences } from '../hooks';
+import {
+  useMealTypes,
+  useProfile,
+  useServerConnection,
+  usePreferences,
+} from '../hooks';
+import type { MealType } from '../types/mealTypes';
 import { useLatestMeasurementsOnOrBefore } from '../hooks/useMeasurements';
 import {
   useAdjustedCalorieGoal,
@@ -70,13 +76,7 @@ type OtherGoalField =
   | 'target_exercise_calories_burned'
   | 'target_exercise_duration_minutes';
 
-type MealGoalField =
-  | 'breakfast_percentage'
-  | 'lunch_percentage'
-  | 'dinner_percentage'
-  | 'snacks_percentage';
-
-type GoalField = NutrientGoalField | OtherGoalField | MealGoalField;
+type GoalField = NutrientGoalField | OtherGoalField;
 
 const MACRO_FIELDS: NutrientGoalField[] = [
   'calories',
@@ -109,18 +109,10 @@ const OTHER_FIELDS: OtherGoalField[] = [
   'target_exercise_duration_minutes',
 ];
 
-const MEAL_FIELDS: MealGoalField[] = [
-  'breakfast_percentage',
-  'lunch_percentage',
-  'dinner_percentage',
-  'snacks_percentage',
-];
-
 const ALL_FIELDS: GoalField[] = [
   ...MACRO_FIELDS,
   ...OTHER_NUTRIENT_FIELDS,
   ...OTHER_FIELDS,
-  ...MEAL_FIELDS,
 ];
 
 const toDrafts = (
@@ -138,6 +130,21 @@ const toDrafts = (
 };
 
 const parseDraft = (text: string): number => Number(text.replace(',', '.'));
+
+// The four built-in meals keep their own goal columns; any other meal type
+// lives in custom_meal_percentages, keyed by its lowercase name.
+const DEFAULT_MEAL_KEYS = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+const mealKey = (name: string): string => name.toLowerCase();
+
+const getMealPercentage = (goals: DailyGoals, key: string): number => {
+  const custom = goals.custom_meal_percentages;
+  if (custom && key in custom) return custom[key] ?? 0;
+  const legacy = (goals as unknown as Record<string, unknown>)[
+    `${key}_percentage`
+  ];
+  return typeof legacy === 'number' ? legacy : 0;
+};
 
 const ACTIVITY_LEVELS = ['not_much', 'light', 'moderate', 'heavy'] as const;
 
@@ -178,6 +185,7 @@ interface GoalsFormProps {
   date: string;
   goals: DailyGoals;
   directions?: NutrientGoalPreferences;
+  mealTypes: MealType[];
   onDone: () => void;
 }
 
@@ -185,6 +193,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   date,
   goals,
   directions,
+  mealTypes,
   onDone,
 }) => {
   const { t } = useTranslation();
@@ -272,15 +281,32 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     (field) => getAutoCalculateFamily(field) !== null
   );
 
-  // Custom meal types carry their own percentages that must share the 100%
-  // budget, so the four built-in meals are only editable on their own.
-  const hasCustomMeals =
-    Object.keys(goals.custom_meal_percentages ?? {}).length > 0;
-  const mealTotal = MEAL_FIELDS.reduce(
-    (sum, field) => sum + (parseDraft(drafts[field]) || 0),
+  // Visible meal types (custom ones included) share the 100% budget. Hidden
+  // meals keep whatever percentage they already had.
+  const meals = useMemo(
+    () =>
+      mealTypes.length > 0
+        ? mealTypes.map((mealType) => ({
+            key: mealKey(mealType.name),
+            label: mealType.name,
+          }))
+        : DEFAULT_MEAL_KEYS.map((key) => ({
+            key,
+            label: key.charAt(0).toUpperCase() + key.slice(1),
+          })),
+    [mealTypes]
+  );
+  const [initialMealDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      meals.map(({ key }) => [key, String(getMealPercentage(goals, key))])
+    )
+  );
+  const [mealDrafts, setMealDrafts] = useState(initialMealDrafts);
+  const mealTotal = meals.reduce(
+    (sum, { key }) => sum + (parseDraft(mealDrafts[key] ?? '') || 0),
     0
   );
-  const mealTotalValid = hasCustomMeals || Math.round(mealTotal) === 100;
+  const mealTotalValid = Math.round(mealTotal) === 100;
 
   const nutrientLabel = (field: NutrientGoalField) => {
     const unit = NUTRIENT_META[field]?.unit;
@@ -310,12 +336,6 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     target_exercise_duration_minutes: t('goals.fields.exerciseMinutes', {
       defaultValue: 'Exercise duration (min)',
     }),
-    breakfast_percentage: t('goals.meals.breakfast', {
-      defaultValue: 'Breakfast (%)',
-    }),
-    lunch_percentage: t('goals.meals.lunch', { defaultValue: 'Lunch (%)' }),
-    dinner_percentage: t('goals.meals.dinner', { defaultValue: 'Dinner (%)' }),
-    snacks_percentage: t('goals.meals.snacks', { defaultValue: 'Snacks (%)' }),
   };
 
   const handleSave = useCallback(async () => {
@@ -338,6 +358,28 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         field === 'water_goal_ml'
           ? Math.round(volumeToMl(value, waterUnit))
           : value;
+    }
+    for (const { key } of meals) {
+      if (mealDrafts[key] === initialMealDrafts[key]) continue;
+      const value = parseDraft(mealDrafts[key] ?? '');
+      if (!Number.isFinite(value) || value < 0) {
+        Toast.show({
+          type: 'error',
+          text1: t('goals.invalidValue', {
+            defaultValue: 'Enter a valid number for every goal.',
+          }),
+        });
+        return;
+      }
+      if (DEFAULT_MEAL_KEYS.includes(key)) {
+        (next as unknown as Record<string, number>)[`${key}_percentage`] =
+          value;
+      } else {
+        next.custom_meal_percentages = {
+          ...next.custom_meal_percentages,
+          [key]: value,
+        };
+      }
     }
     if (!mealTotalValid) {
       Toast.show({
@@ -414,6 +456,9 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     drafts,
     initialDrafts,
     mealTotalValid,
+    meals,
+    mealDrafts,
+    initialMealDrafts,
     waterUnit,
     directionDrafts,
     initialDirections,
@@ -602,30 +647,37 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       {sectionTitle(
         t('goals.sections.meals', { defaultValue: 'Meal calorie distribution' })
       )}
-      {hasCustomMeals ? (
-        <Text className="text-sm text-text-secondary">
-          {t('goals.meals.customNote', {
-            defaultValue:
-              'You have custom meal types. Edit the meal distribution on the web.',
-          })}
-        </Text>
-      ) : (
-        <>
-          {renderFields(MEAL_FIELDS)}
-          <Text
-            className={
-              mealTotalValid
-                ? 'text-sm text-text-secondary'
-                : 'text-sm text-red-500'
-            }
-          >
-            {t('goals.meals.total', {
-              defaultValue: 'Total: {{total}}% (must be 100% to save)',
-              total: Math.round(mealTotal),
+      {meals.map(({ key, label }) => (
+        <View key={key} className="gap-1">
+          <Text className="text-sm font-medium text-text-primary">
+            {t('goals.meals.mealPercent', {
+              defaultValue: '{{meal}} (%)',
+              meal: label,
             })}
           </Text>
-        </>
-      )}
+          <FormInput
+            value={mealDrafts[key] ?? ''}
+            onChangeText={(text) =>
+              setMealDrafts((prev) => ({ ...prev, [key]: text }))
+            }
+            keyboardType="decimal-pad"
+            accessibilityLabel={label}
+            testID={`goal-input-meal-${key}`}
+          />
+        </View>
+      ))}
+      <Text
+        className={
+          mealTotalValid
+            ? 'text-sm text-text-secondary'
+            : 'text-sm text-red-500'
+        }
+      >
+        {t('goals.meals.total', {
+          defaultValue: 'Total: {{total}}% (must be 100% to save)',
+          total: Math.round(mealTotal),
+        })}
+      </Text>
     </FormScreenChrome>
   );
 };
@@ -637,8 +689,12 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
   const { goals, isLoading, isError, refetch } = useGoalsQuery(date, {
     enabled: isConnected,
   });
-  const { directions, isLoading: isLoadingDirections } =
+  const { mealTypes, isLoading: isLoadingMealTypes } = useMealTypes({
+    enabled: isConnected,
+  });
+  const { directions, isLoading: isLoadingDirectionsQuery } =
     useNutrientGoalPreferences({ enabled: isConnected });
+  const isLoadingDirections = isLoadingDirectionsQuery || isLoadingMealTypes;
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
   if (isLoading || isLoadingDirections || isError || !goals) {
@@ -670,6 +726,7 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
       date={date}
       goals={goals}
       directions={directions}
+      mealTypes={mealTypes}
       onDone={goBack}
     />
   );
