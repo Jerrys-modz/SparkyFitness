@@ -61,7 +61,7 @@ export const GoalWeight = () => {
   const isValid =
     value.trim() !== '' &&
     Number.isFinite(parsed) &&
-    parsedKg > 0 &&
+    Math.round(parsedKg * 100) / 100 > 0 &&
     parsedKg <= MAX_GOAL_WEIGHT_KG;
 
   const handleSave = async () => {

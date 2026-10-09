@@ -71,6 +71,19 @@ describe('GoalWeight', () => {
     ).toBeDisabled();
   });
 
+  it('rejects a weight the server would round down to zero', () => {
+    render(<GoalWeight />);
+    fireEvent.change(screen.getByLabelText('Goal weight (kg)'), {
+      target: { value: '0.004' },
+    });
+    expect(
+      screen.getByText('Save goal weight').closest('button')
+    ).toBeDisabled();
+    expect(
+      screen.getByText('Enter a weight above zero and up to 999.99 kg.')
+    ).toBeInTheDocument();
+  });
+
   it('clears the goal with null', async () => {
     render(<GoalWeight />);
     fireEvent.click(screen.getByText('Clear'));
