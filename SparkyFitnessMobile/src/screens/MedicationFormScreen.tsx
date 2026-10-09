@@ -6,7 +6,13 @@ import React, {
   useRef,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, Alert, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  Alert,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -249,6 +255,9 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
   // database does not have. The system crop editor doubles as the "frame the
   // label" step, which is what makes vision models read it reliably.
   const pickerLock = useRef(false);
+  // True from the moment a photo is chosen until the scan request starts, so
+  // the overlay covers the resize step too.
+  const [preparingLabel, setPreparingLabel] = useState(false);
   const readLabelPhoto = async (source: 'camera' | 'library') => {
     if (pickerLock.current) return;
     pickerLock.current = true;
@@ -267,6 +276,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
               allowsMultipleSelection: false,
             });
       if (result.canceled) return;
+      setPreparingLabel(true);
       const asset = result.assets?.[0];
       const prepared = asset?.uri ? await prepareLabelPhoto(asset) : null;
       if (!prepared) {
@@ -324,6 +334,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         })
       );
     } finally {
+      setPreparingLabel(false);
       pickerLock.current = false;
     }
   };
@@ -1102,6 +1113,27 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           />
         </View>
       </KeyboardAwareScrollView>
+      {(preparingLabel ||
+        labelScan.isPending ||
+        supplementLookup.isPending) && (
+        <View
+          className="absolute inset-0 items-center justify-center gap-3"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+          accessibilityRole="progressbar"
+          accessibilityLiveRegion="polite"
+        >
+          <ActivityIndicator size="large" color="#fff" />
+          <Text className="text-white text-base font-medium">
+            {supplementLookup.isPending
+              ? t('medications.supplement.lookingUp', {
+                  defaultValue: 'Looking up the label…',
+                })
+              : t('medications.supplement.readingLabel', {
+                  defaultValue: 'Reading the label…',
+                })}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
