@@ -364,3 +364,56 @@ describe('pause edge cases', () => {
     expect((await storedSession())?.status).toBe('recording');
   });
 });
+
+describe('auto-pause', () => {
+  const moving = (seconds: number, metersNorth: number) => ({
+    ...fix(seconds, metersNorth),
+    speed: 3,
+  });
+  const standing = (seconds: number) => ({ ...fix(seconds, 0), speed: 0 });
+
+  it('pauses itself when the person stops and resumes when they move', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await ingestFixes([moving(0, 0), moving(2, 6), moving(4, 12)]);
+    await ingestFixes([standing(6), standing(10), standing(15)]);
+
+    let stored = await storedSession();
+    expect(stored?.status).toBe('paused');
+    expect(stored?.autoPaused).toBe(true);
+    expect(stored?.pausedAt).toBe(T0 + 6000);
+
+    await ingestFixes([moving(30, 6), moving(31, 9), moving(33, 15)]);
+    stored = await storedSession();
+    expect(stored?.status).toBe('recording');
+    expect(stored?.autoPaused).toBe(false);
+    expect(stored?.seg).toBe(1);
+    // Paused from the moment they stopped until they started moving again.
+    expect(stored?.pausedMs).toBe(30_000 - 6_000);
+    expect(mockedLocation.stopLocationUpdatesAsync).not.toHaveBeenCalled();
+  });
+
+  it('never pauses when it was not asked for', async () => {
+    await startRecording({ activity: 'run', notification });
+    await ingestFixes([standing(0), standing(10), standing(20), standing(30)]);
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('leaves a pause the person made alone', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await pauseRecording();
+    await ingestFixes([moving(0, 0), moving(2, 6), moving(4, 12)]);
+    const stored = await storedSession();
+    expect(stored?.status).toBe('paused');
+    expect(stored?.autoPaused).toBe(false);
+  });
+
+  it('lets the person resume an auto-pause by hand', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await ingestFixes([standing(0), standing(10), standing(12)]);
+    expect((await storedSession())?.autoPaused).toBe(true);
+    await resumeRecording(notification);
+    const stored = await storedSession();
+    expect(stored?.status).toBe('recording');
+    expect(stored?.autoPaused).toBe(false);
+  });
+});
