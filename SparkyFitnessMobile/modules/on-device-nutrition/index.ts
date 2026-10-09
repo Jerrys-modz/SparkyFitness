@@ -25,10 +25,32 @@ export interface OnDeviceLabelExtraction {
   ocr_text?: string;
 }
 
+/** Raw meal estimate returned by the Swift module. */
+export interface OnDeviceMealEstimate {
+  summary: string;
+  items: {
+    name: string;
+    grams: number;
+    portion: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
+    sugar: number;
+    confidence: string;
+  }[];
+}
+
 declare class OnDeviceNutritionModuleType extends NativeModule {
   /** True on iOS 27+ with Apple Intelligence enabled and the model ready. */
   isAvailable(): boolean;
   scanLabel(base64Image: string): Promise<OnDeviceLabelExtraction>;
+  estimateMeal(
+    base64Image: string,
+    description: string | null,
+    totalGrams: number | null
+  ): Promise<OnDeviceMealEstimate>;
 }
 
 // iOS only; resolves to null elsewhere and in builds made before the module
