@@ -570,11 +570,15 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
         prescriber: isSupplement ? null : form.prescriber.trim() || null,
         pharmacy: isSupplement ? null : form.pharmacy.trim() || null,
         notes: form.notes.trim() || null,
-        is_glp1: form.isGlp1,
+        // GLP-1 is a medication-only flag; a supplement never carries it.
+        is_glp1: isSupplement ? false : form.isGlp1,
         // Merge so keys web set on the medication survive an edit here.
         custom_fields: {
           ...(existingMed?.custom_fields ?? {}),
-          glp1_drug: form.isGlp1 && form.glp1Drug ? form.glp1Drug : undefined,
+          glp1_drug:
+            !isSupplement && form.isGlp1 && form.glp1Drug
+              ? form.glp1Drug
+              : undefined,
         },
       };
 
@@ -1068,39 +1072,45 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
           </View>
         )}
 
-        <View className="flex-row justify-between items-center">
-          <Text className="text-base text-text-primary">
-            {t('medications.glp1.form.isGlp1', {
-              defaultValue: 'GLP-1 medication',
-            })}
-          </Text>
-          <Switch
-            value={form.isGlp1}
-            onValueChange={(v) => updateField('isGlp1', v)}
-          />
-        </View>
+        {!isSupplement && (
+          <>
+            <View className="flex-row justify-between items-center">
+              <Text className="text-base text-text-primary">
+                {t('medications.glp1.form.isGlp1', {
+                  defaultValue: 'GLP-1 medication',
+                })}
+              </Text>
+              <Switch
+                value={form.isGlp1}
+                onValueChange={(v) => updateField('isGlp1', v)}
+              />
+            </View>
 
-        {form.isGlp1 && (
-          <View className="gap-1.5">
-            <Text className="text-text-secondary text-sm font-medium">
-              {t('medications.glp1.form.drug', { defaultValue: 'Drug' })}
-            </Text>
-            <BottomSheetPicker
-              value={form.glp1Drug}
-              options={glp1DrugOptions}
-              onSelect={(val) => updateField('glp1Drug', val)}
-              placeholder={t('medications.glp1.form.drugPlaceholder', {
-                defaultValue: 'Choose a drug',
-              })}
-              title={t('medications.glp1.form.drug', { defaultValue: 'Drug' })}
-            />
-            <Text className="text-xs text-text-muted">
-              {t('medications.glp1.form.drugHelp', {
-                defaultValue:
-                  'Used for the modeled level and rotation. Injection pens, the body map and inventory show for the Injection type.',
-              })}
-            </Text>
-          </View>
+            {form.isGlp1 && (
+              <View className="gap-1.5">
+                <Text className="text-text-secondary text-sm font-medium">
+                  {t('medications.glp1.form.drug', { defaultValue: 'Drug' })}
+                </Text>
+                <BottomSheetPicker
+                  value={form.glp1Drug}
+                  options={glp1DrugOptions}
+                  onSelect={(val) => updateField('glp1Drug', val)}
+                  placeholder={t('medications.glp1.form.drugPlaceholder', {
+                    defaultValue: 'Choose a drug',
+                  })}
+                  title={t('medications.glp1.form.drug', {
+                    defaultValue: 'Drug',
+                  })}
+                />
+                <Text className="text-xs text-text-muted">
+                  {t('medications.glp1.form.drugHelp', {
+                    defaultValue:
+                      'Used for the modeled level and rotation. Injection pens, the body map and inventory show for the Injection type.',
+                  })}
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
         <View className="flex-row justify-between items-center">
