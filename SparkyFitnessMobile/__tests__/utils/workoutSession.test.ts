@@ -5836,6 +5836,55 @@ describe('workoutSession', () => {
       ).toBeNull();
     });
 
+    describe('structureOnly', () => {
+      it('ignores a weight or reps change', () => {
+        const session = makePreset({
+          exercises: [
+            makeSessionExercise({
+              sets: [makeSessionSet({ weight: 105, reps: 8 })],
+            }),
+          ],
+        });
+        expect(
+          buildPresetUpdateExercises(session, makeTargetPreset(), {
+            ...allCompleted(session),
+            structureOnly: true,
+          })
+        ).toBeNull();
+      });
+
+      it('still reports an added set', () => {
+        const session = makePreset({
+          exercises: [
+            makeSessionExercise({
+              sets: [makeSessionSet(), makeSessionSet({ id: 102 })],
+            }),
+          ],
+        });
+        const payload = buildPresetUpdateExercises(
+          session,
+          makeTargetPreset(),
+          { ...allCompleted(session), structureOnly: true }
+        );
+        expect(payload?.[0]?.sets).toHaveLength(2);
+      });
+
+      it('still reports an added exercise', () => {
+        const session = makePreset({
+          exercises: [
+            makeSessionExercise(),
+            makeSessionExercise({ id: 'entry-2', exercise_id: EX_B }),
+          ],
+        });
+        expect(
+          buildPresetUpdateExercises(session, makeTargetPreset(), {
+            ...allCompleted(session),
+            structureOnly: true,
+          })
+        ).not.toBeNull();
+      });
+    });
+
     it('returns the full payload when a completed set value changed', () => {
       const session = makePreset({
         exercises: [

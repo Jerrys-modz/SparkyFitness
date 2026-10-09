@@ -1,0 +1,88 @@
+import AppIntents
+import SwiftUI
+import WidgetKit
+
+// Lock Screen and Control Center controls (iOS 18). Each is a button that runs
+// one of the Siri and Shortcuts intents (ShortcutIntents.swift) without opening
+// the app. They need the login the app keeps in the shared Keychain group the
+// intents read, which it writes while a server is signed in.
+
+@available(iOS 18.0, *)
+struct LogWaterControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.logWater"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: LogWaterIntent()) {
+                Label("widget.control.log_water.name", systemImage: "drop.fill")
+            }
+        }
+        .displayName("widget.control.log_water.name")
+        .description("widget.control.log_water.description")
+    }
+}
+
+@available(iOS 18.0, *)
+struct StartFastControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.startFast"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: StartFastIntent()) {
+                Label("widget.control.start_fast.name", systemImage: "timer")
+            }
+        }
+        .displayName("widget.control.start_fast.name")
+        .description("widget.control.start_fast.description")
+    }
+}
+
+@available(iOS 18.0, *)
+struct EndFastControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.endFast"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: EndFastIntent()) {
+                Label("widget.control.end_fast.name", systemImage: "stop.circle")
+            }
+        }
+        .displayName("widget.control.end_fast.name")
+        .description("widget.control.end_fast.description")
+    }
+}
+
+// These two open the app on the screen they name through their own intents,
+// which leaves the destination in the shared app group for the app to pick up.
+// They are here so Control Center and the Lock Screen
+// can hold the everyday ways in, not only the ones that log in the background.
+
+@available(iOS 18.0, *)
+struct ScanFoodControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.scanFood"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: ScanFoodControlIntent()) {
+                Label("widget.control.scan_food.name", systemImage: "barcode.viewfinder")
+            }
+        }
+        .displayName("widget.control.scan_food.name")
+        .description("widget.control.scan_food.description")
+    }
+}
+
+@available(iOS 18.0, *)
+struct SearchFoodControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.searchFood"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: LogFoodControlIntent()) {
+                Label("widget.control.search_food.name", systemImage: "magnifyingglass")
+            }
+        }
+        .displayName("widget.control.search_food.name")
+        .description("widget.control.search_food.description")
+    }
+}
