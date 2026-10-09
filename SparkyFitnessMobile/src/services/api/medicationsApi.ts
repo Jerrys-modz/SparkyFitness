@@ -10,6 +10,7 @@ import type {
   UpdateMedicationEntryInput,
   CreateScheduleInput,
   UpdateScheduleInput,
+  SupplementLookupResponse,
 } from '@workspace/shared';
 
 const SERVICE_NAME = 'Medications API';
@@ -27,6 +28,19 @@ export const listMedications = async (opts?: {
   });
   return result ?? [];
 };
+
+/**
+ * Finds a supplement by the barcode on its package.
+ * GET /api/v2/medications/supplement-lookup?upc=
+ */
+export const lookupSupplementBarcode = (
+  upc: string
+): Promise<SupplementLookupResponse> =>
+  apiFetch<SupplementLookupResponse>({
+    endpoint: `/api/v2/medications/supplement-lookup?upc=${encodeURIComponent(upc)}`,
+    serviceName: SERVICE_NAME,
+    operation: 'look up supplement barcode',
+  });
 
 export const getMedication = (id: string): Promise<MedicationDetail> =>
   apiFetch<MedicationDetail>({

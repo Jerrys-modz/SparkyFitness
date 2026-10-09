@@ -85,6 +85,30 @@ describe('processFitbitActivities duration units', () => {
       activityDetailsRepository.createActivityDetail
     ).not.toHaveBeenCalled();
   });
+
+  it('gives an activity without a logId a source_id from its start time', async () => {
+    await processFitbitActivities(UID, CID, {
+      activities: [
+        {
+          activityName: 'Run',
+          activityParentName: 'Run',
+          startTime: '2026-07-15T10:00:00.000',
+          duration: 1800000,
+        },
+      ],
+    });
+
+    expect(exerciseEntryRepository.createExerciseEntry).toHaveBeenCalledWith(
+      UID,
+      expect.objectContaining({
+        source_id: 'fitbit-activity-2026-07-15T10:00:00.000',
+      }),
+      CID,
+      'Fitbit',
+      null,
+      expect.anything()
+    );
+  });
 });
 
 describe('processFitbitSleep recording-zone stamp (issue #2033)', () => {

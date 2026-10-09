@@ -241,6 +241,19 @@ struct StartableWorkout: Codable, Equatable, Identifiable {
     var id: String { presetId }
 }
 
+/// A workout the active plans put on today, shown first on the workout page.
+/// It is also a saved workout, so a tap starts it by `presetId`.
+struct ScheduledWorkout: Codable, Equatable, Identifiable {
+    let presetId: String
+    let name: String
+    let planName: String
+    /// "Scheduled Today", or the session a sequential plan is on. Already
+    /// translated by the phone.
+    let caption: String
+
+    var id: String { "\(planName):\(presetId)" }
+}
+
 /// Everything the phone relays to the watch: what to seed the crown with, and
 /// recent history to draw. Latest-value-only — delivered via
 /// `updateApplicationContext`, so a missed update is simply superseded.
@@ -331,12 +344,18 @@ struct WatchContext: Codable, Equatable {
     /// said; empty means there are none. Optional so an older context blob
     /// still decodes.
     var startableWorkouts: [StartableWorkout]? = nil
+    /// Today's planned workouts. Nil until the phone has said, empty when no
+    /// plan has one due.
+    var scheduledWorkouts: [ScheduledWorkout]? = nil
     /// The phone's active server when `startableWorkouts` was built. Sent
     /// back with a start request. Nil on a context from before this field.
     var workoutServerId: String? = nil
     /// The phone's distance unit (`km` or `miles`). Decides whether a weighted
     /// carry's distance is shown in metres or yards. Nil reads as metres.
     var distanceUnit: String? = nil
+    /// The phone's Settings → Apple Watch → Double-tap switch. Defaulted so the
+    /// existing initializer calls need not pass it; nil reads as on.
+    var doubleTapEnabled: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -362,6 +381,7 @@ struct WatchContext: Codable, Equatable {
         hiddenPages: nil,
         setInputStyle: nil,
         startableWorkouts: nil,
+        scheduledWorkouts: nil,
         workoutServerId: nil
     )
 
@@ -412,6 +432,10 @@ struct WatchContext: Codable, Equatable {
     var effectiveRestBuzzEnabled: Bool {
         effectiveHapticsEnabled && (restAlertsEnabled ?? true)
     }
+
+    /// Whether the double-tap gesture logs a set. On until the phone says
+    /// otherwise.
+    var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.

@@ -817,7 +817,8 @@
     "gotIt": "Got it",
     "close": "Close",
     "swissFoodApi": "Swiss Food Composition Database API",
-    "usdaApi": "USDA Food Database API"
+    "usdaApi": "USDA Food Database API",
+    "canadianNutrientFileApi": "Canadian Nutrient File (Health Canada)"
   },
   "exercise": {
     "title": "Exercises",
@@ -1841,6 +1842,38 @@
         "error": "Failed to delete synced data."
       }
     },
+    "cnf": {
+      "dialogTitle": "Canadian Nutrient File Bulk Import & Sync",
+      "dialogDescription": "Import or update the complete Health Canada food catalog (~5,700 items) into your food library.",
+      "importingProgress": "Importing catalog in progress...",
+      "processed": "Processed",
+      "imported": "Imported",
+      "updated": "Updated",
+      "lastImportSuccess": "Catalog import completed successfully.",
+      "lastImportFailed": "Catalog import failed.",
+      "syncScopeLabel": "Sync Scope",
+      "modeLibraryOnly": "Sync library only (Recommended)",
+      "modeLibraryOnlyDesc": "Upserts food items, updates portion measures and saved recipe snapshots. Past diary entries are preserved untouched.",
+      "modeLibraryAndPast": "Sync library & past entries",
+      "modeLibraryAndPastDesc": "Updates the library and also recalculates historical diary logs logged from Canadian Nutrient File to match latest data.",
+      "languageLabel": "Catalog Language",
+      "sourceLabel": "Source",
+      "officialArchive": "Official Health Canada Open Data Archive (Default)",
+      "uploadZip": "Upload local ZIP archive (cnf-fcen-csv.zip)",
+      "needArchive": "Don't have the file?",
+      "downloadArchiveLink": "Download Official CNF ZIP (26 MB)",
+      "uploadHelp": "Select the official CNF ZIP archive downloaded from open.canada.ca.",
+      "dryRunLabel": "Sample Import (first 10 foods only)",
+      "dryRunHelp": "Import up to 10 foods to verify portion measurements and custom nutrient mappings before running the full import.",
+      "clearLibrary": "Clear CNF Library",
+      "startImport": "Start Import / Sync",
+      "confirmDeleteTitle": "Clear Canadian Nutrient File Library?",
+      "confirmDeleteDesc": "This will remove all Canadian Nutrient File foods from your library. Your past diary entries referencing these foods will be safely preserved.",
+      "licenceNotice": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>.",
+      "providerCardLicence": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>",
+      "providerSpecificDescription": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the <1>Open Government Licence – Canada</1>. It is free, public, and requires no credentials. Supported languages are <3>English (en)</3> and <5>French (fr)</5>.",
+      "providerSpecificPortal": "For more details, see the official portal at <1>Canadian Nutrient File</1>."
+    },
     "foodExerciseDataProviders": {
       "title": "Food & Exercise Data Providers",
       "description": "Configure external food and exercise data sources and synchronize data with Garmin Connect",
@@ -2125,6 +2158,9 @@
       "30days": "30 Days",
       "7days": "7 Days",
       "90days": "90 Days",
+      "access": "Access",
+      "accessFull": "Full access",
+      "accessRead": "Read-only",
       "cleanupError": "Failed to cleanup keys",
       "cleanupExpired": "Cleanup Expired Keys",
       "cleanupSuccess": "All expired API keys have been removed.",
@@ -3328,11 +3364,98 @@
     "tabs": {
       "fasting": "Fasting & Mood",
       "measurements": "Measurements",
+      "mindfulness": "Mindfulness",
       "photos": "Photos",
       "sleep": "Sleep",
       "symptoms": "Symptoms"
     },
     "noRecentActivity": "No recent activity found."
+  },
+  "mindfulness": {
+    "title": "Mindfulness",
+    "stats": {
+      "totalMinutes": "Mindful Minutes Today",
+      "sessionCount": "Sessions",
+      "recorded_one": "session recorded",
+      "recorded_other": "sessions recorded"
+    },
+    "pacer": {
+      "title": "Paced Breathing",
+      "subtitle": "Breathwork Guide",
+      "hide": "Hide Pacer",
+      "launch": "Launch Pacer",
+      "boxName": "Box Breathing",
+      "boxDesc": "Focus & Stress Relief",
+      "relaxName": "4-7-8 Relaxation",
+      "relaxDesc": "Deep Calm & Sleep Prep",
+      "coherenceName": "Coherent Resonance",
+      "coherenceDesc": "HRV Maximization",
+      "inhale": "Inhale",
+      "hold": "Hold",
+      "exhale": "Exhale",
+      "rest": "Rest",
+      "ready": "Ready",
+      "begin": "Begin Breathing",
+      "complete": "Complete"
+    },
+    "timer": {
+      "title": "Meditation Timer",
+      "subtitle": "Open / Timed Session",
+      "heading": "Meditation Session Timer",
+      "description": "Quiet focus with automated completion recording",
+      "hide": "Hide Timer",
+      "launch": "Launch Timer",
+      "start": "Start Timer",
+      "resume": "Resume",
+      "pause": "Pause",
+      "saveAndFinish": "Save & Finish"
+    },
+    "history": {
+      "title": "Today’s Sessions",
+      "subtitle": "Wearable imports and manual entries for {{date}}",
+      "loading": "Loading mindfulness data...",
+      "emptyTitle": "No mindfulness sessions recorded for this day",
+      "emptyDescription": "Take a quick 5-minute breathing break, meditate, or log a wearable session from Apple Health / Garmin."
+    },
+    "actions": {
+      "logManual": "Log Session",
+      "breathe": "Breathe",
+      "timer": "Timer",
+      "log": "Log",
+      "edit": "Edit session",
+      "delete": "Delete session",
+      "cancel": "Cancel",
+      "saving": "Saving..."
+    },
+    "types": {
+      "meditation": "Meditation",
+      "breathwork": "Breathwork",
+      "reflection": "Reflection",
+      "walking": "Mindful Walking",
+      "yoga": "Yoga",
+      "other": "Other"
+    },
+    "dialog": {
+      "editTitle": "Edit Mindfulness Session",
+      "createTitle": "Log Mindfulness Session",
+      "minutes": "Minutes",
+      "seconds": "Seconds",
+      "type": "Type",
+      "hrAvg": "Avg Heart Rate (bpm)",
+      "hrv": "HRV RMSSD (ms)",
+      "hrStart": "Start HR (bpm)",
+      "hrEnd": "End HR (bpm)",
+      "notes": "Notes",
+      "notesPlaceholder": "How did this session feel?",
+      "save": "Save Session",
+      "update": "Update Session"
+    },
+    "deleteDialog": {
+      "title": "Delete Mindfulness Session",
+      "description": "Are you sure you want to delete this mindfulness session? This action cannot be undone.",
+      "confirm": "Delete",
+      "deleting": "Deleting..."
+    }
   },
   "sleepTimelineEditor": {
     "sleepTimeline": "Sleep Timeline",
@@ -5520,6 +5643,7 @@
     "garminLoginSuccess": "Garmin connected successfully.",
     "googleHealthLinkError": "Failed to link Google Health account.",
     "googleHealthLinkSuccess": "Google Health account successfully linked!",
+    "googleHealthSyncError": "Google Health sync did not finish.",
     "hevySyncError": "Hevy sync failed. Please check your API key in settings.",
     "hevySyncSuccess": "Hevy data synced successfully.",
     "liftosaurSyncError": "Liftosaur sync failed. Please check your API key in settings.",
@@ -6714,5 +6838,22 @@
         "menstrual_phase": "During the menstrual phase"
       }
     }
+  },
+  "trainingConsistency": {
+    "title": "Training Consistency",
+    "streak": "Week streak",
+    "longest": "Longest",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "daysPerWeek_one": "Workout days per week, last {{count}} week",
+    "daysPerWeek_other": "Workout days per week, last {{count}} weeks",
+    "chartLabel": "Workout days per week",
+    "setsTitle": "Sets per muscle",
+    "noSets": "No sets logged this week or last.",
+    "loadFailed": "Failed to load training consistency."
   }
 }

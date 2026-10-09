@@ -278,6 +278,20 @@ BEGIN
   ) VALUES (
     p_admin_user_id, 'Swiss Food Database', 'swissfood', TRUE, TRUE, now(), now()
   ) ON CONFLICT (user_id, provider_name) DO UPDATE SET is_public = TRUE;
+
+  -- Canadian Nutrient File
+  INSERT INTO public.external_data_providers (
+    user_id, provider_name, provider_type, is_active, is_public, created_at, updated_at
+  ) VALUES (
+    p_admin_user_id, 'Canadian Nutrient File', 'canadian-nutrient-file', TRUE, TRUE, now(), now()
+  ) ON CONFLICT (user_id, provider_name) DO UPDATE SET is_public = TRUE;
+
+  -- NIH Dietary Supplement Label Database
+  INSERT INTO public.external_data_providers (
+    user_id, provider_name, provider_type, is_active, is_public, created_at, updated_at
+  ) VALUES (
+    p_admin_user_id, 'NIH Dietary Supplement Label Database', 'dsld', TRUE, TRUE, now(), now()
+  ) ON CONFLICT (user_id, provider_name) DO UPDATE SET is_public = TRUE;
 END;
 $$;
 
@@ -1895,7 +1909,8 @@ CREATE TABLE public.daily_health_metrics (
     body_battery_lowest integer,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    total_calories_captured_at timestamp with time zone
+    total_calories_captured_at timestamp with time zone,
+    total_mindful_minutes integer
 );
 
 
@@ -2335,7 +2350,8 @@ CREATE TABLE public.external_data_providers (
     sync_frequency text DEFAULT 'manual'::text,
     oauth_state text,
     sort_order integer,
-    is_public boolean DEFAULT false NOT NULL
+    is_public boolean DEFAULT false NOT NULL,
+    sync_started_at timestamp with time zone
 );
 
 
@@ -3232,6 +3248,35 @@ CREATE TABLE public.medications (
 --
 
 COMMENT ON COLUMN public.medications.nutrients IS 'Fixed-key and custom nutrient amounts per one dose; custom nutrients are stored under custom_nutrients.';
+
+
+--
+-- Name: mindfulness_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.mindfulness_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    entry_date date DEFAULT CURRENT_DATE NOT NULL,
+    start_time timestamp with time zone,
+    end_time timestamp with time zone,
+    duration_seconds integer NOT NULL,
+    session_type character varying(50) DEFAULT 'meditation'::character varying NOT NULL,
+    provider character varying(50) DEFAULT 'manual'::character varying NOT NULL,
+    external_id character varying(255),
+    heart_rate_avg numeric(5,1),
+    heart_rate_start integer,
+    heart_rate_end integer,
+    hrv_rmssd numeric(5,1),
+    stress_level_start integer,
+    stress_level_end integer,
+    mood_entry_id uuid,
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid
+);
 
 
 --
@@ -5707,6 +5752,14 @@ ALTER TABLE ONLY public.medications
 
 
 --
+-- Name: mindfulness_sessions mindfulness_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mindfulness_sessions
+    ADD CONSTRAINT mindfulness_sessions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: mood_entries mood_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6433,6 +6486,13 @@ CREATE UNIQUE INDEX check_in_measurements_user_date_unique ON public.check_in_me
 
 
 --
+-- Name: custom_categories_user_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX custom_categories_user_name_key ON public.custom_categories USING btree (user_id, name);
+
+
+--
 -- Name: idx_account_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6727,6 +6787,27 @@ CREATE INDEX idx_food_favorites_user_id ON public.food_favorites USING btree (us
 
 
 --
+-- Name: idx_food_variants_default_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_food_variants_default_lookup ON public.food_variants USING btree (food_id, is_default, updated_at DESC, id);
+
+
+--
+-- Name: idx_food_variants_food_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_food_variants_food_id ON public.food_variants USING btree (food_id);
+
+
+--
+-- Name: idx_foods_is_quick_food_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_foods_is_quick_food_name ON public.foods USING btree (is_quick_food, name);
+
+
+--
 -- Name: idx_foods_provider_external_id_provider_type; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6738,6 +6819,13 @@ CREATE INDEX idx_foods_provider_external_id_provider_type ON public.foods USING 
 --
 
 CREATE INDEX idx_foods_provider_type_user_id ON public.foods USING btree (provider_type, user_id) WHERE (provider_type IS NOT NULL);
+
+
+--
+-- Name: idx_foods_shared_public_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_foods_shared_public_name ON public.foods USING btree (shared_with_public, is_quick_food, name);
 
 
 --
@@ -6864,6 +6952,27 @@ CREATE INDEX idx_medications_is_supplement ON public.medications USING btree (us
 --
 
 CREATE INDEX idx_medications_user_id ON public.medications USING btree (user_id);
+
+
+--
+-- Name: idx_mindfulness_sessions_user_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mindfulness_sessions_user_date ON public.mindfulness_sessions USING btree (user_id, entry_date);
+
+
+--
+-- Name: idx_mindfulness_sessions_user_external; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mindfulness_sessions_user_external ON public.mindfulness_sessions USING btree (user_id, provider, external_id) WHERE (external_id IS NOT NULL);
+
+
+--
+-- Name: idx_mindfulness_sessions_user_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mindfulness_sessions_user_start ON public.mindfulness_sessions USING btree (user_id, start_time);
 
 
 --
@@ -7242,6 +7351,13 @@ CREATE INDEX openfoodfacts_sync_queue_due_idx ON public.openfoodfacts_sync_queue
 --
 
 CREATE INDEX openfoodfacts_sync_queue_user_status_idx ON public.openfoodfacts_sync_queue USING btree (user_id, status, updated_at DESC);
+
+
+--
+-- Name: sleep_entries_user_date_source_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX sleep_entries_user_date_source_key ON public.sleep_entries USING btree (user_id, entry_date, source);
 
 
 --
@@ -8540,6 +8656,38 @@ ALTER TABLE ONLY public.medications
 
 
 --
+-- Name: mindfulness_sessions mindfulness_sessions_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mindfulness_sessions
+    ADD CONSTRAINT mindfulness_sessions_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: mindfulness_sessions mindfulness_sessions_mood_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mindfulness_sessions
+    ADD CONSTRAINT mindfulness_sessions_mood_entry_id_fkey FOREIGN KEY (mood_entry_id) REFERENCES public.mood_entries(id) ON DELETE SET NULL;
+
+
+--
+-- Name: mindfulness_sessions mindfulness_sessions_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mindfulness_sessions
+    ADD CONSTRAINT mindfulness_sessions_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: mindfulness_sessions mindfulness_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mindfulness_sessions
+    ADD CONSTRAINT mindfulness_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: mood_entries mood_entries_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9712,6 +9860,12 @@ ALTER TABLE public.medication_titration_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medications ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: mindfulness_sessions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.mindfulness_sessions ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: check_in_measurements modify_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -9971,6 +10125,13 @@ CREATE POLICY modify_policy ON public.medication_titration_steps USING (public.h
 --
 
 CREATE POLICY modify_policy ON public.medications USING (public.has_medication_access(user_id)) WITH CHECK (public.has_medication_access(user_id));
+
+
+--
+-- Name: mindfulness_sessions modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.mindfulness_sessions USING (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text))) WITH CHECK (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text)));
 
 
 --
@@ -10741,6 +10902,13 @@ CREATE POLICY select_policy ON public.medication_titration_steps FOR SELECT USIN
 --
 
 CREATE POLICY select_policy ON public.medications FOR SELECT USING (public.has_medication_read_access(user_id));
+
+
+--
+-- Name: mindfulness_sessions select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.mindfulness_sessions FOR SELECT USING (public.has_checkin_read_access(user_id));
 
 
 --
@@ -12052,6 +12220,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.medication_types TO sparky_app
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.medications TO sparky_app;
+
+
+--
+-- Name: TABLE mindfulness_sessions; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.mindfulness_sessions TO sparky_app;
 
 
 --

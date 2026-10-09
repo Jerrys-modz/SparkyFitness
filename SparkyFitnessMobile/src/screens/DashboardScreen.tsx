@@ -37,9 +37,11 @@ import HydrationReminderReconciler from '../components/HydrationReminderReconcil
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
+import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
 import Icon from '../components/Icon';
 import MacroCard from '../components/MacroCard';
 import MedicationsCard from '../components/MedicationsCard';
+import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
@@ -64,6 +66,10 @@ import {
 } from '../hooks';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import {
+  useMindfulnessDay,
+  useMindfulnessMutations,
+} from '../hooks/useMindfulness';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -74,7 +80,7 @@ import {
 } from '../utils/healthTrendPreferences';
 import { resolveDashboardCardOrder } from '../utils/dashboardCardPreferences';
 import type { RootStackParamList, TabParamList } from '../types/navigation';
-import { formatDateLabel } from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import {
   setNativeHeaderDatePickerOptions,
   type NativeHeaderDatePickerNavigation,
@@ -144,8 +150,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const usesNativeTabs = useNativeIOSTabsActive();
   const insets = useSafeAreaInsets();
   const { defaultColor: nativeHeaderActionColor } = useHeaderActionColors();
+  const datePastColor =
+    (useCSSVariable('--color-date-past') as string) || '#f97316';
+  const dateFutureColor =
+    (useCSSVariable('--color-date-future') as string) || '#0ea5e9';
+
   const syncNativeHeaderDatePicker = useCallback(() => {
     if (!usesNativeTabs) return;
+
+    const relation = getDateRelationToToday(selectedDate);
+    const dateTintColor =
+      relation === 'past'
+        ? datePastColor
+        : relation === 'future'
+          ? dateFutureColor
+          : nativeHeaderActionColor;
 
     setNativeHeaderDatePickerOptions(
       navigation as unknown as NativeHeaderDatePickerNavigation,
@@ -155,6 +174,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         onDatePress: openCalendar,
         onNextDate: goToNextDay,
         tintColor: nativeHeaderActionColor,
+        dateTintColor,
         accessibilityLabel: t('dashboard.chooseDate', {
           defaultValue: 'Choose dashboard date',
         }),
@@ -168,15 +188,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       }
     );
   }, [
+    dateFutureColor,
+    dateLocale,
+    datePastColor,
     goToNextDay,
     goToPreviousDay,
     nativeHeaderActionColor,
     navigation,
     openCalendar,
     selectedDate,
-    usesNativeTabs,
     t,
-    dateLocale,
+    usesNativeTabs,
   ]);
 
   const { isConnected, isLoading: isConnectionLoading } = useServerConnection();
@@ -275,6 +297,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
   useWidgetSync(summary);
 
+  useBackgroundWaterSync(activeWaterContainer);
   // The hydration card and the hydration trend must agree on the unit, so both read it
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
@@ -354,6 +377,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const healthTrendsCardVisible = useAppPreferencesStore(
     (s) => s.healthTrendsCardVisible
   );
+  const mindfulnessCardVisible = useAppPreferencesStore(
+    (s) => s.mindfulnessCardVisible
+  );
+
+  const { sessions: mindfulSessions, totalMindfulMinutes } =
+    useMindfulnessDay(selectedDate);
+  const {
+    saveSession: saveMindfulSession,
+    updateSession: updateMindfulSession,
+    deleteSession: deleteMindfulSession,
+  } = useMindfulnessMutations(selectedDate);
 
   const orderedDashboardCards = useMemo(
     () => resolveDashboardCardOrder(dashboardCardOrder),
@@ -385,6 +419,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: fastingRootQueryKey }),
       // MedicationsCard owns its own queries.
       queryClient.invalidateQueries({ queryKey: medicationsRootQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ['mindfulness'] }),
     ]);
     setRefreshing(false);
   }, [
@@ -820,6 +855,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   />
                 </View>
               ) : null;
+            case 'mindfulness':
+              return mindfulnessCardVisible ? (
+                <MindfulnessCard
+                  key="mindfulness"
+                  sessions={mindfulSessions}
+                  totalMindfulMinutes={totalMindfulMinutes}
+                  selectedDate={selectedDate}
+                  onSaveSession={saveMindfulSession}
+                  onUpdateSession={updateMindfulSession}
+                  onDeleteSession={deleteMindfulSession}
+                  onPressDetails={() =>
+                    navigation.navigate('MindfulnessDetail', { selectedDate })
+                  }
+                />
+              ) : null;
             default:
               return null;
           }
@@ -860,7 +910,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
         />
       ) : null}
       {renderedContent}

@@ -14,6 +14,7 @@ export const DASHBOARD_CARD_KEYS = [
   'mood',
   'progressPhotos',
   'healthTrends',
+  'mindfulness',
 ] as const;
 
 export type DashboardCardKey = (typeof DASHBOARD_CARD_KEYS)[number];
@@ -49,6 +50,8 @@ export const DASHBOARD_CARD_TITLES: Record<
     }),
   healthTrends: (t) =>
     t('dashboardSettings.healthTrends', { defaultValue: 'Health Trends' }),
+  mindfulness: (t) =>
+    t('dashboardSettings.mindfulness', { defaultValue: 'Mindfulness' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -106,5 +109,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   healthTrends: (t) =>
     t('dashboardSettings.healthTrendsSubtitle', {
       defaultValue: 'Choose which graphs show on the Dashboard and their order',
+    }),
+  mindfulness: (t) =>
+    t('dashboardSettings.mindfulnessSubtitle', {
+      defaultValue:
+        'Show mindfulness sessions, breathing, and meditation on the Dashboard',
     }),
 };

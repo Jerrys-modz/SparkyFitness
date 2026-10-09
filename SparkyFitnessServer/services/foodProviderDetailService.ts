@@ -26,6 +26,7 @@ import {
 import { mapFatSecretFood } from '../integrations/fatsecret/fatsecretService.js';
 import { getYazioFoodDetails } from '../integrations/yazio/yazioService.js';
 import { getSwissFoodDetails } from '../integrations/swissfood/swissFoodService.js';
+import { getCanadianNutrientFoodDetails } from '../integrations/cnf/cnfService.js';
 import {
   getFatSecretNutrients,
   getMealieFoodDetails,
@@ -291,6 +292,16 @@ export async function fetchProviderFoodDetails({
     case 'swissfood': {
       return (
         (await getSwissFoodDetails(
+          externalId,
+          language,
+          credentials.base_url || undefined
+        )) ?? null
+      );
+    }
+
+    case 'canadian-nutrient-file': {
+      return (
+        (await getCanadianNutrientFoodDetails(
           externalId,
           language,
           credentials.base_url || undefined

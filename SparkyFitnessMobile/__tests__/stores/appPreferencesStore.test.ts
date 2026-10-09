@@ -182,6 +182,7 @@ describe('appPreferencesStore', () => {
         'mood',
         'progressPhotos',
         'healthTrends',
+        'mindfulness',
       ]);
     });
 

@@ -10,6 +10,7 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   yazio: 'Yazio',
   norish: 'Norish',
   swissfood: 'SwissFood',
+  'canadian-nutrient-file': 'Canadian Nutrient File',
   nutritionix: 'Nutritionix',
 };
 
