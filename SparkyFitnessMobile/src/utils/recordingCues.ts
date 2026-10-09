@@ -109,6 +109,29 @@ export function splitCue(
       });
 }
 
+/** Said when the Lap button is pressed: the lap number, how far and how long. */
+export function lapCue(
+  t: TFunction,
+  options: {
+    number: number;
+    distanceMeters: number;
+    seconds: number;
+    unit: CueUnit;
+  }
+): string {
+  return t('recordActivity.cues.lap', {
+    number: options.number,
+    distance: spokenDistance(
+      t,
+      Math.round((options.distanceMeters / cueUnitMeters(options.unit)) * 100) /
+        100,
+      options.unit
+    ),
+    time: spokenDuration(t, options.seconds),
+    defaultValue: 'Lap {{number}}. {{distance}}. {{time}}.',
+  });
+}
+
 export function eventCue(t: TFunction, event: CueEvent): string {
   switch (event) {
     case 'started':

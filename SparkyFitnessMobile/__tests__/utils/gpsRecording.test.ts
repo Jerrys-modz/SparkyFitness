@@ -1,5 +1,6 @@
 import {
   acceptFix,
+  computeLaps,
   computeSplits,
   cumulativeDistances,
   currentPaceSecondsPerUnit,
@@ -9,6 +10,7 @@ import {
   haversineMeters,
   METERS_PER_KM,
   paceSecondsPerUnit,
+  splitBars,
   splitsToLapWindows,
   summarizeRecording,
   toWorkoutGpsPoints,
@@ -293,5 +295,87 @@ describe('formatting', () => {
     expect(formatPace(330)).toBe('5:30');
     expect(formatPace(null)).toBe('—');
     expect(formatPace(5000)).toBe('—');
+  });
+});
+
+describe('computeLaps', () => {
+  const T0 = Date.UTC(2026, 9, 6, 10, 0, 0);
+
+  it('splits the recording at each mark and ends with a partial lap', () => {
+    // 4 m/s for 300 s: marks at 100 s and 250 s.
+    const laps = computeLaps(steadyTrack(300, 4, 5), [
+      T0 + 100_000,
+      T0 + 250_000,
+    ]);
+    expect(laps).toHaveLength(3);
+    expect(laps.map((l) => Math.round(l.distanceMeters))).toEqual([
+      400, 600, 200,
+    ]);
+    expect(laps.map((l) => Math.round(l.durationSeconds))).toEqual([
+      100, 150, 50,
+    ]);
+    expect(laps.map((l) => l.partial)).toEqual([false, false, true]);
+    expect(laps[1].startT).toBe(T0 + 100_000);
+  });
+
+  it('interpolates a mark that falls between two fixes', () => {
+    const [first] = computeLaps(steadyTrack(100, 4, 10), [T0 + 33_000]);
+    expect(first.distanceMeters).toBeCloseTo(132, 0);
+    expect(first.durationSeconds).toBeCloseTo(33, 5);
+  });
+
+  it('does not count a pause into a lap', () => {
+    const points = [
+      ...steadyTrack(100, 4, 5),
+      // Paused for 60 s, resumed 50 m on.
+      ...[0, 5, 10].map((s) => point(160 + s, 400 + 50 + s * 4, { seg: 1 })),
+    ];
+    const [first, second] = computeLaps(points, [T0 + 130_000]);
+    // The mark sits inside the pause, so the first lap ends where it began.
+    expect(first.distanceMeters).toBeCloseTo(400, 0);
+    expect(first.durationSeconds).toBeCloseTo(100, 5);
+    expect(second.durationSeconds).toBeCloseTo(10, 5);
+  });
+
+  it('ignores marks outside the recording and gives nothing for too few fixes', () => {
+    expect(computeLaps([point(0, 0)], [T0 + 1000])).toEqual([]);
+    const laps = computeLaps(steadyTrack(60, 4, 5), [T0 - 5000, T0 + 999_000]);
+    expect(laps).toHaveLength(1);
+  });
+});
+
+describe('splitBars', () => {
+  const split = (
+    index: number,
+    seconds: number,
+    partial = false
+  ): Parameters<typeof splitBars>[0][number] => ({
+    index,
+    distanceMeters: partial ? 100 : 1000,
+    durationSeconds: partial ? seconds : seconds,
+    startT: 0,
+    endT: 0,
+    partial,
+  });
+
+  it('makes the fastest split full length and marks it', () => {
+    const bars = splitBars([split(1, 330), split(2, 300), split(3, 360)], 1000);
+    expect(bars[1]).toEqual({ fraction: 1, fastest: true });
+    expect(bars[0].fastest).toBe(false);
+    expect(bars[0].fraction).toBeCloseTo(300 / 330, 5);
+    expect(bars[2].fraction).toBeCloseTo(300 / 360, 5);
+  });
+
+  it('never crowns a partial split', () => {
+    const bars = splitBars([split(1, 300), split(2, 20, true)], 1000);
+    expect(bars[0].fastest).toBe(true);
+    expect(bars[1].fastest).toBe(false);
+  });
+
+  it('copes with nothing to compare', () => {
+    expect(splitBars([], 1000)).toEqual([]);
+    expect(splitBars([split(1, 20, true)], 1000)).toEqual([
+      { fraction: 0, fastest: false },
+    ]);
   });
 });
