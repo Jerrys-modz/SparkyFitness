@@ -247,7 +247,7 @@ async function getWorkoutPresets(userId: any, page = 1, limit = 10) {
       [limit, offset]
     );
     return {
-      presets: result.rows.map((row) => parsePresetExerciseEquipment(row)),
+      presets: result.rows.map((row: any) => parsePresetExerciseEquipment(row)),
       total,
       page,
       limit,
@@ -638,7 +638,7 @@ async function searchWorkoutPresets(
       selectQueryParams.push(limit);
     }
     const result = await client.query(query, selectQueryParams);
-    return result.rows.map((row) => parsePresetExerciseEquipment(row));
+    return result.rows.map((row: any) => parsePresetExerciseEquipment(row));
   } finally {
     client.release();
   }
