@@ -4863,6 +4863,7 @@
     "mostCommon": "Most common moods",
     "chartEmpty": "No mood logged for this period",
     "chartLoadFailed": "Failed to load mood data",
+    "loadFailed": "Could not load this day's mood",
     "saveFailed": "Could not save mood",
     "names": {
       "angry": "Angry",
@@ -4882,7 +4883,9 @@
       "worried": "Worried"
     },
     "card": {
-      "notLogged": "No mood logged today",
+      "notLogged": "No mood logged for this day",
+      "emptyA11y": "Mood on {{date}}: none logged",
+      "loggedA11y": "Mood on {{date}}: {{mood}}",
       "log": "+ Log",
       "trend7d": "7-Day Trend"
     }

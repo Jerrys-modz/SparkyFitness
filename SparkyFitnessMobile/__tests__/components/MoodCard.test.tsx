@@ -38,7 +38,8 @@ describe('MoodCard on Dashboard', () => {
       <MoodCard navigation={navigation} date="2026-10-05" />
     );
 
-    expect(getByText('No mood logged today')).toBeTruthy();
+    expect(getByText('No mood logged for this day')).toBeTruthy();
+    expect(getByLabelText('Mood on 2026-10-05: none logged')).toBeTruthy();
     fireEvent.press(getByText('+ Log'));
     expect(mockNavigate).toHaveBeenCalledWith('MoodLog', {
       date: '2026-10-05',
@@ -55,11 +56,12 @@ describe('MoodCard on Dashboard', () => {
         entry_date: '2026-10-05',
       },
     ]);
-    const { getByText, queryByText } = render(
+    const { getByText, getByLabelText, queryByText } = render(
       <MoodCard navigation={navigation} date="2026-10-05" />
     );
 
     expect(getByText(/Happy/)).toBeTruthy();
+    expect(getByLabelText('Mood on 2026-10-05: Happy')).toBeTruthy();
     expect(queryByText('+ Log')).toBeNull();
   });
 });

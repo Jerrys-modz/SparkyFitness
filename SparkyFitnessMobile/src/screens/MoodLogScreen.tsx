@@ -49,7 +49,11 @@ export default function MoodLogScreen({ navigation, route }: Props) {
     builtInLabels[name] ?? fallback;
 
   const targetDate = route.params?.date ?? getTodayDate();
-  const { entry: existing } = useMoodEntryForDate(targetDate);
+  const {
+    entry: existing,
+    isLoading: entryLoading,
+    isError: entryError,
+  } = useMoodEntryForDate(targetDate);
   const customMoods = useCustomMoods();
   const saveMood = useSaveMood();
 
@@ -73,7 +77,10 @@ export default function MoodLogScreen({ navigation, route }: Props) {
       tags.includes(name) ? tags.filter((tag) => tag !== name) : [...tags, name]
     );
 
+  const entryReady = !entryLoading && !entryError;
+
   const handleSave = async () => {
+    if (!entryReady || saveMood.isPending) return;
     await saveMood.mutateAsync({
       mood_value: moodValue,
       mood_tags: tags,
@@ -96,6 +103,7 @@ export default function MoodLogScreen({ navigation, route }: Props) {
         label: t('common.save', { defaultValue: 'Save' }),
         onPress: handleSave,
         busy: saveMood.isPending,
+        disabled: !entryReady || saveMood.isPending,
         placement: 'native-only',
         identifier: 'mood-log-save',
       },
@@ -168,6 +176,18 @@ export default function MoodLogScreen({ navigation, route }: Props) {
         contentContainerClassName="gap-4 pb-6"
         keyboardShouldPersistTaps="handled"
       >
+        {entryLoading && (
+          <Text className="text-xs text-text-muted">
+            {t('common.loading', { defaultValue: 'Loading...' })}
+          </Text>
+        )}
+        {entryError && (
+          <Text className="text-xs text-text-muted">
+            {t('mood.loadFailed', {
+              defaultValue: "Could not load this day's mood",
+            })}
+          </Text>
+        )}
         {!isToday && (
           <Text className="text-xs text-text-muted">
             {t('mood.loggingForDate', {
@@ -287,7 +307,11 @@ export default function MoodLogScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
       {!usesNativeHeader && (
-        <FooterSaveBar onPress={handleSave} busy={saveMood.isPending} />
+        <FooterSaveBar
+          onPress={handleSave}
+          busy={saveMood.isPending}
+          disabled={!entryReady || saveMood.isPending}
+        />
       )}
     </View>
   );

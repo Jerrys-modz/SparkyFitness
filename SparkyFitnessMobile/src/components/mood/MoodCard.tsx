@@ -40,6 +40,7 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
     ? moodByName(moodValueToTag(todayEntry.mood_value))
     : null;
 
+  const locale = getAppLocale();
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const day = addDays(selectedDate, i - 6);
@@ -50,12 +51,26 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
         emoji: entry
           ? moodByName(moodValueToTag(entry.mood_value))?.emoji
           : null,
-        label: new Date(y, m - 1, d).toLocaleDateString(getAppLocale(), {
+        label: new Date(y, m - 1, d).toLocaleDateString(locale, {
           weekday: 'narrow',
         }),
       };
     });
-  }, [entries, selectedDate]);
+  }, [entries, locale, selectedDate]);
+
+  const moodLabel = todayMood
+    ? (labels[todayMood.name] ?? todayMood.displayName)
+    : null;
+  const accessibilityLabel = moodLabel
+    ? t('mood.card.loggedA11y', {
+        defaultValue: 'Mood on {{date}}: {{mood}}',
+        date: selectedDate,
+        mood: moodLabel,
+      })
+    : t('mood.card.emptyA11y', {
+        defaultValue: 'Mood on {{date}}: none logged',
+        date: selectedDate,
+      });
 
   const openLog = () => navigation.navigate('MoodLog', { date: selectedDate });
 
@@ -64,7 +79,7 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
       className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
       onPress={openLog}
       accessibilityRole="button"
-      accessibilityLabel={t('mood.logTitle', { defaultValue: 'Mood' })}
+      accessibilityLabel={accessibilityLabel}
     >
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
@@ -83,7 +98,9 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
       ) : (
         <View className="flex-row items-center justify-between py-1 mb-3">
           <Text className="text-sm text-text-muted flex-1 mr-2">
-            {t('mood.card.notLogged', { defaultValue: 'No mood logged today' })}
+            {t('mood.card.notLogged', {
+              defaultValue: 'No mood logged for this day',
+            })}
           </Text>
           <TouchableOpacity
             onPress={openLog}

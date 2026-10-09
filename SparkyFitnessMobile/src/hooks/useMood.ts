@@ -85,7 +85,11 @@ export function useMoodEntryForDate(date: string) {
       return entries[0] ?? null;
     },
   });
-  return { entry: query.data ?? null, isLoading: query.isLoading };
+  return {
+    entry: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+  };
 }
 
 export function useCustomMoods() {
