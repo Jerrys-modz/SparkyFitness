@@ -4,6 +4,7 @@ import {
   normalizeNutrientName,
   type FoodVariantNutrientField,
   type MicronutrientCatalogEntry,
+  type SupplementLabelExtraction,
   type SupplementLookupProduct,
 } from '@workspace/shared';
 
@@ -371,6 +372,29 @@ export function mapDsldLabel(label: DsldLabel): SupplementLookupProduct {
     form: formFromLabel(label),
     serving: servingText(label),
     ...totalIngredients(lines, true),
+  };
+}
+
+/** Turns a Supplement Facts panel read from a photo into the same product. */
+export function mapScannedLabel(
+  label: SupplementLabelExtraction
+): SupplementLookupProduct {
+  return {
+    source: 'label',
+    sourceId: 'label',
+    name: label.name?.trim() ?? '',
+    brand: label.brand?.trim() || null,
+    form: label.form,
+    serving: label.serving?.trim() || null,
+    ...totalIngredients(
+      label.ingredients.map((ingredient) => ({
+        name: ingredient.name,
+        amount: ingredient.amount,
+        unit: ingredient.unit,
+        hint: ingredient.name,
+      })),
+      true
+    ),
   };
 }
 
