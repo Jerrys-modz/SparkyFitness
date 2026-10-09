@@ -23,7 +23,7 @@ const WATER_SNAPSHOT_KEY = 'waterSnapshot';
 // Control Center / Lock Screen controls that show a number from the snapshots.
 const CONTROL_KINDS = [
   'com.sparkyapps.sparkyfitness.control.caloriesLeft',
-  'com.sparkyapps.sparkyfitness.control.waterToday',
+  'com.sparkyapps.sparkyfitness.control.logWater',
 ];
 
 /** What the iOS water widget needs beyond the day's totals. */

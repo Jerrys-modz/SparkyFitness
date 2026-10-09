@@ -195,7 +195,7 @@ private enum WaterSnapshotWriter {
             defaults.set(updated, forKey: "waterSnapshot")
             WidgetCenter.shared.reloadTimelines(ofKind: "waterWidget")
             if #available(iOS 18.0, *) {
-                ControlCenter.shared.reloadControls(ofKind: "com.sparkyapps.sparkyfitness.control.waterToday")
+                ControlCenter.shared.reloadControls(ofKind: "com.sparkyapps.sparkyfitness.control.logWater")
             }
         }
         return total
