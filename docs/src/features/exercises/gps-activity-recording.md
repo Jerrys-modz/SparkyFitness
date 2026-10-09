@@ -76,6 +76,7 @@ If you have a paired Apple Watch with the SparkyFitness app, it follows a record
 
 - The watch opens on a recording page showing the clock, distance and pace, with your current heart rate beside the status.
 - Pause, resume and finish work from your wrist. Finishing stops the recording and the page tells you to save it on your iPhone.
+- A **Lap** button (flag) marks a lap while the recording is running, and the page shows how many you have marked. A lap is marked at the moment you press it, even if the phone is out of range and only hears about it later.
 - The watch measures your heart rate during the activity. It shows live on the watch and on the phone's recording screen (the phone shows it while the watch is in range). After you save, the average, maximum and time in each heart-rate zone appear on the activity.
 
 Nothing is written to Apple Health from the watch until you decide. Saving the activity on your iPhone adds the workout to Apple Health; discarding it doesn't.

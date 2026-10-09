@@ -48,6 +48,8 @@ struct RecordingState: Equatable {
     /// Phone clock (epoch ms) when this was sent, so a queued message that
     /// arrives after a newer live one is ignored.
     let sentAt: Double
+    /// Laps marked so far. Zero from an older phone build that does not say.
+    var lapCount: Int = 0
 
     /// The clock the wearer sees, with pauses removed. Runs on the watch
     /// between phone updates.

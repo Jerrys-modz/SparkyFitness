@@ -77,6 +77,7 @@ final class RecordingStore: ObservableObject {
     func pause() { sendControl("pause") }
     func resume() { sendControl("resume") }
     func finish() { sendControl("finish") }
+    func lap() { sendControl("lap") }
 
     private func sendControl(_ action: String) {
         guard let state else { return }

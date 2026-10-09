@@ -500,3 +500,35 @@ describe('laps', () => {
     expect((await storedSession())?.laps).toBeUndefined();
   });
 });
+
+describe('laps pressed on the watch', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('uses the time of the press, not the time it arrived', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', notification });
+    jest.setSystemTime(T0 + 120_000);
+    expect(await markLap(T0 + 40_000)).toBe(1);
+    expect((await storedSession())?.laps).toEqual([T0 + 40_000]);
+  });
+
+  it('keeps laps in order when an earlier press arrives after a later one', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', notification });
+    jest.setSystemTime(T0 + 120_000);
+    await markLap(T0 + 100_000);
+    await markLap(T0 + 40_000);
+    expect((await storedSession())?.laps).toEqual([T0 + 40_000, T0 + 100_000]);
+  });
+
+  it('ignores a re-delivered press and a press from a bad clock', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', notification });
+    jest.setSystemTime(T0 + 60_000);
+    await markLap(T0 + 30_000);
+    expect(await markLap(T0 + 30_000)).toBeNull();
+    // Before the recording began: treated as pressed now.
+    expect(await markLap(T0 - 999_000)).toBe(2);
+    expect((await storedSession())?.laps).toEqual([T0 + 30_000, T0 + 60_000]);
+  });
+});
