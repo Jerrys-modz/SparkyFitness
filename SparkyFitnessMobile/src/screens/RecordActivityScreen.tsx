@@ -28,11 +28,11 @@ import {
   discardRecording,
   elapsedSeconds,
   finishRecording,
-  getAutoPausePreference,
+  getRecordingPreferences,
   hydrate,
   pauseRecording,
   resumeRecording,
-  setAutoPausePreference,
+  setRecordingPreference,
   startRecording,
   useGpsRecording,
 } from '../services/gpsRecordingService';
@@ -85,6 +85,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
   const [autoPause, setAutoPause] = useState(true);
+  const [audioCues, setAudioCues] = useState(false);
   const [permissionProblem, setPermissionProblem] = useState<
     'denied' | 'services-disabled' | null
   >(null);
@@ -107,7 +108,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
 
   // Pick up a recording an earlier run left behind (app killed mid-activity).
   useEffect(() => {
-    void getAutoPausePreference().then(setAutoPause);
+    void getRecordingPreferences().then((preferences) => {
+      setAutoPause(preferences.autoPause);
+      setAudioCues(preferences.audioCues);
+    });
   }, []);
 
   useEffect(() => {
@@ -177,6 +181,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           await startRecording({
             activity,
             autoPause,
+            audioCues: audioCues
+              ? distanceUnit === 'miles'
+                ? 'miles'
+                : 'km'
+              : undefined,
             notification: notificationText(t, activity),
           });
         },
@@ -184,7 +193,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, autoPause, run, t]
+    [activity, audioCues, autoPause, distanceUnit, run, t]
   );
 
   const handleResume = useCallback(
@@ -340,7 +349,33 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               value={autoPause}
               onValueChange={(value) => {
                 setAutoPause(value);
-                void setAutoPausePreference(value);
+                void setRecordingPreference('autoPause', value);
+              }}
+            />
+          </View>
+          <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+            <View className="flex-1 mr-3">
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('recordActivity.audioCues.title', {
+                  defaultValue: 'Voice cues',
+                })}
+              </Text>
+              <Text className="text-text-secondary text-xs mt-0.5">
+                {t('recordActivity.audioCues.description', {
+                  defaultValue:
+                    'Speaks your time at each kilometer or mile, and when you pause or resume.',
+                })}
+              </Text>
+            </View>
+            <Switch
+              testID="audio-cues-switch"
+              accessibilityLabel={t('recordActivity.audioCues.title', {
+                defaultValue: 'Voice cues',
+              })}
+              value={audioCues}
+              onValueChange={(value) => {
+                setAudioCues(value);
+                void setRecordingPreference('audioCues', value);
               }}
             />
           </View>
