@@ -34,6 +34,10 @@ const IOS_SOURCES = [
   },
 ] as const;
 
+// Left behind by builds from before these intents moved. A non-clean prebuild
+// keeps the file and its app-target membership, which redeclares the same
+// symbols as ShortcutIntents.swift.
+const LEGACY_IOS_SOURCE = 'ShortcutActions.swift';
 const MODULE_PACKAGE = 'com.sparkyapps.sparkyfitness.backgroundwater';
 const MODULE_PACKAGE_IMPORT = `import ${MODULE_PACKAGE}.BackgroundWaterPackage`;
 const MODULE_PACKAGE_ADD_LINE = 'add(BackgroundWaterPackage())';
@@ -61,6 +65,9 @@ const withBackgroundWater: ConfigPlugin = (config) => {
       const sourceRoot = IOSConfig.Paths.getSourceRoot(
         config.modRequest.projectRoot
       );
+      await fs.promises.rm(path.join(sourceRoot, LEGACY_IOS_SOURCE), {
+        force: true,
+      });
       for (const source of IOS_SOURCES) {
         await fs.promises.copyFile(
           path.join(config.modRequest.projectRoot, ...source.from),
@@ -75,6 +82,7 @@ const withBackgroundWater: ConfigPlugin = (config) => {
     const projectName = IOSConfig.XcodeUtils.getProjectName(
       config.modRequest.projectRoot
     );
+    removeLegacyIosSource(config.modResults, projectName);
     for (const source of IOS_SOURCES) {
       const filepath = `${projectName}/${source.name}`;
       if (!config.modResults.hasFile(filepath)) {
@@ -180,5 +188,41 @@ const withBackgroundWater: ConfigPlugin = (config) => {
 
   return config;
 };
+
+// Drops ShortcutActions.swift from the app target. Missing file is a no-op, so
+// a clean prebuild and a repeat run both leave the project alone.
+function removeLegacyIosSource(
+  project: {
+    hasFile(filePath: string): unknown;
+    getFirstProject(): { firstProject: { mainGroup: string } };
+    getPBXGroupByKey(
+      key: string
+    ): { children?: { comment?: string; value: string }[] } | null | undefined;
+    getTarget(productType: string): { uuid: string } | null;
+    removeSourceFile(
+      filePath: string,
+      opt: { target?: string } | undefined,
+      group: string | undefined
+    ): unknown;
+  },
+  projectName: string
+): void {
+  const filepath = `${projectName}/${LEGACY_IOS_SOURCE}`;
+  if (!project.hasFile(filepath)) return;
+  const mainGroup = project.getPBXGroupByKey(
+    project.getFirstProject().firstProject.mainGroup
+  );
+  const appGroup = mainGroup?.children?.find(
+    (child) => child.comment === projectName
+  );
+  const applicationTarget = project.getTarget(
+    'com.apple.product-type.application'
+  );
+  project.removeSourceFile(
+    filepath,
+    applicationTarget ? { target: applicationTarget.uuid } : undefined,
+    appGroup?.value
+  );
+}
 
 export default withBackgroundWater;
