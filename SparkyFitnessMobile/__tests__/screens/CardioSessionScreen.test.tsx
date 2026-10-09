@@ -39,6 +39,16 @@ jest.mock('../../src/components/exerciseStats/HeartRateChart', () => {
   };
 });
 
+jest.mock('../../src/components/exerciseStats/PaceChart', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ data }: { data: unknown[] }) => (
+      <View testID="pace-chart" accessibilityHint={String(data.length)} />
+    ),
+  };
+});
+
 const mockDetail = useCardioSessionDetail as jest.MockedFunction<
   typeof useCardioSessionDetail
 >;
@@ -151,6 +161,26 @@ describe('CardioSessionScreen', () => {
 
     expect(screen.queryByText('Floors climbed')).toBeNull();
     expect(screen.queryByText('Elevation gain')).toBeNull();
+  });
+
+  it('draws pace over distance for a route with enough movement', () => {
+    // 4 m/s for 5 minutes, a fix every 10 s.
+    const route = Array.from({ length: 31 }, (_, i) => ({
+      t: new Date(Date.UTC(2026, 8, 26, 7, 0, i * 10)).toISOString(),
+      lat: 51.5 + (i * 40) / 111_194.9,
+      lon: -0.1,
+    }));
+    mockDetail.mockReturnValue(detail({ route }));
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.getAllByText('Pace').length).toBeGreaterThan(1);
+    expect(screen.getByTestId('pace-chart')).toBeTruthy();
+    expect(screen.getByText('Best 4:10 /km')).toBeTruthy();
+  });
+
+  it('leaves out the pace card when the route is too short to read a pace from', () => {
+    mockDetail.mockReturnValue(detail());
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.queryByTestId('pace-chart')).toBeNull();
   });
 
   it('shows the session stats, route, heart rate, and zones', () => {
