@@ -10,11 +10,17 @@ import {
   formatXLabel7d,
   formatXLabel30d90d,
   formatTooltipDate,
+  formatDateWithYear,
   computeNiceYAxisScale,
 } from './charts/chartFormatting';
 import LineSeriesMark from './charts/LineSeriesMark';
 import TrendGoalLine from './charts/TrendGoalLine';
 import type { WeightDataPoint } from '../hooks/useMeasurementsRange';
+import { addDays } from '../utils/dateUtils';
+import {
+  computeTrendWeights,
+  computeWeightForecast,
+} from '../utils/weightTrend';
 import type { HealthTrendDateRange } from '../types/healthTrends';
 import ChartTouchOverlay, {
   ChartLayoutReporter,
@@ -67,6 +73,23 @@ export const buildWeightTooltipText = (
   return `${formattedWeight} ${unit} · ${formatTooltipDate(point.day)}`;
 };
 
+const formatWeightValue = (value: number): string =>
+  formatLocalizedNumber(value, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+
+const SummaryTile: React.FC<{
+  label: string;
+  value: string;
+  testID: string;
+}> = ({ label, value, testID }) => (
+  <View className="flex-1 items-center" testID={testID}>
+    <Text className="text-text-primary text-base font-semibold">{value}</Text>
+    <Text className="text-text-muted text-xs mt-0.5 text-center">{label}</Text>
+  </View>
+);
+
 const WeightLineChart: React.FC<WeightLineChartProps> = ({
   data,
   isLoading,
@@ -86,6 +109,16 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
   );
 
   const hasData = useMemo(() => data.length > 0, [data]);
+
+  // The smoothed trend rides along each weigh-in so both series share one x axis.
+  const chartData = useMemo(() => {
+    const trend = computeTrendWeights(data);
+    return data.map((point, index) => ({ ...point, trend: trend[index] }));
+  }, [data]);
+  const forecast = useMemo(
+    () => computeWeightForecast(data, goal),
+    [data, goal]
+  );
 
   // A nice round scale, not just an auto-fit one, so the axis labels in whole units instead
   // of whatever decimal fraction a narrow week-over-week weight range happens to fall on.
@@ -198,9 +231,9 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
       ) : (
         <View style={{ height: 175 }}>
           <CartesianChart
-            data={data}
+            data={chartData}
             xKey="day"
-            yKeys={['weight']}
+            yKeys={['weight', 'trend']}
             domain={domain}
             domainPadding={{ left: 25, right: 25, top: 12, bottom: 12 }}
             xAxis={{
@@ -230,10 +263,18 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
                 />
                 <LineSeriesMark
                   points={points.weight}
-                  color={accentColor}
-                  strokeWidth={2}
+                  color={textMuted}
+                  strokeWidth={1}
                   animate={{ type: 'timing', duration: 300 }}
                   curveType="cardinal"
+                  connectMissingData
+                />
+                <LineSeriesMark
+                  points={points.trend}
+                  color={accentColor}
+                  strokeWidth={2.5}
+                  animate={{ type: 'timing', duration: 300 }}
+                  curveType="natural"
                   connectMissingData
                 />
                 <TrendGoalLine
@@ -252,6 +293,50 @@ const WeightLineChart: React.FC<WeightLineChartProps> = ({
             onClear={handleClearSelection}
             testIDPrefix="weight-touch-overlay"
           />
+        </View>
+      )}
+
+      {!isLoading && !isError && hasData && forecast.trendWeight != null && (
+        <View className="flex-row mt-3" testID="weight-forecast-summary">
+          <SummaryTile
+            testID="weight-forecast-trend"
+            label={t('charts.weight.trend', { defaultValue: 'Trend' })}
+            value={`${formatWeightValue(forecast.trendWeight)} ${unit}`}
+          />
+          <SummaryTile
+            testID="weight-forecast-rate"
+            label={t('charts.weight.perWeek', { defaultValue: 'Per week' })}
+            value={
+              forecast.ratePerWeek == null
+                ? '—'
+                : `${forecast.ratePerWeek > 0 ? '+' : ''}${formatWeightValue(forecast.ratePerWeek)} ${unit}`
+            }
+          />
+          {goal != null && goal > 0 && (
+            <SummaryTile
+              testID="weight-forecast-goal"
+              label={t('charts.weight.goalDate', { defaultValue: 'Goal date' })}
+              value={
+                forecast.status === 'toward-goal' && forecast.daysToGoal != null
+                  ? formatDateWithYear(
+                      addDays(data[data.length - 1].day, forecast.daysToGoal)
+                    )
+                  : forecast.status === 'steady'
+                    ? t('charts.weight.steady', {
+                        defaultValue: 'Holding steady',
+                      })
+                    : forecast.status === 'away-from-goal'
+                      ? t('charts.weight.awayFromGoal', {
+                          defaultValue: 'Moving away',
+                        })
+                      : forecast.status === 'too-far'
+                        ? t('charts.weight.tooFar', {
+                            defaultValue: 'Over 2 years',
+                          })
+                        : '—'
+              }
+            />
+          )}
         </View>
       )}
     </View>
