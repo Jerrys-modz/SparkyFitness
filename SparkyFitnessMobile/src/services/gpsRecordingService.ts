@@ -310,9 +310,16 @@ function isWatchingForAutoPause(current: RecordingSession): boolean {
 export interface RecordingPreferences {
   autoPause: boolean;
   audioCues: boolean;
+  /** Seconds counted down before Start begins recording; 0 is no countdown. */
+  countdownSeconds: number;
 }
 
-const PREFERENCE_KEYS: Record<keyof RecordingPreferences, string> = {
+/** The countdowns offered, in seconds. */
+export const COUNTDOWN_CHOICES = [0, 3, 5, 10] as const;
+
+const COUNTDOWN_PREF_KEY = '@SparkyFitness/gpsRecording/countdown';
+
+const PREFERENCE_KEYS = {
   autoPause: AUTO_PAUSE_PREF_KEY,
   audioCues: AUDIO_CUES_PREF_KEY,
 };
@@ -320,18 +327,36 @@ const PREFERENCE_KEYS: Record<keyof RecordingPreferences, string> = {
 /** Auto-pause is on unless turned off; voice cues are off unless turned on. */
 export async function getRecordingPreferences(): Promise<RecordingPreferences> {
   try {
-    const [autoPause, audioCues] = await Promise.all([
+    const [autoPause, audioCues, countdown] = await Promise.all([
       AsyncStorage.getItem(PREFERENCE_KEYS.autoPause),
       AsyncStorage.getItem(PREFERENCE_KEYS.audioCues),
+      AsyncStorage.getItem(COUNTDOWN_PREF_KEY),
     ]);
-    return { autoPause: autoPause !== 'off', audioCues: audioCues === 'on' };
+    const seconds = Number(countdown);
+    return {
+      autoPause: autoPause !== 'off',
+      audioCues: audioCues === 'on',
+      countdownSeconds: (COUNTDOWN_CHOICES as readonly number[]).includes(
+        seconds
+      )
+        ? seconds
+        : 0,
+    };
   } catch {
-    return { autoPause: true, audioCues: false };
+    return { autoPause: true, audioCues: false, countdownSeconds: 0 };
+  }
+}
+
+export async function setCountdownPreference(seconds: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(COUNTDOWN_PREF_KEY, String(seconds));
+  } catch {
+    // The choice just won't be remembered.
   }
 }
 
 export async function setRecordingPreference(
-  key: keyof RecordingPreferences,
+  key: keyof typeof PREFERENCE_KEYS,
   enabled: boolean
 ): Promise<void> {
   try {

@@ -29,6 +29,12 @@ Points are saved on the phone as they arrive. Nothing is sent to your server unt
 
 ---
 
+## Start countdown
+
+Pick **3 s**, **5 s** or **10 s** under **Start countdown** and tapping **Start** counts down before the recording begins, so you can put the phone away and get moving. Each number is felt as a tap and, with voice cues on, spoken. **Cancel** stops the countdown without recording anything. It's off by default and remembered. The first time you record, the location permission prompt appears after the countdown.
+
+---
+
 ## Laps and the run summary
 
 While recording, tap **Lap** to mark a lap, for example at the end of a hard interval or at each lap of a track. It's available while the recording is running, not while paused, and a second tap within three seconds is ignored. With voice cues on, the phone says the lap number, distance and time.
