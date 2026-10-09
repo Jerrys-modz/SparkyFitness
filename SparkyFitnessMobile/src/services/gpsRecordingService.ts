@@ -12,6 +12,7 @@ import {
 } from './recordingCues';
 import {
   acceptFix,
+  computeLaps,
   computeSplits,
   summarizeRecording,
   type RawFix,
@@ -27,6 +28,7 @@ import {
   cueUnitMeters,
   eventCue,
   finishCue,
+  lapCue,
   splitCue,
   type CueEvent,
   type CueUnit,
@@ -79,6 +81,8 @@ export interface RecordingSession {
   autoPaused?: boolean;
   /** Speak split times and pauses; the unit the splits are announced in. */
   audioCues?: CueUnit;
+  /** Epoch ms of each press of the Lap button, oldest first. */
+  laps?: number[];
   /** Full splits already announced, so a restored session does not repeat one. */
   cuedSplits?: number;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
@@ -582,6 +586,44 @@ export function resumeRecording(
     }
     publish();
     cueEvent(session, 'resumed');
+  });
+}
+
+/** Presses closer together than this are one press (a double tap). */
+const MIN_LAP_GAP_MS = 3000;
+
+/**
+ * Marks a lap at this moment. Only while recording: a lap pressed during a
+ * pause has no distance to measure. Returns the new lap number, or null when
+ * the press was ignored.
+ */
+export function markLap(): Promise<number | null> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.status !== 'recording') return null;
+    const now = Date.now();
+    const laps = session.laps ?? [];
+    if (laps.length > 0 && now - laps[laps.length - 1] < MIN_LAP_GAP_MS) {
+      return null;
+    }
+    session = { ...session, laps: [...laps, now] };
+    await persistSession();
+    publish();
+    if (session.audioCues) {
+      const marked = computeLaps(points, session.laps ?? []);
+      const lap = marked.find((l) => l.endT === now);
+      if (lap) {
+        speakRecordingCue(
+          lapCue(i18n.t.bind(i18n), {
+            number: lap.index,
+            distanceMeters: lap.distanceMeters,
+            seconds: lap.durationSeconds,
+            unit: session.audioCues,
+          })
+        );
+      }
+    }
+    return laps.length + 1;
   });
 }
 
