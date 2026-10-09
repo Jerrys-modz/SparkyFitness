@@ -14,6 +14,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
 import { useTrainingConsistency } from '../hooks/useTrainingConsistency';
 import { useCardioSessions } from '../hooks/useCardioSessions';
+import { useRunningTrends } from '../hooks/useRunningTrends';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
 import { formatLocalizedNumber } from '../localization';
@@ -24,6 +25,7 @@ import SegmentedControl from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import CollapsibleSection from '../components/CollapsibleSection';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
+import RunningTrendsCard from '../components/exerciseStats/RunningTrendsCard';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
 import MuscleFigure, {
   MUSCLE_HEAT_COLORS,
@@ -124,6 +126,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const { data, isLoading } = useExerciseDashboard(range);
   const consistency = useTrainingConsistency();
   const cardio = useCardioSessions(range, view === 'cardio');
+  const running = useRunningTrends(view === 'cardio');
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
@@ -199,6 +202,12 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
     }
     return (
       <>
+        {running.trends && running.trends.totalRuns > 0 ? (
+          <RunningTrendsCard
+            trends={running.trends}
+            distanceUnit={cardio.distanceUnit}
+          />
+        ) : null}
         <Text className="text-text-secondary text-xs mb-3">
           {t('exerciseStatistics.cardio.hint', {
             defaultValue: 'Tap a workout for its route and heart rate.',
