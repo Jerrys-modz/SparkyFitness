@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject private var session: WatchSessionManager
     @EnvironmentObject private var workout: WorkoutSessionStore
     @EnvironmentObject private var recording: RecordingStore
+    @EnvironmentObject private var run: WatchRunStore
 
     /// Watched so the app can notice a day has ended while it was away. The
     /// watch app commonly stays resident overnight, in which case nothing
@@ -27,7 +28,10 @@ struct ContentView: View {
 
     /// The pages in swipe order, as the phone last arranged them.
     private var pages: [WatchPage] {
-        let arranged = store.context.visiblePages(workoutActive: workout.isActive)
+        let arranged = store.context.visiblePages(
+            workoutActive: workout.isActive,
+            runActive: run.isActive
+        )
         // The phone's GPS recording goes first while it runs, whatever the
         // wearer arranged: it is the thing they are doing right now.
         return recording.isActive ? [.recording] + arranged : arranged
@@ -200,6 +204,8 @@ struct ContentView: View {
             NowPlayingPage()
         case .recording:
             RecordingView()
+        case .run:
+            WatchRunView()
         }
     }
 
@@ -225,6 +231,7 @@ struct ContentView: View {
     private var initialPage: WatchPage {
         if recording.isActive { return .recording }
         if workout.isActive { return .workout }
+        if run.isActive { return .run }
         return pages.first ?? .goals
     }
 }

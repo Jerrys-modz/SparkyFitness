@@ -5789,7 +5789,8 @@
       "trend": "Weight trend",
       "workout": "Workout",
       "fasting": "Fasting",
-      "steps": "Steps"
+      "steps": "Steps",
+      "run": "Run and walk"
     },
     "nutrientsTitle": "Goals page nutrients",
     "nutrientsDescription": "Choose the nutrients listed under the calorie ring on your watch, and drag to set their order. Each shows today’s amount against its goal.",
