@@ -1019,6 +1019,26 @@ export const EditProviderForm = ({
         </div>
       )}
 
+      {editData.provider_type === 'exercisedb' && (
+        <div className="col-span-2 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            The ExerciseDB provider needs no credentials. It looks up exercises
+            and GIF demonstrations from the free{' '}
+            <a
+              href="https://oss.exercisedb.dev/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              ExerciseDB API by AscendAPI
+            </a>
+            . It is free for non-commercial use only, applies rate limits, and
+            requires credit to AscendAPI. GIFs are loaded from their servers and
+            are not stored in SparkyFitness.
+          </p>
+        </div>
+      )}
+
       {editData.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
