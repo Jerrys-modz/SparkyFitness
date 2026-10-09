@@ -26,8 +26,10 @@ const FORMS = new Set([
 ]);
 
 // A comma between groups of three is a thousands separator ("1,000"); any
-// other comma is a decimal comma ("1,5").
-const NUMBER_PATTERN = /[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?/g;
+// other comma is a decimal comma ("1,5"). A leading dot (".5") is part of the
+// number, so the digits after it are not a separate amount.
+const NUMBER_PATTERN =
+  /[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?|\.\d+/g;
 
 function parsePrinted(printed: string): number {
   return Number(
@@ -46,43 +48,69 @@ function nameTokens(name: string): string[] {
   return name.toLowerCase().match(/[a-z0-9]+/g) ?? [];
 }
 
-function rowConfirmsName(row: string, name: string): boolean {
-  const tokens = nameTokens(name);
-  if (tokens.length === 0) return false;
-  const lower = row.toLowerCase();
-  return tokens.every((token) =>
-    new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(token)}(?:[^a-z0-9]|$)`).test(
-      lower
-    )
-  );
+/** Numbers that consume the whole printed token, so "5" is not found inside ".5". */
+function completeNumbers(
+  text: string
+): { index: number; raw: string; value: number }[] {
+  const found: { index: number; raw: string; value: number }[] = [];
+  for (const match of text.matchAll(new RegExp(NUMBER_PATTERN.source, 'g'))) {
+    const index = match.index ?? 0;
+    const raw = match[0];
+    const prev = index > 0 ? text[index - 1] : '';
+    const next = text[index + raw.length] ?? '';
+    if (/[\d.,]/.test(prev) || /[\d.,]/.test(next)) continue;
+    const value = parsePrinted(raw);
+    if (Number.isFinite(value)) found.push({ index, raw, value });
+  }
+  return found;
 }
 
-/** The amount must sit next to its unit, so a %DV on the same line does not count. */
-function rowHasAmountAndUnit(
+function amountsWithUnit(text: string, unit: string): number[] {
+  const want = unit.trim().toLowerCase();
+  const amounts: number[] = [];
+  for (const num of completeNumbers(text)) {
+    const after = text.slice(num.index + num.raw.length);
+    const unitMatch = /^\s*([^\s\d,.;|]+)/.exec(after);
+    if (!unitMatch) continue;
+    const printed = unitMatch[1].replace(/[^a-zA-Z%µμ]+$/g, '').toLowerCase();
+    if (printed === want) amounts.push(num.value);
+  }
+  return amounts;
+}
+
+/**
+ * True only when one slice of the row (split on ";" or "|") names this
+ * ingredient once and has exactly one amount in its unit, and that amount is
+ * the extracted one. Two amounts on the same slice belong to different
+ * ingredients, so the line is left ungrounded and the server scan runs.
+ */
+function rowGroundsIngredient(
   row: string,
+  name: string,
   amount: number,
   unit: string | null
 ): boolean {
   const normalized = unit?.trim();
-  if (!normalized) return false;
-  const unitPattern = new RegExp(
-    `^\\s*${escapeRegExp(normalized)}(?![a-zA-Z])`,
-    'i'
+  const tokens = nameTokens(name);
+  if (!normalized || tokens.length === 0) return false;
+  const namePattern = new RegExp(
+    `(?:^|[^a-z0-9])${tokens.map(escapeRegExp).join('[^a-z0-9]+')}(?![a-z0-9])`,
+    'gi'
   );
-  const pattern = new RegExp(NUMBER_PATTERN.source, 'g');
-  for (const match of row.matchAll(pattern)) {
-    if (parsePrinted(match[0]) !== amount) continue;
-    const after = row.slice((match.index ?? 0) + match[0].length);
-    if (unitPattern.test(after)) return true;
+  let grounded = 0;
+  for (const segment of row.split(/[;|]/)) {
+    if (segment.match(namePattern)?.length !== 1) continue;
+    const amounts = amountsWithUnit(segment, normalized);
+    if (amounts.length === 1 && amounts[0] === amount) grounded += 1;
   }
-  return false;
+  return grounded === 1;
 }
 
 /**
- * Keeps the ingredients whose full name, amount, and unit all appear on the
- * same line the phone recognised. A bare number, including a %DV, does not
- * count. Null when too few lines check out, so the caller falls back to the
- * server.
+ * Keeps an ingredient only when one slice of a recognised line names it and
+ * prints that amount with its unit. A %DV, a digit inside ".5", or another
+ * ingredient's amount on the same slice does not count. Null when too few
+ * lines check out, so the caller falls back to the server.
  */
 export function groundSupplementLabel(
   r: OnDeviceSupplementExtraction
@@ -98,10 +126,8 @@ export function groundSupplementLabel(
     if (!Number.isFinite(amount) || amount < 0 || amount > MAX_AMOUNT) {
       return false;
     }
-    return ocrRows.some(
-      (row) =>
-        rowHasAmountAndUnit(row, amount, unit) &&
-        rowConfirmsName(row, ingredient.name)
+    return ocrRows.some((row) =>
+      rowGroundsIngredient(row, ingredient.name, amount, unit)
     );
   });
   const withAmount = grounded.filter((i) => i.amount !== null);

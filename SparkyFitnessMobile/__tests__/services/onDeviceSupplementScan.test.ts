@@ -84,6 +84,65 @@ describe('groundSupplementLabel', () => {
     ).toBeNull();
   });
 
+  it('does not treat the digits of a leading-dot decimal as the amount', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Vitamin C .5 mg',
+          ingredients: [{ name: 'Vitamin C', amount: 5, unit: 'mg' }],
+        })
+      )
+    ).toBeNull();
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Vitamin C .5 mg',
+          ingredients: [{ name: 'Vitamin C', amount: 0.5, unit: 'mg' }],
+        })
+      )?.ingredients
+    ).toEqual([{ name: 'Vitamin C', amount: 0.5, unit: 'mg' }]);
+  });
+
+  it('does not take another ingredient amount from the same line', () => {
+    const ocr_text = 'Vitamin C 90 mg; Zinc 15 mg';
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text,
+          ingredients: [
+            { name: 'Vitamin C', amount: 90, unit: 'mg' },
+            { name: 'Zinc', amount: 90, unit: 'mg' },
+          ],
+        })
+      )
+    ).toBeNull();
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text,
+          ingredients: [
+            { name: 'Vitamin C', amount: 90, unit: 'mg' },
+            { name: 'Zinc', amount: 15, unit: 'mg' },
+          ],
+        })
+      )?.ingredients.map((i) => i.name)
+    ).toEqual(['Vitamin C', 'Zinc']);
+  });
+
+  it('falls back when two ingredients share a line without a separator', () => {
+    expect(
+      groundSupplementLabel(
+        extraction({
+          ocr_text: 'Vitamin C 90 mg Zinc 15 mg',
+          ingredients: [
+            { name: 'Vitamin C', amount: 90, unit: 'mg' },
+            { name: 'Zinc', amount: 15, unit: 'mg' },
+          ],
+        })
+      )
+    ).toBeNull();
+  });
+
   it('does not treat a percent daily value as the amount', () => {
     expect(
       groundSupplementLabel(
