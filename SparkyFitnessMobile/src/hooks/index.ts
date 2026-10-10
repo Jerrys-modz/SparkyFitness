@@ -24,6 +24,7 @@ export { useWatchCheckInBridge } from './useWatchCheckInBridge';
 export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
 export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
 export { useWatchPlanSync } from './useWatchPlanSync';
+export { useWatchFastingBridge } from './useWatchFastingBridge';
 export {
   drainQuickActionNavigation,
   useControlRouteHandoff,
