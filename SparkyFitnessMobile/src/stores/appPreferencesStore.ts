@@ -83,6 +83,7 @@ export const PREFERENCE_DEFAULTS = {
   moodCardVisible: true,
   progressPhotosCardVisible: true,
   onDeviceLabelScanEnabled: true,
+  onDeviceFoodPhotoEnabled: false,
   healthTrendsCardVisible: true,
   mindfulnessCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
@@ -148,6 +149,7 @@ export type AppPreferencesData = {
   moodCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   onDeviceLabelScanEnabled: boolean;
+  onDeviceFoodPhotoEnabled: boolean;
   healthTrendsCardVisible: boolean;
   mindfulnessCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
@@ -237,6 +239,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMoodCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
+  setOnDeviceFoodPhotoEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
   setMindfulnessCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
@@ -360,6 +363,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ progressPhotosCardVisible: value }),
       setOnDeviceLabelScanEnabled: (value) =>
         set({ onDeviceLabelScanEnabled: value }),
+      setOnDeviceFoodPhotoEnabled: (value) =>
+        set({ onDeviceFoodPhotoEnabled: value }),
       setHealthTrendsCardVisible: (value) =>
         set({ healthTrendsCardVisible: value }),
       setMindfulnessCardVisible: (value) =>
@@ -482,6 +487,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         moodCardVisible: state.moodCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
+        onDeviceFoodPhotoEnabled: state.onDeviceFoodPhotoEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
