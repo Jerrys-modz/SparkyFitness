@@ -40,7 +40,9 @@ struct FastingView: View {
         let total = fast.targetEndAt.map { max(1, $0.timeIntervalSince(fast.startedAt)) }
         let progress = total.map { min(1, elapsed / $0) }
         return VStack(spacing: 6) {
-            Text(fast.label.map { "Fasting · \($0)" } ?? "Fasting")
+            Text(fast.label.map {
+                String(localized: "watch.fasting.runningNamed", defaultValue: "Fasting · \($0)")
+            } ?? String(localized: "watch.fasting.running", defaultValue: "Fasting"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             ZStack {
@@ -63,7 +65,10 @@ struct FastingView: View {
             .frame(width: 110, height: 110)
             if let total {
                 let remaining = total - elapsed
-                Text(remaining > 0 ? "\(Self.clock(remaining)) to go" : "Goal reached")
+                Text(remaining > 0
+                     ? String(localized: "watch.fasting.remaining",
+                              defaultValue: "\(Self.clock(remaining)) to go")
+                     : String(localized: "watch.fasting.goalReached", defaultValue: "Goal reached"))
                     .font(.caption2)
                     .foregroundStyle(remaining > 0 ? Color.secondary : Color.green)
                     .monospacedDigit()
@@ -71,7 +76,7 @@ struct FastingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
-            Button("End fast") {
+            Button(String(localized: "watch.fasting.end", defaultValue: "End fast")) {
                 confirmingEnd = true
             }
             .font(.caption2)
@@ -80,11 +85,15 @@ struct FastingView: View {
             .disabled(waiting)
             .opacity(0.9)
         }
-        .confirmationDialog("End your fast?", isPresented: $confirmingEnd, titleVisibility: .visible) {
-            Button("End fast", role: .destructive) {
+        .confirmationDialog(
+            String(localized: "watch.fasting.endConfirm", defaultValue: "End your fast?"),
+            isPresented: $confirmingEnd,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "watch.fasting.end", defaultValue: "End fast"), role: .destructive) {
                 begin { session.requestEndFast() }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(String(localized: "watch.fasting.cancel", defaultValue: "Cancel"), role: .cancel) {}
         }
     }
 
@@ -93,7 +102,9 @@ struct FastingView: View {
             Image(systemName: "fork.knife")
                 .font(.title2)
                 .foregroundStyle(.secondary)
-            Text(store.context.fastSynced == true ? "Not fasting" : "Waiting for your iPhone")
+            Text(store.context.fastSynced == true
+                 ? String(localized: "watch.fasting.notFasting", defaultValue: "Not fasting")
+                 : String(localized: "watch.fasting.waiting", defaultValue: "Waiting for your iPhone"))
                 .font(.footnote)
             if store.context.fastSynced == true {
                 if waiting {
