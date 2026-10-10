@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -17,6 +23,9 @@ import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
 import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
+import RunProgramCard, {
+  programWorkoutLabel,
+} from '../components/recording/RunProgramCard';
 import IntervalCard from '../components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
@@ -52,9 +61,17 @@ import {
   buildIntervalPlan,
   INTERVAL_PRESETS,
   intervalPosition,
+  lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
 } from '../utils/intervals';
+import {
+  completeProgramWorkout,
+  skipProgramWorkout,
+  startProgram,
+  stopProgram,
+  useRunProgram,
+} from '../services/runProgramService';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -149,12 +166,29 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const [customIntervals, setCustomIntervals] = useState<IntervalOptions>(
     DEFAULT_CUSTOM_INTERVALS
   );
+  const { status: programStatus, loaded: programLoaded } = useRunProgram();
+  const programWorkout = programStatus?.workout ?? null;
+  // A person on a program usually wants today's workout, so it starts chosen
+  // (once; they can change it, and it is not re-chosen after).
+  const programPreselected = useRef(false);
+  useEffect(() => {
+    if (programPreselected.current || !programLoaded) return;
+    programPreselected.current = true;
+    if (programWorkout) setIntervalChoice('program');
+  }, [programLoaded, programWorkout]);
+  // A program that ended or was left while it was chosen.
+  useEffect(() => {
+    if (intervalChoice === 'program' && programLoaded && !programWorkout) {
+      setIntervalChoice('off');
+    }
+  }, [intervalChoice, programLoaded, programWorkout]);
   const intervalPlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
+    if (intervalChoice === 'program') return programWorkout?.plan;
     if (intervalChoice === 'custom') return buildIntervalPlan(customIntervals);
     const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
     return preset ? buildIntervalPlan(preset.options) : undefined;
-  }, [intervalChoice, customIntervals]);
+  }, [intervalChoice, customIntervals, programWorkout]);
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -291,6 +325,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
                 : 'km'
               : undefined,
             intervals: intervalPlan,
+            program:
+              intervalChoice === 'program' && programStatus && intervalPlan
+                ? { id: programStatus.program.id, index: programStatus.done }
+                : undefined,
             notification: notificationText(t, activity),
           });
         },
@@ -298,7 +336,18 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, audioCues, autoPause, distanceUnit, indoor, intervalPlan, run, t]
+    [
+      activity,
+      audioCues,
+      autoPause,
+      distanceUnit,
+      indoor,
+      intervalChoice,
+      intervalPlan,
+      programStatus,
+      run,
+      t,
+    ]
   );
   // Counts down once a second, then starts. Each number is felt and, with
   // voice cues on, spoken.
@@ -411,6 +460,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         session.indoor ? indoorDistanceKm : null,
         session.indoor ? indoorEstimate : null
       );
+      // Ticks a program workout off only if the plan was followed to its last
+      // step; a run cut short can be tried again.
+      if (session.program && lastStepStarted(session.intervals)) {
+        await completeProgramWorkout(session.program.id, session.program.index);
+      }
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
       Toast.show({
@@ -617,7 +671,32 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
           </View>
+          <RunProgramCard
+            status={programStatus}
+            loaded={programLoaded}
+            selected={intervalChoice === 'program'}
+            onSelect={() => {
+              setActivity('run');
+              setIntervalChoice('program');
+            }}
+            onStart={() => {
+              void startProgram('couchTo5k').then(() => {
+                setActivity('run');
+                setIntervalChoice('program');
+              });
+            }}
+            onSkip={() => void skipProgramWorkout()}
+            onStop={() => {
+              void stopProgram();
+              if (intervalChoice === 'program') setIntervalChoice('off');
+            }}
+          />
           <IntervalSetup
+            programLabel={
+              programStatus?.workout
+                ? programWorkoutLabel(t, programStatus)
+                : undefined
+            }
             choice={intervalChoice}
             onChoice={setIntervalChoice}
             custom={customIntervals}

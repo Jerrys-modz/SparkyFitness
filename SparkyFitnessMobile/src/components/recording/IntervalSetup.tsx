@@ -108,6 +108,8 @@ interface Props {
   onChoice: (choice: IntervalChoice) => void;
   custom: IntervalOptions;
   onCustom: (options: IntervalOptions) => void;
+  /** When set, today's program workout is offered as a choice. */
+  programLabel?: string;
 }
 
 /** Pick a timed plan for a recording, or build one. */
@@ -116,6 +118,7 @@ const IntervalSetup: React.FC<Props> = ({
   onChoice,
   custom,
   onCustom,
+  programLabel,
 }) => {
   const { t } = useTranslation();
   const options: PickerOption<IntervalChoice>[] = [
@@ -123,6 +126,9 @@ const IntervalSetup: React.FC<Props> = ({
       label: t('recordActivity.intervals.off', { defaultValue: 'Off' }),
       value: 'off',
     },
+    ...(programLabel
+      ? [{ label: programLabel, value: 'program' as IntervalChoice }]
+      : []),
     ...INTERVAL_PRESETS.map((preset) => ({
       label: `${presetName(t, preset.id)} · ${intervalSummary(preset.options)}`,
       value: preset.id,

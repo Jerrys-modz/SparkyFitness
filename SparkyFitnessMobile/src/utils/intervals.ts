@@ -230,3 +230,8 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
     )
   );
 }
+
+/** Whether the last step has begun, i.e. the person got through the plan. */
+export const lastStepStarted = (
+  intervals: { plan: IntervalPlan; cued: number } | undefined
+): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;

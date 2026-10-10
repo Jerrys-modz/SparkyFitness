@@ -6460,6 +6460,23 @@
       "complete": "Intervals complete",
       "round": "Round {{round}} of {{rounds}}",
       "next": "Next: {{name}} {{time}}"
+    },
+    "program": {
+      "title": "Training program",
+      "name": {
+        "couchTo5k": "Couch to 5K"
+      },
+      "couchTo5kDescription": "Couch to 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
+      "start": "Start Couch to 5K",
+      "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
+      "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
+      "finished": "{{name}} complete",
+      "finishedHint": "Well done. You can start it again or move on.",
+      "restart": "Start again",
+      "use": "Do this workout",
+      "using": "Using this workout",
+      "skip": "Skip",
+      "stop": "Leave program"
     }
   }
 }
