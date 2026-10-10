@@ -6483,7 +6483,11 @@
       "skip": "Skip",
       "stop": "Leave program",
       "reminders": "Run reminders",
-      "remindersHint": "Pick the days you plan to run to get a reminder."
+      "remindersHint": "Pick the days you plan to run to get a reminder.",
+      "pick": "Choose a different workout",
+      "pickTitle": "Choose a workout",
+      "weekTitle": "Week {{week}}",
+      "pickOption": "{{mark}}Run {{run}} · {{minutes}} min"
     }
   }
 }

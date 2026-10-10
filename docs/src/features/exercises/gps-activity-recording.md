@@ -103,7 +103,7 @@ If you are starting to run, the Record screen offers **Beginner 5K**: nine weeks
 
 Tap **Start Beginner 5K** and the screen selects today's workout for you (Week 1, run 1 first). The card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk.
 
-A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Skip** moves past a workout you cannot do, and **Leave program** forgets your place. When you finish week 9 the card says so and offers to start again. You can still pick any other interval plan, or record without one, at any time.
+A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Choose a different workout** opens the whole program, week by week, with finished runs ticked: use it to start further in if you already run, to repeat a week, or to go back. **Skip** moves past a workout you cannot do, and **Leave program** forgets your place. When you finish week 9 the card says so and offers to start again. You can still pick any other interval plan, or record without one, at any time.
 
 Under the program card you can pick the days you plan to run and a time (morning, midday or evening) to get a weekly **Run reminder** notification. It stops when you leave the program or finish it, and it needs notifications turned on for the app.
 
