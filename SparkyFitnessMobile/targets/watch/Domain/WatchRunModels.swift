@@ -76,3 +76,34 @@ struct WatchRunMetrics: Equatable {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
+
+/// Stands in for "no altitude" in a route row: a property list cannot carry nil.
+/// The phone reads the same literal (`WATCH_NO_ALTITUDE` in `src/utils/watchRun.ts`).
+let watchRunNoAltitude: Double = -9999
+
+/// A finished wrist-only recording, as sent to the phone to file in the diary.
+/// Rows are packed number arrays because the connection carries property
+/// lists and an hour's route is thousands of fixes.
+struct WatchRunResult {
+    /// Also stamped on the Apple Health workout, which is what makes the
+    /// phone's Health import skip it.
+    let clientId: String
+    let kind: WatchRunKind
+    let place: WatchRunPlace
+    let startedAt: Date
+    let endedAt: Date
+    let activeSeconds: TimeInterval
+    let metrics: WatchRunMetrics
+    /// `[t (epoch ms), lat, lon, alt, hacc, seg]`
+    let route: [[Double]]
+    /// `[t (epoch ms), bpm]`
+    let heartRate: [[Double]]
+
+    /// Keeps at most `limit` rows, evenly spread and always including the
+    /// last, so a long run stays inside the connection's size limit.
+    static func thin(_ rows: [[Double]], to limit: Int) -> [[Double]] {
+        guard rows.count > limit, limit > 1 else { return rows }
+        let stride = Double(rows.count - 1) / Double(limit - 1)
+        return (0..<limit).map { rows[Int((Double($0) * stride).rounded())] }
+    }
+}
