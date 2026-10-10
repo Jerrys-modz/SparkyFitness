@@ -72,6 +72,11 @@ import {
   stopProgram,
   useRunProgram,
 } from '../services/runProgramService';
+import {
+  reconcileRunReminders,
+  setRunReminders,
+  useRunReminders,
+} from '../services/runReminderService';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -167,6 +172,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     DEFAULT_CUSTOM_INTERVALS
   );
   const { status: programStatus, loaded: programLoaded } = useRunProgram();
+  const runReminders = useRunReminders();
   const programWorkout = programStatus?.workout ?? null;
   // A person on a program usually wants today's workout, so it starts chosen
   // (once; they can change it, and it is not re-chosen after).
@@ -464,6 +470,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       // step; a run cut short can be tried again.
       if (session.program && lastStepStarted(session.intervals)) {
         await completeProgramWorkout(session.program.id, session.program.index);
+        // The last workout ends the program, and with it the reminders.
+        void reconcileRunReminders();
       }
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
@@ -672,6 +680,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
           <RunProgramCard
+            reminders={runReminders}
+            onReminders={(next) => void setRunReminders(next)}
             status={programStatus}
             loaded={programLoaded}
             selected={intervalChoice === 'program'}
@@ -683,11 +693,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               void startProgram('beginner5k').then(() => {
                 setActivity('run');
                 setIntervalChoice('program');
+                void reconcileRunReminders();
               });
             }}
-            onSkip={() => void skipProgramWorkout()}
+            onSkip={() =>
+              void skipProgramWorkout().then(() => reconcileRunReminders())
+            }
             onStop={() => {
-              void stopProgram();
+              void stopProgram().then(() => reconcileRunReminders());
               if (intervalChoice === 'program') setIntervalChoice('off');
             }}
           />

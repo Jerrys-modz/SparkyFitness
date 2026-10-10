@@ -261,7 +261,8 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders"
+      "hydration": "Hydration reminders",
+      "runReminders": "Run reminders"
     },
     "actions": {
       "completeSet": "Complete Set",
@@ -299,6 +300,10 @@
     "hydration": {
       "title": "Time to hydrate 💧",
       "body": "You haven't logged any water in a while."
+    },
+    "runReminder": {
+      "title": "Time for your run",
+      "body": "Today's workout is ready in Record Activity."
     }
   },
   "activeWorkout": {
@@ -6476,7 +6481,9 @@
       "use": "Do this workout",
       "using": "Using this workout",
       "skip": "Skip",
-      "stop": "Leave program"
+      "stop": "Leave program",
+      "reminders": "Run reminders",
+      "remindersHint": "Pick the days you plan to run to get a reminder."
     }
   }
 }
