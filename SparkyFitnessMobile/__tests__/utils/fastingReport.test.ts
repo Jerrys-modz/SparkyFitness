@@ -92,6 +92,17 @@ describe('fastingReport', () => {
     ]);
   });
 
+  test('dailyTotals buckets a boundary instant in the given timezone', () => {
+    const totals = dailyTotals(
+      [fast({ start_time: '2024-06-15T05:00:00Z', duration_minutes: 60 })],
+      '2024-06-15',
+      7,
+      'America/Los_Angeles'
+    );
+    expect(totals.find((d) => d.date === '2024-06-14')?.hours).toBe(1);
+    expect(totals.find((d) => d.date === '2024-06-15')?.hours).toBe(0);
+  });
+
   test('zoneCounts buckets by metabolic stage', () => {
     const counts = zoneCounts(
       [

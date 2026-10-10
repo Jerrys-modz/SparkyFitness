@@ -1,3 +1,4 @@
+import { instantToDay } from '@workspace/shared';
 import {
   getMetabolicStageIndex,
   getMetabolicStage,
@@ -15,7 +16,7 @@ export interface FastingReportSummary {
 }
 
 export interface FastingDayTotal {
-  /** YYYY-MM-DD, device-local calendar day of the fast's start. */
+  /** YYYY-MM-DD calendar day of the fast's start, in the report timezone. */
   date: string;
   hours: number;
 }
@@ -51,31 +52,40 @@ export function reportDays(endDate: string, range: FastingReportRange) {
   );
 }
 
-/** Fasts whose device-local start day falls inside the report window. */
+/** Fasts whose start day falls inside the report window. */
 export function fastsInWindow(
   fasts: FastingLog[],
   endDate: string,
-  range: FastingReportRange
+  range: FastingReportRange,
+  timezone?: string
 ): FastingLog[] {
   const days = new Set(reportDays(endDate, range));
-  return fasts.filter((f) => days.has(toLocalDateString(f.start_time)));
+  return fasts.filter((f) => days.has(startDay(f.start_time, timezone)));
 }
 
 /** One entry per day in the window (zero-filled), summing fasts by start day. */
 export function dailyTotals(
   fasts: FastingLog[],
   endDate: string,
-  range: FastingReportRange
+  range: FastingReportRange,
+  timezone?: string
 ): FastingDayTotal[] {
   const byDay = new Map<string, number>();
   for (const fast of completedFasts(fasts)) {
-    const day = toLocalDateString(fast.start_time);
+    const day = startDay(fast.start_time, timezone);
     byDay.set(day, (byDay.get(day) ?? 0) + minutesOf(fast) / 60);
   }
   return reportDays(endDate, range).map((date) => ({
     date,
     hours: byDay.get(date) ?? 0,
   }));
+}
+
+/** Profile timezone when one was passed; otherwise the device's calendar day. */
+function startDay(timestamp: string, timezone?: string): string {
+  return timezone
+    ? instantToDay(timestamp, timezone)
+    : toLocalDateString(timestamp);
 }
 
 /** Number of fasts whose duration lands in each metabolic stage (same order as `METABOLIC_STAGES`). */

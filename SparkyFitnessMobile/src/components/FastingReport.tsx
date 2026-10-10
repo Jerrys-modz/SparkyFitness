@@ -2,10 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
+import { isValidTimeZone, todayInZone } from '@workspace/shared';
 
 import SegmentedControl from './SegmentedControl';
 import { FastingStatCard } from './FastingSharedComponents';
 import { useFastingRange } from '../hooks/useFasting';
+import { usePreferences } from '../hooks/usePreferences';
 import { METABOLIC_STAGES } from '../constants/fasting';
 import { formatLocalizedNumber, useAppLocale } from '../localization';
 import { addDays, formatDateLabel, getTodayDate } from '../utils/dateUtils';
@@ -58,21 +60,26 @@ const FastingReport: React.FC = () => {
     METABOLIC_STAGES.map((s) => s.colorVar)
   ) as string[];
 
-  const today = getTodayDate();
+  const { preferences } = usePreferences();
+  const timezone =
+    preferences?.timezone && isValidTimeZone(preferences.timezone)
+      ? preferences.timezone
+      : undefined;
+  const today = timezone ? todayInZone(timezone) : getTodayDate();
   const heatmapStart = addDays(today, -(HEATMAP_DAYS - 1));
   const { data, isLoading, isError } = useFastingRange(heatmapStart, today);
 
   const report = useMemo(() => {
     const all = data ?? [];
-    const days = dailyTotals(all, today, range);
-    const windowFasts = fastsInWindow(all, today, range);
+    const days = dailyTotals(all, today, range, timezone);
+    const windowFasts = fastsInWindow(all, today, range, timezone);
     return {
       days,
       summary: summarizeFasts(windowFasts),
       zones: zoneCounts(windowFasts, METABOLIC_STAGES.length),
-      heatmap: dailyTotals(all, today, HEATMAP_DAYS),
+      heatmap: dailyTotals(all, today, HEATMAP_DAYS, timezone),
     };
-  }, [data, range, today]);
+  }, [data, range, today, timezone]);
 
   const peakHours = Math.max(0, ...report.days.map((d) => d.hours));
   const maxHours = Math.max(1, peakHours);
