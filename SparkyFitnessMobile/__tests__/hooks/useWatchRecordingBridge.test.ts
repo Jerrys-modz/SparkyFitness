@@ -20,6 +20,7 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
   finishRecording: jest.fn(() => Promise.resolve()),
   markLap: jest.fn(() => Promise.resolve(1)),
   addHeartRateSamples: jest.fn(() => Promise.resolve()),
+  elapsedSeconds: jest.fn(() => 0),
 }));
 
 import { useWatchRecordingBridge } from '../../src/hooks/useWatchRecordingBridge';
@@ -242,6 +243,41 @@ describe('useWatchRecordingBridge', () => {
       expect.objectContaining({ lapCount: 3 }),
       expect.any(Boolean)
     );
+  });
+
+  it('tells the watch which interval step is running and what comes next', () => {
+    (mockedService.elapsedSeconds as jest.Mock).mockReturnValue(70);
+    const plan = {
+      style: 'runWalk' as const,
+      steps: [
+        { kind: 'warmup' as const, seconds: 60 },
+        { kind: 'work' as const, seconds: 90 },
+        { kind: 'recovery' as const, seconds: 60 },
+      ],
+    };
+    setSnapshot({
+      ...baseSession,
+      intervals: { plan, cued: 1 },
+    } as unknown as typeof baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        intervalIndex: 1,
+        intervalLabel: expect.any(String),
+        intervalRemaining: 80,
+        intervalNext: expect.any(String),
+      }),
+      true
+    );
+    (mockedService.elapsedSeconds as jest.Mock).mockReturnValue(0);
+  });
+
+  it('sends no interval fields when the recording has no plan', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+    const sent = watch.updateRecordingState.mock.calls[0][0];
+    expect(sent.intervalIndex).toBeUndefined();
   });
 
   it('shows the live reading for the recording in progress', () => {
