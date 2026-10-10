@@ -7,9 +7,9 @@ import {
 } from '../../src/utils/runPrograms';
 import { isValidIntervalPlan } from '../../src/utils/intervals';
 
-const program = findProgram('couchTo5k')!;
+const program = findProgram('beginner5k')!;
 
-describe('couch to 5K', () => {
+describe('beginner 5K', () => {
   test('is nine weeks of three workouts', () => {
     expect(program.weeks).toBe(9);
     expect(program.workoutsPerWeek).toBe(3);
@@ -49,19 +49,21 @@ describe('couch to 5K', () => {
 
 describe('progress', () => {
   test('resolves the next workout', () => {
-    const status = programStatus({ programId: 'couchTo5k', next: 4 })!;
+    const status = programStatus({ programId: 'beginner5k', next: 4 })!;
     expect(status.workout).toMatchObject({ week: 1, day: 1 });
     expect(status.done).toBe(4);
     expect(status.finished).toBe(false);
   });
 
   test('is finished at the end and clamps a stale index', () => {
-    expect(programStatus({ programId: 'couchTo5k', next: 999 })).toMatchObject({
-      finished: true,
-      workout: null,
-      done: 27,
-    });
-    expect(programStatus({ programId: 'couchTo5k', next: -3 })!.done).toBe(0);
+    expect(programStatus({ programId: 'beginner5k', next: 999 })).toMatchObject(
+      {
+        finished: true,
+        workout: null,
+        done: 27,
+      }
+    );
+    expect(programStatus({ programId: 'beginner5k', next: -3 })!.done).toBe(0);
   });
 
   test('knows nothing of an unknown program', () => {
@@ -69,7 +71,7 @@ describe('progress', () => {
   });
 
   test('advances only past the workout that is due', () => {
-    const progress = { programId: 'couchTo5k', next: 2 };
+    const progress = { programId: 'beginner5k', next: 2 };
     expect(advanceProgress(progress, 2).next).toBe(3);
     expect(advanceProgress(progress, 5)).toBe(progress);
     expect(advanceProgress(progress, 1)).toBe(progress);

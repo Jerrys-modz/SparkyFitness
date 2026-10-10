@@ -6125,10 +6125,10 @@
     "program": {
       "title": "Training program",
       "name": {
-        "couchTo5k": "Couch to 5K"
+        "beginner5k": "Beginner 5K"
       },
-      "couchTo5kDescription": "Couch to 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
-      "start": "Start Couch to 5K",
+      "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
+      "start": "Start Beginner 5K",
       "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
       "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
       "finished": "{{name}} complete",

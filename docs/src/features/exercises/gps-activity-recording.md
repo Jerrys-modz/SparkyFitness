@@ -77,9 +77,9 @@ Intervals work with phone recording only for now. The watch does not show the st
 
 ## Training programs
 
-If you are starting to run, the Record screen offers **Couch to 5K**: nine weeks, three runs a week. Each run is a timed plan (a 5 minute warm-up, alternating running and walking, a 5 minute cool-down), starting with 1 minute of running and building up to 30 minutes of running in week 9.
+If you are starting to run, the Record screen offers **Beginner 5K**: nine weeks, three runs a week. Each run is a timed plan (a 5 minute warm-up, alternating running and walking, a 5 minute cool-down), starting with 1 minute of running and building up to 30 minutes of running in week 9.
 
-Tap **Start Couch to 5K** and the screen selects today's workout for you (Week 1, run 1 first). The card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk.
+Tap **Start Beginner 5K** and the screen selects today's workout for you (Week 1, run 1 first). The card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk.
 
 A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Skip** moves past a workout you cannot do, and **Leave program** forgets your place. When you finish week 9 the card says so and offers to start again. You can still pick any other interval plan, or record without one, at any time.
 
