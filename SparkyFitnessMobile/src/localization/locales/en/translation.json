@@ -606,7 +606,8 @@
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
-    "warmupSettings": "Warm-up Calculator"
+    "warmupSettings": "Warm-up Calculator",
+    "symptomEpisodeDetail": "Episode Details"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5115,7 +5116,11 @@
       "helped": "Helped",
       "partly": "Partly",
       "didntHelp": "Didn't help",
-      "unknown": "Unsure"
+      "unknown": "Unsure",
+      "full": "full relief",
+      "partial": "partial relief",
+      "none": "no relief",
+      "unrated": "unrated"
     },
     "kinds": {
       "relief": "Relief / Non-drug",
@@ -5130,6 +5135,28 @@
       "dailyBody": "How are you feeling today? Tap to log any symptoms.",
       "nudgeTitle": "Episode still active?",
       "nudgeBody": "{{name}} has been running for {{hours}} hours. Is it still ongoing or ended?"
+    },
+    "chart": {
+      "summary_one": "Severity over the episode, {{count}} reading",
+      "summary_other": "Severity over the episode, {{count}} readings"
+    },
+    "calendar": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "free": "Symptom-free",
+      "mild": "Mild to moderate",
+      "severe": "Severe",
+      "unknown": "No entry"
+    },
+    "detail": {
+      "edit": "Edit",
+      "notFound": "This entry is no longer available.",
+      "photoCount_one": "{{count}} photo attached",
+      "photoCount_other": "{{count}} photos attached"
+    },
+    "episode": {
+      "ongoing": "ongoing",
+      "peak": "peak {{n}}"
     }
   },
   "waterIntake": {
