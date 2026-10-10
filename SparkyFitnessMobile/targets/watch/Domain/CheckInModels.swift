@@ -322,6 +322,15 @@ struct StartableWorkout: Codable, Equatable, Identifiable {
     var id: String { presetId }
 }
 
+/// An exercise the wearer can add to the running workout from the wrist. The
+/// phone loads the real exercise by `exerciseId`; this is only the name to tap.
+struct SuggestedExercise: Codable, Equatable, Identifiable {
+    let exerciseId: String
+    let name: String
+
+    var id: String { exerciseId }
+}
+
 /// A workout the active plans put on today, shown first on the workout page.
 /// It is also a saved workout, so a tap starts it by `presetId`.
 struct ScheduledWorkout: Codable, Equatable, Identifiable {
@@ -428,6 +437,9 @@ struct WatchContext: Codable, Equatable {
     /// Today's planned workouts. Nil until the phone has said, empty when no
     /// plan has one due.
     var scheduledWorkouts: [ScheduledWorkout]? = nil
+    /// Exercises offered by Add Exercise during a workout, recent ones first.
+    /// Nil until the phone has said.
+    var suggestedExercises: [SuggestedExercise]? = nil
     /// The phone's active server when `startableWorkouts` was built. Sent
     /// back with a start request. Nil on a context from before this field.
     var workoutServerId: String? = nil

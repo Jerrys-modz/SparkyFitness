@@ -55,6 +55,7 @@ import { useCustomNutrients } from './useCustomNutrients';
 import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
+import { useSuggestedExercises } from './useSuggestedExercises';
 import { useWorkoutPresets } from './useWorkoutPresets';
 import { getActiveServerConfigId } from '../services/storage';
 import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
@@ -81,6 +82,28 @@ export function startableWorkoutsForWatch(
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((preset) => ({ presetId: String(preset.id), name: preset.name }));
+}
+
+/** Most exercises offered to the watch's Add Exercise list. */
+const WATCH_SUGGESTED_EXERCISE_LIMIT = 20;
+
+/**
+ * The exercises the watch can add to a running workout: recent ones first,
+ * then the most used, each once.
+ */
+export function suggestedExercisesForWatch(
+  recent: readonly { id: string; name: string }[],
+  top: readonly { id: string; name: string }[]
+): { exerciseId: string; name: string }[] {
+  const seen = new Set<string>();
+  const result: { exerciseId: string; name: string }[] = [];
+  for (const exercise of [...recent, ...top]) {
+    if (seen.has(exercise.id) || exercise.name.trim() === '') continue;
+    seen.add(exercise.id);
+    result.push({ exerciseId: exercise.id, name: exercise.name });
+    if (result.length === WATCH_SUGGESTED_EXERCISE_LIMIT) break;
+  }
+  return result;
 }
 
 /** Clamps a goal-progress fraction to 0...1 — passing a goal always reads as 1. */
@@ -262,6 +285,11 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const startableWorkouts = useMemo(
     () => startableWorkoutsForWatch(presets),
     [presets]
+  );
+  const { recentExercises, topExercises } = useSuggestedExercises({ enabled });
+  const suggestedExercises = useMemo(
+    () => suggestedExercisesForWatch(recentExercises, topExercises),
+    [recentExercises, topExercises]
   );
 
   // The calendar day everything below describes.
@@ -663,6 +691,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
         startableWorkouts,
+        suggestedExercises,
         // Built for `summaryDate`; a push that has crossed midnight before the
         // hook re-rendered must not carry yesterday's plan.
         scheduledWorkouts: today === summaryDate ? scheduledWorkouts : [],
@@ -707,6 +736,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchDoubleTapEnabled,
     watchRpeEnabled,
     startableWorkouts,
+    suggestedExercises,
     scheduledWorkouts,
     waterGoalMl,
     waterDisplayUnit,
