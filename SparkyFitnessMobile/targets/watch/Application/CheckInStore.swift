@@ -454,8 +454,10 @@ final class CheckInStore: ObservableObject {
             changed = true
         }
         // Yesterday's ticks belong to yesterday's slots; today's slots are new.
-        if pendingMedicationTaps.contains(where: { !$0.isToday }) {
-            pendingMedicationTaps.removeAll { !$0.isToday }
+        // A queued one is kept: it is a write to yesterday's entry that still
+        // has to reach the phone (`resend` sends it under `tap.day`).
+        if pendingMedicationTaps.contains(where: { !$0.isToday && $0.state != .queued }) {
+            pendingMedicationTaps.removeAll { !$0.isToday && $0.state != .queued }
             changed = true
         }
         // Yesterday's unconfirmed taps are yesterday's problem — carrying them
