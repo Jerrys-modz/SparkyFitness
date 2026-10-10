@@ -224,7 +224,6 @@ jobs:
             -workspace ios/SparkyFitness.xcworkspace \
             -scheme 'SparkyFitness' \
             -configuration Release \
-            -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build-phone \
             ONLY_ACTIVE_ARCH=YES \
