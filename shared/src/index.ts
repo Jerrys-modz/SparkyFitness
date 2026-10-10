@@ -219,6 +219,7 @@ export * from "./utils/intervalEngine.ts";
 export * from "./utils/guidedWorkoutCues.ts";
 export * from "./utils/dropSetCalculator.ts";
 export * from "./utils/weightRamp.ts";
+export * from "./utils/weightTrend.ts";
 export * from "./utils/workoutFeedbackForm.ts";
 export * from "./utils/adaptiveCoaching.ts";
 export * from "./constants/corosSportTypes.ts";
