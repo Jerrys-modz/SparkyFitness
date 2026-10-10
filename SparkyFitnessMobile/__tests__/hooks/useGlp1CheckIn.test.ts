@@ -25,9 +25,10 @@ jest.mock('../../src/services/api/measurementsApi', () => ({
 const mockFetchCustomCategories = fetchCustomCategories as jest.MockedFunction<
   typeof fetchCustomCategories
 >;
-const mockFetchMeasurements = fetchCustomMeasurementsByDate as jest.MockedFunction<
-  typeof fetchCustomMeasurementsByDate
->;
+const mockFetchMeasurements =
+  fetchCustomMeasurementsByDate as jest.MockedFunction<
+    typeof fetchCustomMeasurementsByDate
+  >;
 const mockCreateCustomCategory = createCustomCategory as jest.MockedFunction<
   typeof createCustomCategory
 >;
@@ -118,9 +119,9 @@ describe('useGlp1CheckIn', () => {
     expect(mockSaveCustomMeasurement.mock.calls[0]?.[0].category_id).toBe(
       'cat-GLP Hunger'
     );
-    expect(
-      mockSaveCustomMeasurement.mock.calls.at(-1)?.[0].category_id
-    ).toBe('cat-GLP Energy');
+    expect(mockSaveCustomMeasurement.mock.calls.at(-1)?.[0].category_id).toBe(
+      'cat-GLP Energy'
+    );
   });
 
   test('invalidates categories when a save fails', async () => {
