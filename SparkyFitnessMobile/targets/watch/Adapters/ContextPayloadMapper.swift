@@ -200,6 +200,7 @@ enum ContextPayloadMapper {
         return WaterSnapshot(
             day: day(from: payload),
             consumedMl: consumedMl,
+            fromFoodMl: payload["waterFromFoodMl"] as? Double,
             log: waterLog(from: payload)
         )
     }
