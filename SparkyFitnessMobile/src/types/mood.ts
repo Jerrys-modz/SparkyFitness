@@ -4,6 +4,6 @@ export interface MoodEntry {
   /** Calendar day (`YYYY-MM-DD`). */
   entry_date: string;
   mood_value: number;
-  mood_tags: string[];
+  mood_tags: string[] | null;
   notes: string | null;
 }
