@@ -344,6 +344,7 @@ final class WorkoutSessionStore: ObservableObject {
         lastSummary = nil
         askingPresetUpdate = false
         baselineStructure = Self.structure(of: plan)
+        pendingSetCompletion = nil
         resetHeartRateStats()
         stopRestTimer()
         clearHold()
@@ -465,6 +466,7 @@ final class WorkoutSessionStore: ObservableObject {
         targetRevision = 0
         planRevision = 0
         pendingUnknownCompletions = []
+        pendingSetCompletion = nil
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -751,9 +753,14 @@ final class WorkoutSessionStore: ObservableObject {
     /// Marks the current set done, starts the next set's rest, and advances
     /// the cursor. Returns the step that was completed so the caller can
     /// report it — the store never talks to the phone itself.
+    ///
+    /// `holdForEffort` records the completion, including the values and the
+    /// tick time, in the snapshot before returning. The set is sent only
+    /// after Save or Skip, and `clearPendingSetCompletion` drops that record.
     @discardableResult
-    func completeCurrentSet() -> WorkoutStep? {
+    func completeCurrentSet(holdForEffort: Bool = false) -> WorkoutStep? {
         guard let step = currentStep, !isCompleted(step) else { return nil }
+        let logged = values(for: step)
         // Stop the buzz. The deadline stays so the caller can still read
         // how long the hold ran.
         // Only when this is the set the timer belongs to: logging another set
@@ -783,8 +790,22 @@ final class WorkoutSessionStore: ObservableObject {
             // "Workout complete" instead of a rest timer with no way out.
             currentStepIndex = steps.count
         }
+        if holdForEffort {
+            pendingSetCompletion = PendingSetCompletion(
+                setId: step.plannedSet.setId,
+                values: logged,
+                completedAt: Date()
+            )
+        }
         persistSnapshot(reportedEnergyKcal: nil)
         return step
+    }
+
+    /// Drops the held completion. Call only after Save or Skip has sent it.
+    func clearPendingSetCompletion() {
+        guard pendingSetCompletion != nil else { return }
+        pendingSetCompletion = nil
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     /// How many of an exercise's sets are logged, for the picker's subtitle.
@@ -947,7 +968,20 @@ final class WorkoutSessionStore: ObservableObject {
         /// still knows whether it changed. Optional so older snapshots still
         /// decode.
         var baselineStructure: [String]?
+        /// A set logged here that has not been sent yet because the wearer is
+        /// still picking an effort. Optional so older snapshots still decode.
+        var pendingSetCompletion: PendingSetCompletion?
     }
+
+    /// A completed set waiting on the effort screen. Kept in the snapshot so
+    /// a relaunch can still send it; cleared only after Save or Skip.
+    struct PendingSetCompletion: Codable, Equatable {
+        var setId: String
+        var values: SetValues
+        var completedAt: Date
+    }
+
+    private(set) var pendingSetCompletion: PendingSetCompletion?
 
     /// A set timer as stored in the snapshot.
     struct HoldState: Codable, Equatable {
@@ -1077,7 +1111,8 @@ final class WorkoutSessionStore: ObservableObject {
             heartRateCount: heartRateCount,
             heartRateMax: heartRateMax,
             countedHeartRateSeconds: Array(countedHeartRateSeconds),
-            baselineStructure: baselineStructure
+            baselineStructure: baselineStructure,
+            pendingSetCompletion: pendingSetCompletion
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -1117,6 +1152,7 @@ final class WorkoutSessionStore: ObservableObject {
         // `start(with:)` took the baseline from the plan as it was saved, which
         // may already include changes; the stored one is the real starting plan.
         if let stored = snapshot.baselineStructure { baselineStructure = stored }
+        pendingSetCompletion = snapshot.pendingSetCompletion
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
     }

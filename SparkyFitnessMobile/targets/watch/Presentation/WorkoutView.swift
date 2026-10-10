@@ -368,7 +368,8 @@ private struct ActiveWorkoutView: View {
             if let pending = pendingRpe {
                 RpePickerView(
                     title: pending.step.exerciseName,
-                    summary: pending.summary(unit: checkIn.context.effectiveWeightUnit)
+                    summary: pending.summary(unit: checkIn.context.effectiveWeightUnit),
+                    hapticsEnabled: checkIn.context.effectiveHapticsEnabled
                 ) { rpe in
                     session.sendSetCompleted(
                         pending.step,
@@ -376,6 +377,7 @@ private struct ActiveWorkoutView: View {
                         rpe: rpe,
                         completedAt: pending.completedAt
                     )
+                    store.clearPendingSetCompletion()
                     pendingRpe = nil
                 }
                 .background(Color.black.ignoresSafeArea())
@@ -401,6 +403,14 @@ private struct ActiveWorkoutView: View {
             }
         }
         .onAppear {
+            if pendingRpe == nil, let pending = store.pendingSetCompletion,
+               let step = store.steps.first(where: { $0.plannedSet.setId == pending.setId }) {
+                pendingRpe = PendingRpe(
+                    step: step,
+                    values: pending.values,
+                    completedAt: pending.completedAt
+                )
+            }
             #if DEBUG
             if ScreenshotSeed.opensExerciseList {
                 showingExercises = true
@@ -899,13 +909,19 @@ private struct CurrentSetView: View {
             } onComplete: {
                 // The value on screen is what gets logged, settled or not.
                 endCrownEditing()
-                if let completed = store.completeCurrentSet() {
-                    let values = store.values(for: completed)
-                    if checkIn.context.effectiveRpeEnabled {
-                        onAwaitRpe(PendingRpe(step: completed, values: values, completedAt: Date()))
-                    } else {
-                        session.sendSetCompleted(completed, values: values)
+                if checkIn.context.effectiveRpeEnabled {
+                    if let completed = store.completeCurrentSet(holdForEffort: true),
+                       let pending = store.pendingSetCompletion {
+                        onAwaitRpe(
+                            PendingRpe(
+                                step: completed,
+                                values: pending.values,
+                                completedAt: pending.completedAt
+                            )
+                        )
                     }
+                } else if let completed = store.completeCurrentSet() {
+                    session.sendSetCompleted(completed, values: store.values(for: completed))
                 }
             } onNext: {
                 endCrownEditing()
@@ -1675,10 +1691,6 @@ private struct NumericKeypadView: View {
     }
 }
 
-#if DEBUG
-/// A store already mid-workout, for the canvases below. `completedSets` marks
-/// that many sets done — one is enough to put the view into its rest state,
-/// since completing a set starts that set's rest.
 /// A set that has been logged on the watch and is waiting for an effort pick.
 private struct PendingRpe: Identifiable {
     let id = UUID()
@@ -1703,16 +1715,18 @@ private struct PendingRpe: Identifiable {
 }
 
 /// Effort picked after a set: the set it is for, one big value card the Digital
-/// Crown changes through Hevy's scale, what that value means in reps left, and
+/// Crown changes through the scale, what that value means in reps left, and
 /// Skip / Save. Same flat dark squircles as the set screens. `onDone(nil)` skips.
 private struct RpePickerView: View {
     let title: String
     let summary: String
+    let hapticsEnabled: Bool
     let onDone: (Double?) -> Void
 
-    /// Hevy's scale from 6 up, with whole numbers below it down to 1. There is
-    /// no 6.5: from 6 down it is "4+ reps left" either way.
-    private static let values: [Double] = [1, 2, 3, 4, 5, 6, 7, 7.5, 8, 8.5, 9, 9.5, 10]
+    /// Whole numbers from 1 through 6, then half steps through 10.
+    private static let values: [Double] = [
+        1, 2, 3, 4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10,
+    ]
 
     private static let fill = Color(white: 0.14)
     private static let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -1739,18 +1753,32 @@ private struct RpePickerView: View {
     /// How much was left, in Hevy's words.
     private var meaning: String {
         switch value {
-        case 10: return "No more reps possible"
-        case 9.5: return "Could've maybe done 1 more rep"
-        case 9: return "Could've done 1 more rep"
-        case 8.5: return "Could've maybe done 2 more reps"
-        case 8: return "Could've done 2 more reps"
-        case 7.5: return "Could've maybe done 3 more reps"
-        case 7: return "Could've done 3 more reps"
-        case 6: return "Could've done 4+ more reps"
-        case 5: return "Could've done 5+ more reps"
-        case 4: return "Light effort"
-        case 3: return "Very light effort"
-        default: return "Little to no effort"
+        case 10:
+            return String(localized: "watch.rpe.meaning.10", defaultValue: "No more reps possible")
+        case 9.5:
+            return String(localized: "watch.rpe.meaning.9_5", defaultValue: "Could've maybe done 1 more rep")
+        case 9:
+            return String(localized: "watch.rpe.meaning.9", defaultValue: "Could've done 1 more rep")
+        case 8.5:
+            return String(localized: "watch.rpe.meaning.8_5", defaultValue: "Could've maybe done 2 more reps")
+        case 8:
+            return String(localized: "watch.rpe.meaning.8", defaultValue: "Could've done 2 more reps")
+        case 7.5:
+            return String(localized: "watch.rpe.meaning.7_5", defaultValue: "Could've maybe done 3 more reps")
+        case 7:
+            return String(localized: "watch.rpe.meaning.7", defaultValue: "Could've done 3 more reps")
+        case 6.5:
+            return String(localized: "watch.rpe.meaning.6_5", defaultValue: "Could've maybe done 4 more reps")
+        case 6:
+            return String(localized: "watch.rpe.meaning.6", defaultValue: "Could've done 4+ more reps")
+        case 5:
+            return String(localized: "watch.rpe.meaning.5", defaultValue: "Could've done 5+ more reps")
+        case 4:
+            return String(localized: "watch.rpe.meaning.4", defaultValue: "Light effort")
+        case 3:
+            return String(localized: "watch.rpe.meaning.3", defaultValue: "Very light effort")
+        default:
+            return String(localized: "watch.rpe.meaning.low", defaultValue: "Little to no effort")
         }
     }
 
@@ -1777,7 +1805,7 @@ private struct RpePickerView: View {
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
-                Text("RPE")
+                Text(String(localized: "watch.rpe.label", defaultValue: "RPE"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -1796,7 +1824,7 @@ private struct RpePickerView: View {
 
             HStack(spacing: 4) {
                 Button { onDone(nil) } label: {
-                    Text("Skip")
+                    Text(String(localized: "watch.rpe.skip", defaultValue: "Skip"))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.6))
                         .frame(maxWidth: .infinity)
@@ -1806,7 +1834,7 @@ private struct RpePickerView: View {
                 }
                 .buttonStyle(.plain)
                 Button { onDone(value) } label: {
-                    Text("Save")
+                    Text(String(localized: "watch.rpe.save", defaultValue: "Save"))
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(Color.black)
                         .frame(maxWidth: .infinity)
@@ -1828,12 +1856,16 @@ private struct RpePickerView: View {
             by: 1,
             sensitivity: .low,
             isContinuous: false,
-            isHapticFeedbackEnabled: true
+            isHapticFeedbackEnabled: hapticsEnabled
         )
         .onAppear { focused = true }
     }
 }
 
+#if DEBUG
+/// A store already mid-workout, for the canvases below. `completedSets` marks
+/// that many sets done — one is enough to put the view into its rest state,
+/// since completing a set starts that set's rest.
 @MainActor
 private func previewStore(
     bpm: Double? = SampleDay.workoutBpm,
