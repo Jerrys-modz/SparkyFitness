@@ -13,6 +13,11 @@ import {
   type RecordingSession,
 } from './gpsRecordingService';
 import { addLog } from './LogService';
+import {
+  learnFromIndoorEntry,
+  learnFromOutdoorRecording,
+  type IndoorDistanceEstimate,
+} from './stepDistance';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -65,6 +70,17 @@ export async function resolveRecordingExercise(
   });
 }
 
+/**
+ * Names an indoor entry is logged under. They avoid "Treadmill Walk": sport
+ * detection reads "treadmill" as running, so a walk would match two sports and
+ * fall back to "other". "Indoor" is a modifier, not a sport.
+ */
+const INDOOR_ENTRY_NAMES: Record<RecordingActivity, string> = {
+  walk: 'Indoor Walking',
+  run: 'Indoor Running',
+  ride: 'Indoor Cycling',
+};
+
 const pad = (value: number) => String(value).padStart(2, '0');
 
 export interface SavedRecording {
@@ -77,24 +93,37 @@ export interface SavedRecording {
  * route and splits. If the second step fails the entry id is kept on the
  * session, so retrying only re-sends the track (the server replaces it) and
  * never logs the activity twice.
+ *
+ * An indoor session has no route: its distance is whatever the person read off
+ * the machine (`indoorDistanceKm`, null to leave it out), and there is no
+ * track to send. `indoorEstimate` is the step-based distance it was prefilled
+ * with: a distance the person changed teaches the app their stride.
  */
 export async function saveRecordedActivity(
   session: RecordingSession,
   points: readonly RecordedPoint[],
-  distanceUnit: 'km' | 'miles'
+  distanceUnit: 'km' | 'miles',
+  indoorDistanceKm: number | null = null,
+  indoorEstimate: IndoorDistanceEstimate | null = null
 ): Promise<SavedRecording> {
-  const summary = summarizeRecording(points);
+  const indoor = session.indoor === true;
   const started = new Date(session.startedAt);
   const entryDate = toLocalDateString(started);
   const durationSeconds = Math.max(1, Math.round(elapsedSeconds(session)));
-  const distanceKm = Math.round(summary.distanceMeters) / METERS_PER_KM;
+  const distanceKm: number | null = indoor
+    ? indoorDistanceKm != null && indoorDistanceKm > 0
+      ? Math.round(indoorDistanceKm * 1000) / 1000
+      : null
+    : Math.round(summarizeRecording(points).distanceMeters) / METERS_PER_KM;
 
   let entryId = session.savedEntryId;
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
     const created = await createExerciseEntry({
       exercise_id: exercise.id,
-      exercise_name: exercise.name,
+      exercise_name: indoor
+        ? INDOOR_ENTRY_NAMES[session.activity]
+        : exercise.name,
       duration_minutes: Math.round((durationSeconds / 60) * 100) / 100,
       entry_date: entryDate,
       entry_time: `${pad(started.getHours())}:${pad(started.getMinutes())}`,
@@ -106,13 +135,40 @@ export async function saveRecordedActivity(
     });
     entryId = created.id;
     await markRecordingSaved(entryId);
+    // Once, with the entry: a retry of a failed track upload must not teach
+    // the same session twice. Best effort, never part of the save failing.
+    try {
+      if (indoor) {
+        await learnFromIndoorEntry(
+          session.activity,
+          indoorEstimate,
+          indoorDistanceKm
+        );
+      } else if (session.finishedAt != null) {
+        await learnFromOutdoorRecording(
+          {
+            activity: session.activity,
+            startedAt: session.startedAt,
+            finishedAt: session.finishedAt,
+            activeSeconds: durationSeconds,
+          },
+          (distanceKm ?? 0) * METERS_PER_KM
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      addLog(`[GPS Recording] Could not learn stride: ${message}`, 'WARNING');
+    }
   }
 
-  const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
-  await attachExerciseEntryGpsTrack(entryId, {
-    points: toWorkoutGpsPoints(points),
-    laps: splitsToLapWindows(computeSplits(points, unitMeters)),
-  });
+  if (!indoor) {
+    const unitMeters =
+      distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
+    await attachExerciseEntryGpsTrack(entryId, {
+      points: toWorkoutGpsPoints(points),
+      laps: splitsToLapWindows(computeSplits(points, unitMeters)),
+    });
+  }
   await attachWatchHeartRate(entryId);
   return { entryId, entryDate };
 }
