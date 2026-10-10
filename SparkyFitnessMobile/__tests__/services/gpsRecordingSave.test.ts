@@ -1,0 +1,192 @@
+import {
+  attachExerciseEntryGpsTrack,
+  attachExerciseEntryWatchTelemetry,
+  createExercise,
+  createExerciseEntry,
+  searchExercises,
+} from '../../src/services/api/exerciseApi';
+import {
+  getHeartRateSamples,
+  markRecordingSaved,
+} from '../../src/services/gpsRecordingService';
+import {
+  resolveRecordingExercise,
+  saveRecordedActivity,
+} from '../../src/services/gpsRecordingSave';
+import type { RecordedPoint } from '../../src/utils/gpsRecording';
+import type { RecordingSession } from '../../src/services/gpsRecordingService';
+import type { Exercise } from '../../src/types/exercise';
+
+jest.mock('../../src/services/api/exerciseApi');
+jest.mock('../../src/services/gpsRecordingService', () => ({
+  elapsedSeconds: jest.fn(() => 1500),
+  markRecordingSaved: jest.fn(() => Promise.resolve()),
+  getHeartRateSamples: jest.fn(() => Promise.resolve([])),
+}));
+jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+
+const mockedSearch = jest.mocked(searchExercises);
+const mockedCreateExercise = jest.mocked(createExercise);
+const mockedCreateEntry = jest.mocked(createExerciseEntry);
+const mockedAttach = jest.mocked(attachExerciseEntryGpsTrack);
+const mockedTelemetry = jest.mocked(attachExerciseEntryWatchTelemetry);
+const mockedHeartRate = jest.mocked(getHeartRateSamples);
+
+const DEG_PER_METER = 1 / 111_194.9;
+const T0 = new Date(2026, 9, 6, 7, 5, 0).getTime();
+
+const points: RecordedPoint[] = Array.from({ length: 11 }, (_, i) => ({
+  t: T0 + i * 100_000,
+  lat: 51.5 + i * 250 * DEG_PER_METER,
+  lon: -0.12,
+  alt: 10,
+  hacc: 5,
+  vacc: null,
+  speed: null,
+  course: null,
+  seg: 0,
+}));
+
+const session: RecordingSession = {
+  id: 'rec-1',
+  activity: 'run',
+  status: 'finished',
+  startedAt: T0,
+  finishedAt: T0 + 1_000_000,
+  pausedAt: null,
+  pausedMs: 0,
+  seg: 0,
+  savedEntryId: null,
+};
+
+const exercise = (overrides: Partial<Exercise>): Exercise =>
+  ({
+    id: 'ex-1',
+    name: 'Running',
+    modality: 'duration_distance',
+    ...overrides,
+  }) as Exercise;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockedSearch.mockResolvedValue([exercise({})]);
+  mockedCreateEntry.mockResolvedValue({ id: 'entry-1' } as never);
+  mockedAttach.mockResolvedValue(undefined);
+});
+
+describe('resolveRecordingExercise', () => {
+  it('prefers an exact-name cardio match from the library', async () => {
+    mockedSearch.mockResolvedValue([
+      exercise({ id: 'a', name: 'Running Lunges', modality: 'reps_only' }),
+      exercise({ id: 'b', name: 'running', modality: 'duration' }),
+      exercise({ id: 'c', name: 'Running' }),
+    ]);
+    expect((await resolveRecordingExercise('run')).id).toBe('c');
+    expect(mockedCreateExercise).not.toHaveBeenCalled();
+  });
+
+  it('creates a cardio exercise when the library has none', async () => {
+    mockedSearch.mockResolvedValue([]);
+    mockedCreateExercise.mockResolvedValue(
+      exercise({ id: 'new', name: 'Cycling' })
+    );
+
+    await resolveRecordingExercise('ride');
+
+    expect(mockedCreateExercise).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Cycling',
+        category: 'cardio',
+        modality: 'duration_distance',
+      })
+    );
+  });
+});
+
+describe('saveRecordedActivity', () => {
+  it('logs the entry, then attaches the route and per-km splits', async () => {
+    const saved = await saveRecordedActivity(session, points, 'km');
+
+    expect(saved).toEqual({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    const entry = mockedCreateEntry.mock.calls[0][0];
+    expect(entry).toMatchObject({
+      exercise_id: 'ex-1',
+      entry_date: '2026-10-06',
+      entry_time: '07:05',
+      duration_minutes: 25,
+    });
+    expect(entry.distance).toBeCloseTo(2.5, 2);
+    // No calories sent: the server estimates them from the exercise.
+    expect(entry).not.toHaveProperty('calories_burned');
+    expect(entry.sets?.[0]).toMatchObject({ duration: 1500 });
+
+    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+    const [entryId, track] = mockedAttach.mock.calls[0];
+    expect(entryId).toBe('entry-1');
+    expect(track.points).toHaveLength(11);
+    // 2.5 km: two full km and a partial.
+    expect(track.laps).toHaveLength(3);
+  });
+
+  it('cuts splits per mile when the app is in miles', async () => {
+    await saveRecordedActivity(session, points, 'miles');
+    // 2.5 km is ~1.55 mi: one full mile and a partial.
+    expect(mockedAttach.mock.calls[0][1].laps).toHaveLength(2);
+  });
+
+  it('does not log the activity twice when only the track upload failed', async () => {
+    await saveRecordedActivity(
+      { ...session, savedEntryId: 'entry-9' },
+      points,
+      'km'
+    );
+
+    expect(mockedCreateEntry).not.toHaveBeenCalled();
+    expect(mockedSearch).not.toHaveBeenCalled();
+    expect(mockedAttach.mock.calls[0][0]).toBe('entry-9');
+  });
+
+  it('keeps the entry id for a retry when the track upload fails', async () => {
+    mockedAttach.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(saveRecordedActivity(session, points, 'km')).rejects.toThrow(
+      'offline'
+    );
+    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('attaches watch heart rate to the saved entry', async () => {
+    mockedHeartRate.mockResolvedValueOnce([
+      { t: T0, bpm: 120 },
+      { t: T0 + 30_000, bpm: 130 },
+    ]);
+
+    await saveRecordedActivity(session, points, 'km');
+
+    expect(mockedTelemetry).toHaveBeenCalledWith('entry-1', {
+      hrSamples: [
+        { t: new Date(T0).toISOString(), bpm: 120 },
+        { t: new Date(T0 + 30_000).toISOString(), bpm: 130 },
+      ],
+    });
+  });
+
+  it('skips heart rate with fewer than two readings', async () => {
+    mockedHeartRate.mockResolvedValueOnce([{ t: T0, bpm: 120 }]);
+    await saveRecordedActivity(session, points, 'km');
+    expect(mockedTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('still saves when the heart-rate upload fails', async () => {
+    mockedHeartRate.mockResolvedValueOnce([
+      { t: T0, bpm: 120 },
+      { t: T0 + 30_000, bpm: 130 },
+    ]);
+    mockedTelemetry.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual({
+      entryId: 'entry-1',
+      entryDate: '2026-10-06',
+    });
+  });
+});

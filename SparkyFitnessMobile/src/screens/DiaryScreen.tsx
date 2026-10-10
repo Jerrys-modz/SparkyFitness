@@ -76,7 +76,7 @@ import type {
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
-import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
+import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
 import {
   getHistoricalMealTypeLabel,
   getMealTypeDisplayLabel,
@@ -679,18 +679,20 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   }
                   navigation.navigate('WorkoutDetail', { session });
                 } else {
-                  const cardioSession = cardioSessionFromDiaryEntry(
-                    session,
-                    distanceUnit
+                  // A GPS recording is an in-app entry with a stored route, so
+                  // the route has to be asked for before choosing the screen.
+                  void cardioSessionForDiaryEntry(session, distanceUnit).then(
+                    (cardioSession) => {
+                      if (cardioSession) {
+                        navigation.navigate('CardioSession', {
+                          session: cardioSession,
+                          distanceUnit,
+                        });
+                        return;
+                      }
+                      navigation.navigate('ActivityDetail', { session });
+                    }
                   );
-                  if (cardioSession) {
-                    navigation.navigate('CardioSession', {
-                      session: cardioSession,
-                      distanceUnit,
-                    });
-                    return;
-                  }
-                  navigation.navigate('ActivityDetail', { session });
                 }
               }}
             />
