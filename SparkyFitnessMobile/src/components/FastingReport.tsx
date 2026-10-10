@@ -7,8 +7,8 @@ import SegmentedControl from './SegmentedControl';
 import { FastingStatCard } from './FastingSharedComponents';
 import { useFastingRange } from '../hooks/useFasting';
 import { METABOLIC_STAGES } from '../constants/fasting';
-import { formatLocalizedNumber } from '../localization';
-import { addDays, getTodayDate } from '../utils/dateUtils';
+import { formatLocalizedNumber, useAppLocale } from '../localization';
+import { addDays, formatDateLabel, getTodayDate } from '../utils/dateUtils';
 import {
   dailyTotals,
   fastsInWindow,
@@ -48,6 +48,7 @@ const SectionCard: React.FC<{ title: string; children: React.ReactNode }> = ({
  */
 const FastingReport: React.FC = () => {
   const { t } = useTranslation();
+  const dateLocale = useAppLocale();
   const [range, setRange] = useState<FastingReportRange>(30);
   const [accentPrimary, borderSubtle] = useCSSVariable([
     '--color-accent-primary',
@@ -73,7 +74,8 @@ const FastingReport: React.FC = () => {
     };
   }, [data, range, today]);
 
-  const maxHours = Math.max(1, ...report.days.map((d) => d.hours));
+  const peakHours = Math.max(0, ...report.days.map((d) => d.hours));
+  const maxHours = Math.max(1, peakHours);
   const maxZone = Math.max(1, ...report.zones);
 
   return (
@@ -173,16 +175,24 @@ const FastingReport: React.FC = () => {
             </View>
             <View className="flex-row justify-between mt-2">
               <Text className="text-xs text-text-muted">
-                {report.days[0]?.date}
+                {report.days[0]?.date
+                  ? formatDateLabel(report.days[0].date, t, dateLocale)
+                  : ''}
               </Text>
               <Text className="text-xs text-text-muted">
                 {t('fastingReport.peakHours', {
                   defaultValue: 'Peak {{hours}}h',
-                  hours: formatHours(maxHours === 1 ? 0 : maxHours),
+                  hours: formatHours(peakHours),
                 })}
               </Text>
               <Text className="text-xs text-text-muted">
-                {report.days[report.days.length - 1]?.date}
+                {report.days[report.days.length - 1]?.date
+                  ? formatDateLabel(
+                      report.days[report.days.length - 1].date,
+                      t,
+                      dateLocale
+                    )
+                  : ''}
               </Text>
             </View>
           </SectionCard>

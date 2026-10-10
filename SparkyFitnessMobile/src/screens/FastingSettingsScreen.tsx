@@ -56,9 +56,15 @@ const FastingSettingsForm: React.FC<FormProps> = ({ preferences }) => {
   const [autoCalculate, setAutoCalculate] = useState(
     preferences.auto_calculate
   );
-  const [protocol, setProtocol] = useState(
-    preferences.default_protocol || '16:8 Leangains'
-  );
+  const [protocol, setProtocol] = useState(() => {
+    const saved = preferences.default_protocol || '16:8 Leangains';
+    const preset = FASTING_PRESETS.find(
+      (p) => p.name === saved || p.id === saved
+    );
+    return preset && preset.name !== 'Custom Fast'
+      ? preset.name
+      : CUSTOM_PROTOCOL;
+  });
   const [fastingHours, setFastingHours] = useState(
     String(preferences.target_fasting_hours ?? 16)
   );
