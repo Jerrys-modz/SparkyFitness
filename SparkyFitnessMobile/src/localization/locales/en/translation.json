@@ -6493,7 +6493,9 @@
       "startOver": "Start over",
       "errors": {
         "update": "Could not update your program"
-      }
+      },
+      "changedBySparky": "Sparky changed your plan on {{date}}: {{summary}}",
+      "changed": "Plan changed on {{date}}: {{summary}}"
     }
   }
 }

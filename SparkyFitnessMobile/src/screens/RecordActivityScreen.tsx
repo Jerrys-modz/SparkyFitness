@@ -175,6 +175,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const {
     status: storedProgram,
     enabled: programEnabled,
+    lastAdjustment: programLastAdjustment,
     loaded: programLoaded,
   } = useRunProgram();
   // The program only drives the screen while the person has it switched on.
@@ -722,6 +723,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
           <RunProgramCard
+            lastAdjustment={programLastAdjustment}
+            now={now}
             reminders={runReminders}
             onReminders={(next) => void setRunReminders(next)}
             onPickWorkout={(index) =>

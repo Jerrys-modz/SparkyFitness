@@ -8,7 +8,11 @@ import SegmentedControl from '../SegmentedControl';
 import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
 import type { RunReminders } from '../../services/runReminderService';
-import { planMinutes, type ProgramStatus } from '@workspace/shared';
+import {
+  planMinutes,
+  type ProgramStatus,
+  type RunProgramAdjustment,
+} from '@workspace/shared';
 
 export function programName(t: TFunction, id: string): string {
   switch (id) {
@@ -50,6 +54,10 @@ const hourLabel = (hour: number): string =>
   });
 
 interface Props {
+  /** The latest change to the plan, shown for a couple of weeks. */
+  lastAdjustment?: RunProgramAdjustment | null;
+  /** Epoch ms "now", from the screen, to judge whether a change is recent. */
+  now: number;
   reminders: RunReminders;
   onReminders: (reminders: RunReminders) => void;
   /** Jump to any workout in the program (0-based index). */
@@ -68,6 +76,8 @@ interface Props {
 
 /** Start, follow and leave a multi-week run program. */
 const RunProgramCard: React.FC<Props> = ({
+  lastAdjustment = null,
+  now,
   reminders,
   onReminders,
   onPickWorkout,
@@ -151,6 +161,18 @@ const RunProgramCard: React.FC<Props> = ({
         })),
     })
   );
+  // A change older than this is history, not news.
+  const recentChange =
+    lastAdjustment &&
+    now - Date.parse(lastAdjustment.at) < 14 * 24 * 3600 * 1000
+      ? lastAdjustment
+      : null;
+  const changeDate = recentChange
+    ? new Date(recentChange.at).toLocaleDateString(getAppLocale(), {
+        month: 'short',
+        day: 'numeric',
+      })
+    : '';
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
@@ -176,6 +198,22 @@ const RunProgramCard: React.FC<Props> = ({
                 'Workout {{done}} of {{total}} done · {{minutes}} min today',
             })}
       </Text>
+      {recentChange ? (
+        <Text className="text-text-secondary text-xs mt-2">
+          {recentChange.source === 'assistant'
+            ? t('recordActivity.program.changedBySparky', {
+                date: changeDate,
+                summary: recentChange.summary,
+                defaultValue:
+                  'Sparky changed your plan on {{date}}: {{summary}}',
+              })
+            : t('recordActivity.program.changed', {
+                date: changeDate,
+                summary: recentChange.summary,
+                defaultValue: 'Plan changed on {{date}}: {{summary}}',
+              })}
+        </Text>
+      ) : null}
       <View className="h-2 rounded-full bg-raised mt-3 overflow-hidden">
         <View
           className="h-2 rounded-full bg-accent-primary"

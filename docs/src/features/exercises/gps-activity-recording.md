@@ -109,7 +109,7 @@ Under the program card you can pick the days you plan to run and a time (morning
 
 Your place in the program is saved to your SparkyFitness server (only you can see it), so it follows you between devices. The run reminders stay on the phone.
 
-**Ask Sparky to adjust it.** The AI assistant can see your program and your recent runs. Ask "How am I doing on my 5K program?" or tell it things like "my knee hurt this week" or "that last run was too hard", and it can suggest a change: repeat a week, move you to a different workout, or ease the running time in your next workouts by up to 30% (or lengthen it by at most 10% at a time). It only changes workouts you have not done yet, always asks you to confirm first, and keeps a short log of what it changed and why.
+**Ask Sparky to adjust it.** The AI assistant can see your program and your recent runs. Ask "How am I doing on my 5K program?" or tell it things like "my knee hurt this week" or "that last run was too hard", and it can suggest a change: repeat a week, move you to a different workout, or ease the running time in your next workouts by up to 30% (or lengthen it by at most 10% at a time). It only changes workouts you have not done yet, always asks you to confirm first, and keeps a short log of what it changed. For two weeks after a change, the program card on the Record screen says what changed and when.
 
 This is a common beginner structure, not medical advice: if you are unsure about starting to run, check with your doctor first.
 
