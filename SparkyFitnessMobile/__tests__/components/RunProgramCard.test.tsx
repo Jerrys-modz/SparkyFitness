@@ -4,6 +4,8 @@ import RunProgramCard from '../../src/components/recording/RunProgramCard';
 import { programStatus } from '@workspace/shared';
 
 const handlers = () => ({
+  programId: 'beginner5k',
+  onChooseProgram: jest.fn(),
   now: Date.now(),
   reminders: { days: [] as number[], hour: 7 },
   onReminders: jest.fn(),
@@ -146,6 +148,8 @@ describe('run reminders', () => {
 
 describe('recent changes', () => {
   const base = {
+    programId: 'beginner5k',
+    onChooseProgram: jest.fn(),
     reminders: { days: [] as number[], hour: 7 },
     onReminders: jest.fn(),
     onPickWorkout: jest.fn(),
@@ -188,5 +192,36 @@ describe('recent changes', () => {
       />
     );
     expect(screen.queryByText(/Repeating week 2/)).toBeNull();
+  });
+});
+
+describe('choosing a program', () => {
+  it('describes the program picked while it is switched off', () => {
+    render(
+      <RunProgramCard
+        {...handlers()}
+        programId="halfMarathon"
+        status={null}
+        loaded
+        selected={false}
+        enabled={false}
+      />
+    );
+    expect(screen.getByText(/Half marathon: twelve weeks/)).toBeTruthy();
+  });
+
+  it('names the running program and offers to change it', () => {
+    render(
+      <RunProgramCard
+        {...handlers()}
+        status={programStatus({ programId: 'marathon', next: 5 })!}
+        programId="marathon"
+        loaded
+        selected={false}
+        enabled
+      />
+    );
+    expect(screen.getByText('Marathon · Week 2, run 2')).toBeTruthy();
+    expect(screen.getByText('Change program')).toBeTruthy();
   });
 });

@@ -12,7 +12,7 @@ export const MAX_PUSH_PERCENT = 10;
 /** The most workouts one adjustment may touch. */
 export const MAX_ADJUST_WORKOUTS = 9;
 const MIN_RUN_SECONDS = 15;
-const MAX_RUN_SECONDS = 3600;
+const MAX_RUN_SECONDS = 4 * 3600;
 
 export interface ProgramState {
   workouts: ProgramWorkout[];

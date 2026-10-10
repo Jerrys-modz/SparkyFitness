@@ -1,4 +1,8 @@
-import type { IntervalPlan, IntervalStep } from "./runIntervals.ts";
+import type {
+  IntervalPlan,
+  IntervalStep,
+  IntervalStyle,
+} from "./runIntervals.ts";
 
 /**
  * Multi-week run programs: an ordered list of workouts, each one an interval
@@ -24,17 +28,32 @@ export interface RunProgram {
 
 type Piece = readonly ["run" | "walk", number];
 
-const WARMUP_SECONDS = 5 * 60;
-const COOLDOWN_SECONDS = 5 * 60;
+/** How a workout is wrapped: warm-up, cool-down and what the steps are called. */
+interface Shape {
+  style: IntervalStyle;
+  warmup: number;
+  cooldown: number;
+}
 
-/** A 5 minute walk, the given run/walk pieces, then a 5 minute walk. */
-function workout(pieces: readonly Piece[]): IntervalPlan {
-  const steps: IntervalStep[] = [{ kind: "warmup", seconds: WARMUP_SECONDS }];
-  for (const [kind, seconds] of pieces) {
+interface Spec {
+  pieces: readonly Piece[];
+  shape: Shape;
+}
+
+const RUN_WALK: Shape = { style: "runWalk", warmup: 300, cooldown: 300 };
+const SPEED: Shape = { style: "fastEasy", warmup: 600, cooldown: 600 };
+const EASY: Shape = { style: "fastEasy", warmup: 300, cooldown: 300 };
+
+/** A warm-up, the given run/walk pieces (work/recovery steps), a cool-down. */
+function workout(spec: Spec): IntervalPlan {
+  const steps: IntervalStep[] = [
+    { kind: "warmup", seconds: spec.shape.warmup },
+  ];
+  for (const [kind, seconds] of spec.pieces) {
     steps.push({ kind: kind === "run" ? "work" : "recovery", seconds });
   }
-  steps.push({ kind: "cooldown", seconds: COOLDOWN_SECONDS });
-  return { style: "runWalk", steps };
+  steps.push({ kind: "cooldown", seconds: spec.shape.cooldown });
+  return { style: spec.shape.style, steps };
 }
 
 const repeat = (count: number, pieces: readonly Piece[]): Piece[] =>
@@ -43,43 +62,117 @@ const repeat = (count: number, pieces: readonly Piece[]): Piece[] =>
 const run = (seconds: number): Piece => ["run", seconds];
 const walk = (seconds: number): Piece => ["walk", seconds];
 
+/** Run/walk workout with the usual 5 minute walks either side. */
+const rw = (pieces: readonly Piece[]): Spec => ({ pieces, shape: RUN_WALK });
+/** A continuous run of `minutes`. */
+const steady = (minutes: number): Spec => rw([run(minutes * 60)]);
+/** Speed work: fast and easy pieces with a longer warm-up and cool-down. */
+const speed = (pieces: readonly Piece[]): Spec => ({ pieces, shape: SPEED });
+/** An easy run (an "easy" step, not a "run" one) of `minutes`. */
+const easy = (minutes: number): Spec => ({
+  pieces: [walk(minutes * 60)],
+  shape: EASY,
+});
+
+/** Weeks of continuous runs, one row of minutes per week. */
+const steadyWeeks = (rows: readonly (readonly number[])[]): Spec[][] =>
+  rows.map((minutes) => minutes.map(steady));
+
 // A nine-week beginner progression from alternating minutes of running and
 // walking to 30 minutes of running, three workouts a week. Each week lists its
 // three workouts; a week that repeats one workout lists it three times.
-const BEGINNER_5K_WEEKS: readonly (readonly (readonly Piece[])[])[] = [
-  Array(3).fill(repeat(8, [run(60), walk(90)])),
-  Array(3).fill(repeat(6, [run(90), walk(120)])),
-  Array(3).fill(repeat(2, [run(90), walk(90), run(180), walk(180)])),
-  Array(3).fill([
-    run(180),
-    walk(90),
-    run(300),
-    walk(150),
-    run(180),
-    walk(90),
-    run(300),
-  ]),
+const BEGINNER_5K_WEEKS: readonly (readonly Spec[])[] = [
+  Array(3).fill(rw(repeat(8, [run(60), walk(90)]))),
+  Array(3).fill(rw(repeat(6, [run(90), walk(120)]))),
+  Array(3).fill(rw(repeat(2, [run(90), walk(90), run(180), walk(180)]))),
+  Array(3).fill(
+    rw([run(180), walk(90), run(300), walk(150), run(180), walk(90), run(300)]),
+  ),
   [
-    [run(300), walk(180), run(300), walk(180), run(300)],
-    [run(480), walk(300), run(480)],
-    [run(1200)],
+    rw([run(300), walk(180), run(300), walk(180), run(300)]),
+    rw([run(480), walk(300), run(480)]),
+    steady(20),
   ],
   [
-    [run(300), walk(180), run(480), walk(180), run(300)],
-    [run(600), walk(180), run(600)],
-    [run(1320)],
+    rw([run(300), walk(180), run(480), walk(180), run(300)]),
+    rw([run(600), walk(180), run(600)]),
+    steady(22),
   ],
-  Array(3).fill([run(1500)]),
-  Array(3).fill([run(1680)]),
-  Array(3).fill([run(1800)]),
+  Array(3).fill(steady(25)),
+  Array(3).fill(steady(28)),
+  Array(3).fill(steady(30)),
 ];
+
+// For someone who can run 30 minutes: eight weeks to 10K, three runs a week
+// (two steady, one long), with an easier week every fourth and a taper.
+const FIVE_TO_TEN_K_WEEKS = steadyWeeks([
+  [30, 30, 40],
+  [30, 35, 45],
+  [35, 35, 50],
+  [30, 30, 40],
+  [35, 40, 55],
+  [40, 40, 60],
+  [40, 45, 65],
+  [30, 30, 40],
+]);
+
+// Six weeks to get faster over 5K: a speed session, an easy run and a longer
+// run or tempo each week.
+const FASTER_5K_WEEKS: readonly (readonly Spec[])[] = [
+  [speed(repeat(6, [run(120), walk(120)])), easy(30), easy(40)],
+  [speed(repeat(5, [run(180), walk(120)])), easy(30), easy(45)],
+  [speed(repeat(4, [run(240), walk(150)])), easy(35), easy(50)],
+  [speed(repeat(8, [run(90), walk(90)])), easy(30), speed([run(900)])],
+  [speed(repeat(3, [run(360), walk(180)])), easy(30), speed([run(1200)])],
+  [speed(repeat(4, [run(180), walk(120)])), easy(25), speed([run(1500)])],
+];
+
+// Twelve weeks to a half marathon for someone who runs 30 minutes: an easy
+// run, a middle run and a long run each week, with an easier week every
+// fourth and a taper.
+const HALF_MARATHON_WEEKS = steadyWeeks([
+  [30, 30, 50],
+  [30, 35, 55],
+  [35, 40, 65],
+  [30, 30, 50],
+  [35, 40, 75],
+  [40, 45, 85],
+  [40, 45, 95],
+  [35, 35, 70],
+  [45, 50, 105],
+  [45, 50, 115],
+  [40, 40, 90],
+  [25, 20, 30],
+]);
+
+// Sixteen weeks to a marathon for someone who already runs a few times a
+// week: easy, middle, easy and long runs, long runs building to under three
+// hours, an easier week every fourth, and a three-week taper.
+const MARATHON_WEEKS = steadyWeeks([
+  [30, 40, 30, 70],
+  [30, 40, 30, 80],
+  [35, 45, 35, 90],
+  [30, 40, 30, 70],
+  [35, 50, 35, 100],
+  [40, 50, 40, 110],
+  [40, 55, 40, 120],
+  [30, 45, 30, 90],
+  [40, 55, 40, 130],
+  [45, 60, 45, 140],
+  [45, 60, 45, 150],
+  [35, 50, 35, 110],
+  [45, 60, 45, 150],
+  [45, 60, 45, 165],
+  [40, 50, 40, 120],
+  [30, 25, 20],
+]);
 
 function buildProgram(
   id: string,
-  weeks: readonly (readonly (readonly Piece[])[])[]
+  weeks: readonly (readonly Spec[])[],
 ): RunProgram {
   const workouts = weeks.flatMap((days, week) =>
-    days.map((pieces, day) => ({ week, day, plan: workout(pieces) }))
+    days.map((spec, day) => ({ week, day, plan: workout(spec) })),
   );
   return {
     id,
@@ -89,8 +182,13 @@ function buildProgram(
   };
 }
 
+/** Easiest first: the order the picker lists them. */
 export const RUN_PROGRAMS: readonly RunProgram[] = [
   buildProgram("beginner5k", BEGINNER_5K_WEEKS),
+  buildProgram("fiveToTenK", FIVE_TO_TEN_K_WEEKS),
+  buildProgram("faster5k", FASTER_5K_WEEKS),
+  buildProgram("halfMarathon", HALF_MARATHON_WEEKS),
+  buildProgram("marathon", MARATHON_WEEKS),
 ];
 
 export function findProgram(id: string): RunProgram | null {
@@ -138,7 +236,7 @@ export function programStatus(progress: ProgramProgress): ProgramStatus | null {
 /** Moves on from workout `index`, but only if it is the one due. */
 export function advanceProgress(
   progress: ProgramProgress,
-  completedIndex: number
+  completedIndex: number,
 ): ProgramProgress {
   return completedIndex === progress.next
     ? { ...progress, next: progress.next + 1 }

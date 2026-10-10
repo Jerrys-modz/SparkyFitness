@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const runProgramStepSchema = z.object({
   kind: z.enum(["warmup", "work", "recovery", "cooldown"]),
-  seconds: z.number().int().min(1).max(3600),
+  seconds: z.number().int().min(1).max(14400),
 });
 
 export const runProgramPlanSchema = z.object({

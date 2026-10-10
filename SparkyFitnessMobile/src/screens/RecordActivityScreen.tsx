@@ -23,6 +23,7 @@ import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
 import RunProgramCard, {
+  programName,
   programWorkoutLabel,
 } from '../components/recording/RunProgramCard';
 import IntervalCard from '../components/recording/IntervalCard';
@@ -65,6 +66,7 @@ import {
 import {
   completeProgramWorkout,
   setProgramPosition,
+  startProgram,
   skipProgramWorkout,
   restartProgram,
   setProgramEnabled,
@@ -178,6 +180,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   // The program only drives the screen while the person has it switched on.
   const programStatus = programEnabled ? storedProgram : null;
   const runReminders = useRunReminders();
+  // The program picked in the list: the running one, or the one to start.
+  const [chosenProgramId, setChosenProgramId] = useState('beginner5k');
+  const storedProgramId = storedProgram?.program.id;
+  useEffect(() => {
+    if (storedProgramId) setChosenProgramId(storedProgramId);
+  }, [storedProgramId]);
   const programWorkout = programStatus?.workout ?? null;
   // A person on a program usually wants today's workout, so it starts chosen
   // (once; they can change it, and it is not re-chosen after).
@@ -653,6 +661,42 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
           <RunProgramCard
+            programId={chosenProgramId}
+            onChooseProgram={(id) => {
+              if (!programEnabled || id === storedProgramId) {
+                setChosenProgramId(id);
+                return;
+              }
+              // Switching a running program starts the new one from week 1.
+              Alert.alert(
+                t('recordActivity.program.switchTitle', {
+                  name: programName(t, id),
+                  defaultValue: 'Switch to {{name}}?',
+                }),
+                t('recordActivity.program.switchMessage', {
+                  defaultValue:
+                    'You will start the new program at week 1. Your place in the current one is not kept.',
+                }),
+                [
+                  {
+                    text: t('common.cancel', { defaultValue: 'Cancel' }),
+                    style: 'cancel',
+                  },
+                  {
+                    text: t('recordActivity.program.switchConfirm', {
+                      defaultValue: 'Switch',
+                    }),
+                    onPress: () =>
+                      changeProgram(async () => {
+                        await startProgram(id);
+                        setChosenProgramId(id);
+                        setActivity('run');
+                        setIntervalChoice('program');
+                      }),
+                  },
+                ]
+              );
+            }}
             lastAdjustment={programLastAdjustment}
             now={now}
             reminders={runReminders}
@@ -670,7 +714,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             enabled={programEnabled}
             onToggle={(on) =>
               changeProgram(async () => {
-                await setProgramEnabled(on, 'beginner5k');
+                if (on && storedProgramId !== chosenProgramId) {
+                  await startProgram(chosenProgramId);
+                } else {
+                  await setProgramEnabled(on, chosenProgramId);
+                }
                 if (on) {
                   setActivity('run');
                   setIntervalChoice('program');
