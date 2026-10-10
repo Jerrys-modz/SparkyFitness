@@ -806,10 +806,21 @@ final class WorkoutSessionStore: ObservableObject {
         return step
     }
 
-    /// Drops the held completion. Call only after Save or Skip has sent it.
+    /// Drops the held completion. Call only after the send was accepted by
+    /// an activated Watch Connectivity session.
     func clearPendingSetCompletion() {
         guard pendingSetCompletion != nil else { return }
         pendingSetCompletion = nil
+        persistSnapshot(reportedEnergyKcal: nil)
+    }
+
+    /// Records Save or Skip on the held completion before the send is tried,
+    /// so a relaunch can still deliver that choice.
+    func markPendingReadyToSend(rpe: Double?) {
+        guard var pending = pendingSetCompletion else { return }
+        pending.rpe = rpe
+        pending.readyToSend = true
+        pendingSetCompletion = pending
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
@@ -979,7 +990,8 @@ final class WorkoutSessionStore: ObservableObject {
     }
 
     /// A completed set waiting on the effort screen. Kept in the snapshot so
-    /// a relaunch can still send it; cleared only after Save or Skip.
+    /// a relaunch can still send it. Cleared only after the send is accepted
+    /// by Watch Connectivity, not while it is sitting in memory.
     struct PendingSetCompletion: Codable, Equatable {
         var setId: String
         var values: SetValues
@@ -987,6 +999,51 @@ final class WorkoutSessionStore: ObservableObject {
         /// Seconds the hold had run at the tick. Nil when it was never
         /// started. Kept so time spent on the effort screen is not logged.
         var durationSeconds: Int?
+        /// Set when the wearer taps Save. Nil with `readyToSend` means Skip.
+        var rpe: Double?
+        /// The wearer already chose Save or Skip. The send may still be
+        /// waiting for the session to activate.
+        var readyToSend: Bool
+
+        init(
+            setId: String,
+            values: SetValues,
+            completedAt: Date,
+            durationSeconds: Int?,
+            rpe: Double? = nil,
+            readyToSend: Bool = false
+        ) {
+            self.setId = setId
+            self.values = values
+            self.completedAt = completedAt
+            self.durationSeconds = durationSeconds
+            self.rpe = rpe
+            self.readyToSend = readyToSend
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case setId, values, completedAt, durationSeconds, rpe, readyToSend
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            setId = try container.decode(String.self, forKey: .setId)
+            values = try container.decode(SetValues.self, forKey: .values)
+            completedAt = try container.decode(Date.self, forKey: .completedAt)
+            durationSeconds = try container.decodeIfPresent(Int.self, forKey: .durationSeconds)
+            rpe = try container.decodeIfPresent(Double.self, forKey: .rpe)
+            readyToSend = try container.decodeIfPresent(Bool.self, forKey: .readyToSend) ?? false
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(setId, forKey: .setId)
+            try container.encode(values, forKey: .values)
+            try container.encode(completedAt, forKey: .completedAt)
+            try container.encodeIfPresent(durationSeconds, forKey: .durationSeconds)
+            try container.encodeIfPresent(rpe, forKey: .rpe)
+            try container.encode(readyToSend, forKey: .readyToSend)
+        }
     }
 
     private(set) var pendingSetCompletion: PendingSetCompletion?

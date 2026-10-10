@@ -371,17 +371,21 @@ private struct ActiveWorkoutView: View {
                     summary: pending.summary(unit: checkIn.context.effectiveWeightUnit),
                     hapticsEnabled: checkIn.context.effectiveHapticsEnabled
                 ) { rpe in
+                    store.markPendingReadyToSend(rpe: rpe)
                     let held = store.pendingSetCompletion
-                    session.sendSetCompleted(
+                    let sent = session.sendSetCompleted(
                         pending.step,
                         values: pending.values,
                         rpe: rpe,
                         completedAt: pending.completedAt,
                         durationSeconds: held?.durationSeconds,
-                        useCapturedDuration: held != nil
+                        useCapturedDuration: held != nil,
+                        requireDurable: true
                     )
-                    store.clearPendingSetCompletion()
-                    pendingRpe = nil
+                    if sent {
+                        store.clearPendingSetCompletion()
+                        pendingRpe = nil
+                    }
                 }
                 .background(Color.black.ignoresSafeArea())
             }
@@ -414,6 +418,8 @@ private struct ActiveWorkoutView: View {
                     completedAt: pending.completedAt
                 )
             }
+            session.retryPendingSetCompletion()
+            if store.pendingSetCompletion == nil { pendingRpe = nil }
             #if DEBUG
             if ScreenshotSeed.opensExerciseList {
                 showingExercises = true
@@ -429,6 +435,9 @@ private struct ActiveWorkoutView: View {
                 store.askingPresetUpdate = true
             }
             #endif
+        }
+        .onChange(of: store.pendingSetCompletion) {
+            if store.pendingSetCompletion == nil { pendingRpe = nil }
         }
     }
 }
