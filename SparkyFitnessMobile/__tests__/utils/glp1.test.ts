@@ -1,4 +1,6 @@
 import {
+  glp1FormDefaults,
+  isAutofilledGlp1Name,
   penDosesLeft,
   penExpiryStatus,
   resolveMapSites,
@@ -61,5 +63,30 @@ describe('glp1 utils', () => {
       pen({ id: 'c', status: 'in_use' }),
     ]).map((p) => p.id);
     expect(ordered).toEqual(['c', 'a']);
+  });
+});
+
+describe('glp1FormDefaults', () => {
+  it('makes injectable drugs an injection in mg', () => {
+    expect(glp1FormDefaults('tirzepatide')).toEqual({
+      name: 'Tirzepatide',
+      typeId: 'injection',
+      strengthUnit: 'mg',
+      doseUnit: 'mg',
+    });
+  });
+
+  it('makes oral semaglutide a tablet', () => {
+    expect(glp1FormDefaults('oral_semaglutide')?.typeId).toBe('tablet');
+  });
+
+  it('returns null for an unknown drug', () => {
+    expect(glp1FormDefaults('nope')).toBeNull();
+  });
+
+  it('only overwrites an empty or previously autofilled name', () => {
+    expect(isAutofilledGlp1Name('')).toBe(true);
+    expect(isAutofilledGlp1Name('Semaglutide')).toBe(true);
+    expect(isAutofilledGlp1Name('My Ozempic')).toBe(false);
   });
 });

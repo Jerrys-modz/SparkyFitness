@@ -34,6 +34,7 @@ import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import Switch from '../components/ui/Switch';
 import type { RootStackScreenProps } from '../types/navigation';
+import { glp1FormDefaults, isAutofilledGlp1Name } from '../utils/glp1';
 import { medicationTypeLabel } from '../utils/medicationLocalization';
 import { formatLocalizedTimeOfDay } from '../utils/medicationScheduleLocalization';
 import { MEDICATION_TYPES } from '../types/medications';
@@ -295,6 +296,23 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
       setEdits((prev) => ({ ...prev, [key]: value }));
     },
     []
+  );
+
+  const handleGlp1DrugSelect = useCallback(
+    (drugId: string) => {
+      const defaults = glp1FormDefaults(drugId);
+      setEdits((prev) => {
+        const next = { ...prev, glp1Drug: drugId };
+        if (!defaults) return next;
+        const currentName = prev.name ?? form.name;
+        if (isAutofilledGlp1Name(currentName)) next.name = defaults.name;
+        next.typeId = defaults.typeId;
+        next.strengthUnit = defaults.strengthUnit;
+        next.doseUnit = defaults.doseUnit;
+        return next;
+      });
+    },
+    [form.name]
   );
 
   const handleSupplementToggle = useCallback(
@@ -940,7 +958,7 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
                 <BottomSheetPicker
                   value={form.glp1Drug}
                   options={glp1DrugOptions}
-                  onSelect={(val) => updateField('glp1Drug', val)}
+                  onSelect={handleGlp1DrugSelect}
                   placeholder={t('medications.glp1.form.drugPlaceholder', {
                     defaultValue: 'Choose a drug',
                   })}
