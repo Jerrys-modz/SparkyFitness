@@ -29,6 +29,28 @@ jest.mock('../../src/hooks/useExternalProviders', () => ({
     providers: [{ id: 'p1', provider_type: 'dsld', is_active: true }],
   }),
 }));
+const mockLabelMutate = jest.fn();
+jest.mock('../../src/hooks/useSupplementLabelScan', () => ({
+  useSupplementLabelScan: () => ({
+    mutate: mockLabelMutate,
+    isPending: false,
+  }),
+}));
+const mockLaunchCamera = jest.fn();
+jest.mock('expo-image-picker', () => ({
+  launchCameraAsync: (...args: unknown[]) => mockLaunchCamera(...args),
+  launchImageLibraryAsync: jest.fn(),
+}));
+jest.mock('../../src/utils/labelPhoto', () => ({
+  prepareLabelPhoto: jest.fn(async (asset: { base64?: string }) => ({
+    base64: asset.base64 ?? '',
+    uri: 'file://label.jpg',
+  })),
+}));
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: { show: jest.fn() },
+}));
 jest.mock('../../src/hooks/useSupplementLookup', () => ({
   useSupplementLookup: () => ({ mutate: mockLookupMutate, isPending: false }),
 }));
@@ -614,6 +636,168 @@ describe('MedicationFormScreen — supplement barcode', () => {
       'No match found',
       expect.stringContaining('No supplement was found for that barcode')
     );
+  });
+
+  describe('scanning the label', () => {
+    const labelProduct = {
+      source: 'label' as const,
+      sourceId: 'label',
+      name: 'Zinc Plus',
+      brand: null,
+      form: 'capsule' as const,
+      serving: '1 Capsule',
+      fixed: [],
+      catalog: [{ catalogId: 'zinc', amount: 15 }],
+      unmatched: [],
+    };
+
+    const takePhoto = async (screen: ReturnType<typeof renderScreen>) => {
+      mockLaunchCamera.mockResolvedValue({
+        canceled: false,
+        assets: [
+          { uri: 'file://raw.jpg', base64: 'AAA', width: 800, height: 600 },
+        ],
+      });
+      fireEvent.press(screen.getByText('Scan label to fill in'));
+      const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)[2] as {
+        text: string;
+        onPress?: () => void;
+      }[];
+      await act(async () => {
+        buttons.find((b) => b.text === 'Take photo')?.onPress?.();
+      });
+    };
+
+    it('only offers the label scan on a supplement', () => {
+      const screen = renderScreen();
+
+      expect(screen.queryByText('Scan label to fill in')).toBeNull();
+    });
+
+    it('offers the camera and the library', () => {
+      const screen = renderScreen(undefined, true);
+
+      fireEvent.press(screen.getByText('Scan label to fill in'));
+
+      const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)[2] as {
+        text: string;
+      }[];
+      expect(buttons.map((b) => b.text)).toEqual([
+        'Take photo',
+        'Choose from library',
+        'Cancel',
+      ]);
+    });
+
+    it('sends the photo to be read and fills the form from the result', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+
+      expect(mockLabelMutate).toHaveBeenCalledWith('AAA', expect.anything());
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: labelProduct,
+          source: 'device',
+        });
+      });
+      expect(screen.getByDisplayValue('Zinc Plus')).toBeTruthy();
+      expect(screen.getByDisplayValue('15')).toBeTruthy();
+    });
+
+    it('says so when nothing could be read from the photo', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: {
+            ...labelProduct,
+            name: '',
+            catalog: [],
+            fixed: [],
+            unmatched: [],
+          },
+          source: 'server',
+        });
+      });
+
+      expect(Alert.alert).toHaveBeenLastCalledWith(
+        'Nothing readable',
+        expect.stringContaining('No supplement facts')
+      );
+    });
+
+    it('fills the name when every ingredient is outside the catalog', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: {
+            ...labelProduct,
+            name: 'Creatine',
+            fixed: [],
+            catalog: [],
+            unmatched: [{ name: 'Creatine', amount: 5000, unit: 'mg' }],
+          },
+          source: 'server',
+        });
+      });
+
+      expect(screen.getByDisplayValue('Creatine')).toBeTruthy();
+      expect(
+        screen.getByText('Not added from the label: Creatine')
+      ).toBeTruthy();
+      expect(Alert.alert).not.toHaveBeenCalledWith(
+        'Nothing readable',
+        expect.anything()
+      );
+    });
+
+    it('keeps saved nutrients when the label maps none', async () => {
+      mockUseMedicationDetail.mockReturnValue({
+        data: {
+          ...baseMed,
+          name: 'Daily Multi',
+          is_supplement: true,
+          type_id: 'capsule',
+          nutrients: { vitamin_c: 90 },
+        },
+      } as unknown as ReturnType<typeof useMedicationDetail>);
+      const screen = renderScreen('med-1');
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onSuccess({
+          product: {
+            ...labelProduct,
+            name: 'Creatine',
+            fixed: [],
+            catalog: [],
+            unmatched: [{ name: 'Creatine', amount: 5000, unit: 'mg' }],
+          },
+          source: 'server',
+        });
+      });
+
+      expect(screen.getByDisplayValue('Creatine')).toBeTruthy();
+      expect(screen.getByDisplayValue('90')).toBeTruthy();
+    });
+
+    it('reports a failed read', async () => {
+      const screen = renderScreen(undefined, true);
+
+      await takePhoto(screen);
+      act(() => {
+        mockLabelMutate.mock.calls[0][1].onError(new Error('422'));
+      });
+
+      expect(Alert.alert).toHaveBeenLastCalledWith(
+        'Error',
+        expect.stringContaining('Could not read the label')
+      );
+    });
   });
 
   it('tells the user when the database cannot be reached', () => {

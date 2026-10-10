@@ -17,8 +17,10 @@ import type {
   UpdateTitrationStepInput,
   SerumCurveResponse,
   SiteSuggestionResponse,
+  SupplementLabelExtraction,
   SupplementLookupResponse,
 } from '@workspace/shared';
+import { AI_TIMEOUT_MS } from '../../utils/concurrency';
 
 const SERVICE_NAME = 'Medications API';
 
@@ -47,6 +49,37 @@ export const lookupSupplementBarcode = (
     endpoint: `/api/v2/medications/supplement-lookup?upc=${encodeURIComponent(upc)}`,
     serviceName: SERVICE_NAME,
     operation: 'look up supplement barcode',
+  });
+
+/**
+ * Reads a photographed Supplement Facts panel with the server's vision AI.
+ * POST /api/v2/medications/supplement-label/scan
+ */
+export const scanSupplementLabelImage = (
+  base64Image: string
+): Promise<SupplementLookupResponse> =>
+  apiFetch<SupplementLookupResponse>({
+    endpoint: '/api/v2/medications/supplement-label/scan',
+    serviceName: SERVICE_NAME,
+    operation: 'scan supplement label',
+    method: 'POST',
+    body: { image: base64Image, mime_type: 'image/jpeg' },
+    timeoutMs: AI_TIMEOUT_MS,
+  });
+
+/**
+ * Turns a panel the phone read on device into nutrients (no AI runs on the
+ * server). POST /api/v2/medications/supplement-label/map
+ */
+export const mapSupplementLabel = (
+  label: SupplementLabelExtraction
+): Promise<SupplementLookupResponse> =>
+  apiFetch<SupplementLookupResponse>({
+    endpoint: '/api/v2/medications/supplement-label/map',
+    serviceName: SERVICE_NAME,
+    operation: 'map supplement label',
+    method: 'POST',
+    body: label,
   });
 
 export const getMedication = (id: string): Promise<MedicationDetail> =>
