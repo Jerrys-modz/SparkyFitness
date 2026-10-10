@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import type {
+  TrainingReview,
   ExerciseStatsSummaryResponse,
   ExerciseActivityQueryResponse,
   ExercisePRMatrixResponse,
@@ -7,6 +8,7 @@ import type {
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseStatsService from '../../services/exerciseStatsService.js';
+import trainingReviewService from '../../services/trainingReviewService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatList } from './formatting.js';
 import {
@@ -43,11 +45,77 @@ function formatSummary(summary: ExerciseStatsSummaryResponse): string {
   return lines.join('\n');
 }
 
+function formatTrainingReview(review: TrainingReview): string {
+  const { window, effort } = review;
+  const lines = [
+    `# Training Review (${window.from} → ${window.to}, ${window.days} days)`,
+    '',
+    `- Sessions: ${review.sessions} (${review.sessionsPerWeek} per week)`,
+  ];
+  if (!review.enoughData) {
+    lines.push(
+      '',
+      'Not enough data for a trend: fewer than 3 sessions in the window. Do not recommend removing, swapping or adding exercises on this alone; say what to watch for instead.'
+    );
+  }
+  lines.push('', '## Stalled lifts');
+  if (review.stalls.length === 0) {
+    lines.push(
+      'None. Every lift with 3+ sessions is still improving or holding.'
+    );
+  } else {
+    for (const stall of review.stalls) {
+      lines.push(
+        `- **${stall.exerciseName}**: ${stall.stalledSessions} sessions in a row without beating the best estimated 1RM (best ${stall.bestEstimatedOneRepMaxKg} kg, last ${stall.lastEstimatedOneRepMaxKg} kg on ${stall.lastDate}; ${stall.sessions} sessions)`
+      );
+    }
+    lines.push(
+      'A stall can also be a deliberate deload; ask before assuming the program is wrong.'
+    );
+  }
+  lines.push('', '## Effort');
+  if (effort.averageRpe === null && effort.averageRir === null) {
+    lines.push('No RPE or RIR was logged, so effort cannot be read.');
+  } else {
+    if (effort.averageRpe !== null) {
+      lines.push(`- Average RPE: ${effort.averageRpe}`);
+    }
+    if (effort.averageRir !== null) {
+      lines.push(`- Average RIR: ${effort.averageRir}`);
+    }
+    lines.push(
+      effort.nearFailure.length > 0
+        ? `- Taken to or near failure: ${effort.nearFailure.join(', ')}`
+        : '- No lift is consistently taken to failure.'
+    );
+  }
+  lines.push('', '## Muscle coverage (working sets in the window)');
+  const muscles = Object.entries(review.muscleSets).sort(
+    ([, a], [, b]) => b - a
+  );
+  lines.push(
+    muscles.length > 0
+      ? muscles.map(([muscle, sets]) => `- ${muscle}: ${sets}`).join('\n')
+      : 'No working sets with a known muscle.'
+  );
+  if (review.untrainedMuscles.length > 0) {
+    lines.push(
+      '',
+      `Trained earlier but not in this window: ${review.untrainedMuscles.join(', ')}.`
+    );
+  }
+  lines.push(
+    '',
+    'Body-weight and cardio exercises are not included in stall detection. Propose changes only with this evidence, and say plainly when nothing warrants one.'
+  );
+  return lines.join('\n');
+}
+
 export function buildExerciseStatsTools(userId: string, tz: string) {
   return {
     sparky_get_exercise_stats: tool({
       description:
-        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses). Read-only.',
+        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses), and a training review of recent strength work (training_review: sessions per week, stalled lifts, effort, muscle coverage; optional window_days 7-90, default 28). Read-only.',
       inputSchema: exerciseStatsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -121,6 +189,13 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
                   `**${s.exerciseName}** — ${s.estimatedOneRMKg} kg (from ${s.weightKg} kg × ${s.reps}) on ${s.achievedAt}`
               );
               return `${cardio}\n\n${strength}`;
+            }
+            case 'training_review': {
+              const review = await trainingReviewService.getTrainingReview(
+                userId,
+                args.window_days
+              );
+              return formatTrainingReview(review);
             }
             case 'matched_courses': {
               const result: MatchedCoursesResponse =
