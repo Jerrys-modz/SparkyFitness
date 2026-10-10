@@ -25,9 +25,18 @@ import {
   type AutoPauseState,
 } from '../utils/autoPause';
 import {
+  intervalPosition,
+  isValidIntervalPlan,
+  stepStartSeconds,
+  type IntervalPlan,
+} from '../utils/intervals';
+import { fireImpactHaptic } from './haptics';
+import {
   cueUnitMeters,
   eventCue,
   finishCue,
+  intervalCue,
+  intervalsDoneCue,
   lapCue,
   splitCue,
   type CueEvent,
@@ -85,6 +94,11 @@ export interface RecordingSession {
   laps?: number[];
   /** Full splits already announced, so a restored session does not repeat one. */
   cuedSplits?: number;
+  /**
+   * A timed interval plan. `cued` is the index of the last step started (-1
+   * before the first), so a restored session never repeats a cue.
+   */
+  intervals?: { plan: IntervalPlan; cued: number };
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
 }
@@ -286,6 +300,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
       }
     }
     if (added > 0 && cueSplit()) sessionChanged = true;
+    if (advanceIntervals(Date.now())) sessionChanged = true;
     if (sessionChanged) await persistSession();
     if (added === 0) {
       if (sessionChanged) publish();
@@ -395,6 +410,71 @@ function cueSplit(): boolean {
   return true;
 }
 
+/**
+ * Starts any interval step whose time has come: speaks it, buzzes, and marks
+ * a lap at the exact moment it began, so the saved activity is cut into the
+ * work and recovery stretches. Steps passed over together (a long gap in the
+ * app running) are marked but only the latest is spoken. Runs on the recording
+ * clock, which stops while paused. Returns whether the session changed.
+ */
+function advanceIntervals(now: number): boolean {
+  if (!session?.intervals || session.status !== 'recording') return false;
+  const { plan, cued } = session.intervals;
+  const position = intervalPosition(plan, elapsedSeconds(session, now));
+  if (!position) return false;
+  // Once finished, the last step stays "current"; announce the end once.
+  const target = position.done ? plan.steps.length : position.index;
+  if (target <= cued) return false;
+
+  const marks = [...(session.laps ?? [])];
+  const clockStart = session.startedAt + session.pausedMs;
+  for (
+    let index = Math.max(cued + 1, 1);
+    index <= Math.min(target, plan.steps.length - 1);
+    index++
+  ) {
+    const at = clockStart + stepStartSeconds(plan, index) * 1000;
+    if (
+      at <= now &&
+      !marks.some((mark) => Math.abs(mark - at) < MIN_LAP_GAP_MS)
+    ) {
+      marks.push(at);
+    }
+  }
+  session = {
+    ...session,
+    laps: marks.sort((a, b) => a - b),
+    intervals: { plan, cued: target },
+  };
+  fireImpactHaptic();
+  if (session.audioCues) {
+    speakRecordingCue(
+      position.done
+        ? intervalsDoneCue(i18n.t.bind(i18n))
+        : intervalCue(i18n.t.bind(i18n), {
+            step: position.step,
+            style: plan.style,
+          })
+    );
+  }
+  return true;
+}
+
+/**
+ * Re-checks the interval clock. The screen calls it every second while open;
+ * in the background the location task does it with each fix.
+ */
+export function tickIntervals(): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session?.intervals) return;
+    if (advanceIntervals(Date.now())) {
+      await persistSession();
+      publish();
+    }
+  });
+}
+
 function toRawFix(location: Location.LocationObject): RawFix {
   const { coords } = location;
   return {
@@ -431,6 +511,8 @@ export interface StartRecordingOptions {
   autoPause?: boolean;
   /** Speak split times and pauses, in this unit. */
   audioCues?: CueUnit;
+  /** Timed steps to follow (run/walk, speed repeats). */
+  intervals?: IntervalPlan;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -501,6 +583,9 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       autoPaused: false,
       audioCues: options.audioCues,
       cuedSplits: 0,
+      ...(options.intervals && isValidIntervalPlan(options.intervals)
+        ? { intervals: { plan: options.intervals, cued: -1 } }
+        : {}),
       savedEntryId: null,
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
@@ -516,7 +601,13 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
     publish();
     if (options.audioCues) {
       beginRecordingCues();
-      cueEvent(session, 'started');
+      // With a plan, the first step's cue is the start; saying both would cut
+      // one off.
+      if (!session.intervals) cueEvent(session, 'started');
+    }
+    if (session.intervals && advanceIntervals(Date.now())) {
+      await persistSession();
+      publish();
     }
     addLog(`[GPS Recording] Started ${options.activity} recording`, 'INFO');
   });
