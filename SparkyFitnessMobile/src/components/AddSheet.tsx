@@ -359,6 +359,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                   onLogWorkout
                 )}
               </View>
+              {onRecordActivity && (
+                <View className="flex-row mt-3">
+                  {renderExerciseOption(
+                    t('addSheet.recordActivity', {
+                      defaultValue: 'Record Activity',
+                    }),
+                    t('addSheet.recordActivityHint', {
+                      defaultValue: 'Track a walk, run or ride with GPS',
+                    }),
+                    'location',
+                    onRecordActivity
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <>
@@ -370,15 +384,6 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                 {renderCard(cards[2])}
                 {renderCard(cards[3])}
               </View>
-              {onRecordActivity
-                ? renderSecondaryRow(
-                    t('addSheet.recordActivity', {
-                      defaultValue: 'Record Activity',
-                    }),
-                    'location',
-                    onRecordActivity
-                  )
-                : null}
               {renderSecondaryRow(
                 t('addSheet.progressPhotos', {
                   defaultValue: 'Progress Photos',

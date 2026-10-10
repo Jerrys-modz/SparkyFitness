@@ -502,7 +502,8 @@
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
     "mindfulness": "Mindfulness",
-    "recordActivity": "Record Activity"
+    "recordActivity": "Record Activity",
+    "recordActivityHint": "Track a walk, run or ride with GPS"
   },
   "screens": {
     "foods": "Foods",
