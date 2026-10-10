@@ -46,6 +46,7 @@ const PROVIDERS_WITHOUT_APP_ID = [
   'tandoor',
   'norish',
   'free-exercise-db',
+  'exercisedb',
   'wger',
   'liftosaur',
 ];
