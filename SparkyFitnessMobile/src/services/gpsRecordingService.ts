@@ -2,13 +2,37 @@ import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import i18n from '../localization/i18n';
 import { addLog } from './LogService';
 import {
+  beginRecordingCues,
+  endRecordingCues,
+  speakRecordingCue,
+  stopRecordingCues,
+} from './recordingCues';
+import {
   acceptFix,
+  computeLaps,
+  computeSplits,
+  summarizeRecording,
   type RawFix,
   type RecordedPoint,
   type RecordingActivity,
 } from '../utils/gpsRecording';
+import {
+  INITIAL_AUTO_PAUSE_STATE,
+  stepAutoPause,
+  type AutoPauseState,
+} from '../utils/autoPause';
+import {
+  cueUnitMeters,
+  eventCue,
+  finishCue,
+  lapCue,
+  splitCue,
+  type CueEvent,
+  type CueUnit,
+} from '../utils/recordingCues';
 
 /**
  * Records a walk, run or ride from the phone's GPS.
@@ -27,6 +51,8 @@ import {
 export const GPS_RECORDING_TASK_NAME = 'sparky-gps-recording';
 
 const SESSION_KEY = '@SparkyFitness/gpsRecording/session';
+const AUTO_PAUSE_PREF_KEY = '@SparkyFitness/gpsRecording/autoPause';
+const AUDIO_CUES_PREF_KEY = '@SparkyFitness/gpsRecording/audioCues';
 const HEART_RATE_KEY = '@SparkyFitness/gpsRecording/heartRate';
 const chunkKey = (index: number) =>
   `@SparkyFitness/gpsRecording/chunk/${index}`;
@@ -49,6 +75,16 @@ export interface RecordingSession {
   pausedMs: number;
   /** Current stretch; goes up on every resume. */
   seg: number;
+  /** Whether the recording pauses itself when the person stops moving. */
+  autoPause?: boolean;
+  /** True while paused by auto-pause rather than by the person. */
+  autoPaused?: boolean;
+  /** Speak split times and pauses; the unit the splits are announced in. */
+  audioCues?: CueUnit;
+  /** Epoch ms of each press of the Lap button, oldest first. */
+  laps?: number[];
+  /** Full splits already announced, so a restored session does not repeat one. */
+  cuedSplits?: number;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
 }
@@ -89,6 +125,9 @@ let points: RecordedPoint[] = [];
 let snapshot: RecordingSnapshot = { session: null, points: [] };
 let heartRate: StoredHeartRate = { samples: [], batchIds: [] };
 let hydrated: Promise<void> | null = null;
+// Detector memory for auto-pause. Not persisted: after a relaunch it just
+// starts watching again.
+let autoPauseState: AutoPauseState = INITIAL_AUTO_PAUSE_STATE;
 const listeners = new Set<() => void>();
 // The task callback and the screen's own writes share one session, so every
 // read-modify-write runs on this chain instead of overlapping.
@@ -168,6 +207,10 @@ export function hydrate(): Promise<void> {
         const storedHeartRate = await AsyncStorage.getItem(HEART_RATE_KEY);
         session = stored;
         points = loaded;
+        // A relaunch mid-run: the cues need their audio session back.
+        if (stored.audioCues && stored.status !== 'finished') {
+          beginRecordingCues();
+        }
         heartRate = storedHeartRate
           ? (JSON.parse(storedHeartRate) as StoredHeartRate)
           : { samples: [], batchIds: [] };
@@ -188,10 +231,49 @@ export function hydrate(): Promise<void> {
 export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
   return enqueue(async () => {
     await hydrate();
-    if (!session || session.status !== 'recording') return;
+    if (!session) return;
     const firstTouched = Math.floor(points.length / CHUNK_SIZE);
     let added = 0;
+    let sessionChanged = false;
     for (const fix of fixes) {
+      if (session.autoPause && isWatchingForAutoPause(session)) {
+        const step = stepAutoPause(
+          autoPauseState,
+          fix,
+          session.activity,
+          session.status === 'paused'
+        );
+        autoPauseState = step.state;
+        if (step.action.type === 'pause') {
+          session = {
+            ...session,
+            status: 'paused',
+            pausedAt: step.action.at,
+            autoPaused: true,
+          };
+          sessionChanged = true;
+          addLog('[GPS Recording] Auto-paused', 'INFO');
+          cueEvent(session, 'autoPaused');
+        } else if (step.action.type === 'resume') {
+          session = {
+            ...session,
+            status: 'recording',
+            pausedMs:
+              session.pausedMs +
+              Math.max(
+                0,
+                step.action.at - (session.pausedAt ?? step.action.at)
+              ),
+            pausedAt: null,
+            seg: session.seg + 1,
+            autoPaused: false,
+          };
+          sessionChanged = true;
+          addLog('[GPS Recording] Auto-resumed', 'INFO');
+          cueEvent(session, 'resumed');
+        }
+      }
+      if (session.status !== 'recording') continue;
       const accepted = acceptFix(
         points[points.length - 1],
         fix,
@@ -203,13 +285,114 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
         added++;
       }
     }
-    if (added === 0) return;
+    if (added > 0 && cueSplit()) sessionChanged = true;
+    if (sessionChanged) await persistSession();
+    if (added === 0) {
+      if (sessionChanged) publish();
+      return;
+    }
     const lastTouched = Math.floor((points.length - 1) / CHUNK_SIZE);
     for (let index = firstTouched; index <= lastTouched; index++) {
       await persistChunk(index);
     }
     publish();
   });
+}
+
+/** Auto-pause watches a running recording and one it paused itself. */
+function isWatchingForAutoPause(current: RecordingSession): boolean {
+  return (
+    current.status === 'recording' ||
+    (current.status === 'paused' && current.autoPaused === true)
+  );
+}
+
+export interface RecordingPreferences {
+  autoPause: boolean;
+  audioCues: boolean;
+  /** Seconds counted down before Start begins recording; 0 is no countdown. */
+  countdownSeconds: number;
+}
+
+/** The countdowns offered, in seconds. */
+export const COUNTDOWN_CHOICES = [0, 3, 5, 10] as const;
+
+const COUNTDOWN_PREF_KEY = '@SparkyFitness/gpsRecording/countdown';
+
+const PREFERENCE_KEYS = {
+  autoPause: AUTO_PAUSE_PREF_KEY,
+  audioCues: AUDIO_CUES_PREF_KEY,
+};
+
+/** Auto-pause is on unless turned off; voice cues are off unless turned on. */
+export async function getRecordingPreferences(): Promise<RecordingPreferences> {
+  try {
+    const [autoPause, audioCues, countdown] = await Promise.all([
+      AsyncStorage.getItem(PREFERENCE_KEYS.autoPause),
+      AsyncStorage.getItem(PREFERENCE_KEYS.audioCues),
+      AsyncStorage.getItem(COUNTDOWN_PREF_KEY),
+    ]);
+    const seconds = Number(countdown);
+    return {
+      autoPause: autoPause !== 'off',
+      audioCues: audioCues === 'on',
+      countdownSeconds: (COUNTDOWN_CHOICES as readonly number[]).includes(
+        seconds
+      )
+        ? seconds
+        : 0,
+    };
+  } catch {
+    return { autoPause: true, audioCues: false, countdownSeconds: 0 };
+  }
+}
+
+export async function setCountdownPreference(seconds: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(COUNTDOWN_PREF_KEY, String(seconds));
+  } catch {
+    // The choice just won't be remembered.
+  }
+}
+
+export async function setRecordingPreference(
+  key: keyof typeof PREFERENCE_KEYS,
+  enabled: boolean
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PREFERENCE_KEYS[key], enabled ? 'on' : 'off');
+  } catch {
+    // The choice just won't be remembered.
+  }
+}
+
+/** Speaks `event` when the session asked for voice cues. */
+function cueEvent(current: RecordingSession | null, event: CueEvent): void {
+  if (!current?.audioCues) return;
+  speakRecordingCue(eventCue(i18n.t.bind(i18n), event));
+}
+
+/** Announces a newly completed kilometer or mile, if there is one. */
+function cueSplit(): boolean {
+  const unit = session?.audioCues;
+  if (!session || !unit) return false;
+  const unitMeters = cueUnitMeters(unit);
+  const cued = session.cuedSplits ?? 0;
+  const splits = computeSplits(points, unitMeters).filter((s) => !s.partial);
+  if (splits.length <= cued) return false;
+  // Several can complete in one batch after a gap; say only the latest.
+  const latest = splits[splits.length - 1];
+  const totalSeconds = splits.reduce((sum, s) => sum + s.durationSeconds, 0);
+  session = { ...session, cuedSplits: splits.length };
+  speakRecordingCue(
+    splitCue(i18n.t.bind(i18n), {
+      completed: splits.length,
+      totalSeconds,
+      splitSeconds: latest.durationSeconds,
+      unit,
+    })
+  );
+  return true;
 }
 
 function toRawFix(location: Location.LocationObject): RawFix {
@@ -244,6 +427,10 @@ TaskManager.defineTask(GPS_RECORDING_TASK_NAME, async ({ data, error }) => {
 
 export interface StartRecordingOptions {
   activity: RecordingActivity;
+  /** Pause automatically while the person is standing still. */
+  autoPause?: boolean;
+  /** Speak split times and pauses, in this unit. */
+  audioCues?: CueUnit;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -310,8 +497,13 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       pausedAt: null,
       pausedMs: 0,
       seg: 0,
+      autoPause: options.autoPause === true,
+      autoPaused: false,
+      audioCues: options.audioCues,
+      cuedSplits: 0,
       savedEntryId: null,
     };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     points = [];
     await persistSession();
     try {
@@ -322,6 +514,10 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       throw error;
     }
     publish();
+    if (options.audioCues) {
+      beginRecordingCues();
+      cueEvent(session, 'started');
+    }
     addLog(`[GPS Recording] Started ${options.activity} recording`, 'INFO');
   });
 }
@@ -350,9 +546,16 @@ export function pauseRecording(): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'recording') return;
-    session = { ...session, status: 'paused', pausedAt: Date.now() };
+    session = {
+      ...session,
+      status: 'paused',
+      pausedAt: Date.now(),
+      autoPaused: false,
+    };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
     publish();
+    cueEvent(session, 'paused');
   });
 }
 
@@ -370,7 +573,9 @@ export function resumeRecording(
       pausedMs: paused.pausedMs + (now - (paused.pausedAt ?? now)),
       pausedAt: null,
       seg: paused.seg + 1,
+      autoPaused: false,
     };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
     try {
       // The task normally survived the pause. It only needs starting again
@@ -385,6 +590,57 @@ export function resumeRecording(
       throw error;
     }
     publish();
+    cueEvent(session, 'resumed');
+  });
+}
+
+/** Presses closer together than this are one press (a double tap). */
+const MIN_LAP_GAP_MS = 3000;
+
+/**
+ * Marks a lap at this moment. Only while recording: a lap pressed during a
+ * pause has no distance to measure. Returns the new lap number, or null when
+ * the press was ignored.
+ */
+export function markLap(pressedAt?: number): Promise<number | null> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.status !== 'recording') return null;
+    const now = Date.now();
+    // A press made on the watch can arrive late over the queued transport, so
+    // it carries when it was pressed. Anything in the future or before the
+    // recording began is a bad clock, and counts as now.
+    const at =
+      pressedAt !== undefined &&
+      Number.isFinite(pressedAt) &&
+      pressedAt >= session.startedAt &&
+      pressedAt <= now + 5000
+        ? Math.min(pressedAt, now)
+        : now;
+    const laps = session.laps ?? [];
+    // Also drops a re-delivered copy of a press already taken.
+    if (laps.some((mark) => Math.abs(mark - at) < MIN_LAP_GAP_MS)) {
+      return null;
+    }
+    const marks = [...laps, at].sort((a, b) => a - b);
+    session = { ...session, laps: marks };
+    await persistSession();
+    publish();
+    if (session.audioCues) {
+      const marked = computeLaps(points, session.laps ?? []);
+      const lap = marked.find((l) => l.endT === at);
+      if (lap) {
+        speakRecordingCue(
+          lapCue(i18n.t.bind(i18n), {
+            number: lap.index,
+            distanceMeters: lap.distanceMeters,
+            seconds: lap.durationSeconds,
+            unit: session.audioCues,
+          })
+        );
+      }
+    }
+    return marks.length;
   });
 }
 
@@ -402,11 +658,23 @@ export function finishRecording(): Promise<void> {
       status: 'finished',
       finishedAt: session.status === 'paused' ? (session.pausedAt ?? now) : now,
       pausedAt: null,
+      autoPaused: false,
       pausedMs,
     };
     await persistSession();
     await stopUpdates();
     publish();
+    if (session.audioCues) {
+      const summary = summarizeRecording(points);
+      speakRecordingCue(
+        finishCue(i18n.t.bind(i18n), {
+          distanceMeters: summary.distanceMeters,
+          totalSeconds: elapsedSeconds(session),
+          unit: session.audioCues,
+        }),
+        endRecordingCues
+      );
+    }
   });
 }
 
@@ -461,6 +729,7 @@ export function discardRecording(): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     await stopUpdates();
+    stopRecordingCues();
     await clearStoredPoints();
     await AsyncStorage.removeItem(HEART_RATE_KEY);
     session = null;
@@ -490,6 +759,7 @@ export function resetRecordingStateForTests(): void {
   session = null;
   points = [];
   heartRate = { samples: [], batchIds: [] };
+  autoPauseState = INITIAL_AUTO_PAUSE_STATE;
   hydrated = null;
   queue = Promise.resolve();
   publish();
