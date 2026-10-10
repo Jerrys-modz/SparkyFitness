@@ -2724,10 +2724,28 @@
     "notes": "Notes",
     "notesPlaceholder": "e.g. White rice, double chicken, no beans (supports markdown)"
   },
+  "exerciseEffort": {
+    "title": "Effort",
+    "lastAvg": "Avg RPE, last session",
+    "trendLabel": "Average RPE of your last {{count}} sessions",
+    "oneRmEffort": "Est. 1RM with effort",
+    "oneRmPlain": "From reps alone",
+    "oneRmNote": "Counts the reps you had left: RPE 8 is two more reps. Only sets with an RPE are used."
+  },
   "exerciseHistory": {
     "noSetData": "No set data",
     "loadError": "Couldn't load history.",
-    "empty": "No sessions logged yet."
+    "empty": "No sessions logged yet.",
+    "columns": {
+      "set": "Set",
+      "weightReps": "Weight & reps",
+      "timeDistance": "Time & distance",
+      "time": "Time",
+      "weightDistance": "Weight & distance",
+      "weightTime": "Weight & time",
+      "reps": "Reps",
+      "rpe": "RPE"
+    }
   },
   "foodFormPersistence": {
     "discardTitle": "Discard unsaved equivalents?",
@@ -5846,6 +5864,7 @@
       "tooHard": "Holding weight: last time felt too hard.",
       "tooHardRepeated": "Lighter today: too hard two sessions running.",
       "highEffort": "Holding weight: your last sets were near max effort.",
+      "lowEffort": "A step heavier: your last sets were logged as easy.",
       "tooEasyRepeated": "A step heavier: too easy two sessions running."
     },
     "declined": "Using your usual suggestion.",
