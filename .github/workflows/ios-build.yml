@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}
     timeout-minutes: 60
     permissions:
-      contents: read
+      contents: write
       actions: write
 
     steps:
@@ -186,6 +186,18 @@ jobs:
 
           ls -la screenshots
 
+      - name: Publish screenshots to a branch
+        run: |
+          set -euo pipefail
+          D=$(mktemp -d)
+          cp SparkyFitnessMobile/screenshots/*.png "$D/"
+          cd "$D"
+          git init -q
+          git checkout -q -b shots-gps-208-watch
+          git add .
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "screenshots"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" "HEAD:refs/heads/shots-gps-208-watch"
+
       - name: Upload watch screenshots
         uses: actions/upload-artifact@v4
         with:
@@ -199,7 +211,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 90
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -262,6 +274,18 @@ jobs:
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/03-paused.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/04-finished.png
           ls -la screenshots
+      - name: Publish screenshots to a branch
+        run: |
+          set -euo pipefail
+          D=$(mktemp -d)
+          cp SparkyFitnessMobile/screenshots/*.png "$D/"
+          cd "$D"
+          git init -q
+          git checkout -q -b shots-gps-208-phone
+          git add .
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "screenshots"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" "HEAD:refs/heads/shots-gps-208-phone"
+
       - uses: actions/upload-artifact@v4
         with:
           name: phone-screenshots
