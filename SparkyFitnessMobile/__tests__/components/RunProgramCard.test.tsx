@@ -7,18 +7,35 @@ const handlers = () => ({
   reminders: { days: [] as number[], hour: 7 },
   onReminders: jest.fn(),
   onPickWorkout: jest.fn(),
+  onToggle: jest.fn(),
   onSelect: jest.fn(),
-  onStart: jest.fn(),
+  onRestart: jest.fn(),
   onSkip: jest.fn(),
-  onStop: jest.fn(),
 });
 
+const active = (next: number) =>
+  programStatus({ programId: 'beginner5k', next })!;
+
 describe('RunProgramCard', () => {
-  it('offers to start when no program is active', () => {
+  it('is off by default and offers a switch, with the program described', () => {
     const h = handlers();
-    render(<RunProgramCard status={null} loaded selected={false} {...h} />);
-    fireEvent.press(screen.getByText('Start Beginner 5K'));
-    expect(h.onStart).toHaveBeenCalled();
+    render(
+      <RunProgramCard
+        status={null}
+        loaded
+        selected={false}
+        enabled={false}
+        {...h}
+      />
+    );
+    expect(screen.getByText(/nine weeks, three runs a week/)).toBeTruthy();
+    expect(screen.queryByText('Do this workout')).toBeNull();
+    fireEvent(
+      screen.getByLabelText('Use a training program'),
+      'valueChange',
+      true
+    );
+    expect(h.onToggle).toHaveBeenCalledWith(true);
   });
 
   it('shows nothing until the stored place has loaded', () => {
@@ -27,37 +44,65 @@ describe('RunProgramCard', () => {
         status={null}
         loaded={false}
         selected={false}
+        enabled={false}
         {...handlers()}
       />
     );
-    expect(screen.queryByText('Start Beginner 5K')).toBeNull();
+    expect(screen.queryByLabelText('Use a training program')).toBeNull();
   });
 
-  it('shows the workout that is due and lets it be chosen, skipped or left', () => {
+  it('keeps the place when switched off and says where it is paused', () => {
+    render(
+      <RunProgramCard
+        status={active(4)}
+        loaded
+        selected={false}
+        enabled={false}
+        {...handlers()}
+      />
+    );
+    expect(screen.getByText(/paused at 4 of 27 workouts/)).toBeTruthy();
+    expect(screen.queryByText('Skip')).toBeNull();
+  });
+
+  it('shows the workout that is due and lets it be chosen, skipped or restarted', () => {
     const h = handlers();
-    const status = programStatus({ programId: 'beginner5k', next: 4 })!;
-    render(<RunProgramCard status={status} loaded selected={false} {...h} />);
+    render(
+      <RunProgramCard
+        status={active(4)}
+        loaded
+        selected={false}
+        enabled
+        {...h}
+      />
+    );
     expect(screen.getByText('Beginner 5K · Week 2, run 2')).toBeTruthy();
     expect(screen.getByText(/Workout 4 of 27 done/)).toBeTruthy();
     fireEvent.press(screen.getByText('Do this workout'));
     fireEvent.press(screen.getByText('Skip'));
-    fireEvent.press(screen.getByText('Leave program'));
+    fireEvent.press(screen.getByText('Start over'));
     expect(h.onSelect).toHaveBeenCalled();
     expect(h.onSkip).toHaveBeenCalled();
-    expect(h.onStop).toHaveBeenCalled();
+    expect(h.onRestart).toHaveBeenCalled();
   });
 
   it('says so when chosen and when the program is finished', () => {
-    const status = programStatus({ programId: 'beginner5k', next: 4 })!;
     const { rerender } = render(
-      <RunProgramCard status={status} loaded selected {...handlers()} />
+      <RunProgramCard
+        status={active(4)}
+        loaded
+        selected
+        enabled
+        {...handlers()}
+      />
     );
     expect(screen.getByText('Using this workout')).toBeTruthy();
     rerender(
       <RunProgramCard
-        status={programStatus({ programId: 'beginner5k', next: 27 })!}
+        status={active(27)}
         loaded
         selected={false}
+        enabled
         {...handlers()}
       />
     );
@@ -67,16 +112,16 @@ describe('RunProgramCard', () => {
 });
 
 describe('run reminders', () => {
-  it('toggles a weekday and picks a time once a day is chosen', () => {
+  it('toggles a weekday', () => {
     const onReminders = jest.fn();
-    const status = programStatus({ programId: 'beginner5k', next: 1 })!;
     const { rerender } = render(
       <RunProgramCard
         {...handlers()}
         onReminders={onReminders}
-        status={status}
+        status={active(1)}
         loaded
         selected={false}
+        enabled
       />
     );
     fireEvent.press(screen.getByLabelText('Monday'));
@@ -87,9 +132,10 @@ describe('run reminders', () => {
         {...handlers()}
         reminders={{ days: [1], hour: 7 }}
         onReminders={onReminders}
-        status={status}
+        status={active(1)}
         loaded
         selected={false}
+        enabled
       />
     );
     fireEvent.press(screen.getByLabelText('Monday'));

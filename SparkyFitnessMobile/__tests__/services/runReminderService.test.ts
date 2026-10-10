@@ -6,7 +6,7 @@ import {
 } from '../../src/services/runReminderService';
 import {
   resetRunProgramForTests,
-  startProgram,
+  setProgramEnabled,
 } from '../../src/services/runProgramService';
 import {
   cancelScheduledNotification,
@@ -35,13 +35,13 @@ test('schedules nothing without a program', async () => {
 
 test('schedules the chosen days once a program is under way', async () => {
   await setRunReminders({ days: [5, 1], hour: 18 });
-  await startProgram('beginner5k');
+  await setProgramEnabled(true, 'beginner5k');
   await reconcileRunReminders();
   expect(mockedSchedule).toHaveBeenLastCalledWith([1, 5], 18);
 });
 
 test('replaces the earlier reminders when the choice changes', async () => {
-  await startProgram('beginner5k');
+  await setProgramEnabled(true, 'beginner5k');
   await setRunReminders({ days: [1], hour: 7 });
   await setRunReminders({ days: [2], hour: 12 });
   expect(cancelScheduledNotification).toHaveBeenCalledWith('id-1');
@@ -49,7 +49,7 @@ test('replaces the earlier reminders when the choice changes', async () => {
 });
 
 test('clears them when no days are left', async () => {
-  await startProgram('beginner5k');
+  await setProgramEnabled(true, 'beginner5k');
   await setRunReminders({ days: [1], hour: 7 });
   mockedSchedule.mockClear();
   await setRunReminders({ days: [], hour: 7 });

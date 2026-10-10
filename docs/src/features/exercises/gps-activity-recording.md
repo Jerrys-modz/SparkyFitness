@@ -77,13 +77,13 @@ Intervals work with phone recording only for now. The watch does not show the st
 
 ## Training programs
 
-If you are starting to run, the Record screen offers **Beginner 5K**: nine weeks, three runs a week. Each run is a timed plan (a 5 minute warm-up, alternating running and walking, a 5 minute cool-down), starting with 1 minute of running and building up to 30 minutes of running in week 9.
+Training programs are optional and off by default. If you are starting to run, switch on **Use a training program** on the Record screen to follow **Beginner 5K**: nine weeks, three runs a week. Each run is a timed plan (a 5 minute warm-up, alternating running and walking, a 5 minute cool-down), starting with 1 minute of running and building up to 30 minutes of running in week 9.
 
-Tap **Start Beginner 5K** and the screen selects today's workout for you (Week 1, run 1 first). The card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk.
+With the switch on, the screen selects today's workout for you (week 1, run 1 first) and the card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk. Switch it off whenever you like: the Record screen goes back to a plain recording (you can still pick any interval plan), the reminders stop, and your place is kept for when you switch it back on.
 
-A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Choose a different workout** opens the whole program, week by week, with finished runs ticked: use it to start further in if you already run, to repeat a week, or to go back. **Skip** moves past a workout you cannot do, and **Leave program** forgets your place. When you finish week 9 the card says so and offers to start again. You can still pick any other interval plan, or record without one, at any time.
+A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Choose a different workout** opens the whole program, week by week, with finished runs ticked: use it to start further in if you already run, to repeat a week, or to go back. **Skip** moves past a workout you cannot do, and **Start over** goes back to week 1. When you finish week 9 the card says so and offers to start again.
 
-Under the program card you can pick the days you plan to run and a time (morning, midday or evening) to get a weekly **Run reminder** notification. It stops when you leave the program or finish it, and it needs notifications turned on for the app.
+Under the program card you can pick the days you plan to run and a time (morning, midday or evening) to get a weekly **Run reminder** notification. It stops when you switch the program off or finish it, and it needs notifications turned on for the app.
 
 Your place in the program is kept on this phone. This is a common beginner structure, not medical advice: if you are unsure about starting to run, check with your doctor first.
 

@@ -6133,22 +6133,24 @@
         "beginner5k": "Beginner 5K"
       },
       "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
-      "start": "Start Beginner 5K",
       "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
       "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
       "finished": "{{name}} complete",
       "finishedHint": "Well done. You can start it again or move on.",
       "restart": "Start again",
-      "use": "Do this workout",
+      "use": "Use a training program",
       "using": "Using this workout",
       "skip": "Skip",
-      "stop": "Leave program",
       "reminders": "Run reminders",
       "remindersHint": "Pick the days you plan to run to get a reminder.",
       "pick": "Choose a different workout",
       "pickTitle": "Choose a workout",
       "weekTitle": "Week {{week}}",
-      "pickOption": "{{mark}}Run {{run}} · {{minutes}} min"
+      "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
+      "doThis": "Do this workout",
+      "switchHint": "Follow a plan that builds up week by week. Off by default.",
+      "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
+      "startOver": "Start over"
     }
   },
   "warmupSettings": {
