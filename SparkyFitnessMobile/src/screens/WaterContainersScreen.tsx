@@ -10,7 +10,11 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import FooterActionBar from '../components/FooterActionBar';
@@ -42,6 +46,26 @@ import type { RootStackScreenProps } from '../types/navigation';
 import { WATER_UNIT_LABELS, volumeFromMl } from '../utils/unitConversions';
 
 type WaterContainersScreenProps = RootStackScreenProps<'WaterContainers'>;
+
+/** Shared by every water-preference write so they run one at a time. */
+export const WATER_PREFERENCES_SCOPE = 'water-preferences';
+
+/** Refetch only after the last queued water-preference write. The settling
+ * mutation is still pending here, so a count above one means another write
+ * is waiting and a refetch would restore the older server value. */
+export function refreshAfterWaterPreferenceWrite(
+  queryClient: QueryClient
+): void {
+  const pending = queryClient.isMutating({
+    predicate: (mutation) =>
+      mutation.options.scope?.id === WATER_PREFERENCES_SCOPE,
+  });
+  if (pending > 1) return;
+  void queryClient.invalidateQueries({ queryKey: preferencesQueryKey });
+  // Both toggles change a day's water total or goal, and mobile's
+  // staleTime: Infinity means cached summaries never refetch on their own.
+  void queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
+}
 
 const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
   navigation,
@@ -107,7 +131,7 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
   const preferencesMutation = useMutation({
     // One scope so a second tap waits for the first write. Otherwise the
     // slower request can finish last and the server keeps the older value.
-    scope: { id: 'water-preferences' },
+    scope: { id: WATER_PREFERENCES_SCOPE },
     mutationFn: (data: Partial<UserPreferences>) => updatePreferences(data),
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: preferencesQueryKey });
@@ -132,10 +156,7 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: preferencesQueryKey });
-      // Both toggles change a day's water total or goal, and mobile's
-      // staleTime: Infinity means cached summaries never refetch on their own.
-      queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
+      refreshAfterWaterPreferenceWrite(queryClient);
     },
   });
 
