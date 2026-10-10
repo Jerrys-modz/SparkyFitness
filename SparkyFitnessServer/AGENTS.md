@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-09_
+_Last updated: 2026-10-10_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -68,6 +68,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `routes/v2/reportRoutes.ts` - weekly alcohol rollup and the zero-padded hydration/caffeine/alcohol range used by the Trends charts (`reports` permission)
 - `routes/v2/nutritionKineticsRoutes.ts` - active-caffeine estimate and bedtime cutoff (`diary` permission)
 - `routes/v2/workoutCoachingRoutes.ts` - adaptive coaching (#1560): session feedback (`workout_feedback`), the per-user `adaptive_workout_suggestions` setting (owner-only write), and recent-history signals (`diary` permission). `GET /v2/exercises/:id/alternatives` (ranked substitutes) lives in `routes/v2/exerciseRoutes.ts`
+- `routes/v2/runProgramRoutes.ts` - the person's run program and place in it (`/api/v2/run-program`: `GET`, `PUT` to start, switch on or off or move, `POST /complete`); owner-only (`requireSelfActor`, `run_programs` owner policy). `models/runProgramRepository.ts` seeds the stored `workouts` from the built-in program in `../shared/src/utils/runPrograms.ts`, completes the due workout in one statement so a repeat cannot skip one, and `adjustRunProgram` applies a change under a row lock with a log entry. The change rules (only upcoming workouts, running eased up to 30% or raised at most 10%) are `../shared/src/utils/runProgramAdjust.ts`, shared by the AI tool `ai/tools/runProgramTools.ts` (`sparky_manage_run_program`; every change needs `confirmed=true`; only `get_run_program` is read-only for MCP keys) and the contract is `../shared/src/schemas/api/RunProgram.api.zod.ts`
 - `routes/v2/mindfulnessRoutes.ts` - mindfulness & meditation sessions tracking (`checkin` permission): day summaries (`/day-summary`), session logs and telemetry (`/entries`, `/entries/:id`). Logic lives in `models/mindfulnessRepository.ts`; the request/response contract is `../shared/src/schemas/api/Mindfulness.api.zod.ts`
 - `routes/auth/` - auth-specific route fragments mounted through `routes/authRoutes.ts`
 - `services/` - business logic and orchestration
