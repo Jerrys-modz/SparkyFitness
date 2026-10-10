@@ -12,7 +12,17 @@ jest.mock('expo-location', () => ({
   hasStartedLocationUpdatesAsync: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/recordingCues', () => ({
+  beginRecordingCues: jest.fn(),
+  endRecordingCues: jest.fn(),
+  stopRecordingCues: jest.fn(),
+  speakRecordingCue: jest.fn(),
+}));
 
+import {
+  beginRecordingCues,
+  speakRecordingCue,
+} from '../../src/services/recordingCues';
 import {
   GPS_RECORDING_TASK_NAME,
   RecordingPermissionError,
@@ -22,6 +32,7 @@ import {
   elapsedSeconds,
   finishRecording,
   ingestFixes,
+  markLap,
   markRecordingSaved,
   pauseRecording,
   resetRecordingStateForTests,
@@ -403,5 +414,162 @@ describe('indoor recording', () => {
   it('keeps an outdoor session outdoor', async () => {
     await startRecording({ activity: 'run', notification });
     expect((await storedSession())?.indoor).toBeUndefined();
+  });
+});
+
+describe('auto-pause', () => {
+  const moving = (seconds: number, metersNorth: number) => ({
+    ...fix(seconds, metersNorth),
+    speed: 3,
+  });
+  const standing = (seconds: number) => ({ ...fix(seconds, 0), speed: 0 });
+
+  it('pauses itself when the person stops and resumes when they move', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await ingestFixes([moving(0, 0), moving(2, 6), moving(4, 12)]);
+    await ingestFixes([standing(6), standing(10), standing(15)]);
+
+    let stored = await storedSession();
+    expect(stored?.status).toBe('paused');
+    expect(stored?.autoPaused).toBe(true);
+    expect(stored?.pausedAt).toBe(T0 + 6000);
+
+    await ingestFixes([moving(30, 6), moving(31, 9), moving(33, 15)]);
+    stored = await storedSession();
+    expect(stored?.status).toBe('recording');
+    expect(stored?.autoPaused).toBe(false);
+    expect(stored?.seg).toBe(1);
+    // Paused from the moment they stopped until they started moving again.
+    expect(stored?.pausedMs).toBe(30_000 - 6_000);
+    expect(mockedLocation.stopLocationUpdatesAsync).not.toHaveBeenCalled();
+  });
+
+  it('never pauses when it was not asked for', async () => {
+    await startRecording({ activity: 'run', notification });
+    await ingestFixes([standing(0), standing(10), standing(20), standing(30)]);
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('leaves a pause the person made alone', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await pauseRecording();
+    await ingestFixes([moving(0, 0), moving(2, 6), moving(4, 12)]);
+    const stored = await storedSession();
+    expect(stored?.status).toBe('paused');
+    expect(stored?.autoPaused).toBe(false);
+  });
+
+  it('lets the person resume an auto-pause by hand', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await ingestFixes([standing(0), standing(10), standing(12)]);
+    expect((await storedSession())?.autoPaused).toBe(true);
+    await resumeRecording(notification);
+    const stored = await storedSession();
+    expect(stored?.status).toBe('recording');
+    expect(stored?.autoPaused).toBe(false);
+  });
+});
+
+describe('voice cues', () => {
+  const stepNorth = (seconds: number, metersNorth: number) => ({
+    ...fix(seconds, metersNorth),
+    speed: 3,
+  });
+  const spoken = () =>
+    (speakRecordingCue as jest.Mock).mock.calls.map(([text]) => text as string);
+
+  it('stays quiet unless asked', async () => {
+    await startRecording({ activity: 'run', notification });
+    await ingestFixes([stepNorth(0, 0), stepNorth(200, 1100)]);
+    expect(speakRecordingCue).not.toHaveBeenCalled();
+    expect(beginRecordingCues).not.toHaveBeenCalled();
+  });
+
+  it('announces each completed kilometer once', async () => {
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    expect(beginRecordingCues).toHaveBeenCalled();
+    (speakRecordingCue as jest.Mock).mockClear();
+
+    await ingestFixes([stepNorth(0, 0), stepNorth(100, 500)]);
+    expect(spoken()).toHaveLength(0);
+
+    await ingestFixes([stepNorth(210, 1100)]);
+    expect(spoken()).toHaveLength(1);
+    expect(spoken()[0]).toMatch(/^1 kilometer\. Time /);
+
+    // More of the same kilometer must not repeat it.
+    await ingestFixes([stepNorth(230, 1200)]);
+    expect(spoken()).toHaveLength(1);
+    expect((await storedSession())?.cuedSplits).toBe(1);
+  });
+
+  it('says only the latest when several kilometers land in one batch', async () => {
+    await startRecording({ activity: 'ride', audioCues: 'km', notification });
+    (speakRecordingCue as jest.Mock).mockClear();
+    await ingestFixes([stepNorth(0, 0), stepNorth(200, 3100)]);
+    expect(spoken()).toHaveLength(1);
+    expect(spoken()[0]).toMatch(/^3 kilometers\./);
+  });
+
+  it('speaks pauses and resumes', async () => {
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    (speakRecordingCue as jest.Mock).mockClear();
+    await pauseRecording();
+    await resumeRecording(notification);
+    expect(spoken()).toEqual(['Paused', 'Resumed']);
+  });
+});
+
+describe('laps', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('records a lap press while recording and ignores a double tap', async () => {
+    jest.useFakeTimers({ now: T0 + 60_000 });
+    await startRecording({ activity: 'run', notification });
+    expect(await markLap()).toBe(1);
+    jest.setSystemTime(T0 + 61_000);
+    expect(await markLap()).toBeNull();
+    jest.setSystemTime(T0 + 90_000);
+    expect(await markLap()).toBe(2);
+    expect((await storedSession())?.laps).toEqual([T0 + 60_000, T0 + 90_000]);
+  });
+
+  it('does nothing while paused', async () => {
+    await startRecording({ activity: 'run', notification });
+    await pauseRecording();
+    expect(await markLap()).toBeNull();
+    expect((await storedSession())?.laps).toBeUndefined();
+  });
+});
+
+describe('laps pressed on the watch', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('uses the time of the press, not the time it arrived', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', notification });
+    jest.setSystemTime(T0 + 120_000);
+    expect(await markLap(T0 + 40_000)).toBe(1);
+    expect((await storedSession())?.laps).toEqual([T0 + 40_000]);
+  });
+
+  it('keeps laps in order when an earlier press arrives after a later one', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', notification });
+    jest.setSystemTime(T0 + 120_000);
+    await markLap(T0 + 100_000);
+    await markLap(T0 + 40_000);
+    expect((await storedSession())?.laps).toEqual([T0 + 40_000, T0 + 100_000]);
+  });
+
+  it('ignores a re-delivered press and a press from a bad clock', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', notification });
+    jest.setSystemTime(T0 + 60_000);
+    await markLap(T0 + 30_000);
+    expect(await markLap(T0 + 30_000)).toBeNull();
+    // Before the recording began: treated as pressed now.
+    expect(await markLap(T0 - 999_000)).toBe(2);
+    expect((await storedSession())?.laps).toEqual([T0 + 30_000, T0 + 60_000]);
   });
 });

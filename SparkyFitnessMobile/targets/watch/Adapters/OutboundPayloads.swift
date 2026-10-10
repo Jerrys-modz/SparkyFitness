@@ -226,13 +226,17 @@ enum OutboundPayloads {
         return payload
     }
 
-    /// Pause, resume or finish for the phone's GPS recording. `action` is one
-    /// of "pause", "resume", "finish" (`WatchRecordingControlPayload`).
-    static func recordingControl(sessionId: String, action: String) -> [String: Any] {
+    /// Pause, resume, finish or lap for the phone's GPS recording. `action` is
+    /// one of "pause", "resume", "finish", "lap" (`WatchRecordingControlPayload`).
+    /// `at` is when the wearer pressed it, in epoch ms: controls travel over the
+    /// queued transport and can arrive late, and a lap belongs to the moment it
+    /// was pressed, not the moment it was delivered.
+    static func recordingControl(sessionId: String, action: String, at: Date = Date()) -> [String: Any] {
         [
             "type": Kind.recordingControl,
             "sessionId": sessionId,
             "action": action,
+            "at": at.timeIntervalSince1970 * 1000,
         ]
     }
 

@@ -72,7 +72,8 @@
     "waitingForGps": "Waiting for a GPS fix…",
     "status": {
       "paused": "Paused",
-      "finished": "Finished"
+      "finished": "Finished",
+      "autoPaused": "Auto-paused"
     },
     "time": "Time",
     "distance": "Distance",
@@ -84,6 +85,150 @@
     "save": "Save activity",
     "pause": "Pause",
     "resume": "Resume",
-    "finish": "Finish"
+    "finish": "Finish",
+    "countdown": {
+      "title": "Start countdown",
+      "off": "Off",
+      "seconds": "{{seconds}} s",
+      "getReady": "Get ready",
+      "cancel": "Cancel"
+    },
+    "audioCues": {
+      "title": "Voice cues",
+      "description": "Speaks your time at each kilometer or mile, and when you pause or resume."
+    },
+    "cues": {
+      "started": "Recording started",
+      "paused": "Paused",
+      "autoPaused": "Auto paused",
+      "resumed": "Resumed",
+      "lap": "Lap {{number}}. {{distance}}. {{time}}.",
+      "splitKm": "{{distance}}. Time {{time}}. Last kilometer {{split}}.",
+      "splitMiles": "{{distance}}. Time {{time}}. Last mile {{split}}.",
+      "finished": "Recording finished. {{distance}}. Time {{time}}.",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "seconds_one": "{{count}} second",
+      "seconds_other": "{{count}} seconds",
+      "kilometers_one": "{{count}} kilometer",
+      "kilometers_other": "{{count}} kilometers",
+      "miles_one": "{{count}} mile",
+      "miles_other": "{{count}} miles"
+    },
+    "autoPause": {
+      "title": "Auto-pause",
+      "description": "Pauses the clock when you stop and carries on when you move."
+    },
+    "laps": "Laps",
+    "lap": "Lap",
+    "lapLabel": "Lap {{number}}",
+    "fastest": "Fastest"
+  },
+  "exerciseStatistics": {
+    "title": "Exercise Statistics",
+    "sets_one": "{{formattedCount}} set",
+    "sets_other": "{{formattedCount}} sets",
+    "stats": {
+      "workouts": "Workouts",
+      "volume": "Volume",
+      "reps": "Reps"
+    },
+    "setsPerMuscle": {
+      "title": "Sets per Muscle",
+      "subtitle": "Working sets on primary muscles in this range",
+      "none": "No working sets with a primary muscle yet."
+    },
+    "heatMap": {
+      "title": "Muscle Heat Map",
+      "subtitle": "Front and back, tinted by working sets",
+      "a11y": "Body figure tinted by working sets. The same counts are listed under Sets per Muscle, where selecting a muscle highlights it here.",
+      "tap": "Tap a muscle",
+      "fewer": "Fewer",
+      "more": "More",
+      "notOnFigure": "Not on the figure",
+      "male": "Male",
+      "female": "Female"
+    },
+    "analysis": {
+      "title": "More Analysis",
+      "recovery": "Last Trained",
+      "variety": "Exercise Variety",
+      "volume": "Volume by Muscle",
+      "exerciseCount_one": "{{count}} exercise",
+      "exerciseCount_other": "{{count}} exercises"
+    },
+    "recovery": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago"
+    },
+    "states": {
+      "loadFailed": "Failed to load exercise statistics",
+      "empty": "No workouts in this range",
+      "emptyHint": "Log a workout and its sets will show up here by muscle."
+    },
+    "views": {
+      "strength": "Strength",
+      "cardio": "Cardio"
+    },
+    "cardio": {
+      "hint": "Tap a workout for its route and heart rate.",
+      "empty": "No cardio workouts in this range",
+      "loadFailed": "Failed to load cardio sessions",
+      "olderSessions": "Older sessions",
+      "unitKm": "km",
+      "unitMi": "mi",
+      "calories": "{{value}} Cal",
+      "minutes_one": "{{formattedCount}} min",
+      "minutes_other": "{{formattedCount}} min",
+      "bpm": "{{value}} bpm",
+      "distance": "Distance",
+      "duration": "Duration",
+      "pace": "Pace",
+      "avgHeartRate": "Avg heart rate",
+      "caloriesLabel": "Calories",
+      "route": "Route",
+      "routeA11y": "Route of this workout, from the green dot to the red ring",
+      "noRoute": "No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.",
+      "heartRate": "Heart Rate",
+      "average": "Avg {{value}}",
+      "peak": "Max {{value}}",
+      "onlyAverage": "Average heart rate {{value}}. Beat-by-beat samples were not stored.",
+      "noHeartRate": "No heart-rate samples for this workout.",
+      "zones": "Heart Rate Zones",
+      "zone": "Zone {{zone}}",
+      "zoneFrom": "from {{bpm}} bpm",
+      "minutesAxis": "Minutes from start",
+      "kilometersAxis": "Kilometers from start",
+      "milesAxis": "Miles from start",
+      "bestPace": "Best {{value}}",
+      "perKm": "/km",
+      "perMile": "/mi",
+      "underOneMinute": "<1 min"
+    },
+    "consistency": {
+      "title": "Training Consistency",
+      "subtitle_one": "Last {{formattedCount}} week, {{first}} to {{last}}",
+      "subtitle_other": "Last {{formattedCount}} weeks, {{first}} to {{last}}",
+      "legendTrained": "Workout day",
+      "legendRest": "No workout",
+      "legendHelp": "Each square is a day and each column is a week.",
+      "streak": "Week streak",
+      "longest": "Longest",
+      "thisWeek": "This week",
+      "lastWeek": "Last week",
+      "weeks_one": "{{formattedCount}} week",
+      "weeks_other": "{{formattedCount}} weeks",
+      "days_one": "{{formattedCount}} day",
+      "days_other": "{{formattedCount}} days",
+      "calendarA11y_one": "Training calendar: {{count}} workout day in the last {{weeks}} weeks",
+      "calendarA11y_other": "Training calendar: {{count}} workout days in the last {{weeks}} weeks",
+      "setsTitle": "Sets per muscle",
+      "noSets": "No sets logged this week or last.",
+      "loadFailed": "Could not load your training consistency."
+    }
   }
 }

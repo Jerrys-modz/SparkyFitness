@@ -15,6 +15,7 @@ import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
+import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -30,15 +31,27 @@ import {
   discardRecording,
   elapsedSeconds,
   finishRecording,
+  COUNTDOWN_CHOICES,
+  getRecordingPreferences,
   hydrate,
+  markLap,
   pauseRecording,
   resumeRecording,
+  setCountdownPreference,
+  setRecordingPreference,
   startRecording,
   useGpsRecording,
 } from '../services/gpsRecordingService';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
+import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
 import {
+  beginRecordingCues,
+  speakRecordingCue,
+  stopRecordingCues,
+} from '../services/recordingCues';
+import {
+  computeLaps,
   computeSplits,
   currentPaceSecondsPerUnit,
   formatClock,
@@ -46,6 +59,7 @@ import {
   METERS_PER_KM,
   METERS_PER_MILE,
   paceSecondsPerUnit,
+  splitBars,
   summarizeRecording,
   type RecordingActivity,
 } from '../utils/gpsRecording';
@@ -54,6 +68,37 @@ import type { RootStackScreenProps } from '../types/navigation';
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
+
+/** One split or lap: label, pace, and a bar that is longer the faster it was. */
+const SplitRow: React.FC<{
+  label: string;
+  detail?: string;
+  pace: string;
+  fraction: number;
+  fastest: boolean;
+  fastestLabel: string;
+}> = ({ label, detail, pace, fraction, fastest, fastestLabel }) => (
+  <View className="py-1">
+    <View className="flex-row justify-between">
+      <Text className="text-text-secondary text-sm">
+        {label}
+        {detail ? ` · ${detail}` : ''}
+      </Text>
+      <Text className="text-text-primary text-sm font-semibold">
+        {fastest ? `${fastestLabel} · ` : ''}
+        {pace}
+      </Text>
+    </View>
+    <View className="h-1.5 rounded-full bg-form-disabled mt-1">
+      <View
+        className={`h-1.5 rounded-full ${
+          fastest ? 'bg-accent-primary' : 'bg-text-muted'
+        }`}
+        style={{ width: `${Math.round(fraction * 100)}%` }}
+      />
+    </View>
+  </View>
+);
 
 const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({
   label,
@@ -84,6 +129,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
+  const [autoPause, setAutoPause] = useState(true);
+  const [audioCues, setAudioCues] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+  // Seconds left before recording begins, or null when no countdown is running.
+  const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
     'denied' | 'services-disabled' | null
   >(null);
@@ -113,6 +163,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   });
 
   // Pick up a recording an earlier run left behind (app killed mid-activity).
+  useEffect(() => {
+    void getRecordingPreferences().then((preferences) => {
+      setAutoPause(preferences.autoPause);
+      setAudioCues(preferences.audioCues);
+      setCountdownSeconds(preferences.countdownSeconds);
+    });
+  }, []);
+
   useEffect(() => {
     let active = true;
     void hydrate().finally(() => {
@@ -144,6 +202,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     () =>
       session?.status === 'finished' ? computeSplits(points, unitMeters) : [],
     [points, session?.status, unitMeters]
+  );
+  const lapMarks = session?.laps;
+  const laps = useMemo(
+    () =>
+      session?.status === 'finished' && lapMarks && lapMarks.length > 0
+        ? computeLaps(points, lapMarks)
+        : [],
+    [points, session?.status, lapMarks]
+  );
+  const splitBarsFor = useMemo(
+    () => splitBars(splits, unitMeters),
+    [splits, unitMeters]
+  );
+  const lapBarsFor = useMemo(
+    () => splitBars(laps, unitMeters),
+    [laps, unitMeters]
   );
 
   const run = useCallback(
@@ -180,6 +254,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           await startRecording({
             activity,
             indoor,
+            autoPause,
+            audioCues: audioCues
+              ? distanceUnit === 'miles'
+                ? 'miles'
+                : 'km'
+              : undefined,
             notification: notificationText(t, activity),
           });
         },
@@ -187,8 +267,37 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, indoor, run, t]
+    [activity, audioCues, autoPause, distanceUnit, indoor, run, t]
   );
+  // Counts down once a second, then starts. Each number is felt and, with
+  // voice cues on, spoken.
+  useEffect(() => {
+    if (countdownLeft === null) return;
+    if (countdownLeft === 0) {
+      setCountdownLeft(null);
+      void handleStart();
+      return;
+    }
+    fireSelectionHaptic();
+    if (audioCues) speakRecordingCue(String(countdownLeft));
+    const id = setTimeout(() => setCountdownLeft(countdownLeft - 1), 1000);
+    return () => clearTimeout(id);
+  }, [countdownLeft, audioCues, handleStart]);
+
+  const handleStartPress = useCallback(() => {
+    if (countdownSeconds === 0) {
+      void handleStart();
+      return;
+    }
+    setPermissionProblem(null);
+    if (audioCues) beginRecordingCues();
+    setCountdownLeft(countdownSeconds);
+  }, [audioCues, countdownSeconds, handleStart]);
+
+  const cancelCountdown = useCallback(() => {
+    setCountdownLeft(null);
+    if (audioCues) stopRecordingCues();
+  }, [audioCues]);
 
   const handleResume = useCallback(
     () =>
@@ -320,6 +429,26 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       );
     }
+    if (!session && countdownLeft !== null) {
+      return (
+        <View className="items-center py-16">
+          <Text
+            className="text-text-primary text-8xl font-bold"
+            accessibilityLiveRegion="assertive"
+          >
+            {countdownLeft}
+          </Text>
+          <Text className="text-text-secondary text-sm mt-2 mb-8">
+            {t('recordActivity.countdown.getReady', {
+              defaultValue: 'Get ready',
+            })}
+          </Text>
+          <Button variant="outline" onPress={cancelCountdown}>
+            {t('recordActivity.countdown.cancel', { defaultValue: 'Cancel' })}
+          </Button>
+        </View>
+      );
+    }
     if (!session) {
       return (
         <>
@@ -378,6 +507,85 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               onSelect={(key) => setIndoor(key === 'indoor')}
             />
           </View>
+          <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+            <View className="flex-1 mr-3">
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('recordActivity.autoPause.title', {
+                  defaultValue: 'Auto-pause',
+                })}
+              </Text>
+              <Text className="text-text-secondary text-xs mt-0.5">
+                {t('recordActivity.autoPause.description', {
+                  defaultValue:
+                    'Pauses the clock when you stop and carries on when you move.',
+                })}
+              </Text>
+            </View>
+            <Switch
+              testID="auto-pause-switch"
+              accessibilityLabel={t('recordActivity.autoPause.title', {
+                defaultValue: 'Auto-pause',
+              })}
+              value={autoPause}
+              onValueChange={(value) => {
+                setAutoPause(value);
+                void setRecordingPreference('autoPause', value);
+              }}
+            />
+          </View>
+          <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+            <View className="flex-1 mr-3">
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('recordActivity.audioCues.title', {
+                  defaultValue: 'Voice cues',
+                })}
+              </Text>
+              <Text className="text-text-secondary text-xs mt-0.5">
+                {t('recordActivity.audioCues.description', {
+                  defaultValue:
+                    'Speaks your time at each kilometer or mile, and when you pause or resume.',
+                })}
+              </Text>
+            </View>
+            <Switch
+              testID="audio-cues-switch"
+              accessibilityLabel={t('recordActivity.audioCues.title', {
+                defaultValue: 'Voice cues',
+              })}
+              value={audioCues}
+              onValueChange={(value) => {
+                setAudioCues(value);
+                void setRecordingPreference('audioCues', value);
+              }}
+            />
+          </View>
+          <View className="bg-surface rounded-xl p-4 mt-4">
+            <Text className="text-text-primary text-sm font-semibold mb-2">
+              {t('recordActivity.countdown.title', {
+                defaultValue: 'Start countdown',
+              })}
+            </Text>
+            <SegmentedControl<string>
+              segments={COUNTDOWN_CHOICES.map((seconds) => ({
+                key: String(seconds),
+                label:
+                  seconds === 0
+                    ? t('recordActivity.countdown.off', {
+                        defaultValue: 'Off',
+                      })
+                    : t('recordActivity.countdown.seconds', {
+                        seconds,
+                        defaultValue: '{{seconds}} s',
+                      }),
+              }))}
+              activeKey={String(countdownSeconds)}
+              onSelect={(key) => {
+                const seconds = Number(key);
+                setCountdownSeconds(seconds);
+                void setCountdownPreference(seconds);
+              }}
+            />
+          </View>
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm mb-3">
@@ -426,11 +634,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               </Button>
             </View>
           ) : null}
-          <Button
-            className="mt-6"
-            loading={busy}
-            onPress={() => void handleStart()}
-          >
+          <Button className="mt-6" loading={busy} onPress={handleStartPress}>
             {t('recordActivity.start', { defaultValue: 'Start' })}
           </Button>
         </>
@@ -501,7 +705,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         <View className="items-center mb-4">
           <Text className="text-text-muted text-xs">
             {session.status === 'paused'
-              ? t('recordActivity.status.paused', { defaultValue: 'Paused' })
+              ? session.autoPaused
+                ? t('recordActivity.status.autoPaused', {
+                    defaultValue: 'Auto-paused',
+                  })
+                : t('recordActivity.status.paused', { defaultValue: 'Paused' })
               : finished
                 ? t('recordActivity.status.finished', {
                     defaultValue: 'Finished',
@@ -577,30 +785,61 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
         ) : null}
+        {finished && laps.length > 0 ? (
+          <View className="bg-surface rounded-xl p-4 mb-4">
+            <Text className="text-text-primary text-base font-bold mb-2">
+              {t('recordActivity.laps', { defaultValue: 'Laps' })}
+            </Text>
+            {laps.map((lap, i) => (
+              <SplitRow
+                key={lap.index}
+                label={t('recordActivity.lapLabel', {
+                  defaultValue: 'Lap {{number}}',
+                  number: lap.index,
+                })}
+                detail={`${number(lap.distanceMeters / unitMeters, 2)} ${unitLabel} · ${formatClock(lap.durationSeconds)}`}
+                pace={`${formatPace(
+                  paceSecondsPerUnit(
+                    lap.distanceMeters,
+                    lap.durationSeconds,
+                    unitMeters
+                  )
+                )} ${paceUnit}`}
+                fraction={lapBarsFor[i].fraction}
+                fastest={lapBarsFor[i].fastest}
+                fastestLabel={t('recordActivity.fastest', {
+                  defaultValue: 'Fastest',
+                })}
+              />
+            ))}
+          </View>
+        ) : null}
         {finished && splits.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4">
             <Text className="text-text-primary text-base font-bold mb-2">
               {t('recordActivity.splits', { defaultValue: 'Splits' })}
             </Text>
-            {splits.map((split) => (
-              <View key={split.index} className="flex-row justify-between py-1">
-                <Text className="text-text-secondary text-sm">
-                  {split.partial
+            {splits.map((split, i) => (
+              <SplitRow
+                key={split.index}
+                label={`${
+                  split.partial
                     ? number(split.distanceMeters / unitMeters)
-                    : String(split.index)}{' '}
-                  {unitLabel}
-                </Text>
-                <Text className="text-text-primary text-sm font-semibold">
-                  {formatPace(
-                    paceSecondsPerUnit(
-                      split.distanceMeters,
-                      split.durationSeconds,
-                      unitMeters
-                    )
-                  )}{' '}
-                  {paceUnit}
-                </Text>
-              </View>
+                    : String(split.index)
+                } ${unitLabel}`}
+                pace={`${formatPace(
+                  paceSecondsPerUnit(
+                    split.distanceMeters,
+                    split.durationSeconds,
+                    unitMeters
+                  )
+                )} ${paceUnit}`}
+                fraction={splitBarsFor[i].fraction}
+                fastest={splitBarsFor[i].fastest}
+                fastestLabel={t('recordActivity.fastest', {
+                  defaultValue: 'Fastest',
+                })}
+              />
             ))}
           </View>
         ) : null}
@@ -695,33 +934,45 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             </Button>
           </>
         ) : (
-          <View className="flex-row">
-            <Button
-              variant="secondary"
-              className="flex-1 mr-2"
-              loading={busy}
-              onPress={() =>
-                void (session.status === 'recording'
-                  ? run(
-                      pauseRecording,
-                      t('recordActivity.errors.pause', {
-                        defaultValue: 'Could not pause recording',
-                      })
-                    )
-                  : handleResume())
-              }
-            >
-              {session.status === 'recording'
-                ? t('recordActivity.pause', { defaultValue: 'Pause' })
-                : t('recordActivity.resume', { defaultValue: 'Resume' })}
-            </Button>
-            <Button
-              className="flex-1 ml-2"
-              disabled={busy}
-              onPress={() => void handleFinish()}
-            >
-              {t('recordActivity.finish', { defaultValue: 'Finish' })}
-            </Button>
+          <View>
+            {session.status === 'recording' ? (
+              <Button
+                variant="outline"
+                className="mb-2"
+                disabled={busy}
+                onPress={() => void markLap()}
+              >
+                {t('recordActivity.lap', { defaultValue: 'Lap' })}
+              </Button>
+            ) : null}
+            <View className="flex-row">
+              <Button
+                variant="secondary"
+                className="flex-1 mr-2"
+                loading={busy}
+                onPress={() =>
+                  void (session.status === 'recording'
+                    ? run(
+                        pauseRecording,
+                        t('recordActivity.errors.pause', {
+                          defaultValue: 'Could not pause recording',
+                        })
+                      )
+                    : handleResume())
+                }
+              >
+                {session.status === 'recording'
+                  ? t('recordActivity.pause', { defaultValue: 'Pause' })
+                  : t('recordActivity.resume', { defaultValue: 'Resume' })}
+              </Button>
+              <Button
+                className="flex-1 ml-2"
+                disabled={busy}
+                onPress={() => void handleFinish()}
+              >
+                {t('recordActivity.finish', { defaultValue: 'Finish' })}
+              </Button>
+            </View>
           </View>
         )}
         {finished ? null : (

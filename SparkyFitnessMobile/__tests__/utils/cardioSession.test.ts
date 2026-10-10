@@ -8,6 +8,7 @@ import {
   gpsHeartRateSeries,
   combinedHeartRateZoneRows,
   heartRateZoneRows,
+  paceSeriesFromTrack,
   projectRoute,
   routeRegion,
   usableRoutePoints,
@@ -334,5 +335,66 @@ describe('cardioSessionFromDiaryEntry', () => {
     expect(
       cardioSessionFromDiaryEntry(entry({ sets: [], exercise_snapshot }), 'km')
     ).toBeNull();
+  });
+});
+
+describe('paceSeriesFromTrack', () => {
+  const T0 = Date.UTC(2026, 8, 26, 7, 0, 0);
+  const at = (seconds: number, metersNorth: number, extra = {}) =>
+    ({
+      t: new Date(T0 + seconds * 1000).toISOString(),
+      lat: 51.5 + metersNorth / 111_194.9,
+      lon: -0.1,
+      ...extra,
+    }) as GpsTrackPoint;
+  const KM = 1000;
+
+  it('reads a steady pace along the distance', () => {
+    // 4 m/s is 250 s per km.
+    const track = Array.from({ length: 13 }, (_, i) => at(i * 10, i * 40));
+    const series = paceSeriesFromTrack(track, KM);
+    expect(series.length).toBeGreaterThan(0);
+    for (const p of series) expect(p.paceSeconds).toBeCloseTo(250, 0);
+    expect(series[series.length - 1].distance).toBeCloseTo(0.48, 2);
+  });
+
+  it('uses the points own distance when the track has it', () => {
+    const track = [at(0, 0, { dist: 0 }), at(60, 0, { dist: 300 })];
+    const [first] = paceSeriesFromTrack(track, KM);
+    // 300 m in 60 s, whatever the coordinates say.
+    expect(first.paceSeconds).toBeCloseTo(200, 5);
+    expect(first.distance).toBeCloseTo(0.3, 5);
+  });
+
+  it('leaves out stretches where the person was standing still', () => {
+    const track = [
+      at(0, 0),
+      at(30, 120),
+      // Stopped for two minutes.
+      at(60, 120),
+      at(90, 120),
+      at(120, 120),
+      at(150, 120),
+      at(180, 240),
+    ];
+    const series = paceSeriesFromTrack(track, KM);
+    expect(series.every((p) => p.paceSeconds < 600)).toBe(true);
+  });
+
+  it('measures in miles when asked', () => {
+    const track = [at(0, 0, { dist: 0 }), at(60, 0, { dist: 160.9344 })];
+    const [first] = paceSeriesFromTrack(track, 1609.344);
+    // 0.1 mile in a minute is ten minutes a mile.
+    expect(first.paceSeconds).toBeCloseTo(600, 3);
+  });
+
+  it('gives nothing for too few or unusable points', () => {
+    expect(paceSeriesFromTrack([at(0, 0)], KM)).toEqual([]);
+    expect(paceSeriesFromTrack([at(0, 0), at(5, 10)], KM)).toEqual([]);
+  });
+
+  it('thins a very long track', () => {
+    const track = Array.from({ length: 5000 }, (_, i) => at(i * 31, i * 100));
+    expect(paceSeriesFromTrack(track, KM).length).toBeLessThanOrEqual(401);
   });
 });

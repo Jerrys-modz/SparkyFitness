@@ -395,7 +395,8 @@ enum ContextPayloadMapper {
             distanceMeters: doubleValue(payload["distanceMeters"]) ?? 0,
             paceSeconds: doubleValue(payload["paceSeconds"]),
             usesMiles: (payload["distanceUnit"] as? String) == "mi",
-            sentAt: sentAt
+            sentAt: sentAt,
+            lapCount: Int(doubleValue(payload["lapCount"]) ?? 0)
         ))
     }
 

@@ -11,6 +11,7 @@ import {
   hydrate,
   pauseRecording,
   startRecording,
+  markLap,
   useGpsRecording,
   type RecordingSession,
   type RecordingSnapshot,
@@ -34,14 +35,33 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     RecordingPermissionError,
     useGpsRecording: jest.fn(),
     hydrate: jest.fn(() => Promise.resolve()),
+    markLap: jest.fn(() => Promise.resolve(1)),
     startRecording: jest.fn(() => Promise.resolve()),
     pauseRecording: jest.fn(() => Promise.resolve()),
     resumeRecording: jest.fn(() => Promise.resolve()),
     finishRecording: jest.fn(() => Promise.resolve()),
     discardRecording: jest.fn(() => Promise.resolve()),
     elapsedSeconds: jest.fn(() => 754),
+    getRecordingPreferences: jest.fn(() =>
+      Promise.resolve({
+        autoPause: true,
+        audioCues: false,
+        countdownSeconds: 0,
+      })
+    ),
+    setRecordingPreference: jest.fn(() => Promise.resolve()),
+    setCountdownPreference: jest.fn(() => Promise.resolve()),
+    COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
+jest.mock('../../src/services/recordingCues', () => ({
+  beginRecordingCues: jest.fn(),
+  speakRecordingCue: jest.fn(),
+  stopRecordingCues: jest.fn(),
+}));
+jest.mock('../../src/services/haptics', () => ({
+  fireSelectionHaptic: jest.fn(),
+}));
 jest.mock('../../src/services/gpsRecordingSave', () => ({
   saveRecordedActivity: jest.fn(),
 }));
@@ -143,6 +163,97 @@ describe('RecordActivityScreen', () => {
         expect.objectContaining({ activity: 'ride' })
       )
     );
+  });
+
+  it('starts with auto-pause on and passes the toggle through', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent(screen.getByTestId('auto-pause-switch'), 'valueChange', false);
+    fireEvent.press(screen.getByText('Start'));
+
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({ autoPause: false })
+      )
+    );
+  });
+
+  it('passes voice cues in the distance unit once switched on', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent(screen.getByTestId('audio-cues-switch'), 'valueChange', true);
+    fireEvent.press(screen.getByText('Start'));
+
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audioCues: expect.stringMatching(/^(km|miles)$/),
+        })
+      )
+    );
+  });
+
+  it('marks a lap while recording, but not while paused', async () => {
+    state(session(), track);
+    const screen = await renderScreen();
+    fireEvent.press(screen.getByText('Lap'));
+    expect(markLap).toHaveBeenCalledTimes(1);
+
+    state(session({ status: 'paused', pausedAt: Date.now() }), track);
+    screen.rerender(renderUi());
+    expect(screen.queryByText('Lap')).toBeNull();
+  });
+
+  it('lists marked laps and flags the fastest after finishing', async () => {
+    state(
+      session({
+        status: 'finished',
+        finishedAt: Date.now(),
+        laps: [1_000_000 + 250_000],
+      }),
+      track
+    );
+    const screen = await renderScreen();
+    expect(screen.getByText('Laps')).toBeTruthy();
+    expect(screen.getByText('Lap 1 · 1.00 km · 4:10')).toBeTruthy();
+    expect(screen.getAllByText(/Fastest/).length).toBeGreaterThan(0);
+  });
+
+  it('counts down before it starts recording, and Cancel stops it', async () => {
+    state(null);
+    const screen = await renderScreen();
+    jest.useFakeTimers();
+    try {
+      fireEvent.press(screen.getByText('3 s'));
+      fireEvent.press(screen.getByText('Start'));
+      expect(screen.getByText('3')).toBeTruthy();
+      expect(startRecording).not.toHaveBeenCalled();
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText('2')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Cancel'));
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(startRecording).not.toHaveBeenCalled();
+      expect(screen.getByText('Start')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Start'));
+      // Each tick re-renders and arms the next, so step a second at a time.
+      for (let tick = 0; tick < 4; tick++) {
+        await act(async () => {
+          jest.advanceTimersByTime(1000);
+        });
+      }
+      expect(startRecording).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('explains a denied location permission and offers Settings', async () => {

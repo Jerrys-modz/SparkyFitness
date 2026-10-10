@@ -394,6 +394,100 @@ export function computeSplits(
   return splits;
 }
 
+/**
+ * Laps the person marked with the Lap button, as splits between the marks. The
+ * stretch after the last mark runs to the end of the recording and counts as
+ * `partial`, like a trailing split. Distance and active time at a mark are
+ * interpolated between the fixes around it; a mark inside a pause takes the
+ * fix before it, so a pause is never counted into a lap.
+ */
+export function computeLaps(
+  points: readonly RecordedPoint[],
+  marks: readonly number[]
+): RecordedSplit[] {
+  if (points.length < 2) return [];
+  const distances = cumulativeDistances(points);
+  const active = cumulativeActiveSeconds(points);
+  const first = points[0].t;
+  const last = points[points.length - 1].t;
+
+  const at = (t: number): { distance: number; active: number } => {
+    if (t <= first) return { distance: distances[0], active: active[0] };
+    if (t >= last) {
+      return {
+        distance: distances[distances.length - 1],
+        active: active[active.length - 1],
+      };
+    }
+    let i = 1;
+    while (i < points.length - 1 && points[i].t < t) i++;
+    const before = points[i - 1];
+    const after = points[i];
+    if (before.seg !== after.seg) {
+      return { distance: distances[i - 1], active: active[i - 1] };
+    }
+    const ratio = (t - before.t) / (after.t - before.t);
+    return {
+      distance: distances[i - 1] + (distances[i] - distances[i - 1]) * ratio,
+      active: active[i - 1] + (active[i] - active[i - 1]) * ratio,
+    };
+  };
+
+  const boundaries = [
+    first,
+    ...[...marks].sort((a, b) => a - b).filter((t) => t > first && t < last),
+    last,
+  ];
+  const laps: RecordedSplit[] = [];
+  for (let i = 1; i < boundaries.length; i++) {
+    const start = at(boundaries[i - 1]);
+    const end = at(boundaries[i]);
+    const distanceMeters = end.distance - start.distance;
+    // A lap pressed twice in a row, or right at the end, covers nothing.
+    if (distanceMeters <= 0 && end.active - start.active <= 0) continue;
+    laps.push({
+      index: laps.length + 1,
+      distanceMeters,
+      durationSeconds: end.active - start.active,
+      startT: boundaries[i - 1],
+      endT: boundaries[i],
+      partial: i === boundaries.length - 1,
+    });
+  }
+  return laps;
+}
+
+/**
+ * How long each split's bar is, 0 to 1, with faster splits longer, and which
+ * split was fastest. Partial splits are drawn but never counted as the best,
+ * since a few metres at a sprint is not a best kilometer.
+ */
+export function splitBars(
+  splits: readonly RecordedSplit[],
+  unitMeters: number
+): { fraction: number; fastest: boolean }[] {
+  const paces = splits.map((split) =>
+    paceSecondsPerUnit(split.distanceMeters, split.durationSeconds, unitMeters)
+  );
+  const usable = paces.filter(
+    (pace, i): pace is number =>
+      pace !== null && Number.isFinite(pace) && !splits[i].partial
+  );
+  if (usable.length === 0)
+    return splits.map(() => ({ fraction: 0, fastest: false }));
+  const best = Math.min(...usable);
+  const bestIndex = paces.findIndex(
+    (pace, i) => pace === best && !splits[i].partial
+  );
+  return paces.map((pace, i) => ({
+    fraction:
+      pace === null || !Number.isFinite(pace) || pace <= 0
+        ? 0
+        : Math.min(1, best / pace),
+    fastest: i === bestIndex,
+  }));
+}
+
 /** Splits as the lap windows the server turns into per-lap stats. */
 export function splitsToLapWindows(
   splits: readonly RecordedSplit[]

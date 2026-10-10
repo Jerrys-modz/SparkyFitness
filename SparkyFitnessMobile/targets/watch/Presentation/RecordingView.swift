@@ -49,6 +49,12 @@ struct RecordingView: View {
                 stat(value: state.paceText, unit: state.paceUnitText)
             }
 
+            if state.lapCount > 0 {
+                Text("Lap \(state.lapCount)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             if state.status == .finished {
                 Text("Save it on your iPhone")
                     .font(.caption2)
@@ -68,6 +74,18 @@ struct RecordingView: View {
                     }
                     .tint(.orange)
                     .accessibilityLabel(state.status == .recording ? "Pause" : "Resume")
+
+                    // A lap needs distance to measure, so only while running.
+                    if state.status == .recording {
+                        Button {
+                            Haptics.tap()
+                            recording.lap()
+                        } label: {
+                            Image(systemName: "flag.fill")
+                        }
+                        .tint(.blue)
+                        .accessibilityLabel("Lap")
+                    }
 
                     Button {
                         Haptics.tap()
