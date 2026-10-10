@@ -730,6 +730,20 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func recoverLiveWorkoutIfNeeded() {
         retryPendingTails()
         hkRecovery = .running
+        // A wrist-only run left going is claimed first: only it has a
+        // snapshot to say the Health session is its own. Otherwise the
+        // strength-workout path below would end it as a leftover.
+        WatchRunStore.shared.recoverIfNeeded { [weak self] claimed in
+            guard let self else { return }
+            if claimed {
+                self.hkRecovery = .finished
+            } else {
+                self.recoverStrengthWorkoutIfNeeded()
+            }
+        }
+    }
+
+    private func recoverStrengthWorkoutIfNeeded() {
         // A finish that was cut off is completed before anything else. It is
         // older than any queued plan, and resuming it would restart a workout
         // the wearer already ended.

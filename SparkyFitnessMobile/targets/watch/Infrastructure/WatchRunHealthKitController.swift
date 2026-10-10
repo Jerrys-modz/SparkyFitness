@@ -21,8 +21,10 @@ import HealthKit
 /// watchOS runs one workout session at a time, so the store only starts this
 /// when neither a strength workout nor a phone-GPS recording holds one.
 ///
-/// A session left running when the app is killed is not re-attached by this
-/// controller: it cannot tell whose session it would be recovering.
+/// A run left going when the app is killed is picked back up: a snapshot of
+/// its identity, route and readings is kept on disk while it runs, and
+/// `recoverIfNeeded` re-attaches the Health session it belongs to. Without a
+/// snapshot it never claims a session, so a strength workout's is left alone.
 final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     static let shared = WatchRunHealthKitController()
 
@@ -62,6 +64,11 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var routeRows: [[Double]] = []
     private var routeSegment = 0.0
     private var heartRateRows: [[Double]] = []
+
+    /// Last time the snapshot was written; route fixes arrive about once a
+    /// second and rewriting the file each time would be wasteful.
+    private var lastPersistedAt = Date.distantPast
+    private static let persistInterval: TimeInterval = 15
 
     var hasLiveSession: Bool { session != nil }
 
@@ -136,6 +143,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 newBuilder.addMetadata(marker) { _, _ in }
             }
             if place == .outdoor { startRoute() }
+            persistSnapshot(force: true)
             return true
         } catch {
             session = nil
@@ -150,6 +158,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         collectingRoute = false
         pausedByAutoPause = automatic
         autoPause.reset()
+        persistSnapshot(force: true)
     }
 
     func resume() {
@@ -160,6 +169,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         // The jump across a pause is never distance, so the phone is told
         // where a new stretch begins.
         routeSegment += 1
+        persistSnapshot(force: true)
     }
 
     /// Ends the session and writes the workout to Apple Health (`save`) or
@@ -174,6 +184,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         let endingRoute = routeBuilder
         let endedAt = Date()
         let rows = (route: routeRows, heartRate: heartRateRows)
+        WatchRunSnapshotStore.clear()
         stopRoute()
         self.session = nil
         self.builder = nil
@@ -209,6 +220,149 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 completion(self.metrics, finalElapsed, result)
             }
         }
+    }
+}
+
+// MARK: - Recovery
+
+/// A run picked up again after the app was killed.
+struct WatchRunRecovery {
+    let kind: WatchRunKind
+    let place: WatchRunPlace
+    let paused: Bool
+    let autoPaused: Bool
+    let metrics: WatchRunMetrics
+}
+
+/// What `recoverIfNeeded` found.
+enum WatchRunRecoveryOutcome {
+    /// Nothing of ours was left going.
+    case none
+    /// The Health session is back and the run carries on.
+    case resumed(WatchRunRecovery)
+    /// The Health session was gone but the run's own record was not: it is
+    /// sent to the phone as it stood, so the effort is not lost.
+    case salvaged(WatchRunResult)
+}
+
+extension WatchRunHealthKitController {
+    fileprivate func persistSnapshot(force: Bool = false) {
+        guard session != nil else { return }
+        let now = Date()
+        guard force || now.timeIntervalSince(lastPersistedAt) >= Self.persistInterval else { return }
+        lastPersistedAt = now
+        WatchRunSnapshotStore.save(WatchRunSnapshot(
+            clientId: clientId,
+            kind: runKind.rawValue,
+            place: runPlace.rawValue,
+            startedAt: startedAt,
+            routeSegment: routeSegment,
+            pausedByAutoPause: pausedByAutoPause,
+            routeRows: routeRows,
+            heartRateRows: heartRateRows,
+            distanceMeters: metrics.distanceMeters,
+            activeEnergyKcal: metrics.activeEnergyKcal,
+            elapsed: builder?.elapsedTime ?? 0,
+            savedAt: now
+        ))
+    }
+
+    /// Re-attaches the run left going when the app was killed, if there is
+    /// one. Only a run with a snapshot is claimed, and only when the Health
+    /// session found is the same kind of activity, so a strength workout's
+    /// session is never taken by mistake. Completion is on the main queue.
+    func recoverIfNeeded(completion: @escaping (WatchRunRecoveryOutcome) -> Void) {
+        guard session == nil, let snapshot = WatchRunSnapshotStore.load(),
+              let kind = WatchRunKind(rawValue: snapshot.kind),
+              let place = WatchRunPlace(rawValue: snapshot.place)
+        else {
+            DispatchQueue.main.async { completion(.none) }
+            return
+        }
+        guard Date().timeIntervalSince(snapshot.savedAt) < WatchRunSnapshot.maxAge,
+              HKHealthStore.isHealthDataAvailable()
+        else {
+            WatchRunSnapshotStore.clear()
+            DispatchQueue.main.async { completion(.none) }
+            return
+        }
+        healthStore.recoverActiveWorkoutSession { [weak self] recovered, error in
+            DispatchQueue.main.async {
+                guard let self else { completion(.none); return }
+                guard let recovered, error == nil,
+                      recovered.workoutConfiguration.activityType == kind.activityType,
+                      recovered.state == .running || recovered.state == .paused
+                else {
+                    completion(self.salvage(snapshot, kind: kind, place: place))
+                    return
+                }
+                let recoveredBuilder = recovered.associatedWorkoutBuilder()
+                recovered.delegate = self
+                recoveredBuilder.delegate = self
+                recoveredBuilder.dataSource = HKLiveWorkoutDataSource(
+                    healthStore: self.healthStore,
+                    workoutConfiguration: recovered.workoutConfiguration
+                )
+                self.session = recovered
+                self.builder = recoveredBuilder
+                self.clientId = snapshot.clientId
+                self.startedAt = snapshot.startedAt
+                self.runKind = kind
+                self.runPlace = place
+                self.routeRows = snapshot.routeRows
+                self.heartRateRows = snapshot.heartRateRows
+                // The jump across the gap while the app was gone is never distance.
+                self.routeSegment = snapshot.routeSegment + 1
+                self.autoPause.reset()
+                let paused = recovered.state == .paused
+                self.pausedByAutoPause = paused && snapshot.pausedByAutoPause
+                var current = WatchRunMetrics()
+                current.distanceMeters = recoveredBuilder.statistics(for: Self.distanceType)?
+                    .sumQuantity()?.doubleValue(for: .meter()) ?? snapshot.distanceMeters
+                current.activeEnergyKcal = recoveredBuilder.statistics(for: Self.energyType)?
+                    .sumQuantity()?.doubleValue(for: .kilocalorie()) ?? snapshot.activeEnergyKcal
+                self.metrics = current
+                if place == .outdoor {
+                    // A route builder cannot be re-attached, so the route in
+                    // Health restarts here; the phone still gets every fix.
+                    self.startRoute()
+                    self.collectingRoute = !paused
+                }
+                self.persistSnapshot(force: true)
+                completion(.resumed(WatchRunRecovery(
+                    kind: kind,
+                    place: place,
+                    paused: paused,
+                    autoPaused: self.pausedByAutoPause,
+                    metrics: current
+                )))
+            }
+        }
+    }
+
+    /// The run as the snapshot last had it, for when the Health session did
+    /// not survive. Too short or empty a record is dropped.
+    private func salvage(
+        _ snapshot: WatchRunSnapshot,
+        kind: WatchRunKind,
+        place: WatchRunPlace
+    ) -> WatchRunRecoveryOutcome {
+        WatchRunSnapshotStore.clear()
+        guard snapshot.elapsed >= 60, snapshot.distanceMeters > 0 else { return .none }
+        var salvaged = WatchRunMetrics()
+        salvaged.distanceMeters = snapshot.distanceMeters
+        salvaged.activeEnergyKcal = snapshot.activeEnergyKcal
+        return .salvaged(WatchRunResult(
+            clientId: snapshot.clientId,
+            kind: kind,
+            place: place,
+            startedAt: snapshot.startedAt,
+            endedAt: snapshot.savedAt,
+            activeSeconds: snapshot.elapsed,
+            metrics: salvaged,
+            route: snapshot.routeRows,
+            heartRate: snapshot.heartRateRows
+        ))
     }
 }
 
@@ -272,6 +426,7 @@ extension WatchRunHealthKitController {
                 routeSegment,
             ]
         })
+        persistSnapshot()
     }
 
     /// Runs every fix, paused or not, through the auto-pause detector. The
@@ -308,6 +463,7 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         DispatchQueue.main.async { [weak self] in
+            WatchRunSnapshotStore.clear()
             self?.session = nil
             self?.builder = nil
             self?.routeBuilder?.discard()
@@ -345,6 +501,7 @@ extension WatchRunHealthKitController: HKLiveWorkoutBuilderDelegate {
             self.metrics = updated
             if let reading, self.session != nil {
                 self.heartRateRows.append([readAt, reading])
+                self.persistSnapshot()
             }
             self.onMetrics?(updated)
         }
