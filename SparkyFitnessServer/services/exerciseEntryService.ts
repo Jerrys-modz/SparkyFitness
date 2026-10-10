@@ -347,11 +347,13 @@ async function attachWatchTelemetryToExerciseEntry(
  * exists: the route, per-lap splits, and the summary fields the track implies
  * (speed, elevation gain and loss, moving time).
  *
- * Re-posting the same track is safe. The track and laps upsert against the
- * per-entry unique constraints, so a client retrying after a dropped response
- * replaces the rows instead of duplicating them. Summary fields the entry
- * already carries are left alone: the person's own distance and calories stay
- * as they logged them.
+ * Re-posting the same track is safe. Points upsert against the per-entry
+ * unique constraint, so a client retrying after a dropped response replaces
+ * those rows instead of duplicating them. Laps are deleted and inserted
+ * again in the same transaction: the lap upsert does not remove a higher
+ * index that this post no longer sends. Summary fields the entry already
+ * carries are left alone: the person's own distance and calories stay as
+ * they logged them.
  */
 async function attachGpsTrackToExerciseEntry(
   userId: string,
@@ -424,6 +426,10 @@ async function attachGpsTrackToExerciseEntry(
         vertical_accuracy_meters: p.vacc ?? null,
         course_degrees: p.course ?? null,
       }))
+    );
+    await client.query(
+      'DELETE FROM exercise_entry_laps WHERE exercise_entry_id = $1',
+      [exerciseEntryId]
     );
     await workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient(
       client,

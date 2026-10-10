@@ -313,14 +313,13 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       savedEntryId: null,
     };
     points = [];
-    await persistSession();
     try {
       await startUpdates(options.notification);
     } catch (error) {
       session = null;
-      await persistSession();
       throw error;
     }
+    await persistSession();
     publish();
     addLog(`[GPS Recording] Started ${options.activity} recording`, 'INFO');
   });

@@ -58,6 +58,10 @@ describe('attachGpsTrackToExerciseEntry', () => {
     });
 
     expect(client.query).toHaveBeenNthCalledWith(1, 'BEGIN');
+    expect(client.query).toHaveBeenCalledWith(
+      'DELETE FROM exercise_entry_laps WHERE exercise_entry_id = $1',
+      [entryId]
+    );
     expect(client.query).toHaveBeenLastCalledWith('COMMIT');
     const gpsCall = vi.mocked(
       workoutTelemetryRepo._bulkInsertExerciseEntryGpsPointsWithClient
