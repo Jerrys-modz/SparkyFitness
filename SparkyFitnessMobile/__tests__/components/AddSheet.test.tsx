@@ -1,6 +1,10 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import AddSheet, { type AddSheetRef } from '../../src/components/AddSheet';
+import {
+  __resetAppPreferencesStoreForTests,
+  useAppPreferencesStore,
+} from '../../src/stores/appPreferencesStore';
 
 const mockBottomSheetControls = {
   openCount: 0,
@@ -129,6 +133,51 @@ describe('AddSheet', () => {
 
     expect(mockBottomSheetControls.openCount).toBe(1);
     expect(onDismissWithoutAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the rows in the saved order and leaves out hidden ones', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.setState({
+      addMenuOrder: ['syncHealth', 'askSparky'],
+      hiddenAddMenuItems: ['progressPhotos'],
+    });
+    const { queryByText, toJSON } = renderAddSheet();
+
+    expect(queryByText('Progress Photos')).toBeNull();
+    const text = JSON.stringify(toJSON());
+    // Saved rows first, then the rest in their usual order.
+    expect(text.indexOf('Sync Health Data')).toBeLessThan(
+      text.indexOf('Ask Sparky')
+    );
+    expect(text.indexOf('Ask Sparky')).toBeLessThan(text.indexOf('Symptoms'));
+    __resetAppPreferencesStoreForTests();
+  });
+
+  it('puts a chosen item on a big card and the old card in the rows', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.setState({
+      addMenuCards: ['askSparky', 'exercise', 'measurements', 'scanFood'],
+    });
+    const onAskSparky = jest.fn();
+    const { getByText } = renderAddSheet({ onAskSparky });
+
+    // Ask Sparky is a card now, Food is a row, and both still work.
+    fireEvent.press(getByText('Ask Sparky'));
+    expect(onAskSparky).toHaveBeenCalled();
+    expect(getByText('Food')).toBeTruthy();
+    __resetAppPreferencesStoreForTests();
+  });
+
+  it('opens the exercise sub-menu from a row', () => {
+    __resetAppPreferencesStoreForTests();
+    useAppPreferencesStore.setState({
+      addMenuCards: ['food', 'mood', 'measurements', 'scanFood'],
+    });
+    const { getByText } = renderAddSheet({ onAddMood: jest.fn() });
+
+    fireEvent.press(getByText('Exercise'));
+    expect(getByText('Workout')).toBeTruthy();
+    __resetAppPreferencesStoreForTests();
   });
 
   it('renders the Measurements tile in the main grid', () => {
