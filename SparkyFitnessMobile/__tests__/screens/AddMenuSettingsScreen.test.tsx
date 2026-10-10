@@ -87,14 +87,14 @@ describe('AddMenuSettingsScreen', () => {
     renderScreen();
 
     fireEvent(
-      screen.getByTestId('add-menu-drag-handle-recordActivity'),
+      screen.getByTestId('add-menu-drag-handle-progressPhotos'),
       'accessibilityAction',
       { nativeEvent: { actionName: 'increment' } }
     );
 
     const state = useAppPreferencesStore.getState();
     expect(rowKeys(state.addMenuOrder, state.addMenuCards).slice(0, 2)).toEqual(
-      ['progressPhotos', 'recordActivity']
+      ['wellness', 'progressPhotos']
     );
   });
 

@@ -322,13 +322,6 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         icon: ADD_MENU_ITEM_ICONS.scanFood,
         onPress: onBarcodeScan,
       },
-      recordActivity: onRecordActivity && {
-        label: t('addSheet.recordActivity', {
-          defaultValue: 'Record Activity',
-        }),
-        icon: ADD_MENU_ITEM_ICONS.recordActivity,
-        onPress: onRecordActivity,
-      },
       progressPhotos: {
         label: t('addSheet.progressPhotos', {
           defaultValue: 'Progress Photos',
@@ -455,6 +448,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                   onLogWorkout
                 )}
               </View>
+              {onRecordActivity && (
+                <View className="flex-row mt-3">
+                  {renderExerciseOption(
+                    t('addSheet.recordActivity', {
+                      defaultValue: 'Record Activity',
+                    }),
+                    t('addSheet.recordActivityHint', {
+                      defaultValue: 'Track a walk, run or ride with GPS',
+                    }),
+                    'location',
+                    onRecordActivity
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <>

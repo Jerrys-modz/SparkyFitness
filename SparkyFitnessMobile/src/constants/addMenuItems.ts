@@ -13,7 +13,6 @@ export const ADD_MENU_ITEM_KEYS = [
   'exercise',
   'measurements',
   'scanFood',
-  'recordActivity',
   'progressPhotos',
   'wellness',
   'symptoms',
@@ -52,8 +51,6 @@ export const ADD_MENU_ITEM_LABELS: Record<
   measurements: (t) =>
     t('addSheet.measurements', { defaultValue: 'Measurements' }),
   scanFood: (t) => t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
-  recordActivity: (t) =>
-    t('addSheet.recordActivity', { defaultValue: 'Record Activity' }),
   progressPhotos: (t) =>
     t('addSheet.progressPhotos', { defaultValue: 'Progress Photos' }),
   wellness: (t) => t('addSheet.wellness', { defaultValue: 'Wellness' }),
@@ -72,7 +69,6 @@ export const ADD_MENU_ITEM_ICONS: Record<AddMenuItemKey, IconName> = {
   exercise: 'exercise-weights',
   measurements: 'measurements',
   scanFood: 'scan',
-  recordActivity: 'location',
   progressPhotos: 'camera',
   wellness: 'wellness-filled',
   symptoms: 'symptoms',
