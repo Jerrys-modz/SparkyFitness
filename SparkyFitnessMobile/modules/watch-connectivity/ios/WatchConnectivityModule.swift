@@ -43,6 +43,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutEdit: (([String: Any]) -> Void)?
     var onRecordingControl: (([String: Any]) -> Void)?
     var onRecordingHeartRate: (([String: Any]) -> Void)?
+    /// A walk or run recorded on the watch alone, sent when it finished.
+    var onRunFinished: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -133,6 +135,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRecordingControl?(payload)
         case "recordingHeartRate":
             onRecordingHeartRate?(payload)
+        case "runFinished":
+            onRunFinished?(payload)
         default:
             break
         }
@@ -272,7 +276,8 @@ public class WatchConnectivityModule: Module {
             "onFastEndRequested",
             "onWorkoutEdit",
             "onRecordingControl",
-            "onRecordingHeartRate"
+            "onRecordingHeartRate",
+            "onRunFinished"
         )
 
         OnCreate {
@@ -462,6 +467,20 @@ public class WatchConnectivityModule: Module {
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "clientId": payload["clientId"] as? String ?? "",
                     "samples": dictionaryArray(payload["samples"]),
+                ])
+            }
+            self.delegateHandler.onRunFinished = { [weak self] payload in
+                self?.sendEvent("onRunFinished", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "kind": payload["kind"] as? String ?? "",
+                    "place": payload["place"] as? String ?? "",
+                    "startedAt": (payload["startedAt"] as? NSNumber)?.doubleValue ?? 0,
+                    "endedAt": (payload["endedAt"] as? NSNumber)?.doubleValue ?? 0,
+                    "activeSeconds": (payload["activeSeconds"] as? NSNumber)?.doubleValue ?? 0,
+                    "distanceMeters": (payload["distanceMeters"] as? NSNumber)?.doubleValue ?? 0,
+                    "activeEnergyKcal": (payload["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0,
+                    "route": payload["route"] as? [[Double]] ?? [],
+                    "heartRate": payload["heartRate"] as? [[Double]] ?? [],
                 ])
             }
             self.delegateHandler.activate()

@@ -7,16 +7,16 @@ import HealthKit
 /// A real `HKWorkoutSession`. Indoors (`locationType = .indoor`) the watch
 /// estimates distance from its motion sensors; outdoors it uses its own GPS
 /// for distance and records the route, which is attached to the workout when
-/// it is saved. Heart rate is sampled at workout rate either way. When the
-/// wearer finishes, the workout (and route) is written to Apple Health; the
-/// phone's existing HealthKit import then files it in the diary like any
-/// other watch workout. Nothing is sent over the watch connection,
-/// so the phone being out of range changes nothing: Health syncs on its own
-/// when the two meet again.
+/// it is saved. Heart rate is sampled at workout rate either way.
 ///
-/// Deliberately NOT stamped with `SparkyFitnessSessionId`. That marker makes
-/// the phone's inbound sync skip a workout because the diary already has it
-/// from another route; here the HealthKit import is the only route.
+/// When the wearer finishes, the workout (and route) is written to Apple Health
+/// and the same run is sent to the phone as a `runFinished` message (queued, so
+/// an out-of-range phone gets it later), which files it in the diary as a
+/// native SparkyFitness activity with its route and heart rate.
+///
+/// The Health workout is stamped with `SparkyFitnessSessionId` so the phone's
+/// HealthKit import skips it: the message is the only route into the diary,
+/// and importing the Health copy too would log the run twice.
 ///
 /// watchOS runs one workout session at a time, so the store only starts this
 /// when neither a strength workout nor a phone-GPS recording holds one.
@@ -50,6 +50,18 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var runKind: WatchRunKind = .run
     /// Whether the last pause was ours, so only that one is ever resumed.
     private var pausedByAutoPause = false
+
+    /// Stamped on the Health workout so the phone's import skips it: the phone
+    /// files the run itself from the message sent at the end. One literal here
+    /// and one in `healthkit/dataTransformation.ts`; rename both or neither.
+    private static let sessionMetadataKey = "SparkyFitnessSessionId"
+    private var clientId = UUID().uuidString
+    private var startedAt = Date()
+    private var runPlace: WatchRunPlace = .indoor
+    /// What goes to the phone: the accepted route and the heart-rate readings.
+    private var routeRows: [[Double]] = []
+    private var routeSegment = 0.0
+    private var heartRateRows: [[Double]] = []
 
     var hasLiveSession: Bool { session != nil }
 
@@ -108,12 +120,21 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             builder = newBuilder
             metrics = WatchRunMetrics()
             runKind = kind
+            runPlace = place
             autoPause.reset()
             pausedByAutoPause = false
+            clientId = UUID().uuidString
+            routeRows = []
+            routeSegment = 0
+            heartRateRows = []
 
             let now = Date()
+            startedAt = now
             newSession.startActivity(with: now)
-            newBuilder.beginCollection(withStart: now) { _, _ in }
+            let marker = [Self.sessionMetadataKey: clientId]
+            newBuilder.beginCollection(withStart: now) { _, _ in
+                newBuilder.addMetadata(marker) { _, _ in }
+            }
             if place == .outdoor { startRoute() }
             return true
         } catch {
@@ -136,23 +157,28 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         collectingRoute = routeBuilder != nil
         pausedByAutoPause = false
         autoPause.reset()
+        // The jump across a pause is never distance, so the phone is told
+        // where a new stretch begins.
+        routeSegment += 1
     }
 
     /// Ends the session and writes the workout to Apple Health (`save`) or
     /// throws it away. `completion` runs on the main queue with the final
     /// figures and the active time.
-    func end(save: Bool, completion: @escaping (WatchRunMetrics, TimeInterval) -> Void) {
+    func end(save: Bool, completion: @escaping (WatchRunMetrics, TimeInterval, WatchRunResult?) -> Void) {
         guard let session, let endingBuilder = builder else {
-            completion(metrics, 0)
+            completion(metrics, 0, nil)
             return
         }
         let finalElapsed = endingBuilder.elapsedTime
         let endingRoute = routeBuilder
+        let endedAt = Date()
+        let rows = (route: routeRows, heartRate: heartRateRows)
         stopRoute()
         self.session = nil
         self.builder = nil
         session.end()
-        endingBuilder.endCollection(withEnd: Date()) { [weak self] _, _ in
+        endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
             if save {
                 endingBuilder.finishWorkout { workout, _ in
                     // The route can only be attached to a saved workout.
@@ -165,7 +191,22 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 endingRoute?.discard()
             }
             DispatchQueue.main.async {
-                completion(self?.metrics ?? WatchRunMetrics(), finalElapsed)
+                guard let self else {
+                    completion(WatchRunMetrics(), finalElapsed, nil)
+                    return
+                }
+                let result = save ? WatchRunResult(
+                    clientId: self.clientId,
+                    kind: self.runKind,
+                    place: self.runPlace,
+                    startedAt: self.startedAt,
+                    endedAt: endedAt,
+                    activeSeconds: finalElapsed,
+                    metrics: self.metrics,
+                    route: rows.route,
+                    heartRate: rows.heartRate
+                ) : nil
+                completion(self.metrics, finalElapsed, result)
             }
         }
     }
@@ -221,6 +262,16 @@ extension WatchRunHealthKitController {
         let usable = locations.filter { $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy <= 50 }
         guard !usable.isEmpty else { return }
         routeBuilder.insertRouteData(usable) { _, _ in }
+        routeRows.append(contentsOf: usable.map { fix in
+            [
+                fix.timestamp.timeIntervalSince1970 * 1000,
+                fix.coordinate.latitude,
+                fix.coordinate.longitude,
+                fix.verticalAccuracy >= 0 ? fix.altitude : watchRunNoAltitude,
+                fix.horizontalAccuracy,
+                routeSegment,
+            ]
+        })
     }
 
     /// Runs every fix, paused or not, through the auto-pause detector. The
@@ -287,9 +338,14 @@ extension WatchRunHealthKitController: HKLiveWorkoutBuilderDelegate {
             .doubleValue(for: HKUnit.count().unitDivided(by: .minute())), bpm > 0 {
             updated.heartRate = bpm
         }
+        let reading = collectedTypes.contains(Self.heartRateType) ? updated.heartRate : nil
+        let readAt = Date().timeIntervalSince1970 * 1000
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.metrics = updated
+            if let reading, self.session != nil {
+                self.heartRateRows.append([readAt, reading])
+            }
             self.onMetrics?(updated)
         }
     }

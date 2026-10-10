@@ -119,11 +119,11 @@ On the watch's **Workout** page, above your saved workouts, tap **Cardio** and c
 - **Outdoors** the watch uses its own GPS for the distance and records the route. The first time, it asks for location access ("while using the app" is enough). If you say no, you still get the workout, just without a route.
 - **Indoors** there is no GPS, so the distance is the watch's own estimate from its motion sensors. It gets better the more you use the watch outdoors, since Apple calibrates it from outdoor workouts.
 - **Outdoor auto-pause:** when you stand still the watch pauses itself ("Auto-paused", with a tap on the wrist), and resumes when you move again. It uses the same speeds as the phone. Pausing is not backdated, so the first few seconds of standing still count. A pause you make yourself is never undone automatically. Indoors there is no GPS to tell if you have stopped, so use the pause button.
-- Finishing saves the workout (and the route) to Apple Health. SparkyFitness brings it in on its next sync, titled "Outdoor walk" or "Indoor run" and so on, so it appears in your diary with distance, heart rate, calories and the route. If the phone is out of range, nothing is lost; it syncs when they meet again.
+- Finishing saves the workout (and route) to Apple Health and sends the run to your iPhone, which logs it in your diary as a normal SparkyFitness activity with distance, heart rate, calories and the route. If the phone is out of range or offline, the run waits and is logged when they meet again.
 
 The watch can only run one workout at a time. The page tells you if your iPhone is recording an activity or a strength workout is running, and it won't start in that case.
 
-Unlike a recording the phone makes, a watch-only recording has no voice cues or laps yet. Its source shows as Apple Health, because that is how it reaches SparkyFitness.
+Unlike a recording the phone makes, a watch-only recording has no voice cues or laps yet.
 
 ---
 

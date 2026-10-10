@@ -4,7 +4,7 @@ import WatchKit
 
 /// The wrist-only walk or run, indoors or out: what to show, and the start, pause,
 /// resume and finish actions. See `WatchRunHealthKitController` for how it is
-/// recorded and handed to the phone (through Apple Health).
+/// recorded and handed to the phone (a queued message that files it in the diary).
 @MainActor
 final class WatchRunStore: ObservableObject {
     static let shared = WatchRunStore()
@@ -131,10 +131,13 @@ final class WatchRunStore: ObservableObject {
         let ending = kind
         let endingPlace = place
         autoPaused = false
-        healthKit.end(save: save) { [weak self] metrics, elapsed in
+        healthKit.end(save: save) { [weak self] metrics, elapsed, result in
             Task { @MainActor in
                 guard let self else { return }
                 self.metrics = metrics
+                // The Health workout is stamped so the phone's import skips
+                // it; this message is how the run reaches the diary.
+                if let result { WatchSessionManager.shared.sendRunFinished(result) }
                 if save {
                     self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished

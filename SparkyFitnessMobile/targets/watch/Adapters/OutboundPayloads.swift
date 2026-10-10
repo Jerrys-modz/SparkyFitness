@@ -37,6 +37,7 @@ enum OutboundPayloads {
         static let workoutEdit = "workoutEdit"
         static let recordingControl = "recordingControl"
         static let recordingHeartRate = "recordingHeartRate"
+        static let runFinished = "runFinished"
     }
 
     /// A morning check-in awaiting a server write.
@@ -253,6 +254,24 @@ enum OutboundPayloads {
             "sessionId": sessionId,
             "clientId": clientId,
             "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
+        ]
+    }
+
+    /// A walk or run recorded on the wrist alone, sent once when it finishes.
+    /// The route and heart rate are thinned to what the connection can carry.
+    static func runFinished(_ result: WatchRunResult) -> [String: Any] {
+        [
+            "type": Kind.runFinished,
+            "clientId": result.clientId,
+            "kind": result.kind.rawValue,
+            "place": result.place.rawValue,
+            "startedAt": result.startedAt.timeIntervalSince1970 * 1000,
+            "endedAt": result.endedAt.timeIntervalSince1970 * 1000,
+            "activeSeconds": result.activeSeconds,
+            "distanceMeters": result.metrics.distanceMeters,
+            "activeEnergyKcal": result.metrics.activeEnergyKcal,
+            "route": WatchRunResult.thin(result.route, to: 1500),
+            "heartRate": WatchRunResult.thin(result.heartRate, to: 600),
         ]
     }
 

@@ -20,7 +20,7 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchWorkoutEdit, useWatchFastingBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchRecordingBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchWorkoutEdit, useWatchFastingBridge, useWatchPlanSync, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchRecordingBridge, useWatchRunBridge } from './src/hooks';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import {
   useStartLiveWorkout,
@@ -269,6 +269,7 @@ function WatchWorkoutGate() {
   );
   useWatchSetTargetsSync(watchSupported);
   useWatchRecordingBridge(watchSupported);
+  useWatchRunBridge(watchSupported, isServerConnected);
   useWatchWorkoutStart(watchSupported, isServerConnected, startLiveWorkout);
   useWatchPlanSync(watchSupported);
   useWatchWorkoutEdit(watchSupported);
