@@ -680,7 +680,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               setIntervalChoice('program');
             }}
             onStart={() => {
-              void startProgram('couchTo5k').then(() => {
+              void startProgram('beginner5k').then(() => {
                 setActivity('run');
                 setIntervalChoice('program');
               });

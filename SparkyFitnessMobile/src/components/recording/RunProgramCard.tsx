@@ -7,9 +7,9 @@ import { planMinutes, type ProgramStatus } from '../../utils/runPrograms';
 
 export function programName(t: TFunction, id: string): string {
   switch (id) {
-    case 'couchTo5k':
-      return t('recordActivity.program.name.couchTo5k', {
-        defaultValue: 'Couch to 5K',
+    case 'beginner5k':
+      return t('recordActivity.program.name.beginner5k', {
+        defaultValue: 'Beginner 5K',
       });
     default:
       return id;
@@ -64,14 +64,14 @@ const RunProgramCard: React.FC<Props> = ({
           })}
         </Text>
         <Text className="text-text-secondary text-xs mt-1 mb-3">
-          {t('recordActivity.program.couchTo5kDescription', {
+          {t('recordActivity.program.beginner5kDescription', {
             defaultValue:
-              'Couch to 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.',
+              'Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.',
           })}
         </Text>
         <Button variant="outline" onPress={onStart}>
           {t('recordActivity.program.start', {
-            defaultValue: 'Start Couch to 5K',
+            defaultValue: 'Start Beginner 5K',
           })}
         </Button>
       </View>

@@ -46,7 +46,7 @@ const walk = (seconds: number): Piece => ['walk', seconds];
 // A nine-week beginner progression from alternating minutes of running and
 // walking to 30 minutes of running, three workouts a week. Each week lists its
 // three workouts; a week that repeats one workout lists it three times.
-const COUCH_TO_5K_WEEKS: readonly (readonly (readonly Piece[])[])[] = [
+const BEGINNER_5K_WEEKS: readonly (readonly (readonly Piece[])[])[] = [
   Array(3).fill(repeat(8, [run(60), walk(90)])),
   Array(3).fill(repeat(6, [run(90), walk(120)])),
   Array(3).fill(repeat(2, [run(90), walk(90), run(180), walk(180)])),
@@ -90,7 +90,7 @@ function buildProgram(
 }
 
 export const RUN_PROGRAMS: readonly RunProgram[] = [
-  buildProgram('couchTo5k', COUCH_TO_5K_WEEKS),
+  buildProgram('beginner5k', BEGINNER_5K_WEEKS),
 ];
 
 export function findProgram(id: string): RunProgram | null {
