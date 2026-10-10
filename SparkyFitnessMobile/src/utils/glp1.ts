@@ -1,4 +1,4 @@
-import { INJECTION_SITES } from '@workspace/shared';
+import { GLP1_DRUG_PROFILES, INJECTION_SITES } from '@workspace/shared';
 import type { InjectionSite, MedicationPen } from '@workspace/shared';
 
 export type Glp1CheckInMetricKey =
@@ -67,4 +67,38 @@ export function usablePens(pens: MedicationPen[]): MedicationPen[] {
     .sort(
       (a, b) => Number(b.status === 'in_use') - Number(a.status === 'in_use')
     );
+}
+
+export interface Glp1FormDefaults {
+  name: string;
+  typeId: 'injection' | 'tablet';
+  strengthUnit: string;
+  doseUnit: string;
+}
+
+/**
+ * Medication form values implied by a GLP-1 drug choice. Oral semaglutide is a
+ * daily tablet; every other profile is a pen or vial injection.
+ */
+export function glp1FormDefaults(drugId: string): Glp1FormDefaults | null {
+  const profile = GLP1_DRUG_PROFILES[drugId];
+  if (!profile) return null;
+  const oral = drugId === 'oral_semaglutide';
+  return {
+    name: profile.displayName,
+    typeId: oral ? 'tablet' : 'injection',
+    strengthUnit: 'mg',
+    doseUnit: 'mg',
+  };
+}
+
+/** True when `name` is empty or is one of the names {@link glp1FormDefaults} produces. */
+export function isAutofilledGlp1Name(name: string): boolean {
+  const trimmed = name.trim();
+  return (
+    trimmed === '' ||
+    Object.keys(GLP1_DRUG_PROFILES).some(
+      (id) => glp1FormDefaults(id)?.name === trimmed
+    )
+  );
 }
