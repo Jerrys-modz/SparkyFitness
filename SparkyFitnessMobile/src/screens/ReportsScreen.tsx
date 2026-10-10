@@ -2,6 +2,9 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { REPORT_KEYS, type ReportKey } from '../constants/reports';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { resolveKeyOrder } from '../utils/reorderUtils';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import Icon, { type IconName } from '../components/Icon';
@@ -10,7 +13,7 @@ import type { RootStackScreenProps } from '../types/navigation';
 type ReportsScreenProps = RootStackScreenProps<'Reports'>;
 
 type ReportLink = {
-  key: string;
+  key: ReportKey;
   icon: IconName;
   title: string;
   subtitle: string;
@@ -23,7 +26,19 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ navigation }) => {
   const header = useScreenHeader({
     title: t('reports.title', { defaultValue: 'Reports' }),
     left: { kind: 'back' },
+    right: {
+      kind: 'icon',
+      sfSymbol: 'slider.horizontal.3',
+      ionicon: 'options-outline',
+      accessibilityLabel: t('reports.customize', {
+        defaultValue: 'Customize reports',
+      }),
+      onPress: () => navigation.navigate('ReportsSettings'),
+    },
   });
+
+  const reportOrder = useAppPreferencesStore((s) => s.reportOrder);
+  const hiddenReports = useAppPreferencesStore((s) => s.hiddenReports);
 
   const links: ReportLink[] = [
     {
@@ -64,10 +79,15 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ navigation }) => {
     },
   ];
 
+  const visibleLinks = resolveKeyOrder(reportOrder, REPORT_KEYS)
+    .filter((key) => !hiddenReports.includes(key))
+    .map((key) => links.find((link) => link.key === key))
+    .filter((link): link is ReportLink => link !== undefined);
+
   return (
     <ReportScreenLayout header={header}>
       <View className="bg-surface rounded-xl overflow-hidden shadow-sm">
-        {links.map((link, index) => (
+        {visibleLinks.map((link, index) => (
           <Pressable
             key={link.key}
             testID={`reports-link-${link.key}`}

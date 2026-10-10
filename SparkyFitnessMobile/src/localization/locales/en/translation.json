@@ -592,7 +592,8 @@
     "reports": "Reports",
     "nutritionReport": "Nutrition",
     "sleepAnalytics": "Sleep Analytics",
-    "moodReport": "Mood"
+    "moodReport": "Mood",
+    "reportsSettings": "Customize Reports"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5872,7 +5873,8 @@
     "mood": "Mood",
     "moodSubtitle": "Mood history and most logged moods",
     "exercise": "Exercise",
-    "exerciseSubtitle": "Sets per muscle, body heat map and cardio sessions"
+    "exerciseSubtitle": "Sets per muscle, body heat map and cardio sessions",
+    "customize": "Customize reports"
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -5898,7 +5900,11 @@
     "highestDay": "Highest day",
     "lowestDay": "Lowest logged day",
     "otherNutrients": "Other daily averages",
-    "trendsByNutrient": "Trend by nutrient"
+    "trendsByNutrient": "Trend by nutrient",
+    "avgCalories": "Avg calories",
+    "avgProtein": "Avg protein",
+    "onTargetShort": "Days on target",
+    "onTargetValue": "{{onTarget}}/{{total}}"
   },
   "moodReport": {
     "title": "Mood",
@@ -5914,7 +5920,9 @@
     "highlights": "Highlights",
     "bestDay": "Best day",
     "lowestDay": "Lowest day",
-    "byWeekday": "Average by weekday"
+    "byWeekday": "Average by weekday",
+    "daysOfWindow": "{{logged}} of {{total}}",
+    "mostLogged": "Most logged mood"
   },
   "sleepAnalytics": {
     "title": "Sleep Analytics",
@@ -5948,6 +5956,39 @@
     "avgWake": "Average wake time",
     "bedtimeVariability": "Bedtime consistency",
     "variabilityValue": "±{{minutes}} min",
-    "variabilityHint": "Lower means a steadier routine"
+    "variabilityHint": "Lower means a steadier routine",
+    "nightsTracked": "Nights tracked",
+    "nightsOfWindow": "{{nights}} of {{total}}"
+  },
+  "reportsSettings": {
+    "reset": "Reset",
+    "resetA11y": "Reset reports to their defaults",
+    "reportsTitle": "Reports",
+    "reportsDescription": "Drag a report by its handle to change the order on the Reports page. Toggle one off to hide it.",
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this report sits on the Reports page",
+    "rangeTitle": "Default range",
+    "rangeDescription": "The window a report opens on. You can still switch it while viewing a report.",
+    "nutritionSections": "Nutrition report",
+    "sleepSections": "Sleep analytics report",
+    "moodSections": "Mood report",
+    "sections": {
+      "overview": "Key figures",
+      "nutritionChart": "Calorie chart",
+      "nutritionAverages": "Daily averages",
+      "macroSplit": "Macro split",
+      "calorieGoal": "Calorie goal",
+      "highestLowest": "Highest and lowest days",
+      "otherNutrients": "Other nutrient averages",
+      "nutrientTrends": "Trend by nutrient",
+      "sleepStages": "Average night",
+      "sleepRoutine": "Routine",
+      "sleepAverages": "Period averages",
+      "moodChart": "Daily mood chart",
+      "moodSummary": "Summary",
+      "moodHighlights": "Best and lowest days",
+      "moodByWeekday": "Average by weekday",
+      "moodTopMoods": "Most logged"
+    }
   }
 }

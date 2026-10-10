@@ -21,7 +21,14 @@ import {
   type WatchPageKey,
   type WatchSetInputStyle,
 } from '../constants/watchPages';
+import {
+  DEFAULT_REPORT_RANGE,
+  REPORT_KEYS,
+  type ReportKey,
+  type ReportSectionKey,
+} from '../constants/reports';
 import type { LanguagePreference } from '../localization';
+import type { TrendRange } from '../utils/trendRange';
 import type { OwnershipFilter } from '../utils/shareStatus';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
@@ -107,6 +114,10 @@ export const PREFERENCE_DEFAULTS = {
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
+  reportOrder: [...REPORT_KEYS] as ReportKey[],
+  hiddenReports: [] as ReportKey[],
+  reportDefaultRange: DEFAULT_REPORT_RANGE as TrendRange,
+  hiddenReportSections: [] as ReportSectionKey[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
   foodsLibraryOwnershipFilter: 'all' as OwnershipFilter,
   mealsLibraryOwnershipFilter: 'all' as OwnershipFilter,
@@ -175,6 +186,14 @@ export type AppPreferencesData = {
   watchPageOrder: WatchPageKey[];
   /** Watch pages turned off in Settings → Apple Watch. */
   hiddenWatchPages: WatchPageKey[];
+  /** Order of the reports on the Reports hub. */
+  reportOrder: ReportKey[];
+  /** Reports turned off in Reports → Customize. */
+  hiddenReports: ReportKey[];
+  /** The 7/30/90d window a report opens on. */
+  reportDefaultRange: TrendRange;
+  /** Sections turned off inside a report, namespaced by report (`sleep.stages`). */
+  hiddenReportSections: ReportSectionKey[];
   /** Whether the watch's double-tap gesture logs the current set. */
   watchDoubleTapEnabled: boolean;
   /**
@@ -240,6 +259,11 @@ export interface AppPreferencesState extends AppPreferencesData {
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
+  setReportOrder: (order: ReportKey[]) => void;
+  setReportHidden: (key: ReportKey, isHidden: boolean) => void;
+  setReportDefaultRange: (value: TrendRange) => void;
+  setReportSectionHidden: (key: ReportSectionKey, isHidden: boolean) => void;
+  resetReportCustomization: () => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
@@ -377,6 +401,27 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           ),
         })),
       setWatchPageOrder: (order) => set({ watchPageOrder: order }),
+      setReportOrder: (order) => set({ reportOrder: order }),
+      setReportHidden: (key, isHidden) =>
+        set((state) => ({
+          hiddenReports: withMembership(state.hiddenReports, key, isHidden),
+        })),
+      setReportDefaultRange: (value) => set({ reportDefaultRange: value }),
+      setReportSectionHidden: (key, isHidden) =>
+        set((state) => ({
+          hiddenReportSections: withMembership(
+            state.hiddenReportSections,
+            key,
+            isHidden
+          ),
+        })),
+      resetReportCustomization: () =>
+        set({
+          reportOrder: [...REPORT_KEYS],
+          hiddenReports: [],
+          reportDefaultRange: DEFAULT_REPORT_RANGE,
+          hiddenReportSections: [],
+        }),
       setWatchNutrientOrder: (order) => set({ watchNutrientOrder: order }),
       setWatchSetInputStyle: (value) => set({ watchSetInputStyle: value }),
       setWatchNutrientShown: (key, isShown) =>
@@ -468,6 +513,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,
+        reportOrder: state.reportOrder,
+        hiddenReports: state.hiddenReports,
+        reportDefaultRange: state.reportDefaultRange,
+        hiddenReportSections: state.hiddenReportSections,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
         foodsLibraryOwnershipFilter: state.foodsLibraryOwnershipFilter,
         mealsLibraryOwnershipFilter: state.mealsLibraryOwnershipFilter,

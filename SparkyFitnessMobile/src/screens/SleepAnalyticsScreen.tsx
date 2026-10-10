@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -7,6 +7,11 @@ import { useSleepAnalytics } from '../hooks/useSleepAnalytics';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
+import ReportHighlights, {
+  type ReportHighlight,
+} from '../components/reports/ReportHighlights';
+import { sleepMetricSection } from '../constants/reports';
+import { useReportCustomization } from '../hooks/useReportCustomization';
 import TrendBarChart from '../components/TrendBarChart';
 import { formatTooltipDate } from '../components/charts/chartFormatting';
 import StatusView from '../components/StatusView';
@@ -14,7 +19,7 @@ import type {
   SleepAnalyticsMetric,
   SleepAnalyticsPoint,
 } from '../utils/sleepAnalytics';
-import { TREND_RANGE_DAYS, type TrendRange } from '../utils/trendRange';
+import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type SleepAnalyticsScreenProps = RootStackScreenProps<'SleepAnalytics'>;
@@ -56,7 +61,7 @@ const formatClock = (minutes: number | null): string => {
 
 const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
   const { t } = useTranslation();
-  const [range, setRange] = useState<TrendRange>('30d');
+  const { range, setRange, isSectionShown } = useReportCustomization();
   const { analytics, previousAnalytics, isLoading, isError } =
     useSleepAnalytics({ range });
   const days = TREND_RANGE_DAYS[range];
@@ -246,6 +251,75 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
     testID: `sleep-average-${metric.key}`,
   }));
 
+  const durationMetric = metrics.find((metric) => metric.key === 'duration');
+  const scoreMetric = metrics.find((metric) => metric.key === 'sleepScore');
+  const signedDiff = (metric: MetricConfig | undefined) => {
+    if (!metric || !analytics || !previousAnalytics) return undefined;
+    const now = analytics.averages[metric.key];
+    const before = previousAnalytics.averages[metric.key];
+    if (now === null || before === null) return undefined;
+    const factor = 10 ** metric.maximumFractionDigits;
+    const diff = Math.round((now - before) * factor) / factor;
+    if (diff === 0) return undefined;
+    return {
+      text: `${diff > 0 ? '+' : ''}${formatMetric(diff, metric)}`,
+      tone: diff > 0 ? ('positive' as const) : ('negative' as const),
+    };
+  };
+  const durationChange = signedDiff(durationMetric);
+  const scoreChange = signedDiff(scoreMetric);
+  const highlights: ReportHighlight[] = analytics
+    ? [
+        ...(durationMetric && analytics.averages.duration !== null
+          ? [
+              {
+                label: durationMetric.title,
+                value: formatMetric(
+                  analytics.averages.duration,
+                  durationMetric
+                ),
+                change: durationChange?.text,
+                changeTone: durationChange?.tone,
+                testID: 'sleep-highlight-duration',
+              },
+            ]
+          : []),
+        ...(analytics.efficiencyPct !== null
+          ? [
+              {
+                label: t('sleepAnalytics.efficiency', {
+                  defaultValue: 'Sleep efficiency',
+                }),
+                value: `${formatLocalizedNumber(Math.round(analytics.efficiencyPct))}%`,
+                testID: 'sleep-highlight-efficiency',
+              },
+            ]
+          : []),
+        ...(scoreMetric && analytics.averages.sleepScore !== null
+          ? [
+              {
+                label: scoreMetric.title,
+                value: formatMetric(analytics.averages.sleepScore, scoreMetric),
+                change: scoreChange?.text,
+                changeTone: scoreChange?.tone,
+                testID: 'sleep-highlight-score',
+              },
+            ]
+          : []),
+        {
+          label: t('sleepAnalytics.nightsTracked', {
+            defaultValue: 'Nights tracked',
+          }),
+          value: t('sleepAnalytics.nightsOfWindow', {
+            defaultValue: '{{nights}} of {{total}}',
+            nights: analytics.nightsWithData,
+            total: days,
+          }),
+          testID: 'sleep-highlight-nights',
+        },
+      ]
+    : [];
+
   return (
     <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
       {isLoading || isError ? (
@@ -264,7 +338,10 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
         />
       ) : (
         <View>
-          {analytics ? (
+          {isSectionShown('sleep.overview') && highlights.length > 0 ? (
+            <ReportHighlights items={highlights} />
+          ) : null}
+          {isSectionShown('sleep.stages') && analytics ? (
             <ReportSummaryCard
               title={t('sleepAnalytics.stages', {
                 defaultValue: 'Average night',
@@ -299,35 +376,37 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
               ]}
             />
           ) : null}
-          {routineRows.length > 0 ? (
+          {isSectionShown('sleep.routine') && routineRows.length > 0 ? (
             <ReportSummaryCard
               title={t('sleepAnalytics.routine', { defaultValue: 'Routine' })}
               rows={routineRows}
             />
           ) : null}
-          {visibleMetrics.map((metric) => (
-            <TrendBarChart
-              key={metric.key}
-              data={analytics?.series[metric.key] ?? []}
-              isLoading={false}
-              isError={false}
-              range={range}
-              title={metric.title}
-              getValue={getValue}
-              formatTooltip={(point) =>
-                t('sleepAnalytics.tooltip', {
-                  defaultValue: '{{value}} · {{date}}',
-                  value:
-                    point.value > 0 ? formatMetric(point.value, metric) : '-',
-                  date: formatTooltipDate(point.day),
-                })
-              }
-              errorText=""
-              emptyText=""
-              testIDPrefix={`sleep-chart-${metric.key}`}
-            />
-          ))}
-          {averageRows.length > 0 ? (
+          {visibleMetrics
+            .filter((metric) => isSectionShown(sleepMetricSection(metric.key)))
+            .map((metric) => (
+              <TrendBarChart
+                key={metric.key}
+                data={analytics?.series[metric.key] ?? []}
+                isLoading={false}
+                isError={false}
+                range={range}
+                title={metric.title}
+                getValue={getValue}
+                formatTooltip={(point) =>
+                  t('sleepAnalytics.tooltip', {
+                    defaultValue: '{{value}} · {{date}}',
+                    value:
+                      point.value > 0 ? formatMetric(point.value, metric) : '-',
+                    date: formatTooltipDate(point.day),
+                  })
+                }
+                errorText=""
+                emptyText=""
+                testIDPrefix={`sleep-chart-${metric.key}`}
+              />
+            ))}
+          {isSectionShown('sleep.averages') && averageRows.length > 0 ? (
             <ReportSummaryCard
               title={t('sleepAnalytics.averages', {
                 defaultValue: 'Period averages',

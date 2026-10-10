@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -6,6 +6,10 @@ import { useMoodReport } from '../hooks/useMoodReport';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
+import ReportHighlights, {
+  type ReportHighlight,
+} from '../components/reports/ReportHighlights';
+import { useReportCustomization } from '../hooks/useReportCustomization';
 import TrendBarChart from '../components/TrendBarChart';
 import { formatTooltipDate } from '../components/charts/chartFormatting';
 import {
@@ -13,7 +17,7 @@ import {
   moodTagLabel,
   type MoodDayPoint,
 } from '../utils/moodReport';
-import { TREND_RANGE_DAYS, type TrendRange } from '../utils/trendRange';
+import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type MoodReportScreenProps = RootStackScreenProps<'MoodReport'>;
@@ -22,7 +26,7 @@ const getMoodValue = (point: MoodDayPoint) => point.value;
 
 const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
   const { t } = useTranslation();
-  const [range, setRange] = useState<TrendRange>('30d');
+  const { range, setRange, isSectionShown } = useReportCustomization();
   const { report, previousReport, isLoading, isError } = useMoodReport({
     range,
   });
@@ -105,32 +109,93 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
     },
   ];
 
+  const highlights: ReportHighlight[] =
+    report && report.loggedDays > 0
+      ? [
+          {
+            label: t('moodReport.averageMood', {
+              defaultValue: 'Average mood',
+            }),
+            value: averageMood
+              ? `${averageMood.emoji} ${averageMood.name}`
+              : '-',
+            change:
+              averageDiff === null || averageDiff === 0
+                ? undefined
+                : `${averageDiff > 0 ? '+' : ''}${formatLocalizedNumber(averageDiff)}`,
+            changeTone:
+              averageDiff === null || averageDiff === 0
+                ? 'neutral'
+                : averageDiff > 0
+                  ? 'positive'
+                  : 'negative',
+            testID: 'mood-highlight-average',
+          },
+          {
+            label: t('moodReport.daysLogged', { defaultValue: 'Days logged' }),
+            value: t('moodReport.daysOfWindow', {
+              defaultValue: '{{logged}} of {{total}}',
+              logged: report.loggedDays,
+              total: days,
+            }),
+            testID: 'mood-highlight-days',
+          },
+          ...(report.best
+            ? [
+                {
+                  label: t('moodReport.bestDay', { defaultValue: 'Best day' }),
+                  value: formatTooltipDate(report.best.day),
+                  testID: 'mood-highlight-best',
+                },
+              ]
+            : []),
+          ...(report.topTags[0]
+            ? [
+                {
+                  label: t('moodReport.mostLogged', {
+                    defaultValue: 'Most logged mood',
+                  }),
+                  value: moodTagLabel(report.topTags[0].tag),
+                  testID: 'mood-highlight-top-tag',
+                },
+              ]
+            : []),
+        ]
+      : [];
+
   return (
     <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
-      <TrendBarChart
-        data={report?.days ?? []}
-        isLoading={isLoading}
-        isError={isError}
-        range={range}
-        title={t('moodReport.chartTitle', { defaultValue: 'Daily mood' })}
-        getValue={getMoodValue}
-        formatTooltip={formatTooltip}
-        formatYLabel={(value) => formatLocalizedNumber(Math.round(value))}
-        errorText={t('moodReport.loadFailed', {
-          defaultValue: 'Failed to load mood entries',
-        })}
-        emptyText={t('moodReport.empty', {
-          defaultValue: 'No mood entries in this period',
-        })}
-        testIDPrefix="mood-chart"
-      />
+      {isSectionShown('mood.overview') && highlights.length > 0 ? (
+        <ReportHighlights items={highlights} />
+      ) : null}
+      {isSectionShown('mood.chart') ? (
+        <TrendBarChart
+          data={report?.days ?? []}
+          isLoading={isLoading}
+          isError={isError}
+          range={range}
+          title={t('moodReport.chartTitle', { defaultValue: 'Daily mood' })}
+          getValue={getMoodValue}
+          formatTooltip={formatTooltip}
+          formatYLabel={(value) => formatLocalizedNumber(Math.round(value))}
+          errorText={t('moodReport.loadFailed', {
+            defaultValue: 'Failed to load mood entries',
+          })}
+          emptyText={t('moodReport.empty', {
+            defaultValue: 'No mood entries in this period',
+          })}
+          testIDPrefix="mood-chart"
+        />
+      ) : null}
       {report && report.loggedDays > 0 ? (
         <>
-          <ReportSummaryCard
-            title={t('moodReport.summary', { defaultValue: 'Summary' })}
-            rows={rows}
-          />
-          {report.best ? (
+          {isSectionShown('mood.summary') ? (
+            <ReportSummaryCard
+              title={t('moodReport.summary', { defaultValue: 'Summary' })}
+              rows={rows}
+            />
+          ) : null}
+          {isSectionShown('mood.highlights') && report.best ? (
             <ReportSummaryCard
               title={t('moodReport.highlights', { defaultValue: 'Highlights' })}
               rows={[
@@ -147,7 +212,8 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
               ]}
             />
           ) : null}
-          {report.weekdayAverages.length > 1 ? (
+          {isSectionShown('mood.byWeekday') &&
+          report.weekdayAverages.length > 1 ? (
             <ReportSummaryCard
               title={t('moodReport.byWeekday', {
                 defaultValue: 'Average by weekday',
@@ -162,7 +228,7 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
               })}
             />
           ) : null}
-          {report.topTags.length > 0 ? (
+          {isSectionShown('mood.topMoods') && report.topTags.length > 0 ? (
             <ReportSummaryCard
               title={t('moodReport.topMoods', { defaultValue: 'Most logged' })}
               rows={report.topTags.map(({ tag, count }) => ({
