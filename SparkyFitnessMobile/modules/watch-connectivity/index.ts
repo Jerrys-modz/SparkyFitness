@@ -278,6 +278,25 @@ export interface WatchContextPayload {
    * the phone has switched accounts.
    */
   workoutServerId?: string | null;
+  /**
+   * The fast running now, or null for none. Left out until the phone has
+   * heard from the server, so a watch keeps what it had.
+   */
+  fastKnown?: boolean;
+  fast?: {
+    /** Epoch ms. */
+    startedAt: number;
+    /** Epoch ms, or null for an open-ended fast. */
+    targetEndAt: number | null;
+    label: string | null;
+  } | null;
+  /**
+   * Today's step count, with the day it belongs to. Left out when the phone
+   * has no step figure for today; the watch drops a count from another day.
+   */
+  steps?: { day: string; count: number } | null;
+  /** Daily step goal the Steps page and complication measure against. */
+  stepGoal?: number | null;
 }
 
 /** One target set the watch shows for a planned exercise. */
@@ -558,6 +577,18 @@ export interface WatchWorkoutStartRequestedPayload {
   serverId?: string;
 }
 
+/** The wearer asked to start a fast from the watch's Fasting page. */
+export interface WatchFastStartRequestPayload {
+  /** `FASTING_PRESETS` id, e.g. "16-8". */
+  presetId: string;
+  clientId: string;
+}
+
+/** The wearer asked to end the running fast from the watch. */
+export interface WatchFastEndRequestPayload {
+  clientId: string;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -575,6 +606,8 @@ export type WatchConnectivityEvents = {
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
+  onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
+  onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

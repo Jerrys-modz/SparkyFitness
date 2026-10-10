@@ -7,7 +7,7 @@ import Foundation
 /// `src/constants/watchPages.ts`), so renaming a case on one side alone makes
 /// the other drop it. Case order is the factory swipe order.
 enum WatchPage: String, CaseIterable {
-    case goals, water, medications, entry, trend, workout
+    case goals, water, medications, entry, trend, workout, fasting, steps
     /// System Now Playing. Not arrangeable: it sits right after the Workout
     /// page, and only while a workout is running.
     case nowPlaying

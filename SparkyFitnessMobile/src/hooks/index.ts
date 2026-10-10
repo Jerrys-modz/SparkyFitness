@@ -29,6 +29,7 @@ export {
   useControlRouteHandoff,
   useQuickActions,
 } from './useQuickActions';
+export { useWatchFastingBridge } from './useWatchFastingBridge';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';

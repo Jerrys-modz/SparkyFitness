@@ -79,6 +79,8 @@ describe('WatchSettingsScreen', () => {
       'medications',
       'entry',
       'trend',
+      'fasting',
+      'steps',
     ]);
     expect(orderedRowKeys()).toHaveLength(WATCH_PAGE_KEYS.length);
   });
@@ -124,12 +126,22 @@ describe('WatchSettingsScreen', () => {
       'entry',
       'trend',
       'workout',
+      'fasting',
+      'steps',
     ]);
   });
 
   test('the last page still shown cannot be turned off', () => {
     useAppPreferencesStore.setState({
-      hiddenWatchPages: ['goals', 'water', 'medications', 'entry', 'trend'],
+      hiddenWatchPages: [
+        'goals',
+        'water',
+        'medications',
+        'entry',
+        'trend',
+        'fasting',
+        'steps',
+      ],
     });
 
     renderScreen();

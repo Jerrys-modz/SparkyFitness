@@ -36,6 +36,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
     /// The wearer answered the update-this-workout question on the summary.
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
+    var onFastStartRequested: (([String: Any]) -> Void)?
+    var onFastEndRequested: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -116,6 +118,10 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutStartRequested?(payload)
         case "presetUpdateAnswer":
             onPresetUpdateAnswer?(payload)
+        case "fastStart":
+            onFastStartRequested?(payload)
+        case "fastEnd":
+            onFastEndRequested?(payload)
         default:
             break
         }
@@ -250,7 +256,9 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStop",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
-            "onPresetUpdateAnswer"
+            "onPresetUpdateAnswer",
+            "onFastStartRequested",
+            "onFastEndRequested"
         )
 
         OnCreate {
@@ -310,6 +318,17 @@ public class WatchConnectivityModule: Module {
                     "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "distanceKm": payload["distanceKm"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onFastStartRequested = { [weak self] payload in
+                self?.sendEvent("onFastStartRequested", [
+                    "presetId": payload["presetId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onFastEndRequested = { [weak self] payload in
+                self?.sendEvent("onFastEndRequested", [
+                    "clientId": payload["clientId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onSetTimerStarted = { [weak self] payload in
