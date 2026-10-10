@@ -372,6 +372,18 @@ export const medicationEntriesQueryKey = (opts?: {
   toDate?: string;
   medicationId?: string;
 }) => ['medications', 'entries', opts ?? {}] as const;
+// GLP-1 keys live under the medications root so invalidateMedicationEntryCaches
+// (a dose or injection changes the merged entries feed) refreshes them too.
+export const glp1PensQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'pens', medicationId] as const;
+export const glp1InjectionsQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'injections', medicationId] as const;
+export const glp1TitrationQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'titration', medicationId] as const;
+export const glp1SerumCurveQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'serumCurve', medicationId] as const;
+export const glp1SiteSuggestionQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'siteSuggestion', medicationId] as const;
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;

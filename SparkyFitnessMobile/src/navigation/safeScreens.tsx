@@ -78,6 +78,9 @@ import MedicationsListScreen from '../screens/MedicationsListScreen';
 import MedicationDetailScreen from '../screens/MedicationDetailScreen';
 import MedicationFormScreen from '../screens/MedicationFormScreen';
 import MedicationScheduleFormScreen from '../screens/MedicationScheduleFormScreen';
+import Glp1TrackerScreen from '../screens/Glp1TrackerScreen';
+import Glp1PenFormScreen from '../screens/Glp1PenFormScreen';
+import Glp1TitrationFormScreen from '../screens/Glp1TitrationFormScreen';
 import SymptomLogScreen from '../screens/SymptomLogScreen';
 import MoodLogScreen from '../screens/MoodLogScreen';
 import SymptomHistoryScreen from '../screens/SymptomHistoryScreen';
@@ -201,6 +204,9 @@ export const SafeMedicationsList = withErrorBoundary(MedicationsListScreen, 'Med
 export const SafeMedicationDetail = withErrorBoundary(MedicationDetailScreen, 'MedicationDetail', { canGoBack: true });
 export const SafeMedicationForm = withErrorBoundary(MedicationFormScreen, 'MedicationForm', { canGoBack: true });
 export const SafeMedicationScheduleForm = withErrorBoundary(MedicationScheduleFormScreen, 'MedicationScheduleForm', { canGoBack: true });
+export const SafeGlp1Tracker = withErrorBoundary(Glp1TrackerScreen, 'Glp1Tracker', { canGoBack: true });
+export const SafeGlp1PenForm = withErrorBoundary(Glp1PenFormScreen, 'Glp1PenForm', { canGoBack: true });
+export const SafeGlp1TitrationForm = withErrorBoundary(Glp1TitrationFormScreen, 'Glp1TitrationForm', { canGoBack: true });
 
 export const SafeMoodLog = withErrorBoundary(MoodLogScreen, 'MoodLog', { canGoBack: true });
 export const SafeSymptomLog = withErrorBoundary(SymptomLogScreen, 'SymptomLog', { canGoBack: true });

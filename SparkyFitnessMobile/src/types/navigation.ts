@@ -382,6 +382,9 @@ export type RootStackParamList = {
     scannedBarcodeNonce?: number;
   };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
+  Glp1Tracker: { medicationId: string };
+  Glp1PenForm: { medicationId: string; penId?: string };
+  Glp1TitrationForm: { medicationId: string; stepId?: string };
   SymptomLog:
     | {
         entryId?: string;

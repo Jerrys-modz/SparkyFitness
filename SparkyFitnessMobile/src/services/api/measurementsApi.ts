@@ -403,6 +403,22 @@ export const deleteCustomCategory = async (id: string): Promise<void> => {
   });
 };
 
+export const createCustomCategory = async (body: {
+  name: string;
+  display_name: string;
+  measurement_type: string;
+  frequency: string;
+  data_type: string;
+}): Promise<CustomCategory> => {
+  return apiFetch<CustomCategory>({
+    endpoint: '/api/measurements/custom-categories',
+    serviceName: 'Measurements API',
+    operation: 'create custom category',
+    method: 'POST',
+    body,
+  });
+};
+
 export const fetchCustomMeasurementsByDate = async (
   date: string
 ): Promise<CustomMeasurementEntry[]> => {
