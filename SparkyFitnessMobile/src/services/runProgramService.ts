@@ -63,6 +63,18 @@ export function stopProgram(): Promise<void> {
   return write(null);
 }
 
+/** Jumps to workout `index` (any week), to repeat one or start further in. */
+export async function setProgramPosition(index: number): Promise<void> {
+  const progress = await read();
+  const program = progress ? findProgram(progress.programId) : null;
+  if (!progress || !program) return;
+  const next = Math.min(
+    program.workouts.length - 1,
+    Math.max(0, Math.floor(index))
+  );
+  await write({ ...progress, next });
+}
+
 /** Skips the workout that is due. */
 export async function skipProgramWorkout(): Promise<void> {
   const progress = await read();

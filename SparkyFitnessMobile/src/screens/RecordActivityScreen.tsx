@@ -64,6 +64,7 @@ import {
 } from '../utils/intervals';
 import {
   completeProgramWorkout,
+  setProgramPosition,
   skipProgramWorkout,
   startProgram,
   stopProgram,
@@ -612,6 +613,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           <RunProgramCard
             reminders={runReminders}
             onReminders={(next) => void setRunReminders(next)}
+            onPickWorkout={(index) => {
+              void setProgramPosition(index).then(() => {
+                setActivity('run');
+                setIntervalChoice('program');
+                void reconcileRunReminders();
+              });
+            }}
             status={programStatus}
             loaded={programLoaded}
             selected={intervalChoice === 'program'}

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import Button from '../ui/Button';
 import SegmentedControl from '../SegmentedControl';
+import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
 import type { RunReminders } from '../../services/runReminderService';
 import { planMinutes, type ProgramStatus } from '../../utils/runPrograms';
@@ -50,6 +51,8 @@ const hourLabel = (hour: number): string =>
 interface Props {
   reminders: RunReminders;
   onReminders: (reminders: RunReminders) => void;
+  /** Jump to any workout in the program (0-based index). */
+  onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
   loaded: boolean;
   /** Whether today's program workout is the plan chosen for this recording. */
@@ -64,6 +67,7 @@ interface Props {
 const RunProgramCard: React.FC<Props> = ({
   reminders,
   onReminders,
+  onPickWorkout,
   status,
   loaded,
   selected,
@@ -98,6 +102,27 @@ const RunProgramCard: React.FC<Props> = ({
     );
   }
 
+  const sections: PickerSection<number>[] = Array.from(
+    { length: status.program.weeks },
+    (_, week) => ({
+      title: t('recordActivity.program.weekTitle', {
+        week: week + 1,
+        defaultValue: 'Week {{week}}',
+      }),
+      options: status.program.workouts
+        .map((workout, index) => ({ workout, index }))
+        .filter(({ workout }) => workout.week === week)
+        .map(({ workout, index }) => ({
+          label: t('recordActivity.program.pickOption', {
+            run: workout.day + 1,
+            minutes: planMinutes(workout.plan),
+            mark: index < status.done ? '✓ ' : '',
+            defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
+          }),
+          value: index,
+        })),
+    })
+  );
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
@@ -216,6 +241,21 @@ const RunProgramCard: React.FC<Props> = ({
           )}
         </View>
       )}
+      <BottomSheetPicker<number>
+        value={Math.min(status.done, status.total - 1)}
+        sections={sections}
+        onSelect={onPickWorkout}
+        title={t('recordActivity.program.pickTitle', {
+          defaultValue: 'Choose a workout',
+        })}
+        renderTrigger={({ onPress }) => (
+          <Button variant="link" onPress={onPress}>
+            {t('recordActivity.program.pick', {
+              defaultValue: 'Choose a different workout',
+            })}
+          </Button>
+        )}
+      />
       <View className="flex-row mt-1">
         {status.finished ? null : (
           <Button variant="link" onPress={onSkip}>

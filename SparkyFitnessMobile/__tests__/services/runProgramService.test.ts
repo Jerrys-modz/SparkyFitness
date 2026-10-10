@@ -3,6 +3,7 @@ import {
   completeProgramWorkout,
   getProgramStatus,
   resetRunProgramForTests,
+  setProgramPosition,
   skipProgramWorkout,
   startProgram,
   stopProgram,
@@ -54,5 +55,20 @@ test('drops stored junk', async () => {
     '@SparkyFitness/runProgram',
     JSON.stringify({ programId: 'gone', next: 'x' })
   );
+  expect(await getProgramStatus()).toBeNull();
+});
+
+test('jumps to any workout and clamps out-of-range positions', async () => {
+  await startProgram('beginner5k');
+  await setProgramPosition(13);
+  expect((await getProgramStatus())?.done).toBe(13);
+  await setProgramPosition(999);
+  expect((await getProgramStatus())?.done).toBe(26);
+  await setProgramPosition(-4);
+  expect((await getProgramStatus())?.done).toBe(0);
+});
+
+test('a jump does nothing without a program', async () => {
+  await setProgramPosition(5);
   expect(await getProgramStatus()).toBeNull();
 });

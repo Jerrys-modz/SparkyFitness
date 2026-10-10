@@ -6,6 +6,7 @@ import { programStatus } from '../../src/utils/runPrograms';
 const handlers = () => ({
   reminders: { days: [] as number[], hour: 7 },
   onReminders: jest.fn(),
+  onPickWorkout: jest.fn(),
   onSelect: jest.fn(),
   onStart: jest.fn(),
   onSkip: jest.fn(),
