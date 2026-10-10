@@ -62,6 +62,7 @@ const FastingReport: React.FC = () => {
 
   const {
     preferences,
+    isLoading: preferencesLoading,
     isError: preferencesFailed,
     refetch: refetchPreferences,
   } = usePreferences();
@@ -69,13 +70,14 @@ const FastingReport: React.FC = () => {
     preferences?.timezone && isValidTimeZone(preferences.timezone)
       ? preferences.timezone
       : undefined;
-  // Device calendar only while preferences are still loading. A failed load
-  // must not query or bucket in that zone: the range endpoint keeps using the
-  // profile timezone.
+  // The range endpoint uses the profile timezone. Don't query or draw days
+  // until that decision is in: a valid profile zone, or the device calendar
+  // when the saved zone is missing. A failed load stays disabled and shows
+  // the error below.
   const today = timezone ? todayInZone(timezone) : getTodayDate();
   const heatmapStart = addDays(today, -(HEATMAP_DAYS - 1));
   const { data, isLoading, isError } = useFastingRange(heatmapStart, today, {
-    enabled: !preferencesFailed,
+    enabled: !preferencesFailed && !preferencesLoading,
   });
 
   const report = useMemo(() => {
@@ -134,7 +136,7 @@ const FastingReport: React.FC = () => {
             </Text>
           </Pressable>
         </View>
-      ) : isLoading ? (
+      ) : preferencesLoading || isLoading ? (
         <View className="items-center py-12">
           <ActivityIndicator size="small" color={accentPrimary} />
         </View>
