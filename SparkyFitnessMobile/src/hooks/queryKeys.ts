@@ -376,3 +376,6 @@ export const runningTrendsQueryKey = (startDate: string, endDate: string) =>
 
 export const runningRecordsQueryKey = () =>
   ['cardioSessions', 'runningRecords'] as const;
+
+/** The person's run program and place in it (server-backed). */
+export const runProgramQueryKey = ['runProgram'] as const;

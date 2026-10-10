@@ -1,100 +1,116 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { findProgram, type RunProgramResponse } from '@workspace/shared';
+import { queryClient } from '../../src/hooks/queryClient';
+import { runProgramQueryKey } from '../../src/hooks/queryKeys';
+import {
+  fetchRunProgram,
+  markRunProgramWorkoutDone,
+  saveRunProgram,
+} from '../../src/services/api/runProgramApi';
 import {
   completeProgramWorkout,
   getProgramStatus,
-  resetRunProgramForTests,
+  restartProgram,
+  setProgramEnabled,
   setProgramPosition,
   skipProgramWorkout,
-  setProgramEnabled,
-  restartProgram,
-  getStoredProgram,
 } from '../../src/services/runProgramService';
 
-beforeEach(async () => {
-  await AsyncStorage.clear();
-  resetRunProgramForTests();
+jest.mock('../../src/services/api/runProgramApi');
+
+const stored = (
+  over: Partial<RunProgramResponse> = {}
+): RunProgramResponse => ({
+  id: 'p1',
+  program_id: 'beginner5k',
+  enabled: true,
+  next_index: 0,
+  workouts: findProgram('beginner5k')!.workouts,
+  adjustment_log: [],
+  updated_at: '2026-10-10T00:00:00.000Z',
+  ...over,
 });
 
-test('has no program until one is started', async () => {
+const mockedFetch = jest.mocked(fetchRunProgram);
+const mockedSave = jest.mocked(saveRunProgram);
+const mockedDone = jest.mocked(markRunProgramWorkoutDone);
+
+beforeEach(() => {
+  jest.resetAllMocks();
+  queryClient.clear();
+});
+
+test('has no program until the server has one', async () => {
+  mockedFetch.mockResolvedValue({ program: null });
   expect(await getProgramStatus()).toBeNull();
-  await setProgramEnabled(true, 'beginner5k');
-  expect((await getProgramStatus())?.done).toBe(0);
 });
 
-test('ignores an unknown program', async () => {
-  await setProgramEnabled(true, 'nope');
-  expect(await getProgramStatus()).toBeNull();
-});
-
-test('moves on only when the due workout is completed', async () => {
-  await setProgramEnabled(true, 'beginner5k');
-  await completeProgramWorkout('beginner5k', 3);
-  expect((await getProgramStatus())?.done).toBe(0);
-  await completeProgramWorkout('beginner5k', 0);
-  expect((await getProgramStatus())?.done).toBe(1);
-  await completeProgramWorkout('other', 1);
-  expect((await getProgramStatus())?.done).toBe(1);
-});
-
-test('skips a workout and can start over', async () => {
-  await setProgramEnabled(true, 'beginner5k');
-  await skipProgramWorkout();
-  expect((await getProgramStatus())?.done).toBe(1);
-  await restartProgram();
-  expect((await getProgramStatus())?.done).toBe(0);
-});
-
-test('switching it off hides the program but keeps the place', async () => {
-  await setProgramEnabled(true, 'beginner5k');
-  await skipProgramWorkout();
-  await skipProgramWorkout();
-  await setProgramEnabled(false, 'beginner5k');
-  expect(await getProgramStatus()).toBeNull();
-  expect((await getStoredProgram())?.enabled).toBe(false);
-  expect((await getStoredProgram())?.status.done).toBe(2);
-  await setProgramEnabled(true, 'beginner5k');
-  expect((await getProgramStatus())?.done).toBe(2);
-});
-
-test('switching it off with nothing started does nothing', async () => {
-  await setProgramEnabled(false, 'beginner5k');
-  expect(await getStoredProgram()).toBeNull();
-});
-
-test('older stored progress counts as switched on', async () => {
-  await AsyncStorage.setItem(
-    '@SparkyFitness/runProgram',
-    JSON.stringify({ programId: 'beginner5k', next: 3 })
+test('reads the place and the adjusted workouts from the server', async () => {
+  const workouts = findProgram('beginner5k')!.workouts.map((w, i) =>
+    i === 4 ? { ...w, plan: { ...w.plan, steps: w.plan.steps.slice(0, 3) } } : w
   );
-  expect((await getProgramStatus())?.done).toBe(3);
+  mockedFetch.mockResolvedValue({
+    program: stored({ next_index: 4, workouts }),
+  });
+  const status = await getProgramStatus();
+  expect(status?.done).toBe(4);
+  expect(status?.workout?.plan.steps).toHaveLength(3);
 });
 
-test('survives a relaunch', async () => {
-  await setProgramEnabled(true, 'beginner5k');
-  await skipProgramWorkout();
-  resetRunProgramForTests();
-  expect((await getProgramStatus())?.done).toBe(1);
-});
-
-test('drops stored junk', async () => {
-  await AsyncStorage.setItem(
-    '@SparkyFitness/runProgram',
-    JSON.stringify({ programId: 'gone', next: 'x' })
-  );
+test('a switched-off program is not reported as being used', async () => {
+  mockedFetch.mockResolvedValue({ program: stored({ enabled: false }) });
   expect(await getProgramStatus()).toBeNull();
 });
 
-test('jumps to any workout and clamps out-of-range positions', async () => {
+test('switching on starts the program and caches the answer', async () => {
+  mockedSave.mockResolvedValue({ program: stored() });
   await setProgramEnabled(true, 'beginner5k');
+  expect(mockedSave).toHaveBeenCalledWith({
+    program_id: 'beginner5k',
+    enabled: true,
+  });
+  expect(
+    queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.id
+  ).toBe('p1');
+});
+
+test('switching off with nothing started does nothing', async () => {
+  await setProgramEnabled(false, 'beginner5k');
+  expect(mockedSave).not.toHaveBeenCalled();
+});
+
+test('moves, restarts and skips relative to the cached place', async () => {
+  queryClient.setQueryData(runProgramQueryKey, stored({ next_index: 3 }));
+  mockedSave.mockImplementation(async (body) => ({
+    program: stored({ next_index: body.next_index ?? 0 }),
+  }));
+
+  await skipProgramWorkout();
+  expect(mockedSave).toHaveBeenLastCalledWith({
+    program_id: 'beginner5k',
+    next_index: 4,
+  });
   await setProgramPosition(13);
-  expect((await getProgramStatus())?.done).toBe(13);
-  await setProgramPosition(999);
-  expect((await getProgramStatus())?.done).toBe(26);
-  await setProgramPosition(-4);
-  expect((await getProgramStatus())?.done).toBe(0);
+  expect(mockedSave).toHaveBeenLastCalledWith({
+    program_id: 'beginner5k',
+    next_index: 13,
+  });
+  await restartProgram();
+  expect(mockedSave).toHaveBeenLastCalledWith({
+    program_id: 'beginner5k',
+    next_index: 0,
+  });
 });
 
-test('a jump does nothing without a program', async () => {
+test('a move without a program does nothing', async () => {
   await setProgramPosition(5);
-  expect(await getProgramStatus()).toBeNull();
+  expect(mockedSave).not.toHaveBeenCalled();
+});
+
+test('completing a workout sends its index and caches the result', async () => {
+  mockedDone.mockResolvedValue({ program: stored({ next_index: 1 }) });
+  await completeProgramWorkout('beginner5k', 0);
+  expect(mockedDone).toHaveBeenCalledWith({ index: 0 });
+  expect(
+    queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.next_index
+  ).toBe(1);
 });

@@ -4163,7 +4163,8 @@
       "exercise": "Exercise",
       "checkin": "Check-in",
       "goals": "Goals",
-      "lookedUp": "Looked up {{name}}"
+      "lookedUp": "Looked up {{name}}",
+      "runProgram": "Run program"
     },
     "typing": "Sparky is typing"
   },
@@ -6489,7 +6490,10 @@
       "doThis": "Do this workout",
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
-      "startOver": "Start over"
+      "startOver": "Start over",
+      "errors": {
+        "update": "Could not update your program"
+      }
     }
   }
 }
