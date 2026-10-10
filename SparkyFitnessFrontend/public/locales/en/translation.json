@@ -3968,6 +3968,10 @@
     "sessionNamePlaceholder": "Custom name (e.g., Push Day, Legs)"
   },
   "reports": {
+    "weightTrend": "Trend",
+    "weightTrendSummary": "Trend {{weight}}",
+    "weightTrendRate": "{{rate}} per week",
+    "weightGoalForecast": "Goal projected {{date}}",
     "alcohol": {
       "weeklyAlcohol": "Weekly Alcohol Intake",
       "standardDrinks": "std drinks",
