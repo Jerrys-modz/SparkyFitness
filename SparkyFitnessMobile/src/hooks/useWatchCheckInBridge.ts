@@ -1064,9 +1064,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           fromDate: payload.entryDate,
           toDate: payload.entryDate,
         });
-        const existing = entries.find((e) =>
-          entryMatchesDose(e, payload.medicationId, payload.scheduleId)
-        );
+        // An empty scheduleId is an as-needed row: it logs a `prn_taken`
+        // entry like the phone's PRN button, once per day from the watch.
+        const asNeeded = !payload.scheduleId;
+        const existing = asNeeded
+          ? entries.find(
+              (e) =>
+                e.medication_id === payload.medicationId &&
+                e.status === 'prn_taken'
+            )
+          : entries.find((e) =>
+              entryMatchesDose(e, payload.medicationId, payload.scheduleId)
+            );
         const alreadyTaken =
           existing?.status === 'taken' || existing?.status === 'prn_taken';
         if (!alreadyTaken) {
@@ -1080,8 +1089,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           } else {
             await createEntry({
               medication_id: payload.medicationId,
-              schedule_id: payload.scheduleId,
-              status: 'taken',
+              ...(asNeeded ? {} : { schedule_id: payload.scheduleId }),
+              status: asNeeded ? 'prn_taken' : 'taken',
               entry_date: payload.entryDate,
               taken_at: takenAt,
             });

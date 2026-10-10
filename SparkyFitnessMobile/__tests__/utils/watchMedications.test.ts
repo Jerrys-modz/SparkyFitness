@@ -128,4 +128,60 @@ describe('medicationsForWatch', () => {
   it('returns an empty list when nothing is scheduled', () => {
     expect(medicationsForWatch([], [], DAY, 'UTC', 'HH:mm')).toEqual([]);
   });
+
+  it('lists a medication with no schedule as an as-needed row after the scheduled slots', () => {
+    const doses = medicationsForWatch(
+      [
+        buildMedication('med-new', 'Ibuprofen', []),
+        buildMedication('med-1', 'Vitamin D', [
+          { id: 'sched-1', time_of_day: '08:00' },
+        ]),
+      ],
+      [],
+      DAY,
+      'UTC',
+      'HH:mm'
+    );
+
+    expect(doses.map((d) => d.id)).toEqual([
+      watchDoseId('med-1', 'sched-1'),
+      watchDoseId('med-new', ''),
+    ]);
+    expect(doses[1]).toMatchObject({
+      medicationId: 'med-new',
+      scheduleId: '',
+      time: '',
+      status: 'pending',
+    });
+  });
+
+  it('marks an as-needed row taken once a prn_taken entry exists today', () => {
+    const doses = medicationsForWatch(
+      [buildMedication('med-new', 'Ibuprofen', [])],
+      [
+        buildEntry({
+          medication_id: 'med-new',
+          schedule_id: null,
+          status: 'prn_taken',
+        }),
+      ],
+      DAY,
+      'UTC',
+      'HH:mm'
+    );
+
+    expect(doses[0].status).toBe('taken');
+  });
+
+  it('leaves inactive medications off the watch', () => {
+    expect(
+      medicationsForWatch(
+        [buildMedication('med-new', 'Ibuprofen', [], { is_active: false })],
+        [],
+        DAY,
+        'UTC',
+        'HH:mm'
+      )
+    ).toEqual([]);
+  });
 });
