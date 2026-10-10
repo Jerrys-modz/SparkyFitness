@@ -712,6 +712,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 navigation.navigate('MeasurementsAdd', { date: selectedDate })
               }
             />
+
             {/* Below the measurements: both are the same check-in, keyed on
                 (user_id, entry_date) server-side. */}
             <CheckInPhotosSummary

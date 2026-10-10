@@ -36,6 +36,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRecordingHeartRate: (([String: Any]) -> Void)?
     /// A walk or run recorded on the watch alone, sent when it finished.
     var onRunFinished: (([String: Any]) -> Void)?
+    /// The wearer answered the update-this-workout question on the summary.
+    var onPresetUpdateAnswer: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -118,6 +120,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRecordingHeartRate?(payload)
         case "runFinished":
             onRunFinished?(payload)
+        case "presetUpdateAnswer":
+            onPresetUpdateAnswer?(payload)
         default:
             break
         }
@@ -253,7 +257,8 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStartRequested",
             "onRecordingControl",
             "onRecordingHeartRate",
-            "onRunFinished"
+            "onRunFinished",
+            "onPresetUpdateAnswer"
         )
 
         OnCreate {
@@ -419,6 +424,12 @@ public class WatchConnectivityModule: Module {
                     "activeEnergyKcal": (payload["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0,
                     "route": payload["route"] as? [[Double]] ?? [],
                     "heartRate": payload["heartRate"] as? [[Double]] ?? [],
+                ])
+            }
+            self.delegateHandler.onPresetUpdateAnswer = { [weak self] payload in
+                self?.sendEvent("onPresetUpdateAnswer", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "update": payload["update"] as? Bool ?? false,
                 ])
             }
             self.delegateHandler.activate()

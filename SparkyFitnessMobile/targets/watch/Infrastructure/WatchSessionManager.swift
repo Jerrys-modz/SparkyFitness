@@ -297,6 +297,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.workoutStartRequest(presetId: presetId, serverId: serverId))
     }
 
+    /// Tells the phone whether to write a finished workout's changes into its
+    /// saved workout. Queued like a tap on the picker: the phone is often in a
+    /// bag, and an answer that vanishes leaves the question open on the phone.
+    func sendPresetUpdateAnswer(sessionId: String, update: Bool) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.presetUpdateAnswer(sessionId: sessionId, update: update))
+    }
+
     /// Re-queues everything still unconfirmed. Used by the retry affordance and
     /// on app launch, since a transfer can be lost if the app was force-quit.
     func retryPending() {

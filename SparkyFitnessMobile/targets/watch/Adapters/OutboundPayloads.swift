@@ -33,6 +33,7 @@ enum OutboundPayloads {
         static let recordingControl = "recordingControl"
         static let recordingHeartRate = "recordingHeartRate"
         static let runFinished = "runFinished"
+        static let presetUpdateAnswer = "presetUpdateAnswer"
     }
 
     /// A morning check-in awaiting a server write.
@@ -89,6 +90,17 @@ enum OutboundPayloads {
             payload["serverId"] = serverId
         }
         return payload
+    }
+
+    /// The wearer's answer to "update this workout?" on the summary. The phone
+    /// owns the server write, so it applies (or drops) the change. `sessionId`
+    /// pairs the answer with the workout the question was about.
+    static func presetUpdateAnswer(sessionId: String, update: Bool) -> [String: Any] {
+        [
+            "type": Kind.presetUpdateAnswer,
+            "sessionId": sessionId,
+            "update": update,
+        ]
     }
 
     /// One set logged during an active workout, with whatever the wearer
