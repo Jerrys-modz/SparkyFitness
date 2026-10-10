@@ -309,8 +309,17 @@ export interface WatchPlannedSetPayload {
   weighted?: boolean;
   /** A carry's planned distance in km; the watch shows it in metres. */
   targetDistanceKm?: number | null;
-  /** Rest to run after this set, in seconds — the phone's own `WorkoutStep.restSec`. */
+  /**
+   * Rest taken before this set in the planned order, in seconds — the
+   * phone's own `WorkoutStep.restSec`.
+   */
   restSeconds: number;
+  /**
+   * This set's own `rest_time` (or the default rest), in seconds. The phone
+   * rests by the set just logged (`restSecBeforeNextSet`), so the watch needs
+   * it to time the same rest.
+   */
+  restAfterSeconds?: number;
   /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
   setType?: string | null;
 }

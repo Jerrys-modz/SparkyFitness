@@ -2,9 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import type { PresetSessionResponse } from '@workspace/shared';
+import type { TFunction } from 'i18next';
 import {
   __resetLiveWorkoutStartForTests,
   armWatchForActiveSession,
+  buildWatchWorkoutStartPayload,
   syncWatchIntervalTiming,
   useStartLiveWorkout,
 } from '../../src/hooks/useStartLiveWorkout';
@@ -274,6 +276,39 @@ describe('useStartLiveWorkout', () => {
     expect(useActiveWorkoutStore.getState().watchArmedAt).toBe(
       Date.parse(payload.armedAt as string)
     );
+  });
+
+  it("sends each set's own rest so the watch rests like the phone", () => {
+    const session = makeSession();
+    const [exercise] = session.exercises;
+    exercise.sets = [
+      exercise.sets[0],
+      { ...exercise.sets[0], id: 102, set_number: 2, rest_time: 150 },
+    ];
+    act(() => {
+      useActiveWorkoutStore.getState().startWorkout(session);
+    });
+
+    const payload = buildWatchWorkoutStartPayload(
+      session,
+      ((key: string) => key) as unknown as TFunction,
+      Date.now()
+    );
+
+    // `restSeconds` is the rest before a set; the phone times the rest after
+    // a set from that set's own `rest_time`, so the watch needs both.
+    expect(payload.exercises[0].sets).toEqual([
+      expect.objectContaining({
+        setId: '101',
+        restSeconds: 90,
+        restAfterSeconds: 90,
+      }),
+      expect.objectContaining({
+        setId: '102',
+        restSeconds: 150,
+        restAfterSeconds: 150,
+      }),
+    ]);
   });
 
   it('freezes the watch cap on pause and sends the pause length on resume', () => {
