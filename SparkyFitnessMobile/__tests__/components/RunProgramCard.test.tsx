@@ -4,6 +4,8 @@ import RunProgramCard from '../../src/components/recording/RunProgramCard';
 import { programStatus } from '../../src/utils/runPrograms';
 
 const handlers = () => ({
+  reminders: { days: [] as number[], hour: 7 },
+  onReminders: jest.fn(),
   onSelect: jest.fn(),
   onStart: jest.fn(),
   onSkip: jest.fn(),
@@ -60,5 +62,36 @@ describe('RunProgramCard', () => {
     );
     expect(screen.getByText('Beginner 5K complete')).toBeTruthy();
     expect(screen.getByText('Start again')).toBeTruthy();
+  });
+});
+
+describe('run reminders', () => {
+  it('toggles a weekday and picks a time once a day is chosen', () => {
+    const onReminders = jest.fn();
+    const status = programStatus({ programId: 'beginner5k', next: 1 })!;
+    const { rerender } = render(
+      <RunProgramCard
+        {...handlers()}
+        onReminders={onReminders}
+        status={status}
+        loaded
+        selected={false}
+      />
+    );
+    fireEvent.press(screen.getByLabelText('Monday'));
+    expect(onReminders).toHaveBeenCalledWith({ days: [1], hour: 7 });
+
+    rerender(
+      <RunProgramCard
+        {...handlers()}
+        reminders={{ days: [1], hour: 7 }}
+        onReminders={onReminders}
+        status={status}
+        loaded
+        selected={false}
+      />
+    );
+    fireEvent.press(screen.getByLabelText('Monday'));
+    expect(onReminders).toHaveBeenLastCalledWith({ days: [], hour: 7 });
   });
 });

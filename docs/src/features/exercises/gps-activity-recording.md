@@ -83,6 +83,8 @@ Tap **Start Beginner 5K** and the screen selects today's workout for you (Week 1
 
 A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Skip** moves past a workout you cannot do, and **Leave program** forgets your place. When you finish week 9 the card says so and offers to start again. You can still pick any other interval plan, or record without one, at any time.
 
+Under the program card you can pick the days you plan to run and a time (morning, midday or evening) to get a weekly **Run reminder** notification. It stops when you leave the program or finish it, and it needs notifications turned on for the app.
+
 Your place in the program is kept on this phone. This is a common beginner structure, not medical advice: if you are unsure about starting to run, check with your doctor first.
 
 ---

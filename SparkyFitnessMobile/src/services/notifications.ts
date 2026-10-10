@@ -19,6 +19,7 @@ import {
 const CHANNEL_ID = 'workout-timer';
 const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
+const RUN_REMINDER_CHANNEL_ID = 'run-reminders';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
@@ -76,6 +77,13 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       ),
       importance: Notifications.AndroidImportance.HIGH,
       enableVibrate: true,
+    });
+    await Notifications.setNotificationChannelAsync(RUN_REMINDER_CHANNEL_ID, {
+      name: notificationCopy(
+        'notifications.channels.runReminders',
+        'Run reminders'
+      ),
+      importance: Notifications.AndroidImportance.DEFAULT,
     });
     await Notifications.setNotificationChannelAsync(
       MEDICATION_REMINDER_CHANNEL_ID,
@@ -623,6 +631,56 @@ export async function scheduleWaterReminderNotifications(
       // and the signature guard then blocks a retry for the reminders that
       // never made it. Returning nothing keeps the caller on its "an empty
       // result is not persisted" path, so the next reconcile tries again.
+      await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
+      return [];
+    }
+  }
+  return ids;
+}
+
+/**
+ * Schedules a weekly "time for your run" reminder for each weekday given
+ * (0 = Sunday to 6 = Saturday) at `hour`:00 local time, and returns the ids.
+ * Asks for permission, since the person has just switched reminders on. All or
+ * nothing, so a half-scheduled week is never kept.
+ */
+export async function scheduleRunReminderNotifications(
+  weekdays: readonly number[],
+  hour: number
+): Promise<string[]> {
+  if (!useAppPreferencesStore.getState().notificationsEnabled) return [];
+  if (!(await ensureNotificationPermission())) return [];
+
+  const ids: string[] = [];
+  for (const weekday of weekdays) {
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notificationCopy(
+            'notifications.runReminder.title',
+            'Time for your run'
+          ),
+          body: notificationCopy(
+            'notifications.runReminder.body',
+            "Today's workout is ready in Record Activity."
+          ),
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+          // Expo counts Sunday as 1.
+          weekday: weekday + 1,
+          hour,
+          minute: 0,
+          channelId: RUN_REMINDER_CHANNEL_ID,
+        },
+      });
+      ids.push(id);
+    } catch (err) {
+      addLog(
+        `scheduleRunReminderNotifications failed: ${(err as Error).message}`,
+        'ERROR'
+      );
       await Promise.all(ids.map((id) => cancelScheduledNotification(id)));
       return [];
     }
