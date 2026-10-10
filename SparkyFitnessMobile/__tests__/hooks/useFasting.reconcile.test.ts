@@ -77,7 +77,6 @@ describe('reconcileFastGoalNotification', () => {
       notificationId: 'notif-1',
       preEndNotificationId: 'notif-pre-1',
       preEndMinutes: 30,
-      preEndNotificationId: 'notif-pre-1',
     });
   });
 
@@ -154,7 +153,6 @@ describe('reconcileFastGoalNotification', () => {
       notificationId: 'notif-2',
       preEndNotificationId: 'notif-pre-2',
       preEndMinutes: 30,
-      preEndNotificationId: 'notif-pre-2',
     });
   });
 
@@ -182,7 +180,6 @@ describe('reconcileFastGoalNotification', () => {
       notificationId: 'notif-2',
       preEndNotificationId: 'notif-pre-2',
       preEndMinutes: 30,
-      preEndNotificationId: 'notif-pre-2',
     });
   });
 
