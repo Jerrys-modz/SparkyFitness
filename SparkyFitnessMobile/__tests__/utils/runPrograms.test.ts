@@ -4,8 +4,8 @@ import {
   planMinutes,
   programStatus,
   RUN_PROGRAMS,
-} from '../../src/utils/runPrograms';
-import { isValidIntervalPlan } from '../../src/utils/intervals';
+  isValidIntervalPlan,
+} from '@workspace/shared';
 
 const program = findProgram('beginner5k')!;
 

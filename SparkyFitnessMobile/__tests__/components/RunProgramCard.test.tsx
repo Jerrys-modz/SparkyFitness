@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import RunProgramCard from '../../src/components/recording/RunProgramCard';
-import { programStatus } from '../../src/utils/runPrograms';
+import { programStatus } from '@workspace/shared';
 
 const handlers = () => ({
   reminders: { days: [] as number[], hour: 7 },

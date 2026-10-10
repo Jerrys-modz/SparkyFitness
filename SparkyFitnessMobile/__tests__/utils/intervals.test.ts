@@ -5,7 +5,7 @@ import {
   isValidIntervalPlan,
   planTotalSeconds,
   stepStartSeconds,
-} from '../../src/utils/intervals';
+} from '@workspace/shared';
 
 const plan = buildIntervalPlan({
   style: 'runWalk',

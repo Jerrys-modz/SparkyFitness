@@ -6,7 +6,7 @@ import {
   programStatus,
   type ProgramProgress,
   type ProgramStatus,
-} from '../utils/runPrograms';
+} from '@workspace/shared';
 
 /**
  * The person's place in a multi-week run program, kept on this phone (it is

@@ -1,4 +1,4 @@
-import type { IntervalPlan, IntervalStep } from './intervals';
+import type { IntervalPlan, IntervalStep } from "./runIntervals.ts";
 
 /**
  * Multi-week run programs: an ordered list of workouts, each one an interval
@@ -22,26 +22,26 @@ export interface RunProgram {
   workoutsPerWeek: number;
 }
 
-type Piece = readonly ['run' | 'walk', number];
+type Piece = readonly ["run" | "walk", number];
 
 const WARMUP_SECONDS = 5 * 60;
 const COOLDOWN_SECONDS = 5 * 60;
 
 /** A 5 minute walk, the given run/walk pieces, then a 5 minute walk. */
 function workout(pieces: readonly Piece[]): IntervalPlan {
-  const steps: IntervalStep[] = [{ kind: 'warmup', seconds: WARMUP_SECONDS }];
+  const steps: IntervalStep[] = [{ kind: "warmup", seconds: WARMUP_SECONDS }];
   for (const [kind, seconds] of pieces) {
-    steps.push({ kind: kind === 'run' ? 'work' : 'recovery', seconds });
+    steps.push({ kind: kind === "run" ? "work" : "recovery", seconds });
   }
-  steps.push({ kind: 'cooldown', seconds: COOLDOWN_SECONDS });
-  return { style: 'runWalk', steps };
+  steps.push({ kind: "cooldown", seconds: COOLDOWN_SECONDS });
+  return { style: "runWalk", steps };
 }
 
 const repeat = (count: number, pieces: readonly Piece[]): Piece[] =>
   Array.from({ length: count }, () => pieces).flat();
 
-const run = (seconds: number): Piece => ['run', seconds];
-const walk = (seconds: number): Piece => ['walk', seconds];
+const run = (seconds: number): Piece => ["run", seconds];
+const walk = (seconds: number): Piece => ["walk", seconds];
 
 // A nine-week beginner progression from alternating minutes of running and
 // walking to 30 minutes of running, three workouts a week. Each week lists its
@@ -90,7 +90,7 @@ function buildProgram(
 }
 
 export const RUN_PROGRAMS: readonly RunProgram[] = [
-  buildProgram('beginner5k', BEGINNER_5K_WEEKS),
+  buildProgram("beginner5k", BEGINNER_5K_WEEKS),
 ];
 
 export function findProgram(id: string): RunProgram | null {

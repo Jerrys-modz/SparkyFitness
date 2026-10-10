@@ -29,7 +29,7 @@ import {
   isValidIntervalPlan,
   stepStartSeconds,
   type IntervalPlan,
-} from '../utils/intervals';
+} from '@workspace/shared';
 import { fireImpactHaptic } from './haptics';
 import {
   cueUnitMeters,
