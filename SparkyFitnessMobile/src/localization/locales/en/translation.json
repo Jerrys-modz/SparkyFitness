@@ -6504,6 +6504,7 @@
       "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
       "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
       "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
       "chooseTitle": "Choose a program",
       "change": "Change program",
