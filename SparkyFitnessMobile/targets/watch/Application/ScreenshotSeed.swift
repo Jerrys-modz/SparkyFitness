@@ -20,6 +20,12 @@ enum ScreenshotSeed {
         case active
         /// A set just logged, so the rest countdown is on screen.
         case resting
+        /// A countdown hold beside a weight box.
+        case timed
+        /// A hold with no planned length: the stopwatch.
+        case stopwatch
+        /// An AMRAP, so the interval caption shows.
+        case interval
         /// Nothing armed — what the tab shows until the phone starts a workout.
         case none
     }
@@ -38,6 +44,11 @@ enum ScreenshotSeed {
     /// `simctl` the way a launch environment can, so the view checks this.
     static var opensExerciseList: Bool {
         ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "exercises"
+    }
+
+    /// Opens the "Update Workout?" question on appear.
+    static var opensPresetUpdate: Bool {
+        ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "updatealert"
     }
 
     private static var workoutState: WorkoutState {
@@ -60,6 +71,14 @@ enum ScreenshotSeed {
         switch workoutState {
         case .none:
             workout.reset()
+        case .timed, .stopwatch, .interval:
+            switch workoutState {
+            case .timed: workout.start(with: SampleDay.timedPlan)
+            case .stopwatch: workout.start(with: SampleDay.stopwatchPlan)
+            default: workout.start(with: SampleDay.intervalPlan)
+            }
+            workout.recordHeartRate(bpm: SampleDay.workoutBpm)
+            workout.recordActiveEnergy(kcal: SampleDay.workoutKcal)
         case .active, .resting:
             workout.start(with: SampleDay.workoutPlan)
             workout.recordHeartRate(bpm: SampleDay.workoutBpm)

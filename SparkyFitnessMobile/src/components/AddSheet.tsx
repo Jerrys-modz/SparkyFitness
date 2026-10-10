@@ -33,6 +33,8 @@ interface AddSheetProps {
   onAskSparky: () => void;
   onAddSymptoms?: () => void;
   onRecordActivity?: () => void;
+  onAddMood?: () => void;
+  onAddMindfulness?: () => void;
   onOpenCycle?: () => void;
   showCycleCard?: boolean;
   cycleLabel?: string;
@@ -60,6 +62,8 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAskSparky,
       onAddSymptoms,
       onRecordActivity,
+      onAddMood,
+      onAddMindfulness,
       onOpenCycle,
       showCycleCard,
       cycleLabel,
@@ -355,6 +359,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                   onLogWorkout
                 )}
               </View>
+              {onRecordActivity && (
+                <View className="flex-row mt-3">
+                  {renderExerciseOption(
+                    t('addSheet.recordActivity', {
+                      defaultValue: 'Record Activity',
+                    }),
+                    t('addSheet.recordActivityHint', {
+                      defaultValue: 'Track a walk, run or ride with GPS',
+                    }),
+                    'location',
+                    onRecordActivity
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <>
@@ -366,15 +384,6 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                 {renderCard(cards[2])}
                 {renderCard(cards[3])}
               </View>
-              {onRecordActivity
-                ? renderSecondaryRow(
-                    t('addSheet.recordActivity', {
-                      defaultValue: 'Record Activity',
-                    }),
-                    'location',
-                    onRecordActivity
-                  )
-                : null}
               {renderSecondaryRow(
                 t('addSheet.progressPhotos', {
                   defaultValue: 'Progress Photos',
@@ -395,6 +404,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                     t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
                     'symptoms',
                     onAddSymptoms
+                  )
+                : null}
+              {onAddMood
+                ? renderSecondaryRow(
+                    t('addSheet.mood', { defaultValue: 'Mood' }),
+                    'mood',
+                    onAddMood
+                  )
+                : null}
+              {onAddMindfulness
+                ? renderSecondaryRow(
+                    t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+                    'exercise-yoga',
+                    onAddMindfulness
                   )
                 : null}
               {renderSecondaryRow(
