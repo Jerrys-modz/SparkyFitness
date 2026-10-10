@@ -28,8 +28,6 @@ export interface UserPreferences {
   add_exercise_water_to_goal?: boolean;
   /** Folds a logged food's water content into the daily water total. */
   add_food_water_to_intake?: boolean;
-  /** Folds a logged food's water content into the daily water total. */
-  add_food_water_to_intake?: boolean;
 
   include_bmr_in_net_calories?: boolean;
   /** When on, override the formula BMR with the synced Apple Health Resting Energy /
