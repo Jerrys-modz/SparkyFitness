@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import WatchKit
 
 /// The wrist-only walk or run, indoors or out: what to show, and the start, pause,
 /// resume and finish actions. See `WatchRunHealthKitController` for how it is
@@ -30,6 +31,8 @@ final class WatchRunStore: ObservableObject {
     @Published private(set) var place: WatchRunPlace = .indoor
     @Published private(set) var metrics = WatchRunMetrics()
     @Published private(set) var summary: Summary?
+    /// True while paused by the movement detector rather than by the wearer.
+    @Published private(set) var autoPaused = false
 
     /// True from Start until the summary is dismissed, so the page stays put
     /// and the wearer is not swiped away from a running recording.
@@ -53,6 +56,9 @@ final class WatchRunStore: ObservableObject {
         }
         healthKit.onFailure = { [weak self] in
             Task { @MainActor in self?.sessionFailed() }
+        }
+        healthKit.onAutoPause = { [weak self] action in
+            Task { @MainActor in self?.applyAutoPause(action) }
         }
     }
 
@@ -78,13 +84,34 @@ final class WatchRunStore: ObservableObject {
     func pause() {
         guard phase == .running else { return }
         phase = .paused
+        autoPaused = false
         healthKit.pause()
     }
 
     func resume() {
         guard phase == .paused else { return }
         phase = .running
+        autoPaused = false
         healthKit.resume()
+    }
+
+    private func applyAutoPause(_ action: WatchAutoPause.Action) {
+        switch action {
+        case .pause:
+            guard phase == .running else { return }
+            phase = .paused
+            autoPaused = true
+            healthKit.pause(automatic: true)
+            WKInterfaceDevice.current().play(.stop)
+        case .resume:
+            guard phase == .paused, autoPaused else { return }
+            phase = .running
+            autoPaused = false
+            healthKit.resume()
+            WKInterfaceDevice.current().play(.start)
+        case .none:
+            break
+        }
     }
 
     /// Ends the recording and saves it to Apple Health.
@@ -94,6 +121,7 @@ final class WatchRunStore: ObservableObject {
     func discard() { end(save: false) }
 
     func dismissSummary() {
+        autoPaused = false
         summary = nil
         phase = .idle
     }
@@ -102,6 +130,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         let ending = kind
         let endingPlace = place
+        autoPaused = false
         healthKit.end(save: save) { [weak self] metrics, elapsed in
             Task { @MainActor in
                 guard let self else { return }

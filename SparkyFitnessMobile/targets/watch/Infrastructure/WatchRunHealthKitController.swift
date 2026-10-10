@@ -30,6 +30,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var onMetrics: ((WatchRunMetrics) -> Void)?
     /// Called on the main queue when the session ends unexpectedly.
     var onFailure: (() -> Void)?
+    /// Called on the main queue when the wearer stops or starts moving
+    /// outdoors: `.pause` or `.resume`. Never called indoors, where there is
+    /// no speed to judge by.
+    var onAutoPause: ((WatchAutoPause.Action) -> Void)?
 
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -42,6 +46,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// Whether fixes are being added to the route right now: off while paused,
     /// so standing still at a light does not draw a stray tail.
     private var collectingRoute = false
+    private var autoPause = WatchAutoPause()
+    private var runKind: WatchRunKind = .run
+    /// Whether the last pause was ours, so only that one is ever resumed.
+    private var pausedByAutoPause = false
 
     var hasLiveSession: Bool { session != nil }
 
@@ -99,6 +107,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             session = newSession
             builder = newBuilder
             metrics = WatchRunMetrics()
+            runKind = kind
+            autoPause.reset()
+            pausedByAutoPause = false
 
             let now = Date()
             newSession.startActivity(with: now)
@@ -112,14 +123,19 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    func pause() {
+    /// `automatic` marks a pause the detector made, the only kind it resumes.
+    func pause(automatic: Bool = false) {
         session?.pause()
         collectingRoute = false
+        pausedByAutoPause = automatic
+        autoPause.reset()
     }
 
     func resume() {
         session?.resume()
         collectingRoute = routeBuilder != nil
+        pausedByAutoPause = false
+        autoPause.reset()
     }
 
     /// Ends the session and writes the workout to Apple Health (`save`) or
@@ -198,12 +214,34 @@ extension WatchRunHealthKitController {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        judgeMovement(locations)
         guard collectingRoute, let routeBuilder else { return }
         // Apple's guidance: drop fixes with no usable accuracy, and ones too
         // coarse to draw a believable line.
         let usable = locations.filter { $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy <= 50 }
         guard !usable.isEmpty else { return }
         routeBuilder.insertRouteData(usable) { _, _ in }
+    }
+
+    /// Runs every fix, paused or not, through the auto-pause detector. The
+    /// location manager keeps running while paused for exactly this reason.
+    private func judgeMovement(_ locations: [CLLocation]) {
+        guard session != nil else { return }
+        for location in locations {
+            let paused = pausedByAutoPause
+            let action = autoPause.step(
+                speed: location.speed,
+                accuracy: location.horizontalAccuracy,
+                at: location.timestamp,
+                kind: runKind,
+                paused: paused
+            )
+            guard action != .none else { continue }
+            // A manual pause is never auto-resumed.
+            if action == .resume && !paused { continue }
+            DispatchQueue.main.async { [weak self] in self?.onAutoPause?(action) }
+            break
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}

@@ -20,13 +20,18 @@ struct WatchRunView: View {
         }
     }
 
+    private var headline: String {
+        guard run.phase == .paused else { return run.kind.title(run.place) }
+        return run.autoPaused ? "Auto-paused" : "\(run.kind.title(run.place)) paused"
+    }
+
     // MARK: - Running
 
     private var live: some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: run.kind.symbol)
-                Text(run.phase == .paused ? "\(run.kind.title(run.place)) paused" : run.kind.title(run.place))
+                Text(headline)
                 if let bpm = run.metrics.heartRate {
                     Image(systemName: "heart.fill")
                         .foregroundStyle(.red)
