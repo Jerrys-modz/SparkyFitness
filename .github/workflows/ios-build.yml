@@ -168,7 +168,10 @@ jobs:
             SIMCTL_CHILD_SPARKY_SCREENSHOT_PAGE="$3" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_SHEET="${4:-}" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_RECORDING="${5:-}" \
-              xcrun simctl launch "$UDID" "$BUNDLE_ID"
+              xcrun simctl launch --console "$UDID" "$BUNDLE_ID" > launch.log 2>&1 &
+          sleep 6
+          echo "--- processes"; xcrun simctl spawn "$UDID" launchctl list | grep -i sparky || echo "app not running"
+          echo "--- launch console"; head -60 launch.log || true
             # SwiftUI needs a moment to settle, and the rest countdown needs
             # to actually be counting before it is worth photographing.
             sleep 8
@@ -273,6 +276,14 @@ jobs:
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/02-recording.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/03-paused.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/04-finished.png
+          echo "--- crash reports"
+          ls -la ~/Library/Logs/DiagnosticReports 2>/dev/null || true
+          for f in ~/Library/Logs/DiagnosticReports/*.ips; do
+            [ -f "$f" ] || continue
+            echo "=== $f"; head -c 6000 "$f"; echo
+          done
+          echo "--- app log"
+          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "SparkyFitness" OR process == "SparkyFitnessDev"' 2>/dev/null | tail -80 || true
           ls -la screenshots
       - name: Publish screenshots to a branch
         run: |
