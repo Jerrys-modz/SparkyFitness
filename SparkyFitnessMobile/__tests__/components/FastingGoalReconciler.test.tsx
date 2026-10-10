@@ -77,4 +77,25 @@ describe('FastingGoalReconciler', () => {
       undefined
     );
   });
+
+  it('stays blocked when preferences failed and nothing is cached', () => {
+    mockUseCurrentFast.mockReturnValue({
+      data: { id: 'fast-1' },
+      isLoading: false,
+      refetch: jest.fn(),
+    } as never);
+    mockUseFastingPreferences.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as never);
+
+    render(<FastingGoalReconciler />);
+
+    expect(mockReconciler).toHaveBeenCalledWith(
+      { id: 'fast-1' },
+      true,
+      expect.any(Function),
+      undefined
+    );
+  });
 });

@@ -19,7 +19,7 @@ const FastingGoalReconciler: React.FC = () => {
     useFastingPreferences();
   useFastingGoalReconciler(
     currentFast,
-    isLoading || preferencesLoading,
+    isLoading || preferencesLoading || !preferences,
     refetch,
     preferences?.pre_end_alert_minutes
   );
