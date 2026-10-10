@@ -45,6 +45,7 @@ import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
+import { watchWaterFromFoodMl } from '../utils/watchWater';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDailySummary } from './useDailySummary';
 import { WATCH_PAGE_KEYS } from '../constants/watchPages';
@@ -117,6 +118,7 @@ const NO_FIGURES_FOR_TODAY = {
   fatConsumed: null,
   fatGoal: null,
   waterConsumedMl: null,
+  waterFromFoodMl: null,
   waterLog: [] as WatchWaterLogPayload[],
   medications: null,
   goalNutrients: null,
@@ -364,6 +366,13 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // two never disagree.
   const waterConsumedMl = dailySummary?.waterConsumed ?? null;
   const waterGoalMl = dailySummary?.waterGoal ?? null;
+  // The part of the total that came from logged food's water. Sent only when
+  // food water counts toward intake (the same setting the phone's gauge
+  // follows), so the watch shows the line only for people who opted in.
+  const waterFromFoodMl = watchWaterFromFoodMl(
+    preferences?.add_food_water_to_intake,
+    dailySummary?.waterFromFood
+  );
   // The app's globally configured display unit (independent of any one
   // container's own unit) — same source and fallback as the phone's own
   // hydration gauge (DashboardScreen).
@@ -517,6 +526,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       fatConsumed,
       fatGoal,
       waterConsumedMl,
+      waterFromFoodMl,
       waterLog: watchWaterLog,
       medications: watchMedications,
       goalNutrients,
@@ -536,6 +546,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       fatConsumed,
       fatGoal,
       waterConsumedMl,
+      waterFromFoodMl,
       watchWaterLog,
       watchMedications,
       goalNutrients,
