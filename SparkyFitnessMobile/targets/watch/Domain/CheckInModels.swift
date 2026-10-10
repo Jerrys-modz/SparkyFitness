@@ -219,8 +219,12 @@ struct PendingMedicationTap: Codable, Equatable, Identifiable {
     /// `.queued` draws an orange tick, `.saved` a green one, `.failed` a red
     /// retry mark.
     var state: SyncState = .queued
+    /// True when this un-ticks the dose after a mistaken tap. Optional so taps
+    /// persisted before undo existed still decode.
+    var undo: Bool? = nil
 
     var isToday: Bool { day == CheckInDate.today() }
+    var isUndo: Bool { undo ?? false }
 }
 
 /// One dose tick, sent straight to the phone, which owns the API call.
@@ -229,6 +233,8 @@ struct MedicationTap: Codable, Equatable {
     let entryDate: String
     let medicationId: String
     let scheduleId: String
+    /// False when the wearer un-ticked the dose.
+    var taken: Bool = true
 }
 
 /// A container tap the wearer has made but the phone hasn't confirmed.

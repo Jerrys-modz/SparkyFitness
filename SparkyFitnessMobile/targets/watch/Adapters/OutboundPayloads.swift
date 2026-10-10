@@ -72,8 +72,8 @@ enum OutboundPayloads {
         ]
     }
 
-    /// One scheduled dose ticked as taken — the phone logs it the way its own
-    /// dose row does.
+    /// One dose ticked as taken — the phone logs it the way its own dose row
+    /// does — or, with `taken` false, un-ticked, which deletes that entry.
     static func medicationTaken(_ tap: MedicationTap) -> [String: Any] {
         [
             "type": Kind.medicationTaken,
@@ -81,6 +81,7 @@ enum OutboundPayloads {
             "entryDate": tap.entryDate,
             "medicationId": tap.medicationId,
             "scheduleId": tap.scheduleId,
+            "taken": tap.taken,
         ]
     }
 

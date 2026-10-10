@@ -205,7 +205,7 @@ final class CheckInStore: ObservableObject {
     /// Records a dose tick and returns the id to send to the phone. The caller
     /// must use it as the tap's `clientId`: it is what the acknowledgement
     /// names.
-    func recordMedicationTap(_ dose: MedicationDose) -> String {
+    func recordMedicationTap(_ dose: MedicationDose, undo: Bool = false) -> String {
         let id = UUID().uuidString
         // A fresh tap supersedes an earlier failed one for the same slot;
         // otherwise the failed one would keep the status pill red forever.
@@ -218,7 +218,8 @@ final class CheckInStore: ObservableObject {
                 scheduleId: dose.scheduleId,
                 createdAt: Date(),
                 day: CheckInDate.today(),
-                state: .queued
+                state: .queued,
+                undo: undo ? true : nil
             )
         )
         persist()
@@ -234,7 +235,8 @@ final class CheckInStore: ObservableObject {
         persist()
     }
 
-    /// Today's tick for a dose slot that has not failed, if any.
+    /// Today's tick or un-tick for a dose slot that has not failed, if any. The
+    /// latest wins, so a tap followed by an undo reads as not taken.
     func medicationTap(for doseId: String) -> PendingMedicationTap? {
         pendingMedicationTaps.last { $0.doseId == doseId && $0.isToday && $0.state != .failed }
     }

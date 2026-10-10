@@ -295,6 +295,7 @@ public class WatchConnectivityModule: Module {
                     "entryDate": payload["entryDate"] as? String ?? "",
                     "medicationId": payload["medicationId"] as? String ?? "",
                     "scheduleId": payload["scheduleId"] as? String ?? "",
+                    "taken": payload["taken"] as? Bool ?? true,
                 ])
             }
             self.delegateHandler.onSetCompleted = { [weak self] payload in

@@ -56,7 +56,7 @@ export interface WatchWaterDeletePayload {
   entryId: string;
 }
 
-/** A scheduled dose marked taken on the Apple Watch. */
+/** A dose ticked, or un-ticked after a mistaken tap, on the Apple Watch. */
 export interface WatchMedicationTakenPayload {
   /** Stable id generated on the watch, to dedupe a re-delivered transfer. */
   clientId: string;
@@ -64,6 +64,8 @@ export interface WatchMedicationTakenPayload {
   entryDate: string;
   medicationId: string;
   scheduleId: string;
+  /** False when the wearer un-ticked the dose; absent from older watch builds, which only ever tick. */
+  taken?: boolean;
 }
 
 /** One of today's scheduled dose slots, relayed to the watch's Medications page. */

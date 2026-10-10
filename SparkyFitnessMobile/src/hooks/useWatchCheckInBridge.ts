@@ -24,6 +24,7 @@ import {
   listMedications,
   listEntries,
   createEntry,
+  deleteEntry,
   updateEntry,
 } from '../services/api/medicationsApi';
 import {
@@ -1041,8 +1042,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
    * slot has none, so a redelivery that slips past the dedupe set cannot log
    * the dose twice. A skipped or schedule-less (web-logged) entry for the slot
    * is updated to taken instead, the same way the phone's own dose row does.
+   * An un-tick (`taken: false`) deletes the taken entry the same way, and is
+   * a no-op when there is none.
    */
-  const handleMedicationTaken = useCallback(
+  const processMedicationTaken = useCallback(
     async (payload: WatchMedicationTakenPayload): Promise<void> => {
       if (!WatchConnectivity) return;
       await ensureAckStateHydrated();
@@ -1078,7 +1081,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             );
         const alreadyTaken =
           existing?.status === 'taken' || existing?.status === 'prn_taken';
-        if (!alreadyTaken) {
+        if (payload.taken === false) {
+          if (existing && alreadyTaken) await deleteEntry(existing.id);
+        } else if (!alreadyTaken) {
           const takenAt = new Date().toISOString();
           if (existing) {
             await updateEntry(existing.id, {
@@ -1122,7 +1127,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         invalidateMedicationEntryCaches(queryClient);
 
         addLog(
-          `Watch medication dose logged for ${payload.entryDate}: ${payload.medicationId}`,
+          `Watch medication dose ${payload.taken === false ? 'unmarked' : 'logged'} for ${payload.entryDate}: ${payload.medicationId}`,
           'INFO'
         );
         await pushContextRef.current();
@@ -1144,6 +1149,20 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       }
     },
     [ensureAckStateHydrated, persistAckState]
+  );
+
+  // One at a time, in arrival order: a tick followed quickly by an un-tick
+  // must not have the un-tick read the day's entries before the tick lands.
+  const medicationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const handleMedicationTaken = useCallback(
+    (payload: WatchMedicationTakenPayload): Promise<void> => {
+      const run = medicationQueueRef.current.then(() =>
+        processMedicationTaken(payload)
+      );
+      medicationQueueRef.current = run.catch(() => undefined);
+      return run;
+    },
+    [processMedicationTaken]
   );
 
   // Latest handlers, read by the subscriptions below.

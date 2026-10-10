@@ -345,17 +345,18 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
-    /// Asks the phone to log one scheduled dose as taken. Acknowledged like a
+    /// Asks the phone to log one dose as taken, or to remove that log when `undo`. Acknowledged like a
     /// water tap: the phone reports the `clientId` immediately when reachable
     /// and again in every context push.
-    func sendMedicationTap(_ dose: MedicationDose, clientId: String) {
+    func sendMedicationTap(_ dose: MedicationDose, clientId: String, undo: Bool = false) {
         guard WCSession.isSupported() else { return }
         transfer(OutboundPayloads.medicationTaken(
             MedicationTap(
                 id: clientId,
                 entryDate: CheckInDate.today(),
                 medicationId: dose.medicationId,
-                scheduleId: dose.scheduleId
+                scheduleId: dose.scheduleId,
+                taken: !undo
             )
         ))
     }
@@ -387,7 +388,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 id: tap.id,
                 entryDate: tap.day,
                 medicationId: tap.medicationId,
-                scheduleId: tap.scheduleId
+                scheduleId: tap.scheduleId,
+                taken: !tap.isUndo
             )
         ))
     }

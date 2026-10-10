@@ -6,8 +6,9 @@ import WatchKit
 /// Today's scheduled doses as a scrollable column of rows in the Water page's
 /// tile style: a tinted rounded square per dose, name and dose on the left, the
 /// time under it, and a tick on the right. Tapping a pending dose logs it as
-/// taken straight to the phone — there is no local-only state. Undoing a dose,
-/// skipping one, and as-needed (PRN) medications stay on the phone.
+/// taken straight to the phone — there is no local-only state. Tapping a taken
+/// dose un-ticks it (a mistaken tap), which deletes the entry on the phone.
+/// Skipping a dose stays on the phone.
 struct MedicationsView: View {
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
@@ -76,16 +77,13 @@ struct MedicationsView: View {
     /// Taken on the phone's say-so, or ticked here and not failed since. A
     /// failed tick reads as not taken, so the row is tappable again.
     private func isTaken(_ dose: MedicationDose) -> Bool {
-        dose.status == .taken || store.medicationTap(for: dose.id) != nil
+        if let tap = store.medicationTap(for: dose.id) { return !tap.isUndo }
+        return dose.status == .taken
     }
 
     private func tickColor(for dose: MedicationDose) -> Color {
-        if dose.status == .taken { return .green }
-        switch store.medicationTap(for: dose.id)?.state {
-        case .saved: return .green
-        case .queued: return .orange
-        default: return .secondary
-        }
+        guard let tap = store.medicationTap(for: dose.id) else { return .green }
+        return tap.state == .queued ? .orange : .green
     }
 
     private func doseRow(_ dose: MedicationDose) -> some View {
@@ -122,8 +120,6 @@ struct MedicationsView: View {
             .opacity(dose.status == .skipped && !taken ? 0.6 : 1)
         }
         .buttonStyle(.plain)
-        // A taken dose is final here; undoing it is the phone's job.
-        .disabled(taken)
         .accessibilityLabel(accessibilityLabel(for: dose, taken: taken))
     }
 
@@ -136,14 +132,15 @@ struct MedicationsView: View {
 
     private func accessibilityLabel(for dose: MedicationDose, taken: Bool) -> String {
         let base = [dose.name, dose.detail, dose.time].filter { !$0.isEmpty }.joined(separator: ", ")
-        return taken ? "\(base), taken" : "Mark \(base) as taken"
+        return taken ? "\(base), taken. Tap to unmark" : "Mark \(base) as taken"
     }
 
     private func tap(_ dose: MedicationDose) {
         // `.click`, not `.success`: all that is certain yet is that the tap
         // registered, the same reasoning as a water tap.
         WKInterfaceDevice.current().play(.click)
-        let clientId = store.recordMedicationTap(dose)
-        session.sendMedicationTap(dose, clientId: clientId)
+        let undo = isTaken(dose)
+        let clientId = store.recordMedicationTap(dose, undo: undo)
+        session.sendMedicationTap(dose, clientId: clientId, undo: undo)
     }
 }
