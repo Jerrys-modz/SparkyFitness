@@ -1031,7 +1031,7 @@
   "dashboardSettings": {
     "updateFailed": "Failed to update setting.",
     "noCustomNutrients": "No custom nutrients",
-    "customNutrientsDescription": "Custom nutrients are created in the SparkyFitness web app. Once you add some, they will appear here so you can choose which show on your Dashboard.",
+    "customNutrientsDescription": "Add custom nutrients in Settings > Food Settings > Custom Nutrients. Once you add some, they will appear here so you can choose which show on your Dashboard.",
     "title": "Dashboard Settings",
     "description": "Drag a card by its handle to reorder your Dashboard. Toggle off to hide cards you do not use.",
     "calorieRing": "Calorie Summary",
@@ -1075,7 +1075,7 @@
     "updateFailed": "Failed to update setting.",
     "limitReached": "Limit reached",
     "noCustomNutrients": "No custom nutrients",
-    "customNutrientsDescription": "Custom nutrients are created in the SparkyFitness web app. Once you add some, they will appear here so you can choose which show on your Diary.",
+    "customNutrientsDescription": "Add custom nutrients in Settings > Food Settings > Custom Nutrients. Once you add some, they will appear here so you can choose which show on your Diary.",
     "title": "Diary Settings",
     "summary": "Diary Summary",
     "summarySubtitle": "Show calories and macronutrients",
@@ -3765,6 +3765,13 @@
     "allergens": {
       "title": "Allergens",
       "subtitle": "Get warnings on foods and scans that contain allergens you track"
+    },
+    "nutrients": {
+      "title": "Nutrients",
+      "custom": "Custom Nutrients",
+      "customSubtitle": "Create and edit your own nutrients",
+      "display": "Nutrient Display",
+      "displaySubtitle": "Choose and order the nutrients shown in each view"
     }
   },
   "workoutComplete": {
@@ -6374,6 +6381,52 @@
       "calculateField": "Calculate {{nutrient}}",
       "calculateAll": "Calculate all from my profile",
       "needsProfile": "Set your sex in your profile on the web to calculate recommended nutrient goals."
+    }
+  },
+  "customNutrients": {
+    "title": "Custom Nutrients",
+    "add": "Add custom nutrient",
+    "loading": "Loading custom nutrients...",
+    "loadFailed": "Failed to load custom nutrients",
+    "empty": "No custom nutrients yet",
+    "emptyHint": "Track anything the built-in nutrients do not cover, such as magnesium or omega-3.",
+    "description": "Tap a nutrient to edit its name, unit, or provider aliases.",
+    "editTitle": "Edit nutrient",
+    "createTitle": "Add nutrient",
+    "notFound": "Custom nutrient not found",
+    "name": "Nutrient name",
+    "namePlaceholder": "e.g., Magnesium",
+    "unit": "Unit",
+    "unitPlaceholder": "e.g., mg, µg, IU",
+    "aliases": "Provider aliases",
+    "aliasPlaceholder": "Type a name, then press return",
+    "aliasesHelp": "Names online food databases use for this nutrient. When you import a food, matching provider fields fill this nutrient.",
+    "required": "Nutrient name and unit are required.",
+    "saveFailed": "Failed to save custom nutrient",
+    "deleteFailed": "Failed to delete custom nutrient",
+    "delete": "Delete nutrient",
+    "deleteTitle": "Delete custom nutrient",
+    "deleteMessage": "Delete {{name}}? You can also remove it from past goals and diary entries.",
+    "deleteKeepHistory": "Delete, keep history",
+    "deleteAllHistory": "Delete and remove history"
+  },
+  "nutrientDisplay": {
+    "title": "Nutrient Display",
+    "loading": "Loading nutrient display...",
+    "loadFailed": "Failed to load nutrient display",
+    "description": "Choose which nutrients this app shows in each place, and their order. Dashboard and Diary have their own settings.",
+    "groupPicker": "Show in",
+    "updateFailed": "Failed to update nutrient display.",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "show": "Show {{name}}",
+    "reset": "Reset to default",
+    "groups": {
+      "quickInfo": "Quick Info",
+      "foodDatabase": "Food Database",
+      "goal": "Goal",
+      "reportTabular": "Report (Tabular)",
+      "reportChart": "Report (Chart)"
     }
   }
 }
