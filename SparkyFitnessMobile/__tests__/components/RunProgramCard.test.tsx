@@ -4,6 +4,7 @@ import RunProgramCard from '../../src/components/recording/RunProgramCard';
 import { programStatus } from '@workspace/shared';
 
 const handlers = () => ({
+  now: Date.now(),
   reminders: { days: [] as number[], hour: 7 },
   onReminders: jest.fn(),
   onPickWorkout: jest.fn(),
@@ -140,5 +141,52 @@ describe('run reminders', () => {
     );
     fireEvent.press(screen.getByLabelText('Monday'));
     expect(onReminders).toHaveBeenLastCalledWith({ days: [], hour: 7 });
+  });
+});
+
+describe('recent changes', () => {
+  const base = {
+    reminders: { days: [] as number[], hour: 7 },
+    onReminders: jest.fn(),
+    onPickWorkout: jest.fn(),
+    onToggle: jest.fn(),
+    onSelect: jest.fn(),
+    onRestart: jest.fn(),
+    onSkip: jest.fn(),
+    status: programStatus({ programId: 'beginner5k', next: 2 })!,
+    loaded: true,
+    selected: false,
+    enabled: true,
+    now: Date.now(),
+  };
+
+  it('says what Sparky changed, while it is recent', () => {
+    render(
+      <RunProgramCard
+        {...base}
+        lastAdjustment={{
+          at: new Date().toISOString(),
+          summary: 'Eased the running in the next 2 workouts by 20%.',
+          source: 'assistant',
+        }}
+      />
+    );
+    expect(
+      screen.getByText(/Sparky changed your plan on .*: Eased the running/)
+    ).toBeTruthy();
+  });
+
+  it('stays quiet about an old change', () => {
+    render(
+      <RunProgramCard
+        {...base}
+        lastAdjustment={{
+          at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+          summary: 'Repeating week 2.',
+          source: 'assistant',
+        }}
+      />
+    );
+    expect(screen.queryByText(/Repeating week 2/)).toBeNull();
   });
 });

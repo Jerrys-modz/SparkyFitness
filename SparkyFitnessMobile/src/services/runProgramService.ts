@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   storedProgramStatus,
   type ProgramStatus,
+  type RunProgramAdjustment,
   type RunProgramResponse,
 } from '@workspace/shared';
 import { queryClient } from '../hooks/queryClient';
@@ -100,6 +101,8 @@ export function useRunProgram(): {
   status: ProgramStatus | null;
   /** Whether the person is using it. */
   enabled: boolean;
+  /** The most recent change to the workouts or place made by Sparky or the person, if any. */
+  lastAdjustment: RunProgramAdjustment | null;
   loaded: boolean;
 } {
   const { data, isSuccess } = useQuery({
@@ -111,6 +114,7 @@ export function useRunProgram(): {
   return {
     status: data ? storedProgramStatus(data) : null,
     enabled: data?.enabled ?? false,
+    lastAdjustment: data?.adjustment_log.at(-1) ?? null,
     loaded: isSuccess,
   };
 }
