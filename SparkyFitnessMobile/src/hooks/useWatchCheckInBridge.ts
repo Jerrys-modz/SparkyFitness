@@ -44,6 +44,8 @@ import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useWorkoutPresets } from './useWorkoutPresets';
 import { getActiveServerConfigId } from '../services/storage';
+import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
+import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -267,6 +269,31 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     date: summaryDate,
     enabled,
   });
+
+  // What the diary's plan banner offers today, so the watch's workout page can
+  // put it first. Same query and completion rule as that banner.
+  const { plans: activePlans } = useActiveWorkoutPlans(summaryDate, {
+    enabled,
+  });
+  const dayExerciseEntries = dailySummary?.exerciseEntries;
+  const scheduledWorkouts = useMemo(
+    () =>
+      dayExerciseEntries === undefined
+        ? []
+        : scheduledWorkoutsForWatch(activePlans, dayExerciseEntries, {
+            scheduledToday: t(
+              'exerciseSummary.scheduledToday',
+              'Scheduled Today'
+            ),
+            sessionOf: (current, total) =>
+              t(
+                'exerciseSummary.sessionNumber',
+                'Session {{current}} of {{total}}',
+                { current, total }
+              ),
+          }),
+    [activePlans, dayExerciseEntries, t]
+  );
 
   // EVERY calorie figure sent to the watch comes from this one object — the
   // same one the phone's own summary bar (DiaryCalorieMacroSummary) and the
@@ -559,6 +586,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         startableWorkouts,
+        // Built for `summaryDate`; a push that has crossed midnight before the
+        // hook re-rendered must not carry yesterday's plan.
+        scheduledWorkouts: today === summaryDate ? scheduledWorkouts : [],
         workoutServerId,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
@@ -589,6 +619,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     watchDoubleTapEnabled,
     startableWorkouts,
+    scheduledWorkouts,
     waterGoalMl,
     waterDisplayUnit,
     watchPageOrder,
