@@ -309,6 +309,29 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     [t]
   );
 
+  // A program change goes to the server, so it can fail (offline). The
+  // reminders follow whatever the program's state ends up being.
+  const changeProgram = useCallback(
+    (change: () => Promise<void>) => {
+      void change()
+        .then(() => reconcileRunReminders())
+        .catch((error: unknown) => {
+          addLog(
+            `[Run Program] Could not update the program: ${error}`,
+            'WARNING'
+          );
+          Toast.show({
+            type: 'error',
+            text1: t('recordActivity.program.errors.update', {
+              defaultValue: 'Could not update your program',
+            }),
+            text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+          });
+        });
+    },
+    [t]
+  );
+
   const handleStart = useCallback(
     () =>
       run(
@@ -440,9 +463,21 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       // Ticks a program workout off only if the plan was followed to its last
       // step; a run cut short can be tried again.
       if (session.program && lastStepStarted(session.intervals)) {
-        await completeProgramWorkout(session.program.id, session.program.index);
-        // The last workout ends the program, and with it the reminders.
-        void reconcileRunReminders();
+        // The activity is already saved, so a failure here only costs the
+        // tick: say so and carry on rather than failing the save.
+        try {
+          await completeProgramWorkout(
+            session.program.id,
+            session.program.index
+          );
+          // The last workout ends the program, and with it the reminders.
+          void reconcileRunReminders();
+        } catch (error) {
+          addLog(
+            `[Run Program] Could not tick off the workout: ${error}`,
+            'WARNING'
+          );
+        }
       }
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
@@ -619,38 +654,34 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           <RunProgramCard
             reminders={runReminders}
             onReminders={(next) => void setRunReminders(next)}
-            onPickWorkout={(index) => {
-              void setProgramPosition(index).then(() => {
+            onPickWorkout={(index) =>
+              changeProgram(async () => {
+                await setProgramPosition(index);
                 setActivity('run');
                 setIntervalChoice('program');
-                void reconcileRunReminders();
-              });
-            }}
+              })
+            }
             status={storedProgram}
             loaded={programLoaded}
             selected={intervalChoice === 'program'}
             enabled={programEnabled}
-            onToggle={(on) => {
-              void setProgramEnabled(on, 'beginner5k').then(() => {
+            onToggle={(on) =>
+              changeProgram(async () => {
+                await setProgramEnabled(on, 'beginner5k');
                 if (on) {
                   setActivity('run');
                   setIntervalChoice('program');
                 } else if (intervalChoice === 'program') {
                   setIntervalChoice('off');
                 }
-                void reconcileRunReminders();
-              });
-            }}
+              })
+            }
             onSelect={() => {
               setActivity('run');
               setIntervalChoice('program');
             }}
-            onRestart={() => {
-              void restartProgram().then(() => reconcileRunReminders());
-            }}
-            onSkip={() =>
-              void skipProgramWorkout().then(() => reconcileRunReminders())
-            }
+            onRestart={() => changeProgram(restartProgram)}
+            onSkip={() => changeProgram(skipProgramWorkout)}
           />
           <IntervalSetup
             programLabel={

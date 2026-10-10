@@ -149,3 +149,34 @@ export function advanceProgress(
 export function planMinutes(plan: IntervalPlan): number {
   return Math.round(plan.steps.reduce((sum, s) => sum + s.seconds, 0) / 60);
 }
+
+/** A stored program as the server holds it: the person's own workouts. */
+export interface StoredRunProgram {
+  program_id: string;
+  next_index: number;
+  workouts: ProgramWorkout[];
+}
+
+/**
+ * Like `programStatus`, but over the person's own (possibly adjusted)
+ * workouts rather than the built-in definition.
+ */
+export function storedProgramStatus(stored: StoredRunProgram): ProgramStatus {
+  const workouts = stored.workouts;
+  const weeks = workouts.reduce((max, w) => Math.max(max, w.week + 1), 0);
+  const program: RunProgram = {
+    id: stored.program_id,
+    workouts,
+    weeks,
+    workoutsPerWeek: workouts.filter((w) => w.week === 0).length,
+  };
+  const total = workouts.length;
+  const next = Math.min(Math.max(0, Math.floor(stored.next_index)), total);
+  return {
+    program,
+    workout: workouts[next] ?? null,
+    done: next,
+    total,
+    finished: next >= total,
+  };
+}
