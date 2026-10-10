@@ -30,6 +30,7 @@ describe('FastingGoalReconciler', () => {
     jest.clearAllMocks();
     mockUseFastingPreferences.mockReturnValue({
       data: { pre_end_alert_minutes: 45 },
+      isLoading: false,
     } as never);
   });
 
@@ -54,5 +55,26 @@ describe('FastingGoalReconciler', () => {
       45
     );
     expect(toJSON()).toBeNull();
+  });
+
+  it('waits for fasting preferences before reconciling', () => {
+    mockUseCurrentFast.mockReturnValue({
+      data: null,
+      isLoading: false,
+      refetch: jest.fn(),
+    } as never);
+    mockUseFastingPreferences.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as never);
+
+    render(<FastingGoalReconciler />);
+
+    expect(mockReconciler).toHaveBeenCalledWith(
+      null,
+      true,
+      expect.any(Function),
+      undefined
+    );
   });
 });

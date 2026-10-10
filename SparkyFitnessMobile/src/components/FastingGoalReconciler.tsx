@@ -15,10 +15,11 @@ import {
  */
 const FastingGoalReconciler: React.FC = () => {
   const { data: currentFast, isLoading, refetch } = useCurrentFast();
-  const { data: preferences } = useFastingPreferences();
+  const { data: preferences, isLoading: preferencesLoading } =
+    useFastingPreferences();
   useFastingGoalReconciler(
     currentFast,
-    isLoading,
+    isLoading || preferencesLoading,
     refetch,
     preferences?.pre_end_alert_minutes
   );
