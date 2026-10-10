@@ -115,8 +115,8 @@ const SymptomSeverityChart: React.FC<SymptomSeverityChartProps> = ({
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        {layout.points.map((p) => (
-          <Circle key={p.at} cx={p.x} cy={p.y} r={3.5} fill={lineColor} />
+        {layout.points.map((p, i) => (
+          <Circle key={`pt-${i}`} cx={p.x} cy={p.y} r={3.5} fill={lineColor} />
         ))}
         <SvgText x={layout.left} y={H - 6} fontSize={9} fill={mutedColor}>
           {formatClock(layout.startIso)}

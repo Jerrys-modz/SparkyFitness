@@ -145,7 +145,11 @@ const SymptomCalendar: React.FC<SymptomCalendarProps> = ({
                 <TouchableOpacity
                   onPress={() => onSelectDate(selected ? null : day)}
                   accessibilityRole="button"
-                  accessibilityLabel={day}
+                  accessibilityLabel={
+                    summary && summary.tone !== 'none'
+                      ? `${day}, ${toneLabels[summary.tone]}`
+                      : day
+                  }
                   accessibilityState={{ selected }}
                   className={`aspect-square items-center justify-center rounded-md ${
                     summary ? TONE_CLASS[summary.tone] : ''
