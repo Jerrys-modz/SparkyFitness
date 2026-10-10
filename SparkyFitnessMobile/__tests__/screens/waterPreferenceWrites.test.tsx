@@ -9,7 +9,10 @@ import {
   WATER_PREFERENCES_SCOPE,
   refreshAfterWaterPreferenceWrite,
 } from '../../src/screens/WaterContainersScreen';
-import { preferencesQueryKey } from '../../src/hooks/queryKeys';
+import {
+  dailySummaryRootQueryKey,
+  preferencesQueryKey,
+} from '../../src/hooks/queryKeys';
 
 function deferred() {
   let resolve: () => void = () => undefined;
@@ -19,12 +22,11 @@ function deferred() {
   return { promise, resolve };
 }
 
-function preferenceRefetches(
-  invalidate: jest.SpiedFunction<QueryClient['invalidateQueries']>
+function refetchesFor(
+  invalidate: jest.SpiedFunction<QueryClient['invalidateQueries']>,
+  queryKey: readonly unknown[]
 ) {
-  return invalidate.mock.calls.filter(
-    (call) => call[0]?.queryKey === preferencesQueryKey
-  );
+  return invalidate.mock.calls.filter((call) => call[0]?.queryKey === queryKey);
 }
 
 describe('refreshAfterWaterPreferenceWrite', () => {
@@ -68,7 +70,8 @@ describe('refreshAfterWaterPreferenceWrite', () => {
     await waitFor(() => {
       expect(settled).toBe(1);
     });
-    expect(preferenceRefetches(invalidate)).toHaveLength(0);
+    expect(refetchesFor(invalidate, preferencesQueryKey)).toHaveLength(0);
+    expect(refetchesFor(invalidate, dailySummaryRootQueryKey)).toHaveLength(0);
 
     await act(async () => {
       second.resolve();
@@ -76,6 +79,7 @@ describe('refreshAfterWaterPreferenceWrite', () => {
     await waitFor(() => {
       expect(settled).toBe(2);
     });
-    expect(preferenceRefetches(invalidate)).toHaveLength(1);
+    expect(refetchesFor(invalidate, preferencesQueryKey)).toHaveLength(1);
+    expect(refetchesFor(invalidate, dailySummaryRootQueryKey)).toHaveLength(1);
   });
 });
