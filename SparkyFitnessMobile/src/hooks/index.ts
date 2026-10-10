@@ -59,6 +59,12 @@ export {
   useDeleteMealPlan,
 } from './useMealPlans';
 export { useMealPlanNutrition } from './useMealPlanNutrition';
+export {
+  useWorkoutPlans,
+  useCreateWorkoutPlan,
+  useUpdateWorkoutPlan,
+  useDeleteWorkoutPlan,
+} from './useWorkoutPlans';
 export { useMealSearch } from './useMealSearch';
 export {
   useWaterContainersQuery,
