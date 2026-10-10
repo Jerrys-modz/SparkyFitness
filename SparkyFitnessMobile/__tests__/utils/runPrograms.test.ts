@@ -78,6 +78,70 @@ describe('progress', () => {
   });
 });
 
-test('the list has a program to find', () => {
-  expect(RUN_PROGRAMS.length).toBeGreaterThan(0);
+describe('every program', () => {
+  test('is listed once, easiest first, and can be found by id', () => {
+    expect(RUN_PROGRAMS.map((p) => p.id)).toEqual([
+      'beginner5k',
+      'fiveToTenK',
+      'faster5k',
+      'halfMarathon',
+      'marathon',
+    ]);
+    for (const p of RUN_PROGRAMS) expect(findProgram(p.id)).toBe(p);
+  });
+
+  test.each([
+    ['beginner5k', 9, 27],
+    ['fiveToTenK', 8, 24],
+    ['faster5k', 6, 18],
+    ['halfMarathon', 12, 36],
+    ['marathon', 16, 63],
+  ])('%s has %i weeks and %i workouts', (id, weeks, total) => {
+    const p = findProgram(id)!;
+    expect(p.weeks).toBe(weeks);
+    expect(p.workouts).toHaveLength(total);
+    expect(new Set(p.workouts.map((w) => w.week)).size).toBe(weeks);
+  });
+
+  test('every workout is a valid plan and workouts follow in order', () => {
+    for (const p of RUN_PROGRAMS) {
+      let last = -1;
+      for (const w of p.workouts) {
+        expect(isValidIntervalPlan(w.plan)).toBe(true);
+        expect(w.plan.steps[0].kind).toBe('warmup');
+        expect(w.plan.steps[w.plan.steps.length - 1].kind).toBe('cooldown');
+        expect(w.week).toBeGreaterThanOrEqual(last);
+        last = w.week;
+      }
+    }
+  });
+
+  test('the long runs build up and stay under four hours', () => {
+    const longest = (id: string) =>
+      Math.max(
+        ...findProgram(id)!.workouts.map((w) =>
+          Math.max(...w.plan.steps.map((s) => s.seconds))
+        )
+      );
+    expect(longest('fiveToTenK')).toBe(65 * 60);
+    expect(longest('halfMarathon')).toBe(115 * 60);
+    expect(longest('marathon')).toBe(165 * 60);
+    for (const p of RUN_PROGRAMS) {
+      expect(longest(p.id)).toBeLessThanOrEqual(4 * 3600);
+    }
+  });
+
+  test('the speed plan is called fast and easy, the others run and walk', () => {
+    expect(findProgram('faster5k')!.workouts[0].plan.style).toBe('fastEasy');
+    expect(findProgram('marathon')!.workouts[0].plan.style).toBe('runWalk');
+  });
+
+  test('an easy run in the speed plan is an easy step, not a run', () => {
+    const easyDay = findProgram('faster5k')!.workouts[1].plan.steps;
+    expect(easyDay.map((s) => s.kind)).toEqual([
+      'warmup',
+      'recovery',
+      'cooldown',
+    ]);
+  });
 });

@@ -60,6 +60,17 @@ export async function setProgramEnabled(
   );
 }
 
+/**
+ * Starts `programId` from its first workout and switches it on. Choosing the
+ * program already held just switches it on and keeps the place; choosing a
+ * different one replaces it (the server reseeds the workouts and the place).
+ */
+export async function startProgram(programId: string): Promise<void> {
+  setCache(
+    (await saveRunProgram({ program_id: programId, enabled: true })).program
+  );
+}
+
 /** Jumps to any workout (0-based), to repeat one or start further in. */
 export async function setProgramPosition(index: number): Promise<void> {
   const current = queryClient.getQueryData<RunProgramResponse | null>(

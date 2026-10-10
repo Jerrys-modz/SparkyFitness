@@ -34,6 +34,8 @@ export interface IntervalOptions {
 
 export const MAX_INTERVAL_ROUNDS = 30;
 export const MAX_STEP_SECONDS = 3600;
+/** A longest step inside a stored program plan: a long run is one step. */
+export const MAX_PROGRAM_STEP_SECONDS = 4 * 3600;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Math.round(value)));
@@ -226,7 +228,7 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
         ["warmup", "work", "recovery", "cooldown"].includes(step.kind) &&
         Number.isFinite(step.seconds) &&
         step.seconds > 0 &&
-        step.seconds <= MAX_STEP_SECONDS
+        step.seconds <= MAX_PROGRAM_STEP_SECONDS
     )
   );
 }

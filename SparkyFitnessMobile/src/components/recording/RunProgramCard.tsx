@@ -5,11 +5,15 @@ import type { TFunction } from 'i18next';
 import Button from '../ui/Button';
 import Switch from '../ui/Switch';
 import SegmentedControl from '../SegmentedControl';
-import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
+import BottomSheetPicker, {
+  type PickerOption,
+  type PickerSection,
+} from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
 import type { RunReminders } from '../../services/runReminderService';
 import {
   planMinutes,
+  RUN_PROGRAMS,
   type ProgramStatus,
   type RunProgramAdjustment,
 } from '@workspace/shared';
@@ -19,6 +23,55 @@ export function programName(t: TFunction, id: string): string {
     case 'beginner5k':
       return t('recordActivity.program.name.beginner5k', {
         defaultValue: 'Beginner 5K',
+      });
+    case 'fiveToTenK':
+      return t('recordActivity.program.name.fiveToTenK', {
+        defaultValue: '5K to 10K',
+      });
+    case 'faster5k':
+      return t('recordActivity.program.name.faster5k', {
+        defaultValue: 'Faster 5K',
+      });
+    case 'halfMarathon':
+      return t('recordActivity.program.name.halfMarathon', {
+        defaultValue: 'Half marathon',
+      });
+    case 'marathon':
+      return t('recordActivity.program.name.marathon', {
+        defaultValue: 'Marathon',
+      });
+    default:
+      return id;
+  }
+}
+
+/** A sentence on who a program is for and what it does. */
+export function programDescription(t: TFunction, id: string): string {
+  switch (id) {
+    case 'beginner5k':
+      return t('recordActivity.program.beginner5kDescription', {
+        defaultValue:
+          'Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.',
+      });
+    case 'fiveToTenK':
+      return t('recordActivity.program.fiveToTenKDescription', {
+        defaultValue:
+          '5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.',
+      });
+    case 'faster5k':
+      return t('recordActivity.program.faster5kDescription', {
+        defaultValue:
+          'Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.',
+      });
+    case 'halfMarathon':
+      return t('recordActivity.program.halfMarathonDescription', {
+        defaultValue:
+          'Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.',
+      });
+    case 'marathon':
+      return t('recordActivity.program.marathonDescription', {
+        defaultValue:
+          'Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.',
       });
     default:
       return id;
@@ -54,6 +107,9 @@ const hourLabel = (hour: number): string =>
   });
 
 interface Props {
+  /** The program picked in the list (the running one, or the one to start). */
+  programId: string;
+  onChooseProgram: (programId: string) => void;
   /** The latest change to the plan, shown for a couple of weeks. */
   lastAdjustment?: RunProgramAdjustment | null;
   /** Epoch ms "now", from the screen, to judge whether a change is recent. */
@@ -76,6 +132,8 @@ interface Props {
 
 /** Start, follow and leave a multi-week run program. */
 const RunProgramCard: React.FC<Props> = ({
+  programId,
+  onChooseProgram,
   lastAdjustment = null,
   now,
   reminders,
@@ -118,12 +176,32 @@ const RunProgramCard: React.FC<Props> = ({
     </View>
   );
 
+  const programOptions: PickerOption<string>[] = RUN_PROGRAMS.map((p) => ({
+    label: t('recordActivity.program.optionLabel', {
+      name: programName(t, p.id),
+      weeks: p.weeks,
+      runs: p.workoutsPerWeek,
+      defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} runs a week',
+    }),
+    value: p.id,
+  }));
+
   if (!enabled || !status) {
     return (
       <View className="bg-surface rounded-xl p-4 mt-4">
         {header}
+        <View className="mt-3">
+          <BottomSheetPicker<string>
+            value={programId}
+            options={programOptions}
+            onSelect={onChooseProgram}
+            title={t('recordActivity.program.chooseTitle', {
+              defaultValue: 'Choose a program',
+            })}
+          />
+        </View>
         <Text className="text-text-secondary text-xs mt-3">
-          {status
+          {status && status.program.id === programId
             ? t('recordActivity.program.paused', {
                 name: programName(t, status.program.id),
                 done: status.done,
@@ -131,10 +209,7 @@ const RunProgramCard: React.FC<Props> = ({
                 defaultValue:
                   '{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.',
               })
-            : t('recordActivity.program.beginner5kDescription', {
-                defaultValue:
-                  'Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.',
-              })}
+            : programDescription(t, programId)}
         </Text>
       </View>
     );
@@ -308,6 +383,21 @@ const RunProgramCard: React.FC<Props> = ({
           )}
         </View>
       )}
+      <BottomSheetPicker<string>
+        value={programId}
+        options={programOptions}
+        onSelect={onChooseProgram}
+        title={t('recordActivity.program.chooseTitle', {
+          defaultValue: 'Choose a program',
+        })}
+        renderTrigger={({ onPress }) => (
+          <Button variant="link" onPress={onPress}>
+            {t('recordActivity.program.change', {
+              defaultValue: 'Change program',
+            })}
+          </Button>
+        )}
+      />
       <BottomSheetPicker<number>
         value={Math.min(status.done, status.total - 1)}
         sections={sections}

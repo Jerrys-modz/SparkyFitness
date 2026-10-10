@@ -26,7 +26,14 @@ export const manageRunProgramSchema = z.discriminatedUnion('action', [
   z
     .object({
       action: z.literal('start_run_program'),
-      program_id: z.string().min(1).max(50).optional(),
+      program_id: z
+        .string()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe(
+          'beginner5k, fiveToTenK, faster5k, halfMarathon or marathon. Default beginner5k.'
+        ),
       confirmed: confirmedSchema,
     })
     .strict(),

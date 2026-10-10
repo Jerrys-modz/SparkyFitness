@@ -6470,7 +6470,11 @@
     "program": {
       "title": "Training program",
       "name": {
-        "beginner5k": "Beginner 5K"
+        "beginner5k": "Beginner 5K",
+        "fiveToTenK": "5K to 10K",
+        "faster5k": "Faster 5K",
+        "halfMarathon": "Half marathon",
+        "marathon": "Marathon"
       },
       "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
       "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
@@ -6495,7 +6499,17 @@
         "update": "Could not update your program"
       },
       "changedBySparky": "Sparky changed your plan on {{date}}: {{summary}}",
-      "changed": "Plan changed on {{date}}: {{summary}}"
+      "changed": "Plan changed on {{date}}: {{summary}}",
+      "fiveToTenKDescription": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
+      "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
+      "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+      "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
+      "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
+      "chooseTitle": "Choose a program",
+      "change": "Change program",
+      "switchTitle": "Switch to {{name}}?",
+      "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
+      "switchConfirm": "Switch"
     }
   }
 }

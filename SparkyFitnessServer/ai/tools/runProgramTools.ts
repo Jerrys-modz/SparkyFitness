@@ -81,7 +81,7 @@ To judge progress, read the user's recent runs first (sparky_get_exercise_stats 
 
 Actions:
 - action: 'get_run_program' — progress, the next workouts and recent changes
-- action: 'start_run_program' (fields: program_id? default beginner5k, confirmed) — starts the program from workout 1, or switches it on
+- action: 'start_run_program' (fields: program_id? default beginner5k, confirmed) — starts a program from workout 1 (or switches it on). Programs: beginner5k (9 weeks, run/walk to 30 min), fiveToTenK (8 weeks, for people who can run 30 min), faster5k (6 weeks of speed work), halfMarathon (12 weeks), marathon (16 weeks, for people who already run regularly). Starting a different program than the current one replaces it, so say so before asking to confirm. Pick by what the user says they can do now; if unsure, ask.
 - action: 'set_run_program_enabled' (fields: enabled, confirmed) — switches the program on or off, keeping their place
 - action: 'repeat_run_program_week' (fields: week (1-based), confirmed) — goes back to the start of a week to do it again
 - action: 'move_run_program' (fields: week (1-based), run? (1-based, default 1), confirmed) — jumps to a workout

@@ -99,7 +99,17 @@ Intervals work with phone recording only for now. The watch does not show the st
 
 ## Training programs
 
-Training programs are optional and off by default. If you are starting to run, switch on **Use a training program** on the Record screen to follow **Beginner 5K**: nine weeks, three runs a week. Each run is a timed plan (a 5 minute warm-up, alternating running and walking, a 5 minute cool-down), starting with 1 minute of running and building up to 30 minutes of running in week 9.
+Training programs are optional and off by default. Switch on **Use a training program** on the Record screen and pick one:
+
+| Program | For | Length |
+| --- | --- | --- |
+| **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
+| **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |
+| **Faster 5K** | You already run 5K. Interval sessions, easy runs and tempo runs. | 6 weeks, 3 runs a week |
+| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 runs a week |
+| **Marathon** | You already run regularly. Long runs building to about 2¾ hours, an easier week every fourth and a taper. | 16 weeks, 3 to 4 runs a week |
+
+Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** switches to another one and starts it at week 1.
 
 With the switch on, the screen selects today's workout for you (week 1, run 1 first) and the card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk. Switch it off whenever you like: the Record screen goes back to a plain recording (you can still pick any interval plan), the reminders stop, and your place is kept for when you switch it back on.
 
