@@ -85,6 +85,7 @@ import {
   SafeMealTypeSettings,
   SafeAiSettings,
   SafeFoodSettings,
+  SafeAllergenSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
   SafeWatchSettings,
@@ -860,6 +861,11 @@ function AppContent() {
             name="FoodSettings"
             component={SafeFoodSettings}
             options={createStackScreenOptions(t('screens.foodSettings', { defaultValue: 'Food Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="AllergenSettings"
+            component={SafeAllergenSettings}
+            options={createStackScreenOptions(t('screens.allergenSettings', { defaultValue: 'Allergens' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
           />
           <Stack.Screen
             name="MealTypeSettings"
