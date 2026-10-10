@@ -3,6 +3,10 @@ import { fireEvent, render } from '@testing-library/react-native';
 
 import ReportsScreen from '../../src/screens/ReportsScreen';
 import { initializeI18n } from '../../src/localization/i18n';
+import {
+  useAppPreferencesStore,
+  __resetAppPreferencesStoreForTests,
+} from '../../src/stores/appPreferencesStore';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -36,7 +40,10 @@ describe('ReportsScreen', () => {
     route: { key: 'Reports', name: 'Reports' },
   } as unknown as RootStackScreenProps<'Reports'>;
 
-  beforeEach(() => navigate.mockClear());
+  beforeEach(() => {
+    navigate.mockClear();
+    __resetAppPreferencesStoreForTests();
+  });
 
   it.each([
     ['nutrition', 'NutritionReport'],
@@ -47,5 +54,23 @@ describe('ReportsScreen', () => {
     const { getByTestId } = render(<ReportsScreen {...props} />);
     fireEvent.press(getByTestId(`reports-link-${key}`));
     expect(navigate).toHaveBeenCalledWith(route);
+  });
+
+  it('lists the reports in the saved order and leaves hidden ones off', () => {
+    useAppPreferencesStore.setState({
+      reportOrder: ['mood', 'exercise'],
+      hiddenReports: ['sleep'],
+    });
+
+    const { queryAllByTestId, queryByTestId } = render(
+      <ReportsScreen {...props} />
+    );
+
+    expect(
+      queryAllByTestId(/^reports-link-/).map((link) =>
+        String(link.props.testID).replace('reports-link-', '')
+      )
+    ).toEqual(['mood', 'exercise', 'nutrition']);
+    expect(queryByTestId('reports-link-sleep')).toBeNull();
   });
 });
