@@ -59,6 +59,8 @@ A pause you make yourself is never undone automatically; only an auto-pause resu
 
 Turn on **Voice cues** before you start and the phone speaks as you go: your total time and the time of the last kilometer or mile each time you complete one, and "Paused", "Auto paused" or "Resumed" when that happens. It also says your distance and time when you finish. Cues use the distance unit from your settings and the app language, and they're spoken with the screen locked and the phone's silent switch on. If you're playing music it keeps playing, and it dips while a cue is spoken when **Lower music during cues** is on.
 
+**Voice.** With voice cues on, a **Voice** card lets you choose the voice and hear it with **Test voice**. The default, **Automatic**, uses the best Premium or Enhanced voice installed on your phone for the app language, and the phone's standard voice if there is none. Better voices are a free download: on an iPhone go to Settings → Accessibility → Read & Speak → Voices (Spoken Content → Voices before iOS 18) and download a Premium or Enhanced voice for your language, then reopen the card. The same choice is used for guided workouts. Siri's own voices and Apple Fitness's coaching voices aren't available to apps, so those can't be chosen.
+
 The setting is off by default and is remembered for next time. Cues are spoken by the phone, so use earphones or a watch speaker if you don't want them out loud.
 
 ---

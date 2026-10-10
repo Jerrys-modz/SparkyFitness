@@ -20,6 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
+import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
 import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
 import RunProgramCard, {
@@ -633,6 +634,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
           </View>
+          {audioCues && <RecordingVoiceCard />}
           <View className="bg-surface rounded-xl p-4 mt-4">
             <Text className="text-text-primary text-sm font-semibold mb-2">
               {t('recordActivity.countdown.title', {
