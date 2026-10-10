@@ -44,6 +44,8 @@ export interface WorkoutPlanTemplate {
 
 /** What the plan form edits: the saved plan's fields as plain strings. */
 export interface WorkoutPlanDraftAssignment {
+  /** Server id when this row already exists. Omitted for a new assignment. */
+  id?: string;
   /** Local key, so rows can be told apart before they have a server id. */
   key: string;
   /** 0 (Sunday) to 6 for a weekly plan; null for a sequential one. */
@@ -92,6 +94,8 @@ export interface SaveWorkoutPlanPayload {
   schedule_type: WorkoutPlanScheduleType;
   entry_mode: 'prompt' | 'prefill';
   assignments: {
+    /** Existing assignment id. Omitted so a new row is inserted. */
+    id?: string;
     day_of_week: number | null;
     session_index: number | null;
     session_name: string | null;

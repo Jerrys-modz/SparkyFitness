@@ -6,6 +6,7 @@ import {
   removeSession,
   validateWorkoutPlanDraft,
 } from '../../src/utils/workoutPlanForm';
+import type { WorkoutPlanTemplate } from '../../src/types/workoutPlans';
 
 describe('workoutPlanForm', () => {
   const base = createWorkoutPlanDraft('2026-10-08');
@@ -74,6 +75,7 @@ describe('workoutPlanForm', () => {
       workout_preset_id: '1',
       sets: [],
     });
+    expect(payload.assignments[0]).not.toHaveProperty('id');
   });
 
   test('sequential payload uses session indexes, names and prompt entry', () => {
@@ -137,5 +139,48 @@ describe('workoutPlanForm', () => {
       'P3',
     ]);
     expect(next.assignments.map((a) => a.session_index)).toEqual([1, 2]);
+  });
+
+  test('an edit keeps existing assignment ids and omits them for new rows', () => {
+    const template = {
+      id: 'plan-1',
+      user_id: 'user-1',
+      plan_name: 'Push pull',
+      start_date: '2026-10-01',
+      is_active: true,
+      schedule_type: 'weekly',
+      assignments: [
+        {
+          id: '41',
+          template_id: 'plan-1',
+          day_of_week: 1,
+          session_index: null,
+          sort_order: 0,
+          workout_preset_id: '7',
+          workout_preset_name: 'Push',
+          exercise_id: null,
+          sets: [],
+        },
+      ],
+    } as WorkoutPlanTemplate;
+    const draft = createWorkoutPlanDraft('2026-10-08', template);
+    expect(draft.assignments[0]?.id).toBe('41');
+
+    const withNew = {
+      ...draft,
+      assignments: [
+        ...draft.assignments,
+        createPresetAssignment(
+          { id: 8, name: 'Pull' },
+          { dayOfWeek: 1, sessionIndex: null }
+        ),
+      ],
+    };
+    const payload = buildWorkoutPlanPayload(withNew);
+    expect(payload.assignments.map((assignment) => assignment.id)).toEqual([
+      '41',
+      undefined,
+    ]);
+    expect(changeScheduleType(withNew, 'sequential').assignments).toEqual([]);
   });
 });

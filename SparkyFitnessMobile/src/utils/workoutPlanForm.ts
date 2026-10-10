@@ -66,6 +66,7 @@ export function createWorkoutPlanDraft(
       }
     }
     return {
+      id: assignment.id,
       key: String(assignment.id),
       day_of_week: scheduleType === 'weekly' ? assignment.day_of_week : null,
       session_index: sessionIndex,
@@ -171,6 +172,7 @@ export function buildWorkoutPlanPayload(
         ? draft.sessionNames[assignment.session_index ?? 1]?.trim() || null
         : null;
       return {
+        ...(assignment.id !== undefined ? { id: assignment.id } : {}),
         day_of_week: sequential ? null : assignment.day_of_week,
         session_index: sequential ? (assignment.session_index ?? 1) : null,
         session_name: sessionName,
