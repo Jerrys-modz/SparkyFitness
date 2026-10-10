@@ -12,7 +12,9 @@ import BottomSheetPicker, {
 import { getAppLocale } from '../../localization';
 import type { RunReminders } from '../../services/runReminderService';
 import {
+  findProgram,
   planMinutes,
+  programOutline,
   RUN_PROGRAMS,
   type ProgramStatus,
   type RunProgramAdjustment,
@@ -211,6 +213,22 @@ const RunProgramCard: React.FC<Props> = ({
               })
             : programDescription(t, programId)}
         </Text>
+        {(!status || status.program.id !== programId) &&
+          (() => {
+            const program = findProgram(programId);
+            if (!program) return null;
+            const outline = programOutline(program);
+            return (
+              <Text className="text-text-secondary text-xs mt-2">
+                {t('recordActivity.program.outline', {
+                  weekOne: outline.firstWeek.join(', '),
+                  peak: outline.peakRunMinutes,
+                  defaultValue:
+                    'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                })}
+              </Text>
+            );
+          })()}
       </View>
     );
   }

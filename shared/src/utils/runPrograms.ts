@@ -248,6 +248,34 @@ export function planMinutes(plan: IntervalPlan): number {
   return Math.round(plan.steps.reduce((sum, s) => sum + s.seconds, 0) / 60);
 }
 
+/** Whole minutes of running (work steps) in a plan, walking and warm-up left out. */
+export function runMinutes(plan: IntervalPlan): number {
+  return Math.round(
+    plan.steps
+      .filter((s) => s.kind === "work")
+      .reduce((sum, s) => sum + s.seconds, 0) / 60,
+  );
+}
+
+export interface ProgramOutline {
+  /** Total minutes of each workout in week 1, in order. */
+  firstWeek: number[];
+  /** Minutes of running in the biggest workout, where it builds to. */
+  peakRunMinutes: number;
+}
+
+/** A glance at a program: what week 1 looks like and what it builds to. */
+export function programOutline(program: RunProgram): ProgramOutline {
+  const first = program.workouts.filter((w) => w.week === 0);
+  return {
+    firstWeek: first.map((w) => planMinutes(w.plan)),
+    peakRunMinutes: program.workouts.reduce(
+      (max, w) => Math.max(max, runMinutes(w.plan)),
+      0,
+    ),
+  };
+}
+
 /** A stored program as the server holds it: the person's own workouts. */
 export interface StoredRunProgram {
   program_id: string;
