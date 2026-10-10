@@ -64,7 +64,7 @@ import {
   lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
-} from '../utils/intervals';
+} from '@workspace/shared';
 import {
   completeProgramWorkout,
   setProgramPosition,

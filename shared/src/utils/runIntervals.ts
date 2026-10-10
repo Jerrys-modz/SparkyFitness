@@ -5,13 +5,13 @@
  * stops while paused, so a pause never eats into an interval.
  */
 
-export type IntervalStepKind = 'warmup' | 'work' | 'recovery' | 'cooldown';
+export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
 
 /**
  * How the steps are spoken: a run/walk plan says "Run" and "Walk", a speed
  * session says "Fast" and "Easy".
  */
-export type IntervalStyle = 'runWalk' | 'fastEasy';
+export type IntervalStyle = "runWalk" | "fastEasy";
 
 export interface IntervalStep {
   kind: IntervalStepKind;
@@ -50,15 +50,15 @@ export function buildIntervalPlan(options: IntervalOptions): IntervalPlan {
   const warmup = clamp(options.warmupSeconds, 0, MAX_STEP_SECONDS);
   const cooldown = clamp(options.cooldownSeconds, 0, MAX_STEP_SECONDS);
   const steps: IntervalStep[] = [];
-  if (warmup > 0) steps.push({ kind: 'warmup', seconds: warmup });
+  if (warmup > 0) steps.push({ kind: "warmup", seconds: warmup });
   for (let round = 1; round <= rounds; round++) {
-    steps.push({ kind: 'work', seconds: work });
+    steps.push({ kind: "work", seconds: work });
     const last = round === rounds;
     if (recovery > 0 && !(last && cooldown > 0)) {
-      steps.push({ kind: 'recovery', seconds: recovery });
+      steps.push({ kind: "recovery", seconds: recovery });
     }
   }
-  if (cooldown > 0) steps.push({ kind: 'cooldown', seconds: cooldown });
+  if (cooldown > 0) steps.push({ kind: "cooldown", seconds: cooldown });
   return { style: options.style, steps };
 }
 
@@ -75,9 +75,9 @@ const MIN = 60;
 // starting points: Custom covers anything else.
 export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
   {
-    id: 'beginnerRunWalk',
+    id: "beginnerRunWalk",
     options: {
-      style: 'runWalk',
+      style: "runWalk",
       warmupSeconds: 5 * MIN,
       workSeconds: 60,
       recoverySeconds: 90,
@@ -86,9 +86,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: 'runWalk2',
+    id: "runWalk2",
     options: {
-      style: 'runWalk',
+      style: "runWalk",
       warmupSeconds: 5 * MIN,
       workSeconds: 2 * MIN,
       recoverySeconds: 2 * MIN,
@@ -97,9 +97,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: 'runWalk5',
+    id: "runWalk5",
     options: {
-      style: 'runWalk',
+      style: "runWalk",
       warmupSeconds: 5 * MIN,
       workSeconds: 5 * MIN,
       recoverySeconds: 2 * MIN,
@@ -108,9 +108,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: 'short400',
+    id: "short400",
     options: {
-      style: 'fastEasy',
+      style: "fastEasy",
       warmupSeconds: 10 * MIN,
       workSeconds: 90,
       recoverySeconds: 90,
@@ -119,9 +119,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: 'threeMinutes',
+    id: "threeMinutes",
     options: {
-      style: 'fastEasy',
+      style: "fastEasy",
       warmupSeconds: 10 * MIN,
       workSeconds: 3 * MIN,
       recoverySeconds: 2 * MIN,
@@ -130,9 +130,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: 'fourByFour',
+    id: "fourByFour",
     options: {
-      style: 'fastEasy',
+      style: "fastEasy",
       warmupSeconds: 10 * MIN,
       workSeconds: 4 * MIN,
       recoverySeconds: 3 * MIN,
@@ -169,12 +169,12 @@ export function intervalPosition(
 ): IntervalPosition | null {
   if (plan.steps.length === 0) return null;
   const at = Math.max(0, activeSeconds);
-  const rounds = plan.steps.filter((s) => s.kind === 'work').length;
+  const rounds = plan.steps.filter((s) => s.kind === "work").length;
   let start = 0;
   let round = 0;
   for (let index = 0; index < plan.steps.length; index++) {
     const step = plan.steps[index];
-    if (step.kind === 'work') round++;
+    if (step.kind === "work") round++;
     const end = start + step.seconds;
     if (at < end) {
       return {
@@ -214,16 +214,16 @@ export function stepStartSeconds(plan: IntervalPlan, index: number): number {
 
 /** Checks a plan read back from storage or built by hand. */
 export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== "object") return false;
   const plan = value as IntervalPlan;
   return (
-    (plan.style === 'runWalk' || plan.style === 'fastEasy') &&
+    (plan.style === "runWalk" || plan.style === "fastEasy") &&
     Array.isArray(plan.steps) &&
     plan.steps.length > 0 &&
     plan.steps.length <= 200 &&
     plan.steps.every(
       (step) =>
-        ['warmup', 'work', 'recovery', 'cooldown'].includes(step.kind) &&
+        ["warmup", "work", "recovery", "cooldown"].includes(step.kind) &&
         Number.isFinite(step.seconds) &&
         step.seconds > 0 &&
         step.seconds <= MAX_STEP_SECONDS

@@ -225,4 +225,6 @@ export * from "./utils/runningTrends.ts";
 export * from "./utils/raceTimePredictions.ts";
 export * from "./utils/workoutFeedbackForm.ts";
 export * from "./utils/adaptiveCoaching.ts";
+export * from "./utils/runIntervals.ts";
+export * from "./utils/runPrograms.ts";
 export * from "./constants/corosSportTypes.ts";

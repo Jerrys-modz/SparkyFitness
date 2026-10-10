@@ -10,7 +10,7 @@ import {
   MAX_INTERVAL_ROUNDS,
   type IntervalOptions,
   type IntervalStyle,
-} from '../../utils/intervals';
+} from '@workspace/shared';
 
 export type IntervalChoice = 'off' | 'custom' | string;
 

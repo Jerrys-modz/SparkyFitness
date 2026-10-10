@@ -8,7 +8,7 @@ import SegmentedControl from '../SegmentedControl';
 import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
 import type { RunReminders } from '../../services/runReminderService';
-import { planMinutes, type ProgramStatus } from '../../utils/runPrograms';
+import { planMinutes, type ProgramStatus } from '@workspace/shared';
 
 export function programName(t: TFunction, id: string): string {
   switch (id) {
