@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -42,6 +42,7 @@ import {
   GLP1_CHECKIN_DEFAULT,
   type Glp1CheckInMetricKey,
 } from '../utils/glp1';
+import type { CustomCategory } from '../types/customMeasurements';
 import type {
   LogInjectionInput,
   MedicationPen,
@@ -231,14 +232,22 @@ export function useGlp1CheckIn(date: string) {
     [categoriesQuery.data, entriesQuery.data]
   );
 
+  // IDs created by a save that then failed. The categories query still has the
+  // pre-save list until it refetches, and the server does not dedupe by name,
+  // so a retry must reuse these instead of creating them again.
+  const createdCategoryIds = useRef(new Map<string, string>());
+
   const save = useMutation({
     mutationFn: async (values: Record<Glp1CheckInMetricKey, number>) => {
       // Sequential on purpose: two parallel first saves could each create the
       // same category, and the server does not dedupe by name.
+      const known = queryClient.getQueryData<CustomCategory[]>(
+        customCategoriesQueryKey
+      );
       for (const metric of GLP1_CHECKIN_METRICS) {
-        let categoryId = categoriesQuery.data?.find(
-          (c) => c.name === metric.categoryName
-        )?.id;
+        let categoryId =
+          createdCategoryIds.current.get(metric.categoryName) ??
+          known?.find((c) => c.name === metric.categoryName)?.id;
         if (!categoryId) {
           const created = await createCustomCategory({
             name: metric.categoryName,
@@ -248,6 +257,10 @@ export function useGlp1CheckIn(date: string) {
             data_type: 'numeric',
           });
           categoryId = created.id;
+          createdCategoryIds.current.set(
+            metric.categoryName,
+            String(categoryId)
+          );
         }
         await saveCustomMeasurement({
           category_id: String(categoryId),
@@ -261,15 +274,20 @@ export function useGlp1CheckIn(date: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: customCategoriesQueryKey,
-      });
-      void queryClient.invalidateQueries({
         queryKey: customMeasurementsByDateQueryKey(date),
       });
       void queryClient.invalidateQueries({
         queryKey: latestManualCustomEntriesRootQueryKey,
       });
       refreshHealthSyncCache(queryClient);
+    },
+    // A failure partway through has already created categories. Invalidate
+    // here, not only on success, so the next save sees them once the refetch
+    // lands. The ref above covers the gap before that refetch returns.
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: customCategoriesQueryKey,
+      });
     },
   });
 
