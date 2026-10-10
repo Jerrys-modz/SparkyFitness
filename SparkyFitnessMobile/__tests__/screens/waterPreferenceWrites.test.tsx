@@ -37,6 +37,8 @@ describe('refreshAfterWaterPreferenceWrite', () => {
     });
     const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
     const first = deferred();
+    const second = deferred();
+    let settled = 0;
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
@@ -45,9 +47,10 @@ describe('refreshAfterWaterPreferenceWrite', () => {
         useMutation({
           scope: { id: WATER_PREFERENCES_SCOPE },
           mutationFn: async (id: 'first' | 'second') => {
-            if (id === 'first') await first.promise;
+            await (id === 'first' ? first.promise : second.promise);
           },
           onSettled: () => {
+            settled += 1;
             refreshAfterWaterPreferenceWrite(queryClient);
           },
         }),
@@ -59,14 +62,20 @@ describe('refreshAfterWaterPreferenceWrite', () => {
       result.current.mutate('second');
     });
 
-    expect(preferenceRefetches(invalidate)).toHaveLength(0);
-
     await act(async () => {
       first.resolve();
     });
-
     await waitFor(() => {
-      expect(preferenceRefetches(invalidate)).toHaveLength(1);
+      expect(settled).toBe(1);
     });
+    expect(preferenceRefetches(invalidate)).toHaveLength(0);
+
+    await act(async () => {
+      second.resolve();
+    });
+    await waitFor(() => {
+      expect(settled).toBe(2);
+    });
+    expect(preferenceRefetches(invalidate)).toHaveLength(1);
   });
 });
