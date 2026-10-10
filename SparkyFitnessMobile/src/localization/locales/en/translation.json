@@ -5935,7 +5935,6 @@
       "minutesAxis": "Minutes from start",
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
-      "pace": "Pace",
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
@@ -6067,7 +6066,9 @@
       "kilometers_one": "{{count}} kilometer",
       "kilometers_other": "{{count}} kilometers",
       "miles_one": "{{count}} mile",
-      "miles_other": "{{count}} miles"
+      "miles_other": "{{count}} miles",
+      "interval": "{{name}}. {{time}}.",
+      "intervalsDone": "Intervals complete."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6092,7 +6093,35 @@
     "save": "Save activity",
     "pause": "Pause",
     "resume": "Resume",
-    "finish": "Finish"
+    "finish": "Finish",
+    "intervals": {
+      "title": "Intervals",
+      "description": "Follow timed steps, like run/walk or speed repeats. You are told when to switch.",
+      "off": "Off",
+      "custom": "Custom",
+      "preset": {
+        "beginnerRunWalk": "Beginner run/walk",
+        "runWalk2": "Run/walk, 2 minutes",
+        "runWalk5": "Run/walk, 5 minutes",
+        "short": "Short repeats",
+        "threeMinutes": "3-minute repeats",
+        "fourByFour": "4 × 4 minutes"
+      },
+      "styleRunWalk": "Run / walk",
+      "styleFastEasy": "Fast / easy",
+      "warmup": "Warm up",
+      "cooldown": "Cool down",
+      "run": "Run",
+      "walk": "Walk",
+      "fast": "Fast",
+      "easy": "Easy",
+      "rounds": "Rounds",
+      "decrease": "Decrease {{label}}",
+      "increase": "Increase {{label}}",
+      "complete": "Intervals complete",
+      "round": "Round {{round}} of {{rounds}}",
+      "next": "Next: {{name}} {{time}}"
+    }
   },
   "warmupSettings": {
     "title": "Warm-up Calculator",
