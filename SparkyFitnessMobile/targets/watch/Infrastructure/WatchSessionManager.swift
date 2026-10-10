@@ -1111,7 +1111,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         _ step: WorkoutStep,
         values: SetValues,
         rpe: Double? = nil,
-        completedAt: Date = Date()
+        completedAt: Date = Date(),
+        durationSeconds: Int? = nil,
+        useCapturedDuration: Bool = false
     ) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
         let completed = CompletedSet(
@@ -1120,7 +1122,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
             setId: step.plannedSet.setId,
             weightKg: values.weightKg,
             reps: values.reps,
-            duration: workoutStore.holdLoggedSeconds(for: step.plannedSet.setId),
+            duration: useCapturedDuration
+                ? durationSeconds
+                : workoutStore.holdLoggedSeconds(for: step.plannedSet.setId),
             distanceKm: step.plannedSet.carry == true ? values.distanceKm : nil,
             rpe: rpe,
             completedAt: completedAt

@@ -761,6 +761,9 @@ final class WorkoutSessionStore: ObservableObject {
     func completeCurrentSet(holdForEffort: Bool = false) -> WorkoutStep? {
         guard let step = currentStep, !isCompleted(step) else { return nil }
         let logged = values(for: step)
+        // Captured at the tick. A countdown measures from `now`, so reading it
+        // again at Save would count the time spent on the effort screen.
+        var loggedDuration: Int?
         // Stop the buzz. The deadline stays so the caller can still read
         // how long the hold ran.
         // Only when this is the set the timer belongs to: logging another set
@@ -768,6 +771,7 @@ final class WorkoutSessionStore: ObservableObject {
         // timer alone.
         if holdSetId == step.plannedSet.setId {
             if holdStartedAt != nil, holdStoppedAt == nil { holdStoppedAt = Date() }
+            loggedDuration = holdLoggedSeconds(for: step.plannedSet.setId)
             holdLoggedHere = true
             stopHoldTimer()
         }
@@ -794,7 +798,8 @@ final class WorkoutSessionStore: ObservableObject {
             pendingSetCompletion = PendingSetCompletion(
                 setId: step.plannedSet.setId,
                 values: logged,
-                completedAt: Date()
+                completedAt: Date(),
+                durationSeconds: loggedDuration
             )
         }
         persistSnapshot(reportedEnergyKcal: nil)
@@ -979,6 +984,9 @@ final class WorkoutSessionStore: ObservableObject {
         var setId: String
         var values: SetValues
         var completedAt: Date
+        /// Seconds the hold had run at the tick. Nil when it was never
+        /// started. Kept so time spent on the effort screen is not logged.
+        var durationSeconds: Int?
     }
 
     private(set) var pendingSetCompletion: PendingSetCompletion?

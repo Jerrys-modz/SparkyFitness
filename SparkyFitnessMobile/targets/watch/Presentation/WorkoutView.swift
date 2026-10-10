@@ -371,11 +371,14 @@ private struct ActiveWorkoutView: View {
                     summary: pending.summary(unit: checkIn.context.effectiveWeightUnit),
                     hapticsEnabled: checkIn.context.effectiveHapticsEnabled
                 ) { rpe in
+                    let held = store.pendingSetCompletion
                     session.sendSetCompleted(
                         pending.step,
                         values: pending.values,
                         rpe: rpe,
-                        completedAt: pending.completedAt
+                        completedAt: pending.completedAt,
+                        durationSeconds: held?.durationSeconds,
+                        useCapturedDuration: held != nil
                     )
                     store.clearPendingSetCompletion()
                     pendingRpe = nil
