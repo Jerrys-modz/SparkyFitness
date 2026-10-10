@@ -81,6 +81,46 @@ final class WatchRunStore: ObservableObject {
         }
     }
 
+    /// Picks a run back up after the watch app was killed while it was going.
+    /// `completion(true)` means this store now holds the Health session (or
+    /// has handled a run that could not be re-attached), so nothing else
+    /// should treat a leftover session as its own.
+    func recoverIfNeeded(completion: @escaping (Bool) -> Void) {
+        guard phase == .idle else { completion(true); return }
+        healthKit.recoverIfNeeded { [weak self] outcome in
+            Task { @MainActor in
+                guard let self else { completion(false); return }
+                switch outcome {
+                case .none:
+                    completion(false)
+                case .resumed(let recovery):
+                    self.kind = recovery.kind
+                    self.place = recovery.place
+                    self.metrics = recovery.metrics
+                    self.summary = nil
+                    self.autoPaused = recovery.autoPaused
+                    self.phase = recovery.paused ? .paused : .running
+                    completion(true)
+                case .salvaged(let result):
+                    // The Health session was lost; the run itself was not.
+                    WatchSessionManager.shared.sendRunFinished(result)
+                    self.kind = result.kind
+                    self.place = result.place
+                    self.metrics = result.metrics
+                    self.summary = Summary(
+                        kind: result.kind,
+                        place: result.place,
+                        elapsed: result.activeSeconds,
+                        metrics: result.metrics,
+                        saved: true
+                    )
+                    self.phase = .finished
+                    completion(false)
+                }
+            }
+        }
+    }
+
     func pause() {
         guard phase == .running else { return }
         phase = .paused
