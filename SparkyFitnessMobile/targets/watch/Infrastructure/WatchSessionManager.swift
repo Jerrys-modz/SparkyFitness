@@ -60,7 +60,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     /// applied by `beginPlan`. One per session: each update is a full list.
     private var pendingSetTargets: [String: (
         revision: Double, targets: [String: SetValues], completedSetIds: Set<String>,
-        rest: PhoneRest?, armedAt: Date?, setTimers: [String: Date]?
+        rest: PhoneRest?, armedAt: Date?, setTimers: [String: Date]?, prSetIds: Set<String>
     )] = [:]
     /// When each session was stopped, on the phone's clock when the phone
     /// sent it. A start whose `armedAt` is at or before that is the queued
@@ -663,7 +663,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 targets: pending.targets,
                 completedSetIds: pending.completedSetIds,
                 phoneRest: pending.rest,
-                setTimers: pending.setTimers
+                setTimers: pending.setTimers,
+                prSetIds: pending.prSetIds
             )
         }
         // Only this session's: another plan's targets may already be held
@@ -1075,7 +1076,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                 targets: update.targets,
                 completedSetIds: update.completedSetIds,
                 phoneRest: update.rest,
-                setTimers: ContextPayloadMapper.setTimers(from: payload)
+                setTimers: ContextPayloadMapper.setTimers(from: payload),
+                prSetIds: update.prSetIds
             )
             return
         }
@@ -1092,7 +1094,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
         pendingSetTargets[update.sessionId] = (
             update.revision, update.targets, update.completedSetIds, update.rest,
-            update.armedAt, ContextPayloadMapper.setTimers(from: payload)
+            update.armedAt, ContextPayloadMapper.setTimers(from: payload), update.prSetIds
         )
     }
 
