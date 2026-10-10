@@ -10,7 +10,7 @@ import { useFastingRange } from '../hooks/useFasting';
 import { usePreferences } from '../hooks/usePreferences';
 import { METABOLIC_STAGES } from '../constants/fasting';
 import { formatLocalizedNumber, useAppLocale } from '../localization';
-import { addDays, formatDateLabel, getTodayDate } from '../utils/dateUtils';
+import { addDays, formatDateLabel } from '../utils/dateUtils';
 import {
   dailyTotals,
   fastsInWindow,
@@ -69,12 +69,11 @@ const FastingReport: React.FC = () => {
   const timezone =
     preferences?.timezone && isValidTimeZone(preferences.timezone)
       ? preferences.timezone
-      : undefined;
-  // The range endpoint uses the profile timezone. Don't query or draw days
-  // until that decision is in: a valid profile zone, or the device calendar
-  // when the saved zone is missing. A failed load stays disabled and shows
-  // the error below.
-  const today = timezone ? todayInZone(timezone) : getTodayDate();
+      : 'UTC';
+  // The range endpoint uses the profile timezone, or UTC when that zone is
+  // missing. Don't query or draw days until preferences have loaded. A failed
+  // load stays disabled and shows the error below.
+  const today = todayInZone(timezone);
   const heatmapStart = addDays(today, -(HEATMAP_DAYS - 1));
   const { data, isLoading, isError } = useFastingRange(heatmapStart, today, {
     enabled: !preferencesFailed && !preferencesLoading,
