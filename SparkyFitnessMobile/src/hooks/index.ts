@@ -25,6 +25,11 @@ export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
 export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
 export { useWatchRecordingBridge } from './useWatchRecordingBridge';
 export { useWatchPlanSync } from './useWatchPlanSync';
+export {
+  drainQuickActionNavigation,
+  useControlRouteHandoff,
+  useQuickActions,
+} from './useQuickActions';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
