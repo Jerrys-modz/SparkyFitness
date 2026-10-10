@@ -83,6 +83,7 @@ const ICON_MAP = {
   wrench: { sf: 'wrench', ion: 'build-outline' },
   globe: { sf: 'globe', ion: 'globe-outline' },
   people: { sf: 'person.2.fill', ion: 'people' },
+  person: { sf: 'person.crop.circle', ion: 'person-circle-outline' },
   wifi: { sf: 'wifi', ion: 'wifi-outline' },
   location: { sf: 'mappin.and.ellipse', ion: 'location-outline' },
 

@@ -90,6 +90,7 @@ import {
   SafeHealthTrendsSettings,
   SafeWatchSettings,
   SafeDiarySettings,
+  SafeProfile,
   SafeCustomCategories,
   SafeCustomCategoryEdit,
   SafeWorkoutSettings,
@@ -910,6 +911,11 @@ function AppContent() {
             name="DiarySettings"
             component={SafeDiarySettings}
             options={createStackScreenOptions(t('screens.diarySettings', { defaultValue: 'Diary Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={SafeProfile}
+            options={createStackScreenOptions(t('screens.profile', { defaultValue: 'Profile' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="CustomCategories"
