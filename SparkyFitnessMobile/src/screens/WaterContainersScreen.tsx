@@ -97,14 +97,25 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
     },
   ];
 
+  const addExerciseWaterLabel = t('waterContainers.settings.addExerciseWater', {
+    defaultValue: 'Add exercise water loss to daily goal',
+  });
+  const addFoodWaterLabel = t('waterContainers.settings.addFoodWater', {
+    defaultValue: 'Count water from food toward your intake',
+  });
+
   const preferencesMutation = useMutation({
+    // One scope so a second tap waits for the first write. Otherwise the
+    // slower request can finish last and the server keeps the older value.
+    scope: { id: 'water-preferences' },
     mutationFn: (data: Partial<UserPreferences>) => updatePreferences(data),
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: preferencesQueryKey });
       const previous =
         queryClient.getQueryData<UserPreferences>(preferencesQueryKey);
+      // No snapshot yet: a partial record would replace the real preferences.
       queryClient.setQueryData<UserPreferences>(preferencesQueryKey, (old) =>
-        old ? { ...old, ...data } : (data as UserPreferences)
+        old ? { ...old, ...data } : undefined
       );
       return { previous };
     },
@@ -455,11 +466,10 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
               </View>
               <View className="flex-row justify-between items-center mt-4">
                 <Text className="text-sm text-text-primary flex-shrink pr-3">
-                  {t('waterContainers.settings.addExerciseWater', {
-                    defaultValue: 'Add exercise water loss to daily goal',
-                  })}
+                  {addExerciseWaterLabel}
                 </Text>
                 <Switch
+                  accessibilityLabel={addExerciseWaterLabel}
                   value={addExerciseWater}
                   onValueChange={(value) =>
                     preferencesMutation.mutate({
@@ -476,11 +486,10 @@ const WaterContainersScreen: React.FC<WaterContainersScreenProps> = ({
               </Text>
               <View className="flex-row justify-between items-center mt-4">
                 <Text className="text-sm text-text-primary flex-shrink pr-3">
-                  {t('waterContainers.settings.addFoodWater', {
-                    defaultValue: 'Count water from food toward your intake',
-                  })}
+                  {addFoodWaterLabel}
                 </Text>
                 <Switch
+                  accessibilityLabel={addFoodWaterLabel}
                   value={addFoodWater}
                   onValueChange={(value) =>
                     preferencesMutation.mutate({
