@@ -41,14 +41,6 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// This set's own rest, in seconds: what the phone runs once it is logged
     /// (`restSecBeforeNextSet`). Nil from a phone that predates it.
     var restAfterSeconds: Int? = nil
-    /// Hold length in seconds. Nil on a reps set. The watch counts this down
-    /// instead of offering a reps box.
-    var targetDurationSec: Int? = nil
-    /// Last session's time for this set, shown in gray on an idle stopwatch.
-    var previousDurationSec: Int? = nil
-    /// A duration exercise. With no `targetDurationSec` the watch shows a
-    /// stopwatch instead of a reps box. Nil from a phone that predates it.
-    var timed: Bool? = nil
 
     var id: String { setId }
 }
@@ -240,11 +232,6 @@ struct SetValues: Codable, Equatable {
     var previousDurationSec: Int? = nil
     /// A carry's distance in km. Nil leaves the plan's value.
     var distanceKm: Double? = nil
-    /// Hold length from a later `setTargets` update, in seconds. Nil leaves
-    /// the plan's `targetDurationSec`.
-    var durationSec: Int? = nil
-    /// Last session's time from a `setTargets` update, in seconds.
-    var previousDurationSec: Int? = nil
 }
 
 /// The phone's rest timer, as carried by a `setTargets` update.
@@ -278,8 +265,6 @@ struct CompletedSet: Codable, Equatable {
     var duration: Int? = nil
     /// A carry's distance in km, entered in metres on the watch.
     var distanceKm: Double? = nil
-    /// Seconds the hold countdown ran. Nil when it was never started.
-    var duration: Int? = nil
     /// Effort (6 to 10) the wearer picked. Nil when skipped.
     var rpe: Double? = nil
     /// When the wearer tapped the set, not when the phone received it.
