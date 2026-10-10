@@ -40,6 +40,13 @@ enum ScreenshotSeed {
         ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "exercises"
     }
 
+    /// Which GPS recording to show: `recording`, `paused` or `finished`.
+    private static var recordingStatus: RecordingStatus? {
+        RecordingStatus(
+            rawValue: ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_RECORDING"] ?? ""
+        )
+    }
+
     private static var workoutState: WorkoutState {
         WorkoutState(
             rawValue: ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_WORKOUT"] ?? ""
@@ -55,6 +62,25 @@ enum ScreenshotSeed {
     @MainActor
     static func apply() {
         CheckInStore.shared.apply(context: SampleDay.context)
+
+        if let status = recordingStatus {
+            let now = Date()
+            RecordingStore.shared.seedForScreenshot(
+                RecordingState(
+                    sessionId: "screenshot",
+                    activity: .run,
+                    status: status,
+                    startedAt: now.addingTimeInterval(-(24 * 60 + 18)),
+                    pausedMs: 0,
+                    pausedAt: status == .recording ? nil : now,
+                    distanceMeters: 5120,
+                    paceSeconds: 334,
+                    usesMiles: false,
+                    sentAt: now.timeIntervalSince1970 * 1000
+                ),
+                heartRate: status == .recording ? 148 : nil
+            )
+        }
 
         let workout = WorkoutSessionStore.shared
         switch workoutState {

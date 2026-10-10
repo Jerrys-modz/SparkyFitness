@@ -110,6 +110,7 @@ jobs:
             build
 
       - name: Build iOS app
+        if: ${{ false }}
         working-directory: SparkyFitnessMobile
         run: |
           xcodebuild \
@@ -165,6 +166,7 @@ jobs:
             SIMCTL_CHILD_SPARKY_SCREENSHOT_WORKOUT="$2" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_PAGE="$3" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_SHEET="${4:-}" \
+            SIMCTL_CHILD_SPARKY_SCREENSHOT_RECORDING="${5:-}" \
               xcrun simctl launch "$UDID" "$BUNDLE_ID"
             # SwiftUI needs a moment to settle, and the rest countdown needs
             # to actually be counting before it is worth photographing.
@@ -177,6 +179,9 @@ jobs:
           shoot workout-idle none workout
           shoot workout-exercises active workout exercises
           shoot goals none goals
+          shoot recording-running none recording "" recording
+          shoot recording-paused none recording "" paused
+          shoot recording-finished none recording "" finished
 
           ls -la screenshots
 

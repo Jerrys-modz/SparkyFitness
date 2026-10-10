@@ -72,6 +72,14 @@ final class RecordingStore: ObservableObject {
         }
     }
 
+    #if DEBUG
+    /// Puts a recording on the page without a phone, for the CI screenshot job.
+    func seedForScreenshot(_ seeded: RecordingState, heartRate: Int?) {
+        state = seeded
+        liveHeartRate = heartRate
+    }
+    #endif
+
     // MARK: - Controls
 
     func pause() { sendControl("pause") }
