@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The Fasting page: how long the current fast has run and how far it is from
-/// its goal. Read-only; fasts are started and ended on the phone.
+/// its goal. Starts and ends a fast by asking the phone, which owns the write.
 struct FastingView: View {
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
@@ -10,6 +10,10 @@ struct FastingView: View {
     /// so a second tap cannot start or end twice.
     @State private var waiting = false
     @State private var confirmingEnd = false
+    /// The timeout that clears `waiting`. Cancelled when another request starts
+    /// or the phone's answer arrives, so an older timer cannot unlock the buttons
+    /// during a later request.
+    @State private var waitTask: Task<Void, Never>?
 
     /// Protocols the wrist offers; ids are the phone's preset ids.
     private static let presets: [(id: String, label: String)] = [
@@ -24,7 +28,11 @@ struct FastingView: View {
                 idle
             }
         }
-        .onChange(of: store.context.fast) { waiting = false }
+        .onChange(of: store.context.fast) {
+            waitTask?.cancel()
+            waitTask = nil
+            waiting = false
+        }
     }
 
     private func running(_ fast: WatchFast, now: Date) -> some View {
@@ -110,10 +118,12 @@ struct FastingView: View {
     /// Sends a request and holds the buttons until the phone's answer changes
     /// the fast, or eight seconds pass.
     private func begin(_ send: () -> Void) {
+        waitTask?.cancel()
         waiting = true
         send()
-        Task { @MainActor in
+        waitTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
+            guard !Task.isCancelled else { return }
             waiting = false
         }
     }

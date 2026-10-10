@@ -73,7 +73,6 @@ enum OutboundPayloads {
         ]
     }
 
-    /// Asks the phone to push a fresh context. Carries no data of its own.
     /// The wearer started a fast from a preset (`presetId` is the phone's id,
     /// such as "16-8"). The phone starts it and sends the running fast back in
     /// the next context.
@@ -86,6 +85,7 @@ enum OutboundPayloads {
         ["type": Kind.fastEnd, "clientId": clientId]
     }
 
+    /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
 
     /// The wearer tapped a saved workout. The phone creates the session and
