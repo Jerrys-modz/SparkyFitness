@@ -5935,7 +5935,6 @@
       "enabled": "Guided mode",
       "enabledSubtitle": "Speaks each exercise and its target, counts you in, runs timed sets on their own, and moves to the next set. Cues play with the phone on silent, and the screen stays on during the workout.",
       "voice": "Voice",
-      "voiceDefault": "Device default",
       "rate": "Speech rate",
       "rateValue": "{{rate}}×",
       "countdown": "Get-ready countdown",
@@ -6512,5 +6511,16 @@
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch"
     }
+  },
+  "speechVoice": {
+    "automatic": "Automatic (best installed)",
+    "premium": "Premium",
+    "enhanced": "Enhanced",
+    "standard": "Standard",
+    "hintIos": "For a more natural voice, download a Premium or Enhanced one in Settings → Accessibility → Read & Speak → Voices, then come back here.",
+    "hintAndroid": "For a more natural voice, install a higher-quality one in your phone’s text-to-speech settings, then come back here.",
+    "title": "Voice",
+    "test": "Test voice",
+    "sample": "This is how your recording cues will sound."
   }
 }

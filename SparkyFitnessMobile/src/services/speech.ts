@@ -4,6 +4,8 @@ import * as Speech from 'expo-speech';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { addLog } from './LogService';
 import { beginCueDucking, endCueDucking } from './sounds';
+import { loadSpeechVoices, resolveSpeechVoice } from './speechVoice';
+import { getAppLocale } from '../localization';
 
 /**
  * Guided workout narration (#1507). Mirrors `sounds.ts`: a preference check,
@@ -88,7 +90,9 @@ export function speakGuided(
   // over as it starts speaking.
   if (options.interrupt || pending === 0 || muted) setCaption(lines[0] ?? null);
   if (muted) return;
-  const { guidedVoiceId, guidedSpeechRate } = useAppPreferencesStore.getState();
+  const { guidedSpeechRate } = useAppPreferencesStore.getState();
+  void loadSpeechVoices();
+  const voice = resolveSpeechVoice(options.language ?? getAppLocale());
   try {
     if (options.interrupt) stopGuidedSpeech();
     for (const text of lines) {
@@ -107,7 +111,7 @@ export function speakGuided(
       };
       Speech.speak(text, {
         language: options.language,
-        voice: guidedVoiceId ?? undefined,
+        voice,
         rate: guidedSpeechRate,
         useApplicationAudioSession: true,
         onStart: () => {
