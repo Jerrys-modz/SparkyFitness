@@ -71,6 +71,12 @@ export type WorkoutLiveActivityProps = {
   /** That set's target in the user's unit, e.g. "65 lbs × 12 reps". */
   targetLine?: string | null;
   /**
+   * Precomputed subtitle. "Set 1 of 3" during a set, or
+   * "Next: Set 2 of 3 (65 lbs × 12 reps)" while resting. Built in the app
+   * from translation templates; this body cannot call i18next.
+   */
+  subtitleText?: string | null;
+  /**
    * file:// URI of the app icon in the shared app group container. The widget
    * process can't read the app's asset catalog or bundle, so the service
    * copies the icon there and injects the URI; absent until that resolves.
@@ -372,18 +378,12 @@ const WorkoutLiveActivity = (props: WorkoutLiveActivityProps) => {
   };
 
   // "Next: Set 2 of 4 (65 lbs × 12 reps)" while resting, "Set 1 of 3" while
-  // the set is up (its target gets its own large line then).
+  // the set is up. Already translated in the app; do not join fragments here.
   const subtitle = () => {
-    if (props.setProgress == null) return null;
-    const waiting = props.phase === 'resting' || props.phase === 'paused';
-    const text = waiting
-      ? `${props.labels.next}: ${props.setProgress}${
-          props.targetLine != null ? ` (${props.targetLine})` : ''
-        }`
-      : props.setProgress;
+    if (props.subtitleText == null) return null;
     return (
       <Text modifiers={[secondaryText(), font({ size: 14 }), lineLimit(1)]}>
-        {text}
+        {props.subtitleText}
       </Text>
     );
   };

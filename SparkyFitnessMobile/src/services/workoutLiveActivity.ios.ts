@@ -22,7 +22,9 @@ import { createConcurrencyLimiter } from '../utils/concurrency';
 import { addLog } from './LogService';
 import {
   buildWorkoutLiveActivityLabels,
+  formatNextSubtitle,
   formatRepCount,
+  formatSetProgress,
   resolveWorkoutLiveActivityLocale,
   type WorkoutLiveActivityLabels,
   type WorkoutLiveActivityLocale,
@@ -233,6 +235,7 @@ export function computeWorkoutLiveActivityProps(
       exerciseName: null,
       setProgress: null,
       targetLine: null,
+      subtitleText: null,
     };
   }
 
@@ -240,16 +243,25 @@ export function computeWorkoutLiveActivityProps(
   // the live row does, which is also what logging it untouched records.
   const desc = describeActiveSetAssumed(session, activeSetId, state);
   const setProgress = desc
-    ? `${labels.set} ${desc.setNumber} ${labels.setOf} ${desc.setCount}`
+    ? formatSetProgress(desc.setNumber, desc.setCount, locale)
     : null;
   const setLine = desc
     ? `${desc.exerciseName ?? labels.exercise} · ${setProgress}`
     : null;
+  const targetLine = desc
+    ? formatSetTarget(desc, state.weightUnit, locale)
+    : null;
   const setDetails = {
     exerciseName: desc ? (desc.exerciseName ?? labels.exercise) : null,
     setProgress,
-    targetLine: desc ? formatSetTarget(desc, state.weightUnit, locale) : null,
+    targetLine,
   };
+  const subtitleText = (phase: 'active' | 'resting' | 'paused') =>
+    setProgress == null
+      ? null
+      : phase === 'active'
+        ? setProgress
+        : formatNextSubtitle(setProgress, targetLine, locale);
 
   if (rest.state === 'resting' && rest.endsAt != null) {
     return {
@@ -264,6 +276,7 @@ export function computeWorkoutLiveActivityProps(
       setLine,
       elapsedLabel: null,
       ...setDetails,
+      subtitleText: subtitleText('resting'),
     };
   }
 
@@ -280,6 +293,7 @@ export function computeWorkoutLiveActivityProps(
       setLine,
       elapsedLabel: null,
       ...setDetails,
+      subtitleText: subtitleText('paused'),
     };
   }
 
@@ -295,6 +309,7 @@ export function computeWorkoutLiveActivityProps(
     setLine,
     elapsedLabel: null,
     ...setDetails,
+    subtitleText: subtitleText('active'),
   };
 }
 
@@ -340,6 +355,7 @@ function propsEqual(
     a.exerciseName === b.exerciseName &&
     a.setProgress === b.setProgress &&
     a.targetLine === b.targetLine &&
+    a.subtitleText === b.subtitleText &&
     a.appIconUri === b.appIconUri
   );
 }

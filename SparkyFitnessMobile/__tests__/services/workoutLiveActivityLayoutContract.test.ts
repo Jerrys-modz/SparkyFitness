@@ -70,7 +70,6 @@ describe('WorkoutLiveActivityLayout contract', () => {
       'props.labels.subtractFifteenSeconds',
       'props.labels.subtractFifteenSecondsShort',
       'props.labels.skip',
-      'props.labels.next',
     ];
     for (const ref of labelRefs) {
       expect(LAYOUT_SRC).toContain(ref);

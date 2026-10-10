@@ -140,3 +140,44 @@ export function formatRepCount(
     defaultValue_other: '{{count}} reps',
   });
 }
+
+/** "Set 2 of 4". `total` rather than `count`: i18next treats `count` as a plural. */
+export function formatSetProgress(
+  number: number,
+  total: number,
+  locale: WorkoutLiveActivityLocale
+): string {
+  if (!i18n.isInitialized) return `Set ${number} of ${total}`;
+  const fixedT = i18n.getFixedT(locale, 'translation');
+  return fixedT('activeWorkout.liveActivity.setProgress', {
+    number,
+    total,
+    defaultValue: 'Set {{number}} of {{total}}',
+  });
+}
+
+/**
+ * Resting subtitle. With a target: "Next: Set 2 of 4 (65 lbs × 12 reps)".
+ * Without one: "Next: Set 2 of 4".
+ */
+export function formatNextSubtitle(
+  set: string,
+  target: string | null,
+  locale: WorkoutLiveActivityLocale
+): string {
+  if (!i18n.isInitialized) {
+    return target != null ? `Next: ${set} (${target})` : `Next: ${set}`;
+  }
+  const fixedT = i18n.getFixedT(locale, 'translation');
+  if (target != null) {
+    return fixedT('activeWorkout.liveActivity.nextSetWithTarget', {
+      set,
+      target,
+      defaultValue: 'Next: {{set}} ({{target}})',
+    });
+  }
+  return fixedT('activeWorkout.liveActivity.nextSet', {
+    set,
+    defaultValue: 'Next: {{set}}',
+  });
+}

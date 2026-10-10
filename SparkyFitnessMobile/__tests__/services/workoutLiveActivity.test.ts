@@ -252,6 +252,7 @@ describe('workoutLiveActivity', () => {
         exerciseName: 'Bench Press',
         setProgress: 'Set 1 of 2',
         targetLine: '60 kg × 10 reps',
+        subtitleText: 'Set 1 of 2',
       });
     });
 
@@ -552,6 +553,9 @@ describe('workoutLiveActivity', () => {
           exerciseName: 'Bench Press',
           setProgress: 'Set 2 of 2',
           targetLine: expect.stringMatching(/^\d+(\.\d)? lbs × \d+ reps$/),
+          subtitleText: expect.stringMatching(
+            /^Next: Set 2 of 2 \(\d+(\.\d)? lbs × \d+ reps\)$/
+          ),
         })
       );
     });
