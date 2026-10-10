@@ -726,6 +726,22 @@
     "wellness": "Wellness",
     "symptoms": "Symptoms"
   },
+  "nutrientInsights": {
+    "title": "Nutrient Insights",
+    "score": "Nutrition score",
+    "basis": "Average daily intake over {{count}} logged days compared with your goals.",
+    "empty": "Log food and set nutrient goals in Goals to see how your intake compares.",
+    "limit": "limit {{value}}",
+    "suggestionsTitle": "Foods to fill the gaps",
+    "noSuggestions": "No gaps to fill, or none of your recent foods help with them.",
+    "perServing": "Per {{serving}}:",
+    "status": {
+      "deficient": "Deficient",
+      "low": "Low",
+      "onTarget": "On target",
+      "over": "Over limit"
+    }
+  },
   "nutrition": {
     "calories": "Calories",
     "protein": "Protein",
