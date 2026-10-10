@@ -71,7 +71,7 @@ While you record, a card shows the current step, the time left, the round and wh
 
 Each step also becomes a lap, so the saved activity is split into your work and recovery stretches and the pace bars show the difference. When the last step ends you hear "Intervals complete" and can carry on or finish.
 
-Intervals work with phone recording only for now. The watch does not show the steps yet.
+With an Apple Watch connected to a phone recording, the watch shows the current step, a countdown and what comes next, and buzzes when the step changes. Watch-only recordings do not follow a plan yet.
 
 ---
 
