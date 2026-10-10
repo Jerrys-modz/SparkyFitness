@@ -44,6 +44,34 @@ export function getUncompletedActivePlans(
   });
 }
 
+/** What a plan has due now: the sequential plan's current session, or
+ * everything a weekly plan lists for today. */
+function dueAssignments(plan: WorkoutPlanTemplate): WorkoutPlanAssignment[] {
+  if (plan.schedule_type === 'sequential') {
+    return plan.next_assignment ? [plan.next_assignment] : [];
+  }
+  if (plan.next_assignments && plan.next_assignments.length > 0) {
+    return plan.next_assignments;
+  }
+  return plan.next_assignment ? [plan.next_assignment] : [];
+}
+
+/** The assignment a saved workout is due as, so starting it from somewhere
+ * other than the Diary (the watch) can still count toward the plan. */
+export function findDueAssignmentForPreset(
+  plans: readonly WorkoutPlanTemplate[],
+  presetId: number
+): WorkoutPlanAssignment | null {
+  for (const plan of plans) {
+    const match = dueAssignments(plan).find(
+      (a) =>
+        a.workout_preset_id != null && Number(a.workout_preset_id) === presetId
+    );
+    if (match) return match;
+  }
+  return null;
+}
+
 export interface WatchScheduledWorkout {
   presetId: string;
   /** The workout's own name, e.g. "Day 2 Upper (5 Day)". */
@@ -74,15 +102,7 @@ export function scheduledWorkoutsForWatch(
   );
   for (const plan of open) {
     const sequential = plan.schedule_type === 'sequential';
-    const due: WorkoutPlanAssignment[] = sequential
-      ? plan.next_assignment
-        ? [plan.next_assignment]
-        : []
-      : plan.next_assignments && plan.next_assignments.length > 0
-        ? plan.next_assignments
-        : plan.next_assignment
-          ? [plan.next_assignment]
-          : [];
+    const due = dueAssignments(plan);
     const caption = sequential
       ? plan.sequence_position?.session_name ||
         plan.next_assignment?.session_name ||

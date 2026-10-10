@@ -188,6 +188,7 @@ jobs:
             shoot workout-idle none workout
             shoot workout-exercises active workout exercises
             shoot workout-rpe active workout rpe
+            shoot workout-update-alert active workout updatealert
             shoot workout-timed timed workout
             shoot workout-stopwatch stopwatch workout
             shoot workout-interval interval workout

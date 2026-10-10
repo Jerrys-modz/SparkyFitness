@@ -357,6 +357,11 @@ export interface WatchWorkoutStartPayload {
    * `startedAt`.
    */
   capEndsAt?: string | null;
+  /**
+   * The workout came from a saved workout. The watch asks whether to update
+   * it when Finish is tapped on a workout whose exercises or sets changed.
+   */
+  fromPreset?: boolean;
 }
 
 /** One set logged on the watch during an active workout. */
@@ -501,6 +506,14 @@ export interface WatchWorkoutDiscardPayload {
   armedAt?: number;
 }
 
+/** The wearer's answer to the watch's "update this workout?" question, asked
+ * when they tap Finish on a workout started from a saved one and changed. */
+export interface WatchPresetUpdateAnswerPayload {
+  sessionId: string;
+  /** True to write the workout's changes into the saved workout. */
+  update: boolean;
+}
+
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
   /** Active server the list was built for. Empty when an older watch omitted it. */
@@ -522,6 +535,7 @@ export type WatchConnectivityEvents = {
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
+  onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

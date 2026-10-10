@@ -359,7 +359,8 @@ enum ContextPayloadMapper {
             timeCapSeconds: intValue(payload["timeCapSeconds"]),
             startedAt: startedAt,
             armedAt: isoDate(from: payload["armedAt"]),
-            capEndsAt: isoDate(from: payload["capEndsAt"])
+            capEndsAt: isoDate(from: payload["capEndsAt"]),
+            fromPreset: payload["fromPreset"] as? Bool
         )
     }
 
