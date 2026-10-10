@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 import { isValidTimeZone, todayInZone } from '@workspace/shared';
@@ -60,14 +60,23 @@ const FastingReport: React.FC = () => {
     METABOLIC_STAGES.map((s) => s.colorVar)
   ) as string[];
 
-  const { preferences } = usePreferences();
+  const {
+    preferences,
+    isError: preferencesFailed,
+    refetch: refetchPreferences,
+  } = usePreferences();
   const timezone =
     preferences?.timezone && isValidTimeZone(preferences.timezone)
       ? preferences.timezone
       : undefined;
+  // Device calendar only while preferences are still loading. A failed load
+  // must not query or bucket in that zone: the range endpoint keeps using the
+  // profile timezone.
   const today = timezone ? todayInZone(timezone) : getTodayDate();
   const heatmapStart = addDays(today, -(HEATMAP_DAYS - 1));
-  const { data, isLoading, isError } = useFastingRange(heatmapStart, today);
+  const { data, isLoading, isError } = useFastingRange(heatmapStart, today, {
+    enabled: !preferencesFailed,
+  });
 
   const report = useMemo(() => {
     const all = data ?? [];
@@ -108,7 +117,24 @@ const FastingReport: React.FC = () => {
         />
       </View>
 
-      {isLoading ? (
+      {preferencesFailed ? (
+        <View className="items-center py-12 bg-surface rounded-2xl border border-border-subtle">
+          <Text className="text-sm text-text-muted text-center">
+            {t('fastingReport.loadFailed', {
+              defaultValue: 'Could not load your fasting report.',
+            })}
+          </Text>
+          <Pressable
+            onPress={() => void refetchPreferences()}
+            className="mt-3"
+            accessibilityRole="button"
+          >
+            <Text className="text-sm font-semibold text-accent-primary">
+              {t('common.retry', { defaultValue: 'Retry' })}
+            </Text>
+          </Pressable>
+        </View>
+      ) : isLoading ? (
         <View className="items-center py-12">
           <ActivityIndicator size="small" color={accentPrimary} />
         </View>
