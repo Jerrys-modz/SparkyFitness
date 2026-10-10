@@ -100,6 +100,12 @@ export function findProgram(id: string): RunProgram | null {
 /** Where a person stands in a program. */
 export interface ProgramProgress {
   programId: string;
+  /**
+   * Whether the person is using the program. Off keeps their place but stops
+   * the Record screen choosing its workouts and the reminders. Absent in
+   * older stored data, which means on.
+   */
+  enabled?: boolean;
   /** Index of the next workout to do; equals the length when finished. */
   next: number;
 }

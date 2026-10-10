@@ -27,7 +27,11 @@ async function read(): Promise<ProgramProgress | null> {
       typeof parsed.programId === 'string' &&
       typeof parsed.next === 'number' &&
       findProgram(parsed.programId)
-        ? { programId: parsed.programId, next: parsed.next }
+        ? {
+            programId: parsed.programId,
+            next: parsed.next,
+            enabled: parsed.enabled !== false,
+          }
         : null;
   } catch {
     cache = null;
@@ -46,21 +50,45 @@ async function write(progress: ProgramProgress | null): Promise<void> {
   listeners.forEach((listener) => listener());
 }
 
-export async function getProgramStatus(): Promise<ProgramStatus | null> {
+/** The program the person has a place in, whether or not it is switched on. */
+export async function getStoredProgram(): Promise<{
+  status: ProgramStatus;
+  enabled: boolean;
+} | null> {
   const progress = await read();
-  return progress ? programStatus(progress) : null;
+  const status = progress ? programStatus(progress) : null;
+  return status && progress
+    ? { status, enabled: progress.enabled !== false }
+    : null;
 }
 
-/** Starts a program from its first workout. */
-export function startProgram(programId: string): Promise<void> {
-  return findProgram(programId)
-    ? write({ programId, next: 0 })
-    : Promise.resolve();
+/** The program being used, or null when none is chosen or it is switched off. */
+export async function getProgramStatus(): Promise<ProgramStatus | null> {
+  const stored = await getStoredProgram();
+  return stored?.enabled ? stored.status : null;
 }
 
-/** Leaves the program and forgets the place in it. */
-export function stopProgram(): Promise<void> {
-  return write(null);
+/**
+ * Switches the program on or off. Turning it on for the first time starts
+ * `programId` from its first workout; after that it picks up where the person
+ * left off. Turning it off keeps their place.
+ */
+export async function setProgramEnabled(
+  enabled: boolean,
+  programId: string
+): Promise<void> {
+  const progress = await read();
+  if (progress && findProgram(progress.programId)) {
+    await write({ ...progress, enabled });
+  } else if (enabled && findProgram(programId)) {
+    await write({ programId, next: 0, enabled: true });
+  }
+}
+
+/** Goes back to the first workout, keeping the program switched on. */
+export async function restartProgram(): Promise<void> {
+  const progress = await read();
+  if (progress) await write({ ...progress, next: 0 });
 }
 
 /** Jumps to workout `index` (any week), to repeat one or start further in. */
@@ -100,18 +128,28 @@ export function resetRunProgramForTests(): void {
 
 /** The current program status, or null when none is active. */
 export function useRunProgram(): {
+  /** The place in the program, even while it is switched off. */
   status: ProgramStatus | null;
+  /** Whether the person is using it. */
+  enabled: boolean;
   loaded: boolean;
 } {
   const [state, setState] = useState<{
     status: ProgramStatus | null;
+    enabled: boolean;
     loaded: boolean;
-  }>({ status: null, loaded: false });
+  }>({ status: null, enabled: false, loaded: false });
   useEffect(() => {
     let active = true;
     const refresh = () => {
-      void getProgramStatus().then((status) => {
-        if (active) setState({ status, loaded: true });
+      void getStoredProgram().then((stored) => {
+        if (active) {
+          setState({
+            status: stored?.status ?? null,
+            enabled: stored?.enabled ?? false,
+            loaded: true,
+          });
+        }
       });
     };
     refresh();

@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import Button from '../ui/Button';
+import Switch from '../ui/Switch';
 import SegmentedControl from '../SegmentedControl';
 import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
@@ -57,10 +58,12 @@ interface Props {
   loaded: boolean;
   /** Whether today's program workout is the plan chosen for this recording. */
   selected: boolean;
+  /** Whether the person is using the program. */
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
   onSelect: () => void;
-  onStart: () => void;
+  onRestart: () => void;
   onSkip: () => void;
-  onStop: () => void;
 }
 
 /** Start, follow and leave a multi-week run program. */
@@ -71,33 +74,58 @@ const RunProgramCard: React.FC<Props> = ({
   status,
   loaded,
   selected,
+  enabled,
+  onToggle,
   onSelect,
-  onStart,
+  onRestart,
   onSkip,
-  onStop,
 }) => {
   const { t } = useTranslation();
   if (!loaded) return null;
 
-  if (!status) {
-    return (
-      <View className="bg-surface rounded-xl p-4 mt-4">
+  const header = (
+    <View className="flex-row items-center justify-between">
+      <View className="flex-1 mr-3">
         <Text className="text-text-primary text-sm font-semibold">
           {t('recordActivity.program.title', {
             defaultValue: 'Training program',
           })}
         </Text>
-        <Text className="text-text-secondary text-xs mt-1 mb-3">
-          {t('recordActivity.program.beginner5kDescription', {
+        <Text className="text-text-secondary text-xs mt-1">
+          {t('recordActivity.program.switchHint', {
             defaultValue:
-              'Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.',
+              'Follow a plan that builds up week by week. Off by default.',
           })}
         </Text>
-        <Button variant="outline" onPress={onStart}>
-          {t('recordActivity.program.start', {
-            defaultValue: 'Start Beginner 5K',
-          })}
-        </Button>
+      </View>
+      <Switch
+        value={enabled}
+        onValueChange={onToggle}
+        accessibilityLabel={t('recordActivity.program.use', {
+          defaultValue: 'Use a training program',
+        })}
+      />
+    </View>
+  );
+
+  if (!enabled || !status) {
+    return (
+      <View className="bg-surface rounded-xl p-4 mt-4">
+        {header}
+        <Text className="text-text-secondary text-xs mt-3">
+          {status
+            ? t('recordActivity.program.paused', {
+                name: programName(t, status.program.id),
+                done: status.done,
+                total: status.total,
+                defaultValue:
+                  '{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.',
+              })
+            : t('recordActivity.program.beginner5kDescription', {
+                defaultValue:
+                  'Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.',
+              })}
+        </Text>
       </View>
     );
   }
@@ -126,7 +154,8 @@ const RunProgramCard: React.FC<Props> = ({
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
-      <Text className="text-text-primary text-sm font-semibold">
+      {header}
+      <Text className="text-text-primary text-sm font-semibold mt-3">
         {status.finished
           ? t('recordActivity.program.finished', {
               name: programName(t, status.program.id),
@@ -156,7 +185,7 @@ const RunProgramCard: React.FC<Props> = ({
       <View className="flex-row mt-3">
         {status.finished ? (
           <View className="flex-1 mr-2">
-            <Button variant="outline" onPress={onStart}>
+            <Button variant="outline" onPress={onRestart}>
               {t('recordActivity.program.restart', {
                 defaultValue: 'Start again',
               })}
@@ -172,7 +201,7 @@ const RunProgramCard: React.FC<Props> = ({
                 ? t('recordActivity.program.using', {
                     defaultValue: 'Using this workout',
                   })
-                : t('recordActivity.program.use', {
+                : t('recordActivity.program.doThis', {
                     defaultValue: 'Do this workout',
                   })}
             </Button>
@@ -262,9 +291,13 @@ const RunProgramCard: React.FC<Props> = ({
             {t('recordActivity.program.skip', { defaultValue: 'Skip' })}
           </Button>
         )}
-        <Button variant="link" onPress={onStop}>
-          {t('recordActivity.program.stop', { defaultValue: 'Leave program' })}
-        </Button>
+        {status.done > 0 ? (
+          <Button variant="link" onPress={onRestart}>
+            {t('recordActivity.program.startOver', {
+              defaultValue: 'Start over',
+            })}
+          </Button>
+        ) : null}
       </View>
     </View>
   );
