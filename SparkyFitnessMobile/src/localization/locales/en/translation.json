@@ -4309,7 +4309,8 @@
     },
     "accessibility": {
       "addFood": "Add Food",
-      "copyMeal": "Copy meal to another day"
+      "copyMeal": "Copy meal to another day",
+      "convertToMeal": "Save as meal"
     },
     "targetCalories": "Target: {{calories}} kcal"
   },
@@ -4743,6 +4744,17 @@
     "copying": "Copying...",
     "duplicateTitle": "Can't copy meal",
     "duplicateMessage": "Duplicate meal-type names cannot currently be used for Copy Meal."
+  },
+  "convertToMeal": {
+    "title": "Save {{meal}} as a meal",
+    "subtitle": "Create a reusable meal from the foods logged on {{date}}.",
+    "name": "Meal name",
+    "description": "Description (optional)",
+    "makePublic": "Make public",
+    "create": "Create meal",
+    "creating": "Creating...",
+    "success": "Meal created",
+    "failed": "Failed to create meal"
   },
   "ingredientRow": {
     "lastWarning": "This is the last ingredient. Add another before you can save, or use Delete Meal to remove the whole meal.",
