@@ -432,7 +432,7 @@ function AppContent() {
             contentStyle: { backgroundColor: bgPrimary },
             headerTintColor: Platform.OS === 'android' ? textPrimary : undefined,
           }}
-          initialRouteName={initialRoute}
+          initialRouteName={process.env.EXPO_PUBLIC_SHOT === '1' ? 'RecordActivity' : initialRoute}
         >
           <Stack.Screen
             name="Onboarding"
@@ -986,7 +986,7 @@ function AppContent() {
           onDismiss={dismissModal}
         />
         <ServerConfigModal
-          visible={showSetupModal || showApiKeySwitchModal}
+          visible={process.env.EXPO_PUBLIC_SHOT !== '1' && (showSetupModal || showApiKeySwitchModal)}
           editingConfig={switchToApiKeyConfig}
           defaultAuthTab={showApiKeySwitchModal ? 'apiKey' : undefined}
           onSuccess={() => {

@@ -18,4 +18,7 @@ if (__DEV__ && Platform.OS === 'ios') {
   // on your machine (do NOT commit that change) or toggle it at runtime.
   global.FORCE_HEALTHKIT_ON_SIM = false;
 }
+if (process.env.EXPO_PUBLIC_SHOT === '1') {
+  require('./src/shotMode').startShotMode();
+}
 registerRootComponent(App);

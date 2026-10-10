@@ -494,3 +494,13 @@ export function resetRecordingStateForTests(): void {
   queue = Promise.resolve();
   publish();
 }
+
+/** Screenshot job only: puts a recording on the screen without a location task. */
+export function seedForScreenshot(
+  nextSession: RecordingSession | null,
+  nextPoints: RecordedPoint[]
+): void {
+  session = nextSession;
+  points = nextPoints;
+  publish();
+}
