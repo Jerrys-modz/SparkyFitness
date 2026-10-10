@@ -153,7 +153,8 @@
       "watch": "Apple Watch",
       "customMeasurements": "Custom Measurements",
       "ai": "AI",
-      "profile": "Profile & Account"
+      "profile": "Profile & Account",
+      "goals": "Goals"
     },
     "theme": {
       "title": "Theme",
@@ -6332,5 +6333,47 @@
     "birthDateUnset": "Not set",
     "timezone": "Timezone",
     "resetPasswordSubtitle": "Email me a link to choose a new password"
+  },
+  "goals": {
+    "title": "Goals",
+    "description": "Daily targets that apply from today onward. Past days keep their goals.",
+    "loading": "Loading goals…",
+    "loadFailed": "Could not load your goals.",
+    "saveFailed": "Failed to save goals.",
+    "invalidValue": "Enter a valid number for every goal.",
+    "fields": {
+      "water": "Water ({{unit}})",
+      "exerciseCalories": "Exercise calories (kcal)",
+      "exerciseMinutes": "Exercise duration (min)",
+      "baselineCalories": "Baseline calories (kcal)"
+    },
+    "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "sections": {
+      "macros": "Calories & macros",
+      "nutrients": "Other nutrients",
+      "activity": "Water & exercise",
+      "meals": "Meal calorie distribution"
+    },
+    "meals": {
+      "mustBe100": "Meal percentages must total 100%.",
+      "total": "Total: {{total}}% (must be 100% to save)",
+      "mealPercent": "{{meal}} (%)"
+    },
+    "directions": {
+      "minimum": "Min",
+      "maximum": "Max",
+      "range": "Range",
+      "rangeMin": "Range min",
+      "rangeMax": "Range max",
+      "invalidRange": "A range needs a minimum and a maximum, with minimum not above maximum.",
+      "note": "Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers."
+    },
+    "calculator": {
+      "calculate": "Calculate",
+      "calculateField": "Calculate {{nutrient}}",
+      "calculateAll": "Calculate all from my profile",
+      "needsProfile": "Set your sex in your profile on the web to calculate recommended nutrient goals."
+    }
   }
 }
