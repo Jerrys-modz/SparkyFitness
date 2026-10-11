@@ -98,6 +98,10 @@ async function tickOffProgram(payload: WatchRunPayload): Promise<void> {
       toLocalDateString(new Date(payload.startedAt))
     );
   } catch (error) {
+    // A failure that may pass (offline, 5xx, auth) keeps the run queued: the
+    // entry id is already stored, so the retry only repeats the later steps.
+    // One the server will never accept is logged and the run stays filed.
+    if (isRetryable(error)) throw error;
     addLog(
       `[Watch Run] Could not tick off the program workout: ${String(error)}`,
       'WARNING'
@@ -105,7 +109,19 @@ async function tickOffProgram(payload: WatchRunPayload): Promise<void> {
   }
 }
 
+const isRetryable = (error: unknown): boolean => {
+  const status = error instanceof ApiError ? error.statusCode : undefined;
+  return !(
+    status != null &&
+    status >= 400 &&
+    status < 500 &&
+    !RETRYABLE_CLIENT_STATUSES.has(status)
+  );
+};
+
 let processing: Promise<string[]> | null = null;
+/** Set when a caller joins a pass that is already running, so it runs once more. */
+let again = false;
 
 /**
  * Files every queued run it can. A failure that may pass (offline, 5xx, auth)
@@ -116,66 +132,82 @@ export function processWatchRunQueue(
   distanceUnit: 'km' | 'miles',
   onFiled?: (payload: WatchRunPayload) => void
 ): Promise<string[]> {
-  if (processing) return processing;
+  if (processing) {
+    // A run queued just as the pass was finishing would otherwise wait for the
+    // next trigger: make the pass look again before it ends.
+    again = true;
+    return processing;
+  }
   processing = (async () => {
     const filed: string[] = [];
-    // A run queued while this drain was going is picked up by the next pass of
-    // the loop, so it is never left waiting for another trigger.
-    const attempted = new Set<string>();
-    for (;;) {
-      const queue = await serial(readQueue);
-      const item = queue.find((run) => !attempted.has(run.payload.clientId));
-      if (!item) break;
-      const { clientId } = item.payload;
-      attempted.add(clientId);
-      try {
-        await saveWatchRun(
-          item.payload,
-          distanceUnit,
-          item.entryId,
-          (entryId) =>
-            serial(() => update(clientId, (run) => ({ ...run, entryId })))
-        );
-        await tickOffProgram(item.payload);
-        await serial(async () => {
-          await update(clientId, () => null);
-          await markDone(clientId);
-        });
-        filed.push(toLocalDateString(new Date(item.payload.startedAt)));
-        // A listener failing (a toast, a navigation) never undoes a filed run.
-        try {
-          onFiled?.(item.payload);
-        } catch (error) {
-          addLog(
-            `[Watch Run] Filed-run listener failed: ${String(error)}`,
-            'WARNING'
-          );
-        }
-      } catch (error) {
-        const status = error instanceof ApiError ? error.statusCode : undefined;
-        const message = error instanceof Error ? error.message : String(error);
-        if (
-          status != null &&
-          status >= 400 &&
-          status < 500 &&
-          !RETRYABLE_CLIENT_STATUSES.has(status)
-        ) {
-          addLog(
-            `[Watch Run] Dropped watch run ${clientId}: server rejected it (${status})`,
-            'ERROR'
-          );
-          await serial(() => update(clientId, () => null));
-        } else {
-          addLog(
-            `[Watch Run] Will retry watch run ${clientId}: ${message}`,
-            'WARNING'
-          );
-        }
-      }
-    }
+    do {
+      again = false;
+      filed.push(...(await drainOnce(distanceUnit, onFiled)));
+    } while (again);
     return filed;
   })().finally(() => {
     processing = null;
   });
   return processing;
+}
+
+async function drainOnce(
+  distanceUnit: 'km' | 'miles',
+  onFiled?: (payload: WatchRunPayload) => void
+): Promise<string[]> {
+  const filed: string[] = [];
+  // A run queued while this drain was going is picked up by the next pass of
+  // the loop, so it is never left waiting for another trigger.
+  const attempted = new Set<string>();
+  for (;;) {
+    const queue = await serial(readQueue);
+    const item = queue.find((run) => !attempted.has(run.payload.clientId));
+    if (!item) break;
+    const { clientId } = item.payload;
+    attempted.add(clientId);
+    try {
+      await saveWatchRun(item.payload, distanceUnit, item.entryId, (entryId) =>
+        serial(() => update(clientId, (run) => ({ ...run, entryId })))
+      );
+      await tickOffProgram(item.payload);
+      // Marked done first: a stop between the two steps leaves a queued run
+      // that is refiled onto its stored entry, never a run in neither place
+      // that a re-delivery would file a second time.
+      await serial(async () => {
+        await markDone(clientId);
+        await update(clientId, () => null);
+      });
+      filed.push(toLocalDateString(new Date(item.payload.startedAt)));
+      // A listener failing (a toast, a navigation) never undoes a filed run.
+      try {
+        onFiled?.(item.payload);
+      } catch (error) {
+        addLog(
+          `[Watch Run] Filed-run listener failed: ${String(error)}`,
+          'WARNING'
+        );
+      }
+    } catch (error) {
+      const status = error instanceof ApiError ? error.statusCode : undefined;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isRetryable(error)) {
+        addLog(
+          `[Watch Run] Dropped watch run ${clientId}: server rejected it (${status})`,
+          'ERROR'
+        );
+        await serial(() => update(clientId, () => null));
+      } else {
+        addLog(
+          `[Watch Run] Will retry watch run ${clientId}: ${message}`,
+          'WARNING'
+        );
+      }
+    }
+  }
+  return filed;
+}
+
+/** Whether any run is still waiting to be filed. */
+export async function hasQueuedWatchRuns(): Promise<boolean> {
+  return (await serial(readQueue)).length > 0;
 }

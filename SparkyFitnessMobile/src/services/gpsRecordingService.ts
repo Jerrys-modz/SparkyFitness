@@ -378,6 +378,14 @@ export async function setCountdownPreference(seconds: number): Promise<void> {
   }
 }
 
+const preferenceListeners = new Set<() => void>();
+
+/** Calls `listener` after a recording preference changes (the watch hears about voice cues). */
+export function onRecordingPreferenceChange(listener: () => void): () => void {
+  preferenceListeners.add(listener);
+  return () => preferenceListeners.delete(listener);
+}
+
 export async function setRecordingPreference(
   key: keyof typeof PREFERENCE_KEYS,
   enabled: boolean
@@ -387,6 +395,7 @@ export async function setRecordingPreference(
   } catch {
     // The choice just won't be remembered.
   }
+  preferenceListeners.forEach((listener) => listener());
 }
 
 /** Speaks `event` when the session asked for voice cues. */

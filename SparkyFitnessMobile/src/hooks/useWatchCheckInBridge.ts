@@ -63,7 +63,10 @@ import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { useCurrentFast } from './useFasting';
 import { toWatchFast } from '../utils/watchFast';
-import { getRecordingPreferences } from '../services/gpsRecordingService';
+import {
+  getRecordingPreferences,
+  onRecordingPreferenceChange,
+} from '../services/gpsRecordingService';
 import { useRunProgram } from '../services/runProgramService';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
 import { presetName } from '../components/recording/IntervalSetup';
@@ -783,6 +786,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   useEffect(() => {
     pushContextRef.current = pushContext;
   });
+  // The Voice cues switch lives on the Record screen, outside this hook's
+  // dependencies, so tell the watch when it flips.
+  useEffect(
+    () =>
+      onRecordingPreferenceChange(() => {
+        if (enabled) void pushContextRef.current();
+      }),
+    [enabled]
+  );
 
   /**
    * Writes the ack bookkeeping to disk, and is awaited by every caller.

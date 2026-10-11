@@ -64,6 +64,7 @@ final class WatchRunStore: ObservableObject {
     /// A run left going by a killed app is still to be picked up at launch;
     /// starting a new one before that would collide with its Health session.
     private var recoveryPending = WatchRunSnapshotStore.exists
+    private var recovering = false
 
     private init() {
         healthKit.onMetrics = { [weak self] metrics in
@@ -115,10 +116,14 @@ final class WatchRunStore: ObservableObject {
     /// should treat a leftover session as its own.
     func recoverIfNeeded(completion: @escaping (Bool) -> Void) {
         guard phase == .idle else { completion(true); return }
+        // Two overlapping calls would both reach the Health session.
+        guard !recovering else { completion(true); return }
+        recovering = true
         healthKit.recoverIfNeeded { [weak self] outcome in
             Task { @MainActor in
                 guard let self else { completion(false); return }
                 self.recoveryPending = false
+                self.recovering = false
                 switch outcome {
                 case .none:
                     completion(false)
@@ -130,15 +135,18 @@ final class WatchRunStore: ObservableObject {
                     self.autoPaused = recovery.autoPaused
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
-                    // The step the run is in now is not announced again.
-                    self.cuedStep = self.plan?.position(at: self.healthKit.elapsed)?.index ?? -1
+                    // The recovered builder may still read 0 for a moment, so the
+                    // snapshot's time is the floor: the step the run is in now is
+                    // not announced again.
+                    let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
+                    self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
                     self.startStepTimer()
                     // Splits passed while the app was gone are not replayed.
                     self.cuedSplits = WatchRunCues.completedSplits(
                         distanceMeters: recovery.metrics.distanceMeters,
                         usesMiles: self.usesMiles
                     )
-                    self.lastSplitElapsed = self.healthKit.elapsed
+                    self.lastSplitElapsed = resumedAt
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
                 case .salvaged(let result):
@@ -216,10 +224,11 @@ final class WatchRunStore: ObservableObject {
         }
         guard CheckInStore.shared.context.runVoiceCues == true else { return }
         if position.finished {
-            WatchRunCues.shared.speak("Plan complete.")
+            WatchRunCues.shared.speak("Plan complete.", interrupt: true)
         } else {
             WatchRunCues.shared.speak(
-                WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds)
+                WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds),
+                interrupt: true
             )
         }
     }

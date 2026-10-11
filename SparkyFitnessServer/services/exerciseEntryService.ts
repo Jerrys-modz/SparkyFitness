@@ -501,43 +501,49 @@ async function attachLapsToExerciseEntry(
     error.status = 404;
     throw error;
   }
-  const laps = body.laps
-    .filter(
-      (lap) =>
-        Number.isFinite(Date.parse(lap.start_time)) &&
-        Number.isFinite(Date.parse(lap.end_time)) &&
-        Date.parse(lap.end_time) > Date.parse(lap.start_time)
-    )
-    .map((lap) => {
-      const seconds = Math.round(
-        (Date.parse(lap.end_time) - Date.parse(lap.start_time)) / 1000
-      );
-      return {
-        user_id: userId,
-        exercise_entry_id: exerciseEntryId,
-        entry_date: entryDate,
-        lap_index: lap.lap_index,
-        start_time: new Date(lap.start_time),
-        end_time: new Date(lap.end_time),
-        duration_seconds: seconds,
-        distance_meters: lap.distance_meters,
-        avg_heart_rate: lap.avg_heart_rate,
-        avg_speed_mps:
-          lap.distance_meters && seconds > 0
-            ? lap.distance_meters / seconds
-            : undefined,
-      };
-    });
-  if (laps.length === 0) {
-    const error = new Error('No lap has a valid start and end time.');
-    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
-    error.status = 400;
-    throw error;
-  }
+  const laps = body.laps.map((lap) => {
+    const seconds = Math.round(
+      (Date.parse(lap.end_time) - Date.parse(lap.start_time)) / 1000
+    );
+    return {
+      user_id: userId,
+      exercise_entry_id: exerciseEntryId,
+      entry_date: entryDate,
+      lap_index: lap.lap_index,
+      start_time: new Date(lap.start_time),
+      end_time: new Date(lap.end_time),
+      duration_seconds: seconds,
+      distance_meters: lap.distance_meters,
+      avg_heart_rate: lap.avg_heart_rate,
+      avg_speed_mps:
+        lap.distance_meters && seconds > 0
+          ? lap.distance_meters / seconds
+          : undefined,
+    };
+  });
 
   const client = await getClient(userId, actingUserId);
   try {
     await client.query('BEGIN');
+    // An entry with a GPS track gets its laps from that track; mixing the two
+    // sources would leave a lap list that matches neither.
+    const track = (await client.query(
+      'SELECT 1 FROM exercise_entry_gps_points WHERE exercise_entry_id = $1 LIMIT 1',
+      [exerciseEntryId]
+    )) as { rows: unknown[] };
+    if (track.rows.length > 0) {
+      const error = new Error(
+        'This entry has a GPS track; post its laps with the track instead.'
+      );
+      // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+      error.status = 409;
+      throw error;
+    }
+    // The posted laps are the whole list: a corrected re-post replaces it.
+    await client.query(
+      'DELETE FROM exercise_entry_laps WHERE exercise_entry_id = $1',
+      [exerciseEntryId]
+    );
     await workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient(
       client,
       userId,

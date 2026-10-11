@@ -86,6 +86,13 @@ describe('POST /exercise-entries/:id/laps', () => {
       { laps: [] },
       { laps: [{ lap_index: 0, start_time: 'a', end_time: 'b' }] },
       { laps, extra: true },
+      // The same lap twice would make the insert fail.
+      { laps: [laps[0], { ...laps[0] }] },
+      // Ends before it starts, or an absurd number.
+      { laps: [{ ...laps[0], end_time: laps[0].start_time }] },
+      { laps: [{ ...laps[0], lap_index: 1e12 }] },
+      // No offset: it would be read in the server's own timezone.
+      { laps: [{ ...laps[0], start_time: '2026-10-06T10:00:00' }] },
     ]) {
       await request(app)
         .post(`/exercise-entries/${ENTRY_ID}/laps`)
@@ -95,6 +102,16 @@ describe('POST /exercise-entries/:id/laps', () => {
     expect(
       exerciseEntryService.attachLapsToExerciseEntry
     ).not.toHaveBeenCalled();
+  });
+
+  it('answers 409 for an entry that has a GPS track', async () => {
+    vi.mocked(exerciseEntryService.attachLapsToExerciseEntry).mockRejectedValue(
+      Object.assign(new Error('This entry has a GPS track'), { status: 409 })
+    );
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/laps`)
+      .send({ laps })
+      .expect(409);
   });
 
   it('rejects a non-UUID entry id', async () => {
