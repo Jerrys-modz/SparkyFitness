@@ -17,6 +17,18 @@
       },
       "distribution": "internal"
     },
+    "testflight": {
+      "environment": "preview",
+      "env": {
+        "APP_VARIANT": "development"
+      },
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "medium",
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      }
+    },
     "production": {
       "env": {
         "APP_VARIANT": "production"
@@ -34,6 +46,11 @@
     "production": {
       "ios": {
         "ascAppId": "6757314392"
+      }
+    },
+    "testflight": {
+      "ios": {
+        "ascAppId": "6817477965"
       }
     }
   }
