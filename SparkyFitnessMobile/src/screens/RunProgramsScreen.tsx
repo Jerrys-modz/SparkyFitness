@@ -8,6 +8,9 @@ import RunProgramCard, {
   programDescription,
   programName,
 } from '../components/recording/RunProgramCard';
+import RunProgramGuide, {
+  programStructure,
+} from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
@@ -106,28 +109,31 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   let body: React.ReactNode = null;
   if (loaded && status) {
     body = (
-      <RunProgramCard
-        programId={storedId ?? chosenId}
-        onChooseProgram={chooseProgram}
-        lastAdjustment={lastAdjustment}
-        now={now}
-        reminders={reminders}
-        onReminders={(next) => void setRunReminders(next)}
-        onPickWorkout={(index) => change(() => setProgramPosition(index))}
-        status={status}
-        loaded={loaded}
-        selected={false}
-        enabled={enabled}
-        onToggle={(on) =>
-          change(() => setProgramEnabled(on, storedId ?? chosenId))
-        }
-        onSelect={() => navigation.navigate('RecordActivity')}
-        startLabel={t('runPrograms.startWorkout', {
-          defaultValue: "Start today's workout",
-        })}
-        onRestart={() => change(restartProgram)}
-        onSkip={() => change(skipProgramWorkout)}
-      />
+      <>
+        <RunProgramCard
+          programId={storedId ?? chosenId}
+          onChooseProgram={chooseProgram}
+          lastAdjustment={lastAdjustment}
+          now={now}
+          reminders={reminders}
+          onReminders={(next) => void setRunReminders(next)}
+          onPickWorkout={(index) => change(() => setProgramPosition(index))}
+          status={status}
+          loaded={loaded}
+          selected={false}
+          enabled={enabled}
+          onToggle={(on) =>
+            change(() => setProgramEnabled(on, storedId ?? chosenId))
+          }
+          onSelect={() => navigation.navigate('RecordActivity')}
+          startLabel={t('runPrograms.startWorkout', {
+            defaultValue: "Start today's workout",
+          })}
+          onRestart={() => change(restartProgram)}
+          onSkip={() => change(skipProgramWorkout)}
+        />
+        <RunProgramGuide programId={storedId} />
+      </>
     );
   } else if (loaded) {
     body = (
@@ -138,6 +144,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
               'Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.',
           })}
         </Text>
+        <RunProgramGuide defaultOpen />
         {RUN_PROGRAMS.map((program) => {
           const outline = programOutline(findProgram(program.id)!);
           return (
@@ -158,6 +165,9 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
               </Text>
               <Text className="text-text-secondary text-sm mt-2">
                 {programDescription(t, program.id)}
+              </Text>
+              <Text className="text-text-secondary text-sm mt-2">
+                {programStructure(t, program.id)}
               </Text>
               <Text className="text-text-secondary text-xs mt-2">
                 {t('recordActivity.program.outline', {
