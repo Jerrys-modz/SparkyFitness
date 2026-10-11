@@ -171,14 +171,15 @@ describe('diary days and start day', () => {
     expect(onSchedule).toHaveBeenLastCalledWith({ days: [] });
   });
 
-  it('starts today unless tomorrow is chosen', () => {
-    const onSchedule = jest.fn();
-    render(<RunProgramCard {...props()} now={now} onSchedule={onSchedule} />);
-    fireEvent.press(screen.getByText('Tomorrow'));
-    expect(onSchedule).toHaveBeenCalledWith({ startDay: '2026-10-13' });
+  it('starts today until a start date is picked', () => {
+    render(<RunProgramCard {...props()} now={now} />);
+    expect(screen.getByText(/Starts today/)).toBeTruthy();
+    expect(screen.getByText('Pick a start date')).toBeTruthy();
+    expect(screen.queryByText('Tomorrow')).toBeNull();
+    expect(screen.queryByText('Start today')).toBeNull();
   });
 
-  it('goes back to today from tomorrow', () => {
+  it('goes back to starting today from a later date', () => {
     const onSchedule = jest.fn();
     render(
       <RunProgramCard
@@ -188,7 +189,8 @@ describe('diary days and start day', () => {
         onSchedule={onSchedule}
       />
     );
-    fireEvent.press(screen.getByText('Today'));
+    expect(screen.getByText('Change start date')).toBeTruthy();
+    fireEvent.press(screen.getByText('Start today'));
     expect(onSchedule).toHaveBeenCalledWith({ startDay: null });
   });
 
@@ -215,7 +217,7 @@ describe('diary days and start day', () => {
         schedule={{ days: [], startDay: '2026-10-20', endDay: null }}
       />
     );
-    expect(screen.getByText(/Oct 20/)).toBeTruthy();
+    expect(screen.getByText(/Starts .*Oct 20/)).toBeTruthy();
   });
 });
 

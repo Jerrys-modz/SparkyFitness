@@ -108,10 +108,6 @@ describe('RunProgramsScreen', () => {
     renderScreen(RunProgramsProps());
     fireEvent.press(screen.getByLabelText('Monday'));
     expect(setProgramSchedule).toHaveBeenCalledWith({ days: [1] });
-    fireEvent.press(screen.getByText('Tomorrow'));
-    expect(setProgramSchedule).toHaveBeenLastCalledWith({
-      startDay: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-    });
   });
 
   it('keeps the place and offers to resume a program that is switched off', () => {

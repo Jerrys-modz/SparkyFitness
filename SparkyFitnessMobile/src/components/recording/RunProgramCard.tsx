@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import Button from '../ui/Button';
 import Switch from '../ui/Switch';
-import SegmentedControl from '../SegmentedControl';
 import BottomSheetPicker, {
   type PickerOption,
   type PickerSection,
@@ -109,8 +108,6 @@ export interface RunSchedule {
   startDay: string | null;
   endDay: string | null;
 }
-
-type StartChoice = 'today' | 'tomorrow' | 'other';
 
 interface Props {
   /** The program picked in the list (the running one, or the one to start). */
@@ -281,13 +278,7 @@ const RunProgramCard: React.FC<Props> = ({
       })
     : '';
   const today = toLocalDateString(new Date(now));
-  const tomorrow = addDays(today, 1);
-  const startChoice: StartChoice =
-    !schedule.startDay || schedule.startDay <= today
-      ? 'today'
-      : schedule.startDay === tomorrow
-        ? 'tomorrow'
-        : 'other';
+  const futureStart = !!schedule.startDay && schedule.startDay > today;
   const dayLabel = (day: string): string => {
     const [y, m, d] = day.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString(getAppLocale(), {
@@ -424,48 +415,42 @@ const RunProgramCard: React.FC<Props> = ({
               defaultValue: 'First workout',
             })}
           </Text>
-          <View className="mt-2">
-            <SegmentedControl<StartChoice>
-              segments={[
-                {
-                  key: 'today',
-                  label: t('recordActivity.program.startToday', {
-                    defaultValue: 'Today',
-                  }),
-                },
-                {
-                  key: 'tomorrow',
-                  label: t('recordActivity.program.startTomorrow', {
-                    defaultValue: 'Tomorrow',
-                  }),
-                },
-                ...(startChoice === 'other'
-                  ? [
-                      {
-                        key: 'other' as const,
-                        label: dayLabel(schedule.startDay as string),
-                      },
-                    ]
-                  : []),
-              ]}
-              activeKey={startChoice}
-              onSelect={(key) =>
-                onSchedule({
-                  startDay:
-                    key === 'tomorrow'
-                      ? tomorrow
-                      : key === 'today'
-                        ? null
-                        : schedule.startDay,
+          <Text className="text-text-secondary text-xs mt-1">
+            {futureStart
+              ? t('recordActivity.program.startDaySet', {
+                  date: dayLabel(schedule.startDay as string),
+                  defaultValue:
+                    'Starts {{date}}. Nothing shows in the Diary before then.',
                 })
-              }
-            />
+              : t('recordActivity.program.startDayToday', {
+                  defaultValue:
+                    'Starts today. Pick a later date if you want to begin then.',
+                })}
+          </Text>
+          <View className="flex-row">
+            <Button
+              variant="link"
+              onPress={() => calendarRef.current?.present()}
+            >
+              {futureStart
+                ? t('recordActivity.program.startChange', {
+                    defaultValue: 'Change start date',
+                  })
+                : t('recordActivity.program.startPick', {
+                    defaultValue: 'Pick a start date',
+                  })}
+            </Button>
+            {futureStart ? (
+              <Button
+                variant="link"
+                onPress={() => onSchedule({ startDay: null })}
+              >
+                {t('recordActivity.program.startClear', {
+                  defaultValue: 'Start today',
+                })}
+              </Button>
+            ) : null}
           </View>
-          <Button variant="link" onPress={() => calendarRef.current?.present()}>
-            {t('recordActivity.program.startPick', {
-              defaultValue: 'Pick another date',
-            })}
-          </Button>
           <Text className="text-text-primary text-sm font-semibold mt-1">
             {t('recordActivity.program.goalDay', {
               defaultValue: 'Goal date',
