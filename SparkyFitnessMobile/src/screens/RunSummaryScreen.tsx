@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Toast from 'react-native-toast-message';
 import { ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +7,7 @@ import Button from '../components/ui/Button';
 import Icon from '../components/Icon';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
+import { setProgramPosition } from '../services/runProgramService';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { formatLocalizedNumber } from '../localization';
 import { formatDayLabel } from '../utils/dayLabel';
@@ -48,6 +50,23 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     });
 
   const done = () => navigation.goBack();
+  const [feel, setFeel] = useState<'easy' | 'right' | 'hard' | null>(null);
+  const [moved, setMoved] = useState<'repeat' | 'skip' | null>(null);
+  // Moves the place in the program, then says so; a failure is shown, not lost.
+  const move = async (kind: 'repeat' | 'skip', index: number) => {
+    try {
+      await setProgramPosition(index);
+      setMoved(kind);
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: t('runSummary.moveFailed', {
+          defaultValue: 'Could not change the program.',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+      });
+    }
+  };
   const header = useScreenHeader({
     title: t('screens.runSummary', { defaultValue: 'Activity saved' }),
     right: {
@@ -171,6 +190,93 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text className="text-text-secondary text-sm mt-2">
               {summary.program.nextLine}
             </Text>
+            {!summary.program.finished ? (
+              <View className="mt-3">
+                <Text className="text-text-primary text-sm font-semibold mb-2">
+                  {t('runSummary.feelQuestion', {
+                    defaultValue: 'How did that feel?',
+                  })}
+                </Text>
+                <View className="flex-row" style={{ gap: 8 }}>
+                  {(
+                    [
+                      [
+                        'easy',
+                        t('runSummary.feelEasy', { defaultValue: 'Easy' }),
+                      ],
+                      [
+                        'right',
+                        t('runSummary.feelRight', {
+                          defaultValue: 'Just right',
+                        }),
+                      ],
+                      [
+                        'hard',
+                        t('runSummary.feelHard', { defaultValue: 'Hard' }),
+                      ],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <View key={key} className="flex-1">
+                      <Button
+                        variant={feel === key ? 'primary' : 'secondary'}
+                        disabled={moved != null}
+                        onPress={() => setFeel(key)}
+                      >
+                        {label}
+                      </Button>
+                    </View>
+                  ))}
+                </View>
+                {moved ? (
+                  <Text className="text-text-secondary text-sm mt-2">
+                    {moved === 'repeat'
+                      ? t('runSummary.repeating', {
+                          defaultValue: 'Done. You will do this workout again.',
+                        })
+                      : t('runSummary.skipping', {
+                          defaultValue: 'Done. The next workout is skipped.',
+                        })}
+                  </Text>
+                ) : feel === 'hard' ? (
+                  <>
+                    <Text className="text-text-secondary text-sm mt-2">
+                      {t('runSummary.hardHint', {
+                        defaultValue:
+                          'Repeating a workout that felt hard is a good way to build up safely.',
+                      })}
+                    </Text>
+                    <Button
+                      variant="secondary"
+                      onPress={() =>
+                        move('repeat', Math.max(0, summary.program!.done - 1))
+                      }
+                    >
+                      {t('runSummary.repeat', {
+                        defaultValue: 'Repeat this workout',
+                      })}
+                    </Button>
+                  </>
+                ) : feel === 'easy' &&
+                  summary.program.done < summary.program.total - 1 ? (
+                  <>
+                    <Text className="text-text-secondary text-sm mt-2">
+                      {t('runSummary.easyHint', {
+                        defaultValue:
+                          'Felt easy? You can skip the next workout and move on.',
+                      })}
+                    </Text>
+                    <Button
+                      variant="secondary"
+                      onPress={() => move('skip', summary.program!.done + 1)}
+                    >
+                      {t('runSummary.skipNext', {
+                        defaultValue: 'Skip the next workout',
+                      })}
+                    </Button>
+                  </>
+                ) : null}
+              </View>
+            ) : null}
             <Button
               variant="link"
               onPress={() => navigation.navigate('RunPrograms')}

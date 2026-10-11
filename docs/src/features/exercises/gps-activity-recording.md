@@ -187,3 +187,5 @@ If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 ma
 - Live Activity and lock-screen stats.
 - Tracking with the watch's own GPS, on Apple Watch or Wear OS, so the phone can stay behind.
 - Wear OS controls and heart rate.
+
+After a program workout is saved, the summary asks how it felt. If it was hard you can repeat the workout; if it was easy you can skip the next one. Your answer is not stored, and nothing changes unless you tap the button.
