@@ -64,6 +64,12 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
   const setOnDeviceLabelScanEnabled = useAppPreferencesStore(
     (s) => s.setOnDeviceLabelScanEnabled
   );
+  const onDeviceFoodPhotoEnabled = useAppPreferencesStore(
+    (s) => s.onDeviceFoodPhotoEnabled
+  );
+  const setOnDeviceFoodPhotoEnabled = useAppPreferencesStore(
+    (s) => s.setOnDeviceFoodPhotoEnabled
+  );
   const onDeviceAvailable = useMemo(() => isOnDeviceLabelScanAvailable(), []);
   const header = useScreenHeader({
     title: t('screens.aiSettings', { defaultValue: 'AI' }),
@@ -110,7 +116,7 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
           <Text className="text-text-secondary text-sm mt-2">
             {t('aiSettings.server.description', {
               defaultValue:
-                'Used for label scans unless an on-device option below handles them. Providers are set up in the web app.',
+                'Used for food photos and label scans unless an on-device option below handles them. Providers are set up in the web app.',
             })}
           </Text>
         </View>
@@ -139,6 +145,18 @@ const AiSettingsScreen: React.FC<AiSettingsScreenProps> = () => {
               })}
               value={onDeviceLabelScanEnabled}
               onValueChange={setOnDeviceLabelScanEnabled}
+            />
+            <ToggleCard
+              testID="ai-food-photo-switch"
+              title={t('foodSettings.onDeviceFoodPhoto.title', {
+                defaultValue: 'Estimate Food Photos On Device',
+              })}
+              description={t('foodSettings.onDeviceFoodPhoto.description', {
+                defaultValue:
+                  'Estimate a single meal photo with Apple Intelligence on this device. It is rougher than your server AI provider and does not match foods in your library. Photos with more than one picture, or that it cannot estimate, use the server AI provider.',
+              })}
+              value={onDeviceFoodPhotoEnabled}
+              onValueChange={setOnDeviceFoodPhotoEnabled}
             />
           </>
         ) : (
