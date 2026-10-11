@@ -672,7 +672,11 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 <RunProgramBanner
                   date={selectedDate}
                   exerciseEntries={summary.exerciseEntries}
-                  onStart={() => navigation.navigate('RecordActivity')}
+                  onStart={() =>
+                    navigation.navigate('RecordActivity', {
+                      programWorkout: true,
+                    })
+                  }
                 />
               }
               onPressPlanAssignment={handleStartPlanAssignment}

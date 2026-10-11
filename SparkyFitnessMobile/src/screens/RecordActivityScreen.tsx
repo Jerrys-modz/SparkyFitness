@@ -107,7 +107,7 @@ type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
 
-const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
+const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -139,14 +139,20 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   // The program only drives the screen while the person has it switched on.
   const programStatus = programEnabled ? storedProgram : null;
   const programWorkout = programStatus?.workout ?? null;
-  // A person on a program usually wants today's workout, so it starts chosen
-  // (once; they can change it, and it is not re-chosen after).
-  const programPreselected = useRef(false);
+  // Today's program workout is chosen only when the person came here to do it
+  // (the Diary card's Start, or Start today's workout); otherwise it is just
+  // offered on its own card, because most recordings are a plain walk or run.
+  const wantsProgramWorkout = route.params?.programWorkout === true;
+  const programApplied = useRef(false);
   useEffect(() => {
-    if (programPreselected.current || !programLoaded) return;
-    programPreselected.current = true;
-    if (programWorkout) setIntervalChoice('program');
-  }, [programLoaded, programWorkout]);
+    if (!wantsProgramWorkout || programApplied.current || !programLoaded)
+      return;
+    programApplied.current = true;
+    if (programWorkout) {
+      setActivity('run');
+      setIntervalChoice('program');
+    }
+  }, [wantsProgramWorkout, programLoaded, programWorkout]);
   // A program that ended or was left while it was chosen.
   useEffect(() => {
     if (intervalChoice === 'program' && programLoaded && !programWorkout) {

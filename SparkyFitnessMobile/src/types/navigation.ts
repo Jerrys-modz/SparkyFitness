@@ -186,7 +186,8 @@ export type RootStackParamList = {
     goal?: number;
   };
   ExerciseStatistics: undefined;
-  RecordActivity: undefined;
+  /** `programWorkout` opens it with today's training-program workout chosen. */
+  RecordActivity: { programWorkout?: boolean } | undefined;
   Reports: undefined;
   HydrationReport: undefined;
   SubstancesReport: undefined;
