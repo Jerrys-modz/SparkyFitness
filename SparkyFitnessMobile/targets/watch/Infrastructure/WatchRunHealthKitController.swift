@@ -74,6 +74,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var heartRateRows: [[Double]] = []
     /// Epoch ms of each Lap press, oldest first.
     private var lapMarks: [Double] = []
+    /// Metres covered when each lap was marked, parallel to `lapMarks`.
+    private var lapDistances: [Double] = []
 
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
@@ -88,6 +90,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         // A plan's step change is a lap whatever the 3 s rule says.
         if !force, let last = lapMarks.last, now - last < 3000 { return false }
         lapMarks.append(now)
+        lapDistances.append(metrics.distanceMeters)
         persistSnapshot(force: true)
         return true
     }
@@ -164,6 +167,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             routeSegment = 0
             heartRateRows = []
             lapMarks = []
+            lapDistances = []
 
             let now = Date()
             startedAt = now
@@ -215,7 +219,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         let finalElapsed = endingBuilder.elapsedTime
         let endingRoute = routeBuilder
         let endedAt = Date()
-        let rows = (route: routeRows, heartRate: heartRateRows, laps: lapMarks)
+        let rows = (route: routeRows, heartRate: heartRateRows, laps: lapMarks, lapDistances: lapDistances)
         // A discarded run is gone at once. A saved one keeps its snapshot
         // until the store has queued the message for the phone, so a kill
         // between here and there still leaves the run to be sent on relaunch.
@@ -252,6 +256,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     route: rows.route,
                     heartRate: rows.heartRate,
                     laps: rows.laps,
+                    lapDistances: rows.lapDistances,
                     plan: self.plan,
                     planCompleted: self.plan?.lastStepStarted(at: finalElapsed) ?? false
                 ) : nil
@@ -304,6 +309,7 @@ extension WatchRunHealthKitController {
             elapsed: builder?.elapsedTime ?? 0,
             savedAt: now,
             lapMarks: lapMarks,
+            lapDistances: lapDistances,
             plan: plan
         ))
     }
@@ -353,6 +359,7 @@ extension WatchRunHealthKitController {
                 self.routeRows = snapshot.routeRows
                 self.heartRateRows = snapshot.heartRateRows
                 self.lapMarks = snapshot.lapMarks ?? []
+                self.lapDistances = snapshot.lapDistances ?? []
                 self.plan = snapshot.plan
                 // The jump across the gap while the app was gone is never distance.
                 self.routeSegment = snapshot.routeSegment + 1
@@ -413,6 +420,7 @@ extension WatchRunHealthKitController {
             route: snapshot.routeRows,
             heartRate: snapshot.heartRateRows,
             laps: snapshot.lapMarks ?? [],
+            lapDistances: snapshot.lapDistances ?? [],
             plan: snapshot.plan,
             planCompleted: snapshot.plan?.lastStepStarted(at: snapshot.elapsed) ?? false
         ))
@@ -580,6 +588,7 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 route: self.routeRows,
                 heartRate: self.heartRateRows,
                 laps: self.lapMarks,
+                lapDistances: self.lapDistances,
                 plan: self.plan,
                 planCompleted: self.plan?.lastStepStarted(at: elapsed) ?? false
             ) : nil

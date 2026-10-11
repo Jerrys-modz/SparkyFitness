@@ -28,6 +28,7 @@ const run = (clientId: string): WatchRunPayload => ({
   route: [],
   heartRate: [],
   laps: [],
+  lapDistances: [],
   planId: null,
   program: null,
   planCompleted: false,
