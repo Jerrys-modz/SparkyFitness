@@ -7,6 +7,7 @@ import { useNutritionReport } from '../hooks/useNutritionReport';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
+import ReportInsights from '../components/reports/ReportInsights';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
 import ReportHighlights, {
   type ReportHighlight,
@@ -32,7 +33,6 @@ import {
   percentChange,
   type NutrientAverage,
 } from '../utils/nutritionReport';
-import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type NutritionReportScreenProps = RootStackScreenProps<'NutritionReport'>;
@@ -41,9 +41,15 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
   navigation,
 }) => {
   const { t } = useTranslation();
-  const { range, setRange, isSectionShown } = useReportCustomization();
-  const { report, isLoading, isError } = useNutritionReport({ range });
-  const days = TREND_RANGE_DAYS[range];
+  const {
+    window: reportWindow,
+    rangeProps,
+    isSectionShown,
+  } = useReportCustomization();
+  const { report, isLoading, isError } = useNutritionReport({
+    window: reportWindow,
+  });
+  const days = reportWindow.days;
 
   const header = useScreenHeader({
     title: t('nutritionReport.title', { defaultValue: 'Nutrition' }),
@@ -135,11 +141,7 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
 
   if (isLoading || isError) {
     return (
-      <ReportScreenLayout
-        header={header}
-        range={range}
-        onRangeChange={setRange}
-      >
+      <ReportScreenLayout header={header} {...rangeProps}>
         <StatusView
           loading={isLoading}
           icon="chart-bar"
@@ -239,6 +241,65 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
         ]
       : [];
 
+  const insightLines: string[] = [];
+  if (insights && insights.loggedDays > 0) {
+    const protein = insights.macroGoals.find((m) => m.key === 'protein');
+    if (protein) {
+      insightLines.push(
+        t('nutritionReport.insightProtein', {
+          defaultValue: 'You averaged {{pct}}% of your protein goal.',
+          pct: fmt(protein.pct),
+        })
+      );
+    }
+    if (goal && goal.daysWithGoal > 0) {
+      insightLines.push(
+        t('nutritionReport.insightOnTarget', {
+          defaultValue:
+            '{{onTarget}} of {{total}} logged days were within 10% of your calorie goal.',
+          onTarget: goal.onTarget,
+          total: goal.daysWithGoal,
+        })
+      );
+    }
+    if (change !== null && Math.abs(change) >= 5) {
+      insightLines.push(
+        change > 0
+          ? t('nutritionReport.insightUp', {
+              defaultValue:
+                'Your average calories are up {{pct}}% on the previous period.',
+              pct: fmt(change),
+            })
+          : t('nutritionReport.insightDown', {
+              defaultValue:
+                'Your average calories are down {{pct}}% on the previous period.',
+              pct: fmt(Math.abs(change)),
+            })
+      );
+    }
+    if (insights.weekdayCalories.length >= 3) {
+      const top = insights.weekdayCalories.reduce((a, b) =>
+        b.average > a.average ? b : a
+      );
+      insightLines.push(
+        t('nutritionReport.insightWeekday', {
+          defaultValue:
+            '{{weekday}} is your highest-calorie day, averaging {{kcal}}.',
+          weekday: weekdayName(top.weekday),
+          kcal: kcal(top.average),
+        })
+      );
+    }
+    if (insights.streaks.longest >= 3) {
+      insightLines.push(
+        t('nutritionReport.insightStreak', {
+          defaultValue: 'Your longest logging streak was {{count}} days.',
+          count: insights.streaks.longest,
+        })
+      );
+    }
+  }
+
   const signedPercent = (value: number) =>
     `${value > 0 ? '+' : ''}${formatLocalizedNumber(value)}%`;
   const highlights: ReportHighlight[] =
@@ -290,16 +351,19 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
       : [];
 
   return (
-    <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
+    <ReportScreenLayout header={header} {...rangeProps}>
       {isSectionShown('nutrition.overview') ? (
         <ReportHighlights items={highlights} />
+      ) : null}
+      {isSectionShown('nutrition.insights') ? (
+        <ReportInsights lines={insightLines} testIDPrefix="nutrition" />
       ) : null}
       {isSectionShown('nutrition.chart') ? (
         <CaloriesBarChart
           data={report?.series ?? []}
           isLoading={false}
           isError={false}
-          range={range}
+          range={reportWindow.chartRange}
           averageCalories={averageCalories}
           goals={report?.goals}
         />

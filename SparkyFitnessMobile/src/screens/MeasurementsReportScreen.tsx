@@ -7,6 +7,7 @@ import { useReportCustomization } from '../hooks/useReportCustomization';
 import { usePreferences, useProfile, useServerConnection } from '../hooks';
 import { formatLocalizedNumber } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
+import ReportInsights from '../components/reports/ReportInsights';
 import ReportSummaryCard, {
   type ReportSummaryRow,
 } from '../components/reports/ReportSummaryCard';
@@ -38,11 +39,17 @@ const MeasurementsReportScreen: React.FC<
   MeasurementsReportScreenProps
 > = () => {
   const { t } = useTranslation();
-  const { range, setRange, isSectionShown } = useReportCustomization();
+  const {
+    window: reportWindow,
+    rangeProps,
+    isSectionShown,
+  } = useReportCustomization();
   const { isConnected } = useServerConnection();
   const { preferences } = usePreferences({ enabled: isConnected });
   const { profile } = useProfile();
-  const { report, isLoading, isError } = useMeasurementsReport({ range });
+  const { report, isLoading, isError } = useMeasurementsReport({
+    window: reportWindow,
+  });
 
   const header = useScreenHeader({
     title: t('measurementsReport.title', { defaultValue: 'Measurements' }),
@@ -58,8 +65,9 @@ const MeasurementsReportScreen: React.FC<
   const fmt = (value: number, digits = 1) =>
     formatLocalizedNumber(value, { maximumFractionDigits: digits });
   const weightText = (kg: number) => formatWeightDisplay(kg, weightMode);
-  const weightChangeText = (kg: number) =>
-    withSign(kg, `${fmt(Math.abs(weightFromKg(kg, chartUnit)))} ${chartUnit}`);
+  const weightAmount = (kg: number) =>
+    `${fmt(Math.abs(weightFromKg(kg, chartUnit)))} ${chartUnit}`;
+  const weightChangeText = (kg: number) => withSign(kg, weightAmount(kg));
   const lengthText = (cm: number) =>
     `${fmt(lengthFromCm(cm, lengthUnit))} ${lengthUnit === 'cm' ? 'cm' : 'in'}`;
   const percentText = (value: number) => `${fmt(value)}%`;
@@ -68,11 +76,7 @@ const MeasurementsReportScreen: React.FC<
 
   if (isLoading || isError) {
     return (
-      <ReportScreenLayout
-        header={header}
-        range={range}
-        onRangeChange={setRange}
-      >
+      <ReportScreenLayout header={header} {...rangeProps}>
         <StatusView
           loading={isLoading}
           icon="chart-bar"
@@ -140,11 +144,9 @@ const MeasurementsReportScreen: React.FC<
       (kg) => weightChangeText(kg)
     ),
   ];
-  const tapeChange = (cm: number) =>
-    withSign(
-      cm,
-      `${fmt(Math.abs(lengthFromCm(cm, lengthUnit)))} ${lengthUnit === 'cm' ? 'cm' : 'in'}`
-    );
+  const tapeAmount = (cm: number) =>
+    `${fmt(Math.abs(lengthFromCm(cm, lengthUnit)))} ${lengthUnit === 'cm' ? 'cm' : 'in'}`;
+  const tapeChange = (cm: number) => withSign(cm, tapeAmount(cm));
   const tapeRows = [
     ...trendRows(
       'waist',
@@ -280,11 +282,59 @@ const MeasurementsReportScreen: React.FC<
       : []),
   ];
 
+  const insightLines: string[] = [];
+  if (weight && weight.change !== null && weight.change !== 0) {
+    insightLines.push(
+      weight.change < 0
+        ? t('measurementsReport.insightWeightDown', {
+            defaultValue: 'Your weight is down {{amount}} over this period.',
+            amount: weightAmount(weight.change),
+          })
+        : t('measurementsReport.insightWeightUp', {
+            defaultValue: 'Your weight is up {{amount}} over this period.',
+            amount: weightAmount(weight.change),
+          })
+    );
+  }
+  if (m?.waist.change != null && m.waist.change !== 0) {
+    insightLines.push(
+      m.waist.change < 0
+        ? t('measurementsReport.insightWaistDown', {
+            defaultValue: 'Your waist is down {{amount}}.',
+            amount: tapeAmount(m.waist.change),
+          })
+        : t('measurementsReport.insightWaistUp', {
+            defaultValue: 'Your waist is up {{amount}}.',
+            amount: tapeAmount(m.waist.change),
+          })
+    );
+  }
+  if (weight && weight.latest !== null && weightGoal !== undefined) {
+    const remaining = Math.abs(
+      weightFromKg(weight.latest, chartUnit) - weightGoal
+    );
+    insightLines.push(
+      t('measurementsReport.insightToGoal', {
+        defaultValue: 'You are {{amount}} from your goal weight.',
+        amount: `${fmt(remaining)} ${chartUnit}`,
+      })
+    );
+  }
+  if (report && report.averageSteps !== null) {
+    insightLines.push(
+      t('measurementsReport.insightSteps', {
+        defaultValue:
+          'You averaged {{steps}} steps on the days you recorded them.',
+        steps: fmt(Math.round(report.averageSteps), 0),
+      })
+    );
+  }
+
   const hasAnything =
     !!report && (report.checkInDays > 0 || report.stepDays > 0);
 
   return (
-    <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
+    <ReportScreenLayout header={header} {...rangeProps}>
       {!hasAnything ? (
         <StatusView
           icon="chart-bar"
@@ -299,13 +349,16 @@ const MeasurementsReportScreen: React.FC<
           {isSectionShown('measurements.overview') && highlights.length > 0 ? (
             <ReportHighlights items={highlights} />
           ) : null}
+          {isSectionShown('measurements.insights') ? (
+            <ReportInsights lines={insightLines} testIDPrefix="measurements" />
+          ) : null}
           {isSectionShown('measurements.weightChart') &&
           weightSeries.length > 0 ? (
             <WeightLineChart
               data={weightSeries}
               isLoading={false}
               isError={false}
-              range={range}
+              range={reportWindow.chartRange}
               unit={chartUnit}
               goal={weightGoal}
             />
@@ -339,7 +392,7 @@ const MeasurementsReportScreen: React.FC<
               data={report?.steps ?? []}
               isLoading={false}
               isError={false}
-              range={range}
+              range={reportWindow.chartRange}
             />
           ) : null}
         </>

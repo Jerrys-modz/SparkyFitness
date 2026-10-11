@@ -2,11 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMeasurementsRange } from '../services/api/measurementsApi';
 import { buildMeasurementsReport } from '../utils/measurementsReport';
-import {
-  TREND_RANGE_DAYS,
-  trendRangeBounds,
-  type TrendRange,
-} from '../utils/trendRange';
+import type { ReportWindow } from '../utils/trendRange';
 import { measurementsRangeQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
@@ -15,9 +11,8 @@ import { useRefetchOnFocus } from './useRefetchOnFocus';
  * steps for a window. Shares `measurementsRangeQueryKey` with the Health Trends weight and
  * steps charts, so a window both have open is one request.
  */
-export function useMeasurementsReport({ range }: { range: TrendRange }) {
-  const days = TREND_RANGE_DAYS[range];
-  const { startDate, endDate } = trendRangeBounds(range);
+export function useMeasurementsReport({ window }: { window: ReportWindow }) {
+  const { startDate, endDate, days } = window;
 
   const query = useQuery({
     queryKey: measurementsRangeQueryKey(startDate, endDate),

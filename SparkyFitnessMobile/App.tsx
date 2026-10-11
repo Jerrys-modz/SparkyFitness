@@ -110,6 +110,7 @@ import {
   SafeSleepAnalytics,
   SafeMoodReport,
   SafeHydrationReport,
+  SafeSubstancesReport,
   SafeMeasurementsReport,
   SafeReportsSettings,
   SafeCardioSession,
@@ -787,6 +788,11 @@ function AppContent() {
             name="HydrationReport"
             component={SafeHydrationReport}
             options={createStackScreenOptions(t('screens.hydrationReport', { defaultValue: 'Hydration' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="SubstancesReport"
+            component={SafeSubstancesReport}
+            options={createStackScreenOptions(t('screens.substancesReport', { defaultValue: 'Caffeine and alcohol' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="MeasurementsReport"

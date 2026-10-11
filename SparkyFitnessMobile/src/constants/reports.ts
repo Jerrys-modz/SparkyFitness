@@ -9,6 +9,7 @@ import { NUTRIENT_META } from './nutrients';
 export const REPORT_KEYS = [
   'nutrition',
   'hydration',
+  'substances',
   'sleep',
   'measurements',
   'mood',
@@ -29,6 +30,8 @@ export const REPORT_LABELS: Record<ReportKey, (t: Translator) => string> = {
   sleep: (t) =>
     t('reports.sleepAnalytics', { defaultValue: 'Sleep analytics' }),
   hydration: (t) => t('reports.hydration', { defaultValue: 'Hydration' }),
+  substances: (t) =>
+    t('reports.substances', { defaultValue: 'Caffeine and alcohol' }),
   measurements: (t) =>
     t('reports.measurements', { defaultValue: 'Measurements' }),
   mood: (t) => t('reports.mood', { defaultValue: 'Mood' }),
@@ -42,6 +45,7 @@ export const REPORT_LABELS: Record<ReportKey, (t: Translator) => string> = {
  */
 export const NUTRITION_SECTIONS = [
   'nutrition.overview',
+  'nutrition.insights',
   'nutrition.chart',
   'nutrition.averages',
   'nutrition.macroSplit',
@@ -58,14 +62,34 @@ export const NUTRITION_SECTIONS = [
 
 export const HYDRATION_SECTIONS = [
   'hydration.overview',
+  'hydration.insights',
   'hydration.chart',
   'hydration.goal',
   'hydration.highlights',
   'hydration.weekdays',
 ] as const;
 
+export const SUBSTANCES_SECTIONS = [
+  'substances.overview',
+  'substances.insights',
+  'substances.caffeineChart',
+  'substances.caffeine',
+  'substances.alcoholChart',
+  'substances.alcohol',
+  'substances.weekly',
+] as const;
+
+export const EXERCISE_SECTIONS = [
+  'exercise.overview',
+  'exercise.setsPerMuscle',
+  'exercise.heatMap',
+  'exercise.consistency',
+  'exercise.analysis',
+] as const;
+
 export const MEASUREMENTS_SECTIONS = [
   'measurements.overview',
+  'measurements.insights',
   'measurements.weightChart',
   'measurements.weight',
   'measurements.bodyComposition',
@@ -75,6 +99,7 @@ export const MEASUREMENTS_SECTIONS = [
 
 export const SLEEP_SECTIONS = [
   'sleep.overview',
+  'sleep.insights',
   'sleep.stages',
   'sleep.routine',
   'sleep.weekendVsWeekday',
@@ -84,6 +109,7 @@ export const SLEEP_SECTIONS = [
 
 export const MOOD_SECTIONS = [
   'mood.overview',
+  'mood.insights',
   'mood.chart',
   'mood.summary',
   'mood.highlights',
@@ -97,6 +123,8 @@ export const sleepMetricSection = (metric: SleepAnalyticsMetric) =>
 
 export type ReportSectionKey =
   | (typeof NUTRITION_SECTIONS)[number]
+  | (typeof EXERCISE_SECTIONS)[number]
+  | (typeof SUBSTANCES_SECTIONS)[number]
   | (typeof HYDRATION_SECTIONS)[number]
   | (typeof MEASUREMENTS_SECTIONS)[number]
   | (typeof SLEEP_SECTIONS)[number]

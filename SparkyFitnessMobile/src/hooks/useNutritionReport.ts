@@ -7,11 +7,7 @@ import {
   buildNutritionInsights,
   toCaloriesSeries,
 } from '../utils/nutritionReport';
-import {
-  TREND_RANGE_DAYS,
-  trendRangeBounds,
-  type TrendRange,
-} from '../utils/trendRange';
+import type { ReportWindow } from '../utils/trendRange';
 import { goalsRangeQueryKey, nutritionTrendsQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
@@ -44,9 +40,8 @@ const emptyPoint = {
  * resolved calorie goal for each day. The current window and goals share cache keys with
  * the Dashboard's calories page, so they are not refetched when both are open.
  */
-export function useNutritionReport({ range }: { range: TrendRange }) {
-  const days = TREND_RANGE_DAYS[range];
-  const { startDate, endDate } = trendRangeBounds(range);
+export function useNutritionReport({ window }: { window: ReportWindow }) {
+  const { startDate, endDate, days } = window;
   const previousEnd = addDays(startDate, -1);
   const previousStart = addDays(previousEnd, -(days - 1));
 

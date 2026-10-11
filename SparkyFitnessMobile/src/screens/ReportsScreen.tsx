@@ -60,6 +60,15 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ navigation }) => {
       onPress: () => navigation.navigate('HydrationReport'),
     },
     {
+      key: 'substances',
+      icon: 'chart-bar',
+      title: t('reports.substances', { defaultValue: 'Caffeine and alcohol' }),
+      subtitle: t('reports.substancesSubtitle', {
+        defaultValue: 'Daily caffeine, alcohol totals and week by week',
+      }),
+      onPress: () => navigation.navigate('SubstancesReport'),
+    },
+    {
       key: 'sleep',
       icon: 'sleep-bedtime',
       title: t('reports.sleepAnalytics', { defaultValue: 'Sleep analytics' }),

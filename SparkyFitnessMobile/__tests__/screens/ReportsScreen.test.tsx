@@ -48,6 +48,7 @@ describe('ReportsScreen', () => {
   it.each([
     ['nutrition', 'NutritionReport'],
     ['hydration', 'HydrationReport'],
+    ['substances', 'SubstancesReport'],
     ['sleep', 'SleepAnalytics'],
     ['measurements', 'MeasurementsReport'],
     ['mood', 'MoodReport'],
@@ -72,7 +73,14 @@ describe('ReportsScreen', () => {
       queryAllByTestId(/^reports-link-/).map((link) =>
         String(link.props.testID).replace('reports-link-', '')
       )
-    ).toEqual(['mood', 'exercise', 'nutrition', 'hydration', 'measurements']);
+    ).toEqual([
+      'mood',
+      'exercise',
+      'nutrition',
+      'hydration',
+      'substances',
+      'measurements',
+    ]);
     expect(queryByTestId('reports-link-sleep')).toBeNull();
   });
 });

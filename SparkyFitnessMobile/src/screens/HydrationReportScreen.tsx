@@ -7,6 +7,7 @@ import { useReportCustomization } from '../hooks/useReportCustomization';
 import { usePreferences, useServerConnection } from '../hooks';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
+import ReportInsights from '../components/reports/ReportInsights';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
 import ReportHighlights, {
   type ReportHighlight,
@@ -19,7 +20,6 @@ import {
   formatVolumeForUnit,
   volumeFromMl,
 } from '../utils/unitConversions';
-import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import { percentChange } from '../utils/nutritionReport';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -27,11 +27,17 @@ type HydrationReportScreenProps = RootStackScreenProps<'HydrationReport'>;
 
 const HydrationReportScreen: React.FC<HydrationReportScreenProps> = () => {
   const { t } = useTranslation();
-  const { range, setRange, isSectionShown } = useReportCustomization();
+  const {
+    window: reportWindow,
+    rangeProps,
+    isSectionShown,
+  } = useReportCustomization();
   const { isConnected } = useServerConnection();
   const { preferences } = usePreferences({ enabled: isConnected });
-  const { report, isLoading, isError } = useHydrationReport({ range });
-  const days = TREND_RANGE_DAYS[range];
+  const { report, isLoading, isError } = useHydrationReport({
+    window: reportWindow,
+  });
+  const days = reportWindow.days;
   const unit = preferences?.water_display_unit ?? 'ml';
 
   const header = useScreenHeader({
@@ -53,11 +59,7 @@ const HydrationReportScreen: React.FC<HydrationReportScreenProps> = () => {
 
   if (isLoading || isError) {
     return (
-      <ReportScreenLayout
-        header={header}
-        range={range}
-        onRangeChange={setRange}
-      >
+      <ReportScreenLayout header={header} {...rangeProps}>
         <StatusView
           loading={isLoading}
           icon="chart-bar"
@@ -137,6 +139,55 @@ const HydrationReportScreen: React.FC<HydrationReportScreenProps> = () => {
         ]
       : [];
 
+  const insightLines: string[] = [];
+  if (hasData && insights) {
+    if (insights.daysWithGoal > 0) {
+      insightLines.push(
+        t('hydrationReport.insightGoal', {
+          defaultValue:
+            'You reached your water goal on {{met}} of {{total}} days.',
+          met: insights.goalsMet,
+          total: insights.daysWithGoal,
+        })
+      );
+    }
+    if (change !== null && Math.abs(change) >= 5) {
+      insightLines.push(
+        change > 0
+          ? t('hydrationReport.insightUp', {
+              defaultValue:
+                'You are drinking {{pct}}% more than in the previous period.',
+              pct: formatLocalizedNumber(change),
+            })
+          : t('hydrationReport.insightDown', {
+              defaultValue:
+                'You are drinking {{pct}}% less than in the previous period.',
+              pct: formatLocalizedNumber(Math.abs(change)),
+            })
+      );
+    }
+    if (insights.weekdayAverages.length >= 3) {
+      const low = insights.weekdayAverages.reduce((a, b) =>
+        b.averageMl < a.averageMl ? b : a
+      );
+      insightLines.push(
+        t('hydrationReport.insightLowDay', {
+          defaultValue: '{{weekday}} is your lowest day, averaging {{volume}}.',
+          weekday: weekdayName(low.weekday),
+          volume: volume(low.averageMl),
+        })
+      );
+    }
+    if (insights.longestGoalStreak >= 3) {
+      insightLines.push(
+        t('hydrationReport.insightStreak', {
+          defaultValue: 'Your longest goal streak was {{count}} days.',
+          count: insights.longestGoalStreak,
+        })
+      );
+    }
+  }
+
   const dayRow = (
     label: string,
     point: { day: string; milliliters: number } | null,
@@ -154,16 +205,19 @@ const HydrationReportScreen: React.FC<HydrationReportScreenProps> = () => {
       : [];
 
   return (
-    <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
+    <ReportScreenLayout header={header} {...rangeProps}>
       {isSectionShown('hydration.overview') && highlights.length > 0 ? (
         <ReportHighlights items={highlights} />
+      ) : null}
+      {isSectionShown('hydration.insights') ? (
+        <ReportInsights lines={insightLines} testIDPrefix="hydration" />
       ) : null}
       {isSectionShown('hydration.chart') ? (
         <HydrationBarChart
           data={report?.series ?? []}
           isLoading={false}
           isError={false}
-          range={range}
+          range={reportWindow.chartRange}
           unit={unit}
           goals={report?.goals}
         />

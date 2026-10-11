@@ -69,6 +69,7 @@ describe('ReportsSettingsScreen', () => {
       'mood',
       'nutrition',
       'hydration',
+      'substances',
       'sleep',
       'measurements',
       'exercise',
@@ -91,6 +92,7 @@ describe('ReportsSettingsScreen', () => {
       hiddenReports: [
         'nutrition',
         'hydration',
+        'substances',
         'sleep',
         'measurements',
         'mood',
