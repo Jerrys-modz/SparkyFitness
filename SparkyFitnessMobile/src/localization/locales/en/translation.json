@@ -492,6 +492,7 @@
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
     "recordActivity": "Record Activity",
+    "runSummary": "Activity saved",
     "recordActivityHint": "Track a walk, run or ride with GPS",
     "mindfulness": "Mindfulness"
   },
@@ -6194,6 +6195,17 @@
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch"
     }
+  },
+  "runSummary": {
+    "done": "Done",
+    "runSaved": "Run saved",
+    "walkSaved": "Walk saved",
+    "rideSaved": "Ride saved",
+    "avgHeartRate": "Avg heart rate",
+    "programDone": "Program complete",
+    "programProgress": "Workout {{done}} of {{total}} done",
+    "viewProgram": "View program",
+    "routeA11y": "Map of your route"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",

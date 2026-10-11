@@ -103,6 +103,7 @@ import {
   SafeExerciseStatistics,
   SafeCardioSession,
   SafeRecordActivity,
+  SafeRunSummary,
   SafeFamilyMembers,
   SafeFamilyDiary,
   SafeFamilyMealDetail,
@@ -751,6 +752,11 @@ function AppContent() {
             name="RecordActivity"
             component={SafeRecordActivity}
             options={createStackScreenOptions(t('screens.recordActivity', { defaultValue: 'Record Activity' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="RunSummary"
+            component={SafeRunSummary}
+            options={createStackScreenOptions(t('screens.runSummary', { defaultValue: 'Activity saved' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="ExerciseSearch"
