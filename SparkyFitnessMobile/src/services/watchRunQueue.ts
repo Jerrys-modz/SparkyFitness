@@ -113,7 +113,8 @@ let processing: Promise<string[]> | null = null;
  * dropped and logged. Returns the diary day of each run it filed.
  */
 export function processWatchRunQueue(
-  distanceUnit: 'km' | 'miles'
+  distanceUnit: 'km' | 'miles',
+  onFiled?: (payload: WatchRunPayload) => void
 ): Promise<string[]> {
   if (processing) return processing;
   processing = (async () => {
@@ -141,6 +142,15 @@ export function processWatchRunQueue(
           await markDone(clientId);
         });
         filed.push(toLocalDateString(new Date(item.payload.startedAt)));
+        // A listener failing (a toast, a navigation) never undoes a filed run.
+        try {
+          onFiled?.(item.payload);
+        } catch (error) {
+          addLog(
+            `[Watch Run] Filed-run listener failed: ${String(error)}`,
+            'WARNING'
+          );
+        }
       } catch (error) {
         const status = error instanceof ApiError ? error.statusCode : undefined;
         const message = error instanceof Error ? error.message : String(error);

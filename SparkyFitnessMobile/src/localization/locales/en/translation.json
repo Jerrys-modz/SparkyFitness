@@ -6197,6 +6197,9 @@
     }
   },
   "runSummary": {
+    "watchRunSaved": "Run from your watch saved",
+    "watchWalkSaved": "Walk from your watch saved",
+    "tapForSummary": "Tap to see the summary",
     "done": "Done",
     "runSaved": "Run saved",
     "walkSaved": "Walk saved",

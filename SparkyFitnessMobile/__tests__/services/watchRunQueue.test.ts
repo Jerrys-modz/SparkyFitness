@@ -122,3 +122,17 @@ test('does not tick off a program run cut short, and a failed tick-off keeps the
   });
   expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
 });
+
+test('tells a listener about each run it files, and survives the listener failing', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun(run('l1'));
+  await enqueueWatchRun(run('l2'));
+  const seen: string[] = [];
+  const days = await processWatchRunQueue('km', (payload) => {
+    seen.push(payload.clientId);
+    throw new Error('toast broke');
+  });
+  expect(seen).toEqual(['l1', 'l2']);
+  expect(days).toEqual(['2026-10-10', '2026-10-10']);
+  expect(await processWatchRunQueue('km')).toEqual([]);
+});

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
   type WatchRunFinishedPayload,
 } from '../../modules/watch-connectivity';
@@ -10,6 +11,7 @@ import {
   enqueueWatchRun,
   processWatchRunQueue,
 } from '../services/watchRunQueue';
+import { announceWatchRun } from '../services/watchRunToast';
 import { parseWatchRunPayload } from '../utils/watchRun';
 
 /**
@@ -27,14 +29,19 @@ export function useWatchRunBridge(
     preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
   const unitRef = useRef(unit);
   const connectedRef = useRef(isServerConnected);
+  const { t } = useTranslation();
+  const tRef = useRef(t);
   useEffect(() => {
+    tRef.current = t;
     unitRef.current = unit;
     connectedRef.current = isServerConnected;
-  }, [unit, isServerConnected]);
+  }, [t, unit, isServerConnected]);
 
   const drain = useRef(async () => {
     if (!connectedRef.current) return;
-    const days = await processWatchRunQueue(unitRef.current);
+    const days = await processWatchRunQueue(unitRef.current, (payload) =>
+      announceWatchRun(payload, unitRef.current, tRef.current)
+    );
     for (const day of new Set(days)) invalidateExerciseCache(queryClient, day);
   });
 

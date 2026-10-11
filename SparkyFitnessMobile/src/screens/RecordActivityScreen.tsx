@@ -63,7 +63,6 @@ import {
   lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
-  storedProgramStatus,
   type RunProgramResponse,
 } from '@workspace/shared';
 import {
@@ -71,7 +70,7 @@ import {
   useRunProgram,
 } from '../services/runProgramService';
 import { runProgramQueryKey } from '../hooks/queryKeys';
-import { nextProgramLine } from '../utils/runProgramSummary';
+import { programSummary } from '../utils/runProgramSummary';
 import {
   averageHeartRate,
   buildRunSummary,
@@ -409,20 +408,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           );
           const stored =
             queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey);
-          if (stored) {
-            const status = storedProgramStatus(stored);
-            program = {
-              nextLine: nextProgramLine(
-                t,
-                stored,
-                toLocalDateString(new Date()),
-                (workoutStatus) => programWorkoutLabel(t, workoutStatus)
-              ),
-              done: status.done,
-              total: status.total,
-              finished: status.finished,
-            };
-          }
+          program = programSummary(
+            t,
+            stored,
+            toLocalDateString(new Date()),
+            (workoutStatus) => programWorkoutLabel(t, workoutStatus)
+          );
         } catch (error) {
           addLog(
             `[Run Program] Could not tick off the workout: ${error}`,
