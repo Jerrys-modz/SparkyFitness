@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { programStatus } from '@workspace/shared';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
 import {
@@ -48,7 +49,8 @@ jest.mock('../../src/components/CalendarSheet', () => {
   return {
     __esModule: true,
     default: ReactModule.forwardRef(
-      (_props: unknown, ref: React.Ref<unknown>) => {
+      (props: unknown, ref: React.Ref<unknown>) => {
+        (globalThis as { __calendarProps?: unknown }).__calendarProps = props;
         ReactModule.useImperativeHandle(ref, () => ({
           present: jest.fn(),
           dismiss: jest.fn(),
@@ -76,8 +78,41 @@ describe('RunProgramsScreen', () => {
     renderScreen(RunProgramsProps());
     expect(screen.getByTestId('run-program-beginner5k')).toBeTruthy();
     expect(screen.getByTestId('run-program-marathon')).toBeTruthy();
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     fireEvent.press(screen.getAllByText('Start program')[0]);
-    expect(startProgram).toHaveBeenCalledWith('beginner5k');
+    const buttons = alert.mock.calls[0][2] ?? [];
+    expect(buttons.map((b) => b.text)).toEqual([
+      'Cancel',
+      'Pick a date',
+      'Start today',
+    ]);
+    buttons[2].onPress?.();
+    expect(startProgram).toHaveBeenCalledWith('beginner5k', null);
+    alert.mockRestore();
+  });
+
+  it('starts on a date picked from the calendar', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    renderScreen(RunProgramsProps());
+    fireEvent.press(screen.getAllByText('Start program')[0]);
+    act(() => alert.mock.calls[0][2]?.[1].onPress?.());
+    expect(startProgram).not.toHaveBeenCalled();
+    const { onSelectDate } = (
+      globalThis as {
+        __calendarProps?: { onSelectDate: (day: string) => void };
+      }
+    ).__calendarProps!;
+    act(() => onSelectDate('2099-01-05'));
+    expect(startProgram).toHaveBeenCalledWith('beginner5k', '2099-01-05');
+    alert.mockRestore();
   });
 
   it("shows the program being followed and starts today's workout from Record", () => {

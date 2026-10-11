@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,9 @@ import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
+import CalendarSheet, {
+  type CalendarSheetRef,
+} from '../components/CalendarSheet';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
   restartProgram,
@@ -25,7 +28,7 @@ import {
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
-import { toLocalDateString } from '../utils/dateUtils';
+import { addDays, toLocalDateString } from '../utils/dateUtils';
 
 type Props = RootStackScreenProps<'RunPrograms'>;
 
@@ -42,6 +45,8 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const today = toLocalDateString(new Date(now));
   const [chosenId, setChosenId] = useState('beginner5k');
   const storedId = status?.program.id;
+  const startCalendarRef = useRef<CalendarSheetRef>(null);
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   const header = useScreenHeader({
     title: t('screens.runPrograms', { defaultValue: 'Training programs' }),
@@ -67,6 +72,38 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     },
     [t]
   );
+
+  // Starting asks when the first workout is: today, or a date from the calendar.
+  const askStart = (id: string) => {
+    Alert.alert(
+      t('runPrograms.startWhenTitle', {
+        name: programName(t, id),
+        defaultValue: 'Start {{name}}',
+      }),
+      t('runPrograms.startWhenMessage', {
+        defaultValue: 'When is your first workout?',
+      }),
+      [
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+        {
+          text: t('runPrograms.startPickDate', {
+            defaultValue: 'Pick a date',
+          }),
+          onPress: () => {
+            setStartingId(id);
+            startCalendarRef.current?.present();
+          },
+        },
+        {
+          text: t('runPrograms.startToday', { defaultValue: 'Start today' }),
+          onPress: () => change(() => startProgram(id, null)),
+        },
+      ]
+    );
+  };
 
   const chooseProgram = (id: string) => {
     if (!enabled || id === storedId) {
@@ -180,10 +217,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
                 })}
               </Text>
               <View className="mt-3">
-                <Button
-                  variant="outline"
-                  onPress={() => change(() => startProgram(program.id))}
-                >
+                <Button variant="outline" onPress={() => askStart(program.id)}>
                   {t('runPrograms.start', { defaultValue: 'Start program' })}
                 </Button>
               </View>
@@ -206,6 +240,14 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
       >
         {body}
       </ScrollView>
+      <CalendarSheet
+        ref={startCalendarRef}
+        selectedDate={addDays(today, 1)}
+        onSelectDate={(day) => {
+          const id = startingId;
+          if (id) change(() => startProgram(id, day <= today ? null : day));
+        }}
+      />
     </>
   );
 };

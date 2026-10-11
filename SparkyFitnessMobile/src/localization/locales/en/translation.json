@@ -7377,6 +7377,10 @@
     "slotHint": "Opens a list to choose what goes here"
   },
   "runPrograms": {
+    "startWhenTitle": "Start {{name}}",
+    "startWhenMessage": "When is your first workout?",
+    "startPickDate": "Pick a date",
+    "startToday": "Start today",
     "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
     "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
     "guide": {
