@@ -109,6 +109,8 @@ export async function upsertRunProgram(
            next_index = EXCLUDED.next_index,
            workouts = EXCLUDED.workouts,
            adjustment_log = '[]'::jsonb,
+           -- A workout done under the old program does not count for the new one.
+           last_done_date = NULL,
            run_days = COALESCE($6::smallint[], run_programs.run_days),
            start_date = CASE WHEN $7::boolean THEN $8::date
                              ELSE run_programs.start_date END,
@@ -196,7 +198,7 @@ export async function completeRunProgramWorkout(
 export async function adjustRunProgram(
   userId: string,
   source: RunProgramAdjustment['source'],
-  change: (state: ProgramState) => AdjustResult,
+  change: (state: ProgramState & { programId: string }) => AdjustResult,
   authenticatedUserId?: string
 ): Promise<RunProgramResponse | null> {
   const client = await getClient(userId, authenticatedUserId);
@@ -214,6 +216,7 @@ export async function adjustRunProgram(
     const result = change({
       workouts: program.workouts,
       next: program.next_index,
+      programId: program.program_id,
     });
     const log: RunProgramAdjustment[] = [
       ...program.adjustment_log,

@@ -396,7 +396,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const saved = await saveRecordedActivity(session, points, distanceUnit);
       // Ticks a program workout off only if the plan was followed to its last
-      // step; a run cut short can be tried again.
+      // step; a run cut short can be tried again. The day is the one the run
+      // started on, so a run saved after midnight still counts for its own day.
       let program: RunSummaryParams['program'] = null;
       if (session.program && lastStepStarted(session.intervals)) {
         // The activity is already saved, so a failure here only costs the
@@ -404,13 +405,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         try {
           await completeProgramWorkout(
             session.program.id,
-            session.program.index
+            session.program.index,
+            toLocalDateString(new Date(session.startedAt))
           );
-          const stored =
-            queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey);
           program = programSummary(
             t,
-            stored,
+            queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey),
             toLocalDateString(new Date()),
             (workoutStatus) => programWorkoutLabel(t, workoutStatus)
           );
@@ -419,23 +419,48 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             `[Run Program] Could not tick off the workout: ${error}`,
             'WARNING'
           );
+          Toast.show({
+            type: 'info',
+            text1: t('recordActivity.program.tickFailed', {
+              defaultValue: 'Activity saved, program not updated',
+            }),
+            text2: t('recordActivity.program.tickFailedHint', {
+              defaultValue:
+                'Use "Count it" on the Diary card to tick the workout off.',
+            }),
+          });
         }
       }
-      // Read before the recording is cleared; the summary screen gets it as params.
-      const summaryParams = buildRunSummary({
-        activity: session.activity,
-        entryDate: saved.entryDate,
-        distanceUnit,
-        points,
-        lapMarks: session.laps,
-        avgHeartRate: averageHeartRate(
-          await getHeartRateSamples().catch(() => [])
-        ),
-        program,
-      });
-      await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
-      navigation.replace('RunSummary', summaryParams);
+      // The activity is filed. Nothing after this may report the save as
+      // failed, or the person would be told to try again for no reason.
+      let summaryParams: RunSummaryParams | null = null;
+      try {
+        summaryParams = buildRunSummary({
+          activity: session.activity,
+          entryDate: saved.entryDate,
+          distanceUnit,
+          points,
+          lapMarks: session.laps,
+          avgHeartRate: averageHeartRate(
+            await getHeartRateSamples().catch(() => [])
+          ),
+          program,
+        });
+      } catch (error) {
+        addLog(
+          `[GPS Recording] Could not build the summary: ${error}`,
+          'WARNING'
+        );
+      }
+      await discardRecording().catch((error: unknown) =>
+        addLog(
+          `[GPS Recording] Could not clear the recording: ${error}`,
+          'WARNING'
+        )
+      );
+      if (summaryParams) navigation.replace('RunSummary', summaryParams);
+      else navigation.goBack();
     } catch (error) {
       addLog(`[GPS Recording] Save failed: ${error}`, 'ERROR');
       Toast.show({

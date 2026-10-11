@@ -14,6 +14,7 @@ import {
   completeProgramWorkout,
   useRunProgram,
 } from '../../services/runProgramService';
+import { useRefetchOnFocus } from '../../hooks/useRefetchOnFocus';
 import { addLog } from '../../services/LogService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { findLoggedRun } from '../../utils/loggedRun';
@@ -35,9 +36,13 @@ const RunProgramBanner: React.FC<{
 }> = ({ date, exerciseEntries, onStart }) => {
   const { t } = useTranslation();
   const [accent] = useCSSVariable(['--color-accent-primary']) as [string];
-  const [today] = useState(() => toLocalDateString(new Date()));
+  // Read each render: this card stays mounted on the Diary tab overnight.
+  const today = toLocalDateString(new Date());
   const [counting, setCounting] = useState(false);
-  const { status, enabled, schedule, doneDay, loaded } = useRunProgram();
+  const { status, enabled, schedule, doneDay, loaded, refetch } =
+    useRunProgram();
+  // The program may have changed on another device or through Sparky.
+  useRefetchOnFocus(refetch, true);
 
   const run =
     loaded && status

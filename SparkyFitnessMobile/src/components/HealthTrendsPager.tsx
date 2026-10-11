@@ -133,8 +133,9 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
       calories.isLoading ||
       calories.isError ||
       calories.data.some((point) => point.calories > 0),
-    // Only people whose watch or app syncs VO2 max have any; the rest never see the page.
-    vo2max: () => shouldShowTrend(vo2max),
+    // Only people whose watch or app syncs VO2 max have any, so the page waits
+    // for a reading: no loading flash or error card for everyone else.
+    vo2max: () => vo2max.data.length > 0,
   };
 
   // A trend the user configured to show but that has no data for in this window still hides itself

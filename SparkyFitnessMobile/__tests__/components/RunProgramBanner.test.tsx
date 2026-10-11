@@ -12,6 +12,9 @@ jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
   completeProgramWorkout: jest.fn(() => Promise.resolve()),
 }));
+jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
+  useRefetchOnFocus: jest.fn(),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 const mockedProgram = jest.mocked(useRunProgram);
@@ -26,6 +29,7 @@ const program = (
   schedule: { days: [], startDay: null, endDay: null },
   doneDay: null,
   loaded: true,
+  refetch: jest.fn(() => Promise.resolve()),
   ...over,
 });
 

@@ -329,6 +329,25 @@ describe('RecordActivityScreen', () => {
     expect(navigation.replace).not.toHaveBeenCalled();
   });
 
+  it('still opens the summary when clearing the saved recording fails', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    jest
+      .mocked(saveRecordedActivity)
+      .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    jest.mocked(discardRecording).mockRejectedValueOnce(new Error('disk'));
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Save activity'));
+
+    // The activity is filed, so the person is not told the save failed.
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith(
+        'RunSummary',
+        expect.anything()
+      )
+    );
+  });
+
   it('shows a spinner, not Start, until the saved-session check finishes', async () => {
     state(null);
     let finishCheck: () => void = () => {};

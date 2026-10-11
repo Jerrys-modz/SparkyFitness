@@ -140,6 +140,39 @@ describe('sparky_manage_run_program', () => {
     expect(text).toContain('Run program started');
   });
 
+  it('warns that switching to another program replaces the current one and its adjustments', async () => {
+    vi.mocked(getRunProgram).mockResolvedValue(program());
+    const text = await run({
+      action: 'start_run_program',
+      program_id: 'marathon',
+      confirmed: false,
+    });
+    expect(text).toContain('replace');
+    expect(text).toContain('beginner5k');
+    expect(text).toContain('dropping any adjustments');
+    expect(upsertRunProgram).not.toHaveBeenCalled();
+  });
+
+  it('takes the adjustment baseline from the program under the lock', async () => {
+    vi.mocked(getRunProgram).mockResolvedValue(program());
+    vi.mocked(adjustRunProgram).mockImplementation(async (_u, _s, change) => {
+      // The program was switched after the read: the lock-time state wins.
+      const state = {
+        workouts: findProgram('marathon')!.workouts,
+        next: 0,
+        programId: 'marathon',
+      };
+      expect(() => change(state)).not.toThrow();
+      return program();
+    });
+    await run({
+      action: 'adjust_run_program_running',
+      percent: -10,
+      confirmed: true,
+    });
+    expect(adjustRunProgram).toHaveBeenCalled();
+  });
+
   it('says so when asked to start the program already held, rather than claiming a restart', async () => {
     vi.mocked(getRunProgram).mockResolvedValue(program({ next_index: 5 }));
     vi.mocked(upsertRunProgram).mockResolvedValue(program({ next_index: 5 }));
