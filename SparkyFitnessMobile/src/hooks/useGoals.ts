@@ -9,9 +9,16 @@ import {
   saveNutrientGoalPreference,
   type NutrientGoalPreference,
 } from '../services/api/nutrientGoalPreferencesApi';
-import type { DailyGoals } from '../types/goals';
+import {
+  createGoalPreset,
+  deleteGoalPreset,
+  fetchGoalPresets,
+  updateGoalPreset,
+} from '../services/api/goalPresetsApi';
+import type { DailyGoals, GoalPreset } from '../types/goals';
 import {
   dailySummaryRootQueryKey,
+  goalPresetsQueryKey,
   goalsQueryKey,
   goalsRangeQueryKey,
 } from './queryKeys';
@@ -95,4 +102,32 @@ export function useSaveNutrientGoalPreferences() {
     },
   });
   return mutation.mutateAsync;
+}
+
+export function useGoalPresets({ enabled = true } = {}) {
+  const query = useQuery({
+    queryKey: goalPresetsQueryKey,
+    queryFn: fetchGoalPresets,
+    enabled,
+  });
+  return { presets: query.data ?? [], isLoading: query.isLoading };
+}
+
+export function useGoalPresetMutations() {
+  const queryClient = useQueryClient();
+  const onSettled = () =>
+    queryClient.invalidateQueries({ queryKey: goalPresetsQueryKey });
+  const create = useMutation({ mutationFn: createGoalPreset, onSettled });
+  const update = useMutation({
+    mutationFn: ({ id, preset }: { id: string; preset: GoalPreset }) =>
+      updateGoalPreset(id, preset),
+    onSettled,
+  });
+  const remove = useMutation({ mutationFn: deleteGoalPreset, onSettled });
+  return {
+    createPreset: create.mutateAsync,
+    updatePreset: update.mutateAsync,
+    deletePreset: remove.mutateAsync,
+    isPending: create.isPending || update.isPending || remove.isPending,
+  };
 }
