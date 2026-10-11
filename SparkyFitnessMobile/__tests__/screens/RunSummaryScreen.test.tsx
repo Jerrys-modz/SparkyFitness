@@ -1,10 +1,14 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import RunSummaryScreen from '../../src/screens/RunSummaryScreen';
+import { setProgramPosition } from '../../src/services/runProgramService';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
+}));
+jest.mock('../../src/services/runProgramService', () => ({
+  setProgramPosition: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/utils/routeMapSupport', () => ({
   canShowRouteMap: () => false,
@@ -121,4 +125,33 @@ it('says walk or ride for those, and Done goes back', () => {
   expect(screen.queryByText('Splits')).toBeNull();
   fireEvent.press(screen.getByText('Done'));
   expect(navigation.goBack).toHaveBeenCalled();
+});
+
+const inProgram = (done: number, total = 27) =>
+  params({ program: { nextLine: 'Next', done, total, finished: false } });
+
+it('offers to repeat a workout that felt hard, one back from the place', async () => {
+  renderScreen(inProgram(4));
+  expect(screen.queryByText('Repeat this workout')).toBeNull();
+  fireEvent.press(screen.getByText('Hard'));
+  fireEvent.press(screen.getByText('Repeat this workout'));
+  await screen.findByText('Done. You will do this workout again.');
+  expect(setProgramPosition).toHaveBeenCalledWith(3);
+});
+
+it('offers to skip the next workout when it felt easy, and says nothing for just right', async () => {
+  renderScreen(inProgram(4));
+  fireEvent.press(screen.getByText('Just right'));
+  expect(screen.queryByText('Repeat this workout')).toBeNull();
+  expect(screen.queryByText('Skip the next workout')).toBeNull();
+  fireEvent.press(screen.getByText('Easy'));
+  fireEvent.press(screen.getByText('Skip the next workout'));
+  await screen.findByText('Done. The next workout is skipped.');
+  expect(setProgramPosition).toHaveBeenCalledWith(5);
+});
+
+it('does not offer to skip past the last workout', () => {
+  renderScreen(inProgram(26));
+  fireEvent.press(screen.getByText('Easy'));
+  expect(screen.queryByText('Skip the next workout')).toBeNull();
 });

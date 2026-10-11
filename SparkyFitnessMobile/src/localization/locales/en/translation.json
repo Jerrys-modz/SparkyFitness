@@ -6211,7 +6211,18 @@
     "programDone": "Program complete",
     "programProgress": "Workout {{done}} of {{total}} done",
     "viewProgram": "View program",
-    "routeA11y": "Map of your route"
+    "routeA11y": "Map of your route",
+    "moveFailed": "Could not change the program.",
+    "feelQuestion": "How did that feel?",
+    "feelEasy": "Easy",
+    "feelRight": "Just right",
+    "feelHard": "Hard",
+    "repeating": "Done. You will do this workout again.",
+    "skipping": "Done. The next workout is skipped.",
+    "hardHint": "Repeating a workout that felt hard is a good way to build up safely.",
+    "repeat": "Repeat this workout",
+    "easyHint": "Felt easy? You can skip the next workout and move on.",
+    "skipNext": "Skip the next workout"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
