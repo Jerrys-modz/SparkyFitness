@@ -97,15 +97,6 @@ export const addFreeExerciseDBExercise = async (
   });
 };
 
-export const addExerciseDBExercise = async (
-  exerciseDBId: string
-): Promise<Exercise> => {
-  return apiCall(`/exercisedb/add`, {
-    method: 'POST',
-    body: JSON.stringify({ exerciseId: exerciseDBId }),
-  });
-};
-
 export const getRecentExercises = async (
   userId: string,
   limit: number = 5

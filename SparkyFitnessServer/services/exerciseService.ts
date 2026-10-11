@@ -19,7 +19,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
-import { normalizeEquipment, normalizeMuscle } from '@workspace/shared';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 import {
   deriveExerciseModality,
@@ -1034,23 +1033,6 @@ function wgerDescriptionToInstructions(rawDescription: string): string[] {
     .filter(Boolean);
 }
 
-/**
- * ExerciseDB names muscles and equipment in its own vocabulary ("pectorals",
- * "bodyweight"). Map them onto the names the other exercise sources use so
- * filters, similarity ranking and the muscle map treat imported rows alike;
- * a name with no canonical form is kept as the API spelled it.
- */
-function toCanonicalNames(
-  values: string[],
-  normalize: (value: string) => string | null
-): string[] {
-  return [...new Set(values.map((value) => normalize(value) ?? value))];
-}
-
-function exerciseDBCategory(bodyParts: string[]): string {
-  return bodyParts.includes('cardio') ? 'cardio' : 'strength';
-}
-
 async function searchExternalExercises(
   _authenticatedUserId: string,
   query: string,
@@ -1064,8 +1046,6 @@ async function searchExternalExercises(
 ) {
   const { default: freeExerciseDBService } =
     await import('../integrations/freeexercisedb/FreeExerciseDBService.js');
-  const { default: exerciseDBService } =
-    await import('../integrations/exercisedb/ExerciseDBService.js');
 
   log(
     'info',
@@ -1194,45 +1174,6 @@ async function searchExternalExercises(
           freeExerciseDBService.getExerciseImageUrl(img)
         ),
       }));
-    } else if (providerType === 'exercisedb') {
-      const exerciseDBResult = await exerciseDBService.searchExercises(
-        query,
-        equipmentFilter,
-        muscleGroupFilter,
-        pageSize,
-        offset
-      );
-      totalCount = exerciseDBResult.totalCount;
-      items = exerciseDBResult.exercises.map((exercise) => {
-        const category = exerciseDBCategory(exercise.bodyParts);
-        const equipment = toCanonicalNames(
-          exercise.equipments,
-          normalizeEquipment
-        );
-        return {
-          id: exercise.exerciseId,
-          name: exercise.name,
-          category,
-          modality: deriveExerciseModality(category, equipment),
-          calories_per_hour: 0,
-          description: exercise.instructions[0] ?? exercise.name,
-          source: 'exercisedb',
-          force: null,
-          level: null,
-          mechanic: null,
-          equipment,
-          primary_muscles: toCanonicalNames(
-            exercise.targetMuscles,
-            normalizeMuscle
-          ),
-          secondary_muscles: toCanonicalNames(
-            exercise.secondaryMuscles,
-            normalizeMuscle
-          ),
-          instructions: exercise.instructions,
-          images: exercise.gifUrl ? [exercise.gifUrl] : [],
-        };
-      });
     } else {
       throw new Error(
         `Unsupported external exercise provider: ${providerType}`
@@ -1537,82 +1478,6 @@ async function addFreeExerciseDBExerciseToUserExercises(
     log(
       'error',
       `Error adding Free-Exercise-DB exercise ${freeExerciseDBId} for user ${authenticatedUserId}:`,
-      error
-    );
-    throw error;
-  }
-}
-/**
- * Imports an ExerciseDB (AscendAPI) exercise. The GIF is not downloaded: the
- * free tier forbids redistributing the media, so the stored image is the URL
- * the API returned and the browser loads it from their CDN.
- */
-async function addExerciseDBExerciseToUserExercises(
-  authenticatedUserId: string,
-  exerciseDBId: string
-) {
-  const { default: exerciseDBService } =
-    await import('../integrations/exercisedb/ExerciseDBService.js');
-  try {
-    // Import is idempotent: re-adding an already-imported exercise returns the
-    // user's existing copy instead of violating the (user_id, source, source_id)
-    // unique index.
-    const existingExercise = await exerciseDb.getExerciseBySourceAndSourceId(
-      'exercisedb',
-      exerciseDBId,
-      authenticatedUserId
-    );
-    if (existingExercise) {
-      return existingExercise;
-    }
-    const exerciseDetails =
-      await exerciseDBService.getExerciseById(exerciseDBId);
-    if (!exerciseDetails) {
-      throw new Error('ExerciseDB exercise not found.');
-    }
-
-    const category = exerciseDBCategory(exerciseDetails.bodyParts);
-    const caloriesPerHour =
-      await calorieCalculationService.estimateCaloriesBurnedPerHour(
-        { category },
-        authenticatedUserId,
-        [{ reps: 10, weight: 0 }]
-      );
-
-    const exerciseData = {
-      id: uuidv4(),
-      source: 'exercisedb',
-      source_id: exerciseDBId,
-      name: exerciseDetails.name,
-      force: null,
-      level: null,
-      mechanic: null,
-      equipment: toCanonicalNames(
-        exerciseDetails.equipments,
-        normalizeEquipment
-      ),
-      primary_muscles: toCanonicalNames(
-        exerciseDetails.targetMuscles,
-        normalizeMuscle
-      ),
-      secondary_muscles: toCanonicalNames(
-        exerciseDetails.secondaryMuscles,
-        normalizeMuscle
-      ),
-      instructions: exerciseDetails.instructions,
-      category,
-      images: exerciseDetails.gifUrl ? [exerciseDetails.gifUrl] : [],
-      calories_per_hour: caloriesPerHour,
-      description: exerciseDetails.instructions[0] ?? exerciseDetails.name,
-      user_id: authenticatedUserId,
-      is_custom: true,
-      shared_with_public: false,
-    };
-    return await exerciseDb.createExercise(exerciseData);
-  } catch (error) {
-    log(
-      'error',
-      `Error adding ExerciseDB exercise ${exerciseDBId} for user ${authenticatedUserId}:`,
       error
     );
     throw error;
@@ -2856,7 +2721,6 @@ export { isExerciseDeleteMode };
 export type { ExerciseDeleteMode };
 export { getExerciseEntriesByDate };
 export { addFreeExerciseDBExerciseToUserExercises };
-export { addExerciseDBExerciseToUserExercises };
 export { getSuggestedExercises };
 export { searchExternalExercises };
 export { addExternalExerciseToUserExercises };
@@ -2895,7 +2759,6 @@ export default {
   isExerciseDeleteMode,
   getExerciseEntriesByDate,
   addFreeExerciseDBExerciseToUserExercises,
-  addExerciseDBExerciseToUserExercises,
   getSuggestedExercises,
   searchExternalExercises,
   addExternalExerciseToUserExercises,

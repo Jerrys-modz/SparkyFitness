@@ -27,22 +27,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Tandoor
 - Strava (partially tested)
 - [COROS](/features/settings/coros)
-- [ExerciseDB by AscendAPI](#exercisedb-ascendapi) (exercise catalogue with GIF demonstrations; off until you add it)
 - NIH Dietary Supplement Label Database (fills in a supplement from its barcode; public, no key, active by default — deactivate it to turn it off). Open Food Facts is the fallback for supplement barcodes the NIH database does not have, mostly outside the US; with both off the supplement barcode scan is hidden
-
-## ExerciseDB (AscendAPI)
-
-ExerciseDB adds about 1,500 exercises with animated GIF demonstrations to the exercise search. It uses the free hosted [ExerciseDB API](https://oss.exercisedb.dev/docs) by AscendAPI, which needs no key.
-
-It is **off by default**. Add it from **Settings → External Providers** by choosing **ExerciseDB (AscendAPI)** as the provider type, then pick it in the exercise search.
-
-Things to know before you turn it on:
-
-- **Non-commercial use only.** AscendAPI's free tier is for personal projects, educational tools, non-commercial apps and community-driven platforms. If you run SparkyFitness as part of a commercial or monetised service, you need a paid AscendAPI plan instead.
-- **Credit.** Exercise data and GIFs are by [AscendAPI](https://ascendapi.com) (formerly ExerciseDB). The search results link the source, and this notice is the project's credit.
-- **Rate limits.** Every search is a live request to AscendAPI and nothing is cached by SparkyFitness, so searching heavily on a busy server can hit their limits. If the API cannot be reached, the ExerciseDB results are simply empty.
-- **GIFs are not stored.** An exercise you import keeps a link to its GIF on AscendAPI's servers. The GIF is loaded from there whenever it is shown, so it needs an internet connection, and it disappears if AscendAPI removes it. The exercise's text and muscles are saved in your library as usual.
-- **180p only.** The free tier serves small GIFs.
 
 ## Canadian Nutrient File (Health Canada)
 

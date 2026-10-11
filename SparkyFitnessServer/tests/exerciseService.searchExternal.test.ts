@@ -5,7 +5,6 @@ import {
 } from '@workspace/shared';
 import wgerService from '../integrations/wger/wgerService.js';
 import freeExerciseDBService from '../integrations/freeexercisedb/FreeExerciseDBService.js';
-import exerciseDBService from '../integrations/exercisedb/ExerciseDBService.js';
 import exerciseService from '../services/exerciseService.js';
 
 vi.mock('../db/poolManager', () => ({
@@ -34,11 +33,6 @@ vi.mock('../integrations/freeexercisedb/FreeExerciseDBService', () => ({
   default: {
     searchExercises: vi.fn(),
     getExerciseImageUrl: vi.fn(),
-  },
-}));
-vi.mock('../integrations/exercisedb/ExerciseDBService', () => ({
-  default: {
-    searchExercises: vi.fn(),
   },
 }));
 vi.mock('../models/measurementRepository', () => ({}));
@@ -235,102 +229,6 @@ describe('exerciseService.searchExternalExercises', () => {
           images: ['/uploads/free-exercise-db/Air_Bike/0.jpg'],
         },
       ]);
-    });
-  });
-  describe('exercisedb projection', () => {
-    it('maps names onto the shared vocabulary and keeps the GIF as a remote link', async () => {
-      vi.mocked(exerciseDBService.searchExercises).mockResolvedValue({
-        totalCount: 40,
-        exercises: [
-          {
-            exerciseId: 'EIeI8Vf',
-            name: 'barbell bench press',
-            gifUrl: 'https://static.exercisedb.dev/media/EIeI8Vf.gif',
-            bodyParts: ['chest'],
-            equipments: ['barbell'],
-            targetMuscles: ['pectorals'],
-            secondaryMuscles: ['triceps', 'deltoids'],
-            instructions: ['Lie on the bench.', 'Press the bar.'],
-          },
-        ],
-      });
-
-      const result = await exerciseService.searchExternalExercises(
-        userId,
-        'bench',
-        'provider-3',
-        'exercisedb',
-        ['barbell'],
-        ['chest'],
-        'en',
-        2,
-        20
-      );
-
-      expect(exerciseDBService.searchExercises).toHaveBeenCalledWith(
-        'bench',
-        ['barbell'],
-        ['chest'],
-        20,
-        20
-      );
-      const parsed = paginatedExternalExerciseSearchResultSchema.parse(result);
-      expect(parsed.pagination).toMatchObject({
-        totalCount: 40,
-        hasMore: false,
-      });
-      expect(parsed.items).toEqual([
-        {
-          id: 'EIeI8Vf',
-          name: 'barbell bench press',
-          category: 'strength',
-          modality: 'weight_reps',
-          calories_per_hour: 0,
-          source: 'exercisedb',
-          description: 'Lie on the bench.',
-          force: null,
-          level: null,
-          mechanic: null,
-          equipment: ['barbell'],
-          primary_muscles: ['chest'],
-          secondary_muscles: ['triceps', 'shoulders'],
-          instructions: ['Lie on the bench.', 'Press the bar.'],
-          images: ['https://static.exercisedb.dev/media/EIeI8Vf.gif'],
-        },
-      ]);
-    });
-
-    it('marks cardio body parts as cardio', async () => {
-      vi.mocked(exerciseDBService.searchExercises).mockResolvedValue({
-        totalCount: 1,
-        exercises: [
-          {
-            exerciseId: 'c1',
-            name: 'stationary bike run',
-            gifUrl: '',
-            bodyParts: ['cardio'],
-            equipments: ['stationary bike'],
-            targetMuscles: ['cardiovascular system'],
-            secondaryMuscles: [],
-            instructions: [],
-          },
-        ],
-      });
-      const result = await exerciseService.searchExternalExercises(
-        userId,
-        'bike',
-        'provider-3',
-        'exercisedb',
-        [],
-        [],
-        'en'
-      );
-      const parsed = paginatedExternalExerciseSearchResultSchema.parse(result);
-      expect(parsed.items[0]).toMatchObject({
-        category: 'cardio',
-        images: [],
-        description: 'stationary bike run',
-      });
     });
   });
 });

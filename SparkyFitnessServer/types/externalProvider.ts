@@ -1,2 +1,1 @@
-export type ExternalProviderType =
-  'wger' | 'nutritionix' | 'free-exercise-db' | 'exercisedb';
+export type ExternalProviderType = 'wger' | 'nutritionix' | 'free-exercise-db';
