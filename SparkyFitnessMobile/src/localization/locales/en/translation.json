@@ -156,7 +156,8 @@
       "customMeasurements": "Custom Measurements",
       "reports": "Reports",
       "profile": "Profile & Account",
-      "goals": "Goals"
+      "goals": "Goals",
+      "addMenu": "Add menu"
     },
     "theme": {
       "title": "Theme",
@@ -631,7 +632,8 @@
     "hydrationReport": "Hydration",
     "measurementsReport": "Measurements",
     "substancesReport": "Caffeine and alcohol",
-    "profile": "Profile"
+    "profile": "Profile",
+    "addMenuSettings": "Add menu"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -7300,5 +7302,17 @@
       "applied": "Preset applied. Tap Save to keep it.",
       "failed": "Could not update goal presets."
     }
+  },
+  "addMenuSettings": {
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this row sits in the + menu",
+    "reset": "Reset to default",
+    "cardsTitle": "Big buttons",
+    "cardsDescription": "The four buttons at the top of the + menu. Tap one to choose what goes there. Choosing something already placed swaps the two.",
+    "rowsTitle": "Rows",
+    "rowsDescription": "Everything else, listed under the buttons. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "chooseCard": "Choose a big button",
+    "slotLabel": "Big button {{number}}: {{name}}",
+    "slotHint": "Opens a list to choose what goes here"
   }
 }
