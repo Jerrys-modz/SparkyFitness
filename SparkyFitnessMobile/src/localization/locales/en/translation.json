@@ -260,7 +260,8 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders"
+      "hydration": "Hydration reminders",
+      "runReminders": "Run reminders"
     },
     "actions": {
       "completeSet": "Complete Set",
@@ -298,6 +299,10 @@
     "hydration": {
       "title": "Time to hydrate 💧",
       "body": "You haven't logged any water in a while."
+    },
+    "runReminder": {
+      "title": "Time for your run",
+      "body": "Today's workout is ready in Record Activity."
     }
   },
   "activeWorkout": {
@@ -572,6 +577,9 @@
       "meals": "Meals",
       "mealPlans": "Meal plans",
       "mealPlansSubtitle": "Repeat meals on selected days",
+      "runPrograms": "Training programs",
+      "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
+      "runProgramsActive": "{{name}} · {{progress}}",
       "exercises": "Exercises",
       "workoutPresets": "Workout presets",
       "medications": "Medications",
@@ -595,6 +603,7 @@
     "watchSettings": "Apple Watch",
     "aiSettings": "AI",
     "recordActivity": "Record Activity",
+    "runPrograms": "Training programs",
     "warmupSettings": "Warm-up Calculator"
   },
   "healthMetrics": {
@@ -4052,7 +4061,8 @@
       "exercise": "Exercise",
       "checkin": "Check-in",
       "goals": "Goals",
-      "lookedUp": "Looked up {{name}}"
+      "lookedUp": "Looked up {{name}}",
+      "runProgram": "Run program"
     },
     "typing": "Sparky is typing"
   },
@@ -5812,7 +5822,6 @@
       "enabled": "Guided mode",
       "enabledSubtitle": "Speaks each exercise and its target, counts you in, runs timed sets on their own, and moves to the next set. Cues play with the phone on silent, and the screen stays on during the workout.",
       "voice": "Voice",
-      "voiceDefault": "Device default",
       "rate": "Speech rate",
       "rateValue": "{{rate}}×",
       "countdown": "Get-ready countdown",
@@ -6121,7 +6130,83 @@
       "complete": "Intervals complete",
       "round": "Round {{round}} of {{rounds}}",
       "next": "Next: {{name}} {{time}}"
+    },
+    "program": {
+      "title": "Training program",
+      "name": {
+        "beginner5k": "Beginner 5K",
+        "fiveToTenK": "5K to 10K",
+        "faster5k": "Faster 5K",
+        "halfMarathon": "Half marathon",
+        "marathon": "Marathon"
+      },
+      "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
+      "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
+      "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
+      "finished": "{{name}} complete",
+      "finishedHint": "Well done. You can start it again or move on.",
+      "restart": "Start again",
+      "use": "Use a training program",
+      "using": "Using this workout",
+      "skip": "Skip",
+      "reminders": "Run days and reminders",
+      "remindersHint": "Pick the days you plan to run. You get a reminder then, and the Diary shows the workout on those days. Leave them empty to run whenever you like.",
+      "pick": "Choose a different workout",
+      "pickTitle": "Choose a workout",
+      "weekTitle": "Week {{week}}",
+      "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
+      "doThis": "Do this workout",
+      "switchHint": "Follow a plan that builds up week by week. Off by default.",
+      "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
+      "startOver": "Start over",
+      "errors": {
+        "update": "Could not update your program"
+      },
+      "changedBySparky": "Sparky changed your plan on {{date}}: {{summary}}",
+      "changed": "Plan changed on {{date}}: {{summary}}",
+      "fiveToTenKDescription": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
+      "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
+      "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+      "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "minutes": "{{minutes}} min",
+      "workoutsDone": "{{done}} of {{total}} workouts",
+      "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
+      "chooseTitle": "Choose a program",
+      "change": "Change program",
+      "switchTitle": "Switch to {{name}}?",
+      "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
+      "switchConfirm": "Switch"
     }
+  },
+  "runPrograms": {
+    "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
+    "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
+    "start": "Start program",
+    "startWorkout": "Start today's workout",
+    "banner": {
+      "scheduledToday": "Scheduled Today",
+      "upNext": "Up next",
+      "start": "Start",
+      "title": "Week {{week}}, run {{run}} · {{minutes}} min"
+    },
+    "select": {
+      "today": "Today's program workout",
+      "manage": "Manage",
+      "none": "Training program",
+      "setUp": "Set up a program"
+    }
+  },
+  "speechVoice": {
+    "automatic": "Automatic (best installed)",
+    "premium": "Premium",
+    "enhanced": "Enhanced",
+    "standard": "Standard",
+    "hintIos": "For a more natural voice, download a Premium or Enhanced one in Settings → Accessibility → Read & Speak → Voices, then come back here.",
+    "hintAndroid": "For a more natural voice, install a higher-quality one in your phone’s text-to-speech settings, then come back here.",
+    "title": "Voice",
+    "test": "Test voice",
+    "sample": "This is how your recording cues will sound."
   },
   "warmupSettings": {
     "title": "Warm-up Calculator",

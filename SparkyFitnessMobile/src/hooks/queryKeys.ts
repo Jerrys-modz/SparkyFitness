@@ -363,3 +363,6 @@ export const medicationEntriesQueryKey = (opts?: {
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;
+
+/** The person's run program and place in it (server-backed). */
+export const runProgramQueryKey = ['runProgram'] as const;

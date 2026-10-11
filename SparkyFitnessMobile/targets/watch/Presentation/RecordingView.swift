@@ -44,6 +44,10 @@ struct RecordingView: View {
                     .minimumScaleFactor(0.7)
             }
 
+            if let step = state.interval {
+                intervalBanner(step, state: state)
+            }
+
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 stat(value: state.distanceText, unit: state.distanceUnitText)
                 stat(value: state.paceText, unit: state.paceUnitText)
@@ -99,6 +103,30 @@ struct RecordingView: View {
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    /// The plan's current step and its countdown, then what follows.
+    private func intervalBanner(_ step: IntervalStep, state: RecordingState) -> some View {
+        VStack(spacing: 0) {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                HStack(spacing: 6) {
+                    Text(step.label)
+                        .font(.caption.weight(.semibold))
+                    // Nothing counts down once the plan is complete.
+                    if step.remaining > 0 {
+                        Text(RecordingState.clock(step.remaining(in: state, at: context.date).rounded(.up)))
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                }
+                .foregroundStyle(.yellow)
+            }
+            if let next = step.next {
+                Text("Next: \(next)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func stat(value: String, unit: String) -> some View {

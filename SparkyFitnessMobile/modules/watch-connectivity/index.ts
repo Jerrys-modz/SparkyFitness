@@ -539,6 +539,19 @@ export interface WatchRecordingStatePayload {
   /** Phone clock (epoch ms) at send time, so the watch drops out-of-order copies. */
   sentAt: number;
   /**
+   * An interval plan's current step, when the recording follows one. The
+   * watch buzzes when `intervalIndex` changes and counts `intervalRemaining`
+   * down from when it receives this. Omitted by an older phone build or when
+   * there is no plan.
+   */
+  intervalIndex?: number;
+  /** The step's name in the phone's language, e.g. "Run". */
+  intervalLabel?: string;
+  /** Seconds left in the step when this was sent; 0 once the plan is done. */
+  intervalRemaining?: number;
+  /** What comes next, e.g. "Walk 1:30"; omitted on the last step. */
+  intervalNext?: string;
+  /**
    * Only on `ended`: true when the recording was thrown away, false when it
    * was saved to the diary. The watch holds its Apple Health workout until it
    * hears which, so a discarded activity is never written to Health. Absent

@@ -302,6 +302,17 @@ enum ContextPayloadMapper {
               let activity = RecordingActivity(rawValue: activityRaw),
               let startedAtMs = doubleValue(payload["startedAt"])
         else { return nil }
+        var interval: IntervalStep?
+        if let index = doubleValue(payload["intervalIndex"]),
+           let label = payload["intervalLabel"] as? String,
+           let remaining = doubleValue(payload["intervalRemaining"]) {
+            interval = IntervalStep(
+                index: Int(index),
+                label: label,
+                remaining: remaining,
+                next: payload["intervalNext"] as? String
+            )
+        }
         return .state(RecordingState(
             sessionId: sessionId,
             activity: activity,
@@ -313,7 +324,8 @@ enum ContextPayloadMapper {
             paceSeconds: doubleValue(payload["paceSeconds"]),
             usesMiles: (payload["distanceUnit"] as? String) == "mi",
             sentAt: sentAt,
-            lapCount: Int(doubleValue(payload["lapCount"]) ?? 0)
+            lapCount: Int(doubleValue(payload["lapCount"]) ?? 0),
+            interval: interval
         ))
     }
 

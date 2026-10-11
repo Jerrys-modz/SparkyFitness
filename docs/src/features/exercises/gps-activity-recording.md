@@ -59,6 +59,8 @@ A pause you make yourself is never undone automatically; only an auto-pause resu
 
 Turn on **Voice cues** before you start and the phone speaks as you go: your total time and the time of the last kilometer or mile each time you complete one, and "Paused", "Auto paused" or "Resumed" when that happens. It also says your distance and time when you finish. Cues use the distance unit from your settings and the app language, and they're spoken with the screen locked and the phone's silent switch on. If you're playing music it keeps playing, and it dips while a cue is spoken when **Lower music during cues** is on.
 
+**Voice.** With voice cues on, a **Voice** card lets you choose the voice and hear it with **Test voice**. The default, **Automatic**, uses the best Premium or Enhanced voice installed on your phone for the app language, and the phone's standard voice if there is none. Better voices are a free download: on an iPhone go to Settings → Accessibility → Read & Speak → Voices (Spoken Content → Voices before iOS 18) and download a Premium or Enhanced voice for your language, then reopen the card. The same choice is used for guided workouts. Siri's own voices and Apple Fitness's coaching voices aren't available to apps, so those can't be chosen.
+
 The setting is off by default and is remembered for next time. Cues are spoken by the phone, so use earphones or a watch speaker if you don't want them out loud.
 
 ---
@@ -71,7 +73,35 @@ While you record, a card shows the current step, the time left, the round and wh
 
 Each step also becomes a lap, so the saved activity is split into your work and recovery stretches and the pace bars show the difference. When the last step ends you hear "Intervals complete" and can carry on or finish.
 
-Intervals work with phone recording only for now. The watch does not show the steps yet.
+With an Apple Watch connected to a phone recording, the watch shows the current step, a countdown and what comes next, and buzzes when the step changes. Watch-only recordings do not follow a plan yet.
+
+---
+
+## Training programs
+
+Training programs are optional and off by default. Open **Library → Training programs**, read the programs and tap **Start program** on the one you want:
+
+| Program | For | Length |
+| --- | --- | --- |
+| **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
+| **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |
+| **Faster 5K** | You already run 5K. Interval sessions, easy runs and tempo runs. | 6 weeks, 3 runs a week |
+| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 runs a week |
+| **Marathon** | You already run regularly. Long runs building to about 2¾ hours, an easier week every fourth and a taper. | 16 weeks, 3 to 4 runs a week |
+
+Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** (on the Training programs screen) switches to another one and starts it at week 1.
+
+With a program on, **Start today's workout** on the Training programs screen opens Record Activity with the workout already selected (week 1, run 1 first), and the Record screen shows a short "Today's program workout" card with **Manage** to get back to the program. The Diary also shows today's workout in a card like a scheduled workout plan, with a **Start** button, until you have done one today. Record it like any run: you are told when to run and when to walk. Switch the program off whenever you like on the Training programs screen: the Record screen goes back to a plain recording (you can still pick any interval plan), the Diary card and the reminders stop, and your place is kept for when you switch it back on.
+
+A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Choose a different workout** opens the whole program, week by week, with finished runs ticked: use it to start further in if you already run, to repeat a week, or to go back. **Skip** moves past a workout you cannot do, and **Start over** goes back to week 1. When you finish week 9 the card says so and offers to start again.
+
+On the program card you can pick the days you plan to run and a time (morning, midday or evening). Those are your **run days**: you get a weekly reminder notification on them (it needs notifications turned on for the app), and the Diary shows the workout as "Scheduled Today" on those days only. With no days picked the Diary shows the next workout every day as "Up next", so you can run whenever you like. A run you miss is not skipped: the same workout stays due. The reminders and the Diary card stop when you switch the program off or finish it.
+
+Your place in the program is saved to your SparkyFitness server (only you can see it), so it follows you between devices. The run reminders stay on the phone.
+
+**Ask Sparky to adjust it.** The AI assistant can see your program and your recent runs. Ask "How am I doing on my 5K program?" or tell it things like "my knee hurt this week" or "that last run was too hard", and it can suggest a change: repeat a week, move you to a different workout, or ease the running time in your next workouts by up to 30% (or lengthen it by at most 10% at a time). However many times it adjusts, running time in a workout never ends up more than 30% below or 10% above the original plan. It only changes workouts you have not done yet, always asks you to confirm first, and keeps a short log of what it changed. For two weeks after a change, the program card on the Record screen says what changed and when.
+
+This is a common beginner structure, not medical advice: if you are unsure about starting to run, check with your doctor first.
 
 ---
 

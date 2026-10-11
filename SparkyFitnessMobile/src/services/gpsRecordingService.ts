@@ -29,7 +29,7 @@ import {
   isValidIntervalPlan,
   stepStartSeconds,
   type IntervalPlan,
-} from '../utils/intervals';
+} from '@workspace/shared';
 import { fireImpactHaptic } from './haptics';
 import {
   cueUnitMeters,
@@ -99,6 +99,8 @@ export interface RecordingSession {
    * before the first), so a restored session never repeats a cue.
    */
   intervals?: { plan: IntervalPlan; cued: number };
+  /** The program workout this recording is, so finishing it can tick it off. */
+  program?: { id: string; index: number };
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
 }
@@ -513,6 +515,8 @@ export interface StartRecordingOptions {
   audioCues?: CueUnit;
   /** Timed steps to follow (run/walk, speed repeats). */
   intervals?: IntervalPlan;
+  /** The program workout the plan came from, if any. */
+  program?: { id: string; index: number };
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -585,6 +589,9 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       cuedSplits: 0,
       ...(options.intervals && isValidIntervalPlan(options.intervals)
         ? { intervals: { plan: options.intervals, cued: -1 } }
+        : {}),
+      ...(options.program && options.intervals
+        ? { program: options.program }
         : {}),
       savedEntryId: null,
     };

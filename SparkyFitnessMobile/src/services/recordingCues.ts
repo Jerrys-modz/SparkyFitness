@@ -1,6 +1,7 @@
 import * as Speech from 'expo-speech';
 import { getAppLocale } from '../localization';
 import { addLog } from './LogService';
+import { loadSpeechVoices, resolveSpeechVoice } from './speechVoice';
 import {
   beginCueDucking,
   endCueDucking,
@@ -20,6 +21,8 @@ import {
 /** Gets the audio session ready; call when a recording that speaks begins. */
 export function beginRecordingCues(): void {
   void startRecordingCueSession();
+  // Read the installed voices now so the first cue already uses the best one.
+  void loadSpeechVoices(true);
 }
 
 /** Lets the audio session go; call when the recording ends. */
@@ -53,8 +56,10 @@ export function speakRecordingCue(text: string, onFinished?: () => void): void {
         endCueDucking();
       }
     };
+    const locale = getAppLocale();
     Speech.speak(text, {
-      language: getAppLocale(),
+      language: locale,
+      voice: resolveSpeechVoice(locale),
       useApplicationAudioSession: true,
       onStart: () => {
         ducked = beginCueDucking();
