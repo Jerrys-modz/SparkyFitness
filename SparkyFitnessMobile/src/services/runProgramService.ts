@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import {
   storedProgramStatus,
@@ -18,8 +17,8 @@ import {
 /**
  * The person's run program and place in it. It lives on the server so the AI
  * assistant can adjust upcoming workouts and every device agrees on where they
- * are; this keeps the React Query copy in step after each change. The weekly
- * run days and the start date stay on the phone (`runProgramSchedule`).
+ * are; this keeps the React Query copy in step after each change. The Diary
+ * schedule (run days and first day) is kept with the program.
  */
 
 const setCache = (program: RunProgramResponse | null) =>
@@ -27,6 +26,27 @@ const setCache = (program: RunProgramResponse | null) =>
 
 async function load(): Promise<RunProgramResponse | null> {
   return (await fetchRunProgram()).program;
+}
+
+/**
+ * Changes when the Diary offers the workout: the weekdays (none = every day)
+ * and the first day (null = from today). Kept with the program on the server.
+ */
+export async function setProgramSchedule(change: {
+  days?: number[];
+  startDay?: string | null;
+}): Promise<void> {
+  const current = await freshProgram();
+  if (!current) return;
+  setCache(
+    (
+      await saveRunProgram({
+        program_id: current.program_id,
+        run_days: change.days,
+        start_date: change.startDay,
+      })
+    ).program
+  );
 }
 
 /** The stored program as the server has it now, not as this device last saw it. */
@@ -107,44 +127,22 @@ export async function skipProgramWorkout(): Promise<void> {
   if (current) await setProgramPosition(current.next_index + 1);
 }
 
-const DONE_DAY_KEY = '@SparkyFitness/runProgram/lastDoneDay';
-const doneDayQueryKey = ['runProgramDoneDay'] as const;
-
-async function readDoneDay(): Promise<string | null> {
-  try {
-    return await AsyncStorage.getItem(DONE_DAY_KEY);
-  } catch {
-    return null;
-  }
-}
-
 /** Records workout `index` as done, if it is the one that was due. */
 export async function completeProgramWorkout(
   programId: string,
   index: number
 ): Promise<void> {
+  // The local day is sent so the Diary stops offering the next workout for the
+  // rest of that day, on every device.
   setCache(
-    (await markRunProgramWorkoutDone({ index, program_id: programId })).program
+    (
+      await markRunProgramWorkoutDone({
+        index,
+        program_id: programId,
+        day: toLocalDateString(new Date()),
+      })
+    ).program
   );
-  // Remembered on this device so the Diary stops offering the next workout
-  // for the rest of the day.
-  const today = toLocalDateString(new Date());
-  queryClient.setQueryData(doneDayQueryKey, today);
-  try {
-    await AsyncStorage.setItem(DONE_DAY_KEY, today);
-  } catch {
-    // The card just shows again until tomorrow.
-  }
-}
-
-/** The local day a program workout was last completed, or null. */
-export function useProgramDoneDay(): string | null {
-  const { data } = useQuery({
-    queryKey: doneDayQueryKey,
-    queryFn: readDoneDay,
-    staleTime: Infinity,
-  });
-  return data ?? null;
 }
 
 /** The current program status, or null when none is active. */
@@ -155,6 +153,10 @@ export function useRunProgram(): {
   enabled: boolean;
   /** The most recent change to the workouts or place made by Sparky or the person, if any. */
   lastAdjustment: RunProgramAdjustment | null;
+  /** When the Diary offers the workout: weekdays (empty = every day) and first day. */
+  schedule: { days: number[]; startDay: string | null };
+  /** The local day a program workout was last completed, or null. */
+  doneDay: string | null;
   loaded: boolean;
 } {
   const { data, isSuccess } = useQuery({
@@ -167,6 +169,11 @@ export function useRunProgram(): {
     status: data ? storedProgramStatus(data) : null,
     enabled: data?.enabled ?? false,
     lastAdjustment: data?.adjustment_log.at(-1) ?? null,
+    schedule: {
+      days: data?.run_days ?? [],
+      startDay: data?.start_date ?? null,
+    },
+    doneDay: data?.last_done_date ?? null,
     loaded: isSuccess,
   };
 }

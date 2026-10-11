@@ -10,6 +10,9 @@ export const runProgramsSchema = z.object({
   next_index: z.number(),
   workouts: z.unknown(),
   adjustment_log: z.unknown(),
+  run_days: z.array(z.number()),
+  start_date: z.coerce.date().nullable(),
+  last_done_date: z.coerce.date().nullable(),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
 });
@@ -22,6 +25,9 @@ export const runProgramsInitializerSchema = z.object({
   next_index: z.number().optional().default(0),
   workouts: z.unknown().optional(),
   adjustment_log: z.unknown().optional(),
+  run_days: z.array(z.number()).optional(),
+  start_date: z.coerce.date().nullable().optional(),
+  last_done_date: z.coerce.date().nullable().optional(),
   created_at: z.coerce.date().optional(),
   updated_at: z.coerce.date().optional(),
 });
@@ -34,6 +40,9 @@ export const runProgramsMutatorSchema = z.object({
   next_index: z.number().optional(),
   workouts: z.unknown().optional(),
   adjustment_log: z.unknown().optional(),
+  run_days: z.array(z.number()).optional(),
+  start_date: z.coerce.date().nullable().optional(),
+  last_done_date: z.coerce.date().nullable().optional(),
   created_at: z.coerce.date().optional(),
   updated_at: z.coerce.date().optional(),
 });

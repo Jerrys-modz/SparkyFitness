@@ -4,6 +4,7 @@ import { programStatus } from '@workspace/shared';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
 import {
   setProgramEnabled,
+  setProgramSchedule,
   startProgram,
   useRunProgram,
 } from '../../src/services/runProgramService';
@@ -27,10 +28,7 @@ jest.mock('../../src/services/runProgramService', () => ({
   setProgramPosition: jest.fn(() => Promise.resolve()),
   restartProgram: jest.fn(() => Promise.resolve()),
   skipProgramWorkout: jest.fn(() => Promise.resolve()),
-}));
-jest.mock('../../src/services/runProgramSchedule', () => ({
-  useRunSchedule: () => ({ days: [], startDay: null }),
-  setRunSchedule: jest.fn(),
+  setProgramSchedule: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -71,6 +69,8 @@ describe('RunProgramsScreen', () => {
       status: null,
       enabled: false,
       lastAdjustment: null,
+      schedule: { days: [], startDay: null },
+      doneDay: null,
       loaded: true,
     });
     renderScreen(RunProgramsProps());
@@ -85,6 +85,8 @@ describe('RunProgramsScreen', () => {
       status: programStatus({ programId: 'beginner5k', next: 2 })!,
       enabled: true,
       lastAdjustment: null,
+      schedule: { days: [], startDay: null },
+      doneDay: null,
       loaded: true,
     });
     const props = RunProgramsProps();
@@ -94,11 +96,31 @@ describe('RunProgramsScreen', () => {
     expect(props.navigation.navigate).toHaveBeenCalledWith('RecordActivity');
   });
 
+  it('saves the Diary days with the program', () => {
+    mockedUse.mockReturnValue({
+      status: programStatus({ programId: 'beginner5k', next: 2 })!,
+      enabled: true,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    fireEvent.press(screen.getByLabelText('Monday'));
+    expect(setProgramSchedule).toHaveBeenCalledWith({ days: [1] });
+    fireEvent.press(screen.getByText('Tomorrow'));
+    expect(setProgramSchedule).toHaveBeenLastCalledWith({
+      startDay: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
+  });
+
   it('keeps the place and offers to resume a program that is switched off', () => {
     mockedUse.mockReturnValue({
       status: programStatus({ programId: 'beginner5k', next: 2 })!,
       enabled: false,
       lastAdjustment: null,
+      schedule: { days: [], startDay: null },
+      doneDay: null,
       loaded: true,
     });
     renderScreen(RunProgramsProps());

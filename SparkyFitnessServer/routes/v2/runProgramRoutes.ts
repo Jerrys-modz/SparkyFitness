@@ -96,7 +96,8 @@ router.post('/complete', async (req, res, next) => {
       req.userId,
       parsed.data.index,
       req.authenticatedUserId,
-      parsed.data.program_id
+      parsed.data.program_id,
+      parsed.data.day
     );
     const program = await getRunProgram(req.userId, req.authenticatedUserId);
     res.json({ program });

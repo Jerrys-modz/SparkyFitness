@@ -46,6 +46,9 @@ const program = {
   next_index: 0,
   workouts: [],
   adjustment_log: [],
+  run_days: [],
+  start_date: null,
+  last_done_date: null,
   updated_at: '2026-10-10T00:00:00.000Z',
 };
 
@@ -101,6 +104,7 @@ describe('run program routes', () => {
       'test-user-id',
       0,
       'test-user-id',
+      undefined,
       undefined
     );
     expect(res.body.program.id).toBe('p1');
@@ -116,8 +120,54 @@ describe('run program routes', () => {
       'test-user-id',
       2,
       'test-user-id',
-      'beginner5k'
+      'beginner5k',
+      undefined
     );
+  });
+
+  it('records the day a workout was done', async () => {
+    vi.mocked(completeRunProgramWorkout).mockResolvedValue(program);
+    vi.mocked(getRunProgram).mockResolvedValue(program);
+    await request(app)
+      .post('/api/v2/run-program/complete')
+      .send({ index: 1, day: '2026-10-12' });
+    expect(completeRunProgramWorkout).toHaveBeenLastCalledWith(
+      'test-user-id',
+      1,
+      'test-user-id',
+      undefined,
+      '2026-10-12'
+    );
+  });
+
+  it('saves the Diary days and the first day, and rejects bad ones', async () => {
+    vi.mocked(upsertRunProgram).mockResolvedValue(program);
+    const ok = await request(app)
+      .put('/api/v2/run-program')
+      .send({
+        program_id: 'beginner5k',
+        run_days: [1, 3, 5],
+        start_date: '2026-10-13',
+      });
+    expect(ok.status).toBe(200);
+    expect(upsertRunProgram).toHaveBeenLastCalledWith(
+      'test-user-id',
+      expect.objectContaining({
+        run_days: [1, 3, 5],
+        start_date: '2026-10-13',
+      }),
+      'test-user-id'
+    );
+    const cleared = await request(app)
+      .put('/api/v2/run-program')
+      .send({ program_id: 'beginner5k', start_date: null });
+    expect(cleared.status).toBe(200);
+    for (const bad of [{ run_days: [7] }, { start_date: 'tomorrow' }]) {
+      const res = await request(app)
+        .put('/api/v2/run-program')
+        .send({ program_id: 'beginner5k', ...bad });
+      expect(res.status).toBe(400);
+    }
   });
 
   it('validates the completed index', async () => {

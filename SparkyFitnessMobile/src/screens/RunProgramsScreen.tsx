@@ -13,10 +13,10 @@ import RunProgramGuide, {
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { setRunSchedule, useRunSchedule } from '../services/runProgramSchedule';
 import {
   restartProgram,
   setProgramEnabled,
+  setProgramSchedule,
   setProgramPosition,
   skipProgramWorkout,
   startProgram,
@@ -34,8 +34,7 @@ type Props = RootStackScreenProps<'RunPrograms'>;
 const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const schedule = useRunSchedule();
-  const { status, enabled, lastAdjustment, loaded } = useRunProgram();
+  const { status, enabled, lastAdjustment, schedule, loaded } = useRunProgram();
   const [now] = useState(() => Date.now());
   const [chosenId, setChosenId] = useState('beginner5k');
   const storedId = status?.program.id;
@@ -109,7 +108,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           lastAdjustment={lastAdjustment}
           now={now}
           schedule={schedule}
-          onSchedule={(next) => void setRunSchedule(next)}
+          onSchedule={(next) => change(() => setProgramSchedule(next))}
           onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}

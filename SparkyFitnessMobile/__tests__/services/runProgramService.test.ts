@@ -12,6 +12,7 @@ import {
   restartProgram,
   setProgramEnabled,
   setProgramPosition,
+  setProgramSchedule,
   skipProgramWorkout,
 } from '../../src/services/runProgramService';
 
@@ -26,6 +27,9 @@ const stored = (
   next_index: 0,
   workouts: findProgram('beginner5k')!.workouts,
   adjustment_log: [],
+  run_days: [],
+  start_date: null,
+  last_done_date: null,
   updated_at: '2026-10-10T00:00:00.000Z',
   ...over,
 });
@@ -128,8 +132,40 @@ test('completing a workout sends its index and caches the result', async () => {
   expect(mockedDone).toHaveBeenCalledWith({
     index: 0,
     program_id: 'beginner5k',
+    day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
   });
   expect(
     queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.next_index
   ).toBe(1);
+});
+
+test('saves the Diary days and first day with the program on the server', async () => {
+  mockedFetch.mockResolvedValue({ program: stored() });
+  mockedSave.mockImplementation(async (body) => ({
+    program: stored({
+      run_days: body.run_days ?? [],
+      start_date: body.start_date ?? null,
+    }),
+  }));
+  await setProgramSchedule({ days: [1, 3] });
+  expect(mockedSave).toHaveBeenLastCalledWith({
+    program_id: 'beginner5k',
+    run_days: [1, 3],
+    start_date: undefined,
+  });
+  await setProgramSchedule({ startDay: '2026-10-13' });
+  expect(mockedSave).toHaveBeenLastCalledWith({
+    program_id: 'beginner5k',
+    run_days: undefined,
+    start_date: '2026-10-13',
+  });
+  expect(
+    queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.start_date
+  ).toBe('2026-10-13');
+});
+
+test('a schedule change without a program does nothing', async () => {
+  mockedFetch.mockResolvedValue({ program: null });
+  await setProgramSchedule({ days: [1] });
+  expect(mockedSave).not.toHaveBeenCalled();
 });

@@ -28,6 +28,9 @@ const program = (overrides: Partial<RunProgramResponse> = {}) =>
     next_index: 4,
     workouts: findProgram('beginner5k')!.workouts,
     adjustment_log: [],
+    run_days: [],
+    start_date: null,
+    last_done_date: null,
     updated_at: '2026-10-10T00:00:00.000Z',
     ...overrides,
   }) as RunProgramResponse;
