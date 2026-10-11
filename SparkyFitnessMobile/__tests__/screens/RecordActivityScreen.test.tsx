@@ -16,6 +16,8 @@ import {
   type RecordingSession,
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
+import { useRunProgram } from '../../src/services/runProgramService';
+import { programStatus } from '@workspace/shared';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { initializeI18n } from '../../src/localization/i18n';
@@ -54,6 +56,10 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
+jest.mock('../../src/services/runProgramService', () => ({
+  useRunProgram: jest.fn(),
+  completeProgramWorkout: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../../src/services/recordingCues', () => ({
   beginRecordingCues: jest.fn(),
   speakRecordingCue: jest.fn(),
@@ -84,6 +90,7 @@ jest.mock('uniwind', () => ({
 }));
 
 const mockedState = jest.mocked(useGpsRecording);
+const mockedProgram = jest.mocked(useRunProgram);
 const DEG_PER_METER = 1 / 111_194.9;
 
 const session = (
@@ -145,6 +152,59 @@ describe('RecordActivityScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useLiveHeartRateStore.setState({ reading: null });
+    mockedProgram.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+      refetch: jest.fn(() => Promise.resolve()),
+    });
+  });
+
+  describe('with a training program on', () => {
+    const onProgram = () =>
+      mockedProgram.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 0 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+        refetch: jest.fn(() => Promise.resolve()),
+      });
+
+    it('does not choose the workout for someone who just wants to record', async () => {
+      state(null);
+      onProgram();
+      const screen = await renderScreen();
+      // Offered on its own card, but no plan is chosen.
+      expect(screen.getByText('Do this workout')).toBeTruthy();
+      expect(screen.queryByText('Using this workout')).toBeNull();
+    });
+
+    it('chooses it when opened to do the workout', async () => {
+      state(null);
+      onProgram();
+      const screen = render(
+        <QueryClientProvider client={new QueryClient()}>
+          <RecordActivityScreen
+            {...props}
+            route={
+              {
+                key: 'RecordActivity',
+                name: 'RecordActivity',
+                params: { programWorkout: true },
+              } as never
+            }
+          />
+        </QueryClientProvider>
+      );
+      await waitFor(() =>
+        expect(screen.getByText('Using this workout')).toBeTruthy()
+      );
+    });
   });
 
   it('starts a recording of the chosen activity', async () => {

@@ -158,7 +158,9 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onToggle={(on) =>
             change(() => setProgramEnabled(on, storedId ?? chosenId))
           }
-          onSelect={() => navigation.navigate('RecordActivity')}
+          onSelect={() =>
+            navigation.navigate('RecordActivity', { programWorkout: true })
+          }
           startLabel={t('runPrograms.startWorkout', {
             defaultValue: "Start today's workout",
           })}
