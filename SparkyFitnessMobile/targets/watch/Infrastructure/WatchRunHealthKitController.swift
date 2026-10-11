@@ -30,8 +30,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
 
     /// Called on the main queue when new figures are available.
     var onMetrics: ((WatchRunMetrics) -> Void)?
-    /// Called on the main queue when the session ends unexpectedly.
-    var onFailure: (() -> Void)?
+    /// Called on the main queue when the session ends unexpectedly, with the
+    /// run as it stood when it was long enough to keep. The receiver sends it
+    /// on and clears the snapshot.
+    var onFailure: ((WatchRunResult?) -> Void)?
     /// Called on the main queue when the wearer stops or starts moving
     /// outdoors: `.pause` or `.resume`. Never called indoors, where there is
     /// no speed to judge by.
@@ -184,7 +186,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         let endingRoute = routeBuilder
         let endedAt = Date()
         let rows = (route: routeRows, heartRate: heartRateRows)
-        WatchRunSnapshotStore.clear()
+        // A discarded run is gone at once. A saved one keeps its snapshot
+        // until the store has queued the message for the phone, so a kill
+        // between here and there still leaves the run to be sent on relaunch.
+        if !save { WatchRunSnapshotStore.clear() }
         stopRoute()
         self.session = nil
         self.builder = nil
@@ -341,14 +346,17 @@ extension WatchRunHealthKitController {
     }
 
     /// The run as the snapshot last had it, for when the Health session did
-    /// not survive. Too short or empty a record is dropped.
+    /// not survive. A record shorter than a minute is dropped.
     private func salvage(
         _ snapshot: WatchRunSnapshot,
         kind: WatchRunKind,
         place: WatchRunPlace
     ) -> WatchRunRecoveryOutcome {
-        WatchRunSnapshotStore.clear()
-        guard snapshot.elapsed >= 60, snapshot.distanceMeters > 0 else { return .none }
+        // Kept until the store has queued the run for the phone.
+        guard snapshot.elapsed >= WatchRunSnapshot.minimumKeptSeconds else {
+            WatchRunSnapshotStore.clear()
+            return .none
+        }
         var salvaged = WatchRunMetrics()
         salvaged.distanceMeters = snapshot.distanceMeters
         salvaged.activeEnergyKcal = snapshot.activeEnergyKcal
@@ -463,12 +471,28 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         DispatchQueue.main.async { [weak self] in
-            WatchRunSnapshotStore.clear()
-            self?.session = nil
-            self?.builder = nil
-            self?.routeBuilder?.discard()
-            self?.stopRoute()
-            self?.onFailure?()
+            // A failure after the run was ended on purpose is not this run's.
+            guard let self, self.session === workoutSession else { return }
+            // Whatever was recorded is kept: the session is gone, but the
+            // route, readings and figures are still here.
+            let elapsed = self.builder?.elapsedTime ?? 0
+            let result = elapsed >= WatchRunSnapshot.minimumKeptSeconds ? WatchRunResult(
+                clientId: self.clientId,
+                kind: self.runKind,
+                place: self.runPlace,
+                startedAt: self.startedAt,
+                endedAt: Date(),
+                activeSeconds: elapsed,
+                metrics: self.metrics,
+                route: self.routeRows,
+                heartRate: self.heartRateRows
+            ) : nil
+            self.session = nil
+            self.builder = nil
+            self.routeBuilder?.discard()
+            self.stopRoute()
+            if result == nil { WatchRunSnapshotStore.clear() }
+            self.onFailure?(result)
         }
     }
 }

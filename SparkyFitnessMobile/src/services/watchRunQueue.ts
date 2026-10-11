@@ -96,9 +96,15 @@ export function processWatchRunQueue(
   if (processing) return processing;
   processing = (async () => {
     const filed: string[] = [];
-    const queue = await serial(readQueue);
-    for (const item of queue) {
+    // A run queued while this drain was going is picked up by the next pass of
+    // the loop, so it is never left waiting for another trigger.
+    const attempted = new Set<string>();
+    for (;;) {
+      const queue = await serial(readQueue);
+      const item = queue.find((run) => !attempted.has(run.payload.clientId));
+      if (!item) break;
       const { clientId } = item.payload;
+      attempted.add(clientId);
       try {
         await saveWatchRun(
           item.payload,

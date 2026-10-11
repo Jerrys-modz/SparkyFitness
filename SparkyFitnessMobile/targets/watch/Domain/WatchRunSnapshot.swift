@@ -24,6 +24,8 @@ struct WatchRunSnapshot: Codable {
 
     /// A run left this long ago is not one the wearer is still doing.
     static let maxAge: TimeInterval = 12 * 60 * 60
+    /// A run shorter than this is not worth sending when it has to be salvaged.
+    static let minimumKeptSeconds: TimeInterval = 60
 }
 
 /// The snapshot on disk. A file rather than defaults: an hour's route is

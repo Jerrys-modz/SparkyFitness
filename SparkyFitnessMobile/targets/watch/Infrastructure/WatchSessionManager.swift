@@ -587,6 +587,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // A redelivered `workoutStart` for the session already running must
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
+        // A wrist-only run already holds the watch's one workout session; a
+        // second would end one of them. The workout carries on on the phone.
+        if WatchRunStore.shared.isActive { return }
 
         // Recovery may still be reattaching the previous HealthKit session.
         // Queue the plan and let that finish (and stop the old session)
@@ -745,6 +748,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             guard let self else { return }
             if claimed {
                 self.hkRecovery = .finished
+                // A workout start that arrived during recovery cannot run
+                // beside the recovered run; drop it so later starts are not
+                // held back waiting for it.
+                self.pendingPlan = nil
+                self.collectionInFlight = false
             } else {
                 self.recoverStrengthWorkoutIfNeeded()
             }
