@@ -185,6 +185,14 @@ export type RootStackParamList = {
   };
   ExerciseStatistics: undefined;
   RecordActivity: undefined;
+  Reports: undefined;
+  HydrationReport: undefined;
+  SubstancesReport: undefined;
+  MeasurementsReport: undefined;
+  ReportsSettings: undefined;
+  NutritionReport: undefined;
+  SleepAnalytics: undefined;
+  MoodReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';

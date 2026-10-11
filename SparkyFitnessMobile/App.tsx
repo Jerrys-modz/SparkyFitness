@@ -109,6 +109,14 @@ import {
   SafeDailyNutritionDetails,
   SafeNutrientTrends,
   SafeExerciseStatistics,
+  SafeReports,
+  SafeNutritionReport,
+  SafeSleepAnalytics,
+  SafeMoodReport,
+  SafeHydrationReport,
+  SafeSubstancesReport,
+  SafeMeasurementsReport,
+  SafeReportsSettings,
   SafeCardioSession,
   SafeRecordActivity,
   SafeFamilyMembers,
@@ -771,6 +779,46 @@ function AppContent() {
             name="ExerciseStatistics"
             component={SafeExerciseStatistics}
             options={createStackScreenOptions(t('screens.exerciseStatistics', { defaultValue: 'Exercise Statistics' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="Reports"
+            component={SafeReports}
+            options={createStackScreenOptions(t('screens.reports', { defaultValue: 'Reports' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="NutritionReport"
+            component={SafeNutritionReport}
+            options={createStackScreenOptions(t('screens.nutritionReport', { defaultValue: 'Nutrition' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="SleepAnalytics"
+            component={SafeSleepAnalytics}
+            options={createStackScreenOptions(t('screens.sleepAnalytics', { defaultValue: 'Sleep Analytics' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="MoodReport"
+            component={SafeMoodReport}
+            options={createStackScreenOptions(t('screens.moodReport', { defaultValue: 'Mood' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="HydrationReport"
+            component={SafeHydrationReport}
+            options={createStackScreenOptions(t('screens.hydrationReport', { defaultValue: 'Hydration' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="SubstancesReport"
+            component={SafeSubstancesReport}
+            options={createStackScreenOptions(t('screens.substancesReport', { defaultValue: 'Caffeine and alcohol' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="MeasurementsReport"
+            component={SafeMeasurementsReport}
+            options={createStackScreenOptions(t('screens.measurementsReport', { defaultValue: 'Measurements' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="ReportsSettings"
+            component={SafeReportsSettings}
+            options={createStackScreenOptions(t('screens.reportsSettings', { defaultValue: 'Customize Reports' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="CardioSession"
