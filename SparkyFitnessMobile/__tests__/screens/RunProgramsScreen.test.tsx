@@ -87,7 +87,7 @@ describe('RunProgramsScreen', () => {
       'Start today',
     ]);
     buttons[2].onPress?.();
-    expect(startProgram).toHaveBeenCalledWith('beginner5k', null);
+    expect(startProgram).toHaveBeenCalledWith('walkFit', null);
     alert.mockRestore();
   });
 
@@ -111,7 +111,7 @@ describe('RunProgramsScreen', () => {
       }
     ).__calendarProps!;
     act(() => onSelectDate('2099-01-05'));
-    expect(startProgram).toHaveBeenCalledWith('beginner5k', '2099-01-05');
+    expect(startProgram).toHaveBeenCalledWith('walkFit', '2099-01-05');
     alert.mockRestore();
   });
 

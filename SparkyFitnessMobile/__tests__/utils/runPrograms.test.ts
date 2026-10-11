@@ -2,6 +2,7 @@ import {
   advanceProgress,
   findProgram,
   planMinutes,
+  programActivity,
   programStatus,
   RUN_PROGRAMS,
   isValidIntervalPlan,
@@ -81,6 +82,7 @@ describe('progress', () => {
 describe('every program', () => {
   test('is listed once, easiest first, and can be found by id', () => {
     expect(RUN_PROGRAMS.map((p) => p.id)).toEqual([
+      'walkFit',
       'beginner5k',
       'fiveToTenK',
       'faster5k',
@@ -91,6 +93,7 @@ describe('every program', () => {
   });
 
   test.each([
+    ['walkFit', 8, 24],
     ['beginner5k', 9, 27],
     ['fiveToTenK', 8, 24],
     ['faster5k', 6, 18],
@@ -143,5 +146,32 @@ describe('every program', () => {
       'recovery',
       'cooldown',
     ]);
+  });
+});
+
+describe('the walking program', () => {
+  test('is recorded as a walk, and is fast and easy steps with no running wording', () => {
+    const p = findProgram('walkFit')!;
+    expect(p.activity).toBe('walk');
+    expect(programActivity('walkFit')).toBe('walk');
+    expect(programActivity('beginner5k')).toBe('run');
+    expect(programActivity('gone')).toBe('run');
+    for (const w of p.workouts) expect(w.plan.style).toBe('fastEasy');
+  });
+
+  test('builds to half an hour of brisk walking and never repeats the first week', () => {
+    const p = findProgram('walkFit')!;
+    const brisk = (i: number) =>
+      p.workouts[i].plan.steps
+        .filter((s) => s.kind === 'work')
+        .reduce((sum, s) => sum + s.seconds, 0);
+    expect(brisk(0)).toBe(12 * 60);
+    expect(brisk(p.workouts.length - 1)).toBe(30 * 60);
+    expect(brisk(p.workouts.length - 1)).toBeGreaterThan(brisk(0));
+  });
+
+  test('a stored program carries the activity', () => {
+    const status = programStatus({ programId: 'walkFit', next: 0 })!;
+    expect(status.program.activity).toBe('walk');
   });
 });
