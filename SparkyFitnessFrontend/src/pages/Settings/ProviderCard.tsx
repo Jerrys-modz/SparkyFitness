@@ -634,6 +634,7 @@ export const ProviderCard = ({
               'tandoor',
               'norish',
               'free-exercise-db',
+              'exercisedb',
               'wger',
             ].includes(provider.provider_type) && (
               <span>{` - App ID: ${
@@ -741,6 +742,23 @@ export const ProviderCard = ({
               yuhonas/free-exercise-db on GitHub
             </a>
             .
+          </p>
+        )}
+
+        {provider.provider_type === 'exercisedb' && (
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
+            Exercise data and GIF demonstrations from the free{' '}
+            <a
+              href="https://oss.exercisedb.dev/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              ExerciseDB API by AscendAPI
+            </a>
+            . Free for non-commercial use only, with rate limits; credit to
+            AscendAPI is required. GIFs are loaded from their servers and are
+            not stored here.
           </p>
         )}
 

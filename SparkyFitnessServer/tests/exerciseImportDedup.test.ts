@@ -1,6 +1,7 @@
 import { vi, beforeEach, describe, expect, it } from 'vitest';
 import exerciseDb from '../models/exercise.js';
 import freeExerciseDBService from '../integrations/freeexercisedb/FreeExerciseDBService.js';
+import exerciseDBService from '../integrations/exercisedb/ExerciseDBService.js';
 import wgerService from '../integrations/wger/wgerService.js';
 import calorieCalculationService from '../services/CalorieCalculationService.js';
 import exerciseService from '../services/exerciseService.js';
@@ -34,6 +35,11 @@ vi.mock('../integrations/freeexercisedb/FreeExerciseDBService', () => ({
   default: {
     getExerciseById: vi.fn(),
     getExerciseImageUrl: vi.fn(),
+  },
+}));
+vi.mock('../integrations/exercisedb/ExerciseDBService', () => ({
+  default: {
+    getExerciseById: vi.fn(),
   },
 }));
 vi.mock('../models/measurementRepository', () => ({}));
@@ -393,6 +399,79 @@ describe('external exercise import dedup', () => {
           user_id: userId,
         })
       );
+    });
+  });
+  describe('addExerciseDBExerciseToUserExercises', () => {
+    it('returns the existing exercise without calling the API when already imported', async () => {
+      const existing = { id: 'existing-uuid', source: 'exercisedb' };
+      // @ts-expect-error TS(2339): mock method not on typed function.
+      exerciseDb.getExerciseBySourceAndSourceId.mockResolvedValueOnce(existing);
+
+      const result = await exerciseService.addExerciseDBExerciseToUserExercises(
+        userId,
+        'EIeI8Vf'
+      );
+
+      expect(result).toBe(existing);
+      expect(exerciseDb.getExerciseBySourceAndSourceId).toHaveBeenCalledWith(
+        'exercisedb',
+        'EIeI8Vf',
+        userId
+      );
+      expect(exerciseDBService.getExerciseById).not.toHaveBeenCalled();
+      expect(exerciseDb.createExercise).not.toHaveBeenCalled();
+    });
+
+    it('stores the GIF as a remote link and never downloads the media', async () => {
+      // @ts-expect-error TS(2339): mock method not on typed function.
+      exerciseDb.getExerciseBySourceAndSourceId.mockResolvedValueOnce(null);
+      vi.mocked(exerciseDBService.getExerciseById).mockResolvedValueOnce({
+        exerciseId: 'EIeI8Vf',
+        name: 'barbell bench press',
+        gifUrl: 'https://static.exercisedb.dev/media/EIeI8Vf.gif',
+        bodyParts: ['chest'],
+        equipments: ['barbell', 'bodyweight'],
+        targetMuscles: ['pectorals'],
+        secondaryMuscles: ['triceps', 'deltoids'],
+        instructions: ['Lie on the bench.', 'Press the bar.'],
+      });
+      vi.mocked(
+        calorieCalculationService.estimateCaloriesBurnedPerHour
+      ).mockResolvedValueOnce(300);
+      // @ts-expect-error TS(2339): mock method not on typed function.
+      exerciseDb.createExercise.mockImplementationOnce(async (data) => data);
+
+      const created =
+        (await exerciseService.addExerciseDBExerciseToUserExercises(
+          userId,
+          'EIeI8Vf'
+        )) as unknown as Record<string, unknown>;
+
+      expect(downloadImage).not.toHaveBeenCalled();
+      expect(created).toMatchObject({
+        source: 'exercisedb',
+        source_id: 'EIeI8Vf',
+        name: 'barbell bench press',
+        category: 'strength',
+        images: ['https://static.exercisedb.dev/media/EIeI8Vf.gif'],
+        primary_muscles: ['chest'],
+        secondary_muscles: ['triceps', 'shoulders'],
+        equipment: ['barbell', 'body only'],
+        instructions: ['Lie on the bench.', 'Press the bar.'],
+        user_id: userId,
+        is_custom: true,
+        shared_with_public: false,
+      });
+    });
+
+    it('throws when the exercise does not exist upstream', async () => {
+      // @ts-expect-error TS(2339): mock method not on typed function.
+      exerciseDb.getExerciseBySourceAndSourceId.mockResolvedValueOnce(null);
+      vi.mocked(exerciseDBService.getExerciseById).mockResolvedValueOnce(null);
+      await expect(
+        exerciseService.addExerciseDBExerciseToUserExercises(userId, 'nope')
+      ).rejects.toThrow('ExerciseDB exercise not found.');
+      expect(exerciseDb.createExercise).not.toHaveBeenCalled();
     });
   });
 });
