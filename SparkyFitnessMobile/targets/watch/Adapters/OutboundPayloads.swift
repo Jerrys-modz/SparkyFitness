@@ -20,6 +20,7 @@ enum OutboundPayloads {
         static let checkIn = "checkIn"
         static let waterIntake = "waterIntake"
         static let waterDelete = "waterDelete"
+        static let medicationTaken = "medicationTaken"
         static let contextRequest = "requestContext"
         static let setCompleted = "setCompleted"
         static let heartRateBatch = "heartRateBatch"
@@ -84,6 +85,19 @@ enum OutboundPayloads {
     /// The wearer ended the fast that is running.
     static func fastEnd(clientId: String) -> [String: Any] {
         ["type": Kind.fastEnd, "clientId": clientId]
+    }
+
+    /// One dose ticked as taken — the phone logs it the way its own dose row
+    /// does — or, with `taken` false, un-ticked, which deletes that entry.
+    static func medicationTaken(_ tap: MedicationTap) -> [String: Any] {
+        [
+            "type": Kind.medicationTaken,
+            "clientId": tap.id,
+            "entryDate": tap.entryDate,
+            "medicationId": tap.medicationId,
+            "scheduleId": tap.scheduleId,
+            "taken": tap.taken,
+        ]
     }
 
     /// Asks the phone to push a fresh context. Carries no data of its own.

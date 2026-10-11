@@ -368,6 +368,55 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// Asks the phone to log one dose as taken, or to remove that log when `undo`. Acknowledged like a
+    /// water tap: the phone reports the `clientId` immediately when reachable
+    /// and again in every context push.
+    func sendMedicationTap(_ dose: MedicationDose, clientId: String, undo: Bool = false) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.medicationTaken(
+            MedicationTap(
+                id: clientId,
+                entryDate: CheckInDate.today(),
+                medicationId: dose.medicationId,
+                scheduleId: dose.scheduleId,
+                taken: !undo
+            )
+        ))
+    }
+
+    /// Re-sends every tick still waiting on the phone, under its original id.
+    /// The phone reads the day's entries before writing, so a tick that did
+    /// land is recognised and re-acknowledged rather than logged twice.
+    func resendQueuedMedicationTaps() {
+        guard isActivated else { return }
+        for tap in store.queuedMedicationTaps {
+            resend(tap)
+        }
+    }
+
+    /// Re-sends every tick the phone reported as failed, under its original id.
+    func retryFailedMedicationTaps() {
+        for tap in store.retryableMedicationTaps {
+            store.markMedicationTap(tap.id, .queued)
+            resend(tap)
+        }
+    }
+
+    /// Sent under the day the wearer ticked it, not today's: a tick queued at
+    /// 23:58 and resent after midnight still belongs to the earlier day.
+    private func resend(_ tap: PendingMedicationTap) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.medicationTaken(
+            MedicationTap(
+                id: tap.id,
+                entryDate: tap.day,
+                medicationId: tap.medicationId,
+                scheduleId: tap.scheduleId,
+                taken: !tap.isUndo
+            )
+        ))
+    }
+
     /// Re-publishes both complications' shared-storage snapshots from the
     /// context the watch already holds.
     ///
@@ -538,6 +587,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let state: SyncState = ack.ok ? .saved : .failed
         store.markWaterTap(ack.clientId, state)
         store.markWaterDelete(ack.clientId, state)
+        store.markMedicationTap(ack.clientId, state)
     }
 
     /// The single entry point for everything inbound, whichever transport
@@ -1436,6 +1486,7 @@ extension WatchSessionManager: WCSessionDelegate {
             self.retryPendingSetCompletion()
             self.resendQueuedWaterTaps()
             self.resendQueuedWaterDeletes()
+            self.resendQueuedMedicationTaps()
             self.requestContext()
         }
     }
@@ -1448,6 +1499,7 @@ extension WatchSessionManager: WCSessionDelegate {
                 self.retryPending()
                 self.resendQueuedWaterTaps()
                 self.resendQueuedWaterDeletes()
+                self.resendQueuedMedicationTaps()
                 self.requestContext()
             }
         }

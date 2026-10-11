@@ -82,7 +82,8 @@ enum ContextPayloadMapper {
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),
-            stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal
+            stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
+            medications: medications(from: payload)
         )
     }
 
@@ -280,6 +281,32 @@ enum ContextPayloadMapper {
             else { return nil }
             return WaterContainer(id: id, name: name, servingVolumeMl: servingVolumeMl, unit: unit)
         }
+    }
+
+    /// Nil when the phone did not send the key — an older build, or a push
+    /// that crossed midnight and blanked its day figures. An empty array is a
+    /// real answer: nothing is scheduled today.
+    static func medications(from payload: [String: Any]) -> MedicationSnapshot? {
+        guard let raw = dictionaryArray(payload["medications"]) else { return nil }
+        let doses = raw.compactMap { entry -> MedicationDose? in
+            guard
+                let id = entry["id"] as? String,
+                let medicationId = entry["medicationId"] as? String,
+                let scheduleId = entry["scheduleId"] as? String,
+                let name = entry["name"] as? String,
+                let status = (entry["status"] as? String).flatMap(MedicationDoseStatus.init(rawValue:))
+            else { return nil }
+            return MedicationDose(
+                id: id,
+                medicationId: medicationId,
+                scheduleId: scheduleId,
+                name: name,
+                detail: entry["detail"] as? String ?? "",
+                time: entry["time"] as? String ?? "",
+                status: status
+            )
+        }
+        return MedicationSnapshot(day: day(from: payload), doses: doses)
     }
 
     // MARK: - Complications
