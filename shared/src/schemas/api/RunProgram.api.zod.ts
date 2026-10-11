@@ -24,7 +24,20 @@ export const runProgramAdjustmentSchema = z.object({
 });
 export type RunProgramAdjustment = z.infer<typeof runProgramAdjustmentSchema>;
 
-const dayString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/** A real calendar day: 2026-02-31 matches the shape but is not a date. */
+const isRealDay = (value: string): boolean => {
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return (
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === m - 1 &&
+    date.getUTCDate() === d
+  );
+};
+const dayString = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(isRealDay, { message: "Not a real calendar day." });
 const weekday = z.number().int().min(0).max(6);
 
 export const runProgramResponseSchema = z.object({
@@ -58,15 +71,24 @@ export type GetRunProgramResponse = z.infer<typeof getRunProgramResponseSchema>;
  * Creates the person's program (seeded from the built-in one) or changes its
  * switch and place. Only fields present are changed.
  */
-export const upsertRunProgramBodySchema = z.object({
-  program_id: z.string().min(1).max(50),
-  enabled: z.boolean().optional(),
-  next_index: z.number().int().min(0).max(1000).optional(),
-  run_days: z.array(weekday).max(7).optional(),
-  /** null clears it; absent leaves it as it is. */
-  start_date: dayString.nullable().optional(),
-  end_date: dayString.nullable().optional(),
-});
+export const upsertRunProgramBodySchema = z
+  .object({
+    program_id: z.string().min(1).max(50),
+    enabled: z.boolean().optional(),
+    next_index: z.number().int().min(0).max(1000).optional(),
+    run_days: z.array(weekday).max(7).optional(),
+    /** null clears it; absent leaves it as it is. */
+    start_date: dayString.nullable().optional(),
+    end_date: dayString.nullable().optional(),
+  })
+  .refine(
+    (body) =>
+      !body.start_date || !body.end_date || body.end_date >= body.start_date,
+    {
+      message: "The goal day cannot be before the first day.",
+      path: ["end_date"],
+    },
+  );
 export type UpsertRunProgramBody = z.infer<typeof upsertRunProgramBodySchema>;
 
 /** Marks workout `index` done, if it is the one due. */

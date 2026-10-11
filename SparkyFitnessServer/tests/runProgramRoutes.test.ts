@@ -176,12 +176,23 @@ describe('run program routes', () => {
       { run_days: [7] },
       { start_date: 'tomorrow' },
       { end_date: '12/06' },
+      // The right shape but not a day, and a goal before the first day.
+      { start_date: '2026-02-31' },
+      { end_date: '2026-13-01' },
+      { start_date: '2026-10-20', end_date: '2026-10-19' },
     ]) {
       const res = await request(app)
         .put('/api/v2/run-program')
         .send({ program_id: 'beginner5k', ...bad });
       expect(res.status).toBe(400);
     }
+  });
+
+  it('rejects an impossible day on completion too', async () => {
+    const res = await request(app)
+      .post('/api/v2/run-program/complete')
+      .send({ index: 0, day: '2026-02-30' });
+    expect(res.status).toBe(400);
   });
 
   it('validates the completed index', async () => {

@@ -116,11 +116,15 @@ Every change needs confirmed=true after the user has agreed.`,
           }
 
           if (args.action === 'start_run_program') {
-            if (args.confirmed !== true) {
-              return confirmFirst('This will start the run program.');
-            }
             const programId = args.program_id ?? 'beginner5k';
             const held = await getRunProgram(userId, userId);
+            if (args.confirmed !== true) {
+              return confirmFirst(
+                held && held.program_id !== programId
+                  ? `This will replace the user's current program (${held.program_id}) with ${programId}, starting at workout 1 and dropping any adjustments made to the current one.`
+                  : 'This will start the run program.'
+              );
+            }
             const program = await upsertRunProgram(
               userId,
               { program_id: programId, enabled: true },
@@ -222,12 +226,18 @@ Every change needs confirmed=true after the user has agreed.`,
           } else {
             const count = args.count ?? 1;
             describe = `This will change the running time in the next ${count} workout${count === 1 ? '' : 's'} by ${args.percent}%.`;
-            change = (state: Parameters<typeof adjustRunning>[0]) =>
+            // The baseline comes from the program under the lock, not the one
+            // read above, in case it was switched in between.
+            change = (
+              state: Parameters<typeof adjustRunning>[0] & {
+                programId: string;
+              }
+            ) =>
               adjustRunning(
                 state,
                 args.percent,
                 count,
-                findProgram(existing.program_id)?.workouts
+                findProgram(state.programId)?.workouts
               );
           }
           if (args.confirmed !== true) return confirmFirst(describe);

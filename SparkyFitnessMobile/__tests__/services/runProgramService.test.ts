@@ -179,3 +179,48 @@ test('a schedule change without a program does nothing', async () => {
   await setProgramSchedule({ days: [1] });
   expect(mockedSave).not.toHaveBeenCalled();
 });
+
+test('two quick weekday taps each build on the result of the one before', async () => {
+  // The server is the source of truth: each toggle reads its days first.
+  let serverDays: number[] = [];
+  mockedFetch.mockImplementation(async () => ({
+    program: stored({ run_days: serverDays }),
+  }));
+  mockedSave.mockImplementation(async (body) => {
+    serverDays = body.run_days ?? serverDays;
+    return { program: stored({ run_days: serverDays }) };
+  });
+  await Promise.all([
+    setProgramSchedule({ toggleDay: 1 }),
+    setProgramSchedule({ toggleDay: 3 }),
+  ]);
+  expect(serverDays).toEqual([1, 3]);
+  expect(
+    queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.run_days
+  ).toEqual([1, 3]);
+  await setProgramSchedule({ toggleDay: 1 });
+  expect(serverDays).toEqual([3]);
+});
+
+test('a failed schedule change does not block the next one', async () => {
+  mockedFetch.mockResolvedValue({ program: stored() });
+  mockedSave.mockRejectedValueOnce(new Error('offline'));
+  await expect(setProgramSchedule({ toggleDay: 1 })).rejects.toThrow('offline');
+  mockedSave.mockResolvedValueOnce({ program: stored({ run_days: [2] }) });
+  await setProgramSchedule({ toggleDay: 2 });
+  expect(mockedSave).toHaveBeenLastCalledWith(
+    expect.objectContaining({ run_days: [2] })
+  );
+});
+
+test('a write cancels a read that began before it', async () => {
+  mockedFetch.mockResolvedValue({ program: stored() });
+  mockedDone.mockResolvedValue({ program: stored({ next_index: 1 }) });
+  const spy = jest.spyOn(queryClient, 'cancelQueries');
+  await completeProgramWorkout('beginner5k', 0, '2026-10-12');
+  expect(spy).toHaveBeenCalledWith({ queryKey: runProgramQueryKey });
+  expect(mockedDone).toHaveBeenCalledWith(
+    expect.objectContaining({ day: '2026-10-12' })
+  );
+  spy.mockRestore();
+});

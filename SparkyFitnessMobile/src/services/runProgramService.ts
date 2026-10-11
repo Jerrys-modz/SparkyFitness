@@ -21,8 +21,12 @@ import {
  * schedule (run days and first day) is kept with the program.
  */
 
-const setCache = (program: RunProgramResponse | null) =>
+const setCache = (program: RunProgramResponse | null) => {
+  // A read that began before this write must not land after it and put the
+  // old state back (a screen mounting while a tick-off is in flight).
+  void queryClient.cancelQueries({ queryKey: runProgramQueryKey });
   queryClient.setQueryData(runProgramQueryKey, program);
+};
 
 async function load(): Promise<RunProgramResponse | null> {
   return (await fetchRunProgram()).program;
@@ -33,18 +37,40 @@ async function load(): Promise<RunProgramResponse | null> {
  * the first day (null = from today) and the goal day (null = none). Kept with
  * the program on the server.
  */
-export async function setProgramSchedule(change: {
+export interface ProgramScheduleChange {
   days?: number[];
+  /** Flips one weekday on the server's current days (0 = Sunday). */
+  toggleDay?: number;
   startDay?: string | null;
   endDay?: string | null;
-}): Promise<void> {
+}
+
+// Schedule changes run one at a time: two quick taps on the weekday chips must
+// each build on the result of the one before, not on the same stale copy.
+let scheduleQueue: Promise<unknown> = Promise.resolve();
+
+export function setProgramSchedule(
+  change: ProgramScheduleChange
+): Promise<void> {
+  const run = scheduleQueue.then(() => applySchedule(change));
+  scheduleQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function applySchedule(change: ProgramScheduleChange): Promise<void> {
   const current = await freshProgram();
   if (!current) return;
+  const days =
+    change.toggleDay !== undefined
+      ? current.run_days.includes(change.toggleDay)
+        ? current.run_days.filter((d) => d !== change.toggleDay)
+        : [...current.run_days, change.toggleDay].sort((a, b) => a - b)
+      : change.days;
   setCache(
     (
       await saveRunProgram({
         program_id: current.program_id,
-        run_days: change.days,
+        run_days: days,
         start_date: change.startDay,
         end_date: change.endDay,
       })
@@ -144,7 +170,8 @@ export async function skipProgramWorkout(): Promise<void> {
 /** Records workout `index` as done, if it is the one that was due. */
 export async function completeProgramWorkout(
   programId: string,
-  index: number
+  index: number,
+  day: string = toLocalDateString(new Date())
 ): Promise<void> {
   // The local day is sent so the Diary stops offering the next workout for the
   // rest of that day, on every device.
@@ -153,7 +180,7 @@ export async function completeProgramWorkout(
       await markRunProgramWorkoutDone({
         index,
         program_id: programId,
-        day: toLocalDateString(new Date()),
+        day,
       })
     ).program
   );
@@ -176,8 +203,9 @@ export function useRunProgram(): {
   /** The local day a program workout was last completed, or null. */
   doneDay: string | null;
   loaded: boolean;
+  refetch: () => Promise<unknown>;
 } {
-  const { data, isSuccess } = useQuery({
+  const { data, isSuccess, refetch } = useQuery({
     queryKey: runProgramQueryKey,
     queryFn: load,
     // Always re-read on opening a screen: the assistant may have changed it.
@@ -194,5 +222,6 @@ export function useRunProgram(): {
     },
     doneDay: data?.last_done_date ?? null,
     loaded: isSuccess,
+    refetch,
   };
 }
