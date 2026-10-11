@@ -1,3 +1,4 @@
+import type { RunSummaryParams } from '../utils/runSummary';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
@@ -194,6 +195,7 @@ export type RootStackParamList = {
   NutritionReport: undefined;
   SleepAnalytics: undefined;
   MoodReport: undefined;
+  RunSummary: RunSummaryParams;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';

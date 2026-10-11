@@ -506,9 +506,10 @@
     "syncHealth": "Sync Health Data",
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
-    "mindfulness": "Mindfulness",
     "recordActivity": "Record Activity",
-    "recordActivityHint": "Track a walk, run or ride with GPS"
+    "runSummary": "Activity saved",
+    "recordActivityHint": "Track a walk, run or ride with GPS",
+    "mindfulness": "Mindfulness"
   },
   "screens": {
     "foods": "Foods",
@@ -7446,5 +7447,16 @@
       "none": "Training program",
       "setUp": "Set up a program"
     }
+  },
+  "runSummary": {
+    "done": "Done",
+    "runSaved": "Run saved",
+    "walkSaved": "Walk saved",
+    "rideSaved": "Ride saved",
+    "avgHeartRate": "Avg heart rate",
+    "programDone": "Program complete",
+    "programProgress": "Workout {{done}} of {{total}} done",
+    "viewProgram": "View program",
+    "routeA11y": "Map of your route"
   }
 }

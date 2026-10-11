@@ -41,6 +41,7 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     resumeRecording: jest.fn(() => Promise.resolve()),
     finishRecording: jest.fn(() => Promise.resolve()),
     discardRecording: jest.fn(() => Promise.resolve()),
+    getHeartRateSamples: jest.fn(() => Promise.resolve([])),
     elapsedSeconds: jest.fn(() => 754),
     getRecordingPreferences: jest.fn(() =>
       Promise.resolve({
@@ -120,7 +121,7 @@ const track: RecordedPoint[] = Array.from({ length: 11 }, (_, i) => ({
 const state = (s: RecordingSession | null, points: RecordedPoint[] = []) =>
   mockedState.mockReturnValue({ session: s, points } as RecordingSnapshot);
 
-const navigation = { goBack: jest.fn() };
+const navigation = { goBack: jest.fn(), replace: jest.fn() };
 const props = {
   navigation,
   route: { key: 'RecordActivity', name: 'RecordActivity' },
@@ -312,7 +313,15 @@ describe('RecordActivityScreen', () => {
       )
     );
     await waitFor(() => expect(discardRecording).toHaveBeenCalled());
-    expect(navigation.goBack).toHaveBeenCalled();
+    expect(navigation.replace).toHaveBeenCalledWith(
+      'RunSummary',
+      expect.objectContaining({
+        activity: 'run',
+        distanceUnit: 'km',
+        distanceMeters: expect.any(Number),
+        program: null,
+      })
+    );
   });
 
   it('keeps the recording when the save fails', async () => {
@@ -324,7 +333,7 @@ describe('RecordActivityScreen', () => {
 
     await waitFor(() => expect(saveRecordedActivity).toHaveBeenCalled());
     expect(discardRecording).not.toHaveBeenCalled();
-    expect(navigation.goBack).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalled();
   });
 
   it('shows a spinner, not Start, until the saved-session check finishes', async () => {
