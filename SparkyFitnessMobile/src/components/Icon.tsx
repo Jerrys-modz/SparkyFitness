@@ -146,6 +146,7 @@ const ICON_MAP = {
   'food-search-settings': { sf: 'magnifyingglass', ion: 'search-outline' },
   'dashboard-settings': { sf: 'square.grid.2x2', ion: 'grid-outline' },
   'diary-settings': { sf: 'book', ion: 'book-outline' },
+  'measurements-settings': { sf: 'ruler', ion: 'speedometer-outline' },
   'workout-settings': { sf: 'dumbbell', ion: 'barbell-outline' },
   'watch-settings': { sf: 'applewatch', ion: 'watch-outline' },
   'app-settings': { sf: 'slider.horizontal.3', ion: 'options-outline' },

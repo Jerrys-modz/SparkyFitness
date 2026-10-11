@@ -113,6 +113,7 @@ npx expo prebuild --clean
 - Meal mutations invalidate meals, recent meals, search, and details; food entry creation can affect recent meals.
 - Exercise/workout preset list/search/detail invalidation belongs in their mutation hooks.
 - `useUpsertCheckIn` updates measurement queries and calls `refreshHealthSyncCache(queryClient)`.
+- Custom measurement categories are managed in `CustomCategoriesScreen` / `CustomCategoryEditScreen` (Settings > Custom Measurements) through `useCreateCustomCategory` / `useUpdateCustomCategory` / `useDeleteCustomCategory`, which invalidate the category list and every cached custom-entry day because entry rows embed their category.
 - `useWaterIntakeMutation` fetches `waterContainersQueryKey`, persists the selected container, and optimistically updates `dailySummaryQueryKey(date)`.
 - Active-server switches clear React Query state before refetching connection state.
 - Error-boundary retry flows call `queryClient.resetQueries()`.
