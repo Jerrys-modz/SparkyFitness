@@ -13,6 +13,11 @@ export function programStructure(t: TFunction, id: string): string {
         defaultValue:
           'Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes.',
       });
+    case 'walkFit':
+      return t('runPrograms.guide.structure.walkFit', {
+        defaultValue:
+          'Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes.',
+      });
     case 'fiveToTenK':
       return t('runPrograms.guide.structure.fiveToTenK', {
         defaultValue:

@@ -21,6 +21,8 @@ export interface ProgramWorkout {
 export interface RunProgram {
   /** Stable id, also the translation key suffix. */
   id: string;
+  /** What the person records for its workouts: a walking program is recorded as a walk. */
+  activity: "run" | "walk";
   workouts: ProgramWorkout[];
   weeks: number;
   workoutsPerWeek: number;
@@ -43,6 +45,8 @@ interface Spec {
 const RUN_WALK: Shape = { style: "runWalk", warmup: 300, cooldown: 300 };
 const SPEED: Shape = { style: "fastEasy", warmup: 600, cooldown: 600 };
 const EASY: Shape = { style: "fastEasy", warmup: 300, cooldown: 300 };
+// Brisk walking and easy walking, named Fast and Easy so nothing says "run".
+const WALKING: Shape = { style: "fastEasy", warmup: 300, cooldown: 300 };
 
 /** A warm-up, the given run/walk pieces (work/recovery steps), a cool-down. */
 function workout(spec: Spec): IntervalPlan {
@@ -74,9 +78,31 @@ const easy = (minutes: number): Spec => ({
   shape: EASY,
 });
 
+/** A walking workout: brisk pieces (work steps) between easy walking. */
+const brisk = (seconds: number): Piece => ["run", seconds];
+const stroll = (seconds: number): Piece => ["walk", seconds];
+const walking = (pieces: readonly Piece[]): Spec => ({
+  pieces,
+  shape: WALKING,
+});
+
 /** Weeks of continuous runs, one row of minutes per week. */
 const steadyWeeks = (rows: readonly (readonly number[])[]): Spec[][] =>
   rows.map((minutes) => minutes.map(steady));
+
+// Eight weeks from short brisk stretches between easy walking to half an hour
+// of brisk walking, three walks a week. For someone who wants to start moving
+// with no running in it.
+const WALK_FIT_WEEKS: readonly (readonly Spec[])[] = [
+  Array(3).fill(walking(repeat(4, [brisk(180), stroll(120)]))),
+  Array(3).fill(walking(repeat(4, [brisk(240), stroll(120)]))),
+  Array(3).fill(walking(repeat(3, [brisk(360), stroll(120)]))),
+  Array(3).fill(walking(repeat(3, [brisk(480), stroll(120)]))),
+  Array(3).fill(walking(repeat(2, [brisk(720), stroll(120)]))),
+  Array(3).fill(walking(repeat(2, [brisk(900), stroll(120)]))),
+  [walking([brisk(1200)]), walking([brisk(1200)]), walking([brisk(1500)])],
+  [walking([brisk(1500)]), walking([brisk(1800)]), walking([brisk(1800)])],
+];
 
 // A nine-week beginner progression from alternating minutes of running and
 // walking to 30 minutes of running, three workouts a week. Each week lists its
@@ -170,12 +196,14 @@ const MARATHON_WEEKS = steadyWeeks([
 function buildProgram(
   id: string,
   weeks: readonly (readonly Spec[])[],
+  activity: RunProgram["activity"] = "run",
 ): RunProgram {
   const workouts = weeks.flatMap((days, week) =>
     days.map((spec, day) => ({ week, day, plan: workout(spec) })),
   );
   return {
     id,
+    activity,
     workouts,
     weeks: weeks.length,
     workoutsPerWeek: weeks[0]?.length ?? 0,
@@ -184,12 +212,18 @@ function buildProgram(
 
 /** Easiest first: the order the picker lists them. */
 export const RUN_PROGRAMS: readonly RunProgram[] = [
+  buildProgram("walkFit", WALK_FIT_WEEKS, "walk"),
   buildProgram("beginner5k", BEGINNER_5K_WEEKS),
   buildProgram("fiveToTenK", FIVE_TO_TEN_K_WEEKS),
   buildProgram("faster5k", FASTER_5K_WEEKS),
   buildProgram("halfMarathon", HALF_MARATHON_WEEKS),
   buildProgram("marathon", MARATHON_WEEKS),
 ];
+
+/** What a program's workouts are recorded as; a program that is gone reads as a run. */
+export function programActivity(id: string): RunProgram["activity"] {
+  return findProgram(id)?.activity ?? "run";
+}
 
 export function findProgram(id: string): RunProgram | null {
   return RUN_PROGRAMS.find((program) => program.id === id) ?? null;
@@ -292,6 +326,7 @@ export function storedProgramStatus(stored: StoredRunProgram): ProgramStatus {
   const weeks = workouts.reduce((max, w) => Math.max(max, w.week + 1), 0);
   const program: RunProgram = {
     id: stored.program_id,
+    activity: programActivity(stored.program_id),
     workouts,
     weeks,
     workoutsPerWeek: workouts.filter((w) => w.week === 0).length,

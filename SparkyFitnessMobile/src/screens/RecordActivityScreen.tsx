@@ -145,11 +145,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!wantsProgramWorkout || programApplied.current || !programLoaded)
       return;
     programApplied.current = true;
-    if (programWorkout) {
-      setActivity('run');
+    if (programWorkout && programStatus) {
+      setActivity(programStatus.program.activity);
       setIntervalChoice('program');
     }
-  }, [wantsProgramWorkout, programLoaded, programWorkout]);
+  }, [wantsProgramWorkout, programLoaded, programWorkout, programStatus]);
   // A program that ended or was left while it was chosen.
   useEffect(() => {
     if (intervalChoice === 'program' && programLoaded && !programWorkout) {
@@ -638,7 +638,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             loaded={programLoaded}
             selected={intervalChoice === 'program'}
             onSelect={() => {
-              setActivity('run');
+              setActivity(programStatus?.program.activity ?? 'run');
               setIntervalChoice('program');
             }}
             onManage={() => navigation.navigate('RunPrograms')}

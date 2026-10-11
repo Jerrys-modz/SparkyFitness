@@ -25,6 +25,10 @@ import {
 
 export function programName(t: TFunction, id: string): string {
   switch (id) {
+    case 'walkFit':
+      return t('recordActivity.program.name.walkFit', {
+        defaultValue: 'Walk for fitness',
+      });
     case 'beginner5k':
       return t('recordActivity.program.name.beginner5k', {
         defaultValue: 'Beginner 5K',
@@ -53,6 +57,11 @@ export function programName(t: TFunction, id: string): string {
 /** A sentence on who a program is for and what it does. */
 export function programDescription(t: TFunction, id: string): string {
   switch (id) {
+    case 'walkFit':
+      return t('recordActivity.program.walkFitDescription', {
+        defaultValue:
+          'Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.',
+      });
     case 'beginner5k':
       return t('recordActivity.program.beginner5kDescription', {
         defaultValue:
@@ -90,6 +99,14 @@ export function programWorkoutLabel(
 ): string {
   const workout = status.workout;
   if (!workout) return programName(t, status.program.id);
+  if (status.program.activity === 'walk') {
+    return t('recordActivity.program.workoutLabelWalk', {
+      name: programName(t, status.program.id),
+      week: workout.week + 1,
+      walk: workout.day + 1,
+      defaultValue: '{{name}} · Week {{week}}, walk {{walk}}',
+    });
+  }
   return t('recordActivity.program.workoutLabel', {
     name: programName(t, status.program.id),
     week: workout.week + 1,

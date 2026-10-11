@@ -65,7 +65,9 @@ const RunProgramBanner: React.FC<{
 
   const minutes = planMinutes(workout.plan);
   const isToday = date === today;
-  const logged = isToday ? findLoggedRun(exerciseEntries, minutes) : null;
+  const logged = isToday
+    ? findLoggedRun(exerciseEntries, minutes, status.program.activity)
+    : null;
 
   const countLoggedRun = async () => {
     setCounting(true);
