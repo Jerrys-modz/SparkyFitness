@@ -100,10 +100,21 @@ export async function setProgramEnabled(
  * Starts `programId` from its first workout and switches it on. Choosing the
  * program already held just switches it on and keeps the place; choosing a
  * different one replaces it (the server reseeds the workouts and the place).
+ * `startDay` sets the first day (null = today); leave it out to keep the
+ * schedule as it is.
  */
-export async function startProgram(programId: string): Promise<void> {
+export async function startProgram(
+  programId: string,
+  startDay?: string | null
+): Promise<void> {
   setCache(
-    (await saveRunProgram({ program_id: programId, enabled: true })).program
+    (
+      await saveRunProgram({
+        program_id: programId,
+        enabled: true,
+        start_date: startDay,
+      })
+    ).program
   );
 }
 
