@@ -27,6 +27,8 @@ import {
 
 const VALID_ACTIONS = [...RUN_PROGRAM_ACTIONS];
 
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 const NO_PROGRAM =
   'The user is not following a run program. Offer to start one (action start_run_program) if they want to; do not assume.';
 
@@ -49,6 +51,12 @@ function summarise(program: RunProgramResponse): string {
     `Switched on: ${program.enabled ? 'yes' : 'no'}`,
     `Progress: ${done} of ${total} workouts done${done >= total ? ' (finished)' : ''}`,
   ];
+  const days = program.run_days.map((d) => WEEKDAY_NAMES[d]).join(', ');
+  lines.push(
+    `Diary days: ${days || 'every day'}`,
+    `First day: ${program.start_date ?? 'from today'}`,
+    `Goal day: ${program.end_date ?? 'none'}`
+  );
   const upcoming = program.workouts.slice(done, done + 3);
   if (upcoming.length > 0) {
     lines.push('', 'Next workouts:');
@@ -86,6 +94,7 @@ Actions:
 - action: 'set_run_program_enabled' (fields: enabled, confirmed) — switches the program on or off, keeping their place
 - action: 'repeat_run_program_week' (fields: week (1-based), confirmed) — goes back to the start of a week to do it again
 - action: 'move_run_program' (fields: week (1-based), run? (1-based, default 1), confirmed) — jumps to a workout
+- action: 'set_run_program_schedule' (fields: run_days? weekdays like ["mon","wed","sat"] (empty = every day), start_date? YYYY-MM-DD (null = from today), end_date? goal day YYYY-MM-DD such as a race (null = none), confirmed) — changes when workouts show in the user's Diary. Only the fields given change. Workouts are laid out one per chosen weekday in order, a missed run moves the rest along, and nothing is scheduled after the goal day. It does not change which workout is next.
 - action: 'adjust_run_program_running' (fields: percent (-30 to +10), count? (1-9, default 1), confirmed) — makes the running in the next workouts shorter or a little longer, keeping walking, warm-up and cool-down
 
 Every change needs confirmed=true after the user has agreed.`,
@@ -140,6 +149,48 @@ Every change needs confirmed=true after the user has agreed.`,
               userId
             );
             return `${formatConfirmation(`Run program switched ${args.enabled ? 'on' : 'off'}.`)}\n\n${summarise(program)}`;
+          }
+
+          if (args.action === 'set_run_program_schedule') {
+            const parts: string[] = [];
+            if (args.run_days !== undefined) {
+              parts.push(
+                `show the workouts on ${
+                  args.run_days.length
+                    ? [...new Set(args.run_days)]
+                        .sort()
+                        .map((d) => WEEKDAY_NAMES[d])
+                        .join(', ')
+                    : 'every day'
+                }`
+              );
+            }
+            if (args.start_date !== undefined) {
+              parts.push(
+                args.start_date ? `start on ${args.start_date}` : 'start today'
+              );
+            }
+            if (args.end_date !== undefined) {
+              parts.push(
+                args.end_date
+                  ? `set the goal day to ${args.end_date}`
+                  : 'remove the goal day'
+              );
+            }
+            if (args.confirmed !== true) {
+              return confirmFirst(`This will ${parts.join(', ')}.`);
+            }
+            const program = await upsertRunProgram(
+              userId,
+              {
+                program_id: existing.program_id,
+                run_days: args.run_days,
+                start_date: args.start_date,
+                end_date: args.end_date,
+              },
+              userId
+            );
+            return `${formatConfirmation('Run program schedule updated.')}\n\n${summarise(program)}`;
           }
 
           let change;

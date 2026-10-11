@@ -61,11 +61,15 @@ import {
   lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
+  type RunProgramResponse,
 } from '@workspace/shared';
 import {
   completeProgramWorkout,
   useRunProgram,
 } from '../services/runProgramService';
+import { runProgramQueryKey } from '../hooks/queryKeys';
+import { nextProgramLine } from '../utils/runProgramSummary';
+import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -427,8 +431,32 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     setBusy(true);
     try {
       const saved = await saveRecordedActivity(session, points, distanceUnit);
+      // What the run came to, shown with the saved message.
+      const unitMeters =
+        distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
+      const savedSummary = summarizeRecording(points);
+      const averagePace = paceSecondsPerUnit(
+        savedSummary.distanceMeters,
+        savedSummary.activeSeconds,
+        unitMeters
+      );
+      const savedStats =
+        savedSummary.distanceMeters > 0
+          ? [
+              `${formatLocalizedNumber(
+                savedSummary.distanceMeters / unitMeters,
+                {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }
+              )} ${distanceUnit === 'miles' ? 'mi' : 'km'}`,
+              formatClock(savedSummary.activeSeconds),
+              `${formatPace(averagePace)}/${distanceUnit === 'miles' ? 'mi' : 'km'}`,
+            ].join(' · ')
+          : formatClock(savedSummary.activeSeconds);
       // Ticks a program workout off only if the plan was followed to its last
       // step; a run cut short can be tried again.
+      let nextLine: string | null = null;
       if (session.program && lastStepStarted(session.intervals)) {
         // The activity is already saved, so a failure here only costs the
         // tick: say so and carry on rather than failing the save.
@@ -437,6 +465,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             session.program.id,
             session.program.index
           );
+          const stored =
+            queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey);
+          if (stored) {
+            nextLine = nextProgramLine(
+              t,
+              stored,
+              toLocalDateString(new Date()),
+              (status) => programWorkoutLabel(t, status)
+            );
+          }
         } catch (error) {
           addLog(
             `[Run Program] Could not tick off the workout: ${error}`,
@@ -449,6 +487,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       Toast.show({
         type: 'success',
         text1: t('recordActivity.saved', { defaultValue: 'Activity saved' }),
+        text2: [savedStats, nextLine].filter(Boolean).join('\n') || undefined,
       });
       navigation.goBack();
     } catch (error) {
