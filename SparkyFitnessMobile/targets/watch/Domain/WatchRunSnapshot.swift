@@ -21,6 +21,8 @@ struct WatchRunSnapshot: Codable {
     /// re-attached is still sent with roughly the right length.
     var elapsed: TimeInterval
     var savedAt: Date
+    /// Lap presses (epoch ms). Optional so a snapshot written before laps existed still decodes.
+    var lapMarks: [Double]?
 
     /// A run left this long ago is not one the wearer is still doing.
     static let maxAge: TimeInterval = 12 * 60 * 60

@@ -33,6 +33,10 @@ final class WatchRunStore: ObservableObject {
     @Published private(set) var summary: Summary?
     /// True while paused by the movement detector rather than by the wearer.
     @Published private(set) var autoPaused = false
+    @Published private(set) var lapCount = 0
+    /// Whole km or miles already announced, so a split is cued once.
+    private var cuedSplits = 0
+    private var lastSplitElapsed: TimeInterval = 0
 
     /// True from Start until the summary is dismissed, so the page stays put
     /// and the wearer is not swiped away from a running recording.
@@ -57,7 +61,10 @@ final class WatchRunStore: ObservableObject {
 
     private init() {
         healthKit.onMetrics = { [weak self] metrics in
-            Task { @MainActor in self?.metrics = metrics }
+            Task { @MainActor in
+                self?.metrics = metrics
+                self?.cueSplitIfDue(metrics)
+            }
         }
         healthKit.onFailure = { [weak self] result in
             Task { @MainActor in self?.sessionFailed(result) }
@@ -77,6 +84,9 @@ final class WatchRunStore: ObservableObject {
         self.place = place
         summary = nil
         metrics = WatchRunMetrics()
+        lapCount = 0
+        cuedSplits = 0
+        lastSplitElapsed = 0
         phase = .running
         healthKit.requestAuthorization { [weak self] in
             Task { @MainActor in
@@ -105,6 +115,13 @@ final class WatchRunStore: ObservableObject {
                     self.metrics = recovery.metrics
                     self.summary = nil
                     self.autoPaused = recovery.autoPaused
+                    self.lapCount = recovery.lapCount
+                    // Splits passed while the app was gone are not replayed.
+                    self.cuedSplits = WatchRunCues.completedSplits(
+                        distanceMeters: recovery.metrics.distanceMeters,
+                        usesMiles: self.usesMiles
+                    )
+                    self.lastSplitElapsed = self.healthKit.elapsed
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
                 case .salvaged(let result):
@@ -142,6 +159,38 @@ final class WatchRunStore: ObservableObject {
         healthKit.resume()
     }
 
+    /// Marks a lap at this moment; the phone cuts the saved route there.
+    func lap() {
+        guard phase == .running else { return }
+        if healthKit.markLap() {
+            lapCount = healthKit.lapCount
+            Haptics.step()
+        }
+    }
+
+    private var usesMiles: Bool {
+        CheckInStore.shared.context.distanceUnit == "miles"
+    }
+
+    /// Buzzes at each whole km or mile, and speaks it when the phone's Voice
+    /// cues switch is on. Only the latest of several passed at once is spoken.
+    private func cueSplitIfDue(_ metrics: WatchRunMetrics) {
+        guard phase == .running else { return }
+        let done = WatchRunCues.completedSplits(distanceMeters: metrics.distanceMeters, usesMiles: usesMiles)
+        guard done > cuedSplits else { return }
+        let passed = done - cuedSplits
+        let now = healthKit.elapsed
+        let perSplit = max(1, (now - lastSplitElapsed) / Double(passed))
+        cuedSplits = done
+        lastSplitElapsed = now
+        Haptics.step()
+        if CheckInStore.shared.context.runVoiceCues == true {
+            WatchRunCues.shared.speak(
+                WatchRunCues.splitText(number: done, seconds: perSplit, usesMiles: usesMiles)
+            )
+        }
+    }
+
     private func applyAutoPause(_ action: WatchAutoPause.Action) {
         switch action {
         case .pause:
@@ -168,6 +217,7 @@ final class WatchRunStore: ObservableObject {
     func discard() { end(save: false) }
 
     func dismissSummary() {
+        lapCount = 0
         autoPaused = false
         summary = nil
         phase = .idle
