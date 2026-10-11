@@ -29,6 +29,7 @@ const stored = (
   adjustment_log: [],
   run_days: [],
   start_date: null,
+  end_date: null,
   last_done_date: null,
   updated_at: '2026-10-10T00:00:00.000Z',
   ...over,
@@ -152,12 +153,21 @@ test('saves the Diary days and first day with the program on the server', async 
     program_id: 'beginner5k',
     run_days: [1, 3],
     start_date: undefined,
+    end_date: undefined,
+  });
+  await setProgramSchedule({ endDay: '2026-12-06' });
+  expect(mockedSave).toHaveBeenLastCalledWith({
+    program_id: 'beginner5k',
+    run_days: undefined,
+    start_date: undefined,
+    end_date: '2026-12-06',
   });
   await setProgramSchedule({ startDay: '2026-10-13' });
   expect(mockedSave).toHaveBeenLastCalledWith({
     program_id: 'beginner5k',
     run_days: undefined,
     start_date: '2026-10-13',
+    end_date: undefined,
   });
   expect(
     queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.start_date

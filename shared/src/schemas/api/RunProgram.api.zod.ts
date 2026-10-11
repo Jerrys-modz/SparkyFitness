@@ -40,6 +40,8 @@ export const runProgramResponseSchema = z.object({
   run_days: z.array(weekday).max(7),
   /** First day (YYYY-MM-DD) the Diary offers the workout, or null for any. */
   start_date: dayString.nullable(),
+  /** The person's goal day (e.g. race day), or null. Nothing is scheduled after it. */
+  end_date: dayString.nullable(),
   /** The last day a program workout was completed (the person's local day). */
   last_done_date: dayString.nullable(),
   updated_at: z.string(),
@@ -63,6 +65,7 @@ export const upsertRunProgramBodySchema = z.object({
   run_days: z.array(weekday).max(7).optional(),
   /** null clears it; absent leaves it as it is. */
   start_date: dayString.nullable().optional(),
+  end_date: dayString.nullable().optional(),
 });
 export type UpsertRunProgramBody = z.infer<typeof upsertRunProgramBodySchema>;
 

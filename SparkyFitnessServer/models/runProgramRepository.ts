@@ -17,6 +17,7 @@ import { z } from 'zod';
  */
 const COLUMNS = `*,
   to_char(start_date, 'YYYY-MM-DD') AS start_day,
+  to_char(end_date, 'YYYY-MM-DD') AS end_day,
   to_char(last_done_date, 'YYYY-MM-DD') AS last_done_day`;
 
 /** Most change-log entries kept per person. */
@@ -39,6 +40,7 @@ function mapRow(row: Record<string, unknown>): RunProgramResponse {
       ? (row.run_days as number[]).map(Number)
       : [],
     start_date: row.start_day ? String(row.start_day) : null,
+    end_date: row.end_day ? String(row.end_day) : null,
     last_done_date: row.last_done_day ? String(row.last_done_day) : null,
     updated_at: new Date(row.updated_at as string).toISOString(),
   };
@@ -81,6 +83,7 @@ export async function upsertRunProgram(
     ? [...new Set(body.run_days)].sort((a, b) => a - b)
     : null;
   const hasStartDate = body.start_date !== undefined;
+  const hasEndDate = body.end_date !== undefined;
 
   const client = await getClient(userId, authenticatedUserId);
   try {
@@ -95,10 +98,11 @@ export async function upsertRunProgram(
       const result = await client.query(
         `INSERT INTO run_programs
            (user_id, program_id, enabled, next_index, workouts, adjustment_log,
-            run_days, start_date)
+            run_days, start_date, end_date)
          VALUES ($1, $2, $3, $4, $5::jsonb, '[]'::jsonb,
                  COALESCE($6::smallint[], '{}'),
-                 CASE WHEN $7::boolean THEN $8::date END)
+                 CASE WHEN $7::boolean THEN $8::date END,
+                 CASE WHEN $9::boolean THEN $10::date END)
          ON CONFLICT ON CONSTRAINT uq_run_programs_user DO UPDATE SET
            program_id = EXCLUDED.program_id,
            enabled = EXCLUDED.enabled,
@@ -108,6 +112,8 @@ export async function upsertRunProgram(
            run_days = COALESCE($6::smallint[], run_programs.run_days),
            start_date = CASE WHEN $7::boolean THEN $8::date
                              ELSE run_programs.start_date END,
+           end_date = CASE WHEN $9::boolean THEN $10::date
+                           ELSE run_programs.end_date END,
            updated_at = NOW()
          RETURNING ${COLUMNS}`,
         [
@@ -119,6 +125,8 @@ export async function upsertRunProgram(
           runDays,
           hasStartDate,
           body.start_date ?? null,
+          hasEndDate,
+          body.end_date ?? null,
         ]
       );
       return mapRow(result.rows[0]);
@@ -129,6 +137,7 @@ export async function upsertRunProgram(
          next_index = LEAST(COALESCE($3, next_index), jsonb_array_length(workouts)),
          run_days = COALESCE($4::smallint[], run_days),
          start_date = CASE WHEN $5::boolean THEN $6::date ELSE start_date END,
+         end_date = CASE WHEN $7::boolean THEN $8::date ELSE end_date END,
          updated_at = NOW()
        WHERE user_id = $1
        RETURNING ${COLUMNS}`,
@@ -139,6 +148,8 @@ export async function upsertRunProgram(
         runDays,
         hasStartDate,
         body.start_date ?? null,
+        hasEndDate,
+        body.end_date ?? null,
       ]
     );
     return mapRow(result.rows[0]);

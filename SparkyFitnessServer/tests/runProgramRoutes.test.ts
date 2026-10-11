@@ -48,6 +48,7 @@ const program = {
   adjustment_log: [],
   run_days: [],
   start_date: null,
+  end_date: null,
   last_done_date: null,
   updated_at: '2026-10-10T00:00:00.000Z',
 };
@@ -162,7 +163,20 @@ describe('run program routes', () => {
       .put('/api/v2/run-program')
       .send({ program_id: 'beginner5k', start_date: null });
     expect(cleared.status).toBe(200);
-    for (const bad of [{ run_days: [7] }, { start_date: 'tomorrow' }]) {
+    const goal = await request(app)
+      .put('/api/v2/run-program')
+      .send({ program_id: 'beginner5k', end_date: '2026-12-06' });
+    expect(goal.status).toBe(200);
+    expect(upsertRunProgram).toHaveBeenLastCalledWith(
+      'test-user-id',
+      expect.objectContaining({ end_date: '2026-12-06' }),
+      'test-user-id'
+    );
+    for (const bad of [
+      { run_days: [7] },
+      { start_date: 'tomorrow' },
+      { end_date: '12/06' },
+    ]) {
       const res = await request(app)
         .put('/api/v2/run-program')
         .send({ program_id: 'beginner5k', ...bad });

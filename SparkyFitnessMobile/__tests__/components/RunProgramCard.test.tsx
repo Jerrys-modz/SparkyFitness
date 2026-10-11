@@ -24,7 +24,11 @@ const handlers = () => ({
   programId: 'beginner5k',
   onChooseProgram: jest.fn(),
   now: Date.now(),
-  schedule: { days: [] as number[], startDay: null as string | null },
+  schedule: {
+    days: [] as number[],
+    startDay: null as string | null,
+    endDay: null as string | null,
+  },
   onSchedule: jest.fn(),
   onPickWorkout: jest.fn(),
   onToggle: jest.fn(),
@@ -159,7 +163,7 @@ describe('diary days and start day', () => {
       <RunProgramCard
         {...props()}
         now={now}
-        schedule={{ days: [1], startDay: null }}
+        schedule={{ days: [1], startDay: null, endDay: null }}
         onSchedule={onSchedule}
       />
     );
@@ -180,7 +184,7 @@ describe('diary days and start day', () => {
       <RunProgramCard
         {...props()}
         now={now}
-        schedule={{ days: [], startDay: '2026-10-13' }}
+        schedule={{ days: [], startDay: '2026-10-13', endDay: null }}
         onSchedule={onSchedule}
       />
     );
@@ -188,12 +192,27 @@ describe('diary days and start day', () => {
     expect(onSchedule).toHaveBeenCalledWith({ startDay: null });
   });
 
+  it('shows the goal date and can clear it', () => {
+    const onSchedule = jest.fn();
+    render(
+      <RunProgramCard
+        {...props()}
+        now={now}
+        schedule={{ days: [], startDay: null, endDay: '2026-12-06' }}
+        onSchedule={onSchedule}
+      />
+    );
+    expect(screen.getByText(/Nothing is scheduled after .*Dec 6/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Clear'));
+    expect(onSchedule).toHaveBeenCalledWith({ endDay: null });
+  });
+
   it('shows a date picked further out', () => {
     render(
       <RunProgramCard
         {...props()}
         now={now}
-        schedule={{ days: [], startDay: '2026-10-20' }}
+        schedule={{ days: [], startDay: '2026-10-20', endDay: null }}
       />
     );
     expect(screen.getByText(/Oct 20/)).toBeTruthy();
@@ -204,7 +223,11 @@ describe('recent changes', () => {
   const base = {
     programId: 'beginner5k',
     onChooseProgram: jest.fn(),
-    schedule: { days: [] as number[], startDay: null as string | null },
+    schedule: {
+      days: [] as number[],
+      startDay: null as string | null,
+      endDay: null as string | null,
+    },
     onSchedule: jest.fn(),
     onPickWorkout: jest.fn(),
     onToggle: jest.fn(),
