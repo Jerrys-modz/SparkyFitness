@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -10,8 +10,11 @@ import BottomSheetPicker, {
   type PickerSection,
 } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
-import type { RunReminders } from '../../services/runReminderService';
+import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
+import type { RunSchedule } from '../../services/runProgramSchedule';
+import { toLocalDateString } from '../../utils/dateUtils';
 import {
+  addDays,
   findProgram,
   planMinutes,
   programOutline,
@@ -95,18 +98,13 @@ export function programWorkoutLabel(
   });
 }
 
-const REMINDER_HOURS = [7, 12, 18] as const;
-
 const weekdayLabel = (day: number, style: 'narrow' | 'long'): string =>
   // 2024-01-07 was a Sunday, so day 0 is Sunday.
   new Date(2024, 0, 7 + day).toLocaleDateString(getAppLocale(), {
     weekday: style,
   });
 
-const hourLabel = (hour: number): string =>
-  new Date(2024, 0, 1, hour).toLocaleTimeString(getAppLocale(), {
-    hour: 'numeric',
-  });
+type StartChoice = 'today' | 'tomorrow' | 'other';
 
 interface Props {
   /** The program picked in the list (the running one, or the one to start). */
@@ -116,8 +114,9 @@ interface Props {
   lastAdjustment?: RunProgramAdjustment | null;
   /** Epoch ms "now", from the screen, to judge whether a change is recent. */
   now: number;
-  reminders: RunReminders;
-  onReminders: (reminders: RunReminders) => void;
+  /** The days the workout shows in the Diary, and the first day it does. */
+  schedule: RunSchedule;
+  onSchedule: (change: Partial<RunSchedule>) => void;
   /** Jump to any workout in the program (0-based index). */
   onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
@@ -140,8 +139,8 @@ const RunProgramCard: React.FC<Props> = ({
   onChooseProgram,
   lastAdjustment = null,
   now,
-  reminders,
-  onReminders,
+  schedule,
+  onSchedule,
   onPickWorkout,
   status,
   loaded,
@@ -154,6 +153,7 @@ const RunProgramCard: React.FC<Props> = ({
   onSkip,
 }) => {
   const { t } = useTranslation();
+  const calendarRef = useRef<CalendarSheetRef>(null);
   if (!loaded) return null;
 
   const header = (
@@ -269,6 +269,22 @@ const RunProgramCard: React.FC<Props> = ({
         day: 'numeric',
       })
     : '';
+  const today = toLocalDateString(new Date(now));
+  const tomorrow = addDays(today, 1);
+  const startChoice: StartChoice =
+    !schedule.startDay || schedule.startDay <= today
+      ? 'today'
+      : schedule.startDay === tomorrow
+        ? 'tomorrow'
+        : 'other';
+  const dayLabel = (day: string): string => {
+    const [y, m, d] = day.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(getAppLocale(), {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
@@ -346,13 +362,13 @@ const RunProgramCard: React.FC<Props> = ({
       {status.finished ? null : (
         <View className="mt-3">
           <Text className="text-text-primary text-sm font-semibold">
-            {t('recordActivity.program.reminders', {
-              defaultValue: 'Run days and reminders',
+            {t('recordActivity.program.diaryDays', {
+              defaultValue: 'Days in your Diary',
             })}
           </Text>
           <View className="flex-row justify-between mt-2">
             {Array.from({ length: 7 }, (_, day) => {
-              const on = reminders.days.includes(day);
+              const on = schedule.days.includes(day);
               return (
                 <TouchableOpacity
                   key={day}
@@ -360,11 +376,10 @@ const RunProgramCard: React.FC<Props> = ({
                   accessibilityLabel={weekdayLabel(day, 'long')}
                   accessibilityState={{ selected: on }}
                   onPress={() =>
-                    onReminders({
-                      ...reminders,
+                    onSchedule({
                       days: on
-                        ? reminders.days.filter((d) => d !== day)
-                        : [...reminders.days, day].sort(),
+                        ? schedule.days.filter((d) => d !== day)
+                        : [...schedule.days, day].sort(),
                     })
                   }
                   className={`w-10 h-10 rounded-full items-center justify-center ${
@@ -382,27 +397,64 @@ const RunProgramCard: React.FC<Props> = ({
               );
             })}
           </View>
-          {reminders.days.length > 0 ? (
-            <View className="mt-2">
-              <SegmentedControl<string>
-                segments={REMINDER_HOURS.map((hour) => ({
-                  key: String(hour),
-                  label: hourLabel(hour),
-                }))}
-                activeKey={String(reminders.hour)}
-                onSelect={(key) =>
-                  onReminders({ ...reminders, hour: Number(key) })
-                }
-              />
-            </View>
-          ) : (
-            <Text className="text-text-muted text-xs mt-2">
-              {t('recordActivity.program.remindersHint', {
-                defaultValue:
-                  'Pick the days you plan to run. You get a reminder then, and the Diary shows the workout on those days. Leave them empty to run whenever you like.',
-              })}
-            </Text>
-          )}
+          <Text className="text-text-muted text-xs mt-2">
+            {schedule.days.length > 0
+              ? t('recordActivity.program.diaryDaysSet', {
+                  defaultValue:
+                    'The Diary shows the workout on these days. A run you miss stays due.',
+                })
+              : t('recordActivity.program.diaryDaysHint', {
+                  defaultValue:
+                    'Pick the days you plan to run, or leave them empty to see the workout every day.',
+                })}
+          </Text>
+          <Text className="text-text-primary text-sm font-semibold mt-3">
+            {t('recordActivity.program.startDay', {
+              defaultValue: 'First workout',
+            })}
+          </Text>
+          <View className="mt-2">
+            <SegmentedControl<StartChoice>
+              segments={[
+                {
+                  key: 'today',
+                  label: t('recordActivity.program.startToday', {
+                    defaultValue: 'Today',
+                  }),
+                },
+                {
+                  key: 'tomorrow',
+                  label: t('recordActivity.program.startTomorrow', {
+                    defaultValue: 'Tomorrow',
+                  }),
+                },
+                ...(startChoice === 'other'
+                  ? [
+                      {
+                        key: 'other' as const,
+                        label: dayLabel(schedule.startDay as string),
+                      },
+                    ]
+                  : []),
+              ]}
+              activeKey={startChoice}
+              onSelect={(key) =>
+                onSchedule({
+                  startDay:
+                    key === 'tomorrow'
+                      ? tomorrow
+                      : key === 'today'
+                        ? null
+                        : schedule.startDay,
+                })
+              }
+            />
+          </View>
+          <Button variant="link" onPress={() => calendarRef.current?.present()}>
+            {t('recordActivity.program.startPick', {
+              defaultValue: 'Pick another date',
+            })}
+          </Button>
         </View>
       )}
       <BottomSheetPicker<string>
@@ -449,6 +501,13 @@ const RunProgramCard: React.FC<Props> = ({
           </Button>
         ) : null}
       </View>
+      <CalendarSheet
+        ref={calendarRef}
+        selectedDate={schedule.startDay ?? today}
+        onSelectDate={(day) =>
+          onSchedule({ startDay: day <= today ? null : day })
+        }
+      />
     </View>
   );
 };

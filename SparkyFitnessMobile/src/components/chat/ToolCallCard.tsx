@@ -13,7 +13,7 @@ import type { ToolCallMessagePart } from '@assistant-ui/react-native';
 import Icon from '../Icon';
 import MarkdownMessage from './MarkdownMessage';
 import { getToolDisplay, isLookupTool } from '../../constants/chat';
-import { syncAfterAssistantChange } from '../../services/runReminderService';
+import { syncAfterAssistantChange } from '../../services/runProgramService';
 
 /**
  * Generic collapsible card for a single tool call. The server's logging tools

@@ -66,7 +66,6 @@ import {
   completeProgramWorkout,
   useRunProgram,
 } from '../services/runProgramService';
-import { reconcileRunReminders } from '../services/runReminderService';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -438,8 +437,6 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             session.program.id,
             session.program.index
           );
-          // The last workout ends the program, and with it the reminders.
-          void reconcileRunReminders();
         } catch (error) {
           addLog(
             `[Run Program] Could not tick off the workout: ${error}`,

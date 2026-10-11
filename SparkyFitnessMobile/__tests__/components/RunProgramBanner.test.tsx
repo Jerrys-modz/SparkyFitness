@@ -13,8 +13,9 @@ jest.mock('../../src/services/runProgramService', () => ({
   useProgramDoneDay: jest.fn(),
 }));
 let mockDays: number[] = [];
-jest.mock('../../src/services/runReminderService', () => ({
-  useRunReminders: () => ({ days: mockDays, hour: 7 }),
+let mockStartDay: string | null = null;
+jest.mock('../../src/services/runProgramSchedule', () => ({
+  useRunSchedule: () => ({ days: mockDays, startDay: mockStartDay }),
 }));
 
 const mockedProgram = jest.mocked(useRunProgram);
@@ -31,6 +32,7 @@ const on = () =>
 
 beforeEach(() => {
   mockDays = [];
+  mockStartDay = null;
   mockedDone.mockReturnValue(null);
   on();
 });
@@ -42,6 +44,12 @@ test("offers today's workout with a Start button", () => {
   expect(screen.getByText(/Week 2, run 2 ·/)).toBeTruthy();
   fireEvent.press(screen.getByText('Start'));
   expect(onStart).toHaveBeenCalled();
+});
+
+test('waits for the start day', () => {
+  mockStartDay = '2999-01-01';
+  render(<RunProgramBanner date={today} onStart={jest.fn()} />);
+  expect(screen.queryByTestId('run-program-banner')).toBeNull();
 });
 
 test('says scheduled on a run day', () => {

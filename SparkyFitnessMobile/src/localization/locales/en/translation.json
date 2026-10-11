@@ -260,8 +260,7 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders",
-      "runReminders": "Run reminders"
+      "hydration": "Hydration reminders"
     },
     "actions": {
       "completeSet": "Complete Set",
@@ -299,10 +298,6 @@
     "hydration": {
       "title": "Time to hydrate 💧",
       "body": "You haven't logged any water in a while."
-    },
-    "runReminder": {
-      "title": "Time for your run",
-      "body": "Today's workout is ready in Record Activity."
     }
   },
   "activeWorkout": {
@@ -6149,8 +6144,13 @@
       "use": "Use a training program",
       "using": "Using this workout",
       "skip": "Skip",
-      "reminders": "Run days and reminders",
-      "remindersHint": "Pick the days you plan to run. You get a reminder then, and the Diary shows the workout on those days. Leave them empty to run whenever you like.",
+      "diaryDays": "Days in your Diary",
+      "diaryDaysSet": "The Diary shows the workout on these days. A run you miss stays due.",
+      "diaryDaysHint": "Pick the days you plan to run, or leave them empty to see the workout every day.",
+      "startDay": "First workout",
+      "startToday": "Today",
+      "startTomorrow": "Tomorrow",
+      "startPick": "Pick another date",
       "pick": "Choose a different workout",
       "pickTitle": "Choose a workout",
       "weekTitle": "Week {{week}}",

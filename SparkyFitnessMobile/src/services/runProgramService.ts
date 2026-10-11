@@ -19,7 +19,7 @@ import {
  * The person's run program and place in it. It lives on the server so the AI
  * assistant can adjust upcoming workouts and every device agrees on where they
  * are; this keeps the React Query copy in step after each change. The weekly
- * reminders stay on the phone (`runReminderService`).
+ * run days and the start date stay on the phone (`runProgramSchedule`).
  */
 
 const setCache = (program: RunProgramResponse | null) =>
@@ -36,6 +36,15 @@ const freshProgram = (): Promise<RunProgramResponse | null> =>
     queryFn: load,
     staleTime: 0,
   });
+
+const syncedToolCalls = new Set<string>();
+
+/** The assistant may have changed the program: drop the cached copy, once per tool call. */
+export function syncAfterAssistantChange(toolCallId: string): void {
+  if (syncedToolCalls.has(toolCallId)) return;
+  syncedToolCalls.add(toolCallId);
+  void queryClient.invalidateQueries({ queryKey: runProgramQueryKey });
+}
 
 /** The program being used, or null when none is chosen or it is switched off. */
 export async function getProgramStatus(): Promise<ProgramStatus | null> {
