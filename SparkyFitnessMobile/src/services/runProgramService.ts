@@ -27,13 +27,17 @@ async function load(): Promise<RunProgramResponse | null> {
   return (await fetchRunProgram()).program;
 }
 
-/** The program being used, or null when none is chosen or it is switched off. */
-export async function getProgramStatus(): Promise<ProgramStatus | null> {
-  const program = await queryClient.fetchQuery({
+/** The stored program as the server has it now, not as this device last saw it. */
+const freshProgram = (): Promise<RunProgramResponse | null> =>
+  queryClient.fetchQuery({
     queryKey: runProgramQueryKey,
     queryFn: load,
-    staleTime: 30_000,
+    staleTime: 0,
   });
+
+/** The program being used, or null when none is chosen or it is switched off. */
+export async function getProgramStatus(): Promise<ProgramStatus | null> {
+  const program = await freshProgram();
   return program?.enabled ? storedProgramStatus(program) : null;
 }
 
@@ -46,9 +50,7 @@ export async function setProgramEnabled(
   enabled: boolean,
   programId: string
 ): Promise<void> {
-  const current = queryClient.getQueryData<RunProgramResponse | null>(
-    runProgramQueryKey
-  );
+  const current = await freshProgram();
   if (!current && !enabled) return;
   setCache(
     (
@@ -73,9 +75,7 @@ export async function startProgram(programId: string): Promise<void> {
 
 /** Jumps to any workout (0-based), to repeat one or start further in. */
 export async function setProgramPosition(index: number): Promise<void> {
-  const current = queryClient.getQueryData<RunProgramResponse | null>(
-    runProgramQueryKey
-  );
+  const current = await freshProgram();
   if (!current) return;
   setCache(
     (
@@ -92,18 +92,18 @@ export const restartProgram = (): Promise<void> => setProgramPosition(0);
 
 /** Skips the workout that is due. */
 export async function skipProgramWorkout(): Promise<void> {
-  const current = queryClient.getQueryData<RunProgramResponse | null>(
-    runProgramQueryKey
-  );
+  const current = await freshProgram();
   if (current) await setProgramPosition(current.next_index + 1);
 }
 
 /** Records workout `index` as done, if it is the one that was due. */
 export async function completeProgramWorkout(
-  _programId: string,
+  programId: string,
   index: number
 ): Promise<void> {
-  setCache((await markRunProgramWorkoutDone({ index })).program);
+  setCache(
+    (await markRunProgramWorkoutDone({ index, program_id: programId })).program
+  );
 }
 
 /** The current program status, or null when none is active. */

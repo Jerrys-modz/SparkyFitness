@@ -22,7 +22,7 @@ import {
 export function beginRecordingCues(): void {
   void startRecordingCueSession();
   // Read the installed voices now so the first cue already uses the best one.
-  void loadSpeechVoices();
+  void loadSpeechVoices(true);
 }
 
 /** Lets the audio session go; call when the recording ends. */

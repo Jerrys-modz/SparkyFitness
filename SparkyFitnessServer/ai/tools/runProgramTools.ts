@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import {
   adjustRunning,
+  findProgram,
   firstIndexOfWeek,
   moveTo,
   planMinutes,
@@ -81,7 +82,7 @@ To judge progress, read the user's recent runs first (sparky_get_exercise_stats 
 
 Actions:
 - action: 'get_run_program' — progress, the next workouts and recent changes
-- action: 'start_run_program' (fields: program_id? default beginner5k, confirmed) — starts a program from workout 1 (or switches it on). Programs: beginner5k (9 weeks, run/walk to 30 min), fiveToTenK (8 weeks, for people who can run 30 min), faster5k (6 weeks of speed work), halfMarathon (12 weeks), marathon (16 weeks, for people who already run regularly). Starting a different program than the current one replaces it, so say so before asking to confirm. Pick by what the user says they can do now; if unsure, ask.
+- action: 'start_run_program' (fields: program_id? default beginner5k, confirmed) — starts a program from workout 1, or switches it on keeping the user's place if they already have that same program (to go back to the beginning use move_run_program with week 1). Programs: beginner5k (9 weeks, run/walk to 30 min), fiveToTenK (8 weeks, for people who can run 30 min), faster5k (6 weeks of speed work), halfMarathon (12 weeks), marathon (16 weeks, for people who already run regularly). Starting a different program than the current one replaces it and drops their adjusted workouts, so say so before asking to confirm. Pick by what the user says they can do now; if unsure, ask.
 - action: 'set_run_program_enabled' (fields: enabled, confirmed) — switches the program on or off, keeping their place
 - action: 'repeat_run_program_week' (fields: week (1-based), confirmed) — goes back to the start of a week to do it again
 - action: 'move_run_program' (fields: week (1-based), run? (1-based, default 1), confirmed) — jumps to a workout
@@ -109,15 +110,19 @@ Every change needs confirmed=true after the user has agreed.`,
             if (args.confirmed !== true) {
               return confirmFirst('This will start the run program.');
             }
+            const programId = args.program_id ?? 'beginner5k';
+            const held = await getRunProgram(userId, userId);
             const program = await upsertRunProgram(
               userId,
-              {
-                program_id: args.program_id ?? 'beginner5k',
-                enabled: true,
-              },
+              { program_id: programId, enabled: true },
               userId
             );
-            return `${formatConfirmation('Run program started.')}\n\n${summarise(program)}`;
+            // The same program keeps its place; only a different one restarts.
+            const note =
+              held?.program_id === programId
+                ? 'The user was already on this program, so it was switched on and their place kept. To go back to the beginning, move to week 1.'
+                : 'Run program started.';
+            return `${formatConfirmation(note)}\n\n${summarise(program)}`;
           }
 
           const existing = await getRunProgram(userId, userId);
@@ -151,6 +156,14 @@ Every change needs confirmed=true after the user has agreed.`,
             if (first < 0) {
               return ERRORS.VALIDATION(`There is no week ${args.week}.`);
             }
+            const inWeek = existing.workouts.filter(
+              (w) => w.week === args.week - 1
+            ).length;
+            if ((args.run ?? 1) > inWeek) {
+              return ERRORS.VALIDATION(
+                `Week ${args.week} has ${inWeek} run${inWeek === 1 ? '' : 's'}, so there is no run ${args.run}.`
+              );
+            }
             const target = first + (args.run ?? 1) - 1;
             describe = `This will move the user to week ${args.week}, run ${args.run ?? 1}.`;
             change = (state: Parameters<typeof moveTo>[0]) =>
@@ -159,7 +172,12 @@ Every change needs confirmed=true after the user has agreed.`,
             const count = args.count ?? 1;
             describe = `This will change the running time in the next ${count} workout${count === 1 ? '' : 's'} by ${args.percent}%.`;
             change = (state: Parameters<typeof adjustRunning>[0]) =>
-              adjustRunning(state, args.percent, count);
+              adjustRunning(
+                state,
+                args.percent,
+                count,
+                findProgram(existing.program_id)?.workouts
+              );
           }
           if (args.confirmed !== true) return confirmFirst(describe);
 

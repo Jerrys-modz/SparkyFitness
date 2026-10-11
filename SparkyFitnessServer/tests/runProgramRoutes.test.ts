@@ -100,9 +100,24 @@ describe('run program routes', () => {
     expect(completeRunProgramWorkout).toHaveBeenCalledWith(
       'test-user-id',
       0,
-      'test-user-id'
+      'test-user-id',
+      undefined
     );
     expect(res.body.program.id).toBe('p1');
+  });
+
+  it('only completes a workout of the program it was done under', async () => {
+    vi.mocked(completeRunProgramWorkout).mockResolvedValue(program);
+    vi.mocked(getRunProgram).mockResolvedValue(program);
+    await request(app)
+      .post('/api/v2/run-program/complete')
+      .send({ index: 2, program_id: 'beginner5k' });
+    expect(completeRunProgramWorkout).toHaveBeenLastCalledWith(
+      'test-user-id',
+      2,
+      'test-user-id',
+      'beginner5k'
+    );
   });
 
   it('validates the completed index', async () => {

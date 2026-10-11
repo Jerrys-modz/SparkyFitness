@@ -57,6 +57,12 @@ describe('voiceTier', () => {
     ).toBe(2);
   });
 
+  it('does not mistake a real voice with the same identifier prefix for a novelty one', () => {
+    expect(
+      voiceTier(voice('com.apple.speech.synthesis.voice.Alex', 'Alex', 'en-US'))
+    ).toBe(1);
+  });
+
   it('never rates a novelty voice', () => {
     expect(voiceTier(novelty)).toBe(0);
   });

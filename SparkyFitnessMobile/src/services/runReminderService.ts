@@ -4,6 +4,8 @@ import {
   cancelScheduledNotification,
   scheduleRunReminderNotifications,
 } from './notifications';
+import { queryClient } from '../hooks/queryClient';
+import { runProgramQueryKey } from '../hooks/queryKeys';
 import { getProgramStatus } from './runProgramService';
 
 /**
@@ -63,8 +65,14 @@ export function getRunReminders(): Promise<RunReminders> {
 export function reconcileRunReminders(): Promise<void> {
   return serial(async () => {
     const stored = await read();
+    // Ask first: with no answer (offline) the reminders already scheduled stay.
+    let status;
+    try {
+      status = await getProgramStatus();
+    } catch {
+      return;
+    }
     await Promise.all(stored.ids.map((id) => cancelScheduledNotification(id)));
-    const status = await getProgramStatus();
     const wanted = !!status && !status.finished && stored.days.length > 0;
     const ids = wanted
       ? await scheduleRunReminderNotifications(stored.days, stored.hour)
@@ -72,6 +80,19 @@ export function reconcileRunReminders(): Promise<void> {
     await AsyncStorage.setItem(KEY, JSON.stringify({ ...stored, ids }));
     listeners.forEach((listener) => listener());
   });
+}
+
+const syncedToolCalls = new Set<string>();
+
+/**
+ * The assistant may have changed the program: drop the cached copy and make
+ * the reminders match the new place, once per tool call.
+ */
+export function syncAfterAssistantChange(toolCallId: string): void {
+  if (syncedToolCalls.has(toolCallId)) return;
+  syncedToolCalls.add(toolCallId);
+  void queryClient.invalidateQueries({ queryKey: runProgramQueryKey });
+  void reconcileRunReminders().catch(() => {});
 }
 
 /** Saves the choice and reschedules. */

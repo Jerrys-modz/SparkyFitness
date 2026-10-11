@@ -19,11 +19,36 @@ export interface SpeechVoice {
 /** 3 premium, 2 enhanced, 1 ordinary, 0 a novelty voice that is never chosen. */
 export type VoiceTier = 0 | 1 | 2 | 3;
 
+const NOVELTY_VOICES = new Set(
+  [
+    'Albert',
+    'BadNews',
+    'Bahh',
+    'Bells',
+    'Boing',
+    'Bubbles',
+    'Cellos',
+    'Deranged',
+    'Fred',
+    'GoodNews',
+    'Hysterical',
+    'Junior',
+    'Kathy',
+    'Organ',
+    'Princess',
+    'Ralph',
+    'Trinoids',
+    'Whisper',
+    'Zarvox',
+  ].map((name) => name.toLowerCase())
+);
+
 export function voiceTier(voice: SpeechVoice): VoiceTier {
   const id = voice.identifier.toLowerCase();
   const name = voice.name.toLowerCase();
   // iOS novelty voices (Bubbles, Zarvox, ...) are not for reading splits.
-  if (id.startsWith('com.apple.speech.synthesis.voice.')) return 0;
+  // Matched by name: the same identifier prefix also covers real voices.
+  if (NOVELTY_VOICES.has(id.slice(id.lastIndexOf('.') + 1))) return 0;
   if (id.includes('.premium.') || name.includes('(premium)')) return 3;
   if (
     id.includes('.enhanced.') ||
@@ -35,7 +60,7 @@ export function voiceTier(voice: SpeechVoice): VoiceTier {
   return 1;
 }
 
-function primary(language: string): string {
+export function primaryLanguage(language: string): string {
   return language.split(/[-_]/)[0]?.toLowerCase() ?? '';
 }
 
@@ -51,9 +76,9 @@ export function voicesForLocale(
   voices: readonly SpeechVoice[],
   locale: string
 ): SpeechVoice[] {
-  const language = primary(locale);
+  const language = primaryLanguage(locale);
   const matching = voices.filter(
-    (v) => voiceTier(v) > 0 && primary(v.language) === language
+    (v) => voiceTier(v) > 0 && primaryLanguage(v.language) === language
   );
   return matching.sort(
     (a, b) =>

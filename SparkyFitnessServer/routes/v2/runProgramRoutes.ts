@@ -95,7 +95,8 @@ router.post('/complete', async (req, res, next) => {
     await completeRunProgramWorkout(
       req.userId,
       parsed.data.index,
-      req.authenticatedUserId
+      req.authenticatedUserId,
+      parsed.data.program_id
     );
     const program = await getRunProgram(req.userId, req.authenticatedUserId);
     res.json({ program });

@@ -65,11 +65,16 @@ export function moveTo(state: ProgramState, index: number): AdjustResult {
  * Makes the running in the next `count` workouts shorter (negative `percent`)
  * or a little longer (positive), leaving the walking, warm-up and cool-down.
  * Workouts already done are never changed.
+ *
+ * With `baseline` (the program as first written), running time in a step can
+ * never end up more than 30% under or 10% over the original, however many
+ * adjustments are made, so repeated changes cannot compound.
  */
 export function adjustRunning(
   state: ProgramState,
   percent: number,
   count: number,
+  baseline?: readonly ProgramWorkout[],
 ): AdjustResult {
   if (!Number.isFinite(percent) || percent === 0) {
     throw new ProgramAdjustError("Give a non-zero percent change.");
@@ -88,30 +93,41 @@ export function adjustRunning(
     throw new ProgramAdjustError("The program is finished: nothing to adjust.");
   }
   const factor = 1 + percent / 100;
+  let changedWorkouts = 0;
   const workouts = state.workouts.map((workout, index) => {
     if (index < state.next || index >= end) return workout;
-    return {
-      ...workout,
-      plan: {
-        ...workout.plan,
-        steps: workout.plan.steps.map((step) =>
-          step.kind === "work"
-            ? {
-                ...step,
-                seconds: Math.min(
-                  MAX_RUN_SECONDS,
-                  Math.max(MIN_RUN_SECONDS, roundTo5(step.seconds * factor)),
-                ),
-              }
-            : step,
-        ),
-      },
-    };
+    const original = baseline?.[index];
+    const comparable =
+      original && original.plan.steps.length === workout.plan.steps.length;
+    let changed = false;
+    const steps = workout.plan.steps.map((step, stepIndex) => {
+      if (step.kind !== "work") return step;
+      let seconds = Math.min(
+        MAX_RUN_SECONDS,
+        Math.max(MIN_RUN_SECONDS, roundTo5(step.seconds * factor)),
+      );
+      const was = comparable ? original.plan.steps[stepIndex].seconds : null;
+      if (was !== null && was > 0) {
+        seconds = Math.min(
+          roundTo5(was * (1 + MAX_PUSH_PERCENT / 100)),
+          Math.max(roundTo5(was * (1 - MAX_EASE_PERCENT / 100)), seconds),
+        );
+      }
+      if (seconds !== step.seconds) changed = true;
+      return { ...step, seconds };
+    });
+    if (!changed) return workout;
+    changedWorkouts++;
+    return { ...workout, plan: { ...workout.plan, steps } };
   });
-  const changed = end - state.next;
+  if (changedWorkouts === 0) {
+    throw new ProgramAdjustError(
+      "Nothing to change: the next workouts have no running time to adjust, or are already at the limit of how far they can be changed from the original plan.",
+    );
+  }
   return {
     workouts,
     next: state.next,
-    summary: `${percent < 0 ? "Eased" : "Lengthened"} the running in the next ${changed} workout${changed === 1 ? "" : "s"} by ${Math.abs(percent)}%.`,
+    summary: `${percent < 0 ? "Eased" : "Lengthened"} the running in ${changedWorkouts} of the next ${end - state.next} workout${end - state.next === 1 ? "" : "s"} by up to ${Math.abs(percent)}%.`,
   };
 }

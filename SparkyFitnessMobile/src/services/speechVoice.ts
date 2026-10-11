@@ -1,6 +1,10 @@
 import * as Speech from 'expo-speech';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { bestVoiceId, type SpeechVoice } from '../utils/speechVoices';
+import {
+  bestVoiceId,
+  primaryLanguage,
+  type SpeechVoice,
+} from '../utils/speechVoices';
 import { addLog } from './LogService';
 
 /**
@@ -25,8 +29,9 @@ export async function loadSpeechVoices(
       quality: v.quality,
     }));
   } catch (err) {
+    // Not cached, so the next call tries again.
     addLog(`loadSpeechVoices failed: ${(err as Error).message}`, 'WARNING');
-    installed = [];
+    return [];
   }
   return installed;
 }
@@ -40,7 +45,16 @@ export async function loadSpeechVoices(
 export function resolveSpeechVoice(locale: string): string | undefined {
   if (!installed) return undefined;
   const picked = useAppPreferencesStore.getState().guidedVoiceId;
-  if (picked && installed.some((v) => v.identifier === picked)) return picked;
+  // `voice` overrides `language`, so a pick only counts in its own language.
+  const pickedVoice = picked
+    ? installed.find((v) => v.identifier === picked)
+    : undefined;
+  if (
+    pickedVoice &&
+    primaryLanguage(pickedVoice.language) === primaryLanguage(locale)
+  ) {
+    return pickedVoice.identifier;
+  }
   return bestVoiceId(installed, locale) ?? undefined;
 }
 
