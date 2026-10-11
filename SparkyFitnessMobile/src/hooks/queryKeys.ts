@@ -103,6 +103,8 @@ export const goalsQueryKey = (date: string) => ['goals', date] as const;
 
 export const goalPresetsQueryKey = ['goalPresets'] as const;
 
+export const weeklyGoalPlansQueryKey = ['weeklyGoalPlans'] as const;
+
 export const goalsRangeQueryKey = (
   startDate: string,
   endDate: string,
