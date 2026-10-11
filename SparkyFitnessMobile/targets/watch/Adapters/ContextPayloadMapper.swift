@@ -333,7 +333,8 @@ enum ContextPayloadMapper {
                     timed: rawSet["timed"] as? Bool,
                     carry: rawSet["carry"] as? Bool,
                     targetDistanceKm: doubleValue(rawSet["targetDistanceKm"]),
-                    weighted: rawSet["weighted"] as? Bool
+                    weighted: rawSet["weighted"] as? Bool,
+                    restAfterSeconds: intValue(rawSet["restAfterSeconds"])
                 )
             }
             return PlannedExercise(

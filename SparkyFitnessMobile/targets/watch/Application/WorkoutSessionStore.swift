@@ -44,9 +44,9 @@ final class WorkoutSessionStore: ObservableObject {
     /// has since dropped is not completed later.
     private var pendingUnknownCompletions: Set<String> = []
     /// The phone's rest as last taken from it, so an update that repeats it
-    /// leaves a rest adjusted here alone. See `applyTargets`. Not in the
-    /// snapshot: the rest itself is not either, so after a relaunch the next
-    /// update has to be free to bring the phone's back.
+    /// leaves a rest adjusted here alone. See `applyTargets`. Kept in the
+    /// snapshot with the rest itself, so a relaunch does not let a repeated
+    /// update undo a ±15s the phone has not heard about yet.
     private var lastPhoneRest: PhoneRest?
     @Published private(set) var latestBpm: Double?
     @Published private(set) var activeEnergyKcal: Double?
@@ -313,7 +313,7 @@ final class WorkoutSessionStore: ObservableObject {
         switch phoneRest {
         case let .resting(endsAt, durationSeconds):
             guard endsAt > Date() else {
-                stopRestTimer()
+                endRestFromPhone()
                 return
             }
             // No rest to show once the workout is done.
@@ -332,8 +332,23 @@ final class WorkoutSessionStore: ObservableObject {
             restTimer?.invalidate()
             restTimer = nil
         case .ready:
-            stopRestTimer()
+            endRestFromPhone()
         }
+    }
+
+    /// Ends the rest on screen because the phone's has ended. A rest that was
+    /// due anyway ran out rather than being skipped, so it still buzzes the
+    /// wrist: the timer here only checks once a second, and the phone's
+    /// update often lands first, which would otherwise end it silently
+    /// while the phone's own ping is hidden on the watch.
+    private func endRestFromPhone() {
+        guard let restEndsAt else { return }
+        // A paused rest keeps its old deadline, which says nothing about
+        // whether it ran out: the phone skipping it is not a buzz.
+        let ranOut = restPausedRemaining == nil
+            && restEndsAt.timeIntervalSinceNow <= 1.5
+        stopRestTimer()
+        if ranOut { onRestFinished?() }
     }
 
     /// Next set still to do after the cursor, else the first one left
@@ -855,11 +870,9 @@ final class WorkoutSessionStore: ObservableObject {
         // leave a tick that cannot log anything.
         if let next = nextIncompleteIndex() {
             moveCursor(to: next)
-            // Phone rest is *before the next set* (`nextStep.restSec`). Using
-            // the completed set's rest inverted per-set rest and supersets.
-            let nextRest = steps[next].plannedSet.restSeconds
-            if nextRest > 0 {
-                startRest(seconds: nextRest)
+            let rest = restSeconds(after: step, before: steps[next])
+            if rest > 0 {
+                startRest(seconds: rest)
             }
         } else {
             // Past the last set so `currentStep` is nil and the UI can show
@@ -896,6 +909,22 @@ final class WorkoutSessionStore: ObservableObject {
         persistSnapshot(reportedEnergyKcal: nil)
     }
 
+    /// The rest between two sets, the way the phone's `restSecBeforeNextSet`
+    /// (activeWorkoutStore.ts) works it out: none before a drop set, none
+    /// between superset partners in the same round, otherwise the rest of the
+    /// set just logged. A phone that does not send `restAfterSeconds` only
+    /// gave the planned rest before each set, so that is used instead.
+    private func restSeconds(after completed: WorkoutStep, before next: WorkoutStep) -> Int {
+        if next.plannedSet.setType?.lowercased() == "drop" { return 0 }
+        if let run = next.supersetRun,
+           completed.supersetRun == run,
+           completed.exerciseEntryId != next.exerciseEntryId,
+           completed.setNumber == next.setNumber {
+            return 0
+        }
+        return completed.plannedSet.restAfterSeconds ?? next.plannedSet.restSeconds
+    }
+
     /// How many of an exercise's sets are logged, for the picker's subtitle.
     ///
     /// `filter {}.count` rather than `count(where:)`: the latter is a Swift 6
@@ -924,12 +953,14 @@ final class WorkoutSessionStore: ObservableObject {
         guard currentStepIndex + 1 < steps.count else { return }
         stopRestTimer()
         moveCursor(to: currentStepIndex + 1)
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     func goToPreviousStep() {
         guard currentStepIndex > 0 else { return }
         stopRestTimer()
         moveCursor(to: currentStepIndex - 1)
+        persistSnapshot(reportedEnergyKcal: nil)
     }
 
     /// The one way the wearer's actions move the cursor, so an exercise
@@ -979,6 +1010,7 @@ final class WorkoutSessionStore: ObservableObject {
     func skipRest() {
         guard let previous = restEndsAt, restPausedRemaining == nil else { return }
         stopRestTimer()
+        persistSnapshot(reportedEnergyKcal: nil)
         onRestChangedHere?(previous, nil)
     }
 
@@ -993,11 +1025,13 @@ final class WorkoutSessionStore: ObservableObject {
         let newEndsAt = endsAt.addingTimeInterval(TimeInterval(delta))
         guard newEndsAt > Date() else {
             stopRestTimer()
+            persistSnapshot(reportedEnergyKcal: nil)
             onRestChangedHere?(endsAt, nil)
             return
         }
         restEndsAt = newEndsAt
         restDurationSeconds = max(1, restDurationSeconds + delta)
+        persistSnapshot(reportedEnergyKcal: nil)
         onRestChangedHere?(endsAt, newEndsAt)
     }
 
@@ -1163,6 +1197,19 @@ final class WorkoutSessionStore: ObservableObject {
             holdBuzzed = false
             startHoldTimer()
         }
+        /// The rest on screen, so a relaunch mid-rest keeps counting down to
+        /// the same moment instead of dropping it. Nil when there is none.
+        var rest: Rest?
+        /// See `lastPhoneRest`. Optional so older snapshots still decode.
+        var lastPhoneRest: PhoneRest?
+    }
+
+    /// A rest as stored in the snapshot.
+    struct Rest: Codable, Equatable {
+        var endsAt: Date
+        var durationSeconds: Int
+        /// See `restPausedRemaining`. Nil while it counts down.
+        var pausedRemaining: TimeInterval?
     }
 
     /// A finish that may not have reached the phone yet.
@@ -1249,7 +1296,15 @@ final class WorkoutSessionStore: ObservableObject {
             heartRateMax: heartRateMax,
             countedHeartRateSeconds: Array(countedHeartRateSeconds),
             baselineStructure: baselineStructure,
-            pendingSetCompletion: pendingSetCompletion
+            pendingSetCompletion: pendingSetCompletion,
+            rest: restEndsAt.map {
+                Rest(
+                    endsAt: $0,
+                    durationSeconds: restDurationSeconds,
+                    pausedRemaining: restPausedRemaining
+                )
+            },
+            lastPhoneRest: lastPhoneRest
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: snapshotKey)
@@ -1290,8 +1345,24 @@ final class WorkoutSessionStore: ObservableObject {
         // may already include changes; the stored one is the real starting plan.
         if let stored = snapshot.baselineStructure { baselineStructure = stored }
         pendingSetCompletion = snapshot.pendingSetCompletion
+        lastPhoneRest = snapshot.lastPhoneRest
+        restoreRest(snapshot.rest)
         persistSnapshot(reportedEnergyKcal: snapshot.reportedEnergyKcal)
         return snapshot
+    }
+
+    /// Puts a stored rest back on screen. A paused one stays frozen until
+    /// the phone resumes it; one that ran out while the app was gone is
+    /// dropped without a buzz, since that moment has passed.
+    private func restoreRest(_ rest: Rest?) {
+        guard let rest, currentStep != nil else { return }
+        if let pausedRemaining = rest.pausedRemaining {
+            restEndsAt = rest.endsAt
+            restDurationSeconds = max(1, rest.durationSeconds)
+            restPausedRemaining = pausedRemaining
+        } else if rest.endsAt > Date() {
+            startRest(until: rest.endsAt, durationSeconds: rest.durationSeconds)
+        }
     }
 
     // MARK: - Pending tails

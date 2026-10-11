@@ -25,6 +25,7 @@ import {
   maybePromptForExactAlarmPermission,
 } from '../services/notifications';
 import { getActiveServerConfig } from '../services/storage';
+import { getDefaultRestSec } from '../stores/appPreferencesStore';
 import { getTodayDate } from '../utils/dateUtils';
 import { isBodyweightModality } from '@workspace/shared';
 import {
@@ -135,6 +136,7 @@ export function buildWatchWorkoutStartPayload(
           ...(isWeightDurationModality(modality) ? { weighted: true } : {}),
           targetDistanceKm: target?.distanceKm ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
+          restAfterSeconds: set.rest_time ?? getDefaultRestSec(),
           setType: set.set_type ?? null,
         };
       }),
