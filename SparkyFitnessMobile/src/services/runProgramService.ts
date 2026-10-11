@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import {
   storedProgramStatus,
@@ -6,6 +7,7 @@ import {
   type RunProgramResponse,
 } from '@workspace/shared';
 import { queryClient } from '../hooks/queryClient';
+import { toLocalDateString } from '../utils/dateUtils';
 import { runProgramQueryKey } from '../hooks/queryKeys';
 import {
   fetchRunProgram,
@@ -96,6 +98,17 @@ export async function skipProgramWorkout(): Promise<void> {
   if (current) await setProgramPosition(current.next_index + 1);
 }
 
+const DONE_DAY_KEY = '@SparkyFitness/runProgram/lastDoneDay';
+const doneDayQueryKey = ['runProgramDoneDay'] as const;
+
+async function readDoneDay(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(DONE_DAY_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /** Records workout `index` as done, if it is the one that was due. */
 export async function completeProgramWorkout(
   programId: string,
@@ -104,6 +117,25 @@ export async function completeProgramWorkout(
   setCache(
     (await markRunProgramWorkoutDone({ index, program_id: programId })).program
   );
+  // Remembered on this device so the Diary stops offering the next workout
+  // for the rest of the day.
+  const today = toLocalDateString(new Date());
+  queryClient.setQueryData(doneDayQueryKey, today);
+  try {
+    await AsyncStorage.setItem(DONE_DAY_KEY, today);
+  } catch {
+    // The card just shows again until tomorrow.
+  }
+}
+
+/** The local day a program workout was last completed, or null. */
+export function useProgramDoneDay(): string | null {
+  const { data } = useQuery({
+    queryKey: doneDayQueryKey,
+    queryFn: readDoneDay,
+    staleTime: Infinity,
+  });
+  return data ?? null;
 }
 
 /** The current program status, or null when none is active. */

@@ -607,7 +607,10 @@
       "exerciseStatistics": "Exercise statistics",
       "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map",
       "reports": "Reports",
-      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends"
+      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends",
+      "runPrograms": "Training programs",
+      "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
+      "runProgramsActive": "{{name}} · {{progress}}"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -633,7 +636,8 @@
     "measurementsReport": "Measurements",
     "substancesReport": "Caffeine and alcohol",
     "profile": "Profile",
-    "addMenuSettings": "Add menu"
+    "addMenuSettings": "Add menu",
+    "runPrograms": "Training programs"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6701,8 +6705,8 @@
       "use": "Use a training program",
       "using": "Using this workout",
       "skip": "Skip",
-      "reminders": "Run reminders",
-      "remindersHint": "Pick the days you plan to run to get a reminder.",
+      "reminders": "Run days and reminders",
+      "remindersHint": "Pick the days you plan to run. You get a reminder then, and the Diary shows the workout on those days. Leave them empty to run whenever you like.",
       "pick": "Choose a different workout",
       "pickTitle": "Choose a workout",
       "weekTitle": "Week {{week}}",
@@ -6721,6 +6725,8 @@
       "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
       "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "minutes": "{{minutes}} min",
+      "workoutsDone": "{{done}} of {{total}} workouts",
       "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
       "chooseTitle": "Choose a program",
       "change": "Change program",
@@ -7356,5 +7362,23 @@
     "chooseCard": "Choose a big button",
     "slotLabel": "Big button {{number}}: {{name}}",
     "slotHint": "Opens a list to choose what goes here"
+  },
+  "runPrograms": {
+    "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
+    "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
+    "start": "Start program",
+    "startWorkout": "Start today's workout",
+    "banner": {
+      "scheduledToday": "Scheduled Today",
+      "upNext": "Up next",
+      "start": "Start",
+      "title": "Week {{week}}, run {{run}} · {{minutes}} min"
+    },
+    "select": {
+      "today": "Today's program workout",
+      "manage": "Manage",
+      "none": "Training program",
+      "setUp": "Set up a program"
+    }
   }
 }
