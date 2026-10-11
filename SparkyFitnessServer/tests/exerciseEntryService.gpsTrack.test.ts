@@ -84,6 +84,19 @@ describe('attachGpsTrackToExerciseEntry', () => {
     expect(client.release).toHaveBeenCalled();
   });
 
+  it('refuses an invalid timestamp instead of saving a shorter track', async () => {
+    await expect(
+      attachGpsTrackToExerciseEntry(userId, 'actor-1', entryId, {
+        points: [{ ...points[0], t: 'not-a-time' }, points[1]],
+      })
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(getClient).not.toHaveBeenCalled();
+    expect(
+      workoutTelemetryRepo._bulkInsertExerciseEntryGpsPointsWithClient
+    ).not.toHaveBeenCalled();
+  });
+
   it('rolls back and releases the connection when a write fails', async () => {
     vi.mocked(
       workoutTelemetryRepo._bulkInsertExerciseEntryGpsPointsWithClient

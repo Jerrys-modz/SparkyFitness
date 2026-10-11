@@ -1,6 +1,6 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
+import { StackActions, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   hasSupplementNutrition,
@@ -77,6 +77,7 @@ import type {
 import { isManualSource } from '../utils/customMeasurementsForm';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
+import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
   getMealTypeDisplayLabel,
@@ -679,18 +680,69 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   }
                   navigation.navigate('WorkoutDetail', { session });
                 } else {
-                  // A GPS recording is an in-app entry with a stored route, so
-                  // the route has to be asked for before choosing the screen.
+                  const synced = cardioSessionFromDiaryEntry(
+                    session,
+                    distanceUnit
+                  );
+                  if (synced) {
+                    navigation.navigate('CardioSession', {
+                      session: synced,
+                      distanceUnit,
+                    });
+                    return;
+                  }
+                  const recorded = cardioSessionFromDiaryEntry(
+                    session,
+                    distanceUnit,
+                    { allowInApp: true }
+                  );
+                  if (!recorded) {
+                    navigation.navigate('ActivityDetail', { session });
+                    return;
+                  }
+                  // A manual entry has no route flag, so the route is a
+                  // network lookup. Open the basic screen on a short bound
+                  // instead of waiting for that lookup, and replace it only
+                  // if a route arrives while this entry is still showing.
+                  const openedId = session.id;
+                  let openedBasic = false;
+                  const openBasic = () => {
+                    if (openedBasic) return;
+                    openedBasic = true;
+                    navigation.navigate('ActivityDetail', { session });
+                  };
+                  const timer = setTimeout(openBasic, 250);
                   void cardioSessionForDiaryEntry(session, distanceUnit).then(
                     (cardioSession) => {
-                      if (cardioSession) {
+                      clearTimeout(timer);
+                      if (!cardioSession) {
+                        openBasic();
+                        return;
+                      }
+                      if (!openedBasic) {
                         navigation.navigate('CardioSession', {
                           session: cardioSession,
                           distanceUnit,
                         });
                         return;
                       }
-                      navigation.navigate('ActivityDetail', { session });
+                      const state = navigation.getState();
+                      const current = state.routes[state.index];
+                      const params = current?.params as
+                        | { session?: { id?: string } }
+                        | undefined;
+                      if (
+                        current?.name !== 'ActivityDetail' ||
+                        params?.session?.id !== openedId
+                      ) {
+                        return;
+                      }
+                      navigation.dispatch(
+                        StackActions.replace('CardioSession', {
+                          session: cardioSession,
+                          distanceUnit,
+                        })
+                      );
                     }
                   );
                 }

@@ -91,6 +91,26 @@ describe('POST /exercise-entries/:id/gps-track', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('rejects a point or lap with an invalid timestamp', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/gps-track`)
+      .send({
+        points: [{ ...points[0], t: 'not-a-time' }, points[1]],
+        laps: [
+          {
+            lap_index: 1,
+            start_time: 'yesterday',
+            end_time: points[1].t,
+          },
+        ],
+      })
+      .expect(400);
+
+    expect(
+      exerciseEntryService.attachGpsTrackToExerciseEntry
+    ).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-UUID entry id', async () => {
     await request(app)
       .post('/exercise-entries/not-a-uuid/gps-track')

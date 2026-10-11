@@ -142,9 +142,14 @@ async function persistChunk(index: number): Promise<void> {
 }
 
 async function clearStoredPoints(): Promise<void> {
-  const chunkCount = Math.ceil(points.length / CHUNK_SIZE) + 1;
-  const keys = Array.from({ length: chunkCount }, (_, i) => chunkKey(i));
-  await AsyncStorage.multiRemove(keys);
+  // Chunk count cannot come from `points.length`. A failed hydrate leaves
+  // that array short of what is still on disk, and the next recording would
+  // then read the leftover chunks onto its own track.
+  const prefix = chunkKey(0).slice(0, -1);
+  const keys = (await AsyncStorage.getAllKeys()).filter((key) =>
+    key.startsWith(prefix)
+  );
+  if (keys.length > 0) await AsyncStorage.multiRemove(keys);
 }
 
 /**

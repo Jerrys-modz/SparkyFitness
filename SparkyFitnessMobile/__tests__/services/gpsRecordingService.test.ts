@@ -243,6 +243,45 @@ describe('finishing and discarding', () => {
       await AsyncStorage.getItem('@SparkyFitness/gpsRecording/chunk/1')
     ).toBeNull();
   });
+
+  it('removes leftover chunks when the restored track is incomplete', async () => {
+    await AsyncStorage.setItem(
+      '@SparkyFitness/gpsRecording/session',
+      JSON.stringify({
+        id: 'rec-1',
+        activity: 'run',
+        status: 'recording',
+        startedAt: T0,
+        finishedAt: null,
+        pausedAt: null,
+        pausedMs: 0,
+        seg: 0,
+        savedEntryId: null,
+      })
+    );
+    await AsyncStorage.setItem(
+      '@SparkyFitness/gpsRecording/chunk/0',
+      JSON.stringify([{ t: T0, lat: 1, lon: 2, alt: null, hacc: null, seg: 0 }])
+    );
+    await AsyncStorage.setItem('@SparkyFitness/gpsRecording/chunk/1', '{');
+    await AsyncStorage.setItem(
+      '@SparkyFitness/gpsRecording/chunk/2',
+      JSON.stringify([{ t: T0, lat: 3, lon: 4, alt: null, hacc: null, seg: 0 }])
+    );
+    resetRecordingStateForTests();
+
+    await discardRecording();
+
+    expect(
+      await AsyncStorage.getItem('@SparkyFitness/gpsRecording/chunk/0')
+    ).toBeNull();
+    expect(
+      await AsyncStorage.getItem('@SparkyFitness/gpsRecording/chunk/1')
+    ).toBeNull();
+    expect(
+      await AsyncStorage.getItem('@SparkyFitness/gpsRecording/chunk/2')
+    ).toBeNull();
+  });
 });
 
 describe('elapsedSeconds', () => {
