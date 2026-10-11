@@ -272,6 +272,7 @@ enum OutboundPayloads {
             "activeEnergyKcal": result.metrics.activeEnergyKcal,
             "route": WatchRunResult.thin(result.route, to: 1500),
             "heartRate": WatchRunResult.thin(result.heartRate, to: 600),
+            "laps": result.laps,
         ]
     }
 

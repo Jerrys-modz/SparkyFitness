@@ -83,7 +83,8 @@ enum ContextPayloadMapper {
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
-            medications: medications(from: payload)
+            medications: medications(from: payload),
+            runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues
         )
     }
 

@@ -35,6 +35,7 @@ const outdoor: WatchRunPayload = {
     [T0, 120],
     [T0 + 60_000, 140],
   ],
+  laps: [],
 };
 
 beforeEach(() => {
@@ -85,4 +86,16 @@ test('a telemetry failure does not fail the save', async () => {
   await expect(saveWatchRun(outdoor, 'km', undefined, jest.fn())).resolves.toBe(
     'e1'
   );
+});
+
+test('cuts the route at the laps the wearer marked', async () => {
+  await saveWatchRun(
+    { ...outdoor, laps: [T0 + 300_000, T0 + 600_000] },
+    'km',
+    undefined,
+    jest.fn()
+  );
+  const { laps } = jest.mocked(attachExerciseEntryGpsTrack).mock.calls[0][1];
+  // Two marks make three stretches, not one per kilometre.
+  expect(laps).toHaveLength(3);
 });

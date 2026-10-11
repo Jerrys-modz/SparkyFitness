@@ -179,7 +179,7 @@ On the watch's **Workout** page, above your saved workouts, tap **Cardio** and c
 
 The watch can only run one workout at a time. The page tells you if your iPhone is recording an activity or a strength workout is running, and it won't start in that case.
 
-Unlike a recording the phone makes, a watch-only recording has no voice cues or laps yet.
+A watch-only recording buzzes at every completed kilometre or mile, and speaks it ("Kilometer 3. 5 minutes 24 seconds.") when Voice cues is on in the Record screen; the sound comes from the watch speaker or paired headphones. The flag button marks a lap (a second press within 3 seconds is ignored); when you save, an outdoor run is cut at your laps instead of at each kilometre or mile. Indoor runs have no route, so laps are not kept. The Voice cues setting reaches the watch with the phone's next update, so open the app once after changing it. Intervals and training programs are not followed on the wrist alone.
 
 ---
 

@@ -66,6 +66,22 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var routeRows: [[Double]] = []
     private var routeSegment = 0.0
     private var heartRateRows: [[Double]] = []
+    /// Epoch ms of each Lap press, oldest first.
+    private var lapMarks: [Double] = []
+
+    var lapCount: Int { lapMarks.count }
+
+    /// Marks a lap now. A press within 3 s of the last is a double tap and is
+    /// ignored; returns whether one was added.
+    @discardableResult
+    func markLap() -> Bool {
+        guard session != nil else { return false }
+        let now = Date().timeIntervalSince1970 * 1000
+        if let last = lapMarks.last, now - last < 3000 { return false }
+        lapMarks.append(now)
+        persistSnapshot(force: true)
+        return true
+    }
 
     /// Last time the snapshot was written; route fixes arrive about once a
     /// second and rewriting the file each time would be wasteful.
@@ -136,6 +152,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             routeRows = []
             routeSegment = 0
             heartRateRows = []
+            lapMarks = []
 
             let now = Date()
             startedAt = now
@@ -185,7 +202,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         let finalElapsed = endingBuilder.elapsedTime
         let endingRoute = routeBuilder
         let endedAt = Date()
-        let rows = (route: routeRows, heartRate: heartRateRows)
+        let rows = (route: routeRows, heartRate: heartRateRows, laps: lapMarks)
         // A discarded run is gone at once. A saved one keeps its snapshot
         // until the store has queued the message for the phone, so a kill
         // between here and there still leaves the run to be sent on relaunch.
@@ -220,7 +237,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     activeSeconds: finalElapsed,
                     metrics: self.metrics,
                     route: rows.route,
-                    heartRate: rows.heartRate
+                    heartRate: rows.heartRate,
+                    laps: rows.laps
                 ) : nil
                 completion(self.metrics, finalElapsed, result)
             }
@@ -237,6 +255,7 @@ struct WatchRunRecovery {
     let paused: Bool
     let autoPaused: Bool
     let metrics: WatchRunMetrics
+    let lapCount: Int
 }
 
 /// What `recoverIfNeeded` found.
@@ -268,7 +287,8 @@ extension WatchRunHealthKitController {
             distanceMeters: metrics.distanceMeters,
             activeEnergyKcal: metrics.activeEnergyKcal,
             elapsed: builder?.elapsedTime ?? 0,
-            savedAt: now
+            savedAt: now,
+            lapMarks: lapMarks
         ))
     }
 
@@ -316,6 +336,7 @@ extension WatchRunHealthKitController {
                 self.runPlace = place
                 self.routeRows = snapshot.routeRows
                 self.heartRateRows = snapshot.heartRateRows
+                self.lapMarks = snapshot.lapMarks ?? []
                 // The jump across the gap while the app was gone is never distance.
                 self.routeSegment = snapshot.routeSegment + 1
                 self.autoPause.reset()
@@ -339,7 +360,8 @@ extension WatchRunHealthKitController {
                     place: place,
                     paused: paused,
                     autoPaused: self.pausedByAutoPause,
-                    metrics: current
+                    metrics: current,
+                    lapCount: self.lapMarks.count
                 )))
             }
         }
@@ -369,7 +391,8 @@ extension WatchRunHealthKitController {
             activeSeconds: snapshot.elapsed,
             metrics: salvaged,
             route: snapshot.routeRows,
-            heartRate: snapshot.heartRateRows
+            heartRate: snapshot.heartRateRows,
+            laps: snapshot.lapMarks ?? []
         ))
     }
 }
@@ -485,7 +508,8 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 activeSeconds: elapsed,
                 metrics: self.metrics,
                 route: self.routeRows,
-                heartRate: self.heartRateRows
+                heartRate: self.heartRateRows,
+                laps: self.lapMarks
             ) : nil
             self.session = nil
             self.builder = nil

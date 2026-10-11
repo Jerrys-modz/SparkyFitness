@@ -28,6 +28,13 @@ describe('parseWatchRunPayload', () => {
     expect(parsed?.heartRate).toEqual([[1000, 110]]);
   });
 
+  test('keeps lap marks in order and drops junk', () => {
+    expect(
+      parseWatchRunPayload({ ...base, laps: [3000, 'x', 1000] })?.laps
+    ).toEqual([1000, 3000]);
+    expect(parseWatchRunPayload(base)?.laps).toEqual([]);
+  });
+
   test.each([
     [null],
     [{ ...base, clientId: '' }],

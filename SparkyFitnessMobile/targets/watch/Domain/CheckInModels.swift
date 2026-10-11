@@ -470,6 +470,8 @@ struct WatchContext: Codable, Equatable {
     /// the page renders as "not synced yet" rather than an empty list. Expires
     /// at midnight like `water`.
     var medications: MedicationSnapshot? = nil
+    /// The phone's "Voice cues" switch: a wrist-only run speaks each completed km or mile.
+    var runVoiceCues: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,
