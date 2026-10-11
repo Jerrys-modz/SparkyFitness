@@ -384,21 +384,30 @@ async function attachGpsTrackToExerciseEntry(
     throw error;
   }
 
-  const points: TelemetryGpsPoint[] = track.points
-    .filter((p) => Number.isFinite(Date.parse(p.t)))
-    .sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  const hasInvalidTime =
+    track.points.some((p) => !Number.isFinite(Date.parse(p.t))) ||
+    (track.laps ?? []).some(
+      (l) =>
+        !Number.isFinite(Date.parse(l.start_time)) ||
+        !Number.isFinite(Date.parse(l.end_time))
+    );
+  if (hasInvalidTime) {
+    const error = new Error('GPS track has an invalid timestamp.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 400;
+    throw error;
+  }
+
+  const points: TelemetryGpsPoint[] = [...track.points].sort(
+    (a, b) => Date.parse(a.t) - Date.parse(b.t)
+  );
   if (points.length < 2) {
     const error = new Error('GPS track needs at least two timestamped points.');
     // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
     error.status = 400;
     throw error;
   }
-  const lapWindows: LapWindow[] = (track.laps ?? [])
-    .filter(
-      (l) =>
-        Number.isFinite(Date.parse(l.start_time)) &&
-        Number.isFinite(Date.parse(l.end_time))
-    )
+  const lapWindows: LapWindow[] = [...(track.laps ?? [])]
     .sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time))
     .map((lap, index) => ({ ...lap, lap_index: index + 1 }));
   const laps = deriveLaps(lapWindows, points);

@@ -240,15 +240,27 @@ public class WatchConnectivityModule: Module {
     /// until the wearer opens the watch app by hand. watchOS only launches it
     /// while the watch is on the wrist, unlocked and paired; otherwise this
     /// quietly does nothing and the plan still arrives on the next open.
-    private static func launchWatchApp() {
+    private static func launchWatchApp(activity: String? = nil) {
         guard HKHealthStore.isHealthDataAvailable(),
               WCSession.isSupported(),
               WCSession.default.isPaired,
               WCSession.default.isWatchAppInstalled
         else { return }
         let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .traditionalStrengthTraining
-        configuration.locationType = .indoor
+        switch activity {
+        case "walk", "walking":
+            configuration.activityType = .walking
+            configuration.locationType = .outdoor
+        case "run", "running":
+            configuration.activityType = .running
+            configuration.locationType = .outdoor
+        case "ride", "cycling":
+            configuration.activityType = .cycling
+            configuration.locationType = .outdoor
+        default:
+            configuration.activityType = .traditionalStrengthTraining
+            configuration.locationType = .indoor
+        }
         HKHealthStore().startWatchApp(with: configuration) { _, _ in }
     }
 
@@ -580,7 +592,7 @@ public class WatchConnectivityModule: Module {
                 WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
             if durable, payload["status"] as? String == "recording" {
-                Self.launchWatchApp()
+                Self.launchWatchApp(activity: payload["activity"] as? String)
             }
         }
 

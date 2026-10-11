@@ -674,13 +674,22 @@ export const attachExerciseEntryGpsTrackRequestSchema = z
     // Two points minimum: a single fix draws no route and measures no distance.
     // Capped well above a long recording (about 14 hours at one point per
     // second) so one post cannot exhaust the parser.
-    points: z.array(gpsTrackPointSchema).min(2).max(50000),
+    points: z
+      .array(
+        gpsTrackPointSchema.extend({
+          // Reject a bad instant here. The service used to drop it and still
+          // save the rest, which stored a shorter route than the client sent.
+          t: z.iso.datetime(),
+        }),
+      )
+      .min(2)
+      .max(50000),
     laps: z
       .array(
         z.object({
           lap_index: z.number().int().positive(),
-          start_time: z.string(),
-          end_time: z.string(),
+          start_time: z.iso.datetime(),
+          end_time: z.iso.datetime(),
         }),
       )
       .max(1000)
