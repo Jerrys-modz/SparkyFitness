@@ -114,3 +114,60 @@ describe('buildSleepAnalytics', () => {
     expect(three.bedtimeVariabilityMinutes).toBe(0);
   });
 });
+
+describe('buildSleepAnalytics extras', () => {
+  // 2026-10-02 is a Friday, 10-03 a Saturday, 10-04 a Sunday, 10-05 a Monday.
+  const week = [
+    night('2026-10-02', { time_asleep_in_seconds: 6 * 3600 }),
+    night('2026-10-03', { time_asleep_in_seconds: 9 * 3600 }),
+    night('2026-10-04', { time_asleep_in_seconds: 8 * 3600 }),
+    night('2026-10-05', { time_asleep_in_seconds: 7 * 3600 }),
+  ];
+
+  it('splits time asleep into weekday and weekend nights', () => {
+    const analytics = buildSleepAnalytics(week, '2026-10-02', 4);
+    expect(analytics.weekdayHours).toBeCloseTo(6.5);
+    expect(analytics.weekendHours).toBeCloseTo(8.5);
+  });
+
+  it('counts nights of 7h or more and finds the longest and shortest', () => {
+    const analytics = buildSleepAnalytics(week, '2026-10-02', 4);
+    expect(analytics.nightsWithDuration).toBe(4);
+    expect(analytics.fullNights).toBe(3);
+    expect(analytics.longestNight).toEqual({ day: '2026-10-03', hours: 9 });
+    expect(analytics.shortestNight).toEqual({ day: '2026-10-02', hours: 6 });
+  });
+
+  it('shares the average night between the stages', () => {
+    const analytics = buildSleepAnalytics(
+      [
+        night('2026-10-02', {
+          deep_sleep_seconds: 3600,
+          light_sleep_seconds: 3 * 3600,
+          rem_sleep_seconds: 3600,
+          awake_sleep_seconds: 3600,
+        }),
+      ],
+      '2026-10-02',
+      1
+    );
+    expect(analytics.stagePct.deep).toBeCloseTo(100 / 6);
+    expect(analytics.stagePct.light).toBeCloseTo(50);
+    const total =
+      (analytics.stagePct.deep ?? 0) +
+      (analytics.stagePct.light ?? 0) +
+      (analytics.stagePct.rem ?? 0) +
+      (analytics.stagePct.awake ?? 0);
+    expect(total).toBeCloseTo(100);
+  });
+
+  it('reports wake-time consistency only with three or more nights', () => {
+    expect(
+      buildSleepAnalytics(week.slice(0, 2), '2026-10-02', 2)
+        .wakeVariabilityMinutes
+    ).toBeNull();
+    expect(
+      buildSleepAnalytics(week, '2026-10-02', 4).wakeVariabilityMinutes
+    ).toBe(0);
+  });
+});

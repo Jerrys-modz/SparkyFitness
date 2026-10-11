@@ -9,6 +9,8 @@ import SegmentedControl from '../components/SegmentedControl';
 import SettingsRow from '../components/SettingsRow';
 import Switch from '../components/ui/Switch';
 import {
+  HYDRATION_SECTIONS,
+  MEASUREMENTS_SECTIONS,
   MOOD_SECTIONS,
   NUTRITION_SECTIONS,
   REPORT_KEYS,
@@ -57,6 +59,54 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.highestLowest', {
       defaultValue: 'Highest and lowest days',
     }),
+  'nutrition.macroGoals': (t) =>
+    t('reportsSettings.sections.macroGoals', { defaultValue: 'Macro goals' }),
+  'nutrition.weekdays': (t) =>
+    t('reportsSettings.sections.nutritionWeekdays', {
+      defaultValue: 'Calories by weekday',
+    }),
+  'nutrition.consistency': (t) =>
+    t('reportsSettings.sections.loggingConsistency', {
+      defaultValue: 'Logging consistency',
+    }),
+  'hydration.overview': (t) =>
+    t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
+  'hydration.chart': (t) =>
+    t('reportsSettings.sections.hydrationChart', {
+      defaultValue: 'Hydration chart',
+    }),
+  'hydration.goal': (t) =>
+    t('reportsSettings.sections.waterGoal', { defaultValue: 'Water goal' }),
+  'hydration.highlights': (t) =>
+    t('reportsSettings.sections.hydrationHighlights', {
+      defaultValue: 'Best and lowest days',
+    }),
+  'hydration.weekdays': (t) =>
+    t('reportsSettings.sections.hydrationWeekdays', {
+      defaultValue: 'Average by weekday',
+    }),
+  'measurements.overview': (t) =>
+    t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
+  'measurements.weightChart': (t) =>
+    t('reportsSettings.sections.weightChart', { defaultValue: 'Weight chart' }),
+  'measurements.weight': (t) =>
+    t('reportsSettings.sections.weightSummary', {
+      defaultValue: 'Weight summary',
+    }),
+  'measurements.bodyComposition': (t) =>
+    t('reportsSettings.sections.bodyComposition', {
+      defaultValue: 'Body composition',
+    }),
+  'measurements.tape': (t) =>
+    t('reportsSettings.sections.tape', { defaultValue: 'Body measurements' }),
+  'measurements.stepsChart': (t) =>
+    t('reportsSettings.sections.stepsChart', { defaultValue: 'Steps chart' }),
+  'sleep.weekendVsWeekday': (t) =>
+    t('reportsSettings.sections.sleepWeekend', {
+      defaultValue: 'Weekdays vs weekends',
+    }),
+  'sleep.nights': (t) =>
+    t('reportsSettings.sections.sleepNights', { defaultValue: 'Nights' }),
   'nutrition.otherNutrients': (t) =>
     t('reportsSettings.sections.otherNutrients', {
       defaultValue: 'Other nutrient averages',
@@ -281,6 +331,14 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
           sectionLabel
         )}
         {renderSections(
+          t('reportsSettings.hydrationSections', {
+            defaultValue: 'Hydration report',
+          }),
+          'reports-section',
+          HYDRATION_SECTIONS,
+          sectionLabel
+        )}
+        {renderSections(
           t('reportsSettings.sleepSections', {
             defaultValue: 'Sleep analytics report',
           }),
@@ -289,6 +347,14 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
             ...SLEEP_SECTIONS,
             ...SLEEP_ANALYTICS_METRICS.map(sleepMetricSection),
           ],
+          sectionLabel
+        )}
+        {renderSections(
+          t('reportsSettings.measurementsSections', {
+            defaultValue: 'Measurements report',
+          }),
+          'reports-section',
+          MEASUREMENTS_SECTIONS,
           sectionLabel
         )}
         {renderSections(

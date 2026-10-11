@@ -81,10 +81,20 @@ export function useNutritionReport({ range }: { range: TrendRange }) {
       const dailyGoals = goalByDay[point.date];
       return dailyGoals ? dailyGoals.calories : null;
     });
+    const macroGoals = {
+      protein: points.map((point) => goalByDay[point.date]?.protein ?? null),
+      carbs: points.map((point) => goalByDay[point.date]?.carbs ?? null),
+      fat: points.map((point) => goalByDay[point.date]?.fat ?? null),
+    };
     return {
       series: toCaloriesSeries(points),
       goals: dayGoals,
-      insights: buildNutritionInsights(points, previous.data ?? [], dayGoals),
+      insights: buildNutritionInsights(
+        points,
+        previous.data ?? [],
+        dayGoals,
+        macroGoals
+      ),
     };
   }, [current.data, previous.data, goals.data, days, startDate]);
 

@@ -93,3 +93,68 @@ describe('percentChange', () => {
     expect(percentChange(1000, 0)).toBeNull();
   });
 });
+
+describe('buildNutritionInsights extras', () => {
+  it('averages calories per weekday over logged days only', () => {
+    // 2026-10-05 and 2026-10-12 are Mondays; 2026-10-06 is a Tuesday.
+    const insights = buildNutritionInsights(
+      [
+        point('2026-10-05', 2000),
+        point('2026-10-06', 1500),
+        point('2026-10-12', 1000),
+        point('2026-10-13', 0),
+      ],
+      [],
+      [null, null, null, null]
+    );
+    expect(insights.weekdayCalories).toEqual([
+      { weekday: 1, average: 1500 },
+      { weekday: 2, average: 1500 },
+    ]);
+  });
+
+  it('counts logging streaks and does not break the current one on an empty last day', () => {
+    const insights = buildNutritionInsights(
+      [
+        point('2026-10-01', 1),
+        point('2026-10-02', 1),
+        point('2026-10-03', 0),
+        point('2026-10-04', 1),
+        point('2026-10-05', 1),
+        point('2026-10-06', 1),
+        point('2026-10-07', 0),
+      ],
+      [],
+      Array(7).fill(null)
+    );
+    expect(insights.streaks).toEqual({ current: 3, longest: 3 });
+  });
+
+  it('compares average macros with the average goal on logged days with a goal', () => {
+    const insights = buildNutritionInsights(
+      [
+        point('d1', 2000, { protein: 100, carbs: 200, fat: 60 }),
+        point('d2', 0),
+        point('d3', 2000, { protein: 140, carbs: 240, fat: 80 }),
+      ],
+      [],
+      [2000, 2000, 2000],
+      {
+        protein: [150, 150, 150],
+        carbs: [null, null, null],
+        fat: [70, 70, 70],
+      }
+    );
+    expect(insights.macroGoals.map((m) => m.key)).toEqual(['protein', 'fat']);
+    const protein = insights.macroGoals[0];
+    expect(protein.average).toBe(120);
+    expect(protein.goal).toBe(150);
+    expect(protein.pct).toBe(80);
+  });
+
+  it('has no macro goal progress without goals', () => {
+    expect(
+      buildNutritionInsights([point('d1', 1)], [], [null]).macroGoals
+    ).toEqual([]);
+  });
+});

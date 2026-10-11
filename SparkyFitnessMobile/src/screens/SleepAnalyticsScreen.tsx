@@ -195,6 +195,111 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
     });
   };
 
+  const stageShare = (pct: number | null): string | undefined =>
+    pct === null
+      ? undefined
+      : t('sleepAnalytics.stageShare', {
+          defaultValue: '{{pct}}% of the night',
+          pct: formatLocalizedNumber(Math.round(pct)),
+        });
+
+  const hoursLabel = (hours: number | null): string =>
+    hours === null
+      ? '-'
+      : t('sleepAnalytics.hoursValue', {
+          defaultValue: '{{hours}} h',
+          hours: formatLocalizedNumber(hours, { maximumFractionDigits: 1 }),
+        });
+
+  const weekendRows = analytics
+    ? [
+        ...(analytics.weekdayHours !== null && analytics.weekendHours !== null
+          ? [
+              {
+                label: t('sleepAnalytics.weekdayAsleep', {
+                  defaultValue: 'Weeknights asleep',
+                }),
+                value: hoursLabel(analytics.weekdayHours),
+                testID: 'sleep-weekday-hours',
+              },
+              {
+                label: t('sleepAnalytics.weekendAsleep', {
+                  defaultValue: 'Weekend nights asleep',
+                }),
+                value: hoursLabel(analytics.weekendHours),
+                hint: t('sleepAnalytics.weekendDiff', {
+                  defaultValue: '{{diff}} vs weeknights',
+                  diff: `${analytics.weekendHours - analytics.weekdayHours >= 0 ? '+' : ''}${hoursLabel(
+                    analytics.weekendHours - analytics.weekdayHours
+                  )}`,
+                }),
+                testID: 'sleep-weekend-hours',
+              },
+            ]
+          : []),
+        ...(analytics.weekdayBedtimeMinutes !== null &&
+        analytics.weekendBedtimeMinutes !== null
+          ? [
+              {
+                label: t('sleepAnalytics.weekdayBedtime', {
+                  defaultValue: 'Weeknight bedtime',
+                }),
+                value: formatClock(analytics.weekdayBedtimeMinutes),
+                testID: 'sleep-weekday-bedtime',
+              },
+              {
+                label: t('sleepAnalytics.weekendBedtime', {
+                  defaultValue: 'Weekend bedtime',
+                }),
+                value: formatClock(analytics.weekendBedtimeMinutes),
+                testID: 'sleep-weekend-bedtime',
+              },
+            ]
+          : []),
+      ]
+    : [];
+
+  const nightRows =
+    analytics && analytics.nightsWithDuration > 0
+      ? [
+          {
+            label: t('sleepAnalytics.fullNights', {
+              defaultValue: 'Nights of 7h or more',
+            }),
+            value: t('sleepAnalytics.fullNightsValue', {
+              defaultValue: '{{full}} of {{total}}',
+              full: analytics.fullNights,
+              total: analytics.nightsWithDuration,
+            }),
+            testID: 'sleep-full-nights',
+          },
+          ...(analytics.longestNight
+            ? [
+                {
+                  label: t('sleepAnalytics.longestNight', {
+                    defaultValue: 'Longest night',
+                  }),
+                  value: hoursLabel(analytics.longestNight.hours),
+                  hint: formatTooltipDate(analytics.longestNight.day),
+                  testID: 'sleep-longest-night',
+                },
+              ]
+            : []),
+          ...(analytics.shortestNight
+            ? [
+                {
+                  label: t('sleepAnalytics.shortestNight', {
+                    defaultValue: 'Shortest night',
+                  }),
+                  value: hoursLabel(analytics.shortestNight.hours),
+                  hint: formatTooltipDate(analytics.shortestNight.day),
+                  testID: 'sleep-shortest-night',
+                },
+              ]
+            : []),
+        ]
+      : [];
+
   const routineRows = analytics
     ? [
         {
@@ -239,6 +344,23 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                   defaultValue: 'Lower means a steadier routine',
                 }),
                 testID: 'sleep-bedtime-variability',
+              },
+            ]),
+        ...(analytics.wakeVariabilityMinutes === null
+          ? []
+          : [
+              {
+                label: t('sleepAnalytics.wakeVariability', {
+                  defaultValue: 'Wake time consistency',
+                }),
+                value: t('sleepAnalytics.variabilityValue', {
+                  defaultValue: '±{{minutes}} min',
+                  minutes: Math.round(analytics.wakeVariabilityMinutes),
+                }),
+                hint: t('sleepAnalytics.variabilityHint', {
+                  defaultValue: 'Lower means a steadier routine',
+                }),
+                testID: 'sleep-wake-variability',
               },
             ]),
       ]
@@ -352,6 +474,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                     defaultValue: 'Deep',
                   }),
                   value: formatSeconds(analytics.stages.deepSeconds, t),
+                  hint: stageShare(analytics.stagePct.deep),
                   testID: 'sleep-stage-deep',
                 },
                 {
@@ -359,11 +482,13 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                     defaultValue: 'Light',
                   }),
                   value: formatSeconds(analytics.stages.lightSeconds, t),
+                  hint: stageShare(analytics.stagePct.light),
                   testID: 'sleep-stage-light',
                 },
                 {
                   label: t('sleepAnalytics.stageRem', { defaultValue: 'REM' }),
                   value: formatSeconds(analytics.stages.remSeconds, t),
+                  hint: stageShare(analytics.stagePct.rem),
                   testID: 'sleep-stage-rem',
                 },
                 {
@@ -371,6 +496,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                     defaultValue: 'Awake',
                   }),
                   value: formatSeconds(analytics.stages.awakeSeconds, t),
+                  hint: stageShare(analytics.stagePct.awake),
                   testID: 'sleep-stage-awake',
                 },
               ]}
@@ -406,6 +532,21 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                 testIDPrefix={`sleep-chart-${metric.key}`}
               />
             ))}
+          {isSectionShown('sleep.weekendVsWeekday') &&
+          weekendRows.length > 0 ? (
+            <ReportSummaryCard
+              title={t('sleepAnalytics.weekendVsWeekday', {
+                defaultValue: 'Weekdays vs weekends',
+              })}
+              rows={weekendRows}
+            />
+          ) : null}
+          {isSectionShown('sleep.nights') && nightRows.length > 0 ? (
+            <ReportSummaryCard
+              title={t('sleepAnalytics.nights', { defaultValue: 'Nights' })}
+              rows={nightRows}
+            />
+          ) : null}
           {isSectionShown('sleep.averages') && averageRows.length > 0 ? (
             <ReportSummaryCard
               title={t('sleepAnalytics.averages', {

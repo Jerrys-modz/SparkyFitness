@@ -51,6 +51,15 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ navigation }) => {
       onPress: () => navigation.navigate('NutritionReport'),
     },
     {
+      key: 'hydration',
+      icon: 'water',
+      title: t('reports.hydration', { defaultValue: 'Hydration' }),
+      subtitle: t('reports.hydrationSubtitle', {
+        defaultValue: 'Daily water, goal streaks and best days',
+      }),
+      onPress: () => navigation.navigate('HydrationReport'),
+    },
+    {
       key: 'sleep',
       icon: 'sleep-bedtime',
       title: t('reports.sleepAnalytics', { defaultValue: 'Sleep analytics' }),
@@ -58,6 +67,15 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ navigation }) => {
         defaultValue: 'Stages, HRV, SpO2, respiration, stress and body battery',
       }),
       onPress: () => navigation.navigate('SleepAnalytics'),
+    },
+    {
+      key: 'measurements',
+      icon: 'measurements',
+      title: t('reports.measurements', { defaultValue: 'Measurements' }),
+      subtitle: t('reports.measurementsSubtitle', {
+        defaultValue: 'Weight, body composition, tape measurements and steps',
+      }),
+      onPress: () => navigation.navigate('MeasurementsReport'),
     },
     {
       key: 'mood',

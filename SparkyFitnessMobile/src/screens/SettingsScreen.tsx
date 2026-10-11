@@ -315,6 +315,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               )}
               {isConnected && (
                 <SettingsRow
+                  icon="chart-bar"
+                  title={t('settings.rows.reports', {
+                    defaultValue: 'Reports',
+                  })}
+                  onPress={() => navigation.navigate('ReportsSettings')}
+                  iconColor={catBlue}
+                />
+              )}
+              {isConnected && (
+                <SettingsRow
                   icon="wellness"
                   title={
                     discreetMode

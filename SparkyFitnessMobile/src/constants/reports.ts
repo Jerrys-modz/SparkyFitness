@@ -5,7 +5,14 @@ import type { SleepAnalyticsMetric } from '../utils/sleepAnalytics';
  * reconciled against this array (`resolveKeyOrder`), so a report added later
  * shows up, at the end, for users who already reordered theirs.
  */
-export const REPORT_KEYS = ['nutrition', 'sleep', 'mood', 'exercise'] as const;
+export const REPORT_KEYS = [
+  'nutrition',
+  'hydration',
+  'sleep',
+  'measurements',
+  'mood',
+  'exercise',
+] as const;
 
 export type ReportKey = (typeof REPORT_KEYS)[number];
 
@@ -20,12 +27,12 @@ export const REPORT_LABELS: Record<ReportKey, (t: Translator) => string> = {
   nutrition: (t) => t('reports.nutrition', { defaultValue: 'Nutrition' }),
   sleep: (t) =>
     t('reports.sleepAnalytics', { defaultValue: 'Sleep analytics' }),
+  hydration: (t) => t('reports.hydration', { defaultValue: 'Hydration' }),
+  measurements: (t) =>
+    t('reports.measurements', { defaultValue: 'Measurements' }),
   mood: (t) => t('reports.mood', { defaultValue: 'Mood' }),
   exercise: (t) => t('reports.exercise', { defaultValue: 'Exercise' }),
 };
-
-/** Reports with sections of their own. Exercise statistics has its own layout. */
-export type SectionedReportKey = Exclude<ReportKey, 'exercise'>;
 
 /**
  * Every section a report can show, namespaced by report so one flat list in
@@ -39,14 +46,36 @@ export const NUTRITION_SECTIONS = [
   'nutrition.macroSplit',
   'nutrition.goal',
   'nutrition.highlights',
+  'nutrition.macroGoals',
+  'nutrition.weekdays',
+  'nutrition.consistency',
   'nutrition.otherNutrients',
   'nutrition.trends',
+] as const;
+
+export const HYDRATION_SECTIONS = [
+  'hydration.overview',
+  'hydration.chart',
+  'hydration.goal',
+  'hydration.highlights',
+  'hydration.weekdays',
+] as const;
+
+export const MEASUREMENTS_SECTIONS = [
+  'measurements.overview',
+  'measurements.weightChart',
+  'measurements.weight',
+  'measurements.bodyComposition',
+  'measurements.tape',
+  'measurements.stepsChart',
 ] as const;
 
 export const SLEEP_SECTIONS = [
   'sleep.overview',
   'sleep.stages',
   'sleep.routine',
+  'sleep.weekendVsWeekday',
+  'sleep.nights',
   'sleep.averages',
 ] as const;
 
@@ -65,6 +94,8 @@ export const sleepMetricSection = (metric: SleepAnalyticsMetric) =>
 
 export type ReportSectionKey =
   | (typeof NUTRITION_SECTIONS)[number]
+  | (typeof HYDRATION_SECTIONS)[number]
+  | (typeof MEASUREMENTS_SECTIONS)[number]
   | (typeof SLEEP_SECTIONS)[number]
   | (typeof MOOD_SECTIONS)[number]
   | ReturnType<typeof sleepMetricSection>;

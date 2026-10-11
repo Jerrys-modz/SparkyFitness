@@ -1,5 +1,5 @@
 import type { SleepEntry } from '../types/sleep';
-import { addDays } from './dateUtils';
+import { addDays, weekdayOfDay } from './dateUtils';
 import { average } from './mathUtils';
 import { selectMainSleep } from './sleepSessions';
 
@@ -25,6 +25,14 @@ export interface SleepStageAverages {
   awakeSeconds: number | null;
 }
 
+/** Hours a night needs to count as a full one in the "nights of 7h+" figure. */
+export const FULL_NIGHT_HOURS = 7;
+
+export interface SleepNightExtreme {
+  day: string;
+  hours: number;
+}
+
 export interface SleepAnalytics {
   /** One point per day; `value` is 0 for a night without that reading. */
   series: Record<SleepAnalyticsMetric, SleepAnalyticsPoint[]>;
@@ -39,6 +47,26 @@ export interface SleepAnalytics {
   averageWakeMinutes: number | null;
   /** Standard deviation of bedtime in minutes; null with fewer than 3 nights. */
   bedtimeVariabilityMinutes: number | null;
+  /** Standard deviation of wake time in minutes; null with fewer than 3 nights. */
+  wakeVariabilityMinutes: number | null;
+  /** Each stage's share of the average night (deep + light + REM + awake), 0-100. */
+  stagePct: {
+    deep: number | null;
+    light: number | null;
+    rem: number | null;
+    awake: number | null;
+  };
+  /** Nights that reported a time asleep, and how many reached `FULL_NIGHT_HOURS`. */
+  nightsWithDuration: number;
+  fullNights: number;
+  longestNight: SleepNightExtreme | null;
+  shortestNight: SleepNightExtreme | null;
+  /** Mean hours asleep on weekday vs weekend nights (by the day the night ends on). */
+  weekdayHours: number | null;
+  weekendHours: number | null;
+  /** Mean bedtime on weekday vs weekend nights, minutes since midnight. */
+  weekdayBedtimeMinutes: number | null;
+  weekendBedtimeMinutes: number | null;
 }
 
 /** Bedtimes are measured from this hour so 23:30 and 00:30 average to midnight, not noon. */
@@ -111,6 +139,11 @@ export function buildSleepAnalytics(
   const efficiencies: number[] = [];
   const bedtimes: number[] = [];
   const wakes: number[] = [];
+  const nightHours: SleepNightExtreme[] = [];
+  const weekdayHours: number[] = [];
+  const weekendHours: number[] = [];
+  const weekdayBedtimes: number[] = [];
+  const weekendBedtimes: number[] = [];
   let nightsWithData = 0;
 
   for (let i = 0; i < days; i++) {
@@ -135,8 +168,17 @@ export function buildSleepAnalytics(
       }
       const bed = clockMinutes(night.bedtime);
       const wake = clockMinutes(night.wake_time);
+      const weekday = weekdayOfDay(day);
+      const isWeekend = weekday === 0 || weekday === 6;
+      const asleepHours = positive(readMetric(night, 'duration'));
+      if (asleepHours !== null) {
+        nightHours.push({ day, hours: asleepHours });
+        (isWeekend ? weekendHours : weekdayHours).push(asleepHours);
+      }
       if (bed !== null) {
-        bedtimes.push((bed - BEDTIME_ORIGIN_HOUR * 60 + 1440) % 1440);
+        const shifted = (bed - BEDTIME_ORIGIN_HOUR * 60 + 1440) % 1440;
+        bedtimes.push(shifted);
+        (isWeekend ? weekendBedtimes : weekdayBedtimes).push(shifted);
       }
       if (wake !== null) wakes.push(wake);
       const pairs: [number | null, number[]][] = [
@@ -155,15 +197,42 @@ export function buildSleepAnalytics(
     SLEEP_ANALYTICS_METRICS.map((metric) => [metric, average(reported[metric])])
   ) as Record<SleepAnalyticsMetric, number | null>;
 
+  const stages = {
+    deepSeconds: average(deep),
+    lightSeconds: average(light),
+    remSeconds: average(rem),
+    awakeSeconds: average(awake),
+  };
+  const stageTotal =
+    (stages.deepSeconds ?? 0) +
+    (stages.lightSeconds ?? 0) +
+    (stages.remSeconds ?? 0) +
+    (stages.awakeSeconds ?? 0);
+  const share = (seconds: number | null) =>
+    seconds === null || stageTotal <= 0 ? null : (seconds / stageTotal) * 100;
+  const byHours = [...nightHours].sort((a, b) => a.hours - b.hours);
+  const shiftBedtime = (value: number[]) =>
+    mean(value, (m) => (m + BEDTIME_ORIGIN_HOUR * 60) % 1440);
+
   return {
     series,
     averages,
-    stages: {
-      deepSeconds: average(deep),
-      lightSeconds: average(light),
-      remSeconds: average(rem),
-      awakeSeconds: average(awake),
+    stages,
+    stagePct: {
+      deep: share(stages.deepSeconds),
+      light: share(stages.lightSeconds),
+      rem: share(stages.remSeconds),
+      awake: share(stages.awakeSeconds),
     },
+    nightsWithDuration: nightHours.length,
+    fullNights: nightHours.filter((n) => n.hours >= FULL_NIGHT_HOURS).length,
+    longestNight: byHours[byHours.length - 1] ?? null,
+    shortestNight: byHours.length > 1 ? byHours[0] : null,
+    weekdayHours: average(weekdayHours),
+    weekendHours: average(weekendHours),
+    weekdayBedtimeMinutes: shiftBedtime(weekdayBedtimes),
+    weekendBedtimeMinutes: shiftBedtime(weekendBedtimes),
+    wakeVariabilityMinutes: standardDeviation(wakes),
     nightsWithData,
     efficiencyPct: average(efficiencies),
     averageBedtimeMinutes: mean(
