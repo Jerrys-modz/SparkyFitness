@@ -128,7 +128,9 @@ describe('RunProgramsScreen', () => {
     renderScreen(props);
     expect(screen.queryByTestId('run-program-marathon')).toBeNull();
     fireEvent.press(screen.getByText("Start today's workout"));
-    expect(props.navigation.navigate).toHaveBeenCalledWith('RecordActivity');
+    expect(props.navigation.navigate).toHaveBeenCalledWith('RecordActivity', {
+      programWorkout: true,
+    });
   });
 
   it('saves the Diary days with the program', () => {
