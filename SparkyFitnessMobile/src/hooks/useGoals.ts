@@ -15,12 +15,19 @@ import {
   fetchGoalPresets,
   updateGoalPreset,
 } from '../services/api/goalPresetsApi';
-import type { DailyGoals, GoalPreset } from '../types/goals';
+import {
+  createWeeklyGoalPlan,
+  deleteWeeklyGoalPlan,
+  fetchWeeklyGoalPlans,
+  updateWeeklyGoalPlan,
+} from '../services/api/weeklyGoalPlansApi';
+import type { DailyGoals, GoalPreset, WeeklyGoalPlan } from '../types/goals';
 import {
   dailySummaryRootQueryKey,
   goalPresetsQueryKey,
   goalsQueryKey,
   goalsRangeQueryKey,
+  weeklyGoalPlansQueryKey,
 } from './queryKeys';
 
 export function useGoalsQuery(date: string, { enabled = true } = {}) {
@@ -113,10 +120,23 @@ export function useGoalPresets({ enabled = true } = {}) {
   return { presets: query.data ?? [], isLoading: query.isLoading };
 }
 
+// Presets and weekly plans decide which goal applies on a given day, so any
+// change to them can change the resolved goals everywhere.
+const invalidateResolvedGoals = (
+  queryClient: ReturnType<typeof useQueryClient>
+) => {
+  queryClient.invalidateQueries({ queryKey: ['goals'] });
+  queryClient.invalidateQueries({ queryKey: ['goalsRange'] });
+  queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
+};
+
 export function useGoalPresetMutations() {
   const queryClient = useQueryClient();
-  const onSettled = () =>
+  const onSettled = () => {
     queryClient.invalidateQueries({ queryKey: goalPresetsQueryKey });
+    queryClient.invalidateQueries({ queryKey: weeklyGoalPlansQueryKey });
+    invalidateResolvedGoals(queryClient);
+  };
   const create = useMutation({ mutationFn: createGoalPreset, onSettled });
   const update = useMutation({
     mutationFn: ({ id, preset }: { id: string; preset: GoalPreset }) =>
@@ -128,6 +148,36 @@ export function useGoalPresetMutations() {
     createPreset: create.mutateAsync,
     updatePreset: update.mutateAsync,
     deletePreset: remove.mutateAsync,
+    isPending: create.isPending || update.isPending || remove.isPending,
+  };
+}
+
+export function useWeeklyGoalPlans({ enabled = true } = {}) {
+  const query = useQuery({
+    queryKey: weeklyGoalPlansQueryKey,
+    queryFn: fetchWeeklyGoalPlans,
+    enabled,
+  });
+  return { plans: query.data ?? [], isLoading: query.isLoading };
+}
+
+export function useWeeklyGoalPlanMutations() {
+  const queryClient = useQueryClient();
+  const onSettled = () => {
+    queryClient.invalidateQueries({ queryKey: weeklyGoalPlansQueryKey });
+    invalidateResolvedGoals(queryClient);
+  };
+  const create = useMutation({ mutationFn: createWeeklyGoalPlan, onSettled });
+  const update = useMutation({
+    mutationFn: ({ id, plan }: { id: string; plan: WeeklyGoalPlan }) =>
+      updateWeeklyGoalPlan(id, plan),
+    onSettled,
+  });
+  const remove = useMutation({ mutationFn: deleteWeeklyGoalPlan, onSettled });
+  return {
+    createPlan: create.mutateAsync,
+    updatePlan: update.mutateAsync,
+    deletePlan: remove.mutateAsync,
     isPending: create.isPending || update.isPending || remove.isPending,
   };
 }

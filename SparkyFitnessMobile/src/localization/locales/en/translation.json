@@ -5831,7 +5831,8 @@
       "nutrients": "Other nutrients",
       "activity": "Water & exercise",
       "meals": "Meal calorie distribution",
-      "presets": "Goal presets"
+      "presets": "Goal presets",
+      "weekly": "Weekly plans"
     },
     "meals": {
       "mustBe100": "Meal percentages must total 100%.",
@@ -5903,21 +5904,61 @@
       "needsProfile": "Set your sex in your profile on the web to calculate recommended nutrient goals."
     },
     "presets": {
-      "description": "Save the values above as a preset, then apply it to the form later. Applying a preset fills the form; tap Save to make it your goals.",
+      "description": "A preset is a saved set of goals. Apply fills the form above with it (tap Save to make it your goals); Edit changes the preset itself.",
       "namePlaceholder": "Preset name",
-      "saveCurrent": "Save as preset",
       "empty": "No goal presets yet.",
       "summary": "{{calories}} kcal, {{protein}}g P, {{carbs}}g C, {{fat}}g F",
       "apply": "Apply",
-      "update": "Update from form",
-      "updateConfirm": "Update",
-      "updateTitle": "Update preset?",
-      "updateMessage": "Replace \"{{name}}\" with the values currently in the form?",
-      "rename": "Rename",
       "deleteTitle": "Delete preset?",
-      "deleteMessage": "Delete \"{{name}}\"?",
+      "deleteMessage": "Delete \"{{name}}\"? Weekly plan days that use it will have no preset.",
       "applied": "Preset applied. Tap Save to keep it.",
-      "failed": "Could not update goal presets."
+      "failed": "Could not update goal presets.",
+      "edit": "Edit",
+      "create": "New preset",
+      "editTitle": "Edit preset",
+      "newTitle": "New preset",
+      "nameLabel": "Preset name",
+      "nameRequired": "Give the preset a name.",
+      "editDescription": "A preset is a saved set of goals. Apply it to your goals, or assign it to days of the week in a weekly plan.",
+      "notFound": "Could not find this preset."
+    },
+    "weekly": {
+      "sectionDescription": "Use a different goal preset on each day of the week, for example higher calories on training days.",
+      "empty": "No weekly plans yet.",
+      "create": "New weekly plan",
+      "activeBadge": "Active",
+      "range": "{{start}} to {{end}}",
+      "rangeOpen": "From {{start}}, no end date",
+      "daysAssigned_one": "{{count}} of 7 days set",
+      "daysAssigned_other": "{{count}} of 7 days set",
+      "deleteTitle": "Delete weekly plan?",
+      "deleteMessage": "Delete \"{{name}}\"?",
+      "deleteFailed": "Could not delete the weekly plan.",
+      "editTitle": "Weekly plan",
+      "newTitle": "New weekly plan",
+      "description": "Pick a goal preset for each day of the week. Between the start and end dates, each day uses its preset instead of your regular goals. Only one plan can be active at a time.",
+      "planName": "Plan name",
+      "startDate": "Start date",
+      "endDate": "End date (optional)",
+      "noEndDate": "No end date",
+      "clearEndDate": "Clear end date",
+      "active": "Active plan",
+      "noPreset": "No preset",
+      "needsPresets": "Create a goal preset first, then assign it to days here.",
+      "nameRequired": "Give the plan a name.",
+      "endBeforeStart": "The end date cannot be before the start date.",
+      "saveFailed": "Failed to save the weekly plan.",
+      "loadFailed": "Could not find this weekly plan.",
+      "goBack": "Go back",
+      "days": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
     }
   }
 }

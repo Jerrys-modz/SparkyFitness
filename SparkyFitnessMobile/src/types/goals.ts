@@ -37,3 +37,24 @@ export interface GoalPreset extends DailyGoals {
   id?: string;
   preset_name: string;
 }
+
+export const WEEKDAY_KEYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+export type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
+
+/** Assigns a goal preset to each day of the week between two dates. */
+export type WeeklyGoalPlan = {
+  id?: string;
+  plan_name: string;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+} & Record<`${WeekdayKey}_preset_id`, string | null>;

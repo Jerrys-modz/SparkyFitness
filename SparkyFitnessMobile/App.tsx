@@ -82,6 +82,7 @@ import {
   SafeChat,
   SafeCalorieSettings,
   SafeGoals,
+  SafeWeeklyGoalPlanEdit,
   SafeMealTypeSettings,
   SafeFoodSettings,
   SafeDashboardSettings,
@@ -797,6 +798,11 @@ function AppContent() {
             name="Goals"
             component={SafeGoals}
             options={createStackScreenOptions(t('goals.title', { defaultValue: 'Goals' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="WeeklyGoalPlanEdit"
+            component={SafeWeeklyGoalPlanEdit}
+            options={createStackScreenOptions(t('goals.weekly.editTitle', { defaultValue: 'Weekly plan' }), { headerBackTitle: t('goals.title', { defaultValue: 'Goals' }) })}
           />
           <Stack.Screen
             name="CalorieSettings"
