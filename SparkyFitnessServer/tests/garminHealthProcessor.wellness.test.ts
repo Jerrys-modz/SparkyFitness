@@ -320,10 +320,10 @@ describe('processGarminHealthAndWellnessData - daily summary calories', () => {
     ).toBe('2026-08-01T20:12:34.123Z');
   });
 
-  it('falls back to sync time when the microservice sends no captured_at', async () => {
-    // Microservices predating the field still persist total_calories, stamped
-    // at processing time — ordering is then arrival order, which is strictly
-    // better than dropping the value entirely.
+  it('sends a NULL capture time when the microservice sends no captured_at', async () => {
+    // Microservices predating the field still persist total_calories, but
+    // with a NULL stamp so the gate only fills an untimestamped row — a
+    // delayed legacy sync can never displace a newer timestamped total.
     await processGarminHealthAndWellnessData(
       'user-1',
       'user-1',
@@ -332,16 +332,19 @@ describe('processGarminHealthAndWellnessData - daily summary calories', () => {
       '2026-08-01'
     );
 
-    const stamp = dailyMetricsPayload().total_calories_captured_at;
-    expect(stamp).toBeInstanceOf(Date);
-    expect(Math.abs((stamp as Date).getTime() - Date.now())).toBeLessThan(
-      60_000
+    expect(upsertDailyHealthMetrics).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      expect.objectContaining({
+        total_calories: 4594,
+        total_calories_captured_at: null,
+      })
     );
   });
 
   it('keeps the value/stamp pair null together when Garmin sent no total', async () => {
-    // The gate advances only on a non-null value + non-null stamp pair, so a
-    // day without totalKilocalories must not push a bare stamp.
+    // The gate only advances total_calories alongside its stamp, so a day
+    // without totalKilocalories must not push a bare stamp.
     await processGarminHealthAndWellnessData(
       'user-1',
       'user-1',
