@@ -129,6 +129,10 @@ struct ContentView: View {
             return .goals
         case .water:
             return .water
+        case .fasting:
+            return .fasting
+        case .steps:
+            return .steps
         }
     }
 
@@ -139,6 +143,10 @@ struct ContentView: View {
             GoalSummaryView()
         case .water:
             WaterIntakeView()
+        case .fasting:
+            FastingView()
+        case .steps:
+            StepsView()
         case .entry:
             CheckInEntryView { self.page = shown(.trend) ?? self.page }
         case .trend:

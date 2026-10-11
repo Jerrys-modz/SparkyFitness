@@ -14,3 +14,12 @@
 "watch.rpe.meaning.4" = "Light effort";
 "watch.rpe.meaning.3" = "Very light effort";
 "watch.rpe.meaning.low" = "Little to no effort";
+"watch.fasting.running" = "Fasting";
+"watch.fasting.runningNamed" = "Fasting · %@";
+"watch.fasting.remaining" = "%@ to go";
+"watch.fasting.goalReached" = "Goal reached";
+"watch.fasting.end" = "End fast";
+"watch.fasting.endConfirm" = "End your fast?";
+"watch.fasting.cancel" = "Cancel";
+"watch.fasting.notFasting" = "Not fasting";
+"watch.fasting.waiting" = "Waiting for your iPhone";
