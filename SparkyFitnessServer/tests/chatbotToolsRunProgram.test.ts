@@ -30,6 +30,7 @@ const program = (overrides: Partial<RunProgramResponse> = {}) =>
     adjustment_log: [],
     run_days: [],
     start_date: null,
+    end_date: null,
     last_done_date: null,
     updated_at: '2026-10-10T00:00:00.000Z',
     ...overrides,

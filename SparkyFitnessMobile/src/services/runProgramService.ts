@@ -29,12 +29,14 @@ async function load(): Promise<RunProgramResponse | null> {
 }
 
 /**
- * Changes when the Diary offers the workout: the weekdays (none = every day)
- * and the first day (null = from today). Kept with the program on the server.
+ * Changes when the Diary offers the workout: the weekdays (none = whenever),
+ * the first day (null = from today) and the goal day (null = none). Kept with
+ * the program on the server.
  */
 export async function setProgramSchedule(change: {
   days?: number[];
   startDay?: string | null;
+  endDay?: string | null;
 }): Promise<void> {
   const current = await freshProgram();
   if (!current) return;
@@ -44,6 +46,7 @@ export async function setProgramSchedule(change: {
         program_id: current.program_id,
         run_days: change.days,
         start_date: change.startDay,
+        end_date: change.endDay,
       })
     ).program
   );
@@ -154,7 +157,11 @@ export function useRunProgram(): {
   /** The most recent change to the workouts or place made by Sparky or the person, if any. */
   lastAdjustment: RunProgramAdjustment | null;
   /** When the Diary offers the workout: weekdays (empty = every day) and first day. */
-  schedule: { days: number[]; startDay: string | null };
+  schedule: {
+    days: number[];
+    startDay: string | null;
+    endDay: string | null;
+  };
   /** The local day a program workout was last completed, or null. */
   doneDay: string | null;
   loaded: boolean;
@@ -172,6 +179,7 @@ export function useRunProgram(): {
     schedule: {
       days: data?.run_days ?? [],
       startDay: data?.start_date ?? null,
+      endDay: data?.end_date ?? null,
     },
     doneDay: data?.last_done_date ?? null,
     loaded: isSuccess,

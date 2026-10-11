@@ -8,6 +8,7 @@ import RunProgramCard, {
   programDescription,
   programName,
 } from '../components/recording/RunProgramCard';
+import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
@@ -24,6 +25,7 @@ import {
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
+import { toLocalDateString } from '../utils/dateUtils';
 
 type Props = RootStackScreenProps<'RunPrograms'>;
 
@@ -34,8 +36,10 @@ type Props = RootStackScreenProps<'RunPrograms'>;
 const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { status, enabled, lastAdjustment, schedule, loaded } = useRunProgram();
+  const { status, enabled, lastAdjustment, schedule, doneDay, loaded } =
+    useRunProgram();
   const [now] = useState(() => Date.now());
+  const today = toLocalDateString(new Date(now));
   const [chosenId, setChosenId] = useState('beginner5k');
   const storedId = status?.program.id;
 
@@ -123,6 +127,12 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           })}
           onRestart={() => change(restartProgram)}
           onSkip={() => change(skipProgramWorkout)}
+        />
+        <RunProgramCalendar
+          status={status}
+          schedule={schedule}
+          doneDay={doneDay}
+          today={today}
         />
         <RunProgramGuide programId={storedId} />
       </>

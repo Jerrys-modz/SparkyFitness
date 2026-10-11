@@ -230,6 +230,7 @@ export * from "./utils/workoutFeedbackForm.ts";
 export * from "./utils/adaptiveCoaching.ts";
 export * from "./utils/runIntervals.ts";
 export * from "./utils/runPrograms.ts";
+export * from "./utils/runProgramSchedule.ts";
 export * from "./constants/corosSportTypes.ts";
 export * from "./utils/runProgramAdjust.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";

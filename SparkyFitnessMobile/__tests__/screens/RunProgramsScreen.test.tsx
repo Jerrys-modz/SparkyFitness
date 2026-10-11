@@ -69,7 +69,7 @@ describe('RunProgramsScreen', () => {
       status: null,
       enabled: false,
       lastAdjustment: null,
-      schedule: { days: [], startDay: null },
+      schedule: { days: [], startDay: null, endDay: null },
       doneDay: null,
       loaded: true,
     });
@@ -85,7 +85,7 @@ describe('RunProgramsScreen', () => {
       status: programStatus({ programId: 'beginner5k', next: 2 })!,
       enabled: true,
       lastAdjustment: null,
-      schedule: { days: [], startDay: null },
+      schedule: { days: [], startDay: null, endDay: null },
       doneDay: null,
       loaded: true,
     });
@@ -101,7 +101,7 @@ describe('RunProgramsScreen', () => {
       status: programStatus({ programId: 'beginner5k', next: 2 })!,
       enabled: true,
       lastAdjustment: null,
-      schedule: { days: [], startDay: null },
+      schedule: { days: [], startDay: null, endDay: null },
       doneDay: null,
       loaded: true,
     });
@@ -119,7 +119,7 @@ describe('RunProgramsScreen', () => {
       status: programStatus({ programId: 'beginner5k', next: 2 })!,
       enabled: false,
       lastAdjustment: null,
-      schedule: { days: [], startDay: null },
+      schedule: { days: [], startDay: null, endDay: null },
       doneDay: null,
       loaded: true,
     });

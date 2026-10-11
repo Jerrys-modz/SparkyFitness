@@ -107,6 +107,7 @@ const weekdayLabel = (day: number, style: 'narrow' | 'long'): string =>
 export interface RunSchedule {
   days: number[];
   startDay: string | null;
+  endDay: string | null;
 }
 
 type StartChoice = 'today' | 'tomorrow' | 'other';
@@ -121,7 +122,11 @@ interface Props {
   now: number;
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
-  onSchedule: (change: { days?: number[]; startDay?: string | null }) => void;
+  onSchedule: (change: {
+    days?: number[];
+    startDay?: string | null;
+    endDay?: string | null;
+  }) => void;
   /** Jump to any workout in the program (0-based index). */
   onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
@@ -159,6 +164,7 @@ const RunProgramCard: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<CalendarSheetRef>(null);
+  const goalCalendarRef = useRef<CalendarSheetRef>(null);
   if (!loaded) return null;
 
   const header = (
@@ -460,6 +466,47 @@ const RunProgramCard: React.FC<Props> = ({
               defaultValue: 'Pick another date',
             })}
           </Button>
+          <Text className="text-text-primary text-sm font-semibold mt-1">
+            {t('recordActivity.program.goalDay', {
+              defaultValue: 'Goal date',
+            })}
+          </Text>
+          <Text className="text-text-secondary text-xs mt-1">
+            {schedule.endDay
+              ? t('recordActivity.program.goalDaySet', {
+                  date: dayLabel(schedule.endDay),
+                  defaultValue:
+                    'Nothing is scheduled after {{date}}. The schedule below says whether the program fits.',
+                })
+              : t('recordActivity.program.goalDayHint', {
+                  defaultValue:
+                    'Optional, for example a race day. The schedule below says whether the program fits before it.',
+                })}
+          </Text>
+          <View className="flex-row">
+            <Button
+              variant="link"
+              onPress={() => goalCalendarRef.current?.present()}
+            >
+              {schedule.endDay
+                ? t('recordActivity.program.goalChange', {
+                    defaultValue: 'Change goal date',
+                  })
+                : t('recordActivity.program.goalPick', {
+                    defaultValue: 'Set a goal date',
+                  })}
+            </Button>
+            {schedule.endDay ? (
+              <Button
+                variant="link"
+                onPress={() => onSchedule({ endDay: null })}
+              >
+                {t('recordActivity.program.goalClear', {
+                  defaultValue: 'Clear',
+                })}
+              </Button>
+            ) : null}
+          </View>
         </View>
       )}
       <BottomSheetPicker<string>
@@ -506,6 +553,13 @@ const RunProgramCard: React.FC<Props> = ({
           </Button>
         ) : null}
       </View>
+      <CalendarSheet
+        ref={goalCalendarRef}
+        selectedDate={schedule.endDay ?? addDays(today, 28)}
+        onSelectDate={(day) =>
+          onSchedule({ endDay: day <= today ? null : day })
+        }
+      />
       <CalendarSheet
         ref={calendarRef}
         selectedDate={schedule.startDay ?? today}
