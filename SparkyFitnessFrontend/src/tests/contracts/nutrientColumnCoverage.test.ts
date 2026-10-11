@@ -60,6 +60,12 @@ const DELIBERATE_OMISSIONS: Omission[] = [
       'user_goals has no water_ml column — water_goal_ml is the one water goal (NON_GOAL_NUTRIENT_KEYS).',
   },
   {
+    file: /^utils\/nutrientInsights\.ts$/,
+    columns: TRACKED_COLUMNS,
+    reason:
+      'Nutrient Insights evaluates a curated set of micronutrients and limits; caffeine, water and alcohol are intake trackers, not nutrient adequacy.',
+  },
+  {
     file: /^components\/Onboarding\/NutrientGoals\.tsx$/,
     columns: TRACKED_COLUMNS,
     reason:
