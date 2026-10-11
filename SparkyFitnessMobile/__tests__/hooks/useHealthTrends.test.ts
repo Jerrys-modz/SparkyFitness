@@ -25,6 +25,7 @@ jest.mock('../../src/services/api/measurementsApi', () => ({
   fetchWaterIntakeRange: jest.fn(),
   fetchCustomCategories: jest.fn(() => Promise.resolve([])),
   fetchCustomMeasurementsRange: jest.fn(() => Promise.resolve([])),
+  fetchDailyVo2Max: jest.fn(() => Promise.resolve([])),
 }));
 
 jest.mock('../../src/services/api/sleepApi', () => ({

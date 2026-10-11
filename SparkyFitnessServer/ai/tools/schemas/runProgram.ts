@@ -12,6 +12,7 @@ export const RUN_PROGRAM_ACTIONS = [
   'repeat_run_program_week',
   'move_run_program',
   'adjust_run_program_running',
+  'set_run_program_schedule',
 ] as const;
 
 const confirmedSchema = z
@@ -20,6 +21,40 @@ const confirmedSchema = z
   .describe(
     'Must be true to apply a change. If omitted or false, the tool says what it would do and changes nothing: ask the user first.'
   );
+
+const WEEKDAYS: Record<string, number> = {
+  sun: 0,
+  sunday: 0,
+  mon: 1,
+  monday: 1,
+  tue: 2,
+  tues: 2,
+  tuesday: 2,
+  wed: 3,
+  wednesday: 3,
+  thu: 4,
+  thur: 4,
+  thurs: 4,
+  thursday: 4,
+  fri: 5,
+  friday: 5,
+  sat: 6,
+  saturday: 6,
+};
+
+// A weekday as 0 (Sunday) to 6, or its English name or abbreviation.
+const weekdaySchema = z.preprocess((value) => {
+  if (typeof value === 'string') {
+    const key = value.trim().toLowerCase();
+    if (key in WEEKDAYS) return WEEKDAYS[key];
+    if (/^\d$/.test(key)) return Number(key);
+  }
+  return value;
+}, z.number().int().min(0).max(6));
+
+const daySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date as YYYY-MM-DD.');
 
 export const manageRunProgramSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('get_run_program') }).strict(),
@@ -79,6 +114,38 @@ export const manageRunProgramSchema = z.discriminatedUnion('action', [
       confirmed: confirmedSchema,
     })
     .strict(),
+  z
+    .object({
+      action: z.literal('set_run_program_schedule'),
+      run_days: z
+        .array(weekdaySchema)
+        .max(7)
+        .optional()
+        .describe(
+          'The weekdays the workouts show in the Diary: 0 (Sunday) to 6, or names like "mon". An empty list means every day.'
+        ),
+      start_date: daySchema
+        .nullable()
+        .optional()
+        .describe(
+          'The first day a workout shows, YYYY-MM-DD. null starts from today.'
+        ),
+      end_date: daySchema
+        .nullable()
+        .optional()
+        .describe(
+          'A goal day such as a race, YYYY-MM-DD. Nothing is scheduled after it. null removes it.'
+        ),
+      confirmed: confirmedSchema,
+    })
+    .strict()
+    .refine(
+      (value) =>
+        value.run_days !== undefined ||
+        value.start_date !== undefined ||
+        value.end_date !== undefined,
+      { message: 'Give run_days, start_date or end_date.' }
+    ),
 ]);
 
 export type ManageRunProgramInput = z.infer<typeof manageRunProgramSchema>;
@@ -93,5 +160,8 @@ export const manageRunProgramInput = z.object({
   run: z.union([z.string(), z.number()]).optional(),
   percent: z.union([z.string(), z.number()]).optional(),
   count: z.union([z.string(), z.number()]).optional(),
+  run_days: z.array(z.union([z.string(), z.number()])).optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
   confirmed: z.boolean().optional(),
 });
