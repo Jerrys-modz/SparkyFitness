@@ -151,7 +151,8 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
-      "ai": "AI"
+      "ai": "AI",
+      "reports": "Reports"
     },
     "theme": {
       "title": "Theme",
@@ -593,7 +594,9 @@
     "nutritionReport": "Nutrition",
     "sleepAnalytics": "Sleep Analytics",
     "moodReport": "Mood",
-    "reportsSettings": "Customize Reports"
+    "reportsSettings": "Customize Reports",
+    "hydrationReport": "Hydration",
+    "measurementsReport": "Measurements"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -5874,7 +5877,11 @@
     "moodSubtitle": "Mood history and most logged moods",
     "exercise": "Exercise",
     "exerciseSubtitle": "Sets per muscle, body heat map and cardio sessions",
-    "customize": "Customize reports"
+    "customize": "Customize reports",
+    "hydration": "Hydration",
+    "hydrationSubtitle": "Daily water, goal streaks and best days",
+    "measurements": "Measurements",
+    "measurementsSubtitle": "Weight, body composition, tape measurements and steps"
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -5904,7 +5911,14 @@
     "avgCalories": "Avg calories",
     "avgProtein": "Avg protein",
     "onTargetShort": "Days on target",
-    "onTargetValue": "{{onTarget}}/{{total}}"
+    "onTargetValue": "{{onTarget}}/{{total}}",
+    "macroGoals": "Macro goals",
+    "macroGoalValue": "{{average}} of {{goal}} g",
+    "macroGoalHint": "{{pct}}% of goal on average",
+    "byWeekday": "Calories by weekday",
+    "consistency": "Logging consistency",
+    "currentStreak": "Current streak",
+    "longestStreak": "Longest streak"
   },
   "moodReport": {
     "title": "Mood",
@@ -5958,7 +5972,21 @@
     "variabilityValue": "±{{minutes}} min",
     "variabilityHint": "Lower means a steadier routine",
     "nightsTracked": "Nights tracked",
-    "nightsOfWindow": "{{nights}} of {{total}}"
+    "nightsOfWindow": "{{nights}} of {{total}}",
+    "stageShare": "{{pct}}% of the night",
+    "hoursValue": "{{hours}} h",
+    "weekdayAsleep": "Weeknights asleep",
+    "weekendAsleep": "Weekend nights asleep",
+    "weekendDiff": "{{diff}} vs weeknights",
+    "weekdayBedtime": "Weeknight bedtime",
+    "weekendBedtime": "Weekend bedtime",
+    "fullNights": "Nights of 7h or more",
+    "fullNightsValue": "{{full}} of {{total}}",
+    "longestNight": "Longest night",
+    "shortestNight": "Shortest night",
+    "wakeVariability": "Wake time consistency",
+    "weekendVsWeekday": "Weekdays vs weekends",
+    "nights": "Nights"
   },
   "reportsSettings": {
     "reset": "Reset",
@@ -5988,7 +6016,64 @@
       "moodSummary": "Summary",
       "moodHighlights": "Best and lowest days",
       "moodByWeekday": "Average by weekday",
-      "moodTopMoods": "Most logged"
-    }
+      "moodTopMoods": "Most logged",
+      "macroGoals": "Macro goals",
+      "nutritionWeekdays": "Calories by weekday",
+      "loggingConsistency": "Logging consistency",
+      "hydrationChart": "Hydration chart",
+      "waterGoal": "Water goal",
+      "hydrationHighlights": "Best and lowest days",
+      "hydrationWeekdays": "Average by weekday",
+      "weightChart": "Weight chart",
+      "weightSummary": "Weight summary",
+      "bodyComposition": "Body composition",
+      "tape": "Body measurements",
+      "stepsChart": "Steps chart",
+      "sleepWeekend": "Weekdays vs weekends",
+      "sleepNights": "Nights"
+    },
+    "hydrationSections": "Hydration report",
+    "measurementsSections": "Measurements report"
+  },
+  "hydrationReport": {
+    "title": "Hydration",
+    "volume": "{{value}} {{unit}}",
+    "loadFailed": "Failed to load hydration data",
+    "dailyAverage": "Daily average",
+    "goalsMet": "Goals met",
+    "goalsMetValue": "{{met}} of {{total}} days",
+    "daysLogged": "Days logged",
+    "daysOfWindow": "{{logged}} of {{total}}",
+    "total": "Total",
+    "goalTitle": "Water goal",
+    "averageVsGoal": "Average vs goal",
+    "currentStreak": "Current streak",
+    "longestStreak": "Longest streak",
+    "highlights": "Highlights",
+    "bestDay": "Best day",
+    "lowestDay": "Lowest logged day",
+    "byWeekday": "Average by weekday",
+    "empty": "No water logged in this period",
+    "daysCount_one": "{{count}} day",
+    "daysCount_other": "{{count}} days"
+  },
+  "measurementsReport": {
+    "title": "Measurements",
+    "loadFailed": "Failed to load measurements",
+    "changeOverPeriod": "{{change}} over the period",
+    "bodyFat": "Body fat",
+    "muscleMass": "Muscle mass",
+    "waist": "Waist",
+    "hips": "Hips",
+    "neck": "Neck",
+    "currentWeight": "Latest weight",
+    "weightChange": "Change over the period",
+    "weightRange": "Lowest / highest",
+    "toGoal": "To goal weight",
+    "weight": "Weight",
+    "avgSteps": "Avg steps",
+    "empty": "No measurements in this period",
+    "bodyComposition": "Body composition",
+    "tape": "Body measurements"
   }
 }

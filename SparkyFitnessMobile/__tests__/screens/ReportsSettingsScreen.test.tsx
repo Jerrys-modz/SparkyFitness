@@ -60,7 +60,9 @@ describe('ReportsSettingsScreen', () => {
     expect(orderedRowKeys()).toEqual([
       'mood',
       'nutrition',
+      'hydration',
       'sleep',
+      'measurements',
       'exercise',
     ]);
   });
@@ -78,7 +80,13 @@ describe('ReportsSettingsScreen', () => {
 
   test('the last report still shown cannot be turned off', () => {
     useAppPreferencesStore.setState({
-      hiddenReports: ['nutrition', 'sleep', 'mood'],
+      hiddenReports: [
+        'nutrition',
+        'hydration',
+        'sleep',
+        'measurements',
+        'mood',
+      ],
     });
 
     renderScreen();
@@ -118,6 +126,21 @@ describe('ReportsSettingsScreen', () => {
     expect(screen.getByTestId('reports-section-sleep.metric.hrv')).toBeTruthy();
     expect(
       screen.getByTestId('reports-section-sleep.metric.bodyBattery')
+    ).toBeTruthy();
+  });
+
+  test('every report with sections has its own switches', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('reports-section-nutrition.weekdays')
+    ).toBeTruthy();
+    expect(screen.getByTestId('reports-section-hydration.goal')).toBeTruthy();
+    expect(
+      screen.getByTestId('reports-section-measurements.tape')
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('reports-section-sleep.weekendVsWeekday')
     ).toBeTruthy();
   });
 });

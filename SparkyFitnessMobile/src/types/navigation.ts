@@ -182,6 +182,8 @@ export type RootStackParamList = {
   };
   ExerciseStatistics: undefined;
   Reports: undefined;
+  HydrationReport: undefined;
+  MeasurementsReport: undefined;
   ReportsSettings: undefined;
   NutritionReport: undefined;
   SleepAnalytics: undefined;

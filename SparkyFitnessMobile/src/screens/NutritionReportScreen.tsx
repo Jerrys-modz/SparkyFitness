@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNutritionReport } from '../hooks/useNutritionReport';
-import { formatLocalizedNumber } from '../localization';
+import { formatLocalizedNumber, getAppLocale } from '../localization';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
@@ -92,6 +92,12 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
           change: `${change > 0 ? '+' : ''}${formatLocalizedNumber(change)}%`,
           days,
         });
+
+  const weekdayName = (weekday: number) =>
+    // 2000-01-02 was a Sunday, so day 2 + weekday lands on that weekday.
+    new Date(2000, 0, 2 + weekday).toLocaleDateString(getAppLocale(), {
+      weekday: 'long',
+    });
 
   const goal = insights?.goal;
   const goalRows =
@@ -311,6 +317,71 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
                   insights.lowest,
                   'nutrition-lowest-day'
                 ),
+              ]}
+            />
+          ) : null}
+          {isSectionShown('nutrition.macroGoals') &&
+          insights.macroGoals.length > 0 ? (
+            <ReportSummaryCard
+              title={t('nutritionReport.macroGoals', {
+                defaultValue: 'Macro goals',
+              })}
+              rows={insights.macroGoals.map((macro) => ({
+                label: getNutrientLabel(t, macro.key),
+                value: t('nutritionReport.macroGoalValue', {
+                  defaultValue: '{{average}} of {{goal}} g',
+                  average: fmt(Math.round(macro.average)),
+                  goal: fmt(Math.round(macro.goal)),
+                }),
+                hint: t('nutritionReport.macroGoalHint', {
+                  defaultValue: '{{pct}}% of goal on average',
+                  pct: fmt(macro.pct),
+                }),
+                testID: `nutrition-macro-goal-${macro.key}`,
+              }))}
+            />
+          ) : null}
+          {isSectionShown('nutrition.weekdays') &&
+          insights.weekdayCalories.length > 1 ? (
+            <ReportSummaryCard
+              title={t('nutritionReport.byWeekday', {
+                defaultValue: 'Calories by weekday',
+              })}
+              rows={insights.weekdayCalories.map(
+                ({ weekday, average: avg }) => ({
+                  label: weekdayName(weekday),
+                  value: kcal(avg),
+                  testID: `nutrition-weekday-${weekday}`,
+                })
+              )}
+            />
+          ) : null}
+          {isSectionShown('nutrition.consistency') ? (
+            <ReportSummaryCard
+              title={t('nutritionReport.consistency', {
+                defaultValue: 'Logging consistency',
+              })}
+              rows={[
+                {
+                  label: t('nutritionReport.currentStreak', {
+                    defaultValue: 'Current streak',
+                  }),
+                  value: t('nutritionReport.daysCount', {
+                    defaultValue: '{{count}} days',
+                    count: insights.streaks.current,
+                  }),
+                  testID: 'nutrition-streak-current',
+                },
+                {
+                  label: t('nutritionReport.longestStreak', {
+                    defaultValue: 'Longest streak',
+                  }),
+                  value: t('nutritionReport.daysCount', {
+                    defaultValue: '{{count}} days',
+                    count: insights.streaks.longest,
+                  }),
+                  testID: 'nutrition-streak-longest',
+                },
               ]}
             />
           ) : null}

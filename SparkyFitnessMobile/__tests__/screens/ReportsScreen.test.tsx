@@ -47,7 +47,9 @@ describe('ReportsScreen', () => {
 
   it.each([
     ['nutrition', 'NutritionReport'],
+    ['hydration', 'HydrationReport'],
     ['sleep', 'SleepAnalytics'],
+    ['measurements', 'MeasurementsReport'],
     ['mood', 'MoodReport'],
     ['exercise', 'ExerciseStatistics'],
   ])('opens the %s report', (key, route) => {
@@ -70,7 +72,7 @@ describe('ReportsScreen', () => {
       queryAllByTestId(/^reports-link-/).map((link) =>
         String(link.props.testID).replace('reports-link-', '')
       )
-    ).toEqual(['mood', 'exercise', 'nutrition']);
+    ).toEqual(['mood', 'exercise', 'nutrition', 'hydration', 'measurements']);
     expect(queryByTestId('reports-link-sleep')).toBeNull();
   });
 });

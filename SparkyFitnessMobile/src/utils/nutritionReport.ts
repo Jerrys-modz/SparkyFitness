@@ -1,5 +1,6 @@
 import type { NutritionTrendPoint } from '../services/api/reportsApi';
 import type { CaloriesDataPoint } from '../types/healthTrends';
+import { weekdayOfDay } from './dateUtils';
 import { average } from './mathUtils';
 
 /** A day's calories within this share of its goal counts as on target. */
@@ -38,6 +39,28 @@ export interface DayExtreme {
   calories: number;
 }
 
+/** Per-day macro goals in the window's order, null where a day has none. */
+export type MacroGoalSeries = Record<
+  'protein' | 'carbs' | 'fat',
+  (number | null)[]
+>;
+
+export interface MacroGoalProgress {
+  key: 'protein' | 'carbs' | 'fat';
+  /** Mean grams over logged days. */
+  average: number;
+  /** Mean goal over the logged days that had one. */
+  goal: number;
+  /** average / goal as a whole percent. */
+  pct: number;
+}
+
+export interface LoggingStreaks {
+  /** Run of logged days ending the window; a still-empty final day does not break it. */
+  current: number;
+  longest: number;
+}
+
 export interface NutritionInsights {
   loggedDays: number;
   averages: {
@@ -54,6 +77,11 @@ export interface NutritionInsights {
   highest: DayExtreme | null;
   lowest: DayExtreme | null;
   extras: { key: ExtraNutrientKey; average: number }[];
+  /** Mean calories per weekday (0 = Sunday), only weekdays with a logged day. */
+  weekdayCalories: { weekday: number; average: number }[];
+  streaks: LoggingStreaks;
+  /** Protein, carbs and fat against their goals; empty when no day had a goal. */
+  macroGoals: MacroGoalProgress[];
 }
 
 const numeric = (point: NutritionTrendPoint, key: string): number => {
@@ -76,7 +104,8 @@ const meanOf = (points: NutritionTrendPoint[], key: string): number =>
 export function buildNutritionInsights(
   current: NutritionTrendPoint[],
   previous: NutritionTrendPoint[],
-  goals: (number | null)[]
+  goals: (number | null)[],
+  macroGoalSeries?: MacroGoalSeries
 ): NutritionInsights {
   const logged = loggedPoints(current);
   const previousLogged = loggedPoints(previous);
@@ -145,8 +174,73 @@ export function buildNutritionInsights(
       key,
       average: meanOf(logged, key),
     })).filter((extra) => extra.average > 0),
+    weekdayCalories: weekdayCalories(logged),
+    streaks: loggingStreaks(current),
+    macroGoals: macroGoalProgress(current, macroGoalSeries),
   };
 }
+
+const weekdayCalories = (logged: NutritionTrendPoint[]) => {
+  const buckets = new Map<number, number[]>();
+  for (const point of logged) {
+    const weekday = weekdayOfDay(point.date);
+    const list = buckets.get(weekday) ?? [];
+    list.push(numeric(point, 'calories'));
+    buckets.set(weekday, list);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([weekday, values]) => ({
+      weekday,
+      average: average(values) ?? 0,
+    }));
+};
+
+const loggingStreaks = (current: NutritionTrendPoint[]): LoggingStreaks => {
+  const flags = current.map((point) => numeric(point, 'calories') > 0);
+  let longest = 0;
+  let run = 0;
+  for (const logged of flags) {
+    run = logged ? run + 1 : 0;
+    longest = Math.max(longest, run);
+  }
+  // Today is usually still empty in the morning, so it should not zero the streak.
+  let end = flags.length - 1;
+  if (end >= 0 && !flags[end]) end -= 1;
+  let currentRun = 0;
+  for (let i = end; i >= 0 && flags[i]; i -= 1) currentRun += 1;
+  return { current: currentRun, longest };
+};
+
+const macroGoalProgress = (
+  current: NutritionTrendPoint[],
+  series?: MacroGoalSeries
+): MacroGoalProgress[] => {
+  if (!series) return [];
+  const result: MacroGoalProgress[] = [];
+  for (const key of ['protein', 'carbs', 'fat'] as const) {
+    const actual: number[] = [];
+    const targets: number[] = [];
+    current.forEach((point, index) => {
+      const target = series[key][index];
+      if (numeric(point, 'calories') <= 0 || target == null || target <= 0) {
+        return;
+      }
+      actual.push(numeric(point, key));
+      targets.push(target);
+    });
+    const mean = average(actual);
+    const goal = average(targets);
+    if (mean === null || goal === null) continue;
+    result.push({
+      key,
+      average: mean,
+      goal,
+      pct: Math.round((mean / goal) * 100),
+    });
+  }
+  return result;
+};
 
 /** The stacked-calories chart's series, one point per day of the window. */
 export const toCaloriesSeries = (
