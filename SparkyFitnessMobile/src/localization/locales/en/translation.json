@@ -1469,6 +1469,137 @@
       "modeUpdateNotApplied": "The requested supplement mode was not applied.",
       "nutrientsNotSaved": "The supplement was created, but its nutrient values were not saved because this account has no diary access.",
       "nutrientsNotUpdated": "The nutrient changes were not saved."
+    },
+    "glp1": {
+      "inventory": {
+        "expired": "Expired {{date}}",
+        "expires": "Expires {{date}}",
+        "title": "Pens and vials",
+        "add": "Add",
+        "empty": "No pens or vials yet. Add one to track doses left and expiry.",
+        "vial": "Vial",
+        "pen": "Pen",
+        "status": {
+          "in_use": "In use",
+          "finished": "Finished",
+          "sealed": "Sealed"
+        },
+        "left_one": "{{count}} left",
+        "left_other": "{{count}} left",
+        "reorder": "Time to reorder",
+        "expiredWarning": "Past its expiry date",
+        "expiringSoon": "Expires within a week"
+      },
+      "checkIn": {
+        "saved": "Check-in saved",
+        "saveFailed": "Failed to save check-in",
+        "title": "Daily check-in",
+        "subtitle": "How the medication is affecting you today. Saved to your daily measurements.",
+        "save": "Save check-in",
+        "metric": {
+          "hunger": "Hunger",
+          "food_noise": "Food noise",
+          "fullness": "Fullness",
+          "energy": "Energy"
+        }
+      },
+      "log": {
+        "dontDeduct": "Don't deduct",
+        "invalidDose": "Enter a valid dose",
+        "logged": "Injection logged",
+        "failed": "Failed to log injection",
+        "title": "Log injection",
+        "legend": "Green is the suggested site. Amber was used in the last {{days}} days.",
+        "chooseSite": "Choose a site",
+        "siteTitle": "Injection site",
+        "dose": "Dose (mg)",
+        "dosePlaceholder": "Auto",
+        "pen": "From pen / vial",
+        "penTitle": "Deduct from",
+        "notes": "Notes",
+        "notesPlaceholder": "e.g. Mild stinging",
+        "logAt": "Log injection: {{site}}"
+      },
+      "serum": {
+        "title": "Modeled level: {{name}}",
+        "now": "~{{percent}}% now",
+        "empty": "Log injections to model your level. This needs a recognized GLP-1 drug set on the medication."
+      },
+      "recent": {
+        "deleteTitle": "Delete injection",
+        "deleteMessage": "Delete this injection? A dose deducted from a pen or vial is credited back.",
+        "deleteFailed": "Failed to delete injection",
+        "title": "Recent injections",
+        "empty": "No injections logged yet."
+      },
+      "titration": {
+        "title": "Dose titration plan",
+        "add": "Add step",
+        "empty": "No steps yet. Add each planned dose and mark the current one active.",
+        "status": {
+          "active": "Current",
+          "done": "Done",
+          "planned": "Planned"
+        },
+        "weeks_one": "{{count}} wk",
+        "weeks_other": "{{count}} wk",
+        "taper": "Taper",
+        "invalidNumbers": "Enter a dose, and weeks if you set them, as numbers.",
+        "deleteTitle": "Delete step",
+        "deleteMessage": "Delete this titration step?",
+        "editStep": "Edit step",
+        "newStep": "New step",
+        "dose": "Dose",
+        "startDate": "Start date",
+        "weeksAtDose": "Weeks at this dose",
+        "statusLabel": "Status",
+        "taperLabel": "Taper (dose reduction)"
+      },
+      "form": {
+        "notSet": "Not set",
+        "clear": "Clear",
+        "invalidNumbers": "Please enter valid numbers.",
+        "saveFailed": "Failed to save: {{error}}",
+        "deletePenTitle": "Delete pen or vial",
+        "deletePenMessage": "Delete this pen or vial from your inventory?",
+        "editPen": "Edit pen or vial",
+        "newPen": "New pen or vial",
+        "kind": "Type",
+        "label": "Label",
+        "doseMg": "Dose per shot (mg)",
+        "dosesTotal": "Doses in total",
+        "concentration": "mg per mL",
+        "volume": "Volume (mL)",
+        "openedAt": "Opened",
+        "expiry": "Expires",
+        "reorderFlag": "Remind me to reorder",
+        "reorderThreshold": "Reorder when doses left reach",
+        "isGlp1": "GLP-1 medication",
+        "drug": "Drug",
+        "drugPlaceholder": "Choose a drug",
+        "drugHelp": "Used for the modeled level and rotation. Injection pens, the body map and inventory show for the Injection type."
+      },
+      "tracker": {
+        "title": "GLP-1 tracker",
+        "subtitle": "Injections, site map, pens, titration and daily check-in"
+      },
+      "sites": {
+        "stomach_upper_left": "Stomach - Upper Left",
+        "stomach_upper_mid": "Stomach - Upper Mid",
+        "stomach_upper_right": "Stomach - Upper Right",
+        "stomach_mid_left": "Stomach - Left Mid",
+        "stomach_mid_right": "Stomach - Right Mid",
+        "stomach_lower_left": "Stomach - Lower Left",
+        "stomach_lower_mid": "Stomach - Lower Mid",
+        "stomach_lower_right": "Stomach - Lower Right",
+        "left_arm": "Left Arm",
+        "right_arm": "Right Arm",
+        "left_thigh": "Left Thigh",
+        "right_thigh": "Right Thigh",
+        "left_hip": "Left Hip",
+        "right_hip": "Right Hip",
+        "unknown": "Unknown"
+      }
     }
   },
   "scheduleSummary": {
