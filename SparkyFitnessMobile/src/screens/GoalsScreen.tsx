@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
+import GoalPresetsSection from '../components/GoalPresetsSection';
+import MealDistributionEditor from '../components/MealDistributionEditor';
+import NutrientDirectionGuide from '../components/NutrientDirectionGuide';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import Button from '../components/ui/Button';
@@ -17,6 +20,8 @@ import type { MealType } from '../types/mealTypes';
 import { useLatestMeasurementsOnOrBefore } from '../hooks/useMeasurements';
 import {
   useAdjustedCalorieGoal,
+  useGoalPresetMutations,
+  useGoalPresets,
   useGoalsQuery,
   useNutrientGoalPreferences,
   useSaveGoalsMutation,
@@ -39,7 +44,13 @@ import {
   type AlgorithmBundle,
   type UserNutrientData,
 } from '@workspace/shared';
-import type { DailyGoals } from '../types/goals';
+import type { DailyGoals, GoalPreset } from '../types/goals';
+import {
+  NUTRIENT_DIRECTION_GUIDES,
+  buildGuideDirections,
+  type NutrientDirectionGuideKey,
+} from '../constants/nutrientDirectionGuides';
+import type { MealPercentages } from '../utils/mealDistribution';
 import type { RootStackScreenProps } from '../types/navigation';
 import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
 import {
@@ -145,6 +156,25 @@ const getMealPercentage = (goals: DailyGoals, key: string): number => {
   ];
   return typeof legacy === 'number' ? legacy : 0;
 };
+
+// Keys a preset shares with the goals form. Macro percentages and custom
+// nutrients are not editable here, so overwriting a preset leaves them alone.
+const PRESET_FORM_KEYS: (keyof DailyGoals)[] = [
+  ...ALL_FIELDS,
+  'breakfast_percentage',
+  'lunch_percentage',
+  'dinner_percentage',
+  'snacks_percentage',
+  'custom_meal_percentages',
+];
+
+const pickPresetFormValues = (goals: DailyGoals): Partial<DailyGoals> =>
+  Object.fromEntries(
+    PRESET_FORM_KEYS.filter((key) => goals[key] !== undefined).map((key) => [
+      key,
+      goals[key],
+    ])
+  );
 
 const ACTIVITY_LEVELS = ['not_much', 'light', 'moderate', 'heavy'] as const;
 
@@ -296,14 +326,14 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           })),
     [mealTypes]
   );
-  const [initialMealDrafts] = useState<Record<string, string>>(() =>
+  const [initialMealDrafts] = useState<MealPercentages>(() =>
     Object.fromEntries(
-      meals.map(({ key }) => [key, String(getMealPercentage(goals, key))])
+      meals.map(({ key }) => [key, getMealPercentage(goals, key)])
     )
   );
   const [mealDrafts, setMealDrafts] = useState(initialMealDrafts);
   const mealTotal = meals.reduce(
-    (sum, { key }) => sum + (parseDraft(mealDrafts[key] ?? '') || 0),
+    (sum, { key }) => sum + (mealDrafts[key] ?? 0),
     0
   );
   const mealTotalValid = Math.round(mealTotal) === 100;
@@ -338,7 +368,9 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     }),
   };
 
-  const handleSave = useCallback(async () => {
+  // Validates the form and returns the full goal row it describes, or null
+  // (after showing why) when a value is invalid.
+  const buildGoals = useCallback((): DailyGoals | null => {
     const next: DailyGoals = { ...goals };
     for (const field of ALL_FIELDS) {
       // Leave untouched fields exactly as the server returned them, so an
@@ -352,7 +384,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
             defaultValue: 'Enter a valid number for every goal.',
           }),
         });
-        return;
+        return null;
       }
       next[field] =
         field === 'water_goal_ml'
@@ -361,16 +393,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     }
     for (const { key } of meals) {
       if (mealDrafts[key] === initialMealDrafts[key]) continue;
-      const value = parseDraft(mealDrafts[key] ?? '');
-      if (!Number.isFinite(value) || value < 0) {
-        Toast.show({
-          type: 'error',
-          text1: t('goals.invalidValue', {
-            defaultValue: 'Enter a valid number for every goal.',
-          }),
-        });
-        return;
-      }
+      const value = mealDrafts[key] ?? 0;
       if (DEFAULT_MEAL_KEYS.includes(key)) {
         (next as unknown as Record<string, number>)[`${key}_percentage`] =
           value;
@@ -388,8 +411,24 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           defaultValue: 'Meal percentages must total 100%.',
         }),
       });
-      return;
+      return null;
     }
+    return next;
+  }, [
+    goals,
+    drafts,
+    initialDrafts,
+    mealTotalValid,
+    meals,
+    mealDrafts,
+    initialMealDrafts,
+    waterUnit,
+    t,
+  ]);
+
+  const handleSave = useCallback(async () => {
+    const next = buildGoals();
+    if (!next) return;
     const directionUpdates: {
       key: string;
       preference: {
@@ -452,14 +491,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     }
   }, [
     date,
-    goals,
-    drafts,
-    initialDrafts,
-    mealTotalValid,
-    meals,
-    mealDrafts,
-    initialMealDrafts,
-    waterUnit,
+    buildGoals,
     directionDrafts,
     initialDirections,
     saveDirections,
@@ -467,6 +499,101 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     onDone,
     t,
   ]);
+
+  const applyGuide = (guideKey: NutrientDirectionGuideKey) => {
+    const guide = NUTRIENT_DIRECTION_GUIDES.find((g) => g.key === guideKey);
+    if (!guide) return;
+    const updates = buildGuideDirections(
+      guide,
+      directionDrafts,
+      Number.isFinite(calcCalories) ? calcCalories : 0
+    );
+    setDirectionDrafts((prev) => ({ ...prev, ...updates }));
+    Toast.show({
+      type: 'success',
+      text1: t('goals.directions.guide.applied', {
+        defaultValue: 'Directions updated. Tap Save to keep them.',
+      }),
+    });
+  };
+
+  const { presets } = useGoalPresets();
+  const {
+    createPreset,
+    updatePreset,
+    deletePreset,
+    isPending: presetBusy,
+  } = useGoalPresetMutations();
+
+  const presetFailed = () =>
+    Toast.show({
+      type: 'error',
+      text1: t('common.error', { defaultValue: 'Error' }),
+      text2: t('goals.presets.failed', {
+        defaultValue: 'Could not update goal presets.',
+      }),
+    });
+
+  const handleApplyPreset = (preset: GoalPreset) => {
+    setDrafts(toDrafts(preset, waterUnit));
+    setMealDrafts(
+      Object.fromEntries(
+        meals.map(({ key }) => [key, getMealPercentage(preset, key)])
+      )
+    );
+    Toast.show({
+      type: 'success',
+      text1: t('goals.presets.applied', {
+        defaultValue: 'Preset applied. Tap Save to keep it.',
+      }),
+    });
+  };
+
+  const handleCreatePreset = async (name: string): Promise<boolean> => {
+    const current = buildGoals();
+    if (!current) return false;
+    try {
+      await createPreset({ ...current, preset_name: name });
+      return true;
+    } catch {
+      presetFailed();
+      return false;
+    }
+  };
+
+  const handleOverwritePreset = async (preset: GoalPreset) => {
+    const current = buildGoals();
+    if (!current || !preset.id) return;
+    try {
+      await updatePreset({
+        id: preset.id,
+        preset: { ...preset, ...pickPresetFormValues(current) },
+      });
+    } catch {
+      presetFailed();
+    }
+  };
+
+  const handleRenamePreset = async (preset: GoalPreset, name: string) => {
+    if (!preset.id) return;
+    try {
+      await updatePreset({
+        id: preset.id,
+        preset: { ...preset, preset_name: name },
+      });
+    } catch {
+      presetFailed();
+    }
+  };
+
+  const handleDeletePreset = async (preset: GoalPreset) => {
+    if (!preset.id) return;
+    try {
+      await deletePreset(preset.id);
+    } catch {
+      presetFailed();
+    }
+  };
 
   const directionSegments: Segment<NutrientGoalType>[] = [
     {
@@ -606,12 +733,15 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         </Text>
       )}
       {Object.keys(directionDrafts).length > 0 && (
-        <Text className="text-sm text-text-secondary">
-          {t('goals.directions.note', {
-            defaultValue:
-              'Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers.',
-          })}
-        </Text>
+        <>
+          <Text className="text-sm text-text-secondary">
+            {t('goals.directions.note', {
+              defaultValue:
+                'Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers.',
+            })}
+          </Text>
+          <NutrientDirectionGuide onApply={applyGuide} />
+        </>
       )}
       {sectionTitle(
         t('goals.sections.macros', { defaultValue: 'Calories & macros' })
@@ -647,37 +777,30 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       {sectionTitle(
         t('goals.sections.meals', { defaultValue: 'Meal calorie distribution' })
       )}
-      {meals.map(({ key, label }) => (
-        <View key={key} className="gap-1">
-          <Text className="text-sm font-medium text-text-primary">
-            {t('goals.meals.mealPercent', {
-              defaultValue: '{{meal}} (%)',
-              meal: label,
-            })}
-          </Text>
-          <FormInput
-            value={mealDrafts[key] ?? ''}
-            onChangeText={(text) =>
-              setMealDrafts((prev) => ({ ...prev, [key]: text }))
-            }
-            keyboardType="decimal-pad"
-            accessibilityLabel={label}
-            testID={`goal-input-meal-${key}`}
-          />
-        </View>
-      ))}
-      <Text
-        className={
-          mealTotalValid
-            ? 'text-sm text-text-secondary'
-            : 'text-sm text-red-500'
+      <MealDistributionEditor
+        meals={meals}
+        values={mealDrafts}
+        onChange={setMealDrafts}
+        totalCalories={
+          isAdaptive && adjustedCalories !== undefined
+            ? adjustedCalories
+            : Number.isFinite(calcCalories)
+              ? calcCalories
+              : 0
         }
-      >
-        {t('goals.meals.total', {
-          defaultValue: 'Total: {{total}}% (must be 100% to save)',
-          total: Math.round(mealTotal),
-        })}
-      </Text>
+      />
+      {sectionTitle(
+        t('goals.sections.presets', { defaultValue: 'Goal presets' })
+      )}
+      <GoalPresetsSection
+        presets={presets}
+        isBusy={presetBusy}
+        onApply={handleApplyPreset}
+        onCreate={handleCreatePreset}
+        onOverwrite={handleOverwritePreset}
+        onRename={handleRenamePreset}
+        onDelete={handleDeletePreset}
+      />
     </FormScreenChrome>
   );
 };

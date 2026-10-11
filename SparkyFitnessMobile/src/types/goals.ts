@@ -31,3 +31,9 @@ export interface DailyGoals {
   custom_nutrients?: Record<string, string | number>;
   custom_meal_percentages?: Record<string, number>;
 }
+
+/** A saved set of goals the user can apply to the goals form. */
+export interface GoalPreset extends DailyGoals {
+  id?: string;
+  preset_name: string;
+}
