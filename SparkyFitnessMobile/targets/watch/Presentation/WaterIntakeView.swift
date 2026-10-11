@@ -112,6 +112,15 @@ struct WaterIntakeView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                     }
+                    // Only present when the phone's food-water setting is on.
+                    if let fromFood = water?.fromFoodMl {
+                        Text("Includes \(store.context.formattedWater(ml: fromFood)) from food")
+                            .font(.system(size: 10, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
                     bottle
                 }
                 .frame(width: geo.size.width * 2 / 3)

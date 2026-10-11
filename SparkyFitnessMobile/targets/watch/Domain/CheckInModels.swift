@@ -163,6 +163,9 @@ struct WaterLogEntry: Codable, Equatable, Identifiable {
 struct WaterSnapshot: Codable, Equatable {
     let day: String
     let consumedMl: Double
+    /// The part of `consumedMl` that came from food. Nil unless the phone's
+    /// food-water setting is on, which is also when the Water page shows it.
+    var fromFoodMl: Double? = nil
     /// Today's individual drinks, newest first. Empty is a real state (nothing
     /// logged yet), distinct from the whole snapshot being nil.
     let log: [WaterLogEntry]
