@@ -47,6 +47,10 @@ import { getActiveServerConfigId } from '../services/storage';
 import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { getRecordingPreferences } from '../services/gpsRecordingService';
+import { useRunProgram } from '../services/runProgramService';
+import { buildWatchRunPlans } from '../utils/watchRunPlans';
+import { presetName } from '../components/recording/IntervalSetup';
+import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -231,6 +235,19 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // A weighted carry's distance follows the phone's distance unit: the watch
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
+  const { status: programStatus, enabled: programEnabled } = useRunProgram();
+  const runPlans = useMemo(
+    () =>
+      buildWatchRunPlans(
+        t,
+        { status: programStatus, enabled: programEnabled },
+        {
+          program: (status) => programWorkoutLabel(t, status),
+          preset: (id) => presetName(t, id),
+        }
+      ),
+    [t, programStatus, programEnabled]
+  );
   const { presets } = useWorkoutPresets({ enabled });
   const startableWorkouts = useMemo(
     () => startableWorkoutsForWatch(presets),
@@ -587,6 +604,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         runVoiceCues: (await getRecordingPreferences()).audioCues,
+        runPlans,
         startableWorkouts,
         // Built for `summaryDate`; a push that has crossed midnight before the
         // hook re-rendered must not carry yesterday's plan.
@@ -620,6 +638,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     hapticsEnabled,
     restAlertsEnabled,
     watchDoubleTapEnabled,
+    runPlans,
     startableWorkouts,
     scheduledWorkouts,
     waterGoalMl,

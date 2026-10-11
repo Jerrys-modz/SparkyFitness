@@ -23,6 +23,11 @@ export interface WatchRunPayload {
   heartRate: number[][];
   /** Epoch ms of each Lap press on the watch, oldest first. */
   laps: number[];
+  /** The plan the run followed, if any, and whether it reached the last step. */
+  planId: string | null;
+  /** A training-program workout the run was (program id and 0-based index). */
+  program: { id: string; index: number } | null;
+  planCompleted: boolean;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -69,6 +74,15 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
       : 0,
     route: rows(p.route, 6),
     heartRate: rows(p.heartRate, 2),
+    planId: typeof p.planId === 'string' && p.planId ? p.planId : null,
+    program:
+      typeof p.programId === 'string' &&
+      p.programId &&
+      finite(p.programIndex) &&
+      p.programIndex >= 0
+        ? { id: p.programId, index: Math.floor(p.programIndex) }
+        : null,
+    planCompleted: p.planCompleted === true,
     laps: Array.isArray(p.laps)
       ? p.laps.filter(finite).sort((a, b) => a - b)
       : [],

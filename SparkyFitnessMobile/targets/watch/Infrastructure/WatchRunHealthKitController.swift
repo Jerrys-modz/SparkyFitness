@@ -76,14 +76,17 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var lapMarks: [Double] = []
 
     var lapCount: Int { lapMarks.count }
+    /// The plan this run follows, if any. The store reads it for the live step.
+    private(set) var plan: WatchRunPlan?
 
     /// Marks a lap now. A press within 3 s of the last is a double tap and is
     /// ignored; returns whether one was added.
     @discardableResult
-    func markLap() -> Bool {
+    func markLap(force: Bool = false) -> Bool {
         guard session != nil else { return false }
         let now = Date().timeIntervalSince1970 * 1000
-        if let last = lapMarks.last, now - last < 3000 { return false }
+        // A plan's step change is a lap whatever the 3 s rule says.
+        if !force, let last = lapMarks.last, now - last < 3000 { return false }
         lapMarks.append(now)
         persistSnapshot(force: true)
         return true
@@ -130,7 +133,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// Starts the session. Returns false, leaving nothing running, when
     /// HealthKit is unavailable or a session is already live.
     @discardableResult
-    func start(_ kind: WatchRunKind, place: WatchRunPlace) -> Bool {
+    func start(_ kind: WatchRunKind, place: WatchRunPlace, plan: WatchRunPlan? = nil) -> Bool {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return false }
 
         let configuration = HKWorkoutConfiguration()
@@ -152,6 +155,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             metrics = WatchRunMetrics()
             runKind = kind
             runPlace = place
+            self.plan = plan
             autoPause.reset()
             indoorAutoPause.reset()
             pausedByAutoPause = false
@@ -247,7 +251,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     metrics: self.metrics,
                     route: rows.route,
                     heartRate: rows.heartRate,
-                    laps: rows.laps
+                    laps: rows.laps,
+                    plan: self.plan,
+                    planCompleted: self.plan?.lastStepStarted(at: finalElapsed) ?? false
                 ) : nil
                 completion(self.metrics, finalElapsed, result)
             }
@@ -297,7 +303,8 @@ extension WatchRunHealthKitController {
             activeEnergyKcal: metrics.activeEnergyKcal,
             elapsed: builder?.elapsedTime ?? 0,
             savedAt: now,
-            lapMarks: lapMarks
+            lapMarks: lapMarks,
+            plan: plan
         ))
     }
 
@@ -346,6 +353,7 @@ extension WatchRunHealthKitController {
                 self.routeRows = snapshot.routeRows
                 self.heartRateRows = snapshot.heartRateRows
                 self.lapMarks = snapshot.lapMarks ?? []
+                self.plan = snapshot.plan
                 // The jump across the gap while the app was gone is never distance.
                 self.routeSegment = snapshot.routeSegment + 1
                 self.autoPause.reset()
@@ -404,7 +412,9 @@ extension WatchRunHealthKitController {
             metrics: salvaged,
             route: snapshot.routeRows,
             heartRate: snapshot.heartRateRows,
-            laps: snapshot.lapMarks ?? []
+            laps: snapshot.lapMarks ?? [],
+            plan: snapshot.plan,
+            planCompleted: snapshot.plan?.lastStepStarted(at: snapshot.elapsed) ?? false
         ))
     }
 }
@@ -569,7 +579,9 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 metrics: self.metrics,
                 route: self.routeRows,
                 heartRate: self.heartRateRows,
-                laps: self.lapMarks
+                laps: self.lapMarks,
+                plan: self.plan,
+                planCompleted: self.plan?.lastStepStarted(at: elapsed) ?? false
             ) : nil
             self.session = nil
             self.builder = nil

@@ -4,10 +4,14 @@ import {
   processWatchRunQueue,
 } from '../../src/services/watchRunQueue';
 import { saveWatchRun } from '../../src/services/watchRunSave';
+import { completeProgramWorkout } from '../../src/services/runProgramService';
 import { ApiError } from '../../src/services/api/errors';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 
 jest.mock('../../src/services/watchRunSave');
+jest.mock('../../src/services/runProgramService', () => ({
+  completeProgramWorkout: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 const mockedSave = jest.mocked(saveWatchRun);
@@ -23,9 +27,14 @@ const run = (clientId: string): WatchRunPayload => ({
   activeEnergyKcal: 100,
   route: [],
   heartRate: [],
+  laps: [],
+  planId: null,
+  program: null,
+  planCompleted: false,
 });
 
 beforeEach(async () => {
+  jest.mocked(completeProgramWorkout).mockClear();
   await AsyncStorage.clear();
   mockedSave.mockReset();
 });
@@ -77,4 +86,38 @@ test('files a run that arrives while another is being filed', async () => {
   expect(await processWatchRunQueue('km')).toEqual(await filed);
   expect(mockedSave).toHaveBeenCalledTimes(2);
   expect(await filed).toHaveLength(2);
+});
+
+test('ticks off the program workout a completed plan run followed', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('p1'),
+    program: { id: 'beginner5k', index: 3 },
+    planCompleted: true,
+  });
+  await processWatchRunQueue('km');
+  expect(completeProgramWorkout).toHaveBeenCalledWith(
+    'beginner5k',
+    3,
+    '2026-10-10'
+  );
+});
+
+test('does not tick off a program run cut short, and a failed tick-off keeps the run filed', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('p2'),
+    program: { id: 'beginner5k', index: 3 },
+    planCompleted: false,
+  });
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+  expect(completeProgramWorkout).not.toHaveBeenCalled();
+
+  jest.mocked(completeProgramWorkout).mockRejectedValueOnce(new Error('off'));
+  await enqueueWatchRun({
+    ...run('p3'),
+    program: { id: 'beginner5k', index: 4 },
+    planCompleted: true,
+  });
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
 });

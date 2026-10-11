@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiError } from './api/errors';
 import { addLog } from './LogService';
 import { saveWatchRun } from './watchRunSave';
+import { completeProgramWorkout } from './runProgramService';
 import { toLocalDateString } from '../utils/dateUtils';
 import type { WatchRunPayload } from '../utils/watchRun';
 
@@ -83,6 +84,27 @@ async function markDone(clientId: string): Promise<void> {
   );
 }
 
+/**
+ * A run that followed a training-program workout to its last step counts as
+ * that workout. Best effort and safe to repeat: the server only moves on when
+ * the index is the one due, and the run is already in the diary either way.
+ */
+async function tickOffProgram(payload: WatchRunPayload): Promise<void> {
+  if (!payload.program || !payload.planCompleted) return;
+  try {
+    await completeProgramWorkout(
+      payload.program.id,
+      payload.program.index,
+      toLocalDateString(new Date(payload.startedAt))
+    );
+  } catch (error) {
+    addLog(
+      `[Watch Run] Could not tick off the program workout: ${String(error)}`,
+      'WARNING'
+    );
+  }
+}
+
 let processing: Promise<string[]> | null = null;
 
 /**
@@ -113,6 +135,7 @@ export function processWatchRunQueue(
           (entryId) =>
             serial(() => update(clientId, (run) => ({ ...run, entryId })))
         );
+        await tickOffProgram(item.payload);
         await serial(async () => {
           await update(clientId, () => null);
           await markDone(clientId);

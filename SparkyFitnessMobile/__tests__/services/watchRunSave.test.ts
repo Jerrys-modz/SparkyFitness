@@ -36,6 +36,9 @@ const outdoor: WatchRunPayload = {
     [T0 + 60_000, 140],
   ],
   laps: [],
+  planId: null,
+  program: null,
+  planCompleted: false,
 };
 
 beforeEach(() => {

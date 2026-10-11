@@ -144,7 +144,8 @@ export async function skipProgramWorkout(): Promise<void> {
 /** Records workout `index` as done, if it is the one that was due. */
 export async function completeProgramWorkout(
   programId: string,
-  index: number
+  index: number,
+  day: string = toLocalDateString(new Date())
 ): Promise<void> {
   // The local day is sent so the Diary stops offering the next workout for the
   // rest of that day, on every device.
@@ -153,7 +154,7 @@ export async function completeProgramWorkout(
       await markRunProgramWorkoutDone({
         index,
         program_id: programId,
-        day: toLocalDateString(new Date()),
+        day,
       })
     ).program
   );

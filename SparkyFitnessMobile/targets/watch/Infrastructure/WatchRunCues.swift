@@ -22,17 +22,27 @@ final class WatchRunCues {
         synthesizer.speak(utterance)
     }
 
-    /// Words for a completed split. Durations are spelled out because a speech
-    /// engine reads "5:24" as a time of day.
-    static func splitText(number: Int, seconds: TimeInterval, usesMiles: Bool) -> String {
-        let unit = usesMiles ? "Mile" : "Kilometer"
+    /// "5 minutes 24 seconds", spelled out for speech.
+    static func duration(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
         let minutes = total / 60
         let secs = total % 60
         var parts: [String] = []
         if minutes > 0 { parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")") }
         if secs > 0 || minutes == 0 { parts.append("\(secs) second\(secs == 1 ? "" : "s")") }
-        return "\(unit) \(number). \(parts.joined(separator: " "))."
+        return parts.joined(separator: " ")
+    }
+
+    /// What is said when a plan step begins: "Run, 1 minute."
+    static func stepText(label: String, seconds: TimeInterval) -> String {
+        "\(label), \(duration(seconds))."
+    }
+
+    /// Words for a completed split. Durations are spelled out because a speech
+    /// engine reads "5:24" as a time of day.
+    static func splitText(number: Int, seconds: TimeInterval, usesMiles: Bool) -> String {
+        let unit = usesMiles ? "Mile" : "Kilometer"
+        return "\(unit) \(number). \(duration(seconds))."
     }
 
     /// Whole units covered, and how many of them are new since `cued`.
