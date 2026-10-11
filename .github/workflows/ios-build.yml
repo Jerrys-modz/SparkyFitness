@@ -168,10 +168,7 @@ jobs:
             SIMCTL_CHILD_SPARKY_SCREENSHOT_PAGE="$3" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_SHEET="${4:-}" \
             SIMCTL_CHILD_SPARKY_SCREENSHOT_RECORDING="${5:-}" \
-              xcrun simctl launch --console "$UDID" "$BUNDLE_ID" > launch.log 2>&1 &
-          sleep 6
-          echo "--- processes"; xcrun simctl spawn "$UDID" launchctl list | grep -i sparky || echo "app not running"
-          echo "--- launch console"; head -60 launch.log || true
+              xcrun simctl launch "$UDID" "$BUNDLE_ID"
             # SwiftUI needs a moment to settle, and the rest countdown needs
             # to actually be counting before it is worth photographing.
             sleep 8
@@ -226,10 +223,20 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # The build is the slow part (about 50 minutes); the built app is reused
+      # until the JS or native config changes, so capture-only tweaks are cheap.
+      - name: Restore the built app
+        id: appcache
+        uses: actions/cache@v4
+        with:
+          path: SparkyFitnessMobile/build-phone/Build/Products/Release-iphonesimulator/SparkyFitness.app
+          key: phone-app-${{ hashFiles('SparkyFitnessMobile/src/**', 'SparkyFitnessMobile/App.tsx', 'SparkyFitnessMobile/index.js', 'SparkyFitnessMobile/package.json', 'SparkyFitnessMobile/app.config.ts', 'SparkyFitnessMobile/targets/**', 'SparkyFitnessMobile/modules/**') }}
       - name: Prebuild iOS project
+        if: ${{ steps.appcache.outputs.cache-hit != 'true' }}
         working-directory: SparkyFitnessMobile
         run: npx expo prebuild --platform ios
       - name: Build the app for the simulator with the screenshot bundle
+        if: ${{ steps.appcache.outputs.cache-hit != 'true' }}
         working-directory: SparkyFitnessMobile
         env:
           EXPO_PUBLIC_SHOT: "1"
@@ -270,20 +277,32 @@ jobs:
           xcrun simctl ui "$UDID" appearance light
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl privacy "$UDID" grant all "$BUNDLE_ID" || true
-          xcrun simctl launch "$UDID" "$BUNDLE_ID"
-          # The app walks itself through the states every 20s after its JS starts.
-          sleep 12;  xcrun simctl io "$UDID" screenshot screenshots/01-setup.png
+          # Everything the simulator logs while the app starts, kept for diagnosis.
+          xcrun simctl spawn "$UDID" log stream --style compact --level debug > sim.log 2>&1 &
+          LOGPID=$!
+          sleep 2
+          xcrun simctl launch --console "$UDID" "$BUNDLE_ID" > launch.log 2>&1 &
+          sleep 15
+          echo "--- processes"
+          xcrun simctl spawn "$UDID" launchctl list | grep -i sparky || echo "app not running"
+          echo "--- launch console"; head -60 launch.log || true
+          xcrun simctl io "$UDID" screenshot screenshots/01-setup.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/02-recording.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/03-paused.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/04-finished.png
+          kill $LOGPID || true
+          echo "--- processes after"
+          xcrun simctl spawn "$UDID" launchctl list | grep -i sparky || echo "app not running"
+          echo "--- launch console after"; head -80 launch.log || true
           echo "--- crash reports"
-          ls -la ~/Library/Logs/DiagnosticReports 2>/dev/null || true
-          for f in ~/Library/Logs/DiagnosticReports/*.ips; do
-            [ -f "$f" ] || continue
-            echo "=== $f"; head -c 6000 "$f"; echo
+          find ~/Library/Logs -name '*.ips' -mmin -30 2>/dev/null | head
+          for f in $(find ~/Library/Logs -name '*.ips' -mmin -30 2>/dev/null | head -3); do
+            echo "=== $f"; head -c 5000 "$f"; echo
           done
-          echo "--- app log"
-          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "SparkyFitness" OR process == "SparkyFitnessDev"' 2>/dev/null | tail -80 || true
+          echo "--- sim log: app lines"
+          grep -iE 'SparkyFitness|org\.SparkyApps' sim.log | tail -120 || true
+          echo "--- sim log: errors"
+          grep -iE 'fatal|exception|terminat|jetsam|killed|abort|crash' sim.log | grep -iv 'com.apple.Safari' | tail -60 || true
           ls -la screenshots
       - name: Publish screenshots to a branch
         run: |
