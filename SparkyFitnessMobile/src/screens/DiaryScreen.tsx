@@ -734,18 +734,19 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                         });
                         return;
                       }
-                      const state = navigation.getState();
-                      const current = state.routes[state.index];
+                      const parent = navigation.getParent();
+                      const state = parent?.getState();
+                      const current = state?.routes[state.index];
                       const params = current?.params as
-                        | { session?: { id?: string } }
-                        | undefined;
+                        { session?: { id?: string } } | undefined;
                       if (
+                        !parent ||
                         current?.name !== 'ActivityDetail' ||
                         params?.session?.id !== openedId
                       ) {
                         return;
                       }
-                      navigation.dispatch(
+                      parent.dispatch(
                         StackActions.replace('CardioSession', {
                           session: cardioSession,
                           distanceUnit,
