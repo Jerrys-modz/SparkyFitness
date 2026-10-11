@@ -91,6 +91,10 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
     let programId: String?
     let programIndex: Int?
     let steps: [Step]
+    /// "walk" for a walking program, otherwise nil (a run).
+    var activity: String? = nil
+
+    var kind: WatchRunKind { activity == "walk" ? .walk : .run }
 
     var totalSeconds: Double { steps.reduce(0) { $0 + $1.seconds } }
 

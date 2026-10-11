@@ -18,6 +18,8 @@ export interface WatchRunPlanPayload {
   /** Set for the program's workout due now; the phone ticks it off when the run is saved. */
   programId?: string;
   programIndex?: number;
+  /** 'walk' for a walking program; missing is a run. */
+  activity?: 'walk';
   steps: { label: string; seconds: number }[];
 }
 
@@ -48,6 +50,9 @@ export function buildWatchRunPlans(
       name: names.program(status),
       programId: status.program.id,
       programIndex: status.done,
+      ...(status.program.activity === 'walk'
+        ? { activity: 'walk' as const }
+        : {}),
       steps: toSteps(t, status.workout.plan),
     });
   }

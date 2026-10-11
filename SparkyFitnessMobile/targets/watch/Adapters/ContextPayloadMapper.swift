@@ -164,7 +164,8 @@ enum ContextPayloadMapper {
                 name: name,
                 programId: row["programId"] as? String,
                 programIndex: (row["programIndex"] as? NSNumber)?.intValue,
-                steps: steps
+                steps: steps,
+                activity: row["activity"] as? String
             )
         }
     }
