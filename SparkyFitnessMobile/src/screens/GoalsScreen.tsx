@@ -5,6 +5,7 @@ import Toast from 'react-native-toast-message';
 import FormInput from '../components/FormInput';
 import FormScreenChrome from '../components/FormScreenChrome';
 import GoalPresetsSection from '../components/GoalPresetsSection';
+import WeeklyGoalPlansSection from '../components/WeeklyGoalPlansSection';
 import MealDistributionEditor from '../components/MealDistributionEditor';
 import NutrientDirectionGuide from '../components/NutrientDirectionGuide';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
@@ -25,6 +26,7 @@ import {
   useGoalsQuery,
   useNutrientGoalPreferences,
   useSaveGoalsMutation,
+  useWeeklyGoalPlans,
   useSaveNutrientGoalPreferences,
 } from '../hooks/useGoals';
 import type {
@@ -157,24 +159,27 @@ const getMealPercentage = (goals: DailyGoals, key: string): number => {
   return typeof legacy === 'number' ? legacy : 0;
 };
 
-// Keys a preset shares with the goals form. Macro percentages and custom
-// nutrients are not editable here, so overwriting a preset leaves them alone.
-const PRESET_FORM_KEYS: (keyof DailyGoals)[] = [
+// Keys a preset stores. Anything else on a goal row (ids, dates) stays out.
+const PRESET_KEYS: (keyof DailyGoals)[] = [
   ...ALL_FIELDS,
+  'protein_percentage',
+  'carbs_percentage',
+  'fat_percentage',
   'breakfast_percentage',
   'lunch_percentage',
   'dinner_percentage',
   'snacks_percentage',
   'custom_meal_percentages',
+  'custom_nutrients',
 ];
 
-const pickPresetFormValues = (goals: DailyGoals): Partial<DailyGoals> =>
+const pickPresetValues = (goals: DailyGoals): DailyGoals =>
   Object.fromEntries(
-    PRESET_FORM_KEYS.filter((key) => goals[key] !== undefined).map((key) => [
+    PRESET_KEYS.filter((key) => goals[key] !== undefined).map((key) => [
       key,
       goals[key],
     ])
-  );
+  ) as unknown as DailyGoals;
 
 const ACTIVITY_LEVELS = ['not_much', 'light', 'moderate', 'heavy'] as const;
 
@@ -216,7 +221,12 @@ interface GoalsFormProps {
   goals: DailyGoals;
   directions?: NutrientGoalPreferences;
   mealTypes: MealType[];
+  /** Set when editing a goal preset (existing, or `{}`-less new) instead of today's goals. */
+  preset?: GoalPreset | null;
+  isPresetMode?: boolean;
   onDone: () => void;
+  onEditPreset: (presetId?: string) => void;
+  onEditPlan: (planId?: string) => void;
 }
 
 const GoalsForm: React.FC<GoalsFormProps> = ({
@@ -224,8 +234,13 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   goals,
   directions,
   mealTypes,
+  preset = null,
+  isPresetMode = false,
   onDone,
+  onEditPreset,
+  onEditPlan,
 }) => {
+  const [presetName, setPresetName] = useState(preset?.preset_name ?? '');
   const { t } = useTranslation();
   const { saveGoals, isPending: isSavingGoals } = useSaveGoalsMutation();
   const saveDirections = useSaveNutrientGoalPreferences();
@@ -236,7 +251,8 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   );
   const [directionDrafts, setDirectionDrafts] = useState(initialDirections);
   const { preferences } = usePreferences();
-  const isAdaptive = preferences?.calorie_goal_adjustment_mode === 'adaptive';
+  const isAdaptive =
+    !isPresetMode && preferences?.calorie_goal_adjustment_mode === 'adaptive';
   const adjustedCalories = useAdjustedCalorieGoal(date, isAdaptive);
   const waterUnit = preferences?.water_display_unit ?? 'ml';
   const { profile } = useProfile();
@@ -368,6 +384,28 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     }),
   };
 
+  const { presets } = useGoalPresets();
+  const {
+    createPreset,
+    updatePreset,
+    deletePreset,
+    isPending: presetBusy,
+  } = useGoalPresetMutations();
+
+  const presetFailed = useCallback(
+    () =>
+      Toast.show({
+        type: 'error',
+        text1: t('common.error', { defaultValue: 'Error' }),
+        text2: t('goals.presets.failed', {
+          defaultValue: 'Could not update goal presets.',
+        }),
+      }),
+    [t]
+  );
+
+  const { plans } = useWeeklyGoalPlans();
+
   // Validates the form and returns the full goal row it describes, or null
   // (after showing why) when a value is invalid.
   const buildGoals = useCallback((): DailyGoals | null => {
@@ -429,6 +467,32 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const handleSave = useCallback(async () => {
     const next = buildGoals();
     if (!next) return;
+    if (isPresetMode) {
+      const name = presetName.trim();
+      if (!name) {
+        Toast.show({
+          type: 'error',
+          text1: t('goals.presets.nameRequired', {
+            defaultValue: 'Give the preset a name.',
+          }),
+        });
+        return;
+      }
+      try {
+        if (preset?.id) {
+          await updatePreset({
+            id: preset.id,
+            preset: { ...preset, ...pickPresetValues(next), preset_name: name },
+          });
+        } else {
+          await createPreset({ ...pickPresetValues(next), preset_name: name });
+        }
+        onDone();
+      } catch {
+        presetFailed();
+      }
+      return;
+    }
     const directionUpdates: {
       key: string;
       preference: {
@@ -490,6 +554,12 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       });
     }
   }, [
+    isPresetMode,
+    presetName,
+    preset,
+    createPreset,
+    updatePreset,
+    presetFailed,
     date,
     buildGoals,
     directionDrafts,
@@ -517,28 +587,11 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     });
   };
 
-  const { presets } = useGoalPresets();
-  const {
-    createPreset,
-    updatePreset,
-    deletePreset,
-    isPending: presetBusy,
-  } = useGoalPresetMutations();
-
-  const presetFailed = () =>
-    Toast.show({
-      type: 'error',
-      text1: t('common.error', { defaultValue: 'Error' }),
-      text2: t('goals.presets.failed', {
-        defaultValue: 'Could not update goal presets.',
-      }),
-    });
-
-  const handleApplyPreset = (preset: GoalPreset) => {
-    setDrafts(toDrafts(preset, waterUnit));
+  const handleApplyPreset = (applied: GoalPreset) => {
+    setDrafts(toDrafts(applied, waterUnit));
     setMealDrafts(
       Object.fromEntries(
-        meals.map(({ key }) => [key, getMealPercentage(preset, key)])
+        meals.map(({ key }) => [key, getMealPercentage(applied, key)])
       )
     );
     Toast.show({
@@ -547,43 +600,6 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
         defaultValue: 'Preset applied. Tap Save to keep it.',
       }),
     });
-  };
-
-  const handleCreatePreset = async (name: string): Promise<boolean> => {
-    const current = buildGoals();
-    if (!current) return false;
-    try {
-      await createPreset({ ...current, preset_name: name });
-      return true;
-    } catch {
-      presetFailed();
-      return false;
-    }
-  };
-
-  const handleOverwritePreset = async (preset: GoalPreset) => {
-    const current = buildGoals();
-    if (!current || !preset.id) return;
-    try {
-      await updatePreset({
-        id: preset.id,
-        preset: { ...preset, ...pickPresetFormValues(current) },
-      });
-    } catch {
-      presetFailed();
-    }
-  };
-
-  const handleRenamePreset = async (preset: GoalPreset, name: string) => {
-    if (!preset.id) return;
-    try {
-      await updatePreset({
-        id: preset.id,
-        preset: { ...preset, preset_name: name },
-      });
-    } catch {
-      presetFailed();
-    }
   };
 
   const handleDeletePreset = async (preset: GoalPreset) => {
@@ -705,19 +721,50 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
 
   return (
     <FormScreenChrome
-      title={t('goals.title', { defaultValue: 'Goals' })}
+      title={
+        isPresetMode
+          ? preset
+            ? t('goals.presets.editTitle', { defaultValue: 'Edit preset' })
+            : t('goals.presets.newTitle', { defaultValue: 'New preset' })
+          : t('goals.title', { defaultValue: 'Goals' })
+      }
       saveLabel={t('common.save', { defaultValue: 'Save' })}
       savingLabel={t('common.saving', { defaultValue: 'Saving…' })}
-      isSaving={isPending}
+      isSaving={isPending || presetBusy}
       onSave={handleSave}
       onCancel={onDone}
     >
-      <Text className="text-sm text-text-secondary">
-        {t('goals.description', {
-          defaultValue:
-            'Daily targets that apply from today onward. Past days keep their goals.',
-        })}
-      </Text>
+      {isPresetMode ? (
+        <View className="gap-1">
+          <Text className="text-sm font-medium text-text-primary">
+            {t('goals.presets.nameLabel', { defaultValue: 'Preset name' })}
+          </Text>
+          <FormInput
+            value={presetName}
+            onChangeText={setPresetName}
+            placeholder={t('goals.presets.namePlaceholder', {
+              defaultValue: 'Preset name',
+            })}
+            accessibilityLabel={t('goals.presets.nameLabel', {
+              defaultValue: 'Preset name',
+            })}
+            testID="goal-preset-name"
+          />
+          <Text className="text-sm text-text-secondary">
+            {t('goals.presets.editDescription', {
+              defaultValue:
+                'A preset is a saved set of goals. Apply it to your goals, or assign it to days of the week in a weekly plan.',
+            })}
+          </Text>
+        </View>
+      ) : (
+        <Text className="text-sm text-text-secondary">
+          {t('goals.description', {
+            defaultValue:
+              'Daily targets that apply from today onward. Past days keep their goals.',
+          })}
+        </Text>
+      )}
       {isAdaptive && (
         <Text className="text-sm text-text-secondary">
           {adjustedCalories !== undefined
@@ -789,25 +836,39 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
               : 0
         }
       />
-      {sectionTitle(
-        t('goals.sections.presets', { defaultValue: 'Goal presets' })
+      {!isPresetMode && (
+        <>
+          {sectionTitle(
+            t('goals.sections.presets', { defaultValue: 'Goal presets' })
+          )}
+          <GoalPresetsSection
+            presets={presets}
+            isBusy={presetBusy}
+            onApply={handleApplyPreset}
+            onCreate={() => onEditPreset()}
+            onEdit={(item) => onEditPreset(item.id)}
+            onDelete={handleDeletePreset}
+          />
+          {sectionTitle(
+            t('goals.sections.weekly', { defaultValue: 'Weekly plans' })
+          )}
+          <WeeklyGoalPlansSection
+            plans={plans}
+            presets={presets}
+            onCreate={() => onEditPlan()}
+            onEdit={(plan) => onEditPlan(plan.id)}
+          />
+        </>
       )}
-      <GoalPresetsSection
-        presets={presets}
-        isBusy={presetBusy}
-        onApply={handleApplyPreset}
-        onCreate={handleCreatePreset}
-        onOverwrite={handleOverwritePreset}
-        onRename={handleRenamePreset}
-        onDelete={handleDeletePreset}
-      />
     </FormScreenChrome>
   );
 };
 
-const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
+const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const { isConnected } = useServerConnection();
+  const presetId = route.params?.presetId;
+  const isPresetMode = !!presetId || !!route.params?.newPreset;
   const [date] = useState(getTodayDate);
   const { goals, isLoading, isError, refetch } = useGoalsQuery(date, {
     enabled: isConnected,
@@ -816,29 +877,57 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
     enabled: isConnected,
   });
   const { directions, isLoading: isLoadingDirectionsQuery } =
-    useNutrientGoalPreferences({ enabled: isConnected });
-  const isLoadingDirections = isLoadingDirectionsQuery || isLoadingMealTypes;
+    useNutrientGoalPreferences({ enabled: isConnected && !isPresetMode });
+  const { presets, isLoading: isLoadingPresets } = useGoalPresets({
+    enabled: isConnected,
+  });
+  const isLoadingDirections =
+    isLoadingDirectionsQuery || isLoadingMealTypes || isLoadingPresets;
   const goBack = useCallback(() => navigation.goBack(), [navigation]);
+  const editPreset = useCallback(
+    (id?: string) =>
+      navigation.push('Goals', id ? { presetId: id } : { newPreset: true }),
+    [navigation]
+  );
+  const editPlan = useCallback(
+    (planId?: string) => navigation.navigate('WeeklyGoalPlanEdit', { planId }),
+    [navigation]
+  );
 
-  if (isLoading || isLoadingDirections || isError || !goals) {
+  const preset = presetId
+    ? (presets.find((item) => item.id === presetId) ?? null)
+    : null;
+  const isBusy = isLoading || isLoadingDirections;
+  const isMissingPreset = !!presetId && !isBusy && !preset;
+
+  if (isBusy || isError || !goals || isMissingPreset) {
     return (
       <StatusView
-        loading={isLoading || isLoadingDirections}
-        icon={isLoading || isLoadingDirections ? undefined : 'alert-circle'}
+        loading={isBusy}
+        icon={isBusy ? undefined : 'alert-circle'}
         title={
-          isLoading || isLoadingDirections
+          isBusy
             ? undefined
-            : t('goals.loadFailed', {
-                defaultValue: 'Could not load your goals.',
-              })
+            : isMissingPreset
+              ? t('goals.presets.notFound', {
+                  defaultValue: 'Could not find this preset.',
+                })
+              : t('goals.loadFailed', {
+                  defaultValue: 'Could not load your goals.',
+                })
         }
         action={
-          isLoading || isLoadingDirections
+          isBusy
             ? undefined
-            : {
-                label: t('common.retry', { defaultValue: 'Retry' }),
-                onPress: () => void refetch(),
-              }
+            : isMissingPreset
+              ? {
+                  label: t('goals.weekly.goBack', { defaultValue: 'Go back' }),
+                  onPress: goBack,
+                }
+              : {
+                  label: t('common.retry', { defaultValue: 'Retry' }),
+                  onPress: () => void refetch(),
+                }
         }
       />
     );
@@ -846,11 +935,17 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
 
   return (
     <GoalsForm
+      // Editing a preset reuses this screen, so reset the form when it changes.
+      key={presetId ?? (isPresetMode ? 'new-preset' : 'daily')}
       date={date}
-      goals={goals}
+      goals={preset ?? goals}
       directions={directions}
       mealTypes={mealTypes}
+      preset={preset}
+      isPresetMode={isPresetMode}
       onDone={goBack}
+      onEditPreset={editPreset}
+      onEditPlan={editPlan}
     />
   );
 };
