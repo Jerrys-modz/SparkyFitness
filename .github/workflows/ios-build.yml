@@ -282,7 +282,11 @@ jobs:
           LOGPID=$!
           sleep 2
           xcrun simctl launch --console "$UDID" "$BUNDLE_ID" > launch.log 2>&1 &
-          sleep 15
+          for n in 1 2 3 4; do
+            sleep 3
+            xcrun simctl io "$UDID" screenshot "screenshots/early-$n.png" || true
+          done
+          sleep 3
           echo "--- processes"
           xcrun simctl spawn "$UDID" launchctl list | grep -i sparky || echo "app not running"
           echo "--- launch console"; head -60 launch.log || true
@@ -291,6 +295,10 @@ jobs:
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/03-paused.png
           sleep 20;  xcrun simctl io "$UDID" screenshot screenshots/04-finished.png
           kill $LOGPID || true
+          # Keep the app's own lines (all processes named SparkyFitness, plus whatever
+          # mentions its bundle id outside the widget noise) for reading afterwards.
+          grep -E 'SparkyFitness\[|SparkyFitness\(|RCT|React|Hermes|hermes|JS |RedBox|exception|Exception' sim.log | grep -v chronod | grep -v runningboardd | tail -400 > screenshots/app.log || true
+          gzip -c sim.log > screenshots/sim.log.gz || true
           echo "--- processes after"
           xcrun simctl spawn "$UDID" launchctl list | grep -i sparky || echo "app not running"
           echo "--- launch console after"; head -80 launch.log || true
@@ -308,7 +316,7 @@ jobs:
         run: |
           set -euo pipefail
           D=$(mktemp -d)
-          cp SparkyFitnessMobile/screenshots/*.png "$D/"
+          cp SparkyFitnessMobile/screenshots/* "$D/"
           cd "$D"
           git init -q
           git checkout -q -b shots-gps-208-phone
