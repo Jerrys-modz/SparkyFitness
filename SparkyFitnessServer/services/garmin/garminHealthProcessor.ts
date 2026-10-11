@@ -344,18 +344,17 @@ export async function processGarminHealthAndWellnessData(
         // (captured_at), so the newest provider snapshot wins however
         // scheduled and manual syncs interleave — the same reasoning Polar
         // uses end_time for. Microservices predating the field omit it and an
-        // unparseable value degrades the same way, so fall back to sync time.
+        // unparseable value degrades the same way: the row then keeps a NULL
+        // capture time, which the upsert gate only lets fill an equally
+        // untimestamped slot, so a delayed legacy sync can never stamp its own
+        // arrival time over a newer timestamped total.
         const summaryCapturedAtMs = summaryItem.captured_at
           ? Date.parse(String(summaryItem.captured_at))
           : NaN;
         const totalCalories = summaryItem.total_calories ?? null;
         const totalCaloriesCapturedAt =
-          totalCalories !== null
-            ? new Date(
-                Number.isNaN(summaryCapturedAtMs)
-                  ? Date.now()
-                  : summaryCapturedAtMs
-              )
+          totalCalories !== null && !Number.isNaN(summaryCapturedAtMs)
+            ? new Date(summaryCapturedAtMs)
             : null;
 
         await genericHealthRepo.upsertDailyHealthMetrics(userId, actingUserId, {
@@ -375,8 +374,8 @@ export async function processGarminHealthAndWellnessData(
           active_calories: summaryItem.active_calories ?? null,
           bmr_calories: summaryItem.bmr_calories ?? null,
           total_calories: totalCalories,
-          // The gate only advances total_calories when a strictly newer stamp
-          // travels with it, so the two must always be sent together.
+          // Value and stamp travel as a pair: a NULL stamp marks an unordered
+          // legacy snapshot, which the gate only lets fill a NULL slot.
           total_calories_captured_at: totalCaloriesCapturedAt,
           resting_heart_rate: summaryItem.resting_heart_rate ?? null,
           exercise_minutes: intensityItem?.total_intensity_minutes ?? null,
