@@ -57,6 +57,8 @@ export type UpsertRunProgramBody = z.infer<typeof upsertRunProgramBodySchema>;
 /** Marks workout `index` done, if it is the one due. */
 export const completeRunProgramWorkoutBodySchema = z.object({
   index: z.number().int().min(0).max(1000),
+  /** The program the workout belonged to; ignored if the person has switched since. */
+  program_id: z.string().min(1).max(40).optional(),
 });
 export type CompleteRunProgramWorkoutBody = z.infer<
   typeof completeRunProgramWorkoutBodySchema

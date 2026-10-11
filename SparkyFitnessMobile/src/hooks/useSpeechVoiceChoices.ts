@@ -81,9 +81,15 @@ export function useSpeechVoiceChoices(enabled = true) {
           })
       : null;
 
+  // A pick in another language is not offered, and is not used either.
+  const value =
+    voiceId && options.some((o) => o.value === voiceId)
+      ? voiceId
+      : AUTOMATIC_VOICE;
+
   return {
     options,
-    value: voiceId ?? AUTOMATIC_VOICE,
+    value,
     onSelect: (value: string) =>
       setVoiceId(value === AUTOMATIC_VOICE ? null : value),
     hint,

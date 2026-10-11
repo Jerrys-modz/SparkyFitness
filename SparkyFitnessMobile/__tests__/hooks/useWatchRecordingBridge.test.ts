@@ -273,6 +273,35 @@ describe('useWatchRecordingBridge', () => {
     (mockedService.elapsedSeconds as jest.Mock).mockReturnValue(0);
   });
 
+  it('sends a new interval step at once but not durably', () => {
+    const plan = {
+      style: 'runWalk' as const,
+      steps: [
+        { kind: 'work' as const, seconds: 60 },
+        { kind: 'recovery' as const, seconds: 60 },
+      ],
+    };
+    const withStep = (cued: number) =>
+      ({
+        ...baseSession,
+        intervals: { plan, cued },
+      }) as unknown as typeof baseSession;
+    setSnapshot(withStep(0));
+    const { rerender } = renderHook(() => useWatchRecordingBridge(true));
+    watch.updateRecordingState.mockClear();
+
+    (mockedService.elapsedSeconds as jest.Mock).mockReturnValue(61);
+    setSnapshot(withStep(1));
+    rerender({});
+
+    expect(watch.updateRecordingState).toHaveBeenCalledTimes(1);
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({ intervalIndex: 1 }),
+      false
+    );
+    (mockedService.elapsedSeconds as jest.Mock).mockReturnValue(0);
+  });
+
   it('sends no interval fields when the recording has no plan', () => {
     setSnapshot(baseSession);
     renderHook(() => useWatchRecordingBridge(true));

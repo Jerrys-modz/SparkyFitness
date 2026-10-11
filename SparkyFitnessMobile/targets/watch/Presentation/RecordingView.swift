@@ -112,9 +112,12 @@ struct RecordingView: View {
                 HStack(spacing: 6) {
                     Text(step.label)
                         .font(.caption.weight(.semibold))
-                    Text(RecordingState.clock(step.remaining(in: state, at: context.date).rounded(.up)))
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
+                    // Nothing counts down once the plan is complete.
+                    if step.remaining > 0 {
+                        Text(RecordingState.clock(step.remaining(in: state, at: context.date).rounded(.up)))
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                    }
                 }
                 .foregroundStyle(.yellow)
             }

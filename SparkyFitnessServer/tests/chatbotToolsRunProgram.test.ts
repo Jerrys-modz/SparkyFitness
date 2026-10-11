@@ -122,6 +122,7 @@ describe('sparky_manage_run_program', () => {
   });
 
   it('starts the default program once confirmed', async () => {
+    vi.mocked(getRunProgram).mockResolvedValue(null);
     vi.mocked(upsertRunProgram).mockResolvedValue(program({ next_index: 0 }));
     expect(await run({ action: 'start_run_program' })).toContain(
       'Confirm with the user first'
@@ -133,6 +134,26 @@ describe('sparky_manage_run_program', () => {
       'user-1'
     );
     expect(text).toContain('Run program started');
+  });
+
+  it('says so when asked to start the program already held, rather than claiming a restart', async () => {
+    vi.mocked(getRunProgram).mockResolvedValue(program({ next_index: 5 }));
+    vi.mocked(upsertRunProgram).mockResolvedValue(program({ next_index: 5 }));
+    const text = await run({ action: 'start_run_program', confirmed: true });
+    expect(text).toContain('already on this program');
+    expect(text).not.toContain('Run program started');
+  });
+
+  it('refuses a run number the week does not have', async () => {
+    vi.mocked(getRunProgram).mockResolvedValue(program());
+    const text = await run({
+      action: 'move_run_program',
+      week: 1,
+      run: 7,
+      confirmed: true,
+    });
+    expect(text).toContain('has 3 runs');
+    expect(adjustRunProgram).not.toHaveBeenCalled();
   });
 
   it('switches the program off, keeping the place', async () => {

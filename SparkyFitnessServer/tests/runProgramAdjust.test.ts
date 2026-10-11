@@ -68,6 +68,46 @@ describe('adjustRunning', () => {
     expect(running(result, 9)).toEqual(running(state(0), 9));
   });
 
+  it('cannot compound past the original plan', () => {
+    let current = state(0);
+    for (let i = 0; i < 6; i++) {
+      try {
+        current = {
+          ...current,
+          ...adjustRunning(current, -30, 1, program.workouts),
+        };
+      } catch {
+        break;
+      }
+    }
+    const original = running(state(0), 0);
+    const eased = running(current, 0);
+    eased.forEach((seconds, i) => {
+      expect(seconds).toBeGreaterThanOrEqual(
+        Math.round((original[i] * 0.7) / 5) * 5
+      );
+    });
+    expect(() => adjustRunning(current, -30, 1, program.workouts)).toThrow(
+      /already at the limit/
+    );
+  });
+
+  it('refuses a change that would alter nothing', () => {
+    const fasterEasy = findProgram('faster5k')!;
+    const easyIndex = fasterEasy.workouts.findIndex(
+      (w) => !w.plan.steps.some((step) => step.kind === 'work')
+    );
+    if (easyIndex < 0) return;
+    expect(() =>
+      adjustRunning(
+        { workouts: fasterEasy.workouts, next: easyIndex },
+        -20,
+        1,
+        fasterEasy.workouts
+      )
+    ).toThrow(ProgramAdjustError);
+  });
+
   it('refuses when the program is finished', () => {
     expect(() => adjustRunning(state(27), -10, 1)).toThrow(ProgramAdjustError);
   });

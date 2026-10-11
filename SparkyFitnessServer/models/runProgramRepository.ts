@@ -117,16 +117,19 @@ export async function upsertRunProgram(
 export async function completeRunProgramWorkout(
   userId: string,
   index: number,
-  authenticatedUserId?: string
+  authenticatedUserId?: string,
+  programId?: string
 ): Promise<RunProgramResponse | null> {
   const client = await getClient(userId, authenticatedUserId);
   try {
+    // A workout finished under one program must not tick off another's.
     const result = await client.query(
       `UPDATE run_programs SET next_index = next_index + 1, updated_at = NOW()
        WHERE user_id = $1 AND next_index = $2
          AND next_index < jsonb_array_length(workouts)
+         AND ($3::text IS NULL OR program_id = $3)
        RETURNING *`,
-      [userId, index]
+      [userId, index, programId ?? null]
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   } finally {

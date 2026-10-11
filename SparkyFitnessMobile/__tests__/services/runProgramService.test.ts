@@ -62,6 +62,7 @@ test('a switched-off program is not reported as being used', async () => {
 });
 
 test('switching on starts the program and caches the answer', async () => {
+  mockedFetch.mockResolvedValue({ program: null });
   mockedSave.mockResolvedValue({ program: stored() });
   await setProgramEnabled(true, 'beginner5k');
   expect(mockedSave).toHaveBeenCalledWith({
@@ -74,12 +75,13 @@ test('switching on starts the program and caches the answer', async () => {
 });
 
 test('switching off with nothing started does nothing', async () => {
+  mockedFetch.mockResolvedValue({ program: null });
   await setProgramEnabled(false, 'beginner5k');
   expect(mockedSave).not.toHaveBeenCalled();
 });
 
-test('moves, restarts and skips relative to the cached place', async () => {
-  queryClient.setQueryData(runProgramQueryKey, stored({ next_index: 3 }));
+test('moves, restarts and skips relative to the place the server has', async () => {
+  mockedFetch.mockResolvedValue({ program: stored({ next_index: 3 }) });
   mockedSave.mockImplementation(async (body) => ({
     program: stored({ next_index: body.next_index ?? 0 }),
   }));
@@ -101,7 +103,21 @@ test('moves, restarts and skips relative to the cached place', async () => {
   });
 });
 
+test('switching on keeps the program the server holds, whatever this device had cached', async () => {
+  queryClient.setQueryData(runProgramQueryKey, null);
+  mockedFetch.mockResolvedValue({
+    program: stored({ program_id: 'marathon', enabled: false }),
+  });
+  mockedSave.mockResolvedValue({ program: stored({ program_id: 'marathon' }) });
+  await setProgramEnabled(true, 'beginner5k');
+  expect(mockedSave).toHaveBeenCalledWith({
+    program_id: 'marathon',
+    enabled: true,
+  });
+});
+
 test('a move without a program does nothing', async () => {
+  mockedFetch.mockResolvedValue({ program: null });
   await setProgramPosition(5);
   expect(mockedSave).not.toHaveBeenCalled();
 });
@@ -109,7 +125,10 @@ test('a move without a program does nothing', async () => {
 test('completing a workout sends its index and caches the result', async () => {
   mockedDone.mockResolvedValue({ program: stored({ next_index: 1 }) });
   await completeProgramWorkout('beginner5k', 0);
-  expect(mockedDone).toHaveBeenCalledWith({ index: 0 });
+  expect(mockedDone).toHaveBeenCalledWith({
+    index: 0,
+    program_id: 'beginner5k',
+  });
   expect(
     queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.next_index
   ).toBe(1);

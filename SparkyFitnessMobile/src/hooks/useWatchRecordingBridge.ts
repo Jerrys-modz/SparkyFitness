@@ -140,7 +140,6 @@ export function useWatchRecordingBridge(enabled: boolean): void {
   // discarded, so the session leaves the store) tells the watch to close.
   const sessionId = snapshot.session?.id ?? null;
   const status = snapshot.session?.status ?? null;
-  // A new interval step goes to the watch at once, so its buzz is on time.
   const intervalStep = snapshot.session?.intervals?.cued ?? null;
   useEffect(() => {
     if (!enabled || !WatchConnectivity) return;
@@ -161,7 +160,20 @@ export function useWatchRecordingBridge(enabled: boolean): void {
       lastSent.current = null;
       lastSession.current = null;
     }
-  }, [enabled, sessionId, status, intervalStep]);
+  }, [enabled, sessionId, status]);
+
+  // A new interval step goes out at once so its buzz is on time. Live only: a
+  // durable send also relaunches the watch app, and the 3 s refresh covers a
+  // watch that is out of reach for the moment.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity || status !== 'recording') return;
+    if (intervalStep === null || !WatchConnectivity.isReachable()) return;
+    const state = buildState('recording', latest.current);
+    if (!state) return;
+    void WatchConnectivity.updateRecordingState(state, false).catch(
+      (error: unknown) => logError('send interval step', error)
+    );
+  }, [enabled, status, intervalStep]);
 
   // Live distance and pace, only while recording and only to a reachable watch.
   useEffect(() => {
