@@ -208,6 +208,7 @@ enum OutboundPayloads {
             "route": WatchRunResult.thin(result.route, to: 1500),
             "heartRate": WatchRunResult.thin(result.heartRate, to: 600),
             "laps": result.laps,
+            "lapDistances": result.lapDistances,
             "planCompleted": result.planCompleted,
         ]
         if let plan = result.plan {
