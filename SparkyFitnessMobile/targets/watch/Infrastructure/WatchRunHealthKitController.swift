@@ -1,4 +1,5 @@
 import CoreLocation
+import CoreMotion
 import Foundation
 import HealthKit
 
@@ -51,6 +52,11 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// so standing still at a light does not draw a stray tail.
     private var collectingRoute = false
     private var autoPause = WatchAutoPause()
+    // Indoor only: step counting stands in for GPS speed.
+    private var indoorAutoPause = WatchIndoorAutoPause()
+    private var pedometer: CMPedometer?
+    private var motionTimer: Timer?
+    private var pedometerSteps = 0
     private var runKind: WatchRunKind = .run
     /// Whether the last pause was ours, so only that one is ever resumed.
     private var pausedByAutoPause = false
@@ -147,6 +153,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             runKind = kind
             runPlace = place
             autoPause.reset()
+            indoorAutoPause.reset()
             pausedByAutoPause = false
             clientId = UUID().uuidString
             routeRows = []
@@ -161,7 +168,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             newBuilder.beginCollection(withStart: now) { _, _ in
                 newBuilder.addMetadata(marker) { _, _ in }
             }
-            if place == .outdoor { startRoute() }
+            if place == .outdoor { startRoute() } else { startMotion() }
             persistSnapshot(force: true)
             return true
         } catch {
@@ -177,6 +184,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         collectingRoute = false
         pausedByAutoPause = automatic
         autoPause.reset()
+        indoorAutoPause.reset()
         persistSnapshot(force: true)
     }
 
@@ -185,6 +193,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         collectingRoute = routeBuilder != nil
         pausedByAutoPause = false
         autoPause.reset()
+        indoorAutoPause.reset()
         // The jump across a pause is never distance, so the phone is told
         // where a new stretch begins.
         routeSegment += 1
@@ -340,6 +349,7 @@ extension WatchRunHealthKitController {
                 // The jump across the gap while the app was gone is never distance.
                 self.routeSegment = snapshot.routeSegment + 1
                 self.autoPause.reset()
+                self.indoorAutoPause.reset()
                 let paused = recovered.state == .paused
                 self.pausedByAutoPause = paused && snapshot.pausedByAutoPause
                 var current = WatchRunMetrics()
@@ -353,6 +363,8 @@ extension WatchRunHealthKitController {
                     // Health restarts here; the phone still gets every fix.
                     self.startRoute()
                     self.collectingRoute = !paused
+                } else {
+                    self.startMotion()
                 }
                 self.persistSnapshot(force: true)
                 completion(.resumed(WatchRunRecovery(
@@ -397,6 +409,52 @@ extension WatchRunHealthKitController {
     }
 }
 
+// MARK: - Auto-pause (indoor)
+
+extension WatchRunHealthKitController {
+    /// Counts steps with the pedometer and judges them once a second. The
+    /// pedometer keeps reporting while the workout session is paused, which is
+    /// what lets a treadmill run resume itself. Without motion permission or a
+    /// step counter nothing happens: the wearer pauses by hand.
+    fileprivate func startMotion() {
+        guard CMPedometer.isStepCountingAvailable() else { return }
+        let counter = CMPedometer()
+        pedometer = counter
+        pedometerSteps = 0
+        counter.startUpdates(from: Date()) { [weak self] data, _ in
+            guard let steps = data?.numberOfSteps.intValue else { return }
+            DispatchQueue.main.async { self?.pedometerSteps = steps }
+        }
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            self?.judgeSteps()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        motionTimer = timer
+    }
+
+    fileprivate func stopMotion() {
+        pedometer?.stopUpdates()
+        pedometer = nil
+        motionTimer?.invalidate()
+        motionTimer = nil
+    }
+
+    private func judgeSteps() {
+        guard session != nil else { return }
+        let paused = pausedByAutoPause
+        let action = indoorAutoPause.step(
+            steps: pedometerSteps,
+            at: Date(),
+            kind: runKind,
+            paused: paused
+        )
+        guard action != .none else { return }
+        // A manual pause is never auto-resumed.
+        if action == .resume && !paused { return }
+        onAutoPause?(action)
+    }
+}
+
 // MARK: - Route (outdoor)
 
 extension WatchRunHealthKitController {
@@ -428,6 +486,8 @@ extension WatchRunHealthKitController {
         locationManager = nil
         collectingRoute = false
         routeBuilder = nil
+        // Called wherever a run ends or fails, so the indoor detector stops here too.
+        stopMotion()
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
