@@ -11,6 +11,7 @@ import BottomSheetPicker, {
 import { getAppLocale } from '../../localization';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
 import { toLocalDateString } from '../../utils/dateUtils';
+import { formatDayLabel } from '../../utils/dayLabel';
 import {
   addDays,
   findProgram,
@@ -279,14 +280,7 @@ const RunProgramCard: React.FC<Props> = ({
     : '';
   const today = toLocalDateString(new Date(now));
   const futureStart = !!schedule.startDay && schedule.startDay > today;
-  const dayLabel = (day: string): string => {
-    const [y, m, d] = day.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(getAppLocale(), {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  const dayLabel = (day: string): string => formatDayLabel(day);
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
