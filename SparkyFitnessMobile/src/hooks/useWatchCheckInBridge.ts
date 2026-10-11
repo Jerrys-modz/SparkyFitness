@@ -46,6 +46,7 @@ import { useWorkoutPresets } from './useWorkoutPresets';
 import { getActiveServerConfigId } from '../services/storage';
 import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
+import { getRecordingPreferences } from '../services/gpsRecordingService';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -585,6 +586,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         hapticsEnabled,
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
+        runVoiceCues: (await getRecordingPreferences()).audioCues,
         startableWorkouts,
         // Built for `summaryDate`; a push that has crossed midnight before the
         // hook re-rendered must not carry yesterday's plan.

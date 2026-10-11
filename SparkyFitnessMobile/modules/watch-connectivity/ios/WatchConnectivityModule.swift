@@ -34,6 +34,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
     var onRecordingControl: (([String: Any]) -> Void)?
     var onRecordingHeartRate: (([String: Any]) -> Void)?
+    /// A walk or run recorded on the watch alone, sent when it finished.
+    var onRunFinished: (([String: Any]) -> Void)?
     /// The wearer answered the update-this-workout question on the summary.
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
 
@@ -116,6 +118,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRecordingControl?(payload)
         case "recordingHeartRate":
             onRecordingHeartRate?(payload)
+        case "runFinished":
+            onRunFinished?(payload)
         case "presetUpdateAnswer":
             onPresetUpdateAnswer?(payload)
         default:
@@ -253,6 +257,7 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStartRequested",
             "onRecordingControl",
             "onRecordingHeartRate",
+            "onRunFinished",
             "onPresetUpdateAnswer"
         )
 
@@ -405,6 +410,20 @@ public class WatchConnectivityModule: Module {
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "clientId": payload["clientId"] as? String ?? "",
                     "samples": payload["samples"] as? [[String: Any]] ?? [],
+                ])
+            }
+            self.delegateHandler.onRunFinished = { [weak self] payload in
+                self?.sendEvent("onRunFinished", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "kind": payload["kind"] as? String ?? "",
+                    "place": payload["place"] as? String ?? "",
+                    "startedAt": (payload["startedAt"] as? NSNumber)?.doubleValue ?? 0,
+                    "endedAt": (payload["endedAt"] as? NSNumber)?.doubleValue ?? 0,
+                    "activeSeconds": (payload["activeSeconds"] as? NSNumber)?.doubleValue ?? 0,
+                    "distanceMeters": (payload["distanceMeters"] as? NSNumber)?.doubleValue ?? 0,
+                    "activeEnergyKcal": (payload["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0,
+                    "route": payload["route"] as? [[Double]] ?? [],
+                    "heartRate": payload["heartRate"] as? [[Double]] ?? [],
                 ])
             }
             self.delegateHandler.onPresetUpdateAnswer = { [weak self] payload in

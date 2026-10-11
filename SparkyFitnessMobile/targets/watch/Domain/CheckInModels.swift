@@ -356,6 +356,8 @@ struct WatchContext: Codable, Equatable {
     /// The phone's Settings → Apple Watch → Double-tap switch. Defaulted so the
     /// existing initializer calls need not pass it; nil reads as on.
     var doubleTapEnabled: Bool? = nil
+    /// The phone's "Voice cues" switch: a wrist-only run speaks each completed km or mile.
+    var runVoiceCues: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,

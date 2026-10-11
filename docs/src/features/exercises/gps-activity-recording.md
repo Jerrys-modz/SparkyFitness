@@ -142,6 +142,23 @@ The watch's own GPS is not used, and the activity is saved to Apple Health once,
 
 ---
 
+## Recording a walk or run on the watch alone
+
+On the watch's **Workout** page, above your saved workouts, tap **Cardio** and choose **Run** or **Walk** under **Outdoor** or **Indoor**. The watch then records on its own, with no phone needed:
+
+- The page shows the clock, distance, pace and heart rate, with pause, resume and finish.
+- **Outdoors** the watch uses its own GPS for the distance and records the route. The first time, it asks for location access ("while using the app" is enough). If you say no, you still get the workout, just without a route.
+- **Indoors** there is no GPS, so the distance is the watch's own estimate from its motion sensors. It gets better the more you use the watch outdoors, since Apple calibrates it from outdoor workouts.
+- **Auto-pause:** when you stop, the watch pauses itself ("Auto-paused", with a tap on the wrist) and resumes when you move again. Outdoors it uses GPS speed with the same thresholds as the phone. Indoors it counts your steps: no new steps for about 8 seconds (10 walking) pauses, and about five steps resume. A pause you make yourself is never undone automatically. Pausing is not backdated, so the first few seconds of standing still count. Indoor auto-pause asks for Motion & Fitness access the first time; without it, use the pause button.
+- **If the watch app closes mid-run:** open it again and the run carries on where it was. If watchOS had already ended the workout, the run is still sent to your iPhone as far as it got (provided it was at least a minute long with some distance), so the effort isn't lost. After a restart the route in Apple Health begins at that point; the activity in SparkyFitness keeps the whole route.
+- Finishing saves the workout (and route) to Apple Health and sends the run to your iPhone, which logs it in your diary as a normal SparkyFitness activity with distance, heart rate, calories and the route. If the phone is out of range or offline, the run waits and is logged when they meet again.
+
+The watch can only run one workout at a time. The page tells you if your iPhone is recording an activity or a strength workout is running, and it won't start in that case.
+
+A watch-only recording buzzes at every completed kilometre or mile, and speaks it ("Kilometer 3. 5 minutes 24 seconds.") when Voice cues is on in the Record screen; the sound comes from the watch speaker or paired headphones. The flag button marks a lap (a second press within 3 seconds is ignored); when you save, an outdoor run is cut at your laps instead of at each kilometre or mile. Indoor runs have no route, so laps are not kept. The Voice cues setting reaches the watch with the phone's next update, so open the app once after changing it. Intervals and training programs are not followed on the wrist alone.
+
+---
+
 ## How the numbers are worked out
 
 - Fixes with a poor accuracy radius, impossible jumps and standing-still jitter are filtered out.

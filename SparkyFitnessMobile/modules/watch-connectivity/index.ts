@@ -142,6 +142,11 @@ export interface WatchContextPayload {
    */
   doubleTapEnabled?: boolean | null;
   /**
+   * The Record screen's Voice cues switch. A run recorded from the wrist alone
+   * speaks each completed km or mile while this is on. Missing reads as off.
+   */
+  runVoiceCues?: boolean | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.
@@ -574,6 +579,24 @@ export interface WatchRecordingHeartRatePayload {
   samples: WatchHeartRateSamplePayload[];
 }
 
+/**
+ * A walk or run recorded on the watch alone, sent once when it finishes. The
+ * shape is `WatchRunPayload` in `src/utils/watchRun.ts`; this is the loose
+ * wire type and the phone validates it before use.
+ */
+export interface WatchRunFinishedPayload {
+  clientId: string;
+  kind: string;
+  place: string;
+  startedAt: number;
+  endedAt: number;
+  activeSeconds: number;
+  distanceMeters: number;
+  activeEnergyKcal: number;
+  route: number[][];
+  heartRate: number[][];
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -591,6 +614,7 @@ export type WatchConnectivityEvents = {
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onRecordingControl: (payload: WatchRecordingControlPayload) => void;
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
+  onRunFinished: (payload: WatchRunFinishedPayload) => void;
   onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
 };
 
