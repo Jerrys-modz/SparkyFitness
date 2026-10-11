@@ -352,6 +352,9 @@ export type RootStackParamList = {
   CalorieSettings: undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
+  CustomNutrients: undefined;
+  CustomNutrientForm: { nutrientId?: string } | undefined;
+  NutrientDisplaySettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;
