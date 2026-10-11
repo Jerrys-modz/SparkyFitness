@@ -13,11 +13,7 @@ import RunProgramGuide, {
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import {
-  reconcileRunReminders,
-  setRunReminders,
-  useRunReminders,
-} from '../services/runReminderService';
+import { setRunSchedule, useRunSchedule } from '../services/runProgramSchedule';
 import {
   restartProgram,
   setProgramEnabled,
@@ -38,7 +34,7 @@ type Props = RootStackScreenProps<'RunPrograms'>;
 const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const reminders = useRunReminders();
+  const schedule = useRunSchedule();
   const { status, enabled, lastAdjustment, loaded } = useRunProgram();
   const [now] = useState(() => Date.now());
   const [chosenId, setChosenId] = useState('beginner5k');
@@ -49,25 +45,22 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     left: { kind: 'back' },
   });
 
-  // A program change goes to the server, so it can fail (offline). The
-  // reminders follow whatever the program's state ends up being.
+  // A program change goes to the server, so it can fail (offline).
   const change = useCallback(
     (action: () => Promise<void>) => {
-      void action()
-        .then(() => reconcileRunReminders())
-        .catch((error: unknown) => {
-          addLog(
-            `[Run Program] Could not update the program: ${error}`,
-            'WARNING'
-          );
-          Toast.show({
-            type: 'error',
-            text1: t('recordActivity.program.errors.update', {
-              defaultValue: 'Could not update your program',
-            }),
-            text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
-          });
+      void action().catch((error: unknown) => {
+        addLog(
+          `[Run Program] Could not update the program: ${error}`,
+          'WARNING'
+        );
+        Toast.show({
+          type: 'error',
+          text1: t('recordActivity.program.errors.update', {
+            defaultValue: 'Could not update your program',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
         });
+      });
     },
     [t]
   );
@@ -115,8 +108,8 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onChooseProgram={chooseProgram}
           lastAdjustment={lastAdjustment}
           now={now}
-          reminders={reminders}
-          onReminders={(next) => void setRunReminders(next)}
+          schedule={schedule}
+          onSchedule={(next) => void setRunSchedule(next)}
           onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}

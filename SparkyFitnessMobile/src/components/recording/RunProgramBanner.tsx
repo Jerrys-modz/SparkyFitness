@@ -5,7 +5,7 @@ import { useCSSVariable } from 'uniwind';
 import { planMinutes } from '@workspace/shared';
 import Icon from '../Icon';
 import Button from '../ui/Button';
-import { useRunReminders } from '../../services/runReminderService';
+import { useRunSchedule } from '../../services/runProgramSchedule';
 import {
   useProgramDoneDay,
   useRunProgram,
@@ -28,7 +28,7 @@ const RunProgramBanner: React.FC<{
   const [accent] = useCSSVariable(['--color-accent-primary']) as [string];
   const [today] = useState(() => toLocalDateString(new Date()));
   const { status, enabled, loaded } = useRunProgram();
-  const { days } = useRunReminders();
+  const { days, startDay } = useRunSchedule();
   const doneDay = useProgramDoneDay();
 
   const card = loaded
@@ -36,6 +36,7 @@ const RunProgramBanner: React.FC<{
         enabled,
         status,
         runDays: days,
+        startDay,
         doneDay,
         today,
         date,

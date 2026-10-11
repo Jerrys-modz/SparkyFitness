@@ -3,12 +3,29 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import RunProgramCard from '../../src/components/recording/RunProgramCard';
 import { programStatus } from '@workspace/shared';
 
+jest.mock('../../src/components/CalendarSheet', () => {
+  const ReactModule = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ReactModule.forwardRef(
+      (_props: unknown, ref: React.Ref<unknown>) => {
+        ReactModule.useImperativeHandle(ref, () => ({
+          present: jest.fn(),
+          dismiss: jest.fn(),
+        }));
+        return <View testID="calendar-sheet" />;
+      }
+    ),
+  };
+});
+
 const handlers = () => ({
   programId: 'beginner5k',
   onChooseProgram: jest.fn(),
   now: Date.now(),
-  reminders: { days: [] as number[], hour: 7 },
-  onReminders: jest.fn(),
+  schedule: { days: [] as number[], startDay: null as string | null },
+  onSchedule: jest.fn(),
   onPickWorkout: jest.fn(),
   onToggle: jest.fn(),
   onSelect: jest.fn(),
@@ -119,35 +136,67 @@ describe('RunProgramCard', () => {
   });
 });
 
-describe('run reminders', () => {
+describe('diary days and start day', () => {
+  const props = () => ({
+    ...handlers(),
+    status: active(1),
+    loaded: true,
+    selected: false,
+    enabled: true,
+  });
+  // 2026-10-12 noon local.
+  const now = new Date(2026, 9, 12, 12).getTime();
+
   it('toggles a weekday', () => {
-    const onReminders = jest.fn();
+    const onSchedule = jest.fn();
     const { rerender } = render(
-      <RunProgramCard
-        {...handlers()}
-        onReminders={onReminders}
-        status={active(1)}
-        loaded
-        selected={false}
-        enabled
-      />
+      <RunProgramCard {...props()} now={now} onSchedule={onSchedule} />
     );
     fireEvent.press(screen.getByLabelText('Monday'));
-    expect(onReminders).toHaveBeenCalledWith({ days: [1], hour: 7 });
+    expect(onSchedule).toHaveBeenCalledWith({ days: [1] });
 
     rerender(
       <RunProgramCard
-        {...handlers()}
-        reminders={{ days: [1], hour: 7 }}
-        onReminders={onReminders}
-        status={active(1)}
-        loaded
-        selected={false}
-        enabled
+        {...props()}
+        now={now}
+        schedule={{ days: [1], startDay: null }}
+        onSchedule={onSchedule}
       />
     );
     fireEvent.press(screen.getByLabelText('Monday'));
-    expect(onReminders).toHaveBeenLastCalledWith({ days: [], hour: 7 });
+    expect(onSchedule).toHaveBeenLastCalledWith({ days: [] });
+  });
+
+  it('starts today unless tomorrow is chosen', () => {
+    const onSchedule = jest.fn();
+    render(<RunProgramCard {...props()} now={now} onSchedule={onSchedule} />);
+    fireEvent.press(screen.getByText('Tomorrow'));
+    expect(onSchedule).toHaveBeenCalledWith({ startDay: '2026-10-13' });
+  });
+
+  it('goes back to today from tomorrow', () => {
+    const onSchedule = jest.fn();
+    render(
+      <RunProgramCard
+        {...props()}
+        now={now}
+        schedule={{ days: [], startDay: '2026-10-13' }}
+        onSchedule={onSchedule}
+      />
+    );
+    fireEvent.press(screen.getByText('Today'));
+    expect(onSchedule).toHaveBeenCalledWith({ startDay: null });
+  });
+
+  it('shows a date picked further out', () => {
+    render(
+      <RunProgramCard
+        {...props()}
+        now={now}
+        schedule={{ days: [], startDay: '2026-10-20' }}
+      />
+    );
+    expect(screen.getByText(/Oct 20/)).toBeTruthy();
   });
 });
 
@@ -155,8 +204,8 @@ describe('recent changes', () => {
   const base = {
     programId: 'beginner5k',
     onChooseProgram: jest.fn(),
-    reminders: { days: [] as number[], hour: 7 },
-    onReminders: jest.fn(),
+    schedule: { days: [] as number[], startDay: null as string | null },
+    onSchedule: jest.fn(),
     onPickWorkout: jest.fn(),
     onToggle: jest.fn(),
     onSelect: jest.fn(),

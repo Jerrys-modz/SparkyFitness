@@ -28,10 +28,9 @@ jest.mock('../../src/services/runProgramService', () => ({
   restartProgram: jest.fn(() => Promise.resolve()),
   skipProgramWorkout: jest.fn(() => Promise.resolve()),
 }));
-jest.mock('../../src/services/runReminderService', () => ({
-  useRunReminders: () => ({ days: [], hour: 7 }),
-  setRunReminders: jest.fn(),
-  reconcileRunReminders: jest.fn(() => Promise.resolve()),
+jest.mock('../../src/services/runProgramSchedule', () => ({
+  useRunSchedule: () => ({ days: [], startDay: null }),
+  setRunSchedule: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -44,6 +43,23 @@ const RunProgramsProps = () =>
     navigation: { navigate: jest.fn(), goBack: jest.fn() },
     route: { key: 'RunPrograms', name: 'RunPrograms' },
   }) as unknown as React.ComponentProps<typeof RunProgramsScreen>;
+
+jest.mock('../../src/components/CalendarSheet', () => {
+  const ReactModule = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ReactModule.forwardRef(
+      (_props: unknown, ref: React.Ref<unknown>) => {
+        ReactModule.useImperativeHandle(ref, () => ({
+          present: jest.fn(),
+          dismiss: jest.fn(),
+        }));
+        return <View testID="calendar-sheet" />;
+      }
+    ),
+  };
+});
 
 const mockedUse = jest.mocked(useRunProgram);
 

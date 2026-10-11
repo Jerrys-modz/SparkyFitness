@@ -13,6 +13,7 @@ export function programDayCard({
   enabled,
   status,
   runDays,
+  startDay,
   doneDay,
   today,
   date,
@@ -21,6 +22,8 @@ export function programDayCard({
   status: ProgramStatus | null;
   /** Chosen run days, 0 = Sunday. */
   runDays: readonly number[];
+  /** The first day the workout is offered, or null for from today. */
+  startDay: string | null;
   /** The local day a program workout was last completed. */
   doneDay: string | null;
   /** Today, as YYYY-MM-DD. */
@@ -31,6 +34,8 @@ export function programDayCard({
   if (date !== today) return null;
   if (!enabled || !status || status.finished || !status.workout) return null;
   if (doneDay === today) return null;
+  // YYYY-MM-DD strings order the same as the days they name.
+  if (startDay && today < startDay) return null;
   if (runDays.length === 0) return 'upNext';
   const [year, month, day] = today.split('-').map(Number);
   const weekday = new Date(year, month - 1, day).getDay();

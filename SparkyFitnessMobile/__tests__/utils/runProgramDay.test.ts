@@ -7,6 +7,7 @@ const base = {
   enabled: true,
   status,
   runDays: [] as number[],
+  startDay: null as string | null,
   doneDay: null as string | null,
   today: '2026-10-12',
   date: '2026-10-12',
@@ -30,6 +31,12 @@ describe('programDayCard', () => {
   it('hides once a workout has been done today, but not from yesterday', () => {
     expect(programDayCard({ ...base, doneDay: '2026-10-12' })).toBeNull();
     expect(programDayCard({ ...base, doneDay: '2026-10-11' })).toBe('upNext');
+  });
+
+  it('waits for the start day, then offers the workout', () => {
+    expect(programDayCard({ ...base, startDay: '2026-10-13' })).toBeNull();
+    expect(programDayCard({ ...base, startDay: '2026-10-12' })).toBe('upNext');
+    expect(programDayCard({ ...base, startDay: '2026-10-01' })).toBe('upNext');
   });
 
   it('hides when the program is off, missing or finished', () => {
