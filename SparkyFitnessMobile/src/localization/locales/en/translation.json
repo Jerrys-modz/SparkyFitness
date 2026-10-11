@@ -616,7 +616,8 @@
     "fasting": "Fasting",
     "warmupSettings": "Warm-up Calculator",
     "recordActivity": "Record Activity",
-    "symptomEpisodeDetail": "Episode Details"
+    "symptomEpisodeDetail": "Episode Details",
+    "allergenSettings": "Allergens"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -4001,6 +4002,10 @@
       "customSubtitle": "Create and edit your own nutrients",
       "display": "Nutrient Display",
       "displaySubtitle": "Choose and order the nutrients shown in each view"
+    },
+    "allergens": {
+      "title": "Allergens",
+      "subtitle": "Get warnings on foods and scans that contain allergens you track"
     }
   },
   "workoutComplete": {
@@ -6793,5 +6798,43 @@
     },
     "saveSuccess": "Category saved",
     "saveFailed": "Failed to save category"
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
   }
 }
