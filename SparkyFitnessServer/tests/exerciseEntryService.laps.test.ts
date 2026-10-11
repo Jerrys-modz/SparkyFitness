@@ -78,19 +78,48 @@ describe('attachLapsToExerciseEntry', () => {
     expect(client.release).toHaveBeenCalled();
   });
 
-  it('drops a lap that ends before it starts and refuses when none is left', async () => {
+  it('replaces any earlier laps, inside the transaction', async () => {
+    await attachLapsToExerciseEntry(userId, 'actor-1', entryId, {
+      laps: [
+        {
+          lap_index: 1,
+          start_time: '2026-10-06T10:00:00.000Z',
+          end_time: '2026-10-06T10:05:00.000Z',
+        },
+      ],
+    });
+    const sql = client.query.mock.calls.map((call) => String(call[0]));
+    const deleteAt = sql.findIndex((q) =>
+      q.includes('DELETE FROM exercise_entry_laps')
+    );
+    expect(deleteAt).toBeGreaterThan(0);
+    expect(sql[deleteAt - 1]).toContain(
+      'SELECT 1 FROM exercise_entry_gps_points'
+    );
+  });
+
+  it('refuses an entry that has a GPS track and writes nothing', async () => {
+    client.query.mockImplementation(async (sql: string) =>
+      String(sql).includes('exercise_entry_gps_points')
+        ? { rows: [{ '?column?': 1 }] }
+        : { rows: [] }
+    );
     await expect(
       attachLapsToExerciseEntry(userId, 'actor-1', entryId, {
         laps: [
           {
             lap_index: 1,
-            start_time: '2026-10-06T10:05:00.000Z',
-            end_time: '2026-10-06T10:00:00.000Z',
+            start_time: '2026-10-06T10:00:00.000Z',
+            end_time: '2026-10-06T10:05:00.000Z',
           },
         ],
       })
-    ).rejects.toMatchObject({ status: 400 });
-    expect(getClient).not.toHaveBeenCalled();
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient
+    ).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(client.release).toHaveBeenCalled();
   });
 
   it('rolls back and releases the connection when the write fails', async () => {

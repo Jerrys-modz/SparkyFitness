@@ -1016,8 +1016,9 @@ router.post(
  *     description: >
  *       Stores the lap windows of an activity recorded without a route, such
  *       as a treadmill run from the watch, with the distance estimated for
- *       each. Re-posting the same laps replaces them by lap index. Entries
- *       with a GPS track get their laps from /gps-track instead.
+ *       each. The posted laps are the whole list: re-posting replaces any earlier
+ *       ones. Entries with a GPS track get their laps from /gps-track instead
+ *       and are refused with 409.
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -1061,6 +1062,8 @@ router.post(
  *         description: Invalid request body or exercise entry ID.
  *       404:
  *         description: Exercise entry not found.
+ *       409:
+ *         description: The entry has a GPS track, which provides its own laps.
  */
 router.post('/:id/laps', authenticate, demoGuard, async (req, res, next) => {
   const { id } = req.params;
@@ -1087,8 +1090,8 @@ router.post('/:id/laps', authenticate, demoGuard, async (req, res, next) => {
     if (status === 404 || message.startsWith('Exercise entry not found')) {
       return res.status(404).json({ error: message });
     }
-    if (status === 400) {
-      return res.status(400).json({ error: message });
+    if (status === 400 || status === 409) {
+      return res.status(status).json({ error: message });
     }
     next(error);
   }

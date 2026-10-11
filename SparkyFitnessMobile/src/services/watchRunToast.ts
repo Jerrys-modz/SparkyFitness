@@ -39,7 +39,10 @@ export function announceWatchRun(
       : null
   );
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
-  const unit = distanceUnit === 'miles' ? 'mi' : 'km';
+  const unit =
+    distanceUnit === 'miles'
+      ? t('recordActivity.unitMi', { defaultValue: 'mi' })
+      : t('recordActivity.unitKm', { defaultValue: 'km' });
   const distance = `${formatLocalizedNumber(
     summary.distanceMeters / unitMeters,
     {

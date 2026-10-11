@@ -57,6 +57,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var pedometer: CMPedometer?
     private var motionTimer: Timer?
     private var pedometerSteps = 0
+    /// True once the pedometer has delivered a reading (permission granted).
+    private var pedometerLive = false
     private var runKind: WatchRunKind = .run
     /// Whether the last pause was ours, so only that one is ever resumed.
     private var pausedByAutoPause = false
@@ -276,6 +278,9 @@ struct WatchRunRecovery {
     let autoPaused: Bool
     let metrics: WatchRunMetrics
     let lapCount: Int
+    /// Active seconds when the snapshot was written; a floor for the clock
+    /// while the recovered builder has not started reporting its own.
+    let elapsed: TimeInterval
 }
 
 /// What `recoverIfNeeded` found.
@@ -358,8 +363,9 @@ extension WatchRunHealthKitController {
                 self.runPlace = place
                 self.routeRows = snapshot.routeRows
                 self.heartRateRows = snapshot.heartRateRows
-                self.lapMarks = snapshot.lapMarks ?? []
-                self.lapDistances = snapshot.lapDistances ?? []
+                let laps = Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances)
+                self.lapMarks = laps.marks
+                self.lapDistances = laps.distances
                 self.plan = snapshot.plan
                 // The jump across the gap while the app was gone is never distance.
                 self.routeSegment = snapshot.routeSegment + 1
@@ -388,10 +394,24 @@ extension WatchRunHealthKitController {
                     paused: paused,
                     autoPaused: self.pausedByAutoPause,
                     metrics: current,
-                    lapCount: self.lapMarks.count
+                    lapCount: self.lapMarks.count,
+                    elapsed: snapshot.elapsed
                 )))
             }
         }
+    }
+
+    /// The lap marks and their distances, kept the same length. A snapshot from
+    /// a build that wrote marks without distances is padded, so a lap marked
+    /// after the relaunch still lines up with its own distance.
+    private static func pairedLaps(
+        _ marks: [Double]?,
+        _ distances: [Double]?
+    ) -> (marks: [Double], distances: [Double]) {
+        let marks = marks ?? []
+        var distances = Array((distances ?? []).prefix(marks.count))
+        while distances.count < marks.count { distances.append(distances.last ?? 0) }
+        return (marks, distances)
     }
 
     /// The run as the snapshot last had it, for when the Health session did
@@ -419,8 +439,8 @@ extension WatchRunHealthKitController {
             metrics: salvaged,
             route: snapshot.routeRows,
             heartRate: snapshot.heartRateRows,
-            laps: snapshot.lapMarks ?? [],
-            lapDistances: snapshot.lapDistances ?? [],
+            laps: Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances).marks,
+            lapDistances: Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances).distances,
             plan: snapshot.plan,
             planCompleted: snapshot.plan?.lastStepStarted(at: snapshot.elapsed) ?? false
         ))
@@ -435,13 +455,28 @@ extension WatchRunHealthKitController {
     /// what lets a treadmill run resume itself. Without motion permission or a
     /// step counter nothing happens: the wearer pauses by hand.
     fileprivate func startMotion() {
+        stopMotion()
         guard CMPedometer.isStepCountingAvailable() else { return }
+        // Denied (or restricted) motion access reports nothing, and "no steps"
+        // would read as "standing still": do not pause on silence.
+        switch CMPedometer.authorizationStatus() {
+        case .denied, .restricted: return
+        default: break
+        }
         let counter = CMPedometer()
         pedometer = counter
         pedometerSteps = 0
-        counter.startUpdates(from: Date()) { [weak self] data, _ in
-            guard let steps = data?.numberOfSteps.intValue else { return }
-            DispatchQueue.main.async { self?.pedometerSteps = steps }
+        pedometerLive = false
+        counter.startUpdates(from: Date()) { [weak self] data, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                // A failure (permission refused at the prompt, sensor trouble)
+                // switches the detector off rather than leaving it to guess.
+                if error != nil { self.stopMotion(); return }
+                guard let steps = data?.numberOfSteps.intValue else { return }
+                self.pedometerSteps = steps
+                self.pedometerLive = true
+            }
         }
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             self?.judgeSteps()
@@ -451,6 +486,7 @@ extension WatchRunHealthKitController {
     }
 
     fileprivate func stopMotion() {
+        pedometerLive = false
         pedometer?.stopUpdates()
         pedometer = nil
         motionTimer?.invalidate()
@@ -458,7 +494,9 @@ extension WatchRunHealthKitController {
     }
 
     private func judgeSteps() {
-        guard session != nil else { return }
+        // Only once the pedometer has actually reported: before that, a zero
+        // count says nothing about whether the wearer is moving.
+        guard session != nil, pedometerLive else { return }
         let paused = pausedByAutoPause
         let action = indoorAutoPause.step(
             steps: pedometerSteps,
@@ -481,6 +519,8 @@ extension WatchRunHealthKitController {
     /// permission leaves a workout with no route, and the distance the
     /// session estimates without GPS.
     fileprivate func startRoute() {
+        // A second start must not leave the first location manager delivering.
+        stopRoute()
         routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
         let manager = CLLocationManager()
         manager.delegate = self
@@ -609,24 +649,24 @@ extension WatchRunHealthKitController: HKLiveWorkoutBuilderDelegate {
         _ workoutBuilder: HKLiveWorkoutBuilder,
         didCollectDataOf collectedTypes: Set<HKSampleType>
     ) {
-        var updated = metrics
-        if let distance = workoutBuilder.statistics(for: Self.distanceType)?
-            .sumQuantity()?.doubleValue(for: .meter()) {
-            updated.distanceMeters = distance
-        }
-        if let energy = workoutBuilder.statistics(for: Self.energyType)?
-            .sumQuantity()?.doubleValue(for: .kilocalorie()) {
-            updated.activeEnergyKcal = energy
-        }
-        if let bpm = workoutBuilder.statistics(for: Self.heartRateType)?
+        // Runs on a HealthKit queue: read the builder here, and touch `metrics`
+        // (written on the main queue) only inside the main-queue block.
+        let distance = workoutBuilder.statistics(for: Self.distanceType)?
+            .sumQuantity()?.doubleValue(for: .meter())
+        let energy = workoutBuilder.statistics(for: Self.energyType)?
+            .sumQuantity()?.doubleValue(for: .kilocalorie())
+        let bpm = workoutBuilder.statistics(for: Self.heartRateType)?
             .mostRecentQuantity()?
-            .doubleValue(for: HKUnit.count().unitDivided(by: .minute())), bpm > 0 {
-            updated.heartRate = bpm
-        }
-        let reading = collectedTypes.contains(Self.heartRateType) ? updated.heartRate : nil
+            .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+        let heartRateCollected = collectedTypes.contains(Self.heartRateType)
         let readAt = Date().timeIntervalSince1970 * 1000
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+            var updated = self.metrics
+            if let distance { updated.distanceMeters = distance }
+            if let energy { updated.activeEnergyKcal = energy }
+            if let bpm, bpm > 0 { updated.heartRate = bpm }
+            let reading = heartRateCollected ? updated.heartRate : nil
             self.metrics = updated
             if let reading, self.session != nil {
                 self.heartRateRows.append([readAt, reading])

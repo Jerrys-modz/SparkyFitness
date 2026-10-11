@@ -3,23 +3,46 @@ import AVFoundation
 /// Speaks a wrist-only run's split cues ("Kilometer 3, 5 minutes 24 seconds").
 /// Audio comes out of the watch speaker or paired Bluetooth headphones; the
 /// wearer turns it on with the phone's Voice cues switch (`runVoiceCues`).
-final class WatchRunCues {
+final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = WatchRunCues()
 
     private let synthesizer = AVSpeechSynthesizer()
 
-    /// Replaces any cue still being spoken, so a late one never stacks up.
-    func speak(_ text: String) {
+    private override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
+
+    /// Queues `text` after whatever is being said. A step change passes
+    /// `interrupt` so it is heard at once, but a split spoken in the same
+    /// second waits its turn instead of cutting it off.
+    func speak(_ text: String, interrupt: Bool = false) {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(
             .playback,
             mode: .voicePrompt,
             options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
         )
-        synthesizer.stopSpeaking(at: .immediate)
+        try? session.setActive(true)
+        if interrupt { synthesizer.stopSpeaking(at: .immediate) }
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier.replacingOccurrences(of: "_", with: "-"))
         synthesizer.speak(utterance)
+    }
+
+    /// Hands the audio back once the last cue is done, so music or a podcast
+    /// that was ducked for it comes back up.
+    private func releaseAudioIfIdle() {
+        guard !synthesizer.isSpeaking else { return }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        releaseAudioIfIdle()
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        releaseAudioIfIdle()
     }
 
     /// "5 minutes 24 seconds", spelled out for speech.
