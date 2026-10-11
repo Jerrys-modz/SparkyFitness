@@ -10,6 +10,7 @@ import BottomSheetPicker, {
 } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
+import type { ProgramScheduleChange } from '../../services/runProgramService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { formatDayLabel } from '../../utils/dayLabel';
 import {
@@ -120,11 +121,7 @@ interface Props {
   now: number;
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
-  onSchedule: (change: {
-    days?: number[];
-    startDay?: string | null;
-    endDay?: string | null;
-  }) => void;
+  onSchedule: (change: ProgramScheduleChange) => void;
   /** Jump to any workout in the program (0-based index). */
   onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
@@ -371,13 +368,7 @@ const RunProgramCard: React.FC<Props> = ({
                   accessibilityRole="button"
                   accessibilityLabel={weekdayLabel(day, 'long')}
                   accessibilityState={{ selected: on }}
-                  onPress={() =>
-                    onSchedule({
-                      days: on
-                        ? schedule.days.filter((d) => d !== day)
-                        : [...schedule.days, day].sort(),
-                    })
-                  }
+                  onPress={() => onSchedule({ toggleDay: day })}
                   className={`w-10 h-10 rounded-full items-center justify-center ${
                     on ? 'bg-accent-primary' : 'bg-raised'
                   }`}

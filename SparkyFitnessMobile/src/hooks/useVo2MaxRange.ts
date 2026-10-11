@@ -63,7 +63,7 @@ export function useVo2MaxRange({
       // measurement, providers such as Garmin fill the daily metrics. The
       // phone's own reading wins on a day that has both.
       const [custom, daily] = await Promise.all([
-        customVo2Max(startDate, today),
+        customVo2Max(startDate, today).catch(() => []),
         fetchDailyVo2Max(startDate, today).catch(() => []),
       ]);
       const byDay = new Map<string, number>(custom);

@@ -151,24 +151,14 @@ describe('diary days and start day', () => {
   // 2026-10-12 noon local.
   const now = new Date(2026, 9, 12, 12).getTime();
 
-  it('toggles a weekday', () => {
+  it('asks to flip a weekday and leaves the arithmetic to the service', () => {
     const onSchedule = jest.fn();
-    const { rerender } = render(
-      <RunProgramCard {...props()} now={now} onSchedule={onSchedule} />
-    );
+    render(<RunProgramCard {...props()} now={now} onSchedule={onSchedule} />);
     fireEvent.press(screen.getByLabelText('Monday'));
-    expect(onSchedule).toHaveBeenCalledWith({ days: [1] });
-
-    rerender(
-      <RunProgramCard
-        {...props()}
-        now={now}
-        schedule={{ days: [1], startDay: null, endDay: null }}
-        onSchedule={onSchedule}
-      />
-    );
-    fireEvent.press(screen.getByLabelText('Monday'));
-    expect(onSchedule).toHaveBeenLastCalledWith({ days: [] });
+    fireEvent.press(screen.getByLabelText('Wednesday'));
+    // Two quick taps are two flips, each applied to the server's days in turn.
+    expect(onSchedule).toHaveBeenNthCalledWith(1, { toggleDay: 1 });
+    expect(onSchedule).toHaveBeenNthCalledWith(2, { toggleDay: 3 });
   });
 
   it('starts today until a start date is picked', () => {

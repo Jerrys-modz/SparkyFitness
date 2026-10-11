@@ -49,3 +49,28 @@ export function nextProgramLine(
     defaultValue: 'Next: {{label}} on {{date}}',
   });
 }
+
+/**
+ * The program part of a run summary: the place reached, and what is next. Null
+ * when the program is not in the cache (offline, or never loaded).
+ */
+export function programSummary(
+  t: TFunction,
+  stored: RunProgramResponse | undefined,
+  today: string,
+  workoutLabel: (status: ProgramStatus) => string
+): {
+  nextLine: string;
+  done: number;
+  total: number;
+  finished: boolean;
+} | null {
+  if (!stored) return null;
+  const status = storedProgramStatus(stored);
+  return {
+    nextLine: nextProgramLine(t, stored, today, workoutLabel),
+    done: status.done,
+    total: status.total,
+    finished: status.finished,
+  };
+}

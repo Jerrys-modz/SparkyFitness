@@ -142,7 +142,7 @@ describe('RunProgramsScreen', () => {
     });
     renderScreen(RunProgramsProps());
     fireEvent.press(screen.getByLabelText('Monday'));
-    expect(setProgramSchedule).toHaveBeenCalledWith({ days: [1] });
+    expect(setProgramSchedule).toHaveBeenCalledWith({ toggleDay: 1 });
   });
 
   it('keeps the place and offers to resume a program that is switched off', () => {

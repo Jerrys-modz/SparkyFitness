@@ -6713,6 +6713,8 @@
       "startPick": "Pick a start date",
       "startChange": "Change start date",
       "startClear": "Start today",
+      "tickFailed": "Activity saved, program not updated",
+      "tickFailedHint": "Use \"Count it\" on the Diary card to tick the workout off.",
       "savedNext": "Next: {{label}}",
       "savedNextOn": "Next: {{label}} on {{date}}",
       "savedFinished": "Program complete. Well done!",
