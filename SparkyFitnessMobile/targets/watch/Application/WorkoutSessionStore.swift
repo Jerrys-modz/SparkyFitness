@@ -1093,6 +1093,11 @@ final class WorkoutSessionStore: ObservableObject {
         /// A set logged here that has not been sent yet because the wearer is
         /// still picking an effort. Optional so older snapshots still decode.
         var pendingSetCompletion: PendingSetCompletion?
+        /// The rest on screen, so a relaunch mid-rest keeps counting down to
+        /// the same moment instead of dropping it. Nil when there is none.
+        var rest: Rest?
+        /// See `lastPhoneRest`. Optional so older snapshots still decode.
+        var lastPhoneRest: PhoneRest?
     }
 
     /// A completed set waiting on the effort screen. Kept in the snapshot so
@@ -1197,11 +1202,6 @@ final class WorkoutSessionStore: ObservableObject {
             holdBuzzed = false
             startHoldTimer()
         }
-        /// The rest on screen, so a relaunch mid-rest keeps counting down to
-        /// the same moment instead of dropping it. Nil when there is none.
-        var rest: Rest?
-        /// See `lastPhoneRest`. Optional so older snapshots still decode.
-        var lastPhoneRest: PhoneRest?
     }
 
     /// A rest as stored in the snapshot.
