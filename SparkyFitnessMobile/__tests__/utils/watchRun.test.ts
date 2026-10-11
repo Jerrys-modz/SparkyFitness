@@ -35,6 +35,35 @@ describe('parseWatchRunPayload', () => {
     expect(parseWatchRunPayload(base)?.laps).toEqual([]);
   });
 
+  test('reads the plan the run followed', () => {
+    expect(
+      parseWatchRunPayload({
+        ...base,
+        planId: 'beginner5k',
+        programId: 'beginner5k',
+        programIndex: 2,
+        planCompleted: true,
+      })
+    ).toMatchObject({
+      planId: 'beginner5k',
+      program: { id: 'beginner5k', index: 2 },
+      planCompleted: true,
+    });
+    // The phone module sends -1 and "" for "none".
+    expect(
+      parseWatchRunPayload({
+        ...base,
+        planId: 'runWalk2',
+        programId: '',
+        programIndex: -1,
+      })
+    ).toMatchObject({
+      planId: 'runWalk2',
+      program: null,
+      planCompleted: false,
+    });
+  });
+
   test.each([
     [null],
     [{ ...base, clientId: '' }],

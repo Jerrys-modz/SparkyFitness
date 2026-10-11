@@ -84,7 +84,8 @@ enum ContextPayloadMapper {
             steps: steps(from: payload["steps"]),
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
             medications: medications(from: payload),
-            runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues
+            runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues,
+            runPlans: runPlans(from: payload) ?? previous.runPlans
         )
     }
 
@@ -138,6 +139,33 @@ enum ContextPayloadMapper {
                 let name = row["name"] as? String, !name.isEmpty
             else { return nil }
             return SuggestedExercise(exerciseId: exerciseId, name: name)
+        }
+    }
+
+    /// Nil when the key is absent so an older push keeps the list; empty is a real answer.
+    static func runPlans(from payload: [String: Any]) -> [WatchRunPlan]? {
+        guard let raw = payload["runPlans"] else { return nil }
+        let rows = dictionaryArray(raw) ?? []
+        return rows.compactMap { row in
+            guard
+                let id = row["id"] as? String, !id.isEmpty,
+                let name = row["name"] as? String, !name.isEmpty
+            else { return nil }
+            let steps: [WatchRunPlan.Step] = (dictionaryArray(row["steps"]) ?? []).compactMap { step in
+                guard
+                    let label = step["label"] as? String,
+                    let seconds = (step["seconds"] as? NSNumber)?.doubleValue, seconds > 0
+                else { return nil }
+                return WatchRunPlan.Step(label: label, seconds: seconds)
+            }
+            guard !steps.isEmpty else { return nil }
+            return WatchRunPlan(
+                id: id,
+                name: name,
+                programId: row["programId"] as? String,
+                programIndex: (row["programIndex"] as? NSNumber)?.intValue,
+                steps: steps
+            )
         }
     }
 
