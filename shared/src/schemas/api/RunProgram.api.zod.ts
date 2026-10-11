@@ -27,6 +27,7 @@ export type RunProgramAdjustment = z.infer<typeof runProgramAdjustmentSchema>;
 /** A real calendar day: 2026-02-31 matches the shape but is not a date. */
 const isRealDay = (value: string): boolean => {
   const [y, m, d] = value.split("-").map(Number);
+  if (y === undefined || m === undefined || d === undefined) return false;
   const date = new Date(Date.UTC(y, m - 1, d));
   return (
     date.getUTCFullYear() === y &&
