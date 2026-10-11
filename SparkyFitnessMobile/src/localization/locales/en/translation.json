@@ -4837,6 +4837,11 @@
     }
   },
   "charts": {
+    "vo2max": {
+      "title": "VO2 max",
+      "loadFailed": "Failed to load VO2 max data",
+      "empty": "No VO2 max data for this period"
+    },
     "weight": {
       "title": "Weight",
       "loadFailed": "Failed to load weight data",

@@ -15,11 +15,13 @@ import type {
   HealthTrendDateRange,
   HealthTrendSeries,
   HydrationDataPoint,
+  Vo2MaxDataPoint,
 } from '../types/healthTrends';
 import CaloriesBarChart from './CaloriesBarChart';
 import HydrationBarChart from './HydrationBarChart';
 import SleepTimelineChart from './SleepTimelineChart';
 import StepsBarChart from './StepsBarChart';
+import Vo2MaxLineChart from './Vo2MaxLineChart';
 import WeightLineChart from './WeightLineChart';
 
 type HealthTrendsPagerProps = {
@@ -28,6 +30,8 @@ type HealthTrendsPagerProps = {
   sleep: SleepTrendSeries;
   hydration: HealthTrendSeries<HydrationDataPoint>;
   calories: CaloriesTrendSeries;
+  /** Optional so a caller that predates the trend still renders; absent reads as no data. */
+  vo2max?: HealthTrendSeries<Vo2MaxDataPoint>;
   range: HealthTrendDateRange;
   weightUnit: string;
   waterUnit: string;
@@ -61,12 +65,19 @@ const PAGER_HEIGHT = 350;
 const shouldShowTrend = <TPoint,>(series: HealthTrendSeries<TPoint>): boolean =>
   series.isLoading || series.isError || series.data.length > 0;
 
+const NO_VO2MAX: HealthTrendSeries<Vo2MaxDataPoint> = {
+  data: [],
+  isLoading: false,
+  isError: false,
+};
+
 const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
   steps,
   weight,
   sleep,
   hydration,
   calories,
+  vo2max = NO_VO2MAX,
   range,
   weightUnit,
   waterUnit,
@@ -101,6 +112,7 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
     calories: () => (
       <CaloriesBarChart {...calories} range={range} goals={calorieGoals} />
     ),
+    vo2max: () => <Vo2MaxLineChart {...vo2max} range={range} />,
   };
 
   const hasTrendData: Record<HealthTrendKey, () => boolean> = {
@@ -121,6 +133,8 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
       calories.isLoading ||
       calories.isError ||
       calories.data.some((point) => point.calories > 0),
+    // Only people whose watch or app syncs VO2 max have any; the rest never see the page.
+    vo2max: () => shouldShowTrend(vo2max),
   };
 
   // A trend the user configured to show but that has no data for in this window still hides itself

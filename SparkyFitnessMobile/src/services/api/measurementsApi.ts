@@ -403,6 +403,22 @@ export const deleteCustomCategory = async (id: string): Promise<void> => {
   });
 };
 
+/**
+ * One category's entries between two days, oldest first. Health-synced values
+ * such as VO2 max are custom measurements, so a trend reads them here.
+ */
+export const fetchCustomMeasurementsRange = async (
+  categoryId: string,
+  startDate: string,
+  endDate: string
+): Promise<CustomMeasurementEntry[]> => {
+  return apiFetch<CustomMeasurementEntry[]>({
+    endpoint: `/api/measurements/custom-measurements-range/${encodeURIComponent(categoryId)}/${startDate}/${endDate}`,
+    serviceName: 'Measurements API',
+    operation: 'fetch custom measurements range',
+  });
+};
+
 export const fetchCustomMeasurementsByDate = async (
   date: string
 ): Promise<CustomMeasurementEntry[]> => {

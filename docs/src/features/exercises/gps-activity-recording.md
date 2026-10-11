@@ -193,6 +193,10 @@ Unlike a recording the phone makes, a watch-only recording has no voice cues or 
 
 The route map uses Apple Maps on iOS. On Android it uses Google Maps when the build was made with a Google Maps API key; without one, Android shows the route as a plain line instead. See [Environment Variables](/install/environment-variables) for `GOOGLE_MAPS_ANDROID_API_KEY`.
 
+## VO2 max trend
+
+If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 max sync and a **VO2 max** graph joins the Dashboard's Health Trends (7, 30 or 90 days, one reading per day). It is a good way to see whether your training is working. The graph only appears once a reading has synced; hide it or move it in Dashboard Settings → Health Trends.
+
 ---
 
 ## Not included yet
