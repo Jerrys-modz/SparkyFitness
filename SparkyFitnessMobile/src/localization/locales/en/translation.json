@@ -155,7 +155,8 @@
       "fasting": "Fasting",
       "customMeasurements": "Custom Measurements",
       "reports": "Reports",
-      "profile": "Profile & Account"
+      "profile": "Profile & Account",
+      "goals": "Goals"
     },
     "theme": {
       "title": "Theme",
@@ -7190,5 +7191,114 @@
     "birthDateUnset": "Not set",
     "timezone": "Timezone",
     "resetPasswordSubtitle": "Email me a link to choose a new password"
+  },
+  "goals": {
+    "title": "Goals",
+    "description": "Daily targets that apply from today onward. Past days keep their goals.",
+    "loading": "Loading goals…",
+    "loadFailed": "Could not load your goals.",
+    "saveFailed": "Failed to save goals.",
+    "invalidValue": "Enter a valid number for every goal.",
+    "fields": {
+      "water": "Water ({{unit}})",
+      "exerciseCalories": "Exercise calories (kcal)",
+      "exerciseMinutes": "Exercise duration (min)",
+      "baselineCalories": "Baseline calories (kcal)"
+    },
+    "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "sections": {
+      "macros": "Calories & macros",
+      "nutrients": "Other nutrients",
+      "activity": "Water & exercise",
+      "meals": "Meal calorie distribution",
+      "presets": "Goal presets"
+    },
+    "meals": {
+      "mustBe100": "Meal percentages must total 100%.",
+      "total": "Total: {{total}}% (must be 100% to save)",
+      "totalOk": "Total: {{total}}%",
+      "mealCalories": "{{meal}} ({{calories}} kcal)",
+      "distributeRemaining": "Distribute remaining evenly",
+      "lock": "Lock {{meal}}",
+      "unlock": "Unlock {{meal}}",
+      "mealPercent": "{{meal}} (%)"
+    },
+    "directions": {
+      "minimum": "Min",
+      "maximum": "Max",
+      "range": "Range",
+      "rangeMin": "Range min",
+      "rangeMax": "Range max",
+      "invalidRange": "A range needs a minimum and a maximum, with minimum not above maximum.",
+      "note": "Min means more is better, Max means stay under, and Range means stay between two values. This changes how progress is judged, not the goal numbers.",
+      "guide": {
+        "title": "Not sure which to choose? It depends on your goal",
+        "intro": "These are only display directions — they change how progress is judged, not your goal numbers. Pick what fits what you are trying to do, or tap Apply to set the directions for you:",
+        "apply": "Apply to my goals",
+        "applied": "Directions updated. Tap Save to keep them.",
+        "loseWeight": {
+          "title": "Losing weight",
+          "body": "Set Calories to Maximum (a ceiling) or a Target range."
+        },
+        "gainWeight": {
+          "title": "Gaining weight or building muscle",
+          "body": "Set Calories and Protein to Minimum (a floor to reach)."
+        },
+        "maintain": {
+          "title": "Maintaining weight",
+          "body": "Set Calories to a Target range around your maintenance level."
+        },
+        "diabetes": {
+          "title": "Managing blood sugar (diabetes)",
+          "body": "Set Carbohydrates and Sugars to Maximum."
+        },
+        "heart": {
+          "title": "High cholesterol or heart health",
+          "body": "Keep Cholesterol, Saturated fat, and Sodium as Maximum (the defaults)."
+        },
+        "lowCarb": {
+          "title": "Low-carb or keto",
+          "body": "Set Carbohydrates to Maximum; keep Fat and Protein as Minimum."
+        }
+      },
+      "legend": {
+        "minimum": {
+          "label": "Min",
+          "body": "More is better — progress fills toward the goal"
+        },
+        "maximum": {
+          "label": "Max",
+          "body": "Less is better — stay at or under the goal"
+        },
+        "target": {
+          "label": "Range",
+          "body": "Hit a band between a minimum and a maximum"
+        }
+      }
+    },
+    "calculator": {
+      "calculate": "Calculate",
+      "calculateField": "Calculate {{nutrient}}",
+      "calculateAll": "Calculate all from my profile",
+      "needsProfile": "Set your sex in your profile on the web to calculate recommended nutrient goals."
+    },
+    "presets": {
+      "description": "Save the values above as a preset, then apply it to the form later. Applying a preset fills the form; tap Save to make it your goals.",
+      "namePlaceholder": "Preset name",
+      "saveCurrent": "Save as preset",
+      "empty": "No goal presets yet.",
+      "summary": "{{calories}} kcal, {{protein}}g P, {{carbs}}g C, {{fat}}g F",
+      "apply": "Apply",
+      "update": "Update from form",
+      "updateConfirm": "Update",
+      "updateTitle": "Update preset?",
+      "updateMessage": "Replace \"{{name}}\" with the values currently in the form?",
+      "rename": "Rename",
+      "deleteTitle": "Delete preset?",
+      "deleteMessage": "Delete \"{{name}}\"?",
+      "applied": "Preset applied. Tap Save to keep it.",
+      "failed": "Could not update goal presets."
+    }
   }
 }

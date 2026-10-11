@@ -85,6 +85,7 @@ import {
   SafeProgressPhotoTimelapse,
   SafeChat,
   SafeCalorieSettings,
+  SafeGoals,
   SafeMealTypeSettings,
   SafeAiSettings,
   SafeFoodSettings,
@@ -946,6 +947,11 @@ function AppContent() {
             name="ProgressPhotoTimelapse"
             component={SafeProgressPhotoTimelapse}
             options={createStackScreenOptions(t('screens.progressPhotoTimelapse', { defaultValue: 'Time-lapse' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="Goals"
+            component={SafeGoals}
+            options={createStackScreenOptions(t('goals.title', { defaultValue: 'Goals' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="CalorieSettings"

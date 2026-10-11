@@ -161,6 +161,7 @@ const ICON_MAP = {
   // Biometrics/Security
   fingerprint: { sf: 'touchid', ion: 'finger-print-outline' },
   'lock-closed': { sf: 'lock.fill', ion: 'lock-closed-outline' },
+  'lock-open': { sf: 'lock.open', ion: 'lock-open-outline' },
   'share-public': {
     sf: 'square.and.arrow.up',
     ion: 'share-social-outline',
