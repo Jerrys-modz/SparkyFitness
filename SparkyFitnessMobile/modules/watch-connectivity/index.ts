@@ -141,6 +141,8 @@ export interface WatchContextPayload {
    * double-tap gesture while this is off. Missing reads as on.
    */
   doubleTapEnabled?: boolean | null;
+  /** Whether the watch asks for an RPE after each logged set. */
+  rpeEnabled?: boolean | null;
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
@@ -231,6 +233,14 @@ export interface WatchContextPayload {
    * the phone still builds and arms the session. Absent on an older phone.
    */
   startableWorkouts?: { presetId: string; name: string }[] | null;
+  /**
+   * Today's planned workouts (from the active workout plans), shown above the
+   * saved ones. Each is also a saved workout, so a tap starts it by `presetId`
+   * like any other. Absent on an older phone.
+   */
+  scheduledWorkouts?:
+    | { presetId: string; name: string; planName: string; caption: string }[]
+    | null;
   /**
    * The phone's active server when that list was built. The watch sends it
    * back with a start request so a queued tap cannot start a preset after
@@ -347,6 +357,11 @@ export interface WatchWorkoutStartPayload {
    * `startedAt`.
    */
   capEndsAt?: string | null;
+  /**
+   * The workout came from a saved workout. The watch asks whether to update
+   * it when Finish is tapped on a workout whose exercises or sets changed.
+   */
+  fromPreset?: boolean;
 }
 
 /** One set logged on the watch during an active workout. */
@@ -370,6 +385,8 @@ export interface WatchSetCompletedPayload {
   duration?: number | null;
   /** A carry's distance in km, as entered on the watch (metres there). */
   distanceKm?: number | null;
+  /** Effort (RPE) the wearer picked, 6 to 10. Omitted when skipped. */
+  rpe?: number | null;
   /**
    * When the wearer tapped the set on the watch, ISO 8601. The phone stamps
    * its own clock when this is absent (an older watch build, or a set logged
@@ -489,6 +506,14 @@ export interface WatchWorkoutDiscardPayload {
   armedAt?: number;
 }
 
+/** The wearer's answer to the watch's "update this workout?" question, asked
+ * when they tap Finish on a workout started from a saved one and changed. */
+export interface WatchPresetUpdateAnswerPayload {
+  sessionId: string;
+  /** True to write the workout's changes into the saved workout. */
+  update: boolean;
+}
+
 export interface WatchWorkoutStartRequestedPayload {
   presetId: string;
   /** Active server the list was built for. Empty when an older watch omitted it. */
@@ -510,6 +535,7 @@ export type WatchConnectivityEvents = {
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
+  onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -580,6 +606,11 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
      * both show the same clock. A timer the phone has stopped is absent.
      */
     setTimers?: Record<string, number>;
+    /**
+     * Logged sets the phone has flagged as personal records. The watch
+     * celebrates one it logged itself, once.
+     */
+    prSetIds?: string[];
     /**
      * The phone's rest timer. The watch's rest follows it (+15s, pause,
      * Skip), except from an update that does not yet list a set logged on

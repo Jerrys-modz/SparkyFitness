@@ -1,7 +1,7 @@
 import { moodByName, moodValueToTag } from '@workspace/shared';
 import { average } from './mathUtils';
 import { addDays } from './dateUtils';
-import type { MoodEntry } from '../types/mood';
+import type { MoodEntry } from '../services/api/moodApi';
 
 export type MoodDayPoint = {
   day: string;

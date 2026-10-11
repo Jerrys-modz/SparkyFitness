@@ -32,6 +32,8 @@ interface AddSheetProps {
   onAddProgressPhotos: () => void;
   onAskSparky: () => void;
   onAddSymptoms?: () => void;
+  onAddMood?: () => void;
+  onAddMindfulness?: () => void;
   onOpenCycle?: () => void;
   showCycleCard?: boolean;
   cycleLabel?: string;
@@ -58,6 +60,8 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddProgressPhotos,
       onAskSparky,
       onAddSymptoms,
+      onAddMood,
+      onAddMindfulness,
       onOpenCycle,
       showCycleCard,
       cycleLabel,
@@ -384,6 +388,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                     t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
                     'symptoms',
                     onAddSymptoms
+                  )
+                : null}
+              {onAddMood
+                ? renderSecondaryRow(
+                    t('addSheet.mood', { defaultValue: 'Mood' }),
+                    'mood',
+                    onAddMood
+                  )
+                : null}
+              {onAddMindfulness
+                ? renderSecondaryRow(
+                    t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+                    'exercise-yoga',
+                    onAddMindfulness
                   )
                 : null}
               {renderSecondaryRow(

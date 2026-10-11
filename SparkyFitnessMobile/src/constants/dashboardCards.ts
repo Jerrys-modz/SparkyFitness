@@ -11,8 +11,10 @@ export const DASHBOARD_CARD_KEYS = [
   'cycle',
   'medications',
   'symptoms',
+  'mood',
   'progressPhotos',
   'healthTrends',
+  'mindfulness',
 ] as const;
 
 export type DashboardCardKey = (typeof DASHBOARD_CARD_KEYS)[number];
@@ -41,12 +43,15 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.medications', { defaultValue: 'Medications' }),
   symptoms: (t) =>
     t('dashboardSettings.symptoms', { defaultValue: 'Symptoms' }),
+  mood: (t) => t('dashboardSettings.mood', { defaultValue: 'Mood' }),
   progressPhotos: (t) =>
     t('dashboardSettings.progressPhotos', {
       defaultValue: 'Progress Photos',
     }),
   healthTrends: (t) =>
     t('dashboardSettings.healthTrends', { defaultValue: 'Health Trends' }),
+  mindfulness: (t) =>
+    t('dashboardSettings.mindfulness', { defaultValue: 'Mindfulness' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -93,6 +98,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.symptomsSubtitle', {
       defaultValue: 'Show symptom status, active episodes, and quick logging',
     }),
+  mood: (t) =>
+    t('dashboardSettings.moodSubtitle', {
+      defaultValue: "Show today's mood, a 7-day trend, and quick logging",
+    }),
   progressPhotos: (t) =>
     t('dashboardSettings.progressPhotosSubtitle', {
       defaultValue: 'Show the progress photos card on the Dashboard',
@@ -100,5 +109,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   healthTrends: (t) =>
     t('dashboardSettings.healthTrendsSubtitle', {
       defaultValue: 'Choose which graphs show on the Dashboard and their order',
+    }),
+  mindfulness: (t) =>
+    t('dashboardSettings.mindfulnessSubtitle', {
+      defaultValue:
+        'Show mindfulness sessions, breathing, and meditation on the Dashboard',
     }),
 };
