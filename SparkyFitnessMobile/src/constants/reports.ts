@@ -1,4 +1,5 @@
 import type { SleepAnalyticsMetric } from '../utils/sleepAnalytics';
+import { NUTRIENT_META } from './nutrients';
 
 /**
  * The reports the Reports hub lists, in factory order. A saved order is
@@ -47,6 +48,8 @@ export const NUTRITION_SECTIONS = [
   'nutrition.goal',
   'nutrition.highlights',
   'nutrition.macroGoals',
+  'nutrition.fats',
+  'nutrition.micros',
   'nutrition.weekdays',
   'nutrition.consistency',
   'nutrition.otherNutrients',
@@ -102,3 +105,43 @@ export type ReportSectionKey =
 
 /** What a report opens on until the wearer picks, and what `reportDefaultRange` starts as. */
 export const DEFAULT_REPORT_RANGE = '30d' as const;
+
+/** Nutrients with a card of their own (or that the report already leads with), so the picker leaves them out. */
+const PICKER_EXCLUDED_NUTRIENTS = new Set([
+  'calories',
+  'protein',
+  'carbs',
+  'fat',
+  'glycemic_index',
+]);
+
+/** Every standard nutrient the "Your nutrients" card can show, in catalog order. */
+export const REPORT_NUTRIENT_KEYS: string[] = Object.keys(NUTRIENT_META).filter(
+  (key) => !PICKER_EXCLUDED_NUTRIENTS.has(key)
+);
+
+/** What "Your nutrients" lists until the user picks: the averages the report always had. */
+export const DEFAULT_REPORT_NUTRIENTS = [
+  'dietary_fiber',
+  'sugars',
+  'sodium',
+  'water_ml',
+  'caffeine_mg',
+  'alcohol_g',
+];
+
+/** The fixed fat-breakdown and micronutrient cards. */
+export const FAT_BREAKDOWN_NUTRIENTS = [
+  'saturated_fat',
+  'polyunsaturated_fat',
+  'monounsaturated_fat',
+  'trans_fat',
+  'cholesterol',
+];
+export const MICRONUTRIENTS = [
+  'potassium',
+  'calcium',
+  'iron',
+  'vitamin_a',
+  'vitamin_c',
+];

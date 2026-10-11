@@ -8,12 +8,16 @@ import { ReorderSwitchList } from '../components/ReorderSwitchList';
 import SegmentedControl from '../components/SegmentedControl';
 import SettingsRow from '../components/SettingsRow';
 import Switch from '../components/ui/Switch';
+import { getNutrientLabel } from '../constants/nutrients';
+import { useCustomNutrients } from '../hooks/useCustomNutrients';
+import { useServerConnection } from '../hooks/useServerConnection';
 import {
   HYDRATION_SECTIONS,
   MEASUREMENTS_SECTIONS,
   MOOD_SECTIONS,
   NUTRITION_SECTIONS,
   REPORT_KEYS,
+  REPORT_NUTRIENT_KEYS,
   REPORT_LABELS,
   SLEEP_SECTIONS,
   sleepMetricSection,
@@ -107,9 +111,17 @@ const SECTION_LABELS: Record<
     }),
   'sleep.nights': (t) =>
     t('reportsSettings.sections.sleepNights', { defaultValue: 'Nights' }),
+  'nutrition.fats': (t) =>
+    t('reportsSettings.sections.fatBreakdown', {
+      defaultValue: 'Fat breakdown',
+    }),
+  'nutrition.micros': (t) =>
+    t('reportsSettings.sections.micronutrients', {
+      defaultValue: 'Vitamins and minerals',
+    }),
   'nutrition.otherNutrients': (t) =>
     t('reportsSettings.sections.otherNutrients', {
-      defaultValue: 'Other nutrient averages',
+      defaultValue: 'Your nutrients',
     }),
   'nutrition.trends': (t) =>
     t('reportsSettings.sections.nutrientTrends', {
@@ -185,6 +197,20 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const usesNativeHeader = useNativeIOSHeadersActive();
 
+  const { isConnected } = useServerConnection();
+  const { customNutrients } = useCustomNutrients({ enabled: isConnected });
+  const reportNutrientOrder = useAppPreferencesStore(
+    (s) => s.reportNutrientOrder
+  );
+  const shownReportNutrients = useAppPreferencesStore(
+    (s) => s.shownReportNutrients
+  );
+  const setReportNutrientOrder = useAppPreferencesStore(
+    (s) => s.setReportNutrientOrder
+  );
+  const setReportNutrientShown = useAppPreferencesStore(
+    (s) => s.setReportNutrientShown
+  );
   const reportOrder = useAppPreferencesStore((s) => s.reportOrder);
   const hiddenReports = useAppPreferencesStore((s) => s.hiddenReports);
   const reportDefaultRange = useAppPreferencesStore(
@@ -213,6 +239,17 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
       })),
     [reportOrder, t]
   );
+  // Standard nutrients, then the account's custom ones, in the saved order.
+  const nutrientItems = useMemo(() => {
+    const customNames = customNutrients.map((def) => def.name);
+    return resolveKeyOrder(reportNutrientOrder, [
+      ...REPORT_NUTRIENT_KEYS,
+      ...customNames,
+    ]).map((key) => ({
+      key,
+      label: customNames.includes(key) ? key : getNutrientLabel(t, key),
+    }));
+  }, [reportNutrientOrder, customNutrients, t]);
   const shownReportCount = reportItems.filter(
     ({ key }) => !hiddenReports.includes(key)
   ).length;
@@ -330,6 +367,34 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
           NUTRITION_SECTIONS,
           sectionLabel
         )}
+        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
+          {t('reportsSettings.nutrientsTitle', {
+            defaultValue: 'Nutrition report nutrients',
+          })}
+        </Text>
+        <Text className="text-text-secondary text-sm mb-4">
+          {t('reportsSettings.nutrientsDescription', {
+            defaultValue:
+              'Pick the vitamins, minerals and other nutrients the Nutrition report averages under Your nutrients, and drag to set their order. Custom nutrients are included.',
+          })}
+        </Text>
+        <ReorderSwitchList
+          items={nutrientItems}
+          testIDPrefix="reports-nutrient"
+          isEnabled={(key) => shownReportNutrients.includes(key)}
+          onToggle={(key, enabled) => setReportNutrientShown(key, enabled)}
+          onReorder={setReportNutrientOrder}
+          reorderA11yLabel={(name) =>
+            t('reportsSettings.reorder', {
+              defaultValue: 'Reorder {{name}}',
+              name,
+            })
+          }
+          reorderA11yHint={t('reportsSettings.nutrientReorderHint', {
+            defaultValue: 'Changes where this nutrient sits in the report',
+          })}
+        />
+
         {renderSections(
           t('reportsSettings.hydrationSections', {
             defaultValue: 'Hydration report',

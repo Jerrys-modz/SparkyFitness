@@ -12,13 +12,26 @@ import ReportHighlights, {
   type ReportHighlight,
 } from '../components/reports/ReportHighlights';
 import { useReportCustomization } from '../hooks/useReportCustomization';
+import { useCustomNutrients } from '../hooks/useCustomNutrients';
+import { useServerConnection } from '../hooks/useServerConnection';
+import {
+  FAT_BREAKDOWN_NUTRIENTS,
+  MICRONUTRIENTS,
+  REPORT_NUTRIENT_KEYS,
+} from '../constants/reports';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { resolveKeyOrder } from '../utils/reorderUtils';
 import MacroSplitBar from '../components/reports/MacroSplitBar';
 import CaloriesBarChart from '../components/CaloriesBarChart';
 import StatusView from '../components/StatusView';
 import Icon from '../components/Icon';
 import { formatTooltipDate } from '../components/charts/chartFormatting';
 import { average } from '../utils/mathUtils';
-import { percentChange } from '../utils/nutritionReport';
+import {
+  buildNutrientAverages,
+  percentChange,
+  type NutrientAverage,
+} from '../utils/nutritionReport';
 import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -55,6 +68,70 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
     () => average(report?.series.map((point) => point.calories) ?? []),
     [report]
   );
+
+  const { isConnected } = useServerConnection();
+  const { customNutrients } = useCustomNutrients({ enabled: isConnected });
+  const shownReportNutrients = useAppPreferencesStore(
+    (s) => s.shownReportNutrients
+  );
+  const reportNutrientOrder = useAppPreferencesStore(
+    (s) => s.reportNutrientOrder
+  );
+  const pickedKeys = useMemo(
+    () =>
+      resolveKeyOrder(reportNutrientOrder, [
+        ...REPORT_NUTRIENT_KEYS,
+        ...customNutrients.map((def) => def.name),
+      ]).filter((key) => shownReportNutrients.includes(key)),
+    [reportNutrientOrder, shownReportNutrients, customNutrients]
+  );
+  const averagesFor = (keys: readonly string[]): NutrientAverage[] =>
+    report
+      ? buildNutrientAverages(
+          report.points,
+          report.previousPoints,
+          report.dayGoalSets,
+          keys
+        )
+      : [];
+  const nutrientRows = (items: NutrientAverage[]) =>
+    items.map((item) => {
+      const custom = customNutrients.find((def) => def.name === item.key);
+      const unit = custom?.unit ?? NUTRIENT_META[item.key]?.unit ?? '';
+      const label = custom ? item.key : getNutrientLabel(t, item.key);
+      const hints = [
+        item.goalPct === null
+          ? null
+          : t('nutritionReport.nutrientGoalHint', {
+              defaultValue: '{{pct}}% of goal',
+              pct: fmt(item.goalPct),
+            }),
+        item.change === null || item.change === 0
+          ? null
+          : t('nutritionReport.nutrientChangeHint', {
+              defaultValue: '{{change}} vs previous',
+              change: `${item.change > 0 ? '+' : ''}${fmt(item.change)}%`,
+            }),
+      ].filter(Boolean);
+      return {
+        label,
+        value: `${fmt(item.average, item.average < 10 ? 1 : 0)} ${unit}`.trim(),
+        hint: hints.length > 0 ? hints.join(' · ') : undefined,
+        testID: `nutrition-nutrient-${item.key}`,
+        onPress: () =>
+          navigation.navigate('NutrientTrends', {
+            nutrientKey: item.key,
+            nutrientLabel: label,
+            unit,
+            goal: item.goal ?? undefined,
+          }),
+      };
+    });
+
+  const renderNutrientCard = (title: string, items: NutrientAverage[]) =>
+    items.length > 0 ? (
+      <ReportSummaryCard title={title} rows={nutrientRows(items)} />
+    ) : null;
 
   if (isLoading || isError) {
     return (
@@ -385,21 +462,30 @@ const NutritionReportScreen: React.FC<NutritionReportScreenProps> = ({
               ]}
             />
           ) : null}
-          {isSectionShown('nutrition.otherNutrients') &&
-          insights.extras.length > 0 ? (
-            <ReportSummaryCard
-              title={t('nutritionReport.otherNutrients', {
-                defaultValue: 'Other daily averages',
-              })}
-              rows={insights.extras.map((extra) => ({
-                label: getNutrientLabel(t, extra.key),
-                value: `${fmt(extra.average, extra.average < 10 ? 1 : 0)} ${
-                  NUTRIENT_META[extra.key]?.unit ?? ''
-                }`.trim(),
-                testID: `nutrition-extra-${extra.key}`,
-              }))}
-            />
-          ) : null}
+          {isSectionShown('nutrition.fats')
+            ? renderNutrientCard(
+                t('nutritionReport.fatBreakdown', {
+                  defaultValue: 'Fat breakdown',
+                }),
+                averagesFor(FAT_BREAKDOWN_NUTRIENTS)
+              )
+            : null}
+          {isSectionShown('nutrition.micros')
+            ? renderNutrientCard(
+                t('nutritionReport.micronutrients', {
+                  defaultValue: 'Vitamins and minerals',
+                }),
+                averagesFor(MICRONUTRIENTS)
+              )
+            : null}
+          {isSectionShown('nutrition.otherNutrients')
+            ? renderNutrientCard(
+                t('nutritionReport.yourNutrients', {
+                  defaultValue: 'Your nutrients',
+                }),
+                averagesFor(pickedKeys)
+              )
+            : null}
           {isSectionShown('nutrition.trends') ? (
             <View className="bg-surface rounded-xl my-2 shadow-sm overflow-hidden">
               <Text className="text-text-primary text-lg font-semibold p-4 pb-2">

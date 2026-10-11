@@ -88,6 +88,9 @@ export function useNutritionReport({ range }: { range: TrendRange }) {
     };
     return {
       series: toCaloriesSeries(points),
+      points,
+      previousPoints: previous.data ?? [],
+      dayGoalSets: points.map((point) => goalByDay[point.date] ?? null),
       goals: dayGoals,
       insights: buildNutritionInsights(
         points,

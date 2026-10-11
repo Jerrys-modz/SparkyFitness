@@ -29,6 +29,7 @@ import {
   type WatchSetInputStyle,
 } from '../constants/watchPages';
 import {
+  DEFAULT_REPORT_NUTRIENTS,
   DEFAULT_REPORT_RANGE,
   REPORT_KEYS,
   type ReportKey,
@@ -132,6 +133,8 @@ export const PREFERENCE_DEFAULTS = {
   hiddenReports: [] as ReportKey[],
   reportDefaultRange: DEFAULT_REPORT_RANGE as TrendRange,
   hiddenReportSections: [] as ReportSectionKey[],
+  reportNutrientOrder: [] as string[],
+  shownReportNutrients: [...DEFAULT_REPORT_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
   foodsLibraryOwnershipFilter: 'all' as OwnershipFilter,
   mealsLibraryOwnershipFilter: 'all' as OwnershipFilter,
@@ -218,6 +221,10 @@ export type AppPreferencesData = {
   reportDefaultRange: TrendRange;
   /** Sections turned off inside a report, namespaced by report (`sleep.stages`). */
   hiddenReportSections: ReportSectionKey[];
+  /** Order of the nutrients the Nutrition report can average; unknown ones follow in catalog order. */
+  reportNutrientOrder: string[];
+  /** Nutrients (standard keys or custom names) the Nutrition report's "Your nutrients" card shows. */
+  shownReportNutrients: string[];
   /** Whether the watch's double-tap gesture logs the current set. */
   watchDoubleTapEnabled: boolean;
   /** Whether the watch asks for an effort (RPE) after each logged set. */
@@ -295,6 +302,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setReportHidden: (key: ReportKey, isHidden: boolean) => void;
   setReportDefaultRange: (value: TrendRange) => void;
   setReportSectionHidden: (key: ReportSectionKey, isHidden: boolean) => void;
+  setReportNutrientOrder: (order: string[]) => void;
+  setReportNutrientShown: (key: string, isShown: boolean) => void;
   resetReportCustomization: () => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
   setWatchRpeEnabled: (value: boolean) => void;
@@ -466,8 +475,19 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isHidden
           ),
         })),
+      setReportNutrientOrder: (order) => set({ reportNutrientOrder: order }),
+      setReportNutrientShown: (key, isShown) =>
+        set((state) => ({
+          shownReportNutrients: withMembership(
+            state.shownReportNutrients,
+            key,
+            isShown
+          ),
+        })),
       resetReportCustomization: () =>
         set({
+          reportNutrientOrder: [],
+          shownReportNutrients: [...DEFAULT_REPORT_NUTRIENTS],
           reportOrder: [...REPORT_KEYS],
           hiddenReports: [],
           reportDefaultRange: DEFAULT_REPORT_RANGE,
@@ -576,6 +596,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenReports: state.hiddenReports,
         reportDefaultRange: state.reportDefaultRange,
         hiddenReportSections: state.hiddenReportSections,
+        reportNutrientOrder: state.reportNutrientOrder,
+        shownReportNutrients: state.shownReportNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
         foodsLibraryOwnershipFilter: state.foodsLibraryOwnershipFilter,
         mealsLibraryOwnershipFilter: state.mealsLibraryOwnershipFilter,
