@@ -5918,7 +5918,12 @@
     "byWeekday": "Calories by weekday",
     "consistency": "Logging consistency",
     "currentStreak": "Current streak",
-    "longestStreak": "Longest streak"
+    "longestStreak": "Longest streak",
+    "nutrientGoalHint": "{{pct}}% of goal",
+    "nutrientChangeHint": "{{change}} vs previous",
+    "fatBreakdown": "Fat breakdown",
+    "micronutrients": "Vitamins and minerals",
+    "yourNutrients": "Your nutrients"
   },
   "moodReport": {
     "title": "Mood",
@@ -6007,7 +6012,7 @@
       "macroSplit": "Macro split",
       "calorieGoal": "Calorie goal",
       "highestLowest": "Highest and lowest days",
-      "otherNutrients": "Other nutrient averages",
+      "otherNutrients": "Your nutrients",
       "nutrientTrends": "Trend by nutrient",
       "sleepStages": "Average night",
       "sleepRoutine": "Routine",
@@ -6030,10 +6035,15 @@
       "tape": "Body measurements",
       "stepsChart": "Steps chart",
       "sleepWeekend": "Weekdays vs weekends",
-      "sleepNights": "Nights"
+      "sleepNights": "Nights",
+      "fatBreakdown": "Fat breakdown",
+      "micronutrients": "Vitamins and minerals"
     },
     "hydrationSections": "Hydration report",
-    "measurementsSections": "Measurements report"
+    "measurementsSections": "Measurements report",
+    "nutrientsTitle": "Nutrition report nutrients",
+    "nutrientsDescription": "Pick the vitamins, minerals and other nutrients the Nutrition report averages under Your nutrients, and drag to set their order. Custom nutrients are included.",
+    "nutrientReorderHint": "Changes where this nutrient sits in the report"
   },
   "hydrationReport": {
     "title": "Hydration",

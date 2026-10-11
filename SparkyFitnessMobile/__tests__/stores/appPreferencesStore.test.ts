@@ -156,6 +156,31 @@ describe('appPreferencesStore', () => {
       );
     });
 
+    it('shows the original six nutrient averages until the user picks', () => {
+      const state = useAppPreferencesStore.getState();
+      expect(state.shownReportNutrients).toEqual([
+        'dietary_fiber',
+        'sugars',
+        'sodium',
+        'water_ml',
+        'caffeine_mg',
+        'alcohol_g',
+      ]);
+      expect(state.reportNutrientOrder).toEqual([]);
+
+      state.setReportNutrientShown('Creatine', true);
+      state.setReportNutrientShown('Creatine', true);
+      state.setReportNutrientShown('sugars', false);
+      expect(
+        useAppPreferencesStore
+          .getState()
+          .shownReportNutrients.filter((key) => key === 'Creatine')
+      ).toHaveLength(1);
+      expect(
+        useAppPreferencesStore.getState().shownReportNutrients
+      ).not.toContain('sugars');
+    });
+
     it('reset puts every report setting back to its default', () => {
       const store = useAppPreferencesStore.getState();
       store.setReportOrder(['mood', 'nutrition', 'sleep', 'exercise']);

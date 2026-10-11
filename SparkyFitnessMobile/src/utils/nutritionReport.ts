@@ -1,22 +1,11 @@
 import type { NutritionTrendPoint } from '../services/api/reportsApi';
+import type { DailyGoals } from '../types/goals';
 import type { CaloriesDataPoint } from '../types/healthTrends';
 import { weekdayOfDay } from './dateUtils';
 import { average } from './mathUtils';
 
 /** A day's calories within this share of its goal counts as on target. */
 export const GOAL_TOLERANCE = 0.1;
-
-/** Nutrients averaged in the "Other nutrients" card, in display order. */
-export const EXTRA_NUTRIENT_KEYS = [
-  'dietary_fiber',
-  'sugars',
-  'sodium',
-  'water_ml',
-  'caffeine_mg',
-  'alcohol_g',
-] as const;
-
-export type ExtraNutrientKey = (typeof EXTRA_NUTRIENT_KEYS)[number];
 
 export interface MacroSplit {
   proteinPct: number;
@@ -76,7 +65,6 @@ export interface NutritionInsights {
   goal: GoalAdherence;
   highest: DayExtreme | null;
   lowest: DayExtreme | null;
-  extras: { key: ExtraNutrientKey; average: number }[];
   /** Mean calories per weekday (0 = Sunday), only weekdays with a logged day. */
   weekdayCalories: { weekday: number; average: number }[];
   streaks: LoggingStreaks;
@@ -170,10 +158,6 @@ export function buildNutritionInsights(
     goal,
     highest: toExtreme(byCalories[byCalories.length - 1]),
     lowest: logged.length > 1 ? toExtreme(byCalories[0]) : null,
-    extras: EXTRA_NUTRIENT_KEYS.map((key) => ({
-      key,
-      average: meanOf(logged, key),
-    })).filter((extra) => extra.average > 0),
     weekdayCalories: weekdayCalories(logged),
     streaks: loggingStreaks(current),
     macroGoals: macroGoalProgress(current, macroGoalSeries),
@@ -262,3 +246,65 @@ export const percentChange = (
   current === null || previous === null || previous === 0
     ? null
     : Math.round(((current - previous) / previous) * 100);
+
+export interface NutrientAverage {
+  key: string;
+  /** Mean per logged day. */
+  average: number;
+  /** Mean goal over the logged days that had one; null when none did. */
+  goal: number | null;
+  /** average / goal as a whole percent, when there is a goal. */
+  goalPct: number | null;
+  /** Whole-number change against the previous window's average, when both have one. */
+  change: number | null;
+}
+
+/** A day's goal for one nutrient: standard ones by column, water by its own name, custom by name. */
+const goalFor = (goals: DailyGoals | null | undefined, key: string) => {
+  if (!goals) return null;
+  const raw =
+    key === 'water_ml'
+      ? goals.water_goal_ml
+      : ((goals as unknown as Record<string, unknown>)[key] ??
+        goals.custom_nutrients?.[key]);
+  const value = typeof raw === 'number' ? raw : parseFloat(String(raw));
+  return Number.isFinite(value) && value > 0 ? value : null;
+};
+
+/**
+ * Averages for a chosen list of nutrients, standard or custom, over the days anything was
+ * logged. `goals` is indexed by the position of each point in `current`. A nutrient that
+ * averaged zero is left out: it was not eaten, so a row of zeros says nothing.
+ */
+export function buildNutrientAverages(
+  current: NutritionTrendPoint[],
+  previous: NutritionTrendPoint[],
+  goals: (DailyGoals | null | undefined)[],
+  keys: readonly string[]
+): NutrientAverage[] {
+  const logged = loggedPoints(current);
+  const previousLogged = loggedPoints(previous);
+  const result: NutrientAverage[] = [];
+  for (const key of keys) {
+    const mean = meanOf(logged, key);
+    if (mean <= 0) continue;
+    const targets: number[] = [];
+    current.forEach((point, index) => {
+      const target = goalFor(goals[index], key);
+      if (numeric(point, 'calories') > 0 && target !== null)
+        targets.push(target);
+    });
+    const goal = average(targets);
+    result.push({
+      key,
+      average: mean,
+      goal,
+      goalPct: goal === null ? null : Math.round((mean / goal) * 100),
+      change: percentChange(
+        mean,
+        previousLogged.length === 0 ? null : meanOf(previousLogged, key)
+      ),
+    });
+  }
+  return result;
+}

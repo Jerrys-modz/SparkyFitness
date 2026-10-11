@@ -8,6 +8,14 @@ import {
 } from '../../src/stores/appPreferencesStore';
 import { initializeI18n } from '../../src/localization/i18n';
 
+jest.mock('../../src/hooks/useServerConnection', () => ({
+  useServerConnection: () => ({ isConnected: true }),
+}));
+jest.mock('../../src/hooks/useCustomNutrients', () => ({
+  useCustomNutrients: () => ({
+    customNutrients: [{ id: '1', name: 'Creatine', unit: 'g' }],
+  }),
+}));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
 }));
@@ -142,5 +150,56 @@ describe('ReportsSettingsScreen', () => {
     expect(
       screen.getByTestId('reports-section-sleep.weekendVsWeekday')
     ).toBeTruthy();
+  });
+
+  test('lists standard and custom nutrients, with the defaults on', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('reports-nutrient-switch-sodium').props.value
+    ).toBe(true);
+    expect(
+      screen.getByTestId('reports-nutrient-switch-potassium').props.value
+    ).toBe(false);
+    expect(
+      screen.getByTestId('reports-nutrient-switch-Creatine').props.value
+    ).toBe(false);
+    expect(screen.queryByTestId('reports-nutrient-row-protein')).toBeNull();
+    expect(screen.queryByTestId('reports-nutrient-row-calories')).toBeNull();
+  });
+
+  test('turning a nutrient on adds it, and reordering saves the order', () => {
+    renderScreen();
+
+    fireEvent(
+      screen.getByTestId('reports-nutrient-switch-Creatine'),
+      'valueChange',
+      true
+    );
+    expect(useAppPreferencesStore.getState().shownReportNutrients).toContain(
+      'Creatine'
+    );
+
+    fireEvent(
+      screen.getByTestId('reports-nutrient-drag-handle-saturated_fat'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } }
+    );
+    const order = useAppPreferencesStore.getState().reportNutrientOrder;
+    expect(order.indexOf('polyunsaturated_fat')).toBeLessThan(
+      order.indexOf('saturated_fat')
+    );
+  });
+
+  test('Reset puts the nutrient picks back to the defaults', () => {
+    useAppPreferencesStore.setState({
+      shownReportNutrients: ['iron'],
+      reportNutrientOrder: ['iron'],
+    });
+    useAppPreferencesStore.getState().resetReportCustomization();
+    expect(useAppPreferencesStore.getState().shownReportNutrients).toContain(
+      'sodium'
+    );
+    expect(useAppPreferencesStore.getState().reportNutrientOrder).toEqual([]);
   });
 });

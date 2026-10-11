@@ -1,4 +1,5 @@
 import {
+  buildNutrientAverages,
   buildNutritionInsights,
   percentChange,
 } from '../../src/utils/nutritionReport';
@@ -61,18 +62,6 @@ describe('buildNutritionInsights', () => {
       under: 1,
     });
     expect(insights.goal.averageDifference).toBeCloseTo(0);
-  });
-
-  it('only lists extra nutrients that were logged', () => {
-    const insights = buildNutritionInsights(
-      [point('d1', 2000, { dietary_fiber: 30, sodium: 2000 })],
-      [],
-      [null]
-    );
-    expect(insights.extras.map((e) => e.key)).toEqual([
-      'dietary_fiber',
-      'sodium',
-    ]);
   });
 
   it('takes the previous window average over its logged days', () => {
@@ -156,5 +145,67 @@ describe('buildNutritionInsights extras', () => {
     expect(
       buildNutritionInsights([point('d1', 1)], [], [null]).macroGoals
     ).toEqual([]);
+  });
+});
+
+describe('buildNutrientAverages', () => {
+  const goals = [
+    { sodium: 2300, custom_nutrients: { Creatine: 5 } },
+    { sodium: 2300, custom_nutrients: { Creatine: 5 } },
+  ] as never[];
+
+  it('averages the chosen nutrients over logged days and leaves out ones never eaten', () => {
+    const result = buildNutrientAverages(
+      [
+        point('d1', 2000, { sodium: 2000, potassium: 3000 }),
+        point('d2', 0, { sodium: 9999 }),
+      ],
+      [],
+      goals,
+      ['sodium', 'iron', 'potassium']
+    );
+    expect(result.map((r) => r.key)).toEqual(['sodium', 'potassium']);
+    expect(result[0].average).toBe(2000);
+  });
+
+  it('compares with the goal on logged days and the previous window', () => {
+    const [sodium] = buildNutrientAverages(
+      [
+        point('d1', 2000, { sodium: 2300 }),
+        point('d2', 1500, { sodium: 1150 }),
+      ],
+      [point('p1', 1800, { sodium: 1000 })],
+      goals,
+      ['sodium']
+    );
+    expect(sodium.average).toBe(1725);
+    expect(sodium.goal).toBe(2300);
+    expect(sodium.goalPct).toBe(75);
+    expect(sodium.change).toBe(73);
+  });
+
+  it('reads custom nutrients by name, with their goal', () => {
+    const [creatine] = buildNutrientAverages(
+      [
+        point('d1', 2000, { Creatine: 5 }),
+        point('d2', 2000, { Creatine: 2.5 }),
+      ],
+      [],
+      goals,
+      ['Creatine']
+    );
+    expect(creatine.average).toBe(3.75);
+    expect(creatine.goal).toBe(5);
+    expect(creatine.goalPct).toBe(75);
+  });
+
+  it('uses the water goal for water', () => {
+    const [water] = buildNutrientAverages(
+      [point('d1', 2000, { water_ml: 1000 })],
+      [],
+      [{ water_goal_ml: 2000 }] as never[],
+      ['water_ml']
+    );
+    expect(water.goalPct).toBe(50);
   });
 });
