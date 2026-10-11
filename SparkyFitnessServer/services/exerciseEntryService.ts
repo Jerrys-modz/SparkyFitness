@@ -12,6 +12,7 @@ import { parseISO, isValid } from 'date-fns';
 import {
   setsDurationMinutes,
   type AttachExerciseEntryGpsTrackRequest,
+  type AttachExerciseEntryLapsRequest,
   type HeartRateSampleRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
@@ -471,13 +472,95 @@ async function attachGpsTrackToExerciseEntry(
   }
 }
 
+/**
+ * Stores laps for an entry that has no GPS track (a treadmill run recorded on
+ * the watch): the marked windows with the estimated distance of each. Sending
+ * the same laps again replaces them by lap index.
+ */
+async function attachLapsToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  body: AttachExerciseEntryLapsRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  const entry =
+    ownerId === userId
+      ? await exerciseEntryRepository.getExerciseEntryById(
+          exerciseEntryId,
+          userId
+        )
+      : null;
+  const entryDate: string | undefined = entry?.entry_date;
+  if (!entryDate) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const laps = body.laps
+    .filter(
+      (lap) =>
+        Number.isFinite(Date.parse(lap.start_time)) &&
+        Number.isFinite(Date.parse(lap.end_time)) &&
+        Date.parse(lap.end_time) > Date.parse(lap.start_time)
+    )
+    .map((lap) => {
+      const seconds = Math.round(
+        (Date.parse(lap.end_time) - Date.parse(lap.start_time)) / 1000
+      );
+      return {
+        user_id: userId,
+        exercise_entry_id: exerciseEntryId,
+        entry_date: entryDate,
+        lap_index: lap.lap_index,
+        start_time: new Date(lap.start_time),
+        end_time: new Date(lap.end_time),
+        duration_seconds: seconds,
+        distance_meters: lap.distance_meters,
+        avg_heart_rate: lap.avg_heart_rate,
+        avg_speed_mps:
+          lap.distance_meters && seconds > 0
+            ? lap.distance_meters / seconds
+            : undefined,
+      };
+    });
+  if (laps.length === 0) {
+    const error = new Error('No lap has a valid start and end time.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 400;
+    throw error;
+  }
+
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query('BEGIN');
+    await workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient(
+      client,
+      userId,
+      laps
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
+  attachLapsToExerciseEntry,
 };
 export default {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
+  attachLapsToExerciseEntry,
 };

@@ -160,6 +160,9 @@ struct WatchRunResult {
     let heartRate: [[Double]]
     /// Epoch ms of each Lap press. The phone cuts the route at these.
     var laps: [Double] = []
+    /// The distance covered (metres, cumulative) at each lap mark, same order.
+    /// Indoors there is no route to measure laps from, so the phone uses these.
+    var lapDistances: [Double] = []
     /// The plan followed, if any; `planCompleted` is whether its last step began.
     var plan: WatchRunPlan?
     var planCompleted = false

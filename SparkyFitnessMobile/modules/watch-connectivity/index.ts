@@ -712,6 +712,8 @@ export interface WatchRunFinishedPayload {
   route: number[][];
   heartRate: number[][];
   laps: number[];
+  /** Metres covered at each lap mark, same order (an indoor run's laps use these). */
+  lapDistances: number[];
   /** The plan the run followed, if any. */
   planId: string;
   /** Set when the plan was a training-program workout. */

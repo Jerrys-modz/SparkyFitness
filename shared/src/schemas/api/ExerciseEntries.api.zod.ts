@@ -688,8 +688,32 @@ export const attachExerciseEntryGpsTrackRequestSchema = z
   })
   .strict();
 
+// Laps for an entry that has no GPS track, such as a treadmill run recorded on
+// the watch: the windows the wearer marked, with the distance the watch
+// estimated for each. With a track the server derives all of this from the
+// points instead (see the gps-track request above).
+export const attachExerciseEntryLapsRequestSchema = z
+  .object({
+    laps: z
+      .array(
+        z.object({
+          lap_index: z.number().int().positive(),
+          start_time: z.string(),
+          end_time: z.string(),
+          distance_meters: z.number().nonnegative().optional(),
+          avg_heart_rate: z.number().positive().optional(),
+        }),
+      )
+      .min(1)
+      .max(1000),
+  })
+  .strict();
+
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
+>;
+export type AttachExerciseEntryLapsRequest = z.infer<
+  typeof attachExerciseEntryLapsRequestSchema
 >;
 export type AttachExerciseEntryGpsTrackRequest = z.infer<
   typeof attachExerciseEntryGpsTrackRequestSchema
