@@ -34,6 +34,12 @@ struct RecordingView: View {
             }
             .font(.caption2)
             .foregroundStyle(state.status == .recording ? Color.green : Color.secondary)
+            // The system clock sits in the top-right corner: keep this row clear
+            // of it, shrinking before it would run into it.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.trailing, WatchStyle.s(54))
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Re-evaluated every second so the clock keeps running between
             // the phone's updates.
