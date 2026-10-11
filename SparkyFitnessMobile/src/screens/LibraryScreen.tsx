@@ -21,6 +21,8 @@ import Button from '../components/ui/Button';
 import CreateTile from '../components/CreateTile';
 import FoodLibraryRow from '../components/FoodLibraryRow';
 import Icon from '../components/Icon';
+import { programName } from '../components/recording/RunProgramCard';
+import { useRunProgram } from '../services/runProgramService';
 import MealLibraryRow from '../components/MealLibraryRow';
 import StatusView from '../components/StatusView';
 import {
@@ -56,6 +58,8 @@ type RecentItem =
 
 const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
+  const { status: storedProgram, enabled: programEnabled } = useRunProgram();
+  const activeProgram = programEnabled ? storedProgram : null;
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding();
   const usesNativeTabs = useNativeIOSTabsActive();
@@ -390,6 +394,36 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
               {t('screens.library.mealPlansSubtitle', {
                 defaultValue: 'Repeat meals on selected days',
               })}
+            </Text>
+          </View>
+          <Icon name="chevron-forward" size={20} color="#999" />
+        </Pressable>
+        <Pressable
+          className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
+          onPress={() => navigation.navigate('RunPrograms')}
+          style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+        >
+          <View className="flex-1 mr-3">
+            <Text className="text-base font-semibold text-text-primary">
+              {t('screens.library.runPrograms', {
+                defaultValue: 'Training programs',
+              })}
+            </Text>
+            <Text className="text-sm text-text-secondary mt-0.5">
+              {activeProgram
+                ? t('screens.library.runProgramsActive', {
+                    name: programName(t, activeProgram.program.id),
+                    progress: t('recordActivity.program.workoutsDone', {
+                      done: activeProgram.done,
+                      total: activeProgram.total,
+                      defaultValue: '{{done}} of {{total}} workouts',
+                    }),
+                    defaultValue: '{{name}} · {{progress}}',
+                  })
+                : t('screens.library.runProgramsSubtitle', {
+                    defaultValue:
+                      'Run and walk plans from Beginner 5K to marathon',
+                  })}
             </Text>
           </View>
           <Icon name="chevron-forward" size={20} color="#999" />

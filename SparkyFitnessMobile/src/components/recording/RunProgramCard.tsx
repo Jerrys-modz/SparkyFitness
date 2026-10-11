@@ -128,6 +128,8 @@ interface Props {
   enabled: boolean;
   onToggle: (enabled: boolean) => void;
   onSelect: () => void;
+  /** Label for the button that uses today's workout; defaults to the Record screen's wording. */
+  startLabel?: string;
   onRestart: () => void;
   onSkip: () => void;
 }
@@ -147,6 +149,7 @@ const RunProgramCard: React.FC<Props> = ({
   enabled,
   onToggle,
   onSelect,
+  startLabel,
   onRestart,
   onSkip,
 }) => {
@@ -332,9 +335,10 @@ const RunProgramCard: React.FC<Props> = ({
                 ? t('recordActivity.program.using', {
                     defaultValue: 'Using this workout',
                   })
-                : t('recordActivity.program.doThis', {
+                : (startLabel ??
+                  t('recordActivity.program.doThis', {
                     defaultValue: 'Do this workout',
-                  })}
+                  }))}
             </Button>
           </View>
         )}
@@ -343,7 +347,7 @@ const RunProgramCard: React.FC<Props> = ({
         <View className="mt-3">
           <Text className="text-text-primary text-sm font-semibold">
             {t('recordActivity.program.reminders', {
-              defaultValue: 'Run reminders',
+              defaultValue: 'Run days and reminders',
             })}
           </Text>
           <View className="flex-row justify-between mt-2">
@@ -395,7 +399,7 @@ const RunProgramCard: React.FC<Props> = ({
             <Text className="text-text-muted text-xs mt-2">
               {t('recordActivity.program.remindersHint', {
                 defaultValue:
-                  'Pick the days you plan to run to get a reminder.',
+                  'Pick the days you plan to run. You get a reminder then, and the Diary shows the workout on those days. Leave them empty to run whenever you like.',
               })}
             </Text>
           )}

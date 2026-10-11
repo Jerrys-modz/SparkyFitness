@@ -40,6 +40,7 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafeRunPrograms,
   SafeMealPlanForm,
   SafeWaterContainers,
   SafeWaterContainerEdit,
@@ -539,6 +540,11 @@ function AppContent() {
             name="MealPlans"
             component={SafeMealPlans}
             options={createStackScreenOptions(t('mealPlans.title', { defaultValue: 'Meal plans' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="RunPrograms"
+            component={SafeRunPrograms}
+            options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="MealPlanForm"

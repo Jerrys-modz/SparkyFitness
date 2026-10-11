@@ -79,7 +79,7 @@ With an Apple Watch connected to a phone recording, the watch shows the current 
 
 ## Training programs
 
-Training programs are optional and off by default. Switch on **Use a training program** on the Record screen and pick one:
+Training programs are optional and off by default. Open **Library → Training programs**, read the programs and tap **Start program** on the one you want:
 
 | Program | For | Length |
 | --- | --- | --- |
@@ -89,13 +89,13 @@ Training programs are optional and off by default. Switch on **Use a training pr
 | **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 runs a week |
 | **Marathon** | You already run regularly. Long runs building to about 2¾ hours, an easier week every fourth and a taper. | 16 weeks, 3 to 4 runs a week |
 
-Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** switches to another one and starts it at week 1.
+Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** (on the Training programs screen) switches to another one and starts it at week 1.
 
-With the switch on, the screen selects today's workout for you (week 1, run 1 first) and the card shows where you are and how long today's session is. Record it like any run: you are told when to run and when to walk. Switch it off whenever you like: the Record screen goes back to a plain recording (you can still pick any interval plan), the reminders stop, and your place is kept for when you switch it back on.
+With a program on, **Start today's workout** on the Training programs screen opens Record Activity with the workout already selected (week 1, run 1 first), and the Record screen shows a short "Today's program workout" card with **Manage** to get back to the program. The Diary also shows today's workout in a card like a scheduled workout plan, with a **Start** button, until you have done one today. Record it like any run: you are told when to run and when to walk. Switch the program off whenever you like on the Training programs screen: the Record screen goes back to a plain recording (you can still pick any interval plan), the Diary card and the reminders stop, and your place is kept for when you switch it back on.
 
 A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Choose a different workout** opens the whole program, week by week, with finished runs ticked: use it to start further in if you already run, to repeat a week, or to go back. **Skip** moves past a workout you cannot do, and **Start over** goes back to week 1. When you finish week 9 the card says so and offers to start again.
 
-Under the program card you can pick the days you plan to run and a time (morning, midday or evening) to get a weekly **Run reminder** notification. It stops when you switch the program off or finish it, and it needs notifications turned on for the app.
+On the program card you can pick the days you plan to run and a time (morning, midday or evening). Those are your **run days**: you get a weekly reminder notification on them (it needs notifications turned on for the app), and the Diary shows the workout as "Scheduled Today" on those days only. With no days picked the Diary shows the next workout every day as "Up next", so you can run whenever you like. A run you miss is not skipped: the same workout stays due. The reminders and the Diary card stop when you switch the program off or finish it.
 
 Your place in the program is saved to your SparkyFitness server (only you can see it), so it follows you between devices. The run reminders stay on the phone.
 

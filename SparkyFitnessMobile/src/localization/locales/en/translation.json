@@ -577,6 +577,9 @@
       "meals": "Meals",
       "mealPlans": "Meal plans",
       "mealPlansSubtitle": "Repeat meals on selected days",
+      "runPrograms": "Training programs",
+      "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
+      "runProgramsActive": "{{name}} · {{progress}}",
       "exercises": "Exercises",
       "workoutPresets": "Workout presets",
       "medications": "Medications",
@@ -600,6 +603,7 @@
     "watchSettings": "Apple Watch",
     "aiSettings": "AI",
     "recordActivity": "Record Activity",
+    "runPrograms": "Training programs",
     "warmupSettings": "Warm-up Calculator"
   },
   "healthMetrics": {
@@ -6145,8 +6149,8 @@
       "use": "Use a training program",
       "using": "Using this workout",
       "skip": "Skip",
-      "reminders": "Run reminders",
-      "remindersHint": "Pick the days you plan to run to get a reminder.",
+      "reminders": "Run days and reminders",
+      "remindersHint": "Pick the days you plan to run. You get a reminder then, and the Diary shows the workout on those days. Leave them empty to run whenever you like.",
       "pick": "Choose a different workout",
       "pickTitle": "Choose a workout",
       "weekTitle": "Week {{week}}",
@@ -6165,12 +6169,32 @@
       "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
       "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "minutes": "{{minutes}} min",
+      "workoutsDone": "{{done}} of {{total}} workouts",
       "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
       "chooseTitle": "Choose a program",
       "change": "Change program",
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch"
+    }
+  },
+  "runPrograms": {
+    "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
+    "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
+    "start": "Start program",
+    "startWorkout": "Start today's workout",
+    "banner": {
+      "scheduledToday": "Scheduled Today",
+      "upNext": "Up next",
+      "start": "Start",
+      "title": "Week {{week}}, run {{run}} · {{minutes}} min"
+    },
+    "select": {
+      "today": "Today's program workout",
+      "manage": "Manage",
+      "none": "Training program",
+      "setUp": "Set up a program"
     }
   },
   "speechVoice": {
