@@ -492,7 +492,6 @@
     "logPregnancyEntry": "Log Pregnancy Entry",
     "logCycle": "Log Cycle",
     "recordActivity": "Record Activity",
-    "runSummary": "Activity saved",
     "recordActivityHint": "Track a walk, run or ride with GPS",
     "mindfulness": "Mindfulness"
   },
@@ -599,6 +598,7 @@
     "watchSettings": "Apple Watch",
     "aiSettings": "AI",
     "recordActivity": "Record Activity",
+    "runSummary": "Activity saved",
     "runPrograms": "Training programs",
     "warmupSettings": "Warm-up Calculator"
   },
@@ -6138,11 +6138,13 @@
         "beginner5k": "Beginner 5K",
         "fiveToTenK": "5K to 10K",
         "faster5k": "Faster 5K",
+        "walkFit": "Walk for fitness",
         "halfMarathon": "Half marathon",
         "marathon": "Marathon"
       },
       "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
       "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
+      "workoutLabelWalk": "{{name}} · Week {{week}}, walk {{walk}}",
       "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
       "finished": "{{name}} complete",
       "finishedHint": "Well done. You can start it again or move on.",
@@ -6185,8 +6187,10 @@
       "changed": "Plan changed on {{date}}: {{summary}}",
       "fiveToTenKDescription": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
       "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
+      "walkFitDescription": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
       "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
+      "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
       "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
       "minutes": "{{minutes}} min",
       "workoutsDone": "{{done}} of {{total}} workouts",
@@ -6221,6 +6225,7 @@
         "beginner5k": "Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes.",
         "fiveToTenK": "Each week has two steady runs and a long run. The long run grows from 40 to 65 minutes. Every fourth week is lighter so you can recover, and the last week eases off.",
         "faster5k": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 1 to 3 the longer run is easy; in weeks 4 to 6 it becomes a tempo run of 15, 20 and then 25 minutes.",
+        "walkFit": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes.",
         "halfMarathon": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.",
         "marathon": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day."
       },

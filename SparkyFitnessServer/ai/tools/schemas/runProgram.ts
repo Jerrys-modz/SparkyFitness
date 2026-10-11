@@ -67,7 +67,7 @@ export const manageRunProgramSchema = z.discriminatedUnion('action', [
         .max(50)
         .optional()
         .describe(
-          'beginner5k, fiveToTenK, faster5k, halfMarathon or marathon. Default beginner5k.'
+          'walkFit, beginner5k, fiveToTenK, faster5k, halfMarathon or marathon. Default beginner5k.'
         ),
       confirmed: confirmedSchema,
     })

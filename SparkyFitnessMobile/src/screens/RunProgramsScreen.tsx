@@ -211,12 +211,19 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
                 {programStructure(t, program.id)}
               </Text>
               <Text className="text-text-secondary text-xs mt-2">
-                {t('recordActivity.program.outline', {
-                  weekOne: outline.firstWeek.join(', '),
-                  peak: outline.peakRunMinutes,
-                  defaultValue:
-                    'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
-                })}
+                {program.activity === 'walk'
+                  ? t('recordActivity.program.outlineWalk', {
+                      weekOne: outline.firstWeek.join(', '),
+                      peak: outline.peakRunMinutes,
+                      defaultValue:
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.',
+                    })
+                  : t('recordActivity.program.outline', {
+                      weekOne: outline.firstWeek.join(', '),
+                      peak: outline.peakRunMinutes,
+                      defaultValue:
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                    })}
               </Text>
               <View className="mt-3">
                 <Button variant="outline" onPress={() => askStart(program.id)}>

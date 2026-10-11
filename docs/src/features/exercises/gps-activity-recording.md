@@ -85,6 +85,7 @@ Training programs are optional and off by default. Open **Library → Training p
 
 | Program | For | Length |
 | --- | --- | --- |
+| **Walk for fitness** | Not running yet. Brisk walks alternating with easy ones, building to 30 minutes of brisk walking. Recorded as a walk. | 8 weeks, 3 walks a week |
 | **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
 | **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |
 | **Faster 5K** | You already run 5K. Interval sessions, easy runs and tempo runs. | 6 weeks, 3 runs a week |
