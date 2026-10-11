@@ -5,11 +5,7 @@ import { useCSSVariable } from 'uniwind';
 import { planMinutes } from '@workspace/shared';
 import Icon from '../Icon';
 import Button from '../ui/Button';
-import { useRunSchedule } from '../../services/runProgramSchedule';
-import {
-  useProgramDoneDay,
-  useRunProgram,
-} from '../../services/runProgramService';
+import { useRunProgram } from '../../services/runProgramService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { programDayCard } from '../../utils/runProgramDay';
 import { programName } from './RunProgramCard';
@@ -27,16 +23,14 @@ const RunProgramBanner: React.FC<{
   const { t } = useTranslation();
   const [accent] = useCSSVariable(['--color-accent-primary']) as [string];
   const [today] = useState(() => toLocalDateString(new Date()));
-  const { status, enabled, loaded } = useRunProgram();
-  const { days, startDay } = useRunSchedule();
-  const doneDay = useProgramDoneDay();
+  const { status, enabled, schedule, doneDay, loaded } = useRunProgram();
 
   const card = loaded
     ? programDayCard({
         enabled,
         status,
-        runDays: days,
-        startDay,
+        runDays: schedule.days,
+        startDay: schedule.startDay,
         doneDay,
         today,
         date,

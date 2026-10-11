@@ -24,6 +24,9 @@ export const runProgramAdjustmentSchema = z.object({
 });
 export type RunProgramAdjustment = z.infer<typeof runProgramAdjustmentSchema>;
 
+const dayString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const weekday = z.number().int().min(0).max(6);
+
 export const runProgramResponseSchema = z.object({
   id: z.string(),
   program_id: z.string(),
@@ -33,6 +36,12 @@ export const runProgramResponseSchema = z.object({
   workouts: z.array(runProgramWorkoutSchema),
   /** Most recent last, capped by the server. */
   adjustment_log: z.array(runProgramAdjustmentSchema),
+  /** Weekdays (0 = Sunday) the person plans to run; empty means every day. */
+  run_days: z.array(weekday).max(7),
+  /** First day (YYYY-MM-DD) the Diary offers the workout, or null for any. */
+  start_date: dayString.nullable(),
+  /** The last day a program workout was completed (the person's local day). */
+  last_done_date: dayString.nullable(),
   updated_at: z.string(),
 });
 export type RunProgramResponse = z.infer<typeof runProgramResponseSchema>;
@@ -51,6 +60,9 @@ export const upsertRunProgramBodySchema = z.object({
   program_id: z.string().min(1).max(50),
   enabled: z.boolean().optional(),
   next_index: z.number().int().min(0).max(1000).optional(),
+  run_days: z.array(weekday).max(7).optional(),
+  /** null clears it; absent leaves it as it is. */
+  start_date: dayString.nullable().optional(),
 });
 export type UpsertRunProgramBody = z.infer<typeof upsertRunProgramBodySchema>;
 
@@ -59,6 +71,8 @@ export const completeRunProgramWorkoutBodySchema = z.object({
   index: z.number().int().min(0).max(1000),
   /** The program the workout belonged to; ignored if the person has switched since. */
   program_id: z.string().min(1).max(40).optional(),
+  /** The person's local day, recorded as the last day a workout was done. */
+  day: dayString.optional(),
 });
 export type CompleteRunProgramWorkoutBody = z.infer<
   typeof completeRunProgramWorkoutBodySchema

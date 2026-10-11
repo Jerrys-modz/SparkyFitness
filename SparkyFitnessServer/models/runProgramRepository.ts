@@ -11,6 +11,14 @@ import {
 } from '@workspace/shared';
 import { z } from 'zod';
 
+/**
+ * Every column, with the dates as YYYY-MM-DD text: the driver would turn a DATE
+ * into a JS Date in the server's time zone, which can name the wrong day.
+ */
+const COLUMNS = `*,
+  to_char(start_date, 'YYYY-MM-DD') AS start_day,
+  to_char(last_done_date, 'YYYY-MM-DD') AS last_done_day`;
+
 /** Most change-log entries kept per person. */
 const MAX_LOG_ENTRIES = 30;
 
@@ -27,6 +35,11 @@ function mapRow(row: Record<string, unknown>): RunProgramResponse {
     next_index: Number(row.next_index),
     workouts: workouts.success ? workouts.data : [],
     adjustment_log: log.success ? log.data : [],
+    run_days: Array.isArray(row.run_days)
+      ? (row.run_days as number[]).map(Number)
+      : [],
+    start_date: row.start_day ? String(row.start_day) : null,
+    last_done_date: row.last_done_day ? String(row.last_done_day) : null,
     updated_at: new Date(row.updated_at as string).toISOString(),
   };
 }
@@ -38,7 +51,7 @@ export async function getRunProgram(
   const client = await getClient(userId, authenticatedUserId);
   try {
     const result = await client.query(
-      'SELECT * FROM run_programs WHERE user_id = $1',
+      `SELECT ${COLUMNS} FROM run_programs WHERE user_id = $1`,
       [userId]
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
@@ -63,6 +76,12 @@ export async function upsertRunProgram(
   const template = findProgram(body.program_id);
   if (!template) throw new UnknownRunProgramError(body.program_id);
 
+  // Sorted and without repeats; null leaves the stored days alone.
+  const runDays = body.run_days
+    ? [...new Set(body.run_days)].sort((a, b) => a - b)
+    : null;
+  const hasStartDate = body.start_date !== undefined;
+
   const client = await getClient(userId, authenticatedUserId);
   try {
     const existing = await client.query(
@@ -72,24 +91,34 @@ export async function upsertRunProgram(
     const sameProgram = existing.rows[0]?.program_id === body.program_id;
     if (!existing.rows[0] || !sameProgram) {
       const next = Math.min(body.next_index ?? 0, template.workouts.length);
+      // Switching programs keeps the person's Diary schedule.
       const result = await client.query(
         `INSERT INTO run_programs
-           (user_id, program_id, enabled, next_index, workouts, adjustment_log)
-         VALUES ($1, $2, $3, $4, $5::jsonb, '[]'::jsonb)
+           (user_id, program_id, enabled, next_index, workouts, adjustment_log,
+            run_days, start_date)
+         VALUES ($1, $2, $3, $4, $5::jsonb, '[]'::jsonb,
+                 COALESCE($6::smallint[], '{}'),
+                 CASE WHEN $7::boolean THEN $8::date END)
          ON CONFLICT ON CONSTRAINT uq_run_programs_user DO UPDATE SET
            program_id = EXCLUDED.program_id,
            enabled = EXCLUDED.enabled,
            next_index = EXCLUDED.next_index,
            workouts = EXCLUDED.workouts,
            adjustment_log = '[]'::jsonb,
+           run_days = COALESCE($6::smallint[], run_programs.run_days),
+           start_date = CASE WHEN $7::boolean THEN $8::date
+                             ELSE run_programs.start_date END,
            updated_at = NOW()
-         RETURNING *`,
+         RETURNING ${COLUMNS}`,
         [
           userId,
           body.program_id,
           body.enabled ?? true,
           next,
           JSON.stringify(template.workouts),
+          runDays,
+          hasStartDate,
+          body.start_date ?? null,
         ]
       );
       return mapRow(result.rows[0]);
@@ -98,10 +127,19 @@ export async function upsertRunProgram(
       `UPDATE run_programs SET
          enabled = COALESCE($2, enabled),
          next_index = LEAST(COALESCE($3, next_index), jsonb_array_length(workouts)),
+         run_days = COALESCE($4::smallint[], run_days),
+         start_date = CASE WHEN $5::boolean THEN $6::date ELSE start_date END,
          updated_at = NOW()
        WHERE user_id = $1
-       RETURNING *`,
-      [userId, body.enabled ?? null, body.next_index ?? null]
+       RETURNING ${COLUMNS}`,
+      [
+        userId,
+        body.enabled ?? null,
+        body.next_index ?? null,
+        runDays,
+        hasStartDate,
+        body.start_date ?? null,
+      ]
     );
     return mapRow(result.rows[0]);
   } finally {
@@ -118,18 +156,20 @@ export async function completeRunProgramWorkout(
   userId: string,
   index: number,
   authenticatedUserId?: string,
-  programId?: string
+  programId?: string,
+  day?: string
 ): Promise<RunProgramResponse | null> {
   const client = await getClient(userId, authenticatedUserId);
   try {
     // A workout finished under one program must not tick off another's.
     const result = await client.query(
-      `UPDATE run_programs SET next_index = next_index + 1, updated_at = NOW()
+      `UPDATE run_programs SET next_index = next_index + 1,
+         last_done_date = COALESCE($4::date, last_done_date), updated_at = NOW()
        WHERE user_id = $1 AND next_index = $2
          AND next_index < jsonb_array_length(workouts)
          AND ($3::text IS NULL OR program_id = $3)
-       RETURNING *`,
-      [userId, index, programId ?? null]
+       RETURNING ${COLUMNS}`,
+      [userId, index, programId ?? null, day ?? null]
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   } finally {
@@ -152,7 +192,7 @@ export async function adjustRunProgram(
   try {
     await client.query('BEGIN');
     const current = await client.query(
-      'SELECT * FROM run_programs WHERE user_id = $1 FOR UPDATE',
+      `SELECT ${COLUMNS} FROM run_programs WHERE user_id = $1 FOR UPDATE`,
       [userId]
     );
     if (!current.rows[0]) {
@@ -171,7 +211,7 @@ export async function adjustRunProgram(
     const updated = await client.query(
       `UPDATE run_programs SET workouts = $2::jsonb, next_index = $3,
          adjustment_log = $4::jsonb, updated_at = NOW()
-       WHERE user_id = $1 RETURNING *`,
+       WHERE user_id = $1 RETURNING ${COLUMNS}`,
       [
         userId,
         JSON.stringify(result.workouts),

@@ -2,40 +2,29 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { programStatus } from '@workspace/shared';
 import RunProgramBanner from '../../src/components/recording/RunProgramBanner';
-import {
-  useProgramDoneDay,
-  useRunProgram,
-} from '../../src/services/runProgramService';
+import { useRunProgram } from '../../src/services/runProgramService';
 import { toLocalDateString } from '../../src/utils/dateUtils';
 
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
-  useProgramDoneDay: jest.fn(),
-}));
-let mockDays: number[] = [];
-let mockStartDay: string | null = null;
-jest.mock('../../src/services/runProgramSchedule', () => ({
-  useRunSchedule: () => ({ days: mockDays, startDay: mockStartDay }),
 }));
 
 const mockedProgram = jest.mocked(useRunProgram);
-const mockedDone = jest.mocked(useProgramDoneDay);
 const today = toLocalDateString(new Date());
 
-const on = () =>
-  mockedProgram.mockReturnValue({
-    status: programStatus({ programId: 'beginner5k', next: 4 })!,
-    enabled: true,
-    lastAdjustment: null,
-    loaded: true,
-  });
-
-beforeEach(() => {
-  mockDays = [];
-  mockStartDay = null;
-  mockedDone.mockReturnValue(null);
-  on();
+const program = (
+  over: Partial<ReturnType<typeof useRunProgram>> = {}
+): ReturnType<typeof useRunProgram> => ({
+  status: programStatus({ programId: 'beginner5k', next: 4 })!,
+  enabled: true,
+  lastAdjustment: null,
+  schedule: { days: [], startDay: null },
+  doneDay: null,
+  loaded: true,
+  ...over,
 });
+
+beforeEach(() => mockedProgram.mockReturnValue(program()));
 
 test("offers today's workout with a Start button", () => {
   const onStart = jest.fn();
@@ -47,13 +36,17 @@ test("offers today's workout with a Start button", () => {
 });
 
 test('waits for the start day', () => {
-  mockStartDay = '2999-01-01';
+  mockedProgram.mockReturnValue(
+    program({ schedule: { days: [], startDay: '2999-01-01' } })
+  );
   render(<RunProgramBanner date={today} onStart={jest.fn()} />);
   expect(screen.queryByTestId('run-program-banner')).toBeNull();
 });
 
 test('says scheduled on a run day', () => {
-  mockDays = [0, 1, 2, 3, 4, 5, 6];
+  mockedProgram.mockReturnValue(
+    program({ schedule: { days: [0, 1, 2, 3, 4, 5, 6], startDay: null } })
+  );
   render(<RunProgramBanner date={today} onStart={jest.fn()} />);
   expect(screen.getByText(/Scheduled Today/)).toBeTruthy();
 });
@@ -64,17 +57,11 @@ test('is not shown for another day, after a workout today, or with the program o
   );
   expect(screen.queryByTestId('run-program-banner')).toBeNull();
 
-  mockedDone.mockReturnValue(today);
+  mockedProgram.mockReturnValue(program({ doneDay: today }));
   rerender(<RunProgramBanner date={today} onStart={jest.fn()} />);
   expect(screen.queryByTestId('run-program-banner')).toBeNull();
 
-  mockedDone.mockReturnValue(null);
-  mockedProgram.mockReturnValue({
-    status: programStatus({ programId: 'beginner5k', next: 4 })!,
-    enabled: false,
-    lastAdjustment: null,
-    loaded: true,
-  });
+  mockedProgram.mockReturnValue(program({ enabled: false }));
   rerender(<RunProgramBanner date={today} onStart={jest.fn()} />);
   expect(screen.queryByTestId('run-program-banner')).toBeNull();
 });

@@ -11,7 +11,6 @@ import BottomSheetPicker, {
 } from '../BottomSheetPicker';
 import { getAppLocale } from '../../localization';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
-import type { RunSchedule } from '../../services/runProgramSchedule';
 import { toLocalDateString } from '../../utils/dateUtils';
 import {
   addDays,
@@ -104,6 +103,12 @@ const weekdayLabel = (day: number, style: 'narrow' | 'long'): string =>
     weekday: style,
   });
 
+/** When the Diary offers the workout: weekdays (none = every day) and first day. */
+export interface RunSchedule {
+  days: number[];
+  startDay: string | null;
+}
+
 type StartChoice = 'today' | 'tomorrow' | 'other';
 
 interface Props {
@@ -116,7 +121,7 @@ interface Props {
   now: number;
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
-  onSchedule: (change: Partial<RunSchedule>) => void;
+  onSchedule: (change: { days?: number[]; startDay?: string | null }) => void;
   /** Jump to any workout in the program (0-based index). */
   onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
