@@ -10,6 +10,25 @@ import { initializeI18n } from '../../src/localization/i18n';
 import { buildHydrationInsights } from '../../src/utils/hydrationReport';
 
 const mockUseHydrationReport = jest.fn();
+jest.mock('../../src/components/DateRangeSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(
+      (
+        props: { onConfirm: (from: string, to: string) => void },
+        ref: unknown
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          present: () => props.onConfirm('2026-09-01', '2026-09-20'),
+          dismiss: () => undefined,
+        }));
+        return <View testID="date-range-sheet" />;
+      }
+    ),
+  };
+});
 jest.mock('../../src/hooks/useHydrationReport', () => ({
   useHydrationReport: (args: unknown) => mockUseHydrationReport(args),
 }));
@@ -79,6 +98,20 @@ describe('HydrationReportScreen', () => {
     expect(getByTestId('hydration-goal-average')).toBeTruthy();
     expect(getByTestId('hydration-best-day')).toBeTruthy();
     expect(getByTestId('hydration-weekday-1')).toBeTruthy();
+  });
+
+  it('says what stood out, and can be turned off', () => {
+    const first = renderScreen();
+    expect(
+      first.getByText('You reached your water goal on 2 of 3 days.')
+    ).toBeTruthy();
+    first.unmount();
+
+    useAppPreferencesStore.setState({
+      hiddenReportSections: ['hydration.insights'],
+    });
+    const second = renderScreen();
+    expect(second.queryByText('What stood out')).toBeNull();
   });
 
   it('leaves out the sections turned off in Customize Reports', () => {

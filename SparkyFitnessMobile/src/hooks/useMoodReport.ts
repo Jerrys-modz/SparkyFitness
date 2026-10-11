@@ -3,18 +3,13 @@ import { useQueries } from '@tanstack/react-query';
 import { fetchMoodEntries } from '../services/api/moodApi';
 import { addDays } from '../utils/dateUtils';
 import { buildMoodReport } from '../utils/moodReport';
-import {
-  TREND_RANGE_DAYS,
-  trendRangeBounds,
-  type TrendRange,
-} from '../utils/trendRange';
+import type { ReportWindow } from '../utils/trendRange';
 import { moodEntriesQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
 /** Mood for a window and the one before it, so the report can show the change. */
-export function useMoodReport({ range }: { range: TrendRange }) {
-  const days = TREND_RANGE_DAYS[range];
-  const { startDate, endDate } = trendRangeBounds(range);
+export function useMoodReport({ window }: { window: ReportWindow }) {
+  const { startDate, endDate, days } = window;
   const previousEnd = addDays(startDate, -1);
   const previousStart = addDays(previousEnd, -(days - 1));
 

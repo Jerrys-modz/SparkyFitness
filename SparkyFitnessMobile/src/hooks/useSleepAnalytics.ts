@@ -3,11 +3,7 @@ import { useQueries } from '@tanstack/react-query';
 import { fetchSleepEntries } from '../services/api/sleepApi';
 import { addDays } from '../utils/dateUtils';
 import { buildSleepAnalytics } from '../utils/sleepAnalytics';
-import {
-  TREND_RANGE_DAYS,
-  trendRangeBounds,
-  type TrendRange,
-} from '../utils/trendRange';
+import type { ReportWindow } from '../utils/trendRange';
 import { sleepRangeQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
@@ -16,9 +12,8 @@ import { useRefetchOnFocus } from './useRefetchOnFocus';
  * current window shares `sleepRangeQueryKey` with the Health Trends sleep chart, so a
  * window both have open is one request and a health sync refreshes both.
  */
-export function useSleepAnalytics({ range }: { range: TrendRange }) {
-  const days = TREND_RANGE_DAYS[range];
-  const { startDate, endDate } = trendRangeBounds(range);
+export function useSleepAnalytics({ window }: { window: ReportWindow }) {
+  const { startDate, endDate, days } = window;
   const previousEnd = addDays(startDate, -1);
   const previousStart = addDays(previousEnd, -(days - 1));
 

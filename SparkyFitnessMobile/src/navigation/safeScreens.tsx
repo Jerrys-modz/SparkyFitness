@@ -85,6 +85,7 @@ import NutritionReportScreen from '../screens/NutritionReportScreen';
 import SleepAnalyticsScreen from '../screens/SleepAnalyticsScreen';
 import MoodReportScreen from '../screens/MoodReportScreen';
 import HydrationReportScreen from '../screens/HydrationReportScreen';
+import SubstancesReportScreen from '../screens/SubstancesReportScreen';
 import MeasurementsReportScreen from '../screens/MeasurementsReportScreen';
 import ReportsSettingsScreen from '../screens/ReportsSettingsScreen';
 import CardioSessionScreen from '../screens/CardioSessionScreen';
@@ -177,6 +178,7 @@ export const SafeNutritionReport = withErrorBoundary(NutritionReportScreen, 'Nut
 export const SafeSleepAnalytics = withErrorBoundary(SleepAnalyticsScreen, 'SleepAnalytics', { canGoBack: true });
 export const SafeReportsSettings = withErrorBoundary(ReportsSettingsScreen, 'ReportsSettings', { canGoBack: true });
 export const SafeHydrationReport = withErrorBoundary(HydrationReportScreen, 'HydrationReport', { canGoBack: true });
+export const SafeSubstancesReport = withErrorBoundary(SubstancesReportScreen, 'SubstancesReport', { canGoBack: true });
 export const SafeMeasurementsReport = withErrorBoundary(MeasurementsReportScreen, 'MeasurementsReport', { canGoBack: true });
 export const SafeMoodReport = withErrorBoundary(MoodReportScreen, 'MoodReport', { canGoBack: true });
 export const SafeCardioSession = withErrorBoundary(CardioSessionScreen, 'CardioSession', { canGoBack: true });

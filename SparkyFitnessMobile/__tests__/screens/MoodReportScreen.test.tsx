@@ -10,6 +10,25 @@ import { initializeI18n } from '../../src/localization/i18n';
 import type { MoodReport } from '../../src/utils/moodReport';
 
 const mockUseMoodReport = jest.fn();
+jest.mock('../../src/components/DateRangeSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(
+      (
+        props: { onConfirm: (from: string, to: string) => void },
+        ref: unknown
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          present: () => props.onConfirm('2026-09-01', '2026-09-20'),
+          dismiss: () => undefined,
+        }));
+        return <View testID="date-range-sheet" />;
+      }
+    ),
+  };
+});
 jest.mock('../../src/hooks/useMoodReport', () => ({
   useMoodReport: (args: unknown) => mockUseMoodReport(args),
 }));
@@ -110,9 +129,13 @@ describe('MoodReportScreen customization', () => {
 
     const { getByText } = renderScreen();
 
-    expect(mockUseMoodReport).toHaveBeenLastCalledWith({ range: '7d' });
+    expect(mockUseMoodReport).toHaveBeenLastCalledWith({
+      window: expect.objectContaining({ days: 7, chartRange: '7d' }),
+    });
     fireEvent.press(getByText('90d'));
-    expect(mockUseMoodReport).toHaveBeenLastCalledWith({ range: '90d' });
+    expect(mockUseMoodReport).toHaveBeenLastCalledWith({
+      window: expect.objectContaining({ days: 90, chartRange: '90d' }),
+    });
     expect(useAppPreferencesStore.getState().reportDefaultRange).toBe('7d');
   });
 });

@@ -616,7 +616,8 @@
     "moodReport": "Mood",
     "reportsSettings": "Customize Reports",
     "hydrationReport": "Hydration",
-    "measurementsReport": "Measurements"
+    "measurementsReport": "Measurements",
+    "substancesReport": "Caffeine and alcohol"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -843,7 +844,8 @@
     "logDrink": "Log {{drink}}",
     "perPress": "{{value}} {{unit}}",
     "logDrinkFailed": "Could not log that drink",
-    "exerciseStatistics": "Statistics"
+    "exerciseStatistics": "Statistics",
+    "reportsLink": "Reports"
   },
   "syncScreen": {
     "healthConnectSettings": "Health Connect settings",
@@ -4946,7 +4948,10 @@
   "ranges": {
     "7d": "7d",
     "30d": "30d",
-    "90d": "90d"
+    "90d": "90d",
+    "custom": "Custom",
+    "customTitle": "Pick a date range",
+    "customConfirm": "Show this range"
   },
   "foodEntryMeal": {
     "failed": "Failed to add meal"
@@ -6261,7 +6266,10 @@
     "hydration": "Hydration",
     "hydrationSubtitle": "Daily water, goal streaks and best days",
     "measurements": "Measurements",
-    "measurementsSubtitle": "Weight, body composition, tape measurements and steps"
+    "measurementsSubtitle": "Weight, body composition, tape measurements and steps",
+    "insights": "What stood out",
+    "substances": "Caffeine and alcohol",
+    "substancesSubtitle": "Daily caffeine, alcohol totals and week by week"
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -6303,7 +6311,14 @@
     "nutrientChangeHint": "{{change}} vs previous",
     "fatBreakdown": "Fat breakdown",
     "micronutrients": "Vitamins and minerals",
-    "yourNutrients": "Your nutrients"
+    "yourNutrients": "Your nutrients",
+    "insightProtein": "You averaged {{pct}}% of your protein goal.",
+    "insightOnTarget": "{{onTarget}} of {{total}} logged days were within 10% of your calorie goal.",
+    "insightUp": "Your average calories are up {{pct}}% on the previous period.",
+    "insightDown": "Your average calories are down {{pct}}% on the previous period.",
+    "insightWeekday": "{{weekday}} is your highest-calorie day, averaging {{kcal}}.",
+    "insightStreak_one": "Your longest logging streak was {{count}} day.",
+    "insightStreak_other": "Your longest logging streak was {{count}} days."
   },
   "moodReport": {
     "title": "Mood",
@@ -6321,7 +6336,12 @@
     "lowestDay": "Lowest day",
     "byWeekday": "Average by weekday",
     "daysOfWindow": "{{logged}} of {{total}}",
-    "mostLogged": "Most logged mood"
+    "mostLogged": "Most logged mood",
+    "insightBestWeekday": "{{weekday}} is your best day of the week{{mood}}.",
+    "insightTopMood_one": "Your most logged mood was {{mood}}, {{count}} time.",
+    "insightTopMood_other": "Your most logged mood was {{mood}}, {{count}} times.",
+    "insightUp": "Your average mood is up on the previous period.",
+    "insightDown": "Your average mood is down on the previous period."
   },
   "sleepAnalytics": {
     "title": "Sleep Analytics",
@@ -6371,7 +6391,12 @@
     "shortestNight": "Shortest night",
     "wakeVariability": "Wake time consistency",
     "weekendVsWeekday": "Weekdays vs weekends",
-    "nights": "Nights"
+    "nights": "Nights",
+    "insightWeekendLonger": "You sleep {{hours}} longer on weekends than on weeknights.",
+    "insightWeekendShorter": "You sleep {{hours}} less on weekends than on weeknights.",
+    "insightFullNights": "{{full}} of {{total}} nights reached 7 hours.",
+    "insightIrregular": "Your bedtime varies by about ±{{minutes}} min.",
+    "insightDurationChange": "Time asleep is {{change}} on the previous period."
   },
   "reportsSettings": {
     "reset": "Reset",
@@ -6417,13 +6442,26 @@
       "sleepWeekend": "Weekdays vs weekends",
       "sleepNights": "Nights",
       "fatBreakdown": "Fat breakdown",
-      "micronutrients": "Vitamins and minerals"
+      "micronutrients": "Vitamins and minerals",
+      "insights": "What stood out",
+      "exerciseOverview": "Workouts, volume and reps",
+      "setsPerMuscle": "Sets per muscle",
+      "heatMap": "Muscle heat map",
+      "trainingConsistency": "Training consistency",
+      "moreAnalysis": "More analysis",
+      "caffeineChart": "Caffeine chart",
+      "caffeineSummary": "Caffeine summary",
+      "alcoholChart": "Alcohol chart",
+      "alcoholSummary": "Alcohol summary",
+      "substancesWeekly": "Week by week"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
     "nutrientsTitle": "Nutrition report nutrients",
     "nutrientsDescription": "Pick the vitamins, minerals and other nutrients the Nutrition report averages under Your nutrients, and drag to set their order. Custom nutrients are included.",
-    "nutrientReorderHint": "Changes where this nutrient sits in the report"
+    "nutrientReorderHint": "Changes where this nutrient sits in the report",
+    "substancesSections": "Caffeine and alcohol report",
+    "exerciseSections": "Exercise report"
   },
   "hydrationReport": {
     "title": "Hydration",
@@ -6445,7 +6483,13 @@
     "byWeekday": "Average by weekday",
     "empty": "No water logged in this period",
     "daysCount_one": "{{count}} day",
-    "daysCount_other": "{{count}} days"
+    "daysCount_other": "{{count}} days",
+    "insightGoal": "You reached your water goal on {{met}} of {{total}} days.",
+    "insightUp": "You are drinking {{pct}}% more than in the previous period.",
+    "insightDown": "You are drinking {{pct}}% less than in the previous period.",
+    "insightLowDay": "{{weekday}} is your lowest day, averaging {{volume}}.",
+    "insightStreak_one": "Your longest goal streak was {{count}} day.",
+    "insightStreak_other": "Your longest goal streak was {{count}} days."
   },
   "measurementsReport": {
     "title": "Measurements",
@@ -6464,6 +6508,46 @@
     "avgSteps": "Avg steps",
     "empty": "No measurements in this period",
     "bodyComposition": "Body composition",
-    "tape": "Body measurements"
+    "tape": "Body measurements",
+    "insightWeightDown": "Your weight is down {{amount}} over this period.",
+    "insightWeightUp": "Your weight is up {{amount}} over this period.",
+    "insightWaistDown": "Your waist is down {{amount}}.",
+    "insightWaistUp": "Your waist is up {{amount}}.",
+    "insightToGoal": "You are {{amount}} from your goal weight.",
+    "insightSteps": "You averaged {{steps}} steps on the days you recorded them."
+  },
+  "substancesReport": {
+    "title": "Caffeine and alcohol",
+    "mg": "{{value}} mg",
+    "grams": "{{value}} g",
+    "loadFailed": "Failed to load caffeine and alcohol data",
+    "empty": "No caffeine or alcohol logged in this period",
+    "avgCaffeine": "Avg caffeine",
+    "daysOverLimit": "Days over limit",
+    "totalAlcohol": "Alcohol total",
+    "alcoholFreeDays": "Alcohol-free days",
+    "daysOfWindow": "{{value}} of {{total}}",
+    "insightOver_one": "You went over {{limit}} of caffeine on {{count}} day.",
+    "insightOver_other": "You went over {{limit}} of caffeine on {{count}} days.",
+    "insightUnder": "You stayed under {{limit}} of caffeine every day.",
+    "insightFree": "{{free}} of your {{total}} logged days were alcohol-free.",
+    "insightAlcoholDown": "Alcohol is down {{pct}}% on the previous period.",
+    "insightAlcoholUp": "Alcohol is up {{pct}}% on the previous period.",
+    "avgOnCaffeineDays": "Average on days with caffeine",
+    "limit": "Daily limit",
+    "overLimit": "Days over the limit",
+    "daysCount_one": "{{count}} day",
+    "daysCount_other": "{{count}} days",
+    "peakDay": "Highest day",
+    "drinkingDays": "Days with alcohol",
+    "avgPerDrinkingDay": "Average on those days",
+    "weekCaffeine": "{{value}} caffeine a day",
+    "caffeineChart": "Caffeine",
+    "caffeineTooltip": "{{value}} · {{date}}",
+    "caffeineTitle": "Caffeine",
+    "alcoholChart": "Alcohol",
+    "alcoholTooltip": "{{value}} · {{date}}",
+    "alcoholTitle": "Alcohol",
+    "weekly": "Week by week"
   }
 }

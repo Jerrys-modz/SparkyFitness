@@ -11,6 +11,25 @@ import { buildNutritionInsights } from '../../src/utils/nutritionReport';
 import type { NutritionTrendPoint } from '../../src/services/api/reportsApi';
 
 const mockUseNutritionReport = jest.fn();
+jest.mock('../../src/components/DateRangeSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(
+      (
+        props: { onConfirm: (from: string, to: string) => void },
+        ref: unknown
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          present: () => props.onConfirm('2026-09-01', '2026-09-20'),
+          dismiss: () => undefined,
+        }));
+        return <View testID="date-range-sheet" />;
+      }
+    ),
+  };
+});
 jest.mock('../../src/hooks/useNutritionReport', () => ({
   useNutritionReport: (args: unknown) => mockUseNutritionReport(args),
 }));
@@ -107,7 +126,11 @@ describe('NutritionReportScreen nutrient cards', () => {
         points,
         previousPoints: [],
         dayGoalSets,
-        insights: buildNutritionInsights(points, [], [null, null]),
+        insights: buildNutritionInsights(points, [], [null, null], {
+          protein: [150, 150],
+          carbs: [null, null],
+          fat: [null, null],
+        }),
       },
       isLoading: false,
       isError: false,
@@ -156,6 +179,12 @@ describe('NutritionReportScreen nutrient cards', () => {
       unit: 'mg',
       goal: 3500,
     });
+  });
+
+  it('says what stood out in plain language', () => {
+    const { getByText } = renderScreen();
+
+    expect(getByText('You averaged 67% of your protein goal.')).toBeTruthy();
   });
 
   it('leaves out a card turned off in Customize Reports', () => {

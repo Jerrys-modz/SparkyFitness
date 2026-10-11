@@ -11,6 +11,25 @@ import { buildMeasurementsReport } from '../../src/utils/measurementsReport';
 import type { CheckInMeasurementRange } from '../../src/types/measurements';
 
 const mockUseMeasurementsReport = jest.fn();
+jest.mock('../../src/components/DateRangeSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(
+      (
+        props: { onConfirm: (from: string, to: string) => void },
+        ref: unknown
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          present: () => props.onConfirm('2026-09-01', '2026-09-20'),
+          dismiss: () => undefined,
+        }));
+        return <View testID="date-range-sheet" />;
+      }
+    ),
+  };
+});
 jest.mock('../../src/hooks/useMeasurementsReport', () => ({
   useMeasurementsReport: (args: unknown) => mockUseMeasurementsReport(args),
 }));

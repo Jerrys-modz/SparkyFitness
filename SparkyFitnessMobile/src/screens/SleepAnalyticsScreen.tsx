@@ -6,6 +6,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useSleepAnalytics } from '../hooks/useSleepAnalytics';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
+import ReportInsights from '../components/reports/ReportInsights';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
 import ReportHighlights, {
   type ReportHighlight,
@@ -19,7 +20,6 @@ import type {
   SleepAnalyticsMetric,
   SleepAnalyticsPoint,
 } from '../utils/sleepAnalytics';
-import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type SleepAnalyticsScreenProps = RootStackScreenProps<'SleepAnalytics'>;
@@ -61,10 +61,14 @@ const formatClock = (minutes: number | null): string => {
 
 const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
   const { t } = useTranslation();
-  const { range, setRange, isSectionShown } = useReportCustomization();
+  const {
+    window: reportWindow,
+    rangeProps,
+    isSectionShown,
+  } = useReportCustomization();
   const { analytics, previousAnalytics, isLoading, isError } =
-    useSleepAnalytics({ range });
-  const days = TREND_RANGE_DAYS[range];
+    useSleepAnalytics({ window: reportWindow });
+  const days = reportWindow.days;
 
   const header = useScreenHeader({
     title: t('sleepAnalytics.title', { defaultValue: 'Sleep Analytics' }),
@@ -151,11 +155,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
 
   if (!isLoading && !isError && analytics && analytics.nightsWithData === 0) {
     return (
-      <ReportScreenLayout
-        header={header}
-        range={range}
-        onRangeChange={setRange}
-      >
+      <ReportScreenLayout header={header} {...rangeProps}>
         <StatusView
           icon="sleep-bedtime"
           iconTone="muted"
@@ -442,8 +442,58 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
       ]
     : [];
 
+  const insightLines: string[] = [];
+  if (analytics) {
+    if (analytics.weekdayHours !== null && analytics.weekendHours !== null) {
+      const diff = analytics.weekendHours - analytics.weekdayHours;
+      if (Math.abs(diff) >= 0.5) {
+        insightLines.push(
+          diff > 0
+            ? t('sleepAnalytics.insightWeekendLonger', {
+                defaultValue:
+                  'You sleep {{hours}} longer on weekends than on weeknights.',
+                hours: hoursLabel(diff),
+              })
+            : t('sleepAnalytics.insightWeekendShorter', {
+                defaultValue:
+                  'You sleep {{hours}} less on weekends than on weeknights.',
+                hours: hoursLabel(Math.abs(diff)),
+              })
+        );
+      }
+    }
+    if (analytics.nightsWithDuration > 0) {
+      insightLines.push(
+        t('sleepAnalytics.insightFullNights', {
+          defaultValue: '{{full}} of {{total}} nights reached 7 hours.',
+          full: analytics.fullNights,
+          total: analytics.nightsWithDuration,
+        })
+      );
+    }
+    if (
+      analytics.bedtimeVariabilityMinutes !== null &&
+      analytics.bedtimeVariabilityMinutes >= 45
+    ) {
+      insightLines.push(
+        t('sleepAnalytics.insightIrregular', {
+          defaultValue: 'Your bedtime varies by about ±{{minutes}} min.',
+          minutes: Math.round(analytics.bedtimeVariabilityMinutes),
+        })
+      );
+    }
+    if (durationChange) {
+      insightLines.push(
+        t('sleepAnalytics.insightDurationChange', {
+          defaultValue: 'Time asleep is {{change}} on the previous period.',
+          change: durationChange.text,
+        })
+      );
+    }
+  }
+
   return (
-    <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
+    <ReportScreenLayout header={header} {...rangeProps}>
       {isLoading || isError ? (
         <StatusView
           loading={isLoading}
@@ -462,6 +512,9 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
         <View>
           {isSectionShown('sleep.overview') && highlights.length > 0 ? (
             <ReportHighlights items={highlights} />
+          ) : null}
+          {isSectionShown('sleep.insights') ? (
+            <ReportInsights lines={insightLines} testIDPrefix="sleep" />
           ) : null}
           {isSectionShown('sleep.stages') && analytics ? (
             <ReportSummaryCard
@@ -516,7 +569,7 @@ const SleepAnalyticsScreen: React.FC<SleepAnalyticsScreenProps> = () => {
                 data={analytics?.series[metric.key] ?? []}
                 isLoading={false}
                 isError={false}
-                range={range}
+                range={reportWindow.chartRange}
                 title={metric.title}
                 getValue={getValue}
                 formatTooltip={(point) =>

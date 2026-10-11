@@ -7,11 +7,7 @@ import {
   buildHydrationInsights,
   type HydrationDay,
 } from '../utils/hydrationReport';
-import {
-  TREND_RANGE_DAYS,
-  trendRangeBounds,
-  type TrendRange,
-} from '../utils/trendRange';
+import type { ReportWindow } from '../utils/trendRange';
 import { goalsRangeQueryKey, waterIntakeRangeQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
@@ -32,9 +28,8 @@ const toDays = (
  * daily water goal. The current window and goals share cache keys with the Health Trends
  * hydration chart, so a window both have open is one request.
  */
-export function useHydrationReport({ range }: { range: TrendRange }) {
-  const days = TREND_RANGE_DAYS[range];
-  const { startDate, endDate } = trendRangeBounds(range);
+export function useHydrationReport({ window }: { window: ReportWindow }) {
+  const { startDate, endDate, days } = window;
   const previousEnd = addDays(startDate, -1);
   const previousStart = addDays(previousEnd, -(days - 1));
 

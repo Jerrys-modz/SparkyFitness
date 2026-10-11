@@ -5,6 +5,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useMoodReport } from '../hooks/useMoodReport';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
+import ReportInsights from '../components/reports/ReportInsights';
 import ReportSummaryCard from '../components/reports/ReportSummaryCard';
 import ReportHighlights, {
   type ReportHighlight,
@@ -17,7 +18,6 @@ import {
   moodTagLabel,
   type MoodDayPoint,
 } from '../utils/moodReport';
-import { TREND_RANGE_DAYS } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type MoodReportScreenProps = RootStackScreenProps<'MoodReport'>;
@@ -26,11 +26,15 @@ const getMoodValue = (point: MoodDayPoint) => point.value;
 
 const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
   const { t } = useTranslation();
-  const { range, setRange, isSectionShown } = useReportCustomization();
+  const {
+    window: reportWindow,
+    rangeProps,
+    isSectionShown,
+  } = useReportCustomization();
   const { report, previousReport, isLoading, isError } = useMoodReport({
-    range,
+    window: reportWindow,
   });
-  const days = TREND_RANGE_DAYS[range];
+  const days = reportWindow.days;
 
   const header = useScreenHeader({
     title: t('moodReport.title', { defaultValue: 'Mood' }),
@@ -163,17 +167,57 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
         ]
       : [];
 
+  const insightLines: string[] = [];
+  if (report && report.loggedDays > 0) {
+    if (report.weekdayAverages.length >= 3) {
+      const best = report.weekdayAverages.reduce((a, b) =>
+        b.value > a.value ? b : a
+      );
+      const bestMood = moodForValue(best.value);
+      insightLines.push(
+        t('moodReport.insightBestWeekday', {
+          defaultValue: '{{weekday}} is your best day of the week{{mood}}.',
+          weekday: weekdayName(best.weekday),
+          mood: bestMood ? ` (${bestMood.emoji} ${bestMood.name})` : '',
+        })
+      );
+    }
+    if (report.topTags[0]) {
+      insightLines.push(
+        t('moodReport.insightTopMood', {
+          defaultValue: 'Your most logged mood was {{mood}}, {{count}} times.',
+          mood: moodTagLabel(report.topTags[0].tag),
+          count: report.topTags[0].count,
+        })
+      );
+    }
+    if (averageDiff !== null && averageDiff !== 0) {
+      insightLines.push(
+        averageDiff > 0
+          ? t('moodReport.insightUp', {
+              defaultValue: 'Your average mood is up on the previous period.',
+            })
+          : t('moodReport.insightDown', {
+              defaultValue: 'Your average mood is down on the previous period.',
+            })
+      );
+    }
+  }
+
   return (
-    <ReportScreenLayout header={header} range={range} onRangeChange={setRange}>
+    <ReportScreenLayout header={header} {...rangeProps}>
       {isSectionShown('mood.overview') && highlights.length > 0 ? (
         <ReportHighlights items={highlights} />
+      ) : null}
+      {isSectionShown('mood.insights') ? (
+        <ReportInsights lines={insightLines} testIDPrefix="mood" />
       ) : null}
       {isSectionShown('mood.chart') ? (
         <TrendBarChart
           data={report?.days ?? []}
           isLoading={isLoading}
           isError={isError}
-          range={range}
+          range={reportWindow.chartRange}
           title={t('moodReport.chartTitle', { defaultValue: 'Daily mood' })}
           getValue={getMoodValue}
           formatTooltip={formatTooltip}

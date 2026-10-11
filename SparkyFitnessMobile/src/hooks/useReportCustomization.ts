@@ -1,21 +1,42 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { ReportSectionKey } from '../constants/reports';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import type { TrendRange } from '../utils/trendRange';
+import {
+  resolveReportWindow,
+  type CustomRange,
+  type ReportRange,
+} from '../utils/trendRange';
 
 /**
- * What a report screen reads from Reports → Customize: the window it opens on
- * (still switchable on the screen, without changing the saved default) and a
- * way to ask whether a section is turned on.
+ * What a report screen reads from Reports → Customize: the window it opens on (still
+ * switchable on the screen, including to days the user picks, without changing the saved
+ * default) and a way to ask whether a section is turned on.
+ *
+ * `rangeProps` spreads straight onto `ReportScreenLayout`; `window` is what the report's
+ * hook loads and what its charts and counts use.
  */
 export function useReportCustomization() {
   const defaultRange = useAppPreferencesStore((s) => s.reportDefaultRange);
   const hiddenSections = useAppPreferencesStore((s) => s.hiddenReportSections);
-  const [range, setRange] = useState<TrendRange>(defaultRange);
+  const [range, setRange] = useState<ReportRange>(defaultRange);
+  const [customRange, setCustomRange] = useState<CustomRange | null>(null);
+  const window = useMemo(
+    () => resolveReportWindow(range, customRange),
+    [range, customRange]
+  );
   const isSectionShown = useCallback(
     (key: ReportSectionKey) => !hiddenSections.includes(key),
     [hiddenSections]
   );
-  return { range, setRange, isSectionShown };
+  return {
+    window,
+    isSectionShown,
+    rangeProps: {
+      range,
+      onRangeChange: setRange,
+      customRange,
+      onCustomRangeChange: setCustomRange,
+    },
+  };
 }

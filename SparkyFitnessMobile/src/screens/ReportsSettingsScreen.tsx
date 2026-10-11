@@ -12,12 +12,14 @@ import { getNutrientLabel } from '../constants/nutrients';
 import { useCustomNutrients } from '../hooks/useCustomNutrients';
 import { useServerConnection } from '../hooks/useServerConnection';
 import {
+  EXERCISE_SECTIONS,
   HYDRATION_SECTIONS,
   MEASUREMENTS_SECTIONS,
   MOOD_SECTIONS,
   NUTRITION_SECTIONS,
   REPORT_KEYS,
   REPORT_NUTRIENT_KEYS,
+  SUBSTANCES_SECTIONS,
   REPORT_LABELS,
   SLEEP_SECTIONS,
   sleepMetricSection,
@@ -45,6 +47,8 @@ const SECTION_LABELS: Record<
   Exclude<ReportSectionKey, `sleep.metric.${string}`>,
   (t: Translator) => string
 > = {
+  'nutrition.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'nutrition.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
   'nutrition.chart': (t) =>
@@ -73,6 +77,50 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.loggingConsistency', {
       defaultValue: 'Logging consistency',
     }),
+  'exercise.overview': (t) =>
+    t('reportsSettings.sections.exerciseOverview', {
+      defaultValue: 'Workouts, volume and reps',
+    }),
+  'exercise.setsPerMuscle': (t) =>
+    t('reportsSettings.sections.setsPerMuscle', {
+      defaultValue: 'Sets per muscle',
+    }),
+  'exercise.heatMap': (t) =>
+    t('reportsSettings.sections.heatMap', { defaultValue: 'Muscle heat map' }),
+  'exercise.consistency': (t) =>
+    t('reportsSettings.sections.trainingConsistency', {
+      defaultValue: 'Training consistency',
+    }),
+  'exercise.analysis': (t) =>
+    t('reportsSettings.sections.moreAnalysis', {
+      defaultValue: 'More analysis',
+    }),
+  'substances.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
+  'substances.overview': (t) =>
+    t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
+  'substances.caffeineChart': (t) =>
+    t('reportsSettings.sections.caffeineChart', {
+      defaultValue: 'Caffeine chart',
+    }),
+  'substances.caffeine': (t) =>
+    t('reportsSettings.sections.caffeineSummary', {
+      defaultValue: 'Caffeine summary',
+    }),
+  'substances.alcoholChart': (t) =>
+    t('reportsSettings.sections.alcoholChart', {
+      defaultValue: 'Alcohol chart',
+    }),
+  'substances.alcohol': (t) =>
+    t('reportsSettings.sections.alcoholSummary', {
+      defaultValue: 'Alcohol summary',
+    }),
+  'substances.weekly': (t) =>
+    t('reportsSettings.sections.substancesWeekly', {
+      defaultValue: 'Week by week',
+    }),
+  'hydration.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'hydration.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
   'hydration.chart': (t) =>
@@ -89,6 +137,8 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.hydrationWeekdays', {
       defaultValue: 'Average by weekday',
     }),
+  'measurements.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'measurements.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
   'measurements.weightChart': (t) =>
@@ -127,6 +177,8 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.nutrientTrends', {
       defaultValue: 'Trend by nutrient',
     }),
+  'sleep.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'sleep.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
   'sleep.stages': (t) =>
@@ -139,6 +191,8 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.sleepAverages', {
       defaultValue: 'Period averages',
     }),
+  'mood.insights': (t) =>
+    t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'mood.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
   'mood.chart': (t) =>
@@ -404,6 +458,14 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
           sectionLabel
         )}
         {renderSections(
+          t('reportsSettings.substancesSections', {
+            defaultValue: 'Caffeine and alcohol report',
+          }),
+          'reports-section',
+          SUBSTANCES_SECTIONS,
+          sectionLabel
+        )}
+        {renderSections(
           t('reportsSettings.sleepSections', {
             defaultValue: 'Sleep analytics report',
           }),
@@ -412,6 +474,14 @@ const ReportsSettingsScreen: React.FC<ReportsSettingsScreenProps> = () => {
             ...SLEEP_SECTIONS,
             ...SLEEP_ANALYTICS_METRICS.map(sleepMetricSection),
           ],
+          sectionLabel
+        )}
+        {renderSections(
+          t('reportsSettings.exerciseSections', {
+            defaultValue: 'Exercise report',
+          }),
+          'reports-section',
+          EXERCISE_SECTIONS,
           sectionLabel
         )}
         {renderSections(
