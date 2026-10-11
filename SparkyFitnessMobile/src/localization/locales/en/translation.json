@@ -6541,13 +6541,14 @@
     "peakDay": "Highest day",
     "drinkingDays": "Days with alcohol",
     "avgPerDrinkingDay": "Average on those days",
-    "weekCaffeine": "{{value}} caffeine a day",
     "caffeineChart": "Caffeine",
     "caffeineTooltip": "{{value}} · {{date}}",
     "caffeineTitle": "Caffeine",
     "alcoholChart": "Alcohol",
     "alcoholTooltip": "{{value}} · {{date}}",
     "alcoholTitle": "Alcohol",
-    "weekly": "Week by week"
+    "weekly": "Week by week",
+    "weekCaffeineAlcohol": "caffeine a day · {{alcohol}} alcohol",
+    "weekAlcohol": "alcohol"
   }
 }

@@ -105,6 +105,14 @@ describe('SubstancesReportScreen', () => {
     expect(getByTestId('substances-week-0')).toBeTruthy();
   });
 
+  it('headlines each week with caffeine in mg and labels the alcohol', () => {
+    const { getAllByText } = renderScreen();
+
+    expect(
+      getAllByText(/caffeine a day · .* g alcohol/).length
+    ).toBeGreaterThan(0);
+  });
+
   it('says what stood out', () => {
     const { getByText } = renderScreen();
 

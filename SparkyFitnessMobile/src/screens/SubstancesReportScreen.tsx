@@ -288,15 +288,22 @@ const SubstancesReportScreen: React.FC<SubstancesReportScreenProps> = () => {
       : []),
   ];
 
+  // Caffeine is the headline (mg); alcohol is spelled out in the hint so a
+  // bare "0 g" is never mistaken for caffeine.
   const weekRows = report.weeks.map((week, index) => ({
     label: `${formatTooltipDate(week.startDate)} – ${formatTooltipDate(week.endDate)}`,
-    value: grams(week.alcoholG),
+    value:
+      week.caffeineAvgMg === null
+        ? grams(week.alcoholG)
+        : mg(week.caffeineAvgMg),
     hint:
       week.caffeineAvgMg === null
-        ? undefined
-        : t('substancesReport.weekCaffeine', {
-            defaultValue: '{{value}} caffeine a day',
-            value: mg(week.caffeineAvgMg),
+        ? t('substancesReport.weekAlcohol', {
+            defaultValue: 'alcohol',
+          })
+        : t('substancesReport.weekCaffeineAlcohol', {
+            defaultValue: 'caffeine a day · {{alcohol}} alcohol',
+            alcohol: grams(week.alcoholG),
           }),
     testID: `substances-week-${index}`,
   }));
