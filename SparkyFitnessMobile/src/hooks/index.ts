@@ -30,6 +30,7 @@ export {
   useControlRouteHandoff,
   useQuickActions,
 } from './useQuickActions';
+export { useWatchWorkoutEdit } from './useWatchWorkoutEdit';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
