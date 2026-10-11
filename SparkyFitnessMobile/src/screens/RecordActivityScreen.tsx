@@ -23,6 +23,7 @@ import Button from '../components/ui/Button';
 import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
 import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
+import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
 import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 import IntervalCard from '../components/recording/IntervalCard';
@@ -43,6 +44,7 @@ import {
   elapsedSeconds,
   finishRecording,
   COUNTDOWN_CHOICES,
+  getHeartRateSamples,
   getRecordingPreferences,
   hydrate,
   markLap,
@@ -61,11 +63,21 @@ import {
   lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
+  storedProgramStatus,
+  type RunProgramResponse,
 } from '@workspace/shared';
 import {
   completeProgramWorkout,
   useRunProgram,
 } from '../services/runProgramService';
+import { runProgramQueryKey } from '../hooks/queryKeys';
+import { nextProgramLine } from '../utils/runProgramSummary';
+import {
+  averageHeartRate,
+  buildRunSummary,
+  type RunSummaryParams,
+} from '../utils/runSummary';
+import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -92,49 +104,6 @@ import type { RootStackScreenProps } from '../types/navigation';
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
-
-/** One split or lap: label, pace, and a bar that is longer the faster it was. */
-const SplitRow: React.FC<{
-  label: string;
-  detail?: string;
-  pace: string;
-  fraction: number;
-  fastest: boolean;
-  fastestLabel: string;
-}> = ({ label, detail, pace, fraction, fastest, fastestLabel }) => (
-  <View className="py-1">
-    <View className="flex-row justify-between">
-      <Text className="text-text-secondary text-sm">
-        {label}
-        {detail ? ` · ${detail}` : ''}
-      </Text>
-      <Text className="text-text-primary text-sm font-semibold">
-        {fastest ? `${fastestLabel} · ` : ''}
-        {pace}
-      </Text>
-    </View>
-    <View className="h-1.5 rounded-full bg-form-disabled mt-1">
-      <View
-        className={`h-1.5 rounded-full ${
-          fastest ? 'bg-accent-primary' : 'bg-text-muted'
-        }`}
-        style={{ width: `${Math.round(fraction * 100)}%` }}
-      />
-    </View>
-  </View>
-);
-
-const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({
-  label,
-  value,
-  unit,
-}) => (
-  <View className="flex-1 bg-surface rounded-xl p-3 mx-1 items-center">
-    <Text className="text-text-muted text-xs mb-1">{label}</Text>
-    <Text className="text-text-primary text-xl font-bold">{value}</Text>
-    {unit ? <Text className="text-text-muted text-xs">{unit}</Text> : null}
-  </View>
-);
 
 const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
@@ -429,6 +398,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       const saved = await saveRecordedActivity(session, points, distanceUnit);
       // Ticks a program workout off only if the plan was followed to its last
       // step; a run cut short can be tried again.
+      let program: RunSummaryParams['program'] = null;
       if (session.program && lastStepStarted(session.intervals)) {
         // The activity is already saved, so a failure here only costs the
         // tick: say so and carry on rather than failing the save.
@@ -437,6 +407,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             session.program.id,
             session.program.index
           );
+          const stored =
+            queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey);
+          if (stored) {
+            const status = storedProgramStatus(stored);
+            program = {
+              nextLine: nextProgramLine(
+                t,
+                stored,
+                toLocalDateString(new Date()),
+                (workoutStatus) => programWorkoutLabel(t, workoutStatus)
+              ),
+              done: status.done,
+              total: status.total,
+              finished: status.finished,
+            };
+          }
         } catch (error) {
           addLog(
             `[Run Program] Could not tick off the workout: ${error}`,
@@ -444,13 +430,21 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           );
         }
       }
+      // Read before the recording is cleared; the summary screen gets it as params.
+      const summaryParams = buildRunSummary({
+        activity: session.activity,
+        entryDate: saved.entryDate,
+        distanceUnit,
+        points,
+        lapMarks: session.laps,
+        avgHeartRate: averageHeartRate(
+          await getHeartRateSamples().catch(() => [])
+        ),
+        program,
+      });
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
-      Toast.show({
-        type: 'success',
-        text1: t('recordActivity.saved', { defaultValue: 'Activity saved' }),
-      });
-      navigation.goBack();
+      navigation.replace('RunSummary', summaryParams);
     } catch (error) {
       addLog(`[GPS Recording] Save failed: ${error}`, 'ERROR');
       Toast.show({

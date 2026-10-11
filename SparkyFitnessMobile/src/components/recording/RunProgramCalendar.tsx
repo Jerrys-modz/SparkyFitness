@@ -8,19 +8,13 @@ import {
   projectedFinishDay,
   type ProgramStatus,
 } from '@workspace/shared';
-import { getAppLocale } from '../../localization';
+import { formatDayLabel } from '../../utils/dayLabel';
 
 /** Runs listed before "Show all". */
 const PREVIEW_RUNS = 7;
 
-const dayText = (day: string, style: 'long' | 'short'): string => {
-  const [y, m, d] = day.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(getAppLocale(), {
-    weekday: 'short',
-    month: style === 'long' ? 'long' : 'short',
-    day: 'numeric',
-  });
-};
+const dayText = (day: string, style: 'long' | 'short'): string =>
+  formatDayLabel(day, style);
 
 /**
  * When each remaining workout falls, from the person's place, their run days,

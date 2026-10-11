@@ -175,4 +175,74 @@ describe('sparky_manage_run_program', () => {
     );
     expect(text).toContain('switched off');
   });
+
+  describe('set_run_program_schedule', () => {
+    it('asks first and changes nothing', async () => {
+      vi.mocked(getRunProgram).mockResolvedValue(program());
+      const text = await run({
+        action: 'set_run_program_schedule',
+        run_days: ['mon', 'Wednesday', 6],
+        end_date: '2026-12-06',
+      });
+      expect(text).toContain('Mon, Wed, Sat');
+      expect(text).toContain('goal day to 2026-12-06');
+      expect(text).toContain('confirmed=true');
+      expect(upsertRunProgram).not.toHaveBeenCalled();
+    });
+
+    it('saves the days, first day and goal day, keeping the program', async () => {
+      vi.mocked(getRunProgram).mockResolvedValue(program());
+      vi.mocked(upsertRunProgram).mockResolvedValue(
+        program({
+          run_days: [1, 3, 6],
+          start_date: '2026-10-20',
+          end_date: null,
+        })
+      );
+      const text = await run({
+        action: 'set_run_program_schedule',
+        run_days: ['mon', 'wed', 'sat'],
+        start_date: '2026-10-20',
+        end_date: null,
+        confirmed: true,
+      });
+      expect(upsertRunProgram).toHaveBeenCalledWith(
+        'user-1',
+        {
+          program_id: 'beginner5k',
+          run_days: [1, 3, 6],
+          start_date: '2026-10-20',
+          end_date: null,
+        },
+        'user-1'
+      );
+      expect(text).toContain('Diary days: Mon, Wed, Sat');
+      expect(text).toContain('First day: 2026-10-20');
+    });
+
+    it('refuses an empty change and a bad date', async () => {
+      vi.mocked(getRunProgram).mockResolvedValue(program());
+      expect(
+        await run({ action: 'set_run_program_schedule', confirmed: true })
+      ).toContain('run_days, start_date or end_date');
+      expect(
+        await run({
+          action: 'set_run_program_schedule',
+          start_date: 'next friday',
+          confirmed: true,
+        })
+      ).toContain('YYYY-MM-DD');
+      expect(upsertRunProgram).not.toHaveBeenCalled();
+    });
+
+    it('does nothing without a program', async () => {
+      vi.mocked(getRunProgram).mockResolvedValue(null);
+      const text = await run({
+        action: 'set_run_program_schedule',
+        run_days: [1],
+        confirmed: true,
+      });
+      expect(text).toContain('not following a run program');
+    });
+  });
 });
