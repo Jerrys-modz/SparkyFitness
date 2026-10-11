@@ -176,6 +176,7 @@ export function intervalPosition(
   let round = 0;
   for (let index = 0; index < plan.steps.length; index++) {
     const step = plan.steps[index];
+    if (!step) break;
     if (step.kind === "work") round++;
     const end = start + step.seconds;
     if (at < end) {
@@ -193,10 +194,12 @@ export function intervalPosition(
     start = end;
   }
   const lastIndex = plan.steps.length - 1;
+  const lastStep = plan.steps[lastIndex];
+  if (!lastStep) return null;
   return {
     index: lastIndex,
-    step: plan.steps[lastIndex],
-    elapsedInStep: plan.steps[lastIndex].seconds,
+    step: lastStep,
+    elapsedInStep: lastStep.seconds,
     remaining: 0,
     next: null,
     round: Math.max(1, rounds),
@@ -209,7 +212,7 @@ export function intervalPosition(
 export function stepStartSeconds(plan: IntervalPlan, index: number): number {
   let start = 0;
   for (let i = 0; i < index && i < plan.steps.length; i++) {
-    start += plan.steps[i].seconds;
+    start += plan.steps[i]?.seconds ?? 0;
   }
   return start;
 }
