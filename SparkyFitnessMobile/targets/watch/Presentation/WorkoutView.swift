@@ -1790,13 +1790,13 @@ private struct CardioChoicesView: View {
         }
     }
 
-    /// A plan is a run: the steps say when to walk.
+    /// A plan is a run unless the phone says it is a walk (the walking program); the steps say when to ease off.
     private func placeRow(_ plan: WatchRunPlan, _ place: WatchRunPlace) -> some View {
         Button {
             Haptics.tap()
-            onChoose(.run, place, plan)
+            onChoose(plan.kind, place, plan)
         } label: {
-            Label(place.label, systemImage: WatchRunKind.run.symbol)
+            Label(place.label, systemImage: plan.kind.symbol)
         }
     }
 }

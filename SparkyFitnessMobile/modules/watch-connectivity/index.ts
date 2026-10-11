@@ -156,6 +156,8 @@ export interface WatchContextPayload {
     name: string;
     programId?: string;
     programIndex?: number;
+    /** 'walk' for a walking program; missing is a run. */
+    activity?: 'walk';
     steps: { label: string; seconds: number }[];
   }[];
   /**

@@ -31,6 +31,17 @@ test("puts today's program workout first, tagged so the phone can tick it off", 
   expect(plans).toHaveLength(INTERVAL_PRESETS.length + 1);
 });
 
+test('marks the walking program as a walk and leaves runs unmarked', () => {
+  const walk = programStatus({ programId: 'walkFit', next: 0 })!;
+  const run = programStatus({ programId: 'beginner5k', next: 0 })!;
+  expect(
+    buildWatchRunPlans(t, { status: walk, enabled: true }, names)[0].activity
+  ).toBe('walk');
+  expect(
+    buildWatchRunPlans(t, { status: run, enabled: true }, names)[0].activity
+  ).toBeUndefined();
+});
+
 test('leaves the program out while it is off or finished', () => {
   const status = programStatus({ programId: 'beginner5k', next: 2 })!;
   expect(buildWatchRunPlans(t, { status, enabled: false }, names)).toHaveLength(
