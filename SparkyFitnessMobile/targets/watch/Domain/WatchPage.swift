@@ -11,6 +11,9 @@ enum WatchPage: String, CaseIterable {
     /// System Now Playing. Not arrangeable: it sits right after the Workout
     /// page, and only while a workout is running.
     case nowPlaying
+    /// The phone's GPS recording. Not arrangeable: it shows first, and only
+    /// while a recording is running.
+    case recording
 
     /// The pages to show, in swipe order.
     ///
@@ -31,10 +34,10 @@ enum WatchPage: String, CaseIterable {
         var ordered: [WatchPage] = []
         for name in order ?? [] {
             guard let page = WatchPage(rawValue: name), page != .nowPlaying,
-                  !ordered.contains(page) else { continue }
+                  page != .recording, !ordered.contains(page) else { continue }
             ordered.append(page)
         }
-        for page in allCases where page != .nowPlaying && !ordered.contains(page) {
+        for page in allCases where page != .nowPlaying && page != .recording && !ordered.contains(page) {
             ordered.append(page)
         }
 
