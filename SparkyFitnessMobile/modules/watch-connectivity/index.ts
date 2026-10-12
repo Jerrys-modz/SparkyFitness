@@ -740,6 +740,30 @@ export interface WatchRunFinishedPayload {
   estimatedDistanceMeters?: number;
 }
 
+/**
+ * What a wrist-only walk or run looks like right now: figures sent every few
+ * seconds while the phone is reachable (never queued), so the phone can show
+ * its stats. `status: 'ended'` is the last one.
+ */
+export interface WatchRunLivePayload {
+  runId: string;
+  kind: string;
+  place: string;
+  status: string;
+  autoPaused: boolean;
+  /** Active seconds on the watch's clock when it was sent. */
+  elapsed: number;
+  distanceMeters: number;
+  heartRate?: number;
+  energyKcal: number;
+  lapCount: number;
+  stepLabel?: string;
+  stepRemaining?: number;
+  nextLabel?: string;
+  /** Epoch ms on the watch when it was sent. */
+  sentAt: number;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -763,6 +787,7 @@ export type WatchConnectivityEvents = {
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
   onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
   onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
+  onRunLive: (payload: WatchRunLivePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
 };
 
