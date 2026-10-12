@@ -705,18 +705,6 @@ export interface WatchRecordingHeartRatePayload {
   samples: WatchHeartRateSamplePayload[];
 }
 
-/** The wearer asked to start a fast from the watch's Fasting page. */
-export interface WatchFastStartRequestPayload {
-  /** `FASTING_PRESETS` id, e.g. "16-8". */
-  presetId: string;
-  clientId: string;
-}
-
-/** The wearer asked to end the running fast from the watch. */
-export interface WatchFastEndRequestPayload {
-  clientId: string;
-}
-
 /**
  * A walk or run recorded on the watch alone, sent once when it finishes. The
  * shape is `WatchRunPayload` in `src/utils/watchRun.ts`; this is the loose
