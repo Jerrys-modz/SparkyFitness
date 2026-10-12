@@ -1,6 +1,7 @@
 import AVFoundation
 
-/// Speaks a wrist-only run's split cues ("Kilometer 3, 5 minutes 24 seconds").
+/// Speaks a wrist-only run's cues: start, pauses, splits ("Kilometer 3, 5
+/// minutes 24 seconds"), plan steps and the finish.
 /// Audio comes out of the watch speaker or paired Bluetooth headphones; the
 /// run's Voice cues switch (`WatchRunSettings.voiceCues`) turns it on.
 final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
@@ -17,13 +18,16 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     /// `interrupt` so it is heard at once, but a split spoken in the same
     /// second waits its turn instead of cutting it off.
     func speak(_ text: String, interrupt: Bool = false) {
+        // Plain spoken-prompt playback, ducking music under the cue. A failure
+        // is printed (it shows in the device console) rather than silently
+        // swallowed, and the cue is still spoken on whatever session there is.
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(
-            .playback,
-            mode: .voicePrompt,
-            options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers]
-        )
-        try? session.setActive(true)
+        do {
+            try session.setCategory(.playback, mode: .voicePrompt, policy: .default, options: [.duckOthers])
+            try session.setActive(true)
+        } catch {
+            print("[WatchRunCues] audio session: \(error)")
+        }
         if interrupt { synthesizer.stopSpeaking(at: .immediate) }
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier.replacingOccurrences(of: "_", with: "-"))
@@ -59,6 +63,15 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         if minutes > 0 { parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")") }
         if secs > 0 || minutes == 0 { parts.append("\(secs) second\(secs == 1 ? "" : "s")") }
         return parts.joined(separator: " ")
+    }
+
+    /// What is said at the finish: "Outdoor run saved. 3.21 kilometers in
+    /// 25 minutes 10 seconds."
+    static func finishText(title: String, distanceMeters: Double, seconds: TimeInterval, usesMiles: Bool) -> String {
+        let unitMeters = usesMiles ? 1609.344 : 1000.0
+        let amount = String(format: "%.2f", distanceMeters / unitMeters)
+        let unit = usesMiles ? "miles" : "kilometers"
+        return "\(title) saved. \(amount) \(unit) in \(duration(seconds))."
     }
 
     /// What is said when a plan step begins: "Run, 1 minute."

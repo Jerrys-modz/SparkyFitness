@@ -139,6 +139,11 @@ struct WatchRunView: View {
                     get: { run.settings.voiceCues },
                     set: { run.setVoiceCues($0) }
                 ))
+                // Plays whatever the switch says, so a silent speaker can be
+                // told apart from cues that are off.
+                Button("Test voice") {
+                    WatchRunCues.shared.speak("This is how your run cues sound.", interrupt: true)
+                }
             }
             .navigationTitle("This run")
         }
