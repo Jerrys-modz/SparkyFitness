@@ -113,13 +113,17 @@ async function markDone(clientId: string): Promise<void> {
  * that workout. Best effort and safe to repeat: the server only moves on when
  * the index is the one due, and the run is already in the diary either way.
  */
-async function tickOffProgram(payload: WatchRunPayload): Promise<void> {
+async function tickOffProgram(
+  payload: WatchRunPayload,
+  entryId: string
+): Promise<void> {
   if (!payload.program || !payload.planCompleted) return;
   try {
     await completeProgramWorkout(
       payload.program.id,
       payload.program.index,
-      toLocalDateString(new Date(payload.startedAt))
+      toLocalDateString(new Date(payload.startedAt)),
+      entryId
     );
   } catch (error) {
     // A failure that may pass (offline, 5xx, auth) keeps the run queued: the
@@ -218,10 +222,16 @@ async function drainOnce(
     const { clientId } = item.payload;
     attempted.add(clientId);
     try {
-      await saveWatchRun(item.payload, distanceUnit, item.entryId, (entryId) =>
-        serial(() => update(clientId, (run) => ({ ...run, entryId })))
+      const entryId = await saveWatchRun(
+        item.payload,
+        distanceUnit,
+        item.entryId,
+        (created) =>
+          serial(() =>
+            update(clientId, (run) => ({ ...run, entryId: created }))
+          )
       );
-      await tickOffProgram(item.payload);
+      await tickOffProgram(item.payload, entryId);
       // Marked done first: a stop between the two steps leaves a queued run
       // that is refiled onto its stored entry, never a run in neither place
       // that a re-delivery would file a second time.

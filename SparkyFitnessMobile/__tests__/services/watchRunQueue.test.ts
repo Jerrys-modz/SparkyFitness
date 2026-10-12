@@ -170,7 +170,8 @@ test('ticks off the program workout a completed plan run followed', async () => 
   expect(completeProgramWorkout).toHaveBeenCalledWith(
     'beginner5k',
     3,
-    '2026-10-10'
+    '2026-10-10',
+    'entry-1'
   );
 });
 
