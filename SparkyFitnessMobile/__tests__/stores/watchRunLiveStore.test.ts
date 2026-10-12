@@ -42,6 +42,13 @@ const withFakeTimers = (body: () => void) => () => {
 };
 
 describe('receive', () => {
+  test('keeps the run’s switches, or null from a watch that does not send them', () => {
+    receive(live({ autoPause: false, voiceCues: true }));
+    expect(current()).toMatchObject({ autoPause: false, voiceCues: true });
+    receive(live({ sentAt: 2000 }));
+    expect(current()).toMatchObject({ autoPause: null, voiceCues: null });
+  });
+
   test('keeps a run the watch is recording, with its optional parts', () => {
     receive(
       live({

@@ -17,6 +17,9 @@ export async function startRunOnWatch(options: {
   kind: 'run' | 'walk';
   place: 'indoor' | 'outdoor';
   plan?: WatchRunPlanPayload;
+  /** The Record screen's switches for this run. */
+  autoPause: boolean;
+  voiceCues: boolean;
 }): Promise<string> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
   const requestId = newId();
@@ -26,6 +29,8 @@ export async function startRunOnWatch(options: {
     kind: options.kind,
     place: options.place,
     requestedAt,
+    autoPause: options.autoPause,
+    voiceCues: options.voiceCues,
     ...(options.plan ? { plan: options.plan } : {}),
   });
   useWatchRunLiveStore.getState().setPending({
@@ -37,7 +42,10 @@ export async function startRunOnWatch(options: {
   return requestId;
 }
 
-/** Pause, resume, lap, finish or discard the run going on the watch. */
+/**
+ * Pause, resume, lap, finish or discard the run going on the watch, or turn
+ * its auto-pause or voice cues on or off.
+ */
 export async function sendRunControl(
   runId: string,
   action: WatchRunControlAction

@@ -26,6 +26,8 @@ struct WatchRunSnapshot: Codable {
     var lapDistances: [Double]?
     /// The plan being followed, so a relaunch keeps following it. Optional for older snapshots.
     var plan: WatchRunPlan?
+    /// Auto-pause and voice cues as last set. Optional for older snapshots.
+    var settings: WatchRunSettings?
 
     /// A run left this long ago is not one the wearer is still doing.
     static let maxAge: TimeInterval = 12 * 60 * 60

@@ -793,6 +793,58 @@ export function resumeRecording(
   });
 }
 
+/**
+ * Turns auto-pause on or off while a recording runs. The detector starts over,
+ * so turning it back on never acts on stillness from before. Turning it off
+ * while it holds the session paused resumes the session, since nothing else
+ * would. An indoor session has no fixes to judge by and stays off.
+ */
+export async function setRecordingAutoPause(
+  enabled: boolean,
+  notification: StartRecordingOptions['notification']
+): Promise<void> {
+  const heldByIt = await enqueue(async () => {
+    await hydrate();
+    if (!session || session.status === 'finished') return false;
+    if (enabled && session.indoor) return false;
+    if ((session.autoPause === true) === enabled) return false;
+    const held = !enabled && session.status === 'paused' && session.autoPaused;
+    session = { ...session, autoPause: enabled };
+    autoPauseState = INITIAL_AUTO_PAUSE_STATE;
+    await persistSession();
+    publish();
+    return held === true;
+  });
+  if (heldByIt) await resumeRecording(notification);
+}
+
+/**
+ * Turns voice cues on (in `unit`) or off while a recording runs. Turning them
+ * on counts the splits already completed as said, so none is announced late.
+ */
+export function setRecordingAudioCues(
+  unit: CueUnit | undefined
+): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.status === 'finished') return;
+    if (session.audioCues === unit) return;
+    const wasOn = session.audioCues != null;
+    session = {
+      ...session,
+      audioCues: unit,
+      cuedSplits: unit
+        ? computeSplits(points, cueUnitMeters(unit)).filter((s) => !s.partial)
+            .length
+        : session.cuedSplits,
+    };
+    await persistSession();
+    publish();
+    if (unit && !wasOn) beginRecordingCues();
+    if (!unit && wasOn) stopRecordingCues();
+  });
+}
+
 /** Presses closer together than this are one press (a double tap). */
 const MIN_LAP_GAP_MS = 3000;
 

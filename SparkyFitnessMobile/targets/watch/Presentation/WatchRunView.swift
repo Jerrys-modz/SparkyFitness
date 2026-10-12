@@ -6,6 +6,7 @@ import SwiftUI
 struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
+    @State private var showingSettings = false
 
     private var usesMiles: Bool { store.context.distanceUnit == "miles" }
 
@@ -111,9 +112,36 @@ struct WatchRunView: View {
                 }
                 .tint(.red)
                 .accessibilityLabel("Finish")
+
+                Button {
+                    Haptics.tap()
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                }
+                .accessibilityLabel("Auto-pause and voice cues")
             }
         }
         .padding(.horizontal, 4)
+        .sheet(isPresented: $showingSettings) { settingsSheet }
+    }
+
+    /// This run's switches, changeable while it goes. The phone's live view
+    /// changes the same two.
+    private var settingsSheet: some View {
+        NavigationStack {
+            List {
+                Toggle("Auto-pause", isOn: Binding(
+                    get: { run.settings.autoPause },
+                    set: { run.setAutoPause($0) }
+                ))
+                Toggle("Voice cues", isOn: Binding(
+                    get: { run.settings.voiceCues },
+                    set: { run.setVoiceCues($0) }
+                ))
+            }
+            .navigationTitle("This run")
+        }
     }
 
     // MARK: - Finished

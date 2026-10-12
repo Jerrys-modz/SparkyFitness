@@ -472,6 +472,9 @@ struct WatchContext: Codable, Equatable {
     var stepGoal: Int? = nil
     /// The phone's "Voice cues" switch: a wrist-only run speaks each completed km or mile.
     var runVoiceCues: Bool? = nil
+    /// The phone's "Auto-pause" switch, the default for a run begun on the
+    /// wrist. Nil (an older phone build) reads as on.
+    var runAutoPause: Bool? = nil
     /// Plans a wrist-only run can follow. Nil until the phone has said.
     var runPlans: [WatchRunPlan]? = nil
     /// Learned correction for the watch's indoor distance. Nil until the

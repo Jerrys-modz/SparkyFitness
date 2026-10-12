@@ -112,6 +112,17 @@ struct WatchRunStartRequest: Equatable {
     let place: WatchRunPlace
     let requestedAt: Date
     let plan: WatchRunPlan?
+    /// The Record screen's switches. Nil from an older phone build, which
+    /// leaves the run to the phone's saved preferences.
+    var settings: WatchRunSettings? = nil
+}
+
+/// Auto-pause and voice cues for one run. Chosen at the start (from the
+/// phone's request, or its saved preferences for a run begun on the wrist)
+/// and changeable while it runs, on the wrist or from the phone.
+struct WatchRunSettings: Codable, Equatable {
+    var autoPause: Bool
+    var voiceCues: Bool
 }
 
 /// A timed plan a wrist-only run can follow: a list of steps the phone has

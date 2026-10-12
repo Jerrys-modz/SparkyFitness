@@ -21,8 +21,8 @@ import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
+import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
 import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
-import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
@@ -59,6 +59,8 @@ import {
   markLap,
   pauseRecording,
   resumeRecording,
+  setRecordingAudioCues,
+  setRecordingAutoPause,
   setCountdownPreference,
   setRecordingPreference,
   startRecording,
@@ -340,6 +342,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             await startRunOnWatch({
               kind: activity,
               place: indoor ? 'indoor' : 'outdoor',
+              autoPause,
+              voiceCues: audioCues,
               plan: intervalPlan
                 ? buildWatchStartPlan(t, intervalPlan, meta)
                 : undefined,
@@ -750,67 +754,44 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               />
             </View>
           ) : null}
-          {onWatch ? null : (
-            <>
-              {indoor ? null : (
-                <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
-                  <View className="flex-1 mr-3">
-                    <Text className="text-text-primary text-sm font-semibold">
-                      {t('recordActivity.autoPause.title', {
-                        defaultValue: 'Auto-pause',
-                      })}
-                    </Text>
-                    <Text className="text-text-secondary text-xs mt-0.5">
-                      {t('recordActivity.autoPause.description', {
-                        defaultValue:
-                          'Pauses the clock when you stop and carries on when you move.',
-                      })}
-                    </Text>
-                  </View>
-                  <Switch
-                    testID="auto-pause-switch"
-                    accessibilityLabel={t('recordActivity.autoPause.title', {
-                      defaultValue: 'Auto-pause',
-                    })}
-                    value={autoPause}
-                    onValueChange={(value) => {
-                      preferenceEdits.current.autoPause = true;
-                      setAutoPause(value);
-                      void setRecordingPreference('autoPause', value);
-                    }}
-                  />
-                </View>
-              )}
-              <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
-                <View className="flex-1 mr-3">
-                  <Text className="text-text-primary text-sm font-semibold">
-                    {t('recordActivity.audioCues.title', {
-                      defaultValue: 'Voice cues',
-                    })}
-                  </Text>
-                  <Text className="text-text-secondary text-xs mt-0.5">
-                    {t('recordActivity.audioCues.description', {
-                      defaultValue:
-                        'Speaks your time at each kilometer or mile, and when you pause or resume.',
-                    })}
-                  </Text>
-                </View>
-                <Switch
-                  testID="audio-cues-switch"
-                  accessibilityLabel={t('recordActivity.audioCues.title', {
-                    defaultValue: 'Voice cues',
-                  })}
-                  value={audioCues}
-                  onValueChange={(value) => {
-                    preferenceEdits.current.audioCues = true;
-                    setAudioCues(value);
-                    void setRecordingPreference('audioCues', value);
-                  }}
-                />
-              </View>
-              {audioCues && <RecordingVoiceCard />}
-            </>
+          {/* A phone indoors has no location fixes for auto-pause; the
+              watch judges by its step counter, so it keeps the switch. */}
+          {indoor && !onWatch ? null : (
+            <RecordingSwitchRow
+              testID="auto-pause-switch"
+              title={t('recordActivity.autoPause.title', {
+                defaultValue: 'Auto-pause',
+              })}
+              description={t('recordActivity.autoPause.description', {
+                defaultValue:
+                  'Pauses the clock when you stop and carries on when you move.',
+              })}
+              value={autoPause}
+              onValueChange={(value) => {
+                preferenceEdits.current.autoPause = true;
+                setAutoPause(value);
+                void setRecordingPreference('autoPause', value);
+              }}
+            />
           )}
+          <RecordingSwitchRow
+            testID="audio-cues-switch"
+            title={t('recordActivity.audioCues.title', {
+              defaultValue: 'Voice cues',
+            })}
+            description={t('recordActivity.audioCues.description', {
+              defaultValue:
+                'Speaks your time at each kilometer or mile, and when you pause or resume.',
+            })}
+            value={audioCues}
+            onValueChange={(value) => {
+              preferenceEdits.current.audioCues = true;
+              setAudioCues(value);
+              void setRecordingPreference('audioCues', value);
+            }}
+          />
+          {/* The watch speaks with its own voice. */}
+          {audioCues && !onWatch ? <RecordingVoiceCard /> : null}
           <View className="bg-surface rounded-xl p-4 mt-4">
             <Text className="text-text-primary text-sm font-semibold mb-2">
               {t('recordActivity.countdown.title', {
@@ -1264,6 +1245,42 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           >
             {t('recordActivity.discard.action', { defaultValue: 'Discard' })}
           </Button>
+        )}
+        {/* This recording only: the saved preferences stay as they are. */}
+        {finished || session.indoor ? null : (
+          <RecordingSwitchRow
+            testID="live-auto-pause-switch"
+            title={t('recordActivity.autoPause.title', {
+              defaultValue: 'Auto-pause',
+            })}
+            value={session.autoPause === true}
+            onValueChange={(value) =>
+              void run(
+                () =>
+                  setRecordingAutoPause(
+                    value,
+                    notificationText(t, session.activity)
+                  ),
+                t('recordActivity.errors.resume', {
+                  defaultValue: 'Could not resume recording',
+                })
+              )
+            }
+          />
+        )}
+        {finished ? null : (
+          <RecordingSwitchRow
+            testID="live-audio-cues-switch"
+            title={t('recordActivity.audioCues.title', {
+              defaultValue: 'Voice cues',
+            })}
+            value={session.audioCues != null}
+            onValueChange={(value) =>
+              void setRecordingAudioCues(
+                value ? (distanceUnit === 'miles' ? 'miles' : 'km') : undefined
+              )
+            }
+          />
         )}
       </>
     );
