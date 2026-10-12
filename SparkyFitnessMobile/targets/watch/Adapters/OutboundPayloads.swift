@@ -22,6 +22,7 @@ enum OutboundPayloads {
         static let waterDelete = "waterDelete"
         static let contextRequest = "requestContext"
         static let setCompleted = "setCompleted"
+        static let setUncompleted = "setUncompleted"
         static let heartRateBatch = "heartRateBatch"
         static let liveHeartRate = "liveHeartRate"
         static let workoutStop = "workoutStop"
@@ -150,6 +151,17 @@ enum OutboundPayloads {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         payload["completedAt"] = formatter.string(from: completedSet.completedAt)
         return payload
+    }
+
+    /// The wearer un-logged a set on the watch. Queued like `setCompleted`
+    /// so the phone un-logs it too; `clientId` lets it ignore a re-delivery.
+    static func setUncompleted(clientId: String, sessionId: String, setId: String) -> [String: Any] {
+        [
+            "type": Kind.setUncompleted,
+            "clientId": clientId,
+            "sessionId": sessionId,
+            "setId": setId,
+        ]
     }
 
     /// A batch of heart-rate samples for one exercise. Queued like a completed

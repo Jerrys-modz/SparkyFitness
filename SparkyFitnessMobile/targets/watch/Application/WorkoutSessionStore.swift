@@ -49,6 +49,11 @@ final class WorkoutSessionStore: ObservableObject {
     /// in the snapshot so an un-log made while the watch app was closed is
     /// still noticed afterwards.
     private var phoneConfirmedIds: Set<String> = []
+    /// Sets un-logged here that the phone still lists as logged, because it
+    /// has not processed the un-log yet. Held out of the phone's list so the
+    /// next update does not log them again; each leaves once the phone stops
+    /// listing it.
+    private var pendingUnlogs: Set<String> = []
     /// The phone's rest as last taken from it, so an update that repeats it
     /// leaves a rest adjusted here alone. See `applyTargets`. Not in the
     /// snapshot: the rest itself is not either, so after a relaunch the next
@@ -234,6 +239,8 @@ final class WorkoutSessionStore: ObservableObject {
     ) {
         guard plan?.sessionId == sessionId, revision > targetRevision else { return }
         targetRevision = revision
+        pendingUnlogs.formIntersection(phoneCompleted)
+        let phoneCompleted = phoneCompleted.subtracting(pendingUnlogs)
         celebrate(prSetIds)
         let knownIds = Set(steps.map(\.plannedSet.setId))
         pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
@@ -428,6 +435,7 @@ final class WorkoutSessionStore: ObservableObject {
         planRevision = startingRevision
         pendingUnknownCompletions = []
         phoneConfirmedIds = []
+        pendingUnlogs = []
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -562,6 +570,7 @@ final class WorkoutSessionStore: ObservableObject {
         planRevision = 0
         pendingUnknownCompletions = []
         phoneConfirmedIds = []
+        pendingUnlogs = []
         pendingSetCompletion = nil
         lastPhoneRest = nil
         latestBpm = nil
@@ -929,6 +938,28 @@ final class WorkoutSessionStore: ObservableObject {
     ///
     /// `filter {}.count` rather than `count(where:)`: the latter is a Swift 6
     /// stdlib addition gated on watchOS 11, and this target deploys to 10.0.
+    /// Un-logs a set the wearer logged, here or on the phone, and puts the
+    /// cursor back on it so it can be done again. Returns whether there was a
+    /// logged set to undo; the caller then tells the phone.
+    @discardableResult
+    func uncompleteStep(_ step: WorkoutStep) -> Bool {
+        let setId = step.plannedSet.setId
+        guard completedSetIds.contains(setId) else { return false }
+        completedSetIds.remove(setId)
+        wristLoggedSetIds.remove(setId)
+        loggedValues[setId] = nil
+        phoneConfirmedIds.remove(setId)
+        pendingUnlogs.insert(setId)
+        if holdSetId == setId { clearHold() }
+        // Any rest on screen ran after the set that is open again.
+        stopRestTimer()
+        if let index = steps.firstIndex(where: { $0.plannedSet.setId == setId }) {
+            moveCursor(to: index)
+        }
+        persistSnapshot(reportedEnergyKcal: nil)
+        return true
+    }
+
     func completedSetCount(for exercise: PlannedExercise) -> Int {
         exercise.sets.filter { completedSetIds.contains($0.setId) }.count
     }

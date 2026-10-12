@@ -19,6 +19,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterDelete: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
+    /// The wearer un-logged a set on the watch.
+    var onSetUncompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
     /// The wearer started a set's hold countdown or stopwatch on the watch.
     var onSetTimerStarted: (([String: Any]) -> Void)?
@@ -96,6 +98,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterDelete?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
+        case "setUncompleted":
+            onSetUncompleted?(payload)
         case "restChanged":
             onRestChanged?(payload)
         case "setTimerStarted":
@@ -243,6 +247,7 @@ public class WatchConnectivityModule: Module {
             "onWaterIntake",
             "onWaterDelete",
             "onSetCompleted",
+            "onSetUncompleted",
             "onRestChanged",
             "onSetTimerStarted",
             "onSetTimerStopped",
@@ -306,6 +311,13 @@ public class WatchConnectivityModule: Module {
                     "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "distanceKm": payload["distanceKm"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onSetUncompleted = { [weak self] payload in
+                self?.sendEvent("onSetUncompleted", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onSetTimerStarted = { [weak self] payload in
