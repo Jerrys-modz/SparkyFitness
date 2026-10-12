@@ -489,6 +489,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             await getHeartRateSamples().catch(() => [])
           ),
           program,
+          entryId: saved.entryId,
         });
       } catch (error) {
         addLog(
