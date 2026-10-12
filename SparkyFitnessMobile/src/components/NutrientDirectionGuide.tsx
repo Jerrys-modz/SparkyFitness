@@ -5,6 +5,7 @@ import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
 import Button from './ui/Button';
 import {
+  DIRECTION_COLORS,
   NUTRIENT_DIRECTION_GUIDES,
   type NutrientDirectionGuideKey,
 } from '../constants/nutrientDirectionGuides';
@@ -14,9 +15,9 @@ interface NutrientDirectionGuideProps {
 }
 
 const LEGEND = [
-  { key: 'minimum', color: '#9ca3af' },
-  { key: 'maximum', color: '#f59e0b' },
-  { key: 'target', color: '#3b82f6' },
+  { key: 'minimum', color: DIRECTION_COLORS.minimum },
+  { key: 'maximum', color: DIRECTION_COLORS.maximum },
+  { key: 'target', color: DIRECTION_COLORS.target },
 ] as const;
 
 const NutrientDirectionGuide: React.FC<NutrientDirectionGuideProps> = ({
