@@ -1,5 +1,6 @@
-import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/ui/Button';
@@ -7,7 +8,13 @@ import { Stat } from '../components/recording/SplitRow';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
 import { formatLocalizedNumber } from '../localization';
-import { useWatchRunLive } from '../stores/watchRunLiveStore';
+import {
+  useWatchRunLive,
+  useWatchRunLiveStore,
+  useWatchRunPending,
+} from '../stores/watchRunLiveStore';
+import { sendRunControl } from '../services/watchRunControl';
+import type { WatchRunControlAction } from '../../modules/watch-connectivity';
 import {
   formatClock,
   formatPace,
@@ -21,15 +28,16 @@ type Props = RootStackScreenProps<'WatchRunLive'>;
 
 /**
  * How a walk or run recorded on the watch alone is going, on the phone: the
- * clock, distance, pace, heart rate and, when it follows a plan, the step. It
- * only shows what the watch sends; pausing and finishing are on the wrist, and
- * the finished run is filed in the diary by the usual hand-off.
+ * clock, distance, pace, heart rate and, when it follows a plan, the step.
+ * the finished run is filed in the diary by the usual hand-off. Pause, lap,
+ * finish and discard here are sent to the watch, which acts on them.
  */
 const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { preferences } = usePreferences();
   const run = useWatchRunLive();
+  const pending = useWatchRunPending();
   const miles = preferences?.default_distance_unit === 'miles';
   const unitMeters = miles ? METERS_PER_MILE : METERS_PER_KM;
   const unitLabel = miles
@@ -49,6 +57,45 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
       maximumFractionDigits: digits,
     });
 
+  const control = useCallback(
+    (action: WatchRunControlAction) => {
+      if (!run) return;
+      sendRunControl(run.runId, action).catch(() =>
+        Toast.show({
+          type: 'error',
+          text1: t('watchRunLive.controlFailed', {
+            defaultValue: 'Could not reach your watch',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+        })
+      );
+    },
+    [run, t]
+  );
+
+  const confirmDiscard = () =>
+    Alert.alert(
+      t('recordActivity.discard.title', {
+        defaultValue: 'Discard this activity?',
+      }),
+      t('recordActivity.discard.message', {
+        defaultValue: 'The recorded route and stats will be deleted.',
+      }),
+      [
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+        {
+          text: t('recordActivity.discard.confirm', {
+            defaultValue: 'Discard',
+          }),
+          style: 'destructive',
+          onPress: () => control('discard'),
+        },
+      ]
+    );
+
   return (
     <>
       {header}
@@ -59,7 +106,27 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: insets.bottom + 24,
         }}
       >
-        {run == null ? (
+        {run == null && pending ? (
+          <View className="items-center py-8">
+            <Text className="text-text-primary text-lg font-semibold text-center mb-2">
+              {t('watchRunLive.starting', {
+                defaultValue: 'Starting on your watch…',
+              })}
+            </Text>
+            <Text className="text-text-secondary text-base text-center mb-4">
+              {t('watchRunLive.startingHint', {
+                defaultValue:
+                  'Raise your wrist and open SparkyFitness if it does not start on its own. The run starts as soon as the watch gets the request.',
+              })}
+            </Text>
+            <Button
+              variant="outline"
+              onPress={() => useWatchRunLiveStore.getState().setPending(null)}
+            >
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </Button>
+          </View>
+        ) : run == null ? (
           <View className="items-center py-8">
             <Text className="text-text-secondary text-base text-center mb-4">
               {t('watchRunLive.ended', {
@@ -163,6 +230,41 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
                   value={number(run.lapCount, 0)}
                 />
               ) : null}
+            </View>
+
+            <View className="flex-row gap-3 mt-4">
+              <Button
+                className="flex-1"
+                variant="outline"
+                onPress={() =>
+                  control(run.status === 'paused' ? 'resume' : 'pause')
+                }
+              >
+                {run.status === 'paused'
+                  ? t('activeWorkout.bar.resume', { defaultValue: 'Resume' })
+                  : t('activeWorkout.bar.pause', { defaultValue: 'Pause' })}
+              </Button>
+              <Button
+                className="flex-1"
+                variant="outline"
+                onPress={() => control('lap')}
+              >
+                {t('recordActivity.lap', { defaultValue: 'Lap' })}
+              </Button>
+            </View>
+            <View className="flex-row gap-3 mt-3 mb-4">
+              <Button
+                className="flex-1"
+                variant="outline"
+                onPress={confirmDiscard}
+              >
+                {t('recordActivity.discard.confirm', {
+                  defaultValue: 'Discard',
+                })}
+              </Button>
+              <Button className="flex-1" onPress={() => control('finish')}>
+                {t('recordActivity.finish', { defaultValue: 'Finish' })}
+              </Button>
             </View>
 
             {run.place === 'indoor' ? (

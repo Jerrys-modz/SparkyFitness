@@ -32,8 +32,22 @@ export interface WatchRunLive {
   receivedAt: number;
 }
 
+/** How long a start request waits for the watch to answer before the phone gives up on it. */
+export const WATCH_RUN_PENDING_MAX_AGE_MS = 90_000;
+
+/** A run the phone asked the watch to start that the watch has not yet confirmed. */
+export interface WatchRunPending {
+  requestId: string;
+  kind: 'run' | 'walk';
+  place: 'indoor' | 'outdoor';
+  /** Epoch ms the request was sent. */
+  at: number;
+}
+
 interface WatchRunLiveState {
   run: WatchRunLive | null;
+  pending: WatchRunPending | null;
+  setPending: (pending: WatchRunPending | null) => void;
   /**
    * Takes a live message. `ended` clears the run; a message older than the
    * one held for the same run is ignored (messages can arrive out of order).
@@ -48,6 +62,8 @@ const finite = (value: unknown): value is number =>
 /** In memory only: a live view of something happening right now. */
 export const useWatchRunLiveStore = create<WatchRunLiveState>((set) => ({
   run: null,
+  pending: null,
+  setPending: (pending) => set({ pending }),
   receive: (payload, receivedAt = Date.now()) =>
     set((state) => {
       if (payload.status === 'ended') {
@@ -73,6 +89,11 @@ export const useWatchRunLiveStore = create<WatchRunLiveState>((set) => ({
         return state;
       }
       return {
+        // The watch answering the request settles it, whichever run it is.
+        pending:
+          state.pending && state.pending.requestId === payload.requestId
+            ? null
+            : state.pending,
         run: {
           runId: payload.runId,
           kind: payload.kind,
@@ -97,7 +118,7 @@ export const useWatchRunLiveStore = create<WatchRunLiveState>((set) => ({
         },
       };
     }),
-  clear: () => set({ run: null }),
+  clear: () => set({ run: null, pending: null }),
 }));
 
 /** The clock and step countdown now, counted on from when the message came. */
@@ -143,4 +164,23 @@ export function useWatchRunLive(): WatchRunNow | null {
 /** Whether a live run is showing, without re-rendering every second. */
 export function useHasWatchRunLive(): boolean {
   return useWatchRunLiveStore((s) => s.run != null);
+}
+
+/**
+ * The start request the watch has not answered yet, or null once it has, was
+ * cancelled, or has waited too long (the watch is off the wrist or out of
+ * range; the request stays queued and the run still starts when it wakes).
+ */
+export function useWatchRunPending(): WatchRunPending | null {
+  const pending = useWatchRunLiveStore((s) => s.pending);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [pending]);
+
+  if (!pending || now - pending.at > WATCH_RUN_PENDING_MAX_AGE_MS) return null;
+  return pending;
 }

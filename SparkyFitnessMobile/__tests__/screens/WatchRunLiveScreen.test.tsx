@@ -1,7 +1,11 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import WatchRunLiveScreen from '../../src/screens/WatchRunLiveScreen';
-import { useWatchRunLive } from '../../src/stores/watchRunLiveStore';
+import {
+  useWatchRunLive,
+  useWatchRunPending,
+} from '../../src/stores/watchRunLiveStore';
+import { sendRunControl } from '../../src/services/watchRunControl';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
@@ -11,6 +15,15 @@ jest.mock('../../src/hooks/usePreferences', () => ({
 }));
 jest.mock('../../src/stores/watchRunLiveStore', () => ({
   useWatchRunLive: jest.fn(),
+  useWatchRunPending: jest.fn(() => null),
+  useWatchRunLiveStore: { getState: () => ({ setPending: jest.fn() }) },
+}));
+jest.mock('../../src/services/watchRunControl', () => ({
+  sendRunControl: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: { show: jest.fn() },
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -44,7 +57,10 @@ const run = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(useWatchRunPending).mockReturnValue(null);
+});
 
 it('shows the clock, distance, pace, heart rate and laps', () => {
   jest.mocked(useWatchRunLive).mockReturnValue(run() as never);
@@ -84,4 +100,36 @@ it('explains an ended run and goes back', () => {
   expect(screen.getByText(/has ended or is out of range/)).toBeTruthy();
   fireEvent.press(screen.getByText('Done'));
   expect(navigation.goBack).toHaveBeenCalled();
+});
+
+it('shows a start request that the watch has not answered yet', () => {
+  jest.mocked(useWatchRunLive).mockReturnValue(null);
+  jest.mocked(useWatchRunPending).mockReturnValue({
+    requestId: 'q1',
+    kind: 'run',
+    place: 'outdoor',
+    at: 1,
+  });
+  renderScreen();
+  expect(screen.getByText('Starting on your watch…')).toBeTruthy();
+});
+
+it('sends pause, lap and finish to the watch', () => {
+  jest.mocked(useWatchRunLive).mockReturnValue(run() as never);
+  renderScreen();
+  fireEvent.press(screen.getByText('Pause'));
+  fireEvent.press(screen.getByText('Lap'));
+  fireEvent.press(screen.getByText('Finish'));
+  expect(sendRunControl).toHaveBeenNthCalledWith(1, 'r1', 'pause');
+  expect(sendRunControl).toHaveBeenNthCalledWith(2, 'r1', 'lap');
+  expect(sendRunControl).toHaveBeenNthCalledWith(3, 'r1', 'finish');
+});
+
+it('offers resume while the run is paused', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(run({ status: 'paused' }) as never);
+  renderScreen();
+  fireEvent.press(screen.getByText('Resume'));
+  expect(sendRunControl).toHaveBeenCalledWith('r1', 'resume');
 });
