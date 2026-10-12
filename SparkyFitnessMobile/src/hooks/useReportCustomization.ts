@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { NavigationContext } from '@react-navigation/native';
 
 import type { ReportSectionKey } from '../constants/reports';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -8,7 +9,6 @@ import {
   type CustomRange,
   type ReportRange,
 } from '../utils/trendRange';
-import { useRefetchOnFocus } from './useRefetchOnFocus';
 
 /**
  * What a report screen reads from Reports → Customize: the window it opens on (still
@@ -16,8 +16,10 @@ import { useRefetchOnFocus } from './useRefetchOnFocus';
  * default) and a way to ask whether a section is turned on.
  *
  * `rangeProps` spreads straight onto `ReportScreenLayout`; `window` is what the report's
- * hook loads and what its charts and counts use. Today is refreshed on focus, the same
- * way `useTrendRangeBounds` does, so a preset window left open past midnight moves forward.
+ * hook loads and what its charts and counts use. Today moves forward the next time the
+ * screen is focused, so a preset window left open past midnight does not stay on yesterday.
+ * The listener reads `NavigationContext` rather than `useFocusEffect`, which throws when a
+ * screen test renders without a navigator.
  */
 export function useReportCustomization() {
   const defaultRange = useAppPreferencesStore((s) => s.reportDefaultRange);
@@ -25,16 +27,14 @@ export function useReportCustomization() {
   const [range, setRange] = useState<ReportRange>(defaultRange);
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
   const [today, setToday] = useState(getTodayDate);
-  const focusedBefore = useRef(false);
-  const onFocus = useCallback(() => {
-    if (!focusedBefore.current) {
-      focusedBefore.current = true;
-      return;
-    }
-    const now = getTodayDate();
-    if (now !== today) setToday(now);
-  }, [today]);
-  useRefetchOnFocus(onFocus);
+  const navigation = useContext(NavigationContext);
+  useEffect(() => {
+    if (!navigation) return;
+    return navigation.addListener('focus', () => {
+      const now = getTodayDate();
+      setToday((current) => (current === now ? current : now));
+    });
+  }, [navigation]);
   const window = useMemo(
     () => resolveReportWindow(range, customRange, today),
     [range, customRange, today]
