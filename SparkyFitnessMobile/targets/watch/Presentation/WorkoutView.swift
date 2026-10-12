@@ -761,7 +761,7 @@ private struct ExerciseRow: View {
 /// glyph in it. Big enough to hit with a thumb (44 pt tall in a row, 34 pt in
 /// the header), the same fill as the value cards, and dimmed while disabled.
 /// `prominent` is the single main action on a screen: white with a black glyph.
-private enum WatchStyle {
+enum WatchStyle {
     /// Screen height of the 44 mm watch the sizes below were drawn for. A 40 mm
     /// screen is 12% shorter, so fixed sizes made the page taller than the
     /// screen and pushed it up under the clock; a 49 mm one has room to spare.
