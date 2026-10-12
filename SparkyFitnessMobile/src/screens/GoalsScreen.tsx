@@ -258,7 +258,10 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const waterUnit = preferences?.water_display_unit ?? 'ml';
   const { profile } = useProfile();
   const { latestMeasurements } = useLatestMeasurementsOnOrBefore({ date });
-  const [initialDrafts] = useState(() => toDrafts(goals, waterUnit));
+  const [base, setBase] = useState(goals);
+  const [initialDrafts, setInitialDrafts] = useState(() =>
+    toDrafts(goals, waterUnit)
+  );
   const [drafts, setDrafts] = useState(initialDrafts);
 
   const algorithms: AlgorithmBundle = useMemo(
@@ -343,10 +346,11 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
           })),
     [mealTypes]
   );
-  const [initialMealDrafts] = useState<MealPercentages>(() =>
-    Object.fromEntries(
-      meals.map(({ key }) => [key, getMealPercentage(goals, key)])
-    )
+  const [initialMealDrafts, setInitialMealDrafts] = useState<MealPercentages>(
+    () =>
+      Object.fromEntries(
+        meals.map(({ key }) => [key, getMealPercentage(goals, key)])
+      )
   );
   const [mealDrafts, setMealDrafts] = useState(initialMealDrafts);
   const mealTotal = meals.reduce(
@@ -410,7 +414,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   // Validates the form and returns the full goal row it describes, or null
   // (after showing why) when a value is invalid.
   const buildGoals = useCallback((): DailyGoals | null => {
-    const next: DailyGoals = { ...goals };
+    const next: DailyGoals = { ...base };
     for (const field of ALL_FIELDS) {
       // Leave untouched fields exactly as the server returned them, so an
       // unset goal (null/absent) is not saved back as 0.
@@ -436,6 +440,16 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
       if (DEFAULT_MEAL_KEYS.includes(key)) {
         (next as unknown as Record<string, number>)[`${key}_percentage`] =
           value;
+        // A custom entry for the same meal would shadow this column on read.
+        if (
+          next.custom_meal_percentages &&
+          key in next.custom_meal_percentages
+        ) {
+          const rest = { ...next.custom_meal_percentages };
+          delete rest[key];
+          next.custom_meal_percentages =
+            Object.keys(rest).length > 0 ? rest : undefined;
+        }
       } else {
         next.custom_meal_percentages = {
           ...next.custom_meal_percentages,
@@ -454,7 +468,7 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     }
     return next;
   }, [
-    goals,
+    base,
     drafts,
     initialDrafts,
     mealTotalValid,
@@ -589,12 +603,39 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   };
 
   const handleApplyPreset = (applied: GoalPreset) => {
-    setDrafts(toDrafts(applied, waterUnit));
-    setMealDrafts(
-      Object.fromEntries(
-        meals.map(({ key }) => [key, getMealPercentage(applied, key)])
-      )
+    // Saved goals are built from this base, so preset custom nutrients and
+    // meal values survive a save of fields the user did not then edit.
+    const nextBase: DailyGoals = {
+      ...goals,
+      ...pickPresetValues(applied),
+    };
+    // getMealPercentage prefers custom_meal_percentages. Drop the other
+    // store for each built-in meal the preset set, or today's value shadows
+    // the one the form shows.
+    const custom = { ...(nextBase.custom_meal_percentages ?? {}) };
+    for (const key of DEFAULT_MEAL_KEYS) {
+      const column = `${key}_percentage` as keyof DailyGoals;
+      if (
+        applied.custom_meal_percentages &&
+        key in applied.custom_meal_percentages
+      ) {
+        delete (nextBase as unknown as Record<string, unknown>)[column];
+      } else if (applied[column] !== undefined) {
+        delete custom[key];
+      }
+    }
+    nextBase.custom_meal_percentages =
+      Object.keys(custom).length > 0 ? custom : undefined;
+
+    const nextDrafts = toDrafts(nextBase, waterUnit);
+    const nextMeals: MealPercentages = Object.fromEntries(
+      meals.map(({ key }) => [key, getMealPercentage(nextBase, key)])
     );
+    setBase(nextBase);
+    setInitialDrafts(nextDrafts);
+    setDrafts(nextDrafts);
+    setInitialMealDrafts(nextMeals);
+    setMealDrafts(nextMeals);
     Toast.show({
       type: 'success',
       text1: t('goals.presets.applied', {
