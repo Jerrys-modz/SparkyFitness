@@ -21,6 +21,8 @@ export interface WatchRunPayload {
   route: number[][];
   /** `[t (epoch ms), bpm]`. */
   heartRate: number[][];
+  /** Epoch ms of each Lap press on the watch, oldest first. */
+  laps: number[];
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -67,6 +69,9 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
       : 0,
     route: rows(p.route, 6),
     heartRate: rows(p.heartRate, 2),
+    laps: Array.isArray(p.laps)
+      ? p.laps.filter(finite).sort((a, b) => a - b)
+      : [],
   };
 }
 
