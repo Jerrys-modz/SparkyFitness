@@ -88,9 +88,8 @@ describe('starting', () => {
     expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
       GPS_RECORDING_TASK_NAME,
       expect.objectContaining({
-        // Fixes must keep coming while the person stands still, or auto-pause
-        // never sees the stillness it waits for.
-        distanceInterval: 0,
+        // Auto-pause is off, so standing still does not need a fix.
+        distanceInterval: 2,
         showsBackgroundLocationIndicator: true,
         foregroundService: expect.objectContaining({
           notificationTitle: 'Recording',
@@ -99,6 +98,19 @@ describe('starting', () => {
       })
     );
     expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('drops the distance filter only while auto-pause is on', async () => {
+    await startRecording({
+      activity: 'run',
+      autoPause: true,
+      notification,
+    });
+
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
+      GPS_RECORDING_TASK_NAME,
+      expect.objectContaining({ distanceInterval: 0 })
+    );
   });
 
   it('does not record when permission is denied', async () => {
@@ -203,6 +215,21 @@ describe('collecting fixes', () => {
     mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValueOnce(false);
     await resumeRecording(notification);
     expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledTimes(2);
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenLastCalledWith(
+      GPS_RECORDING_TASK_NAME,
+      expect.objectContaining({ distanceInterval: 2 })
+    );
+  });
+
+  it('keeps fixes coming on resume when auto-pause is on and the OS dropped the task', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await pauseRecording();
+    mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValueOnce(false);
+    await resumeRecording(notification);
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenLastCalledWith(
+      GPS_RECORDING_TASK_NAME,
+      expect.objectContaining({ distanceInterval: 0 })
+    );
   });
 
   it('starts a new segment on resume so the pause is not counted as distance', async () => {
@@ -585,6 +612,24 @@ describe('laps pressed on the watch', () => {
     await markLap(T0 + 100_000);
     await markLap(T0 + 40_000);
     expect((await storedSession())?.laps).toEqual([T0 + 40_000, T0 + 100_000]);
+  });
+
+  it('does not announce the same trailing lap twice when an earlier press arrives late', async () => {
+    jest.useFakeTimers({ now: T0 });
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    await ingestFixes([
+      { ...fix(0, 0), speed: 3 },
+      { ...fix(20, 80), speed: 3 },
+    ]);
+    (speakRecordingCue as jest.Mock).mockClear();
+    jest.setSystemTime(T0 + 120_000);
+    await markLap(T0 + 100_000);
+    await markLap(T0 + 40_000);
+    const laps = (speakRecordingCue as jest.Mock).mock.calls
+      .map(([text]) => text as string)
+      .filter((text) => text.startsWith('Lap '));
+    expect(laps).toHaveLength(1);
+    expect((await storedSession())?.cuedPartialLapMark).toBe(T0 + 100_000);
   });
 
   it('ignores a re-delivered press and a press from a bad clock', async () => {

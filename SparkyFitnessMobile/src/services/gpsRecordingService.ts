@@ -85,6 +85,11 @@ export interface RecordingSession {
   laps?: number[];
   /** Full splits already announced, so a restored session does not repeat one. */
   cuedSplits?: number;
+  /**
+   * Future mark whose trailing partial lap was already announced. While it is
+   * still at or beyond the newest fix, another late press must not say it again.
+   */
+  cuedPartialLapMark?: number;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
 }
@@ -467,15 +472,17 @@ export interface StartRecordingOptions {
 }
 
 async function startUpdates(
-  notification: StartRecordingOptions['notification']
+  notification: StartRecordingOptions['notification'],
+  autoPause: boolean
 ): Promise<void> {
   await Location.startLocationUpdatesAsync(GPS_RECORDING_TASK_NAME, {
     accuracy: Location.Accuracy.BestForNavigation,
-    // No distance filter: with one, iOS stops delivering fixes once the person
-    // stands still, and auto-pause (which only looks at fixes as they arrive)
-    // would never see the 6 to 10 s of stillness it waits for. The noise
-    // filter in `acceptFix` keeps the standing-still jitter out of the track.
-    distanceInterval: 0,
+    // A distance filter makes iOS stop delivering fixes once the person stands
+    // still. Auto-pause only advances as fixes arrive, so it needs that filter
+    // off or it never sees the 6 to 10 s of stillness it waits for. With
+    // auto-pause off the 2 m filter stays, and `acceptFix` still keeps
+    // standing-still jitter out of the track.
+    distanceInterval: autoPause ? 0 : 2,
     timeInterval: 2000,
     activityType: Location.ActivityType.Fitness,
     pausesUpdatesAutomatically: false,
@@ -541,7 +548,7 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     points = [];
     try {
-      await startUpdates(options.notification);
+      await startUpdates(options.notification, options.autoPause === true);
     } catch (error) {
       session = null;
       throw error;
@@ -614,7 +621,9 @@ export function resumeRecording(
     try {
       // The task normally survived the pause. It only needs starting again
       // when the OS or a relaunch dropped it in the meantime.
-      if (!(await updatesRunning())) await startUpdates(notification);
+      if (!(await updatesRunning())) {
+        await startUpdates(notification, paused.autoPause === true);
+      }
     } catch (error) {
       // Stay paused so the person can try again, and make sure no
       // half-started task is left running.
@@ -665,17 +674,27 @@ export function markLap(pressedAt?: number): Promise<number | null> {
       const lastPointT = points[points.length - 1]?.t;
       // A mark after the newest fix is not a boundary of its own. Only the
       // first such mark owns the partial lap; a later one has nothing new,
-      // and an earlier mark out of order must not steal it.
+      // and an earlier mark out of order must not steal it. A later press can
+      // arrive first and already have announced that same trailing lap.
+      const partialAlreadyCued =
+        lastPointT !== undefined &&
+        session.cuedPartialLapMark !== undefined &&
+        session.cuedPartialLapMark >= lastPointT;
       const firstUnrepresentedMark =
         lastPointT === undefined
           ? undefined
           : marks.find((mark) => mark >= lastPointT);
       const lap =
         marked.find((item) => item.endT === at) ??
-        (firstUnrepresentedMark === at
+        (!partialAlreadyCued && firstUnrepresentedMark === at
           ? marked.find((item) => item.partial)
           : undefined);
       if (lap) {
+        if (lap.partial) {
+          session = { ...session, cuedPartialLapMark: at };
+          await persistSession();
+          publish();
+        }
         speakRecordingCue(
           lapCue(i18n.t.bind(i18n), {
             number: lap.index,
