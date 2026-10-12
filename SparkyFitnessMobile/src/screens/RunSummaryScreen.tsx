@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import Toast from 'react-native-toast-message';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/ui/Button';
 import Icon from '../components/Icon';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
-import { setProgramPosition } from '../services/runProgramService';
+import {
+  EASY_RATING,
+  HARD_RATING,
+  suggestFromEffort,
+  type EffortSuggestion,
+} from '@workspace/shared';
+import {
+  rateProgramWorkout,
+  setProgramPosition,
+} from '../services/runProgramService';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { formatLocalizedNumber } from '../localization';
 import { formatDayLabel } from '../utils/dayLabel';
@@ -50,23 +59,66 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     });
 
   const done = () => navigation.goBack();
-  const [feel, setFeel] = useState<'easy' | 'right' | 'hard' | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
+  const [suggestion, setSuggestion] = useState<EffortSuggestion | null>(null);
   const [moved, setMoved] = useState<'repeat' | 'skip' | null>(null);
+  const showFailure = (message: string) =>
+    Toast.show({
+      type: 'error',
+      text1: message,
+      text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+    });
+  // Saves the rating, then reads what the last two say. A failure is shown,
+  // but the buttons below still work off this rating alone.
+  const rate = async (value: number) => {
+    const target = summary.program?.rate;
+    if (!target) return;
+    setRating(value);
+    setSuggestion(null);
+    try {
+      const program = await rateProgramWorkout(
+        target.programId,
+        target.index,
+        value
+      );
+      if (program) {
+        setSuggestion(
+          suggestFromEffort(program.effort_log, program.next_index)
+        );
+      }
+    } catch {
+      showFailure(
+        t('runSummary.rateFailed', {
+          defaultValue: 'Could not save how hard that was.',
+        })
+      );
+    }
+  };
+  // Hard offers a repeat; easy offers to skip the next, unless it is the last.
+  const advice: 'repeat' | 'skip' | null =
+    rating === null
+      ? null
+      : rating >= HARD_RATING
+        ? 'repeat'
+        : rating <= EASY_RATING &&
+            summary.program != null &&
+            summary.program.done < summary.program.total - 1
+          ? 'skip'
+          : null;
   // Moves the place in the program, then says so; a failure is shown, not lost.
   const move = async (kind: 'repeat' | 'skip', index: number) => {
     try {
       await setProgramPosition(index);
       setMoved(kind);
     } catch {
-      Toast.show({
-        type: 'error',
-        text1: t('runSummary.moveFailed', {
+      showFailure(
+        t('runSummary.moveFailed', {
           defaultValue: 'Could not change the program.',
-        }),
-        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
-      });
+        })
+      );
     }
   };
+
   const header = useScreenHeader({
     title: t('screens.runSummary', { defaultValue: 'Activity saved' }),
     right: {
@@ -190,42 +242,51 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text className="text-text-secondary text-sm mt-2">
               {summary.program.nextLine}
             </Text>
-            {!summary.program.finished ? (
+            {summary.program.rate ? (
               <View className="mt-3">
                 <Text className="text-text-primary text-sm font-semibold mb-2">
-                  {t('runSummary.feelQuestion', {
-                    defaultValue: 'How did that feel?',
+                  {t('runSummary.effortQuestion', {
+                    defaultValue: 'How hard was that?',
                   })}
                 </Text>
-                <View className="flex-row" style={{ gap: 8 }}>
-                  {(
-                    [
-                      [
-                        'easy',
-                        t('runSummary.feelEasy', { defaultValue: 'Easy' }),
-                      ],
-                      [
-                        'right',
-                        t('runSummary.feelRight', {
-                          defaultValue: 'Just right',
-                        }),
-                      ],
-                      [
-                        'hard',
-                        t('runSummary.feelHard', { defaultValue: 'Hard' }),
-                      ],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <View key={key} className="flex-1">
-                      <Button
-                        variant={feel === key ? 'primary' : 'secondary'}
-                        disabled={moved != null}
-                        onPress={() => setFeel(key)}
+                <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                    <Pressable
+                      key={n}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: rating === n }}
+                      accessibilityLabel={t('runSummary.effortA11y', {
+                        defaultValue: 'Effort {{rating}} of 10',
+                        rating: n,
+                      })}
+                      disabled={moved != null}
+                      onPress={() => rate(n)}
+                      className={`h-10 rounded-lg items-center justify-center ${
+                        rating === n ? 'bg-accent-primary' : 'bg-raised'
+                      }`}
+                      style={{ width: '17.5%' }}
+                    >
+                      <Text
+                        className={`text-base font-semibold ${
+                          rating === n ? 'text-white' : 'text-text-primary'
+                        }`}
                       >
-                        {label}
-                      </Button>
-                    </View>
+                        {n}
+                      </Text>
+                    </Pressable>
                   ))}
+                </View>
+                <View className="flex-row justify-between mt-1">
+                  <Text className="text-text-muted text-xs">
+                    {t('runSummary.effortLow', {
+                      defaultValue: '1 = very easy',
+                    })}
+                  </Text>
+                  <Text className="text-text-muted text-xs">
+                    {t('runSummary.effortHigh', {
+                      defaultValue: '10 = all out',
+                    })}
+                  </Text>
                 </View>
                 {moved ? (
                   <Text className="text-text-secondary text-sm mt-2">
@@ -237,42 +298,52 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                           defaultValue: 'Done. The next workout is skipped.',
                         })}
                   </Text>
-                ) : feel === 'hard' ? (
+                ) : suggestion || advice ? (
                   <>
                     <Text className="text-text-secondary text-sm mt-2">
-                      {t('runSummary.hardHint', {
-                        defaultValue:
-                          'Repeating a workout that felt hard is a good way to build up safely.',
-                      })}
+                      {suggestion === 'ease'
+                        ? t('runSummary.easeSuggestion', {
+                            defaultValue:
+                              'Two hard workouts in a row. Repeating this one is a good way to build up safely.',
+                          })
+                        : suggestion === 'advance'
+                          ? t('runSummary.advanceSuggestion', {
+                              defaultValue:
+                                'Two easy workouts in a row. You could skip the next one and move on.',
+                            })
+                          : advice === 'repeat'
+                            ? t('runSummary.hardHint', {
+                                defaultValue:
+                                  'Repeating a workout that felt hard is a good way to build up safely.',
+                              })
+                            : t('runSummary.easyHint', {
+                                defaultValue:
+                                  'Felt easy? You can skip the next workout and move on.',
+                              })}
                     </Text>
-                    <Button
-                      variant="secondary"
-                      onPress={() =>
-                        move('repeat', Math.max(0, summary.program!.done - 1))
-                      }
-                    >
-                      {t('runSummary.repeat', {
-                        defaultValue: 'Repeat this workout',
-                      })}
-                    </Button>
-                  </>
-                ) : feel === 'easy' &&
-                  summary.program.done < summary.program.total - 1 ? (
-                  <>
-                    <Text className="text-text-secondary text-sm mt-2">
-                      {t('runSummary.easyHint', {
-                        defaultValue:
-                          'Felt easy? You can skip the next workout and move on.',
-                      })}
-                    </Text>
-                    <Button
-                      variant="secondary"
-                      onPress={() => move('skip', summary.program!.done + 1)}
-                    >
-                      {t('runSummary.skipNext', {
-                        defaultValue: 'Skip the next workout',
-                      })}
-                    </Button>
+                    {advice === 'repeat' ? (
+                      <Button
+                        variant="secondary"
+                        onPress={() =>
+                          move('repeat', summary.program!.rate!.index)
+                        }
+                      >
+                        {t('runSummary.repeat', {
+                          defaultValue: 'Repeat this workout',
+                        })}
+                      </Button>
+                    ) : advice === 'skip' ? (
+                      <Button
+                        variant="secondary"
+                        onPress={() =>
+                          move('skip', summary.program!.rate!.index + 2)
+                        }
+                      >
+                        {t('runSummary.skipNext', {
+                          defaultValue: 'Skip the next workout',
+                        })}
+                      </Button>
+                    ) : null}
                   </>
                 ) : null}
               </View>

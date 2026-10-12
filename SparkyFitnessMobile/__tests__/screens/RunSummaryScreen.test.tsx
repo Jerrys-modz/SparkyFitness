@@ -1,7 +1,10 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import RunSummaryScreen from '../../src/screens/RunSummaryScreen';
-import { setProgramPosition } from '../../src/services/runProgramService';
+import {
+  rateProgramWorkout,
+  setProgramPosition,
+} from '../../src/services/runProgramService';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -9,6 +12,7 @@ jest.mock('../../src/hooks/useScreenHeader', () => ({
 }));
 jest.mock('../../src/services/runProgramService', () => ({
   setProgramPosition: jest.fn(() => Promise.resolve()),
+  rateProgramWorkout: jest.fn(() => Promise.resolve(null)),
 }));
 jest.mock('../../src/utils/routeMapSupport', () => ({
   canShowRouteMap: () => false,
@@ -128,30 +132,74 @@ it('says walk or ride for those, and Done goes back', () => {
 });
 
 const inProgram = (done: number, total = 27) =>
-  params({ program: { nextLine: 'Next', done, total, finished: false } });
+  params({
+    program: {
+      nextLine: 'Next',
+      done,
+      total,
+      finished: false,
+      rate: { programId: 'beginner5k', index: done - 1 },
+    },
+  });
+
+const stored = (efforts: { index: number; rating: number }[], next: number) =>
+  ({
+    effort_log: efforts.map((e) => ({ ...e, at: '2026-10-12T00:00:00.000Z' })),
+    next_index: next,
+  }) as never;
+
+beforeEach(() => jest.clearAllMocks());
+
+it('saves the rating for the workout just finished', async () => {
+  renderScreen(inProgram(4));
+  fireEvent.press(screen.getByLabelText('Effort 6 of 10'));
+  expect(rateProgramWorkout).toHaveBeenCalledWith('beginner5k', 3, 6);
+  expect(screen.queryByText('Repeat this workout')).toBeNull();
+  expect(screen.queryByText('Skip the next workout')).toBeNull();
+});
 
 it('offers to repeat a workout that felt hard, one back from the place', async () => {
   renderScreen(inProgram(4));
-  expect(screen.queryByText('Repeat this workout')).toBeNull();
-  fireEvent.press(screen.getByText('Hard'));
-  fireEvent.press(screen.getByText('Repeat this workout'));
+  fireEvent.press(screen.getByLabelText('Effort 9 of 10'));
+  fireEvent.press(await screen.findByText('Repeat this workout'));
   await screen.findByText('Done. You will do this workout again.');
   expect(setProgramPosition).toHaveBeenCalledWith(3);
 });
 
-it('offers to skip the next workout when it felt easy, and says nothing for just right', async () => {
+it('offers to skip the next workout when it felt easy', async () => {
   renderScreen(inProgram(4));
-  fireEvent.press(screen.getByText('Just right'));
-  expect(screen.queryByText('Repeat this workout')).toBeNull();
-  expect(screen.queryByText('Skip the next workout')).toBeNull();
-  fireEvent.press(screen.getByText('Easy'));
-  fireEvent.press(screen.getByText('Skip the next workout'));
+  fireEvent.press(screen.getByLabelText('Effort 2 of 10'));
+  fireEvent.press(await screen.findByText('Skip the next workout'));
   await screen.findByText('Done. The next workout is skipped.');
   expect(setProgramPosition).toHaveBeenCalledWith(5);
 });
 
 it('does not offer to skip past the last workout', () => {
   renderScreen(inProgram(26));
-  fireEvent.press(screen.getByText('Easy'));
+  fireEvent.press(screen.getByLabelText('Effort 1 of 10'));
   expect(screen.queryByText('Skip the next workout')).toBeNull();
+});
+
+it('says so when two hard workouts in a row', async () => {
+  jest.mocked(rateProgramWorkout).mockResolvedValueOnce(
+    stored(
+      [
+        { index: 2, rating: 9 },
+        { index: 3, rating: 8 },
+      ],
+      4
+    )
+  );
+  renderScreen(inProgram(4));
+  fireEvent.press(screen.getByLabelText('Effort 8 of 10'));
+  await screen.findByText(/Two hard workouts in a row/);
+});
+
+it('does not ask about a workout that was not ticked off', () => {
+  renderScreen(
+    params({
+      program: { nextLine: 'Next', done: 4, total: 27, finished: false },
+    })
+  );
+  expect(screen.queryByText('How hard was that?')).toBeNull();
 });

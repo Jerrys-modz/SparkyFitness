@@ -454,7 +454,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             t,
             queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey),
             toLocalDateString(new Date()),
-            (workoutStatus) => programWorkoutLabel(t, workoutStatus)
+            (workoutStatus) => programWorkoutLabel(t, workoutStatus),
+            session.program.index
           );
         } catch (error) {
           addLog(

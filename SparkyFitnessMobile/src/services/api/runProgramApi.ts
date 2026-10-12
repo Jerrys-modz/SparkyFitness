@@ -1,5 +1,6 @@
 import type {
   CompleteRunProgramWorkoutBody,
+  RateRunProgramWorkoutBody,
   GetRunProgramResponse,
   UpsertRunProgramBody,
 } from '@workspace/shared';
@@ -35,6 +36,18 @@ export const markRunProgramWorkoutDone = (
     endpoint: '/api/v2/run-program/complete',
     serviceName: SERVICE,
     operation: 'complete run program workout',
+    method: 'POST',
+    body,
+  });
+
+/** Records how hard a finished workout felt (1 to 10). */
+export const rateRunProgramWorkout = (
+  body: RateRunProgramWorkoutBody
+): Promise<GetRunProgramResponse> =>
+  apiFetch<GetRunProgramResponse>({
+    endpoint: '/api/v2/run-program/effort',
+    serviceName: SERVICE,
+    operation: 'rate run program workout',
     method: 'POST',
     body,
   });

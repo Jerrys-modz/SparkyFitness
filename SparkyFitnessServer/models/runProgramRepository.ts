@@ -2,10 +2,12 @@ import { getClient } from '../db/poolManager.js';
 import {
   findProgram,
   runProgramAdjustmentSchema,
+  runProgramEffortSchema,
   runProgramWorkoutSchema,
   type ProgramState,
   type AdjustResult,
   type RunProgramAdjustment,
+  type RunProgramEffort,
   type RunProgramResponse,
   type UpsertRunProgramBody,
 } from '@workspace/shared';
@@ -25,10 +27,15 @@ const MAX_LOG_ENTRIES = 30;
 
 const workoutsSchema = z.array(runProgramWorkoutSchema);
 const logSchema = z.array(runProgramAdjustmentSchema);
+const effortSchema = z.array(runProgramEffortSchema);
+
+/** Most effort ratings kept per person. */
+const MAX_EFFORT_ENTRIES = 40;
 
 function mapRow(row: Record<string, unknown>): RunProgramResponse {
   const workouts = workoutsSchema.safeParse(row.workouts);
   const log = logSchema.safeParse(row.adjustment_log);
+  const effort = effortSchema.safeParse(row.effort_log);
   return {
     id: String(row.id),
     program_id: String(row.program_id),
@@ -36,6 +43,7 @@ function mapRow(row: Record<string, unknown>): RunProgramResponse {
     next_index: Number(row.next_index),
     workouts: workouts.success ? workouts.data : [],
     adjustment_log: log.success ? log.data : [],
+    effort_log: effort.success ? effort.data : [],
     run_days: Array.isArray(row.run_days)
       ? (row.run_days as number[]).map(Number)
       : [],
@@ -109,6 +117,7 @@ export async function upsertRunProgram(
            next_index = EXCLUDED.next_index,
            workouts = EXCLUDED.workouts,
            adjustment_log = '[]'::jsonb,
+           effort_log = '[]'::jsonb,
            -- A workout done under the old program does not count for the new one.
            last_done_date = NULL,
            run_days = COALESCE($6::smallint[], run_programs.run_days),
@@ -185,6 +194,54 @@ export async function completeRunProgramWorkout(
       [userId, index, programId ?? null, day ?? null]
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Records how hard finished workout `index` felt, replacing an earlier rating
+ * of the same workout. Only a workout already done (before the place) can be
+ * rated, and only under the program it belonged to. Returns null when there is
+ * no program or the workout does not qualify.
+ */
+export async function rateRunProgramWorkout(
+  userId: string,
+  index: number,
+  rating: number,
+  authenticatedUserId?: string,
+  programId?: string
+): Promise<RunProgramResponse | null> {
+  const client = await getClient(userId, authenticatedUserId);
+  try {
+    await client.query('BEGIN');
+    const current = await client.query(
+      `SELECT ${COLUMNS} FROM run_programs WHERE user_id = $1 FOR UPDATE`,
+      [userId]
+    );
+    const program = current.rows[0] ? mapRow(current.rows[0]) : null;
+    if (
+      !program ||
+      index >= program.next_index ||
+      (programId !== undefined && programId !== program.program_id)
+    ) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    const log: RunProgramEffort[] = [
+      ...program.effort_log.filter((entry) => entry.index !== index),
+      { index, rating, at: new Date().toISOString() },
+    ].slice(-MAX_EFFORT_ENTRIES);
+    const updated = await client.query(
+      `UPDATE run_programs SET effort_log = $2::jsonb, updated_at = NOW()
+       WHERE user_id = $1 RETURNING ${COLUMNS}`,
+      [userId, JSON.stringify(log)]
+    );
+    await client.query('COMMIT');
+    return mapRow(updated.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
   } finally {
     client.release();
   }

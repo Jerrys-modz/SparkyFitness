@@ -28,6 +28,7 @@ const program = (overrides: Partial<RunProgramResponse> = {}) =>
     next_index: 4,
     workouts: findProgram('beginner5k')!.workouts,
     adjustment_log: [],
+    effort_log: [],
     run_days: [],
     start_date: null,
     end_date: null,
@@ -44,6 +45,26 @@ describe('sparky_manage_run_program', () => {
     expect(await run({ action: 'get_run_program' })).toContain(
       'not following a run program'
     );
+  });
+
+  it('reports how recent workouts felt and suggests easing after two hard ones', async () => {
+    const at = '2026-10-09T10:00:00.000Z';
+    vi.mocked(getRunProgram).mockResolvedValue(
+      program({
+        effort_log: [
+          { index: 2, rating: 9, at },
+          { index: 3, rating: 8, at },
+        ],
+      })
+    );
+    const text = await run({ action: 'get_run_program' });
+    expect(text).toContain('workout 4: 8/10');
+    expect(text).toContain('felt hard');
+  });
+
+  it('says nothing about effort when none was rated', async () => {
+    vi.mocked(getRunProgram).mockResolvedValue(program());
+    expect(await run({ action: 'get_run_program' })).not.toContain('felt hard');
   });
 
   it('reports progress, the next workouts and recent changes', async () => {

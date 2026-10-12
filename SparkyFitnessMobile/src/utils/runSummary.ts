@@ -40,6 +40,8 @@ export interface RunSummaryParams {
     done: number;
     total: number;
     finished: boolean;
+    /** The finished workout the person can rate, when it was ticked off. */
+    rate?: { programId: string; index: number } | null;
   } | null;
 }
 
