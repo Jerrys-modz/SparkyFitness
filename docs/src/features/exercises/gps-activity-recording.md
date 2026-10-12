@@ -63,6 +63,8 @@ While recording, tap **Lap** to mark a lap, for example at the end of a hard int
 
 When you finish, the summary lists your laps and your splits per kilometer or mile. Each row has a bar, longer for a faster one, and the fastest is labelled, so a fading last kilometer or a strong negative split is easy to see. A short final stretch is shown but never counted as your fastest.
 
+**After you save**, a summary screen shows what the activity came to: distance, time, average pace, elevation gain and average heart rate (when you have them), the route on a map, and each split (or your laps) with its bar. For a training-program workout it also shows how far through the program you are and when the next workout falls, with a link to the program. Tap **Done** to close it. (Runs recorded on the watch alone have no summary screen.)
+
 **After you save**, a summary screen shows what the activity came to: distance, time, average pace, elevation gain and average heart rate (when you have them), the route on a map, and each split (or your laps) with its bar. For a training-program workout it also shows how far through the program you are and when the next workout falls, with a link to the program. Tap **Done** to close it.
 
 After saving, opening the activity from Exercise Statistics shows a **Pace** chart next to the route and heart rate: pace against distance, with faster stretches higher, and your best pace above it. It works for any activity with a GPS route, including imported ones, and leaves out the time you stood still.
@@ -217,3 +219,11 @@ After a program workout is saved, the summary asks how hard it was, from 1 (very
 **Library → Personal records** lists your best efforts at 1 km, 1 mile, 5 km, 10 km, 15 km, the half marathon and the marathon, grouped by sport (running, walking, cycling and so on). Records come from your recorded and imported cardio activities, are only compared within one sport, and are the same ones the web Reports page shows.
 
 When a run you just saved set one or more of them, the summary screen shows a **New personal record** card with the distance and time, and a link to the full list. A run recorded on the watch shows it too.
+
+## Correcting a treadmill distance
+
+A run recorded on the watch indoors has no route, so its distance is the watch's estimate from your arm and step motion, which can be off. On the summary screen (tap the "Run from your watch saved" message) a **Treadmill distance** card lets you enter what the machine showed. The distance, pace and lap distances update, and heart rate and calories are kept. Runs with a GPS route get their distance from the route and cannot be changed this way.
+
+## Following a watch run on the phone
+
+While you record a walk or run on the watch alone, the phone shows a bar above the tab bar (like a strength workout) with the clock, distance and pace. Tap it for a full view with heart rate, calories, laps and, if you follow a plan, the current step and what is next. It is a view only: pause and finish on the watch. It appears while the watch and phone are in range, goes away if the watch has been out of range for about 20 seconds, and the finished run is added to your diary as before.

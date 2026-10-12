@@ -422,6 +422,24 @@ export const updateExerciseEntry = async (
   });
 };
 
+/**
+ * Sets the distance of an entry that has no GPS track (a treadmill run) to the
+ * figure read off the machine. The server keeps everything else and scales any
+ * laps to match; it answers 409 for an entry that has a route.
+ */
+export const setExerciseEntryDistance = async (
+  id: string,
+  distanceKm: number
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(id)}/distance`,
+    serviceName: 'Exercise API',
+    operation: 'set exercise entry distance',
+    method: 'POST',
+    body: { distance_km: distanceKm },
+  });
+};
+
 export const getWorkout = async (
   id: string
 ): Promise<PresetSessionResponse> => {

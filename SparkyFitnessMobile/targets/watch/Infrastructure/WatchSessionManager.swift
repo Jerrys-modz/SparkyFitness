@@ -271,6 +271,22 @@ final class WatchSessionManager: NSObject, ObservableObject {
         ))
     }
 
+    /// The live view's figures for a wrist-only run: a message while the phone
+    /// is reachable, at most every couple of seconds unless `force`d (a status
+    /// change), and dropped otherwise. Never queued.
+    func sendRunLive(_ payload: [String: Any], force: Bool = false) {
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable else { return }
+        let now = Date()
+        if !force, let last = lastRunLiveAt, now.timeIntervalSince(last) < Self.runLiveInterval {
+            return
+        }
+        lastRunLiveAt = now
+        WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+    }
+
+    private static let runLiveInterval: TimeInterval = 2
+    private var lastRunLiveAt: Date?
+
     /// Hands a finished wrist-only walk or run to the phone to file in the
     /// diary. Queued like every message that must not be lost: the Health
     /// workout is already marked as handled, so this is the only copy.
@@ -655,6 +671,16 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "recordingState":
             if let update = ContextPayloadMapper.recordingUpdate(from: payload) {
                 RecordingStore.shared.apply(update)
+            }
+        case "runStart":
+            if let request = ContextPayloadMapper.runStartRequest(from: payload) {
+                WatchRunStore.shared.startRequested(request)
+            }
+        case "runControl":
+            if let control = ContextPayloadMapper.runControl(from: payload) {
+                WatchRunStore.shared.applyRemote(
+                    runId: control.runId, action: control.action, controlId: control.controlId
+                )
             }
         default: break
         }

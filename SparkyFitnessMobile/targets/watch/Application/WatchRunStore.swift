@@ -40,6 +40,14 @@ final class WatchRunStore: ObservableObject {
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
     private var stepTimer: Timer?
+    /// The phone's request this run answers, when it was started from there.
+    /// Sent with every live message so the phone can tell it is this run.
+    private var requestId: String?
+    /// Requests already acted on, so the queued and the immediate copy of one
+    /// start (and a redelivery) begin a single run.
+    private var handledRequests: [String] = []
+    private var handledControls: [String] = []
+    private var liveTimer: Timer?
     /// Whole km or miles already announced, so a split is cued once.
     private var cuedSplits = 0
     private var lastSplitElapsed: TimeInterval = 0
@@ -85,8 +93,39 @@ final class WatchRunStore: ObservableObject {
     /// the count, so it stays right across pauses.
     var elapsed: TimeInterval { healthKit.elapsed }
 
+    /// Starts the run the phone asked for. Ignored when this request was
+    /// already acted on, when it is old (a queued copy that sat for minutes
+    /// describes a moment the wearer has left), or when the watch is busy: one
+    /// workout session at a time, and it is not this request's to end.
+    func startRequested(_ request: WatchRunStartRequest) {
+        guard !handledRequests.contains(request.requestId) else { return }
+        handledRequests = Array((handledRequests + [request.requestId]).suffix(20))
+        guard abs(Date().timeIntervalSince(request.requestedAt)) <= 120 else { return }
+        guard canStart else { return }
+        start(request.kind, place: request.place, plan: request.plan)
+        // After `start`, which clears it for a run begun on the wrist.
+        if phase == .running { requestId = request.requestId }
+    }
+
+    /// A pause, resume, lap, finish or discard from the phone, for the run
+    /// that is going. Another run's id, or one already acted on, does nothing.
+    func applyRemote(runId: String, action: String, controlId: String) {
+        guard !handledControls.contains(controlId) else { return }
+        handledControls = Array((handledControls + [controlId]).suffix(40))
+        guard isActive, runId == healthKit.runId else { return }
+        switch action {
+        case "pause": pause()
+        case "resume": resume()
+        case "lap": lap()
+        case "finish": finish()
+        case "discard": discard()
+        default: break
+        }
+    }
+
     func start(_ kind: WatchRunKind, place: WatchRunPlace, plan: WatchRunPlan? = nil) {
         guard canStart else { return }
+        requestId = nil
         self.kind = kind
         self.place = place
         self.plan = plan
@@ -102,8 +141,10 @@ final class WatchRunStore: ObservableObject {
                 guard let self, self.phase == .running else { return }
                 if self.healthKit.start(kind, place: place, plan: plan) {
                     self.startStepTimer()
+                    self.startLiveTimer()
                 } else {
                     self.phase = .idle
+                    self.requestId = nil
                     self.plan = nil
                 }
             }
@@ -141,6 +182,7 @@ final class WatchRunStore: ObservableObject {
                     let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
                     self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
                     self.startStepTimer()
+                    self.startLiveTimer()
                     // Splits passed while the app was gone are not replayed.
                     self.cuedSplits = WatchRunCues.completedSplits(
                         distanceMeters: recovery.metrics.distanceMeters,
@@ -175,6 +217,7 @@ final class WatchRunStore: ObservableObject {
         phase = .paused
         autoPaused = false
         healthKit.pause()
+        pushLive(force: true)
     }
 
     func resume() {
@@ -182,6 +225,7 @@ final class WatchRunStore: ObservableObject {
         phase = .running
         autoPaused = false
         healthKit.resume()
+        pushLive(force: true)
     }
 
     /// Marks a lap at this moment; the phone cuts the saved route there.
@@ -190,7 +234,51 @@ final class WatchRunStore: ObservableObject {
         if healthKit.markLap() {
             lapCount = healthKit.lapCount
             Haptics.step()
+            pushLive(force: true)
         }
+    }
+
+    /// Sends the phone's live view the current figures every couple of seconds
+    /// while a run is going, and at once when its status changes.
+    private func startLiveTimer() {
+        stopLiveTimer()
+        let timer = Timer(timeInterval: 3, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.pushLive() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        liveTimer = timer
+        pushLive(force: true)
+    }
+
+    private func stopLiveTimer() {
+        liveTimer?.invalidate()
+        liveTimer = nil
+    }
+
+    private func pushLive(force: Bool = false, ended: Bool = false) {
+        guard ended || phase == .running || phase == .paused else { return }
+        let elapsed = healthKit.elapsed
+        let position = plan?.position(at: elapsed)
+        let step = (position?.finished ?? true) ? nil : position
+        WatchSessionManager.shared.sendRunLive(
+            OutboundPayloads.runLive(
+                runId: healthKit.runId,
+                kind: kind.rawValue,
+                place: place.rawValue,
+                status: ended ? "ended" : (phase == .paused ? "paused" : "running"),
+                autoPaused: autoPaused,
+                elapsed: elapsed,
+                distanceMeters: metrics.distanceMeters,
+                heartRate: metrics.heartRate,
+                energyKcal: metrics.activeEnergyKcal,
+                lapCount: lapCount,
+                stepLabel: step?.label,
+                stepRemaining: step?.remaining,
+                nextLabel: step?.next,
+                requestId: requestId
+            ),
+            force: force
+        )
     }
 
     private func startStepTimer() {
@@ -264,12 +352,14 @@ final class WatchRunStore: ObservableObject {
             autoPaused = true
             healthKit.pause(automatic: true)
             WKInterfaceDevice.current().play(.stop)
+            pushLive(force: true)
         case .resume:
             guard phase == .paused, autoPaused else { return }
             phase = .running
             autoPaused = false
             healthKit.resume()
             WKInterfaceDevice.current().play(.start)
+            pushLive(force: true)
         case .none:
             break
         }
@@ -283,6 +373,8 @@ final class WatchRunStore: ObservableObject {
 
     func dismissSummary() {
         stopStepTimer()
+        stopLiveTimer()
+        requestId = nil
         plan = nil
         lapCount = 0
         autoPaused = false
@@ -293,10 +385,12 @@ final class WatchRunStore: ObservableObject {
     private func end(save: Bool) {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
+        stopLiveTimer()
         // Finish tapped while the Health prompts were still up: nothing was
         // ever recorded, so there is nothing to save.
         guard healthKit.hasLiveSession else {
             autoPaused = false
+            requestId = nil
             plan = nil
             phase = .idle
             return
@@ -304,6 +398,8 @@ final class WatchRunStore: ObservableObject {
         let ending = kind
         let endingPlace = place
         autoPaused = false
+        pushLive(force: true, ended: true)
+        stopLiveTimer()
         healthKit.end(save: save) { [weak self] metrics, elapsed, result in
             Task { @MainActor in
                 guard let self else { return }
@@ -318,6 +414,7 @@ final class WatchRunStore: ObservableObject {
                     self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished
                 } else {
+                    self.requestId = nil
                     self.plan = nil
                     self.phase = .idle
                 }
@@ -328,8 +425,10 @@ final class WatchRunStore: ObservableObject {
     private func sessionFailed(_ result: WatchRunResult?) {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
+        stopLiveTimer()
         autoPaused = false
         guard let result else {
+            requestId = nil
             plan = nil
             phase = .idle
             return

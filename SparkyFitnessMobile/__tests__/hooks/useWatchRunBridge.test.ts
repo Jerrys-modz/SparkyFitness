@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { useWatchRunBridge } from '../../src/hooks/useWatchRunBridge';
 import { usePreferences } from '../../src/hooks/usePreferences';
+import WatchConnectivity from '../../modules/watch-connectivity';
+import { useWatchRunLiveStore } from '../../src/stores/watchRunLiveStore';
 import {
   hasQueuedWatchRuns,
   processWatchRunQueue,
@@ -82,4 +84,40 @@ test('schedules another try in a minute while a run is still queued, and not onc
   expect(timeout).not.toHaveBeenCalledWith(expect.any(Function), 60_000);
   unmount();
   timeout.mockRestore();
+});
+
+test('shows a run the watch is recording and clears it when the run finishes', async () => {
+  prefs.mockReturnValue({
+    preferences: { default_distance_unit: 'km' },
+  } as never);
+  const listeners: Record<string, (payload: never) => void> = {};
+  jest.mocked(WatchConnectivity!.addListener).mockImplementation(((
+    name: string,
+    fn: (payload: never) => void
+  ) => {
+    listeners[name] = fn;
+    return { remove: jest.fn() };
+  }) as never);
+  useWatchRunLiveStore.getState().clear();
+  renderHook(() => useWatchRunBridge(true, true));
+  await flush();
+
+  act(() =>
+    listeners.onRunLive({
+      runId: 'r1',
+      kind: 'run',
+      place: 'indoor',
+      status: 'running',
+      autoPaused: false,
+      elapsed: 60,
+      distanceMeters: 200,
+      energyKcal: 10,
+      lapCount: 0,
+      sentAt: Date.now(),
+    } as never)
+  );
+  expect(useWatchRunLiveStore.getState().run?.runId).toBe('r1');
+
+  act(() => listeners.onRunFinished({ clientId: '' } as never));
+  expect(useWatchRunLiveStore.getState().run).toBeNull();
 });
