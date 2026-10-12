@@ -170,6 +170,11 @@ export interface WatchContextPayload {
   /** Whether the watch asks for an RPE after each logged set. */
   rpeEnabled?: boolean | null;
   /**
+   * The Record screen's Voice cues switch. A run recorded from the wrist alone
+   * speaks each completed km or mile while this is on. Missing reads as off.
+   */
+  runVoiceCues?: boolean | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.

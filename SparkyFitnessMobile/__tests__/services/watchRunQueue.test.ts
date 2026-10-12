@@ -64,3 +64,17 @@ test('drops a run the server will never accept', async () => {
   expect(await processWatchRunQueue('km')).toEqual([]);
   expect(mockedSave).toHaveBeenCalledTimes(1);
 });
+
+test('files a run that arrives while another is being filed', async () => {
+  await enqueueWatchRun(run('d'));
+  mockedSave.mockImplementationOnce(async () => {
+    await enqueueWatchRun(run('e'));
+    return 'entry-d';
+  });
+  mockedSave.mockResolvedValueOnce('entry-e');
+  const filed = processWatchRunQueue('km');
+  // A second trigger while the first is running joins it.
+  expect(await processWatchRunQueue('km')).toEqual(await filed);
+  expect(mockedSave).toHaveBeenCalledTimes(2);
+  expect(await filed).toHaveLength(2);
+});
