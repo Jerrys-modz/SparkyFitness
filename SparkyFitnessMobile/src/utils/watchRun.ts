@@ -23,6 +23,13 @@ export interface WatchRunPayload {
   heartRate: number[][];
   /** Epoch ms of each Lap press on the watch, oldest first. */
   laps: number[];
+  /** Cumulative metres at each lap mark, same order; empty when not sent. */
+  lapDistances: number[];
+  /** The plan the run followed, if any, and whether it reached the last step. */
+  planId: string | null;
+  /** A training-program workout the run was (program id and 0-based index). */
+  program: { id: string; index: number } | null;
+  planCompleted: boolean;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -69,6 +76,18 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
       : 0,
     route: rows(p.route, 6),
     heartRate: rows(p.heartRate, 2),
+    planId: typeof p.planId === 'string' && p.planId ? p.planId : null,
+    program:
+      typeof p.programId === 'string' &&
+      p.programId &&
+      finite(p.programIndex) &&
+      p.programIndex >= 0
+        ? { id: p.programId, index: Math.floor(p.programIndex) }
+        : null,
+    planCompleted: p.planCompleted === true,
+    lapDistances: Array.isArray(p.lapDistances)
+      ? p.lapDistances.filter(finite)
+      : [],
     laps: Array.isArray(p.laps)
       ? p.laps.filter(finite).sort((a, b) => a - b)
       : [],
@@ -94,4 +113,59 @@ export function watchRunPoints(payload: WatchRunPayload): RecordedPoint[] {
       seg,
     }))
     .sort((a, b) => a.t - b.t);
+}
+
+/** A lap for an entry with no route: a time window and what was covered in it. */
+export interface WatchRunLapWindow {
+  lap_index: number;
+  start_time: string;
+  end_time: string;
+  distance_meters?: number;
+  avg_heart_rate?: number;
+}
+
+/**
+ * Cuts a run at the wearer's lap marks: from the start to the first mark, mark
+ * to mark, and the last mark to the end. Used for indoor runs, which have no
+ * route to derive laps from. The distance of each lap is the difference of
+ * the distances recorded at the marks (the whole run's distance closes the
+ * last one); it is left out when the watch did not send one per mark. The
+ * average heart rate is taken from the readings inside the window.
+ */
+export function indoorLapWindows(
+  payload: WatchRunPayload
+): WatchRunLapWindow[] {
+  const marks = payload.laps.filter(
+    (t) => t > payload.startedAt && t < payload.endedAt
+  );
+  if (marks.length === 0) return [];
+  const edges = [payload.startedAt, ...marks, payload.endedAt];
+  const distances =
+    payload.lapDistances.length === payload.laps.length &&
+    marks.length === payload.laps.length
+      ? [0, ...payload.lapDistances, payload.distanceMeters]
+      : null;
+  const windows: WatchRunLapWindow[] = [];
+  for (let i = 0; i < edges.length - 1; i++) {
+    const start = edges[i];
+    const end = edges[i + 1];
+    const lap: WatchRunLapWindow = {
+      lap_index: i + 1,
+      start_time: new Date(start).toISOString(),
+      end_time: new Date(end).toISOString(),
+    };
+    if (distances) {
+      lap.distance_meters = Math.max(0, distances[i + 1] - distances[i]);
+    }
+    const readings = payload.heartRate
+      .filter(([t]) => t >= start && t < end)
+      .map(([, bpm]) => bpm);
+    if (readings.length > 0) {
+      lap.avg_heart_rate = Math.round(
+        readings.reduce((sum, bpm) => sum + bpm, 0) / readings.length
+      );
+    }
+    windows.push(lap);
+  }
+  return windows;
 }

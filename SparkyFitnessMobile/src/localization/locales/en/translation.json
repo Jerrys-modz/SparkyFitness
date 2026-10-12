@@ -7127,7 +7127,10 @@
     "effortHigh": "10 = all out",
     "rateFailed": "Could not save how hard that was.",
     "easeSuggestion": "Two hard workouts in a row. Repeating this one is a good way to build up safely.",
-    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on."
+    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on.",
+    "watchRunSaved": "Run from your watch saved",
+    "watchWalkSaved": "Walk from your watch saved",
+    "tapForSummary": "Tap to see the summary"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",

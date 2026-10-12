@@ -175,6 +175,20 @@ export interface WatchContextPayload {
    */
   runVoiceCues?: boolean | null;
   /**
+   * Plans a wrist-only run can follow: the training-program workout due now
+   * (carrying `programId`/`programIndex`) then the built-in interval plans,
+   * with step names already translated. Missing keeps the watch's last list.
+   */
+  runPlans?: {
+    id: string;
+    name: string;
+    programId?: string;
+    programIndex?: number;
+    /** 'walk' for a walking program; missing is a run. */
+    activity?: 'walk';
+    steps: { label: string; seconds: number }[];
+  }[];
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.
@@ -705,6 +719,15 @@ export interface WatchRunFinishedPayload {
   heartRate: number[][];
   /** Epoch ms of each Lap press. Missing on a payload from an older watch build. */
   laps?: number[];
+  /** Metres covered at each lap mark, same order (an indoor run's laps use these). */
+  lapDistances: number[];
+  /** The plan the run followed, if any. */
+  planId: string;
+  /** Set when the plan was a training-program workout. */
+  programId: string;
+  programIndex: number;
+  /** Whether the run reached the plan's last step. */
+  planCompleted: boolean;
 }
 
 export type WatchConnectivityEvents = {

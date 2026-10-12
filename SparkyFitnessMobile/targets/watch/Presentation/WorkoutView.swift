@@ -198,9 +198,9 @@ private struct WaitingForWorkoutView: View {
             workoutPicker
         }
         .sheet(isPresented: $choosingCardio) {
-            CardioChoicesView { kind, place in
+            CardioChoicesView(plans: checkIn.context.runPlans ?? []) { kind, place, plan in
                 choosingCardio = false
-                run.start(kind, place: place)
+                run.start(kind, place: place, plan: plan)
             }
         }
     }
@@ -2065,17 +2065,48 @@ private extension View {
 /// Indoor. Outdoors uses the watch's GPS and records a route; indoors there is
 /// no route and the distance is the watch's own estimate.
 private struct CardioChoicesView: View {
-    let onChoose: (WatchRunKind, WatchRunPlace) -> Void
+    /// Plans from the phone: the training-program workout due, then the
+    /// built-in interval plans. Empty until the phone has said.
+    let plans: [WatchRunPlan]
+    let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?) -> Void
+
+    /// The plan whose place (outdoor or indoor) is being chosen.
+    @State private var planning: WatchRunPlan?
 
     var body: some View {
-        List {
-            Section("Outdoor") {
-                row(.run, .outdoor)
-                row(.walk, .outdoor)
+        if let planning {
+            List {
+                Section(planning.name) {
+                    placeRow(planning, .outdoor)
+                    placeRow(planning, .indoor)
+                    Button("Back") {
+                        Haptics.tap()
+                        self.planning = nil
+                    }
+                }
             }
-            Section("Indoor") {
-                row(.run, .indoor)
-                row(.walk, .indoor)
+        } else {
+            List {
+                Section("Outdoor") {
+                    row(.run, .outdoor)
+                    row(.walk, .outdoor)
+                }
+                Section("Indoor") {
+                    row(.run, .indoor)
+                    row(.walk, .indoor)
+                }
+                if !plans.isEmpty {
+                    Section("Follow a plan") {
+                        ForEach(plans) { plan in
+                            Button {
+                                Haptics.tap()
+                                planning = plan
+                            } label: {
+                                Label(plan.name, systemImage: plan.programId == nil ? "timer" : "calendar")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -2083,9 +2114,19 @@ private struct CardioChoicesView: View {
     private func row(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
         Button {
             Haptics.tap()
-            onChoose(kind, place)
+            onChoose(kind, place, nil)
         } label: {
             Label(kind == .run ? "Run" : "Walk", systemImage: kind.symbol)
+        }
+    }
+
+    /// A plan is a run unless the phone says it is a walk (the walking program); the steps say when to ease off.
+    private func placeRow(_ plan: WatchRunPlan, _ place: WatchRunPlace) -> some View {
+        Button {
+            Haptics.tap()
+            onChoose(plan.kind, place, plan)
+        } label: {
+            Label(place.label, systemImage: plan.kind.symbol)
         }
     }
 }

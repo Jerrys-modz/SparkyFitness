@@ -13,6 +13,7 @@ import {
   instantToDay,
   setsDurationMinutes,
   type AttachExerciseEntryGpsTrackRequest,
+  type AttachExerciseEntryLapsRequest,
   type HeartRateSampleRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
@@ -546,13 +547,101 @@ async function attachGpsTrackToExerciseEntry(
   }
 }
 
+/**
+ * Stores laps for an entry that has no GPS track (a treadmill run recorded on
+ * the watch): the marked windows with the estimated distance of each. Sending
+ * the same laps again replaces them by lap index.
+ */
+async function attachLapsToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  body: AttachExerciseEntryLapsRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  const entry =
+    ownerId === userId
+      ? await exerciseEntryRepository.getExerciseEntryById(
+          exerciseEntryId,
+          userId
+        )
+      : null;
+  const entryDate: string | undefined = entry?.entry_date;
+  if (!entryDate) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const laps = body.laps.map((lap) => {
+    const seconds = Math.round(
+      (Date.parse(lap.end_time) - Date.parse(lap.start_time)) / 1000
+    );
+    return {
+      user_id: userId,
+      exercise_entry_id: exerciseEntryId,
+      entry_date: entryDate,
+      lap_index: lap.lap_index,
+      start_time: new Date(lap.start_time),
+      end_time: new Date(lap.end_time),
+      duration_seconds: seconds,
+      distance_meters: lap.distance_meters,
+      avg_heart_rate: lap.avg_heart_rate,
+      avg_speed_mps:
+        lap.distance_meters && seconds > 0
+          ? lap.distance_meters / seconds
+          : undefined,
+    };
+  });
+
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query('BEGIN');
+    // An entry with a GPS track gets its laps from that track; mixing the two
+    // sources would leave a lap list that matches neither.
+    const track = (await client.query(
+      'SELECT 1 FROM exercise_entry_gps_points WHERE exercise_entry_id = $1 LIMIT 1',
+      [exerciseEntryId]
+    )) as { rows: unknown[] };
+    if (track.rows.length > 0) {
+      const error = new Error(
+        'This entry has a GPS track; post its laps with the track instead.'
+      );
+      // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+      error.status = 409;
+      throw error;
+    }
+    // The posted laps are the whole list: a corrected re-post replaces it.
+    await client.query(
+      'DELETE FROM exercise_entry_laps WHERE exercise_entry_id = $1',
+      [exerciseEntryId]
+    );
+    await workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient(
+      client,
+      userId,
+      laps
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
+  attachLapsToExerciseEntry,
 };
 export default {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
+  attachLapsToExerciseEntry,
 };
