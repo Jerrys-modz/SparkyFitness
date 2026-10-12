@@ -82,3 +82,15 @@ test('passes the program progress through', () => {
   };
   expect(watchRunSummary(outdoor, 'km', program).program).toEqual(program);
 });
+
+test('lets the person correct the distance of a treadmill run once it is filed', () => {
+  const indoor = { ...outdoor, place: 'indoor' as const, route: [] };
+  expect(watchRunSummary(indoor, 'km', null, 'entry-1').editableDistance).toBe(
+    true
+  );
+  // Not filed yet, or outdoors where the route gives the distance.
+  expect(watchRunSummary(indoor, 'km', null).editableDistance).toBe(false);
+  expect(watchRunSummary(outdoor, 'km', null, 'entry-1').editableDistance).toBe(
+    false
+  );
+});
