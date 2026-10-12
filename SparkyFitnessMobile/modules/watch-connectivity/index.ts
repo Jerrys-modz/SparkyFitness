@@ -629,6 +629,24 @@ export interface WatchFastEndRequestPayload {
   clientId: string;
 }
 
+/**
+ * A walk or run recorded on the watch alone, sent once when it finishes. The
+ * shape is `WatchRunPayload` in `src/utils/watchRun.ts`; this is the loose
+ * wire type and the phone validates it before use.
+ */
+export interface WatchRunFinishedPayload {
+  clientId: string;
+  kind: string;
+  place: string;
+  startedAt: number;
+  endedAt: number;
+  activeSeconds: number;
+  distanceMeters: number;
+  activeEnergyKcal: number;
+  route: number[][];
+  heartRate: number[][];
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -650,6 +668,7 @@ export type WatchConnectivityEvents = {
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
   onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
   onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
+  onRunFinished: (payload: WatchRunFinishedPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
