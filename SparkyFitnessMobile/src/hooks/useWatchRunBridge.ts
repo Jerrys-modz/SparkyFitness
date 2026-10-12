@@ -79,7 +79,11 @@ export function useWatchRunBridge(
     const pending = WatchConnectivity.pendingWatchRuns.bind(WatchConnectivity);
     const ack = WatchConnectivity.ackWatchRuns.bind(WatchConnectivity);
     void pending()
-      .then((runs) => acceptPendingWatchRuns(runs, enqueueWatchRun, ack))
+      .then(async (runs) => {
+        await acceptPendingWatchRuns(runs, enqueueWatchRun, ack);
+        // The connection effect may already have drained an empty queue.
+        await drain.current().catch(() => undefined);
+      })
       .catch((error: unknown) =>
         addLog(
           `[Watch Run] Could not read runs queued on the phone: ${error instanceof Error ? error.message : String(error)}`,
