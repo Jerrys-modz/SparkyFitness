@@ -151,6 +151,9 @@ export async function saveRecordedActivity(
             startedAt: session.startedAt,
             finishedAt: session.finishedAt,
             activeSeconds: durationSeconds,
+            ...(session.stepCounterAtStart != null && {
+              stepCounterAtStart: session.stepCounterAtStart,
+            }),
           },
           (distanceKm ?? 0) * METERS_PER_KM
         );

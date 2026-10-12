@@ -32,6 +32,7 @@ export function useIndoorDistanceEstimate(
   const startedAt = eligible ? session.startedAt : null;
   const finishedAt = eligible ? session.finishedAt : null;
   const activeSeconds = eligible ? elapsedSeconds(session) : 0;
+  const stepCounterAtStart = eligible ? session.stepCounterAtStart : undefined;
 
   useEffect(() => {
     if (id == null || activity == null) return;
@@ -42,13 +43,14 @@ export function useIndoorDistanceEstimate(
       startedAt,
       finishedAt,
       activeSeconds,
+      ...(stepCounterAtStart != null && { stepCounterAtStart }),
     }).then((estimate) => {
       if (active) setResult({ id, estimate });
     });
     return () => {
       active = false;
     };
-  }, [id, activity, startedAt, finishedAt, activeSeconds]);
+  }, [id, activity, startedAt, finishedAt, activeSeconds, stepCounterAtStart]);
 
   return result != null && result.id === id ? result.estimate : null;
 }

@@ -31,7 +31,7 @@ When you tap **Finish**, you can enter the distance your treadmill or machine sh
 
 ### Estimated distance and learning your stride
 
-On an iPhone, the distance field is filled in for you from your phone's step count and your stride length. The first time, iOS asks for Motion & Fitness access so SparkyFitness can read your steps. Paused time is left out.
+On an iPhone or Android, the distance field is filled in for you from your phone's step count and your stride length. The first time, iOS asks for Motion & Fitness access when you finish, and Android asks for physical activity access when you start. Paused time is left out.
 
 A phone can't measure treadmill distance exactly, so treat the estimate as a starting point:
 
@@ -39,7 +39,7 @@ A phone can't measure treadmill distance exactly, so treat the estimate as a sta
 - **Change it to match your treadmill.** When you correct the distance, the app works out your stride from it and uses that next time. It learns walking and running separately, and the estimate gets closer over a few sessions. If you leave the estimate as it is, nothing is learned.
 - **Outdoor recordings help too.** A saved outdoor walk or run, whose GPS distance is known, also teaches the app your stride if you've already allowed Motion & Fitness access. It never asks for access just to learn.
 
-Your stride is kept on your phone only. On Android, or if you don't allow access, the field starts empty and you type the distance. There's no step estimate for a ride.
+Your stride is kept on your phone only. If you don't allow access, or an Android phone restarts during the session, the field starts empty and you type the distance. There's no step estimate for a ride.
 
 The saved activity is logged as **Indoor Walking**, **Indoor Running** or **Indoor Cycling**, and has no route or splits.
 

@@ -14,6 +14,11 @@ export interface StepWindow {
   finishedAt: number;
   /** Time on the clock, with pauses removed. */
   activeSeconds: number;
+  /**
+   * Android hardware counter at the start of the session. Omitted on iOS,
+   * which queries the window instead.
+   */
+  stepCounterAtStart?: number;
 }
 
 export interface IndoorDistanceEstimate {
@@ -32,6 +37,9 @@ async function activeSteps(
   if (!isStepActivity(window.activity)) return null;
   const steps = await getStepsBetween(window.startedAt, window.finishedAt, {
     askForPermission,
+    ...(window.stepCounterAtStart != null && {
+      stepCounterAtStart: window.stepCounterAtStart,
+    }),
   });
   if (steps == null) return null;
   const share = activeShare(
@@ -46,8 +54,8 @@ const MIN_STEPS_FOR_ESTIMATE = 20;
 
 /**
  * A distance for an indoor walk or run from the phone's step count and the
- * person's stride, or null when it cannot be worked out (a ride, an Android
- * phone, Motion & Fitness refused, or too few steps).
+ * person's stride, or null when it cannot be worked out (a ride, access
+ * refused, no reading from the start, or too few steps).
  */
 export async function estimateIndoorDistance(
   window: StepWindow
