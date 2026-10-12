@@ -670,6 +670,7 @@ export function markLap(pressedAt?: number): Promise<number | null> {
     await persistSession();
     publish();
     if (session.audioCues) {
+      const unit = session.audioCues;
       const marked = computeLaps(points, session.laps ?? []);
       const lastPointT = points[points.length - 1]?.t;
       // A mark after the newest fix is not a boundary of its own. Only the
@@ -700,7 +701,7 @@ export function markLap(pressedAt?: number): Promise<number | null> {
             number: lap.index,
             distanceMeters: lap.distanceMeters,
             seconds: lap.durationSeconds,
-            unit: session.audioCues,
+            unit,
           })
         );
       }
